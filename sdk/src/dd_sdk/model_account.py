@@ -31,7 +31,7 @@ from opentelemetry.trace import Span
 from dd_sdk.agent import AgentResult
 from dd_sdk.contract.models import ModelAccount, ModelCall, Outcome, OutcomeStatus, ReasonCode
 from dd_sdk.model_grant import HEADER_ACCOUNT, HEADER_PROVIDER, HEADER_REASON
-from dd_sdk.tracing import ATTR_MODEL_ACCOUNT
+from dd_sdk.tracing import ATTR_MODEL_ACCOUNT, ATTR_MODEL_DECLARED
 
 # The broker's reason codes for a person's own account (`dd_broker.reasons`), and the run's.
 REFUSALS: dict[str, ReasonCode] = {
@@ -57,6 +57,9 @@ _PAYER: ContextVar[ModelAccount | None] = ContextVar("dd_model_payer", default=N
 # Which provider served that call, if the broker said: a provider name, never free text.
 _PROVIDER: ContextVar[str | None] = ContextVar("dd_model_provider", default=None)
 _PROVIDER_NAME = re.compile(r"[a-z][a-z0-9-]{0,63}")
+# The model the agent's card declared, when the model map routed the call about to be made, or
+# just made, to another model (docs/specs/model-accounts.md, The route).
+_DECLARED: ContextVar[str | None] = ContextVar("dd_model_declared", default=None)
 
 
 @dataclass
@@ -107,10 +110,29 @@ def take_provider() -> str | None:
     return provider
 
 
+def routed(declared: str | None) -> None:
+    """Note that the call about to be made was routed from the model the card `declared`, or,
+    with None, that it was not. The model seam's router calls it before every call it makes."""
+    _DECLARED.set(declared)
+
+
+def take_declared() -> str | None:
+    """The declared model the call just answered was routed from, or None if it was not routed,
+    and forget it, so that the next call is not recorded as routed."""
+    declared = _DECLARED.get()
+    _DECLARED.set(None)
+    return declared
+
+
 def record_account(span: Span) -> ModelAccount:
-    """Set `dd.model_account` on a `chat` span from the call just answered, and return it."""
+    """Set `dd.model_account` on a `chat` span from the call just answered, and
+    `dd.model_declared` if the call was routed from another model, and return whose account
+    paid."""
     payer = current()
     span.set_attribute(ATTR_MODEL_ACCOUNT, payer.value)
+    declared = _DECLARED.get()
+    if declared is not None:
+        span.set_attribute(ATTR_MODEL_DECLARED, declared)
     return payer
 
 
@@ -129,9 +151,11 @@ def bind_run() -> Iterator[RunCalls]:
     token = _RUN.set(run)
     payer = _PAYER.set(None)
     provider = _PROVIDER.set(None)
+    declared = _DECLARED.set(None)
     try:
         yield run
     finally:
+        _DECLARED.reset(declared)
         _PROVIDER.reset(provider)
         _PAYER.reset(payer)
         _RUN.reset(token)

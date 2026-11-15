@@ -1401,7 +1401,7 @@
       },
       "ModelCall": {
          "additionalProperties": false,
-         "description": "One call an agent made to a language model, as the agent reports it (docs/specs/disclosure.md). model_id is the model the provider's response named, which may be more exact than the one configured. prompt_digest identifies the messages sent: the harness keeps them beside the run, never in the envelope, and checks that they hash to it. model_account says whose account paid for the call, never whose key (docs/specs/model-accounts.md).",
+         "description": "One call an agent made to a language model, as the agent reports it (docs/specs/disclosure.md). model_id is the model the provider's response named, which may be more exact than the one configured. prompt_digest identifies the messages sent: the harness keeps them beside the run, never in the envelope, and checks that they hash to it. model_account says whose account paid for the call, never whose key, and model_declared the model the agent's card declared, when the profile's model map routed the call to another (docs/specs/model-accounts.md).",
          "properties": {
             "model_provider": {
                "description": "Who served the call: the provider the model broker reports, or else the provider as the agent's card names it (anthropic).",
@@ -1442,6 +1442,13 @@
                   }
                ],
                "description": "Whose account paid for a model call, as the model broker reports it: a person's own or the deployment's. Never names the account, its key or its holder. Absent only in runs recorded before contract 0.10.0."
+            },
+            "model_declared": {
+               "description": "The model the agent's card declared, on a call the profile's model map routed to another model, which model_id and model_provider then name. Absent for every other call, and in runs recorded before contract 0.11.0.",
+               "type": [
+                  "string",
+                  "null"
+               ]
             }
          },
          "required": [
@@ -2711,5 +2718,5 @@
    ],
    "title": "data_director_core",
    "type": "object",
-   "version": "0.10.1"
+   "version": "0.11.0"
 }

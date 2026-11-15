@@ -68,7 +68,8 @@ function Reason({ code }: { code: string | null | undefined }) {
   );
 }
 
-/** Each model call the run recorded, and whose account paid for it, never whose. */
+/** Each model call the run recorded, the model it was routed from if the profile's model map
+ * routed it, and whose account paid for it, never whose. */
 function ModelCalls({ calls }: { calls: ModelCall[] }) {
   if (calls.length === 0) return <dd>None</dd>;
   return (
@@ -76,7 +77,14 @@ function ModelCalls({ calls }: { calls: ModelCall[] }) {
       <ul className="model-calls">
         {calls.map((c, i) => (
           <li key={`${c.prompt_digest}-${i}`}>
-            <code>{c.model_id}</code>, paid for by{" "}
+            <code>{c.model_id}</code>
+            {c.model_declared ? (
+              <>
+                {" "}
+                in place of <code>{c.model_declared}</code>
+              </>
+            ) : null}
+            , paid for by{" "}
             {c.model_account
               ? MODEL_ACCOUNT[c.model_account]
               : "an account the run did not record"}

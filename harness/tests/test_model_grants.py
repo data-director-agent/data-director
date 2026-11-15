@@ -5,6 +5,7 @@ metadata alone; and the broker can verify it against the harness's published key
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -40,6 +41,7 @@ from dd_harness.testing import (
     send_to_harness,
 )
 from dd_harness.transport.a2a import a2a_routes
+from dd_sdk import model_account
 from dd_sdk.agent import AgentResult, ModelUse, RunContext
 from dd_sdk.contract.models import (
     GroundingMode,
@@ -682,6 +684,59 @@ def test_a_refused_own_account_ends_the_run_abstained_with_its_calls_recorded(
     by_id = {e["@id"]: e for e in crate["@graph"]}
     [action] = [e for e in crate["@graph"] if "additionalProperty" in e]
     assert by_id[action["additionalProperty"]["@id"]]["value"] == ModelAccount.OWN.value
+
+
+@pytest.mark.parametrize("remote", [True, False])
+def test_a_routed_call_records_the_declared_model_in_the_envelope_and_the_crate(
+    keys: GrantKeys, tmp_path: Path, remote: bool
+) -> None:
+    """docs/specs/model-accounts.md, invariant 9: a call the model map routed records the model
+    the card declared beside the one that served it; an unrouted call does not."""
+
+    def behaviour(req: InvocationRequest, ctx: RunContext) -> AgentResult:
+        calls = ModelCallLog("anthropic")
+        model_account.routed(MODEL)
+        calls.record({"messages": [{"role": "user", "content": "hi"}]}, "gpt-test")
+        calls.record({"messages": [{"role": "user", "content": "again"}]}, MODEL)
+        return replace(review_of_input(req, ctx), model_calls=calls.calls, prompts=calls.prompts)
+
+    agent = ScriptedAgent(
+        GroundingMode.NONE, behaviour, models=(ModelUse("anthropic", MODEL, "hosted"),)
+    )
+    runs = tmp_path / "runs"
+    conductor = make_conductor(runs, agent, crate=True, remote=remote, model_grants=keys.minter())
+
+    env = conductor.invoke(request("fake.none", record()), acting_for=TEST_PRINCIPAL)
+
+    assert env.outcome.status is OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert [c.model_declared for c in env.telemetry.model_calls] == [MODEL, None]
+    crate = json.loads(
+        (runs / env.invocation_id / "crate" / "ro-crate-metadata.json").read_text(encoding="utf-8")
+    )
+    by_id = {e["@id"]: e for e in crate["@graph"]}
+    actions = sorted(
+        (
+            e
+            for e in crate["@graph"]
+            if e.get("@type") == "CreateAction" and "model-call" in e["@id"]
+        ),
+        key=lambda e: e["@id"],
+    )
+    named = [
+        {
+            by_id[p["@id"]]["name"]: by_id[p["@id"]]["value"]
+            for p in (
+                a["additionalProperty"]
+                if isinstance(a["additionalProperty"], list)
+                else [a["additionalProperty"]]
+            )
+        }
+        for a in actions
+    ]
+    assert named == [
+        {"model_account": "deployment", "model_declared": MODEL},
+        {"model_account": "deployment"},
+    ]
 
 
 # --- The published keys ------------------------------------------------------------------------

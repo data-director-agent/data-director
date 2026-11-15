@@ -790,7 +790,8 @@ class ModelCall(Frozen):
     """One call an agent made to a language model, as it reports it (docs/specs/disclosure.md).
     `prompt_digest` names the messages sent; the harness keeps them beside the run.
     `model_account` says whose account paid, never whose key; it is absent only in runs recorded
-    before contract 0.10.0."""
+    before contract 0.10.0. `model_declared` is the model the agent's card declared, on a call the
+    profile's model map routed to another model; it is absent for every other call."""
 
     model_provider: str
     model_id: str
@@ -799,6 +800,7 @@ class ModelCall(Frozen):
     input_tokens: int | None = None
     output_tokens: int | None = None
     model_account: ModelAccount | None = None
+    model_declared: str | None = None
 
 
 class Telemetry(Frozen):

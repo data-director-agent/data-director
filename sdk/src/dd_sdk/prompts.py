@@ -60,11 +60,13 @@ class ModelCallLog:
         """Record one call. `model_id` is the model the provider's response named, where it
         names one. `account` is whose account paid; by default, what the broker said of the call
         just answered (`dd_sdk.model_account`). The provider is the one the broker said served the
-        call, or else this log's. Returns the call recorded."""
+        call, or else this log's. A call the model map routed to another model also records the
+        model the card declared. Returns the call recorded."""
         digest = prompt_digest(prompt)
         # Taken whether or not `account` is given, so that no later call inherits them.
         reported = model_account.take()
         served_by = model_account.take_provider()
+        declared = model_account.take_declared()
         call = ModelCall(
             model_provider=served_by or self.provider,
             model_id=model_id,
@@ -73,6 +75,7 @@ class ModelCallLog:
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             model_account=account or reported,
+            model_declared=declared,
         )
         self._calls.append(call)
         # A round trip through JSON, so what is kept is what the digest covers.

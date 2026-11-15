@@ -187,8 +187,9 @@ def _write_crate(
 def _add_model_calls(crate: ROCrate, envelope: dict[str, Any]) -> None:
     """One `CreateAction` per model call, with the model as instrument and the prompt, named by
     digest and not included, as object (docs/specs/disclosure.md). Whose account paid, `own` or
-    `deployment` and never whose, is the action's `model_account` property
-    (docs/specs/model-accounts.md)."""
+    `deployment` and never whose, is the action's `model_account` property; a call the profile's
+    model map routed to another model also has a `model_declared` property, the model the agent's
+    card declared (docs/specs/model-accounts.md)."""
     models: dict[tuple[str, str], SoftwareApplication] = {}
     for n, call in enumerate(envelope["telemetry"].get("model_calls", []), start=1):
         key = (call["model_provider"], call["model_id"])
@@ -225,23 +226,47 @@ def _add_model_calls(crate: ROCrate, envelope: dict[str, Any]) -> None:
             "startTime": call["called_at"],
             "actionStatus": {"@id": "http://schema.org/CompletedActionStatus"},
         }
+        extra: list[Any] = []
         account = call.get("model_account")
         if account:
-            properties["additionalProperty"] = crate.add(
-                ContextEntity(
-                    crate,
-                    f"#model-account-{account}",
-                    properties={
-                        "@type": "PropertyValue",
-                        "name": "model_account",
-                        "value": account,
-                        "description": (
-                            "Whose account paid for the call: a person's own or the deployment's. "
-                            "Never whose."
-                        ),
-                    },
+            extra.append(
+                crate.add(
+                    ContextEntity(
+                        crate,
+                        f"#model-account-{account}",
+                        properties={
+                            "@type": "PropertyValue",
+                            "name": "model_account",
+                            "value": account,
+                            "description": (
+                                "Whose account paid for the call: a person's own or the "
+                                "deployment's. Never whose."
+                            ),
+                        },
+                    )
                 )
             )
+        declared = call.get("model_declared")
+        if declared:
+            extra.append(
+                crate.add(
+                    ContextEntity(
+                        crate,
+                        f"#model-declared-{call['model_provider']}-{declared}",
+                        properties={
+                            "@type": "PropertyValue",
+                            "name": "model_declared",
+                            "value": declared,
+                            "description": (
+                                "The model the agent's card declared. The profile's model map "
+                                "routed the call to the model this action's instrument names."
+                            ),
+                        },
+                    )
+                )
+            )
+        if extra:
+            properties["additionalProperty"] = extra[0] if len(extra) == 1 else extra
         crate.add_action(
             models[key],
             identifier=f"#{envelope['invocation_id']}-model-call-{n}",

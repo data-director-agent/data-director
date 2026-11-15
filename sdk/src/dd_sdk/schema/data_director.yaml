@@ -12,7 +12,7 @@ description: >-
   schema_class (docs/specs/contract.md); every payload mixes in Grounded so the grounding linter can check it
   without knowing its class (docs/specs/grounding.md). Formats here are fixed; see docs/specs/ for why.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.10.1
+version: 0.11.0
 license: MIT
 
 prefixes:
@@ -683,7 +683,8 @@ classes:
       (docs/specs/disclosure.md). model_id is the model the provider's response named, which may
       be more exact than the one configured. prompt_digest identifies the messages sent: the
       harness keeps them beside the run, never in the envelope, and checks that they hash to it.
-      model_account says whose account paid for the call, never whose key
+      model_account says whose account paid for the call, never whose key, and model_declared the
+      model the agent's card declared, when the profile's model map routed the call to another
       (docs/specs/model-accounts.md).
     class_uri: prov:Activity
     slots:
@@ -694,6 +695,7 @@ classes:
       - input_tokens
       - output_tokens
       - model_account
+      - model_declared
     slot_usage:
       model_id:
         required: true
@@ -1666,6 +1668,11 @@ slots:
       deployment's. Never names the account, its key or its holder. Absent only in runs recorded
       before contract 0.10.0.
     range: ModelAccount
+  model_declared:
+    description: >-
+      The model the agent's card declared, on a call the profile's model map routed to another
+      model, which model_id and model_provider then name. Absent for every other call, and in runs
+      recorded before contract 0.11.0.
   energy_estimate_j:
     range: float
   energy_method:

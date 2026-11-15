@@ -46,7 +46,7 @@ accounts as well as Anthropic ones (`dd_broker.chat_completions`); the profile's
 Profile page offer each of them, and a run records the provider the broker reports. Mapping a declared
 model to one a person's provider serves is specified here (invariants 12 and 15, The model map). The
 profile's model map, the card's `ModelUse.tools`, the grant's `dd_model_map` and the broker's check
-of a mapped model are built; the route, and recording the declared model, are not yet
+of a mapped model are built, and so is recording the declared model; the route is not yet
 (TODO(#843)). The shipped profiles turn own accounts off,
 so every grant says the deployment pays, and every model call is paid for by the deployment, as it
 is today.
@@ -104,7 +104,11 @@ the broker checks that decision.
    provider and model that served it as the broker reports them: `ModelCall.model_provider` is
    the broker's `X-DD-Model-Provider`, and `model_id` the model the answer names. A call the model
    map routed to another model also records the model the card declared, `ModelCall.model_declared`
-   (`dd.model_declared` on its span), which is absent for every other call (TODO(#843)). Every client the
+   (`dd.model_declared` on its span, and a `PropertyValue` named `model_declared` on its
+   `CreateAction` in the crate), which is absent for every other call. The model seam's router
+   notes the declared model before each call it routes (`dd_sdk.model_account.routed`), and the
+   call's record takes it (`sdk/tests/test_whose_account_paid.py`,
+   `harness/tests/test_model_grants.py`). Every client the
    SDK builds for the broker reads both headers from each answer, so an agent that calls its client
    directly records them too; a call that did not go through the broker was paid for by the
    deployment and served by the provider the agent was configured with. The Process Run Crate gives each call's `CreateAction` the same value as a
@@ -434,7 +438,7 @@ mapping whose `declared` model is one the card declares and, where the card says
 on tool calls, whose `tools` is `true`, and no other. A model with no mapping in the grant is served
 as the card declares it, or the run ends as the account table says. A mapping is the steward's
 decision, so it is recorded in the profile and in the version of every run held to it, and each call
-it routes records the declared model (invariant 9) (TODO(#843)).
+it routes records the declared model (invariant 9).
 
 It sits beside `hosted_models` ([Policy and identity](policy-and-identity.md), The profile
 vocabulary), which still governs what project content may go to a `hosted` model. A person's own

@@ -48,6 +48,8 @@ export interface ModelCall {
   output_tokens?: number | null;
   /** Absent in runs recorded before contract 0.10.0. */
   model_account?: ModelAccount | null;
+  /** The model the agent's card declared, when the profile's model map routed the call to another. */
+  model_declared?: string | null;
 }
 
 export interface Telemetry {

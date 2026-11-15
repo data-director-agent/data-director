@@ -47,6 +47,20 @@ describe("Outcome, model calls", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("names the declared model a call was routed from, and only then", () => {
+    const routed: ModelCall = {
+      ...call("own"),
+      model_provider: "openai",
+      model_id: "gpt-test",
+      model_declared: "claude-test",
+    };
+    const { list } = calls(routed, call("own"));
+    if (!list) throw new Error("no list of calls");
+    const [first, second] = within(list).getAllByRole("listitem");
+    expect(first).toHaveTextContent(/gpt-test in place of claude-test, paid for by/);
+    expect(second).not.toHaveTextContent(/in place of/);
+  });
+
   it("says when a run recorded no payer", () => {
     const { list } = calls(call());
     if (!list) throw new Error("no list of calls");

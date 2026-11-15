@@ -53,6 +53,8 @@ ATTR_OUTPUT_TOKENS = "dd.output_tokens"
 # Whose account paid for a model call, `own` or `deployment`; never whose key
 # (docs/specs/model-accounts.md).
 ATTR_MODEL_ACCOUNT = "dd.model_account"
+# The model the agent's card declared, on a call the profile's model map routed to another model.
+ATTR_MODEL_DECLARED = "dd.model_declared"
 ATTR_OUTCOME = "dd.outcome"
 # The mode the linter must apply, and what an input_only agent's evidence must equal
 # (docs/specs/grounding.md).
@@ -69,6 +71,7 @@ OWNED_ATTRIBUTES = frozenset(
         ATTR_INPUT_TOKENS,
         ATTR_OUTPUT_TOKENS,
         ATTR_MODEL_ACCOUNT,
+        ATTR_MODEL_DECLARED,
         ATTR_OUTCOME,
         ATTR_GROUNDING_MODE,
         ATTR_INPUT_HASH,

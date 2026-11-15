@@ -10,7 +10,7 @@ from typing import Any
 import httpx2 as httpx
 import pytest
 
-from dd_sdk import serve
+from dd_sdk import model_account, serve
 from dd_sdk.agent import AgentResult, AgentSpec, RunContext
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
@@ -29,7 +29,7 @@ from dd_sdk.model_anthropic import AnthropicModel, anthropic_client
 from dd_sdk.model_grant import HEADER_ACCOUNT, HEADER_PROVIDER, HEADER_REASON, META_MODEL_GRANT
 from dd_sdk.model_openai import OpenAIModel, openai_client
 from dd_sdk.prompts import ModelCallLog
-from dd_sdk.tracing import ATTR_MODEL_ACCOUNT, CHAT
+from dd_sdk.tracing import ATTR_MODEL_ACCOUNT, ATTR_MODEL_DECLARED, CHAT
 from dd_sdk.wire import reply_from_document
 
 CREDENTIAL = "dd-broker-credential-0123456789"
@@ -138,7 +138,7 @@ class Twice:
         )
 
 
-def run(agent: Twice | ChatTwice) -> tuple[AgentResult, tuple[dict[str, Any], ...]]:
+def run(agent: Twice | ChatTwice | RoutedOnce) -> tuple[AgentResult, tuple[dict[str, Any], ...]]:
     request = InvocationRequest(agent_id=SPEC.agent_id, input=Message(message_text="Hello."))
     return reply_from_document(serve.run_traced(agent, request, {META_MODEL_GRANT: GRANT}))
 
@@ -312,3 +312,57 @@ def test_a_call_does_not_inherit_the_provider_of_the_call_before(second: str | N
     broker = Broker(ModelAccount.OWN, ModelAccount.DEPLOYMENT, providers=("gemini", second))
     result, _ = run(Twice(broker))
     assert [c.model_provider for c in result.model_calls] == ["gemini", "anthropic"]
+
+
+# --- A call the model map routed records the declared model (#843) -------------------------------
+
+
+class RoutedOnce:
+    """Calls the model twice: the first call as the model seam's router makes a routed one, the
+    second as an unrouted one."""
+
+    spec = SPEC
+
+    def __init__(self, broker: Broker) -> None:
+        self.client = client(broker)
+
+    def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
+        log = ModelCallLog("anthropic")
+        for declared, text in (("claude-declared", "one"), (None, "two")):
+            model_account.routed(declared)
+            call(
+                AnthropicModel("claude-test", client=self.client),
+                ctx,
+                system="Be brief.",
+                messages=[{"role": "user", "content": text}],
+                calls=log,
+            )
+        return AgentResult(
+            outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement="Done."),
+            model_calls=log.calls,
+            prompts=log.prompts,
+        )
+
+
+def test_a_routed_call_records_the_declared_model_and_no_other_call_does() -> None:
+    result, spans = run(RoutedOnce(Broker(ModelAccount.OWN, ModelAccount.OWN)))
+
+    assert [c.model_declared for c in result.model_calls] == ["claude-declared", None]
+    chats = [s["attributes"] for s in spans if s["name"] == CHAT]
+    assert [a.get(ATTR_MODEL_DECLARED) for a in chats] == ["claude-declared", None]
+
+
+def test_a_routed_call_is_forgotten_once_recorded() -> None:
+    log = ModelCallLog("anthropic")
+    model_account.routed("claude-declared")
+    assert log.record({"messages": []}, "gpt-test").model_declared == "claude-declared"
+    assert log.record({"messages": []}, "gpt-test").model_declared is None
+
+
+def test_a_new_run_starts_unrouted() -> None:
+    model_account.routed("claude-declared")
+    try:
+        with model_account.bind_run():
+            assert model_account.take_declared() is None
+    finally:
+        model_account.routed(None)
