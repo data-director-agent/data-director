@@ -44,12 +44,13 @@ from dataclasses import dataclass
 from typing import Literal
 from urllib.parse import urlsplit
 
-from dd_sdk.credentials import BROKER_URL, ConfigError, api_key, model_endpoint
-from dd_sdk.model import Model
+from dd_sdk.credentials import BROKER_URL, ConfigError, ModelEndpoint, api_key, model_endpoint
+from dd_sdk.model import Model, ModelCallError
 from dd_sdk.model_anthropic import EFFORTS as CLAUDE_EFFORTS
 from dd_sdk.model_anthropic import AnthropicModel
 from dd_sdk.model_openai import EFFORTS as OPENAI_EFFORTS
 from dd_sdk.model_openai import OpenAIModel
+from dd_sdk.model_route import Builder, RoutedModel
 
 PROVIDER = "DD_MODEL_PROVIDER"
 MODEL_ID = "DD_MODEL_ID"
@@ -138,7 +139,70 @@ def configured_model(
     `ConfigError` naming `effort_setting`, the agent's variable for it. `tool_use` is for an agent
     whose model runs a tool loop: its card then declares that it relies on tool calls
     (`ModelUse.tools`), and Claude caches the system prompt and may fall back to another model
-    when it declines."""
+    when it declines.
+
+    Through the model broker, the model is routed: each run asks the broker which provider and
+    model serve it (`dd_sdk.model_route`)."""
+    declared = _declared_model(
+        env,
+        default_model=default_model,
+        effort=effort,
+        effort_setting=effort_setting,
+        tool_use=tool_use,
+    )
+    broker_url = (env.get(BROKER_URL) or "").strip().rstrip("/")
+    if not broker_url:
+        return declared
+    endpoint = model_endpoint(env, declared.provider, PROVIDERS[provider_name(env)].key)
+    return RoutedModel(
+        declared,
+        broker_url=broker_url,
+        credential=endpoint.api_key,
+        build=_routed_builder(broker_url, endpoint.api_key, effort=effort, tool_use=tool_use),
+    )
+
+
+def _routed_builder(
+    broker_url: str, credential: str, *, effort: str | None, tool_use: bool
+) -> Builder:
+    """Builds, for a provider and model the broker named, the adapter that calls it through the
+    broker. The agent's effort goes with it only where that provider accepts it."""
+
+    def build(name: str, model_id: str) -> Model:
+        provider = PROVIDERS.get(name)
+        if provider is None:
+            raise ModelCallError(f"the model broker named a provider it does not serve: {name!r}")
+        kept = effort if effort in provider.efforts else None
+        endpoint = ModelEndpoint(credential, f"{broker_url}/{name}")
+        if name == DEFAULT_PROVIDER:
+            return AnthropicModel(
+                model_id, endpoint=endpoint, effort=kept, cache_system=tool_use, tool_use=tool_use
+            )
+        assert endpoint.base_url is not None
+        return OpenAIModel(
+            model_id,
+            provider=name,
+            hosting="hosted",
+            base_url=endpoint.base_url,
+            api_key=endpoint.api_key,
+            max_tokens_field=provider.max_tokens_field,
+            effort=kept,
+            brokered=True,
+            tool_use=tool_use,
+        )
+
+    return build
+
+
+def _declared_model(
+    env: Mapping[str, str],
+    *,
+    default_model: str | None = None,
+    effort: str | None = None,
+    effort_setting: str = "effort",
+    tool_use: bool = False,
+) -> Model:
+    """The adapter for the model `env` declares, as `configured_model` describes it."""
     name = provider_name(env)
     provider = PROVIDERS.get(name)
     if provider is None:

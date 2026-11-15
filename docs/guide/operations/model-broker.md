@@ -128,9 +128,10 @@ Every model-backed agent must then call through the broker (below).
 
 A steward can also map a model an agent declares to one that a person's own provider serves, in
 the profile's model map. A mapped call is paid for only by the person's own account, never by the
-deployment's: without one it is refused, `model-account-missing`. Agents do not yet ask the
-broker for the mapped route, so until they do, every call goes to the provider the agent declares
-(TODO(#843)).
+deployment's: without one it is refused, `model-account-missing`. An agent that calls through
+the broker asks it, once per run, which provider and model serve each model it declares, so a
+person whose account is with the mapped provider is served by the mapped model. The run records
+both the model that served each call and the one the agent declared.
 
 ### The Profile page: adding one's own key
 

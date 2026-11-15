@@ -19,6 +19,7 @@ from typing import Any
 
 import anthropic
 import httpx2
+import openai
 import pytest
 from starlette.testclient import TestClient
 
@@ -31,6 +32,7 @@ from dd_broker.grants import GrantVerifier, HarnessKeys, TicketVerifier
 from dd_broker.store import Store
 from dd_harness.conductor import Conductor
 from dd_harness.testing import PERMISSIVE, TEST_PRINCIPAL, GrantKeys, make_conductor, request
+from dd_sdk import model_route
 from dd_sdk.agent import describe
 from dd_sdk.contract.models import (
     Message,
@@ -39,8 +41,9 @@ from dd_sdk.contract.models import (
     ReasonCode,
     Reply,
 )
-from dd_sdk.tracing import ATTR_MODEL_ACCOUNT
+from dd_sdk.tracing import ATTR_MODEL_ACCOUNT, ATTR_MODEL_DECLARED
 
+CASSETTES = Path(__file__).parent / "cassettes" / "test_own_account_e2e"
 AGENT = "orchestrator.model"
 BROKER_URL = "http://broker.test"
 # Distinctive enough that finding any of them anywhere means it leaked.
@@ -96,11 +99,11 @@ class Deployment:
     runs: Path
     keys: GrantKeys
 
-    def enrol(self) -> None:
-        """The person signed in adds their own Anthropic key, as the Profile page would."""
+    def enrol(self, provider: str = "anthropic") -> None:
+        """The person signed in adds their own key with `provider`, as the Profile page would."""
         minter = self.conductor.model_grants
         assert minter is not None
-        self.store.put(minter.pseudonym(TEST_PRINCIPAL), "anthropic", OWN_KEY, label="…3f9a")
+        self.store.put(minter.pseudonym(TEST_PRINCIPAL), provider, OWN_KEY, label="…3f9a")
 
     def greet(self) -> Any:
         return self.conductor.invoke(
@@ -108,15 +111,42 @@ class Deployment:
         )
 
 
-def own_profile(tmp_path: Path, own: str, fallback: str) -> Path:
+# The steward's model map: the orchestrator's two Claude models, served on a person's own OpenAI
+# account by OpenAI models, the reply model's with tool calls (docs/specs/model-accounts.md).
+MAPPED = {"claude-sonnet-5-5": "gpt-5.5", "claude-haiku-5-5": "gpt-5.5-mini"}
+MODEL_MAP = """    - provider: openai
+      models:
+        - declared: claude-sonnet-5-5
+          model: gpt-5.5
+          tools: true
+        - declared: claude-haiku-5-5
+          model: gpt-5.5-mini
+"""
+
+
+def own_profile(tmp_path: Path, own: str, fallback: str, *, mapped: bool = False) -> Path:
     path = tmp_path / "own.yaml"
     path.write_text(
         PERMISSIVE.read_text(encoding="utf-8")
         + f"model_accounts:\n  own: {own}\n  fallback: {fallback}\n"
-        + "  providers:\n    - provider: anthropic\n",
+        + "  providers:\n    - provider: anthropic\n"
+        + (MODEL_MAP if mapped else ""),
         encoding="utf-8",
     )
     return path
+
+
+class Held:
+    """The router's client, kept open for the next route: `with` neither opens nor closes it."""
+
+    def __init__(self, client: TestClient) -> None:
+        self.client = client
+
+    def __enter__(self) -> TestClient:
+        return self.client
+
+    def __exit__(self, *_: object) -> None:
+        return None
 
 
 @pytest.fixture
@@ -124,7 +154,7 @@ def deploy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Any]:
     """Build a deployment whose profile sets `own` and `fallback`."""
     opened: list[TestClient] = []
 
-    def build(own: str, fallback: str) -> Deployment:
+    def build(own: str, fallback: str, *, mapped: bool = False) -> Deployment:
         keys = GrantKeys()
         minter = keys.minter()
         store = Store(tmp_path / "broker" / "broker.sqlite3", os.urandom(32))
@@ -139,11 +169,16 @@ def deploy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Any]:
         client = TestClient(build_broker(broker), base_url=BROKER_URL)
         client.__enter__()
         opened.append(client)
-        # Only a client built for the broker uses this: the SDK makes one for a brokered endpoint.
-        default = anthropic.DefaultHttpxClient
-        monkeypatch.setattr(
-            anthropic, "DefaultHttpxClient", lambda: default(transport=ToBroker(client))
-        )
+        # Only clients built for the broker use these: the SDK makes one for a brokered endpoint,
+        # and the model seam's router asks the broker for each run's route.
+        for package in (anthropic, openai):
+            default = package.DefaultHttpxClient
+            monkeypatch.setattr(
+                package,
+                "DefaultHttpxClient",
+                lambda default=default: default(transport=ToBroker(client)),
+            )
+        monkeypatch.setattr(model_route, "http_client", lambda: Held(client))
         orchestrator = factory.build(
             {"DD_MODEL_BROKER_URL": BROKER_URL, "DD_MODEL_BROKER_CREDENTIAL": CREDENTIAL}
         )
@@ -153,7 +188,7 @@ def deploy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Any]:
             orchestrator,
             HelloWorld(),
             crate=True,
-            profile=own_profile(tmp_path, own, fallback),
+            profile=own_profile(tmp_path, own, fallback, mapped=mapped),
             model_grants=minter,
             model_broker=True,
         )
@@ -170,25 +205,36 @@ def stored_text(runs: Path) -> str:
     )
 
 
-def crate_accounts(runs: Path, invocation_id: str) -> list[str]:
+def crate_values(runs: Path, invocation_id: str, name: str) -> list[str]:
+    """The value of each model call's `PropertyValue` named `name`, where it has one."""
     crate = json.loads(
         (runs / invocation_id / "crate" / "ro-crate-metadata.json").read_text(encoding="utf-8")
     )
     by_id = {e["@id"]: e for e in crate["@graph"]}
+    found = []
+    for entity in crate["@graph"]:
+        held = entity.get("additionalProperty")
+        for ref in held if isinstance(held, list) else [held] if held else []:
+            if by_id[ref["@id"]]["name"] == name:
+                found.append(by_id[ref["@id"]]["value"])
+    return found
+
+
+def crate_accounts(runs: Path, invocation_id: str) -> list[str]:
+    return crate_values(runs, invocation_id, "model_account")
+
+
+def span_values(runs: Path, invocation_id: str, attribute: str) -> list[str]:
+    spans = (runs / invocation_id / "spans.jsonl").read_text(encoding="utf-8").splitlines()
     return [
-        by_id[e["additionalProperty"]["@id"]]["value"]
-        for e in crate["@graph"]
-        if "additionalProperty" in e
+        span["attributes"][attribute]
+        for span in map(json.loads, spans)
+        if attribute in span.get("attributes", {})
     ]
 
 
 def span_accounts(runs: Path, invocation_id: str) -> list[str]:
-    spans = (runs / invocation_id / "spans.jsonl").read_text(encoding="utf-8").splitlines()
-    return [
-        span["attributes"][ATTR_MODEL_ACCOUNT]
-        for span in map(json.loads, spans)
-        if ATTR_MODEL_ACCOUNT in span.get("attributes", {})
-    ]
+    return span_values(runs, invocation_id, ATTR_MODEL_ACCOUNT)
 
 
 def assert_no_secret_anywhere(deployment: Deployment, env: Any) -> None:
@@ -263,3 +309,52 @@ def test_without_the_operators_statement_the_agent_is_not_called(
 
     assert env.outcome.status is OutcomeStatus.FAILED
     assert env.telemetry.model_calls == []
+
+
+@pytest.mark.vcr(str(CASSETTES / "orchestrator_greets_ada_mapped.yaml"))
+def test_a_mapped_model_is_served_by_the_persons_own_provider_and_the_run_says_so(
+    deploy: Any,
+) -> None:
+    """docs/specs/model-accounts.md, invariants 9, 12 and 15: the person's account is with OpenAI,
+    the orchestrator's card declares Claude, and the steward's model map names the OpenAI models
+    that serve in its place. Every call goes to OpenAI on the person's account, and records both
+    the model that served it and the one the card declared."""
+    deployment = deploy("allowed", "deployment", mapped=True)
+    deployment.enrol("openai")
+
+    env = deployment.greet()
+
+    assert env.outcome.status is OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert env.payload_as(Reply).reply_text == "The greeting agent says: Hello, Ada!"
+    assert [d.delegated_agent_id for d in env.delegations] == ["example.hello"]
+    made = env.telemetry.model_calls
+    assert [(c.model_provider, c.model_id, c.model_declared) for c in made] == [
+        ("openai", "gpt-5.5", "claude-sonnet-5-5"),
+        ("openai", "gpt-5.5", "claude-sonnet-5-5"),
+        ("openai", "gpt-5.5-mini", "claude-haiku-5-5"),
+    ]
+    assert [c.model_account for c in made] == [ModelAccount.OWN] * 3
+    declared_models = ["claude-sonnet-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"]
+    assert crate_values(deployment.runs, env.invocation_id, "model_declared") == declared_models
+    assert sorted(span_values(deployment.runs, env.invocation_id, ATTR_MODEL_DECLARED)) == sorted(
+        declared_models
+    )
+    # The card still declares Claude: the route is the broker's decision, not the agent's.
+    card = describe(deployment.conductor.registry.get(AGENT).spec)
+    assert {m["model"] for m in card["models"]} == set(MAPPED)
+    assert_no_secret_anywhere(deployment, env)
+
+
+@pytest.mark.vcr
+def test_a_mapped_model_is_not_used_for_a_person_without_that_provider(deploy: Any) -> None:
+    """With the map in the profile but the person's account with Anthropic, the card's own models
+    serve, and no call records a declared model."""
+    deployment = deploy("allowed", "deployment", mapped=True)
+    deployment.enrol("anthropic")
+
+    env = deployment.greet()
+
+    assert env.outcome.status is OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert [c.model_declared for c in env.telemetry.model_calls] == [None] * 3
+    assert [c.model_account for c in env.telemetry.model_calls] == [ModelAccount.OWN] * 3
+    assert crate_values(deployment.runs, env.invocation_id, "model_declared") == []

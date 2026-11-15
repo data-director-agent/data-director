@@ -116,8 +116,8 @@ never used instead. An agent is served only by the provider its card declares: a
 another provider counts as none for that agent's calls, unless that provider's `models` maps the
 model the card declares. A mapped model then serves the call on the person's own account, never
 the deployment's, and an agent that relies on tool calls is mapped only to a model with
-`tools: true`. Each grant already carries the mapping and the broker accepts the mapped model;
-agents route to it once the model seam asks the broker for its route (TODO(#843)).
+`tools: true`. The run records the model the agent declared beside the one that served each
+call.
 
 The profile is refused when the workbench or the app starts if it:
 

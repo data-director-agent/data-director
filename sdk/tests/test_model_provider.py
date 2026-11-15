@@ -10,6 +10,7 @@ from dd_sdk.model import declared
 from dd_sdk.model_anthropic import AnthropicModel
 from dd_sdk.model_openai import OpenAIModel
 from dd_sdk.model_provider import configured_model, hosting_of
+from dd_sdk.model_route import RoutedModel
 
 LOCAL = "http://localhost:11434/v1"
 
@@ -178,7 +179,10 @@ def test_anthropic_through_the_broker_holds_no_key() -> None:
         "DD_MODEL_BROKER_CREDENTIAL": "c",
     }
     model = configured_model(env, default_model="claude-default")
-    assert isinstance(model, AnthropicModel)
+    # Routed through the broker (#843), as the model the card declares.
+    assert isinstance(model, RoutedModel)
+    assert isinstance(model.declared, AnthropicModel)
+    assert (model.provider, model.model_id) == ("anthropic", "claude-default")
 
 
 @pytest.mark.parametrize("name", ["openai", "gemini", "openai-compatible"])
@@ -190,7 +194,8 @@ def test_every_other_provider_through_the_broker_holds_no_key(name: str) -> None
         "DD_MODEL_BROKER_CREDENTIAL": "c",
     }
     model = configured_model(env)
-    assert isinstance(model, OpenAIModel)
+    assert isinstance(model, RoutedModel)
+    assert isinstance(model.declared, OpenAIModel)
     # The card declares the provider the broker is asked for, and a hosted model: the endpoint a
     # person's account names is not known at start-up.
     assert (model.provider, model.hosting) == (name, "hosted")

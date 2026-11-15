@@ -1,0 +1,54 @@
+# Written by hand, not recorded: three Chat Completions replies from OpenAI, for the orchestrator
+# routed by the profile's model map (#843). The first asks for example.hello, the second replies
+# and the third is the title model's. vcrpy matches on method and URI, so the request headers and
+# bodies below are not compared, and the replies play back in order.
+interactions:
+- request:
+    body: ''
+    headers:
+      content-type:
+      - application/json
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: "{\"id\": \"chatcmpl-cassette-1\", \"object\": \"chat.completion\", \"created\": 0, \"model\": \"gpt-5.5\", \"choices\": [{\"index\": 0, \"finish_reason\": \"tool_calls\", \"message\": {\"role\": \"assistant\", \"content\": null, \"tool_calls\": [{\"id\": \"call_cassette\", \"type\": \"function\", \"function\": {\"name\": \"example_hello\", \"arguments\": \"{\\\"greeted_name\\\": \\\"Ada\\\"}\"}}]}}], \"usage\": {\"prompt_tokens\": 900, \"completion_tokens\": 40, \"total_tokens\": 940}}"
+    headers:
+      content-type:
+      - application/json
+    status:
+      code: 200
+      message: OK
+- request:
+    body: ''
+    headers:
+      content-type:
+      - application/json
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: "{\"id\": \"chatcmpl-cassette-2\", \"object\": \"chat.completion\", \"created\": 0, \"model\": \"gpt-5.5\", \"choices\": [{\"index\": 0, \"finish_reason\": \"stop\", \"message\": {\"role\": \"assistant\", \"content\": \"The greeting agent says: Hello, Ada!\"}}], \"usage\": {\"prompt_tokens\": 950, \"completion_tokens\": 20, \"total_tokens\": 970}}"
+    headers:
+      content-type:
+      - application/json
+    status:
+      code: 200
+      message: OK
+- request:
+    body: ''
+    headers:
+      content-type:
+      - application/json
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: "{\"id\": \"chatcmpl-cassette-3\", \"object\": \"chat.completion\", \"created\": 0, \"model\": \"gpt-5.5-mini\", \"choices\": [{\"index\": 0, \"finish_reason\": \"stop\", \"message\": {\"role\": \"assistant\", \"content\": \"Greeting Ada\"}}], \"usage\": {\"prompt_tokens\": 80, \"completion_tokens\": 5, \"total_tokens\": 85}}"
+    headers:
+      content-type:
+      - application/json
+    status:
+      code: 200
+      message: OK
+version: 1

@@ -46,8 +46,8 @@ accounts as well as Anthropic ones (`dd_broker.chat_completions`); the profile's
 Profile page offer each of them, and a run records the provider the broker reports. Mapping a declared
 model to one a person's provider serves is specified here (invariants 12 and 15, The model map). The
 profile's model map, the card's `ModelUse.tools`, the grant's `dd_model_map` and the broker's check
-of a mapped model are built, and so is recording the declared model; the route is not yet
-(TODO(#843)). The shipped profiles turn own accounts off,
+of a mapped model, the route and recording the declared model are built. The shipped profiles turn
+own accounts off,
 so every grant says the deployment pays, and every model call is paid for by the deployment, as it
 is today.
 
@@ -167,7 +167,8 @@ the broker checks that decision.
     agent calls outside the model seam is not routed: its calls go to the provider its card
     declares, as invariant 12 says. A model that relies on tool calls is never routed to a model
     the profile does not say serves them: the conductor leaves such a mapping out of the grant
-    (`harness/tests/test_harness.py`). The route itself is not yet built (TODO(#843)).
+    (`harness/tests/test_harness.py`, `broker/tests/test_broker_route.py`,
+    `sdk/tests/test_model_route.py`, `app/tests/test_own_account_e2e.py`).
 
 ## Boundaries and contracts
 
@@ -224,16 +225,23 @@ steps in order:
    only, for Anthropic, `anthropic-version` and `anthropic-beta`.
 
 **The route.** `POST /route`, with the agent's broker credential and the grant as for a model call
-and a body `{"model": "<declared model>"}`, answers `{"provider", "model"}`. When the person's own
+and a body `{"provider": "<declared provider>", "model": "<declared model>"}`, answers
+`{"provider", "model"}`. The declared provider is the one the agent's card names for the model;
+the grant lists the declared models but not their providers. It only tells the broker what the
+card already says, so naming another changes no answer the map does not already allow. When the person's own
 account is with a provider other than the declared model's, the grant allows their account, and
 `dd_model_map` names a model for that provider, the answer is that provider and that model.
 Otherwise it is the declared provider and model, and the call then goes as the table above says.
 The answer names a provider and a model, which the run records for each call in any case, and
-nothing about the account. A model not in `dd_models` is refused as a call would be. The model seam
+nothing about the account. A model not in `dd_models`, which includes a model the map serves in
+another's place, is refused as a call would be (`model-not-granted`), and any other body is
+`request-invalid`; a refusal is a JSON body `{"error": "<reason>"}` with `X-DD-Reason`. The model seam
 (`dd_sdk.model_provider.configured_model`, when the agent calls through the broker) asks once per
 run, for each model the agent declares, and builds the matching adapter, `AnthropicModel` or
-`OpenAIModel`, for that run. A run's calls to one declared model therefore all go to one provider,
-so content a provider requires back unchanged (`Replay`) stays with that provider (TODO(#843)).
+`OpenAIModel`, for that run (`dd_sdk.model_route.RoutedModel`). The agent's effort goes with a
+routed call only if the provider that serves it accepts that effort. A run's calls to one declared
+model therefore all go to one provider, so content a provider requires back unchanged (`Replay`)
+stays with that provider. A refused route ends the run as a refused call would.
 
 The broker returns the provider's answer unchanged, with `X-DD-Model-Account` (`own` or
 `deployment`) and `X-DD-Model-Provider`. The model that served the call is in the answer itself.

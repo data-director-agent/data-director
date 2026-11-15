@@ -71,7 +71,7 @@ from dd_broker.guard import (
 from dd_broker.reasons import Reason, Refused
 from dd_broker.seal import SealError
 from dd_broker.settings import BrokerSettings
-from dd_broker.store import Store
+from dd_broker.store import OwnAccount, Store
 from dd_sdk.model_grant import (
     HEADER_ACCOUNT,
     HEADER_GRANT,
@@ -197,6 +197,37 @@ def provider_endpoint(provider: str) -> str | None:
     return chat_completions.PROVIDERS[provider].base_url
 
 
+def _own_account(broker: Broker, grant: VerifiedGrant) -> OwnAccount | None:
+    """The person's own account, or None if they have none."""
+    try:
+        return broker.store.account(grant.pseudonym)
+    except SealError:
+        log.error("a sealed key does not open; check the key-encryption key")
+        raise Refused(500, Reason.BROKER_ERROR) from None
+
+
+# Where the model seam asks which provider and model serve a model its card declares.
+ROUTE_PATH = "/route"
+
+
+def _route(broker: Broker, grant: VerifiedGrant, provider: str, model: str) -> tuple[str, str]:
+    """The provider and model that serve `model`, which the card declares for `provider`
+    (docs/specs/model-accounts.md, The route). The model the grant's map names for the person's
+    own provider, when their account is with another provider than the declared one and the grant
+    may use it; otherwise the declared provider and model. Decided from the grant and the person's
+    account alone."""
+    if not grant.allows(model):
+        raise Refused(403, Reason.MODEL_NOT_GRANTED)
+    claims = grant.claims
+    if claims.model_map and claims.account in (Account.OWN, Account.OWN_OR_DEPLOYMENT):
+        own = _own_account(broker, grant)
+        if own is not None and own.provider != provider and own.provider in claims.providers:
+            served = claims.model_map.get(own.provider, {}).get(model)
+            if served is not None:
+                return own.provider, served
+    return provider, model
+
+
 def _choose(
     broker: Broker, grant: VerifiedGrant, provider: str, *, mapped: bool = False
 ) -> _Payment:
@@ -205,11 +236,7 @@ def _choose(
     account with that provider or by no one: the deployment never pays for one."""
     account = grant.claims.account
     if account in (Account.OWN, Account.OWN_OR_DEPLOYMENT):
-        try:
-            own = broker.store.account(grant.pseudonym)
-        except SealError:
-            log.error("a sealed key does not open; check the key-encryption key")
-            raise Refused(500, Reason.BROKER_ERROR) from None
+        own = _own_account(broker, grant)
         if own is not None and own.provider != provider:
             # An account with another provider than the path names is no account for this call:
             # its key is never used and its provider never serves the call (invariant 12). Who
@@ -348,6 +375,41 @@ async def _call(
     )
 
 
+def route_refusal(status: int, reason: Reason) -> JSONResponse:
+    """A refusal of a route request: the reason code alone, in `X-DD-Reason` and the body."""
+    return JSONResponse(
+        {"error": reason.value}, status_code=status, headers={HEADER_REASON: reason.value}
+    )
+
+
+async def _answer_route(broker: Broker, request: Request) -> Response:
+    agent = broker.agents.authenticate(presented_credential(request.headers))
+    if agent is None:
+        raise Refused(401, Reason.AGENT_UNAUTHENTICATED)
+    grant = await run_in_threadpool(
+        broker.verifier.verify, request.headers.get(HEADER_GRANT), agent
+    )
+    try:
+        body: Any = json.loads(await request.body())
+    except ValueError:
+        raise Refused(400, Reason.REQUEST_INVALID) from None
+    if (
+        not isinstance(body, dict)
+        or set(body) != {"provider", "model"}
+        or not isinstance(body["model"], str)
+        or body["provider"] not in (anthropic.PROVIDER, *chat_completions.PROVIDERS)
+    ):
+        raise Refused(400, Reason.REQUEST_INVALID)
+    provider, model = await run_in_threadpool(
+        lambda: _route(broker, grant, body["provider"], body["model"])
+    )
+    log.info(
+        "route agent=%s routed=%s", agent, (provider, model) != (body["provider"], body["model"])
+    )
+    # The answer names a provider and a model, never anything about the account.
+    return JSONResponse({"provider": provider, "model": model})
+
+
 def build_app(broker: Broker) -> Starlette:
     clients: list[httpx.AsyncClient] = []
 
@@ -387,6 +449,13 @@ def build_app(broker: Broker) -> Starlette:
             request,
         )
 
+    async def route(request: Request) -> Response:
+        try:
+            return await _answer_route(broker, request)
+        except Refused as refused:
+            log.info("refused reason=%s status=%d", refused.reason.value, refused.status)
+            return route_refusal(refused.status, refused.reason)
+
     async def healthz(request: Request) -> Response:
         return JSONResponse({"status": "ok"})
 
@@ -395,6 +464,7 @@ def build_app(broker: Broker) -> Starlette:
             Route("/anthropic/v1/messages", messages, methods=["POST"]),
             Route("/{provider}" + chat_completions.COMPLETIONS_PATH, completions, methods=["POST"]),
             Route(enrolment.ACCOUNT_PATH, account, methods=["GET", "PUT", "DELETE"]),
+            Route(ROUTE_PATH, route, methods=["POST"]),
             Route("/healthz", healthz, methods=["GET"]),
         ],
         lifespan=lifespan,
