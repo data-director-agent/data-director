@@ -1,0 +1,135 @@
+# Security baseline
+
+## Intent and scope
+
+Blueprint requirement C1 asks for encryption in transit and at rest, access that is role-based,
+token-verified and auditable, and a recognised framework as the compliance baseline. This spec is
+that baseline for Data Director. It lists each control the project relies on, maps it to
+**NIST SP 800-53 Rev. 5**, and says whether the control is met, partly met, left to the
+deployment, or open, and what shows it.
+
+The scope is the harness and what it depends on to keep a record safe: the model broker, agents
+as A2A services, the run and project stores, and the deployment in `deploy/`. The app, the
+workbench and the admin service are clients of the harness. They are in scope only where they hold
+a secret the harness relies on or expose a store.
+
+This spec does not cover:
+
+- the threat model that these controls answer to (TODO(#37));
+- guardrails on model input and output (C2), or personal data held about the people who use the
+  app (TODO(#156));
+- who may do what in a project, or what roles a deployment defines. These are in
+  [Projects](projects.md) and [Policy and identity](policy-and-identity.md).
+
+C1 is assessed by review, not by a test lane ([Evaluation and conformance](evaluation.md)). A
+reviewer reads the control table below against the code and the deployment.
+
+## Invariants
+
+1. **The secure path needs no configuration.** Every service binds to loopback by default.
+   NGINX is the only listener a deployment exposes, with TLS 1.3 only and HSTS. An insecure or
+   ambiguous identity setting stops start-up rather than running with a weaker one
+   ([Policy and identity](policy-and-identity.md)). Serving beyond loopback with no sign-in only
+   warns today; it should refuse unless explicitly allowed (TODO(#882)).
+2. **A secret never reaches a record.** No key, password, token, grant or session cookie may
+   appear in an envelope, evidence, span, RO-Crate, project log, export or log line. This holds
+   by construction: a secret goes only to the client that uses it, and the harness writes no
+   secret-bearing attribute. It is checked by a sentinel test for each kind of secret, which runs
+   a real invocation with a recognisable value and searches everything stored. The exception is
+   spans imported from remote agents: the harness stores these as received (TODO(#885)).
+3. **A secret is read from a file, not from configuration.** Each secret has a `NAME_FILE` form
+   read by `dd_sdk.credentials.api_key`, relative to `$CREDENTIALS_DIRECTORY` under systemd
+   `LoadCredential=`. A deployment's `.env` files hold no secret values. The harness refuses a
+   PostgreSQL URL that carries a password, so libpq reads it from `PGPASSFILE`. The FAIRsharing
+   password in advisor-standards is the exception today (TODO(#883)).
+4. **An error names a setting, never its value.** A misconfigured secret is reported by the name
+   of its variable. A store location is printed through `redact_location`.
+5. **Two audit streams, kept apart.** The run envelope and its provenance (C13) record what an
+   agent did and for whom, in the run store. Security events record who signed in, who was
+   refused, which grants were minted and which accounts were enrolled, in a structured log of
+   their own. They are not mixed into run provenance, because they have different readers,
+   retention and integrity needs. The structured log does not exist yet; today these events are
+   free-text journal lines or absent (TODO(#884)).
+6. **Anything downloaded at run time is pinned by hash.** A data snapshot, model weight or
+   detector that the system fetches rather than installs as a locked package is recorded with
+   its source URL and SHA-256, and checked on load, as the re3data snapshot is
+   (`scripts/pin_re3data.py`). Nothing downloads model weights today.
+
+## Control baseline
+
+The status column uses four values:
+
+- **Met:** the project implements the control and the evidence column shows it.
+- **Partial:** part is implemented; the rest is an open issue.
+- **Deployment:** the control is the operator's, and the operations guide says how.
+- **Open:** not yet implemented.
+
+| NIST SP 800-53 | Control in Data Director | Status | Evidence |
+|---|---|---|---|
+| AC-3, AC-6 | Project access is enforced by the harness: only owners and members reach a project's records. A deployment's roles (researcher, steward, administrator) are not yet defined. | Partial, TODO(#154) | `harness/src/dd_harness/project_access.py` and its tests |
+| AC-17, SC-7 | Every service binds to loopback by default. NGINX is the only exposed edge. The admin service refuses a non-loopback `Host`. | Partial, TODO(#882) | `harness/src/dd_harness/server.py`, `deploy/systemd/`, `deploy/nginx/data-director.conf`, `admin/tests/test_admin.py` |
+| IA-2, IA-8 | A person signs in with ORCID through OpenID Connect. A program presents an ID token, checked with RS256 only. | Met | `harness/src/dd_harness/signin.py`, `harness/src/dd_harness/identity.py` and their tests |
+| IA-3, IA-9 | Calls between the harness and its agents are not authenticated in either direction. | Open, TODO(#17) | [Transport and tracing](transport.md) |
+| IA-5, IA-5(7) | Secrets are read from credential files, never hard-coded or committed. Setting both a value and its file is an error. | Partial, TODO(#883) | `sdk/src/dd_sdk/credentials.py`, `sdk/tests/test_credentials.py`, `deploy/credentials.sh` |
+| SC-8 | TLS 1.3 from the browser to NGINX. Behind NGINX, traffic is plain HTTP on loopback. The broker requires `https` for a person's own provider. TLS to a remote PostgreSQL is not configured. | Partial, TODO(#887) | `deploy/nginx/data-director.conf`, `broker/src/dd_broker/guard.py` |
+| SC-12, SC-28 | People's own model keys are sealed by the broker with a key-encryption key. Other data at rest is encrypted by the deployment's disk or volume. | Partial; Deployment, TODO(#887) | `broker/src/dd_broker/seal.py`, [A person's own model account](model-accounts.md) |
+| SC-28, SI-12 | No secret reaches a stored record (invariant 2). | Partial, TODO(#885) | `agents/advisor-standards/tests/test_key_not_stored.py`, `agents/orchestrator-model/tests/test_orchestrator_key_not_stored.py`, `agents/advisor-documentation/tests/test_grant_not_stored.py`, `broker/tests/test_broker_key_not_leaked.py` |
+| AC-3, CM-7 | Store directories and files are private to the service. The shipped units set umask 0027 (0077 for the broker), and the installer creates state directories 0750 and credential directories 0700. The harness does not yet set modes itself. | Partial, TODO(#886) | `deploy/systemd/`, `deploy/install.sh` |
+| AU-2, AU-3, AU-12 | Run provenance records each invocation, the person it acted for and whose account paid (C13). There is no structured security event log yet. | Partial, TODO(#884) | [Policy and identity](policy-and-identity.md), [Disclosure](disclosure.md) |
+| AU-9, AU-11 | A run is written once and never changed. Retention is not yet set. | Partial, TODO(#156) | [Storage](storage.md), invariant 2 |
+| CM-6 | An ambiguous identity configuration, an anonymous principal, and grant settings without keys all stop start-up. | Met | `harness/src/dd_harness/settings.py` and its tests |
+| SI-11 | An error names a setting, not its value (invariant 4). | Met | `harness/src/dd_harness/settings.py` (`redact_location`), `harness/tests/test_storage.py` |
+| RA-5, SI-2 | Dependencies are audited daily and on every lock-file change. Pull requests run dependency review. CodeQL scans Python, JavaScript and the workflows. Dependabot proposes updates. | Met | `.github/workflows/audit.yml`, `.github/workflows/ci.yml`, `.github/workflows/codeql.yml`, `.github/dependabot.yml` |
+| SR-3, SR-4, SR-11 | Actions are pinned to a commit SHA and linted with zizmor. Base images are pinned by digest. Released images carry an SBOM and build provenance. Runtime dependencies are tiered with a fallback each. Downloaded data is pinned by hash (invariant 6). | Met | `.github/workflows/images.yml`, `docker/`, [Dependencies](dependencies.md), `scripts/pin_re3data.py` |
+
+## Rationale
+
+NIST SP 800-53 is the framework the Blueprint names for C1. Its control families map directly
+onto the parts C1 lists: AC and IA for access, SC for encryption, AU for audit, CM for defaults,
+and SR and RA for the supply chain. A recognised identifier on each row lets an institution's
+security team read the table against its own control set without translating it. This baseline
+selects only the controls that a piece of software can meet or show evidence for. Controls about
+people, premises and organisational process belong to the deploying institution.
+
+Invariant 2 relies on secrets never being handed to a writer, checked by sentinel tests, rather
+than on a redaction pass over records. A redaction pass can only remove values it recognises, so
+it hides a leak instead of preventing it. A sentinel test fails on any path the value takes. The
+one boundary where the harness does not control what is written, spans from another process, is
+where a scrubbing step belongs (TODO(#885)).
+
+Security events and run provenance are separate (invariant 5) because C1 scopes its audit trail
+to infrastructure and access control, and C13 scopes its trail to agent actions. The two are
+read by different people (an operator or security team, and a researcher or steward). They are
+kept for different lengths of time. A failed sign-in has no invocation to belong to.
+
+## Rejected alternatives
+
+- **OWASP ASVS or NIST CSF as the baseline.** ASVS is detailed at the level of web-application
+  controls but is not the framework the Blueprint names. CSF 2.0 states outcomes too broadly to
+  name a test against each. The OWASP Top 10 for Agentic Applications, which the Blueprint's
+  evaluation criteria also cite, belongs to the threat model (TODO(#37)), not to this baseline.
+- **A redaction step on every export path.** Rejected for the reasons in the Rationale. It would
+  be a second, weaker version of invariant 2.
+- **Security events as entries in the run store.** Rejected because many events have no run, and
+  because run provenance is written once per invocation and published in RO-Crates. A sign-in
+  record must not be.
+
+## Non-functional requirements
+
+- A deployment that follows `deploy/README.md` meets every row marked Met or Deployment without
+  further configuration.
+- The control table stays current. A change that adds, removes or weakens a control updates its
+  row in the same pull request.
+
+## Open questions
+
+- TODO(#37): the threat model these controls answer to, including where the broker's
+  key-encryption key is kept apart from backups.
+- TODO(#882): refuse to serve beyond loopback with no sign-in unless explicitly allowed.
+- TODO(#883): the FAIRsharing password read from a credential file, and a sentinel test for it.
+- TODO(#884): the structured security event log.
+- TODO(#885): keep secrets out of spans imported from remote agents.
+- TODO(#886): store directories and files private to the service whatever the umask.
+- TODO(#887): operations guidance on encryption at rest and TLS to a remote PostgreSQL.
+- TODO(#17): authentication between the harness and its agents.
+- TODO(#154): roles a deployment defines, and what each may see and do.

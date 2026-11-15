@@ -345,5 +345,5 @@ decides which endpoint serves it, and a person's endpoint is not known at start-
   role is recorded as a `Person` whose description states its kind.
 - TODO(#40): enforcing a manifest's model declarations beyond project content
   ([Projects](projects.md), invariant 8), such as which models may receive a conversation's text.
-- TODO(#43, #37): the security baseline for roles, secrets, storage and audit (C1), and the threat
-  model this spec's controls answer to.
+- TODO(#37): the threat model this spec's controls answer to. Their baseline against C1 is
+  [Security baseline](security.md).

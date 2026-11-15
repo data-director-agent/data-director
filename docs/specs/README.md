@@ -51,6 +51,7 @@ which gets one line that points to the code.
 | [Deposit](deposit.md) | Repository requirements and the deposit package. |
 | [Storage](storage.md) | The run and project storage protocols, their guarantees, the file backends and how another backend is added. |
 | [Disclosure](disclosure.md) | Model calls and their prompts, and the disclosure of how each approved document came about, as a statement and a PROV-O graph. |
+| [Security baseline](security.md) | The controls behind C1 mapped to NIST SP 800-53, each with its status and evidence; secrets, audit streams and secure defaults. |
 | [Evaluation and conformance](evaluation.md) | Evaluation, assessment lanes, and how conformance to the Blueprint is reported. |
 
 ## The shape of a spec

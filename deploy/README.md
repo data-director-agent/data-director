@@ -518,8 +518,8 @@ key-encryption key could not restore the enrolments. After a copy is lost, repla
 key-encryption key and move the broker's store aside while the broker is stopped, so that people
 enrol their keys again; keys sealed under the old one no longer open, and a call on one fails. Ask
 the people who had enrolled to revoke their keys with their providers
-([The model broker](../docs/guide/operations/model-broker.md)). TODO(#43): whether the
-key-encryption key should be kept apart from the backups, which the threat model (#37) decides.
+([The model broker](../docs/guide/operations/model-broker.md)). TODO(#37): whether the
+key-encryption key should be kept apart from the backups, which the threat model decides.
 
 ### A store in PostgreSQL
 

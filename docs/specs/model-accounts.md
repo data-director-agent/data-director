@@ -555,5 +555,5 @@ model call and whether the person's own account or the deployment's paid for it
   as a conversation's text, beyond `hosted_models` for project content.
 - TODO(#154): whether a steward may require own accounts for some people or groups and not
   others.
-- TODO(#43, #37): where the broker's key-encryption key and its rotation fit the security baseline
-  and the threat model.
+- TODO(#37): where the broker's key-encryption key is kept and how it is rotated, in the threat
+  model; the baseline records the sealing itself ([Security baseline](security.md)).
