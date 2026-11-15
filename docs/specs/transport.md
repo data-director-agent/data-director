@@ -56,6 +56,8 @@ whom an invocation acts for, and how that is established, is in
    `retrieval`, `chat`, `execute_tool` and `delegate`; the owned attributes are those in
    `OWNED_ATTRIBUTES`. Among them, `dd.model_account` on a `chat` span says whose account paid for
    the call, `own` or `deployment`, never whose ([A person's own model account](model-accounts.md)).
+   `dd.model_declared` will name the model the card declared on a `chat` span whose call the
+   profile's model map routed to another model (TODO(#843)).
 10. The linter and the provenance writer read only owned attributes, from a plain span record,
     never OpenTelemetry SDK objects. Any other attribute on a span (such as `dd.tool_name`) is
     informational and nothing in Data Director depends on it.

@@ -44,7 +44,8 @@ the SDK reads the broker's answer (`dd_sdk.model_account`), and a refused accoun
 outcome. The broker serves both formats, and enrols and serves OpenAI, Gemini and OpenAI-compatible
 accounts as well as Anthropic ones (`dd_broker.chat_completions`); the profile's `providers` and the
 Profile page offer each of them, and a run records the provider the broker reports. Mapping a declared
-model to one a person's provider serves is not built (TODO(#843)). The shipped profiles turn own accounts off,
+model to one a person's provider serves is specified here (invariants 12 and 15, The model map) and
+not yet built (TODO(#843)). The shipped profiles turn own accounts off,
 so every grant says the deployment pays, and every model call is paid for by the deployment, as it
 is today.
 
@@ -99,7 +100,9 @@ the broker checks that decision.
 9. **Whose account paid is recorded, never whose key.** Every model call records `own` or
    `deployment` (`ModelCall.model_account`, and `dd.model_account` on its `chat` span), and the
    provider and model that served it as the broker reports them: `ModelCall.model_provider` is
-   the broker's `X-DD-Model-Provider`, and `model_id` the model the answer names. Every client the
+   the broker's `X-DD-Model-Provider`, and `model_id` the model the answer names. A call the model
+   map routed to another model also records the model the card declared, `ModelCall.model_declared`
+   (`dd.model_declared` on its span), which is absent for every other call (TODO(#843)). Every client the
    SDK builds for the broker reads both headers from each answer, so an agent that calls its client
    directly records them too; a call that did not go through the broker was paid for by the
    deployment and served by the provider the agent was configured with. The Process Run Crate gives each call's `CreateAction` the same value as a
@@ -127,9 +130,11 @@ the broker checks that decision.
     and only that provider serves the call. A person's account with another provider is no account
     for it: its key is never used, so the run ends `model_account_missing` unless the grant lets the
     deployment pay with its own key for that provider
-    (`broker/tests/test_broker_chat_completions.py`, `broker/tests/test_broker_calls.py`). Choosing
-    a different model for a person's account is a profile mapping the run records, never a guess
-    the broker makes (TODO(#843)).
+    (`broker/tests/test_broker_chat_completions.py`, `broker/tests/test_broker_calls.py`). The one
+    exception is the steward's: a different provider and model serve the call only where the
+    grant's model map names that model for the person's own provider, the call is paid for by the
+    person's own account, and the run records the declared model beside the served one
+    (invariant 9). The broker never chooses a model the map does not name (TODO(#843)).
 13. **Tests and CI never need a real key**, a real provider or a real broker key-encryption key.
     Provider calls are replayed from cassettes, as everywhere else
     ([Policy and identity](policy-and-identity.md), invariant 21).
@@ -148,6 +153,13 @@ the broker checks that decision.
     and the agent is not called. Delegated children are refused the same way. The harness logs
     each such agent at start-up (`harness/tests/test_model_grants.py`,
     `harness/tests/test_registry.py`).
+15. **The SDK routes a mapped call; the broker decides the route.** Before an agent's first model
+    call in a run, the model seam asks the broker which provider and model serve each model it
+    declares. The broker answers from the grant and the person's account alone, and checks every
+    call against the same answer. An agent's own code never chooses the route, and a client the
+    agent calls outside the model seam is not routed: its calls go to the provider its card
+    declares, as invariant 12 says. A model that relies on tool calls is never routed to a model
+    the profile does not say serves them (TODO(#843)).
 
 ## Boundaries and contracts
 
@@ -182,7 +194,10 @@ steps in order:
 
 1. It authenticates the agent.
 2. It verifies the grant for that agent.
-3. It refuses a model the grant does not allow, and a streamed request.
+3. It refuses a model the grant does not allow, and a streamed request. The grant allows the
+   models in `dd_models` on any path, as before. Beside them, it allows a model the grant's
+   `dd_model_map` names for the path's provider, and only when the person's own account is with
+   that provider: the deployment never pays for a mapped call.
 4. It chooses the account from the grant alone, for the provider the path names:
 
    | The grant's account | The person has an account | The person has none |
@@ -197,6 +212,18 @@ steps in order:
    in its place.
 5. It forwards the request body unchanged with the paying key. Of the agent's headers it passes on
    only, for Anthropic, `anthropic-version` and `anthropic-beta`.
+
+**The route.** `POST /route`, with the agent's broker credential and the grant as for a model call
+and a body `{"model": "<declared model>"}`, answers `{"provider", "model"}`. When the person's own
+account is with a provider other than the declared model's, the grant allows their account, and
+`dd_model_map` names a model for that provider, the answer is that provider and that model.
+Otherwise it is the declared provider and model, and the call then goes as the table above says.
+The answer names a provider and a model, which the run records for each call in any case, and
+nothing about the account. A model not in `dd_models` is refused as a call would be. The model seam
+(`dd_sdk.model_provider.configured_model`, when the agent calls through the broker) asks once per
+run, for each model the agent declares, and builds the matching adapter, `AnthropicModel` or
+`OpenAIModel`, for that run. A run's calls to one declared model therefore all go to one provider,
+so content a provider requires back unchanged (`Replay`) stays with that provider (TODO(#843)).
 
 The broker returns the provider's answer unchanged, with `X-DD-Model-Account` (`own` or
 `deployment`) and `X-DD-Model-Provider`. The model that served the call is in the answer itself.
@@ -287,6 +314,8 @@ against the harness's published keys. Its claims are:
 - the agent's identifier;
 - the invocation's identifier;
 - the models allowed: the card's `models` that the profile permits, and only those;
+- for a grant that may use a person's own account, the model map: for each provider, the
+  declared models the profile maps to a model that provider serves;
 - which account to use (`own`, `own-or-deployment` or `deployment`);
 - for a grant that may use a person's own account, the providers and the base URL origins the
   profile lets that account use;
@@ -300,7 +329,9 @@ against the harness's published keys. Its claims are:
   `aud`, `iat` and `exp`. A grant whose `dd_account` is `own` or `own-or-deployment` also carries
   `dd_providers`, a non-empty list of provider names, and `dd_base_urls`, a list of origins
   (`https://host[:port]`, lower case, default port left out, as `dd_sdk.model_grant.origin` writes
-  them); a grant the deployment pays for carries neither. The broker refuses a person's own
+  them); a grant the deployment pays for carries neither. Such a grant may also carry
+  `dd_model_map`, an object from a provider name in `dd_providers` to an object from a model in
+  `dd_models` to the model that provider serves in its place (TODO(#843)). The broker refuses a person's own
   account whose provider is not in `dd_providers` (`account-unsupported`), and one whose base URL's
   origin is not in `dd_base_urls` (`base-url-refused`), and does not fall back to the deployment's
   key for either.
@@ -344,7 +375,8 @@ refuses to start if a provider key is set beside it (`dd_sdk.credentials.model_e
   required unless `own` is `off`. Each entry names a `provider`: `anthropic`, `openai`, `gemini` or
   `openai-compatible`. An `openai-compatible` entry must list `base_urls`, each a `url` and an
   optional `local: true`, since it has no endpoint of its own; any other entry lists none, since
-  its account always calls the provider's own endpoint.
+  its account always calls the provider's own endpoint. An entry may list `models`, its model
+  map (see The model map).
 
 ```yaml
 model_accounts:
@@ -353,6 +385,12 @@ model_accounts:
   providers:
     - provider: anthropic
     - provider: openai
+      models:
+        - declared: claude-sonnet-5-5
+          model: gpt-5.1
+          tools: true
+        - declared: claude-haiku-5-5
+          model: gpt-5.1-mini
     - provider: openai-compatible
       base_urls:
         - url: https://llm.example.ac.uk
@@ -374,10 +412,23 @@ The conductor turns the first two into the grant's account setting:
 `required` with `fallback: deployment` contradicts itself, so a profile that combines them is
 refused when it is loaded. So is a `fallback` or `providers` beside `own: off`, a provider the
 broker cannot serve, an `openai-compatible` entry without `base_urls` or another entry with them, a
-base URL that is not a plain `https` URL, and any other key: each would tell
+base URL that is not a plain `https` URL, a model map entry that lacks `declared` or `model`, a
+`declared` model listed twice under one provider, and any other key: each would tell
 a steward a rule is in force when nothing enforces it ([Policy and identity](policy-and-identity.md),
 invariant 4). A profile that turns own accounts on stops the harness at start-up unless it mints
 grants, since nothing else would carry the decision to the broker.
+
+**The model map.** A provider's `models` lists, for each model an agent's card may declare
+(`declared`), the model that provider serves in its place (`model`), and whether that model serves
+tool calls (`tools`, `false` when absent). The steward states `tools`; nothing probes an endpoint
+for it. An agent's card states, for each model it declares, whether the agent relies on tool calls
+(`ModelUse.tools`, set by `configured_model(..., tool_use=True)`), as the orchestrator does. When
+the conductor mints a grant that may use a person's own account, it puts into `dd_model_map` each
+mapping whose `declared` model is one the card declares and, where the card says that model relies
+on tool calls, whose `tools` is `true`, and no other. A model with no mapping in the grant is served
+as the card declares it, or the run ends as the account table says. A mapping is the steward's
+decision, so it is recorded in the profile and in the version of every run held to it, and each call
+it routes records the declared model (invariant 9) (TODO(#843)).
 
 It sits beside `hosted_models` ([Policy and identity](policy-and-identity.md), The profile
 vocabulary), which still governs what project content may go to a `hosted` model. A person's own
@@ -422,6 +473,13 @@ model call and whether the person's own account or the deployment's paid for it
   recorded in the profile and in the version of every run held to it.
 - **Provider-native APIs at the broker** let agents keep the adapters they already have behind the
   model seam. Only a base URL and a credential change.
+- **The SDK routes a mapped call** because every model-backed agent already calls through the
+  model seam, which has an adapter for each format, while only the broker knows a person's provider.
+  Asking the broker keeps that knowledge, and the check, in the broker, and keeps the broker a
+  service that forwards each format unchanged.
+- **Tool use is stated on both sides.** The card says which models an agent needs tools from, and
+  the profile says which mapped models serve them, so a tool-using agent is never routed to a model
+  that would answer it with text alone, which the orchestrator would take as the end of its turn.
 
 ## Rejected alternatives
 
@@ -439,6 +497,11 @@ model call and whether the person's own account or the deployment's paid for it
 - **Choosing a substitute model when a person's provider does not serve the one declared.** The run
   would then not say what was sent where. A mapping is a steward's decision in the profile, or the
   run ends with an outcome.
+- **The broker translating between the Anthropic Messages and Chat Completions formats.** Agents
+  that call a client outside the model seam would be routed too, but none does, and the broker would
+  hold a second, lossy copy of what each adapter already does: tool blocks, prompt caching, Claude's
+  server-side fallback and structured output have no exact counterpart in the other format, and a
+  call the broker translated would no longer be the call the agent made.
 - **Recording the account's label or pseudonym in the run.** A run is shared with a project's
   members and exported. `own` or `deployment` is what a reader needs to know; whose account it was
   is the person's business.
@@ -474,7 +537,5 @@ model call and whether the person's own account or the deployment's paid for it
   as a conversation's text, beyond `hosted_models` for project content.
 - TODO(#154): whether a steward may require own accounts for some people or groups and not
   others.
-- TODO(#843): how a profile maps a declared model to one a person's provider serves, and whether an
-  agent that relies on tool calls refuses an endpoint that does not support them.
 - TODO(#43, #37): where the broker's key-encryption key and its rotation fit the security baseline
   and the threat model.

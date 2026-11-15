@@ -193,7 +193,10 @@ the worked example of the `template` default and the declared model (`factory.py
    model calls tools passes them to `call` as `dd_sdk.model.ToolSpec`s and keeps its
    conversation in the seam's neutral types (`AssistantMessage`, `ToolResults`); content a
    provider requires back unchanged travels in `AssistantMessage.replay`
-   ([Orchestration](orchestration.md), invariant 8).
+   ([Orchestration](orchestration.md), invariant 8). A model the agent relies on to call tools
+   will be declared so on the card (`ModelUse.tools`), so that a profile's model map never routes
+   it to a model that does not serve them
+   ([A person's own model account](model-accounts.md), The model map; TODO(#843)).
 5. **Prompts are code.** The system prompt is `system_prompt.md` beside the module that sends it.
    A change to a prompt is a change to the agent's behaviour and is reviewed as one.
 6. **Tests use a fake model.** An agent's suite exercises the model path with

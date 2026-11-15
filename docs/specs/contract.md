@@ -111,6 +111,8 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
     `model_account_missing`, `model_account_rejected` or `model_account_limit`
     ([A person's own model account](model-accounts.md), invariants 9 and 10;
     `sdk/tests/test_whose_account_paid.py`). Adding them raised the contract version to 0.10.0.
+    A call the profile's model map routed to another model will also record the model the card
+    declared (`model_declared`), which will raise the contract version to 0.11.0 (TODO(#843)).
 22. A `Reply` may carry `conversation_title`, one line of at most 80 characters that a person can
     tell the conversation apart by. A model writes it from the researcher's first message, on a
     conversation's first turn only; an agent that sets it declares it model-derived, and a later
