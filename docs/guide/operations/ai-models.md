@@ -291,6 +291,7 @@ names the variable or path and never the key. The unit is not restarted on that 
 | `set DD_MODEL_BROKER_URL or ANTHROPIC_API_KEY, not both` (or another provider's key) | The agent calls through the [model broker](model-broker.md), which holds the key, so it may hold none itself. |
 | `set DD_MODEL_BROKER_URL or DD_MODEL_BASE_URL, not both` | Through the broker, the broker decides where an `openai-compatible` call goes. |
 | `no model broker credential` | `DD_MODEL_BROKER_URL` is set without `DD_MODEL_BROKER_CREDENTIAL` or `DD_MODEL_BROKER_CREDENTIAL_FILE`. |
+| A run fails with problem `model-broker-bypassed` | The profile lets people's own accounts pay, and the agent's entry in `app/config/agents.yaml` does not say `model_broker: true`. Set the agent to call through the [model broker](model-broker.md#the-agents-calling-through-the-broker), then mark it. |
 
 If the credential file is missing, systemd refuses to start the unit at all, since the unit
 declares `LoadCredential=`. That is why the orchestrator's unit is enabled only once its key is

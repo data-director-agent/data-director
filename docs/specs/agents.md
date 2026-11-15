@@ -92,7 +92,11 @@ an agent runs behind. It is the only package an agent and the harness share
 deployment: `workbench/agents.yaml` for development and `app/config/agents.yaml` for the app,
 either overridden by `DD_AGENTS_CONFIG`. It reads each card once at start-up. When a request names
 an agent that is not registered, the conductor asks the registry to retry the agents it could not
-load, so an agent started after the harness is found without a restart. Reloading a changed
+load, so an agent started after the harness is found without a restart. An entry may also say
+`model_broker: true`: the operator's statement that the agent calls its models through the model
+broker, which the conductor requires of every model-backed agent while the profile lets people's
+own model accounts pay ([A person's own model account](model-accounts.md), invariant 14). It is
+read from the configuration alone, never from the agent's card. Reloading a changed
 configuration and checking the health of registered agents while running are not built yet:
 TODO(#251).
 

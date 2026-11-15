@@ -53,6 +53,7 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import logging
 import secrets
 import tempfile
 import threading
@@ -116,6 +117,8 @@ from dd_sdk.tracing import (
     make_tracing,
     policy_gate_span,
 )
+
+log = logging.getLogger(__name__)
 
 DATA_STEWARD = "data_steward"
 # The core payload class a run in a project records as a document version.
@@ -209,6 +212,16 @@ class Conductor:
                 "DD_MODEL_GRANT_SIGNING_KEY, DD_MODEL_BROKER_SUBJECT_KEY and DD_PSEUDONYM_SECRET "
                 "(docs/specs/model-accounts.md)"
             )
+        # Each run of these is refused; say so once at start-up, where the operator looks.
+        for agent in self.registry:
+            if self._bypasses_broker(agent):
+                log.warning(
+                    "profile %r lets people's own model accounts pay, and agent %r calls a model "
+                    "without the agent configuration stating model_broker: true; its runs will "
+                    "be refused (docs/specs/model-accounts.md, invariant 14)",
+                    self.profile.profile_id,
+                    agent.spec.agent_id,
+                )
 
     async def ainvoke(
         self,
@@ -330,6 +343,18 @@ class Conductor:
         with self._grants_lock:
             grant.delegations.append(record)
         return envelope
+
+    def _bypasses_broker(self, agent: Registered) -> bool:
+        """Whether `agent` may call a model without the model broker while the profile lets
+        people's own accounts pay (docs/specs/model-accounts.md, invariant 14).
+
+        Only the operator's statement in the registry's configuration (`model_broker`) counts,
+        never the agent's card. An agent run in this process is never sent a grant, so it cannot
+        call through the broker.
+        """
+        if self.profile.model_accounts.own == "off" or not agent.spec.models:
+            return False
+        return not (isinstance(agent, RemoteAgent) and agent.model_broker)
 
     def _model_grant(
         self, agent: Registered, request: InvocationRequest, acting_for: Principal
@@ -488,12 +513,20 @@ class Conductor:
             with policy_gate_span(tracer, spec.agent_id):
                 decision = policy.gate(profile, spec.agent_id, spec.action_class)
             watch.finished(steps.GATE)
+            # 1b. Who pays: with own accounts on, only an agent the operator states calls through
+            # the model broker may call a model (docs/specs/model-accounts.md, invariant 14).
+            bypasses = decision.allowed and self._bypasses_broker(agent)
             # 2-4. The input check: the input against the agent's card, the project's facts and
             # what the profile keeps from hosted models. Run only for an agent the gate lets run
             # straight away, and not once the run is cancelled.
             refused: tuple[str, list[str]] | None = None
             kept_back: list[str] = []
-            if decision.allowed and not decision.requires_approval and not watch.cancelled():
+            if (
+                decision.allowed
+                and not bypasses
+                and not decision.requires_approval
+                and not watch.cancelled()
+            ):
                 watch.started(steps.INPUT)
                 refused = _input_refusal(spec, request_doc["input"])
                 if refused is None and unfillable is None:
@@ -519,6 +552,21 @@ class Conductor:
                     if decision.refusal == "action-class-mismatch"
                     else problems.agent_not_permitted(spec.agent_id, profile.profile_id)
                 )
+            elif bypasses:
+                # Refused before a steward is asked to approve it: approval cannot make the
+                # deployment's configuration honour the profile.
+                result = AgentResult(
+                    outcome=Outcome(
+                        status=OutcomeStatus.FAILED,
+                        statement=(
+                            f"{spec.agent_id} calls a model, profile {profile.profile_id!r} lets "
+                            "people's own model accounts pay, and the agent configuration does "
+                            "not state that it calls through the model broker. The agent was not "
+                            "run."
+                        ),
+                    )
+                )
+                prob = problems.model_broker_bypassed(spec.agent_id, profile.profile_id)
             elif decision.requires_approval:
                 result = AgentResult(
                     outcome=Outcome(

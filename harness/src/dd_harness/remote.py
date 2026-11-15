@@ -85,6 +85,10 @@ class RemoteAgent:
     timeout_s: float = DEFAULT_TIMEOUT_S
     client_factory: ClientFactory = default_client
     card: dict[str, Any] | None = None
+    # Whether the operator states that this agent calls its models through the model broker
+    # (`model_broker` in `agents.yaml`, docs/specs/model-accounts.md, invariant 14). Never read
+    # from the agent's card: the agent's own claim does not decide who pays.
+    model_broker: bool = False
 
     @classmethod
     def from_url(
@@ -92,9 +96,12 @@ class RemoteAgent:
         url: str,
         timeout_s: float = DEFAULT_TIMEOUT_S,
         client_factory: ClientFactory = default_client,
+        *,
+        model_broker: bool = False,
     ) -> RemoteAgent:
         """Read the card at `url`. Raises `RemoteAgentError` if it cannot be read, `SpecError`
-        if it does not describe a Data Director agent this contract admits."""
+        if it does not describe a Data Director agent this contract admits. `model_broker` is the
+        operator's statement that the agent calls its models through the model broker."""
 
         async def fetch() -> dict[str, Any]:
             async with client_factory(url, timeout_s) as hc:
@@ -113,6 +120,7 @@ class RemoteAgent:
             timeout_s=timeout_s,
             client_factory=client_factory,
             card=card,
+            model_broker=model_broker,
         )
 
     def call(

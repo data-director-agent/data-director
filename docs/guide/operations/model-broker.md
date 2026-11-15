@@ -127,6 +127,22 @@ An agent calls through the broker when its environment sets:
 - `DD_MODEL_BROKER_CREDENTIAL_FILE`, a systemd credential holding the agent's broker credential
   (`DD_MODEL_BROKER_CREDENTIAL` in development).
 
+Then mark it in `app/config/agents.yaml` (or the file `DD_AGENTS_CONFIG` names), which the
+harness reads and the agent cannot write:
+
+```yaml
+  - name: orchestrator-model
+    url: http://127.0.0.1:8107
+    timeout_s: 300
+    model_broker: true
+```
+
+While own accounts are on, the harness runs no model-backed agent without `model_broker: true`:
+its runs fail with problem `model-broker-bypassed` and the agent is not called, since an agent
+holding its own provider key would ignore the grant and the deployment would pay without the run
+saying so. The harness logs each such agent when it starts. Mark an agent only once its
+environment is set as below.
+
 Remove its provider key (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` or
 `DD_MODEL_API_KEY`, and their `_FILE` forms): an agent that calls through the broker holds no
 provider key, and refuses to start with one. It also refuses to start without its credential.

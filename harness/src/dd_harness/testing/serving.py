@@ -87,10 +87,14 @@ def in_process(
     agent: Agent,
     timeout_s: float = 30.0,
     delegate_client_factory: Callable[[str, float], httpx.AsyncClient] | None = None,
+    *,
+    model_broker: bool = False,
 ) -> RemoteAgent:
     """Serve `agent` in memory and return the `RemoteAgent` built from its card.
 
     `delegate_client_factory` is the client a delegation agent calls the harness back with.
+    `model_broker` stands for the operator's statement in `agents.yaml` that the agent calls its
+    models through the model broker.
     """
     base_url = f"http://{agent.spec.agent_id}.agents.test"
     kwargs: dict[str, Any] = {}
@@ -98,7 +102,10 @@ def in_process(
         kwargs["delegate_client_factory"] = delegate_client_factory
     app = serve.app(agent, base_url=base_url, **kwargs)
     return RemoteAgent.from_url(
-        base_url, timeout_s=timeout_s, client_factory=asgi_client_factory(app)
+        base_url,
+        timeout_s=timeout_s,
+        client_factory=asgi_client_factory(app),
+        model_broker=model_broker,
     )
 
 
@@ -109,6 +116,7 @@ def make_conductor(
     remote: bool = True,
     profile: Path = PERMISSIVE,
     model_grants: GrantMinter | None = None,
+    model_broker: bool = False,
 ) -> Conductor:
     """A conductor over `agents`, each reached over in-process A2A unless `remote` is False,
     governed by the institutional profile at `profile`.
@@ -117,6 +125,8 @@ def make_conductor(
     as the delegation callback, so delegation runs over the wire as it does in production. Those
     routes act for `TEST_PRINCIPAL`; a test invokes the conductor with `acting_for=TEST_PRINCIPAL`.
     `model_grants` mints a model grant for each model-backed agent (`GrantKeys.minter`).
+    `model_broker` states, as an operator would in `agents.yaml`, that each remote agent calls its
+    models through the model broker.
     """
     harness_app: dict[str, Any] = {}
 
@@ -124,7 +134,10 @@ def make_conductor(
         return asgi_client_factory(harness_app["app"])(base_url, timeout_s)
 
     registry = Registry.from_agents(
-        in_process(a, delegate_client_factory=harness_client) if remote else a for a in agents
+        in_process(a, delegate_client_factory=harness_client, model_broker=model_broker)
+        if remote
+        else a
+        for a in agents
     )
     conductor = Conductor(
         registry=registry,

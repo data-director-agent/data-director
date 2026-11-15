@@ -23,6 +23,7 @@ from dd_harness.model_grants import (
     signing_key,
 )
 from dd_harness.policy import PolicyError
+from dd_harness.remote import RemoteAgent
 from dd_harness.settings import MODEL_GRANT_SETTINGS, SettingsError, grant_minter
 from dd_harness.testing import (
     HARNESS_URL,
@@ -50,6 +51,7 @@ from dd_sdk.contract.models import (
     ReasonCode,
     to_document,
 )
+from dd_sdk.contract.problem import PROBLEM_BASE
 from dd_sdk.model_grant import (
     BROKER_AUDIENCE,
     HEADER_REASON,
@@ -344,7 +346,11 @@ def test_the_profile_decides_whose_account_the_grant_names(
         provider="openai-compatible",
     )
     conductor = make_conductor(
-        tmp_path / "runs", model_backed(seen), model_grants=keys.minter(), profile=profile
+        tmp_path / "runs",
+        model_backed(seen),
+        model_grants=keys.minter(),
+        profile=profile,
+        model_broker=True,
     )
 
     conductor.invoke(request("fake.none", record()), acting_for=TEST_PRINCIPAL)
@@ -453,6 +459,113 @@ def test_the_grant_is_not_kept_in_any_record(keys: GrantKeys, tmp_path: Path) ->
     for path in stored:
         assert grant.encode() not in path.read_bytes(), f"the grant is in {path}"
     assert grant not in json.dumps(to_document(env))
+
+
+# --- An agent that does not call through the broker ------------------------------------------
+
+
+BYPASSED = PROBLEM_BASE + "model-broker-bypassed"
+
+
+@pytest.mark.parametrize("remote", [True, False])
+def test_with_own_accounts_on_an_agent_not_stated_to_call_through_the_broker_is_refused(
+    keys: GrantKeys, tmp_path: Path, remote: bool
+) -> None:
+    """docs/specs/model-accounts.md, invariant 14: only the operator's statement counts, and an
+    agent run in the conductor's process can never call through the broker. The refusal is an
+    outcome, stored like any run, and the agent is not run."""
+    seen: list[RunContext] = []
+    runs = tmp_path / "runs"
+    conductor = make_conductor(
+        runs,
+        model_backed(seen),
+        remote=remote,
+        model_grants=keys.minter(),
+        profile=_own_profile(tmp_path, "allowed", "deployment"),
+    )
+
+    env = conductor.invoke(request("fake.none", record()), acting_for=TEST_PRINCIPAL)
+
+    assert env.outcome.status is OutcomeStatus.FAILED
+    assert env.problem is not None and env.problem.type == BYPASSED
+    assert seen == []
+    assert (runs / env.invocation_id).is_dir()
+
+
+@pytest.mark.parametrize("own", ["allowed", "required"])
+def test_with_own_accounts_on_an_agent_stated_to_call_through_the_broker_runs(
+    keys: GrantKeys, tmp_path: Path, own: str
+) -> None:
+    seen: list[RunContext] = []
+    conductor = make_conductor(
+        tmp_path / "runs",
+        model_backed(seen),
+        model_grants=keys.minter(),
+        profile=_own_profile(tmp_path, own, "none"),
+        model_broker=True,
+    )
+
+    env = conductor.invoke(request("fake.none", record()), acting_for=TEST_PRINCIPAL)
+
+    assert env.outcome.status is OutcomeStatus.SUCCEEDED, env.outcome.statement
+    [ctx] = seen
+    assert ctx.model_grant is not None
+
+
+def test_with_own_accounts_on_an_agent_that_calls_no_model_needs_no_broker(
+    keys: GrantKeys, tmp_path: Path
+) -> None:
+    seen: list[RunContext] = []
+    conductor = make_conductor(
+        tmp_path / "runs",
+        model_backed(seen, models=()),
+        model_grants=keys.minter(),
+        profile=_own_profile(tmp_path, "allowed", "deployment"),
+    )
+
+    env = conductor.invoke(request("fake.none", record()), acting_for=TEST_PRINCIPAL)
+
+    assert env.outcome.status is OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert len(seen) == 1
+
+
+def test_with_own_accounts_off_no_agent_needs_the_broker(keys: GrantKeys, tmp_path: Path) -> None:
+    seen: list[RunContext] = []
+    conductor = make_conductor(tmp_path, model_backed(seen), model_grants=keys.minter())
+
+    env = conductor.invoke(request("fake.none", record()), acting_for=TEST_PRINCIPAL)
+
+    assert env.outcome.status is OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert len(seen) == 1
+
+
+def test_a_delegated_child_not_stated_to_call_through_the_broker_is_refused(
+    keys: GrantKeys, tmp_path: Path
+) -> None:
+    """The child's refusal is its own stored run; the parent receives its envelope."""
+    parents: list[RunContext] = []
+    children: list[RunContext] = []
+    conductor = make_conductor(
+        tmp_path / "runs",
+        delegating_model_backed(parents, "fake.none"),
+        model_backed(children),
+        model_grants=keys.minter(),
+        profile=_own_profile(tmp_path, "allowed", "deployment"),
+    )
+    # The operator states it for the parent alone.
+    parent = conductor.registry.get("fake.delegation")
+    assert isinstance(parent, RemoteAgent)
+    parent.model_broker = True
+
+    env = conductor.invoke(request("fake.delegation", message()), acting_for=TEST_PRINCIPAL)
+
+    assert len(parents) == 1
+    assert children == []
+    [delegation] = env.delegations
+    child = conductor.store.get(delegation.delegated_invocation_id)
+    assert child is not None
+    assert child["outcome"]["status"] == OutcomeStatus.FAILED.value
+    assert child["problem"]["type"] == BYPASSED
 
 
 # --- Whose account paid, and a refused account ---------------------------------------------------

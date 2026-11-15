@@ -91,6 +91,20 @@ def project_content_withheld(
     )
 
 
+def model_broker_bypassed(agent_id: str, profile_id: str) -> ProblemDetails:
+    """A model-backed agent the operator has not stated calls through the model broker, under a
+    profile that lets people's own model accounts pay (docs/specs/model-accounts.md, invariant
+    14). Run, it could be paid for by the deployment without the run saying so."""
+    return problem(
+        "model-broker-bypassed",
+        "An agent that does not call its models through the model broker",
+        f"Profile {profile_id!r} lets people's own model accounts pay, so every model call goes "
+        f"through the model broker, and the agent configuration does not state that agent "
+        f"{agent_id!r} calls through it. The agent was not run.",
+        http_status=403,
+    )
+
+
 def revision_refused(detail: str) -> ProblemDetails:
     """A drafted document the project could not record: it revises no version of the project, or
     a version of a document of another kind (docs/specs/projects.md)."""

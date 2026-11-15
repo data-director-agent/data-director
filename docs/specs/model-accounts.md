@@ -139,8 +139,15 @@ the broker checks that decision.
     holds no provider key of its own. The broker applies the account setting
     (`broker/tests/test_broker_calls.py`). An agent configured to call through the broker refuses
     to start with a provider key beside its broker credential (`sdk/tests/test_model_broker.py`).
-    The conductor cannot yet tell whether an agent calls through the broker, so which agents do is
-    the operator's choice (TODO(#819)).
+    Whether an agent calls through the broker is the operator's statement, never the agent's: its
+    entry in the registry's configuration says `model_broker: true` ([Agents](agents.md), The
+    registry), which the agent cannot write and its card does not carry. With own accounts on, the
+    conductor refuses a model-backed agent without that statement, and any it runs in its own
+    process, which it can send no grant: the run is `failed` with problem `model-broker-bypassed`,
+    stored like any other, before the input check and before any steward is asked to approve it,
+    and the agent is not called. Delegated children are refused the same way. The harness logs
+    each such agent at start-up (`harness/tests/test_model_grants.py`,
+    `harness/tests/test_registry.py`).
 
 ## Boundaries and contracts
 
@@ -162,7 +169,9 @@ and credential. Provider HTTP is plumbing ([Dependencies](dependencies.md)): the
 provider SDKs or an OpenAI-compatible client, and may send the deployment's own calls through the
 LiteLLM gateway. Checking the grant is governance and is the broker's own code.
 
-**The broker's interface for agents.** An agent's provider client points at the broker in place of
+**The broker's interface for agents.** The operator marks each agent that calls through the broker
+`model_broker: true` in the registry's configuration; with own accounts on, the conductor runs no
+other model-backed agent (invariant 14). An agent's provider client points at the broker in place of
 the provider, at `/{provider}` below the broker's base URL. For the Anthropic Messages API that
 is `POST /anthropic/v1/messages`. For the OpenAI Chat Completions API it is
 `POST /{provider}/chat/completions`, where the provider is `openai`, `gemini` or
