@@ -15,7 +15,7 @@ permissions: {}
 jobs:
   approve:
     name: Approve and auto-merge patch updates
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     if: github.event.pull_request.user.login == 'dependabot[bot]' && github.repository == 'data-director-agent/data-director'
     permissions:
