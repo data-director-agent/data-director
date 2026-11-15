@@ -643,8 +643,16 @@ class _BrokerRefusedError(Exception):
 
 
 @pytest.mark.parametrize("remote", [True, False])
+@pytest.mark.parametrize(
+    ("reason", "code"),
+    [
+        ("model-account-limit", ReasonCode.MODEL_ACCOUNT_LIMIT),
+        ("model-account-missing", ReasonCode.MODEL_ACCOUNT_MISSING),
+        ("model-account-rejected", ReasonCode.MODEL_ACCOUNT_REJECTED),
+    ],
+)
 def test_a_refused_own_account_ends_the_run_abstained_with_its_calls_recorded(
-    keys: GrantKeys, tmp_path: Path, remote: bool
+    keys: GrantKeys, tmp_path: Path, remote: bool, reason: str, code: ReasonCode
 ) -> None:
     """docs/specs/model-accounts.md, invariants 9 and 10: the call made before the refusal is
     recorded with whose account paid, in the envelope and the crate, and the run is an outcome."""
@@ -654,9 +662,7 @@ def test_a_refused_own_account_ends_the_run_abstained_with_its_calls_recorded(
         calls.record(
             {"messages": [{"role": "user", "content": "hi"}]}, MODEL, account=ModelAccount.OWN
         )
-        raise RuntimeError("the model could not be called") from _BrokerRefusedError(
-            "model-account-limit"
-        )
+        raise RuntimeError("the model could not be called") from _BrokerRefusedError(reason)
 
     agent = ScriptedAgent(
         GroundingMode.NONE, behaviour, models=(ModelUse("anthropic", MODEL, "hosted"),)
@@ -667,7 +673,7 @@ def test_a_refused_own_account_ends_the_run_abstained_with_its_calls_recorded(
     env = conductor.invoke(request("fake.none", record()), acting_for=TEST_PRINCIPAL)
 
     assert env.outcome.status is OutcomeStatus.ABSTAINED
-    assert env.outcome.reason_code is ReasonCode.MODEL_ACCOUNT_LIMIT
+    assert env.outcome.reason_code is code
     [made] = env.telemetry.model_calls
     assert made.model_account is ModelAccount.OWN
     crate = json.loads(
