@@ -228,6 +228,16 @@ def build_app(
         and model_broker_path is not None
         and governance.conductor.profile.model_accounts.own != "off"
     )
+    # The providers, and the base URL origins, a person's own account may use, so the Profile page
+    # offers only those. Origins are the profile's, not secrets; the broker checks them again.
+    model_account_providers = (
+        [
+            {"provider": p.provider, "base_urls": [u.origin for u in p.base_urls]}
+            for p in governance.conductor.profile.model_accounts.providers
+        ]
+        if model_accounts
+        else []
+    )
 
     def signed_in(handler: Handler) -> Callable[[Request], Awaitable[Response]]:
         """`handler`, given the principal the request acts for; a request with none is refused
@@ -1129,6 +1139,7 @@ def build_app(
                     "principal": _principal(operator),
                     "expires_at": None,
                     "model_accounts": model_accounts,
+                    "model_account_providers": model_account_providers,
                 }
             )
         session = sign_in.authenticator.session(request.headers, touch=request.method == "POST")
@@ -1136,6 +1147,7 @@ def build_app(
             "signs_in": True,
             "issuer": sign_in.issuer,
             "model_accounts": model_accounts,
+            "model_account_providers": model_account_providers,
         }
         if session is None:
             return JSONResponse({**body, "principal": None, "expires_at": None})

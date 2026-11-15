@@ -306,11 +306,17 @@ def test_a_model_backed_agent_is_sent_a_grant_for_its_invocation(
     assert claims.expires_at - claims.issued_at <= TIMEOUT_S
 
 
-def _own_profile(tmp_path: Path, own: str, fallback: str | None, base_urls: str = "") -> Path:
+def _own_profile(
+    tmp_path: Path,
+    own: str,
+    fallback: str | None,
+    base_urls: str = "",
+    provider: str = "anthropic",
+) -> Path:
     path = tmp_path / "own.yaml"
     written = PERMISSIVE.read_text(encoding="utf-8") + f"model_accounts:\n  own: {own}\n"
     if fallback is not None:
-        written += f"  fallback: {fallback}\n  providers:\n    - provider: anthropic\n{base_urls}"
+        written += f"  fallback: {fallback}\n  providers:\n    - provider: {provider}\n{base_urls}"
     path.write_text(written, encoding="utf-8")
     return path
 
@@ -331,7 +337,11 @@ def test_the_profile_decides_whose_account_the_grant_names(
     grant's account, and names the providers and base URLs a person's own account may use."""
     seen: list[RunContext] = []
     profile = _own_profile(
-        tmp_path, own, fallback, "      base_urls: [{url: 'https://llm.example.ac.uk/v1'}]\n"
+        tmp_path,
+        own,
+        fallback,
+        "      base_urls: [{url: 'https://llm.example.ac.uk/v1'}]\n",
+        provider="openai-compatible",
     )
     conductor = make_conductor(
         tmp_path / "runs", model_backed(seen), model_grants=keys.minter(), profile=profile
@@ -346,7 +356,7 @@ def test_the_profile_decides_whose_account_the_grant_names(
     if account is Account.DEPLOYMENT:
         assert (claims.providers, claims.base_urls) == ((), ())
     else:
-        assert claims.providers == ("anthropic",)
+        assert claims.providers == ("openai-compatible",)
         assert claims.base_urls == ("https://llm.example.ac.uk",)
 
 

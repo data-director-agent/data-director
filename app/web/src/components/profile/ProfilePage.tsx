@@ -77,7 +77,9 @@ export function ProfilePage({ session }: { session: Session }) {
           ? `When you sign in, Data Director asks ${provider} for your iD and your name only. It keeps no email address and has no access to your ${provider} record. In a project, you may choose facts from your public record for its agents to use; your record is read only when you ask, and only what you tick is kept. To change what ${provider} says about you, edit your record there.`
           : "No sign-in provider is configured, so nothing here came from a person’s own record."}
       </p>
-      {session.modelAccounts && session.signsIn && <ModelAccount />}
+      {session.modelAccounts && session.signsIn && (
+        <ModelAccount providers={session.modelAccountProviders} />
+      )}
       <p>
         <Link to="/">Back to the conversation</Link>
       </p>

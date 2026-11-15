@@ -698,6 +698,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
               }
               onAnswer={(answers, message) => void answerQuestions(answers, message)}
               chosenRepository={project?.repository?.re3data_id ?? null}
+              project={project}
               {...(projectId
                 ? {
                     onDocumentAnswered: (value: ProjectDocuments) =>

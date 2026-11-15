@@ -206,10 +206,15 @@ def _choose(broker: Broker, grant: VerifiedGrant, provider: str) -> _Payment:
         except SealError:
             log.error("a sealed key does not open; check the key-encryption key")
             raise Refused(500, Reason.BROKER_ERROR) from None
+        if own is not None and own.provider != provider:
+            # An account with another provider than the path names is no account for this call:
+            # its key is never used and its provider never serves the call (invariant 12). Who
+            # pays is then what the grant says for a person with none.
+            own = None
         if own is not None:
-            if own.provider != provider or own.provider not in grant.claims.providers:
-                # A different provider is never substituted (invariant 12), and an account the
-                # profile does not allow is never used.
+            if own.provider not in grant.claims.providers:
+                # An account the profile does not allow is never used, and the deployment does not
+                # pay in its place.
                 raise Refused(403, Reason.ACCOUNT_UNSUPPORTED)
             if own.base_url:
                 try:

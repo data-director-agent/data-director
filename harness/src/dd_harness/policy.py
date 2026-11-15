@@ -50,9 +50,11 @@ class PolicyError(Exception):
 # use their own model account; `fallback`: whether the deployment pays for someone who has none.
 OWN_SETTINGS = ("off", "allowed", "required")
 FALLBACK_SETTINGS = ("deployment", "none")
-# The providers a person's own account may be with: those the broker can serve. OpenAI-compatible
-# accounts arrive with TODO(#811).
-OWN_PROVIDERS = ("anthropic",)
+# The providers a person's own account may be with: those the broker can serve. Only an
+# `openai-compatible` account names a base URL, and it must: it has no endpoint of its own. Every
+# other provider's account calls the provider's own endpoint.
+COMPATIBLE = "openai-compatible"
+OWN_PROVIDERS = ("anthropic", "openai", "gemini", COMPATIBLE)
 _MODEL_ACCOUNTS_KEYS = frozenset({"own", "fallback", "providers"})
 _PROVIDER_KEYS = frozenset({"provider", "base_urls"})
 _BASE_URL_KEYS = frozenset({"url", "local"})
@@ -174,6 +176,18 @@ def _provider(entry: Any) -> OwnProvider:
     urls = entry.get("base_urls") or []
     if not isinstance(urls, list):
         raise TypeError("model_accounts base_urls must be a list")
+    # The broker sends a base URL only for an openai-compatible account, so base URLs on any other
+    # provider would be rules nothing enforces, and would make its endpoint look local.
+    if name == COMPATIBLE and not urls:
+        raise ValueError(
+            f"model_accounts provider {COMPATIBLE} must list base_urls: it has no endpoint "
+            "of its own"
+        )
+    if name != COMPATIBLE and urls:
+        raise ValueError(
+            f"model_accounts provider {name} calls its own endpoint, so base_urls would not be "
+            f"enforced; only {COMPATIBLE} names them"
+        )
     base_urls: list[OwnBaseUrl] = []
     for url in urls:
         if not isinstance(url, dict):

@@ -59,12 +59,14 @@ class ModelCallLog:
     ) -> ModelCall:
         """Record one call. `model_id` is the model the provider's response named, where it
         names one. `account` is whose account paid; by default, what the broker said of the call
-        just answered (`dd_sdk.model_account`). Returns the call recorded."""
+        just answered (`dd_sdk.model_account`). The provider is the one the broker said served the
+        call, or else this log's. Returns the call recorded."""
         digest = prompt_digest(prompt)
-        # Taken whether or not `account` is given, so that no later call inherits it.
+        # Taken whether or not `account` is given, so that no later call inherits them.
         reported = model_account.take()
+        served_by = model_account.take_provider()
         call = ModelCall(
-            model_provider=self.provider,
+            model_provider=served_by or self.provider,
             model_id=model_id,
             called_at=called_at or now(),
             prompt_digest=digest,

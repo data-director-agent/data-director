@@ -2,8 +2,11 @@ import { render, screen, within } from "@testing-library/react";
 import { axe } from "jest-axe";
 
 import several from "../../../fixtures/agents-several.json";
+import projectsFixture from "../../../fixtures/projects.json";
 import { normalise } from "../../manifest/normalise";
 import type { RawAgentsResponse } from "../../manifest/types";
+import type { ProjectSummary } from "../../project/api";
+import { projectName } from "../../project/name";
 import type { ModelCall } from "../../run/types";
 import { shortlistRun } from "../../test/shortlist";
 import { Outcome } from "./Outcome";
@@ -52,5 +55,38 @@ describe("Outcome, model calls", () => {
 
   it("lists no calls for a run that made none", () => {
     expect(calls().list).toBeNull();
+  });
+});
+
+describe("Outcome, the project a run is part of", () => {
+  const project = (projectsFixture as ProjectSummary[])[0] as ProjectSummary;
+
+  function review(of?: ProjectSummary | null) {
+    const { container } = render(
+      <Outcome result={{ envelope: shortlistRun(), checks }} agent={agent} idPrefix="run" project={of} />,
+    );
+    const callout = screen.getByText("Human review", { selector: ".not-built strong" }).closest(".not-built");
+    if (!(callout instanceof HTMLElement)) throw new Error("no human review callout");
+    return { container, callout };
+  }
+
+  it("names and links the project of the conversation that started the run", async () => {
+    const { container, callout } = review(project);
+    const link = within(callout).getByRole("link", { name: projectName(project) });
+    expect(link).toHaveAttribute("href", `/projects/${encodeURIComponent(project.project_id)}`);
+    expect(callout).not.toHaveTextContent(/not part of a project/);
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("says a run is not part of a project when its conversation has none", () => {
+    const { callout } = review(null);
+    expect(callout).toHaveTextContent(/not part of a project/);
+    expect(within(callout).queryByRole("link", { name: projectName(project) })).toBeNull();
+  });
+
+  it("makes no claim about a project it does not know", () => {
+    const { callout } = review();
+    expect(callout).not.toHaveTextContent(/part of/);
+    expect(within(callout).queryByRole("link", { name: projectName(project) })).toBeNull();
   });
 });

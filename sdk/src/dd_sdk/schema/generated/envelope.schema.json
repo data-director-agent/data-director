@@ -1404,7 +1404,7 @@
          "description": "One call an agent made to a language model, as the agent reports it (docs/specs/disclosure.md). model_id is the model the provider's response named, which may be more exact than the one configured. prompt_digest identifies the messages sent: the harness keeps them beside the run, never in the envelope, and checks that they hash to it. model_account says whose account paid for the call, never whose key (docs/specs/model-accounts.md).",
          "properties": {
             "model_provider": {
-               "description": "Who serves the model, as the agent's card names it (anthropic).",
+               "description": "Who served the call: the provider the model broker reports, or else the provider as the agent's card names it (anthropic).",
                "type": "string"
             },
             "model_id": {
