@@ -27,6 +27,9 @@ mkdir -p "$unit_dir" "$app/deploy" "$app/.venv/bin" "$root/usr/lib/systemd"
 system_units=/usr/lib/systemd/system
 [ -d "$system_units" ] || system_units=/lib/systemd/system
 cp -r "$system_units" "$root/usr/lib/systemd/"
+# Some runner images ship symlinks to units that are not installed (the dracut-*.service ones on
+# Ubuntu 26.04), which verify reports as a failure to open. They are the host's problem, not ours.
+find "$root/usr/lib/systemd/system" -xtype l -delete
 cp -r "$units_src"/. "$unit_dir"/
 
 # Every executable a unit starts from the release or from what install.sh installs as root, as a
