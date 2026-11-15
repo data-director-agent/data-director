@@ -26,7 +26,9 @@ For each call an agent makes, the broker:
   might quote a key, never leaves it.
 
 A rejected or rate-limited own key ends the run with `model-account-rejected` or
-`model-account-limit`. It is never quietly paid for by the deployment instead.
+`model-account-limit`. A person with no account, when the profile requires one or lets the
+deployment pay for no one, ends it with `model-account-missing`. None of these is ever quietly
+paid for by the deployment instead.
 
 ## On a VM
 
@@ -85,6 +87,30 @@ an agent whose card declares models. It needs three secrets, each as `NAME` in d
 - `DD_PSEUDONYM_SECRET`: at least 32 random bytes, such as `openssl rand -hex 32`. Changing it
   changes every person's pseudonym, so the broker no longer finds their enrolled keys.
 
+On a VM, write each as a file in `/etc/data-director/credentials/app/`, readable by root alone,
+under the names `model-grant-signing-key`, `model-broker-subject-key` and `pseudonym-secret`:
+
+```bash
+cd /etc/data-director/credentials/app
+```
+
+```bash
+(umask 077 && openssl ecparam -name prime256v1 -genkey -noout | openssl pkcs8 -topk8 -nocrypt > model-grant-signing-key)
+```
+
+```bash
+(umask 077 && openssl ec -in ../model-broker/subject-key -pubout > model-broker-subject-key)
+```
+
+```bash
+(umask 077 && openssl rand -hex 32 > pseudonym-secret)
+```
+
+Then run `sudo data-director apply`. It writes the app's drop-in,
+`data-director-app.service.d/model-grants.conf`, which loads those of the three files that exist
+as systemd credentials and sets the matching `_FILE` variables (`deploy/credentials.sh`). In
+development, set the three variables themselves in `config/local/app.env`.
+
 With all three set, the app publishes the public half of the signing key at
 `/.well-known/jwks.json`. Point the broker's `DD_BROKER_HARNESS_JWKS_URL` there, or copy that
 JSON to a file and name it with `DD_BROKER_HARNESS_JWKS_FILE`. With none set, no grant is minted.
@@ -98,9 +124,13 @@ account and whether the deployment pays for someone who has none
 accounts on stops the app at start-up unless the three secrets above are set, since without grants
 nothing would carry that decision to the broker. Raise the profile's `version` with the change.
 
-Every model-backed agent must then call through the broker (below). The harness cannot yet check
-that it does: an agent left with its own provider key would ignore the grant, and the deployment
-would pay (TODO(#819)).
+Every model-backed agent must then call through the broker (below).
+
+A steward can also map a model an agent declares to one that a person's own provider serves, in
+the profile's model map. A mapped call is paid for only by the person's own account, never by the
+deployment's: without one it is refused, `model-account-missing`. Agents do not yet ask the
+broker for the mapped route, so until they do, every call goes to the provider the agent declares
+(TODO(#843)).
 
 ### The Profile page: adding one's own key
 
@@ -126,6 +156,17 @@ An agent calls through the broker when its environment sets:
 - `DD_MODEL_BROKER_URL`, such as `http://127.0.0.1:8300`;
 - `DD_MODEL_BROKER_CREDENTIAL_FILE`, a systemd credential holding the agent's broker credential
   (`DD_MODEL_BROKER_CREDENTIAL` in development).
+
+On a VM, `DD_MODEL_BROKER_URL` goes in the agent's `/etc/data-director/agents/<agent>.env`. Give it
+the credential as a secret named `dd-model-broker-credential`:
+
+```bash
+sudo data-director secret set advisor-standards dd-model-broker-credential
+```
+
+The secret's name becomes the variable, so only that name gives `DD_MODEL_BROKER_CREDENTIAL_FILE`.
+A secret named `model-broker-credential` would give `MODEL_BROKER_CREDENTIAL_FILE`, which no agent
+reads, and the agent would refuse to start without its credential.
 
 Then mark it in `app/config/agents.yaml` (or the file `DD_AGENTS_CONFIG` names), which the
 harness reads and the agent cannot write:

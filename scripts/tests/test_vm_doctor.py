@@ -670,3 +670,37 @@ def test_an_admin_service_that_is_not_running_is_a_problem(
     assert status == 1
     assert says(out, "problem", "data-director-admin.service")
     assert says(out, "fix", "enable --now data-director-admin.service")
+
+
+def test_the_apps_model_grant_secrets_make_apply_sync_the_credentials(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    system = FakeVm()
+    assert apply(system, Place.vm(vm), vm) == 0
+    capsys.readouterr()
+    app = vm.credentials / "app"
+    app.mkdir(parents=True, exist_ok=True)
+    for name in ("model-grant-signing-key", "model-broker-subject-key", "pseudonym-secret"):
+        (app / name).write_text("x")
+    dropin = vm.unit_dir / "data-director-app.service.d" / "model-grants.conf"
+
+    # With the files in place and no drop-in yet, apply has something to do, and runs the sync.
+    system = FakeVm()
+    assert apply(system, Place.vm(vm), vm, check=True) == 1
+    assert f"would change: {dropin}" in capsys.readouterr().out
+    assert apply(system, Place.vm(vm), vm) == 0
+    assert any(
+        call[0] == "env" and "sync_all_credentials" in " ".join(call) for call in system.calls
+    )
+
+    # Once the drop-in loads them all, there is nothing to change.
+    dropin.write_text(
+        "[Service]\n"
+        + "".join(
+            f"LoadCredential={name}:{app / name}\n"
+            for name in ("model-grant-signing-key", "model-broker-subject-key", "pseudonym-secret")
+        )
+    )
+    capsys.readouterr()
+    assert apply(FakeVm(), Place.vm(vm), vm, check=True) == 0
+    assert "Nothing to change." in capsys.readouterr().out

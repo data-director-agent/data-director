@@ -193,6 +193,8 @@ class Plan:
     app_env: tuple[Path, dict[str, str | None]] | None = None
     stop: list[str] = field(default_factory=list)
     refusals: list[str] = field(default_factory=list)
+    # Credentials drop-ins that deploy/credentials.sh would rewrite, as short phrases.
+    credentials: list[str] = field(default_factory=list)
 
     def pending(self, system: System) -> list[str]:
         """Each change not yet made, as a short phrase. A file this user may not read is left
@@ -212,6 +214,7 @@ class Plan:
                     for name, value in settings.items()
                     if have.get(name) != value
                 ]
+        found += self.credentials
         found += [f"stop {unit}" for unit in self.stop]
         return found
 
@@ -260,6 +263,27 @@ def has_key(system: System, place: Place, vm: Vm | None, name: str) -> bool:
     return MODEL_KEY in loaded_secrets(system, vm, name)
 
 
+# The secrets in credentials/app/ that the harness signs model grants with, which
+# deploy/credentials.sh loads into the app's model-grants.conf (docs/guide/operations/model-broker.md).
+APP_MODEL_GRANT_SECRETS = (
+    "model-grant-signing-key",
+    "model-broker-subject-key",
+    "pseudonym-secret",
+)
+
+
+def app_model_grants_pending(system: System, vm: Vm) -> str | None:
+    """The app's model-grant drop-in, if it does not load exactly the secrets in place. Only root
+    can see the secrets, so for anyone else this is None."""
+    if not system.is_root():
+        return None
+    dropin = vm.unit_dir / "data-director-app.service.d" / "model-grants.conf"
+    present = {n for n in APP_MODEL_GRANT_SECRETS if system.exists(vm.credentials / "app" / n)}
+    text = system.read(dropin) if system.readable(dropin) else ""
+    loaded = {n for n in APP_MODEL_GRANT_SECRETS if f"LoadCredential={n}:" in text}
+    return shown(dropin) if present != loaded else None
+
+
 def plan(system: System, place: Place, vm: Vm | None = None) -> tuple[Deployment, Plan]:
     agents = load_agents(place.source / "app" / "config" / "agents.yaml")
     if not place.deployment.is_file():
@@ -303,6 +327,9 @@ def plan(system: System, place: Place, vm: Vm | None = None) -> tuple[Deployment
                     0o644,
                 )
             )
+        assert vm is not None
+        if grants := app_model_grants_pending(system, vm):
+            result.credentials.append(grants)
         names = {a.name for a in running}
         result.stop = [
             unit

@@ -164,3 +164,59 @@ def test_sync_all_succeeds_quietly_with_no_secrets(etc: Path, units: Path) -> No
     result = sync_all(etc, units)
     assert result.returncode == 0, result.stderr
     assert not list(units.iterdir())
+
+
+def app_dropin(units: Path) -> Path:
+    return units / "data-director-app.service.d" / "model-grants.conf"
+
+
+def put_app_secret(etc: Path, name: str, value: str) -> Path:
+    directory = etc / "credentials" / "app"
+    directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+    path = directory / name
+    path.write_text(value)
+    path.chmod(0o600)
+    return path
+
+
+def test_the_apps_model_grant_secrets_become_its_dropin(etc: Path, units: Path) -> None:
+    put_app_secret(etc, "orcid-client-secret", "orcid")
+    paths = {
+        name: put_app_secret(etc, name, f"value-of-{name}")
+        for name in ("model-grant-signing-key", "model-broker-subject-key", "pseudonym-secret")
+    }
+    result = sync_all(etc, units)
+    assert result.returncode == 0, result.stderr
+    lines = app_dropin(units).read_text().splitlines()
+    assert "[Service]" in lines
+    for name, variable in (
+        ("model-grant-signing-key", "DD_MODEL_GRANT_SIGNING_KEY_FILE"),
+        ("model-broker-subject-key", "DD_MODEL_BROKER_SUBJECT_KEY_FILE"),
+        ("pseudonym-secret", "DD_PSEUDONYM_SECRET_FILE"),
+    ):
+        assert f"LoadCredential={name}:{paths[name]}" in lines
+        assert f"Environment={variable}={name}" in lines
+    # The unit loads the ORCID secret itself, and no value is ever written or shown.
+    assert "orcid-client-secret" not in app_dropin(units).read_text()
+    assert "value-of-" not in app_dropin(units).read_text() + result.stdout + result.stderr
+
+
+def test_without_model_grant_secrets_the_app_has_no_dropin(etc: Path, units: Path) -> None:
+    put_app_secret(etc, "orcid-client-secret", "orcid")
+    stale = app_dropin(units)
+    stale.parent.mkdir(parents=True)
+    stale.write_text("[Service]\n")
+    (stale.parent / "agents.conf").write_text("[Unit]\n")
+    result = sync_all(etc, units)
+    assert result.returncode == 0, result.stderr
+    assert not stale.exists()
+    # The app's other drop-in, written by `data-director apply`, is left alone.
+    assert (stale.parent / "agents.conf").exists()
+
+
+def test_an_unusable_model_grant_secret_is_left_out_and_reported(etc: Path, units: Path) -> None:
+    put_app_secret(etc, "pseudonym-secret", "")
+    result = sync_all(etc, units)
+    assert result.returncode == 1
+    assert "pseudonym-secret: empty" in result.stderr
+    assert not app_dropin(units).exists()

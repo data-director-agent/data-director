@@ -19,7 +19,10 @@
 #   CREDENTIALS  the credentials root, /etc/data-director/credentials
 #   UNIT_DIR     where the drop-ins go, /etc/systemd/system
 #   AGENTS_DIR   deploy/agents in the release or clone: an agent is deployed if it has <agent>.env
-# credentials/app/ is the app's own, loaded by data-director-app.service, and is left alone.
+# credentials/app/ is the app's own. data-director-app.service loads orcid-client-secret itself;
+# the three secrets the harness signs model grants with (docs/guide/operations/model-broker.md) go
+# in data-director-app.service.d/model-grants.conf, written by sync_app_model_grants for those of
+# them that exist, so an app without them still starts.
 
 # A secret's name: lower-case words joined by hyphens.
 SECRET_NAME='^[a-z0-9]+(-[a-z0-9]+)*$'
@@ -93,11 +96,51 @@ sync_agent_credentials() { # sync_agent_credentials AGENT
   return "$status"
 }
 
-# Every agent's drop-in: those with a credentials directory, and those with a drop-in left from
+# The secrets in credentials/app/ that the harness signs model grants with, and their variables.
+APP_MODEL_GRANT_SECRETS=(model-grant-signing-key model-broker-subject-key pseudonym-secret)
+APP_MODEL_GRANT_VARIABLES=(DD_MODEL_GRANT_SIGNING_KEY_FILE DD_MODEL_BROKER_SUBJECT_KEY_FILE DD_PSEUDONYM_SECRET_FILE)
+
+# Write the app's model-grant drop-in from those of the three secrets that exist, or remove it if
+# none does. Some but not all of them stops the app at start-up, naming the one it lacks.
+sync_app_model_grants() {
+  local dir="$CREDENTIALS/app" dropin="$UNIT_DIR/data-director-app.service.d/model-grants.conf"
+  local file i name problem status=0
+  local -a lines=()
+  for i in "${!APP_MODEL_GRANT_SECRETS[@]}"; do
+    name="${APP_MODEL_GRANT_SECRETS[$i]}"
+    file="$dir/$name"
+    [[ -e "$file" || -L "$file" ]] || continue
+    problem="$(secret_problem "$file")"
+    if [[ -n "$problem" ]]; then
+      echo "app: $problem; left out" >&2
+      status=1
+      continue
+    fi
+    lines+=("LoadCredential=$name:$file" "Environment=${APP_MODEL_GRANT_VARIABLES[$i]}=$name")
+    echo "app: $name in place (${APP_MODEL_GRANT_VARIABLES[$i]})"
+  done
+  if ((${#lines[@]} == 0)); then
+    rm -f "$dropin"
+    return "$status"
+  fi
+  install -d -m 0755 "$(dirname "$dropin")"
+  {
+    echo "# Written by deploy/install.sh from the files in $dir (deploy/credentials.sh)."
+    echo "# Do not edit: it is rewritten from them."
+    echo "[Service]"
+    printf '%s\n' "${lines[@]}"
+  } >"$dropin.tmp"
+  chmod 0644 "$dropin.tmp"
+  mv -f "$dropin.tmp" "$dropin"
+  return "$status"
+}
+
+# The app's model-grant drop-in, then every agent's: those with a credentials directory, and those with a drop-in left from
 # a secret since removed. Returns 1 if anything was reported as a problem.
 sync_all_credentials() {
   local dir dropin agent status=0
   local -A seen=()
+  sync_app_model_grants || status=1
   for dir in "$CREDENTIALS"/*/; do
     [[ -d "$dir" ]] || continue
     agent="$(basename "$dir")"
