@@ -193,7 +193,11 @@ whom an invocation acts for, and how that is established, is in
   to keep conformant. Callers who want plain HTTP must speak JSON-RPC 2.0; that cost is deliberate.
   The workbench CLI covers offline and CI use.
 - **MCP between harness and agents.** MCP exposes tools to a model. Data Director agents decide
-  outcomes, including `referred`, and need a long-running task state.
+  outcomes, including `referred`, and need a long-running task state. This is about how the
+  harness invokes an agent. The tool gateway, by which an agent reaches an MCP server through
+  the harness ([Agents](agents.md#tools-mcp-servers-and-agent-skills)), is MCP in the other
+  direction, for sources, and the conductor records each call as an `execute_tool` span carrying
+  `dd.source_id` and `dd.content_hash` (TODO(#875)).
 - **A different protocol from harness to agent than from caller to harness.** It would double the
   transport surface.
 - **Running agents in the conductor's process, or keeping that as an alternative mode.** Two ways

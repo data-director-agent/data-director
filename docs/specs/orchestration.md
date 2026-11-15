@@ -244,7 +244,11 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
 - The harness's A2A routes in the app accept a callback under a live grant and nothing else
   ([Transport and tracing](transport.md)).
 - An external source such as a registry, a PID service or an MCP server is reached by an agent the
-  orchestrator delegates to, never by the orchestrator.
+  orchestrator delegates to, never by the orchestrator. A persona reaches an MCP server through
+  the harness's tool gateway ([Agents](agents.md#tools-mcp-servers-and-agent-skills)).
+- Only a delegating agent delegates. A persona that needs a record calls a tool; when it needs
+  another persona's judgement, an outcome that may be referred, or another step, that is the
+  orchestrator's to ask for, and the persona says so in its payload.
 - Neither the harness nor a browser shell names an orchestrator in code. The deployment's profile
   names the one the app's conversations go to ([Policy and identity](policy-and-identity.md),
   [The app](app.md)).

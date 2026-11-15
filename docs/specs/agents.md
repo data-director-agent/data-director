@@ -205,8 +205,75 @@ the worked example of the `template` default and the declared model (`factory.py
 7. **An evaluation before alpha ends.** An advisor leaves alpha only with an evaluation set that
    includes false-negative cases: the flags, discrepancies or options it must not miss
    ([Evaluation and conformance](evaluation.md)).
-8. **Tools come later and are composable.** Whether and how a persona uses MCP servers and Agent
-   Skills is undecided: TODO(#694).
+8. **Sources through the harness, procedures in the prompt.** A persona reads an outside source
+   through an MCP server that the harness reaches for it, and loads procedural know-how as an
+   Agent Skill in its system prompt. Both are declared on its card. See
+   [Tools: MCP servers and Agent Skills](#tools-mcp-servers-and-agent-skills).
+
+## Tools: MCP servers and Agent Skills
+
+Most personas need sources: licence lists, vocabularies, identifier resolvers, policy records.
+Several personas need the same source, and some procedures (reading a machine-actionable DMP,
+choosing a licence) are the same whichever agent follows them. A source is shared as an MCP
+server, and a procedure as an Agent Skill. Both are framework-neutral resources
+([System and boundaries](system.md)), and a persona consumes them under the harness's
+governance as follows. None of this is built yet: the gateway is TODO(#875), Skill loading
+TODO(#876).
+
+**MCP servers for sources.**
+
+1. The deployment lists the MCP servers it runs, as it lists agents: names and addresses. Each
+   entry also names the source the server serves: which field identifies a record, the
+   registered canonicalisation its records are hashed under, and the pinned copy, if there is
+   one ([Evidence and grounding](grounding.md)). A server is `local` or `remote`, classified as
+   a model is ([Policy and identity](policy-and-identity.md)).
+2. The deployment pins each server's tool definitions by digest. A server whose tool list has
+   changed is unavailable until an operator pins the new list, so a changed tool description
+   cannot reach a prompt unreviewed.
+3. A persona reaches a server only through the harness's **tool gateway**, under its
+   invocation's grant, as an orchestrator reaches its children. It never connects to a server
+   itself. Its card declares the servers and tools it uses, and the profile grants servers per
+   agent. The gateway refuses a call to a server the card does not declare or the profile does
+   not grant.
+4. The conductor records each record a tool returns, so a retrieval through the gateway is the
+   harness's observation, not the agent's account ([Evidence and grounding](grounding.md)).
+5. Only a structured result grounds anything: records in the tool's declared output schema, each
+   with its identifier. Free text from a tool is never evidence.
+6. The deterministic shell makes the first retrieval, so the model is never called before a
+   retrieval has ended (G1). It may then offer the model the granted, read-only tools as
+   `dd_sdk.model.ToolSpec`s for follow-up lookups, with a limit per turn. Those calls also pass
+   through the gateway and are recorded.
+7. Tool results are untrusted content. They reach the model as quoted data in the user turn,
+   never in the system prompt. Where invention is harmful, the model chooses identifiers only
+   from the records the shell retrieved (Model-backed personas, item 3), and G2 checks every
+   identifier the payload cites.
+
+**Agent Skills for procedures.**
+
+1. A persona loads a Skill as text in its system prompt. Code chooses which Skills a step needs;
+   the model gets no filesystem tool and does not choose Skills for itself.
+2. A Skill is vendored into the agent's package from the `skills` repository at a pinned
+   release, beside `system_prompt.md`, and reviewed as a prompt change is (item 5). The card
+   declares each Skill's name, version and SHA-256. The prompt digest already covers its text
+   ([Disclosure](disclosure.md)).
+3. A Skill a persona loads carries no scripts. An exact procedure becomes code in the
+   deterministic shell, or a tool on an MCP server.
+4. A Skill cannot widen what a persona may do. Its tools, grounding mode and grants come from its
+   card and the profile, never from prompt text.
+
+**Delegation versus tools.** A persona never delegates: it declares one grounding mode, and only
+a `delegation` agent delegates ([Orchestration](orchestration.md)). A persona calls a tool when
+it needs a record from a source or an exact lookup. When the need is another kind of expertise's
+judgement, an outcome that may be `referred` or an abstention, or a different step, the
+orchestrator asks the persona that serves it. Two personas that need the same source each use
+its server; neither calls the other. Shared know-how is a Skill, not a persona.
+
+**Worked example: `advisor.rights`** (TODO(#877)). It moves from `none` to `retrieval`. A local
+MCP server serves a pinned SPDX licence-list release, whose records are hashed under a
+canonicalisation registered for them. The shell builds the closed set of candidate licences
+from the input and retrieves each candidate through the gateway. The model then chooses from
+that set with a `licence-choice` Skill loaded, and the payload cites `spdx:<id>` records the
+conductor recorded. The source check re-hashes each against the deployment's pinned copy.
 
 ## Rationale
 
@@ -230,6 +297,14 @@ the worked example of the `template` default and the declared model (`factory.py
   claiming it is validated. The `template` default keeps CI and deployments without a key
   working, and keeping exact work in a deterministic shell keeps it testable and lets a failed
   or rejected model reply fall back to rule output.
+- **Tools through the harness.** A retrieval an agent makes itself is only its own account of
+  what it read, so the linter can check only that the account agrees with itself
+  ([Evidence and grounding](grounding.md)). A retrieval through the gateway is recorded by the
+  conductor, as a delegation is. The gateway is also the only place a per-agent grant or an
+  egress rule can be enforced, and a profile holds only keys something enforces.
+- **Skills as pinned prompt text.** Text in the system prompt works on every provider and on a
+  local model, needs no code-execution container, and is already named by the prompt digest. A
+  procedure shared as a Skill is written once and reviewed once, whichever persona loads it.
 
 ## Rejected alternatives
 
@@ -252,6 +327,17 @@ the worked example of the `template` default and the declared model (`factory.py
 - **The Blueprint's six broad agents** (§9.4, Table 7: Planning, Linking, Metadata, Repository,
   Provenance, Validation). Each mixes kinds of expertise, so its sources and failure modes could
   not be evaluated apart. Provenance in particular is the harness's job, not an agent's.
+- **Each agent its own MCP client.** It is quicker to build, but the conductor sees no retrieval,
+  the profile cannot grant or refuse a server, and nothing stops content leaving for a remote
+  server.
+- **Retrieval code private to each agent.** Two personas needing one source would each build and
+  maintain it, and no other framework could use it ([System and boundaries](system.md)).
+- **The model choosing Skills, or Skills with scripts.** A model reading Skills on demand needs a
+  filesystem tool, and what it loaded would differ from run to run. Scripts need a
+  code-execution container, which adds egress, does not carry over to a local model, and moves
+  exact work out of the tested shell.
+- **A persona asking another persona directly.** It would make the persona a delegating agent
+  with a second grounding mode, and hide a step from the orchestrator and the researcher.
 
 ## Non-functional requirements
 
@@ -259,6 +345,10 @@ the worked example of the `template` default and the declared model (`factory.py
   TODO(#17). Until they are, agent ports must not be exposed beyond the host or a private
   network. The linter checks what an agent reports about its spans, and that report now crosses a
   network ([Evidence and grounding](grounding.md)).
+- **Egress.** A persona granted a `remote` MCP server receives only the classes of project content
+  the profile allows for such servers ([Policy and identity](policy-and-identity.md)), so it never
+  holds content it may not send there. Personal data go only to `local` servers, after detection
+  (TODO(#39)). Red-team cases for injected tool results are TODO(#40).
 - **Availability.** An unreachable agent is reported as unavailable and the rest carry on; a call
   that fails ends the run `failed` with the envelope stored as usual.
 - **Portability.** Production container images and a Compose stack for the agents are not built

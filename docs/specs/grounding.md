@@ -79,6 +79,13 @@ mixin are in [Contract](contract.md); the `dd.*` span attributes the rules read 
     separately (`grounding.txt`, `sources.txt`) and never combined into one.
 14. Both checks run offline over a stored run as well as in the conductor, and give the same
     verdict.
+15. A record read through the harness's tool gateway ([Agents](agents.md)) is recorded by the
+    conductor: its source id, its content hash under the canonicalisation the deployment names
+    for that server, and when the gateway returned it. For such a source, G1–G3 read the
+    conductor's record, not the agent's `retrieval` spans, and an agent's own span citing it
+    counts for nothing. Only a structured tool result, a record in the tool's declared output
+    schema with its identifier, is recorded; free text from a tool grounds nothing. Not built
+    yet: TODO(#875).
 
 ## Boundaries and contracts
 
@@ -88,7 +95,8 @@ relies on:
 | Fact | Recorded by |
 |---|---|
 | grounding mode, input hash, the `invoke_agent` span, `delegations` and each child's envelope hash | the conductor |
-| `retrieval` and `chat` spans and their timing, `grounded_on`, evidence, derivation badges | the agent |
+| each record returned through the tool gateway, its hash and when | the conductor |
+| `retrieval` spans for sources the agent reads itself, `chat` spans and their timing, `grounded_on`, evidence, derivation badges | the agent |
 
 An agent runs as a separate service and sends its spans back with its result
 ([Transport and tracing](transport.md)), so a `retrieval` span is the agent's statement that it
@@ -99,7 +107,8 @@ read a record, not the harness's observation of it. Hence:
   it does show that what the reader sees about a cited record is the source's own projection of
   it;
 - the input rules (R2) and delegation rules (D1, D2) are sound, because they compare the agent's
-  citations with hashes the conductor computed;
+  citations with hashes the conductor computed. So are G1–G3 for a source read through the tool
+  gateway (invariant 15);
 - R1 and N1 show only that the agent reported no retrieval or no model call.
 
 Documentation, the conformance register and the linter's docstring must not describe
@@ -124,7 +133,9 @@ none by default, so a test conductor reports synthetic sources as unresolved, no
 
 A new retrieving agent with a packaged or snapshot source adds one entry to its deployment's
 list of copies. An agent whose records need their own projection registers a canonicalisation
-in `dd_sdk.evidence`; it does not invent a name in its own package. A new grounding mode is an
+in `dd_sdk.evidence`; it does not invent a name in its own package. An MCP server used as a
+source names such a canonicalisation, and its pinned copy, in the deployment's list of servers,
+so its records are hashed and checked as any other source's. A new grounding mode is an
 entry in the linter's rule table and a contract enum value, and is a change to this spec.
 
 ## Rationale
@@ -184,9 +195,10 @@ callback and no change to retrieving agents.
 
 ## Open questions
 
-- TODO(#246): route retrieval through the harness, as delegation is, so that the conductor and
-  not the agent records when each record was read. Until then G1 checks only the agent's own
-  timeline.
+- TODO(#246): a source read through the tool gateway is recorded by the conductor (invariant 15,
+  TODO(#875)). The sources agents read themselves today (FAIRsharing, re3data, ROR) still report
+  their own retrievals, so G1 checks only the agent's own timeline for them until each moves
+  behind an MCP server.
 - TODO(#246): a resolver for the standards advisor's `live` route, which needs FAIRsharing
   credentials and network access. Live runs are unresolved.
 - TODO(#246): whether an unresolved item in `retrieval` mode should be a violation under some

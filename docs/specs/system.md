@@ -228,4 +228,5 @@ uses the harness without the workbench.
 - TODO(#3): whether `https://w3id.org/data-director/schema/core` is registered with w3id.
 - TODO(#260): the criteria for the contract, and so the SDK and harness, reaching 1.0.
 - TODO(#280): the first framework-neutral repositories, and whether agents are also reached over
-  MCP.
+  MCP. How a persona consumes an MCP server or an Agent Skill is decided in
+  [Agents](agents.md#tools-mcp-servers-and-agent-skills).

@@ -37,7 +37,9 @@ document should have been drafted with a model is a matter for policy
    `test_a_call_is_recorded_with_the_prompt_it_sent`).
 2. **A prompt is kept by the harness beside the run, and nowhere else.** An agent returns the
    prompts its calls name. The run store keeps them in the run's `prompts.json`. The envelope,
-   the trace and the Process Run Crate name a prompt by its digest only.
+   the trace and the Process Run Crate name a prompt by its digest only. An Agent Skill a persona
+   loads is part of its system prompt, so the digest covers it too
+   ([Agents](agents.md#tools-mcp-servers-and-agent-skills)).
 3. **A prompt is what its call names.** The conductor keeps a prompt only if it hashes to its
    digest. A prompt that does not hash to its digest, a call whose prompt is missing, or a prompt
    that no call names, fails the run with `agent-error`. The calls are still recorded, because

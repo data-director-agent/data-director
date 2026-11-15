@@ -138,6 +138,13 @@ are left out of such an agent's input rather than refused. It covers project con
 caller or a person sends, such as a conversation's text (TODO(#40)). The rights and licensing part of a profile is to be expressed in ODRL
 when repository selection or deposit needs it.
 
+Two keys arrive with the harness's tool gateway, which is what enforces them
+([Agents](agents.md#tools-mcp-servers-and-agent-skills), TODO(#875)): a grant of MCP servers per
+agent, without which the gateway refuses the agent's calls; and the classes of project content
+that may go to an agent granted a `remote` server, mirroring `hosted_models`. Without the second,
+no `researcher` facts go to such an agent. A server is `local` or `remote` by the same rule as a
+model's endpoint.
+
 **The authentication boundary** is one interface: from the headers of a caller's HTTP request
 (or none, for a caller with no request) to a principal. Three implementations sit behind it:
 
