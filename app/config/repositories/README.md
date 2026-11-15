@@ -68,6 +68,11 @@ Each entry of `fields` has:
 - `form_label` (overrides only): the label of the field in the repository's deposit form, where a
   person depositing by hand puts the value.
 
+An override will also be able to name the API the harness deposits a draft through: a `deposit`
+block giving the API kind (`figshare`, `zenodo` or `dataverse`), its `base_url` and the `target`
+collection or community. It holds no credential; each researcher uses their own token. The block
+is not accepted yet, TODO(#383); its design is in [Deposit](../../../docs/specs/deposit.md#depositing-through-an-api).
+
 A key outside this list is refused. A value the guidance does not state is left out with a marker
 that cites an issue, never guessed, and listed under `unconfirmed` so a researcher sees it too.
 

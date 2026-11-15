@@ -15,9 +15,16 @@ described per metadata standard, with optional overrides for the few repositorie
 knows well, usually its own institution's. The sets and how they are written are described in
 [`app/config/repositories/README.md`](../../app/config/repositories/README.md).
 
-Out of scope: depositing, and minting or reserving a persistent identifier (R7). Deposit-ready
-means that a person can upload the package. Depositing through a repository's API, after a person
-approves it under the profile's `deposit` action class, is TODO(#383).
+Deposit-ready means that a person can upload the package. The harness may also deposit it for
+them: after the researcher approves it, it creates a **draft** item in the chosen repository through
+the repository's API, with the person's own credential, and records where it went. The researcher
+then adds the data files and publishes the item in the repository's own interface. How this works,
+for Figshare, Zenodo and Dataverse alike, is in *Depositing through an API* below; none of it is
+built yet, TODO(#383).
+
+Out of scope: publishing an item through an API, and minting or reserving a persistent identifier
+(R7, TODO(#322)); uploading data files, which the platform never holds ([Projects](projects.md));
+and a copy-ready sheet of a repository's form fields, TODO(#644).
 
 What is built:
 
@@ -91,6 +98,27 @@ TODO(#394, #200).
 10. **The package passes the RO-Crate validator** at its REQUIRED level, against the RO-Crate
     version `rocrate` writes (`test_the_package_passes_the_ro_crate_validator`).
 
+Invariants 11 to 15 hold for depositing through an API, which is not built yet; each names the
+issue that will build and test it.
+
+11. **A connector is configuration, never code for one repository.** A repository is reachable
+    through its API when its override names an API kind, a base URL and a target. Each API kind has
+    one implementation, shared by every repository of that kind; adding a repository of a known
+    kind is a new override, not new code (invariant 1). TODO(#383, #648, #857).
+12. **No deposit without a person's recorded approval.** The harness deposits only on a
+    `deposit_approved` event that a person made, naming the package by its digest and the
+    repository it goes to, and only a package the log records as built from a valid report
+    (invariant 9). No agent deposits, and no agent's output starts one. TODO(#383).
+13. **The credential reaches no record.** A person's repository token appears in no project log
+    event, run, trace, prompt, Process Run Crate, package, error message or app response, and the
+    app and the harness never hold it at rest. TODO(#383).
+14. **A deposit creates a draft and never publishes.** Nothing the harness sends publishes an item,
+    mints a persistent identifier or makes a file public. TODO(#383).
+15. **Every deposit ends in one outcome event, manual or automatic.** A `deposit_recorded` event
+    names the package digest, the repository and the draft's URL, whether the harness made it or a
+    person reported it, so the two read alike; a failed attempt is a `deposit_failed` event, not an
+    exception. TODO(#647, #383).
+
 ## Boundaries and contracts
 
 **The class.** `RequirementSet` is a core contract class ([Contract](contract.md)) so that the
@@ -158,6 +186,79 @@ PROV-O alignment of the whole package is TODO(#26) (R10). The harness keeps the 
 the project log with a `package_built` event, which names the report, the merged set, each
 document version and each run it holds.
 
+### Depositing through an API
+
+None of this section is built yet. Figshare, starting with ORDA, is TODO(#383); Zenodo is
+TODO(#648); Dataverse is TODO(#852).
+
+**A connector is an override's `deposit` block.** An override that the harness may deposit to
+gives:
+
+- `api`: the API kind, one of `figshare`, `zenodo` or `dataverse`;
+- `base_url`: the installation's API root, such as `https://api.figshare.com/v2`, Zenodo's own
+  or its sandbox, or one Dataverse installation's;
+- `target`: where the item is created, in the kind's own terms: a Figshare group, a Zenodo
+  community, a Dataverse collection's alias. Optional where the kind has a default.
+
+The block holds no credential. A standard's set has no `deposit` block, so a repository without an
+override is deposited to by hand. What varies between installations of one kind, such as a
+Dataverse installation's required fields and controlled subjects, belongs in its override's fields
+and in the kind's mapping, never in code for that installation, TODO(#854, #856). The keys are
+added to `RequirementSet` with the first connector, and refused until then (invariant 2).
+
+**Each API kind renders the approved DataCite record.** The kind's mapping turns the record into
+the item metadata its API takes, through the same field table validation reads: one mapping for
+Figshare items, one for Zenodo deposits, one for Dataverse's citation block. The DataCite record
+stays the record of truth; a rendered item is derived from it on each deposit and never edited or
+stored as a document. A value the API requires that DataCite cannot supply, such as Dataverse's
+contact email or subject, is a field of the repository's requirements, so validation asks for it
+before the package is built (TODO(#855)). A record value the mapping cannot place is reported on
+the outcome, not dropped silently. What a mapping does with an unmapped field, and with a licence
+the API does not list, is decided once for every kind, TODO(#648, #855).
+
+**What is sent.** The rendered metadata, and the package's zip as one file of the draft, so the
+documents, the inventory, the validation report and the audit trail travel with the deposit. No
+data file is sent: the platform never holds the data, and the researcher uploads the files to the
+draft in the repository's own interface. The package's `File` entities, each with its SHA-256,
+let a later check show that the uploaded files are the ones described, TODO(#645). Dataverse
+unpacks an uploaded zip unless told otherwise; how its connector keeps the package whole is
+TODO(#854).
+
+**The person's own credential.** A deposit uses the API token of the researcher who approves it,
+for the repository the deposit goes to, so the item is theirs and the deployment holds no
+repository-wide write access. The token is kept as a person's own model key is
+([A person's own model account](model-accounts.md)): the person gives it to a service outside the
+app and the harness, through a form that service serves. That service makes the repository's API
+calls itself, as the broker makes model calls, on a short-lived grant the harness mints for one
+approved deposit; the harness never sees the token. Whether the service is the model broker or a
+sibling of it, and the grant's format, are decided with the first connector, TODO(#383). A person who has given no
+token for the repository is told so and deposits by hand; nothing falls back to a deployment's
+token. No agent ever holds a token (Blueprint P4).
+
+**Approval is a decision, not a run.** Depositing is the harness's action, not an agent's, and the
+profile's `deposit` action class applies to it. A person approves a deposit as they approve a
+document version ([Projects](projects.md)): the app passes their request, and the harness checks
+that they may deposit in the project, that the package is the project's latest built from a valid
+report, and that its project has not changed since in a way that makes the package stale
+(TODO(#649)). It appends a `deposit_approved` event naming the principal, the package digest, the
+repository's re3data identifier and the connector's `api`, `base_url` and `target` as configured
+at that moment, and then deposits. Whether a profile may require a second person, such as a data
+steward, to approve a deposit is TODO(#372, #154).
+
+**The outcome is one event, manual or automatic.** A deposit that creates a draft appends a
+`deposit_recorded` event naming the approval it acted on, the package digest, the repository, the
+draft's URL in the repository and its identifier there, a reserved DOI only if the repository
+reports one unasked, and `method: api`. A person who deposited by hand records the same event with
+`method: manual` and the URL and DOI they give ([Projects](projects.md), TODO(#647)). A call that
+fails, or a draft the repository refuses, appends a `deposit_failed` event with the API's status
+and a reason code, never the request's headers; trying again needs a new approval. A second approval of a package already recorded as deposited to the same repository is
+refused, and names the earlier draft.
+
+**Publishing stays with the researcher.** A draft can be changed or deleted; a published item and
+its DOI cannot, and some institutions pay for each DOI. So the harness stops at the draft, and the
+researcher publishes in the repository's own interface. Publishing through the API, with its own
+approval and the fees it may incur, is TODO(#322).
+
 **Elsewhere.** Which repositories an institution approves, and preferring them, are TODO(#320).
 Fees and who pays for PIDs are TODO(#322) (R7). `advisor.quality` reads a record of DCAT terms, not
 DataCite; moving it is TODO(#22).
@@ -170,6 +271,15 @@ DataCite; moving it is TODO(#22).
   the licences it offers) are known to the people who run it, and a steward can review YAML.
 - **Validity in the harness, recorded with the sets' versions and digests**, so a package says
   what was checked and against which requirements, and its audit trail goes with it.
+- **One deposit mechanism, a mapping per API kind.** Many repositories run on one of a few
+  platforms: these three cover ORDA, Zenodo and every Dataverse installation. A repository of a known kind then costs a steward an override, as a repository's
+  requirements do.
+- **The person's own token**, because the item is the researcher's, the repository's own rules
+  about who may deposit where then apply unchanged, and no one token opens every researcher's
+  items.
+- **A draft, not a published item**, because a draft can be corrected or deleted, the data files
+  still have to be added by someone who holds them, and publishing mints an identifier that cannot
+  be withdrawn.
 
 ## Rejected alternatives
 
@@ -180,7 +290,21 @@ DataCite; moving it is TODO(#22).
 - **Choosing only among repositories with an override.** The deployment's configuration, not the
   data, would limit the choice.
 - **A record in Figshare's item format.** It serves only Figshare, and ORDA's DataCite record would
-  still be derived from it. It may come with deposit through the API, TODO(#383).
+  still be derived from it. Depositing renders a Figshare item from the DataCite record instead,
+  and never keeps it as a document.
+- **A connector for each repository.** Each would be code to review and keep working, and every
+  Dataverse installation would need its own. A connector per API kind, configured per repository,
+  costs one implementation per platform.
+- **A deployment's service token.** The tool would hold write access to every item the account
+  can reach, items would belong to the service account rather than the researcher, and one leaked
+  token would expose every researcher's drafts.
+- **Publishing through the API.** It would mint a persistent identifier that cannot be undone,
+  before the data files are on the item, and may cost the institution money (TODO(#322)).
+- **Uploading the data files from the platform.** The platform never holds them
+  ([Projects](projects.md)). Uploading from where the data live, as `dd-inventory` describes them
+  there, may follow; it is not part of this design.
+- **An agent that deposits.** It would need the write credential, and the policy gate cannot stop
+  an agent's service doing what it did not declare (Blueprint P4).
 - **SHACL shapes written by hand.** A steward cannot read or review them; generated shapes say only
   what the sets say.
 - **A JSON Schema per standard or repository.** Its errors would have to be translated into the
