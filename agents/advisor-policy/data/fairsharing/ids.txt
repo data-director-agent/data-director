@@ -7,6 +7,8 @@ FAIRsharing.d6c68e  Science and Technology Facilities Council scientific data po
 FAIRsharing.1b3a37  Health Data Research UK - Open Access Statement (funder)
 FAIRsharing.pj0zsn  Wellcome's data, software and materials management and sharing policy (funder)
 FAIRsharing.mrrnp0  Wellcome Trust: Sharing research data to improve public health (funder)
+# TODO(#750) the NERC data policy (funder): its FAIRsharing identifier could not be confirmed
+# without an account; add it here and rebuild with scripts/build_policy_snapshot.py.
 FAIRsharing.iKa3Xm  Open Research Data and Data Management Plans for ERC grantees (funder)
 FAIRsharing.7861ef  2023 Final NIH Policy for Data Management and Sharing (funder)
 FAIRsharing.e081af  University of Sheffield - Research Data Management Policy (institution)

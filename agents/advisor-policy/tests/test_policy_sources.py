@@ -17,6 +17,7 @@ from dd_agent_advisor_policy.explain import ModelExplainer, TemplateExplainer
 from dd_agent_advisor_policy.live import PolicyLive
 from dd_agent_advisor_policy.records import from_api_json, from_public_json
 from dd_agent_advisor_policy.retrieve import Query, RegistryUnavailable
+from dd_agent_advisor_policy.ror import RorDump, RorLive
 from dd_agent_advisor_policy.snapshot import SNAPSHOT, PolicySnapshot
 from dd_sdk.credentials import ConfigError
 
@@ -165,7 +166,14 @@ def test_the_factory_defaults_to_the_snapshot_and_template() -> None:
     agent = factory.build({})
     assert isinstance(agent.policies, PolicySnapshot)
     assert isinstance(agent.explainer, TemplateExplainer)
+    assert isinstance(agent.organisations, RorDump) and agent.organisations_fallback is None
     assert agent.spec.models == ()
+
+
+def test_live_ror_falls_back_to_the_built_dump() -> None:
+    agent = factory.build({"DD_POLICY_ROR": "live"})
+    assert isinstance(agent.organisations, RorLive)
+    assert isinstance(agent.organisations_fallback, RorDump)
 
 
 def test_live_retrieval_needs_an_account_and_falls_back_to_the_snapshot() -> None:
@@ -201,6 +209,7 @@ def test_the_anthropic_explainer_declares_its_model() -> None:
     "env",
     [
         {"DD_POLICY_RETRIEVAL": "both"},
+        {"DD_POLICY_ROR": "both"},
         {"DD_POLICY_EXPLAINER": "magic"},
         {"DD_POLICY_EXPLAINER": "anthropic"},
     ],

@@ -56,7 +56,7 @@ modules are not dependencies here.
 | `psycopg[binary]` | Harness (`postgres` extra) | `dd_harness.postgres`: the PostgreSQL backend of the run and project storage, in plain SQL ([Storage](storage.md)) | Another PostgreSQL driver behind the same module; the file backends for a single host. |
 | `psycopg-pool` | Harness (`postgres` extra) | `dd_harness.postgres`: a pool of connections per store, sized by `DD_POSTGRES_POOL_SIZE` ([Storage](storage.md)) | A connection per call, as before the pool; another pool behind the same module. |
 | `watchfiles` | SDK | uvicorn's `--reload`, for development only | uvicorn's polling reloader, which it uses when `watchfiles` is absent. |
-| `httpx` | SDK, harness, app, agents | `dd_sdk.delegate`, `dd_harness.remote`, `dd_harness.identity`, the app's sign-in and feedback modules, each agent's `live` module, the repository advisor's `registry` (the re3data export) | `urllib.request`. |
+| `httpx` | SDK, harness, app, agents | `dd_sdk.delegate`, `dd_harness.remote`, `dd_harness.identity`, the app's sign-in and feedback modules, each agent's `live` module, the repository advisor's `registry` (the re3data export), the policy advisor's `ror` (the ROR dump and API) | `urllib.request`. |
 | `rocrate` | Harness | `dd_harness.provenance`; the deposit package in `dd_harness.deposit` | Write `ro-crate-metadata.json` directly. |
 | `pyshacl` (with `rdflib`) | Harness | `dd_harness.shacl`, which runs the shapes `dd_harness.deposit` generates from a repository's requirements and the shapes an agent's payload class carries on its card | Checks written in Python that emit the same `sh:` vocabulary. |
 | `pyyaml` | Harness, agents | Profile, registry, source and requirement loaders; agents' packaged data | `ruamel.yaml`, or the same documents as JSON. |
@@ -115,6 +115,11 @@ Which licences are acceptable is not yet decided or enforced: TODO(#82).
   pinned and built into a local registry, so every record it cites can be verified and a run
   makes no request to re3data. The API's search returns identifiers only, and each record cost
   one more request.
+  ROR is different, and the policy advisor may ask its API (`DD_POLICY_ROR=live`): one search
+  returns whole records, a new organisation can appear there before the next dump, and the route
+  falls back to the registry built from the pinned dump, which is the default. Evidence from the
+  live route is cited as `ror:live:<date>`, which no deployment pins, so the source check reports
+  it unresolved, as it does FAIRsharing's live route.
 - **`any-llm`, LiteLLM's SDK or `pydantic-ai` as the model layer.** Each puts its own abstraction
   over many providers where `dd_sdk.model` already is one, and `any-llm` installs each provider's
   SDK beneath it anyway. The OpenAI-compatible Chat Completions format is the shared, open

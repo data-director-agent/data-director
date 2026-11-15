@@ -40,6 +40,7 @@ class Actor(Frozen):
     role: ActorRole
     name: str
     fairsharing_id: str | None = Field(default=None, pattern=r"^FAIRsharing\.\S+$")
+    ror_id: str | None = Field(default=None, pattern=r"^(https?://ror\.org/)?0[a-z0-9]{6}[0-9]{2}$")
 
 
 class PolicyContext(Frozen):
@@ -80,6 +81,21 @@ class RepositoryRef(Frozen):
     re3data_id: str | None = Field(default=None, pattern=r"^r3d\d+$")
 
 
+class ResolvedFunder(Grounded):
+    """A funder identified in ROR. Names its ROR record only in `grounded_on`."""
+
+    actor: str
+    crossref_funder_id: str | None = None
+
+
+class AmbiguousActor(Grounded):
+    """A funder whose name could mean more than one organisation in ROR. Grounded on each
+    candidate, likeliest first."""
+
+    actor: str
+    role: ActorRole
+
+
 class SearchedSummary(Frozen):
     queries: list[str] = Field(default_factory=list)
     snapshot_ref: str | None = None
@@ -92,4 +108,6 @@ class PolicyChecks(Grounded):
     conflicts: list[PolicyConflict] = Field(default_factory=list)
     mandated_repositories: list[RepositoryRef] = Field(default_factory=list)
     no_record: list[str] = Field(default_factory=list)
+    funders: list[ResolvedFunder] = Field(default_factory=list)
+    ambiguous: list[AmbiguousActor] = Field(default_factory=list)
     searched: SearchedSummary | None = None

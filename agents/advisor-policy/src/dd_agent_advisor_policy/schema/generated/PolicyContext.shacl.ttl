@@ -41,7 +41,7 @@ policy:PolicyContext a sh:NodeShape ;
     sh:targetClass policy:PolicyContext .
 
 policy:Actor a sh:NodeShape ;
-    rdfs:comment "A funder, journal or institution. The FAIRsharing identifier of its policy is used when given; otherwise the name is looked up." ;
+    rdfs:comment "A funder, journal or institution. The FAIRsharing identifier of its policy is used when given; otherwise the name is looked up. A funder is first identified in ROR, by its ROR identifier when given, otherwise by its name." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
@@ -50,6 +50,13 @@ policy:Actor a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
             sh:path schema1:name ],
+        [ sh:datatype xsd:string ;
+            sh:description "The organisation's ROR identifier, e.g. https://ror.org/02b5d8509 or 02b5d8509." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path policy:ror_id ;
+            sh:pattern "^(https?://ror\\.org/)?0[a-z0-9]{6}[0-9]{2}$" ],
         [ sh:datatype xsd:string ;
             sh:description "The FAIRsharing identifier of the actor's policy, e.g. FAIRsharing.636kdn." ;
             sh:maxCount 1 ;

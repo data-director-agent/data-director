@@ -40,11 +40,13 @@ classes:
   Actor:
     description: >-
       A funder, journal or institution. The FAIRsharing identifier of its policy is used when
-      given; otherwise the name is looked up.
+      given; otherwise the name is looked up. A funder is first identified in ROR, by its ROR
+      identifier when given, otherwise by its name.
     slots:
       - role
       - name
       - fairsharing_id
+      - ror_id
 
   PolicyChecks:
     description: >-
@@ -59,6 +61,8 @@ classes:
       - conflicts
       - mandated_repositories
       - no_record
+      - funders
+      - ambiguous
       - searched
 
   MatchedPolicy:
@@ -102,6 +106,27 @@ classes:
       - name
       - re3data_id
 
+  ResolvedFunder:
+    description: >-
+      A funder identified in ROR. Its ROR identifier is stated only in grounded_on; what ROR
+      records about it is in the cited evidence item's content (docs/specs/grounding.md).
+    mixins:
+      - Grounded
+    slots:
+      - actor
+      - crossref_funder_id
+
+  AmbiguousActor:
+    description: >-
+      A funder whose name could mean more than one organisation in ROR. Grounded on each
+      candidate, likeliest first; the agent does not choose. Its policy was not looked up: the
+      researcher says which they mean, by giving its ROR identifier.
+    mixins:
+      - Grounded
+    slots:
+      - actor
+      - role
+
   SearchedSummary:
     description: >-
       What was looked for, so a reader can judge an abstention as well as a match.
@@ -137,6 +162,10 @@ slots:
   fairsharing_id:
     description: The FAIRsharing identifier of the actor's policy, e.g. FAIRsharing.636kdn.
     pattern: "^FAIRsharing\\.\\S+$"
+  ror_id:
+    description: >-
+      The organisation's ROR identifier, e.g. https://ror.org/02b5d8509 or 02b5d8509.
+    pattern: "^(https?://ror\\.org/)?0[a-z0-9]{6}[0-9]{2}$"
   re3data_id:
     description: The re3data identifier, e.g. r3d100010230.
     pattern: "^r3d\\d+$"
@@ -159,12 +188,29 @@ slots:
   no_record:
     description: Actors for which no FAIRsharing policy record was found.
     multivalued: true
+  funders:
+    description: >-
+      The funders identified in ROR, each grounded on its ROR record, so that the identifier can
+      be passed on.
+    range: ResolvedFunder
+    multivalued: true
+    inlined_as_list: true
+  ambiguous:
+    description: >-
+      Funders whose name could mean more than one organisation in ROR. The researcher should say
+      which; their policies were not looked up.
+    range: AmbiguousActor
+    multivalued: true
+    inlined_as_list: true
+  crossref_funder_id:
+    description: >-
+      The Crossref Funder ID ROR prefers for the funder, where it names one, e.g. 501100000270.
   searched:
     range: SearchedSummary
     inlined: true
 
   actor:
-    description: The name of the actor, as given in the input, that this policy was matched to.
+    description: The name of the actor, as given in the input.
     required: true
   obligations:
     range: Obligation

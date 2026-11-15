@@ -18,6 +18,11 @@ model = ["data-director-sdk[anthropic,openai]"]
 
 [project.scripts]
 dd-advisor-policy = "dd_agent_advisor_policy.factory:main"
+dd-ror = "dd_agent_advisor_policy.ror:main"
+
+# The ROR registry is built from its pinned dump, not committed; `dd-sources prepare` builds it.
+[project.entry-points."dd.sources"]
+ror = "dd_agent_advisor_policy.ror_source:SOURCE"
 
 # What this package's tests import from the workspace (docs/specs/system.md, scripts/check_boundaries.py).
 [dependency-groups]

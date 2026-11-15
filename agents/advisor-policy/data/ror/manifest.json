@@ -1,0 +1,11 @@
+{
+  "version": "v2.15",
+  "archive": "https://zenodo.org/records/23500708/files/v2.15-2026-10-20-ror-data.zip",
+  "archive_sha256": "7a7bf58d5ac18436ed98daf5da906913761d54869edf86d405e51966609dd133",
+  "doi": "https://doi.org/10.5281/zenodo.23500708",
+  "records": 146716,
+  "snapshot_sha256": "30919b36894f3d2e43afd7fc533b25500e51f9fbdbfe8482fd76fa8a20a2afbb",
+  "fetched_at": "2026-11-15T14:18:41+00:00",
+  "citation": "Research Organization Registry (ROR) data dump. https://doi.org/10.5281/zenodo.6347574",
+  "licence": "CC0 1.0 (ROR data); see SOURCE.md"
+}

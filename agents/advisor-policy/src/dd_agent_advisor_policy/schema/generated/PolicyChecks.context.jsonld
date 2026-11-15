@@ -1,6 +1,9 @@
 {
    "@context": {
       "@vocab": "https://w3id.org/data-director/agents/policy/",
+      "AmbiguousActor": {
+         "@id": "https://w3id.org/data-director/agents/policy/AmbiguousActor"
+      },
       "GroundingRef": {
          "@id": "https://w3id.org/data-director/GroundingRef"
       },
@@ -19,11 +22,18 @@
       "RepositoryRef": {
          "@id": "https://w3id.org/data-director/agents/policy/RepositoryRef"
       },
+      "ResolvedFunder": {
+         "@id": "https://w3id.org/data-director/agents/policy/ResolvedFunder"
+      },
       "SearchedSummary": {
          "@id": "https://w3id.org/data-director/agents/policy/SearchedSummary"
       },
       "actor": {
          "@id": "https://w3id.org/data-director/agents/policy/actor"
+      },
+      "ambiguous": {
+         "@id": "https://w3id.org/data-director/agents/policy/ambiguous",
+         "@type": "@id"
       },
       "conflicts": {
          "@id": "https://w3id.org/data-director/agents/policy/conflicts",
@@ -32,11 +42,18 @@
       "content_hash": {
          "@id": "https://w3id.org/data-director/content_hash"
       },
+      "crossref_funder_id": {
+         "@id": "https://w3id.org/data-director/agents/policy/crossref_funder_id"
+      },
       "dcat": "http://www.w3.org/ns/dcat#",
       "dcterms": "http://purl.org/dc/terms/",
       "dd": "https://w3id.org/data-director/",
       "description": {
          "@id": "https://w3id.org/data-director/agents/policy/description"
+      },
+      "funders": {
+         "@id": "https://w3id.org/data-director/agents/policy/funders",
+         "@type": "@id"
       },
       "grounded_on": {
          "@id": "https://w3id.org/data-director/grounded_on",
