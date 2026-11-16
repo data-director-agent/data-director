@@ -1,8 +1,47 @@
 {
   "next": null,
   "progress": {
+    "decisions": [
+      {
+        "answer_labels": [
+          "No"
+        ],
+        "answer_values": [
+          "no"
+        ],
+        "asked": true,
+        "before": "setup.dmp-create",
+        "prompt": "Do you have a Data Management Plan for this project?",
+        "question_id": "intake.dmp"
+      },
+      {
+        "answer_labels": [
+          "Not sure"
+        ],
+        "answer_values": [
+          "not-sure"
+        ],
+        "asked": true,
+        "before": "governance.sensitive-data-identify",
+        "prompt": "Does the data include personal or otherwise sensitive information?",
+        "question_id": "intake.sensitive"
+      },
+      {
+        "answer_labels": [
+          "Not sure"
+        ],
+        "answer_values": [
+          "not-sure"
+        ],
+        "asked": true,
+        "before": "repository.mandated",
+        "prompt": "Has a funder, journal or institution said where the data must go?",
+        "question_id": "intake.repository-mandated"
+      }
+    ],
     "entry": 1,
     "entry_source": "researcher",
+    "reasons": {},
     "steps": {},
     "suggested": "setup.documentation"
   },

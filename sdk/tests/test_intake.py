@@ -8,7 +8,7 @@ import pytest
 
 from dd_sdk.contract.models import QUESTION_KEY_PATTERN, Question, QuestionKind
 from dd_sdk.intake import ENTRY, INTAKE, NO, NOT_SURE, YES, IntakeQuestion, question
-from dd_sdk.process_flow import ENTRIES, OUT_OF_SCOPE, STEPS
+from dd_sdk.process_flow import ENTRIES, OUT_OF_SCOPE, PHASES, STEPS
 
 # The steps each answer marks skipped (Blueprint §8, docs/specs/intake-reading.md). "Not sure" and
 # an answer not listed mark nothing.
@@ -47,6 +47,19 @@ def test_every_effect_names_a_known_step_that_is_in_scope(q: IntakeQuestion) -> 
     for o in q.options:
         stray = set(o.skips) - in_scope
         assert not stray, f"{q.id} = {o.value} skips unknown or out-of-scope steps {stray}"
+
+
+def test_each_decision_sits_before_a_step_of_the_flow_and_no_later_than_what_it_skips() -> None:
+    # The journey map draws each decision before its step (§8's diamonds); the entry question is
+    # drawn as the entry points instead.
+    order = {s: i for i, s in enumerate(s for p in PHASES for s in (st.id for st in p.steps))}
+    for q in INTAKE:
+        if q.id == ENTRY:
+            assert not q.before
+            continue
+        assert q.before in STEPS
+        for o in q.options:
+            assert all(order[q.before] <= order[s] for s in o.skips)
 
 
 def test_the_entry_questions_values_are_exactly_the_entry_numbers() -> None:
