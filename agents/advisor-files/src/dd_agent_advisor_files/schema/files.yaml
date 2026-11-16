@@ -9,7 +9,7 @@ title: advisor.files classes
 description: >-
   The File Archivist's assessment, in reply to a project's file inventory, of whether each file's
   format is open.
-version: 0.2.0
+version: 0.3.0
 license: MIT
 
 prefixes:
@@ -33,6 +33,7 @@ classes:
     slots:
       - schema_class
       - assessments
+      - checks
       - limitations
 
   FileAssessment:
@@ -44,6 +45,18 @@ classes:
       - media_type
       - open_format
       - judged_by
+
+  FileCheck:
+    description: >-
+      A file a person should look at before deposit, and why, judged from names, size and digest
+      in the inventory alone (hints.yaml). A prompt for a person, never a finding about the file's
+      contents, which are never read.
+    slots:
+      - path
+      - kind
+      - matched
+      - question
+      - related_paths
 
 slots:
 
@@ -70,6 +83,28 @@ slots:
     description: What the judgement rests on.
     range: JudgedBy
     required: true
+  checks:
+    description: >-
+      The files a person should look at, in the inventory's order and, for each file, in the order
+      of hints.yaml. Empty when no name, size or digest called for one, which says nothing about
+      what the files hold.
+    range: FileCheck
+    multivalued: true
+    inlined_as_list: true
+  kind:
+    description: What the name, size or digest suggests.
+    range: CheckKind
+    required: true
+  matched:
+    description: >-
+      The word of a folder, file or field name, or the file name, that called for the check;
+      absent for an empty file or a duplicate.
+  question:
+    description: What a person should check, from hints.yaml.
+    required: true
+  related_paths:
+    description: For a duplicate, the paths of the other files with the same digest.
+    multivalued: true
   limitations:
     description: What this mock does not yet do.
     multivalued: true
@@ -84,3 +119,20 @@ enums:
         description: The file name's extension; the inventory's media type was absent or unknown.
       nothing:
         description: Neither the media type nor the extension is in formats.yaml.
+
+  CheckKind:
+    permissible_values:
+      free_text:
+        description: A folder or file name suggests free text, such as notes, a diary or a transcript.
+      coordinates:
+        description: A table field name suggests coordinates or a location.
+      third_party:
+        description: A folder name suggests material from someone else.
+      governance:
+        description: A folder or file name suggests terms or an agreement.
+      system_file:
+        description: The file name is that of a file an operating system or program makes.
+      empty:
+        description: The file is empty.
+      duplicate:
+        description: Another file in the inventory has the same digest.
