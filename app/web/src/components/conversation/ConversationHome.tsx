@@ -116,6 +116,7 @@ function whyUnusable(named: string | null, agent: AgentView | undefined): string
   return null;
 }
 
+// eslint-disable-next-line complexity -- recorded debt: split it, do not add to it (docs/architecture-review.md)
 export function ConversationHome({ directory }: { directory: Directory }) {
   const api = useConversationApi();
   const flowApi = useFlowApi();
@@ -527,6 +528,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     await deliver(message, null, answers);
   }
 
+  // eslint-disable-next-line complexity -- recorded debt: split it, do not add to it (docs/architecture-review.md)
   async function deliver(
     message: string,
     inventory: AttachedInventory | null,

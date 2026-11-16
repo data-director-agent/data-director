@@ -189,7 +189,7 @@ def _theme(theme: str, record: Re3dataRecord, matches: Matches) -> tuple[float, 
     return share * subject_grade + (1 - share) * text_grade, reasons
 
 
-def rank(
+def rank(  # noqa: C901, PLR0912
     matches: Matches, records: dict[str, Re3dataRecord], needs: RepositoryNeeds
 ) -> list[Ranked]:
     """Every retrieved repository that reaches the floor, capped, and the researcher's

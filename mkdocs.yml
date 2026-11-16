@@ -114,6 +114,7 @@ nav:
   - Reference:
       - reference/index.md
       - Architecture: /docs/architecture.md
+      - Architecture review: /docs/architecture-review.md
       - Contract: /docs/contract.md
       - Glossary: /docs/glossary.md
       - Repository: /README.md

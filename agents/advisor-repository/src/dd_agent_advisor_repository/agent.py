@@ -194,7 +194,7 @@ class RepositoryAgent:
 
     # --- assembly -------------------------------------------------------------------------
 
-    def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
+    def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:  # noqa: C901, PLR0912
         needs = request.input
         assert isinstance(needs, RepositoryNeeds)  # the conductor checked spec.accepts
         if not (needs.mandated or rank.queries(needs)):

@@ -16,7 +16,7 @@ from dd_sdk.contract.models import (
 )
 
 
-def question_answer_problem(question: Question, answer: QuestionAnswer) -> str | None:
+def question_answer_problem(question: Question, answer: QuestionAnswer) -> str | None:  # noqa: PLR0911
     """Why `answer` does not fit `question`, or None if it does.
 
     A choice answer's values are options of its question, each chosen once and at most one

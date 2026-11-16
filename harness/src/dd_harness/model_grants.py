@@ -150,7 +150,7 @@ class GrantMinter:
         )
         return digest.hexdigest()
 
-    def mint(
+    def mint(  # noqa: PLR0913
         self,
         *,
         agent_id: str,
