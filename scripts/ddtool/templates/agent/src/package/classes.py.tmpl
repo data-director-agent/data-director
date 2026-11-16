@@ -1,0 +1,29 @@
+"""The input and payload classes of $agent_id, as Pydantic models (docs/specs/contract.md).
+
+The LinkML schema in `schema/` is the source. `ClassSchema.of` compares each model with the
+schema generated from it, so a field added to one and not the other fails at import.
+"""
+
+from __future__ import annotations
+
+from typing import Literal
+
+from pydantic import Field
+
+from dd_sdk.contract.models import Derivation, Frozen, Grounded
+
+
+class $input_class(Frozen):
+    """What to advise on: the input of $agent_id."""
+
+    schema_class: Literal["$input_class"] = "$input_class"
+    subject: str
+
+
+class $payload_class(Grounded):
+    """The payload of $agent_id."""
+
+    schema_class: Literal["$payload_class"] = "$payload_class"
+    advice_text: str
+    advice_derivation: Derivation
+    limitations: list[str] = Field(default_factory=list)

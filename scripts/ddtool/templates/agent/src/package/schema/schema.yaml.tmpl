@@ -1,0 +1,54 @@
+# The input and payload classes of $agent_id, owned by this package (docs/specs/contract.md). It
+# imports the core contract as `data_director`. After an edit, run
+# `uv run dd-gen-schema agents/$name/src/$package/schema/$name.yaml` to regenerate generated/, and
+# keep ../classes.py in step; ClassSchema.of refuses a model that has drifted.
+id: https://w3id.org/data-director/agents/$name
+name: $package
+title: $agent_id classes
+description: The input and payload classes of $agent_id.
+version: 0.1.0
+license: MIT
+
+prefixes:
+  $package: https://w3id.org/data-director/agents/$name/
+  linkml: https://w3id.org/linkml/
+default_prefix: $package
+default_range: string
+
+imports:
+  - linkml:types
+  - data_director
+
+classes:
+
+  $input_class:
+    description: What to advise on. The input of $agent_id.
+    slots:
+      - schema_class
+      - subject
+
+  $payload_class:
+    description: The payload of $agent_id, grounded on the $input_class it was derived from.
+    mixins:
+      - Grounded
+    slots:
+      - schema_class
+      - advice_text
+      - advice_derivation
+      - limitations
+
+slots:
+
+  subject:
+    description: What to advise on.
+    required: true
+  advice_text:
+    description: The advice, as prose.
+    required: true
+  advice_derivation:
+    description: How advice_text came about.
+    range: Derivation
+    required: true
+  limitations:
+    description: What this mock does not yet do.
+    multivalued: true

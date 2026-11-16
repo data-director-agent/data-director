@@ -1,0 +1,66 @@
+"""$agent_id through the conductor: a grounded success, an abstention and its manifest."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import $package
+from $package.agent import $agent_class
+from $package.classes import $payload_class, $input_class
+from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
+from dd_sdk.agent import describe
+from dd_sdk.contract.classes import ClassSchema
+from dd_sdk.contract.models import (
+    Derivation,
+    GroundingMode,
+    OutcomeStatus,
+    ReasonCode,
+    input_source_id,
+)
+from dd_sdk.evidence import INPUT_CANONICALISATION
+from dd_sdk.schema import gen
+
+SCHEMA = Path($package.__file__).parent / "schema" / "$name.yaml"
+# The sample input, kept here so the test reads nothing outside this package.
+SAMPLE = {"schema_class": "$input_class", "subject": "a survey dataset"}
+
+
+def test_a_subject_gets_advice_grounded_on_the_input(runs_dir: Path) -> None:
+    conductor = make_conductor(runs_dir, $agent_class())
+    given = $input_class.model_validate(SAMPLE)
+    env = conductor.invoke(request("$agent_id", given), acting_for=TEST_PRINCIPAL)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert env.grounding_mode == GroundingMode.NONE
+    payload = env.payload_as($payload_class)
+    assert payload.advice_derivation == Derivation.TEMPLATE
+    assert payload.limitations
+    ref = input_source_id(env.invocation_id)
+    assert [g.source_id for g in payload.grounded_on] == [ref]
+    assert [(e.source_id, e.canonicalisation) for e in env.evidence] == [
+        (ref, INPUT_CANONICALISATION)
+    ]
+    assert conductor.grounding_reports[env.invocation_id].passed
+
+
+def test_a_blank_subject_abstains(runs_dir: Path) -> None:
+    env = make_conductor(runs_dir, $agent_class()).invoke(
+        request("$agent_id", $input_class(subject=" ")), acting_for=TEST_PRINCIPAL
+    )
+    assert env.outcome.status == OutcomeStatus.ABSTAINED
+    assert env.outcome.reason_code == ReasonCode.INSUFFICIENT_INPUT
+    assert env.payload is None and env.evidence == []
+
+
+def test_the_manifest_carries_its_classes() -> None:
+    entry = describe($agent_class.spec)
+    assert entry["agent_id"] == "$agent_id"
+    assert entry["accepts"] == ["$input_class"]
+    assert entry["payload"] == "$payload_class"
+    assert set(entry["schemas"]) == {"$input_class", "$payload_class"}
+    assert entry["schemas"]["$payload_class"]["digest"] == ClassSchema.of($payload_class).digest
+    json.dumps(entry)
+
+
+def test_its_schemas_are_generated_from_its_linkml() -> None:
+    assert gen.stale(SCHEMA) == [], f"run `uv run dd-gen-schema {SCHEMA}`"
