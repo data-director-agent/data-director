@@ -13,6 +13,7 @@ from ddtool import paths
 from ddtool.common import (
     APP_PORT,
     MODEL_BACKED,
+    MODEL_BY_DEFAULT,
     WEB_PORT,
     DevError,
     agent_env,
@@ -91,6 +92,11 @@ def doctor() -> int:
             continue
         if agent.name in MODEL_BACKED and not keyed:
             print(f"note: {agent.script} has no model key, so `start` will skip it")
+        elif (switch := MODEL_BY_DEFAULT.get(agent.name)) and not keyed:
+            print(
+                f"note: {agent.script} has no model key, so `start` runs it with "
+                f"{switch}=template unless you set it to model"
+            )
     if found := sources_problem():
         detail = found.replace("\n", "\n  ")
         print(f"note: not every built source is built as pinned; `start` will build it\n  {detail}")

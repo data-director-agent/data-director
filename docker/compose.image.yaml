@@ -92,6 +92,10 @@ services:
     command: dd-advisor-documentation serve --host 0.0.0.0 --port 8114 --public-url http://advisor-documentation:8114
     environment:
       PORT: "8114"
+      # Its model is on by default and this stack gives it no key, so it runs with `template`
+      # unless the shell exports DD_DOCUMENTATION_WRITER=model and the key. Set it in the shell,
+      # not in agents.env: `environment` wins over `env_file`.
+      DD_DOCUMENTATION_WRITER: ${DD_DOCUMENTATION_WRITER:-template}
 
   advisor-rights:
     <<: *agent

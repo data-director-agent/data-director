@@ -8,10 +8,10 @@ where `DRAFTING` is
 `agents/advisor-documentation/src/dd_agent_advisor_documentation/evals/drafting.py`.
 
 By default the editor is built in this process from its own environment variables
-(`factory.build`), so `DD_DOCUMENTATION_WRITER` chooses the template path (the default) or a
-model, and reached over in-memory A2A. `--model none` is right either way: Inspect calls no model,
-and any model the editor calls is its own. With `agents`, each case goes to the services that file
-lists.
+(`factory.build`), so `DD_DOCUMENTATION_WRITER` chooses the template path (the evaluation's
+default, though not the editor's) or a model, and reached over in-memory A2A. `--model none` is
+right either way: Inspect calls no model, and any model the editor calls is its own. With
+`agents`, each case goes to the services that file lists.
 
 The evaluation acts for whoever runs it, named by `DD_PRINCIPAL_ID` and `DD_PRINCIPAL_NAME` as for
 any invocation (docs/specs/policy-and-identity.md); it does not start without them.
@@ -145,11 +145,13 @@ def identity(agents: str | None) -> dict[str, Any]:
 
 
 def editor() -> DocumentationEditor:
-    """The editor evaluated in this process: as its own configuration builds it. A test may
-    replace this to evaluate an editor with a fake model."""
+    """The editor evaluated in this process: as its own configuration builds it, except that the
+    evaluation calls no model unless `DD_DOCUMENTATION_WRITER` asks for one (invariant 1 of the
+    evaluation spec), although the editor's own default is `model`. A test may replace this to
+    evaluate an editor with a fake model."""
     from dd_agent_advisor_documentation.factory import build
 
-    return build()
+    return build({"DD_DOCUMENTATION_WRITER": "template", **os.environ})
 
 
 def conductors(agents: str | None) -> Any:

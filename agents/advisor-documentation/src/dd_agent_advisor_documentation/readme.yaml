@@ -27,6 +27,11 @@
 #   location   the record's geographic locations, by place name
 #   funding    the record's funders
 #
+# A section with `suggest: true` may have a model's suggested answer offered beside its question,
+# never written into the README (docs/specs/drafting.md, invariant 7). Only a section whose answer
+# the facts can inform is marked: never the methods, people, dates, places or citation, which only
+# the researcher can give, and never a section with parts.
+#
 # The README names people; their identifiers, affiliations and contact details belong to the
 # metadata record, so it does not ask for them.
 - heading: General information
@@ -53,20 +58,24 @@
   ask: what the dataset is, and what it is for.
 - heading: Files
   from: files
+  suggest: true
   ask: how the files relate to one another, and any related data not included.
 - heading: Methods
   ask: >-
     how the data were collected and processed; the software and instruments, with their versions;
     the standards, calibration and quality assurance applied.
 - heading: Variables
+  suggest: true
   ask: >-
     where the data dictionary is, which describes each field's definition, type, unit and missing
     value codes; any abbreviations or coding conventions shared across the tables.
 - heading: Access and licence
   from: [record_rights, licences]
+  suggest: true
   ask: the licence, any restrictions, related publications and other places the data are held.
 - heading: How to cite
   from: record_citation
   ask: the recommended citation. The repository gives the DOI when the dataset is deposited.
 - heading: Software requirements
+  suggest: true
   ask: anything needed to open or reuse the data.

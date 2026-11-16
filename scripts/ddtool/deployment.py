@@ -37,15 +37,25 @@ import yaml
 from ddtool import paths
 from ddtool.common import (
     MODEL_BACKED,
+    MODEL_BY_DEFAULT,
     Agent,
     DevError,
     load_agents,
+    model_on_by_default,
     read_env,
     remove_env,
     shown,
     update_env,
 )
-from ddtool.vm import System, Vm, agent_instances, agent_unit, is_active, loaded_secrets
+from ddtool.vm import (
+    System,
+    Vm,
+    agent_instances,
+    agent_unit,
+    is_active,
+    loaded_secrets,
+    read_settings,
+)
 
 ORCHESTRATORS = ("model", "stub")
 KEYS = {"name", "orchestrator", "disabled", "privacy_notice"}
@@ -309,6 +319,16 @@ def plan(system: System, place: Place, vm: Vm | None = None) -> tuple[Deployment
                 f"{agent.name} calls a model and has no key; first: "
                 f"{tool} secret set {agent.name} {MODEL_KEY}"
             )
+        elif on_vm and (switch := MODEL_BY_DEFAULT.get(agent.name)):
+            # Its model is on unless its own file turns it off; locally, `start` turns it off.
+            assert vm is not None
+            own = read_settings(system, vm.agent_env(agent.name)) or {}
+            if model_on_by_default(agent.name, own) and not has_key(system, place, vm, agent.name):
+                result.refusals.append(
+                    f"{agent.name} calls a model by default and has no key; first: "
+                    f"sudo data-director secret set {agent.name} {MODEL_KEY}, or set "
+                    f"{switch}=template in {vm.agent_env(agent.name)}"
+                )
     if on_vm:
         assert place.unit_dir is not None
         result.writes.append(

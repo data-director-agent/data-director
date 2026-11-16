@@ -28,7 +28,13 @@ from dd_agent_advisor_documentation.evals.drafting import (
     documentation_drafting,
     load_cases,
 )
-from dd_agent_advisor_documentation.prose import SUGGEST_PROMPT, ModelWriter
+from dd_agent_advisor_documentation.prose import (
+    SUGGEST_PROMPT,
+    SYSTEM_PROMPT,
+    ModelWriter,
+    ProseReply,
+)
+from dd_agent_advisor_documentation.testing import prose_reply, suggestion_reply
 from dd_harness.testing import TEST_PRINCIPAL
 from dd_sdk.contract.models import DocumentKind, DraftRequest, FileInventory
 from dd_sdk.model import ModelRequest
@@ -129,17 +135,20 @@ DEFINITIONS = {"T_air": "Air temperature at the logger node."}
 
 
 def reply(request: ModelRequest) -> str:
-    """A fake model that suggests what `UNITS` and `DEFINITIONS` say, and asks for the README an
-    overview that names only a count the facts give."""
+    """A fake model that suggests what `UNITS` and `DEFINITIONS` say, writes for the README an
+    overview that names only a count the facts give, and suggests nothing for a README's
+    questions."""
     content = str(request.messages[0]["content"])  # type: ignore[index]
-    if request.system != SUGGEST_PROMPT:
+    if request.system == SYSTEM_PROMPT:
         facts = json.loads(content.split("Facts:\n", 1)[1])
-        return json.dumps({"overview": f"The dataset has {facts['file_count']} files."})
+        return prose_reply({"overview": f"The dataset has {facts['file_count']} files."})
+    if request.system != SUGGEST_PROMPT:
+        return suggestion_reply({})
     questions = json.loads(
         content.split("Questions you may suggest an answer to:\n", 1)[1].split("\n\nFacts:", 1)[0]
     )
     given = {"unit": UNITS, "description": DEFINITIONS}
-    return json.dumps(
+    return suggestion_reply(
         {
             q["question_id"]: suggestion
             for q in questions
@@ -178,9 +187,9 @@ def test_the_evaluation_catches_what_the_editors_own_guards_stop(
     naming a count the facts do not give, and a unit written into a cell as if inferred."""
     from dd_agent_advisor_documentation import agent, prose
 
-    def keep_everything(text: str, facts: object, sections: object) -> prose.Prose:
-        reply = json.loads(text)
-        return prose.Prose(reply.pop(prose.OVERVIEW, None), reply)
+    def keep_everything(reply: ProseReply, facts: object, sections: object) -> prose.Prose:
+        kept = {p.section: p.paragraph for p in reply.sections if p.paragraph}
+        return prose.Prose(reply.overview, kept)
 
     def guessed_unit(column: str, given: str, before: object) -> tuple[str, agent.Source]:
         if column == "unit":
@@ -190,7 +199,13 @@ def test_the_evaluation_catches_what_the_editors_own_guards_stop(
     cell = agent._cell
     monkeypatch.setattr(prose, "check", keep_everything)
     monkeypatch.setattr(agent, "_cell", guessed_unit)
-    invented = FakeModel(json.dumps({"overview": "The dataset has 999 files."}))
+    invented = FakeModel(
+        lambda r: (
+            prose_reply({"overview": "The dataset has 999 files."})
+            if r.system == SYSTEM_PROMPT
+            else suggestion_reply({})
+        )
+    )
     monkeypatch.setattr(
         drafting, "editor", lambda: DocumentationEditor(writer=ModelWriter(invented))
     )
