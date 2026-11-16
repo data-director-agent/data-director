@@ -35,7 +35,7 @@ import {
   type ProjectSummary,
   useProjectApi,
 } from "../../project/api";
-import { documentName, projectName } from "../../project/name";
+import { deletionName, documentName, projectName } from "../../project/name";
 import { Link } from "../../route";
 import { AddInventory } from "../inventory/AddInventory";
 import { PageHeader } from "../frame/PageHeader";
@@ -50,6 +50,7 @@ import {
   RESEARCHERS,
   stateOf,
 } from "./DocumentList";
+import { DeleteProject } from "./DeleteProject";
 import { DocumentReader } from "./DocumentReader";
 import { ProjectRename } from "./ProjectRename";
 import { RepositoryPanel } from "./RepositoryPanel";
@@ -239,6 +240,12 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
               name={project.title ?? title}
               named={project.title_source ?? null}
               onRenamed={() => setRenamed((n) => n + 1)}
+            />{" "}
+            <DeleteProject
+              projectId={projectId}
+              name={title}
+              typedName={deletionName(project)}
+              restoreDays={project.restore_days}
             />
           </p>
         )}

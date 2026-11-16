@@ -16,10 +16,12 @@ console-script entry calls it; `Settings.from_env()` reads the real environment 
 
 from __future__ import annotations
 
+import functools
 import importlib
 import os
 from collections.abc import Callable, Iterable, Mapping, MutableMapping
 from dataclasses import dataclass
+from datetime import timedelta
 from pathlib import Path
 from types import ModuleType
 from urllib.parse import parse_qsl, urlsplit
@@ -38,7 +40,7 @@ from dd_harness.identity import (
 )
 from dd_harness.model_grants import GrantKeyError, GrantMinter
 from dd_harness.policy import load_profile
-from dd_harness.projects import Projects, ProjectStore
+from dd_harness.projects import DEFAULT_RESTORE_PERIOD, Projects, ProjectStore
 from dd_harness.registry import Registered, Registry
 from dd_harness.sources import Sources
 from dd_harness.storage import ProjectStorage, RunStorage
@@ -221,19 +223,39 @@ def run_storage(location: StorageLocation, variable: str = "DD_RUNS_DIR") -> Run
     return store
 
 
+RESTORE_DAYS_VARIABLE = "DD_PROJECT_RESTORE_DAYS"
+
+
+def project_restore_period() -> timedelta:
+    """How long an owner may restore a deleted project: `DD_PROJECT_RESTORE_DAYS` whole days, 30
+    unless set; 0 makes a deletion final to the app (docs/specs/projects.md, invariant 25).
+    Anything but a whole number stops start-up with `SettingsError`."""
+    value = os.environ.get(RESTORE_DAYS_VARIABLE, "").strip()
+    if not value:
+        return DEFAULT_RESTORE_PERIOD
+    if not value.isdecimal():
+        raise SettingsError(
+            f"{RESTORE_DAYS_VARIABLE}={value!r}: the restore period is a whole number of days, "
+            "0 or more (docs/specs/projects.md)"
+        )
+    return timedelta(days=int(value))
+
+
 def project_storage(location: StorageLocation, variable: str = "DD_PROJECTS_DIR") -> ProjectStorage:
     """The project storage at `location` (`DD_PROJECTS_DIR`): the project rules over the file log
     for a path or `file://` URL, or over the PostgreSQL log for a `postgresql://` URL
-    (docs/specs/storage.md). A location that cannot be used stops start-up with `SettingsError`."""
+    (docs/specs/storage.md), with the restore period `project_restore_period` gives. A location
+    or period that cannot be used stops start-up with `SettingsError`."""
     where = storage_location(location, variable)
+    period = project_restore_period()
     if isinstance(where, Path):
-        return _on_files(variable, where, ProjectStore)
+        return _on_files(variable, where, functools.partial(ProjectStore, restore_period=period))
     pooled = _pooled()
     try:
         log = _postgres(variable).PostgresProjectLog(where, **pooled)
     except SettingsError as exc:
         raise SettingsError(f"{variable} {exc}") from exc
-    return Projects(log)
+    return Projects(log, restore_period=period)
 
 
 def _on_files[S](variable: str, root: Path, backend: Callable[[Path], S]) -> S:

@@ -334,6 +334,20 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     does (`app/tests/test_app.py`). A refusal or failure is said in the dialog, which keeps what
     was typed (`app/web/src/components/project/NewProjectDialog.tsx`). Not built yet: the
     addresses and landing page, TODO(#764).
+28. **An owner deletes a project after typing its name, and restores it from the Projects
+    page.** The project's page has **Delete project**, which opens a dialog saying that the
+    project leaves every list for everyone working on it and takes no new work, that nothing is
+    erased, that a package already built or downloaded is not recalled, and until which day the
+    project can be restored, from the summary's `restore_days`. Its **Delete project** button is
+    enabled only once the owner has typed the project's title, or its identifier while it has
+    none. The server checks the same name (`DELETE /api/projects/{id}`, body `{"title": …}`) and
+    refuses any other with a 400, so the guard holds for any client. Once deleted, the shell
+    goes to the Projects page, which lists the project under **Recently deleted**
+    (`GET /api/projects/deleted`), with when and by whom it was deleted, until when it can be
+    restored, and **Restore** (`POST /api/projects/{id}/restore`). The section is not shown
+    while there is nothing in it ([Projects](projects.md), invariants 22 to 25;
+    `app/web/src/components/project/DeleteProject.tsx`, `ProjectsPage.test.tsx`,
+    `app/tests/test_project_deletion.py`).
 
 ## Boundaries and contracts
 

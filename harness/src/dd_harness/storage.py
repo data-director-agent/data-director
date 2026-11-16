@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from contextlib import AbstractContextManager
+from datetime import timedelta
 from typing import Any, Protocol
 
 from dd_harness.listing import Page, Readable
@@ -142,7 +143,8 @@ class ProjectStorage(Protocol):
 
     1. A project's log is append-only: an event is never changed or removed, and events come
        back in the order they were appended.
-    2. A change checked against the log (`edit`, `decide`, `answer`, `record_draft`, `rename`)
+    2. A change checked against the log (`edit`, `decide`, `answer`, `record_draft`, `rename`,
+       `restore`, and every change to a deleted project, which is refused)
        reads the log, applies the project rules and appends its events in an exclusive section
        for that project: no other change to the project enters it. The file backend holds a
        lock per project; a database holds a lock on the project's row for one transaction.
@@ -173,6 +175,23 @@ class ProjectStorage(Protocol):
     ) -> bool:
         """Give the project a new title; False, recording nothing, for a model's title once a
         person has given one."""
+        ...
+
+    restore_period: timedelta
+    """How long after its deletion an owner may restore a project; zero makes deletion final."""
+
+    def delete(self, project_id: str, *, acted_for: Principal, caused_by: str) -> dict[str, Any]:
+        """Delete the project (a `project_deleted` event); `ProjectDeletedError` if it is
+        already. Returns when it was deleted, by whom and until when it may be restored."""
+        ...
+
+    def restore(self, project_id: str, *, acted_for: Principal, caused_by: str) -> None:
+        """Restore a deleted project (a `project_restored` event); `RestoreRefusedError` if it
+        is not deleted or its restore period is over."""
+        ...
+
+    def is_deleted(self, project_id: str) -> bool:
+        """Whether the project is deleted."""
         ...
 
     def start_conversation(self, project_id: str, *, acted_for: Principal, caused_by: str) -> str:

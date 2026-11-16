@@ -3,8 +3,14 @@ import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 
 import fixture from "../../../fixtures/projects.json";
+import deletedFixture from "../../../fixtures/projects-deleted.json";
 import { type ActiveProject, ActiveProjectTestContext } from "../../project/active";
-import { type ProjectApi, type ProjectSummary, ProjectApiContext } from "../../project/api";
+import {
+  type DeletedProject,
+  type ProjectApi,
+  type ProjectSummary,
+  ProjectApiContext,
+} from "../../project/api";
 import { projectName } from "../../project/name";
 import { ProjectsPage } from "./ProjectsPage";
 
@@ -12,13 +18,25 @@ import { ProjectsPage } from "./ProjectsPage";
 // file and one conversation, "My logger data".
 const PROJECTS = fixture as ProjectSummary[];
 const FIRST = PROJECTS[0] as ProjectSummary;
+// A project its owner deleted and may still restore (app/tests/test_project_deletion.py).
+const DELETED = deletedFixture as DeletedProject[];
 
 function renderPage(
   projects: ProjectApi["projects"],
   active: Partial<ActiveProject> = {},
   create: ProjectApi["create"] = () => Promise.reject(new Error("no project created in this test")),
+  deleted: Partial<Pick<ProjectApi, "deletedProjects" | "restore">> = {},
 ) {
-  const api = { projects, create, documents: vi.fn(), disclosure: vi.fn(), decide: vi.fn() };
+  const api = {
+    projects,
+    create,
+    deletedProjects: () => Promise.resolve([]),
+    restore: () => Promise.reject(new Error("no project restored in this test")),
+    ...deleted,
+    documents: vi.fn(),
+    disclosure: vi.fn(),
+    decide: vi.fn(),
+  };
   const value: ActiveProject = {
     projectId: null,
     projects: [],
@@ -138,5 +156,40 @@ describe("projectName", () => {
 
   it("falls back to when the project was started when it has no conversation", () => {
     expect(projectName({ ...FIRST, conversations: [] })).toMatch(/^Project started /);
+  });
+
+  it("shows no deleted projects while there are none", async () => {
+    renderPage(() => Promise.resolve(PROJECTS));
+    await screen.findByRole("link", { name: "My logger data" });
+    expect(screen.queryByRole("heading", { name: "Recently deleted" })).not.toBeInTheDocument();
+  });
+
+  it("lists a deleted project under Recently deleted and restores it", async () => {
+    const user = userEvent.setup();
+    const reloadProjects = vi.fn();
+    const restore = vi.fn<ProjectApi["restore"]>(() => Promise.resolve({}));
+    const listed = vi
+      .fn<ProjectApi["deletedProjects"]>()
+      .mockResolvedValueOnce(DELETED)
+      .mockResolvedValue([]);
+    const { container } = renderPage(
+      () => Promise.resolve([]),
+      { reloadProjects },
+      undefined,
+      { deletedProjects: listed, restore },
+    );
+    const section = (await screen.findByRole("heading", { name: "Recently deleted" })).closest(
+      "section",
+    ) as HTMLElement;
+    const project = DELETED[0] as DeletedProject;
+    expect(within(section).getByText(project.title as string)).toBeInTheDocument();
+    expect(within(section).getByText(/Restorable until/)).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+
+    await user.click(within(section).getByRole("button", { name: `Restore ${project.title}` }));
+    expect(restore).toHaveBeenCalledWith(project.project_id);
+    expect(await screen.findByText(/You have no project yet/)).toBeInTheDocument();
+    expect(reloadProjects).toHaveBeenCalled();
+    expect(screen.queryByRole("heading", { name: "Recently deleted" })).not.toBeInTheDocument();
   });
 });

@@ -11,6 +11,7 @@ from dd_harness.project_access import (
     Action,
     Role,
     allowed,
+    deleted_projects,
     may,
     readable_projects,
     role_of,
@@ -78,3 +79,15 @@ def test_a_person_reads_the_projects_they_created_and_no_others(projects: Projec
     theirs = projects.create(acted_for=SOMEONE_ELSE, caused_by="test")
     assert readable_projects(projects, TEST_PRINCIPAL) == [mine]
     assert readable_projects(projects, SOMEONE_ELSE) == [theirs]
+
+
+def test_a_deleted_project_is_hidden_from_all_but_its_owner(projects: ProjectStore) -> None:
+    """Docs/specs/projects.md, invariant 23."""
+    project_id = projects.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    projects.delete(project_id, acted_for=TEST_PRINCIPAL, caused_by="test")
+    assert readable_projects(projects, TEST_PRINCIPAL) == []
+    assert deleted_projects(projects, TEST_PRINCIPAL) == [project_id]
+    assert role_of(projects, project_id, TEST_PRINCIPAL) is Role.OWNER
+    assert may(projects, project_id, TEST_PRINCIPAL, Action.MANAGE)
+    assert role_of(projects, project_id, SOMEONE_ELSE) is None
+    assert deleted_projects(projects, SOMEONE_ELSE) == []

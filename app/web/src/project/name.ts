@@ -18,6 +18,18 @@ export function day(at: string): string {
   return Number.isNaN(date.getTime()) ? at : date.toLocaleDateString([], { dateStyle: "medium" });
 }
 
+/** What the owner types to delete a project: its title, or its identifier while it has none, as
+ * the server checks (docs/specs/projects.md, "Deletion and retention"). */
+export function deletionName(project: Pick<ProjectSummary, "title" | "project_id">): string {
+  return project.title ?? project.project_id;
+}
+
+/** The day by which a project deleted now could still be restored, or null if deletion is final. */
+export function restorableUntil(restoreDays: number, from: Date = new Date()): string | null {
+  if (restoreDays <= 0) return null;
+  return day(new Date(from.getTime() + restoreDays * 24 * 60 * 60 * 1000).toISOString());
+}
+
 /** A project's name: its title, else its first conversation's, else when it was started. */
 export function projectName(project: ProjectSummary): string {
   if (project.title) return project.title;

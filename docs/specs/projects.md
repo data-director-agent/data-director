@@ -32,7 +32,7 @@ anything outside the project, which no agent performs; a steward's route into a 
 an escalation and a deployment role, not membership, TODO(#372).
 
 What is built: the project log with its creation (with an optional title), renaming (invariant
-20), inventory, repository choice and conversation-start events, and a summary of each project, reached through the
+20), deletion and restoration (invariants 22 to 25), inventory, repository choice and conversation-start events, and a summary of each project, reached through the
 `dd-harness project` command; the conductor taking a run's project from its conversation, giving
 an agent the project's facts and recording its draft; document versions and a person's decision on each,
 which the app shows and takes at `/projects/{project_id}`; a person's answers to a draft's
@@ -246,22 +246,31 @@ intended design, and each part says where it is not built yet.
 22. **Deleting a project is an event, not a removal.** An owner deletes a project by appending
     `project_deleted` and restores it by appending `project_restored`. Each names the principal and
     the cause (invariant 4). No event is changed or removed (invariant 2), and a project is deleted
-    when the last of these two events in its log is a deletion. Not built yet, TODO(#156).
+    when the last of these two events in its log is a deletion (`ProjectStore.delete`, `restore`,
+    `dd_harness.projects.deletion`; `dd-harness project delete` and `restore`;
+    `DELETE /api/projects/{project_id}`, `POST /api/projects/{project_id}/restore`, both `MANAGE`;
+    `dd_harness.testing.storage`, `app/tests/test_project_deletion.py`).
 23. **A deleted project is hidden from everyone but its owners.** It leaves every list, and so do
     its conversations, runs, inventories, documents and decisions, which follow the project
     (invariant 17). A non-member, and a member who is not an owner, are refused with status 404,
     so that a refusal does not reveal that the project exists. An owner finds it only under
-    "recently deleted", with the date, the person who deleted it and the time left to restore it.
-    Not built yet, TODO(#156).
+    "recently deleted", with the date, the person who deleted it and the time left to restore it
+    (`project_access.role_of`, `readable_projects`, `deleted_projects`;
+    `GET /api/projects/deleted`; `harness/tests/test_project_access.py`,
+    `app/tests/test_project_deletion.py`).
 24. **A deleted project takes no new work.** Starting or continuing a conversation, adding an
     inventory or documentation, deciding or editing a version, building a package and renaming are
     refused with status 409 until the project is restored. A run already going finishes and is
-    recorded, as invariant 19 says of a member who leaves. Not built yet, TODO(#156).
+    recorded, as invariant 19 says of a member who leaves: the store refuses every change to a
+    deleted project with `ProjectDeletedError` except recording a run's draft, the conductor
+    refuses a new run in one, and the app answers `409` with a `project-deleted` problem
+    (`harness/tests/test_project_runs.py`, `app/tests/test_project_deletion.py`).
 25. **An owner can restore a project for a period the deployment sets.** The period runs from the
     deletion and is 30 days unless the deployment says otherwise; zero makes a deletion final to
-    the app. Within it, restoring appends one event and changes nothing else, so the project is as
-    it was. After it, the app does not restore the project and does not remove it either: nothing
-    in the app removes a project's content, TODO(#156).
+    the app (`DD_PROJECT_RESTORE_DAYS`, whole days; a project's summary gives it as
+    `restore_days`). Within it, restoring appends one event and changes nothing else, so the
+    project is as it was. After it, the app does not restore the project and does not remove it
+    either: nothing in the app removes a project's content, TODO(#156).
 26. **Deleting hides and does not erase.** A deleted project's log, blobs and runs stay in the
     record, so deleting one does not meet a person's request for their data to be erased. Nor does
     it recall a package already built or downloaded, or a deposit already made; each holds its own
