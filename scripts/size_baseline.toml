@@ -30,7 +30,7 @@ lines = 603
 
 [[file]]
 path = "app/src/dd_app/app.py"
-lines = 1435
+lines = 1267
 
 [[file]]
 path = "app/src/dd_app/governance.py"

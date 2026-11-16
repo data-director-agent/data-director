@@ -192,7 +192,11 @@ class RequestBody(BaseModel):
     @classmethod
     def refusal_for(cls, exc: ValidationError) -> str:
         errors = exc.errors()
-        if extra := sorted(str(e["loc"][0]) for e in errors if e["type"] == "extra_forbidden"):
+        if extra := sorted(
+            str(e["loc"][0])
+            for e in errors
+            if e["type"] == "extra_forbidden" and len(e["loc"]) == 1
+        ):
             return cls.extra_refusal.format(extra=extra, joined=", ".join(extra))
         first = errors[0]
         if first["loc"]:

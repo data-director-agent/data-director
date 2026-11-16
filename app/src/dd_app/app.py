@@ -98,7 +98,6 @@ from __future__ import annotations
 import logging
 import os
 import sys
-import time
 import webbrowser
 from collections.abc import Awaitable, Callable, Mapping
 from pathlib import Path
@@ -123,18 +122,14 @@ from dd_app.config import EXAMPLES_DIR, WEB_DIST, settings_from_env
 from dd_app.github_auth import TokenSource
 from dd_app.governance import (
     CREATED_BY_ROUTE,
-    AttachedDocument,
     Governance,
-    TurnConflictError,
-    UnknownConversationError,
 )
 from dd_app.model_accounts import broker_path
 from dd_app.privacy import notice_url
 from dd_app.project_service import ProjectService
-from dd_app.routes import meta, runs, session
+from dd_app.routes import conversations, meta, runs, session
 from dd_app.routes.common import Deps, Feedback
 from dd_harness import orcid
-from dd_harness.conductor import UnknownAgent
 from dd_harness.deposit import PackageRefusedError, build_package, check
 from dd_harness.disclosure import disclose
 from dd_harness.identity import IdentityError, Unauthenticated
@@ -160,9 +155,8 @@ from dd_harness.sources import SourceConfigError
 from dd_harness.transport.a2a import a2a_routes
 from dd_harness.transport.paging import PagingError, page_params, page_response
 from dd_sdk import security_log
-from dd_sdk.contract.models import Principal, ReplyAnswers, now
+from dd_sdk.contract.models import Principal, now
 from dd_sdk.contract.problem import PROBLEM_BASE, unauthenticated
-from dd_sdk.contract.validate import ContractViolation
 from dd_sdk.credentials import ConfigError
 from dd_sdk.security_log import SecurityEvent, emit
 
@@ -330,157 +324,6 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
             return _refused(str(exc), "Data Director could not list the runs")
         page = await run_in_threadpool(lambda: governance.runs(reader, **paging))
         return page_response(request, page)
-
-    async def start_conversation(request: Request, acting_for: Principal) -> Response:
-        # No body starts the conversation in a new project; `{"project_id": …}` in that one.
-        body: Any = {}
-        if (await request.body()).strip():
-            try:
-                body = await request.json()
-            except ValueError:
-                return _refused("The body is not JSON.")
-        if not isinstance(body, dict):
-            return _refused("The body must be an object, with at most `project_id`.")
-        if extra := sorted(set(body) - {"project_id"}):
-            return _refused(f"A conversation takes only `project_id`, not {extra}.")
-        project_id = body.get("project_id")
-        if not (project_id is None or isinstance(project_id, str)):
-            return _refused("`project_id` must be a string, or null for a new project.")
-        try:
-            conversation_id = await run_in_threadpool(
-                governance.start_conversation, acting_for, project_id
-            )
-        except UnknownProjectError:
-            return _no_project(str(project_id))
-        except ProjectDeletedError:
-            return _project_deleted(str(project_id))
-        found = governance.conversation(conversation_id, acting_for) or {}
-        return JSONResponse(
-            {"conversation_id": conversation_id, "project_id": found.get("project_id")},
-            status_code=201,
-            headers={"Location": f"/api/conversations/{conversation_id}"},
-        )
-
-    async def send_turn(request: Request, acting_for: Principal) -> Response:  # noqa: C901, PLR0911, PLR0912
-        conversation_id = request.path_params["conversation_id"]
-        try:
-            body = await request.json()
-        except ValueError:
-            return _refused("The body is not JSON.")
-        if not isinstance(body, dict):
-            return _refused(
-                "The body must be an object with `agent_id`, `message_text` and `follows`."
-            )
-        if "history" in body:
-            return _refused(
-                "A turn may not give a history: the server builds it from the stored turns."
-            )
-        allowed = {
-            "agent_id",
-            "message_text",
-            "follows",
-            "inventory",
-            "documentation",
-            "reply_answers",
-        }
-        if extra := sorted(set(body) - allowed):
-            return _refused(
-                "A turn takes only `agent_id`, `message_text`, `follows`, `inventory`, "
-                f"`documentation` and `reply_answers`, not {extra}."
-            )
-        agent_id, message_text = body.get("agent_id"), body.get("message_text")
-        if not isinstance(agent_id, str) or not isinstance(message_text, str):
-            return _refused("The body must name `agent_id` and give `message_text`, as strings.")
-        follows = body.get("follows")
-        if "follows" not in body or not (follows is None or isinstance(follows, str)):
-            return _refused(
-                "The body must give `follows`: the `invocation_id` of the turn this one follows, "
-                "or null for the first turn."
-            )
-        inventory = body.get("inventory")
-        if not (inventory is None or isinstance(inventory, dict)):
-            return _refused("`inventory` must be the object `dd-inventory` wrote.")
-        documentation = None
-        if body.get("documentation") is not None:
-            attached = body["documentation"]
-            fields = ("name", "media_type", "text")
-            if not (
-                isinstance(attached, dict)
-                and set(attached) == set(fields)
-                and all(isinstance(attached[key], str) for key in fields)
-            ):
-                return _refused(
-                    "`documentation` must be an object giving the document's `name`, "
-                    "`media_type` and `text`, as strings."
-                )
-            documentation = AttachedDocument(**attached)
-        if not message_text.strip() and inventory is None and documentation is None:
-            return _refused("The message is empty.")
-        answer = None
-        if body.get("reply_answers") is not None:
-            try:
-                answer = ReplyAnswers.model_validate(body["reply_answers"])
-            except ValueError:
-                return _refused(
-                    "`reply_answers` must name the turn it answers (`answer_to`) and give "
-                    "`given_answers`: for each question answered, its `answered_key`, the "
-                    "`answer_values` chosen and optionally `answer_words`."
-                )
-        if await run_in_threadpool(governance.conversation, conversation_id, acting_for) is None:
-            return _no_conversation(conversation_id)
-        started = time.monotonic()
-        outcome = "answered"
-        try:
-            return JSONResponse(
-                await governance.turn(
-                    conversation_id,
-                    agent_id,
-                    message_text,
-                    follows,
-                    acting_for,
-                    inventory,
-                    answer,
-                    documentation,
-                )
-            )
-        except UnknownConversationError:
-            outcome = "unknown conversation"
-            return _no_conversation(conversation_id)
-        except TurnConflictError as exc:
-            outcome = "conflict"
-            return _problem(409, "turn-conflict", "The conversation has moved on", exc.detail)
-        except ProjectDeletedError as exc:
-            outcome = "project deleted"
-            return _problem(409, "project-deleted", "This project is deleted", str(exc))
-        # A `ProjectError` (an inventory or document the project refuses) is a `ValueError`.
-        except (ContractViolation, ValueError, UnknownAgent, PolicyError, IdentityError) as exc:
-            outcome = "refused"
-            return _refused(str(exc))
-        except BaseException:
-            outcome = "failed or dropped"
-            raise
-        finally:
-            log.info(
-                "data-director: turn %s %s in %.1f s",
-                conversation_id,
-                outcome,
-                time.monotonic() - started,
-            )
-
-    async def list_conversations(request: Request, reader: Principal) -> Response:
-        try:
-            paging = page_params(request)
-        except PagingError as exc:
-            return _refused(str(exc), "Data Director could not list the conversations")
-        page = await run_in_threadpool(lambda: governance.conversations(reader, **paging))
-        return page_response(request, page)
-
-    async def get_conversation(request: Request, reader: Principal) -> Response:
-        conversation_id = request.path_params["conversation_id"]
-        found = await run_in_threadpool(governance.conversation, conversation_id, reader)
-        if found is None:
-            return _no_conversation(conversation_id)
-        return JSONResponse(found)
 
     async def list_projects(request: Request, reader: Principal) -> Response:
         try:
@@ -1162,19 +1005,8 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
             # ROUTE MODULES
             *session.routes(deps),
             *meta.routes(deps),
+            *conversations.routes(deps),
             *runs.routes(deps),
-            Route("/api/conversations", signed_in(start_conversation), methods=["POST"]),
-            Route("/api/conversations", signed_in(list_conversations), methods=["GET"]),
-            Route(
-                "/api/conversations/{conversation_id}",
-                signed_in(get_conversation),
-                methods=["GET"],
-            ),
-            Route(
-                "/api/conversations/{conversation_id}/turns",
-                signed_in(send_turn),
-                methods=["POST"],
-            ),
             Route("/api/projects", signed_in(list_projects), methods=["GET"]),
             Route("/api/projects", signed_in(create_project), methods=["POST"]),
             Route("/api/projects/deleted", signed_in(list_deleted_projects), methods=["GET"]),
