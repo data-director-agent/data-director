@@ -9,6 +9,12 @@ ethics:SensitivityContext a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
+            sh:description "The dataset's title." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path ethics:title ],
+        [ sh:datatype xsd:string ;
             sh:description "A short description of the dataset." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -37,12 +43,6 @@ ethics:SensitivityContext a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 4 ;
-            sh:path ethics:involves_people ],
-        [ sh:datatype xsd:string ;
-            sh:description "The dataset's title." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path ethics:title ] ;
+            sh:path ethics:involves_people ] ;
     sh:targetClass ethics:SensitivityContext .
 

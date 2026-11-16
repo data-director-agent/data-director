@@ -10,6 +10,9 @@
       "SensitivityFlags": {
          "@id": "https://w3id.org/data-director/agents/ethics/SensitivityFlags"
       },
+      "SensitivityQuestion": {
+         "@id": "https://w3id.org/data-director/agents/ethics/SensitivityQuestion"
+      },
       "category": {
          "@id": "https://w3id.org/data-director/agents/ethics/category"
       },
@@ -19,6 +22,12 @@
       "dcat": "http://www.w3.org/ns/dcat#",
       "dcterms": "http://purl.org/dc/terms/",
       "dd": "https://w3id.org/data-director/",
+      "derivation": {
+         "@id": "https://w3id.org/data-director/agents/ethics/derivation"
+      },
+      "dropped": {
+         "@id": "https://w3id.org/data-director/agents/ethics/dropped"
+      },
       "ethics": "https://w3id.org/data-director/agents/ethics/",
       "field": {
          "@id": "https://w3id.org/data-director/agents/ethics/field"
@@ -40,7 +49,11 @@
       },
       "prov": "http://www.w3.org/ns/prov#",
       "questions": {
-         "@id": "https://w3id.org/data-director/agents/ethics/questions"
+         "@id": "https://w3id.org/data-director/agents/ethics/questions",
+         "@type": "@id"
+      },
+      "reason": {
+         "@id": "https://w3id.org/data-director/agents/ethics/reason"
       },
       "schema": "http://schema.org/",
       "schema_class": {
@@ -51,6 +64,9 @@
          "@id": "https://w3id.org/data-director/source_id"
       },
       "spdx": "http://spdx.org/rdf/terms#",
+      "text": {
+         "@id": "https://w3id.org/data-director/agents/ethics/text"
+      },
       "xsd": "http://www.w3.org/2001/XMLSchema#"
    }
 }

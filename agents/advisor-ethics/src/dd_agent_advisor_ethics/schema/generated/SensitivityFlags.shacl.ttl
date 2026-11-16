@@ -8,11 +8,17 @@ ethics:SensitivityFlags a sh:NodeShape ;
     rdfs:comment "The payload of advisor.ethics: fields that may hold sensitive data, for a person to review, and the questions the researcher must answer before sharing. It flags and never decides how sensitive data is treated (C2)." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
-            sh:description "What this mock does not yet do." ;
+    sh:property [ sh:class <https://w3id.org/data-director/GroundingRef> ;
+            sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 5 ;
+            sh:path <https://w3id.org/data-director/grounded_on> ],
+        [ sh:datatype xsd:string ;
+            sh:description "What a model returned that was not used, and why: a flag naming a field not in the input or a category not in the table, or a question too long to be one." ;
             sh:nodeKind sh:Literal ;
-            sh:order 3 ;
-            sh:path ethics:limitations ],
+            sh:order 4 ;
+            sh:path ethics:dropped ],
         [ sh:datatype xsd:string ;
             sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
             sh:maxCount 1 ;
@@ -20,21 +26,20 @@ ethics:SensitivityFlags a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path <https://w3id.org/data-director/schema_class> ],
-        [ sh:class <https://w3id.org/data-director/GroundingRef> ;
-            sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
-            sh:minCount 1 ;
+        [ sh:datatype xsd:string ;
+            sh:description "What this alpha does not yet do." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path ethics:limitations ],
+        [ sh:class ethics:SensitivityQuestion ;
+            sh:description "What the researcher must answer or confirm, with the people who can help." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 4 ;
-            sh:path <https://w3id.org/data-director/grounded_on> ],
+            sh:order 2 ;
+            sh:path ethics:questions ],
         [ sh:class ethics:SensitivityFlag ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 1 ;
-            sh:path ethics:flags ],
-        [ sh:datatype xsd:string ;
-            sh:description "What the researcher must answer or confirm, with the people who can help." ;
-            sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path ethics:questions ] ;
+            sh:path ethics:flags ] ;
     sh:targetClass ethics:SensitivityFlags .
 
 <https://w3id.org/data-director/GroundingRef> a sh:NodeShape ;
@@ -45,28 +50,33 @@ ethics:SensitivityFlags a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path <https://w3id.org/data-director/content_hash> ;
-            sh:pattern "^[0-9a-f]{64}$" ],
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/source_id> ],
         [ sh:datatype xsd:string ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path <https://w3id.org/data-director/source_id> ] ;
+            sh:order 1 ;
+            sh:path <https://w3id.org/data-director/content_hash> ;
+            sh:pattern "^[0-9a-f]{64}$" ] ;
     sh:targetClass <https://w3id.org/data-director/GroundingRef> .
 
 ethics:SensitivityFlag a sh:NodeShape ;
-    rdfs:comment "One field that may hold sensitive data." ;
+    rdfs:comment "One field that may hold sensitive data, flagged by keyword (lexical) or by a model. A model may add a flag but never remove one the keywords raised." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
-            sh:description "The keyword in keywords.yaml that the field name matched." ;
+            sh:description "The keyword in keywords.yaml that the field name matched. Present exactly when the flag is lexical." ;
             sh:maxCount 1 ;
-            sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
             sh:path ethics:matched ],
+        [ sh:datatype xsd:string ;
+            sh:description "Why the model flagged the field, in a short phrase. Present exactly when the flag is from a model." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path ethics:reason ],
         [ sh:datatype xsd:string ;
             sh:description "The kind of sensitive data the name suggests, e.g. direct identifier." ;
             sh:maxCount 1 ;
@@ -74,6 +84,12 @@ ethics:SensitivityFlag a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
             sh:path ethics:category ],
+        [ sh:description "How the value came about, lexical (the keyword table), template or model." ;
+            sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 4 ;
+            sh:path ethics:derivation ],
         [ sh:datatype xsd:string ;
             sh:description "The field name, as given." ;
             sh:maxCount 1 ;
@@ -82,4 +98,23 @@ ethics:SensitivityFlag a sh:NodeShape ;
             sh:order 0 ;
             sh:path ethics:field ] ;
     sh:targetClass ethics:SensitivityFlag .
+
+ethics:SensitivityQuestion a sh:NodeShape ;
+    rdfs:comment "One thing the researcher must answer or confirm before sharing, from the adviser's template or added by a model." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The question, as put to the researcher." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path ethics:text ],
+        [ sh:description "How the value came about, lexical (the keyword table), template or model." ;
+            sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 1 ;
+            sh:path ethics:derivation ] ;
+    sh:targetClass ethics:SensitivityQuestion .
 
