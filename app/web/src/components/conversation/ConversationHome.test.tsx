@@ -1700,6 +1700,49 @@ describe("ConversationHome", () => {
       expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toBeEnabled();
     });
 
+    it("hands a finished intake over to the conversation when the researcher starts", async () => {
+      localStorage.setItem("dd-project", LOGGERS.project_id);
+      const pending = intakePendingFixture as ProjectIntake;
+      const complete = intakeCompleteFixture as ProjectIntake;
+      const entry = pending.questions[0];
+      const option = entry?.question.question_options?.[0];
+      if (!entry || !option) throw new Error("the intake fixture asks nothing");
+      const create = vi.fn<ConversationApi["create"]>(() =>
+        Promise.resolve({ conversation_id: "c1", project_id: LOGGERS.project_id }),
+      );
+      const sendTurn = vi.fn<ConversationApi["sendTurn"]>(() => Promise.resolve());
+      renderHome(
+        withOrchestrator(),
+        fakeApi({ create, sendTurn }),
+        FLOW,
+        withProgress({
+          intake: () => Promise.resolve(pending),
+          answerIntake: () => Promise.resolve(complete),
+        }),
+      );
+      const group = await screen.findByRole("group", { name: entry.question.question_prompt });
+      await userEvent.click(within(group).getByRole("radio", { name: option.option_label }));
+      await userEvent.click(screen.getByRole("button", { name: "Next" }));
+      const suggested = complete.progress.suggested;
+      if (!suggested) throw new Error("the complete fixture suggests nothing");
+      // No conversation exists until the researcher chooses to start one.
+      expect(create).not.toHaveBeenCalled();
+
+      await userEvent.click(
+        await screen.findByRole("button", { name: `Start with ${label(suggested)}` }),
+      );
+      await waitFor(() => expect(sendTurn).toHaveBeenCalledTimes(1));
+      expect(create).toHaveBeenCalledWith(LOGGERS.project_id);
+      expect(sendTurn).toHaveBeenCalledWith(
+        "c1",
+        expect.any(String),
+        expect.stringContaining(label(suggested)),
+        null,
+        null,
+      );
+      expect(screen.queryByRole("heading", { name: "Where your project starts" })).toBeNull();
+    });
+
     // The intake once Data Director has recorded the entry point from what the researcher said.
     function byModel(): ProjectIntake {
       const complete = intakeCompleteFixture as ProjectIntake;

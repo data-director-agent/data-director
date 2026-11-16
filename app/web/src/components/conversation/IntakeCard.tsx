@@ -78,6 +78,7 @@ export function IntakeCard({
   onAnswer,
   onDismiss,
   onClose,
+  onStart,
   onAnnounce,
 }: {
   intake: ProjectIntake;
@@ -90,6 +91,9 @@ export function IntakeCard({
   onDismiss: () => void;
   /** Closes the card, recording nothing. */
   onClose: () => void;
+  /** Starts the conversation with the suggested step, sending the message given as the
+   * researcher's opening turn; absent once the project's conversation has begun. */
+  onStart?: ((message: string) => void) | undefined;
   onAnnounce: (text: string) => void;
 }) {
   const id = useId();
@@ -116,6 +120,8 @@ export function IntakeCard({
   const notices = noticesOf(intake, shown, shown ? draftOf(shown).values : []);
   const complete = intake.state === "complete";
   const summary = summaryOf(flow, intake);
+  // The step the researcher may start the conversation with, once the intake is complete.
+  const startWith = complete && onStart ? summary.step : null;
   const said = shown
     ? shown.question.question_prompt
     : complete
@@ -239,13 +245,33 @@ export function IntakeCard({
                 </p>
               )}
               {!summary.phase && !summary.step && <p>Thank you: your answers are recorded.</p>}
+              {startWith && (
+                <p>Data Director can guide you through it now, or you can type your own question below.</p>
+              )}
             </>
           ) : (
             <p>You can answer the setup questions later from the phase tracker.</p>
           )}
-          <Button icon={Check} onPress={onClose}>
-            Close
-          </Button>
+          {startWith && onStart ? (
+            <div className="question-actions">
+              <Button
+                variant="primary"
+                icon={ArrowRight}
+                onPress={() =>
+                  onStart(`I've answered the setup questions. Let's start with: ${startWith}.`)
+                }
+              >
+                Start with {startWith}
+              </Button>
+              <Button icon={X} onPress={onClose}>
+                Not now
+              </Button>
+            </div>
+          ) : (
+            <Button icon={Check} onPress={onClose}>
+              Close
+            </Button>
+          )}
         </div>
       )}
     </section>

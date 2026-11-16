@@ -124,6 +124,29 @@ describe("IntakeCard", () => {
     expect(onDismiss).not.toHaveBeenCalled();
   });
 
+  it("once complete, offers to start the conversation with the suggested step", async () => {
+    const onStart = vi.fn<(message: string) => void>();
+    const { container, onClose } = renderCard({ intake: COMPLETE, onStart });
+    const step = FLOW.phases.flatMap((p) => p.steps).find((s) => s.id === COMPLETE.progress.suggested);
+    if (!step) throw new Error("the fixtures do not agree");
+    expect(screen.queryByRole("button", { name: "Close" })).not.toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+
+    await userEvent.click(screen.getByRole("button", { name: `Start with ${step.label}` }));
+    expect(onStart).toHaveBeenCalledTimes(1);
+    expect(onStart).toHaveBeenCalledWith(expect.stringContaining(step.label));
+    expect(onClose).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Not now" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("once complete, offers only Close when the conversation has begun", () => {
+    renderCard({ intake: COMPLETE });
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Start with/ })).not.toBeInTheDocument();
+  });
+
   // The intake once Data Director has recorded the entry point from what the researcher said.
   const BY_MODEL: ProjectIntake = {
     ...COMPLETE,
