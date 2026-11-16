@@ -16,11 +16,16 @@ import json
 import re
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
-from dataclasses import dataclass
 from datetime import datetime, timedelta
-from enum import StrEnum
 from typing import TYPE_CHECKING, Any, Final
 
+from dd_harness.project_errors import ChangeRefusedError as ChangeRefusedError
+from dd_harness.project_errors import ProjectDeletedError as ProjectDeletedError
+from dd_harness.project_errors import ProjectError as ProjectError
+from dd_harness.project_errors import Refusal as Refusal
+from dd_harness.project_errors import Refused as Refused
+from dd_harness.project_errors import RestoreRefusedError as RestoreRefusedError
+from dd_harness.project_errors import UnknownProjectError as UnknownProjectError
 from dd_sdk.contract.models import UUID7_PATTERN, Principal, new_invocation_id, now
 
 if TYPE_CHECKING:
@@ -49,57 +54,6 @@ DIGEST = re.compile(r"[0-9a-f]{64}")
 # How long an owner may restore a deleted project, unless the deployment says otherwise
 # (docs/specs/projects.md, invariant 25). Zero makes a deletion final to the app.
 DEFAULT_RESTORE_PERIOD: Final = timedelta(days=30)
-
-
-class ProjectError(ValueError):
-    """The project does not exist, or what was to be added to it was refused."""
-
-
-class UnknownProjectError(ProjectError):
-    """No project has this identifier."""
-
-
-class ProjectDeletedError(ProjectError):
-    """The project is deleted, so it takes no new work until it is restored
-    (docs/specs/projects.md, invariant 24)."""
-
-
-class RestoreRefusedError(ProjectError):
-    """The project is not deleted, or the period in which it could be restored is over
-    (docs/specs/projects.md, invariant 25)."""
-
-
-class Refusal(StrEnum):
-    """Why a decision, an edit or an answer was refused as not naming what it must
-    (docs/specs/projects.md, invariant 12). Each value is a Problem Details slug."""
-
-    NO_DOCUMENT = "document-not-found"
-    NOT_LATEST = "version-not-latest"
-    DECIDED = "version-decided"
-    DIGEST = "digest-mismatch"
-    NOT_ASKED = "question-not-asked"
-
-
-class ChangeRefusedError(ProjectError):
-    """A decision or edit that does not name the document's latest text, a decision on a
-    version already decided, or an answer to a question the latest version does not ask. The
-    refusal is recorded, and nothing else is."""
-
-    def __init__(self, refusal: Refusal, detail: str) -> None:
-        super().__init__(detail)
-        self.refusal = refusal
-        self.detail = detail
-
-
-@dataclass(frozen=True)
-class Refused:
-    """A change the project rules refuse: why, what a person is told, and what the
-    `document_change_refused` event names. Returned, not raised, so that the refusal is written
-    in the change's exclusive section before `ChangeRefusedError` is raised."""
-
-    refusal: Refusal
-    detail: str
-    named: dict[str, Any]
 
 
 def deletion(events: Sequence[Mapping[str, Any]]) -> Mapping[str, Any] | None:

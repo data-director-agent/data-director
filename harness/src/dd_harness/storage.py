@@ -25,8 +25,9 @@ from typing import Any, Protocol
 
 from dd_harness.listing import Page, Readable
 from dd_harness.progress import ENTRY_BY_RESEARCHER, EntrySource
+from dd_harness.project_effects import ProjectEffects
+from dd_harness.project_errors import TitleSource
 from dd_harness.projects.decisions import Decision
-from dd_harness.projects.lifecycle import TitleSource
 from dd_harness.requirements import Requirements
 from dd_harness.sources import Sources
 from dd_sdk.contract.classes import ClassSchema
@@ -455,6 +456,7 @@ class ProjectStorage(
     ProjectProgress,
     ProjectDocuments,
     ProjectDeposits,
+    ProjectEffects,
     Protocol,
 ):
     """Where the harness keeps each project's log of events, and the content they added

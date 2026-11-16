@@ -20,10 +20,13 @@ deleted project is `dd_harness.project_access`.
 
 from __future__ import annotations
 
-from typing import Any, Final, Literal
+from typing import Any
 
 from dd_harness import intake
 from dd_harness import progress as flow
+from dd_harness.project_errors import TITLE_BY_MODEL as TITLE_BY_MODEL
+from dd_harness.project_errors import TITLE_BY_RESEARCHER as TITLE_BY_RESEARCHER
+from dd_harness.project_errors import TitleSource as TitleSource
 from dd_harness.projects.fold import APPROVED, PROPOSED, REJECTED, fold
 from dd_harness.projects.rules import (
     CONVERSATION_STARTED,
@@ -42,11 +45,6 @@ from dd_sdk.contract.models import Principal, new_invocation_id
 
 # The longest project title the harness keeps, in characters: a name, not a description.
 TITLE_MAX_LENGTH = 200
-# Who gave a project its title: a person (when creating or renaming it) or an orchestrator's
-# model. A person's title is never replaced by a model's.
-TITLE_BY_RESEARCHER: Final = "researcher"
-TITLE_BY_MODEL: Final = "model"
-type TitleSource = Literal["researcher", "model"]
 
 
 def _check_title(title: str) -> None:

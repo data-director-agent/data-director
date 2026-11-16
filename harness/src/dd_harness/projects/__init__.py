@@ -28,6 +28,7 @@ from __future__ import annotations
 from datetime import timedelta
 from pathlib import Path
 
+from dd_harness.project_effects import RunEffects
 from dd_harness.project_files import FileProjectLog
 from dd_harness.projects.decisions import (
     ANSWER_MAX_LENGTH,
@@ -151,11 +152,14 @@ __all__ = [
 ]
 
 
-class Projects(Lifecycle, Holdings, Researchers, RepositoryChoice, Flow, Documents, DepositRecords):
+class Projects(
+    Lifecycle, Holdings, Researchers, RepositoryChoice, Flow, Documents, DepositRecords, RunEffects
+):
     """The project rules, every area together over one `ProjectLog` (`dd_harness.storage`,
     docs/specs/storage.md): the `ProjectStorage` every backend gives its callers. The log stores
     and reads; everything that decides whether a change is allowed, and what the log means, is in
-    the areas this is made of. It adds nothing of its own."""
+    the areas this is made of, and what a finished run does to its project is
+    `RunEffects.after_run` (`dd_harness.project_effects`). It adds nothing of its own."""
 
 
 class ProjectStore(Projects):

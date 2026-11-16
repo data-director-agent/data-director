@@ -171,9 +171,11 @@ decisions, answers and what is read from them) and deposits (validation reports 
 `dd_harness.projects.Projects` is every area together, constructed over a `ProjectLog`.
 `ProjectStorage` is composed in the same way, of one Protocol per area (`ProjectLifecycle`,
 `ProjectHoldings`, `ProjectResearchers`, `ProjectRepository`, `ProjectProgress`,
-`ProjectDocuments`, `ProjectDeposits`). A caller names only the areas it uses, so a new
-feature of one area does not reach a caller of another. Code that builds a store or hands it
-on names `ProjectStorage`.
+`ProjectDocuments`, `ProjectDeposits`), and of `ProjectEffects`, what a finished run does to
+its project (`dd_harness.project_effects`), which `Projects` gives through `RunEffects`. A
+caller names only the areas it uses, so a new feature of one area does not reach a caller of
+another; the conductor names `RunProjects`, every area but deposits with the run's effects.
+Code that builds a store or hands it on names `ProjectStorage`.
 
 Every change runs in a section of the log: the rules read the log there, decide, and append the
 change's events in one call, or a `document_change_refused` event, and raise `ChangeRefusedError`
