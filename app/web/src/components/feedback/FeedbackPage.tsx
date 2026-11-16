@@ -38,6 +38,7 @@ type Send =
   | { state: "filed"; issue: FiledIssue };
 
 /** Where the reporter came from, read from the address: `?from=/agents&run=…&conversation=…`. */
+// eslint-disable-next-line complexity -- recorded debt: split it, do not add to it (docs/architecture-review.md)
 export function FeedbackPage({ query }: { query: string }) {
   const api = useFeedbackApi();
   const params = new URLSearchParams(query);

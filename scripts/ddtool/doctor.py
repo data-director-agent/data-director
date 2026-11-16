@@ -35,7 +35,7 @@ from ddtool.deployment import Place, plan
 from ddtool.vm import System
 
 
-def doctor() -> int:
+def doctor() -> int:  # noqa: C901, PLR0912
     print(f"target: dev ({paths.LOCAL_DIR})")
     problems = tool_problems()
     for stray in stray_files():

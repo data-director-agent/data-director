@@ -72,6 +72,21 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      # Source files stay under the size limit, and those already over it only shrink
+      # (docs/architecture-review.md). --update lowers the baseline as files shrink; stage it.
+      - id: check-size
+        name: source files do not grow past their size
+        entry: uv run --no-project --python 3.14 scripts/check_size.py --update
+        language: system
+        pass_filenames: false
+        always_run: true
+      # Each workspace member, above all each agent, is in every list that names members by hand.
+      - id: check-members
+        name: every member is registered everywhere
+        entry: uv run --no-project --python 3.14 scripts/check_members.py
+        language: system
+        pass_filenames: false
+        always_run: true
       # A pull request is squash-merged under its title, which release-please reads as a
       # Conventional Commit. Holding every commit subject to the same rule (scripts/check_names.py)
       # catches a bad one before it is pushed; the pull request title is still checked by CI.

@@ -71,6 +71,7 @@ function sameValues(a: readonly string[], b: readonly string[] | null): boolean 
   return b !== null && a.length === b.length && a.every((v) => b.includes(v));
 }
 
+// eslint-disable-next-line complexity -- recorded debt: split it, do not add to it (docs/architecture-review.md)
 export function IntakeCard({
   intake,
   again = false,

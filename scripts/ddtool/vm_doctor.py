@@ -53,6 +53,7 @@ MODEL_SWITCHES = {
     "advisor-repository": "DD_REPOSITORY_EXPLAINER",
     "advisor-documentation": "DD_DOCUMENTATION_WRITER",
     "advisor-dmp": "DD_DMP_MATCHER",
+    "advisor-rights": "DD_RIGHTS_INTERPRETER",
 }
 BACKUP_UNIT = "data-director-backup.service"
 BACKUP_TIMER = "data-director-backup.timer"
@@ -432,7 +433,7 @@ class Doctor:
 
     # --- The stores and their backups -----------------------------------------------------------
 
-    def storage(self, now: datetime | None = None) -> None:
+    def storage(self, now: datetime | None = None) -> None:  # noqa: C901, PLR0912
         """The backup timer and the newest backup, the free space where the stores and the backups
         are kept, and whether each database a store names answers with this release's schema."""
         system, vm, report = self.system, self.vm, self.report

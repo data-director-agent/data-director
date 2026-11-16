@@ -130,6 +130,7 @@ function HumanReview({ project }: { project: ProjectSummary | null | undefined }
   );
 }
 
+// eslint-disable-next-line complexity -- recorded debt: split it, do not add to it (docs/architecture-review.md)
 export function Outcome({
   result,
   agent,

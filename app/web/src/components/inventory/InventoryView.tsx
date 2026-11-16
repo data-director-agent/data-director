@@ -10,6 +10,10 @@
  * read-only. A folder left out leaves out every file beneath it, opened or not, so a large folder
  * is left out with one choice.
  *
+ * Files whose names, size or digest call for a person to look before deposit (#449) are marked,
+ * with what to check: a prompt, never a finding, since the inventory holds no contents
+ * (`fileHints`). The same files are listed under "Files to look at".
+ *
  * An inventory may list thousands of files, so a folder draws its contents only while it is open,
  * and a search shows at most `SHOWN` matches.
  */
@@ -23,11 +27,14 @@ import {
   DESCRIPTION_LIMIT,
   describeEdits,
   FILE_ROLES,
+  fileHints,
   files as filesOf,
   folderTree,
   formatBytes,
   formatDate,
   formatFileCount,
+  HINT_LABELS,
+  HINT_LIMITATION,
   identificationLabel,
   IDENTIFICATION_METHODS,
   isOmitted,
@@ -36,6 +43,7 @@ import {
   searchFiles,
   summarise,
   type EditAction,
+  type FileHint,
   type FileInventory,
   type FileRole,
   type FolderNode,
@@ -67,6 +75,9 @@ interface EditingState extends Editing {
 /** The editing state, or null when the view is read-only. */
 const EditingContext = createContext<EditingState | null>(null);
 
+/** What a person should look at in each file, by path; a file with no entry has no hint. */
+const HintsContext = createContext<ReadonlyMap<string, FileHint[]>>(new Map());
+
 /** The words for each part a file may play. */
 export const ROLE_LABELS: Record<FileRole, string> = {
   data: "Data",
@@ -89,6 +100,7 @@ export function InventoryView({
     [inventory, editing],
   );
   const summary = useMemo(() => summarise(shown), [shown]);
+  const hints = useMemo(() => fileHints(shown), [shown]);
   const made = formatDate(inventory.inventory_made_at);
   const state = useMemo<EditingState | null>(
     () =>
@@ -100,68 +112,73 @@ export function InventoryView({
   const changed = editing ? describeEdits(countEdits(inventory, editing.edits)) : null;
   return (
     <EditingContext.Provider value={state}>
-      <div className="inventory-view">
-        <p className="callout">
-          This is everything the inventory holds, and so everything Data Director keeps and agents
-          are shown: file names and folders, sizes, digests, formats and the column headings of
-          tables{editing ? ", and anything you describe here" : ""}. It holds nothing else from
-          inside the files.
-        </p>
+      <HintsContext.Provider value={hints}>
+        <div className="inventory-view">
+          <p className="callout">
+            This is everything the inventory holds, and so everything Data Director keeps and agents
+            are shown: file names and folders, sizes, digests, formats and the column headings of
+            tables{editing ? ", and anything you describe here" : ""}. It holds nothing else from
+            inside the files, so no agent can see what they say: names, telephone numbers or access
+            codes in notes, whether locations are sensitive, or licence terms written in a file.
+            Files whose names suggest something to check are marked; that is a prompt for you, not a
+            decision, and a file not marked may still need checking.
+          </p>
 
-        <dl className="facts">
-          <div>
-            <dt>Files</dt>
-            <dd>
-              {formatFileCount(summary.fileCount)}, {formatBytes(summary.bytes)} in all
-            </dd>
-          </div>
-          <div>
-            <dt>Made</dt>
-            <dd>
-              {made ? `${made} ` : ""}by {inventory.inventory_tool} {inventory.inventory_tool_version}
-            </dd>
-          </div>
-          {inventory.inventory_identified_with && (
+          <dl className="facts">
             <div>
-              <dt>Formats found with</dt>
-              <dd>{inventory.inventory_identified_with}</dd>
+              <dt>Files</dt>
+              <dd>
+                {formatFileCount(summary.fileCount)}, {formatBytes(summary.bytes)} in all
+              </dd>
             </div>
-          )}
-          <div>
-            <dt>How formats were found</dt>
-            <dd>
-              <ul className="plain-list">
-                {IDENTIFICATION_METHODS.filter((m) => summary.identification[m] > 0).map((m) => (
-                  <li key={m}>
-                    {identificationLabel(m)}: {formatFileCount(summary.identification[m])}
-                  </li>
+            <div>
+              <dt>Made</dt>
+              <dd>
+                {made ? `${made} ` : ""}by {inventory.inventory_tool} {inventory.inventory_tool_version}
+              </dd>
+            </div>
+            {inventory.inventory_identified_with && (
+              <div>
+                <dt>Formats found with</dt>
+                <dd>{inventory.inventory_identified_with}</dd>
+              </div>
+            )}
+            <div>
+              <dt>How formats were found</dt>
+              <dd>
+                <ul className="plain-list">
+                  {IDENTIFICATION_METHODS.filter((m) => summary.identification[m] > 0).map((m) => (
+                    <li key={m}>
+                      {identificationLabel(m)}: {formatFileCount(summary.identification[m])}
+                    </li>
+                  ))}
+                </ul>
+              </dd>
+            </div>
+          </dl>
+
+          {summary.limitations.length > 0 && (
+            <section aria-labelledby="inventory-limits">
+              <h3 id="inventory-limits">What it leaves out</h3>
+              <ul>
+                {summary.limitations.map((limit) => (
+                  <li key={limit}>{limit}</li>
                 ))}
               </ul>
-            </dd>
-          </div>
-        </dl>
+            </section>
+          )}
 
-        {summary.limitations.length > 0 && (
-          <section aria-labelledby="inventory-limits">
-            <h3 id="inventory-limits">What it leaves out</h3>
-            <ul>
-              {summary.limitations.map((limit) => (
-                <li key={limit}>{limit}</li>
-              ))}
-            </ul>
-          </section>
-        )}
+          {editing && (
+            <p role="status" className="inventory-left-out">
+              {changed ? `Changes: ${changed}.` : "Nothing is left out or changed."}
+            </p>
+          )}
 
-        {editing && (
-          <p role="status" className="inventory-left-out">
-            {changed ? `Changes: ${changed}.` : "Nothing is left out or changed."}
-          </p>
-        )}
-
-        <Formats formats={summary.formats} />
-        <Files inventory={shown} />
-        <Tables tables={summary.tables} />
-      </div>
+          <Formats formats={summary.formats} />
+          <Files inventory={shown} />
+          <Tables tables={summary.tables} />
+        </div>
+      </HintsContext.Provider>
     </EditingContext.Provider>
   );
 }
@@ -236,16 +253,24 @@ function Puids({ ids }: { ids: readonly string[] }) {
 
 type Filter = "all" | "attention" | "new";
 
-/** Whether the researcher would do well to look at `file`: its format is in doubt, or it is a table no one has described. */
-function needsAttention(file: InventoryFile): boolean {
+/**
+ * Whether the researcher would do well to look at `file`: its format is in doubt, it is a table no
+ * one has described, or its names, size or digest call for a check (`hints`).
+ */
+function needsAttention(file: InventoryFile, hints: ReadonlyMap<string, FileHint[]>): boolean {
   const doubtful = file.file_identified_by === "none" || (file.file_pronom_ids?.length ?? 0) > 1;
-  return doubtful || (Boolean(file.file_fields?.length) && !file.file_description);
+  return (
+    doubtful ||
+    (Boolean(file.file_fields?.length) && !file.file_description) ||
+    hints.has(file.file_path)
+  );
 }
 
 function Files({ inventory }: { inventory: FileInventory }) {
   const searchId = useId();
   const filterId = useId();
   const editing = useContext(EditingContext);
+  const hints = useContext(HintsContext);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const all = filesOf(inventory);
@@ -254,13 +279,13 @@ function Files({ inventory }: { inventory: FileInventory }) {
   const found = useMemo(() => {
     const narrowed =
       filter === "attention"
-        ? all.filter(needsAttention)
+        ? all.filter((f) => needsAttention(f, hints))
         : filter === "new" && newPaths
           ? all.filter((f) => newPaths.has(f.file_path))
           : null;
     if (!query.trim()) return narrowed;
     return searchFiles(narrowed ?? all, query);
-  }, [all, query, filter, newPaths]);
+  }, [all, query, filter, newPaths, hints]);
   if (all.length === 0) {
     return (
       <section aria-labelledby="inventory-files">
@@ -301,6 +326,11 @@ function Files({ inventory }: { inventory: FileInventory }) {
           </div>
         )}
       </div>
+      {hints.size > 0 && (
+        <p className="muted">
+          {formatFileCount(hints.size)} marked to look at. {HINT_LIMITATION}
+        </p>
+      )}
       {found ? <Found files={found} /> : <Folder node={tree} />}
     </section>
   );
@@ -355,7 +385,10 @@ function Folder({ node }: { node: FolderNode }) {
 
 function Node({ node, open }: { node: TreeNode; open: boolean }) {
   const [isOpen, setOpen] = useState(open);
+  const hints = useContext(HintsContext);
   if (node.kind === "file") return <FileLine file={node.file} name={node.name} />;
+  // A closed folder still says how many of its files are marked, so none is out of sight.
+  const marked = hints.size ? filesUnder(node).filter((p) => hints.has(p)).length : 0;
   return (
     <details open={isOpen} onToggle={(e) => setOpen(e.currentTarget.open)}>
       <summary>
@@ -363,6 +396,12 @@ function Node({ node, open }: { node: TreeNode; open: boolean }) {
         <span className="muted">
           {formatFileCount(node.fileCount)}, {formatBytes(node.bytes)}
         </span>
+        {marked > 0 && (
+          <>
+            {" "}
+            <span className="status status-warn">{formatFileCount(marked)} to look at</span>
+          </>
+        )}
       </summary>
       {isOpen && (
         <>
@@ -416,6 +455,7 @@ function FileLine({ file, name }: { file: InventoryFile; name: string }) {
   const ids = file.file_pronom_ids ?? [];
   const doubtful = file.file_identified_by === "none" || ids.length > 1;
   const isNew = editing?.newPaths?.has(file.file_path) ?? false;
+  const hints = useContext(HintsContext).get(file.file_path) ?? [];
   return (
     <span className="inventory-file">
       <span className="inventory-file-name">{name}</span>{" "}
@@ -440,7 +480,23 @@ function FileLine({ file, name }: { file: InventoryFile; name: string }) {
           <span className="inventory-role">{ROLE_LABELS[file.file_role]}</span>
         </>
       )}
+      {hints.map((hint) => (
+        <span key={hint.kind}>
+          {" "}
+          <span className="status status-warn">{HINT_LABELS[hint.kind]}</span>
+        </span>
+      ))}
       {file.file_description && <span className="inventory-description">{file.file_description}</span>}
+      {hints.length > 0 && (
+        <ul className="inventory-hints" aria-label={`What to check in ${file.file_path}`}>
+          {hints.map((hint) => (
+            <li key={hint.kind}>
+              {hint.question}
+              {hint.related?.length ? <> Same as: {hint.related.join(", ")}.</> : null}
+            </li>
+          ))}
+        </ul>
+      )}
       {editing && !isOmitted(file.file_path, editing.edits.omitted.paths) && (
         <FileEditor file={file} />
       )}

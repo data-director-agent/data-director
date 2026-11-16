@@ -14,11 +14,16 @@ import { record, startHistory } from "./history";
 import { InventoryDialog } from "./InventoryDialog";
 import { InventoryView, SHOWN } from "./InventoryView";
 
+/** A digest of its own for each path, so that no two files read as copies of each other. */
+function digest(path: string): string {
+  return [...path].map((c) => c.charCodeAt(0).toString(16)).join("").padStart(64, "0").slice(-64);
+}
+
 function file(path: string, overrides: Partial<InventoryFile> = {}): InventoryFile {
   return {
     file_path: path,
     file_size: 1500,
-    file_sha256: "0".repeat(64),
+    file_sha256: digest(path),
     file_media_type: "text/csv",
     file_pronom_ids: ["x-fmt/18"],
     file_identified_by: "extension",
@@ -276,6 +281,50 @@ describe("InventoryView, stating what the command cannot know", () => {
     expect(named()).not.toContain("data/raw/2026.csv");
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Show" }), "new");
     expect(named()).toEqual(["README.md"]);
+  });
+});
+
+describe("InventoryView hints", () => {
+  const moorland: FileInventory = {
+    ...INVENTORY,
+    inventory_files: [
+      file("fieldnotes/fieldnotes_2024.txt", { file_media_type: "text/plain" }),
+      file("calibration/sites.csv", {
+        file_fields: [
+          { name: "node", field_type: "string" },
+          { name: "lat", field_type: "number" },
+        ],
+        file_description: "Where each node is",
+      }),
+      file("data/readings.csv", { file_description: "Readings" }),
+    ],
+  };
+
+  function Editing() {
+    const [edits, setEdits] = useState<InventoryEdits>(NO_EDITS);
+    return <InventoryView inventory={moorland} editing={{ edits, dispatch: () => setEdits(edits) }} />;
+  }
+
+  it("marks files whose names call for a look, says what to check, and that it is not clearance", async () => {
+    const { container } = render(<InventoryView inventory={moorland} />);
+    expect(screen.getByText("fieldnotes/").closest("summary")).toHaveTextContent("1 file to look at");
+    await userEvent.click(screen.getByText("fieldnotes/"));
+    await userEvent.click(screen.getByText("calibration/"));
+    await userEvent.click(screen.getByText("data/"));
+    expect(screen.getByRole("list", { name: "What to check in fieldnotes/fieldnotes_2024.txt" })).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "What to check in calibration/sites.csv" })).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "What to check in data/readings.csv" })).toBeNull();
+    expect(within(screen.getByRole("region", { name: "Files" })).getByText(/a file not marked/)).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("lists the marked files under the files to look at", async () => {
+    render(<Editing />);
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Show" }), "attention");
+    const files = screen.getByRole("region", { name: "Files" });
+    const named = [...files.querySelectorAll(".inventory-file-name")].map((e) => e.textContent);
+    expect(named).toEqual(expect.arrayContaining(["fieldnotes/fieldnotes_2024.txt", "calibration/sites.csv"]));
+    expect(named).not.toContain("data/readings.csv");
   });
 });
 

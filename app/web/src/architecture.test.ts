@@ -40,3 +40,32 @@ describe("layer rules", () => {
     expect(messages).toEqual([]);
   });
 });
+
+// The function-size rules (eslint.config.js): a planted function over the limit is reported, so
+// a misplaced `files` or `ignores` pattern cannot switch them off unnoticed.
+describe("function size rules", () => {
+  async function ruleIds(filePath: string, code: string): Promise<string[]> {
+    const [result] = await eslint.lintText(code, { filePath });
+    return (result?.messages ?? []).map((m) => m.ruleId ?? "");
+  }
+
+  const branches = (count: number) =>
+    Array.from({ length: count }, (_, i) => `  if (n === ${i}) return ${i};`).join("\n");
+
+  it("reports a function more complex than the limit", async () => {
+    const code = `export function planted(n: number): number {\n${branches(20)}\n  return -1;\n}\n`;
+    expect(await ruleIds("src/run/planted.ts", code)).toContain("complexity");
+  });
+
+  it("allows a function within the limit", async () => {
+    const code = `export function planted(n: number): number {\n${branches(19)}\n  return -1;\n}\n`;
+    expect(await ruleIds("src/run/planted.ts", code)).not.toContain("complexity");
+  });
+
+  it("reports blocks nested deeper than the limit", async () => {
+    const code =
+      "export function planted(a: boolean): number {\n" +
+      "  if (a) { if (a) { if (a) { if (a) { if (a) { return 1; } } } } }\n  return 0;\n}\n";
+    expect(await ruleIds("src/run/planted.ts", code)).toContain("max-depth");
+  });
+});

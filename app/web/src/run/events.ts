@@ -103,6 +103,7 @@ function finished(event: Fields): RunEvent {
 }
 
 /** One event from the stream, checked for the fields the reducer reads. */
+// eslint-disable-next-line complexity -- recorded debt: split it, do not add to it (docs/architecture-review.md)
 export function parseEvent(raw: unknown): RunEvent {
   if (!isObject(raw) || !isString(raw.type)) return malformed("an event without a type");
   const { type } = raw;
