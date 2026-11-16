@@ -20,6 +20,7 @@ the contract's class schema before a project keeps it ([Projects](../../docs/spe
 | `parts` | An inventory of several folders: `asParts(inventory, folder)` names the folder an inventory of one folder already has, `withPart(stored, scan, folder)` updates that folder's part with a new scan, or adds a folder, and keeps the other parts as they were; `partsOf`, `partOf`, `partProblems` and `partFolderProblem`. A part is replaced whole, never merged file by file. `omit` keeps what was left out counted with its part |
 | `search` | `searchFiles(files, query)`: by path, media type, PRONOM identifier or column name |
 | `format` | `formatBytes`, `formatFileCount`, `formatDate`, `describeInventory`, `identificationLabel`, `pronomUrl` |
+| `hints` | `fileHints(inventory)`: the files whose folder, file or field names, size or digest call for a person to look before deposit (free text, coordinates, someone else's material, terms, system files, empty files, copies), each with what to check; `HINT_LABELS`, `HINT_RULES`, and `HINT_LIMITATION`, the sentence that says no hint is not clearance. A prompt, never a finding: the inventory holds no contents (#449). The rules are a copy of the File Archivist's `hints.yaml`; change both together |
 | `making` | `MAKING_AN_INVENTORY`, how to make an inventory on each operating system, and `systemFromPlatform(platform)` |
 
 `making` reads its text from `src/making.json`. The user guide's

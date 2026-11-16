@@ -66,6 +66,13 @@
     font-size: var(--font-size-small);
   }
 
+  /* What a person should check in a file, judged from its names (#449): a prompt, not a finding. */
+  .inventory-hints {
+    max-width: var(--measure);
+    margin: var(--space-1) 0 0;
+    padding-left: var(--space-4);
+  }
+
   .inventory-table + .inventory-table {
     margin-top: var(--space-2);
   }
