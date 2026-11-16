@@ -1,6 +1,71 @@
-/* The conversation's turns. */
+/*
+ * The conversation's turns. Each is the person's part and then the agent's, and the two differ
+ * by surface and position, not colour alone (WCAG 1.4.1): the person's sits on a surface at the
+ * end edge, the agent's at the start edge beside a rule. A rule and a space set turns apart.
+ *
+ * The list's numbers are dropped on purpose: the turns are already in order, one beneath the
+ * last, and a number added nothing the reader uses. It is still an ordered list (Transcript.tsx).
+ */
 
 @layer components {
+  .transcript {
+    list-style: none;
+    padding-inline-start: 0;
+    margin: 0 0 var(--space-5);
+  }
+
+  .turn {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .turn + .turn {
+    margin-block-start: var(--space-6);
+    padding-block-start: var(--space-5);
+    border-block-start: var(--border-width) solid var(--color-border-subtle);
+  }
+
+  .turn-person {
+    align-self: flex-end;
+    max-inline-size: min(100%, var(--measure));
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-large);
+    background: var(--color-surface);
+    overflow-wrap: anywhere;
+  }
+
+  .turn-agent {
+    padding-inline-start: var(--space-4);
+    border-inline-start: var(--focus-width) solid var(--color-border-subtle);
+    min-inline-size: 0;
+  }
+
+  /* The gap and the parts' padding set the space around a part, not its first and last lines. */
+  :is(.turn-person, .turn-agent) > :first-child {
+    margin-block-start: 0;
+  }
+
+  :is(.turn-person, .turn-agent) > :last-child {
+    margin-block-end: 0;
+  }
+
+  .turn-speaker {
+    margin-block-end: var(--space-2);
+  }
+
+  .turn-speaker-name {
+    display: block;
+  }
+
+  /* What identifies the agent exactly, under its name, quieter than it. */
+  .turn-speaker-details {
+    display: block;
+    font-size: var(--font-size-small);
+    color: var(--color-text-muted);
+    overflow-wrap: anywhere;
+  }
+
   .transcript [aria-current="true"] {
     border-inline-start: var(--focus-width) solid var(--color-border);
   }
