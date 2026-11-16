@@ -108,13 +108,13 @@ export function PhaseTracker({
                   Set by Data Director from what you said.
                 </p>
               )}
+            <JourneyLinks projectId={tracked.projectId} waiting={waitingOn(flow, tracked.progress, tracked.documents)} />
             <SuggestedNext
               located={located}
               entryChosen={tracked.progress.entry !== null}
               projectId={tracked.projectId}
               start={tracked.startConversation}
             />
-            <JourneyLinks projectId={tracked.projectId} waiting={waitingOn(flow, tracked.progress, tracked.documents)} />
             {tracked.answerIntakeAgain && (
               <Button size="small" icon={ListChecks} onPress={tracked.answerIntakeAgain}>
                 Answer the setup questions again
@@ -277,22 +277,15 @@ function JourneyLinks({
   waiting: number | undefined;
 }) {
   if (!projectId) return null;
-  const mapPath = journeyPath(projectId);
+  const pending = waiting !== undefined && waiting > 0 ? waiting : 0;
   return (
-    <>
-      {waiting !== undefined && waiting > 0 && (
-        <p className="phase-strip-where">
-          <Link to={mapPath}>
-            <span className="status status-warn">Waiting on you: {waiting}</span>
-          </Link>
-        </p>
-      )}
-      <p className="phase-strip-where">
-        <Link to={mapPath}>
-          <MapIcon size="1em" aria-hidden="true" /> Open the journey map
-        </Link>
-      </p>
-    </>
+    <p className="phase-strip-where">
+      <Link to={journeyPath(projectId)} className="button button-secondary button-small">
+        <MapIcon className="button-icon" size="1.125em" aria-hidden="true" />
+        Open the journey map
+        {pending > 0 && <span className="status status-warn">Waiting on you: {pending}</span>}
+      </Link>
+    </p>
   );
 }
 

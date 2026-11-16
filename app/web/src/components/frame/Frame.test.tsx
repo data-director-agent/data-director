@@ -57,6 +57,23 @@ describe("Frame", () => {
     expect(projects).toHaveAttribute("aria-current", "page");
   });
 
+  it("has the journey map in the main navigation, straight after Projects", () => {
+    render(
+      <Frame current="/journey">
+        <p>Content</p>
+      </Frame>,
+    );
+    const nav = screen.getByRole("navigation", { name: "Main" });
+    const names = within(nav)
+      .getAllByRole("link")
+      .map((link) => link.textContent);
+    expect(names.indexOf("Journey map")).toBe(names.indexOf("Projects") + 1);
+    const link = within(nav).getByRole("link", { name: "Journey map" });
+    expect(link).toHaveAttribute("href", "/journey");
+    expect(link).toHaveAttribute("aria-current", "page");
+    expect(within(nav).getByRole("link", { name: "Projects" })).not.toHaveAttribute("aria-current");
+  });
+
   it("has the activity log as a page of its own in the main navigation", () => {
     render(
       <Frame current="/activity">

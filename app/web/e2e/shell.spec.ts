@@ -824,6 +824,40 @@ test("a step of the journey starts a conversation with its prompt, sent only whe
   expect(JSON.stringify(sent)).toContain(suggested.prompt);
 });
 
+test("the journey map is one press from the main navigation, and a tab away from the documents", async ({
+  page,
+}) => {
+  const [active] = projects;
+  if (!active) throw new Error("the projects fixture lists no project");
+  await serveConversation(page);
+  await page.route("/api/projects", (route) => route.fulfill({ json: projects }));
+  await page.route(`/api/projects/${active.project_id}/progress`, (route) =>
+    route.fulfill({ json: intakeComplete.progress }),
+  );
+  await page.route(`/api/projects/${active.project_id}/intake`, (route) =>
+    route.fulfill({ json: intakeComplete }),
+  );
+  await page.route(`/api/projects/${active.project_id}/documents`, (route) =>
+    route.fulfill({ json: { ...project, project_id: active.project_id } }),
+  );
+  await page.addInitScript((id) => localStorage.setItem("dd-project", id), active.project_id);
+  await page.goto("/");
+
+  const nav = page.getByRole("navigation", { name: "Main" });
+  await nav.getByRole("link", { name: "Journey map" }).click();
+  await expect(page).toHaveURL(`/projects/${active.project_id}/journey`);
+  await expect(page.getByRole("heading", { level: 1, name: "Your data journey" })).toBeVisible();
+  await expect(nav.getByRole("link", { name: "Journey map" })).toHaveAttribute("aria-current", "page");
+
+  const tabs = page.getByRole("navigation", { name: "Project" });
+  await tabs.getByRole("link", { name: "Documents" }).click();
+  await expect(page).toHaveURL(new RegExp(`/projects/${active.project_id}(\\?.*)?$`));
+  await expect(nav.getByRole("link", { name: "Projects" })).toHaveAttribute("aria-current", "page");
+  expect(await axeViolations(page)).toEqual([]);
+  await tabs.getByRole("link", { name: "Journey map" }).click();
+  await expect(page).toHaveURL(`/projects/${active.project_id}/journey`);
+});
+
 test("the workspace reflows at 320px with every phase open", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 });
   await serveConversation(page);
