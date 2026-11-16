@@ -227,9 +227,9 @@ def verify_id_token(
 
 def principal_from_claims(issuer: str, claims: Mapping[str, Any]) -> Principal:
     """The principal a verified token names. For ORCID the subject is the bare iD, so the principal
-    is the iD URL, `https://orcid.org/<sub>` (docs/specs/policy-and-identity.md). TODO(#179):
-    another provider's principal is a `mailto:` IRI or a URN (#179); this form fits an issuer whose
-    subjects are paths under it, as ORCID's are."""
+    is the iD URL, `https://orcid.org/<sub>` (docs/specs/policy-and-identity.md). TODO(#936):
+    another issuer's principal is the URN the spec makes from `iss` and `sub`; this form fits an
+    issuer whose subjects are paths under it, as ORCID's are."""
     principal_id = f"{issuer.rstrip('/')}/{claims['sub']}"
     given = " ".join(
         str(claims[part]).strip() for part in ("given_name", "family_name") if claims.get(part)
