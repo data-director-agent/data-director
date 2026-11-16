@@ -9,6 +9,7 @@ answers from a snapshot marked stale. It is not the same as an empty result (R3.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 
 class RegistryUnavailable(Exception):
@@ -31,9 +32,9 @@ class Query:
 
 
 @dataclass(frozen=True)
-class Hit[R]:
+class Hit[R = Any]:
     """A record a search found, with its lexical score (BM25, or a rank position for a registry
-    that gives no score)."""
+    that gives no score). The record's type defaults to `Any`, for a caller that does not say."""
 
     record: R
     lexical_score: float

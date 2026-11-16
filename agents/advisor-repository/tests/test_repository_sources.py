@@ -20,7 +20,7 @@ from dd_agent_advisor_repository.classes import Affiliation, Answer
 from dd_agent_advisor_repository.explain import ModelExplainer, TemplateExplainer
 from dd_agent_advisor_repository.live import FairsharingLive
 from dd_agent_advisor_repository.records import from_fairsharing_json, from_re3data_xml
-from dd_agent_advisor_repository.retrieve import Query, RegistryUnavailable, find_by_name
+from dd_agent_advisor_repository.retrieve import find_by_name
 from dd_agent_advisor_repository.snapshot import (
     FAIRSHARING_SNAPSHOT,
     FairsharingSnapshot,
@@ -28,6 +28,7 @@ from dd_agent_advisor_repository.snapshot import (
 )
 from dd_sdk.credentials import ConfigError
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, content_hash
+from dd_sdk.registry import Query, RegistryUnavailable
 from dd_sdk.sources import SourceBuildError, discover
 
 DATA = Path(__file__).with_name("data")
