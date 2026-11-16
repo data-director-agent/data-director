@@ -102,20 +102,11 @@ export function PhaseTracker({
                   Set by Data Director from what you said.
                 </p>
               )}
-            <p className="phase-strip-where" role="status">
-              {suggested ? (
-                <>
-                  Suggested next: <strong>{suggested.label}</strong>
-                </>
-              ) : tracked.progress.entry === null ? (
-                "Choose where you started, or tell Data Director, to get a suggested next step."
-              ) : (
-                "Every step from where you started is done or skipped."
-              )}
-            </p>
-            {suggested && tracked.startConversation && (
-              <StartButton step={suggested} start={tracked.startConversation} />
-            )}
+            <SuggestedNext
+              suggested={suggested}
+              entryChosen={tracked.progress.entry !== null}
+              start={tracked.startConversation}
+            />
             {tracked.answerIntakeAgain && (
               <Button size="small" icon={ListChecks} onPress={tracked.answerIntakeAgain}>
                 Answer the setup questions again
@@ -267,6 +258,33 @@ function Step({
         </div>
       )}
     </div>
+  );
+}
+
+function SuggestedNext({
+  suggested,
+  entryChosen,
+  start,
+}: {
+  suggested: FlowStep | null;
+  entryChosen: boolean;
+  start: ((step: FlowStep) => void) | undefined;
+}) {
+  return (
+    <>
+      <p className="phase-strip-where" role="status">
+        {suggested ? (
+          <>
+            Suggested next: <strong>{suggested.label}</strong>
+          </>
+        ) : entryChosen ? (
+          "Every step from where you started is done or skipped."
+        ) : (
+          "Choose where you started, or tell Data Director, to get a suggested next step."
+        )}
+      </p>
+      {suggested && start && <StartButton step={suggested} start={start} />}
+    </>
   );
 }
 

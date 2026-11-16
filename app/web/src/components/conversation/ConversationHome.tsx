@@ -51,13 +51,11 @@ import {
   useState,
 } from "react";
 
-import { Paperclip, SendHorizontal, X } from "lucide-react";
-import { FileTrigger } from "react-aria-components";
+import { SendHorizontal, X } from "lucide-react";
 import { TurnConflict, Unreachable, useConversationApi } from "../../conversation/api";
 import { type ReplyAnswers, replyQuestions } from "../../conversation/question";
 import {
   type AttachedDocument,
-  DOCUMENT_EXTENSIONS,
   NotADocument,
   isDocumentName,
   readDocument,
@@ -87,16 +85,14 @@ import { type FlowLoad, PhaseTracker, type TrackedProgress } from "../workspace/
 import { Workspace } from "../workspace/Workspace";
 import { ProjectSwitcher } from "../project/ProjectSwitcher";
 import { Button } from "../ui/Button";
-import { ModalDialog } from "../ui/Dialog";
 import { EarlierConversations } from "./EarlierConversations";
 import { InventoryReviewDialog } from "../inventory/InventoryReviewDialog";
-import { MakeInventoryDialog } from "../inventory/MakeInventoryDialog";
-import { DocumentChip } from "./DocumentChip";
+import { ComposerAttach } from "./ComposerAttach";
 import { DocumentReviewDialog } from "./DocumentReviewDialog";
 import { IntakeCard } from "./IntakeCard";
-import { InventoryChip } from "./InventoryChip";
+import { MessageField } from "./MessageField";
 import { RunDetail } from "./RunDetail";
-import { SuggestedPrompts } from "./SuggestedPrompts";
+import { StartFromStep } from "./StartFromStep";
 import { Transcript } from "./Transcript";
 
 /** Why the named orchestrator cannot be conversed with, or null when it can. */
@@ -774,41 +770,24 @@ export function ConversationHome({ directory }: { directory: Directory }) {
                 : {})}
             />
           )}
-          {tracked &&
-            flow.state === "loaded" &&
-            !intake?.open &&
-            !busy &&
-            sent === null &&
-            !conversation?.turns.length &&
-            !text.trim() &&
-            !attached &&
-            !attachedDocument && (
-              <SuggestedPrompts
-                steps={startablePrompts(flow.flow, tracked.progress)}
-                onChoose={beginWith}
-              />
-            )}
-          <ModalDialog
-            title="Replace your message?"
-            isOpen={replacing !== null}
-            onOpenChange={(open) => open || setReplacing(null)}
-            footer={
-              <>
-                <Button
-                  variant="primary"
-                  onPress={() => replacing && beginWith(replacing)}
-                >
-                  Replace it
-                </Button>
-                <Button onPress={() => setReplacing(null)}>Keep my message</Button>
-              </>
+          <StartFromStep
+            offered={
+              tracked &&
+              flow.state === "loaded" &&
+              !intake?.open &&
+              !busy &&
+              sent === null &&
+              !conversation?.turns.length &&
+              !text.trim() &&
+              !attached &&
+              !attachedDocument
+                ? startablePrompts(flow.flow, tracked.progress)
+                : null
             }
-          >
-            <p>
-              Starting a conversation about {replacing?.label} puts a suggested message in the
-              box, in place of what you have written and attached.
-            </p>
-          </ModalDialog>
+            replacing={replacing}
+            onChoose={beginWith}
+            onCancel={() => setReplacing(null)}
+          />
           {runId && !inTranscript && (
             <section aria-labelledby="linked-run" className="callout">
               <h3 id="linked-run">
@@ -831,77 +810,22 @@ export function ConversationHome({ directory }: { directory: Directory }) {
             onDragLeave={() => setDropping(false)}
             onDrop={onDrop}
           >
-            <div className="field">
-              <label htmlFor="message">What would you like to do?</label>
-              <textarea
-                id="message"
-                ref={box}
-                rows={3}
-                aria-describedby="message-hint"
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                onPaste={onPaste}
-                onKeyDown={(e) => {
-                  // Ctrl+Enter (Cmd+Enter on a Mac) sends; the Send button's rules still apply.
-                  if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.nativeEvent.isComposing) {
-                    e.preventDefault();
-                    if (!busy && (text.trim() || attached || attachedDocument)) {
-                      e.currentTarget.form?.requestSubmit();
-                    }
-                  }
-                }}
-              />
-              <p id="message-hint" className="hint">
-                Press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> (<kbd>Cmd</kbd>+<kbd>Enter</kbd> on a Mac)
-                to send.
-              </p>
-            </div>
-            <div className="composer-attach">
-              {attached && (
-                <InventoryChip
-                  fileCount={attached.fileCount}
-                  madeAt={attached.madeAt}
-                  name={attached.name}
-                  source={{ document: attached.document }}
-                  onRemove={removeInventory}
-                />
-              )}
-              {attachedDocument && (
-                <DocumentChip
-                  name={attachedDocument.name}
-                  size={attachedDocument.size}
-                  onRemove={removeDocument}
-                />
-              )}
-              {!(attached && attachedDocument) && (
-                <FileTrigger
-                  acceptedFileTypes={[
-                    "application/json",
-                    ".json",
-                    "text/plain",
-                    "text/markdown",
-                    ...DOCUMENT_EXTENSIONS,
-                  ]}
-                  onSelect={(files) => void attachFile(files?.[0])}
-                >
-                  <Button icon={Paperclip} isDisabled={busy} aria-describedby="attach-hint">
-                    Attach a file
-                  </Button>
-                </FileTrigger>
-              )}
-              {!attached && (
-                <MakeInventoryDialog
-                  isDisabled={busy}
-                  onAttach={(file) => void attachFromDialog(file)}
-                />
-              )}
-            </div>
-            <p id="attach-hint" className="hint">
-              Attach an inventory of your data files (.json), which holds their names, sizes,
-              formats and table column headings but not the data themselves, or a document about
-              your data, such as a protocol or codebook (.txt or .md). Never attach the data
-              themselves: your data are not uploaded.
-            </p>
+            <MessageField
+              inputRef={box}
+              value={text}
+              canSend={!busy && Boolean(text.trim() || attached || attachedDocument)}
+              onChange={setText}
+              onPaste={onPaste}
+            />
+            <ComposerAttach
+              attached={attached}
+              attachedDocument={attachedDocument}
+              busy={busy}
+              onAttachFile={(file) => void attachFile(file)}
+              onAttachMade={(file) => void attachFromDialog(file)}
+              onRemoveInventory={removeInventory}
+              onRemoveDocument={removeDocument}
+            />
             <InventoryReviewDialog
               pending={pending}
               onAttach={confirmInventory}
