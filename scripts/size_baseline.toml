@@ -33,16 +33,12 @@ path = "app/src/dd_app/governance.py"
 lines = 700
 
 [[file]]
-path = "app/web/src/components/conversation/ConversationHome.tsx"
-lines = 883
-
-[[file]]
 path = "app/web/src/components/inventory/InventoryView.tsx"
 lines = 673
 
 [[file]]
 path = "app/web/src/project/api.ts"
-lines = 726
+lines = 721
 
 [[file]]
 path = "harness/src/dd_harness/conductor.py"

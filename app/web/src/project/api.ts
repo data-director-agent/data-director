@@ -14,9 +14,8 @@ import { createContext, useContext } from "react";
 
 import type { Question } from "../conversation/question";
 import type { ProjectProgress, StepMark } from "../flow/types";
-import { RunRefused } from "../run/api";
+import { json } from "../http";
 import type { Problem } from "../run/types";
-import { checkSignedIn } from "../session/api";
 
 export type VersionState = "proposed" | "approved" | "rejected";
 export type Verdict = "approved" | "rejected";
@@ -520,20 +519,16 @@ export function digestOf(text: string): string {
 
 const PACKAGE_REFUSED = "/package-refused";
 
-async function json<T>(response: Response): Promise<T> {
-  if (response.ok) return (await response.json()) as T;
-  checkSignedIn(response);
-  const problem = (await response.json().catch(() => null)) as
-    | (Problem & { validation?: Validation })
-    | null;
-  if (problem?.validation && problem.type.endsWith(PACKAGE_REFUSED)) {
-    throw new PackageRefused({ ...problem, validation: problem.validation });
-  }
-  if (problem && (response.status === 409 || response.status === 404)) {
-    throw new DecisionConflict(problem);
-  }
-  if (response.status === 400 && problem) throw new RunRefused(problem);
-  throw new Error(problem?.detail ?? `the server answered ${response.status}`);
+/** A response's body, or its error, with a refused package and a stale decision raised as such. */
+function parse<T>(response: Response): Promise<T> {
+  return json<T>(response, (status, found) => {
+    const problem = found as (Problem & { validation?: Validation }) | null;
+    if (problem?.validation && problem.type.endsWith(PACKAGE_REFUSED)) {
+      return new PackageRefused({ ...problem, validation: problem.validation });
+    }
+    if (problem && (status === 409 || status === 404)) return new DecisionConflict(problem);
+    return null;
+  });
 }
 
 function projectPath(projectId: string): string {
@@ -562,30 +557,30 @@ function documentsPath(projectId: string): string {
 
 export const httpProjectApi: ProjectApi = {
   async projects(signal) {
-    return json(await fetch("/api/projects", signal ? { signal } : {}));
+    return parse(await fetch("/api/projects", signal ? { signal } : {}));
   },
   async create(title) {
-    return json(await fetch("/api/projects", post(title ? { title } : {})));
+    return parse(await fetch("/api/projects", post(title ? { title } : {})));
   },
   async rename(projectId, title) {
-    return json(await fetch(`${projectPath(projectId)}/title`, put({ title })));
+    return parse(await fetch(`${projectPath(projectId)}/title`, put({ title })));
   },
   async remove(projectId, typedName) {
-    return json(
+    return parse(
       await fetch(projectPath(projectId), { ...put({ title: typedName }), method: "DELETE" }),
     );
   },
   async restore(projectId) {
-    return json(await fetch(`${projectPath(projectId)}/restore`, post({})));
+    return parse(await fetch(`${projectPath(projectId)}/restore`, post({})));
   },
   async deletedProjects(signal) {
-    return json(await fetch("/api/projects/deleted", signal ? { signal } : {}));
+    return parse(await fetch("/api/projects/deleted", signal ? { signal } : {}));
   },
   async documents(projectId, signal) {
-    return json(await fetch(documentsPath(projectId), signal ? { signal } : {}));
+    return parse(await fetch(documentsPath(projectId), signal ? { signal } : {}));
   },
   async disclosure(projectId, signal) {
-    return json(
+    return parse(
       await fetch(
         `/api/projects/${encodeURIComponent(projectId)}/disclosure`,
         signal ? { signal } : {},
@@ -593,7 +588,7 @@ export const httpProjectApi: ProjectApi = {
     );
   },
   async inventory(projectId, signal) {
-    return json(
+    return parse(
       await fetch(
         `/api/projects/${encodeURIComponent(projectId)}/inventory`,
         signal ? { signal } : {},
@@ -601,7 +596,7 @@ export const httpProjectApi: ProjectApi = {
     );
   },
   async saveInventory(projectId, inventory) {
-    return json(
+    return parse(
       await fetch(`${projectPath(projectId)}/inventory`, {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -615,24 +610,24 @@ export const httpProjectApi: ProjectApi = {
       const problem = (await response.clone().json().catch(() => null)) as Problem | null;
       if (problem?.type?.endsWith("/repository-not-chosen")) return null;
     }
-    return json(response);
+    return parse(response);
   },
   async progress(projectId, signal) {
-    return json(await fetch(progressPath(projectId), signal ? { signal } : {}));
+    return parse(await fetch(progressPath(projectId), signal ? { signal } : {}));
   },
   async chooseEntry(projectId, entry) {
-    return json(await fetch(`${progressPath(projectId)}/entry`, put({ entry })));
+    return parse(await fetch(`${progressPath(projectId)}/entry`, put({ entry })));
   },
   async markStep(projectId, stepId, mark) {
-    return json(
+    return parse(
       await fetch(`${progressPath(projectId)}/steps/${encodeURIComponent(stepId)}`, put({ mark })),
     );
   },
   async intake(projectId, signal) {
-    return json(await fetch(`${projectPath(projectId)}/intake`, signal ? { signal } : {}));
+    return parse(await fetch(`${projectPath(projectId)}/intake`, signal ? { signal } : {}));
   },
   async answerIntake(projectId, questionId, values) {
-    return json(
+    return parse(
       await fetch(
         `${projectPath(projectId)}/intake/${encodeURIComponent(questionId)}`,
         post({ answer_values: values }),
@@ -640,10 +635,10 @@ export const httpProjectApi: ProjectApi = {
     );
   },
   async dismissIntake(projectId) {
-    return json(await fetch(`${projectPath(projectId)}/intake/dismiss`, post({})));
+    return parse(await fetch(`${projectPath(projectId)}/intake/dismiss`, post({})));
   },
   async chooseRepository(projectId, re3dataId) {
-    return json(
+    return parse(
       await fetch(
         `${projectPath(projectId)}/repository`,
         put({ re3data_id: re3dataId }),
@@ -654,31 +649,31 @@ export const httpProjectApi: ProjectApi = {
     const params = new URLSearchParams();
     if (query.trim()) params.set("q", query.trim());
     const search = params.size > 0 ? `?${params.toString()}` : "";
-    return json(await fetch(`/api/repositories${search}`, signal ? { signal } : {}));
+    return parse(await fetch(`/api/repositories${search}`, signal ? { signal } : {}));
   },
   async validate(projectId) {
-    return json(await fetch(`${projectPath(projectId)}/validation`, {
+    return parse(await fetch(`${projectPath(projectId)}/validation`, {
         method: "POST",
         headers: { "content-type": "application/json" },
       }));
   },
   async buildPackage(projectId) {
-    return json(await fetch(`${projectPath(projectId)}/package`, {
+    return parse(await fetch(`${projectPath(projectId)}/package`, {
         method: "POST",
         headers: { "content-type": "application/json" },
       }));
   },
   async orcidRecord(signal) {
-    return json(await fetch("/api/researcher/orcid", signal ? { signal } : {}));
+    return parse(await fetch("/api/researcher/orcid", signal ? { signal } : {}));
   },
   async researchers(projectId, signal) {
-    return json(await fetch(`${projectPath(projectId)}/researchers`, signal ? { signal } : {}));
+    return parse(await fetch(`${projectPath(projectId)}/researchers`, signal ? { signal } : {}));
   },
   async keepResearcher(projectId, keep) {
-    return json(await fetch(`${projectPath(projectId)}/researchers/me`, put({ keep })));
+    return parse(await fetch(`${projectPath(projectId)}/researchers/me`, put({ keep })));
   },
   async withdrawResearcher(projectId) {
-    return json(
+    return parse(
       await fetch(`${projectPath(projectId)}/researchers/me`, {
         method: "DELETE",
         headers: { "content-type": "application/json" },
@@ -686,7 +681,7 @@ export const httpProjectApi: ProjectApi = {
     );
   },
   async decide(projectId, documentId, request) {
-    return json(
+    return parse(
       await fetch(`${documentsPath(projectId)}/${encodeURIComponent(documentId)}/decisions`, {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -695,7 +690,7 @@ export const httpProjectApi: ProjectApi = {
     );
   },
   async answer(projectId, documentId, version, answers) {
-    return json(
+    return parse(
       await fetch(`${documentsPath(projectId)}/${encodeURIComponent(documentId)}/answers`, {
         method: "POST",
         headers: { "content-type": "application/json" },
