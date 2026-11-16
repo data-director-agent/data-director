@@ -17,7 +17,7 @@
       "principal_kind": "person"
     },
     "agent_id": "advisor.standards",
-    "agent_version": "0.2.0",
+    "agent_version": "0.3.0",
     "completed_at": "2026-01-01T00:00:00Z",
     "contract_version": "0.11.0",
     "evidence": [],

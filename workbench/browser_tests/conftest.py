@@ -66,7 +66,7 @@ def server_url(tmp_path_factory: pytest.TempPathFactory) -> Iterator[str]:
             HelloWorld(),
             AbstainingStub(),
             QualityReviewer(),
-            build_standards({}),
+            build_standards({"DD_STANDARDS_EXPLAINER": "template"}),
             build_director(),
         )
         app = build_app(conductor, OperatorAssertion(TEST_PRINCIPAL), base_url=url)

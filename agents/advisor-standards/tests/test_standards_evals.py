@@ -74,13 +74,10 @@ def test_the_case_file_names_registered_defects_and_unique_ids():
 def test_no_case_scores_below_the_committed_baseline(tmp_path, monkeypatch):
     """The regression gate. A case that improves shows as a change; record it by rewriting the
     baseline (`workbench/scripts/eval_compare.py --write-baseline`) in a commit of its own."""
-    for variable in (
-        "DD_STANDARDS_RETRIEVAL",
-        "DD_STANDARDS_EXPLAINER",
-        "DD_MODEL_ID",
-        "DD_SNAPSHOT_PATH",
-    ):
+    for variable in ("DD_STANDARDS_RETRIEVAL", "DD_MODEL_ID", "DD_SNAPSHOT_PATH"):
         monkeypatch.delenv(variable, raising=False)
+    # The baseline is the rules' own: the model, on by default, is not evaluated here.
+    monkeypatch.setenv("DD_STANDARDS_EXPLAINER", "template")
     # The evaluation acts for whoever runs it (docs/specs/policy-and-identity.md); here, the test
     # principal.
     monkeypatch.setenv("DD_PRINCIPAL_ID", TEST_PRINCIPAL.principal_id)

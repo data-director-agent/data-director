@@ -1,28 +1,28 @@
-"""Explainers: turn already-decided recommendations into rationale (C14).
+"""Explainers: say why each recommendation the rules chose fits (C14), and what an explainer
+may add beside them.
 
-The grounding invariant lives here as a shape: an explainer receives records that were
-retrieved and ranked before it is called, and returns one rationale per recommendation. It
-cannot add, remove or reorder recommendations. If a model's rationale names a FAIRsharing
-identifier that was not retrieved, the template rationale is used instead and the substitution
-is noted in the text.
+The grounding invariant lives here as a shape: an explainer receives records that were retrieved
+and ranked before it is called, and returns one rationale per rule pick, in order. It cannot
+remove or reorder a rule pick. A model explainer (`advise.ModelAdvisor`) may also add
+recommendations, each naming a record retrieved in this run, and note a concern beside a rule
+pick; the agent checks neither less than the rules' own picks.
 
-`TemplateExplainer` is the default and needs no credentials. `ModelExplainer` is selected
-with `DD_STANDARDS_EXPLAINER=model` and calls whichever model the agent's settings name, through
-the SDK's model seam (`dd_sdk.model`, `dd_sdk.model_provider`).
+`TemplateExplainer` needs no credentials and is selected with `DD_STANDARDS_EXPLAINER=template`.
+`advise.ModelAdvisor` is the default.
 """
 
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
-from pathlib import Path
+from collections.abc import Sequence
+from dataclasses import dataclass, field
 from typing import Protocol
 
 from dd_agent_advisor_standards.classes import DatasetProfile, RecommendationKind
 from dd_agent_advisor_standards.fairsharing.records import Record
+from dd_agent_advisor_standards.retrieve import RetrievalAdapter
 from dd_sdk.agent import RunContext
 from dd_sdk.contract.models import Derivation
-from dd_sdk.model import Model, call
 from dd_sdk.model import Usage as Usage
 from dd_sdk.prompts import ModelCallLog
 
@@ -32,6 +32,12 @@ Item = tuple[Record, RecommendationKind, str, tuple[str, ...]]
 _FAIRSHARING_ID = re.compile(r"FAIRsharing\.[0-9a-z-]+", re.IGNORECASE)
 
 
+def names_other_identifier(text: str, allowed: set[str]) -> bool:
+    """Whether `text` names a FAIRsharing identifier outside `allowed`."""
+    wanted = {a.lower() for a in allowed}
+    return any(m.lower() not in wanted for m in _FAIRSHARING_ID.findall(text))
+
+
 @dataclass(frozen=True)
 class Rationale:
     text: str
@@ -39,8 +45,20 @@ class Rationale:
 
 
 @dataclass(frozen=True)
+class Addition:
+    """A recommendation a model added: a record retrieved in this run, the kind and target it
+    chose, and its rationale. The agent has already checked it (`advise._apply`)."""
+
+    record: Record
+    kind: RecommendationKind
+    target: str
+    rationale: Rationale
+
+
+@dataclass(frozen=True)
 class Explanation:
-    """One rationale per item, and the tokens spent on this call.
+    """One rationale per item, and the tokens spent on this call; with a model, what it added,
+    the concern it noted beside each item (or None), and what the agent did not take from it.
 
     Usage is returned rather than kept on the explainer, because one explainer instance serves
     concurrent runs (`dd_sdk.serve` runs each request on its own thread).
@@ -50,13 +68,30 @@ class Explanation:
     usage: Usage
     # The model calls made and the prompts sent (dd_sdk.prompts); None if no model was called.
     calls: ModelCallLog | None = None
+    concerns: Sequence[str | None] = ()
+    additions: Sequence[Addition] = ()
+    remarks: Sequence[str] = field(default_factory=list)
+
+
+@dataclass
+class Lookups:
+    """What a model explainer may search in one run, and every record retrieved so far, by
+    FAIRsharing id. The agent builds it for each run; a record a search retrieves is added here,
+    with its `retrieval` span, before it may be cited."""
+
+    retrieval: RetrievalAdapter | None = None
+    records: dict[str, Record] = field(default_factory=dict)
 
 
 class Explainer(Protocol):
     model_id: str | None
 
     def explain(
-        self, profile: DatasetProfile, items: list[Item], ctx: RunContext
+        self,
+        profile: DatasetProfile,
+        items: list[Item],
+        ctx: RunContext,
+        lookups: Lookups | None = None,
     ) -> Explanation: ...
 
 
@@ -97,94 +132,13 @@ def template_rationale(
 class TemplateExplainer:
     model_id: str | None = None
 
-    def explain(self, profile: DatasetProfile, items: list[Item], ctx: RunContext) -> Explanation:
+    def explain(
+        self,
+        profile: DatasetProfile,
+        items: list[Item],
+        ctx: RunContext,
+        lookups: Lookups | None = None,
+    ) -> Explanation:
         return Explanation(
             [Rationale(template_rationale(*item), Derivation.TEMPLATE) for item in items], Usage()
         )
-
-
-DEFAULT_MODEL = "claude-sonnet-5-5"
-
-# What the model is told it may and may not do; the prose is a Markdown file beside this module.
-SYSTEM_PROMPT = Path(__file__).with_name("system_prompt.md").read_text(encoding="utf-8").strip()
-
-
-class ModelExplainer:
-    """Explains with the model the agent's settings name (`dd_sdk.model_provider`). The call goes
-    through `dd_sdk.model.call`, which records its `chat` span, its tokens and its prompt."""
-
-    def __init__(self, model: Model) -> None:
-        self.model = model
-        self.model_id: str | None = model.model_id
-
-    def _prompt(self, profile: DatasetProfile, items: list[Item]) -> str:
-        lines = [
-            "Dataset profile:",
-            f"  title: {profile.title or '(none)'}",
-            f"  description: {profile.description or '(none)'}",
-            f"  keywords: {', '.join(profile.keywords) or '(none)'}",
-            f"  themes: {', '.join(profile.themes) or '(none)'}",
-            "  fields: "
-            + (
-                ", ".join(f"{f.name} ({f.field_type or 'unknown'})" for f in profile.fields)
-                or "(none)"
-            ),
-            "",
-            "Selected standards:",
-        ]
-        for n, (record, kind, target, reasons) in enumerate(items, start=1):
-            desc = (record.description or "").strip().replace("\n", " ")
-            lines.append(
-                f"{n}. {record.name} [{record.fairsharing_id}] — kind: {kind.value}; "
-                f"target: {target}; "
-                f"status: {record.status}; subjects: {', '.join(record.subjects[:6])}; "
-                f"registry description: {desc[:600]}; ranking signals: {', '.join(reasons)}"
-            )
-        return "\n".join(lines)
-
-    def explain(self, profile: DatasetProfile, items: list[Item], ctx: RunContext) -> Explanation:
-        if not items:
-            return Explanation([], Usage())
-        reply = call(
-            self.model,
-            ctx,
-            system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": self._prompt(profile, items)}],
-        )
-        if reply.refused:
-            return Explanation(
-                [
-                    Rationale(
-                        template_rationale(*item) + " (Model declined; template used.)",
-                        Derivation.TEMPLATE,
-                    )
-                    for item in items
-                ],
-                reply.usage,
-                reply.calls,
-            )
-        return Explanation(self._parse(reply.text, items), reply.usage, reply.calls)
-
-    def _parse(self, text: str, items: list[Item]) -> list[Rationale]:
-        numbered: dict[int, str] = {}
-        for line in text.splitlines():
-            m = re.match(r"\s*(\d+)[.)]\s+(.*\S)", line)
-            if m:
-                numbered[int(m.group(1))] = m.group(2)
-        allowed = {r.fairsharing_id.lower() for r, *_ in items}
-        out: list[Rationale] = []
-        for n, item in enumerate(items, start=1):
-            candidate = numbered.get(n)
-            mentioned = {x.lower() for x in _FAIRSHARING_ID.findall(candidate or "")}
-            if not candidate or (mentioned - allowed):
-                # Missing line, or the model named an identifier it was not given: fall back.
-                out.append(
-                    Rationale(
-                        template_rationale(*item)
-                        + " (Model rationale replaced: ungrounded reference.)",
-                        Derivation.TEMPLATE,
-                    )
-                )
-            else:
-                out.append(Rationale(candidate, Derivation.MODEL))
-        return out
