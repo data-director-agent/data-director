@@ -12,6 +12,10 @@
  * nothing is suggested. The shell computes none of it. The suggestion is never
  * a gate: the researcher may mark any step done or skipped, or open it again, for the many steps
  * nothing in the project records, and may do the steps in any order.
+ *
+ * Each step not yet done or skipped, and the suggested one beside the suggestion, offers to start
+ * a new conversation about it: the step's `prompt` is put in the message box for the researcher to
+ * edit and send. Nothing is sent or recorded until they send it.
  */
 
 import "./PhaseTracker.css";
@@ -23,7 +27,7 @@ import type {
   StepMark,
   StepState,
 } from "../../flow/types";
-import { ListChecks } from "lucide-react";
+import { ListChecks, MessageSquarePlus } from "lucide-react";
 
 import { Button } from "../ui/Button";
 
@@ -37,6 +41,8 @@ export interface TrackedProgress {
   progress: ProjectProgress;
   chooseEntry(entry: number): void;
   markStep(stepId: string, mark: StepMark): void;
+  /** Starts a new conversation with the step's prompt in the message box, unsent. */
+  startConversation?: (step: FlowStep) => void;
   /** Why the last change was not recorded, if it was not. */
   error?: string | null;
   /** Opens the intake card with the current answers chosen (docs/specs/app.md, rule 25). */
@@ -107,6 +113,9 @@ export function PhaseTracker({
                 "Every step from where you started is done or skipped."
               )}
             </p>
+            {suggested && tracked.startConversation && (
+              <StartButton step={suggested} start={tracked.startConversation} />
+            )}
             {tracked.answerIntakeAgain && (
               <Button size="small" icon={ListChecks} onPress={tracked.answerIntakeAgain}>
                 Answer the setup questions again
@@ -234,6 +243,9 @@ function Step({
             </Button>
           ) : (
             <>
+              {tracked.startConversation && (
+                <StartButton step={step} start={tracked.startConversation} />
+              )}
               <Button
                 size="small"
                 variant="quiet"
@@ -255,6 +267,26 @@ function Step({
         </div>
       )}
     </div>
+  );
+}
+
+function StartButton({
+  step,
+  start,
+}: {
+  step: FlowStep;
+  start: (step: FlowStep) => void;
+}) {
+  return (
+    <Button
+      size="small"
+      variant="quiet"
+      icon={MessageSquarePlus}
+      aria-label={`Start a conversation: ${step.label}`}
+      onPress={() => start(step)}
+    >
+      Start a conversation
+    </Button>
   );
 }
 

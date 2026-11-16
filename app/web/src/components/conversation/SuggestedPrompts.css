@@ -1,0 +1,32 @@
+/* Ways to start an empty conversation: a short list of prompts above the message box. */
+
+@layer components {
+  .suggested-prompts {
+    margin-bottom: var(--space-3);
+  }
+
+  .suggested-prompts-heading {
+    margin: 0 0 var(--space-1);
+    font-size: var(--font-size-small);
+    color: var(--color-text-muted);
+  }
+
+  .suggested-prompts ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .suggested-prompts li {
+    max-width: 100%;
+  }
+
+  .suggested-prompts .button {
+    max-width: 100%;
+    white-space: normal;
+    text-align: start;
+  }
+}

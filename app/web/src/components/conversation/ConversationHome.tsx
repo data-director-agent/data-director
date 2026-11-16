@@ -35,6 +35,10 @@
  * Markdown, which is opened to be checked, attached as a chip only when the researcher confirms,
  * and goes to the project, never into the text (docs/specs/app.md). A message may carry one
  * inventory and one document.
+ *
+ * A step of the data journey, or one of the prompts an empty conversation offers, starts a new
+ * conversation with the step's prompt in the message box, unsent. A message already being written
+ * is replaced only when the researcher confirms.
  */
 
 import {
@@ -65,7 +69,8 @@ import {
   readInventory,
 } from "../../conversation/inventory";
 import { useFlowApi } from "../../flow/api";
-import type { ProjectProgress } from "../../flow/types";
+import { startablePrompts } from "../../flow/prompts";
+import type { FlowStep, ProjectProgress } from "../../flow/types";
 import type { Conversation, ConversationSummary } from "../../conversation/types";
 import type { AgentView, Directory } from "../../manifest/normalise";
 import { useActiveProject } from "../../project/active";
@@ -82,6 +87,7 @@ import { type FlowLoad, PhaseTracker, type TrackedProgress } from "../workspace/
 import { Workspace } from "../workspace/Workspace";
 import { ProjectSwitcher } from "../project/ProjectSwitcher";
 import { Button } from "../ui/Button";
+import { ModalDialog } from "../ui/Dialog";
 import { EarlierConversations } from "./EarlierConversations";
 import { InventoryReviewDialog } from "../inventory/InventoryReviewDialog";
 import { MakeInventoryDialog } from "../inventory/MakeInventoryDialog";
@@ -90,6 +96,7 @@ import { DocumentReviewDialog } from "./DocumentReviewDialog";
 import { IntakeCard } from "./IntakeCard";
 import { InventoryChip } from "./InventoryChip";
 import { RunDetail } from "./RunDetail";
+import { SuggestedPrompts } from "./SuggestedPrompts";
 import { Transcript } from "./Transcript";
 
 /** Why the named orchestrator cannot be conversed with, or null when it can. */
@@ -139,6 +146,8 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   const [error, setError] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const [flow, setFlow] = useState<FlowLoad>({ state: "loading" });
+  // A step whose prompt waits on the researcher's leave to replace the message being written.
+  const [replacing, setReplacing] = useState<FlowStep | null>(null);
   const params = new URLSearchParams(useLocation().split("?")[1]);
   const runId = params.get("run");
   // The open conversation is kept in the address, so a reload or a link reopens it.
@@ -301,6 +310,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
           markStep: (stepId, mark) =>
             changeProgress(projectApi.markStep(projectId, stepId, mark), projectId),
           error: progressError,
+          ...(busy ? {} : { startConversation: (step: FlowStep) => startStep(step) }),
           ...(intake
             ? {
                 answerIntakeAgain: () => openIntakeAgain(projectId),
@@ -632,6 +642,28 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     }
   }
 
+  /** Starts a new conversation about `step`, asking first if a message is being written. */
+  function startStep(step: FlowStep) {
+    if (text.trim() || attached || attachedDocument) setReplacing(step);
+    else beginWith(step);
+  }
+
+  /** A new conversation, with the step's prompt in the box to edit and send. */
+  function beginWith(step: FlowStep) {
+    setReplacing(null);
+    reset();
+    setText(step.prompt);
+    setAnnouncement(
+      `New conversation about ${step.label}. The message box holds a suggested message: edit it if you wish, then send.`,
+    );
+    requestAnimationFrame(() => {
+      const input = box.current;
+      if (!input) return;
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+    });
+  }
+
   function reset() {
     setConversationId(null);
     setConversation(null);
@@ -740,6 +772,41 @@ export function ConversationHome({ directory }: { directory: Directory }) {
                 : {})}
             />
           )}
+          {tracked &&
+            flow.state === "loaded" &&
+            !intake?.open &&
+            !busy &&
+            sent === null &&
+            !conversation?.turns.length &&
+            !text.trim() &&
+            !attached &&
+            !attachedDocument && (
+              <SuggestedPrompts
+                steps={startablePrompts(flow.flow, tracked.progress)}
+                onChoose={beginWith}
+              />
+            )}
+          <ModalDialog
+            title="Replace your message?"
+            isOpen={replacing !== null}
+            onOpenChange={(open) => open || setReplacing(null)}
+            footer={
+              <>
+                <Button
+                  variant="primary"
+                  onPress={() => replacing && beginWith(replacing)}
+                >
+                  Replace it
+                </Button>
+                <Button onPress={() => setReplacing(null)}>Keep my message</Button>
+              </>
+            }
+          >
+            <p>
+              Starting a conversation about {replacing?.label} puts a suggested message in the
+              box, in place of what you have written and attached.
+            </p>
+          </ModalDialog>
           {runId && !inTranscript && (
             <section aria-labelledby="linked-run" className="callout">
               <h3 id="linked-run">

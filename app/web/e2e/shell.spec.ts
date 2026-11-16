@@ -16,8 +16,10 @@ import conversation from "../fixtures/conversation.json" with { type: "json" };
 import answered from "../fixtures/conversation-answered.json" with { type: "json" };
 import question from "../fixtures/conversation-question.json" with { type: "json" };
 import flow from "../fixtures/process-flow.json" with { type: "json" };
+import intakeComplete from "../fixtures/intake-complete.json" with { type: "json" };
 import answeredProject from "../fixtures/project-answers.json" with { type: "json" };
 import project from "../fixtures/project-documents.json" with { type: "json" };
+import projects from "../fixtures/projects.json" with { type: "json" };
 import suggested from "../fixtures/repositories-suggested.json" with { type: "json" };
 import chosenRepository from "../fixtures/repository-chosen.json" with { type: "json" };
 import turn from "../fixtures/conversation-turn.json" with { type: "json" };
@@ -784,6 +786,50 @@ test("the workspace at 1280px: conversations, conversation and the project side 
   await toggle.click();
   await expect(toggle).toBeFocused();
   await expect(conversation.getByRole("heading", { name: /^Outcome:/ })).toHaveCount(0);
+});
+
+test("a step of the journey starts a conversation with its prompt, sent only when the researcher sends", async ({
+  page,
+}) => {
+  const [active] = projects;
+  if (!active) throw new Error("the projects fixture lists no project");
+  await serveConversation(page);
+  await page.route("/api/projects", (route) => route.fulfill({ json: projects }));
+  await page.route(`/api/projects/${active.project_id}/progress`, (route) =>
+    route.fulfill({ json: intakeComplete.progress }),
+  );
+  await page.route(`/api/projects/${active.project_id}/intake`, (route) =>
+    route.fulfill({ json: intakeComplete }),
+  );
+  await page.addInitScript((id) => localStorage.setItem("dd-project", id), active.project_id);
+  let sent: unknown = null;
+  await page.route("/api/conversations/*/turns", (route) => {
+    sent = route.request().postDataJSON();
+    return route.fulfill({ status: 201, json: turn });
+  });
+  await page.goto("/");
+
+  const suggested = flow.phases
+    .flatMap((p) => p.steps)
+    .find((s) => s.id === intakeComplete.progress.suggested);
+  if (!suggested) throw new Error("the intake fixture suggests no step in the flow");
+  const offered = page.getByRole("group", { name: "Suggested ways to start" });
+  await expect(offered.getByRole("button").first()).toHaveAccessibleName(suggested.prompt);
+  expect(await axeViolations(page)).toEqual([]);
+
+  const phases = page.getByRole("navigation", { name: "Your data journey" });
+  await phases
+    .getByRole("button", { name: `Start a conversation: ${suggested.label}` })
+    .first()
+    .click();
+  const box = page.getByRole("textbox", { name: "What would you like to do?" });
+  await expect(box).toHaveValue(suggested.prompt);
+  await expect(box).toBeFocused();
+  expect(sent).toBeNull();
+
+  await page.getByRole("button", { name: "Send" }).click();
+  await expect(page.getByRole("list", { name: "Conversation" })).toBeVisible();
+  expect(JSON.stringify(sent)).toContain(suggested.prompt);
 });
 
 test("the workspace reflows at 320px with every phase open", async ({ page }) => {
