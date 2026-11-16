@@ -4,15 +4,19 @@
  * documents a package for it must or should have. The panel shows them as they are; whether a
  * package meets them is the deposit check's to say.
  *
- * A repository is chosen from `advisor.repository`'s shortlist in a conversation in this project,
- * so the panel says how, rather than offering a form to type one. Choosing again changes it: the
- * last choice counts. The panel reads the choice again whenever `revision` changes.
+ * A repository is chosen here, from the deployment's suggestions or a search of the pinned
+ * re3data export (`RepositoryPicker`), or from `advisor.repository`'s shortlist in a conversation
+ * in this project. Either way only its re3data identifier is sent, and the harness reads the rest
+ * from the export. Choosing again changes it: the last choice counts. The panel reads the choice
+ * again whenever `revision` changes, and after a choice made in it.
  */
 
 import { useEffect, useState } from "react";
 
 import { type RepositoryRequirements, useProjectApi } from "../../project/api";
 import { Link } from "../../route";
+import { Button } from "../ui/Button";
+import { RepositoryPicker } from "./RepositoryPicker";
 
 type Load =
   | { state: "loading" }
@@ -108,6 +112,12 @@ function Chosen({ choice }: { choice: RepositoryRequirements }) {
 export function RepositoryPanel({ projectId, revision }: { projectId: string; revision: number }) {
   const api = useProjectApi();
   const [load, setLoad] = useState<Load>({ state: "loading" });
+  const [changing, setChanging] = useState(false);
+
+  const chosen = (value: RepositoryRequirements) => {
+    setLoad({ state: "loaded", value });
+    setChanging(false);
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -136,14 +146,30 @@ export function RepositoryPanel({ projectId, revision }: { projectId: string; re
     }
     if (load.value === null) {
       return (
-        <p>
-          No repository has been chosen yet. Ask for a repository in{" "}
-          <Link to="/">this project&apos;s conversations</Link>, then choose one from the
-          shortlist.
-        </p>
+        <>
+          <p>
+            No repository has been chosen yet. Choose one below, or ask for a shortlist in{" "}
+            <Link to="/">this project&apos;s conversations</Link>.
+          </p>
+          <RepositoryPicker projectId={projectId} onChosen={chosen} />
+        </>
       );
     }
-    return <Chosen choice={load.value} />;
+    return (
+      <>
+        {changing ? (
+          <>
+            <RepositoryPicker projectId={projectId} onChosen={chosen} />
+            <Button variant="quiet" onPress={() => setChanging(false)}>
+              Keep the current repository
+            </Button>
+          </>
+        ) : (
+          <Button onPress={() => setChanging(true)}>Change repository</Button>
+        )}
+        <Chosen choice={load.value} />
+      </>
+    );
   };
 
   return (
@@ -151,7 +177,7 @@ export function RepositoryPanel({ projectId, revision }: { projectId: string; re
       <h2 id={HEADING_ID}>Repository</h2>
       <p className="hint">
         The package is checked against what this repository asks for. To change it, choose another
-        from a shortlist; the last choice counts.
+        here or from a shortlist; the last choice counts.
       </p>
       {content()}
     </section>

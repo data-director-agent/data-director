@@ -6,6 +6,7 @@ import disclosureFixture from "../../../fixtures/project-disclosure.json";
 import answersFixture from "../../../fixtures/project-answers.json";
 import fixture from "../../../fixtures/project-documents.json";
 import repositoryFixture from "../../../fixtures/repository-chosen.json";
+import suggestedFixture from "../../../fixtures/repositories-suggested.json";
 import {
   DecisionConflict,
   type Disclosure,
@@ -13,6 +14,7 @@ import {
   type ProjectDocuments,
   type ProjectSummary,
   type RepositoryRequirements,
+  type RepositorySearch,
   ProjectApiContext,
   digestOf,
 } from "../../project/api";
@@ -28,6 +30,8 @@ const PROJECT = fixture as ProjectDocuments;
 const DISCLOSURE = disclosureFixture as Disclosure;
 // ORDA, chosen by its re3data identifier (app/tests/test_repository_choice.py).
 const REPOSITORY = repositoryFixture as RepositoryRequirements;
+// ORDA and Zenodo, suggested before a search (app/tests/test_repository_search.py).
+const SUGGESTED = suggestedFixture as RepositorySearch;
 
 function at<T>(items: T[], index: number): T {
   const item = items[index];
@@ -70,6 +74,7 @@ function fakeApi(overrides: Partial<ProjectApi> = {}): ProjectApi {
     validate: () => Promise.reject(new Error("not checked in this test")),
     buildPackage: () => Promise.reject(new Error("not built in this test")),
     chooseRepository: () => Promise.reject(new Error("no repository in these tests")),
+    searchRepositories: () => Promise.resolve(SUGGESTED),
     orcidRecord: () => Promise.reject(new Error("no ORCID record in these tests")),
     researchers: () => Promise.resolve([]),
     keepResearcher: () => Promise.reject(new Error("nothing kept in these tests")),
@@ -468,6 +473,48 @@ describe("ProjectPage", () => {
   it("says how to choose a repository when none has been", async () => {
     renderPage(fakeApi({ repository: () => Promise.resolve(null) }), "doc=repository");
     expect(await screen.findByText(/No repository has been chosen yet/)).toBeVisible();
+  });
+
+  it("chooses a suggested repository on the page and shows what it asks for", async () => {
+    const user = userEvent.setup();
+    const choose = vi.fn<ProjectApi["chooseRepository"]>().mockResolvedValue(REPOSITORY);
+    const { container } = renderPage(
+      fakeApi({ repository: () => Promise.resolve(null), chooseRepository: choose }),
+      "doc=repository",
+    );
+    const box = await screen.findByRole("combobox", { name: "Find a repository" });
+    expect(screen.getByRole("button", { name: "Choose repository" })).toBeDisabled();
+    await user.click(box);
+    const options = await screen.findAllByRole("option");
+    expect(options.map((o) => o.textContent)).toEqual(
+      SUGGESTED.repositories.map((r) => expect.stringContaining(r.name) as unknown),
+    );
+    expect(await axe(container)).toHaveNoViolations();
+    await user.click(at(options, 0));
+    await user.click(screen.getByRole("button", { name: "Choose repository" }));
+    expect(choose).toHaveBeenCalledWith(PROJECT.project_id, at(SUGGESTED.repositories, 0).re3data_id);
+    const panel = screen.getByRole("region", { name: "Repository" });
+    expect(await within(panel).findByText("orda@v3")).toBeVisible();
+    expect(within(panel).getByRole("button", { name: "Change repository" })).toBeVisible();
+  });
+
+  it("searches re3data with what is typed", async () => {
+    const user = userEvent.setup();
+    const search = vi.fn<ProjectApi["searchRepositories"]>((query) =>
+      Promise.resolve({
+        ...SUGGESTED,
+        query,
+        suggested: !query,
+        repositories: query ? SUGGESTED.repositories.slice(1) : SUGGESTED.repositories,
+      }),
+    );
+    renderPage(fakeApi({ searchRepositories: search }), "doc=repository");
+    await user.click(await screen.findByRole("button", { name: "Change repository" }));
+    await user.type(screen.getByRole("combobox", { name: "Find a repository" }), "zen");
+    await vi.waitFor(() => expect(search).toHaveBeenLastCalledWith("zen", expect.anything()));
+    const options = await screen.findAllByRole("option");
+    expect(options).toHaveLength(1);
+    expect(at(options, 0)).toHaveTextContent(at(SUGGESTED.repositories, 1).name);
   });
 
   it("reaches the repository even before any document is drafted", async () => {

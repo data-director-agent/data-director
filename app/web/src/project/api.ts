@@ -226,6 +226,27 @@ export interface ChosenRepository {
   chosen_at: string;
 }
 
+/** What a search of the pinned re3data export shows of one repository. */
+export interface RepositoryMatch {
+  re3data_id: string;
+  name: string;
+  additional_names: string[];
+  url: string | null;
+  doi: string | null;
+}
+
+/**
+ * Repositories a researcher may choose on a project's page (docs/specs/deposit.md): those the
+ * pinned re3data export holds that `query` names, or, when `suggested`, those the deployment
+ * offers before a search.
+ */
+export interface RepositorySearch {
+  snapshot_ref: string;
+  query: string;
+  suggested: boolean;
+  repositories: RepositoryMatch[];
+}
+
 /** One field a repository's requirements name, and how much the deposit needs it. */
 export interface RequiredField {
   property: string;
@@ -404,6 +425,9 @@ export interface ProjectApi {
   /** Choose a repository by its re3data identifier; answers with the requirements it resolved
    * to. A change is a new choice, and the last one counts. */
   chooseRepository(projectId: string, re3dataId: string): Promise<RepositoryRequirements>;
+  /** Repositories in the pinned re3data export that `query` names by name, re3data identifier,
+   * re3data DOI or URL; with an empty `query`, those the deployment suggests. */
+  searchRepositories(query: string, signal?: AbortSignal): Promise<RepositorySearch>;
   /** Validates the project against its chosen repository's requirements; the log keeps it. */
   validate(projectId: string): Promise<Validation>;
   /** Validates the project and, if it is valid, builds its deposit package; else `PackageRefused`. */
@@ -587,6 +611,12 @@ export const httpProjectApi: ProjectApi = {
         put({ re3data_id: re3dataId }),
       ),
     );
+  },
+  async searchRepositories(query, signal) {
+    const params = new URLSearchParams();
+    if (query.trim()) params.set("q", query.trim());
+    const search = params.size > 0 ? `?${params.toString()}` : "";
+    return json(await fetch(`/api/repositories${search}`, signal ? { signal } : {}));
   },
   async validate(projectId) {
     return json(await fetch(`${projectPath(projectId)}/validation`, {

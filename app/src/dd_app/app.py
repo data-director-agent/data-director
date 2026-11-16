@@ -36,6 +36,9 @@ project holds none with that digest (docs/specs/projects.md).
 and `404` when none has been; `PUT` on it chooses one by its re3data identifier, which the pinned
 re3data export resolves to the repository's name and declared standards, for the person signed in,
 and answers with the requirements it resolved to and their warnings (docs/specs/deposit.md).
+`GET /api/repositories?q=…` searches the pinned re3data export by name, re3data identifier,
+re3data DOI or URL; without `q` it answers with the repositories the deployment suggests (its
+overrides, then `suggested.yaml`), so a researcher can choose one on the project's page.
 `GET /api/projects/{id}/intake` says whether the project's intake is pending, complete or
 dismissed, with its next question and each question asked from the project's entry point and its
 current answer; `POST /api/projects/{id}/intake/{question_id}` records the person's answer to one
@@ -174,6 +177,8 @@ INTAKE_REFUSED = "Data Director could not record this answer"
 TITLE_REFUSED = "Data Director could not rename this project"
 CREATE_REFUSED = "Data Director could not create this project"
 REPOSITORY_REFUSED = "Data Director could not record this repository"
+# The most repositories one search of the pinned re3data export answers with.
+REPOSITORY_SEARCH_LIMIT = 20
 RESEARCHER_REFUSED = "Data Director could not keep these ORCID facts"
 INVENTORY_REFUSED = "Data Director could not add this inventory"
 DEFAULT_HOST = "127.0.0.1"
@@ -909,6 +914,29 @@ def build_app(
         except (ProjectError, RequirementsError) as exc:
             return _refused(str(exc), REPOSITORY_REFUSED)
 
+    async def search_repositories(request: Request, _: Principal) -> Response:
+        """Repositories a researcher may choose: those the pinned re3data export holds that `q`
+        names, or, without `q`, those the deployment suggests (docs/specs/deposit.md)."""
+        query = request.query_params.get("q", "").strip()
+        sources, requirements = governance.conductor.sources, governance.requirements
+
+        def search() -> dict[str, Any]:
+            if query:
+                found = sources.find_repositories(query, limit=REPOSITORY_SEARCH_LIMIT)
+            else:
+                found = sources.repositories(requirements.suggested if requirements else ())
+            return {
+                "snapshot_ref": sources.re3data_export_ref(),
+                "query": query,
+                "suggested": not query,
+                "repositories": [m.describe() for m in found],
+            }
+
+        try:
+            return JSONResponse(await run_in_threadpool(search))
+        except SourceConfigError as exc:
+            return _problem(503, "re3data-unavailable", "Repositories cannot be searched", str(exc))
+
     async def validate_project(request: Request, acting_for: Principal) -> Response:
         project_id = request.path_params["project_id"]
         store = governance.projects
@@ -1425,6 +1453,7 @@ def build_app(
                 methods=["POST"],
             ),
             Route("/api/researcher/orcid", signed_in(get_orcid_record), methods=["GET"]),
+            Route("/api/repositories", signed_in(search_repositories), methods=["GET"]),
             Route("/api/examples", signed_in(list_examples), methods=["GET"]),
             Route("/api/process-flow", signed_in(get_process_flow), methods=["GET"]),
             Route("/api/policy", signed_in(get_policy), methods=["GET"]),

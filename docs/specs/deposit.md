@@ -57,8 +57,9 @@ What is built:
   `repository_url` and listing its `unconfirmed` items, all read from the merged set; the user
   guide's *Depositing your data* covers the same steps.
 
-A researcher chooses a repository in the app from an advisor's shortlist
-(`PUT /api/projects/{id}/repository`, [App](app.md)). Giving a drafter the merged set is
+A researcher chooses a repository in the app, either from an advisor's shortlist or on the
+project's page from the deployment's suggestions or a search of the pinned re3data export
+(`GET /api/repositories`, `PUT /api/projects/{id}/repository`, [App](app.md)). Giving a drafter the merged set is
 TODO(#394, #200).
 
 ## Invariants

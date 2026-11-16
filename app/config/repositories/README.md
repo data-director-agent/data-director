@@ -39,6 +39,15 @@ The harness loads the directory that `DD_REPOSITORIES_DIR` names. When a researc
 repository, the project records each set it used as `<requirement_set_id>@v<version>`, with the
 SHA-256 of the file, so a later reader can tell which requirements a package was checked against.
 
+## Suggested repositories
+
+`suggested.yaml` lists, by re3data identifier and in order, the repositories the app offers on a
+project's page before the researcher searches the pinned re3data export
+(`GET /api/repositories`). Every repository with an override is offered first, whether or not it
+is listed. An identifier the pinned export does not hold is left out, and one that is not a
+re3data identifier stops start-up. The file is optional; without it only the overrides are
+offered.
+
 ## What a set contains
 
 | Key | Meaning |

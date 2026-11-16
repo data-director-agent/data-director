@@ -163,3 +163,16 @@ def test_malformed_or_contradictory_sets_stop_start_up(
 def test_a_missing_directory_is_refused(tmp_path: Path) -> None:
     with pytest.raises(RequirementsError, match="not found"):
         load_requirements(tmp_path / "nowhere")
+
+
+def test_the_suggested_repositories_are_the_overrides_then_the_listed_ones(sets: Path) -> None:
+    assert load_requirements(sets).suggested == (ORDA,)
+    (sets / "suggested.yaml").write_text(f"re3data_ids: [{ELSEWHERE}, {ORDA}]\n", encoding="utf-8")
+    assert load_requirements(sets).suggested == (ORDA, ELSEWHERE)
+
+
+@pytest.mark.parametrize("text", ["re3data_ids: [orda]\n", "re3data_ids: r3d100012124\n", "[\n"])
+def test_a_malformed_suggested_list_stops_start_up(sets: Path, text: str) -> None:
+    (sets / "suggested.yaml").write_text(text, encoding="utf-8")
+    with pytest.raises(RequirementsError):
+        load_requirements(sets)

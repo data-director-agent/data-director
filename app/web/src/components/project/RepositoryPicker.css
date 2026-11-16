@@ -1,0 +1,67 @@
+@layer components {
+  .repository-picker {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+    margin-block: var(--space-3);
+  }
+
+  .repository-picker-combobox {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    width: min(100%, 36rem);
+  }
+
+  .repository-picker-label {
+    font-weight: var(--font-weight-strong);
+  }
+
+  .repository-picker-field {
+    display: flex;
+    gap: var(--space-1);
+  }
+
+  .repository-picker-input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .repository-picker-popover {
+    width: var(--trigger-width);
+    max-width: calc(100vw - 2 * var(--page-gutter));
+    max-height: 24rem;
+    background: var(--color-bg);
+    border: var(--border-width) solid var(--color-border-subtle);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-floating);
+    overflow: auto;
+  }
+
+  .repository-picker-list {
+    padding: var(--space-1) 0;
+  }
+
+  .repository-picker-option {
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-2) var(--space-3);
+    cursor: default;
+    overflow-wrap: anywhere;
+  }
+
+  .repository-picker-option[data-focused] {
+    background: var(--color-surface);
+  }
+
+  .repository-picker-option[data-selected] {
+    background: var(--color-surface-selected);
+    box-shadow: inset var(--focus-width) 0 0 var(--color-link);
+  }
+
+  .repository-picker-empty {
+    margin: 0;
+    padding: var(--space-2) var(--space-3);
+  }
+}
