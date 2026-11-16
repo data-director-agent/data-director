@@ -21,7 +21,7 @@ one of them, used for developing and testing agents
 | `sources.py` | The source check against pinned copies ([Evidence and grounding](../docs/specs/grounding.md)). |
 | `storage.py` | The `RunStorage` and `ProjectStorage` protocols every caller reaches a store through, and the `ProjectLog` a backend provides for projects ([Storage](../docs/specs/storage.md)). |
 | `store.py`, `provenance.py`, `conversations.py` | The file run store, Process Run Crates, and conversations derived from the run storage. |
-| `projects.py`, `project_files.py` | The project record: the project rules (`Projects`), written once over any `ProjectLog`, and the file log under them ([`docs/projects.md`](docs/projects.md), [Projects](../docs/specs/projects.md)). |
+| `projects/`, `project_files.py` | The project record: the project rules, one class per area, composed as `Projects` and written once over any `ProjectLog`, and the file log under them ([`docs/projects.md`](docs/projects.md), [Projects](../docs/specs/projects.md)). |
 | `registry.py`, `remote.py` | The agent registry and the A2A client for agents ([Agents](../docs/specs/agents.md)). |
 | `identity.py` | The authentication boundary that names whom an invocation acts for ([Policy and identity](../docs/specs/policy-and-identity.md)). |
 | `settings.py` | Settings from the environment, and the factory that builds a conductor. |

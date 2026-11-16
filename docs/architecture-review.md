@@ -85,6 +85,9 @@ Consequences:
 Its Protocol, `ProjectStorage` (`harness/src/dd_harness/storage.py:138`), has about 60 methods.
 Each new project feature adds methods to both, so the class can only grow.
 
+Addressed by #978: `dd_harness.projects` is now one class per area over a shared log and fold,
+and `ProjectStorage` is composed of per-area Protocols that callers name.
+
 ### 3. `Conductor._run` is a numbered pipeline in one method
 
 `harness/src/dd_harness/conductor.py:495` runs these steps in order, 454 lines in total:
