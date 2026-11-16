@@ -34,14 +34,14 @@ MOCK, ALPHA, PERSONA, BY_DESIGN = "mock", "alpha", "persona", "by design"
 # Every in-tree agent's state, as the roster table in docs/specs/agents.md gives it. A new agent
 # is added here, so that its state is a decision and not an accident.
 ROSTER: Mapping[str, str] = {
-    "advisor.dmp": MOCK,
-    "advisor.ethics": MOCK,
     "advisor.fairness": MOCK,
     "advisor.files": MOCK,
     "advisor.linking": MOCK,
     "advisor.metadata": MOCK,
     "advisor.rights": MOCK,
+    "advisor.dmp": ALPHA,
     "advisor.documentation": ALPHA,
+    "advisor.ethics": ALPHA,
     "advisor.policy": ALPHA,
     "advisor.quality": PERSONA,
     "advisor.repository": PERSONA,
@@ -55,11 +55,13 @@ ROSTER: Mapping[str, str] = {
 # setting's default. Only the Documentation Editor's and the Policy Adviser's models are on by
 # default (Model-backed personas).
 ALPHA_SWITCHES: Mapping[str, tuple[str, str, str]] = {
+    "advisor.dmp": ("dd_agent_advisor_dmp.factory", "DD_DMP_MATCHER", "template"),
     "advisor.documentation": (
         "dd_agent_advisor_documentation.factory",
         "DD_DOCUMENTATION_WRITER",
         "model",
     ),
+    "advisor.ethics": ("dd_agent_advisor_ethics.factory", "DD_ETHICS_READER", "template"),
     "advisor.policy": ("dd_agent_advisor_policy.factory", "DD_POLICY_ADVISOR", "model"),
 }
 

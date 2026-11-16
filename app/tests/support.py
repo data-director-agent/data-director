@@ -152,8 +152,10 @@ def configure_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     no_remote_agents = tmp_path / "agents.yaml"
     no_remote_agents.write_text("agents: []\n", encoding="utf-8")
     monkeypatch.setenv("DD_AGENTS_CONFIG", str(no_remote_agents))
-    for variable in ("DD_STANDARDS_RETRIEVAL", "DD_STANDARDS_EXPLAINER", "DD_SNAPSHOT_PATH"):
+    for variable in ("DD_STANDARDS_RETRIEVAL", "DD_SNAPSHOT_PATH"):
         monkeypatch.delenv(variable, raising=False)
+    # The standards advisor's model is on by default; these tests run it without one.
+    monkeypatch.setenv("DD_STANDARDS_EXPLAINER", "template")
     monkeypatch.setenv("DD_PRINCIPAL_ID", TEST_PRINCIPAL.principal_id)
     monkeypatch.setenv("DD_PRINCIPAL_NAME", TEST_PRINCIPAL.name)
     monkeypatch.setenv("DD_RUNS_DIR", str(tmp_path))

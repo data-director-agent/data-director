@@ -41,6 +41,7 @@ MODEL_BACKED = {"orchestrator-model"}
 MODEL_BY_DEFAULT = {
     "advisor-documentation": "DD_DOCUMENTATION_WRITER",
     "advisor-policy": "DD_POLICY_ADVISOR",
+    "advisor-standards": "DD_STANDARDS_EXPLAINER",
 }
 NODE_MAJOR = 22  # the oldest Node the shell's toolchain supports (README, "Quick start")
 APP_PORT = 7860  # dd_app's default (DD_APP_PORT)
