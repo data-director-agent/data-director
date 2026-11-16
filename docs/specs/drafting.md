@@ -39,8 +39,9 @@ with the questions. A metadata record drafter follows the same rules when it is 
    `unknown` cell is empty. A model never writes a cell's value: the dictionary is drafted by rule
    before a model is asked anything, and a model-backed draft's text is the template's, byte for
    byte (`agents/advisor-documentation/tests/test_documentation_agent.py`,
-   `agents/advisor-documentation/tests/test_suggestions.py`). The evaluation checks it for a
-   model-backed drafter too (TODO(#576)).
+   `agents/advisor-documentation/tests/test_suggestions.py`). The evaluation scores it for every
+   case (`no_model_value_in_cell`), and its tests run it with a fake model too
+   (`agents/advisor-documentation/tests/test_documentation_evals.py`).
 4. **A model writes README prose only from the drafter's input.** That input is the inventory, the
    metadata record and the repository's requirements; the model is never given an answer or an
    earlier version. What they do not support is a gap and is left unwritten: methods, study
@@ -134,7 +135,8 @@ how many gaps it left and how many questions it asked, and, for a mock, that it 
 ([Agents](agents.md)).
 
 **The template path stays.** A drafter that calls a model keeps a deterministic path, used when no
-model is configured and run by the CI evaluation (TODO(#576)). A version drafted on that path
+model is configured and run by the CI evaluation
+(`agents/advisor-documentation/src/dd_agent_advisor_documentation/evals/`). A version drafted on that path
 records `template`.
 
 **Disclosure is per version.** A version drafted with a model is disclosed as `model`, even where

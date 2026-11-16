@@ -1,0 +1,287 @@
+# The Documentation Editor's evaluation cases (docs/specs/evaluation.md). Each case is a base
+# request, one registered defect (defects.py), the document kind asked for, any answers the
+# researcher has recorded, and what the editor should then do.
+#
+# bases: a DraftRequest whose inventory, requirements and metadata record a case starts from.
+#   request          a DraftRequest file in data/; its kind, answers and current version are dropped
+#   inventory        a FileInventory file in data/, in place of the request's
+#   metadata_record  an ApprovedMetadataRecord file in data/, in place of the request's
+#
+# answers: what the researcher has recorded, each placed as a DraftAnswer to the gap it names
+# (`file`, `field` and `column` for a data dictionary cell; `section`, and `part` where the section
+# is asked part by part, for a README).
+#
+# expect:
+#   status, reason_code   the outcome (reason_code optional)
+#   present               text the README should contain, such as a value from the metadata record
+#   asked                 README gaps that should be asked: "Section" or "Section/Part"
+#   not_asked             README gaps that should not be asked, because the record or an answer
+#                         gives them
+#
+# gold: per base, per field name, the true values from the facilitator's crib sheet, for the
+# scorers that compare against them (scorers.py):
+#   type               the field's type, in the inventory's vocabulary (string, number, integer,
+#                      date, time, datetime)
+#   unit               accepted ways to say the unit; a suggestion matches if it names one as a
+#                      whole word
+#   unit_wrong         what would make a unit suggestion confidently wrong, even if it also names an
+#                      accepted unit
+#   definition         words a correct definition contains, any one of them
+#   definition_wrong   what would make a definition suggestion confidently wrong
+# A field with no gold, or a column with no gold for it, is not scored against the crib sheet.
+#
+# PROVENANCE AND LABELS. The Hallam Moor base is Dataset A of data-director-agent/sample-data
+# (MIT licence, commit e48701a): `data/hallam-moor.inventory.json` is what `dd-inventory` wrote
+# for its `HallamMoor_loggers` folder, and the gold is section 4 of its `crib-sheet.md`, the
+# workshop facilitators' answer key, with section 3 for the definitions. Everything in that dataset
+# is synthetic. The metadata record is written for this evaluation from the dataset's
+# `grant/proposal.md` and crib sheet. No domain expert has reviewed the labels beyond the crib
+# sheet's authors. The soil-survey base is `workbench/samples/soil-survey.readme-with-record.draft.json`,
+# which has no gold.
+#
+# The crib sheet gives the date and time fields' formats (`dd/mm/yyyy`, `HH:MM`, ISO 8601) in its
+# unit column. A format is not a unit, so those fields have no unit gold.
+
+bases:
+  hallam-moor:
+    request: soil-survey.readme-with-record.draft.json   # for ORDA's requirements
+    inventory: hallam-moor.inventory.json
+    metadata_record: hallam-moor.metadata-record.json
+  soil-survey:
+    request: soil-survey.readme-with-record.draft.json
+
+gold:
+  hallam-moor:
+    # Phase 1: data/logger_export_N01-N03_Mar-Sep2024.csv and its copy under data/old/.
+    Date:
+      type: date
+      definition: [date]
+    Time:
+      type: time
+      definition: [time]
+    Node:
+      type: string
+      unit: [none, no unit, not applicable, n/a, dimensionless, unitless]
+      definition: [node, logger]
+    T_air:
+      type: number
+      unit: [°C, degrees celsius, degree celsius, celsius, deg c, degc]
+      definition: [air temperature]
+    T_soil:
+      type: number
+      unit: [°C, degrees celsius, degree celsius, celsius, deg c, degc]
+      definition: [soil temperature]
+    RH:
+      type: number
+      unit: ["%", percent, per cent]
+      definition: [relative humidity, humidity]
+    SM:
+      # Raw ADC counts from a capacitive probe, not volumetric water content: the trap.
+      type: integer
+      unit: [counts, count, adc]
+      unit_wrong: ["%", percent, per cent, volumetric, m3/m3, m³/m³]
+      definition: [soil moisture]
+      definition_wrong: [volumetric, water content]
+    PM25:
+      type: number
+      unit: [µg/m³, μg/m³, ug/m3, µg/m3, μg/m3, micrograms per cubic metre, micrograms per cubic meter]
+      definition: [pm2.5, pm 2.5, particulate]
+    Batt:
+      type: number
+      unit: [V, volt, volts]
+      definition: [battery]
+    # Phase 2: data/N01-N06_Sep2024-Feb2025_v3.csv.
+    timestamp_utc:
+      type: datetime
+      definition: [timestamp, date and time, time]
+    node_id:
+      type: string
+      unit: [none, no unit, not applicable, n/a, dimensionless, unitless]
+      definition: [node, logger]
+    ta:
+      type: number
+      unit: [°C, degrees celsius, degree celsius, celsius, deg c, degc]
+      definition: [air temperature]
+    ts:
+      type: number
+      unit: [°C, degrees celsius, degree celsius, celsius, deg c, degc]
+      definition: [soil temperature]
+    rh:
+      type: number
+      unit: ["%", percent, per cent]
+      definition: [relative humidity, humidity]
+    vwc:
+      type: number
+      unit: ["%", percent, per cent]
+      unit_wrong: [counts, adc]
+      definition: [volumetric water content, soil moisture, water content]
+    pm2_5:
+      type: number
+      unit: [µg/m³, μg/m³, ug/m3, µg/m3, μg/m3, micrograms per cubic metre, micrograms per cubic meter]
+      definition: [pm2.5, pm 2.5, particulate]
+    vbat:
+      type: number
+      unit: [V, volt, volts]
+      definition: [battery]
+    flag:
+      type: integer
+      unit: [none, no unit, code, dimensionless, unitless, not applicable, n/a]
+      definition: [flag, quality, status]
+
+cases:
+  # --- Hallam Moor: the data dictionary --------------------------------------------------------
+  - id: hallam-dictionary
+    base: hallam-moor
+    kind: data_dictionary
+    defect: none
+    expect:
+      status: succeeded
+
+  - id: hallam-dictionary-no-record
+    base: hallam-moor
+    kind: data_dictionary
+    defect: drop-metadata-record
+    expect:
+      status: succeeded
+
+  - id: hallam-dictionary-answered
+    base: hallam-moor
+    kind: data_dictionary
+    defect: none
+    answers:
+      - file: data/logger_export_N01-N03_Mar-Sep2024.csv
+        field: SM
+        column: unit
+        text: Raw ADC counts from a capacitive probe; a lower count is wetter.
+      - file: data/N01-N06_Sep2024-Feb2025_v3.csv
+        field: vwc
+        column: unit
+        text: "% volumetric water content"
+      - file: data/logger_export_N01-N03_Mar-Sep2024.csv
+        field: T_air
+        column: missing_values
+        text: "-999 (sensor not responding), -9999 (whole-logger fault), 85.0 (power-on default, not a reading)"
+      - file: data/logger_export_N01-N03_Mar-Sep2024.csv
+        field: PM25
+        column: description
+        text: PM2.5 concentration from an optical sensor, not calibrated against the reference station.
+    expect:
+      status: succeeded
+
+  - id: hallam-dictionary-no-fields
+    base: hallam-moor
+    kind: data_dictionary
+    defect: drop-fields
+    expect:
+      status: abstained
+      reason_code: insufficient_input
+
+  # --- Hallam Moor: the README -----------------------------------------------------------------
+  - id: hallam-readme
+    base: hallam-moor
+    kind: readme
+    defect: none
+    expect:
+      status: succeeded
+      present:
+        - "# Microclimate and soil moisture on a restored upland moor: Hallam Moor logger network, 2024 to 2025"
+        - Whitcombe, Dan
+        - Natural Environment Research Council
+        # The record gives the award number, and the Funding part asks for grant numbers.
+        - NE/X999999/1
+        - Hallam Moor, South Pennines, United Kingdom
+        - six solar-powered sensor nodes
+      asked: [Methods, Variables, Access and licence, How to cite, Software requirements, Files]
+      not_asked:
+        - General information/Title
+        - General information/Creators
+        - General information/Dates of data collection
+        - General information/Geographic location
+        - General information/Funding
+        - Description
+
+  - id: hallam-readme-no-record
+    base: hallam-moor
+    kind: readme
+    defect: drop-metadata-record
+    expect:
+      status: succeeded
+      present: ["# README", "`data/N01-N06_Sep2024-Feb2025_v3.csv`"]
+      asked:
+        - General information/Title
+        - General information/Creators
+        - General information/Dates of data collection
+        - General information/Geographic location
+        - General information/Funding
+        - Description
+        - Methods
+
+  - id: hallam-readme-blank-title-creators
+    base: hallam-moor
+    kind: readme
+    defect: blank-record-title-and-creators
+    expect:
+      status: succeeded
+      present: ["# README", Natural Environment Research Council]
+      asked: [General information/Title, General information/Creators]
+      not_asked: [General information/Funding, General information/Dates of data collection]
+
+  - id: hallam-readme-record-not-datacite
+    base: hallam-moor
+    kind: readme
+    defect: record-not-datacite
+    expect:
+      status: succeeded
+      present: ["# README"]
+      asked: [General information/Title, General information/Funding, Description]
+
+  - id: hallam-readme-answered
+    base: hallam-moor
+    kind: readme
+    defect: none
+    answers:
+      - section: Methods
+        text: >-
+          Six solar-powered logger nodes (N01 to N06) on an elevation transect logged every 30
+          minutes. Logger firmware changed on 12 September 2024: from then on all nodes logged in
+          UTC with new column names, and N04 to N06 were added.
+      - section: Access and licence
+        text: >-
+          CC BY 4.0 for the sensor data. The WeatherNest reference data are third-party and are
+          not covered by this licence.
+    expect:
+      status: succeeded
+      not_asked: [Methods, Access and licence]
+
+  - id: hallam-no-inventory
+    base: hallam-moor
+    kind: readme
+    defect: drop-inventory
+    expect:
+      status: abstained
+      reason_code: insufficient_input
+
+  - id: hallam-dmp
+    base: hallam-moor
+    kind: dmp
+    defect: none
+    expect:
+      status: abstained
+      reason_code: outside_agent_scope
+
+  # --- Soil survey: no gold, the agent's own sample --------------------------------------------
+  - id: soil-dictionary
+    base: soil-survey
+    kind: data_dictionary
+    defect: none
+    expect:
+      status: succeeded
+
+  - id: soil-readme
+    base: soil-survey
+    kind: readme
+    defect: none
+    expect:
+      status: succeeded
+      present: ["# Soil chemistry of upland survey sites, 2025", "Example, Alex"]
+      not_asked: [General information/Title, General information/Creators, Description]
