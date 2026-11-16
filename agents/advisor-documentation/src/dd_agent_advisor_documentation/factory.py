@@ -24,6 +24,7 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping
 from dataclasses import replace
+from typing import Literal
 
 from dd_agent_advisor_documentation.agent import DocumentationEditor
 from dd_agent_advisor_documentation.prose import (
@@ -36,11 +37,12 @@ from dd_sdk import serve
 from dd_sdk.model import declared
 from dd_sdk.model_provider import optional_model
 
+SWITCH = "DD_DOCUMENTATION_WRITER"
+DEFAULT: Literal["template", "model"] = "model"
+
 
 def build_writer(env: Mapping[str, str]) -> Writer:
-    model = optional_model(
-        env, "DD_DOCUMENTATION_WRITER", default_model=DEFAULT_MODEL, default="model"
-    )
+    model = optional_model(env, SWITCH, default_model=DEFAULT_MODEL, default=DEFAULT)
     return TemplateWriter() if model is None else ModelWriter(model)
 
 

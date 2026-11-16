@@ -41,6 +41,7 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping
 from dataclasses import replace
+from typing import Literal
 
 from dd_agent_advisor_policy.advise import DEFAULT_MAX_LOOKUPS, DEFAULT_MODEL, ModelAdvisor
 from dd_agent_advisor_policy.agent import PolicyAgent
@@ -58,6 +59,7 @@ from dd_sdk.model import Model, declared
 from dd_sdk.model_provider import configured_model, optional_model
 
 SWITCH = "DD_POLICY_ADVISOR"
+DEFAULT: Literal["template", "model"] = "model"
 OLD_SWITCH = "DD_POLICY_EXPLAINER"
 OPF_KEY = "OPEN_POLICY_FINDER_API_KEY"
 
@@ -84,7 +86,7 @@ def _lookups(env: Mapping[str, str]) -> int:
 
 def build_explainer(env: Mapping[str, str]) -> Explainer:
     env = _switch(env)
-    model = optional_model(env, SWITCH, default_model=DEFAULT_MODEL, default="model", tool_use=True)
+    model = optional_model(env, SWITCH, default_model=DEFAULT_MODEL, default=DEFAULT, tool_use=True)
     return TemplateExplainer() if model is None else ModelAdvisor(model, _lookups(env))
 
 

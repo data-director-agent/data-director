@@ -21,6 +21,7 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping
 from dataclasses import replace
+from typing import Literal
 
 from dd_agent_advisor_rights.agent import RightsAdviser
 from dd_agent_advisor_rights.interpret import (
@@ -34,10 +35,11 @@ from dd_sdk.model import declared
 from dd_sdk.model_provider import optional_model
 
 SWITCH = "DD_RIGHTS_INTERPRETER"
+DEFAULT: Literal["template", "model"] = "template"
 
 
 def build_interpreter(env: Mapping[str, str]) -> Interpreter:
-    model = optional_model(env, SWITCH, default_model=DEFAULT_MODEL)
+    model = optional_model(env, SWITCH, default_model=DEFAULT_MODEL, default=DEFAULT)
     return TemplateInterpreter() if model is None else ModelInterpreter(model)
 
 

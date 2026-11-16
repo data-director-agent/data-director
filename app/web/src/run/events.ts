@@ -5,12 +5,31 @@
  * checks' reports and the outcome. `parseEvent` checks only the fields the reducer reads, so a
  * field it does not know is ignored, not refused. An event with no type, or a known type without
  * the fields it needs, is malformed; a type or `CUSTOM` name the shell does not know is
- * unrecognised. Neither throws.
- *
- * TODO(#946): check `RunEvent` against `@ag-ui/core`'s event types once the transport adds it.
+ * unrecognised. Neither throws. The names it reads are AG-UI's own (`READ_BY_NAME`), checked
+ * against `@ag-ui/core`'s `EventType` when the shell is compiled.
  */
 
+import type { EventType } from "@ag-ui/client";
+
 import type { Envelope, GroundingReport, SourceReport } from "./types";
+
+/** The AG-UI event types `parseEvent` reads by name; each is one that `@ag-ui/core` defines. The
+ * `REASONING_*` and `SUBAGENT_*` families are read by prefix. */
+export const READ_BY_NAME = [
+  "RUN_STARTED",
+  "RUN_FINISHED",
+  "RUN_ERROR",
+  "CUSTOM",
+  "STEP_STARTED",
+  "STEP_FINISHED",
+  "TEXT_MESSAGE_START",
+  "TEXT_MESSAGE_CONTENT",
+  "TEXT_MESSAGE_END",
+  "TOOL_CALL_START",
+  "TOOL_CALL_ARGS",
+  "TOOL_CALL_END",
+  "TOOL_CALL_RESULT",
+] as const satisfies readonly `${EventType}`[];
 
 export interface PlanStep {
   id: string;
