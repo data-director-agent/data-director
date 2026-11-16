@@ -484,6 +484,13 @@ class ProjectStorage(
     """
 
 
+class DepositSource(
+    ProjectHoldings, ProjectRepository, ProjectDocuments, ProjectDeposits, Protocol
+):
+    """The areas of a project that validating and packaging it read and record
+    (`dd_harness.deposit`)."""
+
+
 class ProjectSection(Protocol):
     """A project's exclusive section in a `ProjectLog`, in which the project rules read the log
     and append the events of one change."""

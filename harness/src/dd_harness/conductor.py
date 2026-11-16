@@ -74,6 +74,7 @@ from dd_harness import sources as source_check
 from dd_harness.model_grants import GrantMinter
 from dd_harness.observe import RunObserver, Watch, cancelled_result
 from dd_harness.progress import ENTRY_BY_MODEL
+from dd_harness.project_facts import FactSource
 from dd_harness.projects import (
     TITLE_BY_MODEL,
     ProjectDeletedError,
@@ -83,15 +84,7 @@ from dd_harness.projects import (
 from dd_harness.provenance import process_run_crate
 from dd_harness.registry import Registered, Registry
 from dd_harness.remote import Received, RemoteAgent
-from dd_harness.storage import (
-    CRATE,
-    GROUNDING,
-    SOURCES,
-    SPANS,
-    VALIDATION,
-    ProjectStorage,
-    RunStorage,
-)
+from dd_harness.storage import CRATE, GROUNDING, SOURCES, SPANS, VALIDATION, RunStorage
 from dd_sdk.agent import AgentResult, AgentSpec, ModelUse, RunContext, typed_request
 from dd_sdk.contract import problem as problems
 from dd_sdk.contract import validate
@@ -193,9 +186,10 @@ class Conductor:
     # The harness's own A2A address, sent to delegation agents as their callback. None (the
     # CLI) means no grant is issued and a delegation agent runs without `delegate`.
     harness_url: str | None = None
-    # The projects runs may belong to (docs/specs/projects.md). None (most tests, the workbench
-    # without DD_PROJECTS_DIR) means no run is in a project.
-    projects: ProjectStorage | None = None
+    # The projects runs may belong to (docs/specs/projects.md): every area but deposits, which no
+    # run records. None (most tests, the workbench without DD_PROJECTS_DIR) means no run is in a
+    # project.
+    projects: FactSource | None = None
     # Mints the model grant each invocation of a model-backed agent is sent
     # (docs/specs/model-accounts.md). None (the default) mints none.
     model_grants: GrantMinter | None = None

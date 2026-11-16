@@ -145,7 +145,7 @@ from dd_app.problems import problem as _problem
 from dd_app.problems import refused as _refused
 from dd_app.turn_body import parse_turn
 from dd_app.turn_stream import TurnStreams
-from dd_harness import orcid
+from dd_harness import orcid, storage
 from dd_harness.conductor import UnknownAgent
 from dd_harness.deposit import PackageRefusedError, build_package, check
 from dd_harness.disclosure import disclose
@@ -474,7 +474,7 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
         and retention"). The check is here as well as on the page, so no client can skip it.
         Answers with the project's summary, whose `deleted` says until when it may be restored."""
         project_id = request.path_params["project_id"]
-        store = governance.projects
+        store: storage.ProjectLifecycle | None = governance.projects
         if store is None:
             return _no_project(project_id)
         try:
@@ -512,7 +512,7 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
         """Restore a deleted project within its restore period: it is then as it was
         (docs/specs/projects.md, invariant 25). Answers with the project's summary."""
         project_id = request.path_params["project_id"]
-        store = governance.projects
+        store: storage.ProjectLifecycle | None = governance.projects
         if store is None:
             return _no_project(project_id)
         caused_by = f"{request.method} {request.url.path}"
@@ -532,7 +532,7 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
         """A project of its own, with no conversation, named by the optional `title` the body
         gives (docs/specs/app.md, rule 27). Whom it is created for is whom the authenticator
         names, never the body. Answers `201` with its summary as `GET /api/projects` lists it."""
-        store = governance.projects
+        store: storage.ProjectLifecycle | None = governance.projects
         if store is None:
             return _problem(
                 404, "project-not-found", "No such project", "This server keeps no projects."
@@ -571,7 +571,7 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
 
     async def get_inventory(request: Request, _: Principal) -> Response:
         project_id = request.path_params["project_id"]
-        store = governance.projects
+        store: storage.ProjectHoldings | None = governance.projects
         if store is None:
             return _no_project(project_id)
         try:
@@ -618,7 +618,7 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
 
     async def list_documentation(request: Request, _: Principal) -> Response:
         project_id = request.path_params["project_id"]
-        store = governance.projects
+        store: storage.ProjectHoldings | None = governance.projects
         if store is None:
             return _no_project(project_id)
         try:
@@ -629,7 +629,7 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
 
     async def get_documentation(request: Request, _: Principal) -> Response:
         project_id, digest = request.path_params["project_id"], request.path_params["digest"]
-        store = governance.projects
+        store: storage.ProjectHoldings | None = governance.projects
         if store is None:
             return _no_project(project_id)
         try:
@@ -669,7 +669,7 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
 
     async def list_researchers(request: Request, _: Principal) -> Response:
         project_id = request.path_params["project_id"]
-        store = governance.projects
+        store: storage.ProjectResearchers | None = governance.projects
         if store is None:
             return _no_project(project_id)
         try:
@@ -683,7 +683,7 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
         facts: the record is read again and only what it holds is kept, so the project holds
         ORCID's own words (docs/specs/projects.md). Answers with the project's records."""
         project_id = request.path_params["project_id"]
-        store = governance.projects
+        store: storage.ProjectResearchers | None = governance.projects
         if store is None:
             return _no_project(project_id)
         try:
@@ -713,7 +713,7 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
         """Stop giving agents the ORCID facts the person kept in the project. Answers with the
         project's records that stand."""
         project_id = request.path_params["project_id"]
-        store = governance.projects
+        store: storage.ProjectResearchers | None = governance.projects
         if store is None:
             return _no_project(project_id)
         caused_by = f"{request.method} {request.url.path}"
@@ -733,7 +733,7 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
 
     async def get_disclosure(request: Request, _: Principal) -> Response:
         project_id = request.path_params["project_id"]
-        store = governance.projects
+        store: storage.ProjectDocuments | None = governance.projects
         if store is None:
             return _no_project(project_id)
         try:
@@ -744,7 +744,7 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
 
     async def get_progress(request: Request, _: Principal) -> Response:
         project_id = request.path_params["project_id"]
-        store = governance.projects
+        store: storage.ProjectProgress | None = governance.projects
         if store is None:
             return _no_project(project_id)
         try:
@@ -757,7 +757,7 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
         they marked done, skipped or open again (docs/specs/orchestration.md). Whom it acts for is
         whom the authenticator names, never the body. Answers with the progress derived anew."""
         project_id = request.path_params["project_id"]
-        store = governance.projects
+        store: storage.ProjectProgress | None = governance.projects
         if store is None:
             return _no_project(project_id)
         try:
@@ -791,7 +791,7 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
 
     async def get_intake(request: Request, _: Principal) -> Response:
         project_id = request.path_params["project_id"]
-        store = governance.projects
+        store: storage.ProjectProgress | None = governance.projects
         if store is None:
             return _no_project(project_id)
         try:
@@ -807,7 +807,7 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
         names once it is complete."""
         project_id = request.path_params["project_id"]
         question_id = request.path_params["question_id"]
-        store = governance.projects
+        store: storage.ProjectProgress | None = governance.projects
         if store is None:
             return _no_project(project_id)
         try:
@@ -839,7 +839,7 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
         """The researcher passing the intake by (docs/specs/app.md, rule 25); an answer recorded
         later opens it again. Answers with where the intake then stands."""
         project_id = request.path_params["project_id"]
-        store = governance.projects
+        store: storage.ProjectProgress | None = governance.projects
         if store is None:
             return _no_project(project_id)
         caused_by = f"{request.method} {request.url.path}"
@@ -858,7 +858,7 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
         (docs/specs/projects.md). Whom it acts for is whom the authenticator names, never the
         body. Answers with the project's summary."""
         project_id = request.path_params["project_id"]
-        store = governance.projects
+        store: storage.ProjectLifecycle | None = governance.projects
         if store is None:
             return _no_project(project_id)
         try:
@@ -889,7 +889,7 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
 
     async def get_repository(request: Request, _: Principal) -> Response:
         project_id = request.path_params["project_id"]
-        store = governance.projects
+        store: storage.ProjectRepository | None = governance.projects
         if store is None:
             return _no_project(project_id)
         try:
@@ -976,7 +976,7 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
 
     async def validate_project(request: Request, acting_for: Principal) -> Response:
         project_id = request.path_params["project_id"]
-        store = governance.projects
+        store: storage.DepositSource | None = governance.projects
         if store is None:
             return _no_project(project_id)
         try:
@@ -991,7 +991,7 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
 
     async def package_project(request: Request, acting_for: Principal) -> Response:
         project_id = request.path_params["project_id"]
-        store = governance.projects
+        store: storage.DepositSource | None = governance.projects
         if store is None:
             return _no_project(project_id)
         try:
@@ -1031,7 +1031,7 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
     async def get_package(request: Request, _: Principal) -> Response:
         project_id = request.path_params["project_id"]
         digest = request.path_params["digest"]
-        store = governance.projects
+        store: storage.ProjectDeposits | None = governance.projects
         if store is None:
             return _no_project(project_id)
         content = None
@@ -1058,7 +1058,7 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
     async def decide(request: Request, decider: Principal) -> Response:
         # The decider is whom the authenticator names, never the body (docs/specs/projects.md).
         project_id = request.path_params["project_id"]
-        store = governance.projects
+        store: storage.ProjectDocuments | None = governance.projects
         if store is None:
             return _no_project(project_id)
         try:
@@ -1090,7 +1090,7 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
         # Who answered is whom the authenticator names, never the body (docs/specs/drafting.md).
         project_id = request.path_params["project_id"]
         document_id = request.path_params["document_id"]
-        store = governance.projects
+        store: storage.ProjectDocuments | None = governance.projects
         if store is None:
             return _no_project(project_id)
         try:

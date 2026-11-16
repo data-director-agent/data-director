@@ -25,7 +25,7 @@ from typing import Any, Literal
 
 from dd_harness.projects import APPROVED, PROPOSED
 from dd_harness.provenance import AGENT_BASE
-from dd_harness.storage import ProjectStorage, RunStorage
+from dd_harness.storage import ProjectDocuments, RunStorage
 from dd_sdk.contract.models import now
 
 # Where a model is named, beside the agents (TODO(#3): the w3id namespace is not yet registered).
@@ -210,7 +210,7 @@ class Disclosure:
         return {"@context": CONTEXT, "@graph": list(graph.values())}
 
 
-def disclose(projects: ProjectStorage, runs: RunStorage, project_id: str) -> Disclosure:
+def disclose(projects: ProjectDocuments, runs: RunStorage, project_id: str) -> Disclosure:
     """The disclosure of a project's approved documents. Raises `UnknownProjectError` for an
     unknown project."""
     found: list[DocumentDisclosure] = []
