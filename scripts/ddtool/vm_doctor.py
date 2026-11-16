@@ -53,6 +53,7 @@ MODEL_SWITCHES = {
     "advisor-repository": "DD_REPOSITORY_EXPLAINER",
     "advisor-documentation": "DD_DOCUMENTATION_WRITER",
     "advisor-dmp": "DD_DMP_MATCHER",
+    "advisor-rights": "DD_RIGHTS_INTERPRETER",
 }
 BACKUP_UNIT = "data-director-backup.service"
 BACKUP_TIMER = "data-director-backup.timer"

@@ -298,7 +298,9 @@ judgement, an outcome that may be `referred` or an abstention, or a different st
 orchestrator asks the persona that serves it. Two personas that need the same source each use
 its server; neither calls the other. Shared know-how is a Skill, not a persona.
 
-**Worked example: `advisor.rights`** (TODO(#877)). It moves from `none` to `retrieval`. A local
+**Worked example: `advisor.rights`** (TODO(#877)). It builds on the model-backed alpha
+(`advisor-rights/interpret.py`, #697), whose model already chooses only from a closed set: the
+rows of `licences.yaml`. It moves from `input_only` to `retrieval`. A local
 MCP server serves a pinned SPDX licence-list release, whose records are hashed under a
 canonicalisation registered for them. The shell builds the closed set of candidate licences
 from the input and retrieves each candidate through the gateway. The model then chooses from
