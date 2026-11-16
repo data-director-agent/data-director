@@ -115,7 +115,7 @@ from starlette.responses import (
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from dd_app import deposit, documents, feedback
+from dd_app import deposit, feedback
 from dd_app.about import about
 from dd_app.config import EXAMPLES_DIR, WEB_DIST, settings_from_env
 from dd_app.github_auth import TokenSource
@@ -125,7 +125,16 @@ from dd_app.governance import (
 from dd_app.model_accounts import broker_path
 from dd_app.privacy import notice_url
 from dd_app.project_service import ProjectService
-from dd_app.routes import conversations, materials, meta, progress, projects, runs, session
+from dd_app.routes import (
+    conversations,
+    documents,
+    materials,
+    meta,
+    progress,
+    projects,
+    runs,
+    session,
+)
 from dd_app.routes.common import Deps, Feedback
 from dd_harness.deposit import PackageRefusedError, build_package, check
 from dd_harness.disclosure import disclose
@@ -134,9 +143,7 @@ from dd_harness.model_grants import jwks_routes
 from dd_harness.policy import PolicyError
 from dd_harness.project_access import Action, allowed
 from dd_harness.projects import (
-    ChangeRefusedError,
     ProjectError,
-    Refusal,
     UnknownProjectError,
 )
 from dd_harness.registry import RegistryError
@@ -163,8 +170,6 @@ Handler = Callable[[Request, Principal], Awaitable[Response]]
 # Where people reach the app, which the provider sends them back to (dd_harness.signin).
 PUBLIC_URL_VARIABLE = "DD_APP_PUBLIC_URL"
 
-DECISION_REFUSED = "Data Director could not record this decision"
-ANSWERS_REFUSED = "Data Director could not record these answers"
 TITLE_REFUSED = "Data Director could not rename this project"
 DELETE_REFUSED = "Data Director could not delete this project"
 RESTORE_REFUSED = "Data Director could not restore this project"
@@ -314,16 +319,6 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
             return _refused(str(exc), "Data Director could not list the runs")
         page = await run_in_threadpool(lambda: governance.runs(reader, **paging))
         return page_response(request, page)
-
-    async def get_documents(request: Request, _: Principal) -> Response:
-        project_id = request.path_params["project_id"]
-        if governance.projects is None:
-            return _no_project(project_id)
-        try:
-            found = await run_in_threadpool(documents.view, governance.projects, project_id)
-        except UnknownProjectError:
-            return _no_project(project_id)
-        return JSONResponse(found)
 
     async def get_disclosure(request: Request, _: Principal) -> Response:
         project_id = request.path_params["project_id"]
@@ -504,74 +499,6 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
             },
         )
 
-    async def decide(request: Request, decider: Principal) -> Response:
-        # The decider is whom the authenticator names, never the body (docs/specs/projects.md).
-        project_id = request.path_params["project_id"]
-        store = governance.projects
-        if store is None:
-            return _no_project(project_id)
-        try:
-            body = await request.json()
-        except ValueError:
-            return _refused("The body is not JSON.", DECISION_REFUSED)
-        try:
-            decision = documents.parse_decision(request.path_params["document_id"], body)
-        except documents.DecisionRequestError as exc:
-            return _refused(str(exc), DECISION_REFUSED)
-        try:
-            decided = await run_in_threadpool(
-                lambda: store.decide(
-                    project_id, decision, acted_for=decider, caused_by=f"POST {request.url.path}"
-                )
-            )
-        except UnknownProjectError:
-            return _no_project(project_id)
-        except ChangeRefusedError as exc:
-            if exc.refusal is Refusal.NO_DOCUMENT:
-                return _problem(404, exc.refusal.value, "No such document", exc.detail)
-            return _problem(409, exc.refusal.value, "The document has moved on", exc.detail)
-        except ProjectError as exc:
-            return _refused(str(exc), DECISION_REFUSED)
-        found = await run_in_threadpool(documents.view, store, project_id)
-        return JSONResponse({**found, "decided": decided.model_dump()}, status_code=201)
-
-    async def answer(request: Request, answerer: Principal) -> Response:
-        # Who answered is whom the authenticator names, never the body (docs/specs/drafting.md).
-        project_id = request.path_params["project_id"]
-        document_id = request.path_params["document_id"]
-        store = governance.projects
-        if store is None:
-            return _no_project(project_id)
-        try:
-            body = await request.json()
-        except ValueError:
-            return _refused("The body is not JSON.", ANSWERS_REFUSED)
-        try:
-            version, answers = documents.parse_answers(document_id, body)
-        except documents.DecisionRequestError as exc:
-            return _refused(str(exc), ANSWERS_REFUSED)
-        try:
-            answered = await run_in_threadpool(
-                lambda: store.answer(
-                    project_id,
-                    document_id,
-                    version,
-                    answers,
-                    acted_for=answerer,
-                    caused_by=f"POST {request.url.path}",
-                )
-            )
-        except UnknownProjectError:
-            return _no_project(project_id)
-        except ChangeRefusedError as exc:
-            if exc.refusal is Refusal.NO_DOCUMENT:
-                return _problem(404, exc.refusal.value, "No such document", exc.detail)
-            return _problem(409, exc.refusal.value, "The document has moved on", exc.detail)
-        except ProjectError as exc:
-            return _refused(str(exc), ANSWERS_REFUSED)
-        found = await run_in_threadpool(documents.view, store, project_id)
-        return JSONResponse({**found, "answered": answered.model_dump()}, status_code=201)
-
     callback = governance.conductor.harness_url
     # No authenticator: delegation callbacks only, so the app is no other way in
     # (docs/specs/orchestration.md).
@@ -581,16 +508,12 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
             # ROUTE MODULES
             *session.routes(deps),
             *meta.routes(deps),
+            *documents.routes(deps),
             *progress.routes(deps),
             *materials.routes(deps),
             *projects.routes(deps),
             *conversations.routes(deps),
             *runs.routes(deps),
-            Route(
-                "/api/projects/{project_id}/documents",
-                in_project(Action.READ, get_documents),
-                methods=["GET"],
-            ),
             Route(
                 "/api/projects/{project_id}/disclosure",
                 in_project(Action.READ, get_disclosure),
@@ -621,16 +544,6 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
                 "/api/projects/{project_id}/packages/{digest}",
                 in_project(Action.READ, get_package),
                 methods=["GET"],
-            ),
-            Route(
-                "/api/projects/{project_id}/documents/{document_id}/decisions",
-                in_project(Action.DECIDE, decide),
-                methods=["POST"],
-            ),
-            Route(
-                "/api/projects/{project_id}/documents/{document_id}/answers",
-                in_project(Action.CONTRIBUTE, answer),
-                methods=["POST"],
             ),
             Route("/api/repositories", signed_in(search_repositories), methods=["GET"]),
             *delegation,

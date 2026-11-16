@@ -14,8 +14,9 @@ import pytest
 from starlette.testclient import TestClient
 from support import check_fixture, configure_env, dist_dir, new_governance
 
-from dd_app.app import DECISION_REFUSED, build_app
+from dd_app.app import build_app
 from dd_app.governance import Governance
+from dd_app.routes.documents import DECISION_REFUSED
 from dd_harness.projects import (
     DOCUMENT_CHANGE_REFUSED,
     DOCUMENT_VERSION_ADDED,
