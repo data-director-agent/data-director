@@ -12,6 +12,9 @@ from __future__ import annotations
 
 from enum import StrEnum
 
+# The service a security event names (docs/specs/security.md, Security events).
+SERVICE = "model-broker"
+
 
 class Reason(StrEnum):
     # The calling agent.
@@ -52,3 +55,22 @@ class Refused(Exception):
         super().__init__(reason.value)
         self.status = status
         self.reason = reason
+
+
+# The refusals that are about who may call, recorded as security events (docs/specs/security.md,
+# Security events). The rest are about a provider or an account, and are not.
+ACCESS = frozenset(
+    {
+        Reason.AGENT_UNAUTHENTICATED,
+        Reason.GRANT_MISSING,
+        Reason.GRANT_INVALID,
+        Reason.GRANT_EXPIRED,
+        Reason.GRANT_AGENT_MISMATCH,
+        Reason.MODEL_NOT_GRANTED,
+        Reason.TICKET_MISSING,
+        Reason.TICKET_INVALID,
+        Reason.TICKET_EXPIRED,
+        Reason.TICKET_USED,
+        Reason.BASE_URL_REFUSED,
+    }
+)

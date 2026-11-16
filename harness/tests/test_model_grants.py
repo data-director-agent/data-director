@@ -5,6 +5,7 @@ metadata alone; and the broker can verify it against the harness's published key
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -41,7 +42,7 @@ from dd_harness.testing import (
     send_to_harness,
 )
 from dd_harness.transport.a2a import a2a_routes
-from dd_sdk import model_account
+from dd_sdk import model_account, security_log
 from dd_sdk.agent import AgentResult, ModelUse, RunContext
 from dd_sdk.contract.models import (
     GroundingMode,
@@ -67,6 +68,8 @@ from dd_sdk.model_grant import (
     ModelGrantError,
 )
 from dd_sdk.prompts import ModelCallLog
+from dd_sdk.security_log import SecurityEvent
+from dd_sdk.testing import security_events
 
 MODEL = "claude-test"
 TIMEOUT_S = 30.0
@@ -761,3 +764,45 @@ def test_the_harness_publishes_its_public_keys_when_it_mints(keys: GrantKeys) ->
 
 def test_a_harness_that_mints_nothing_publishes_nothing() -> None:
     assert jwks_routes(None) == []
+
+
+# --- Security events (docs/specs/security.md, Security events) -------------------------------
+
+
+def test_a_minted_grant_is_recorded_by_its_terms_and_never_itself(
+    keys: GrantKeys, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.INFO, logger=security_log.LOGGER)
+    seen: list[RunContext] = []
+    conductor = make_conductor(tmp_path, model_backed(seen), model_grants=keys.minter())
+
+    env = conductor.invoke(request("fake.none", record()), acting_for=TEST_PRINCIPAL)
+
+    [ctx] = seen
+    assert ctx.model_grant
+    [event] = security_events(caplog.records)
+    assert event["event"] == SecurityEvent.GRANT_MINTED
+    assert event["principal"] == TEST_PRINCIPAL.principal_id
+    assert (event["agent_id"], event["invocation_id"]) == ("fake.none", env.invocation_id)
+    assert event["models"] == [MODEL]
+    assert ctx.model_grant not in str(event)
+
+
+def test_an_agent_refused_for_bypassing_the_broker_is_recorded(
+    keys: GrantKeys, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.INFO, logger=security_log.LOGGER)
+    conductor = make_conductor(
+        tmp_path / "runs",
+        model_backed([]),
+        model_grants=keys.minter(),
+        profile=_own_profile(tmp_path, "allowed", "deployment"),
+    )
+
+    env = conductor.invoke(request("fake.none", record()), acting_for=TEST_PRINCIPAL)
+
+    [event] = security_events(caplog.records)
+    assert event["event"] == SecurityEvent.BROKER_BYPASS_REFUSED
+    assert event["outcome"] == "failure"
+    assert event["reason"] == "model-broker-bypassed"
+    assert event["invocation_id"] == env.invocation_id

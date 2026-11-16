@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import threading
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -18,7 +19,7 @@ from starlette.applications import Starlette
 from dd_harness import testing as fakes
 from dd_harness.conductor import Conductor
 from dd_harness.grounding import GroundingReport
-from dd_harness.identity import OperatorAssertion
+from dd_harness.identity import OperatorAssertion, RefusalReason, Unauthenticated
 from dd_harness.observe import STEPS, Step
 from dd_harness.sources import SourceReport
 from dd_harness.testing import (
@@ -31,6 +32,7 @@ from dd_harness.testing import (
     request,
 )
 from dd_harness.transport.agui import Cancellation, RunsInFlight, agui_routes, stream_run
+from dd_sdk import security_log
 from dd_sdk.agent import AgentResult, RunContext
 from dd_sdk.contract.models import (
     GroundingMode,
@@ -39,6 +41,8 @@ from dd_sdk.contract.models import (
     new_invocation_id,
     to_document,
 )
+from dd_sdk.security_log import SecurityEvent
+from dd_sdk.testing import security_events
 
 BASE = "http://testserver"
 OTHER = Principal(principal_id="https://example.org/people/someone-else", name="Someone Else")
@@ -426,3 +430,35 @@ def test_the_replay_of_a_stored_run_starts_and_finishes(runs_dir: Path) -> None:
     assert [e["type"] for e in found] == ["RUN_STARTED", "RUN_FINISHED"]
     assert found[-1]["result"] == envelope.to_document()
     assert missing == 404
+
+
+class _Refusing:
+    """An authenticator that refuses every caller, as for a missing bearer token."""
+
+    def principal_for(self, headers: Any) -> Principal:
+        raise Unauthenticated("no bearer token", RefusalReason.NO_CREDENTIAL)
+
+
+def test_a_refused_caller_is_recorded_as_a_security_event(
+    runs_dir: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """docs/specs/security.md, Security events."""
+    caplog.set_level(logging.INFO, logger=security_log.LOGGER)
+    conductor = make_conductor(
+        runs_dir, ScriptedAgent(GroundingMode.INPUT_ONLY, fakes.review_of_input), remote=False
+    )
+    app = Starlette(routes=agui_routes(conductor, _Refusing(), RunsInFlight()))
+    invocation = request("fake.none")
+
+    async def go() -> None:
+        async with _client(app) as hc:
+            await hc.post("/agui", json=_body(to_document(invocation)))
+            await hc.post("/agui/runs/r1/cancel")
+
+    asyncio.run(go())
+    events = security_events(caplog.records)
+    assert [event["event"] for event in events] == [SecurityEvent.CALLER_REFUSED] * 2
+    assert {(event["reason"], event["transport"]) for event in events} == {
+        (RefusalReason.NO_CREDENTIAL, "ag-ui")
+    }
+    conductor.close()

@@ -59,6 +59,7 @@ from dd_harness.settings import (
 )
 from dd_harness.sources import SourceConfigError, Sources
 from dd_harness.transport.a2a import a2a_routes
+from dd_sdk import security_log
 
 # Hosts that are reachable from this machine only; any other prints the warning below.
 LOOPBACK = frozenset({"127.0.0.1", "::1", "localhost"})
@@ -101,6 +102,7 @@ def cmd_serve(args: argparse.Namespace) -> int:
     conductor, authenticator = serving(settings, base_url)
     if args.host not in LOOPBACK and isinstance(authenticator, OperatorAssertion):
         sys.stderr.write(UNTRUSTED_WARNING.format(host=args.host))
+    security_log.configure()
     try:
         uvicorn.run(build_app(conductor, authenticator, base_url), host=args.host, port=args.port)
     finally:

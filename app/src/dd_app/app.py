@@ -129,7 +129,7 @@ from dd_harness import orcid
 from dd_harness.conductor import UnknownAgent
 from dd_harness.deposit import PackageRefusedError, build_package, check
 from dd_harness.disclosure import disclose
-from dd_harness.identity import IdentityError, Unauthenticated
+from dd_harness.identity import IdentityError, RefusalReason, Unauthenticated
 from dd_harness.model_grants import jwks_routes
 from dd_harness.policy import PolicyError
 from dd_harness.project_access import Action, allowed
@@ -145,17 +145,22 @@ from dd_harness.requirements import RequirementsError
 from dd_harness.server import LOOPBACK
 from dd_harness.sessions import PENDING_S, SESSION_COOKIE, SIGN_IN_COOKIE, cookie
 from dd_harness.settings import SettingsError
-from dd_harness.signin import CALLBACK_PATH, SignIn, SignInSettings
+from dd_harness.signin import CALLBACK_PATH, NotAdmitted, SignIn, SignInSettings
 from dd_harness.sources import SourceConfigError
 from dd_harness.transport.a2a import a2a_routes
 from dd_harness.transport.paging import PagingError, page_params, page_response
+from dd_sdk import security_log
 from dd_sdk.contract.models import Principal, ReplyAnswers, now
 from dd_sdk.contract.problem import PROBLEM_BASE, unauthenticated
 from dd_sdk.contract.validate import ContractViolation
 from dd_sdk.credentials import ConfigError
 from dd_sdk.process_flow import ENTRIES, PHASES
+from dd_sdk.security_log import SecurityEvent, emit
 
 log = logging.getLogger(__name__)
+
+# The service a security event names (docs/specs/security.md, Security events).
+SERVICE = "app"
 Handler = Callable[[Request, Principal], Awaitable[Response]]
 
 # Where people reach the app, which the provider sends them back to (dd_harness.signin).
@@ -249,6 +254,16 @@ def build_app(
             try:
                 principal = governance.authenticator.principal_for(request.headers)
             except Unauthenticated as exc:
+                # A request with no session cookie is someone not yet signed in, not an event;
+                # one whose cookie names no session is (docs/specs/security.md, Security events).
+                if cookie(request.headers, SESSION_COOKIE):
+                    emit(
+                        SecurityEvent.CALLER_REFUSED,
+                        outcome="failure",
+                        service=SERVICE,
+                        reason=exc.reason,
+                        transport="app",
+                    )
                 return _unauthenticated(str(exc))
             return await handler(request, principal)
 
@@ -1189,6 +1204,9 @@ def build_app(
             url, state = await sign_in.start(request.query_params.get("return_to"))
         except Unauthenticated as exc:
             log.warning("data-director: sign-in could not start: %s", exc)
+            emit(
+                SecurityEvent.SIGN_IN_FAILED, outcome="failure", service=SERVICE, reason=exc.reason
+            )
             return _back_to_sign_in(SIGN_IN_FAILED)
         response = RedirectResponse(url, status_code=302)
         response.set_cookie(SIGN_IN_COOKIE, state, max_age=PENDING_S, **_SIGN_IN_COOKIE)
@@ -1204,6 +1222,12 @@ def build_app(
             sign_in.store.take(params.get("state") or "")
             # `%r`: the parameter is the caller's, so it cannot write a line of its own.
             log.warning("data-director: the provider answered %r", params["error"][:64])
+            emit(
+                SecurityEvent.SIGN_IN_FAILED,
+                outcome="failure",
+                service=SERVICE,
+                reason=RefusalReason.PROVIDER_DECLINED,
+            )
             response = _back_to_sign_in(SIGN_IN_DECLINED)
         else:
             try:
@@ -1212,8 +1236,23 @@ def build_app(
                 )
             except Unauthenticated as exc:
                 log.warning("data-director: sign-in refused: %s", exc)
+                emit(
+                    SecurityEvent.SIGN_IN_FAILED,
+                    outcome="failure",
+                    service=SERVICE,
+                    # Only a person the provider vouched for is named: anything else is unverified.
+                    principal=exc.principal.principal_id if isinstance(exc, NotAdmitted) else None,
+                    reason=exc.reason,
+                )
                 response = _back_to_sign_in(SIGN_IN_FAILED)
             else:
+                if (opened := sign_in.store.get(session_id, touch=False)) is not None:
+                    emit(
+                        SecurityEvent.SIGN_IN_SUCCEEDED,
+                        outcome="success",
+                        service=SERVICE,
+                        principal=opened.principal.principal_id,
+                    )
                 # A session open in this browser before is ended, not carried over.
                 if previous := cookie(request.headers, SESSION_COOKIE):
                     sign_in.store.delete(previous)
@@ -1230,6 +1269,13 @@ def build_app(
         response = Response(status_code=204)
         if sign_in is not None:
             if session_id := cookie(request.headers, SESSION_COOKIE):
+                if (ended := sign_in.store.get(session_id, touch=False)) is not None:
+                    emit(
+                        SecurityEvent.SIGN_OUT,
+                        outcome="success",
+                        service=SERVICE,
+                        principal=ended.principal.principal_id,
+                    )
                 sign_in.store.delete(session_id)
             response.delete_cookie(SESSION_COOKIE, **_SESSION)
         return response
@@ -1552,6 +1598,7 @@ def main() -> int:
         )
         if host not in LOOPBACK and sign_in is None:
             sys.stderr.write(UNTRUSTED_WARNING.format(host=host))
+        security_log.configure()
         webbrowser.open(f"{base_url}/")
         uvicorn.run(app, host=host, port=port)
     except (ShellNotBuiltError, ConfigError) as exc:

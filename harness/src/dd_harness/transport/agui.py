@@ -46,7 +46,7 @@ from starlette.routing import Route
 
 from dd_harness.conductor import Conductor, UnknownAgent
 from dd_harness.grounding import GroundingReport
-from dd_harness.identity import Authenticator, IdentityError
+from dd_harness.identity import Authenticator, IdentityError, Unauthenticated, record_refusal
 from dd_harness.observe import RunObserver, Step
 from dd_harness.policy import PolicyError
 from dd_harness.sources import SourceReport
@@ -305,6 +305,9 @@ def agui_routes(
             # In a thread: verifying a token may fetch the issuer's keys.
             acting_for = await asyncio.to_thread(authenticator.principal_for, request.headers)
             cancellation = in_flight.open(acting_for, run_id)
+        except Unauthenticated as exc:
+            record_refusal(exc, transport="ag-ui")
+            return _error(str(exc))
         except REFUSALS as exc:
             return _error(str(exc))
 
@@ -329,6 +332,8 @@ def agui_routes(
         try:
             acting_for = await asyncio.to_thread(authenticator.principal_for, request.headers)
         except IdentityError as exc:
+            if isinstance(exc, Unauthenticated):
+                record_refusal(exc, transport="ag-ui")
             return JSONResponse({"error": str(exc)}, status_code=401)
         if not in_flight.cancel(acting_for, run_id):
             return JSONResponse({"error": f"no run {run_id} of yours is running"}, status_code=404)

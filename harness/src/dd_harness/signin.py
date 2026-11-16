@@ -30,6 +30,7 @@ from dd_harness.identity import (
     FETCH_TIMEOUT_S,
     IssuerKeys,
     OidcProvider,
+    RefusalReason,
     Unauthenticated,
     checked_configuration,
     configuration_url,
@@ -117,7 +118,9 @@ class NotAdmitted(Unauthenticated):
     opened. Raised by `SignIn.finish` when its `admit` refuses the principal."""
 
     def __init__(self, principal: Principal) -> None:
-        super().__init__(f"{principal.principal_id} may not use this server")
+        super().__init__(
+            f"{principal.principal_id} may not use this server", RefusalReason.NOT_ADMITTED
+        )
         self.principal = principal
 
 
@@ -174,7 +177,8 @@ class SignIn:
             except (httpx.HTTPError, ValueError) as exc:
                 raise Unauthenticated(
                     f"the sign-in settings of {self.issuer} could not be fetched: "
-                    f"{type(exc).__name__}"
+                    f"{type(exc).__name__}",
+                    RefusalReason.PROVIDER_UNREACHABLE,
                 ) from exc
         return self._configuration
 
@@ -203,12 +207,17 @@ class SignIn:
         provider is redeemed and its ID token verified. Raises `Unauthenticated` otherwise; no
         session is opened."""
         if not state or state != browser_state:
-            raise Unauthenticated("this sign-in was not started in this browser")
+            raise Unauthenticated(
+                "this sign-in was not started in this browser", RefusalReason.SIGN_IN_NOT_STARTED
+            )
         pending = self.store.take(state)
         if pending is None:
-            raise Unauthenticated("the sign-in has expired or was already used: sign in again")
+            raise Unauthenticated(
+                "the sign-in has expired or was already used: sign in again",
+                RefusalReason.SIGN_IN_EXPIRED,
+            )
         if not code:
-            raise Unauthenticated("the provider sent no code")
+            raise Unauthenticated("the provider sent no code", RefusalReason.PROVIDER_REFUSED)
         principal = await self._redeem(code, pending.nonce)
         if self.admit is not None and not self.admit(principal):
             raise NotAdmitted(principal)
@@ -236,16 +245,18 @@ class SignIn:
             answer = response.json()
         except (httpx.HTTPError, ValueError) as exc:
             raise Unauthenticated(
-                f"the provider's token endpoint could not be reached: {type(exc).__name__}"
+                f"the provider's token endpoint could not be reached: {type(exc).__name__}",
+                RefusalReason.PROVIDER_UNREACHABLE,
             ) from exc
         if response.status_code != 200 or not isinstance(answer, dict):
             error = answer.get("error") if isinstance(answer, dict) else None
             raise Unauthenticated(
-                f"the provider refused the code ({response.status_code} {error or ''})".strip()
+                f"the provider refused the code ({response.status_code} {error or ''})".strip(),
+                RefusalReason.PROVIDER_REFUSED,
             )
         token = answer.get("id_token")
         if not isinstance(token, str):
-            raise Unauthenticated("the provider sent no ID token")
+            raise Unauthenticated("the provider sent no ID token", RefusalReason.PROVIDER_REFUSED)
         # Off the event loop: verifying may fetch the issuer's keys. The token, and the access
         # token beside it, go no further than this function.
         return await asyncio.to_thread(

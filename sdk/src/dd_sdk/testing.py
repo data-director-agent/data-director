@@ -8,9 +8,11 @@ span, the token counts and the `ModelCallLog` are the real ones.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
-from typing import Literal
+import logging
+from collections.abc import Callable, Iterable, Sequence
+from typing import Any, Literal
 
+from dd_sdk import security_log
 from dd_sdk.model import ModelRequest, ModelResponse, Usage
 
 type Replier = Callable[[ModelRequest], str]
@@ -63,3 +65,9 @@ class FakeModel:
         if not self._replies:
             return ""
         return self._replies[min(len(self.sent), len(self._replies)) - 1]
+
+
+def security_events(records: Iterable[logging.LogRecord]) -> list[dict[str, Any]]:
+    """The security events among `records` (pytest's `caplog.records`), as the fields each was
+    written with (docs/specs/security.md, Security events)."""
+    return [security_log.fields(record) for record in records if record.name == security_log.LOGGER]
