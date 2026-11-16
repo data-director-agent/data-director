@@ -110,7 +110,6 @@ from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 from starlette.responses import (
     JSONResponse,
-    PlainTextResponse,
     Response,
 )
 from starlette.routing import Mount, Route
@@ -126,9 +125,8 @@ from dd_app.governance import (
 from dd_app.model_accounts import broker_path
 from dd_app.privacy import notice_url
 from dd_app.project_service import ProjectService
-from dd_app.routes import conversations, meta, projects, runs, session
+from dd_app.routes import conversations, materials, meta, projects, runs, session
 from dd_app.routes.common import Deps, Feedback
-from dd_harness import orcid
 from dd_harness.deposit import PackageRefusedError, build_package, check
 from dd_harness.disclosure import disclose
 from dd_harness.identity import IdentityError, Unauthenticated
@@ -151,7 +149,7 @@ from dd_harness.sources import SourceConfigError
 from dd_harness.transport.a2a import a2a_routes
 from dd_harness.transport.paging import PagingError, page_params, page_response
 from dd_sdk import security_log
-from dd_sdk.contract.models import Principal, now
+from dd_sdk.contract.models import Principal
 from dd_sdk.contract.problem import PROBLEM_BASE, unauthenticated
 from dd_sdk.credentials import ConfigError
 from dd_sdk.security_log import SecurityEvent, emit
@@ -176,8 +174,6 @@ CREATE_REFUSED = "Data Director could not create this project"
 REPOSITORY_REFUSED = "Data Director could not record this repository"
 # The most repositories one search of the pinned re3data export answers with.
 REPOSITORY_SEARCH_LIMIT = 20
-RESEARCHER_REFUSED = "Data Director could not keep these ORCID facts"
-INVENTORY_REFUSED = "Data Director could not add this inventory"
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 7860
 UNTRUSTED_WARNING = (
@@ -330,168 +326,6 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
         except UnknownProjectError:
             return _no_project(project_id)
         return JSONResponse(found)
-
-    async def get_inventory(request: Request, _: Principal) -> Response:
-        project_id = request.path_params["project_id"]
-        store = governance.projects
-        if store is None:
-            return _no_project(project_id)
-        try:
-            found = await run_in_threadpool(store.inventory, project_id)
-        except UnknownProjectError:
-            return _no_project(project_id)
-        if found is None:
-            return _problem(
-                404, "inventory-not-found", "No inventory", f"Project {project_id!r} has none."
-            )
-        return JSONResponse(found)
-
-    async def add_inventory(request: Request, person: Principal) -> Response:
-        """A revised or new inventory for the project, outside a turn. The store checks it against
-        the `FileInventory` class schema and records which inventory it revises; whom it acts for
-        is whom the authenticator names, never the body."""
-        project_id = request.path_params["project_id"]
-        store = governance.projects
-        if store is None:
-            return _no_project(project_id)
-        try:
-            body = await request.json()
-        except ValueError:
-            return _refused("The body is not JSON.", INVENTORY_REFUSED)
-        inventory = body.get("inventory") if isinstance(body, dict) else None
-        if not isinstance(inventory, dict):
-            return _refused(
-                "`inventory` must be the object `dd-inventory` wrote.", INVENTORY_REFUSED
-            )
-
-        def add() -> dict[str, Any]:
-            store.add_inventory(
-                project_id, inventory, acted_for=person, caused_by=f"POST {request.url.path}"
-            )
-            held: dict[str, Any] = store.summary(project_id)["inventory"]
-            return held
-
-        try:
-            return JSONResponse(await run_in_threadpool(add), status_code=201)
-        except UnknownProjectError:
-            return _no_project(project_id)
-        except ProjectError as exc:
-            return _refused(str(exc), INVENTORY_REFUSED)
-
-    async def list_documentation(request: Request, _: Principal) -> Response:
-        project_id = request.path_params["project_id"]
-        store = governance.projects
-        if store is None:
-            return _no_project(project_id)
-        try:
-            found = await run_in_threadpool(store.documentation, project_id)
-        except UnknownProjectError:
-            return _no_project(project_id)
-        return JSONResponse(found)
-
-    async def get_documentation(request: Request, _: Principal) -> Response:
-        project_id, digest = request.path_params["project_id"], request.path_params["digest"]
-        store = governance.projects
-        if store is None:
-            return _no_project(project_id)
-        try:
-            found = await run_in_threadpool(store.documentation_text, project_id, digest)
-        except UnknownProjectError:
-            return _no_project(project_id)
-        if found is None:
-            return _problem(
-                404,
-                "documentation-not-found",
-                "No such document",
-                f"Project {project_id!r} holds no document {digest!r}.",
-            )
-        return PlainTextResponse(found)
-
-    def read_orcid(person: Principal) -> dict[str, Any]:
-        """`person`'s own public ORCID record as a `ResearcherRecord`: only their own iD is ever
-        read, and only when they ask (docs/specs/policy-and-identity.md)."""
-        issuer = orcid.issuer_of(person)
-        raw = orcid.fetch_record(person.principal_id, issuer, transport=orcid_transport)
-        return orcid.normalise(
-            raw,
-            principal_id=person.principal_id,
-            retrieved_at=now(),
-            source=orcid.record_url(person.principal_id, issuer),
-        )
-
-    async def get_orcid_record(request: Request, person: Principal) -> Response:
-        """What the signed-in person's public ORCID record offers, to choose from. Nothing is
-        kept: keeping is `keep_researcher`, which reads the record again."""
-        try:
-            return JSONResponse(await run_in_threadpool(read_orcid, person))
-        except orcid.OrcidError as exc:
-            return _problem(409, "no-orcid-record", "No ORCID record to read", str(exc))
-        except orcid.OrcidUnavailableError as exc:
-            return _orcid_unavailable(str(exc))
-
-    async def list_researchers(request: Request, _: Principal) -> Response:
-        project_id = request.path_params["project_id"]
-        store = governance.projects
-        if store is None:
-            return _no_project(project_id)
-        try:
-            return JSONResponse(await run_in_threadpool(store.researchers, project_id) or [])
-        except UnknownProjectError:
-            return _no_project(project_id)
-
-    async def keep_researcher(request: Request, person: Principal) -> Response:
-        """Keep in the project what the person ticked of their own public ORCID record. The body
-        names a choice (`{"keep": {"sections": [...], "works": [put-codes], ...}}`), never the
-        facts: the record is read again and only what it holds is kept, so the project holds
-        ORCID's own words (docs/specs/projects.md). Answers with the project's records."""
-        project_id = request.path_params["project_id"]
-        store = governance.projects
-        if store is None:
-            return _no_project(project_id)
-        try:
-            body = await request.json()
-        except ValueError:
-            return _refused("The body is not JSON.", RESEARCHER_REFUSED)
-        keep = body.get("keep") if isinstance(body, dict) else None
-        if not isinstance(keep, dict):
-            return _refused("`keep` names the sections and items to keep.", RESEARCHER_REFUSED)
-        caused_by = f"{request.method} {request.url.path}"
-
-        def add() -> list[dict[str, Any]]:
-            chosen = orcid.select(read_orcid(person), keep)
-            store.add_researcher(project_id, chosen, acted_for=person, caused_by=caused_by)
-            return store.researchers(project_id) or []
-
-        try:
-            return JSONResponse(await run_in_threadpool(add), status_code=201)
-        except UnknownProjectError:
-            return _no_project(project_id)
-        except orcid.OrcidUnavailableError as exc:
-            return _orcid_unavailable(str(exc))
-        except (orcid.OrcidError, ProjectError) as exc:
-            return _refused(str(exc), RESEARCHER_REFUSED)
-
-    async def withdraw_researcher(request: Request, person: Principal) -> Response:
-        """Stop giving agents the ORCID facts the person kept in the project. Answers with the
-        project's records that stand."""
-        project_id = request.path_params["project_id"]
-        store = governance.projects
-        if store is None:
-            return _no_project(project_id)
-        caused_by = f"{request.method} {request.url.path}"
-
-        def withdraw() -> list[dict[str, Any]]:
-            store.withdraw_researcher(
-                project_id, person.principal_id, acted_for=person, caused_by=caused_by
-            )
-            return store.researchers(project_id) or []
-
-        try:
-            return JSONResponse(await run_in_threadpool(withdraw))
-        except UnknownProjectError:
-            return _no_project(project_id)
-        except ProjectError as exc:
-            return _problem(404, "researcher-not-found", "Nothing of yours to withdraw", str(exc))
 
     async def get_disclosure(request: Request, _: Principal) -> Response:
         project_id = request.path_params["project_id"]
@@ -860,6 +694,7 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
             # ROUTE MODULES
             *session.routes(deps),
             *meta.routes(deps),
+            *materials.routes(deps),
             *projects.routes(deps),
             *conversations.routes(deps),
             *runs.routes(deps),
@@ -867,41 +702,6 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
                 "/api/projects/{project_id}/documents",
                 in_project(Action.READ, get_documents),
                 methods=["GET"],
-            ),
-            Route(
-                "/api/projects/{project_id}/inventory",
-                in_project(Action.READ, get_inventory),
-                methods=["GET"],
-            ),
-            Route(
-                "/api/projects/{project_id}/inventory",
-                in_project(Action.CONTRIBUTE, add_inventory),
-                methods=["POST"],
-            ),
-            Route(
-                "/api/projects/{project_id}/documentation",
-                in_project(Action.READ, list_documentation),
-                methods=["GET"],
-            ),
-            Route(
-                "/api/projects/{project_id}/documentation/{digest}",
-                in_project(Action.READ, get_documentation),
-                methods=["GET"],
-            ),
-            Route(
-                "/api/projects/{project_id}/researchers",
-                in_project(Action.READ, list_researchers),
-                methods=["GET"],
-            ),
-            Route(
-                "/api/projects/{project_id}/researchers/me",
-                in_project(Action.CONTRIBUTE, keep_researcher),
-                methods=["PUT"],
-            ),
-            Route(
-                "/api/projects/{project_id}/researchers/me",
-                in_project(Action.CONTRIBUTE, withdraw_researcher),
-                methods=["DELETE"],
             ),
             Route(
                 "/api/projects/{project_id}/disclosure",
@@ -974,7 +774,6 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
                 in_project(Action.CONTRIBUTE, answer),
                 methods=["POST"],
             ),
-            Route("/api/researcher/orcid", signed_in(get_orcid_record), methods=["GET"]),
             Route("/api/repositories", signed_in(search_repositories), methods=["GET"]),
             *delegation,
             # The harness's public keys for model grants, when it mints them
@@ -1043,10 +842,6 @@ def _project_deleted(project_id: str) -> Response:
 
 def _refused(detail: str, title: str = "Data Director could not start this run") -> Response:
     return _problem(400, "request-refused", title, detail)
-
-
-def _orcid_unavailable(detail: str) -> Response:
-    return _problem(502, "orcid-unavailable", "ORCID could not be reached", detail)
 
 
 def _unauthenticated(detail: str) -> Response:
