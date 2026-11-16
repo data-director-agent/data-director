@@ -58,6 +58,9 @@ function fakeApi(overrides: Partial<ProjectApi> = {}): ProjectApi {
     projects: () => Promise.resolve([]),
     create: () => Promise.reject(new Error("no project created in these tests")),
     rename: () => Promise.resolve({}),
+    remove: () => Promise.reject(new Error("no project deleted in these tests")),
+    restore: () => Promise.reject(new Error("no project restored in these tests")),
+    deletedProjects: () => Promise.resolve([]),
     documents: () => Promise.resolve(PROJECT),
     disclosure: () => Promise.resolve(DISCLOSURE),
     decide: () => Promise.resolve(decided("approved")),
@@ -364,6 +367,78 @@ describe("ProjectPage", () => {
     await user.click(within(dialog).getByRole("button", { name: "Save name" }));
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(
       "could not rename this project: the server answered 400",
+    );
+  });
+
+  it("deletes the project only once its name is typed, and says what stays", async () => {
+    const user = userEvent.setup();
+    history.pushState(null, "", `/projects/${PROJECT.project_id}`);
+    const summary: ProjectSummary = {
+      project_id: PROJECT.project_id,
+      title: "Sediment cores",
+      title_source: "researcher",
+      created_at: DRAFT.added_at,
+      created_by: DRAFT.added_by,
+      inventory: null,
+      repository: null,
+      documents: { proposed: 1, approved: 1, rejected: 0 },
+      conversations: [],
+      restore_days: 30,
+    };
+    const remove = vi.fn<ProjectApi["remove"]>(() =>
+      Promise.resolve({
+        ...summary,
+        deleted: { at: DRAFT.added_at, by: DRAFT.added_by, restorable_until: DRAFT.added_at },
+      }),
+    );
+    renderPage(fakeApi({ projects: () => Promise.resolve([summary]), remove }));
+
+    await user.click(await screen.findByRole("button", { name: "Delete project" }));
+    const dialog = await screen.findByRole("dialog", { name: "Delete project" });
+    expect(within(dialog).getByText(/Nothing is erased/)).toBeVisible();
+    expect(within(dialog).getByText(/not recalled/)).toBeVisible();
+    expect(within(dialog).getByText(/restore it from the Projects page until/)).toBeVisible();
+    expect(await axe(dialog)).toHaveNoViolations();
+    const confirm = within(dialog).getByRole("button", { name: "Delete project" });
+    const field = within(dialog).getByRole("textbox", { name: /to confirm/ });
+    await user.type(field, "Sediment");
+    expect(confirm).toBeDisabled();
+    await user.click(confirm);
+    expect(remove).not.toHaveBeenCalled();
+
+    await user.type(field, " cores");
+    expect(confirm).toBeEnabled();
+    await user.click(confirm);
+    expect(remove).toHaveBeenCalledWith(PROJECT.project_id, "Sediment cores");
+    await vi.waitFor(() => expect(window.location.pathname).toBe("/projects"));
+  });
+
+  it("says why a deletion was refused and keeps the dialog open", async () => {
+    const user = userEvent.setup();
+    const summary: ProjectSummary = {
+      project_id: PROJECT.project_id,
+      title: "Sediment cores",
+      created_at: DRAFT.added_at,
+      created_by: DRAFT.added_by,
+      inventory: null,
+      repository: null,
+      documents: { proposed: 1, approved: 1, rejected: 0 },
+      conversations: [],
+      restore_days: 0,
+    };
+    renderPage(
+      fakeApi({
+        projects: () => Promise.resolve([summary]),
+        remove: () => Promise.reject(new Error("the server answered 403")),
+      }),
+    );
+    await user.click(await screen.findByRole("button", { name: "Delete project" }));
+    const dialog = await screen.findByRole("dialog", { name: "Delete project" });
+    expect(within(dialog).getByText(/does not let a deleted project be restored/)).toBeVisible();
+    await user.type(within(dialog).getByRole("textbox", { name: /to confirm/ }), "Sediment cores");
+    await user.click(within(dialog).getByRole("button", { name: "Delete project" }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "could not delete this project: the server answered 403",
     );
   });
 

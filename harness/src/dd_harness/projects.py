@@ -46,6 +46,13 @@ A project may have a title, so that a person can tell projects apart. A person g
 creating the project or renames it later; while no person has, an orchestrator's model may name
 it (`rename`, a `project_renamed` event saying which). The latest title counts, and a model's is
 refused once a person has given one.
+
+An owner deletes a project with a `project_deleted` event and restores it with
+`project_restored` (`delete`, `restore`). Nothing is removed: a deleted project takes no new work,
+except that a run already going is recorded, and it can be restored within `restore_period` of
+its deletion, which the deployment sets (docs/specs/projects.md, invariants 22 to 26). Who sees a
+deleted project is `dd_harness.project_access`.
+
 A researcher may attach a supporting document, such as a protocol or a codebook, as text: a
 `documentation_added` event names it, its media type and size, and the SHA-256 of its UTF-8
 text, under which the text is kept as a blob (`add_documentation`). Only plain text and Markdown
@@ -77,6 +84,7 @@ import re
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, Literal
@@ -111,6 +119,8 @@ if TYPE_CHECKING:
 
 PROJECT_CREATED = "project_created"
 PROJECT_RENAMED = "project_renamed"
+PROJECT_DELETED = "project_deleted"
+PROJECT_RESTORED = "project_restored"
 CONVERSATION_STARTED = "conversation_started"
 INVENTORY_ADDED = "inventory_added"
 DOCUMENTATION_ADDED = "documentation_added"
@@ -151,6 +161,9 @@ DOCUMENTATION_NAME_MAX_LENGTH: Final = 255
 TITLE_BY_RESEARCHER: Final = "researcher"
 TITLE_BY_MODEL: Final = "model"
 type TitleSource = Literal["researcher", "model"]
+# How long an owner may restore a deleted project, unless the deployment says otherwise
+# (docs/specs/projects.md, invariant 25). Zero makes a deletion final to the app.
+DEFAULT_RESTORE_PERIOD: Final = timedelta(days=30)
 
 
 class ProjectError(ValueError):
@@ -159,6 +172,16 @@ class ProjectError(ValueError):
 
 class UnknownProjectError(ProjectError):
     """No project has this identifier."""
+
+
+class ProjectDeletedError(ProjectError):
+    """The project is deleted, so it takes no new work until it is restored
+    (docs/specs/projects.md, invariant 24)."""
+
+
+class RestoreRefusedError(ProjectError):
+    """The project is not deleted, or the period in which it could be restored is over
+    (docs/specs/projects.md, invariant 25)."""
 
 
 class Refusal(StrEnum):
@@ -312,6 +335,19 @@ def _title(events: list[dict[str, Any]]) -> tuple[str | None, TitleSource | None
     return None, None
 
 
+def deletion(events: Sequence[Mapping[str, Any]]) -> Mapping[str, Any] | None:
+    """The `project_deleted` event that stands, or None if the project is not deleted: a project
+    is deleted when the last of its deletions and restorations is a deletion
+    (docs/specs/projects.md, invariant 22)."""
+    found: Mapping[str, Any] | None = None
+    for event in events:
+        if event["event"] == PROJECT_DELETED:
+            found = event
+        elif event["event"] == PROJECT_RESTORED:
+            found = None
+    return found
+
+
 def _check_names(document_id: str, digest: str) -> None:
     """Raises `ProjectError` for a change that names no well-formed document or digest. Such a
     change is malformed in itself, so it records nothing, not even a refusal."""
@@ -327,8 +363,13 @@ class Projects:
     and reads; everything that decides whether a change is allowed, and what the log means, is
     here."""
 
-    def __init__(self, log: ProjectLog) -> None:
+    def __init__(
+        self, log: ProjectLog, *, restore_period: timedelta = DEFAULT_RESTORE_PERIOD
+    ) -> None:
+        if restore_period < timedelta(0):
+            raise ValueError("a restore period is not negative")
         self.log = log
+        self.restore_period = restore_period
         self._inventory_schema = ClassSchema.of(FileInventory)
 
     def create(self, *, acted_for: Principal, caused_by: str, title: str | None = None) -> str:
@@ -372,6 +413,39 @@ class Projects:
             section.append([self._event(project_id, PROJECT_RENAMED, acted_for, caused_by, detail)])
         return True
 
+    def delete(self, project_id: str, *, acted_for: Principal, caused_by: str) -> dict[str, Any]:
+        """Delete the project: a `project_deleted` event, which hides it and stops it taking new
+        work; nothing is removed (docs/specs/projects.md, invariants 22 to 26). Returns what
+        `summary` gives of `deleted`. Raises `UnknownProjectError` for an unknown project and
+        `ProjectDeletedError` for one already deleted. Who may delete is the caller's check
+        (`project_access`, `Action.MANAGE`)."""
+        event = self._event(project_id, PROJECT_DELETED, acted_for, caused_by, {})
+        with self._section(project_id) as section:
+            section.append([event])
+        deleted = self._deleted([event])
+        if deleted is None:  # pragma: no cover - the event just appended is a deletion
+            raise LookupError(f"project {project_id} was not deleted")
+        return deleted
+
+    def restore(self, project_id: str, *, acted_for: Principal, caused_by: str) -> None:
+        """Restore a deleted project within the restore period: one `project_restored` event,
+        which changes nothing else, so the project is as it was (docs/specs/projects.md,
+        invariant 25). Raises `UnknownProjectError` for an unknown project and
+        `RestoreRefusedError` for one not deleted or whose period is over."""
+        with self._section(project_id, allow_deleted=True) as section:
+            deleted = self._deleted(section.events())
+            if deleted is None:
+                raise RestoreRefusedError("the project is not deleted")
+            if not self._restorable(deleted):
+                raise RestoreRefusedError(
+                    f"the project could be restored until {deleted['restorable_until']}"
+                )
+            section.append([self._event(project_id, PROJECT_RESTORED, acted_for, caused_by, {})])
+
+    def is_deleted(self, project_id: str) -> bool:
+        """Whether the project is deleted. Raises `UnknownProjectError` for an unknown one."""
+        return deletion(self.events(project_id)) is not None
+
     def start_conversation(self, project_id: str, *, acted_for: Principal, caused_by: str) -> str:
         """A new conversation in the project, and its `conversation_started` event. Returns its
         `conversation_id` (UUIDv7). Raises `UnknownProjectError` for an unknown project."""
@@ -403,7 +477,10 @@ class Projects:
         `researcher`, `model`, or None while it has none), who created it and when, the latest
         inventory and repository chosen, how many conversations were started in it, how many
         documents it has whose latest version is in each state, where it is in the process flow,
-        and whether its intake is pending, complete or dismissed. Raises `UnknownProjectError`."""
+        whether its intake is pending, complete or dismissed, if it is deleted, when, by whom and
+        until when it may be restored (`deleted`, else None), and for how many days after a
+        deletion it may be (`restore_days`, 0 if deletion is final). Raises
+        `UnknownProjectError`."""
         events = self.events(project_id)
         created = events[0]
         title, title_source = _title(events)
@@ -440,6 +517,8 @@ class Projects:
             "documents": states,
             "progress": flow.describe(events),
             "intake": intake.state(events),
+            "deleted": self._deleted(events),
+            "restore_days": self.restore_period.days,
         }
 
     def exists(self, project_id: str) -> bool:
@@ -760,7 +839,9 @@ class Projects:
         if payload is None or payload.model_dump().get("schema_class") != "Document":
             raise ProjectError(f"run {envelope.invocation_id} returned no Document")
         document = envelope.payload_as(Document)
-        with self._section(project_id) as section:
+        # A run already going when the project was deleted finishes and is recorded
+        # (docs/specs/projects.md, invariant 24).
+        with self._section(project_id, allow_deleted=True) as section:
             documents = _fold(section.events())
             if document.revises is None:
                 document_id, version = new_invocation_id(), 1
@@ -1139,11 +1220,32 @@ class Projects:
         return _fold(self.events(project_id))
 
     @contextmanager
-    def _section(self, project_id: str) -> Iterator[ProjectSection]:
-        """The project's exclusive section in the log. Raises `UnknownProjectError`."""
+    def _section(self, project_id: str, *, allow_deleted: bool = False) -> Iterator[ProjectSection]:
+        """The project's exclusive section in the log. Raises `UnknownProjectError`, and
+        `ProjectDeletedError` for a deleted project unless `allow_deleted`: a deleted project
+        takes no new work (docs/specs/projects.md, invariant 24)."""
         self._require(project_id)
         with self.log.section(project_id) as section:
+            if not allow_deleted and deletion(section.events()) is not None:
+                raise ProjectDeletedError(f"project {project_id} is deleted")
             yield section
+
+    def _deleted(self, events: Sequence[Mapping[str, Any]]) -> dict[str, Any] | None:
+        """When the project was deleted, by whom, and until when it may be restored, or None."""
+        event = deletion(events)
+        if event is None:
+            return None
+        until = datetime.fromisoformat(event["at"]) + self.restore_period
+        return {
+            "at": event["at"],
+            "by": event["acted_for"],
+            "restorable_until": until.isoformat(),
+        }
+
+    def _restorable(self, deleted: Mapping[str, Any]) -> bool:
+        return self.restore_period > timedelta(0) and now() <= datetime.fromisoformat(
+            deleted["restorable_until"]
+        )
 
     def _checked[T](
         self,
@@ -1257,8 +1359,8 @@ class ProjectStore(Projects):
     `root` (`dd_harness.project_files`, docs/specs/storage.md). `root` belongs to this backend,
     for tests of its layout; every other caller reaches a project through `ProjectStorage`."""
 
-    def __init__(self, root: Path) -> None:
-        super().__init__(FileProjectLog(root))
+    def __init__(self, root: Path, *, restore_period: timedelta = DEFAULT_RESTORE_PERIOD) -> None:
+        super().__init__(FileProjectLog(root), restore_period=restore_period)
         self.root = root
 
 

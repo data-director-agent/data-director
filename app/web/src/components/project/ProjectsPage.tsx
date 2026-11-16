@@ -9,15 +9,19 @@
  * the harness derives it, or else by when it was started. The app works in one project at a time
  * (docs/specs/app.md): each project here can be opened, which makes it the active one and goes to
  * its conversations, and the active one is marked. Its name links to its documents.
+ *
+ * Below them, "Recently deleted" lists the projects the person deleted and may still restore,
+ * with when and by whom each was deleted and until when it can be restored
+ * (docs/specs/projects.md, invariants 23 and 25). It is not shown while there are none.
  */
 
 import "./ProjectsPage.css";
 
-import { FolderOpen, FolderPlus } from "lucide-react";
-import { useEffect, useState } from "react";
+import { FolderOpen, FolderPlus, RotateCcw } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 
 import { useActiveProject } from "../../project/active";
-import { type ProjectSummary, useProjectApi } from "../../project/api";
+import { type DeletedProject, type ProjectSummary, useProjectApi } from "../../project/api";
 import { day, projectName } from "../../project/name";
 import { Link, navigate } from "../../route";
 import { PageHeader } from "../frame/PageHeader";
@@ -61,11 +65,87 @@ function Documents({ counts }: { counts: ProjectSummary["documents"] }) {
   );
 }
 
+function message(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/** The deleted projects the person may restore; nothing at all while there are none. */
+function RecentlyDeleted({
+  deleted,
+  onRestored,
+}: {
+  deleted: DeletedProject[];
+  onRestored: () => void;
+}) {
+  const api = useProjectApi();
+  const [restoring, setRestoring] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  if (deleted.length === 0) return null;
+
+  const restore = (projectId: string) => {
+    setRestoring(projectId);
+    setError(null);
+    api.restore(projectId).then(
+      () => {
+        setRestoring(null);
+        onRestored();
+      },
+      (e: unknown) => {
+        setRestoring(null);
+        setError(`Data Director could not restore this project: ${message(e)}`);
+      },
+    );
+  };
+
+  return (
+    <section aria-labelledby="recently-deleted" className="recently-deleted">
+      <h2 id="recently-deleted">Recently deleted</h2>
+      <p className="hint">
+        A deleted project is hidden, not erased. You can restore it, as it was, until the date
+        shown.
+      </p>
+      {error && (
+        <div role="alert" className="callout status-danger">
+          <p>{error}</p>
+        </div>
+      )}
+      <ul className="plain-list project-list">
+        {deleted.map((project) => {
+          const name = project.title ?? `Project started ${day(project.created_at)}`;
+          return (
+            <li key={project.project_id} className="project-card">
+              <h3 className="project-card-name">{name}</h3>
+              <p className="hint">
+                Deleted {day(project.deleted.at)} by {project.deleted.by.name} · Restorable until{" "}
+                {day(project.deleted.restorable_until)}
+              </p>
+              <p>
+                <Button
+                  icon={RotateCcw}
+                  size="small"
+                  variant="secondary"
+                  isDisabled={restoring !== null}
+                  onPress={() => restore(project.project_id)}
+                  aria-label={`Restore ${name}`}
+                >
+                  {restoring === project.project_id ? "Restoring…" : "Restore"}
+                </Button>
+              </p>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 export function ProjectsPage() {
   const api = useProjectApi();
   const [load, setLoad] = useState<Load>({ state: "loading" });
-  const { projectId: activeId, setProjectId } = useActiveProject();
+  const [deleted, setDeleted] = useState<DeletedProject[]>([]);
+  const { projectId: activeId, setProjectId, reloadProjects } = useActiveProject();
   const [creating, setCreating] = useState(false);
+  const [generation, setGeneration] = useState(0);
 
   function open(projectId: string) {
     setProjectId(projectId);
@@ -78,11 +158,18 @@ export function ProjectsPage() {
       (value) => setLoad({ state: "loaded", value }),
       (error: unknown) => {
         if (controller.signal.aborted) return;
-        setLoad({ state: "failed", message: error instanceof Error ? error.message : String(error) });
+        setLoad({ state: "failed", message: message(error) });
       },
     );
+    // The deleted projects are a nicety: if they cannot be read, the page lists none.
+    api.deletedProjects(controller.signal).then(setDeleted, () => undefined);
     return () => controller.abort();
-  }, [api]);
+  }, [api, generation]);
+
+  const restored = useCallback(() => {
+    setGeneration((n) => n + 1);
+    reloadProjects();
+  }, [reloadProjects]);
 
   const content = () => {
     if (load.state === "loading") return <p role="status">Reading your projects…</p>;
@@ -151,6 +238,7 @@ export function ProjectsPage() {
       </p>
       <NewProjectDialog isOpen={creating} onOpenChange={setCreating} />
       {content()}
+      <RecentlyDeleted deleted={deleted} onRestored={restored} />
     </>
   );
 }

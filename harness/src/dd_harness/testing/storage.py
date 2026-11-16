@@ -26,12 +26,12 @@ import threading
 import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 from dd_harness.listing import Page, Readable, run_summary, scan_conversations, scan_runs
-from dd_harness.project_access import readable_projects
+from dd_harness.project_access import deleted_projects, readable_projects, role_of
 from dd_harness.projects import (
     APPROVED,
     CONVERSATION_STARTED,
@@ -43,16 +43,20 @@ from dd_harness.projects import (
     INVENTORY_ADDED,
     PACKAGE_BUILT,
     PROJECT_CREATED,
+    PROJECT_DELETED,
     PROJECT_RENAMED,
+    PROJECT_RESTORED,
     PROJECT_VALIDATED,
     REJECTED,
     RESEARCHER_ADDED,
     RESEARCHER_WITHDRAWN,
     ChangeRefusedError,
     Decision,
+    ProjectDeletedError,
     ProjectError,
     Projects,
     Refusal,
+    RestoreRefusedError,
     UnknownProjectError,
     Verdict,
     text_digest,
@@ -683,6 +687,110 @@ def check_a_persons_title_is_never_replaced_by_a_models(make: MakeProjectStorage
     )
 
 
+def check_a_deleted_project_is_hidden_and_restored_as_it_was(make: MakeProjectStorage) -> None:
+    store = make("projects")
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check", title="Soil cores")
+    store.start_conversation(project_id, acted_for=TEST_PRINCIPAL, caused_by="check")
+    kept = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
+    someone = Principal(principal_id="https://orcid.org/0000-0002-0000-0000", name="Someone")
+    before = store.events(project_id)
+    assert not store.is_deleted(project_id)
+    assert store.summary(project_id)["deleted"] is None
+
+    deleted = store.delete(project_id, acted_for=TEST_PRINCIPAL, caused_by="check")
+    assert deleted == store.summary(project_id)["deleted"]
+    assert deleted["by"]["principal_id"] == TEST_PRINCIPAL.principal_id
+    assert deleted["restorable_until"] > deleted["at"]
+    assert store.events(project_id)[: len(before)] == before
+    assert [e["event"] for e in store.events(project_id)[len(before) :]] == [PROJECT_DELETED]
+    # Hidden from every list, and from everyone but its owner, after a restart too.
+    again = make("projects")
+    assert again.is_deleted(project_id)
+    assert readable_projects(again, TEST_PRINCIPAL) == [kept]
+    assert deleted_projects(again, TEST_PRINCIPAL) == [project_id]
+    assert deleted_projects(again, someone) == []
+    assert role_of(again, project_id, TEST_PRINCIPAL) is not None
+    assert role_of(again, project_id, someone) is None
+    with _raises(ProjectDeletedError, "deleting a project twice"):
+        store.delete(project_id, acted_for=TEST_PRINCIPAL, caused_by="check")
+    with _raises(UnknownProjectError, "deleting an unknown project"):
+        store.delete(NOWHERE, acted_for=TEST_PRINCIPAL, caused_by="check")
+    with _raises(RestoreRefusedError, "restoring a project that is not deleted"):
+        store.restore(kept, acted_for=TEST_PRINCIPAL, caused_by="check")
+
+    store.restore(project_id, acted_for=TEST_PRINCIPAL, caused_by="check")
+    assert not store.is_deleted(project_id)
+    assert [e["event"] for e in store.events(project_id)[len(before) :]] == [
+        PROJECT_DELETED,
+        PROJECT_RESTORED,
+    ]
+    restored = store.summary(project_id)
+    assert (restored["title"], restored["conversation_count"], restored["deleted"]) == (
+        "Soil cores",
+        1,
+        None,
+    )
+    assert readable_projects(make("projects"), TEST_PRINCIPAL) == [project_id, kept]
+
+
+def check_a_deleted_project_takes_no_new_work(make: MakeProjectStorage) -> None:
+    store = make("projects")
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
+    conversation = store.start_conversation(project_id, acted_for=TEST_PRINCIPAL, caused_by="c")
+    ref = store.record_draft(project_id, drafted_readme())
+    store.delete(project_id, acted_for=TEST_PRINCIPAL, caused_by="check")
+    before = store.events(project_id)
+    digest = store.documents(project_id)[0]["versions"][0]["digest"]
+    who: dict[str, Any] = {"acted_for": TEST_PRINCIPAL, "caused_by": "check"}
+    refused: dict[str, Callable[[], object]] = {
+        "renaming": lambda: store.rename(project_id, "A", source="researcher", **who),
+        "starting a conversation": lambda: store.start_conversation(project_id, **who),
+        "adding an inventory": lambda: store.add_inventory(
+            project_id, file_inventory("a.csv"), **who
+        ),
+        "choosing an entry point": lambda: store.choose_entry(
+            project_id, 1, source="researcher", **who
+        ),
+        "dismissing the intake": lambda: store.dismiss_intake(project_id, **who),
+        "editing a version": lambda: store.edit(
+            project_id, ref.document_id, ref.version, digest, "Edited.", **who
+        ),
+        "deciding on a version": lambda: store.decide(
+            project_id,
+            Decision(
+                document_id=ref.document_id, version=ref.version, digest=digest, verdict=APPROVED
+            ),
+            **who,
+        ),
+    }
+    for what, change in refused.items():
+        with _raises(ProjectDeletedError, f"{what} in a deleted project"):
+            change()
+    assert store.events(project_id) == before
+    assert store.project_of(conversation) == project_id
+    # A run already going when the project was deleted is still recorded (invariant 24).
+    store.record_draft(project_id, drafted(DocumentKind.DATA_DICTIONARY))
+    assert len(store.documents(project_id)) == 2
+
+
+def check_a_project_is_restored_only_within_its_period(make: MakeProjectStorage) -> None:
+    store = make("projects")
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
+    store.delete(project_id, acted_for=TEST_PRINCIPAL, caused_by="check")
+    final = make("projects")
+    final.restore_period = timedelta(0)
+    assert (
+        final.summary(project_id)["deleted"]["restorable_until"]
+        == (final.summary(project_id)["deleted"]["at"])
+    )
+    before = final.events(project_id)
+    with _raises(RestoreRefusedError, "restoring when deletion is final"):
+        final.restore(project_id, acted_for=TEST_PRINCIPAL, caused_by="check")
+    assert final.events(project_id) == before
+    store.restore(project_id, acted_for=TEST_PRINCIPAL, caused_by="check")
+    assert not store.is_deleted(project_id)
+
+
 def check_a_researchers_entry_point_is_never_replaced_by_a_models(
     make: MakeProjectStorage,
 ) -> None:
@@ -1012,6 +1120,13 @@ PROJECT_STORAGE_CHECKS: dict[str, Callable[[MakeProjectStorage], None]] = {
     ),
     "a person's title is never replaced by a model's": (
         check_a_persons_title_is_never_replaced_by_a_models
+    ),
+    "a deleted project is hidden and restored as it was": (
+        check_a_deleted_project_is_hidden_and_restored_as_it_was
+    ),
+    "a deleted project takes no new work": check_a_deleted_project_takes_no_new_work,
+    "a project is restored only within its period": (
+        check_a_project_is_restored_only_within_its_period
     ),
     "a researcher's entry point is never replaced by a model's": (
         check_a_researchers_entry_point_is_never_replaced_by_a_models

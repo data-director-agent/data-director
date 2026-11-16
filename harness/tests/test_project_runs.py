@@ -24,6 +24,7 @@ from dd_harness.projects import (
     PROPOSED,
     REJECTED,
     Decision,
+    ProjectDeletedError,
     ProjectStore,
     UnknownProjectError,
 )
@@ -1186,3 +1187,41 @@ def test_a_hosted_orchestrator_goes_on_without_researcher_facts(
 
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     assert "project_researchers" not in seen[0]
+
+
+class DeletingDocumentStub(DocumentStub):
+    """A drafter during whose run its project is deleted."""
+
+    def __init__(self, projects: ProjectStore, project_id: str) -> None:
+        super().__init__()
+        self.projects, self.project_id = projects, project_id
+
+    def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
+        self.projects.delete(self.project_id, acted_for=TEST_PRINCIPAL, caused_by="test")
+        return super().run(request, ctx)
+
+
+def test_a_run_going_when_its_project_is_deleted_is_recorded_and_a_new_one_refused(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """Docs/specs/projects.md, invariant 24."""
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    going = conductor_over(tmp_path / "runs", projects, DeletingDocumentStub(projects, project))
+    env = going.invoke(
+        in_conversation(request("stub.document", draft_request()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert projects.is_deleted(project)
+    (document,) = projects.documents(project)
+    assert document["versions"][0]["drafted_by"]["invocation_id"] == env.invocation_id
+
+    before = projects.events(project)
+    conductor = conductor_over(tmp_path / "runs", projects, DocumentStub())
+    with pytest.raises(ProjectDeletedError):
+        conductor.invoke(
+            in_conversation(request("stub.document", draft_request()), conversation),
+            acting_for=TEST_PRINCIPAL,
+        )
+    assert projects.events(project) == before
+    assert len(list(conductor.store.iter_envelopes())) == 1

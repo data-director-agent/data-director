@@ -1271,6 +1271,42 @@ def test_a_server_that_keeps_no_projects_answers_every_project_route_with_404(
     assert response.json()["type"].endswith("project-not-found")
 
 
+def test_a_deleted_projects_conversations_leave_the_list_and_come_back_when_it_is_restored(
+    in_projects: tuple[Governance, Any],
+):
+    """Docs/specs/projects.md, invariant 23: a project's conversations follow it."""
+    _governance, app = in_projects
+    client = TestClient(app)
+    conversation_id = start(client)
+    assert turn(client, conversation_id, "Hello").status_code == 200
+    (listed,) = client.get("/api/conversations").json()
+    project_id = listed["project_id"]
+    title = client.get("/api/projects").json()[0]["title"] or project_id
+    deleted = client.request("DELETE", f"/api/projects/{project_id}", json={"title": title})
+    assert deleted.status_code == 200
+    assert client.get("/api/conversations").json() == []
+    assert client.get("/api/runs").json() == []
+    assert client.post(f"/api/projects/{project_id}/restore", json={}).status_code == 200
+    assert [c["conversation_id"] for c in client.get("/api/conversations").json()] == [
+        conversation_id
+    ]
+
+
+def test_the_projects_an_owner_deleted_are_listed_for_restoring(governance: Governance, dist: Path):
+    """Docs/specs/projects.md, invariant 23: an owner finds a deleted project only under
+    "recently deleted", with when, by whom and until when; the shell's fixture."""
+    client = TestClient(build_app(governance, dist))
+    project_id = client.post("/api/projects", json={"title": "Soil cores"}).json()["project_id"]
+    deleted = client.request("DELETE", f"/api/projects/{project_id}", json={"title": "Soil cores"})
+    assert deleted.status_code == 200
+    assert client.get("/api/projects").json() == []
+    response = client.get("/api/projects/deleted")
+    (listed,) = response.json()
+    assert listed["project_id"] == project_id
+    assert listed["deleted"]["by"]["principal_id"] == TEST_PRINCIPAL.principal_id
+    check_fixture("projects-deleted.json", normalised_conversation(response.json()))
+
+
 def test_a_member_asking_for_an_owners_action_is_forbidden_and_may_still_read(
     in_projects: tuple[Governance, Any], monkeypatch: pytest.MonkeyPatch
 ):

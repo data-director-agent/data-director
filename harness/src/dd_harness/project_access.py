@@ -16,6 +16,10 @@ an index in a database), and only those logs are read here to confirm it.
 A caller that refuses a principal with no role answers as for a project that does not exist, so
 that a refusal does not reveal whether it does; one that refuses a member an owner's action says
 so (docs/specs/projects.md, invariant 17).
+
+A deleted project is hidden from everyone but its owners (invariant 23): `role_of` gives no other
+principal a role in it, and `readable_projects` leaves it out for everyone. An owner keeps their
+role, so that they may restore it, and finds it in `deleted_projects`.
 """
 
 from __future__ import annotations
@@ -24,7 +28,7 @@ from collections.abc import Iterable, Mapping
 from enum import StrEnum
 from typing import Any
 
-from dd_harness.projects import PROJECT_CREATED
+from dd_harness.projects import PROJECT_CREATED, deletion
 from dd_harness.storage import ProjectStorage
 from dd_sdk.contract.models import Principal
 
@@ -47,7 +51,7 @@ class Action(StrEnum):
     CONTRIBUTE = "contribute"
     # Approve or reject a document version.
     DECIDE = "decide"
-    # Add or remove a member, or change a role.
+    # Add or remove a member, or change a role; delete the project, or restore a deleted one.
     MANAGE = "manage"
 
 
@@ -73,11 +77,19 @@ def allowed(role: Role | None, action: Action) -> bool:
 
 
 def role_of(store: ProjectStorage, project_id: str, principal: Principal) -> Role | None:
-    """`principal`'s role in the project `project_id`, or None if they have none or there is no
-    such project (an identifier that names none included)."""
+    """`principal`'s role in the project `project_id`, or None if they have none, if there is no
+    such project (an identifier that names none included), or if it is deleted and they are not
+    an owner."""
     if not store.exists(project_id):
         return None
-    return roles(store.events(project_id)).get(principal.principal_id)
+    return _role(store.events(project_id), principal)
+
+
+def _role(events: list[dict[str, Any]], principal: Principal) -> Role | None:
+    role = roles(events).get(principal.principal_id)
+    if role is not Role.OWNER and deletion(events) is not None:
+        return None
+    return role
 
 
 def may(store: ProjectStorage, project_id: str, principal: Principal, action: Action) -> bool:
@@ -86,11 +98,24 @@ def may(store: ProjectStorage, project_id: str, principal: Principal, action: Ac
 
 
 def readable_projects(store: ProjectStorage, principal: Principal) -> list[str]:
-    """The projects `principal` may read, the one created first first. Only the logs of the
-    projects that name them are read, so the cost follows their projects, not the store's."""
+    """The projects `principal` may read, the one created first first, deleted ones left out.
+    Only the logs of the projects that name them are read, so the cost follows their projects,
+    not the store's."""
     found = []
     for project_id in store.projects_naming(principal.principal_id):
-        role = roles(store.events(project_id)).get(principal.principal_id)
-        if allowed(role, Action.READ):
+        events = store.events(project_id)
+        if deletion(events) is None and allowed(_role(events, principal), Action.READ):
+            found.append(project_id)
+    return found
+
+
+def deleted_projects(store: ProjectStorage, principal: Principal) -> list[str]:
+    """The deleted projects `principal` may restore, the one created first first: those they
+    own (docs/specs/projects.md, invariant 23). Whether each may still be restored is in its
+    summary's `deleted`."""
+    found = []
+    for project_id in store.projects_naming(principal.principal_id):
+        events = store.events(project_id)
+        if deletion(events) is not None and allowed(_role(events, principal), Action.MANAGE):
             found.append(project_id)
     return found

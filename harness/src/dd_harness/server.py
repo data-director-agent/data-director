@@ -15,7 +15,9 @@ No `.env` file is read.
 from the re3data export `DD_SOURCES_CONFIG` pins and its requirement sets from `DD_REPOSITORIES_DIR`
 (docs/specs/deposit.md),
 `validate` against the requirements recorded for the repository chosen, `package` to build the
-deposit package from a valid project and the runs under `DD_RUNS_DIR`, and `events`.
+deposit package from a valid project and the runs under `DD_RUNS_DIR`, `delete` and `restore`
+(which hide a project and bring it back within `DD_PROJECT_RESTORE_DAYS`, removing nothing), and
+`events`.
 
 There is no authentication of callers yet (docs/specs/policy-and-identity.md, #17, #43): every
 invocation acts for the operator's principal, whoever sent it. Do not expose this server beyond a
@@ -128,6 +130,25 @@ def cmd_project_create(args: argparse.Namespace) -> int:
 def cmd_project_list(args: argparse.Namespace) -> int:
     for summary in project_storage(projects_dir()).projects():
         sys.stdout.write(json.dumps(summary, ensure_ascii=False) + "\n")
+    return 0
+
+
+def cmd_project_delete(args: argparse.Namespace) -> int:
+    deleted = project_storage(projects_dir()).delete(
+        args.project_id,
+        acted_for=principal_from_env(),
+        caused_by=CAUSED_BY_COMMAND.format(command="delete"),
+    )
+    sys.stdout.write(json.dumps(deleted, ensure_ascii=False) + "\n")
+    return 0
+
+
+def cmd_project_restore(args: argparse.Namespace) -> int:
+    project_storage(projects_dir()).restore(
+        args.project_id,
+        acted_for=principal_from_env(),
+        caused_by=CAUSED_BY_COMMAND.format(command="restore"),
+    )
     return 0
 
 
@@ -383,6 +404,15 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("step_id", help="a step id, such as governance.embargo")
     p.add_argument("mark", choices=("done", "skipped", "open"))
     p.set_defaults(func=cmd_project_mark_step)
+    p = project.add_parser(
+        "delete",
+        help="delete a project, removing nothing, and print until when it may be restored",
+    )
+    p.add_argument("project_id")
+    p.set_defaults(func=cmd_project_delete)
+    p = project.add_parser("restore", help="restore a deleted project within its restore period")
+    p.add_argument("project_id")
+    p.set_defaults(func=cmd_project_restore)
     p = project.add_parser("events", help="print the project's events, oldest first, as JSONL")
     p.add_argument("project_id")
     p.set_defaults(func=cmd_project_events)

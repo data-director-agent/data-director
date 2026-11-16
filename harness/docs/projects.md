@@ -23,7 +23,7 @@ Every event has these members:
 
 | Member | What it is |
 |---|---|
-| `event` | What happened: `project_created`, `project_renamed`, `conversation_started`, `inventory_added`, `researcher_added`, `researcher_withdrawn`, `repository_chosen`, `document_version_added`, `document_version_decided`, `document_question_answered`, `document_change_refused`, `project_validated` or `package_built`. |
+| `event` | What happened: `project_created`, `project_renamed`, `project_deleted`, `project_restored`, `conversation_started`, `inventory_added`, `researcher_added`, `researcher_withdrawn`, `repository_chosen`, `document_version_added`, `document_version_decided`, `document_question_answered`, `document_change_refused`, `project_validated` or `package_built`. |
 | `event_id` | A UUIDv7, so events sort in the order they happened. |
 | `project_id` | The project. |
 | `at` | When, in UTC. |
@@ -38,6 +38,17 @@ refused, and `title_source`: `researcher` for a person (`PUT /api/projects/…/t
 for a name an orchestrator's model wrote, caused by its run. The latest title counts. A title given
 at creation is a person's, and once a person has given one, `ProjectStore.rename` refuses a model's
 and records nothing ([Projects](../../docs/specs/projects.md), invariant 21).
+
+`project_deleted` and `project_restored` carry nothing beyond the envelope. A project is deleted
+while the last of them in its log is a deletion (`dd_harness.projects.deletion`). A deleted
+project takes no change but `restore` and a run's draft (`record_draft`), so that a run already
+going is recorded; every other change raises `ProjectDeletedError` and records nothing.
+`restore` raises `RestoreRefusedError` for a project not deleted, or once the store's
+`restore_period` from the deletion is over: 30 days, or `DD_PROJECT_RESTORE_DAYS` whole days,
+where 0 makes a deletion final. A summary gives `deleted` (when, by whom and until when it may be
+restored, or null) and `restore_days`. `project_access` gives no one but an owner a role in a
+deleted project, and leaves it out of `readable_projects`, so its conversations and runs leave
+every list too ([Projects](../../docs/specs/projects.md), invariants 22 to 25).
 
 `conversation_started` also gives the `conversation_id` (a UUIDv7) of a conversation started from
 the project. `ProjectStore.project_of(conversation_id)` says which project, if any, a conversation
@@ -132,6 +143,8 @@ $ uv run dd-harness project create --title "Soil cores 2024"
 $ uv run dd-harness project add-inventory 0192f3a4-… inventory.json
 $ uv run dd-harness project events 0192f3a4-…
 $ uv run dd-harness project list
+$ uv run dd-harness project delete 0192f3a4-…
+$ uv run dd-harness project restore 0192f3a4-…
 ```
 
 `project list`, and `ProjectStore.projects()`, give a summary of each project in the order they were
@@ -238,4 +251,5 @@ until a person approves one. The conductor gives it to every drafter in the proj
   role in it, TODO(#389).
 - A drafter is not yet given the text of a document a researcher attached; only an
   orchestrator is told, without its text, that the project holds it.
-- How long a project is kept, and what deleting one removes, TODO(#156).
+- How long a project is kept once it can no longer be restored, and what erasing one removes,
+  TODO(#156).
