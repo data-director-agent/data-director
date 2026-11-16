@@ -14,7 +14,7 @@ import yaml
 from dd_agent_advisor_repository import assess, dfg
 from dd_agent_advisor_repository.classes import Answer, RepositoryNeeds
 from dd_agent_advisor_repository.records import Re3dataRecord
-from dd_agent_advisor_repository.retrieve import Hit, Query
+from dd_sdk.registry import Hit, Query
 
 RANKING = Path(__file__).with_name("ranking.yaml")
 
@@ -82,7 +82,7 @@ class Matches:
     # The name of each DFG code, for `ranked_by`.
     names: dict[str, str] = field(default_factory=dict)
 
-    def add(self, query: Query, hits: list[Hit]) -> None:
+    def add(self, query: Query, hits: list[Hit[Re3dataRecord]]) -> None:
         """Grade a query's hits by BM25 score relative to the best of them."""
         if query.label == THEME:
             into = self.themes

@@ -3,31 +3,29 @@
 
 from __future__ import annotations
 
-import hashlib
 from pathlib import Path
 
 import pytest
 
 from dd_agent_advisor_repository import registry
 from dd_agent_advisor_repository.snapshot import Re3dataRegistry
+from dd_sdk.registry import pinned
 
 FIXTURE = Path(__file__).with_name("data") / "re3data-export-fixture.zip"
 
 
 def build_fixture(directory: Path) -> Re3dataRegistry:
-    data = registry.build(FIXTURE)
-    path = directory / "registry.jsonl"
-    path.write_bytes(data)
+    built = pinned.install(directory, registry.build(FIXTURE), FIXTURE)
     pin = registry.Pin(
         month="2026-11",
         archive="https://www.re3data.org/export/re3data-repositories-2026-11.zip",
-        archive_sha256=hashlib.sha256(FIXTURE.read_bytes()).hexdigest(),
-        records=data.count(b"\n"),
-        snapshot_sha256=hashlib.sha256(data).hexdigest(),
+        archive_sha256=built.archive_sha256,
+        records=built.records,
+        snapshot_sha256=built.snapshot_sha256,
         fetched_at="2026-11-06T00:00:00+00:00",
     )
     pin.write(directory / "manifest.json")
-    return Re3dataRegistry(path, directory / "manifest.json")
+    return Re3dataRegistry(built.path, directory / "manifest.json")
 
 
 def session_registry(tmp_path_factory: pytest.TempPathFactory) -> Re3dataRegistry:

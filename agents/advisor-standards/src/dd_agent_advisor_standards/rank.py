@@ -22,8 +22,8 @@ import yaml
 
 from dd_agent_advisor_standards.classes import DatasetProfile, RecommendationKind
 from dd_agent_advisor_standards.fairsharing.records import MODEL_AND_FORMAT, TERMINOLOGY, Record
-from dd_agent_advisor_standards.retrieve import Hit, Query
 from dd_sdk.contract.models import Derivation
+from dd_sdk.registry import Hit, Query
 
 RANKING_CONFIG = Path(__file__).with_name("ranking.yaml")
 
@@ -155,7 +155,7 @@ def kind_for(query: Query, record: Record) -> tuple[RecommendationKind, Derivati
 # --- Ranking ----------------------------------------------------------------------------------
 
 
-def rank(query: Query, hits: list[Hit], profile: DatasetProfile) -> list[Ranked]:
+def rank(query: Query, hits: list[Hit[Record]], profile: DatasetProfile) -> list[Ranked]:
     cfg = config()
     weights = cfg["weights"]
     max_lex = max((h.lexical_score for h in hits), default=0.0)

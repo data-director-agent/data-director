@@ -27,13 +27,7 @@ from dd_agent_advisor_standards.classes import (
 from dd_agent_advisor_standards.explain import Explainer, Lookups, TemplateExplainer
 from dd_agent_advisor_standards.fairsharing.records import Record
 from dd_agent_advisor_standards.fairsharing.snapshot import SnapshotBackend
-from dd_agent_advisor_standards.retrieve import (
-    Hit,
-    Query,
-    RegistryUnavailable,
-    RetrievalAdapter,
-    SnapshotRef,
-)
+from dd_agent_advisor_standards.retrieve import RetrievalAdapter
 from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext, abstain
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
@@ -47,6 +41,7 @@ from dd_sdk.contract.models import (
     ReasonCode,
 )
 from dd_sdk.evidence import CANONICALISATION, HASH_ALGORITHM, project
+from dd_sdk.registry import Hit, Query, RegistryUnavailable, SnapshotRef
 from dd_sdk.tracing import retrieval_span
 
 FOUND_NOTE = (
@@ -103,10 +98,10 @@ class StandardsAgent:
 
     def _search_all(
         self, queries: list[Query], ctx: RunContext
-    ) -> tuple[dict[str, list[Hit]], SnapshotRef, dict[str, Record], RetrievalAdapter]:
+    ) -> tuple[dict[str, list[Hit[Record]]], SnapshotRef, dict[str, Record], RetrievalAdapter]:
         adapter = self.retrieval
         ref = adapter.snapshot_ref()
-        results: dict[str, list[Hit]] = {}
+        results: dict[str, list[Hit[Record]]] = {}
         retrieved: dict[str, Record] = {}
         try:
             for q in queries:
