@@ -1664,6 +1664,53 @@ describe("ConversationHome", () => {
       expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toBeEnabled();
     });
 
+    it("reads the intake again after a turn, so an entry point the turn recorded is not asked", async () => {
+      localStorage.setItem("dd-project", LOGGERS.project_id);
+      const pending = intakePendingFixture as ProjectIntake;
+      const complete = intakeCompleteFixture as ProjectIntake;
+      const entry = pending.questions[0];
+      // After the turn: the model recorded the entry point, and the other questions are open.
+      const afterTurn: ProjectIntake = {
+        ...complete,
+        state: "pending",
+        next: complete.questions[1]?.question_id ?? null,
+        progress: { ...complete.progress, entry_source: "model" },
+        questions: complete.questions.map((q) =>
+          q.question_id === entry?.question_id ? q : { ...q, answer_values: null },
+        ),
+      };
+      const following = afterTurn.questions[1];
+      if (!entry || !following) throw new Error("the intake fixtures ask too little");
+      const intake = vi
+        .fn<ProjectApi["intake"]>()
+        .mockResolvedValueOnce(pending)
+        .mockResolvedValue(afterTurn);
+      const inProject = { ...CONVERSATION, project_id: LOGGERS.project_id };
+      renderHome(
+        withOrchestrator(),
+        fakeApi({
+          create: () =>
+            Promise.resolve({ conversation_id: "c1", project_id: LOGGERS.project_id }),
+          get: () => Promise.resolve(inProject),
+        }),
+        FLOW,
+        withProgress({ intake }),
+      );
+      expect(
+        await screen.findByRole("group", { name: entry.question.question_prompt }),
+      ).toBeInTheDocument();
+
+      const box = screen.getByRole("textbox", { name: "What would you like to do?" });
+      await userEvent.type(box, "hello world");
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
+
+      expect(
+        await screen.findByRole("group", { name: following.question.question_prompt }),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("group", { name: entry.question.question_prompt })).toBeNull();
+      expect(intake.mock.calls.length).toBeGreaterThan(1);
+    });
+
     it("shows no card for a complete intake until the tracker asks the questions again", async () => {
       localStorage.setItem("dd-project", LOGGERS.project_id);
       const complete = intakeCompleteFixture as ProjectIntake;

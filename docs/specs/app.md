@@ -273,7 +273,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     Neither body names who answered: the server records the answer for the person signed in. A
     malformed body is refused with a 400, and an answer the harness rejects with a 409; nothing is
     recorded in either case. The message box stays usable throughout. A turn sent while the
-    intake is pending leaves it pending, and does not count as an answer. The intake is a card of
+    intake is pending leaves it pending, and does not count as an answer. The workspace reads the
+    intake again after each turn, as it reads the project's progress, so that an entry point the
+    turn recorded is not asked again; a read after the first never opens or closes the card. The intake is a card of
     the project, not a turn: no orchestrator runs for it, and the history holds none of it. Its
     answers reach the orchestrator through the project's entry point and step states. The phase
     tracker offers "Answer the setup questions again", which shows the card with the current

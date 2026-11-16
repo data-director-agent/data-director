@@ -226,9 +226,11 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     [],
   );
 
-  // The project's intake (docs/specs/app.md, rule 25), read when the project is known. The card
-  // opens while the intake is pending, or when asked for again from the phase tracker, and stays
-  // open until the researcher closes or dismisses it, so that it can end with its summary.
+  // The project's intake (docs/specs/app.md, rule 25), read when the project is known and again
+  // after each turn, as the progress is, so that an entry point the turn recorded is not asked
+  // again. The card opens while the first read is pending, or when asked for again from the phase
+  // tracker, and stays open until the researcher closes or dismisses it, so that it can end with
+  // its summary. A later read changes only what the card shows: it never opens or closes it.
   const [intakeOf, setIntakeOf] = useState<{
     projectId: string;
     intake: ProjectIntake;
@@ -240,11 +242,15 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     const abort = new AbortController();
     projectApi.intake(projectId, abort.signal).then(
       (intake) =>
-        setIntakeOf({ projectId, intake, open: intake.state === "pending", again: false }),
+        setIntakeOf((was) =>
+          was?.projectId === projectId
+            ? { ...was, intake }
+            : { projectId, intake, open: intake.state === "pending", again: false },
+        ),
       () => undefined,
     );
     return () => abort.abort();
-  }, [projectApi, projectId]);
+  }, [projectApi, projectId, turnCount]);
   const intake = projectId && intakeOf?.projectId === projectId ? intakeOf : null;
   const intakeChanged = useCallback((of: string, changed: ProjectIntake) => {
     setIntakeOf((was) => (was?.projectId === of ? { ...was, intake: changed } : was));
