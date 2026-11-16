@@ -45,10 +45,6 @@ path = "app/web/src/project/api.ts"
 lines = 726
 
 [[file]]
-path = "harness/src/dd_harness/conductor.py"
-lines = 1012
-
-[[file]]
 path = "harness/src/dd_harness/deposit.py"
 lines = 860
 
@@ -58,7 +54,7 @@ lines = 638
 
 [[file]]
 path = "harness/src/dd_harness/projects.py"
-lines = 1457
+lines = 1411
 
 [[file]]
 path = "harness/src/dd_harness/testing/storage.py"
