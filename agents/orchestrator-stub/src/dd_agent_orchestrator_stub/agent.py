@@ -48,21 +48,26 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import yaml
 
 from dd_sdk import serve
-from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
+from dd_sdk.agent import (
+    AgentResult,
+    AgentSpec,
+    Derived,
+    RunContext,
+    abstain,
+    input_evidence,
+    input_ref,
+)
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     ChoiceOption,
     Derivation,
-    EvidenceItem,
     GroundingMode,
-    GroundingRef,
     InvocationRequest,
     Message,
     OpenInput,
@@ -74,7 +79,6 @@ from dd_sdk.contract.models import (
     Reply,
 )
 from dd_sdk.delegate import Delegated
-from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 from dd_sdk.process_flow import (
     ENTRIES,
     PHASES,
@@ -318,7 +322,7 @@ class DirectorStub:
         assert isinstance(message, Message)  # the conductor refused anything else
 
         if ctx.delegate is None:
-            return _abstain(
+            return abstain(
                 ReasonCode.CAPABILITY_NOT_IMPLEMENTED,
                 "The conductor gave this run no way to delegate (for example, it was started "
                 "from `workbench invoke`), so no agent was asked.",
@@ -362,7 +366,7 @@ class DirectorStub:
                     ctx,
                     question=entry_question(),
                 )
-            return _abstain(ReasonCode.OUTSIDE_AGENT_SCOPE, f"{found} {self._routable()}")
+            return abstain(ReasonCode.OUTSIDE_AGENT_SCOPE, f"{found} {self._routable()}")
 
         # A refused delegation (unknown agent, unreachable conductor) raises DelegationRefused;
         # the conductor records it as failed(agent-error), which is what a developer should see.
@@ -381,7 +385,6 @@ class DirectorStub:
             value = getattr(child.payload, rule.relay_field, None)
             if value:
                 text += f" {rule.relay_field}: {value}"
-        input_ref = GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)
         return AgentResult(
             outcome=Outcome(
                 status=OutcomeStatus.SUCCEEDED,
@@ -393,9 +396,9 @@ class DirectorStub:
             payload=Reply(
                 reply_text=text,
                 reply_derivation=Derivation.TEMPLATE,
-                grounded_on=[input_ref, delegated.ref],
+                grounded_on=[input_ref(ctx), delegated.ref],
             ),
-            evidence=[_input_evidence(ctx), delegated.evidence],
+            evidence=[input_evidence(ctx), delegated.evidence],
         )
 
     def _where(
@@ -536,7 +539,6 @@ class DirectorStub:
                 f"{child.outcome.statement}"
             )
         lines.append("Ask 'what next?' when you are ready.")
-        input_ref = GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)
         agents = ", ".join(f"{d.envelope.agent_id}@{d.envelope.agent_version}" for d in delegated)
         return AgentResult(
             outcome=Outcome(
@@ -549,9 +551,9 @@ class DirectorStub:
             payload=Reply(
                 reply_text="\n".join(lines),
                 reply_derivation=Derivation.TEMPLATE,
-                grounded_on=[input_ref, *(d.ref for d in delegated)],
+                grounded_on=[input_ref(ctx), *(d.ref for d in delegated)],
             ),
-            evidence=[_input_evidence(ctx), *(d.evidence for d in delegated)],
+            evidence=[input_evidence(ctx), *(d.evidence for d in delegated)],
         )
 
     def _routable(self) -> str:
@@ -572,25 +574,9 @@ def _template_reply(
             reply_text=text,
             reply_derivation=Derivation.TEMPLATE,
             reply_questions=[question] if question is not None else None,
-            grounded_on=[GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)],
+            grounded_on=[input_ref(ctx)],
         ),
-        evidence=[_input_evidence(ctx)],
-    )
-
-
-def _input_evidence(ctx: RunContext) -> EvidenceItem:
-    return EvidenceItem(
-        source_id=ctx.input_ref,
-        retrieved_at=datetime.now(UTC),
-        hash_algorithm=HASH_ALGORITHM,
-        canonicalisation=INPUT_CANONICALISATION,
-        content_hash=ctx.input_hash,
-    )
-
-
-def _abstain(reason: ReasonCode, statement: str) -> AgentResult:
-    return AgentResult(
-        outcome=Outcome(status=OutcomeStatus.ABSTAINED, reason_code=reason, statement=statement)
+        evidence=[input_evidence(ctx)],
     )
 
 
