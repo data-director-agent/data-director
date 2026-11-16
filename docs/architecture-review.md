@@ -123,7 +123,7 @@ common, so it is copied.
     (`Pin`, `_sha256`, `fetch`, about 150 lines).
 
   The policy adviser's `live.py` says so itself: "a copy of the standards advisor's client"
-  (TODO #280).
+  (TODO(#280)).
 - **Explainers.** `Rationale`, `Explanation` and `TemplateExplainer` are identical in three agents.
   `ModelExplainer` is the same shape in the repository and standards advisers
   (`explain.py:105-185` and `explain.py:112-190`).
@@ -163,7 +163,7 @@ drifted: `[tool.mypy].mypy_path` was missing seven agents. This change adds them
   be split with it.
 - There is no property-based testing. The code the project owns outright (canonicalisation, the
   policy gate, event replay) is where it would pay most.
-- Codecov's patch target is informational, and the per-package floors are deferred (TODO #243).
+- Codecov's patch target is informational, and the per-package floors are deferred (TODO(#243)).
 - `harness/tests/test_registry.py:144` relies on a 50 ms sleep to make threads overlap, which may
   fail under load.
 - The PostgreSQL conformance tests are skipped silently unless `DD_TEST_POSTGRES` is set. CI sets
