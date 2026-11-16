@@ -300,10 +300,12 @@ def optional_model(
     *,
     default_model: str | None = None,
     default: Literal["template", "model"] = "template",
+    tool_use: bool = False,
 ) -> Model | None:
     """For an agent that a model only helps: the model if `env[setting]` is `model`, None if it is
     `template`. Unset, it is `default`: `template` for most agents, `model` for one whose model is
-    on unless an operator turns it off. `anthropic` is the older name for `model` with
+    on unless an operator turns it off. `tool_use` is passed to `configured_model`, for an agent
+    whose model runs a tool loop. `anthropic` is the older name for `model` with
     `DD_MODEL_PROVIDER` left as `anthropic`, so settings written before other providers keep
     working.
 
@@ -317,7 +319,7 @@ def optional_model(
     if choice not in ("model", "anthropic"):
         raise ConfigError(f"{setting}={choice!r}: expected template or model")
     try:
-        return configured_model(env, default_model=default_model)
+        return configured_model(env, default_model=default_model, tool_use=tool_use)
     except ConfigError as error:
         if (env.get(setting) or "").strip():
             raise
