@@ -238,7 +238,8 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     or by answering again. The researcher may skip a question, dismiss the intake, or type instead.
     None of these holds up the conversation (invariant 16). When the intake ends, the app says which
     phase the project starts at, by its researcher-facing name, and which step `suggested_next`
-    proposes. A researcher who dismisses the intake or types instead may still say where they are
+    proposes, and offers to start the conversation with that step: the researcher's press sends
+    their opening turn naming it ([App](app.md), rule 25). A researcher who dismisses the intake or types instead may still say where they are
     in their own words; the model then records the entry point it worked out (invariant 18).
 
     The intake asks only what the researcher has not answered, but it does not ask from scratch

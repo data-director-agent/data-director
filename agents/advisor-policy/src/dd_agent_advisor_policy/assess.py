@@ -1,8 +1,10 @@
 """What a policy record says about each obligation, and where matched policies differ.
 
-Every obligation is read from a curated field of the record, or from its relations, by a fixed
-rule; none is written by a model. Where the record is silent the strength is `unstated`, and the
-value the curators recorded, such as "no", is kept beside it. A strength of `unstated` is not
+Here every obligation is read from a curated field of a FAIRsharing record, or from its relations,
+by a fixed rule (derivation `registry`). A model may add obligations later, each with a quote the
+agent has found in the record (`advise.py`), but never removes or weakens one read here. Where
+the record is silent the strength is `unstated`, and the value the curators recorded, such as
+"no", is kept beside it. A strength of `unstated` is not
 evidence that the policy asks nothing.
 
 FAIRsharing's policy records have no field for embargoes or for when data must be shared, and
@@ -20,10 +22,16 @@ from dd_agent_advisor_policy.classes import (
     Obligation,
     ObligationKind,
     PolicyContext,
+    PolicyScope,
     RepositoryRef,
     Strength,
 )
 from dd_agent_advisor_policy.records import PolicyRecord
+from dd_agent_advisor_policy.retrieve import SourceRecord
+from dd_sdk.contract.models import Derivation
+
+DATA = PolicyScope.DATA
+RULE = Derivation.REGISTRY
 
 # A curated value, as FAIRsharing records it, and the strength it states.
 STRENGTHS = {
@@ -51,7 +59,7 @@ def _from_field(record: PolicyRecord, kind: ObligationKind) -> Obligation:
     clause, key = FIELDS[kind]
     value = record.clause(clause).values.get(key)
     strength = STRENGTHS.get((value or "").casefold(), Strength.UNSTATED)
-    return Obligation(kind=kind, strength=strength, recorded_as=value)
+    return Obligation(kind=kind, strength=strength, recorded_as=value, scope=DATA, derivation=RULE)
 
 
 def _from_relations(record: PolicyRecord, kind: ObligationKind) -> Obligation:
@@ -63,8 +71,8 @@ def _from_relations(record: PolicyRecord, kind: ObligationKind) -> Obligation:
     }
     for strength in (Strength.REQUIRED, Strength.RECOMMENDED):
         if strength in found:
-            return Obligation(kind=kind, strength=strength)
-    return Obligation(kind=kind, strength=Strength.UNSTATED)
+            return Obligation(kind=kind, strength=strength, scope=DATA, derivation=RULE)
+    return Obligation(kind=kind, strength=Strength.UNSTATED, scope=DATA, derivation=RULE)
 
 
 def obligations(record: PolicyRecord) -> list[Obligation]:
@@ -76,7 +84,9 @@ def obligations(record: PolicyRecord) -> list[Obligation]:
         elif kind in RELATED:
             out.append(_from_relations(record, kind))
         else:
-            out.append(Obligation(kind=kind, strength=Strength.UNSTATED))
+            out.append(
+                Obligation(kind=kind, strength=Strength.UNSTATED, scope=DATA, derivation=RULE)
+            )
     return out
 
 
@@ -130,41 +140,50 @@ def notes(record: PolicyRecord, context: PolicyContext) -> list[str]:
 class Stated:
     """One policy's obligations, for comparing across policies."""
 
-    record: PolicyRecord
+    record: SourceRecord
     obligations: Sequence[Obligation]
 
 
-def _label(record: PolicyRecord) -> str:
-    return f"{record.name} ({record.fairsharing_id})"
+def _phrase(kind: ObligationKind, scope: PolicyScope) -> str:
+    what = kind.value.replace("_", " ")
+    return f"{what} (of the publication)" if scope == PolicyScope.PUBLICATION else what
 
 
-def _phrase(kind: ObligationKind) -> str:
-    return kind.value.replace("_", " ")
-
-
-def conflicts(stated: Sequence[Stated]) -> list[tuple[ObligationKind, list[PolicyRecord], str]]:
-    """Kinds of obligation that two or more policies state with different strengths.
+def conflicts(stated: Sequence[Stated]) -> list[tuple[ObligationKind, list[SourceRecord], str]]:
+    """Kinds of obligation that two or more policies state with different strengths, compared
+    within one scope (the data, or the publication).
 
     Each is returned with every policy that states it and a description. The agent does not say
     which policy governs; the researcher and their data steward decide.
     """
-    out: list[tuple[ObligationKind, list[PolicyRecord], str]] = []
-    for kind in ObligationKind:
-        by_strength: dict[Strength, list[PolicyRecord]] = {}
-        for s in stated:
-            for o in s.obligations:
-                if o.kind == kind and o.strength != Strength.UNSTATED:
-                    by_strength.setdefault(o.strength, []).append(s.record)
-        if len(by_strength) < 2:
-            continue
-        parts = [
-            f"{strength.value} by {', '.join(_label(r) for r in records)}"
-            for strength, records in sorted(by_strength.items())
-        ]
-        involved = [r for records in by_strength.values() for r in records]
-        description = (
-            f"The policies state {_phrase(kind)} differently: {'; '.join(parts)}. "
-            "The agent does not decide which applies; a person should."
-        )
-        out.append((kind, involved, description))
+    out: list[tuple[ObligationKind, list[SourceRecord], str]] = []
+    for scope in PolicyScope:
+        for kind in ObligationKind:
+            by_strength: dict[Strength, list[SourceRecord]] = {}
+            for s in stated:
+                strengths = {
+                    o.strength
+                    for o in s.obligations
+                    if o.kind == kind
+                    and (o.scope or DATA) == scope
+                    and o.strength != Strength.UNSTATED
+                }
+                for strength in strengths:
+                    held = by_strength.setdefault(strength, [])
+                    if s.record not in held:
+                        held.append(s.record)
+            if len(by_strength) < 2:
+                continue
+            parts = [
+                f"{strength.value} by {', '.join(r.label for r in records)}"
+                for strength, records in sorted(by_strength.items())
+            ]
+            involved = list(
+                {r.source_id: r for records in by_strength.values() for r in records}.values()
+            )
+            description = (
+                f"The policies state {_phrase(kind, scope)} differently: {'; '.join(parts)}. "
+                "The agent does not decide which applies; a person should."
+            )
+            out.append((kind, involved, description))
     return out

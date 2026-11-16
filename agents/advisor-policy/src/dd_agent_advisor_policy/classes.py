@@ -36,6 +36,16 @@ class ReadingStatus(StrEnum):
     UNREADABLE = "unreadable"
 
 
+class PolicyRegistry(StrEnum):
+    FAIRSHARING = "fairsharing"
+    OPEN_POLICY_FINDER = "open_policy_finder"
+
+
+class PolicyScope(StrEnum):
+    DATA = "data"
+    PUBLICATION = "publication"
+
+
 class Strength(StrEnum):
     REQUIRED = "required"
     RECOMMENDED = "recommended"
@@ -63,6 +73,10 @@ class Obligation(Frozen):
     kind: ObligationKind
     strength: Strength
     recorded_as: str | None = None
+    scope: PolicyScope | None = None
+    value: str | None = None
+    quote: str | None = None
+    derivation: Derivation | None = None
 
 
 class MatchedPolicy(Grounded):
@@ -71,6 +85,8 @@ class MatchedPolicy(Grounded):
 
     actor: str
     role: ActorRole
+    registry: PolicyRegistry
+    match_derivation: Derivation
     obligations: list[Obligation] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
     rationale: str
@@ -116,17 +132,17 @@ class PolicyReading(Grounded):
 
 
 class ResolvedJournal(Grounded):
-    """A journal identified in Crossref. Grounded on each of its Crossref records, which name its
-    publisher."""
+    """A journal identified in Crossref or Open Policy Finder, with its publisher. Names its
+    record only in `grounded_on`."""
 
     actor: str
+    publisher: str | None = None
     issn: str | None = Field(default=None, pattern=r"^\d{4}-?\d{3}[\dXx]$")
 
 
 class AmbiguousActor(Grounded):
-    """A funder whose name could mean more than one organisation in ROR, or a journal title that
-    Crossref gives to journals of different publishers. Grounded on each candidate, likeliest
-    first."""
+    """A funder or journal whose name could mean more than one. Grounded on each candidate,
+    likeliest first."""
 
     actor: str
     role: ActorRole

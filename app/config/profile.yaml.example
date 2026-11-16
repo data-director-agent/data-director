@@ -38,13 +38,6 @@ hosted_models:
 model_accounts:
   own: off
 
-# Options an agent's card offers, set per agent (docs/specs/policy-and-identity.md, invariant 22).
-# Without this key every agent uses its card's defaults; `workbench agents` lists them. For example,
-# advisor.policy identifies journals in Crossref's public API unless its `journals` is "off".
-# agent_settings:
-#   advisor.policy:
-#     journals: "off"
-
 actions_requiring_approval:
   - deposit
   - metadata_write

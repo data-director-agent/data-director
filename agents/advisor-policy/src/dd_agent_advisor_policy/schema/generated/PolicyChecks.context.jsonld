@@ -57,6 +57,9 @@
       "dcat": "http://www.w3.org/ns/dcat#",
       "dcterms": "http://purl.org/dc/terms/",
       "dd": "https://w3id.org/data-director/",
+      "derivation": {
+         "@id": "https://w3id.org/data-director/agents/policy/derivation"
+      },
       "description": {
          "@id": "https://w3id.org/data-director/agents/policy/description"
       },
@@ -86,6 +89,9 @@
          "@id": "https://w3id.org/data-director/agents/policy/mandated_repositories",
          "@type": "@id"
       },
+      "match_derivation": {
+         "@id": "https://w3id.org/data-director/agents/policy/match_derivation"
+      },
       "name": {
          "@id": "http://schema.org/name"
       },
@@ -108,6 +114,9 @@
       },
       "policy": "https://w3id.org/data-director/agents/policy/",
       "prov": "http://www.w3.org/ns/prov#",
+      "publisher": {
+         "@id": "https://w3id.org/data-director/agents/policy/publisher"
+      },
       "queries": {
          "@id": "https://w3id.org/data-director/agents/policy/queries"
       },
@@ -133,12 +142,18 @@
       "recorded_as": {
          "@id": "https://w3id.org/data-director/agents/policy/recorded_as"
       },
+      "registry": {
+         "@id": "https://w3id.org/data-director/agents/policy/registry"
+      },
       "role": {
          "@id": "https://w3id.org/data-director/agents/policy/role"
       },
       "schema": "http://schema.org/",
       "schema_class": {
          "@id": "https://w3id.org/data-director/schema_class"
+      },
+      "scope": {
+         "@id": "https://w3id.org/data-director/agents/policy/scope"
       },
       "searched": {
          "@id": "https://w3id.org/data-director/agents/policy/searched",

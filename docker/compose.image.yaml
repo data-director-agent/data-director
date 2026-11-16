@@ -56,6 +56,9 @@ services:
     command: dd-advisor-policy serve --host 0.0.0.0 --port 8108 --public-url http://advisor-policy:8108
     environment:
       PORT: "8108"
+      # As for the documentation advisor below: its model is on by default and this stack gives it
+      # no key, so it runs with `template` unless the shell exports DD_POLICY_ADVISOR=model.
+      DD_POLICY_ADVISOR: ${DD_POLICY_ADVISOR:-template}
 
   advisor-repository:
     <<: *agent

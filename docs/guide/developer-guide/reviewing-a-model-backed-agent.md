@@ -86,10 +86,17 @@ Invariant 14 in [Agents](../../specs/agents.md#invariants).
 - [ ] Until then, nothing claims the advisor is validated: not its `README.md`, its description or
       its test markers.
 
-### 8. Tools come later
+### 8. Tools after the first retrieval
 
-- [ ] The advisor does not add MCP servers, Agent Skills or other tool use. Whether and how a
-      persona uses them is still undecided: TODO(#694).
+- [ ] Tools follow [Tools: MCP servers and Agent Skills](../../specs/agents.md#tools-mcp-servers-and-agent-skills):
+      the shell retrieves before the model is called; tools are read-only and limited per run;
+      each record a tool returns is retrieved by the agent, with its `retrieval` span, before it
+      may be cited; tool results reach the model as untrusted data in the user turn.
+- [ ] A model's claim about a record stands only on something code checks, such as a quote found
+      in that record, and its tests include a fabricated quote and an instruction planted in a
+      record.
+- [ ] Until the harness's tool gateway exists (TODO(#875)), a tool reaches its registry from the
+      agent, as `advisor.policy`'s do (`advise.py`).
 
 ## Per advisor
 
@@ -106,6 +113,10 @@ next and how. Check a pull request for one of them against its row as well.
   it never fills or overwrites the value.
 - **FAIRness (`advisor.fairness`).** The model writes the recommendations only. Assessments and
   scores stay in code.
+- **Policy (`advisor.policy`).** The model may add policies it found with its tools and
+  obligations it read, each with a quote the agent finds in the cited record; it never removes a
+  policy the rules matched or weakens an obligation read by rule, and it never names an actor
+  whose name was ambiguous.
 
 These stay deterministic, so a pull request that puts a model behind any of them needs the
 specification changed first: `advisor.quality`, `advisor.linking`, `advisor.files`,

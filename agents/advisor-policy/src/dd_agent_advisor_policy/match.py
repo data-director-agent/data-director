@@ -7,10 +7,6 @@ actor's role and its name or abbreviation contains one of those names as whole w
 names come first, since a publisher's general policy has a shorter name than its journals'
 ("PLOS - Data Availability" before "PLOS - PLOS ONE - Data Availability"), and at most
 `PER_ACTOR` are kept.
-
-A journal identified in Crossref is also searched by its publisher's names (`resolve.publishers`).
-A record found that way is kept only when FAIRsharing types it as a journal publisher's policy:
-the publisher's own policy applies to the journal, its other journals' policies do not.
 """
 
 from __future__ import annotations
@@ -33,7 +29,6 @@ TYPES = {
 PER_ACTOR = 3
 # Search results read per actor before the rule is applied.
 SEARCH_LIMIT = 10
-PUBLISHER = "journal_publisher"
 
 
 def queries(actor: Actor, names: Sequence[str]) -> list[Query]:
@@ -54,27 +49,17 @@ def fits(record: PolicyRecord, actor: Actor, names: Sequence[str]) -> bool:
     return record.policy_type in TYPES[actor.role] and names_actor(record, names)
 
 
-def match(
-    actor: Actor,
-    source: Policies,
-    names: Sequence[str] | None = None,
-    publishers: Sequence[str] = (),
-) -> list[PolicyRecord]:
+def match(actor: Actor, source: Policies, names: Sequence[str] | None = None) -> list[PolicyRecord]:
     """The policy records for one actor, searched by each of `names` (the name given, by
-    default) and, for a journal, by each of its `publishers` for the publisher's own policy.
-    Raises RegistryUnavailable from `source`."""
+    default). Raises RegistryUnavailable from `source`."""
     if actor.fairsharing_id:
         record = source.fetch(actor.fairsharing_id)
         return [record] if record is not None else []
     names = list(names) if names else [actor.name]
     found: dict[str, PolicyRecord] = {}
-    for q in queries(actor, [*names, *publishers]):
+    for q in queries(actor, names):
         for record in source.search(q):
-            if fits(record, actor, names) or (
-                actor.role == ActorRole.JOURNAL
-                and record.policy_type == PUBLISHER
-                and names_actor(record, publishers)
-            ):
+            if fits(record, actor, names):
                 found.setdefault(record.fairsharing_id, record)
     kept = sorted(found.values(), key=lambda r: (len(r.name), r.fairsharing_id))
     return kept[:PER_ACTOR]

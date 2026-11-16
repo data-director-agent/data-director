@@ -56,14 +56,14 @@ modules are not dependencies here.
 | `psycopg[binary]` | Harness (`postgres` extra) | `dd_harness.postgres`: the PostgreSQL backend of the run and project storage, in plain SQL ([Storage](storage.md)) | Another PostgreSQL driver behind the same module; the file backends for a single host. |
 | `psycopg-pool` | Harness (`postgres` extra) | `dd_harness.postgres`: a pool of connections per store, sized by `DD_POSTGRES_POOL_SIZE` ([Storage](storage.md)) | A connection per call, as before the pool; another pool behind the same module. |
 | `watchfiles` | SDK | uvicorn's `--reload`, for development only | uvicorn's polling reloader, which it uses when `watchfiles` is absent. |
-| `httpx` | SDK, harness, app, agents | `dd_sdk.delegate`, `dd_harness.remote`, `dd_harness.identity`, the app's sign-in and feedback modules, each agent's `live` module, the repository advisor's `registry` (the re3data export), the policy advisor's `ror` (the ROR dump and API), `journals` (Crossref's journal API) and `policy_text` (policy pages) | `urllib.request`. |
+| `httpx` | SDK, harness, app, agents | `dd_sdk.delegate`, `dd_harness.remote`, `dd_harness.identity`, the app's sign-in and feedback modules, each agent's `live` module, the repository advisor's `registry` (the re3data export), the policy advisor's `ror` (the ROR dump and API), `opf` (Jisc Open Policy Finder), `crossref` (Crossref's journals) and `policy_text` (policy pages) | `urllib.request`. |
 | `rocrate` | Harness | `dd_harness.provenance`; the deposit package in `dd_harness.deposit` | Write `ro-crate-metadata.json` directly. |
 | `pyshacl` (with `rdflib`) | Harness | `dd_harness.shacl`, which runs the shapes `dd_harness.deposit` generates from a repository's requirements and the shapes an agent's payload class carries on its card | Checks written in Python that emit the same `sh:` vocabulary. |
 | `pyyaml` | Harness, agents | Profile, registry, source and requirement loaders; agents' packaged data | `ruamel.yaml`, or the same documents as JSON. |
 | `python-dotenv` | Harness | `dd_harness.settings` | `uv run --env-file`, or variables exported in the shell. |
 | `joserfc` | Harness, app | ID-token verification in `dd_harness.identity`; the RS256 JWT a GitHub App presents in `dd_app.github_auth` | Another JOSE library, or RS256 with `cryptography`. |
 | `ag-ui-protocol` | Harness | `dd_harness.transport.agui` | The seven pydantic event models the AG-UI binding sends, and an SSE encoder. |
-| `pypdf` | Policy advisor | `pdf_text`: the text of a policy published as PDF | No PDF is read: the policy is reported unreadable, and its FAIRsharing record's obligations stand. |
+| `pypdf` | Policy advisor | `pdf_text`: the text of a policy published as PDF | No PDF is read: the policy is reported unreadable, and its registry record's obligations stand. |
 | `rank-bm25` (with numpy) | Retrieving agents | Each agent's `snapshot` module | About forty lines of BM25. |
 | `anthropic` | SDK (optional `anthropic` extra), which each model-backed adviser's `model` extra and the orchestrator install | `dd_sdk.model_anthropic`, the Claude adapter behind `dd_sdk.model` | The rule-based orchestrator stub, an adviser's template explainer or the editor's template writer; another adapter behind `dd_sdk.model`; any HTTP client against the Messages API. |
 | `openai` | SDK (optional `openai` extra), which each model-backed adviser's `model` extra and the orchestrator install | `dd_sdk.model_openai`, the adapter behind `dd_sdk.model` for any OpenAI-compatible Chat Completions endpoint: OpenAI, Gemini, a local server or a gateway | Another adapter behind `dd_sdk.model`; an `httpx` call to `{base}/chat/completions`, which is one request and one response. |
@@ -123,6 +123,13 @@ Which licences are acceptable is not yet decided or enforced: TODO(#82).
   falls back to the registry built from the pinned dump, which is the default. Evidence from the
   live route is cited as `ror:live:<date>`, which no deployment pins, so the source check reports
   it unresolved, as it does FAIRsharing's live route.
+  Jisc Open Policy Finder and Crossref's journals API are read live only, by the policy advisor
+  (#302, #905). Open Policy Finder states no licence for its records that would let a copy be
+  committed, nor a rate limit, so there is no pinned copy to fall back to: when its route fails,
+  or no key is given, the run says so and FAIRsharing still answers. Crossref is asked only for
+  the publisher a journal belongs to. Their evidence is cited as `open-policy-finder:live:<date>`
+  and `crossref-journals:live:<date>`, which the source check reports unresolved. TODO(#952):
+  revisit a pinned copy once Jisc's terms for the data are known.
 - **`any-llm`, LiteLLM's SDK or `pydantic-ai` as the model layer.** Each puts its own abstraction
   over many providers where `dd_sdk.model` already is one, and `any-llm` installs each provider's
   SDK beneath it anyway. The OpenAI-compatible Chat Completions format is the shared, open

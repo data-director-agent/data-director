@@ -14,8 +14,7 @@ The sign-in and search are a copy of the standards advisor's client, since an ag
 import another (docs/specs/system.md). TODO(#280)
 
 Any transport failure raises `RegistryUnavailable`; the agent then falls back to the snapshot
-and marks it stale. This module, `ror.py`, `journals.py` and `policy_text.py` import `httpx`
-(docs/specs/dependencies.md).
+and marks it stale. This module is the only importer of `httpx` (docs/specs/dependencies.md).
 """
 
 from __future__ import annotations

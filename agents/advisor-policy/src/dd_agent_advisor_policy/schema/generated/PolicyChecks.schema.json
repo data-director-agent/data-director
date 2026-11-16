@@ -13,7 +13,7 @@
       },
       "AmbiguousActor": {
          "additionalProperties": false,
-         "description": "A funder whose name could mean more than one organisation in ROR, or a journal title that Crossref gives to journals of different publishers. Grounded on each candidate, likeliest first; the agent does not choose. Its policy was not looked up: the researcher says which they mean, by giving a funder's ROR identifier or a journal's ISSN.",
+         "description": "A funder whose name could mean more than one organisation in ROR, or a journal title that could mean more than one journal. Grounded on each candidate, likeliest first; the agent does not choose. Its policy was not looked up: the researcher says which they mean, by giving its ROR identifier or ISSN.",
          "properties": {
             "actor": {
                "description": "The name of the actor, as given in the input.",
@@ -70,7 +70,7 @@
       },
       "MatchedPolicy": {
          "additionalProperties": false,
-         "description": "One policy record matched to an actor. It is named only in grounded_on; the record's name, clauses and relations are in the cited evidence item's content (docs/specs/grounding.md).",
+         "description": "One policy record matched to an actor, from FAIRsharing or Open Policy Finder. It is named only in grounded_on; the record's name, clauses and policies are in the cited evidence item's content (docs/specs/grounding.md). A record a model found with its tools, rather than the first search, has match_derivation model.",
          "properties": {
             "actor": {
                "description": "The name of the actor, as given in the input.",
@@ -78,6 +78,14 @@
             },
             "role": {
                "$ref": "#/$defs/ActorRole"
+            },
+            "registry": {
+               "$ref": "#/$defs/PolicyRegistry",
+               "description": "The registry the policy record came from."
+            },
+            "match_derivation": {
+               "$ref": "#/$defs/Derivation",
+               "description": "How the record was matched to the actor: registry, by the agent's fixed rule over the first search, or model, by a model with its search tools."
             },
             "obligations": {
                "items": {
@@ -115,6 +123,8 @@
          "required": [
             "actor",
             "role",
+            "registry",
+            "match_derivation",
             "rationale",
             "rationale_derivation",
             "grounded_on"
@@ -124,7 +134,7 @@
       },
       "Obligation": {
          "additionalProperties": false,
-         "description": "What a policy record says about one kind of obligation, read from a curated field by a fixed rule.",
+         "description": "What a policy record says about one kind of obligation. Read from a curated field by a fixed rule (derivation registry), or stated by a model with a quote from the record that the agent found in it, word for word, before keeping it (derivation model).",
          "properties": {
             "kind": {
                "$ref": "#/$defs/ObligationKind"
@@ -138,6 +148,42 @@
                   "string",
                   "null"
                ]
+            },
+            "scope": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/PolicyScope"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "What the obligation is about: the data, or the publication (an open access policy's embargo or licence applies to the article, not the data)."
+            },
+            "value": {
+               "description": "What the policy asks, in brief, e.g. \"within two years of the end of the grant\" or \"CC BY 4.0\".",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "quote": {
+               "description": "The words of the record that state the obligation, found in it word for word by the agent.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "derivation": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/Derivation"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "How the obligation was read, registry (a fixed rule) or model."
             }
          },
          "required": [
@@ -189,7 +235,7 @@
       },
       "PolicyReading": {
          "additionalProperties": false,
-         "description": "What a model read in one policy's own text, fetched from the address its FAIRsharing record names or the researcher gave. Grounded on the text, and on the policy record it was reached from, if any. Each obligation kept quotes the text word for word, and the code has found the quote in it; what was dropped, and why, is in dropped. A person confirms each against the policy.",
+         "description": "What a model read in one policy's own text, fetched from the address its policy record names or the researcher gave. Grounded on the text, and on the policy record it was reached from, if any. Each obligation kept quotes the text word for word, and the code has found the quote in it; what was dropped, and why, is in dropped. A person confirms each against the policy.",
          "properties": {
             "actor": {
                "description": "The name of the actor, as given in the input.",
@@ -243,6 +289,24 @@
          ],
          "title": "PolicyReading",
          "type": "object"
+      },
+      "PolicyRegistry": {
+         "description": "",
+         "enum": [
+            "fairsharing",
+            "open_policy_finder"
+         ],
+         "title": "PolicyRegistry",
+         "type": "string"
+      },
+      "PolicyScope": {
+         "description": "",
+         "enum": [
+            "data",
+            "publication"
+         ],
+         "title": "PolicyScope",
+         "type": "string"
       },
       "ReadingStatus": {
          "description": "",
@@ -308,14 +372,21 @@
       },
       "ResolvedJournal": {
          "additionalProperties": false,
-         "description": "A journal identified in Crossref, grounded on each of its Crossref records. The publisher Crossref records is in the cited evidence items' content (docs/specs/grounding.md); its policy was searched for as well as the journal's own.",
+         "description": "A journal identified in Crossref or Open Policy Finder, and the publisher whose policy it follows. Grounded on the journal's record.",
          "properties": {
             "actor": {
                "description": "The name of the actor, as given in the input.",
                "type": "string"
             },
+            "publisher": {
+               "description": "The publisher's name, as the journal's record gives it.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
             "issn": {
-               "description": "A journal's ISSN, print or electronic, e.g. 0022-1694. Given for a journal, it is how the journal and its publisher are identified in Crossref.",
+               "description": "A journal's ISSN, e.g. 0048-9697.",
                "pattern": "^\\d{4}-?\\d{3}[\\dXx]$",
                "type": [
                   "string",
@@ -378,11 +449,11 @@
                "$ref": "#/$defs/Strength"
             },
             "value": {
-               "description": "What the policy asks, in a few words, such as a repository, a period or a licence.",
+               "description": "What the policy asks, in brief, e.g. \"within two years of the end of the grant\" or \"CC BY 4.0\".",
                "type": "string"
             },
             "quote": {
-               "description": "The passage of the policy's text that says so, word for word.",
+               "description": "The words of the record that state the obligation, found in it word for word by the agent.",
                "type": "string"
             }
          },
@@ -477,7 +548,7 @@
          ]
       },
       "journals": {
-         "description": "The journals identified in Crossref, each grounded on its Crossref records, so that its publisher's policy could be searched for too.",
+         "description": "The journals identified, each with its publisher and grounded on its record, so that the publisher's policy can be looked up.",
          "items": {
             "$ref": "#/$defs/ResolvedJournal"
          },
@@ -487,7 +558,7 @@
          ]
       },
       "ambiguous": {
-         "description": "Funders whose name could mean more than one organisation in ROR, and journal titles that Crossref gives to journals of different publishers. The researcher should say which; their policies were not looked up.",
+         "description": "Funders or journals whose name could mean more than one. The researcher should say which; their policies were not looked up.",
          "items": {
             "$ref": "#/$defs/AmbiguousActor"
          },

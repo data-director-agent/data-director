@@ -49,7 +49,7 @@ MODEL_KEY = "anthropic-api-key"
 # The agents a model only helps, by the setting that turns their model on.
 MODEL_SWITCHES = {
     "advisor-standards": "DD_STANDARDS_EXPLAINER",
-    "advisor-policy": "DD_POLICY_EXPLAINER",
+    "advisor-policy": "DD_POLICY_ADVISOR",
     "advisor-repository": "DD_REPOSITORY_EXPLAINER",
     "advisor-documentation": "DD_DOCUMENTATION_WRITER",
 }

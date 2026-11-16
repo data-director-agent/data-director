@@ -528,6 +528,22 @@ def test_the_documentation_editor_with_no_key_is_refused_until_it_has_one_or_is_
     assert apply(FakeVm(), Place.vm(vm), vm) == 0
 
 
+def test_the_policy_advisor_with_no_key_is_refused_until_it_has_one_or_is_turned_off(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    listed = vm.current / "app" / "config" / "agents.yaml"
+    listed.write_text(AGENTS + "  - name: advisor-policy\n    url: http://127.0.0.1:8108/\n")
+    assert apply(FakeVm(), Place.vm(vm), vm) == 1
+    out = capsys.readouterr().out
+    assert says(out, "refused", "secret set advisor-policy anthropic-api-key")
+    assert says(out, "refused", "DD_POLICY_ADVISOR=template")
+
+    settings = vm.agent_env("advisor-policy")
+    settings.parent.mkdir(parents=True, exist_ok=True)
+    settings.write_text("DD_POLICY_ADVISOR=template\n")
+    assert apply(FakeVm(), Place.vm(vm), vm) == 0
+
+
 def test_the_documentation_editor_on_by_default_with_no_key_is_a_problem(
     vm: Vm, capsys: pytest.CaptureFixture[str]
 ) -> None:

@@ -286,6 +286,12 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   function closeIntake() {
     setIntakeOf((was) => (was ? { ...was, open: false, again: false } : was));
   }
+  // The finished intake hands over to the conversation: the researcher's press sends their
+  // opening turn, naming the suggested step, by the ordinary path.
+  function startFromIntake(message: string) {
+    closeIntake();
+    void deliver(message, null, null);
+  }
 
   const tracked: TrackedProgress | null =
     projectId && progressOf?.projectId === projectId
@@ -693,6 +699,11 @@ export function ConversationHome({ directory }: { directory: Directory }) {
               onAnswer={(questionId, values) => answerIntake(projectId, questionId, values)}
               onDismiss={() => dismissIntake(projectId)}
               onClose={closeIntake}
+              onStart={
+                orchestrator && !busy && sent === null && !conversation?.turns.length
+                  ? startFromIntake
+                  : undefined
+              }
               onAnnounce={setAnnouncement}
             />
           )}

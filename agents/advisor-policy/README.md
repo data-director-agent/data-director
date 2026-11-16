@@ -2,60 +2,58 @@
 
 **Alpha** (`0.1.0-alpha`): exploratory, and likely to change shape.
 
-The policy advisor checks what the data policies of a project's funders, journals and institution
-ask of its data. It serves two steps of the Blueprint's process flow (§8.2):
+The policy advisor checks what the data and open access policies of a project's funders, journals
+and institution ask of it. It serves two steps of the Blueprint's process flow (§8.2):
 
 | Step | What the agent does |
 |---|---|
-| `governance.policies` (Phase 2, Figure 2) | Matches each funder, journal and institution to its FAIRsharing policy records, and reports what each asks and where they differ. |
+| `governance.policies` (Phase 2, Figure 2) | Matches each funder, journal and institution to its policy records in FAIRsharing and Jisc Open Policy Finder, and reports what each asks, quoted from the record, and where they differ. |
 | `repository.mandated` (Phase 3, Figure 3) | Reports the repositories a matched policy requires, in the form `advisor.repository` takes as `RepositoryNeeds.mandated`. |
 
 The guidance note to Figure 2 suggests FAIRsharing's policy records as the source. They are
-curated summaries, not the policies themselves, and say nothing of most of what a researcher
-needs: which repository, by when, for how long the data may be withheld, under which licence. So
-the agent also reads each policy's own text, and a model reports what it states, quoting the
-passage each obligation comes from; the agent keeps only quotes it finds in the text. Every
-result still needs a person to confirm it against the policy. The agent flags where policies
+curated summaries, and many funders and publishers have none (#750, #905), so the agent also
+reads [Jisc Open Policy Finder](https://openpolicyfinder.jisc.ac.uk), which replaced Sherpa
+Romeo and Juliet, and asks Crossref which publisher a journal belongs to. By default a model then
+reads the records found, searches for more, and states what each policy asks, each obligation
+with a quote that the agent checks is in the record. Records are still summaries of the policies,
+so every result needs a person to check it against the policy text. The agent flags where policies
 differ and never decides which applies.
 
 ## Input and output
 
 `PolicyContext` names the actors, each a `funder`, `journal` or `institution` with a name and,
 when known, the FAIRsharing identifier of its policy. A funder may also carry its ROR identifier
-(`ror_id`), which is how the researcher answers when its name is ambiguous. A journal may carry
-its ISSN (`issn`), which identifies it and its publisher exactly. Any actor may carry the address
-of its policy's page or PDF (`policy_url`), which is read as well as the address any matched
-record names. It may also give the
-disciplines, the kinds of data and the publication date.
+(`ror_id`), and a journal its ISSN (`issn`), which is how the researcher answers when a name is
+ambiguous. It may also give the disciplines, the kinds of data and the publication date.
 
 `PolicyChecks` holds:
 
-- `policies`: one entry per policy record matched to an actor. The record is named only in
-  `grounded_on`; its name, clauses and relations are the evidence `content` ([Evidence and grounding](../../docs/specs/grounding.md)). Each
-  entry has one obligation per kind (`deposit`, `data_availability_statement`, `repository`,
-  `standard`, `embargo`, `licence`, `timing`), each `required`, `recommended` or `unstated`,
-  with the value the curators recorded in `recorded_as`. It also has notes and a rationale.
+- `policies`: one entry per policy record matched to an actor, with the `registry` it came from
+  (`fairsharing` or `open_policy_finder`) and `match_derivation`: `registry` when the first
+  search's rule matched it, `model` when a model found it with its tools. The record is named only
+  in `grounded_on`; its name, clauses and policies are the evidence `content`
+  ([Evidence and grounding](../../docs/specs/grounding.md)). Each obligation (`deposit`,
+  `data_availability_statement`, `repository`, `standard`, `embargo`, `licence`, `timing`) is
+  `required`, `recommended` or `unstated`, with its `scope` (`data`, or `publication` for an
+  article's open access terms) and its `derivation`. One read by rule from a FAIRsharing record
+  keeps the curators' value in `recorded_as`; one a model read has `value` and `quote`, the
+  record's own words. Each entry also has notes and a rationale.
 - `conflicts`: each kind of obligation that matched policies state with different strengths,
-  grounded on every policy involved.
+  within one scope, grounded on every policy involved.
 - `mandated_repositories`: the repositories a matched policy requires.
 - `no_record`: the actors with no policy record.
 - `funders`: each funder identified in ROR, grounded on its ROR record (the identifier is stated
   there only), with the Crossref Funder ID ROR prefers, so that both can be passed on.
-- `readings`: one per policy text fetched, grounded on that text (cited by its address, with the
-  whole text read as the evidence `content`) and on the record it was reached from, if any. Each
-  has a `status` (`read`, `not_read` or `unreadable`), the obligations it `stated`, each with its
-  kind, strength, value and the `quote` it comes from, what was `dropped` and why, and a `reason`
-  where it was not read or was read in part.
-- `journals`: each journal identified in Crossref, with its ISSN, grounded on its Crossref
-  records, which name its publisher.
+- `journals`: each journal identified, with its publisher and ISSN, grounded on its Open Policy
+  Finder or Crossref record.
 - `ambiguous`: each funder whose name could mean more than one organisation in ROR, and each
-  journal title Crossref gives to journals of different publishers, grounded on every candidate,
-  likeliest first. Its policy was not looked up, and the statement asks the researcher which they
-  mean, by ROR identifier or ISSN.
+  journal title that could mean more than one journal, grounded on every candidate, likeliest
+  first. Its policy was not looked up, and the statement asks the researcher which they mean.
 
 ## How it decides
 
-Retrieval comes first, and no model matches a policy or states an obligation:
+Retrieval comes first, by fixed rules. A model, when there is one, comes after, and its word is
+never taken alone:
 
 - **Identifying funders** (`resolve.py`, `ror.py`). Each funder is looked up in ROR, by its ROR
   identifier when given, otherwise by an exact match, ignoring case and spacing, against every
@@ -65,23 +63,25 @@ Retrieval comes first, and no model matches a policy or states an obligation:
   organisations with a Crossref Funder ID shown first. A name such as "UKRI-NERC" that ROR does
   not hold is read through ROR's own parent relationships. No alias table is kept. When ROR
   cannot be read, funders are searched by the name given and the statement says so.
-- **Identifying journals** (`journals.py`, `resolve.py`). Most journals follow their publisher's
-  data policy and have no FAIRsharing record of their own. Each journal is looked up in
-  Crossref's public journal API, by its ISSN when given, otherwise by an exact match of its title,
-  ignoring case and spacing. Records that all name one publisher identify it, and FAIRsharing is
-  searched by the journal's title and by the publisher's name, as Crossref gives it, without
-  its legal form ("Elsevier BV" as "Elsevier") and without a bracketed imprint ("Wiley (Blackwell
-  Publishing)" as "Wiley"). A record found by the publisher's name is kept only
-  if FAIRsharing types it as a journal publisher's policy, so another of the publisher's journals'
-  policies is not matched. Records naming different publishers are not guessed: the researcher is
-  asked for the ISSN. When Crossref cannot be read, the journal is searched by the name given and
-  the statement says so. No table of journals or publishers is kept.
+- **Identifying journals** (`discover.py`, `opf.py`, `crossref.py`). A journal is read from Open
+  Policy Finder by its ISSN when given, otherwise searched by its title, and kept only when the
+  title is the same once case, punctuation, "&" and a leading "The" are set aside. Two journals
+  with that title are not guessed between: the researcher is asked for the ISSN. Open Policy
+  Finder links the journal to its publishers; when it has no record of the journal, Crossref's
+  journals API names the publisher. The publisher's name, with any legal form such as "BV" set
+  aside, is then searched in FAIRsharing too, so a journal with no policy of its own reaches its
+  publisher's (#905). No table of publishers is kept.
+- **Open Policy Finder** (`discover.py`). Each funder is searched by every name ROR gives it, and a
+  record kept when one of its names or acronyms contains one of those names as whole words. A
+  journal's own record is kept, or its publisher's when Open Policy Finder has none for the
+  journal. Without a key it is not searched, and the statement says so; when it cannot be asked,
+  the statement says so and FAIRsharing still answers.
 - **Matching** (`match.py`). An actor given with a FAIRsharing identifier is fetched by it.
   Otherwise each of its names is searched, and a record is kept only when FAIRsharing types it for the
   actor's role (a journal matches a journal or journal publisher policy) and its name or
   abbreviation contains one of those names as whole words. At most three records are kept per
   actor, shortest name first, so a publisher's own policy comes before its journals'.
-- **Obligations** (`assess.py`). Read from curated fields by fixed rules: `deposit` from
+- **Obligations by rule** (`assess.py`). Read from FAIRsharing's curated fields by fixed rules: `deposit` from
   `sharing_data.mandated_data_sharing`, `data_availability_statement` and `licence` from their
   `required` values, and `repository` and `standard` from the record's `requires` and
   `recommends` relations. `required` and `yes` give `required`; `suggested` and `recommended`
@@ -91,38 +91,33 @@ Retrieval comes first, and no model matches a policy or states an obligation:
 - **Notes**. The agent notes a policy whose subjects do not include the discipline, a policy
   dated after the publication, a policy that allows exceptions to sharing, and a required data
   management plan.
+- **The model advisor** (`advise.py`, `verify.py`; the default). A model is given the context and
+  every record the first search retrieved, numbered `R1`, `R2`… and marked as untrusted data
+  (`system_prompt.md`). It may search Open Policy Finder, Crossref and FAIRsharing with read-only
+  tools, at most `DD_POLICY_MAX_LOOKUPS` times a run; each record a tool returns is retrieved by
+  the agent and numbered in turn. It ends by calling `submit_findings` with, for each record that
+  applies to an actor, a rationale and the obligations the record states, each with a quote. The
+  agent then keeps:
+  - an obligation only if its quote, at least three words long, is in the record it names, once
+    case, spacing, quotation marks and dashes are set aside;
+  - a record a tool found only if it is a policy of the actor's kind (a funder's for a funder, a
+    journal's or publisher's for a journal), for an actor the researcher named whose name was not
+    ambiguous, at most three per actor, marked `match_derivation: model` with a note to check it;
+  - every policy the first search matched and every obligation read by rule. A model's claim
+    fills an obligation the record left `unstated`, or adds one about the publication; where it
+    disagrees with a curated value, the curated value is kept and the difference is noted.
+
+  What is dropped, and why, is in the statement. If the model declines, cannot be reached, or
+  submits no findings, the template is used and the statement says so. The model is sent
+  registry text and the context, never research data.
+- **Template** (`explain.py`, `DD_POLICY_ADVISOR=template`). The rationale is written from a
+  template, and obligations are only those read by rule.
 - **Conflicts**. When matched policies state the same kind of obligation with different
   strengths, such as a funder requiring deposit where the institution only recommends it, the
-  difference is listed for a person to resolve.
-- **Reading the policy's own text** (`policy_text.py`, `pdf_text.py`, `extract.py`). Each matched
-  record's `homepage`, and each `policy_url` given, is fetched once: an HTML page is turned into
-  text without its scripts, styles, navigation, header and footer; a PDF is read with `pypdf`;
-  anything else is unreadable. A short landing page that links to PDFs on its own site, as many
-  funders' publication pages do, has up to two of them read with it, each named in the evidence. Every page is fetched before any model is called. A model is then
-  given the text, as quoted data in the user turn, and returns, for each kind of obligation the
-  text states, its strength, what it asks and the passage that says so, against a schema. The
-  code keeps an obligation only if its quote is in the text, word for word once typography and
-  white space are made plain, and at least twenty characters long; it drops the rest and says
-  why. This adds to the record's obligations and never changes them: where the two differ, both
-  are shown and the statement says so. Without a model, nothing is fetched.
-- **Explanation.** The template is the default. With `DD_POLICY_EXPLAINER=model`, a model
-  writes the rationale only, from `system_prompt.md`. It is sent registry text and the context,
-  never research data.
+  difference is listed for a person to resolve. Data and publication obligations are compared
+  separately.
 
 ## Configuration
-
-The deployment's institutional profile sets the agent's options (`agent_settings`,
-[Policy and identity](../../docs/specs/policy-and-identity.md)):
-
-- `journals`: `crossref` (the default) identifies journals in Crossref's public API, which needs
-  no account; `off` matches journals by the name given only.
-- `policy_text`: `read` (the default) fetches each policy's own page and has the agent's model
-  read it; `off` reads FAIRsharing's records only. Reading needs a model: the one the agent's
-  settings configure (`DD_MODEL_PROVIDER`, `DD_MODEL_ID` and the provider's key, as for the
-  explainer), whether or not the explainer uses it. With none, the text is not read and the
-  statement says so.
-
-Its environment variables:
 
 - `DD_POLICY_RETRIEVAL`: `snapshot` (the default) or `live`. Live search needs a FAIRsharing
   account: `FAIRSHARING_LOGIN`, and `FAIRSHARING_PASSWORD` or `FAIRSHARING_PASSWORD_FILE`.
@@ -131,8 +126,18 @@ Its environment variables:
 - `DD_POLICY_ROR`: `snapshot` (the default) reads the ROR registry built from its pinned dump;
   `live` asks `api.ror.org`, which needs no account, and falls back to that registry, marked
   stale, when the route fails.
-- `DD_POLICY_EXPLAINER`: `template` (the default) or `model`, with the provider, model and
-  key as for the standards advisor ([AI models](../../docs/guide/operations/ai-models.md)) ([Policy and identity](../../docs/specs/policy-and-identity.md)).
+- `DD_POLICY_ADVISOR`: `model` (the default) or `template`. `model` needs the provider, model
+  and key as for the standards advisor ([AI models](../../docs/guide/operations/ai-models.md),
+  [Policy and identity](../../docs/specs/policy-and-identity.md)); with it unset and no key, the
+  agent stops at start-up and says to set `template`, and `uv run scripts/dd.py start` runs it
+  with `template`. `DD_POLICY_EXPLAINER` is its older name and still works.
+- `DD_POLICY_MAX_LOOKUPS`: the most searches the model may make in one run, from 0 to 30 (6 by
+  default).
+- `OPEN_POLICY_FINDER_API_KEY` or `OPEN_POLICY_FINDER_API_KEY_FILE`: a free key from
+  [Open Policy Finder](https://openpolicyfinder.jisc.ac.uk/help/developers/how-to-request-a-new-api-key).
+  On a VM: `sudo data-director secret set advisor-policy open-policy-finder-api-key`.
+- `DD_POLICY_CROSSREF`: `live` (the default) asks Crossref which publisher a journal belongs to;
+  `off` does not.
 
 ## Sources
 
@@ -144,6 +149,13 @@ FAIRsharing's database records. It is pinned in `workbench/sources.yaml` and
 `uv run python agents/advisor-policy/scripts/build_policy_snapshot.py` with the FAIRsharing login set, then pin
 the new file.
 
+Open Policy Finder (`api.openpolicyfinder.jisc.ac.uk`, key in the `x-api-key` header) and
+Crossref's journals API are read live only, labelled `open-policy-finder:live:<date>` and
+`crossref-journals:live:<date>`. Jisc states no licence for the records that would let a copy be
+committed, nor a rate limit (#952). To check the route with a key, run
+`uv run python -m dd_agent_advisor_policy.opf check`; `--record <folder>` writes what came back,
+for the test fixtures.
+
 `data/ror/` pins one ROR data dump (CC0; see `data/ror/SOURCE.md`). The registry built from it
 is not committed: `uv run dd-sources prepare` builds it, as it builds the re3data registry, and
 its label is `ror:dump:<version>`. `uv run dd-ror fetch --update-pin` pins the newest dump.
@@ -151,33 +163,60 @@ its label is `ror:dump:<version>`. `uv run dd-ror fetch --update-pin` pins the n
 ## Limits
 
 - FAIRsharing's policy records are coarse, and many institutions have none. They have no field
-  for embargoes or for when data must be shared, so those obligations are always `unstated` in
-  the record's obligations; the policy's own text may state them, in `readings`. TODO(#302)
+  for embargoes or for when data must be shared; a model can read these from a record's text
+  only where the record states them. The policies' own pages are not read. TODO(#904)
+- Open Policy Finder's client was written from Jisc's documentation and the Sherpa v2 API's shape,
+  without a key: the `funder` item type, the filter fields and the answer's shape are still to be
+  confirmed, and the test fixtures are hand-written. TODO(#302)
+- Open Policy Finder mostly states open access policy for articles, not data policy. Its
+  obligations are marked `scope: publication` unless the text is about data.
+- A quote shows that the record says it; it does not show that the model read it rightly. Each
+  model-read obligation is marked as such, and a person should check it against the quote.
+- The model's tools reach the registries from this agent, not through the harness's tool
+  gateway. TODO(#875)
 - The FAIRsharing API returns no relations from a policy to the databases and standards it
   names, even for policies that list repositories on the website. So the repository and standard
   obligations are `unstated`, and `mandated_repositories` is empty, until a route provides them.
   An empty list is not evidence that no repository is mandated, and the statement says so,
-  naming the actors with no record as unchecked. A repository the policy's text requires is in
-  `readings` and the statement, read by a model; it is not yet passed to `advisor.repository`
-  as mandated. TODO(#302, #331, #753)
-- A policy's text is read only where a matched record names its page or the researcher gives
-  one: an actor with no record and no `policy_url` is not read. The page is read as it is when
-  fetched, which may not be the version that applied at the publication date, and only its first
-  60,000 characters (or 60 pages of a PDF) are read. A page that loads its text with scripts is
-  read as empty. Pages are read live and not pinned, so the source check reports them as
-  unresolved. Whether a model's reading of a quote is right is for the person confirming it and
-  for evaluation; the code checks only that the quote is in the text.
-- An actor is matched by name, and only to a record whose name contains one of its names. A
-  funder is searched by every name ROR gives it, and a journal by its Crossref title and its
-  publisher's name, but an institution only by the name given. A publisher whose FAIRsharing name
-  differs from Crossref's by more than its legal form ("Springer Science and Business Media" and
-  "Springer Nature") is not found.
-- Crossref is read live; there is no pinned copy, so the source check reports its evidence as
-  unresolved, as it does every live route. Its search reads the first page of results only, so a
-  common title may need its ISSN. ROR's live search likewise reads the first page of results
-  only, so a common name may need the dump or the identifier.
+  naming the actors with no record as unchecked. TODO(#302, #331)
+- An actor is matched by rule by name, and only to a record whose name contains one of its
+  names. A funder is searched by every name ROR gives it, a journal also by its publisher's, and
+  an institution only by the name given. ROR's live search reads the first page of results only, so a common name may need the
+  dump or the identifier.
 - A funder's affiliation country does not yet rank its ROR candidates.
 - Differences are found between strengths only. Two policies that require different
   repositories are not yet compared. TODO(#331)
 - The FAIRsharing client is a copy of the standards advisor's, since an agent may not import
   another ([System and boundaries](../../docs/specs/system.md)). TODO(#280)
+
+## Reading the policy's own text
+
+The registries' records are curated summaries and say little of which repository, by when, for
+how long data may be withheld or under which licence. So each policy's own text is read as well
+(`policy_text.py`, `pdf_text.py`, `extract.py`):
+
+- Each matched FAIRsharing record's `homepage`, and each `policy_url` an actor carries, is fetched
+  once. HTML becomes text without scripts, styles, navigation, header and footer; a PDF is read
+  with `pypdf`; anything else is unreadable. A short landing page that links to PDFs on its own
+  site has up to two of them read with it. Every page is fetched before any model is called.
+- A model is given the text, as quoted data in the user turn, and returns each obligation it
+  finds, with its kind, strength, value and the passage that says so.
+- The code keeps an obligation only if its quote is in the text, word for word once typography and
+  white space are made plain, and at least twenty characters long. It drops the rest and says why
+  in `dropped`.
+- The result is `readings` in the payload, one per page, grounded on the text (cited by its
+  address, with the whole text as the evidence `content`) and on the record it was reached from.
+  Readings sit beside a record's obligations and never change them; where the two differ, both are
+  shown and the statement says so.
+- The `policy_text` setting is `read` by default; the institutional profile may set it to `off`
+  (`agent_settings`, docs/specs/policy-and-identity.md). Reading needs a model: the advisor's, or
+  the one the agent's settings configure. With none, nothing is fetched and the statement says so.
+
+Limits: a page is read only where a matched FAIRsharing record names it or the researcher gives a
+`policy_url`; Open Policy Finder records name an organisation's home page, not its policy, so
+they are not fetched. A page is read as it is when fetched, which may not be the version that
+applied at the publication date, and only its first 60,000 characters (or 60 PDF pages) are read.
+Pages are read live and not pinned, so the source check reports them as unresolved. Repositories
+the text requires are in `readings` and the statement; they are not yet passed to
+`advisor.repository` as mandated (#753). No run with a real model has measured how accurate the
+readings are.
