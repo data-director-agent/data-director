@@ -404,6 +404,13 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   serve the stream yet, so a turn answers when it has ended, its stages are read back, not
   watched, and it cannot be cancelled, TODO(#945). The run view drawn from the stream, with
   Cancel and the activity log, is TODO(#949).
+- **The shell reads a run's stream through `@ag-ui/client`**, one way for a live run and a recorded
+  one: an `HttpAgent` posts the turn to its stream route, and a `CassetteAgent` replays a cassette
+  from `app/web/cassettes`, all at once or paced (`run/transport.ts`, `run/cassette.ts`). Tests and
+  fixtures provide their own through a React context, as they do for the API. The shell reads the
+  raw events and the run reducer checks them, keeping an unrecognised or malformed event as such:
+  `runAgent`'s own checks would fail a cancelled run, whose stopped stage the harness leaves open,
+  TODO(#1007).
 - **Outcomes, evidence and the checks' reports** are rendered as the [Contract](contract.md) and
   [Evidence and grounding](grounding.md) define them. A drafted document in a run's result is
   shown as a document: rendered when its media type is `text/markdown`, tables included, and

@@ -3,7 +3,7 @@ and 14).
 
 Each agent's own tests check its own "Mock." prefix, or its absence. This module checks the rest of
 the two rules for the whole roster at once, from the cards themselves: that every in-tree agent is
-placed in one state, that a mock and a model-backed alpha each have what their rule asks, that an
+placed in one state by the roster table in the spec, that a mock and a model-backed alpha each have what their rule asks, that an
 alpha's `template` path declares no model, and that the tests of a mock or an alpha substantiate
 no Blueprint requirement. Whether an outcome statement states a `Document` payload's limitations
 is prose, and is not checked here.
@@ -12,7 +12,9 @@ is prose, and is not checked here.
 from __future__ import annotations
 
 import ast
+import functools
 import importlib
+import re
 from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
@@ -28,43 +30,32 @@ from dd_sdk.credentials import ConfigError
 ROOT = Path(__file__).resolve().parents[2]
 AGENTS = ROOT / "agents"
 REGISTER = ROOT / "docs" / "requirements.yaml"
+SPEC = ROOT / "docs" / "specs" / "agents.md"
 
 MOCK, ALPHA, PERSONA, BY_DESIGN = "mock", "alpha", "persona", "by design"
 
-# Every in-tree agent's state, as the roster table in docs/specs/agents.md gives it. A new agent
-# is added here, so that its state is a decision and not an accident.
-ROSTER: Mapping[str, str] = {
-    "advisor.fairness": MOCK,
-    "advisor.files": MOCK,
-    "advisor.linking": MOCK,
-    "advisor.metadata": MOCK,
-    "advisor.dmp": ALPHA,
-    "advisor.documentation": ALPHA,
-    "advisor.ethics": ALPHA,
-    "advisor.policy": ALPHA,
-    "advisor.rights": ALPHA,
-    "advisor.quality": PERSONA,
-    "advisor.repository": PERSONA,
-    "advisor.standards": PERSONA,
-    "example.hello": BY_DESIGN,
-    "orchestrator.model": BY_DESIGN,
-    "orchestrator.stub": BY_DESIGN,
+# The first words of each row of the roster table in docs/specs/agents.md, and the state it gives.
+STATES: Mapping[str, str] = {
+    "Mock": MOCK,
+    "Model-backed alpha": ALPHA,
+    "Persona": PERSONA,
+    "Deterministic by design": BY_DESIGN,
 }
+ROW = re.compile(rf"^\| ({'|'.join(STATES)})\b[^|]*\|([^|]*)\|$", re.MULTILINE)
 
-# Each model-backed alpha's factory, the setting that chooses its `template` path, and that
-# setting's default. Only the Documentation Editor's and the Policy Adviser's models are on by
-# default (Model-backed personas).
-ALPHA_SWITCHES: Mapping[str, tuple[str, str, str]] = {
-    "advisor.dmp": ("dd_agent_advisor_dmp.factory", "DD_DMP_MATCHER", "template"),
-    "advisor.documentation": (
-        "dd_agent_advisor_documentation.factory",
-        "DD_DOCUMENTATION_WRITER",
-        "model",
-    ),
-    "advisor.ethics": ("dd_agent_advisor_ethics.factory", "DD_ETHICS_READER", "template"),
-    "advisor.policy": ("dd_agent_advisor_policy.factory", "DD_POLICY_ADVISOR", "model"),
-    "advisor.rights": ("dd_agent_advisor_rights.factory", "DD_RIGHTS_INTERPRETER", "template"),
-}
+
+def _roster(spec: str) -> dict[str, str]:
+    """Every in-tree agent's state, as the roster table in the spec gives it. The table is the one
+    place a state is written down, so that a new agent's state is a decision and not an accident."""
+    roster: dict[str, str] = {}
+    for label, cell in ROW.findall(spec):
+        for agent_id in re.findall(r"`([\w.]+)`", cell):
+            assert agent_id not in roster, f"{agent_id}: in more than one row of the roster table"
+            roster[agent_id] = STATES[label]
+    return roster
+
+
+ROSTER: Mapping[str, str] = _roster(SPEC.read_text(encoding="utf-8"))
 
 # Blueprint requirements a mock's or an alpha's tests still name, by agent. The list only shrinks:
 # an entry that no longer occurs fails too.
@@ -113,20 +104,26 @@ def _in(state: str) -> list[str]:
     return sorted(agent_id for agent_id, s in ROSTER.items() if s == state)
 
 
-def _states_limitations(spec: AgentSpec) -> bool:
+def _assert_states_limitations(spec: AgentSpec) -> None:
     """The payload has a `limitations` slot, or is the core `Document`, whose outcome statement
-    says them instead."""
+    says them instead; unless the agent is a known gap."""
     assert spec.payload is not None, f"{spec.agent_id}: an advisor with no payload"
-    return spec.payload.name == "Document" or "limitations" in spec.payload.json_schema.get(
+    states = spec.payload.name == "Document" or "limitations" in spec.payload.json_schema.get(
         "properties", {}
     )
+    assert states == (spec.agent_id not in NO_LIMITATIONS)
+
+
+@functools.cache
+def _blueprint() -> frozenset[str]:
+    """The ids of the register's Blueprint requirements."""
+    register = yaml.safe_load(REGISTER.read_text(encoding="utf-8"))
+    return frozenset(e["id"] for e in register["requirements"] if e.get("source") == "blueprint")
 
 
 def _blueprint_marks(package: Path) -> set[str]:
     """The Blueprint requirement ids that `pytest.mark.requirement(...)` names in the package's
     tests, whether on a test or as `pytestmark`."""
-    register = yaml.safe_load(REGISTER.read_text(encoding="utf-8"))
-    blueprint = {e["id"] for e in register["requirements"] if e.get("source") == "blueprint"}
     named: set[str] = set()
     for path in (package / "tests").rglob("*.py"):
         for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
@@ -142,7 +139,11 @@ def _blueprint_marks(package: Path) -> set[str]:
                     for a in node.args
                     if isinstance(a, ast.Constant) and isinstance(a.value, str)
                 }
-    return named & blueprint
+    return named & _blueprint()
+
+
+def test_the_roster_table_gives_every_state() -> None:
+    assert set(ROSTER.values()) == set(STATES.values())
 
 
 @pytest.mark.requirement("DD-REGISTRY")
@@ -162,7 +163,7 @@ def test_only_a_mock_says_it_is_a_mock(agent_id: str) -> None:
 def test_a_mock_is_ungrounded_and_states_its_limitations(agent_id: str) -> None:
     _, spec = SPECS[agent_id]
     assert spec.grounding_mode is GroundingMode.NONE
-    assert _states_limitations(spec) == (agent_id not in NO_LIMITATIONS)
+    _assert_states_limitations(spec)
     assert spec.models == ()
 
 
@@ -174,16 +175,16 @@ def test_a_model_backed_alpha_is_pre_release_grounded_and_states_its_limitations
     _, spec = SPECS[agent_id]
     assert Version(spec.version).is_prerelease, spec.version
     assert spec.grounding_mode in (GroundingMode.INPUT_ONLY, GroundingMode.RETRIEVAL)
-    assert _states_limitations(spec) == (agent_id not in NO_LIMITATIONS)
-
-
-def test_every_alpha_names_the_switch_to_its_template_path() -> None:
-    assert set(ALPHA_SWITCHES) == set(_in(ALPHA))
+    _assert_states_limitations(spec)
 
 
 def _factory(agent_id: str) -> tuple[Callable[[Mapping[str, str]], Any], str, str]:
-    module, switch, default = ALPHA_SWITCHES[agent_id]
-    return importlib.import_module(module).build, switch, default
+    """The alpha's `build`, the setting that chooses its `template` path, and that setting's
+    default, as the package's `factory` module declares them. Only the Documentation Editor's and
+    the Policy Adviser's models are on by default (Model-backed personas)."""
+    package, _ = SPECS[agent_id]
+    factory = importlib.import_module(f"{_module(package)}.factory")
+    return factory.build, factory.SWITCH, factory.DEFAULT
 
 
 @pytest.mark.requirement("DD-REGISTRY")
