@@ -44,3 +44,7 @@ before collection (Figure 4) and the two decisions about a related article (Figu
 3. **The Data Management Plan question marks nothing.** Whether to keep the question, now that
    its answer only enters the project log, is left to the Blueprint reader (TODO(#670)).
 4. **"Yes" to a mandated repository skips `repository.recommend`.** No answer marks a step done.
+5. **A model's suggested answer skips nothing.** An orchestrator's model may suggest an answer it
+   read in the researcher's words, which the card shows chosen, but only the researcher's answer
+   marks the steps in the table above, so the reading of each skip is unchanged
+   ([Orchestration](orchestration.md), invariant 20; TODO(#908)).
