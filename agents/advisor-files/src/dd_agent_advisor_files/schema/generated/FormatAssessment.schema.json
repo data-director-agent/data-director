@@ -1,6 +1,20 @@
 {
    "$comment": "Generated from files.yaml by `uv run dd-gen-schema <path to files.yaml>`. Do not edit.",
    "$defs": {
+      "CheckKind": {
+         "description": "",
+         "enum": [
+            "free_text",
+            "coordinates",
+            "third_party",
+            "governance",
+            "system_file",
+            "empty",
+            "duplicate"
+         ],
+         "title": "CheckKind",
+         "type": "string"
+      },
       "FileAssessment": {
          "additionalProperties": false,
          "description": "One file of the inventory and the format it is judged to be.",
@@ -41,6 +55,48 @@
             "judged_by"
          ],
          "title": "FileAssessment",
+         "type": "object"
+      },
+      "FileCheck": {
+         "additionalProperties": false,
+         "description": "A file a person should look at before deposit, and why, judged from names, size and digest in the inventory alone (hints.yaml). A prompt for a person, never a finding about the file's contents, which are never read.",
+         "properties": {
+            "path": {
+               "description": "The file's path in the inventory (file_path).",
+               "type": "string"
+            },
+            "kind": {
+               "$ref": "#/$defs/CheckKind",
+               "description": "What the name, size or digest suggests."
+            },
+            "matched": {
+               "description": "The word of a folder, file or field name, or the file name, that called for the check; absent for an empty file or a duplicate.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "question": {
+               "description": "What a person should check, from hints.yaml.",
+               "type": "string"
+            },
+            "related_paths": {
+               "description": "For a duplicate, the paths of the other files with the same digest.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "path",
+            "kind",
+            "question"
+         ],
+         "title": "FileCheck",
          "type": "object"
       },
       "GroundingRef": {
@@ -88,6 +144,16 @@
       "assessments": {
          "items": {
             "$ref": "#/$defs/FileAssessment"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "checks": {
+         "description": "The files a person should look at, in the inventory's order and, for each file, in the order of hints.yaml. Empty when no name, size or digest called for one, which says nothing about what the files hold.",
+         "items": {
+            "$ref": "#/$defs/FileCheck"
          },
          "type": [
             "array",
