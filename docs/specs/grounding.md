@@ -18,6 +18,12 @@ Neither check judges whether a model's rationale is faithful to its input or to 
 retrieved. That is a question for [evaluation](evaluation.md). Neither verifies a derivation
 badge: that is the agent's declaration of how a value was made ([Agents](agents.md)).
 
+An agent that lets a model state what a retrieved record says checks it in its own code before
+the value reaches the payload: `advisor.policy` keeps a model's obligation only with a quote it
+finds, word for word, in the record it cites, and records `derivation: model` beside it. That
+check shows the record contains the words; it does not show the model read them rightly, which
+is again a question for evaluation.
+
 This spec covers grounding modes, evidence and its canonicalisations, the linter and the source
 check. The rule-by-rule description, with examples, is
 [`harness/docs/grounding.md`](../../harness/docs/grounding.md). The envelope and the `Grounded`

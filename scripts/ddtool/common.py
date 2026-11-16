@@ -38,7 +38,10 @@ MODEL_BACKED = {"orchestrator-model"}
 # Agents whose model is on unless their own setting says `template`, by that setting
 # (agents/advisor-documentation/README.md). Left unset with no key, `start` runs them with
 # `template`; a deployment on a VM is refused until they have a key or are set to `template`.
-MODEL_BY_DEFAULT = {"advisor-documentation": "DD_DOCUMENTATION_WRITER"}
+MODEL_BY_DEFAULT = {
+    "advisor-documentation": "DD_DOCUMENTATION_WRITER",
+    "advisor-policy": "DD_POLICY_ADVISOR",
+}
 NODE_MAJOR = 22  # the oldest Node the shell's toolchain supports (README, "Quick start")
 APP_PORT = 7860  # dd_app's default (DD_APP_PORT)
 WEB_PORT = 5173  # Vite's default
