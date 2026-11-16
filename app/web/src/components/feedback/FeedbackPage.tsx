@@ -106,6 +106,7 @@ export function FeedbackPage({ query }: { query: string }) {
             <a href={send.issue.url} target="_blank" rel="noreferrer">
               <GitHubIcon className="brand-icon" />{" "}
               issue #{send.issue.number} on GitHub
+              <span className="visually-hidden"> (opens in a new tab)</span>
             </a>
             , where you can follow it.
           </p>
@@ -133,6 +134,7 @@ export function FeedbackPage({ query }: { query: string }) {
             <a href={`${ISSUES}new/choose`} target="_blank" rel="noreferrer">
               <GitHubIcon className="brand-icon" />{" "}
               open an issue on GitHub
+              <span className="visually-hidden"> (opens in a new tab)</span>
             </a>{" "}
             and mention the version above.
           </p>

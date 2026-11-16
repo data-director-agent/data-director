@@ -156,6 +156,17 @@ dl.facts dd {
   background: var(--color-surface);
 }
 
+/* A column of numbers lines up on the right, with figures of one width, so values compare at a glance. */
+.data-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The scrolling region takes focus (ui/TableScroll); the ring sits inside its border. */
+.table-scroll:focus-visible {
+  outline-offset: calc(-1 * var(--focus-width));
+}
+
 .plain-list {
   list-style: none;
   margin: 0;

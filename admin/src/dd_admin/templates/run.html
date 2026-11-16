@@ -35,8 +35,9 @@
   <pre class="json">{{ envelope | pretty }}</pre>
 </section>
 {% if request_doc %}
-<section class="panel">
-  <details><summary><h2 class="inline">Request</h2></summary>
+<section class="panel" aria-labelledby="request-heading">
+  <h2 id="request-heading">Request</h2>
+  <details><summary>Show the request</summary>
   <pre class="json">{{ request_doc | pretty }}</pre>
   </details>
 </section>

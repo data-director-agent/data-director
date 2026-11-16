@@ -9,7 +9,7 @@
     align-items: center;
     justify-content: center;
     padding: var(--space-4);
-    background: color-mix(in srgb, var(--color-text) 40%, transparent);
+    background: var(--color-scrim);
   }
 
   .dialog-modal {

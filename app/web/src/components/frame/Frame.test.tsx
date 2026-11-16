@@ -75,11 +75,11 @@ describe("Frame", () => {
         <p>Content</p>
       </Frame>,
     );
-    expect(screen.getByRole("link", { name: "User guide" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^User guide/ })).toHaveAttribute(
       "href",
       "https://data-director-agent.github.io/data-director/user-guide/",
     );
-    expect(screen.getByRole("link", { name: "User guide" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^User guide/ })).toHaveAttribute(
       "target",
       "_blank",
     );
@@ -103,7 +103,8 @@ describe("Frame", () => {
     ]) {
       const control = within(banner).getByRole(
         name === "Dark mode" ? "button" : "link",
-        { name },
+        // An external link's name goes on to say it opens in a new tab.
+        { name: new RegExp(`^${name}`) },
       );
       const icon = control.querySelector("svg");
       expect(icon).not.toBeNull();
@@ -133,10 +134,10 @@ describe("Frame", () => {
     );
     const footer = screen.getByRole("contentinfo");
     expect(
-      within(footer).getByRole("link", { name: "The University of Sheffield" }),
+      within(footer).getByRole("link", { name: /^The University of Sheffield/ }),
     ).toHaveAttribute("href", "https://www.sheffield.ac.uk/");
     expect(
-      within(footer).getByRole("link", { name: "Research Data Alliance" }),
+      within(footer).getByRole("link", { name: /^Research Data Alliance/ }),
     ).toHaveAttribute("href", "https://www.rd-alliance.org/");
     expect(
       within(footer).getByRole("link", {
@@ -189,7 +190,7 @@ describe("Frame", () => {
     );
     const footer = screen.getByRole("contentinfo");
     expect(
-      await within(footer).findByRole("link", { name: "Privacy notice" }),
+      await within(footer).findByRole("link", { name: /^Privacy notice/ }),
     ).toHaveAttribute("href", "https://example.ac.uk/data-director/privacy");
     expect(await axe(container)).toHaveNoViolations();
   });
