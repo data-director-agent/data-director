@@ -522,7 +522,9 @@ store, and writes to neither ([Disclosure](disclosure.md)).
 
 - **Privacy.** File and field names, a project's title, uploaded documentation and a person's
   edits may identify people. Limiting what goes to a hosted model limits what leaves; it does not show that nothing
-  personal did. Detecting personal data is TODO(#39, #40), and the tool never anonymises (C2).
+  personal did. Detecting personal data where the inventory is made, and disclosure control for
+  any summary value it carries, are [Personal data and disclosure control](personal-data.md);
+  personal data in conversation text is TODO(#40). The tool never anonymises (C2).
   No email address is asked for or held for a member. Researcher facts are public, but
   personal: they go to a hosted model only where the profile lists `researcher` (invariant 8),
   and withdrawing them stops them being given but does not erase them from the log, TODO(#156). Members see each other's words and work,
