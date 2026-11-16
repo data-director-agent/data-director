@@ -131,6 +131,13 @@ shown as verified. Each
 deployment (the workbench, the app) supplies its own list of copies; the harness itself holds
 none by default, so a test conductor reports synthetic sources as unresolved, not failed.
 
+Some sources have no copy to pin: a web page an agent reads is whatever the page says when it is
+fetched. The policy advisor reads each policy's own page or PDF (`policy-text:live:<date>`) and
+cites it by its address, with the whole text it read as the evidence `content` under
+`dd-json-document-v1`, together with the SHA-256 of the bytes fetched. E1 holds for it; the source
+check reports it as unresolved. What a model says the text states is kept only with a quote the
+agent has found in that text, so a reader can check each against the evidence.
+
 A new retrieving agent with a packaged or snapshot source adds one entry to its deployment's
 list of copies. An agent whose records need their own projection registers a canonicalisation
 in `dd_sdk.evidence`; it does not invent a name in its own package. An MCP server used as a
@@ -196,7 +203,8 @@ callback and no change to retrieving agents.
 ## Open questions
 
 - TODO(#246): a source read through the tool gateway is recorded by the conductor (invariant 15,
-  TODO(#875)). The sources agents read themselves today (FAIRsharing, re3data, ROR) still report
+  TODO(#875)). The sources agents read themselves today (FAIRsharing, re3data, ROR, Crossref,
+  policy pages) still report
   their own retrievals, so G1 checks only the agent's own timeline for them until each moves
   behind an MCP server.
 - TODO(#246): a resolver for the standards advisor's `live` route, which needs FAIRsharing

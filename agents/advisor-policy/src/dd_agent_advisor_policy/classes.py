@@ -30,6 +30,12 @@ class ObligationKind(StrEnum):
     TIMING = "timing"
 
 
+class ReadingStatus(StrEnum):
+    READ = "read"
+    NOT_READ = "not_read"
+    UNREADABLE = "unreadable"
+
+
 class Strength(StrEnum):
     REQUIRED = "required"
     RECOMMENDED = "recommended"
@@ -42,6 +48,7 @@ class Actor(Frozen):
     fairsharing_id: str | None = Field(default=None, pattern=r"^FAIRsharing\.\S+$")
     ror_id: str | None = Field(default=None, pattern=r"^(https?://ror\.org/)?0[a-z0-9]{6}[0-9]{2}$")
     issn: str | None = Field(default=None, pattern=r"^\d{4}-?\d{3}[\dXx]$")
+    policy_url: str | None = Field(default=None, pattern=r"^https?://\S+$")
 
 
 class PolicyContext(Frozen):
@@ -89,6 +96,25 @@ class ResolvedFunder(Grounded):
     crossref_funder_id: str | None = None
 
 
+class StatedObligation(Frozen):
+    kind: ObligationKind
+    strength: Strength
+    value: str
+    quote: str
+
+
+class PolicyReading(Grounded):
+    """What a model read in one policy's own text. Grounded on the text, and on the policy
+    record it was reached from, if any."""
+
+    actor: str
+    role: ActorRole
+    status: ReadingStatus
+    stated: list[StatedObligation] = Field(default_factory=list)
+    dropped: list[str] = Field(default_factory=list)
+    reason: str | None = None
+
+
 class ResolvedJournal(Grounded):
     """A journal identified in Crossref. Grounded on each of its Crossref records, which name its
     publisher."""
@@ -118,6 +144,7 @@ class PolicyChecks(Grounded):
     conflicts: list[PolicyConflict] = Field(default_factory=list)
     mandated_repositories: list[RepositoryRef] = Field(default_factory=list)
     no_record: list[str] = Field(default_factory=list)
+    readings: list[PolicyReading] = Field(default_factory=list)
     funders: list[ResolvedFunder] = Field(default_factory=list)
     journals: list[ResolvedJournal] = Field(default_factory=list)
     ambiguous: list[AmbiguousActor] = Field(default_factory=list)

@@ -31,6 +31,9 @@
          "@id": "http://schema.org/name"
       },
       "policy": "https://w3id.org/data-director/agents/policy/",
+      "policy_url": {
+         "@id": "https://w3id.org/data-director/agents/policy/policy_url"
+      },
       "prov": "http://www.w3.org/ns/prov#",
       "publication_date": {
          "@id": "https://w3id.org/data-director/agents/policy/publication_date"

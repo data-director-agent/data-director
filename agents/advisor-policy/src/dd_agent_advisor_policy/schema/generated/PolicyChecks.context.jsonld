@@ -19,6 +19,9 @@
       "PolicyConflict": {
          "@id": "https://w3id.org/data-director/agents/policy/PolicyConflict"
       },
+      "PolicyReading": {
+         "@id": "https://w3id.org/data-director/agents/policy/PolicyReading"
+      },
       "RepositoryRef": {
          "@id": "https://w3id.org/data-director/agents/policy/RepositoryRef"
       },
@@ -30,6 +33,9 @@
       },
       "SearchedSummary": {
          "@id": "https://w3id.org/data-director/agents/policy/SearchedSummary"
+      },
+      "StatedObligation": {
+         "@id": "https://w3id.org/data-director/agents/policy/StatedObligation"
       },
       "actor": {
          "@id": "https://w3id.org/data-director/agents/policy/actor"
@@ -53,6 +59,9 @@
       "dd": "https://w3id.org/data-director/",
       "description": {
          "@id": "https://w3id.org/data-director/agents/policy/description"
+      },
+      "dropped": {
+         "@id": "https://w3id.org/data-director/agents/policy/dropped"
       },
       "funders": {
          "@id": "https://w3id.org/data-director/agents/policy/funders",
@@ -102,6 +111,9 @@
       "queries": {
          "@id": "https://w3id.org/data-director/agents/policy/queries"
       },
+      "quote": {
+         "@id": "https://w3id.org/data-director/agents/policy/quote"
+      },
       "rationale": {
          "@id": "https://w3id.org/data-director/agents/policy/rationale"
       },
@@ -110,6 +122,13 @@
       },
       "re3data_id": {
          "@id": "https://w3id.org/data-director/agents/policy/re3data_id"
+      },
+      "readings": {
+         "@id": "https://w3id.org/data-director/agents/policy/readings",
+         "@type": "@id"
+      },
+      "reason": {
+         "@id": "https://w3id.org/data-director/agents/policy/reason"
       },
       "recorded_as": {
          "@id": "https://w3id.org/data-director/agents/policy/recorded_as"
@@ -133,8 +152,18 @@
          "@id": "https://w3id.org/data-director/source_id"
       },
       "spdx": "http://spdx.org/rdf/terms#",
+      "stated": {
+         "@id": "https://w3id.org/data-director/agents/policy/stated",
+         "@type": "@id"
+      },
+      "status": {
+         "@id": "https://w3id.org/data-director/agents/policy/status"
+      },
       "strength": {
          "@id": "https://w3id.org/data-director/agents/policy/strength"
+      },
+      "value": {
+         "@id": "https://w3id.org/data-director/agents/policy/value"
       },
       "xsd": "http://www.w3.org/2001/XMLSchema#"
    }

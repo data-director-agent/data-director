@@ -14,6 +14,10 @@
 - Journals are identified in Crossref's public API (`journals.py`), which needs no account. Whether
   they are is the agent's `journals` setting, which a deployment's institutional profile sets
   (`agent_settings`, docs/specs/policy-and-identity.md), not an environment variable.
+- Each policy's own text is read with the model the agent's settings configure
+  (`DD_MODEL_PROVIDER`, `DD_MODEL_ID` and the provider's key, as below), whether or not it also
+  explains. With no usable model, the text is not read and the statement says so. Whether it is
+  read at all is the agent's `policy_text` setting, which the profile sets.
 - `DD_POLICY_EXPLAINER`: `template` (default) or `model`, which has a model write the rationale
   (`anthropic`, its older name, still works).
 - With `model`: `DD_MODEL_PROVIDER` (`anthropic` by default), `DD_MODEL_ID` (Claude Sonnet 5.5
@@ -21,8 +25,8 @@
   (`dd_sdk.model_provider`, docs/specs/policy-and-identity.md).
 
 An unknown value, live retrieval with no account, or an unusable model setting is a
-configuration error (`ConfigError`), and `dd-advisor-policy serve` stops at start-up. With
-the model explainer the spec declares the model it sends data to (`AgentSpec.models`).
+configuration error (`ConfigError`), and `dd-advisor-policy serve` stops at start-up. The spec
+declares each model it sends data to (`AgentSpec.models`).
 """
 
 from __future__ import annotations
@@ -38,19 +42,34 @@ from dd_agent_advisor_policy.explain import (
     ModelExplainer,
     TemplateExplainer,
 )
+from dd_agent_advisor_policy.extract import Extractor, ModelExtractor, NoExtractor
 from dd_agent_advisor_policy.journals import CrossrefJournals
 from dd_agent_advisor_policy.live import PolicyLive
+from dd_agent_advisor_policy.policy_text import PolicyPages
 from dd_agent_advisor_policy.ror import RorDump, RorLive
 from dd_agent_advisor_policy.snapshot import PolicySnapshot
 from dd_sdk import serve
 from dd_sdk.credentials import ConfigError, api_key
-from dd_sdk.model import declared
-from dd_sdk.model_provider import optional_model
+from dd_sdk.model import Model, declared
+from dd_sdk.model_provider import configured_model, optional_model
 
 
 def build_explainer(env: Mapping[str, str]) -> Explainer:
     model = optional_model(env, "DD_POLICY_EXPLAINER", default_model=DEFAULT_MODEL)
     return TemplateExplainer() if model is None else ModelExplainer(model)
+
+
+def build_extractor(env: Mapping[str, str], explainer: Explainer) -> Extractor:
+    """The explainer's model, if it has one; otherwise whichever model the settings configure;
+    otherwise none, and the policies' text is not read. A model that cannot be configured here is
+    not an error: reading the text only adds to what the records say."""
+    if isinstance(explainer, ModelExplainer):
+        return ModelExtractor(explainer.model)
+    try:
+        model: Model = configured_model(env, default_model=DEFAULT_MODEL)
+    except ConfigError:
+        return NoExtractor()
+    return ModelExtractor(model)
 
 
 def build(env: Mapping[str, str] | None = None) -> PolicyAgent:
@@ -84,8 +103,16 @@ def build(env: Mapping[str, str] | None = None) -> PolicyAgent:
     else:
         agent.organisations = RorDump()
     agent.journals = CrossrefJournals()
-    if isinstance(explainer, ModelExplainer):
-        agent.spec = replace(agent.spec, models=(declared(explainer.model),))
+    agent.pages = PolicyPages()
+    agent.extractor = build_extractor(env, explainer)
+    models = [
+        m.model
+        for m in (explainer, agent.extractor)
+        if isinstance(m, ModelExplainer | ModelExtractor)
+    ]
+    uses = tuple(dict.fromkeys(declared(m) for m in models))
+    if uses:
+        agent.spec = replace(agent.spec, models=uses)
     return agent
 
 
