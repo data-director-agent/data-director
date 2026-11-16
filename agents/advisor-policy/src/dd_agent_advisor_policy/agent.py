@@ -74,12 +74,7 @@ from dd_agent_advisor_policy.policy_text import (
 )
 from dd_agent_advisor_policy.records import PolicyRecord
 from dd_agent_advisor_policy.resolve import Ambiguous, Resolution, Resolved, Unknown, names, resolve
-from dd_agent_advisor_policy.retrieve import (
-    Policies,
-    RegistryUnavailable,
-    SnapshotRef,
-    SourceRecord,
-)
+from dd_agent_advisor_policy.retrieve import Policies, SourceRecord
 from dd_agent_advisor_policy.ror import Organisation, Organisations
 from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext, Setting, setting
 from dd_sdk.contract.classes import ClassSchema
@@ -95,6 +90,7 @@ from dd_sdk.contract.models import (
 )
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, HASH_ALGORITHM, content_hash
 from dd_sdk.prompts import ModelCallLog
+from dd_sdk.registry import RegistryUnavailable, SnapshotRef
 from dd_sdk.tracing import retrieval_span
 
 # The setting that decides whether each policy's own text is read.

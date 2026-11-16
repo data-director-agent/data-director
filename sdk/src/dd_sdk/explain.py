@@ -20,6 +20,7 @@ from __future__ import annotations
 import re
 from collections.abc import Collection, Sequence
 from dataclasses import dataclass
+from typing import cast
 
 from dd_sdk.agent import RunContext
 from dd_sdk.contract.models import Derivation
@@ -85,18 +86,22 @@ def with_reason(rationales: Sequence[Rationale], why: str) -> list[Rationale]:
     return [Rationale(r.text + f" ({why}; template used.)", r.derivation) for r in rationales]
 
 
-class TemplateExplainer[C, I]:
-    """Writes each item's rationale from the agent's template (`rationale`)."""
+class TemplateExplainer[C, I, E: Explanation = Explanation]:
+    """Writes each item's rationale from the agent's template (`rationale`). An agent whose
+    `Explanation` subclass says more overrides `result` to return it."""
 
     model_id: str | None = None
 
     def rationale(self, item: I) -> str:
         raise NotImplementedError
 
+    def result(self, rationales: list[Rationale], usage: Usage) -> E:
+        return cast(E, Explanation(rationales, usage))
+
     def explain(
         self, context: C, items: list[I], ctx: RunContext, lookups: object | None = None
-    ) -> Explanation:
-        return Explanation(
+    ) -> E:
+        return self.result(
             [Rationale(self.rationale(item), Derivation.TEMPLATE) for item in items], Usage()
         )
 

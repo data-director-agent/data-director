@@ -186,8 +186,6 @@ its label is `ror:dump:<version>`. `uv run dd-ror fetch --update-pin` pins the n
 - A funder's affiliation country does not yet rank its ROR candidates.
 - Differences are found between strengths only. Two policies that require different
   repositories are not yet compared. TODO(#331)
-- The FAIRsharing client is a copy of the standards advisor's, since an agent may not import
-  another ([System and boundaries](../../docs/specs/system.md)). TODO(#280)
 
 ## Reading the policy's own text
 

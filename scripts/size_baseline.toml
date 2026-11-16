@@ -10,15 +10,11 @@ lines = 890
 
 [[file]]
 path = "agents/advisor-policy/src/dd_agent_advisor_policy/advise.py"
-lines = 642
+lines = 624
 
 [[file]]
 path = "agents/advisor-policy/src/dd_agent_advisor_policy/agent.py"
-lines = 959
-
-[[file]]
-path = "agents/advisor-policy/src/dd_agent_advisor_policy/ror.py"
-lines = 643
+lines = 955
 
 [[file]]
 path = "agents/orchestrator-model/src/dd_agent_orchestrator_model/agent.py"
