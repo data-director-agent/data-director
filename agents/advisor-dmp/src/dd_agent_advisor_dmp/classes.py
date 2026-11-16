@@ -10,7 +10,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from dd_sdk.contract.models import Frozen, Grounded
+from dd_sdk.contract.models import Derivation, Frozen, Grounded
 
 
 class SharingCommitment(Frozen):
@@ -33,9 +33,21 @@ class Discrepancy(Frozen):
     committed: str | None = None
     planned: str | None = None
     message: str
+    discrepancy_derivation: Derivation
+    reason: str | None = None
+
+
+class Reconciliation(Frozen):
+    output: str
+    aspect: str
+    committed: str | None = None
+    planned: str | None = None
+    reason: str | None = None
 
 
 class DmpDiscrepancies(Grounded):
     schema_class: Literal["DmpDiscrepancies"] = "DmpDiscrepancies"
     discrepancies: list[Discrepancy] = Field(default_factory=list)
+    reconciled: list[Reconciliation] = Field(default_factory=list)
+    dropped: list[str] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
