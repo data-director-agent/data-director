@@ -87,6 +87,7 @@ function messageOf(error: unknown): string {
   return error instanceof AccountRefused ? reasonText(error.reason) : reasonText("");
 }
 
+// eslint-disable-next-line complexity -- recorded debt: split it, do not add to it (docs/architecture-review.md)
 export function ModelAccount({
   providers: offered = DEFAULT_PROVIDERS,
 }: {

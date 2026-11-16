@@ -237,16 +237,29 @@ line-length = 100
 target-version = "py314"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "N", "UP", "B", "BLE", "SIM", "ANN", "RUF", "PTH", "TID", "C4", "DTZ", "T20"]
+# C90 and the PLR09 rules hold functions to a size and shape a reviewer can follow. The functions
+# that exceed them today carry `# noqa` at their definition: that is recorded debt, so remove the
+# marker when you split one, and never add a new one to get code past these rules
+# (docs/architecture-review.md).
+select = ["E", "F", "W", "I", "N", "UP", "B", "BLE", "SIM", "ANN", "RUF", "PTH", "TID", "C4", "DTZ", "T20", "C90", "PLR0911", "PLR0912", "PLR0913", "PLR0915"]
 ignore = ["ANN401"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15
+
+[tool.ruff.lint.pylint]
+max-branches = 15
+max-statements = 60
+max-args = 8
+max-returns = 8
 
 [tool.ruff.lint.isort]
 known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_example_hello", "dd_agent_advisor_quality", "dd_agent_advisor_standards", "dd_agent_advisor_repository", "dd_agent_advisor_policy", "dd_agent_advisor_ethics", "dd_agent_advisor_files", "dd_agent_advisor_dmp", "dd_agent_advisor_metadata", "dd_agent_advisor_documentation", "dd_agent_advisor_rights", "dd_agent_advisor_linking", "dd_agent_advisor_fairness", "dd_agent_orchestrator_stub", "dd_agent_orchestrator_model", "dd_app", "dd_admin", "dd_broker", "dd_inventory"]
 
 [tool.ruff.lint.per-file-ignores]
-"**/tests/*" = ["ANN"]
-"**/browser_tests/*" = ["ANN"]
-"conftest.py" = ["ANN"]
+"**/tests/*" = ["ANN", "C90", "PLR09"]
+"**/browser_tests/*" = ["ANN", "C90", "PLR09"]
+"conftest.py" = ["ANN", "C90", "PLR09"]
 "**/scripts/*" = ["T20", "E501"]  # report scripts embed Markdown prose
 "workbench/src/workbench/cli.py" = ["T20"]
 # The domain reads better without an Error suffix; these names appear in messages people read.
@@ -316,7 +329,9 @@ explicit_package_bases = true
 mypy_path = [
   "scripts", "sdk/src", "harness/src", "workbench/src", "workbench/scripts", "agents/example-hello/src",
   "agents/advisor-quality/src", "agents/advisor-standards/src", "agents/advisor-repository/src", "agents/advisor-policy/src",
-  "agents/advisor-ethics/src", "agents/orchestrator-stub/src", "agents/orchestrator-model/src", "app/src", "app/tests", "admin/src", "broker/src", "inventory/src",
+  "agents/advisor-ethics/src", "agents/advisor-dmp/src", "agents/advisor-documentation/src", "agents/advisor-fairness/src",
+  "agents/advisor-files/src", "agents/advisor-linking/src", "agents/advisor-metadata/src", "agents/advisor-rights/src",
+  "agents/orchestrator-stub/src", "agents/orchestrator-model/src", "app/src", "app/tests", "admin/src", "broker/src", "inventory/src",
   "harness/tests", "sdk/tests", "broker/tests",
 ]
 strict = true

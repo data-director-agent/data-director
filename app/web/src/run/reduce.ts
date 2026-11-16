@@ -112,6 +112,7 @@ function settle(steps: RunStep[], running: StepState): RunStep[] {
 }
 
 /** The state after one event, as it arrived from the stream. */
+// eslint-disable-next-line complexity -- recorded debt: split it, do not add to it (docs/architecture-review.md)
 export function reduce(state: RunState, raw: unknown): RunState {
   const event = parseEvent(raw);
 

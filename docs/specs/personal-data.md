@@ -39,6 +39,19 @@ to serve #473 and #787 when they are built.
 Today `dd-inventory` does none of this yet: detection lands with #470 and #471, summary values
 with #611, and the quasi-identifier check with #612. This spec is the design they build to.
 
+**Name-level hints, until then (#449).** The File Archivist (`advisor.files`) and the app's
+inventory view mark files whose folder, file or field names, size or digest call for a person to
+look: free text, coordinates, a folder of someone else's material, terms or an agreement, an
+operating-system file, an empty file and a byte-for-byte copy. Both work them out from an
+inventory as it stands, by one rule table kept in two copies
+(`agents/advisor-files/src/dd_agent_advisor_files/hints.yaml` and
+`inventory/browser/src/hints.ts`), so nothing is added to `FileInventory` and the contract does not
+change. A hint is not a finding: it reads no value, it is stored nowhere but in the adviser's
+payload, and it keeps invariants 4 and 10 (a prompt for a person, and no hint is never clearance).
+Third-party material, operating-system files and copies are not personal data; they are listed
+here because the same pause before deposit covers them. Whether the hints become findings of the
+`file name` and `field name` kinds when findings land, or stay beside them, TODO(#471).
+
 ## Threat model
 
 - **Who sees an inventory.** Every member of the project; agents in the project, and any hosted

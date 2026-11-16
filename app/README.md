@@ -58,9 +58,10 @@ It is built from:
   - `GET /api/agents`: each agent's manifest beside what the profile assigns it;
   - `POST /api/runs` (`{agent_id, input}`): runs the agent through the conductor and answers when
     it has ended, with the envelope and the checks' reports. A request refused before it runs is
-    a 400 with Problem Details;
+    a 400 with Problem Details. It is for scripting and tests: the shell starts runs only through
+    conversation turns;
   - `GET /api/runs` and `GET /api/runs/{id}`: the run store, newest first;
-  - `GET /api/examples`: the example inputs in `config/examples/`;
+  - `GET /api/examples`: the example inputs in `config/examples/`, for scripting `POST /api/runs`;
   - `GET /api/process-flow`: the Blueprint's entry points and phases (`dd_sdk.process_flow`);
   - `POST /api/conversations` (optionally `{project_id}`): starts a conversation in that project,
     or in a new one, and gives its `conversation_id` and `project_id`; an unknown project, or
@@ -300,7 +301,7 @@ layers, not selector specificity, decides which rule wins.
 
 - **Where a rule goes.** Page layout and each page's grid are in `styles/layout.css`; patterns
   used by several components (statuses, callouts, fields, data tables) in `styles/patterns.css`;
-  anything else beside its component (`RunForm.tsx` imports `RunForm.css`), wrapped in
+  anything else beside its component (`Stages.tsx` imports `Stages.css`), wrapped in
   `@layer components`. A component does not set its own outer margins or grid placement.
 - **Names.** Classes are kebab-case and start with their component's name (`app-nav-link`,
   `stage-name`).

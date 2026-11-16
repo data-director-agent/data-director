@@ -24,6 +24,38 @@ you everything in it and lets you leave out anything that should not leave your 
 
 Hidden files and folders (names beginning with `.`) are left out, and the inventory says so.
 
+## What Data Director cannot see
+
+Because the inventory holds no contents, no agent can find a problem that is only inside a file.
+It cannot see:
+
+- names, telephone numbers, e-mail addresses or access codes written in notes or a diary;
+- whether coordinates are precise enough to point to a person, private land or a protected
+  species;
+- licence terms written inside a file you were given, such as "internal use only";
+- the conditions or end date of an agreement;
+- instructions written into a file, which it would in any case not follow.
+
+What it can do is mark the files whose **names** suggest one of these, so that you look at them.
+The app marks them in the inventory, under **Files to look at**, and the File Archivist lists them
+when it is run:
+
+| Marked as | Because |
+|---|---|
+| May hold free text | A folder or file name such as `notes`, `fieldnotes`, `diary`, `interview`, `transcript` or `consent` |
+| May hold locations | A column such as `lat`, `lon`, `easting`, `northing`, `gridref` or `location` |
+| May be someone else's | A folder such as `reference`, `external`, `vendor` or `downloaded` |
+| Terms or an agreement | A folder or file name such as `agreement`, `licence`, `permission` or `governance` |
+| System file | `Thumbs.db`, `desktop.ini`, `.DS_Store`, or a name beginning `~$` |
+| Empty | The file has no bytes |
+| Exact copy | Another file has the same digest |
+
+A mark is a prompt for you, not a finding and not a decision: the file may be fine. And a file
+with no mark is not cleared. That nothing was marked does not mean the data hold no personal data,
+sensitive locations or someone else's material. Before you deposit, read any free-text files
+yourself, check locations and material from others, and talk to your data steward or ethics
+contact about anything you are unsure of.
+
 ## Making one
 
 <!-- making-an-inventory:summary -->

@@ -1,5 +1,5 @@
-"""advisor.rights through the conductor: the Rights and Licensing Adviser mock
-(docs/specs/agents.md)."""
+"""advisor.rights through the conductor, by rule alone: the Rights and Licensing Adviser's
+template path (docs/specs/agents.md)."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from dd_agent_advisor_rights.agent import (
 from dd_agent_advisor_rights.classes import RightsContext, RightsOptions
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import describe
-from dd_sdk.contract.models import GroundingMode, OutcomeStatus, ReasonCode
+from dd_sdk.contract.models import Derivation, GroundingMode, OutcomeStatus, ReasonCode
 from dd_sdk.schema import gen
 
 SAMPLES = Path(__file__).resolve().parents[3] / "workbench" / "samples"
@@ -38,7 +38,7 @@ def test_lists_fitting_licences_and_puts_restricted_access_first(runs_dir: Path)
     conductor = make_conductor(runs_dir, RightsAdviser())
     env = conductor.invoke(request("advisor.rights", sample()), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
-    assert env.grounding_mode == GroundingMode.NONE
+    assert env.grounding_mode == GroundingMode.INPUT_ONLY
     payload = env.payload_as(RightsOptions)
     assert [lic.spdx_id for lic in payload.licences] == ["CC-BY-4.0", "ODC-By-1.0"]
     assert [a.level for a in payload.access_levels] == [
@@ -47,8 +47,12 @@ def test_lists_fitting_licences_and_puts_restricted_access_first(runs_dir: Path)
         "open",
         "embargoed",
     ]
-    assert SENSITIVE_QUESTION in payload.questions
-    assert THIRD_PARTY_QUESTION in payload.questions
+    asked = [q.text for q in payload.questions]
+    assert SENSITIVE_QUESTION in asked
+    assert THIRD_PARTY_QUESTION in asked
+    assert {q.derivation for q in payload.questions} == {Derivation.TEMPLATE}
+    assert {lic.derivation for lic in payload.licences} == {Derivation.TEMPLATE}
+    assert "no interpreter model is configured" in (env.outcome.statement or "")
     assert payload.limitations
     assert conductor.grounding_reports[env.invocation_id].passed
 
@@ -71,7 +75,7 @@ def test_unknown_reuse_offers_every_licence_and_asks(runs_dir: Path) -> None:
     assert {lic.spdx_id for lic in payload.licences} == {
         row["spdx_id"] for row in load_table()["licences"]
     }
-    assert REUSE_QUESTION in payload.questions
+    assert REUSE_QUESTION in [q.text for q in payload.questions]
 
 
 @pytest.mark.requirement("DD-OUTCOME")
@@ -86,7 +90,7 @@ def test_nothing_to_go_on_abstains(runs_dir: Path) -> None:
 def test_the_card_names_the_persona_and_its_steps() -> None:
     entry = describe(RightsAdviser.spec)
     assert entry["title"] == "Rights and Licensing Adviser"
-    assert entry["description"].startswith("Mock.")
+    assert entry["description"].startswith("Alpha.")
     assert entry["serves"] == ["deposit.licence", "deposit.access"]
     json.dumps(entry)
 
