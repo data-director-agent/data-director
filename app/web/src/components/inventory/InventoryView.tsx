@@ -47,6 +47,7 @@ import {
   type TreeNode,
 } from "@data-director/inventory";
 import { createContext, useContext, useId, useMemo, useState } from "react";
+import { TableScroll } from "../ui/TableScroll";
 
 /** The most search results drawn at once; the rest are counted. */
 export const SHOWN = 200;
@@ -192,14 +193,19 @@ function Formats({ formats }: { formats: readonly FormatGroup[] }) {
   return (
     <section aria-labelledby="inventory-formats">
       <h3 id="inventory-formats">Formats</h3>
-      <div className="table-scroll">
+      <TableScroll label="Formats in the inventory">
         <table className="data-table">
+          <caption className="visually-hidden">Formats in the inventory</caption>
           <thead>
             <tr>
               <th scope="col">Media type</th>
               <th scope="col">PRONOM</th>
-              <th scope="col">Files</th>
-              <th scope="col">Size</th>
+              <th scope="col" className="num">
+                Files
+              </th>
+              <th scope="col" className="num">
+                Size
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -209,13 +215,13 @@ function Formats({ formats }: { formats: readonly FormatGroup[] }) {
                 <td>
                   <Puids ids={format.pronomIds} />
                 </td>
-                <td>{format.fileCount}</td>
-                <td>{formatBytes(format.bytes)}</td>
+                <td className="num">{format.fileCount}</td>
+                <td className="num">{formatBytes(format.bytes)}</td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
+      </TableScroll>
     </section>
   );
 }
@@ -622,7 +628,7 @@ function Tables({ tables }: { tables: readonly TableSummary[] }) {
             <span className="inventory-file-name">{table.path}</span>{" "}
             <span className="muted">{columns(table.fields.length)}</span>
           </summary>
-          <div className="table-scroll">
+          <TableScroll label={`Columns of ${table.path}`}>
             <table className="data-table">
               <caption className="visually-hidden">Columns of {table.path}</caption>
               <thead>
@@ -656,7 +662,7 @@ function Tables({ tables }: { tables: readonly TableSummary[] }) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableScroll>
         </details>
       ))}
     </section>

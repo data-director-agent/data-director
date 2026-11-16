@@ -86,7 +86,7 @@ describe("FeedbackPage", () => {
 
   it("cannot send where reports are off, and points to GitHub", async () => {
     renderPage(fakeApi({ about: () => Promise.resolve({ ...ABOUT, feedback_enabled: false }) }), "");
-    expect(await screen.findByRole("link", { name: "open an issue on GitHub" })).toBeVisible();
+    expect(await screen.findByRole("link", { name: /^open an issue on GitHub/ })).toBeVisible();
     expect(screen.getByRole("button", { name: "Send report" })).toBeDisabled();
   });
 });

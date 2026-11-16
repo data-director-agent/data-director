@@ -52,9 +52,9 @@
   </figure>
   {% if per_day %}<p class="axis"><span>{{ per_day[0][0] }}</span><span>{{ per_day[-1][0] }}</span></p>{% endif %}
   <details class="as-table"><summary>As a table</summary>
-    <table><thead><tr><th scope="col">Day</th><th scope="col" class="num">{{ what | capitalize }}</th></tr></thead><tbody>
+    <div class="table-wrap"><table><thead><tr><th scope="col">Day</th><th scope="col" class="num">{{ what | capitalize }}</th></tr></thead><tbody>
     {% for day, n in per_day %}<tr><td>{{ day }}</td><td class="num">{{ amount(n, money) }}</td></tr>{% endfor %}
-    </tbody></table>
+    </tbody></table></div>
   </details>
 {%- endmacro %}
 

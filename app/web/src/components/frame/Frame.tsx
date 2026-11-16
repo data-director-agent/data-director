@@ -104,6 +104,7 @@ export function Frame({
             >
               <BannerIcon icon={BookOpen} />
               User guide
+              <span className="visually-hidden"> (opens in a new tab)</span>
             </a>
             <Link
               to={report}
@@ -128,10 +129,12 @@ export function Frame({
             Supported by{" "}
             <a href={SHEFFIELD} target="_blank" rel="noreferrer">
               The University of Sheffield
+              <span className="visually-hidden"> (opens in a new tab)</span>
             </a>{" "}
             and the{" "}
             <a href={RDA} target="_blank" rel="noreferrer">
               Research Data Alliance
+              <span className="visually-hidden"> (opens in a new tab)</span>
             </a>{" "}
             (RDA).
           </p>
@@ -139,10 +142,12 @@ export function Frame({
             A reference implementation of the{" "}
             <a href={BLUEPRINT} target="_blank" rel="noreferrer">
               RDA Data Director Agentic AI Blueprint
+              <span className="visually-hidden"> (opens in a new tab)</span>
             </a>
             . Open source under the MIT licence:{" "}
             <a href={SOURCE} target="_blank" rel="noreferrer">
               view the code
+              <span className="visually-hidden"> (opens in a new tab)</span>
             </a>
             .
           </p>

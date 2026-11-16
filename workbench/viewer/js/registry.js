@@ -1,13 +1,13 @@
 // The registry manifest (GET /agents) and the samples listing (GET /samples), shared by both
 // pages. The objects are filled in place by loadRegistry, so importers read them directly.
-import { el } from "./common.js";
+import { el, getJson } from "./common.js";
 import { help } from "./help.js";
 
 export const agents = {}, unavailable = {}, incompatible = {}, samples = [];
 export async function loadRegistry() {
   const [manifest, listing] = await Promise.all([
-    fetch("/agents").then((r) => r.json()),
-    fetch("/samples").then((r) => r.json()),
+    getJson("/agents"),
+    getJson("/samples"),
   ]);
   for (const a of manifest.agents) agents[a.agent_id] = a;
   Object.assign(unavailable, manifest.unavailable || {});

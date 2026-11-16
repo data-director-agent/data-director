@@ -96,6 +96,8 @@
           <td class="nowrap">{{ u.ActiveEnterTimestamp or "—" }}</td>
           <td><a href="/operations/journal/{{ u.Id }}">journal</a></td>
         </tr>
+      {% else %}
+        <tr><td colspan="6" class="empty">No units.</td></tr>
       {% endfor %}
       </tbody>
     </table>

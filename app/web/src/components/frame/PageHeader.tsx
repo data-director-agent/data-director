@@ -2,9 +2,12 @@
  * The top of a page: its one `h1` and, beneath it, what the reader needs before the content
  * (whom the page acts for, or where the work stands). Every page starts with one, so every page
  * starts in the same place. A page can hide the title on screen and keep the `h1` for screen readers.
+ * The title also names the browser tab, so history and tab lists say which page each one is.
  */
 
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
+
+const SITE = "Data Director";
 
 export function PageHeader({
   title,
@@ -17,6 +20,14 @@ export function PageHeader({
   className?: string;
   children?: ReactNode;
 }) {
+  useEffect(() => {
+    const previous = document.title;
+    document.title = `${title} · ${SITE}`;
+    return () => {
+      document.title = previous;
+    };
+  }, [title]);
+
   return (
     <header className={className ? `page-header ${className}` : "page-header"}>
       <h1 className={titleHidden ? "visually-hidden" : undefined}>{title}</h1>

@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Admin{% endblock %} · Data Director admin</title>
+  <link rel="icon" href="{{ url_for('static', path='favicon.svg') }}" type="image/svg+xml">
   <link rel="stylesheet" href="{{ url_for('static', path='admin.css') }}">
 </head>
 <body>
@@ -33,7 +34,7 @@
   <main id="main">
     <header class="page-head">
       <h1>{% block heading %}{% endblock %}</h1>
-      <p class="as-of">As of {{ now | when }} · <a href="{{ refresh_url }}">Refresh</a></p>
+      {% block as_of %}<p class="as-of">As of {{ now | when }} · <a href="{{ refresh_url }}">Refresh</a></p>{% endblock %}
     </header>
     {% for error in store_errors %}
       <div class="banner bad" role="alert">{{ error }}</div>
