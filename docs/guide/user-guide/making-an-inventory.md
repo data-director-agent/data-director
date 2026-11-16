@@ -38,9 +38,6 @@ If you prefer pip, install the command once with `pip install data-director-inve
 `data-director-inventory path/to/dataset -o inventory.json`. The package is published on
 [PyPI](https://pypi.org/project/data-director-inventory/).
 
-It writes `inventory.json` in the folder where you ran it. A large dataset can take a while,
-because every file is read to compute its digest. The command sends nothing anywhere.
-
 If you would rather not use a terminal, ask your research data support team, or whoever is
 running a workshop you are in, to make the inventory for you.
 
@@ -100,7 +97,6 @@ not have yet**, give the folder a name, and choose its file. The first time, you
 folder the inventory already has. Each file is then listed under its folder's name, and each
 folder can be updated later on its own, by whoever holds it. If the folders are on one computer,
 you can make one inventory of them all at once by naming each folder to the command:
-`dd-inventory raw processed -o inventory.json`. The panel beside the conversation shows which inventory the project holds, with
-**View inventory** to read it again, and links to the documents agents have drafted.
+`uvx data-director-inventory raw processed -o inventory.json`.
 
 See [What the Data Director records](records.md) for who can see what you attach.

@@ -18,7 +18,10 @@ evaluation score measures quality over a case set; a review records what one per
 within a stated scope at one commit. None of these is a claim that a requirement is met in
 general, and the report says so.
 
-Only the standards advisor has an evaluation so far. Its labels are provisional: they follow
+Two agents have an evaluation so far. The Documentation Editor's
+(`agents/advisor-documentation/src/dd_agent_advisor_documentation/evals/`) takes its labels from
+the crib sheet of a synthetic workshop dataset, Dataset A of `data-director-agent/sample-data`, and
+runs the template path. The standards advisor's labels are provisional: they follow
 the Metadata Librarian's guidance in Uzwyshyn, *The Research Data Director* v0.8.2, and no domain
 expert has reviewed them. A labelled corpus of real ORDA records is to replace them, as a second
 dataset for the same task (TODO(#22)).
