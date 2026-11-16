@@ -242,7 +242,7 @@ def build_templates() -> Jinja2Templates:
 # --- Pages ---------------------------------------------------------------------------------------
 
 
-def build_app(admin: Admin) -> Starlette:
+def build_app(admin: Admin) -> Starlette:  # noqa: C901, PLR0915
     templates = build_templates()
 
     def page(request: Request, name: str, **context: Any) -> Response:

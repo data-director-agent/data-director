@@ -234,7 +234,7 @@ class PolicyAgent:
         },
     )
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         policies: Policies,
         explainer: Explainer | None = None,
@@ -288,7 +288,7 @@ class PolicyAgent:
             if actor.role == ActorRole.JOURNAL and not actor.fairsharing_id
         }
 
-    def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
+    def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:  # noqa: C901, PLR0912, PLR0915
         context = request.input
         assert isinstance(context, PolicyContext)  # the conductor checked spec.accepts
         if not context.actors:
@@ -721,7 +721,7 @@ class PolicyAgent:
             **self._model_use(explanation, texts),
         )
 
-    def _read_texts(
+    def _read_texts(  # noqa: C901, PLR0912
         self, matched: list[tuple[Actor, list[PolicyRecord]]], ctx: RunContext
     ) -> TextReadings:
         """Fetch and read each policy's own text: the page each matched record names, and each

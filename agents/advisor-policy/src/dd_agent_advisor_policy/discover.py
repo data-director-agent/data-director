@@ -117,7 +117,7 @@ def _titles(journal: OpfRecord | CrossrefJournal) -> list[str]:
     return journal.names if isinstance(journal, OpfRecord) else [journal.title]
 
 
-def journal(
+def journal(  # noqa: C901, PLR0912
     actor: Actor, opf: OpenPolicyFinder | None, crossref: CrossrefJournals | None
 ) -> Journal:
     """The journal's record, its publishers, or the candidates when the title is ambiguous.

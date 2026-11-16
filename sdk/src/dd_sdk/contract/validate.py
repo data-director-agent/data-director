@@ -81,7 +81,7 @@ def conditional_errors(envelope: dict[str, Any]) -> list[str]:
     return errors
 
 
-def grounding_errors(envelope: dict[str, Any]) -> list[str]:
+def grounding_errors(envelope: dict[str, Any]) -> list[str]:  # noqa: C901
     """Self-consistency between grounding_mode, payload and evidence (docs/specs/grounding.md).
 
     Agreement with the trace is the linter's job; these rules hold on the document alone.

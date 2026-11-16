@@ -112,6 +112,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
     return () => controller.abort();
   }, [load, signedIn, principalId]);
 
+  // eslint-disable-next-line complexity -- recorded debt: split it, do not add to it (docs/architecture-review.md)
   const content = () => {
     if (path === "/signed-out") return <SignedOutPage issuer={known?.issuer ?? null} />;
     if (session.state === "loading") return <p role="status">Loading…</p>;

@@ -210,7 +210,7 @@ class ShellNotBuiltError(FileNotFoundError):
     """`app/web/dist` holds no built shell."""
 
 
-def build_app(
+def build_app(  # noqa: C901, PLR0913, PLR0915
     governance: Governance,
     web_dist: Path = WEB_DIST,
     examples_dir: Path = EXAMPLES_DIR,
@@ -386,7 +386,7 @@ def build_app(
             headers={"Location": f"/api/conversations/{conversation_id}"},
         )
 
-    async def send_turn(request: Request, acting_for: Principal) -> Response:
+    async def send_turn(request: Request, acting_for: Principal) -> Response:  # noqa: C901, PLR0911, PLR0912
         conversation_id = request.path_params["conversation_id"]
         try:
             body = await request.json()

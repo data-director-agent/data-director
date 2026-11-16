@@ -42,6 +42,8 @@ uv run ruff check . && uv run ruff format .
 uv run mypy
 uv run dd-gen-schema [path/to/schema.yaml]      # after editing a LinkML schema (core by default)
 uv run python scripts/check_boundaries.py
+uv run --no-project --python 3.14 scripts/check_size.py --update   # files over the limit only shrink
+uv run --no-project --python 3.14 scripts/check_members.py         # after adding a member or an agent
 ```
 
 Every other CI job, with its local command, is in
@@ -68,6 +70,9 @@ fixtures in `app/web/fixtures` and `sdk/browser/tests/fixtures`, and the AG-UI c
   Environment variables say where things are and hold secrets. A new choice is a profile key that
   something enforces ([Policy and identity](docs/specs/policy-and-identity.md),
   [Configuration](docs/guide/operations/configuration.md)).
+- Never add a `# noqa: C901`/`PLR09…`, an `eslint-disable … complexity` or a
+  `scripts/size_baseline.toml` entry to get code past the size and complexity checks: split the
+  code instead, and remove such a marker when you do ([Architecture review](docs/architecture-review.md)).
 - A content problem is an outcome, not an exception; exceptions are for programmer and
   configuration errors.
 - A canonicalisation is registered in `dd_sdk.evidence.CANONICALISATIONS`; an existing name's bytes

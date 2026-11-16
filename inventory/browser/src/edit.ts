@@ -123,6 +123,7 @@ function sameFormat(a: FormatStatement | undefined, b: FormatStatement | undefin
  * real changes; an action `base` cannot take (an unknown path, or a format the file's matches do
  * not allow) returns `edits` as they are.
  */
+// eslint-disable-next-line complexity -- recorded debt: split it, do not add to it (docs/architecture-review.md)
 export function edit(base: FileInventory, edits: InventoryEdits, action: EditAction): InventoryEdits {
   const byPath = new Map((base.inventory_files ?? []).map((file) => [file.file_path, file]));
   switch (action.kind) {
