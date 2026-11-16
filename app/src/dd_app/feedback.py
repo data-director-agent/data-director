@@ -44,6 +44,14 @@ RATE_WINDOW_SECONDS = 600
 # The issue type (GitHub's organisation issue types) for each kind of report.
 KINDS = {"bug": "Bug", "feature": "Feature", "other": "Task"}
 LABELS = ["area: app"]
+# A bug someone took the trouble to write up stands out on the project board (a label to filter
+# and colour by) because it comes from a person using the app, not from the team.
+USER_REPORT_LABEL = "user report"
+
+
+def labels_for(kind: str) -> list[str]:
+    """The labels for a report of this kind."""
+    return [*LABELS, USER_REPORT_LABEL] if kind == "bug" else list(LABELS)
 
 
 class FeedbackRefusedError(ValueError):
@@ -183,7 +191,7 @@ async def create_issue(
     payload: dict[str, Any] = {
         "title": report.title,
         "body": body,
-        "labels": LABELS,
+        "labels": labels_for(report.kind),
         "type": KINDS[report.kind],
     }
     url = f"{GITHUB_API}/repos/{repo}/issues"

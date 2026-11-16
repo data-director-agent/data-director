@@ -22,6 +22,16 @@ then adds the data files and publishes the item in the repository's own interfac
 for Figshare, Zenodo and Dataverse alike, is in *Depositing through an API* below; none of it is
 built yet, TODO(#383).
 
+One project can be rendered into any number of packages, and how a package reaches a repository
+is a separate choice. A **packager** renders a project and its merged requirement set into the
+bytes of a package in one format. A **transport** moves a package, or a record rendered for one
+platform, into a repository: a platform's API connector, SWORD v2, or a person uploading by hand.
+Packagers and transports are pluggable and configured apart, as *Packagers and transports* below
+describes. The RO-Crate zip is the default package and the record of truth that every other format
+wraps, travels with or names. SWORD v2 is a protocol, not a format: it carries a package in a
+packaging such as BagIt, so it is a transport and the bag is a packager's output. Only the
+RO-Crate packager and the manual transport are built; the interface and registry are TODO(#870).
+
 Out of scope: publishing an item through an API, and minting or reserving a persistent identifier
 (R7, TODO(#322)); uploading data files, which the platform never holds ([Projects](projects.md));
 and a copy-ready sheet of a repository's form fields, TODO(#644).
@@ -91,20 +101,23 @@ TODO(#394, #200).
    in the project log
    (`test_a_missing_required_field_is_a_violation_and_a_recommended_one_a_warning`,
    `test_the_validation_report_is_a_shacl_validation_report`).
-9. **A package is built only from a valid report, and holds no data file.** A violation stops
-   the package and names each reason; the report is still kept
+9. **A package, in any format, is built only from a valid report, and holds no data file.** A
+   violation stops the package and names each reason; the report is still kept
    (`test_a_project_without_a_required_document_is_refused_and_says_why`,
-   `test_a_valid_project_writes_a_package_with_its_audit_trail`).
-10. **The package passes the RO-Crate validator** at its REQUIRED level, against the RO-Crate
-    version `rocrate` writes (`test_the_package_passes_the_ro_crate_validator`).
+   `test_a_valid_project_writes_a_package_with_its_audit_trail`). Every packager runs behind the
+   same check, TODO(#870).
+10. **The default RO-Crate package passes the RO-Crate validator** at its REQUIRED level, against
+    the RO-Crate version `rocrate` writes (`test_the_package_passes_the_ro_crate_validator`).
+    Every other format states what it conforms to (*Packagers and transports*).
 
 Invariants 11 to 15 hold for depositing through an API, which is not built yet; each names the
 issue that will build and test it.
 
 11. **A connector is configuration, never code for one repository.** A repository is reachable
-    through its API when its override names an API kind, a base URL and a target. Each API kind has
-    one implementation, shared by every repository of that kind; adding a repository of a known
-    kind is a new override, not new code (invariant 1). TODO(#383, #648, #857).
+    through a transport when its override names the transport, the format it carries, a base URL
+    and a target. Each transport has one implementation, shared by every repository that uses it;
+    adding a repository of a known transport is a new override, not new code (invariant 1).
+    TODO(#383, #648, #857, #872).
 12. **No deposit without a person's recorded approval.** The harness deposits only on a
     `deposit_approved` event that a person made, naming the package by its digest and the
     repository it goes to, and only a package the log records as built from a valid report
@@ -118,6 +131,26 @@ issue that will build and test it.
     names the package digest, the repository and the draft's URL, whether the harness made it or a
     person reported it, so the two read alike; a failed attempt is a `deposit_failed` event, not an
     exception. TODO(#647, #383).
+
+Invariants 16 to 19 hold for packagers and transports. Only the RO-Crate packager and the manual
+transport exist; each invariant names the issue that will build and test the rest.
+
+16. **The RO-Crate package is the record of truth.** Every other format is built from the same
+    valid report and either holds the RO-Crate package, travels with it, or names it by its digest.
+    The validation report, the project log, the audit trail and the disclosure are therefore the
+    same whatever the format, and no format carries its own copy of them in another form.
+    TODO(#870).
+17. **A packager or a transport is registered, never edited into the harness.** Each is found by
+    its identifier under an entry-point group, and a deployment's configuration says which it
+    offers. An identifier unknown or not offered is refused before anything is built, sent or
+    recorded. An identifier names one format or one protocol for good. TODO(#870, #872).
+18. **Only meaningful pairs are configured.** A repository's override names a transport and the
+    format it carries, from the pairs *Packagers and transports* lists; any other pair stops the
+    harness on load, as a malformed set does (invariant 2). TODO(#870, #872).
+19. **Every package and every deposit names its format and transport.** `package_built` names the
+    format and the digest; `deposit_approved`, `deposit_recorded` and `deposit_failed` name the
+    package's format and digest and the transport, so any package or deposit reads alike in the
+    log. TODO(#870, #647).
 
 ## Boundaries and contracts
 
@@ -164,7 +197,8 @@ inventory describes them: checking a table's contents against its Frictionless s
 data, so it runs where the data live, in the inventory command, and its report travels with the
 inventory, TODO(#651).
 
-**The package** is one zip file whose root `ro-crate-metadata.json` describes the dataset. It
+**The RO-Crate package**, the default format (`ro-crate`), is one zip file whose root
+`ro-crate-metadata.json` describes the dataset. It
 holds the approved metadata record, the other approved documents (each document's latest approved
 version), the inventory, the merged set it was validated against, the validation report, the
 project log, and the Process Run Crate of each run behind an approved version
@@ -186,15 +220,82 @@ PROV-O alignment of the whole package is TODO(#26) (R10). The harness keeps the 
 the project log with a `package_built` event, which names the report, the merged set, each
 document version and each run it holds.
 
+### Packagers and transports
+
+**A packager** renders a project into a package in one format. Its input is the project, the
+latest approved version of each of its documents, the merged requirement set recorded for the
+repository choice, and the valid report that check produced (invariant 9). Its output is the
+package's bytes, its media type, and the SHA-256 of the bytes, by which the harness keeps it. A
+packager holds no data file and sees no credential. Packaging is the harness's action, not an
+agent's; a packager is code the harness runs, and nothing an agent returns chooses one.
+
+**A transport** moves something into a repository. It accepts a package (SWORD v2 carries a bag),
+a record and the package it travels with (a platform API connector sends the rendered item and
+the RO-Crate zip), or nothing at all: **a person uploading by hand is the `manual` transport**,
+which sends nothing and records what the person reports. A transport is configured per
+repository in the override's `deposit` block (*Depositing through an API*), and a repository whose
+sets have no such block is reached only by the manual transport. Invariants 12 to 15 apply to
+every transport that sends anything: a person's approval, their own credential, a draft and never
+a published item, and one outcome event. A manual deposit ends in the same outcome event
+(invariant 15).
+
+**The RO-Crate package is the one every other format refers to** (invariant 16). Building a format
+other than `ro-crate` builds, from the same report, the RO-Crate package first unless the log
+already records one built from that report, and the new package's `package_built` event names it
+as `derived_from`. What stays fixed across formats, and how each format carries it:
+
+| Format | Media type | Conforms to | Carries the report, the log, the audit trail and the disclosure | Status |
+|---|---|---|---|---|
+| `ro-crate` | `application/zip` | RO-Crate, at its REQUIRED level (invariant 10) | holds them | built |
+| `bagit` | `application/zip` | BagIt (RFC 8493), with the RO-Crate zip as its payload | holds the RO-Crate package | TODO(#871) |
+| a platform's item (`figshare-item`, `zenodo-deposit`, `dataverse-dataset`) | `application/json` | the platform's API, as far as its mapping's tests show | travels with the RO-Crate package, sent as one file of the draft | TODO(#383, #648, #857) |
+| `deposit-sheet` | decided with TODO(#644) | no machine format; it is read by a person | names the RO-Crate package and the report by digest; the person uploads the package with it | TODO(#644) |
+
+A rendered platform item is a package like any other: derived from the approved DataCite record,
+never edited and never a document, and kept by its digest, so that an approval names exactly the
+bytes that are sent.
+
+**Meaningful pairs.** A repository's override names a transport and the format it carries; only
+these pairs are accepted (invariant 18):
+
+| Transport | Carries | Example | Status |
+|---|---|---|---|
+| `manual` | `ro-crate`, and `deposit-sheet` beside it | any repository, with or without an override | `ro-crate` built; sheet TODO(#644) |
+| `sword2` | `bagit` | Dataverse, DSpace, EPrints, where they offer SWORD v2 | TODO(#869, #871, #872) |
+| `figshare`, `zenodo`, `dataverse` | that platform's item, with `ro-crate` | ORDA, Zenodo, a Dataverse installation | TODO(#383, #648, #857) |
+
+Which repositories offer SWORD v2, with which packagings, how each keeps a deposit in progress
+rather than published, and how each authenticates, are for the spike to settle, TODO(#869). Until
+then `sword2` carries only `bagit`, and whether it replaces the Dataverse connector is open.
+
+**Registering a format or a transport.** A packager is registered under the entry-point group
+`dd.packagers` and a transport under `dd.transports`, each by an identifier, as a built source is
+under `dd.sources` ([Evidence and grounding](grounding.md)). A new format or protocol is a new
+registration, possibly in its own distribution, not an edit to the harness; a new repository of a
+known transport is still a new override, not code (invariants 1 and 11). An identifier names one
+format or one protocol for good: a changed format is a new identifier, as a canonicalisation's
+name keeps its bytes. A deployment's configuration lists the packagers and transports it offers;
+by default only `ro-crate` and `manual`. A packager or transport registered but not offered is
+refused like an unknown one, before anything is built, sent or recorded. Where that list lives,
+and whether a person chooses among the offered formats in the Deposit panel, are TODO(#870).
+
+**A package is identified by its format and its digest.** A changed project needs a new package of
+every format it is deposited in, and each new package names the report it was built from; what
+becomes of a package built before the project changed is TODO(#649).
+
 ### Depositing through an API
 
 None of this section is built yet. Figshare, starting with ORDA, is TODO(#383); Zenodo is
-TODO(#648); Dataverse is TODO(#852).
+TODO(#648); Dataverse is TODO(#852); SWORD v2, a transport shared by every repository that offers
+it, is TODO(#872). A platform's API and SWORD v2 are both transports (*Packagers and
+transports*); what follows holds for each.
 
 **A connector is an override's `deposit` block.** An override that the harness may deposit to
 gives:
 
-- `api`: the API kind, one of `figshare`, `zenodo` or `dataverse`;
+- `transport`: the transport, one of `figshare`, `zenodo` or `dataverse` (each a platform's API),
+  or `sword2` (*Packagers and transports*), each registered under `dd.transports`;
+- `format`: the format the transport carries, from the pairs *Packagers and transports* lists;
 - `base_url`: the installation's API root, such as `https://api.figshare.com/v2`, Zenodo's own
   or its sandbox, or one Dataverse installation's;
 - `target`: where the item is created, in the kind's own terms: a Figshare group, a Zenodo
@@ -209,8 +310,11 @@ added to `RequirementSet` with the first connector, and refused until then (inva
 **Each API kind renders the approved DataCite record.** The kind's mapping turns the record into
 the item metadata its API takes, through the same field table validation reads: one mapping for
 Figshare items, one for Zenodo deposits, one for Dataverse's citation block. The DataCite record
-stays the record of truth; a rendered item is derived from it on each deposit and never edited or
-stored as a document. A value the API requires that DataCite cannot supply, such as Dataverse's
+stays the record of truth. The mapping is the platform item's packager: a rendered item is
+derived from the record, never edited and never stored as a document, and is kept by its digest
+as a package `derived_from` the RO-Crate package (*Packagers and transports*), so the approval
+names exactly what is sent. A value the API requires that DataCite cannot supply, such as
+Dataverse's
 contact email or subject, is a field of the repository's requirements, so validation asks for it
 before the package is built (TODO(#855)). A record value the mapping cannot place is reported on
 the outcome, not dropped silently. What a mapping does with an unmapped field, and with a licence
@@ -240,19 +344,22 @@ profile's `deposit` action class applies to it. A person approves a deposit as t
 document version ([Projects](projects.md)): the app passes their request, and the harness checks
 that they may deposit in the project, that the package is the project's latest built from a valid
 report, and that its project has not changed since in a way that makes the package stale
-(TODO(#649)). It appends a `deposit_approved` event naming the principal, the package digest, the
-repository's re3data identifier and the connector's `api`, `base_url` and `target` as configured
-at that moment, and then deposits. Whether a profile may require a second person, such as a data
+(TODO(#649)). It appends a `deposit_approved` event naming the principal, the package's format and
+digest (and, for a platform item, the RO-Crate package it travels with), the repository's re3data
+identifier and the connector's `transport`, `base_url` and `target` as configured at that
+moment, and then deposits. Whether a profile may require a second person, such as a data
 steward, to approve a deposit is TODO(#372, #154).
 
 **The outcome is one event, manual or automatic.** A deposit that creates a draft appends a
-`deposit_recorded` event naming the approval it acted on, the package digest, the repository, the
-draft's URL in the repository and its identifier there, a reserved DOI only if the repository
-reports one unasked, and `method: api`. A person who deposited by hand records the same event with
-`method: manual` and the URL and DOI they give ([Projects](projects.md), TODO(#647)). A call that
-fails, or a draft the repository refuses, appends a `deposit_failed` event with the API's status
-and a reason code, never the request's headers; trying again needs a new approval. A second approval of a package already recorded as deposited to the same repository is
-refused, and names the earlier draft.
+`deposit_recorded` event naming the approval it acted on, the package's format and digest, the
+repository, the draft's URL in the repository and its identifier there, a reserved DOI only if
+the repository reports one unasked, and the `transport`. A person who deposited by hand records
+the same event with `transport: manual`, the package they uploaded, and the URL and DOI they
+give ([Projects](projects.md), TODO(#647)). A call that fails, or a draft the repository
+refuses, appends a `deposit_failed` event naming the package's format and digest and the
+`transport`, with the repository's status and a reason code, never the request's headers; trying
+again needs a new approval. A second approval of a package already recorded as deposited to the
+same repository is refused, and names the earlier draft.
 
 **Publishing stays with the researcher.** A draft can be changed or deleted; a published item and
 its DOI cannot, and some institutions pay for each DOI. So the harness stops at the draft, and the
@@ -274,6 +381,18 @@ DataCite; moving it is TODO(#22).
 - **One deposit mechanism, a mapping per API kind.** Many repositories run on one of a few
   platforms: these three cover ORDA, Zenodo and every Dataverse installation. A repository of a known kind then costs a steward an override, as a repository's
   requirements do.
+- **Packagers and transports apart**, because the same package reaches different repositories by
+  different routes, and one route carries different packagings: SWORD v2 is a protocol that carries
+  a BagIt bag, a ZIP or METS, not a format of its own. Choosing them apart lets a new format serve
+  every transport that can carry it, and a new transport carry every format it accepts, with one
+  implementation each.
+- **RO-Crate as the record of truth**, because it is self-describing, it already holds the
+  validation report, the log, the audit trail and the disclosure, and it passes a validator. A
+  format that wraps, travels with or names it keeps one audit trail per build, whatever a
+  repository takes.
+- **Registered by entry point, offered by configuration**, because a format is code to review once
+  and a deployment, not the harness, knows which repositories its researchers use. It is the
+  pattern built sources already follow.
 - **The person's own token**, because the item is the researcher's, the repository's own rules
   about who may deposit where then apply unchanged, and no one token opens every researcher's
   items.
@@ -289,9 +408,17 @@ DataCite; moving it is TODO(#22).
   the definition of valid; approving each draft would make every new repository wait for a steward.
 - **Choosing only among repositories with an override.** The deployment's configuration, not the
   data, would limit the choice.
-- **A record in Figshare's item format.** It serves only Figshare, and ORDA's DataCite record would
-  still be derived from it. Depositing renders a Figshare item from the DataCite record instead,
-  and never keeps it as a document.
+- **A record in one repository's format as the canonical form**, such as a Figshare item. It
+  serves only that platform, and ORDA's DataCite record would still be derived from it. A
+  platform's item is rendered from the DataCite record instead, kept as a package, and never kept
+  as a document.
+- **SWORD v2 as the only output.** It is a protocol, not a format, and Figshare and Zenodo are not
+  known to offer it (TODO(#869)); a person depositing by hand needs a package, not a protocol.
+- **RO-Crate as the only output.** A repository that takes a BagIt bag over SWORD v2, or an item
+  through its API, could not be reached, and a person filling in a form would have no sheet.
+- **One packager per repository.** Formats are few and repositories many: each repository would be
+  code, against invariant 1, and two repositories taking the same format would have two
+  implementations of it.
 - **A connector for each repository.** Each would be code to review and keep working, and every
   Dataverse installation would need its own. A connector per API kind, configured per repository,
   costs one implementation per platform.

@@ -1664,51 +1664,87 @@ describe("ConversationHome", () => {
       expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toBeEnabled();
     });
 
-    it("reads the intake again after a turn, so an entry point the turn recorded is not asked", async () => {
+    // The intake once Data Director has recorded the entry point from what the researcher said.
+    function byModel(): ProjectIntake {
+      const complete = intakeCompleteFixture as ProjectIntake;
+      return { ...complete, progress: { ...complete.progress, entry_source: "model" } };
+    }
+    function chosenIn(prompt: string): string[] {
+      return within(screen.getByRole("group", { name: prompt }))
+        .getAllByRole("radio")
+        .filter((r) => (r as HTMLInputElement).checked)
+        .map((r) => (r as HTMLInputElement).value);
+    }
+
+    it("reads the intake again after a turn and shows the entry point Data Director worked out", async () => {
       localStorage.setItem("dd-project", LOGGERS.project_id);
       const pending = intakePendingFixture as ProjectIntake;
-      const complete = intakeCompleteFixture as ProjectIntake;
-      const entry = pending.questions[0];
-      // After the turn: the model recorded the entry point, and the other questions are open.
-      const afterTurn: ProjectIntake = {
-        ...complete,
-        state: "pending",
-        next: complete.questions[1]?.question_id ?? null,
-        progress: { ...complete.progress, entry_source: "model" },
-        questions: complete.questions.map((q) =>
-          q.question_id === entry?.question_id ? q : { ...q, answer_values: null },
-        ),
-      };
-      const following = afterTurn.questions[1];
-      if (!entry || !following) throw new Error("the intake fixtures ask too little");
+      const worked = byModel();
+      const entry = worked.questions[0];
+      if (!entry) throw new Error("the intake fixture asks nothing");
       const intake = vi
         .fn<ProjectApi["intake"]>()
         .mockResolvedValueOnce(pending)
-        .mockResolvedValue(afterTurn);
-      const inProject = { ...CONVERSATION, project_id: LOGGERS.project_id };
+        .mockResolvedValue(worked);
+      const answerIntake = vi.fn<ProjectApi["answerIntake"]>(() =>
+        Promise.resolve(intakeCompleteFixture as ProjectIntake),
+      );
       renderHome(
         withOrchestrator(),
         fakeApi({
           create: () =>
             Promise.resolve({ conversation_id: "c1", project_id: LOGGERS.project_id }),
-          get: () => Promise.resolve(inProject),
+          get: () => Promise.resolve({ ...CONVERSATION, project_id: LOGGERS.project_id }),
         }),
         FLOW,
-        withProgress({ intake }),
+        withProgress({ intake, answerIntake }),
       );
-      expect(
-        await screen.findByRole("group", { name: entry.question.question_prompt }),
-      ).toBeInTheDocument();
+      const prompt = entry.question.question_prompt;
+      await screen.findByRole("group", { name: prompt });
+      expect(chosenIn(prompt)).toEqual([]);
 
-      const box = screen.getByRole("textbox", { name: "What would you like to do?" });
-      await userEvent.type(box, "hello world");
+      await userEvent.type(
+        screen.getByRole("textbox", { name: "What would you like to do?" }),
+        "I've finished collecting my survey data and want to share it",
+      );
       await userEvent.click(screen.getByRole("button", { name: "Send" }));
 
-      expect(
-        await screen.findByRole("group", { name: following.question.question_prompt }),
-      ).toBeInTheDocument();
-      expect(screen.queryByRole("group", { name: entry.question.question_prompt })).toBeNull();
+      await waitFor(() => expect(chosenIn(prompt)).toEqual(entry.answer_values));
       expect(intake.mock.calls.length).toBeGreaterThan(1);
+      const card = screen.getByRole("group", { name: prompt }).closest("section");
+      if (!card) throw new Error("the question is not in the card");
+      expect(within(card).getByRole("note")).toBeVisible();
+
+      await userEvent.click(within(card).getByRole("button", { name: "Next" }));
+      expect(answerIntake).toHaveBeenCalledWith(
+        LOGGERS.project_id,
+        entry.question_id,
+        entry.answer_values,
+      );
+    });
+
+    it("asked again from the tracker, reads the intake afresh and shows its current answers", async () => {
+      localStorage.setItem("dd-project", LOGGERS.project_id);
+      const worked = byModel();
+      const entry = worked.questions[0];
+      if (!entry) throw new Error("the intake fixture asks nothing");
+      const unanswered: ProjectIntake = {
+        ...worked,
+        questions: worked.questions.map((q) => ({ ...q, answer_values: null })),
+        progress: { ...worked.progress, entry: null, entry_source: null },
+        state: "dismissed",
+      };
+      const intake = vi
+        .fn<ProjectApi["intake"]>()
+        .mockResolvedValueOnce(unanswered)
+        .mockResolvedValue(worked);
+      renderHome(withOrchestrator(), fakeApi(), FLOW, withProgress({ intake }));
+      const again = await screen.findByRole("button", { name: "Answer the setup questions again" });
+      await userEvent.click(again);
+      const prompt = entry.question.question_prompt;
+      await screen.findByRole("group", { name: prompt });
+      expect(chosenIn(prompt)).toEqual(entry.answer_values);
+      expect(intake).toHaveBeenCalledTimes(2);
     });
 
     it("shows no card for a complete intake until the tracker asks the questions again", async () => {

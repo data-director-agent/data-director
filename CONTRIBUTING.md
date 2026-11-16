@@ -154,7 +154,8 @@ issue is a parent with sub-issues. Labels say where and what about:
 * `area: …`: the part touched, one or more of `sdk`, `harness`, `workbench`, `app`, `agents`,
   `docs`, `ci`.
 * Themes: `blueprint` (review or conformance against the Blueprint), `security`, `evaluation`,
-  `accessibility`, and `needs spec` for a change to a fixed format.
+  `accessibility`, `user report` (a bug filed from the app by someone using it; the app applies
+  it, and triage treats it first), and `needs spec` for a change to a fixed format.
 * `good first issue`, `help wanted` and `blocked` (waiting on something outside the project).
 
 Pull requests take no labels by hand: the Conventional Commit title carries kind and scope.

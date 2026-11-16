@@ -273,19 +273,22 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     Neither body names who answered: the server records the answer for the person signed in. A
     malformed body is refused with a 400, and an answer the harness rejects with a 409; nothing is
     recorded in either case. The message box stays usable throughout. A turn sent while the
-    intake is pending leaves it pending, and does not count as an answer. The workspace reads the
-    intake again after each turn, as it reads the project's progress, so that an entry point the
-    turn recorded is not asked again; a read after the first never opens or closes the card.
-    A question with only a model's suggestion (`suggested_values`), and the entry question while
-    its entry point is a model's, are asked with that answer chosen and a note that Data Director
+    intake is pending leaves it pending, and does not count as an answer. A question with only a model's
+    suggestion (`suggested_values`), and the entry question while its entry point is a model's, are asked with that answer chosen and a note that Data Director
     took it from what the researcher wrote; Next records it as the researcher's own answer, and
     Skip leaves the suggestion unrecorded as an answer. A question with neither is asked with
     nothing chosen ([Orchestration](orchestration.md), invariant 20). The card does not yet
-    show suggestions or ask a model's entry point to be confirmed, TODO(#908). The intake is a card of
-    the project, not a turn: no orchestrator runs for it, and the history holds none of it. Its
+    show suggestions, and a model's entry point still completes the entry question rather than
+    leaving the intake pending until it is confirmed, TODO(#908). The intake is a card
+    of the project, not a turn: no orchestrator runs for it, and the history holds none of it. Its
     answers reach the orchestrator through the project's entry point and step states. The phase
     tracker offers "Answer the setup questions again", which shows the card with the current
-    answers chosen and records only an answer that changed. The card's Skip passes one question
+    answers chosen and records only an answer that changed. The card reads the intake again after
+    each turn, as the workspace reads the project's progress, and when asked again from the
+    tracker; a read after a turn changes what the card holds, never whether it is open. An
+    entry point Data Director worked out from what the researcher said (`entry_source` `model`) is shown chosen, with a note saying it is
+    Data Director's; Next records it as the researcher's own, and nothing records it otherwise
+    (`ConversationHome.test.tsx`). The card's Skip passes one question
     by for that visit only, recording nothing, so it is asked again when the workspace next opens;
     "Skip these questions" records the dismissal. The card's questions are drawn by
     `ChoiceQuestion.tsx`, as a reply's are (`app/tests/test_intake_routes.py`,
@@ -455,7 +458,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   mislead. The address is deliberately not in the profile: it is not policy, and a change to it
   must not change the profile's digest, which every stored run records.
 - **Problem reports** go to one repository, named in the app's configuration, as an issue of type
-  Bug, Feature or Task with the label `area: app`. The person needs no GitHub account. The app
+  Bug, Feature or Task with the label `area: app`; a Bug also carries `user report`, so that a
+  report from a person using the app is easy to find and to pick out on the project board. The
+  person needs no GitHub account. The app
   files them as a GitHub App (`DD_FEEDBACK_GITHUB_APP_ID` and
   `DD_FEEDBACK_GITHUB_APP_PRIVATE_KEY_FILE`; `DD_FEEDBACK_GITHUB_APP_INSTALLATION_ID` is optional
   and otherwise found from the repository) or with a token (`DD_FEEDBACK_GITHUB_TOKEN`, or

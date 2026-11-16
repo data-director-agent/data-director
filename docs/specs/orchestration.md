@@ -252,8 +252,8 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     that entry point chosen, until the researcher confirms or changes it; until then the intake
     stays pending. A question with neither answer nor suggestion is asked with nothing chosen.
     The suggestions and the confirmation of the entry point are not built yet, TODO(#908): today
-    a model's entry point answers the entry question, and the other questions are asked with
-    nothing chosen. A
+    a model's entry point answers the entry question, which the card shows chosen with that note
+    but does not hold pending, and the other questions are asked with nothing chosen. A
     Blueprint reading checked the wording, the entry points and the mapping
     ([The intake against §8](intake-reading.md)).
 

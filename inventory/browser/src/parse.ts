@@ -42,7 +42,7 @@ export function asInventory(value: unknown): FileInventory {
   if (!isRecord(value) || value.schema_class !== "FileInventory") {
     throw new NotAnInventory(
       "This file is not an inventory: it does not say it is a FileInventory, as the file " +
-        "dd-inventory writes does.",
+        "the Data Director inventory command writes does.",
     );
   }
   const files = value.inventory_files;
