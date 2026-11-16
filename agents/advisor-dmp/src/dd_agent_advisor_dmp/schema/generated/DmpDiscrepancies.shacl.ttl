@@ -12,24 +12,34 @@ dmp:DmpDiscrepancies a sh:NodeShape ;
             sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
             sh:minCount 1 ;
             sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 3 ;
+            sh:order 5 ;
             sh:path <https://w3id.org/data-director/grounded_on> ],
         [ sh:class dmp:Discrepancy ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 1 ;
             sh:path dmp:discrepancies ],
+        [ sh:class dmp:Reconciliation ;
+            sh:description "Differences in repository, access or licence that a model judged to be the same thing, each with its reason, for a person to check. Empty when no model is configured." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 2 ;
+            sh:path dmp:reconciled ],
+        [ sh:datatype xsd:string ;
+            sh:description "What this checker does not yet do." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dmp:limitations ],
+        [ sh:datatype xsd:string ;
+            sh:description "What the model proposed that was not used, and why: a pairing or reconciliation naming something not in the input, or a second pairing for one output." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dmp:dropped ],
         [ sh:datatype xsd:string ;
             sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
-            sh:path <https://w3id.org/data-director/schema_class> ],
-        [ sh:datatype xsd:string ;
-            sh:description "What this mock does not yet do." ;
-            sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path dmp:limitations ] ;
+            sh:path <https://w3id.org/data-director/schema_class> ] ;
     sh:targetClass dmp:DmpDiscrepancies .
 
 <https://w3id.org/data-director/GroundingRef> a sh:NodeShape ;
@@ -52,10 +62,16 @@ dmp:DmpDiscrepancies a sh:NodeShape ;
     sh:targetClass <https://w3id.org/data-director/GroundingRef> .
 
 dmp:Discrepancy a sh:NodeShape ;
-    rdfs:comment "One difference between what the plan committed to and what is planned." ;
+    rdfs:comment "One difference between what the plan committed to and what is planned. Found by rule (discrepancy_derivation lexical), or, for a renamed output, by a model pairing a committed output with a planned one (discrepancy_derivation model, with its reason). Either way it is for a person to review." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
+            sh:description "What is planned for this aspect, if anything." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dmp:planned ],
+        [ sh:datatype xsd:string ;
             sh:description "The output, by name, such as a dataset or software." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -76,7 +92,45 @@ dmp:Discrepancy a sh:NodeShape ;
             sh:order 4 ;
             sh:path dmp:message ],
         [ sh:datatype xsd:string ;
-            sh:description "What differs: missing (committed, not planned), unplanned (planned, not committed), repository, access or licence." ;
+            sh:description "What differs: missing (committed, not planned), unplanned (planned, not committed), renamed (a committed output a model paired with a planned one of another name; committed and planned give the two names), repository, access or licence." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dmp:aspect ],
+        [ sh:description "How the discrepancy was found: lexical, by the agent's rule matching names and comparing text, or model, by a model pairing a renamed output." ;
+            sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 5 ;
+            sh:path dmp:discrepancy_derivation ],
+        [ sh:datatype xsd:string ;
+            sh:description "The model's short reason for a pairing or a reconciliation. Present exactly when a model found it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path dmp:reason ] ;
+    sh:targetClass dmp:Discrepancy .
+
+dmp:Reconciliation a sh:NodeShape ;
+    rdfs:comment "A difference the rules found in an aspect that a model judged to name the same thing, such as two spellings of one licence. It is shown, with the model's reason, so a person can see and overrule it, and is not counted as a discrepancy. Always found by a model." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "What the plan committed to for this aspect, if anything." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dmp:committed ],
+        [ sh:datatype xsd:string ;
+            sh:description "The output, by name, such as a dataset or software." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dmp:output ],
+        [ sh:datatype xsd:string ;
+            sh:description "What differs: missing (committed, not planned), unplanned (planned, not committed), renamed (a committed output a model paired with a planned one of another name; committed and planned give the two names), repository, access or licence." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -87,6 +141,12 @@ dmp:Discrepancy a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
-            sh:path dmp:planned ] ;
-    sh:targetClass dmp:Discrepancy .
+            sh:path dmp:planned ],
+        [ sh:datatype xsd:string ;
+            sh:description "The model's short reason for a pairing or a reconciliation. Present exactly when a model found it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dmp:reason ] ;
+    sh:targetClass dmp:Reconciliation .
 

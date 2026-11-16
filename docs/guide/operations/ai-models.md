@@ -13,6 +13,7 @@ decisions. [Policy and identity](../../specs/policy-and-identity.md) records why
 | `advisor.policy` | By default: it reads the policy records found, searches Open Policy Finder, Crossref and FAIRsharing for more, and states each obligation with a quote from its record. `DD_POLICY_ADVISOR=template` (or its older name, `DD_POLICY_EXPLAINER`) turns the model off. | `claude-sonnet-5-5` | Yes, unless set to `template` or on a local endpoint, as for `advisor.documentation`. Its model must support tool calls. |
 | `advisor.repository` | Only with `DD_REPOSITORY_EXPLAINER=model`. The default is `template`. | `claude-sonnet-5-5` | Only in that mode, and not for a local endpoint. |
 | `advisor.documentation` | By default: it writes a README's prose and suggests answers to a draft's questions. `DD_DOCUMENTATION_WRITER=template` turns the model off. | `claude-sonnet-5-5` | Yes, unless set to `template` or on a local endpoint: it does not start without one. Locally, `dd.py start` runs it with `template` when it has no key. On a VM, `apply` is refused until it has a key or is set to `template`. `docker/compose.image.yaml` runs it with `template` unless the shell sets `model`. |
+| `advisor.dmp` | Only with `DD_DMP_MATCHER=model`: it reads what its rules leave over, to pair renamed outputs and reconcile two names for one licence or repository. The default is `template`. | `claude-sonnet-5-5` | Only in that mode, and not for a local endpoint. |
 | Every other agent, such as `example.hello` and `orchestrator.stub` | Never. | none | No. |
 
 A new `deployment.yaml` names `orchestrator: stub`, the agent a researcher converses with. The
@@ -26,7 +27,7 @@ recommends standards; once each has a key. Set `DD_DOCUMENTATION_WRITER=template
 to send nothing. The rest become
 model-backed when you choose, below.
 
-`anthropic`, the older value of these four settings, still works and means `model` with the
+`anthropic`, the older value of these settings, still works and means `model` with the
 Anthropic provider. The default model applies to Anthropic only; with any other provider,
 `DD_MODEL_ID` must name one.
 

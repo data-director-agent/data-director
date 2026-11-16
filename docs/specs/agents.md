@@ -195,8 +195,9 @@ adds is a record retrieved in the run that code checks against the dataset profi
 2. **Structured output.** The model replies against a schema derived from the payload class. A
    checker validates every reply before it is used, and records what it dropped and why.
 3. **Safety by construction.** Where a miss is harmful, the model may add to the rules' output
-   but not remove from it. Where invention is harmful, it chooses from a closed set the code
-   supplies, or states a claim only with a quote that code finds, word for word, in the record
+   but not remove from it; merging two flags into one, or moving a flag to a list shown beside
+   the others with the model's reason, is not removing it (`advisor-dmp/`). Where invention is
+   harmful, it chooses from a closed set the code supplies, or states a claim only with a quote that code finds, word for word, in the record
    it cites (`advisor-policy/`, `verify.py`). Where the researcher must write a value, it suggests beside that value and never
    writes it ([Drafting documents](drafting.md)).
 4. **Provenance per value.** Each field a model may write names a `Derivation` recorder in

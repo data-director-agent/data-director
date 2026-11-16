@@ -1,5 +1,5 @@
-"""advisor.dmp through the conductor: the Data Management Plan Checker mock
-(docs/specs/agents.md)."""
+"""advisor.dmp through the conductor: the Data Management Plan Checker on its template path, by
+rule alone (docs/specs/agents.md). The matcher model is tested in `test_match.py`."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from dd_agent_advisor_dmp.agent import DmpChecker
 from dd_agent_advisor_dmp.classes import DmpCommitments, DmpDiscrepancies, SharingCommitment
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import describe
-from dd_sdk.contract.models import GroundingMode, OutcomeStatus, ReasonCode
+from dd_sdk.contract.models import Derivation, GroundingMode, OutcomeStatus, ReasonCode
 from dd_sdk.schema import gen
 
 SAMPLES = Path(__file__).resolve().parents[3] / "workbench" / "samples"
@@ -31,7 +31,7 @@ def test_flags_missing_unplanned_and_changed_sharing(runs_dir: Path) -> None:
     conductor = make_conductor(runs_dir, DmpChecker())
     env = conductor.invoke(request("advisor.dmp", sample()), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
-    assert env.grounding_mode == GroundingMode.NONE
+    assert env.grounding_mode == GroundingMode.INPUT_ONLY
     payload = env.payload_as(DmpDiscrepancies)
     assert [(d.output, d.aspect, d.committed, d.planned) for d in payload.discrepancies] == [
         ("Smart-meter readings", "access", "open", "restricted"),
@@ -39,7 +39,12 @@ def test_flags_missing_unplanned_and_changed_sharing(runs_dir: Path) -> None:
         ("Analysis code", "unplanned", None, None),
     ]
     assert all("review" in d.message for d in payload.discrepancies)
+    assert all(d.discrepancy_derivation == Derivation.LEXICAL for d in payload.discrepancies)
+    assert all(d.reason is None for d in payload.discrepancies)
+    assert payload.reconciled == [] and payload.dropped == []
     assert payload.limitations
+    assert "no matcher model is configured" in env.outcome.statement
+    assert env.telemetry.model_id is None and env.telemetry.model_calls == []
     assert conductor.grounding_reports[env.invocation_id].passed
 
 
@@ -67,7 +72,9 @@ def test_an_aspect_given_on_one_side_only_is_not_a_difference(runs_dir: Path) ->
 def test_the_card_names_the_persona_and_its_steps() -> None:
     entry = describe(DmpChecker.spec)
     assert entry["title"] == "Data Management Plan Checker"
-    assert entry["description"].startswith("Mock.")
+    assert not entry["description"].startswith("Mock.")
+    assert entry["grounding_mode"] == "input_only"
+    assert not entry["models"]
     assert entry["serves"] == ["governance.dmp"]
     json.dumps(entry)
 
