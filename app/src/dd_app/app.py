@@ -121,13 +121,12 @@ from dd_app.about import about
 from dd_app.config import EXAMPLES_DIR, WEB_DIST, settings_from_env
 from dd_app.github_auth import TokenSource
 from dd_app.governance import (
-    CREATED_BY_ROUTE,
     Governance,
 )
 from dd_app.model_accounts import broker_path
 from dd_app.privacy import notice_url
 from dd_app.project_service import ProjectService
-from dd_app.routes import conversations, meta, runs, session
+from dd_app.routes import conversations, meta, projects, runs, session
 from dd_app.routes.common import Deps, Feedback
 from dd_harness import orcid
 from dd_harness.deposit import PackageRefusedError, build_package, check
@@ -137,12 +136,9 @@ from dd_harness.model_grants import jwks_routes
 from dd_harness.policy import PolicyError
 from dd_harness.project_access import Action, allowed
 from dd_harness.projects import (
-    TITLE_BY_RESEARCHER,
     ChangeRefusedError,
-    ProjectDeletedError,
     ProjectError,
     Refusal,
-    RestoreRefusedError,
     UnknownProjectError,
 )
 from dd_harness.registry import RegistryError
@@ -324,113 +320,6 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
             return _refused(str(exc), "Data Director could not list the runs")
         page = await run_in_threadpool(lambda: governance.runs(reader, **paging))
         return page_response(request, page)
-
-    async def list_projects(request: Request, reader: Principal) -> Response:
-        try:
-            paging = page_params(request)
-        except PagingError as exc:
-            return _refused(str(exc), "Data Director could not list the projects")
-        page = await run_in_threadpool(lambda: governance.projects_for(reader, **paging))
-        return page_response(request, page)
-
-    async def list_deleted_projects(request: Request, owner: Principal) -> Response:
-        try:
-            paging = page_params(request)
-        except PagingError as exc:
-            return _refused(str(exc), "Data Director could not list the deleted projects")
-        page = await run_in_threadpool(lambda: governance.deleted_projects_for(owner, **paging))
-        return page_response(request, page)
-
-    async def delete_project(request: Request, person: Principal) -> Response:
-        """Delete the project, which hides it and removes nothing, once the person has typed its
-        name: its title, or its identifier while it has none (docs/specs/projects.md, "Deletion
-        and retention"). The check is here as well as on the page, so no client can skip it.
-        Answers with the project's summary, whose `deleted` says until when it may be restored."""
-        project_id = request.path_params["project_id"]
-        store = governance.projects
-        if store is None:
-            return _no_project(project_id)
-        try:
-            body = await request.json()
-        except ValueError:
-            return _refused("The body is not JSON.", DELETE_REFUSED)
-        typed = body.get("title") if isinstance(body, dict) else None
-        if not isinstance(typed, str):
-            return _refused(
-                "`title` is the project's name, as the person typed it.", DELETE_REFUSED
-            )
-        caused_by = f"{request.method} {request.url.path}"
-
-        def delete() -> dict[str, Any] | None:
-            summary = store.summary(project_id)
-            if typed.strip() != (summary["title"] or project_id):
-                return None
-            store.delete(project_id, acted_for=person, caused_by=caused_by)
-            return store.summary(project_id)
-
-        try:
-            deleted = await run_in_threadpool(delete)
-        except UnknownProjectError:
-            return _no_project(project_id)
-        except ProjectDeletedError:
-            return _project_deleted(project_id)
-        if deleted is None:
-            return _refused(
-                "`title` is not the project's name. Type it exactly to delete the project.",
-                DELETE_REFUSED,
-            )
-        return JSONResponse(deleted)
-
-    async def restore_project(request: Request, person: Principal) -> Response:
-        """Restore a deleted project within its restore period: it is then as it was
-        (docs/specs/projects.md, invariant 25). Answers with the project's summary."""
-        project_id = request.path_params["project_id"]
-        store = governance.projects
-        if store is None:
-            return _no_project(project_id)
-        caused_by = f"{request.method} {request.url.path}"
-
-        def restore() -> dict[str, Any]:
-            store.restore(project_id, acted_for=person, caused_by=caused_by)
-            return store.summary(project_id)
-
-        try:
-            return JSONResponse(await run_in_threadpool(restore))
-        except UnknownProjectError:
-            return _no_project(project_id)
-        except RestoreRefusedError as exc:
-            return _problem(409, "project-restore-refused", RESTORE_REFUSED, str(exc))
-
-    async def create_project(request: Request, person: Principal) -> Response:
-        """A project of its own, with no conversation, named by the optional `title` the body
-        gives (docs/specs/app.md, rule 27). Whom it is created for is whom the authenticator
-        names, never the body. Answers `201` with its summary as `GET /api/projects` lists it."""
-        store = governance.projects
-        if store is None:
-            return _problem(
-                404, "project-not-found", "No such project", "This server keeps no projects."
-            )
-        try:
-            body = await request.json()
-        except ValueError:
-            return _refused("The body is not JSON.", CREATE_REFUSED)
-        if not isinstance(body, dict):
-            return _refused("The body must be an object.", CREATE_REFUSED)
-        extra = sorted(set(body) - {"title"})
-        if extra:
-            return _refused(f"Unexpected field(s): {', '.join(extra)}.", CREATE_REFUSED)
-        title = body.get("title")
-        if title is not None and not isinstance(title, str):
-            return _refused("`title` is the project's name, or left out.", CREATE_REFUSED)
-
-        def create() -> dict[str, Any]:
-            project_id = store.create(acted_for=person, caused_by=CREATED_BY_ROUTE, title=title)
-            return {**store.summary(project_id), "conversations": []}
-
-        try:
-            return JSONResponse(await run_in_threadpool(create), status_code=201)
-        except ProjectError as exc:
-            return _refused(str(exc), CREATE_REFUSED)
 
     async def get_documents(request: Request, _: Principal) -> Response:
         project_id = request.path_params["project_id"]
@@ -726,40 +615,6 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
         except UnknownProjectError:
             return _no_project(project_id)
 
-    async def rename_project(request: Request, person: Principal) -> Response:
-        """A person's name for the project, which a model's never replaces
-        (docs/specs/projects.md). Whom it acts for is whom the authenticator names, never the
-        body. Answers with the project's summary."""
-        project_id = request.path_params["project_id"]
-        store = governance.projects
-        if store is None:
-            return _no_project(project_id)
-        try:
-            body = await request.json()
-        except ValueError:
-            return _refused("The body is not JSON.", TITLE_REFUSED)
-        title = body.get("title") if isinstance(body, dict) else None
-        if not isinstance(title, str):
-            return _refused("`title` is the project's new name.", TITLE_REFUSED)
-        caused_by = f"{request.method} {request.url.path}"
-
-        def rename() -> dict[str, Any]:
-            store.rename(
-                project_id,
-                title,
-                source=TITLE_BY_RESEARCHER,
-                acted_for=person,
-                caused_by=caused_by,
-            )
-            return store.summary(project_id)
-
-        try:
-            return JSONResponse(await run_in_threadpool(rename))
-        except UnknownProjectError:
-            return _no_project(project_id)
-        except ProjectError as exc:
-            return _refused(str(exc), TITLE_REFUSED)
-
     async def get_repository(request: Request, _: Principal) -> Response:
         project_id = request.path_params["project_id"]
         store = governance.projects
@@ -1005,26 +860,9 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
             # ROUTE MODULES
             *session.routes(deps),
             *meta.routes(deps),
+            *projects.routes(deps),
             *conversations.routes(deps),
             *runs.routes(deps),
-            Route("/api/projects", signed_in(list_projects), methods=["GET"]),
-            Route("/api/projects", signed_in(create_project), methods=["POST"]),
-            Route("/api/projects/deleted", signed_in(list_deleted_projects), methods=["GET"]),
-            Route(
-                "/api/projects/{project_id}",
-                in_project(Action.MANAGE, delete_project),
-                methods=["DELETE"],
-            ),
-            Route(
-                "/api/projects/{project_id}/restore",
-                in_project(Action.MANAGE, restore_project),
-                methods=["POST"],
-            ),
-            Route(
-                "/api/projects/{project_id}/title",
-                in_project(Action.CONTRIBUTE, rename_project),
-                methods=["PUT"],
-            ),
             Route(
                 "/api/projects/{project_id}/documents",
                 in_project(Action.READ, get_documents),

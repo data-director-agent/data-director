@@ -343,6 +343,6 @@ module = ["fido.*", "frictionless.*", "a2a.*", "ag_ui.*", "rank_bm25.*", "rocrat
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["conftest", "sdk.tests.*", "harness.tests.*", "workbench.tests.*", "workbench.browser_tests.*", "agents.*", "app.*", "test_app", "test_runs_routes", "test_conversations_routes", "test_project_materials", "test_projects_routes", "test_requests_need_json", "test_feedback", "test_sign_in", "test_orchestrator", "test_orchestrator_stub", "test_standards_evals", "test_standards_harness", "support", "test_inventory", "test_admin", "admin_support", "broker_support", "test_broker_calls", "test_broker_grants", "test_broker_guard", "test_broker_key_not_leaked", "test_broker_seal", "test_broker_settings"]
+module = ["conftest", "sdk.tests.*", "harness.tests.*", "workbench.tests.*", "workbench.browser_tests.*", "agents.*", "app.*", "test_app", "test_runs_routes", "test_conversations_routes", "test_project_materials", "test_projects_routes", "test_requests_need_json", "test_project_service", "test_route_modules", "test_feedback", "test_sign_in", "test_orchestrator", "test_orchestrator_stub", "test_standards_evals", "test_standards_harness", "support", "test_inventory", "test_admin", "admin_support", "broker_support", "test_broker_calls", "test_broker_grants", "test_broker_guard", "test_broker_key_not_leaked", "test_broker_seal", "test_broker_settings"]
 disallow_untyped_defs = false
 disallow_incomplete_defs = false
