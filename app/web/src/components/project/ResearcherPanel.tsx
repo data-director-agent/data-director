@@ -25,6 +25,7 @@ import {
 import { useSessionApi } from "../../session/api";
 import { OrcidIcon } from "../ui/BrandIcon";
 import { Button } from "../ui/Button";
+import { formatDateTime } from "../../format";
 
 const HEADING_ID = "researchers-heading";
 
@@ -158,7 +159,7 @@ function KeptRecord({
       <p className="hint">
         Read from ORCID on{" "}
         <time dateTime={record.record_retrieved_at}>
-          {new Date(record.record_retrieved_at).toLocaleString()}
+          {formatDateTime(record.record_retrieved_at)}
         </time>
         .
       </p>

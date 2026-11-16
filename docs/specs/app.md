@@ -193,6 +193,14 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     deployment offers it, the page also holds the person's own AI account, which it reads from and
     sends to the model broker alone ([A person's own model account](model-accounts.md),
     `app/web/src/components/profile/ModelAccount.test.tsx`, `app/web/e2e/profile.spec.ts`).
+    Last comes **Preferences**: the colour scheme (light, dark, or matching the device), text
+    size, spacing, animation (matching the device, reduced or shown), the style dates and numbers
+    are written in and the 12- or 24-hour clock, and whether a visit returns to the project used
+    last or starts with none chosen. Each applies at once and is kept in that browser only, one
+    `localStorage` key each, and none reaches the server (`app/web/src/preferences.ts`,
+    `app/web/src/components/profile/Preferences.test.tsx`, `app/web/e2e/profile.spec.ts`). Every
+    date, time and number the app shows is written through `app/web/src/format.ts`, so that it
+    follows them.
 21. **A reply's questions are answered one at a time in a form, and may be ignored.** A reply's
     `reply_questions` are drawn beneath the reply. On the latest turn each question is a fieldset
     whose legend is the question and whose description is its help: a choice question as radio
@@ -604,8 +612,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   horizontal scrolling. Automated checks find only some failures; the rest is human review
   ([Evaluation and conformance](evaluation.md)). Chat content needs particular care
   (`docs/ui/best-practices.md`).
-- **Colour scheme.** Light by default whatever the system prefers; the person's choice of dark is
-  remembered in that browser (`shell.spec.ts`).
+- **Colour scheme.** Light by default whatever the system prefers; the person's choice of dark,
+  or of matching the device, is remembered in that browser (`shell.spec.ts`, `profile.spec.ts`).
+  Reduced motion follows the device unless the person's preferences say otherwise.
 - **Privacy.** No font or other asset is fetched from a third party; the typeface is self-hosted.
   A problem report is public, and the page says so and shows what will be sent beside the form.
 - **Security.** The credential for filing reports is a secret the app holds, read from a

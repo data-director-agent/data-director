@@ -4,6 +4,7 @@
  */
 
 import type { ProjectDocument, ProjectSummary } from "./api";
+import { formatDate } from "../format";
 
 const KINDS: Record<string, string> = {
   metadata_record: "Metadata record",
@@ -14,8 +15,7 @@ const KINDS: Record<string, string> = {
 
 /** A day as the person's locale writes it, or the timestamp as given if it is not one. */
 export function day(at: string): string {
-  const date = new Date(at);
-  return Number.isNaN(date.getTime()) ? at : date.toLocaleDateString([], { dateStyle: "medium" });
+  return formatDate(at, { dateStyle: "medium" });
 }
 
 /** What the owner types to delete a project: its title, or its identifier while it has none, as

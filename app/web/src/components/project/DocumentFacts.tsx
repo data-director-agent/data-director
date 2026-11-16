@@ -4,6 +4,7 @@
  */
 
 import type { DocumentVersion, VersionState } from "../../project/api";
+import { formatDateTime } from "../../format";
 
 export const STATES: Record<VersionState, { label: string; className: string }> = {
   proposed: { label: "Proposed, not reviewed", className: "status-warn" },
@@ -12,10 +13,7 @@ export const STATES: Record<VersionState, { label: string; className: string }> 
 };
 
 export function When({ at }: { at: string }) {
-  const shown = new Date(at).toLocaleString([], {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+  const shown = formatDateTime(at, { dateStyle: "medium", timeStyle: "short" });
   return <time dateTime={at}>{shown}</time>;
 }
 
