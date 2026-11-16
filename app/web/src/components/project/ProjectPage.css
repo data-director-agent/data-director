@@ -37,7 +37,7 @@
     }
 
     .document-browser[data-open="list"] .document-browser-reader,
-    .document-browser[data-open="reader"] .document-list {
+    .document-browser[data-open="reader"] .document-browser-side {
       display: none;
     }
 
@@ -52,22 +52,38 @@
     }
   }
 
-  /* The list: a group per state, each entry a link with the document's kind as an icon. */
-  .document-list {
+  /* The side bar: the documents, then the project's conversations (ProjectConversations.tsx). */
+  .document-browser-side {
     position: sticky;
     top: var(--space-4);
+    max-height: calc(100vh - 2 * var(--space-4));
+    overflow-y: auto;
     padding-inline-end: var(--space-4);
     border-inline-end: var(--border-width) solid var(--color-border-subtle);
   }
 
+  .project-conversations {
+    margin-top: var(--space-5);
+    padding-top: var(--space-4);
+    border-top: var(--border-width) solid var(--color-border-subtle);
+  }
+
+  .project-conversations > .muted {
+    margin: var(--space-1) var(--space-2) 0;
+    font-size: var(--font-size-small);
+  }
+
   @media (width <= 48rem) {
-    .document-list {
+    .document-browser-side {
       position: static;
+      max-height: none;
+      overflow-y: visible;
       padding-inline-end: 0;
       border-inline-end: none;
     }
   }
 
+  /* The list: a group per state, each entry a link with the document's kind as an icon. */
   .document-group + .document-group {
     margin-top: var(--space-4);
   }

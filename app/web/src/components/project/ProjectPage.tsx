@@ -20,7 +20,9 @@
  * project's name again rather than showing the one it sent.
  *
  * A project the page could read becomes the one the app is working in (docs/specs/app.md), so a
- * link to it lands in that project, and its conversations are one press away.
+ * link to it lands in that project. The project's conversations are listed beneath its documents
+ * (`ProjectConversations`), each one press away, with a link to start a new one; on a narrow
+ * screen they take turns with the reader as the documents do.
  */
 
 import "./ProjectPage.css";
@@ -51,6 +53,7 @@ import {
   stateOf,
 } from "./DocumentList";
 import { DocumentReader } from "./DocumentReader";
+import { ProjectConversations } from "./ProjectConversations";
 import { ProjectRename } from "./ProjectRename";
 import { RepositoryPanel } from "./RepositoryPanel";
 import { ResearcherPanel } from "./ResearcherPanel";
@@ -207,7 +210,10 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
 
     return (
       <div className="document-browser" data-open={asked && !unknown ? "reader" : "list"}>
-        <DocumentList documents={documents} selected={chosen} hrefFor={(id) => hrefFor(id)} />
+        <div className="document-browser-side">
+          <DocumentList documents={documents} selected={chosen} hrefFor={(id) => hrefFor(id)} />
+          <ProjectConversations key={projectId} projectId={projectId} />
+        </div>
         <div className="document-browser-reader">
           <p className="document-browser-back">
             <Link to={base}>
