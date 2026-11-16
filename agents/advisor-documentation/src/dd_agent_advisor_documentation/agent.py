@@ -1,12 +1,12 @@
 """advisor.documentation: the Documentation Editor persona (docs/specs/agents.md), the drafter
 of the project's README and data dictionary (docs/specs/drafting.md).
 
-Serves `setup.documentation` and `preparation.documentation` (R5). Given a `DraftRequest` for a
-`readme` or a `data_dictionary`, it drafts a project document (docs/specs/projects.md) from the
-project's inventory: the files and the tables' fields are drafted, and what only the researcher
-knows, such as the methods and each field's definition, unit and missing value codes, is marked
-for them. Each value in the data dictionary is marked with where it came from: inferred from the
-inventory, supplied by the researcher, or unknown.
+Serves `preparation.documentation` (R5), not `setup.documentation` (no inventory yet, #1017).
+Given a `DraftRequest` for a `readme` or a `data_dictionary`, it drafts a project document
+(docs/specs/projects.md) from the project's inventory: the files and the tables' fields are
+drafted, and what only the researcher knows, such as the methods and each field's definition,
+unit and missing value codes, is marked for them. Each value in the data dictionary is marked
+with where it came from: inferred from the inventory, supplied by the researcher, or unknown.
 
 When a model is configured, which it is by default (`factory.py`), it may suggest an answer to a
 data dictionary's questions about a field's definition or unit, and to the questions of the README
@@ -267,7 +267,7 @@ class DocumentationEditor:
                 Derivation.MODEL, recorded_in="suggestion_derivation"
             ),
         },
-        serves=("setup.documentation", "preparation.documentation"),
+        serves=("preparation.documentation",),
     )
 
     def __init__(self, sections: list[Section] | None = None, writer: Writer | None = None) -> None:
