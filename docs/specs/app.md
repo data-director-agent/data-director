@@ -476,8 +476,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
 - **The phases** come from the SDK's process flow, served by the app and joined in the shell to
   each manifest's `serves` ([Orchestration](orchestration.md)), so the shell keeps no copy of the
   flow. The shell shows them as "Your data journey", in a researcher's words: each phase has a
-  short `name` and a one-sentence `summary`, and each step a `label`, all carried by the process
-  flow beside the Blueprint's own wording, which the orchestrator reasons over. The journey names
+  short `name` and a one-sentence `summary`, and each step a `label` and a `prompt`, a first-person
+  opening for a conversation about it, all carried by the process flow beside the Blueprint's own
+  wording, which the orchestrator reasons over. The journey names
   no agent and no requirement, since a researcher works through the conversation and needs to see
   only the whole route. In a project it shows where the project is, as the harness derives it
   from the project log (`GET /api/projects/{id}/progress`, [Orchestration](orchestration.md),
@@ -486,6 +487,15 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   or open it again (`PUT .../progress/entry`, `PUT .../progress/steps/{step_id}`); the server
   records it acting for the person signed in and answers with the progress derived anew. The
   shell computes no state and no suggestion of its own.
+- **A conversation can be started from a step.** In a project, each in-scope step not done or
+  skipped, and the suggested step beside the suggestion, offers "Start a conversation". It closes
+  the open conversation and puts the step's `prompt` in the message box for the researcher to
+  edit and send; a message already being written or attached is replaced only once they confirm.
+  An empty conversation offers up to three prompts the same way: the suggested step's first, then
+  the open steps after it in the flow, leaving out optional and out-of-scope steps; with nothing
+  suggested it offers none, and once the box holds a message the offer gives way to it. Nothing
+  is sent or recorded until the researcher sends, and the turn then takes the ordinary path
+  (`app/web/src/components/conversation/ConversationHome.test.tsx`).
 - **The agent directory** is read-only and for end users: each agent's name, description, what it
   takes and returns, what powers it and whether this deployment will run it. A person does not run
   or message an agent from it; they work through the conversation. Below that, folded away, is
