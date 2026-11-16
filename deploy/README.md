@@ -649,7 +649,9 @@ DD_PRINCIPAL_ID=https://orcid.org/0000-0002-1825-0097 DD_PRINCIPAL_NAME="A. Rese
 The app reads the settings in [`config/examples/app.env`](../config/examples/app.env) and the
 agents those in [`config/examples/agents.env`](../config/examples/agents.env); give them in files
 named by `DD_APP_ENV_FILE` and `DD_AGENTS_ENV_FILE` (relative to `docker/`). The model-backed
-orchestrator starts only with `--profile llm` and a model key.
+orchestrator starts only with `--profile llm` and a model key. The documentation advisor, whose
+model is otherwise on by default, runs here with `DD_DOCUMENTATION_WRITER=template`; to turn its
+model on, export `DD_DOCUMENTATION_WRITER=model` in the shell and give it a key.
 Runs and projects are written to `/runs` and `/projects`, which should be volumes. Without ORCID
 sign-in every run acts for the operator and the app authenticates nobody, so publish its port on
 loopback only, as the Compose file does, and put NGINX in front as on the VM.

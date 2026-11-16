@@ -12,7 +12,7 @@ decisions. [Policy and identity](../../specs/policy-and-identity.md) records why
 | `advisor.standards` | Only with `DD_STANDARDS_EXPLAINER=model`. The default, `template`, is deterministic. | `claude-sonnet-5-5` | Only in that mode, and not for a local endpoint. |
 | `advisor.policy` | Only with `DD_POLICY_EXPLAINER=model`. The default is `template`. | `claude-sonnet-5-5` | Only in that mode, and not for a local endpoint. |
 | `advisor.repository` | Only with `DD_REPOSITORY_EXPLAINER=model`. The default is `template`. | `claude-sonnet-5-5` | Only in that mode, and not for a local endpoint. |
-| `advisor.documentation` | By default: it writes a README's prose and suggests answers to a draft's questions. `DD_DOCUMENTATION_WRITER=template` turns the model off. | `claude-sonnet-5-5` | Yes, unless set to `template` or on a local endpoint: it does not start without one. Locally, `dd.py start` runs it with `template` when it has no key. On a VM, `apply` is refused until it has a key or is set to `template`. |
+| `advisor.documentation` | By default: it writes a README's prose and suggests answers to a draft's questions. `DD_DOCUMENTATION_WRITER=template` turns the model off. | `claude-sonnet-5-5` | Yes, unless set to `template` or on a local endpoint: it does not start without one. Locally, `dd.py start` runs it with `template` when it has no key. On a VM, `apply` is refused until it has a key or is set to `template`. `docker/compose.image.yaml` runs it with `template` unless the shell sets `model`. |
 | Every other agent, such as `example.hello` and `orchestrator.stub` | Never. | none | No. |
 
 A new `deployment.yaml` names `orchestrator: stub`, the agent a researcher converses with. The
