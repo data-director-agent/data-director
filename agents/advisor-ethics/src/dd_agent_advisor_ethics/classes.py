@@ -10,7 +10,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from dd_sdk.contract.models import Frozen, Grounded
+from dd_sdk.contract.models import Derivation, Frozen, Grounded
 
 
 class SensitivityContext(Frozen):
@@ -25,11 +25,19 @@ class SensitivityContext(Frozen):
 class SensitivityFlag(Frozen):
     field: str
     category: str
-    matched: str
+    matched: str | None = None
+    reason: str | None = None
+    derivation: Derivation
+
+
+class SensitivityQuestion(Frozen):
+    text: str
+    derivation: Derivation
 
 
 class SensitivityFlags(Grounded):
     schema_class: Literal["SensitivityFlags"] = "SensitivityFlags"
     flags: list[SensitivityFlag] = Field(default_factory=list)
-    questions: list[str] = Field(default_factory=list)
+    questions: list[SensitivityQuestion] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
+    dropped: list[str] = Field(default_factory=list)

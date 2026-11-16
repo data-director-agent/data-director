@@ -1065,6 +1065,11 @@ dependencies = [
     { name = "pyyaml" },
 ]
 
+[package.optional-dependencies]
+model = [
+    { name = "data-director-sdk", extra = ["anthropic", "openai"] },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "data-director-harness" },
@@ -1073,9 +1078,11 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "data-director-sdk", editable = "sdk" },
+    { name = "data-director-sdk", extras = ["anthropic", "openai"], marker = "extra == 'model'", editable = "sdk" },
     { name = "pydantic", specifier = ">=2.14.1,<3" },
     { name = "pyyaml", specifier = ">=6.0" },
 ]
+provides-extras = ["model"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "data-director-harness", editable = "harness" }]
