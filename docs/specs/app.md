@@ -275,7 +275,13 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     recorded in either case. The message box stays usable throughout. A turn sent while the
     intake is pending leaves it pending, and does not count as an answer. The workspace reads the
     intake again after each turn, as it reads the project's progress, so that an entry point the
-    turn recorded is not asked again; a read after the first never opens or closes the card. The intake is a card of
+    turn recorded is not asked again; a read after the first never opens or closes the card.
+    A question with only a model's suggestion (`suggested_values`), and the entry question while
+    its entry point is a model's, are asked with that answer chosen and a note that Data Director
+    took it from what the researcher wrote; Next records it as the researcher's own answer, and
+    Skip leaves the suggestion unrecorded as an answer. A question with neither is asked with
+    nothing chosen ([Orchestration](orchestration.md), invariant 20). The card does not yet
+    show suggestions or ask a model's entry point to be confirmed, TODO(#908). The intake is a card of
     the project, not a turn: no orchestrator runs for it, and the history holds none of it. Its
     answers reach the orchestrator through the project's entry point and step states. The phase
     tracker offers "Answer the setup questions again", which shows the card with the current

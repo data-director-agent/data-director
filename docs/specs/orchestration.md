@@ -68,8 +68,8 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
    `test_a_child_acts_for_its_parents_principal_not_its_callers`,
    `test_delegations_are_kept_when_the_parent_fails_after_delegating`,
    `test_a_child_that_finishes_after_its_parent_is_still_recorded`)
-8. **An orchestrator has no tools except its delegations, `ask_questions`, `name_project` and
-   `set_entry_point`.** A
+8. **An orchestrator has no tools except its delegations, `ask_questions`, `name_project`,
+   `set_entry_point` and `suggest_setup_answers`.** A
    model-backed orchestrator is offered one tool per input class of each agent in the harness's
    manifest, and `ask_questions`, which reaches nothing: called alone it ends the turn, and the
    reply carries its questions as `Reply.reply_questions`. In a project no person has named
@@ -80,7 +80,14 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
    (`Message.project_entry_by_researcher` not true) it is also offered `set_entry_point`, which
    reaches nothing: the reply carries the entry point the model worked out from what the
    researcher said as `Reply.new_project_entry`, which the conductor records (invariant 18), and
-   the turn goes on. Nothing else is offered: no MCP server, no server tool
+   the turn goes on. While the project's intake has a question the researcher has not answered
+   (invariant 20), it is also offered `suggest_setup_answers`, which reaches nothing: the reply
+   carries, as `Reply.intake_suggestions`, the answers the model read in what the researcher
+   said, each a question id and one fixed option of a question asked from the project's entry
+   point, never "Not sure". The conductor records them as suggestions, not answers
+   ([Projects](projects.md), rule 20), and the turn goes on. The model suggests only what the
+   researcher said plainly and leaves a question it cannot settle. `suggest_setup_answers` is not
+   built yet, TODO(#908). Nothing else is offered: no MCP server, no server tool
    (web search, web fetch, code execution), no Agent Skills; its package depends on and imports
    nothing that could provide one. This holds on every provider: the tools are offered as
    `dd_sdk.model.ToolSpec`s and the loop keeps its conversation in `dd_sdk.model`'s neutral
@@ -168,7 +175,11 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     choice (`entry_source` `researcher`, or none on an older event) replaces it, and once they have
     chosen, the store refuses a model's and records nothing, so the model is no longer offered
     the tool (`Message.project_entry_by_researcher`). The phase tracker says when Data Director set
-    the entry point. The conductor
+    the entry point. A model's suggested answer to another intake question
+    (`Reply.intake_suggestions`, invariant 8) is weaker still: it is not a word at all, and marks no
+    step skipped and no step done, because a wrong "No" to sensitive data would skip the
+    governance steps on a guess the researcher never saw. Only the researcher's answer marks
+    steps (TODO(#908)). The conductor
     puts the entry point and the states into a `Message` in a project (`project_entry`,
     `project_progress`), so the input hash covers them, and the project summary carries the same
     derivation for the phase tracker. Work done out of order, or before the entry phase, counts.
@@ -228,7 +239,21 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     None of these holds up the conversation (invariant 16). When the intake ends, the app says which
     phase the project starts at, by its researcher-facing name, and which step `suggested_next`
     proposes. A researcher who dismisses the intake or types instead may still say where they are
-    in their own words; the model then records the entry point it worked out (invariant 18). A
+    in their own words; the model then records the entry point it worked out (invariant 18).
+
+    The intake asks only what the researcher has not answered, but it does not ask from scratch
+    what they have already said. A researcher who types before answering, as the card invites,
+    may say where they are, whether the data are sensitive, or that a funder has named a
+    repository. The model records the entry point it worked out and suggests the other answers
+    (invariant 8). The card still asks each question that has only a suggestion, with the
+    suggestion chosen and a note that Data Director took it from what the researcher wrote; Next
+    makes it the researcher's answer. An entry point the model set counts at once, so the phase
+    tracker and the next turn are not held up, but the card still asks the entry question, with
+    that entry point chosen, until the researcher confirms or changes it; until then the intake
+    stays pending. A question with neither answer nor suggestion is asked with nothing chosen.
+    The suggestions and the confirmation of the entry point are not built yet, TODO(#908): today
+    a model's entry point answers the entry question, and the other questions are asked with
+    nothing chosen. A
     Blueprint reading checked the wording, the entry points and the mapping
     ([The intake against §8](intake-reading.md)).
 
@@ -358,6 +383,12 @@ against it.
   guesses that the steps would ask about again.
 - **Intake answers as `step_marked` events.** That would lose what the researcher was asked, and
   make answering again unable to undo a skip that came from an earlier answer.
+- **A model's intake answers recorded as a weaker word, as its entry point is.** The card would
+  skip the question and the steps would be marked at once, so a misread "No" to sensitive data
+  would skip the governance steps without the researcher ever seeing the guess. A suggestion
+  shown chosen costs the researcher one press of Next and keeps every skip their own.
+- **Suggestions shown in the card only, not recorded.** They would be lost on reload, and the
+  project log could not say where a pre-selected answer came from.
 
 ## Non-functional requirements
 
