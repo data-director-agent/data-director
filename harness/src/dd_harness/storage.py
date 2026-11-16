@@ -22,6 +22,7 @@ from typing import Any, Protocol
 
 from dd_harness.listing import Page, Readable
 from dd_harness.progress import ENTRY_BY_RESEARCHER, EntrySource
+from dd_harness.project_effects import ProjectEffects
 from dd_harness.projects import Decision, TitleSource
 from dd_harness.requirements import Requirements
 from dd_harness.sources import Sources
@@ -135,7 +136,7 @@ class RunStorage(Protocol):
         ...
 
 
-class ProjectStorage(Protocol):
+class ProjectStorage(ProjectEffects, Protocol):
     """Where the harness keeps each project's log of events, and the content they added
     (docs/specs/projects.md).
 

@@ -85,12 +85,22 @@ from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, Literal
 
 from dd_harness import intake
 from dd_harness import progress as flow
+from dd_harness.project_effects import RunEffects
+from dd_harness.project_errors import TITLE_BY_MODEL as TITLE_BY_MODEL
+from dd_harness.project_errors import TITLE_BY_RESEARCHER as TITLE_BY_RESEARCHER
+from dd_harness.project_errors import ChangeRefusedError as ChangeRefusedError
+from dd_harness.project_errors import ProjectDeletedError as ProjectDeletedError
+from dd_harness.project_errors import ProjectError as ProjectError
+from dd_harness.project_errors import Refusal as Refusal
+from dd_harness.project_errors import Refused as Refused
+from dd_harness.project_errors import RestoreRefusedError as RestoreRefusedError
+from dd_harness.project_errors import TitleSource as TitleSource
+from dd_harness.project_errors import UnknownProjectError as UnknownProjectError
 from dd_harness.project_files import FileProjectLog
 from dd_harness.requirements import RE3DATA_ID, Requirements, RequirementsError
 from dd_harness.sources import Sources
@@ -156,65 +166,9 @@ DOCUMENTATION_MEDIA_TYPES: Final = ("text/plain", "text/markdown")
 DOCUMENTATION_MAX_BYTES: Final = 256 * 1024
 # The longest name a document is kept under, in characters: a file name.
 DOCUMENTATION_NAME_MAX_LENGTH: Final = 255
-# Who gave a project its title: a person (when creating or renaming it) or an orchestrator's
-# model. A person's title is never replaced by a model's.
-TITLE_BY_RESEARCHER: Final = "researcher"
-TITLE_BY_MODEL: Final = "model"
-type TitleSource = Literal["researcher", "model"]
 # How long an owner may restore a deleted project, unless the deployment says otherwise
 # (docs/specs/projects.md, invariant 25). Zero makes a deletion final to the app.
 DEFAULT_RESTORE_PERIOD: Final = timedelta(days=30)
-
-
-class ProjectError(ValueError):
-    """The project does not exist, or what was to be added to it was refused."""
-
-
-class UnknownProjectError(ProjectError):
-    """No project has this identifier."""
-
-
-class ProjectDeletedError(ProjectError):
-    """The project is deleted, so it takes no new work until it is restored
-    (docs/specs/projects.md, invariant 24)."""
-
-
-class RestoreRefusedError(ProjectError):
-    """The project is not deleted, or the period in which it could be restored is over
-    (docs/specs/projects.md, invariant 25)."""
-
-
-class Refusal(StrEnum):
-    """Why a decision, an edit or an answer was refused as not naming what it must
-    (docs/specs/projects.md, invariant 12). Each value is a Problem Details slug."""
-
-    NO_DOCUMENT = "document-not-found"
-    NOT_LATEST = "version-not-latest"
-    DECIDED = "version-decided"
-    DIGEST = "digest-mismatch"
-    NOT_ASKED = "question-not-asked"
-
-
-class ChangeRefusedError(ProjectError):
-    """A decision or edit that does not name the document's latest text, a decision on a
-    version already decided, or an answer to a question the latest version does not ask. The
-    refusal is recorded, and nothing else is."""
-
-    def __init__(self, refusal: Refusal, detail: str) -> None:
-        super().__init__(detail)
-        self.refusal = refusal
-        self.detail = detail
-
-
-@dataclass(frozen=True)
-class Refused:
-    """A change the project rules refuse: why, what a person is told, and what the
-    `document_change_refused` event names. Returned, not raised, so that the refusal is written
-    in the change's exclusive section before `ChangeRefusedError` is raised."""
-
-    refusal: Refusal
-    detail: str
-    named: dict[str, Any]
 
 
 def text_digest(text: str) -> str:
@@ -357,11 +311,11 @@ def _check_names(document_id: str, digest: str) -> None:
         raise ProjectError("a digest is a SHA-256 in lower-case hex")
 
 
-class Projects:
+class Projects(RunEffects):
     """The project rules, written once over a `ProjectLog` (`dd_harness.storage`,
     docs/specs/storage.md): the `ProjectStorage` every backend gives its callers. The log stores
     and reads; everything that decides whether a change is allowed, and what the log means, is
-    here."""
+    here. What a finished run does to its project is `RunEffects.after_run`."""
 
     def __init__(
         self, log: ProjectLog, *, restore_period: timedelta = DEFAULT_RESTORE_PERIOD
