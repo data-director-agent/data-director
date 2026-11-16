@@ -40,7 +40,11 @@ def record() -> MetadataRecord:
 
 def _app(runs_dir: Path):
     conductor = make_conductor(
-        runs_dir, QualityReviewer(), build_standards({}), HelloWorld(), AbstainingStub()
+        runs_dir,
+        QualityReviewer(),
+        build_standards({"DD_STANDARDS_EXPLAINER": "template"}),
+        HelloWorld(),
+        AbstainingStub(),
     )
     return conductor, build_app(conductor, OperatorAssertion(TEST_PRINCIPAL), base_url=BASE)
 

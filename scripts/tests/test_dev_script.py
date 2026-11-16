@@ -105,7 +105,7 @@ def test_the_key_goes_only_to_the_agents_that_use_it(repo: Path) -> None:
         "ANTHROPIC_API_KEY_FILE": "orchestrator-model-anthropic-api-key"
     }
     assert common.read_env(agents / "advisor-standards.env") == {
-        "DD_STANDARDS_EXPLAINER": "anthropic",
+        "DD_STANDARDS_EXPLAINER": "model",
         "ANTHROPIC_API_KEY_FILE": "advisor-standards-anthropic-api-key",
     }
     assert (credentials / "orchestrator-model-anthropic-api-key").read_text().strip() == KEY

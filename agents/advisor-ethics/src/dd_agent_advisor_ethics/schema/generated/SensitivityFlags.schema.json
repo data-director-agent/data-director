@@ -1,6 +1,17 @@
 {
    "$comment": "Generated from ethics.yaml by `uv run dd-gen-schema <path to ethics.yaml>`. Do not edit.",
    "$defs": {
+      "Derivation": {
+         "description": "",
+         "enum": [
+            "template",
+            "model",
+            "lexical",
+            "registry"
+         ],
+         "title": "Derivation",
+         "type": "string"
+      },
       "GroundingRef": {
          "additionalProperties": false,
          "description": "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (docs/specs/grounding.md). The linter matches every GroundingRef against a retrieval span on both fields.",
@@ -22,7 +33,7 @@
       },
       "SensitivityFlag": {
          "additionalProperties": false,
-         "description": "One field that may hold sensitive data.",
+         "description": "One field that may hold sensitive data, flagged by keyword (lexical) or by a model. A model may add a flag but never remove one the keywords raised.",
          "properties": {
             "field": {
                "description": "The field name, as given.",
@@ -33,16 +44,50 @@
                "type": "string"
             },
             "matched": {
-               "description": "The keyword in keywords.yaml that the field name matched.",
-               "type": "string"
+               "description": "The keyword in keywords.yaml that the field name matched. Present exactly when the flag is lexical.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "reason": {
+               "description": "Why the model flagged the field, in a short phrase. Present exactly when the flag is from a model.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "derivation": {
+               "$ref": "#/$defs/Derivation",
+               "description": "How the value came about, lexical (the keyword table), template or model."
             }
          },
          "required": [
             "field",
             "category",
-            "matched"
+            "derivation"
          ],
          "title": "SensitivityFlag",
+         "type": "object"
+      },
+      "SensitivityQuestion": {
+         "additionalProperties": false,
+         "description": "One thing the researcher must answer or confirm before sharing, from the adviser's template or added by a model.",
+         "properties": {
+            "text": {
+               "description": "The question, as put to the researcher.",
+               "type": "string"
+            },
+            "derivation": {
+               "$ref": "#/$defs/Derivation",
+               "description": "How the value came about, lexical (the keyword table), template or model."
+            }
+         },
+         "required": [
+            "text",
+            "derivation"
+         ],
+         "title": "SensitivityQuestion",
          "type": "object"
       }
    },
@@ -70,7 +115,7 @@
       "questions": {
          "description": "What the researcher must answer or confirm, with the people who can help.",
          "items": {
-            "type": "string"
+            "$ref": "#/$defs/SensitivityQuestion"
          },
          "type": [
             "array",
@@ -78,7 +123,17 @@
          ]
       },
       "limitations": {
-         "description": "What this mock does not yet do.",
+         "description": "What this alpha does not yet do.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "dropped": {
+         "description": "What a model returned that was not used, and why: a flag naming a field not in the input or a category not in the table, or a question too long to be one.",
          "items": {
             "type": "string"
          },

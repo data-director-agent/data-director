@@ -1,8 +1,10 @@
-"""The standards advisor: retrieve → rank → explain over FAIRsharing.
+"""The Standards Librarian: retrieve → rank → advise over FAIRsharing.
 
-Grounding invariant: retrieval precedes any model call, and the model never determines the
-identity of a recommendation. The explainer sees already-ranked records and writes rationale;
-the workbench's linter checks the trace afterwards (mode `retrieval`: G1-G4).
+Grounding invariant: retrieval and ranking precede any model call. The rules' picks always stand.
+A model (`advise.ModelAdvisor`, on by default) writes their rationales, may note a concern beside
+one, and may add recommendations, each naming a record retrieved in this run, its own searches
+included; the agent checks every addition before it is kept. The linter checks the trace
+afterwards (mode `retrieval`: G1-G4).
 
 A recommendation names its record once, in `grounded_on`. What the reader is shown about the record
 (name, status, DOI) is the evidence item's `content`: the projection its hash covers, which the
@@ -22,7 +24,7 @@ from dd_agent_advisor_standards.classes import (
     Recommendations,
     SearchedSummary,
 )
-from dd_agent_advisor_standards.explain import Explainer, TemplateExplainer
+from dd_agent_advisor_standards.explain import Explainer, Lookups, TemplateExplainer
 from dd_agent_advisor_standards.fairsharing.records import Record
 from dd_agent_advisor_standards.fairsharing.snapshot import SnapshotBackend
 from dd_agent_advisor_standards.retrieve import (
@@ -47,15 +49,30 @@ from dd_sdk.contract.models import (
 from dd_sdk.evidence import CANONICALISATION, HASH_ALGORITHM, project
 from dd_sdk.tracing import retrieval_span
 
+FOUND_NOTE = (
+    "A model chose this record from those retrieved in this run; the ranking rules did not. "
+    "Check that it suits the dataset."
+)
+
+# What the payload says it does not yet do: the curated subtype is TODO(#4), the gateway TODO(#875).
+LIMITATIONS = [
+    "Whether a terminology is a vocabulary or an ontology is read from its name and description, "
+    "not from FAIRsharing's curated subtype.",
+    "The ranking is lexical. A model, when one is configured, may add what it misses but its "
+    "choices have not yet been evaluated.",
+    "A model's searches reach FAIRsharing from this agent, not through the harness's tool gateway.",
+]
+
 
 class StandardsAgent:
     spec = AgentSpec(
         agent_id="advisor.standards",
         title="Standards Librarian",
-        version="0.2.0",
+        version="0.3.0",
         description=(
             "Recommends controlled vocabularies, ontologies and data formats from FAIRsharing "
-            "for a dataset profile, grounded on the registry records it retrieved."
+            "for a dataset profile, grounded on the registry records it retrieved. Ranking rules "
+            "choose first; a model may add records it found and note doubts, never remove one."
         ),
         action_class="advise",
         accepts=(ClassSchema.of(DatasetProfile),),
@@ -63,7 +80,11 @@ class StandardsAgent:
         payload=ClassSchema.of(Recommendations),
         derivations={
             "items.kind": Derived(Derivation.LEXICAL, recorded_in="classification_derivation"),
+            "items.target": Derived(Derivation.LEXICAL, recorded_in="selection_derivation"),
             "items.rationale": Derived(Derivation.MODEL, recorded_in="rationale_derivation"),
+            "items.concern": Derived(Derivation.MODEL),
+            "items.notes": Derived(Derivation.TEMPLATE),
+            "limitations": Derived(Derivation.TEMPLATE),
         },
         serves=("setup.vocabularies", "preparation.formats"),
     )
@@ -82,7 +103,7 @@ class StandardsAgent:
 
     def _search_all(
         self, queries: list[Query], ctx: RunContext
-    ) -> tuple[dict[str, list[Hit]], SnapshotRef, dict[str, Record]]:
+    ) -> tuple[dict[str, list[Hit]], SnapshotRef, dict[str, Record], RetrievalAdapter]:
         adapter = self.retrieval
         ref = adapter.snapshot_ref()
         results: dict[str, list[Hit]] = {}
@@ -107,7 +128,7 @@ class StandardsAgent:
                 retrieved[rec.fairsharing_id] = rec
                 with retrieval_span(ctx.tracer, rec.fairsharing_id, rec.content_hash()):
                     pass
-        return results, ref, retrieved
+        return results, ref, retrieved, adapter
 
     # --- assembly -------------------------------------------------------------------------
 
@@ -128,7 +149,7 @@ class StandardsAgent:
             )
 
         try:
-            results, ref, retrieved = self._search_all(queries, ctx)
+            results, ref, retrieved, adapter = self._search_all(queries, ctx)
         except RegistryUnavailable as exc:
             return AgentResult(
                 outcome=Outcome(
@@ -198,14 +219,21 @@ class StandardsAgent:
             else:
                 expanded.append((r, "dataset"))
 
-        # Explain — after retrieval, over decided identities only.
+        # Advise — after retrieval and ranking. A model's searches add to `retrieved`, each with
+        # its retrieval span, so whatever it adds is cited from a retrieved record.
         explanation = self.explainer.explain(
-            profile, [(r.hit.record, r.kind, target, r.reasons) for r, target in expanded], ctx
+            profile,
+            [(r.hit.record, r.kind, target, r.reasons) for r, target in expanded],
+            ctx,
+            Lookups(retrieval=adapter, records=retrieved),
         )
+        concerns = list(explanation.concerns) or [None] * len(expanded)
 
         now = datetime.now(UTC)
         items: list[Recommendation] = []
-        for (r, target), rationale in zip(expanded, explanation.rationales, strict=True):
+        for (r, target), rationale, concern in zip(
+            expanded, explanation.rationales, concerns, strict=True
+        ):
             rec = r.hit.record
             grounding = GroundingRef(source_id=rec.fairsharing_id, content_hash=rec.content_hash())
             items.append(
@@ -216,7 +244,25 @@ class StandardsAgent:
                     rationale=rationale.text,
                     rationale_derivation=rationale.derivation,
                     classification_derivation=r.classification_derivation,
+                    selection_derivation=Derivation.LEXICAL,
+                    concern=concern,
                     grounded_on=[grounding],
+                )
+            )
+        for addition in explanation.additions:
+            rec = addition.record
+            items.append(
+                Recommendation(
+                    kind=addition.kind,
+                    target=addition.target,
+                    rationale=addition.rationale.text,
+                    rationale_derivation=addition.rationale.derivation,
+                    classification_derivation=Derivation.MODEL,
+                    selection_derivation=Derivation.MODEL,
+                    notes=[FOUND_NOTE],
+                    grounded_on=[
+                        GroundingRef(source_id=rec.fairsharing_id, content_hash=rec.content_hash())
+                    ],
                 )
             )
         cited = {g.source_id for i in items for g in i.grounded_on}
@@ -238,16 +284,24 @@ class StandardsAgent:
             GroundingRef(source_id=e.source_id, content_hash=e.content_hash) for e in evidence
         ]
         kinds = sorted({i.kind.value for i in items})
+        added = (
+            f" {len(explanation.additions)} of them added by a model."
+            if explanation.additions
+            else ""
+        )
+        remarks = "".join(f" {r}" for r in explanation.remarks)
         return AgentResult(
             outcome=Outcome(
                 status=OutcomeStatus.SUCCEEDED,
                 statement=(
                     f"{len(items)} recommendation(s) across {', '.join(kinds)}, grounded in "
-                    f"{len(evidence)} FAIRsharing record(s) ({ref.as_string()}). "
+                    f"{len(evidence)} FAIRsharing record(s) ({ref.as_string()}).{added}{remarks} "
                     "Human review is required."
                 ),
             ),
-            payload=Recommendations(items=items, searched=searched, grounded_on=grounded_on),
+            payload=Recommendations(
+                items=items, searched=searched, grounded_on=grounded_on, limitations=LIMITATIONS
+            ),
             evidence=evidence,
             model_id=self.explainer.model_id,
             input_tokens=explanation.usage.input_tokens,

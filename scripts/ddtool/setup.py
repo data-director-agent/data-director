@@ -157,8 +157,10 @@ def ask_model_key(prompt: Prompter, changes: Changes) -> bool:
         return False
     if key != current:
         write_key("orchestrator-model", key, changes)
-    if prompt.yes("Let the standards advisor use the model to explain its advice too?", True):
-        write_key("advisor-standards", key, changes, {"DD_STANDARDS_EXPLAINER": "anthropic"})
+    if prompt.yes(
+        "Let the standards advisor use the model to choose and explain its advice too?", True
+    ):
+        write_key("advisor-standards", key, changes, {"DD_STANDARDS_EXPLAINER": "model"})
     return True
 
 
