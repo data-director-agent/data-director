@@ -3,7 +3,7 @@
    "$id": "https://w3id.org/data-director/agents/fairness/PublishedRecord",
    "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
-   "description": "The metadata of a dataset that is already published, as the researcher gives it: its identifier, title, licence, keywords, creators, formats, related outputs and how it is accessed.",
+   "description": "The metadata of a dataset that is already published, as the researcher gives it: its identifier, title, description, licence, keywords, creators, formats, related outputs and how it is accessed.",
    "properties": {
       "schema_class": {
          "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -21,6 +21,13 @@
       },
       "title": {
          "description": "The dataset's title.",
+         "type": [
+            "string",
+            "null"
+         ]
+      },
+      "description": {
+         "description": "The dataset's description or abstract, as published.",
          "type": [
             "string",
             "null"

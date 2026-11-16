@@ -1,4 +1,4 @@
-"""advisor.fairness through the conductor: the FAIR Assessor mock (docs/specs/agents.md)."""
+"""advisor.fairness through the conductor: the FAIR Assessor alpha (docs/specs/agents.md)."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from dd_agent_advisor_fairness.agent import FairAssessor
 from dd_agent_advisor_fairness.classes import FairnessReport, PublishedRecord
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import describe
-from dd_sdk.contract.models import GroundingMode, OutcomeStatus, ReasonCode
+from dd_sdk.contract.models import Derivation, GroundingMode, OutcomeStatus, ReasonCode
 from dd_sdk.schema import gen
 
 SAMPLES = Path(__file__).resolve().parents[3] / "workbench" / "samples"
@@ -30,7 +30,7 @@ def test_checks_the_record_and_suggests_retrofits(runs_dir: Path) -> None:
     conductor = make_conductor(runs_dir, FairAssessor())
     env = conductor.invoke(request("advisor.fairness", sample()), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
-    assert env.grounding_mode == GroundingMode.NONE
+    assert env.grounding_mode == GroundingMode.INPUT_ONLY
     payload = env.payload_as(FairnessReport)
     unmet = [(c.principle, c.check) for c in payload.checks if not c.met]
     assert unmet == [
@@ -39,7 +39,12 @@ def test_checks_the_record_and_suggests_retrofits(runs_dir: Path) -> None:
         ("R1.2", "creators-identified"),
     ]
     assert all(c.recommendation for c in payload.checks if not c.met)
+    assert all(
+        c.recommendation_derivation == Derivation.TEMPLATE for c in payload.checks if not c.met
+    )
     assert all(c.recommendation is None for c in payload.checks if c.met)
+    assert all(c.recommendation_derivation is None for c in payload.checks if c.met)
+    assert env.telemetry.model_id is None
     assert any("not a FAIRness evaluation" in item for item in payload.limitations)
     assert conductor.grounding_reports[env.invocation_id].passed
 
@@ -57,7 +62,7 @@ def test_neither_identifier_nor_title_abstains(runs_dir: Path) -> None:
 def test_the_card_names_the_persona_and_its_steps() -> None:
     entry = describe(FairAssessor.spec)
     assert entry["title"] == "FAIR Assessor"
-    assert entry["description"].startswith("Mock.")
+    assert entry["description"].startswith("Alpha.")
     assert entry["serves"] == ["post.fairness", "post.retrofit"]
     json.dumps(entry)
 

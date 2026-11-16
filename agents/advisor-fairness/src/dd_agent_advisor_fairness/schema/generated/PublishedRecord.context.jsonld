@@ -16,6 +16,9 @@
       "dcat": "http://www.w3.org/ns/dcat#",
       "dcterms": "http://purl.org/dc/terms/",
       "dd": "https://w3id.org/data-director/",
+      "description": {
+         "@id": "https://w3id.org/data-director/agents/fairness/description"
+      },
       "fairness": "https://w3id.org/data-director/agents/fairness/",
       "formats": {
          "@id": "https://w3id.org/data-director/agents/fairness/formats"

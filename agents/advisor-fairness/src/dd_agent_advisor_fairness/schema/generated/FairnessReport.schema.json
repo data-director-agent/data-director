@@ -1,6 +1,17 @@
 {
    "$comment": "Generated from fairness.yaml by `uv run dd-gen-schema <path to fairness.yaml>`. Do not edit.",
    "$defs": {
+      "Derivation": {
+         "description": "",
+         "enum": [
+            "template",
+            "model",
+            "lexical",
+            "registry"
+         ],
+         "title": "Derivation",
+         "type": "string"
+      },
       "FairCheck": {
          "additionalProperties": false,
          "description": "One check of the record against a FAIR sub-principle.",
@@ -23,6 +34,17 @@
                   "string",
                   "null"
                ]
+            },
+            "recommendation_derivation": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/Derivation"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "How the recommendation came about: template, the rule table's own text, or model, where a model wrote it for this record. Absent when the check is met."
             }
          },
          "required": [
@@ -75,7 +97,7 @@
          ]
       },
       "limitations": {
-         "description": "What this mock does not yet do.",
+         "description": "What this assessor does not do.",
          "items": {
             "type": "string"
          },
