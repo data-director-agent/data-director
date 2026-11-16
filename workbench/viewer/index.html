@@ -16,6 +16,7 @@
   <script type="module" src="/viewer/js/chat.js"></script>
 </head>
 <body>
+  <a class="skip-link" href="#chat-main">Skip to main content</a>
   <header class="top">
     <div class="title-row">
       <h1>Data Director Workbench</h1>
@@ -47,10 +48,10 @@
       </section>
       <section class="panel" aria-labelledby="conversations-heading">
         <div class="head-row"><h2 id="conversations-heading"><svg class="icon" aria-hidden="true" focusable="false"><use href="/viewer/icons.svg#rotate-ccw-clock"/></svg>Conversations</h2><span data-help="conversation_id"></span></div>
-        <ul class="history" id="conversations"></ul>
+        <ul class="history" id="conversations"><li class="muted">Loading…</li></ul>
       </section>
     </nav>
-    <main class="chat-main" aria-label="Chat">
+    <main class="chat-main" id="chat-main" aria-label="Chat">
       <section class="panel" aria-labelledby="transcript-heading">
         <div class="head-row"><h2 id="transcript-heading">Transcript</h2><span data-help="turn"></span></div>
         <div class="empty" id="chat-empty">
@@ -88,7 +89,7 @@
         </div>
         <div class="actions">
           <button class="primary" id="send" type="submit" disabled><svg class="icon" aria-hidden="true" focusable="false"><use href="/viewer/icons.svg#send-horizontal"/></svg>Send</button>
-          <p class="legend"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> sends · <span id="chat-status" role="status" aria-live="polite"></span></p>
+          <p class="legend"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> (<kbd>⌘</kbd>+<kbd>Enter</kbd> on a Mac) sends · <span id="chat-status" role="status" aria-live="polite"></span></p>
         </div>
       </form>
     </main>

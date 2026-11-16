@@ -1613,6 +1613,146 @@ describe("ConversationHome", () => {
       ).toHaveValue("");
     });
 
+    const step = (id: string) => {
+      const found = flow.phases
+        .flatMap((p) => p.steps)
+        .find((s) => s.id === id);
+      if (!found) throw new Error(`no step ${id} in the fixture`);
+      return found;
+    };
+
+    it("starts a new conversation from a step with its prompt in the box, unsent", async () => {
+      localStorage.setItem("dd-project", LOGGERS.project_id);
+      const sendTurn = vi.fn().mockResolvedValue(undefined);
+      const { container } = renderHome(
+        withOrchestrator(),
+        fakeApi({ sendTurn }),
+        FLOW,
+        withProgress(),
+      );
+      const phases = await screen.findByRole("navigation", {
+        name: "Your data journey",
+      });
+      await within(phases).findByRole("status");
+      await userEvent.click(
+        within(phases).getByText("Show what happens in each phase"),
+      );
+      // A step done or skipped, or out of scope, offers no conversation.
+      expect(
+        within(phases).queryByRole("button", {
+          name: `Start a conversation: ${label("preparation.files")}`,
+        }),
+      ).not.toBeInTheDocument();
+      expect(
+        within(phases).queryByRole("button", {
+          name: `Start a conversation: ${label("setup.dmp-create")}`,
+        }),
+      ).not.toBeInTheDocument();
+
+      const chosen = step("repository.recommend");
+      await userEvent.click(
+        within(phases).getByRole("button", {
+          name: `Start a conversation: ${chosen.label}`,
+        }),
+      );
+      const box = screen.getByRole("textbox", {
+        name: "What would you like to do?",
+      });
+      expect(box).toHaveValue(chosen.prompt);
+      await waitFor(() => expect(box).toHaveFocus());
+      expect(sendTurn).not.toHaveBeenCalled();
+      expect(await axe(container)).toHaveNoViolations();
+    });
+
+    it("asks before replacing a message being written", async () => {
+      localStorage.setItem("dd-project", LOGGERS.project_id);
+      renderHome(withOrchestrator(), fakeApi(), FLOW, withProgress());
+      const phases = await screen.findByRole("navigation", {
+        name: "Your data journey",
+      });
+      await within(phases).findByRole("status");
+      const box = screen.getByRole("textbox", {
+        name: "What would you like to do?",
+      });
+      await userEvent.type(box, "my own words");
+      const suggested = step("governance.policies");
+      await userEvent.click(
+        within(phases).getAllByRole("button", {
+          name: `Start a conversation: ${suggested.label}`,
+        })[0] as HTMLElement,
+      );
+      const dialog = await screen.findByRole("dialog");
+      await userEvent.click(
+        within(dialog).getByRole("button", { name: "Keep my message" }),
+      );
+      expect(box).toHaveValue("my own words");
+
+      await userEvent.click(
+        within(phases).getAllByRole("button", {
+          name: `Start a conversation: ${suggested.label}`,
+        })[0] as HTMLElement,
+      );
+      await userEvent.click(
+        within(await screen.findByRole("dialog")).getByRole("button", {
+          name: "Replace it",
+        }),
+      );
+      expect(box).toHaveValue(suggested.prompt);
+    });
+
+    it("offers ways to start an empty conversation, led by the suggested step", async () => {
+      localStorage.setItem("dd-project", LOGGERS.project_id);
+      const sendTurn = vi.fn().mockResolvedValue(undefined);
+      renderHome(
+        withOrchestrator(),
+        fakeApi({ sendTurn }),
+        FLOW,
+        withProgress(),
+      );
+      const offered = await screen.findByRole("group", {
+        name: "Suggested ways to start",
+      });
+      const buttons = within(offered).getAllByRole("button");
+      const suggested = step("governance.policies");
+      expect(buttons[0]).toHaveAccessibleName(suggested.prompt);
+      expect(offered).not.toHaveTextContent(step("preparation.files").prompt);
+
+      await userEvent.click(buttons[0] as HTMLElement);
+      const box = screen.getByRole("textbox", {
+        name: "What would you like to do?",
+      });
+      expect(box).toHaveValue(suggested.prompt);
+      expect(sendTurn).not.toHaveBeenCalled();
+      // With a message in the box, the offer gives way to it.
+      expect(
+        screen.queryByRole("group", { name: "Suggested ways to start" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("offers no ways to start while nothing is suggested", async () => {
+      localStorage.setItem("dd-project", LOGGERS.project_id);
+      renderHome(
+        withOrchestrator(),
+        fakeApi(),
+        FLOW,
+        withProgress({
+          progress: () =>
+            Promise.resolve<ProjectProgress>({
+              entry: null,
+              steps: {},
+              suggested: null,
+            }),
+        }),
+      );
+      const phases = await screen.findByRole("navigation", {
+        name: "Your data journey",
+      });
+      await within(phases).findByRole("status");
+      expect(
+        screen.queryByRole("group", { name: "Suggested ways to start" }),
+      ).not.toBeInTheDocument();
+    });
+
     it("says when Data Director recorded the entry point from what the researcher said", async () => {
       localStorage.setItem("dd-project", LOGGERS.project_id);
       const read: ProjectProgress = { ...AT_ENTRY_TWO, entry_source: "model" };

@@ -272,6 +272,7 @@ def test_the_process_flow_is_the_blueprints(governance: Governance, dist: Path):
         "id": "setup.vocabularies",
         "text": "Select controlled vocabularies and ontologies",
         "label": "Choose standard terms to describe your data",
+        "prompt": PHASES[0].steps[1].prompt,
         "requirements": ["R3"],
         "optional": False,
         "out_of_scope": False,

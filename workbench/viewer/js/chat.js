@@ -1,5 +1,5 @@
 // Chat: hold a conversation with one agent, a turn at a time. ?conversation_id=… reopens one.
-import { $, el, icon, statusIcon, uuid7, rememberInput, copyButton, fmtTime, shortId, statusPill, kvList, inspectLink, newRequest, postRun } from "./common.js";
+import { $, el, icon, statusIcon, uuid7, rememberInput, copyButton, fmtTime, shortId, statusPill, kvList, inspectLink, newRequest, postRun, getJson } from "./common.js";
 import { help } from "./help.js";
 import { agents, classSchema, loadRegistry, renderAgents, renderAgentDetail, renderClasses, renderSamples, fetchSample } from "./registry.js";
 import { inputForm } from "./inputform.js";
@@ -179,7 +179,7 @@ async function send() {
   }
 }
 async function loadConversations() {
-  const items = await (await fetch("/conversations")).json();
+  const items = await getJson("/conversations");
   const list = $("conversations"); list.replaceChildren();
   if (!items.length) list.append(el("li", { className: "muted", textContent: "None yet." }));
   for (const c of items) {

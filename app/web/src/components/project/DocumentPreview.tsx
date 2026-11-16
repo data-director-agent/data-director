@@ -10,6 +10,7 @@
 import { CsvError, parseCsv } from "../../project/csv";
 import { readingOf } from "../../project/media";
 import { Markdown } from "../ui/Markdown";
+import { TableScroll } from "../ui/TableScroll";
 
 function Source({ text, note }: { text: string; note?: string }) {
   return (
@@ -25,7 +26,7 @@ function CsvTable({ rows, caption }: { rows: string[][]; caption: string }) {
   const width = Math.max(...rows.map((row) => row.length));
   const pad = (row: string[]) => [...row, ...Array<string>(width - row.length).fill("")];
   return (
-    <div className="table-scroll document-table">
+    <TableScroll label={caption} className="document-table">
       <table className="data-table">
         <caption className="visually-hidden">{caption}</caption>
         <thead>
@@ -47,7 +48,7 @@ function CsvTable({ rows, caption }: { rows: string[][]; caption: string }) {
           ))}
         </tbody>
       </table>
-    </div>
+    </TableScroll>
   );
 }
 

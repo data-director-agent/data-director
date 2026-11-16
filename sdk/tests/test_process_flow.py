@@ -124,6 +124,8 @@ def test_every_phase_and_step_has_wording_for_researchers_free_of_requirement_id
         for step in phase.steps:
             assert step.label, step.id
             assert not any(r in step.label for r in REQUIREMENTS), step.id
+            assert step.prompt, step.id
+            assert not any(r in step.prompt for r in REQUIREMENTS), step.id
 
 
 def test_progress_from_an_entry_keeps_earlier_work_and_marks_each_step() -> None:

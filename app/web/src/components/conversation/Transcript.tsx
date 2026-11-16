@@ -125,7 +125,9 @@ function ChildCard({
         {waiting && (
           <>
             {" "}
-            <span className="status status-warn">⏸ Waiting for review</span>
+            <span className="status status-warn">
+              <span aria-hidden="true">⏸</span> Waiting for review
+            </span>
           </>
         )}
       </p>

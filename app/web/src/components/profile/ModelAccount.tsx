@@ -24,6 +24,7 @@ import { type ModelAccountProvider, SignedOut } from "../../session/api";
 import { Button } from "../ui/Button";
 import { DialogTrigger, ModalDialog } from "../ui/Dialog";
 import { formatDateTime, formatNumber } from "../../format";
+import { TableScroll } from "../ui/TableScroll";
 
 type Load = { state: "loading" } | { state: "loaded"; value: Account } | { state: "failed" };
 type Change =
@@ -372,7 +373,7 @@ export function ModelAccount({
           {usage.length === 0 ? (
             <p>No model calls have been made for you in the last 30 days.</p>
           ) : (
-            <div className="table-scroll">
+            <TableScroll label="Your token use">
               <table className="data-table">
                 <caption className="visually-hidden">Tokens used for you in the last 30 days</caption>
                 <thead>
@@ -381,8 +382,12 @@ export function ModelAccount({
                     <th scope="col">Provider</th>
                     <th scope="col">Model</th>
                     <th scope="col">Paid by</th>
-                    <th scope="col">Input tokens</th>
-                    <th scope="col">Output tokens</th>
+                    <th scope="col" className="num">
+                      Input tokens
+                    </th>
+                    <th scope="col" className="num">
+                      Output tokens
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -394,13 +399,13 @@ export function ModelAccount({
                       <td>{describe(row.provider).name}</td>
                       <td>{row.model}</td>
                       <td>{row.payer === "own" ? "Your account" : "The deployment"}</td>
-                      <td>{formatNumber(row.inputTokens)}</td>
-                      <td>{formatNumber(row.outputTokens)}</td>
+                      <td className="num">{formatNumber(row.inputTokens)}</td>
+                      <td className="num">{formatNumber(row.outputTokens)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
+            </TableScroll>
           )}
         </>
       )}

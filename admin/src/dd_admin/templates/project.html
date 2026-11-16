@@ -34,6 +34,8 @@
         <td>{{ person(who.name, who.principal_id) }}</td>
         <td><details><summary>Show</summary><pre class="json small">{{ e | pretty }}</pre></details></td>
       </tr>
+    {% else %}
+      <tr><td colspan="4" class="empty">No events.</td></tr>
     {% endfor %}
     </tbody>
   </table>
