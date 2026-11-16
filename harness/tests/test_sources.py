@@ -197,22 +197,25 @@ def test_conductor_records_a_verified_result(tmp_path: Path) -> None:
     assert (run_dir / "sources.txt").read_text() == "sources: 1 verified, 0 unresolved\n"
 
 
-ZENODO = {
+ZENODO: dict[str, Any] = {
     "re3data_id": "r3d100010468",
     "name": "Zenodo",
     "doi": "10.17616/R3TEST1",
     "url": "https://zenodo.org/",
     "metadata_standards": [],
 }
-ORDA = {
+ORDA: dict[str, Any] = {
     "re3data_id": "r3d100012124",
     "name": "ORDA - The University of Sheffield Research Data Catalogue and Repository",
     "additional_names": ["Sheffield Research Data Repository"],
     "url": "https://orda.shef.ac.uk/",
     "metadata_standards": [],
 }
-SHEFFIELD_ARCHIVE = {"re3data_id": "r3d100099999", "name": "Archive of Sheffield Data"}
-REGISTRY = [ZENODO, ORDA, SHEFFIELD_ARCHIVE]
+SHEFFIELD_ARCHIVE: dict[str, Any] = {
+    "re3data_id": "r3d100099999",
+    "name": "Archive of Sheffield Data",
+}
+REGISTRY: list[dict[str, Any]] = [ZENODO, ORDA, SHEFFIELD_ARCHIVE]
 
 
 def _registry(tmp_path: Path) -> Sources:
