@@ -21,6 +21,17 @@
          "title": "AccessOption",
          "type": "object"
       },
+      "Derivation": {
+         "description": "",
+         "enum": [
+            "template",
+            "model",
+            "lexical",
+            "registry"
+         ],
+         "title": "Derivation",
+         "type": "string"
+      },
       "GroundingRef": {
          "additionalProperties": false,
          "description": "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (docs/specs/grounding.md). The linter matches every GroundingRef against a retrieval span on both fields.",
@@ -42,7 +53,7 @@
       },
       "LicenceOption": {
          "additionalProperties": false,
-         "description": "One licence the researcher could choose.",
+         "description": "One licence the researcher could choose, always from the adviser's own table. A model may choose which of the table's licences fit the reuse wanted and their order, never add one.",
          "properties": {
             "spdx_id": {
                "description": "The licence's SPDX identifier.",
@@ -62,14 +73,39 @@
                   "string",
                   "null"
                ]
+            },
+            "derivation": {
+               "$ref": "#/$defs/Derivation",
+               "description": "How the value came about: template, by the adviser's rules (a keyword in the reuse wanted, a mandate, the fixed questions), or model, where a model read the reuse wanted or added a question."
             }
          },
          "required": [
             "spdx_id",
             "name",
-            "url"
+            "url",
+            "derivation"
          ],
          "title": "LicenceOption",
+         "type": "object"
+      },
+      "RightsQuestion": {
+         "additionalProperties": false,
+         "description": "One thing the researcher must answer or confirm first, from the adviser's template or added by a model.",
+         "properties": {
+            "text": {
+               "description": "The question, as put to the researcher.",
+               "type": "string"
+            },
+            "derivation": {
+               "$ref": "#/$defs/Derivation",
+               "description": "How the value came about: template, by the adviser's rules (a keyword in the reuse wanted, a mandate, the fixed questions), or model, where a model read the reuse wanted or added a question."
+            }
+         },
+         "required": [
+            "text",
+            "derivation"
+         ],
+         "title": "RightsQuestion",
          "type": "object"
       }
    },
@@ -106,7 +142,7 @@
       "questions": {
          "description": "What the researcher must answer or confirm, with the people who can help.",
          "items": {
-            "type": "string"
+            "$ref": "#/$defs/RightsQuestion"
          },
          "type": [
             "array",
@@ -114,7 +150,17 @@
          ]
       },
       "limitations": {
-         "description": "What this mock does not yet do.",
+         "description": "What this adviser does not yet do.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "dropped": {
+         "description": "What the model replied that was not used, and why: a reuse it named that the table does not know, a licence not among those that fit, or a question it may not ask.",
          "items": {
             "type": "string"
          },

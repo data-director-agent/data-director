@@ -20,6 +20,24 @@ class JudgedBy(StrEnum):
     NOTHING = "nothing"
 
 
+class CheckKind(StrEnum):
+    FREE_TEXT = "free_text"
+    COORDINATES = "coordinates"
+    THIRD_PARTY = "third_party"
+    GOVERNANCE = "governance"
+    SYSTEM_FILE = "system_file"
+    EMPTY = "empty"
+    DUPLICATE = "duplicate"
+
+
+class FileCheck(Frozen):
+    path: str
+    kind: CheckKind
+    matched: str | None = None
+    question: str
+    related_paths: list[str] = Field(default_factory=list)
+
+
 class FileAssessment(Frozen):
     path: str
     extension: str
@@ -32,4 +50,5 @@ class FileAssessment(Frozen):
 class FormatAssessment(Grounded):
     schema_class: Literal["FormatAssessment"] = "FormatAssessment"
     assessments: list[FileAssessment] = Field(default_factory=list)
+    checks: list[FileCheck] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)

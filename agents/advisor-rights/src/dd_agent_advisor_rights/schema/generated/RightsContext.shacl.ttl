@@ -28,16 +28,16 @@ rights:RightsContext a sh:NodeShape ;
             sh:order 0 ;
             sh:path <https://w3id.org/data-director/schema_class> ],
         [ sh:datatype xsd:string ;
-            sh:description "The reuse the researcher wants to allow, e.g. any, attribution, share-alike or non-commercial. Unknown if absent." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path rights:reuse_wanted ],
-        [ sh:datatype xsd:string ;
             sh:description "The SPDX identifier of a licence that a funder, journal or institution requires, if any." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
-            sh:path rights:mandated_licence ] ;
+            sh:path rights:mandated_licence ],
+        [ sh:datatype xsd:string ;
+            sh:description "The reuse the researcher wants to allow, in their own words or as one of any, attribution, share-alike or non-commercial. Unknown if absent." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path rights:reuse_wanted ] ;
     sh:targetClass rights:RightsContext .
 

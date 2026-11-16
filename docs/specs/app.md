@@ -7,8 +7,8 @@ The app (`app/`) is the Data Director that people use. The Blueprint's presentat
 orchestrates requests and coordinates the agents
 ([§9.2, §9.3](../blueprint/09-reference-architecture.md#92-presentation-layer)). A person talks to
 one Data Director; the specialist agents support it. So the app opens on a conversation with the
-orchestrator, and every agent's own pages (what it does, a form to run it, its stored runs) sit
-one step away.
+orchestrator, and every agent's own pages (what it does, its stored runs) sit one step away. A person runs an
+agent by asking for it in a conversation; there is no form to run one directly.
 
 The app is three things:
 
@@ -193,6 +193,14 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     deployment offers it, the page also holds the person's own AI account, which it reads from and
     sends to the model broker alone ([A person's own model account](model-accounts.md),
     `app/web/src/components/profile/ModelAccount.test.tsx`, `app/web/e2e/profile.spec.ts`).
+    Last comes **Preferences**: the colour scheme (light, dark, or matching the device), text
+    size, spacing, animation (matching the device, reduced or shown), the style dates and numbers
+    are written in and the 12- or 24-hour clock, and whether a visit returns to the project used
+    last or starts with none chosen. Each applies at once and is kept in that browser only, one
+    `localStorage` key each, and none reaches the server (`app/web/src/preferences.ts`,
+    `app/web/src/components/profile/Preferences.test.tsx`, `app/web/e2e/profile.spec.ts`). Every
+    date, time and number the app shows is written through `app/web/src/format.ts`, so that it
+    follows them.
 21. **A reply's questions are answered one at a time in a form, and may be ignored.** A reply's
     `reply_questions` are drawn beneath the reply. On the latest turn each question is a fieldset
     whose legend is the question and whose description is its help: a choice question as radio
@@ -381,10 +389,21 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   sends the key from the browser straight to the model broker with an enrolment ticket; the app
   issues the ticket and never sees the key ([A person's own model account](model-accounts.md),
   `app/tests/test_model_account.py`).
-- **Run events to the browser** are AG-UI ([Transport and tracing](transport.md)). The harness
-  streams a run's stages, its checks' reports and cancelling; the app does not serve that stream
-  yet. A run is one request that answers when it has ended, so stages are read back, not watched,
-  and a run cannot be cancelled. TODO(#69).
+- **Run events to the browser** are AG-UI ([Transport and tracing](transport.md)). What is
+  streamed is the **conversation turn**, since that is how a person starts a run: one stream per
+  turn. The turn's own conductor run (the orchestrator's, or the agent the turn names) is the
+  AG-UI run, with the conversation as its thread, and its stages and checks' reports are what the
+  run view draws. Each child the turn delegates to travels in the same stream as `SUBAGENT_*`
+  events (started, with the child's agent and invocation; finished, with its outcome), with no
+  stages of its own. The run view lists children in the activity log, and a child's full record
+  is read back from the run store. Cancelling a turn cancels its own run; a child already running
+  carries on and is stored, as any cancelled run is. One stream per child was rejected because
+  the browser would have to open and pair several streams for one turn, while a child's grant and
+  lifetime belong to its parent's run. `POST /api/runs`, which runs one agent and answers when it
+  has ended, is kept for scripting and tests; the browser does not call it. The app does not
+  serve the stream yet, so a turn answers when it has ended, its stages are read back, not
+  watched, and it cannot be cancelled, TODO(#945). The run view drawn from the stream, with
+  Cancel and the activity log, is TODO(#949).
 - **Outcomes, evidence and the checks' reports** are rendered as the [Contract](contract.md) and
   [Evidence and grounding](grounding.md) define them. A drafted document in a run's result is
   shown as a document: rendered when its media type is `text/markdown`, tables included, and
@@ -604,8 +623,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   horizontal scrolling. Automated checks find only some failures; the rest is human review
   ([Evaluation and conformance](evaluation.md)). Chat content needs particular care
   (`docs/ui/best-practices.md`).
-- **Colour scheme.** Light by default whatever the system prefers; the person's choice of dark is
-  remembered in that browser (`shell.spec.ts`).
+- **Colour scheme.** Light by default whatever the system prefers; the person's choice of dark,
+  or of matching the device, is remembered in that browser (`shell.spec.ts`, `profile.spec.ts`).
+  Reduced motion follows the device unless the person's preferences say otherwise.
 - **Privacy.** No font or other asset is fetched from a third party; the typeface is self-hosted.
   A problem report is public, and the page says so and shows what will be sent beside the form.
 - **Security.** The credential for filing reports is a secret the app holds, read from a
@@ -627,8 +647,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   answers `/api` from fixtures.
 - TODO(#244): whether the shell's tests feed `CONFORMANCE.md`; until then they carry no
   requirement marker and C6 rests on review.
-- TODO(#69, #159): streamed turns and replies over AG-UI, the activity log, live regions and
-  cancellation.
+- TODO(#69): serving a turn's stream with cancel (#945), the client transport (#946), the
+  announcer for live regions (#948), and the run view and activity log drawn from the stream
+  (#949). Streaming a reply's text is TODO(#159).
 - TODO(#72, #73): the review gate, and how the conversation docks once there is a working
   surface. A suspended child's card says it is waiting for review.
 - TODO(#160): the project's current phase in the workspace.

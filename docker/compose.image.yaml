@@ -50,6 +50,9 @@ services:
     command: dd-advisor-standards serve --host 0.0.0.0 --port 8105 --public-url http://advisor-standards:8105
     environment:
       PORT: "8105"
+      # As for the documentation advisor below: its model is on by default and this stack gives it
+      # no key, so it runs with `template` unless the shell exports DD_STANDARDS_EXPLAINER=model.
+      DD_STANDARDS_EXPLAINER: ${DD_STANDARDS_EXPLAINER:-template}
 
   advisor-policy:
     <<: *agent

@@ -28,6 +28,7 @@ import {
   useProjectApi,
 } from "../../project/api";
 import { Button } from "../ui/Button";
+import { formatNumber } from "../../format";
 
 const HEADING_ID = "deposit-heading";
 const NEXT_ID = "deposit-next";
@@ -55,7 +56,7 @@ export function sizeInWords(bytes: number): string {
     value /= 1024;
     unit += 1;
   }
-  return `${value.toLocaleString("en-GB", { maximumFractionDigits: 1 })} ${units[unit]}`;
+  return `${formatNumber(value, { maximumFractionDigits: 1 })} ${units[unit]}`;
 }
 
 /** What a validation found, in one sentence for the live region. */

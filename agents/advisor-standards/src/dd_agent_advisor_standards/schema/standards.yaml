@@ -8,7 +8,7 @@ title: advisor.standards classes
 description: >-
   A minimal description of a dataset being planned or prepared (docs/specs/contract.md), and the vocabularies,
   ontologies and formats recommended for it.
-version: 0.1.0
+version: 0.2.0
 license: MIT
 
 prefixes:
@@ -47,6 +47,7 @@ classes:
       - schema_class
       - items
       - searched
+      - limitations
 
   Recommendation:
     description: >-
@@ -61,6 +62,9 @@ classes:
       - rationale
       - rationale_derivation
       - classification_derivation
+      - selection_derivation
+      - concern
+      - notes
 
   SearchedSummary:
     description: >-
@@ -114,6 +118,21 @@ slots:
     required: true
   classification_derivation:
     range: Derivation
+  selection_derivation:
+    description: >-
+      Who chose the record: lexical, by the ranking rules over the first search, or model, by a
+      model from the records retrieved in the run, its own searches included.
+    range: Derivation
+  concern:
+    description: >-
+      A model's doubt that a record the rules chose suits the dataset. The recommendation is kept;
+      a person decides.
+  notes:
+    description: Facts to weigh beside the recommendation, such as that a model chose it.
+    multivalued: true
+  limitations:
+    description: What the advisor does not yet do.
+    multivalued: true
 
   queries:
     multivalued: true

@@ -93,7 +93,10 @@ class ScriptedModel:
 
 def conductor(runs_dir: Path, model: Any, **kwargs: Any):
     return make_conductor(
-        runs_dir, ModelOrchestrator(model, **kwargs), HelloWorld(), build_standards({})
+        runs_dir,
+        ModelOrchestrator(model, **kwargs),
+        HelloWorld(),
+        build_standards({"DD_STANDARDS_EXPLAINER": "template"}),
     )
 
 

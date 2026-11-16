@@ -4,6 +4,9 @@
  * describes it beside the conversation. With none active, the first message starts a new project,
  * which becomes the active one.
  *
+ * At the start of a visit the active project is the one last used, unless the person's
+ * preferences say to start with none chosen.
+ *
  * Which project is active is a convenience of this browser, kept in `localStorage` as the theme
  * is, so it may come back empty; the server decides what the person may read, and a remembered
  * project the server no longer lists is dropped.
@@ -21,6 +24,7 @@ import {
   useState,
 } from "react";
 
+import { currentPreferences } from "../preferences";
 import { type ProjectSummary, useProjectApi } from "./api";
 
 const KEY = "dd-project";
@@ -63,7 +67,11 @@ const ActiveProjectContext = createContext<ActiveProject>({
 
 export function ActiveProjectProvider({ children }: { children: ReactNode }) {
   const api = useProjectApi();
-  const [projectId, setActive] = useState<string | null>(remembered);
+  // The person may choose to start each visit with no project chosen (`preferences.ts`); the
+  // project is still remembered, so that changing their mind back restores it.
+  const [projectId, setActive] = useState<string | null>(() =>
+    currentPreferences().startupProject === "last" ? remembered() : null,
+  );
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const validated = useRef(false);
   const [generation, setGeneration] = useState(0);

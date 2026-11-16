@@ -104,11 +104,19 @@ The roster review in [Agents](../../specs/agents.md#the-roster) chose which advi
 next and how. Check a pull request for one of them against its row as well.
 
 - **Ethics (`advisor.ethics`) and DMP (`advisor.dmp`).** The model reads language where the rules
-  are weak, and adds to the rules' flags; it never removes one. The ethics adviser flags sensitive
+  are weak, and adds to the rules' flags; it never removes one from what the person reviewing
+  sees. The DMP checker's model may merge two flags into one (a `missing` and an `unplanned`
+  output it reads as one renamed output become one `renamed` flag, still for review), or move a
+  flag to the payload's `reconciled` list with its reason (two names for one licence or
+  repository); both stay in front of the reviewer. The ethics adviser flags sensitive
   data and stops there: deciding how such data are handled
   (`governance.sensitive-data-handle`) is a person's decision.
 - **Rights (`advisor.rights`).** The model chooses from a closed set of licences or terms that the
-  code supplies; it never writes a licence identifier of its own.
+  code supplies; it never writes a licence identifier of its own. In the alpha the set is the
+  rows of `licences.yaml`: every licence offered is built from a row, an id the model names from
+  outside is dropped and listed in `dropped`, and a licence that fits the reuse it read is never
+  left out (`advisor-rights/interpret.py`, `check`). Its tests include a reply naming licences
+  outside the table.
 - **Metadata (`advisor.metadata`).** The model suggests beside a value the researcher must give;
   it never fills or overwrites the value.
 - **FAIRness (`advisor.fairness`).** The model writes the recommendations only. Assessments and

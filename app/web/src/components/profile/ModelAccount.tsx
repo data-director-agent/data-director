@@ -23,6 +23,7 @@ import {
 import { type ModelAccountProvider, SignedOut } from "../../session/api";
 import { Button } from "../ui/Button";
 import { DialogTrigger, ModalDialog } from "../ui/Dialog";
+import { formatDateTime, formatNumber } from "../../format";
 
 type Load = { state: "loading" } | { state: "loaded"; value: Account } | { state: "failed" };
 type Change =
@@ -30,8 +31,6 @@ type Change =
   | { state: "sending" }
   | { state: "failed"; message: string }
   | { state: "done"; message: string };
-
-const NUMBER = new Intl.NumberFormat();
 
 const COMPATIBLE = "openai-compatible";
 
@@ -226,7 +225,7 @@ export function ModelAccount({
             <div>
               <dt>Added</dt>
               <dd>
-                <time dateTime={account.created}>{new Date(account.created).toLocaleString()}</time>
+                <time dateTime={account.created}>{formatDateTime(account.created)}</time>
               </dd>
             </div>
           </dl>
@@ -395,8 +394,8 @@ export function ModelAccount({
                       <td>{describe(row.provider).name}</td>
                       <td>{row.model}</td>
                       <td>{row.payer === "own" ? "Your account" : "The deployment"}</td>
-                      <td>{NUMBER.format(row.inputTokens)}</td>
-                      <td>{NUMBER.format(row.outputTokens)}</td>
+                      <td>{formatNumber(row.inputTokens)}</td>
+                      <td>{formatNumber(row.outputTokens)}</td>
                     </tr>
                   ))}
                 </tbody>

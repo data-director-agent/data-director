@@ -16,6 +16,7 @@ import { useEffect, useState } from "react";
 import { useConversationApi } from "../../conversation/api";
 import type { ConversationSummary } from "../../conversation/types";
 import { Link, homePath } from "../../route";
+import { formatDateTime } from "../../format";
 
 type Load =
   | { state: "loading" }
@@ -23,10 +24,7 @@ type Load =
   | { state: "loaded"; value: ConversationSummary[] };
 
 function started(at: string): string {
-  const date = new Date(at);
-  return Number.isNaN(date.getTime())
-    ? at
-    : date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+  return formatDateTime(at, { dateStyle: "medium", timeStyle: "short" });
 }
 
 export function ProjectConversations({ projectId }: { projectId: string }) {

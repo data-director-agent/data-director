@@ -40,7 +40,11 @@ from dd_sdk.tracing import CHAT, DELEGATE, RETRIEVAL, records_from_jsonl
 
 def conductor(runs_dir: Path):
     return make_conductor(
-        runs_dir, DirectorStub(), HelloWorld(), build_standards({}), QualityReviewer()
+        runs_dir,
+        DirectorStub(),
+        HelloWorld(),
+        build_standards({"DD_STANDARDS_EXPLAINER": "template"}),
+        QualityReviewer(),
     )
 
 

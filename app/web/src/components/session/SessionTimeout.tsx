@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 
 import { SIGNED_OUT, type Session, useSessionApi } from "../../session/api";
 import { Button } from "../ui/Button";
+import { formatTime } from "../../format";
 
 /** How long before the end the notice is shown: time enough to read it and act (WCAG 2.2.1). */
 export const WARN_MS = 5 * 60 * 1000;
@@ -66,8 +67,7 @@ export function SessionTimeout({
 
   // The live region is always there, so that a screen reader announces the warning when it is
   // filled in.
-  const at =
-    expiresAt && new Date(expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const at = expiresAt && formatTime(expiresAt);
   return (
     <div role="status">
       {warning && at && (

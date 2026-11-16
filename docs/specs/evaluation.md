@@ -21,7 +21,9 @@ general, and the report says so.
 Two agents have an evaluation so far. The Documentation Editor's
 (`agents/advisor-documentation/src/dd_agent_advisor_documentation/evals/`) takes its labels from
 the crib sheet of a synthetic workshop dataset, Dataset A of `data-director-agent/sample-data`, and
-runs the template path. The standards advisor's labels are provisional: they follow
+runs the template path. The standards advisor's also runs its template path, the ranking rules
+alone, so its model's additions and concerns are not yet evaluated (TODO(#415)). Its labels are
+provisional: they follow
 the Metadata Librarian's guidance in Uzwyshyn, *The Research Data Director* v0.8.2, and no domain
 expert has reviewed them. A labelled corpus of real ORDA records is to replace them, as a second
 dataset for the same task (TODO(#22)).

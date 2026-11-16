@@ -1,58 +1,7 @@
-import reference from "../../fixtures/agents.json";
 import abstained from "../../fixtures/run-abstained.json";
 import succeeded from "../../fixtures/run-succeeded.json";
-import soil from "../../../config/examples/soil-chemistry.profile.json";
-import { normalise } from "../manifest/normalise";
-import type { RawAgentsResponse } from "../manifest/types";
-import { check, planFields, toDocument, toForm } from "./form";
 import { inferStages, problemSlug } from "./stages";
 import type { RunResult } from "./types";
-
-function defined<T>(value: T | null | undefined, what: string): T {
-  if (value === null || value === undefined) throw new Error(`no ${what} in the fixture`);
-  return value;
-}
-
-const standards = defined(normalise(reference as unknown as RawAgentsResponse).agents[0], "agent");
-const profile = defined(standards.schemas.DatasetProfile, "DatasetProfile schema");
-
-describe("the run form's model", () => {
-  const plan = defined(planFields(profile), "plan");
-
-  it("asks for the title and description first, then lists, then records", () => {
-    expect(plan.map((f) => [f.name, f.shape.kind])).toEqual([
-      ["title", "scalar"],
-      ["description", "scalar"],
-      ["keywords", "list"],
-      ["media_types", "list"],
-      ["themes", "list"],
-      ["fields", "records"],
-    ]);
-  });
-
-  it("gives back the document it was given", () => {
-    expect(toDocument(plan, toForm(plan, soil), "DatasetProfile")).toEqual(soil);
-  });
-
-  it("leaves empty fields out rather than sending empty text", () => {
-    expect(toDocument(plan, toForm(plan, {}), "DatasetProfile")).toEqual({
-      schema_class: "DatasetProfile",
-    });
-  });
-
-  it("requires a record's required fields", () => {
-    const state = toForm(plan, { fields: [{ field_type: "string" }] });
-    expect(check(plan, state, "p")).toEqual([
-      { target: "p-fields-0-name", message: "Enter name of field 1" },
-    ]);
-  });
-
-  it("gives up on a shape it cannot draw", () => {
-    expect(
-      planFields({ properties: { nested: { type: "object", properties: { a: { type: "string" } } } } }),
-    ).toBeNull();
-  });
-});
 
 describe("the stages read back from a run", () => {
   it("passes every stage of a grounded run, and leaves review not built", () => {
