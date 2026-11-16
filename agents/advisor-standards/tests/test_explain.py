@@ -1,24 +1,18 @@
-"""Explainers: the template is deterministic; the model explainer cannot smuggle identities."""
+"""The template explainer is deterministic; the model advisor's checks are in
+test_standards_advise.py."""
 
 from __future__ import annotations
-
-from types import SimpleNamespace
 
 import pytest
 
 from dd_agent_advisor_standards import testing as fakes
 from dd_agent_advisor_standards.classes import DatasetProfile, RecommendationKind
 from dd_agent_advisor_standards.explain import (
-    SYSTEM_PROMPT,
-    ModelExplainer,
     TemplateExplainer,
+    names_other_identifier,
     template_rationale,
 )
-from dd_sdk.agent import RunContext
 from dd_sdk.contract.models import Derivation
-from dd_sdk.model_anthropic import AnthropicModel
-from dd_sdk.prompts import prompt_digest
-from dd_sdk.tracing import make_tracing
 
 
 def _items() -> list[tuple]:  # type: ignore[type-arg]
@@ -42,97 +36,9 @@ def test_template_rationale_names_resource_kind_and_target() -> None:
     assert [r.derivation for r in out.rationales] == [Derivation.TEMPLATE, Derivation.TEMPLATE]
 
 
-class _NoClient:
-    pass
-
-
-def _explainer() -> ModelExplainer:
-    pytest.importorskip("anthropic")
-    return ModelExplainer(AnthropicModel("claude-opus-5", client=_NoClient()))  # type: ignore[arg-type]
-
-
-@pytest.mark.requirement("DD-GROUNDING", "C14.1")
-def test_model_output_with_ungrounded_identifier_falls_back_to_template() -> None:
-    ex = _explainer()
-    text = "1. AGROVOC fits the soil keywords.\n2. Use FAIRsharing.made-up for dates."
-    out = ex._parse(text, _items())
-    assert out[0].derivation == Derivation.MODEL and out[0].text.startswith("AGROVOC fits")
-    assert out[1].derivation == Derivation.TEMPLATE and "replaced" in out[1].text
-
-
-def test_missing_or_reordered_lines_fall_back_per_item() -> None:
-    ex = _explainer()
-    out = ex._parse("2. Only the second item was explained (FAIRsharing.test-iso8601).", _items())
-    assert out[0].derivation == Derivation.TEMPLATE
-    assert out[1].derivation == Derivation.MODEL
-
-
-def test_prompt_carries_metadata_only() -> None:
-    """Only profile metadata and registry descriptions reach the model; never data values."""
-    ex = _explainer()
-    profile = DatasetProfile(title="Soil", keywords=["soil"], fields=[])
-    prompt = ex._prompt(profile, _items())
-    assert "Soil" in prompt and "AGROVOC" in prompt and "ISO 8601" in prompt
-    assert "ALREADY been selected" in SYSTEM_PROMPT and "Do not recommend anything" in SYSTEM_PROMPT
-
-
-class _CountingClient:
-    """A stub Anthropic client whose every call reports a different token count."""
-
-    def __init__(self) -> None:
-        self.calls = 0
-        self.messages = self
-
-    def create(self, **_: object) -> SimpleNamespace:
-        self.calls += 1
-        return SimpleNamespace(
-            usage=SimpleNamespace(input_tokens=self.calls * 10, output_tokens=self.calls),
-            stop_reason="end_turn",
-            content=[SimpleNamespace(type="text", text="1. First.\n2. Second.")],
-        )
-
-
-def test_each_call_returns_its_own_usage() -> None:
-    """Usage travels with the call, so concurrent runs on one explainer cannot swap counts."""
-    pytest.importorskip("anthropic")
-    ex = ModelExplainer(AnthropicModel("claude-opus-5", client=_CountingClient()))  # type: ignore[arg-type]
-    tracing = make_tracing()
-    ctx = RunContext(tracer=tracing.tracer, input_ref="", input_hash="")
-    first = ex.explain(DatasetProfile(), _items(), ctx)
-    second = ex.explain(DatasetProfile(), _items(), ctx)
-    assert (first.usage.input_tokens, first.usage.output_tokens) == (10, 1)
-    assert (second.usage.input_tokens, second.usage.output_tokens) == (20, 2)
-    assert not hasattr(ex, "usage")
-
-
-class _RecordingClient(_CountingClient):
-    """A stub client that keeps what it was sent and answers as a dated model."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.sent: dict[str, object] = {}
-
-    def create(self, **sent: object) -> SimpleNamespace:
-        self.sent = sent
-        response = super().create()
-        response.model = "claude-opus-5-20261101"
-        return response
-
-
-def test_a_call_is_recorded_with_the_prompt_it_sent() -> None:
-    """The call names the model the response named, and its prompt is what the client was sent
-    (docs/specs/disclosure.md)."""
-    pytest.importorskip("anthropic")
-    client = _RecordingClient()
-    ex = ModelExplainer(AnthropicModel("claude-opus-5", client=client))  # type: ignore[arg-type]
-    tracing = make_tracing()
-    ctx = RunContext(tracer=tracing.tracer, input_ref="", input_hash="")
-    out = ex.explain(DatasetProfile(), _items(), ctx)
-    assert out.calls is not None
-    (call,) = out.calls.calls
-    assert (call.model_provider, call.model_id) == ("anthropic", "claude-opus-5-20261101")
-    assert (call.input_tokens, call.output_tokens) == (10, 1)
-    prompt = out.calls.prompts[call.prompt_digest]
-    assert prompt == {"system": client.sent["system"], "messages": client.sent["messages"]}
-    assert prompt["system"] == SYSTEM_PROMPT
-    assert prompt_digest(prompt) == call.prompt_digest
+def test_an_identifier_other_than_the_allowed_is_noticed() -> None:
+    assert names_other_identifier("See FAIRsharing.made-up.", {"FAIRsharing.test-agrovoc"})
+    assert not names_other_identifier(
+        "AGROVOC (fairsharing.test-agrovoc) fits.", {"FAIRsharing.test-agrovoc"}
+    )
+    assert not names_other_identifier("No identifier here.", set())

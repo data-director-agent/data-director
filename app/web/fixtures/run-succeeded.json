@@ -17,7 +17,7 @@
       "principal_kind": "person"
     },
     "agent_id": "advisor.standards",
-    "agent_version": "0.2.0",
+    "agent_version": "0.3.0",
     "completed_at": "2026-01-01T00:00:00Z",
     "contract_version": "0.11.0",
     "evidence": [
@@ -517,9 +517,11 @@
             }
           ],
           "kind": "ontology",
+          "notes": [],
           "rationale": "Chemistry vocabulary (FAIRsharing.TrcBD2) is recommended as an ontology for aligning the dataset's structure with a shared model for the dataset. Its FAIRsharing status is 'ready'. Registered subjects: Analytical Chemistry, Chemistry, Organic Chemistry, Physical Chemistry. Ranking signals: lexical=1.00, subject_overlap=0.12, status=1.00. Identity was decided by retrieval and ranking, not by a model.",
           "rationale_derivation": "template",
           "score": 0.7375,
+          "selection_derivation": "lexical",
           "target": "dataset"
         },
         {
@@ -531,9 +533,11 @@
             }
           ],
           "kind": "terminology_unclassified",
+          "notes": [],
           "rationale": "IUPAC Compendium of Chemical Terminology (FAIRsharing.OsiqlF) is recommended as a terminology resource (the registry record does not say whether it is a vocabulary or an ontology) for the dataset. Its FAIRsharing status is 'ready'. Registered subjects: Lipidomics, Medicinal Chemistry, Metabolomics, Biochemistry. Ranking signals: lexical=0.96, subject_overlap=0.12, status=1.00. Identity was decided by retrieval and ranking, not by a model.",
           "rationale_derivation": "template",
           "score": 0.7179,
+          "selection_derivation": "lexical",
           "target": "dataset"
         },
         {
@@ -545,9 +549,11 @@
             }
           ],
           "kind": "controlled_vocabulary",
+          "notes": [],
           "rationale": "National Agricultural Library Thesaurus (FAIRsharing.95n1ns) is recommended as a controlled vocabulary for linking field values to shared concepts for the dataset. Its FAIRsharing status is 'ready'. Registered subjects: Farming Systems Research, Agriculture, Economics, Environmental Science. Ranking signals: lexical=0.53, subject_overlap=0.25, status=1.00. Identity was decided by retrieval and ranking, not by a model.",
           "rationale_derivation": "template",
           "score": 0.5416,
+          "selection_derivation": "lexical",
           "target": "dataset"
         },
         {
@@ -559,9 +565,11 @@
             }
           ],
           "kind": "ontology",
+          "notes": [],
           "rationale": "Domain Resource Application Ontology (FAIRsharing.FSIfv8) is recommended as an ontology for aligning the dataset's structure with a shared model for the dataset. Its FAIRsharing status is 'ready'. Registered subjects: Agriculture, Environmental Science, Life Science, Computer Science. Ranking signals: lexical=0.47, subject_overlap=0.25, status=1.00. Identity was decided by retrieval and ranking, not by a model.",
           "rationale_derivation": "template",
           "score": 0.5101,
+          "selection_derivation": "lexical",
           "target": "dataset"
         },
         {
@@ -573,9 +581,11 @@
             }
           ],
           "kind": "controlled_vocabulary",
+          "notes": [],
           "rationale": "EuroVoc (FAIRsharing.d0a681) is recommended as a controlled vocabulary for linking field values to shared concepts for the dataset. Its FAIRsharing status is 'ready'. Registered subjects: Linguistics, Forest Management, Agriculture, Economics. Ranking signals: lexical=0.46, subject_overlap=0.25, status=1.00. Identity was decided by retrieval and ranking, not by a model.",
           "rationale_derivation": "template",
           "score": 0.5066,
+          "selection_derivation": "lexical",
           "target": "dataset"
         },
         {
@@ -587,9 +597,11 @@
             }
           ],
           "kind": "controlled_vocabulary",
+          "notes": [],
           "rationale": "United States Geological Survey Thesaurus (FAIRsharing.5bd3ef) is recommended as a controlled vocabulary for linking field values to shared concepts for the dataset. Its FAIRsharing status is 'ready'. Registered subjects: Data Management, Engineering Science, Natural Science. Ranking signals: lexical=0.60, subject_overlap=0.00, status=1.00. Identity was decided by retrieval and ranking, not by a model.",
           "rationale_derivation": "template",
           "score": 0.5017,
+          "selection_derivation": "lexical",
           "target": "dataset"
         },
         {
@@ -601,9 +613,11 @@
             }
           ],
           "kind": "ontology",
+          "notes": [],
           "rationale": "Food Ontology (FAIRsharing.dzxae) is recommended as an ontology for aligning the dataset's structure with a shared model for the dataset. Its FAIRsharing status is 'ready'. Registered subjects: Agriculture, Environmental Science, Botany, Medicine. Ranking signals: lexical=0.41, subject_overlap=0.25, status=1.00. Identity was decided by retrieval and ranking, not by a model.",
           "rationale_derivation": "template",
           "score": 0.4823,
+          "selection_derivation": "lexical",
           "target": "dataset"
         },
         {
@@ -614,9 +628,11 @@
             }
           ],
           "kind": "data_format",
+          "notes": [],
           "rationale": "Infrastructure for Spatial Information in Europe Data Specifications (FAIRsharing.nrx5kk) is recommended as an open data format for the dataset for the dataset. Its FAIRsharing status is 'ready'. Registered subjects: Agriculture, Environmental Science, Mineralogy, Atmospheric Science. Ranking signals: lexical=1.00, subject_overlap=0.38, status=1.00. Identity was decided by retrieval and ranking, not by a model.",
           "rationale_derivation": "template",
           "score": 0.8125,
+          "selection_derivation": "lexical",
           "target": "dataset"
         },
         {
@@ -627,9 +643,11 @@
             }
           ],
           "kind": "data_format",
+          "notes": [],
           "rationale": "Access to Biological Collection Databases Extended for Geosciences (FAIRsharing.edfd85) is recommended as an open data format for the dataset for the dataset. Its FAIRsharing status is 'ready'. Registered subjects: Soil Science, Geology, Paleontology, Earth Science. Ranking signals: lexical=0.94, subject_overlap=0.12, status=1.00. Identity was decided by retrieval and ranking, not by a model.",
           "rationale_derivation": "template",
           "score": 0.7054,
+          "selection_derivation": "lexical",
           "target": "dataset"
         },
         {
@@ -640,9 +658,11 @@
             }
           ],
           "kind": "data_format",
+          "notes": [],
           "rationale": "Observations Data Model 2 (FAIRsharing.de40c7) is recommended as an open data format for the dataset for the dataset. Its FAIRsharing status is 'ready'. Registered subjects: Hydrogeology, Geochemistry, Hydrology, Biodiversity. Ranking signals: lexical=0.67, subject_overlap=0.00, status=1.00. Identity was decided by retrieval and ranking, not by a model.",
           "rationale_derivation": "template",
           "score": 0.5353,
+          "selection_derivation": "lexical",
           "target": "dataset"
         },
         {
@@ -653,9 +673,11 @@
             }
           ],
           "kind": "data_format",
+          "notes": [],
           "rationale": "CSV Dialect Description Format (FAIRsharing.10bab4) is recommended as an open data format for the dataset for the dataset. Its FAIRsharing status is 'ready'. Registered subjects: Subject Agnostic. Ranking signals: lexical=1.00, subject_overlap=0.00, status=1.00. Identity was decided by retrieval and ranking, not by a model.",
           "rationale_derivation": "template",
           "score": 0.7,
+          "selection_derivation": "lexical",
           "target": "dataset"
         },
         {
@@ -666,9 +688,11 @@
             }
           ],
           "kind": "data_format",
+          "notes": [],
           "rationale": "Comma-separated Values (FAIRsharing.1943d4) is recommended as an open data format for the dataset for the dataset. Its FAIRsharing status is 'ready'. Registered subjects: Computer Science, Subject Agnostic. Ranking signals: lexical=0.81, subject_overlap=0.00, status=1.00. Identity was decided by retrieval and ranking, not by a model.",
           "rationale_derivation": "template",
           "score": 0.605,
+          "selection_derivation": "lexical",
           "target": "dataset"
         },
         {
@@ -679,9 +703,11 @@
             }
           ],
           "kind": "data_format",
+          "notes": [],
           "rationale": "Tabular Data Package (FAIRsharing.082881) is recommended as an open data format for the dataset for the dataset. Its FAIRsharing status is 'ready'. Registered subjects: Data Management, Subject Agnostic. Ranking signals: lexical=0.72, subject_overlap=0.00, status=1.00. Identity was decided by retrieval and ranking, not by a model.",
           "rationale_derivation": "template",
           "score": 0.5613,
+          "selection_derivation": "lexical",
           "target": "dataset"
         },
         {
@@ -692,9 +718,11 @@
             }
           ],
           "kind": "field_format",
+          "notes": [],
           "rationale": "ISO 8601 Date and time format (FAIRsharing.987d5a) is recommended as a field-level format standard for the field 'collection_date'. Its FAIRsharing status is 'ready'. Registered subjects: Subject Agnostic. Ranking signals: lexical=1.00, subject_overlap=0.00, status=1.00. Identity was decided by retrieval and ranking, not by a model.",
           "rationale_derivation": "template",
           "score": 0.7,
+          "selection_derivation": "lexical",
           "target": "field:collection_date"
         },
         {
@@ -705,9 +733,11 @@
             }
           ],
           "kind": "field_format",
+          "notes": [],
           "rationale": "ISO 8601 Date and time format (FAIRsharing.987d5a) is recommended as a field-level format standard for the field 'sampled_at'. Its FAIRsharing status is 'ready'. Registered subjects: Subject Agnostic. Ranking signals: lexical=1.00, subject_overlap=0.00, status=1.00. Identity was decided by retrieval and ranking, not by a model.",
           "rationale_derivation": "template",
           "score": 0.7,
+          "selection_derivation": "lexical",
           "target": "field:sampled_at"
         },
         {
@@ -718,11 +748,18 @@
             }
           ],
           "kind": "field_format",
+          "notes": [],
           "rationale": "ISO 8601 Date and time format (FAIRsharing.987d5a) is recommended as a field-level format standard for the field 'survey_date_uk'. Its FAIRsharing status is 'ready'. Registered subjects: Subject Agnostic. Ranking signals: lexical=1.00, subject_overlap=0.00, status=1.00. Identity was decided by retrieval and ranking, not by a model.",
           "rationale_derivation": "template",
           "score": 0.7,
+          "selection_derivation": "lexical",
           "target": "field:survey_date_uk"
         }
+      ],
+      "limitations": [
+        "Whether a terminology is a vocabulary or an ontology is read from its name and description, not from FAIRsharing's curated subtype.",
+        "The ranking is lexical. A model, when one is configured, may add what it misses but its choices have not yet been evaluated.",
+        "A model's searches reach FAIRsharing from this agent, not through the harness's tool gateway."
       ],
       "schema_class": "Recommendations",
       "searched": {
@@ -737,7 +774,7 @@
         "snapshot_ref": "snapshot:2026-09-04"
       }
     },
-    "payload_schema": "bf56d8a7aa85a00fbbbfafde0c56209521f10845d0aa63b6da06c21139b8d454",
+    "payload_schema": "0f9cced156f645d29ca09aa1525f07b9b66ac9f20d1ca9d4620e963020e0b60a",
     "policy_bundle_ref": "profile:data-director-app@v9",
     "policy_digest": "fa6c441b3f1f2def045c65c747c52919b250b892f28654b716faf34ec943fae1",
     "requires_human_review": true,

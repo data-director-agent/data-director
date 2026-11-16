@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from dd_agent_advisor_standards.classes import DatasetProfile, Recommendation
-from dd_agent_advisor_standards.explain import Explanation, Item, Rationale, Usage
+from dd_agent_advisor_standards.explain import Explanation, Item, Lookups, Rationale, Usage
 from dd_agent_advisor_standards.fairsharing.records import MODEL_AND_FORMAT, TERMINOLOGY, Record
 from dd_agent_advisor_standards.retrieve import Hit, Query, RegistryUnavailable, SnapshotRef
 from dd_sdk.agent import RunContext
@@ -112,7 +112,13 @@ class FakeModelExplainer:
     def __init__(self, hallucinate: bool = False) -> None:
         self.hallucinate = hallucinate
 
-    def explain(self, profile: DatasetProfile, items: list[Item], ctx: RunContext) -> Explanation:
+    def explain(
+        self,
+        profile: DatasetProfile,
+        items: list[Item],
+        ctx: RunContext,
+        lookups: Lookups | None = None,
+    ) -> Explanation:
         with chat_span(ctx.tracer, "fake-model"):
             usage = Usage(input_tokens=100, output_tokens=50)
         out = []

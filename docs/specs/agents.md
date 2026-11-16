@@ -64,8 +64,8 @@ is in [`harness/docs/registry.md`](../../harness/docs/registry.md).
 14. A model-backed alpha advisor sits between a mock and a persona. It has a pre-release version,
     its grounding mode is `input_only`, and its description does not begin "Mock.". It has a
     `template` writer, which calls no model, so it runs and its tests pass with no key; that
-    writer is its default, except for the Documentation Editor and the Policy Adviser, whose
-    models are on by default (Model-backed personas). It declares a model in `AgentSpec.models` only when one is
+    writer is its default, except for the Documentation Editor, the Policy Adviser and the
+    Standards Librarian, whose models are on by default (Model-backed personas). It declares a model in `AgentSpec.models` only when one is
     configured. Its payload says in
     `limitations` what it still does not do. Like a mock, it substantiates no Blueprint
     requirement until it leaves alpha. Each such advisor's own tests check that its description
@@ -171,12 +171,14 @@ Every advisor that calls a model, from its alpha onwards, is built the same way,
 tools or an evaluation later changes the agent without rewriting it. `advisor-standards/` is the
 worked example of the `template` default (`factory.py`, `explain.py`), and
 `advisor-documentation/` of the declared model and of structured output (`factory.py`,
-`prose.py`), and `advisor-policy/` of a model that calls tools (`advise.py`). Every model-backed
-advisor has a `template` path an operator can select. Two advisors' models are on by default
-(`dd_sdk.model_provider.optional_model(..., default="model")`): the Documentation Editor's,
-because its model only adds prose and suggestions beside a draft made by rule, and the Policy
-Adviser's, because its model only adds to what its rules found, and each obligation it adds
-stands only on a quote that code finds in the cited record.
+`prose.py`), and `advisor-policy/` and `advisor-standards/` of a model that calls tools
+(`advise.py`). Every model-backed advisor has a `template` path an operator can select. Three
+advisors' models are on by default (`dd_sdk.model_provider.optional_model(..., default="model")`):
+the Documentation Editor's, because its model only adds prose and suggestions beside a draft made
+by rule; the Policy Adviser's, because its model only adds to what its rules found, and each
+obligation it adds stands only on a quote that code finds in the cited record; and the Standards
+Librarian's, because its model never removes a pick its ranking rules made, and each standard it
+adds is a record retrieved in the run that code checks against the dataset profile.
 
 1. **Deterministic shell, model core.** Input checks, abstentions, scores and anything exact
    (checksums, licence ids, the shape of a schema) stay in code; the model does judgement and
@@ -231,9 +233,10 @@ governance as follows. None of this is built yet: the gateway is TODO(#875), Ski
 TODO(#876).
 
 Until the gateway exists, `advisor.policy` offers its model read-only tools that reach
-FAIRsharing, Jisc Open Policy Finder and Crossref from the agent itself. It follows items 5 to 7
+FAIRsharing, Jisc Open Policy Finder and Crossref from the agent itself, and `advisor.standards`
+one that searches FAIRsharing's standards. Each follows items 5 to 7
 below: its shell makes the first retrieval; the tools are limited per run
-(`DD_POLICY_MAX_LOOKUPS`); each record a tool returns is retrieved by the agent, with its
+(`DD_POLICY_MAX_LOOKUPS`, `DD_STANDARDS_MAX_LOOKUPS`); each record a tool returns is retrieved by the agent, with its
 `retrieval` span, before it may be cited; tool results reach the model as numbered, untrusted
 records in the user turn; and the model cites records only by those numbers. Its tools move
 onto the gateway when it is built. TODO(#875)

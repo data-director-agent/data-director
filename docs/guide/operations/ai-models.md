@@ -9,18 +9,21 @@ decisions. [Policy and identity](../../specs/policy-and-identity.md) records why
 | Agent | Calls a model | Default model | Needs a key |
 |---|---|---|---|
 | `orchestrator.model` | Always. It writes the replies in the app's conversation, and names each new conversation. | `claude-sonnet-5-5`, and `claude-haiku-5-5` for the name | Yes: it does not start without one, except on a local endpoint. |
-| `advisor.standards` | Only with `DD_STANDARDS_EXPLAINER=model`. The default, `template`, is deterministic. | `claude-sonnet-5-5` | Only in that mode, and not for a local endpoint. |
+| `advisor.standards` | By default: it explains each standard its ranking picked, notes doubts about a pick, and adds standards it finds by searching FAIRsharing, each checked by the agent. `DD_STANDARDS_EXPLAINER=template` turns the model off. | `claude-sonnet-5-5` | Yes, unless set to `template` or on a local endpoint, as for `advisor.documentation`. Its model must support tool calls. |
 | `advisor.policy` | By default: it reads the policy records found, searches Open Policy Finder, Crossref and FAIRsharing for more, and states each obligation with a quote from its record. `DD_POLICY_ADVISOR=template` (or its older name, `DD_POLICY_EXPLAINER`) turns the model off. | `claude-sonnet-5-5` | Yes, unless set to `template` or on a local endpoint, as for `advisor.documentation`. Its model must support tool calls. |
 | `advisor.repository` | Only with `DD_REPOSITORY_EXPLAINER=model`. The default is `template`. | `claude-sonnet-5-5` | Only in that mode, and not for a local endpoint. |
 | `advisor.documentation` | By default: it writes a README's prose and suggests answers to a draft's questions. `DD_DOCUMENTATION_WRITER=template` turns the model off. | `claude-sonnet-5-5` | Yes, unless set to `template` or on a local endpoint: it does not start without one. Locally, `dd.py start` runs it with `template` when it has no key. On a VM, `apply` is refused until it has a key or is set to `template`. `docker/compose.image.yaml` runs it with `template` unless the shell sets `model`. |
 | Every other agent, such as `example.hello` and `orchestrator.stub` | Never. | none | No. |
 
 A new `deployment.yaml` names `orchestrator: stub`, the agent a researcher converses with. The
-documentation and policy advisors call their models by default, so a default installation sends
-a project's facts to a model provider when the documentation advisor drafts a document, and the
-project's funders, journals, disciplines and kinds of data, with the policy records found, when
-the policy advisor checks policies, once each has a key. Set `DD_DOCUMENTATION_WRITER=template`
-or `DD_POLICY_ADVISOR=template` in the agent's own settings file to send nothing. The rest become
+documentation, policy and standards advisors call their models by default, so a default
+installation sends a project's facts to a model provider when the documentation advisor drafts a
+document; the project's funders, journals, disciplines and kinds of data, with the policy records
+found, when the policy advisor checks policies; and a dataset profile's title, description,
+keywords, themes and field names, with the FAIRsharing records found, when the standards advisor
+recommends standards; once each has a key. Set `DD_DOCUMENTATION_WRITER=template`,
+`DD_POLICY_ADVISOR=template` or `DD_STANDARDS_EXPLAINER=template` in the agent's own settings file
+to send nothing. The rest become
 model-backed when you choose, below.
 
 `anthropic`, the older value of these four settings, still works and means `model` with the
@@ -108,9 +111,10 @@ steward, and to the institution's data protection officer, before turning any of
   model (`DD_TITLE_MODEL_ID`) that writes the title the app lists the conversation by.
   `DD_TITLE_MODEL=none` turns that call off, and the app then names the conversation by the
   start of its first message.
-- **The standards advisor's explainer** sends the dataset profile's title, description, keywords,
-  themes and field names and types, and the candidate standards' names, descriptions and
-  subjects. It never sends data values.
+- **The standards advisor** sends the dataset profile's title, description, keywords, themes,
+  media types and field names and types, and the FAIRsharing records found: their names, types,
+  statuses, subjects and descriptions. FAIRsharing receives the words its model searches for. It
+  never sends data values.
 
 The provider's retention terms govern what happens next. Some models require the provider to keep
 data, and an organisation under a zero-data-retention agreement gets an error on every turn from
@@ -182,12 +186,14 @@ provider it is configured for: a person's account with another provider counts a
 calls. The shipped profiles keep own accounts off, so every model call uses the keys described
 here.
 
-## Turn on the standards advisor's explainer
+## Give the standards advisor its key
 
-1. Configure the advisor in `/etc/data-director/agents/advisor-standards.env`:
+The standards advisor's model is on by default, so it needs only its key.
+
+1. Optionally, configure the advisor in `/etc/data-director/agents/advisor-standards.env`:
 
    ```bash
-   DD_STANDARDS_EXPLAINER=model
+   # DD_STANDARDS_MAX_LOOKUPS=<the most searches its model may make in one run; 4 by default>
    # DD_MODEL_ID=<another model, if you do not want the default>
    # DD_MODEL_PROVIDER=<another provider; see "Choose a provider">
    ```

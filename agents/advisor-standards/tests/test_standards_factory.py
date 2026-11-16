@@ -8,9 +8,10 @@ import pytest
 
 import dd_agent_advisor_standards
 from dd_agent_advisor_standards import factory
+from dd_agent_advisor_standards.advise import ModelAdvisor
 from dd_agent_advisor_standards.agent import StandardsAgent
 from dd_agent_advisor_standards.classes import DatasetProfile, Recommendations
-from dd_agent_advisor_standards.explain import ModelExplainer, TemplateExplainer
+from dd_agent_advisor_standards.explain import TemplateExplainer
 from dd_agent_advisor_standards.fairsharing.live import LiveBackend
 from dd_agent_advisor_standards.fairsharing.snapshot import DEFAULT_SNAPSHOT, SnapshotBackend
 from dd_agent_advisor_standards.testing import make_conductor
@@ -21,8 +22,8 @@ from dd_sdk.credentials import ConfigError
 from dd_sdk.schema import gen
 
 
-def test_build_defaults_to_the_committed_snapshot_and_the_template_explainer() -> None:
-    agent = factory.build({})
+def test_build_defaults_to_the_committed_snapshot() -> None:
+    agent = factory.build({"DD_STANDARDS_EXPLAINER": "template"})
     assert isinstance(agent.retrieval, SnapshotBackend)
     assert agent.retrieval.path == DEFAULT_SNAPSHOT
     assert agent.fallback is None
@@ -31,7 +32,13 @@ def test_build_defaults_to_the_committed_snapshot_and_the_template_explainer() -
 
 def test_live_retrieval_falls_back_to_the_configured_snapshot(tmp_path: Path) -> None:
     snapshot = tmp_path / "snapshot.jsonl"
-    agent = factory.build({"DD_STANDARDS_RETRIEVAL": "live", "DD_SNAPSHOT_PATH": str(snapshot)})
+    agent = factory.build(
+        {
+            "DD_STANDARDS_RETRIEVAL": "live",
+            "DD_SNAPSHOT_PATH": str(snapshot),
+            "DD_STANDARDS_EXPLAINER": "template",
+        }
+    )
     assert isinstance(agent.retrieval, LiveBackend)
     assert isinstance(agent.fallback, SnapshotBackend) and agent.fallback.path == snapshot
 
@@ -45,14 +52,41 @@ def test_the_anthropic_explainer_takes_the_configured_model() -> None:
             "ANTHROPIC_API_KEY": "unused",
         }
     )
-    assert isinstance(agent.explainer, ModelExplainer)
+    assert isinstance(agent.explainer, ModelAdvisor)
     assert agent.explainer.model_id == "m-test"
-    assert agent.spec.models == (ModelUse("anthropic", "m-test", "hosted"),)
+    assert agent.spec.models == (ModelUse("anthropic", "m-test", "hosted", True),)
     assert StandardsAgent.spec.models == ()
 
 
 def test_the_template_explainer_declares_no_model() -> None:
-    assert factory.build({}).spec.models == ()
+    assert factory.build({"DD_STANDARDS_EXPLAINER": "template"}).spec.models == ()
+
+
+def test_the_model_is_on_by_default_and_says_how_to_turn_it_off() -> None:
+    with pytest.raises(ConfigError, match="DD_STANDARDS_EXPLAINER=template"):
+        factory.build({})
+
+
+def test_the_model_is_on_by_default_with_a_key() -> None:
+    pytest.importorskip("anthropic")
+    agent = factory.build({"ANTHROPIC_API_KEY": "unused"})
+    assert isinstance(agent.explainer, ModelAdvisor)
+    assert agent.explainer.max_lookups == factory.DEFAULT_MAX_LOOKUPS
+
+
+@pytest.mark.parametrize(("raw", "expected"), [("0", 0), ("7", 7)])
+def test_the_search_budget_is_configured(raw: str, expected: int) -> None:
+    pytest.importorskip("anthropic")
+    agent = factory.build({"ANTHROPIC_API_KEY": "unused", "DD_STANDARDS_MAX_LOOKUPS": raw})
+    assert isinstance(agent.explainer, ModelAdvisor)
+    assert agent.explainer.max_lookups == expected
+
+
+@pytest.mark.parametrize("raw", ["-1", "31", "many"])
+def test_an_unusable_search_budget_stops_at_start_up(raw: str) -> None:
+    pytest.importorskip("anthropic")
+    with pytest.raises(ConfigError, match="DD_STANDARDS_MAX_LOOKUPS"):
+        factory.build({"ANTHROPIC_API_KEY": "unused", "DD_STANDARDS_MAX_LOOKUPS": raw})
 
 
 def test_the_anthropic_explainer_without_a_key_stops_at_start_up() -> None:
