@@ -29,6 +29,9 @@ from dd_harness.testing import (
     Chat,
     ScriptedAgent,
     make_conductor,
+    message,
+    record,
+    reply_over,
     request,
 )
 from dd_harness.transport.agui import Cancellation, RunsInFlight, agui_routes, stream_run
@@ -361,6 +364,15 @@ class _Recording:
     def sources(self, report: SourceReport) -> None:
         self._note("sources", str(report.passed))
 
+    def child_started(self, invocation_id: str, agent_id: str) -> None:
+        self._note("child started", agent_id)
+
+    def child_finished(self, invocation_id: str, agent_id: str, status: str) -> None:
+        self._note("child finished", f"{agent_id} {status}")
+
+    def child_failed(self, invocation_id: str, agent_id: str, message: str) -> None:
+        self._note("child failed", agent_id)
+
 
 @pytest.fixture
 def scripted(runs_dir: Path) -> Iterator[Callable[[], tuple[Conductor, InvocationRequest]]]:
@@ -462,3 +474,55 @@ def test_a_refused_caller_is_recorded_as_a_security_event(
         (RefusalReason.NO_CREDENTIAL, "ag-ui")
     }
     conductor.close()
+
+
+def _delegating(*targets: str) -> ScriptedAgent:
+    """A delegation agent that delegates `record()` to each target and relays the results."""
+
+    def behaviour(req: InvocationRequest, ctx: RunContext) -> AgentResult:
+        assert ctx.delegate is not None
+        return reply_over(ctx, *(ctx.delegate(t, record()) for t in targets))
+
+    return ScriptedAgent(GroundingMode.DELEGATION, behaviour)
+
+
+@pytest.mark.requirement("DD-DELEGATION")
+def test_a_delegated_child_streams_inside_the_agent_stage_with_its_outcome(runs_dir: Path) -> None:
+    child = ScriptedAgent(GroundingMode.NONE, fakes.review_of_input)
+    conductor = make_conductor(runs_dir, _delegating("fake.none"), child)
+    events = _run(conductor, request("fake.delegation", message()))
+    envelope = _check_shape(events)
+    [delegation] = envelope["delegations"]
+    types = [e["type"] for e in events]
+    started, finished = types.index("SUBAGENT_STARTED"), types.index("SUBAGENT_FINISHED")
+    agent_started = events.index({"type": "STEP_STARTED", "stepName": "agent"})
+    agent_finished = events.index({"type": "STEP_FINISHED", "stepName": "agent"})
+    assert agent_started < started < finished < agent_finished
+    assert events[started]["subagentRunId"] == delegation["delegated_invocation_id"]
+    assert events[started]["name"] == "fake.none"
+    assert events[finished]["subagentRunId"] == delegation["delegated_invocation_id"]
+    assert events[finished]["result"] == {"status": delegation["delegated_status"]}
+    # The child's own stages are not streamed: one plan, and each stage once.
+    assert [e.get("name") for e in events].count("dd.plan") == 1
+    assert _steps(events) == _ran("gate", "input", "agent", "grounding", "sources")
+
+
+def test_the_conductor_tells_its_observer_of_each_child(runs_dir: Path) -> None:
+    child = ScriptedAgent(GroundingMode.NONE, fakes.review_of_input)
+    conductor = make_conductor(runs_dir, _delegating("fake.none"), child)
+    watcher = _Recording()
+    conductor.invoke(
+        request("fake.delegation", message()), acting_for=TEST_PRINCIPAL, observer=watcher
+    )
+    children = [told for told in watcher.told if told[0].startswith("child")]
+    assert children == [("child started", "fake.none"), ("child finished", "fake.none succeeded")]
+
+
+def test_a_broken_observer_of_a_child_changes_nothing_about_either_run(runs_dir: Path) -> None:
+    child = ScriptedAgent(GroundingMode.NONE, fakes.review_of_input)
+    conductor = make_conductor(runs_dir, _delegating("fake.none"), child)
+    envelope = conductor.invoke(
+        request("fake.delegation", message()), acting_for=TEST_PRINCIPAL, observer=_Recording(True)
+    )
+    assert envelope.outcome.status.value == "succeeded"
+    assert [d.delegated_status.value for d in envelope.delegations] == ["succeeded"]

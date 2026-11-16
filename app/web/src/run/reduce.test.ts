@@ -1,5 +1,6 @@
 import abstainedStream from "../../cassettes/abstained.jsonl?raw";
 import cancelledStream from "../../cassettes/cancelled.jsonl?raw";
+import delegatedStream from "../../cassettes/delegated.jsonl?raw";
 import failedGroundingStream from "../../cassettes/failed-grounding.jsonl?raw";
 import referredStream from "../../cassettes/referred.jsonl?raw";
 import runErrorStream from "../../cassettes/run-error.jsonl?raw";
@@ -57,6 +58,24 @@ describe("each cassette reaches its expected state", () => {
       unrecognised: 0,
       malformed: 0,
     });
+  });
+
+  it("delegated: the turn's child is in the log, and the turn's own steps all finished", () => {
+    const state = reduceAll(events(delegatedStream));
+    expect(summary(state)).toEqual({
+      phase: "finished",
+      steps: ALL_FINISHED,
+      status: "succeeded",
+      grounding: true,
+      sources: true,
+      error: null,
+      unrecognised: 0,
+      malformed: 0,
+    });
+    expect(state.log.filter((entry) => entry.kind === "subagent")).toEqual([
+      { kind: "subagent", event: "SUBAGENT_STARTED" },
+      { kind: "subagent", event: "SUBAGENT_FINISHED" },
+    ]);
   });
 
   it("abstained: every step finished, and the outcome says so", () => {

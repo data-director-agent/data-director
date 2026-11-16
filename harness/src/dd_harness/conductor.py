@@ -174,6 +174,8 @@ class Grant:
     delegations: list[Delegation] = field(default_factory=list)
     # Children admitted under this grant and not yet finished; revocation waits for them.
     in_flight: int = 0
+    # The parent's watch, told when each child starts and ends (docs/specs/transport.md).
+    watch: Watch | None = None
 
 
 @dataclass
@@ -345,8 +347,20 @@ class Conductor:
                 "project_id": None,
             }
         )
-        envelope = self._invoke(
-            child, grant.acting_for, link=_span_context(traceparent), project_id=grant.project_id
+        watch = grant.watch or Watch(None, None)
+        watch.child_started(child.invocation_id, child.agent_id)
+        try:
+            envelope = self._invoke(
+                child,
+                grant.acting_for,
+                link=_span_context(traceparent),
+                project_id=grant.project_id,
+            )
+        except Exception as exc:
+            watch.child_failed(child.invocation_id, child.agent_id, str(exc))
+            raise
+        watch.child_finished(
+            envelope.invocation_id, envelope.agent_id, envelope.outcome.status.value
         )
         record = Delegation(
             delegated_invocation_id=envelope.invocation_id,
@@ -413,7 +427,9 @@ class Conductor:
         )
         return minted
 
-    def _issue_grant(self, request: InvocationRequest, acting_for: Principal) -> Grant:
+    def _issue_grant(
+        self, request: InvocationRequest, acting_for: Principal, watch: Watch | None = None
+    ) -> Grant:
         grant = Grant(
             token=secrets.token_urlsafe(32),
             parent_invocation_id=request.invocation_id,
@@ -421,6 +437,7 @@ class Conductor:
             conversation_id=request.conversation_id,
             project_id=request.project_id,
             acting_for=acting_for,
+            watch=watch,
         )
         with self._grants_lock:
             self._grants[grant.token] = grant
@@ -680,7 +697,7 @@ class Conductor:
                     and self.harness_url is not None
                     and isinstance(agent, RemoteAgent)
                 ):
-                    grant = self._issue_grant(request, acting_for)
+                    grant = self._issue_grant(request, acting_for, watch)
                     sent_grant = DelegationGrant(url=self.harness_url, token=grant.token)
                 model_grant = self._model_grant(agent, request, acting_for)
                 ctx = RunContext(

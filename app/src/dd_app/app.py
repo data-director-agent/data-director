@@ -4,12 +4,16 @@
 agent through the conductor and answers when the run has ended, with its envelope and the
 checks' reports; `GET /api/runs` and `GET /api/runs/{id}` read the run store; `GET /api/examples`
 lists example inputs; `GET /api/process-flow` is the Blueprint's entry points and phases
-(`dd_sdk.process_flow`), which the shell's phase tracker draws. The run endpoint is a stopgap
-until runs stream over AG-UI (#69).
+(`dd_sdk.process_flow`), which the shell's phase tracker draws. The run endpoint is kept for
+scripting and tests; the browser runs agents only through conversation turns.
 `POST /api/conversations` starts a conversation, in the project it names or else a new one, and
 `POST /api/conversations/{id}/turns` sends it one message, which may attach a `dd-inventory` file
 and a supporting document's text for the project to keep, answered as a run is, or refused with
-`409` unless it follows the latest turn (docs/specs/orchestration.md, docs/specs/app.md);
+`409` unless it follows the latest turn (docs/specs/orchestration.md, docs/specs/app.md).
+`POST /api/conversations/{id}/turns/stream` sends the same turn as an AG-UI `RunAgentInput` and
+streams its run as it is made, its delegated children included, and
+`POST /api/conversations/{id}/turns/{run_id}/cancel` cancels it while its stream is open
+(docs/specs/app.md, "Run events to the browser");
 `GET /api/conversations` and `GET /api/conversations/{id}` read them back as the harness derives
 them from the run store (docs/specs/orchestration.md, #130).
 `GET /api/projects` lists the projects the person signed in may read, the one created last first
@@ -100,9 +104,10 @@ import json
 import logging
 import os
 import sys
+import threading
 import time
 import webbrowser
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -143,6 +148,7 @@ from dd_harness.deposit import PackageRefusedError, build_package, check
 from dd_harness.disclosure import disclose
 from dd_harness.identity import IdentityError, RefusalReason, Unauthenticated
 from dd_harness.model_grants import jwks_routes
+from dd_harness.observe import RunObserver
 from dd_harness.policy import PolicyError
 from dd_harness.project_access import Action, allowed
 from dd_harness.projects import (
@@ -162,9 +168,10 @@ from dd_harness.settings import SettingsError
 from dd_harness.signin import CALLBACK_PATH, NotAdmitted, SignIn, SignInSettings
 from dd_harness.sources import SourceConfigError
 from dd_harness.transport.a2a import a2a_routes
+from dd_harness.transport.agui import REFUSALS, RunsInFlight, sse, stream_run
 from dd_harness.transport.paging import PagingError, page_params, page_response
 from dd_sdk import security_log
-from dd_sdk.contract.models import Principal, ReplyAnswers, now
+from dd_sdk.contract.models import Envelope, Principal, ReplyAnswers, now
 from dd_sdk.contract.problem import PROBLEM_BASE, unauthenticated
 from dd_sdk.contract.validate import ContractViolation
 from dd_sdk.credentials import ConfigError
@@ -208,6 +215,10 @@ SIGN_IN_FAILED = "failed"
 
 class ShellNotBuiltError(FileNotFoundError):
     """`app/web/dist` holds no built shell."""
+
+
+class TurnRefusedError(Exception):
+    """A streamed turn refused once its stream was open, said in the stream's `RUN_ERROR`."""
 
 
 def build_app(
@@ -261,6 +272,10 @@ def build_app(
         if model_accounts
         else []
     )
+
+    # The turns streaming now, by whom each acts for and its AG-UI `runId`, so that a turn may be
+    # cancelled while its stream is open (docs/specs/transport.md, Cancelling).
+    turns_in_flight = RunsInFlight()
 
     def signed_in(handler: Handler) -> Callable[[Request], Awaitable[Response]]:
         """`handler`, given the principal the request acts for; a request with none is refused
@@ -392,65 +407,11 @@ def build_app(
             body = await request.json()
         except ValueError:
             return _refused("The body is not JSON.")
-        if not isinstance(body, dict):
-            return _refused(
-                "The body must be an object with `agent_id`, `message_text` and `follows`."
-            )
-        if "history" in body:
-            return _refused(
-                "A turn may not give a history: the server builds it from the stored turns."
-            )
-        allowed = {
-            "agent_id",
-            "message_text",
-            "follows",
-            "inventory",
-            "documentation",
-            "reply_answers",
-        }
-        if extra := sorted(set(body) - allowed):
-            return _refused(
-                "A turn takes only `agent_id`, `message_text`, `follows`, `inventory`, "
-                f"`documentation` and `reply_answers`, not {extra}."
-            )
-        agent_id, message_text = body.get("agent_id"), body.get("message_text")
-        if not isinstance(agent_id, str) or not isinstance(message_text, str):
-            return _refused("The body must name `agent_id` and give `message_text`, as strings.")
-        follows = body.get("follows")
-        if "follows" not in body or not (follows is None or isinstance(follows, str)):
-            return _refused(
-                "The body must give `follows`: the `invocation_id` of the turn this one follows, "
-                "or null for the first turn."
-            )
-        inventory = body.get("inventory")
-        if not (inventory is None or isinstance(inventory, dict)):
-            return _refused("`inventory` must be the object `dd-inventory` wrote.")
-        documentation = None
-        if body.get("documentation") is not None:
-            attached = body["documentation"]
-            fields = ("name", "media_type", "text")
-            if not (
-                isinstance(attached, dict)
-                and set(attached) == set(fields)
-                and all(isinstance(attached[key], str) for key in fields)
-            ):
-                return _refused(
-                    "`documentation` must be an object giving the document's `name`, "
-                    "`media_type` and `text`, as strings."
-                )
-            documentation = AttachedDocument(**attached)
-        if not message_text.strip() and inventory is None and documentation is None:
-            return _refused("The message is empty.")
-        answer = None
-        if body.get("reply_answers") is not None:
-            try:
-                answer = ReplyAnswers.model_validate(body["reply_answers"])
-            except ValueError:
-                return _refused(
-                    "`reply_answers` must name the turn it answers (`answer_to`) and give "
-                    "`given_answers`: for each question answered, its `answered_key`, the "
-                    "`answer_values` chosen and optionally `answer_words`."
-                )
+        sent = _turn(body)
+        if isinstance(sent, Response):
+            return sent
+        agent_id, message_text, follows = sent.agent_id, sent.message_text, sent.follows
+        inventory, answer, documentation = sent.inventory, sent.answer, sent.documentation
         if await run_in_threadpool(governance.conversation, conversation_id, acting_for) is None:
             return _no_conversation(conversation_id)
         started = time.monotonic()
@@ -491,6 +452,91 @@ def build_app(
                 outcome,
                 time.monotonic() - started,
             )
+
+    async def stream_turn(request: Request, acting_for: Principal) -> Response:
+        """One turn, streamed as its run is made (docs/specs/app.md, "Run events to the browser").
+
+        The body is an AG-UI `RunAgentInput`, as `HttpAgent` posts it: `runId` names the run for
+        `cancel_turn`, `threadId` is the conversation's id if given, and `forwardedProps` is the
+        turn's body, checked as `send_turn` checks it. `messages` is not read: the server builds
+        the history from the stored turns. What can be refused before the stream opens is answered
+        as `send_turn` answers it; a turn refused once the stream is open, such as one that no
+        longer follows the latest turn, is `RUN_ERROR` alone."""
+        conversation_id = request.path_params["conversation_id"]
+        try:
+            body = await request.json()
+        except ValueError:
+            return _refused("The body is not JSON.")
+        if not isinstance(body, dict):
+            return _refused("The body must be an AG-UI RunAgentInput.")
+        run_id, thread_id = body.get("runId"), body.get("threadId")
+        if not isinstance(run_id, str) or not run_id:
+            return _refused("The body must give `runId`, a string naming this run.")
+        if thread_id is not None and thread_id != conversation_id:
+            return _refused(
+                f"`threadId` {thread_id!r} is not this conversation, {conversation_id!r}."
+            )
+        sent = _turn(body.get("forwardedProps"))
+        if isinstance(sent, Response):
+            return sent
+        if await run_in_threadpool(governance.conversation, conversation_id, acting_for) is None:
+            return _no_conversation(conversation_id)
+        try:
+            cancellation = turns_in_flight.open(acting_for, run_id)
+        except ValueError as exc:
+            return _problem(409, "run-id-in-use", "This run is already streaming", str(exc))
+
+        async def start(observer: RunObserver, cancel: threading.Event) -> Envelope:
+            try:
+                return await governance.turn_run(
+                    conversation_id,
+                    sent.agent_id,
+                    sent.message_text,
+                    sent.follows,
+                    acting_for,
+                    sent.inventory,
+                    sent.answer,
+                    sent.documentation,
+                    observer=observer,
+                    cancel=cancel,
+                )
+            except UnknownConversationError:
+                raise TurnRefusedError(f"No conversation {conversation_id!r}.") from None
+
+        async def events() -> AsyncIterator[Any]:
+            started = time.monotonic()
+            try:
+                async for event in stream_run(
+                    start,
+                    thread_id=conversation_id,
+                    run_id=run_id,
+                    cancellation=cancellation,
+                    refusals=(*REFUSALS, TurnConflictError, TurnRefusedError),
+                ):
+                    yield event
+            finally:
+                turns_in_flight.close(acting_for, run_id)
+                log.info(
+                    "data-director: streamed turn %s ended in %.1f s",
+                    conversation_id,
+                    time.monotonic() - started,
+                )
+
+        return sse(events())
+
+    async def cancel_turn(request: Request, acting_for: Principal) -> Response:
+        """Cancel the person's streaming turn whose AG-UI `runId` the path names: `202`, and the
+        stream ends with `RUN_FINISHED` cancelled; `404` if they have no such turn streaming. The
+        run is stored as failed with `run-cancelled` (docs/specs/transport.md, Cancelling)."""
+        run_id = request.path_params["run_id"]
+        if not turns_in_flight.cancel(acting_for, run_id):
+            return _problem(
+                404,
+                "run-not-streaming",
+                "No such run streaming",
+                f"No run {run_id!r} of yours is streaming.",
+            )
+        return JSONResponse({"cancelled": run_id}, status_code=202)
 
     async def list_conversations(request: Request, reader: Principal) -> Response:
         try:
@@ -1426,6 +1472,16 @@ def build_app(
                 signed_in(send_turn),
                 methods=["POST"],
             ),
+            Route(
+                "/api/conversations/{conversation_id}/turns/stream",
+                signed_in(stream_turn),
+                methods=["POST"],
+            ),
+            Route(
+                "/api/conversations/{conversation_id}/turns/{run_id}/cancel",
+                signed_in(cancel_turn),
+                methods=["POST"],
+            ),
             Route("/api/projects", signed_in(list_projects), methods=["GET"]),
             Route("/api/projects", signed_in(create_project), methods=["POST"]),
             Route("/api/projects/deleted", signed_in(list_deleted_projects), methods=["GET"]),
@@ -1618,6 +1674,81 @@ def examples(directory: Path) -> list[dict[str, Any]]:
 
 
 _CHANGES_STATE = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+
+
+@dataclasses.dataclass(frozen=True)
+class _Turn:
+    """What a turn's body gives, checked (`POST /api/conversations/{id}/turns`)."""
+
+    agent_id: str
+    message_text: str
+    follows: str | None
+    inventory: dict[str, Any] | None
+    answer: ReplyAnswers | None
+    documentation: AttachedDocument | None
+
+
+def _turn(body: Any) -> _Turn | Response:
+    """A turn's body, checked, or the `400` problem that refuses it. The turn's stream takes the
+    same body as its `forwardedProps`."""
+    if not isinstance(body, dict):
+        return _refused("The body must be an object with `agent_id`, `message_text` and `follows`.")
+    if "history" in body:
+        return _refused(
+            "A turn may not give a history: the server builds it from the stored turns."
+        )
+    allowed = {
+        "agent_id",
+        "message_text",
+        "follows",
+        "inventory",
+        "documentation",
+        "reply_answers",
+    }
+    if extra := sorted(set(body) - allowed):
+        return _refused(
+            "A turn takes only `agent_id`, `message_text`, `follows`, `inventory`, "
+            f"`documentation` and `reply_answers`, not {extra}."
+        )
+    agent_id, message_text = body.get("agent_id"), body.get("message_text")
+    if not isinstance(agent_id, str) or not isinstance(message_text, str):
+        return _refused("The body must name `agent_id` and give `message_text`, as strings.")
+    follows = body.get("follows")
+    if "follows" not in body or not (follows is None or isinstance(follows, str)):
+        return _refused(
+            "The body must give `follows`: the `invocation_id` of the turn this one follows, "
+            "or null for the first turn."
+        )
+    inventory = body.get("inventory")
+    if not (inventory is None or isinstance(inventory, dict)):
+        return _refused("`inventory` must be the object `dd-inventory` wrote.")
+    documentation = None
+    if body.get("documentation") is not None:
+        attached = body["documentation"]
+        fields = ("name", "media_type", "text")
+        if not (
+            isinstance(attached, dict)
+            and set(attached) == set(fields)
+            and all(isinstance(attached[key], str) for key in fields)
+        ):
+            return _refused(
+                "`documentation` must be an object giving the document's `name`, "
+                "`media_type` and `text`, as strings."
+            )
+        documentation = AttachedDocument(**attached)
+    if not message_text.strip() and inventory is None and documentation is None:
+        return _refused("The message is empty.")
+    answer = None
+    if body.get("reply_answers") is not None:
+        try:
+            answer = ReplyAnswers.model_validate(body["reply_answers"])
+        except ValueError:
+            return _refused(
+                "`reply_answers` must name the turn it answers (`answer_to`) and give "
+                "`given_answers`: for each question answered, its `answered_key`, the "
+                "`answer_values` chosen and optionally `answer_words`."
+            )
+    return _Turn(agent_id, message_text, follows, inventory, answer, documentation)
 
 
 def _requires_json(request: Request) -> Response | None:

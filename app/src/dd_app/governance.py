@@ -26,6 +26,7 @@ from dd_harness import conversations, project_access
 from dd_harness.conductor import Conductor
 from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
 from dd_harness.listing import Page, Readable, check_limit
+from dd_harness.observe import RunObserver
 from dd_harness.project_access import Action, Role
 from dd_harness.projects import UnknownProjectError, check_documentation
 from dd_harness.requirements import Requirements, load_requirements
@@ -170,8 +171,16 @@ class Governance:
         if self.projects is not None:
             self.conductor.projects = self.projects
 
-    async def invoke(self, request: InvocationRequest, acting_for: Principal) -> Envelope:
-        return await self.conductor.ainvoke(request, acting_for=acting_for)
+    async def invoke(
+        self,
+        request: InvocationRequest,
+        acting_for: Principal,
+        observer: RunObserver | None = None,
+        cancel: threading.Event | None = None,
+    ) -> Envelope:
+        return await self.conductor.ainvoke(
+            request, acting_for=acting_for, observer=observer, cancel=cancel
+        )
 
     async def run(
         self, agent_id: str, input: dict[str, Any], acting_for: Principal
@@ -222,7 +231,38 @@ class Governance:
         documentation: AttachedDocument | None = None,
     ) -> dict[str, Any]:
         """One turn of a conversation, start to finish (`POST /api/conversations/{id}/turns`): a
-        `Message` to `agent_id`, answered as `run` answers.
+        `Message` to `agent_id`, answered as `run` answers. `turn_run` says what it does."""
+        envelope = await self.turn_run(
+            conversation_id,
+            agent_id,
+            message_text,
+            follows,
+            acting_for,
+            inventory,
+            answer,
+            documentation,
+        )
+        return {"envelope": envelope.to_document(), "checks": self.checks(envelope.invocation_id)}
+
+    async def turn_run(
+        self,
+        conversation_id: str,
+        agent_id: str,
+        message_text: str,
+        follows: str | None,
+        acting_for: Principal,
+        inventory: Mapping[str, Any] | None = None,
+        answer: ReplyAnswers | None = None,
+        documentation: AttachedDocument | None = None,
+        *,
+        observer: RunObserver | None = None,
+        cancel: threading.Event | None = None,
+    ) -> Envelope:
+        """One turn of a conversation: a `Message` to `agent_id`, and the envelope of its run.
+
+        `observer` and `cancel` are the conductor's (`Conductor.invoke`): the turn's stream
+        (`POST /api/conversations/{id}/turns/stream`) watches the run through them and may cancel
+        it (docs/specs/app.md, "Run events to the browser").
 
         A turn may attach an `inventory`, which is added to the conversation's project before the
         orchestrator runs, so the conductor tells it what the project now holds
@@ -311,6 +351,8 @@ class Governance:
                         agent_id=agent_id, conversation_id=conversation_id, input=message
                     ),
                     acting_for,
+                    observer,
+                    cancel,
                 )
             )
             try:
@@ -321,7 +363,7 @@ class Governance:
                 await asyncio.wait({run})
                 raise
         self._started.pop(conversation_id, None)
-        return {"envelope": envelope.to_document(), "checks": self.checks(envelope.invocation_id)}
+        return envelope
 
     def _attach(
         self,
