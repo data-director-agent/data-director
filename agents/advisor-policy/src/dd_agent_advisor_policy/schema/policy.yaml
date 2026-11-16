@@ -42,13 +42,15 @@ classes:
       A funder, journal or institution. The FAIRsharing identifier of its policy is used when
       given; otherwise the name is looked up. A funder is first identified in ROR, by its ROR
       identifier when given, otherwise by its name. A journal is identified by its ISSN when
-      given, otherwise by its title, and linked to its publisher.
+      given, otherwise by its title, and linked to its publisher. The policy's own text is read
+      from policy_url when given, as well as from the address each matched record names.
     slots:
       - role
       - name
       - fairsharing_id
       - ror_id
       - issn
+      - policy_url
 
   PolicyChecks:
     description: >-
@@ -63,6 +65,7 @@ classes:
       - conflicts
       - mandated_repositories
       - no_record
+      - readings
       - funders
       - journals
       - ambiguous
@@ -127,6 +130,38 @@ classes:
     slots:
       - actor
       - crossref_funder_id
+
+  PolicyReading:
+    description: >-
+      What a model read in one policy's own text, fetched from the address its policy record
+      names or the researcher gave. Grounded on the text, and on the policy record it was
+      reached from, if any. Each obligation kept quotes the text word for word, and the code has
+      found the quote in it; what was dropped, and why, is in dropped. A person confirms each
+      against the policy.
+    mixins:
+      - Grounded
+    slots:
+      - actor
+      - role
+      - status
+      - stated
+      - dropped
+      - reason
+
+  StatedObligation:
+    description: >-
+      One obligation a policy's own text states, as a model read it: its kind, its strength and
+      what it asks, with the passage that says so.
+    slots:
+      - kind
+      - strength
+      - value
+      - quote
+    slot_usage:
+      value:
+        required: true
+      quote:
+        required: true
 
   ResolvedJournal:
     description: >-
@@ -195,6 +230,11 @@ slots:
     pattern: "^\\d{4}-?\\d{3}[\\dXx]$"
   publisher:
     description: The publisher's name, as the journal's record gives it.
+  policy_url:
+    description: >-
+      The address of the page or PDF that publishes the actor's data policy, when the researcher
+      knows it. Its text is read as well as that of any policy record matched.
+    pattern: "^https?://\\S+$"
   re3data_id:
     description: The re3data identifier, e.g. r3d100010230.
     pattern: "^r3d\\d+$"
@@ -217,6 +257,26 @@ slots:
   no_record:
     description: Actors for which no FAIRsharing policy record was found.
     multivalued: true
+  readings:
+    description: >-
+      What a model read in each policy's own text, or why the text was not read. Each obligation
+      quotes the passage it comes from; a person confirms it.
+    range: PolicyReading
+    multivalued: true
+    inlined_as_list: true
+  status:
+    range: ReadingStatus
+    required: true
+  stated:
+    range: StatedObligation
+    multivalued: true
+    inlined_as_list: true
+  dropped:
+    description: >-
+      What the model said that was not kept, and why, such as a quote not found in the text.
+    multivalued: true
+  reason:
+    description: Why the text was not read, or was read in part.
   funders:
     description: >-
       The funders identified in ROR, each grounded on its ROR record, so that the identifier can
@@ -348,6 +408,17 @@ enums:
         description: The research data.
       publication:
         description: The article or other publication, e.g. where it may be deposited.
+
+  ReadingStatus:
+    permissible_values:
+      read:
+        description: The text was read; what it states is in stated.
+      not_read:
+        description: >-
+          The text was not read: it could not be fetched, no model is configured, or the
+          deployment's profile turns reading off.
+      unreadable:
+        description: The address answered with nothing that could be read as text.
 
   Strength:
     permissible_values:

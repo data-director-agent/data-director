@@ -21,6 +21,10 @@
   pinned dump (`uv run dd-sources prepare` builds it); `live` asks ROR's API, which needs no
   account, and falls back to the built registry, marked stale, when the route fails. Where
   neither answers, funders are searched by the name given and the statement says so.
+- Each policy's own text is read with the model the agent's settings configure, whether or not
+  the advisor also uses one. With no usable model, the text is not read and the statement says so.
+  Whether it is read at all is the agent's `policy_text` setting, which the profile sets
+  (`agent_settings`, docs/specs/policy-and-identity.md).
 - With `model`: `DD_MODEL_PROVIDER` (`anthropic` by default), `DD_MODEL_ID` (Claude Sonnet 5.5
   by default for Anthropic), `DD_MODEL_BASE_URL` and the provider's key, read at start-up
   (`dd_sdk.model_provider`, docs/specs/policy-and-identity.md).
@@ -42,14 +46,16 @@ from dd_agent_advisor_policy.advise import DEFAULT_MAX_LOOKUPS, DEFAULT_MODEL, M
 from dd_agent_advisor_policy.agent import PolicyAgent
 from dd_agent_advisor_policy.crossref import CrossrefJournals
 from dd_agent_advisor_policy.explain import Explainer, TemplateExplainer
+from dd_agent_advisor_policy.extract import Extractor, ModelExtractor, NoExtractor
 from dd_agent_advisor_policy.live import PolicyLive
 from dd_agent_advisor_policy.opf import OpenPolicyFinder
+from dd_agent_advisor_policy.policy_text import PolicyPages
 from dd_agent_advisor_policy.ror import RorDump, RorLive
 from dd_agent_advisor_policy.snapshot import PolicySnapshot
 from dd_sdk import serve
 from dd_sdk.credentials import ConfigError, api_key
-from dd_sdk.model import declared
-from dd_sdk.model_provider import optional_model
+from dd_sdk.model import Model, declared
+from dd_sdk.model_provider import configured_model, optional_model
 
 SWITCH = "DD_POLICY_ADVISOR"
 OLD_SWITCH = "DD_POLICY_EXPLAINER"
@@ -80,6 +86,19 @@ def build_explainer(env: Mapping[str, str]) -> Explainer:
     env = _switch(env)
     model = optional_model(env, SWITCH, default_model=DEFAULT_MODEL, default="model", tool_use=True)
     return TemplateExplainer() if model is None else ModelAdvisor(model, _lookups(env))
+
+
+def build_extractor(env: Mapping[str, str], explainer: Explainer) -> Extractor:
+    """The advisor's model, if it has one; otherwise whichever model the settings configure;
+    otherwise none, and the policies' text is not read. A model that cannot be configured here is
+    not an error: reading the text only adds to what the records say."""
+    if isinstance(explainer, ModelAdvisor):
+        return ModelExtractor(explainer.model)
+    try:
+        model: Model = configured_model(env, default_model=DEFAULT_MODEL)
+    except ConfigError:
+        return NoExtractor()
+    return ModelExtractor(model)
 
 
 def build_opf(env: Mapping[str, str]) -> OpenPolicyFinder | None:
@@ -130,8 +149,16 @@ def build(env: Mapping[str, str] | None = None) -> PolicyAgent:
         agent.organisations, agent.organisations_fallback = RorLive(), RorDump()
     else:
         agent.organisations = RorDump()
-    if isinstance(explainer, ModelAdvisor):
-        agent.spec = replace(agent.spec, models=(declared(explainer.model),))
+    agent.pages = PolicyPages()
+    agent.extractor = build_extractor(env, explainer)
+    models = [
+        m.model
+        for m in (explainer, agent.extractor)
+        if isinstance(m, ModelAdvisor | ModelExtractor)
+    ]
+    uses = tuple(dict.fromkeys(declared(m) for m in models))
+    if uses:
+        agent.spec = replace(agent.spec, models=uses)
     return agent
 
 

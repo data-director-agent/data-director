@@ -17,8 +17,11 @@ from dd_sdk.agent import (
     ContractVersionError,
     Derived,
     ModelUse,
+    RunContext,
+    Setting,
     SpecError,
     describe,
+    setting,
     spec_from_description,
     typed_request,
 )
@@ -195,6 +198,45 @@ def test_the_persona_title_round_trips_through_the_manifest() -> None:
     entry = describe(spec)
     assert entry["title"] == "Metadata Librarian"
     assert spec_from_description(entry).title == "Metadata Librarian"
+
+
+def test_the_settings_an_agent_offers_round_trip_through_the_manifest() -> None:
+    offered = {"depth": Setting(("shallow", "deep"), "deep", "How far it looks.")}
+    entry = json.loads(json.dumps(describe(dataclasses.replace(SPEC, settings=offered))))
+    assert entry["settings"]["depth"]["default"] == "deep"
+    assert spec_from_description(entry).settings == offered
+
+
+def test_a_description_without_settings_offers_none() -> None:
+    entry = describe(SPEC)
+    del entry["settings"]
+    assert spec_from_description(entry).settings == {}
+
+
+@pytest.mark.parametrize(
+    "offered",
+    [
+        Setting(("shallow", "deep"), "sideways"),
+        Setting((), ""),
+        Setting(("deep", "deep"), "deep"),
+    ],
+)
+def test_a_setting_whose_default_is_not_a_choice_is_refused(offered: Setting) -> None:
+    with pytest.raises(SpecError):
+        dataclasses.replace(SPEC, settings={"depth": offered})
+
+
+def test_an_agent_reads_the_setting_sent_or_its_default() -> None:
+    spec = dataclasses.replace(SPEC, settings={"depth": Setting(("shallow", "deep"), "shallow")})
+    tracer = object()
+
+    def ctx(sent: dict[str, str]) -> RunContext:
+        return RunContext(tracer=tracer, input_ref="", input_hash="", settings=sent)  # type: ignore[arg-type]
+
+    assert setting(ctx({"depth": "deep"}), spec, "depth") == "deep"
+    assert setting(ctx({}), spec, "depth") == "shallow"
+    with pytest.raises(KeyError):
+        setting(ctx({}), spec, "breadth")
 
 
 def test_a_description_without_a_title_has_none() -> None:

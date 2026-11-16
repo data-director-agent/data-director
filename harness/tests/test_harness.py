@@ -28,7 +28,7 @@ from dd_harness.testing import (
     make_conductor,
     request,
 )
-from dd_sdk.agent import AgentResult, ModelUse, RunContext
+from dd_sdk.agent import AgentResult, ModelUse, RunContext, Setting
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Assurance,
@@ -114,6 +114,85 @@ def test_a_profile_key_nothing_enforces_is_refused(tmp_path: Path) -> None:
     )
     with pytest.raises(PolicyError, match="approved_repositories"):
         load_profile(stale)
+
+
+DEPTH = {"depth": Setting(("shallow", "deep"), "shallow", "How far the agent looks.")}
+
+
+def _settings_profile(tmp_path: Path, settings: str) -> Path:
+    path = tmp_path / "settings.yaml"
+    path.write_text(
+        "profile_id: settings\nagents:\n  fake.input-only: advise\n" + settings,
+        encoding="utf-8",
+    )
+    return path
+
+
+def _recording(seen: list[dict[str, str]]) -> ScriptedAgent:
+    def behaviour(request: InvocationRequest, ctx: RunContext) -> AgentResult:
+        seen.append(dict(ctx.settings))
+        return fakes.review_of_input(request, ctx)
+
+    return ScriptedAgent(GroundingMode.INPUT_ONLY, behaviour, settings=DEPTH)
+
+
+@pytest.mark.requirement("DD-POLICY")
+@pytest.mark.parametrize(
+    ("written", "expected"),
+    [
+        ("", {"depth": "shallow"}),
+        ("agent_settings:\n  fake.input-only:\n    depth: deep\n", {"depth": "deep"}),
+    ],
+)
+def test_an_agent_is_sent_its_card_defaults_overlaid_by_the_profile(
+    runs_dir: Path, tmp_path: Path, written: str, expected: dict[str, str]
+) -> None:
+    seen: list[dict[str, str]] = []
+    agent = _recording(seen)
+    # Over the A2A wire, as in production: the settings travel in the message's metadata.
+    env = make_conductor(runs_dir, agent, profile=_settings_profile(tmp_path, written)).invoke(
+        request(agent.spec.agent_id), acting_for=TEST_PRINCIPAL
+    )
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED
+    assert seen == [expected]
+
+
+@pytest.mark.requirement("DD-POLICY")
+@pytest.mark.parametrize("value", ["sideways", None])
+def test_a_setting_the_card_does_not_offer_fails_and_the_agent_is_not_run(
+    runs_dir: Path, tmp_path: Path, value: str | None
+) -> None:
+    # A value outside the card's choices, or a setting the card does not declare at all.
+    written = (
+        f"agent_settings:\n  fake.input-only:\n    depth: {value}\n"
+        if value
+        else "agent_settings:\n  fake.input-only:\n    breadth: wide\n"
+    )
+    seen: list[dict[str, str]] = []
+    agent = _recording(seen)
+    env = make_conductor(runs_dir, agent, profile=_settings_profile(tmp_path, written)).invoke(
+        request(agent.spec.agent_id), acting_for=TEST_PRINCIPAL
+    )
+    assert env.outcome.status == OutcomeStatus.FAILED
+    assert env.problem is not None and env.problem.type.endswith("/setting-not-declared")
+    assert env.problem.http_status == 403
+    assert agent.calls == 0 and seen == []
+
+
+@pytest.mark.requirement("DD-POLICY")
+@pytest.mark.parametrize(
+    "written",
+    [
+        "agent_settings: [depth]\n",
+        "agent_settings:\n  not.enabled:\n    depth: deep\n",
+        "agent_settings:\n  fake.input-only: deep\n",
+        # YAML reads an unquoted `off` as false: the steward is asked to write a string.
+        "agent_settings:\n  fake.input-only:\n    depth: off\n",
+    ],
+)
+def test_malformed_agent_settings_refuse_the_profile(tmp_path: Path, written: str) -> None:
+    with pytest.raises(PolicyError, match="agent_settings"):
+        load_profile(_settings_profile(tmp_path, written))
 
 
 @pytest.mark.requirement("DD-POLICY")

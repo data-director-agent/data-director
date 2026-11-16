@@ -9,7 +9,8 @@ evidence that the policy asks nothing.
 
 FAIRsharing's policy records have no field for embargoes or for when data must be shared, and
 the API returns no relations from a policy to the databases and standards it names, so those
-obligations are `unstated` unless a relation is present. TODO(#302, #331)
+obligations are `unstated` unless a relation is present. TODO(#302, #331) What the policy's own
+text says of them is read separately (`extract.py`) and shown beside these, never in their place.
 """
 
 from __future__ import annotations

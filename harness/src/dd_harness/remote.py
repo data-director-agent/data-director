@@ -41,6 +41,7 @@ from dd_sdk.wire import (
     META_INPUT_HASH,
     META_INPUT_REF,
     META_MODEL_GRANT,
+    META_SETTINGS,
     META_TRACEPARENT,
     WireError,
     reply_from_document,
@@ -136,7 +137,7 @@ class RemoteAgent:
         message's metadata."""
         carrier: dict[str, str] = {}
         TraceContextTextMapPropagator().inject(carrier)  # the conductor's current span
-        metadata = {
+        metadata: dict[str, Any] = {
             META_INPUT_REF: ctx.input_ref,
             META_INPUT_HASH: ctx.input_hash,
             META_TRACEPARENT: carrier.get(META_TRACEPARENT, ""),
@@ -145,13 +146,16 @@ class RemoteAgent:
             metadata |= grant.metadata()
         if model_grant is not None:
             metadata[META_MODEL_GRANT] = model_grant
+        # The agent's settings under the profile (docs/specs/policy-and-identity.md).
+        if ctx.settings:
+            metadata[META_SETTINGS] = dict(ctx.settings)
         try:
             body = asyncio.run(self._send(to_document(request), metadata))
         except (httpx.HTTPError, TimeoutError) as exc:
             raise RemoteAgentError(f"{self.spec.agent_id} at {self.url}: {exc!r}") from exc
         return self._parse(body)
 
-    async def _send(self, request_doc: dict[str, Any], metadata: dict[str, str]) -> Any:
+    async def _send(self, request_doc: dict[str, Any], metadata: dict[str, Any]) -> Any:
         async with asyncio.timeout(self.timeout_s):
             async with self.client_factory(self.url, self.timeout_s) as hc:
                 # Not streamed: the policy gate, grounding linter and source check judge the

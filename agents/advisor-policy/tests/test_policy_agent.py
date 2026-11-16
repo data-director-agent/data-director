@@ -17,8 +17,11 @@ from dd_agent_advisor_policy.classes import (
     ObligationKind,
     PolicyChecks,
     PolicyContext,
+    ReadingStatus,
     Strength,
 )
+from dd_agent_advisor_policy.extract import Extraction, ModelExtractor, Read, found
+from dd_agent_advisor_policy.policy_text import PolicyText, html_text
 from dd_agent_advisor_policy.records import Clause, PolicyRecord, Relation
 from dd_agent_advisor_policy.retrieve import Query, RegistryUnavailable, SnapshotRef
 from dd_agent_advisor_policy.ror import Organisation, RorDump
@@ -29,6 +32,7 @@ from dd_sdk.contract.models import Envelope, OutcomeStatus, ReasonCode
 from dd_sdk.evidence import verify
 from dd_sdk.process_flow import STEPS
 from dd_sdk.schema import gen
+from dd_sdk.testing import FakeModel
 
 SCHEMA = Path(dd_agent_advisor_policy.__file__).parent / "schema" / "policy.yaml"
 
@@ -492,3 +496,144 @@ def test_a_failed_live_ror_route_falls_back_to_the_dump_marked_stale(
 
 def test_its_classes_are_generated_from_its_linkml() -> None:
     assert gen.stale(SCHEMA) == [], f"run `uv run dd-gen-schema {SCHEMA}`"
+
+
+# --- reading the policy's own text (#904) -----------------------------------------------------
+
+PAGE_URL = "https://src.example/data-policy"
+PAGE = (Path(__file__).parent / "data" / "policy-example.html").read_bytes()
+FUNDER_WITH_PAGE = FUNDER.model_copy(update={"homepage": PAGE_URL})
+QUOTED = Read(
+    kind="repository",
+    strength="required",
+    value="Social Survey Archive",
+    quote="must offer their data for deposit with the Social Survey Archive",
+)
+INVENTED = Read(
+    kind="embargo",
+    strength="required",
+    value="24 months",
+    quote="Data may be withheld for no longer than 24 months after collection.",
+)
+SRC_DEPOSIT_DIFFERS = Read(
+    kind="deposit",
+    strength="recommended",
+    value="offer the data for deposit",
+    quote="Grant holders must offer their data for deposit",
+)
+
+
+class FakePages:
+    def __init__(self, served: dict[str, bytes] | None = None) -> None:
+        self.served = {PAGE_URL: PAGE} if served is None else served
+        self.fetched: list[str] = []
+
+    def snapshot_ref(self) -> SnapshotRef:
+        return SnapshotRef(label="fake-policy-text")
+
+    def fetch(self, url: str) -> PolicyText:
+        self.fetched.append(url)
+        if url not in self.served:
+            raise RegistryUnavailable(f"{url}: HTTP 404")
+        return PolicyText(
+            url=url,
+            media_type="text/html",
+            sha256="0" * 64,
+            text=html_text(self.served[url].decode()),
+        )
+
+
+def reader(*reads: Read) -> ModelExtractor:
+    return ModelExtractor(FakeModel(Extraction(obligations=list(reads)).model_dump_json()))
+
+
+@pytest.mark.requirement("DD-GROUNDED-PAYLOAD", "DD-EVIDENCE")
+def test_a_policys_own_text_is_read_and_only_quotes_found_in_it_are_kept(runs_dir: Path) -> None:
+    pages = FakePages()
+    advisor = PolicyAgent(
+        FakePolicies([FUNDER_WITH_PAGE]), pages=pages, extractor=reader(QUOTED, INVENTED)
+    )
+    env = invoke(runs_dir, PolicyContext(actors=[SRC]), advisor)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    checks = env.payload_as(PolicyChecks)
+    assert pages.fetched == [PAGE_URL]
+    [reading] = checks.readings
+    assert reading.status == ReadingStatus.READ and reading.actor == SRC.name
+    assert [(o.kind, o.value) for o in reading.stated] == [
+        (ObligationKind.REPOSITORY, "Social Survey Archive")
+    ]
+    assert [d.split(":")[0] for d in reading.dropped] == ["embargo"]
+    # Grounded on the page's text and on the record it was reached from; the text is evidence,
+    # hashed, so the reader can find the quote in it.
+    cited = [g.source_id for g in reading.grounded_on]
+    assert cited == [PAGE_URL, FUNDER.fairsharing_id]
+    [text] = [e for e in env.evidence if e.source_id == PAGE_URL]
+    assert text.snapshot_ref == "fake-policy-text" and text.content is not None
+    assert verify(text.content, text.canonicalisation, text.content_hash)
+    assert found(reading.stated[0].quote, text.content["text"])
+    # The record's own obligations are as the curators recorded them; the reading adds to them.
+    assert strengths(checks, 0)[ObligationKind.DEPOSIT] == Strength.REQUIRED
+    assert "Social Survey Archive" in env.outcome.statement
+    assert env.telemetry.model_id == "fake-model" and env.telemetry.model_calls
+
+
+def test_where_the_text_and_the_record_differ_both_are_shown(runs_dir: Path) -> None:
+    advisor = PolicyAgent(
+        FakePolicies([FUNDER_WITH_PAGE]),
+        pages=FakePages(),
+        extractor=reader(SRC_DEPOSIT_DIFFERS),
+    )
+    env = invoke(runs_dir, PolicyContext(actors=[SRC]), advisor)
+    checks = env.payload_as(PolicyChecks)
+    assert strengths(checks, 0)[ObligationKind.DEPOSIT] == Strength.REQUIRED
+    assert checks.readings[0].stated[0].strength == Strength.RECOMMENDED
+
+
+def test_a_policy_url_is_read_for_an_actor_with_no_record(runs_dir: Path) -> None:
+    unknown = Actor(role=ActorRole.FUNDER, name="Unlisted Council", policy_url=PAGE_URL)
+    advisor = PolicyAgent(FakePolicies([]), pages=FakePages(), extractor=reader(QUOTED))
+    env = invoke(runs_dir, PolicyContext(actors=[unknown]), advisor)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    checks = env.payload_as(PolicyChecks)
+    assert checks.no_record == ["Unlisted Council"] and checks.policies == []
+    assert [g.source_id for g in checks.readings[0].grounded_on] == [PAGE_URL]
+    assert checks.readings[0].stated[0].value == "Social Survey Archive"
+
+
+def test_a_page_that_cannot_be_fetched_is_reported_beside_its_record(runs_dir: Path) -> None:
+    advisor = PolicyAgent(
+        FakePolicies([FUNDER_WITH_PAGE]), pages=FakePages({}), extractor=reader(QUOTED)
+    )
+    env = invoke(runs_dir, PolicyContext(actors=[SRC]), advisor)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    [reading] = env.payload_as(PolicyChecks).readings
+    assert reading.status == ReadingStatus.NOT_READ and reading.stated == [] and reading.reason
+    assert [g.source_id for g in reading.grounded_on] == [FUNDER.fairsharing_id]
+
+
+def test_without_a_model_no_page_is_fetched_and_the_statement_says_so(runs_dir: Path) -> None:
+    pages = FakePages()
+    env = invoke(
+        runs_dir,
+        PolicyContext(actors=[SRC]),
+        PolicyAgent(FakePolicies([FUNDER_WITH_PAGE]), pages=pages),
+    )
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert pages.fetched == [] and env.payload_as(PolicyChecks).readings == []
+
+
+@pytest.mark.requirement("DD-POLICY")
+def test_a_profile_can_turn_reading_the_text_off(runs_dir: Path, tmp_path: Path) -> None:
+    profile = tmp_path / "profile.yaml"
+    profile.write_text(
+        "profile_id: no-reading\nagents:\n  advisor.policy: advise\n"
+        'agent_settings:\n  advisor.policy:\n    policy_text: "off"\n',
+        encoding="utf-8",
+    )
+    pages = FakePages()
+    advisor = PolicyAgent(FakePolicies([FUNDER_WITH_PAGE]), pages=pages, extractor=reader(QUOTED))
+    env = make_conductor(runs_dir, advisor, profile=profile).invoke(
+        request("advisor.policy", PolicyContext(actors=[SRC])), acting_for=TEST_PRINCIPAL
+    )
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert pages.fetched == [] and env.payload_as(PolicyChecks).readings == []

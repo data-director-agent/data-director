@@ -188,3 +188,35 @@ its label is `ror:dump:<version>`. `uv run dd-ror fetch --update-pin` pins the n
   repositories are not yet compared. TODO(#331)
 - The FAIRsharing client is a copy of the standards advisor's, since an agent may not import
   another ([System and boundaries](../../docs/specs/system.md)). TODO(#280)
+
+## Reading the policy's own text
+
+The registries' records are curated summaries and say little of which repository, by when, for
+how long data may be withheld or under which licence. So each policy's own text is read as well
+(`policy_text.py`, `pdf_text.py`, `extract.py`):
+
+- Each matched FAIRsharing record's `homepage`, and each `policy_url` an actor carries, is fetched
+  once. HTML becomes text without scripts, styles, navigation, header and footer; a PDF is read
+  with `pypdf`; anything else is unreadable. A short landing page that links to PDFs on its own
+  site has up to two of them read with it. Every page is fetched before any model is called.
+- A model is given the text, as quoted data in the user turn, and returns each obligation it
+  finds, with its kind, strength, value and the passage that says so.
+- The code keeps an obligation only if its quote is in the text, word for word once typography and
+  white space are made plain, and at least twenty characters long. It drops the rest and says why
+  in `dropped`.
+- The result is `readings` in the payload, one per page, grounded on the text (cited by its
+  address, with the whole text as the evidence `content`) and on the record it was reached from.
+  Readings sit beside a record's obligations and never change them; where the two differ, both are
+  shown and the statement says so.
+- The `policy_text` setting is `read` by default; the institutional profile may set it to `off`
+  (`agent_settings`, docs/specs/policy-and-identity.md). Reading needs a model: the advisor's, or
+  the one the agent's settings configure. With none, nothing is fetched and the statement says so.
+
+Limits: a page is read only where a matched FAIRsharing record names it or the researcher gives a
+`policy_url`; Open Policy Finder records name an organisation's home page, not its policy, so
+they are not fetched. A page is read as it is when fetched, which may not be the version that
+applied at the publication date, and only its first 60,000 characters (or 60 PDF pages) are read.
+Pages are read live and not pinned, so the source check reports them as unresolved. Repositories
+the text requires are in `readings` and the statement; they are not yet passed to
+`advisor.repository` as mandated (#753). No run with a real model has measured how accurate the
+readings are.

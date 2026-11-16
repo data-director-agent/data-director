@@ -539,7 +539,7 @@ class Conductor:
             profile = self.profile
             watch.started(steps.GATE)
             with policy_gate_span(tracer, spec.agent_id):
-                decision = policy.gate(profile, spec.agent_id, spec.action_class)
+                decision = policy.gate(profile, spec.agent_id, spec.action_class, spec.settings)
             watch.finished(steps.GATE)
             # 1b. Who pays: with own accounts on, only an agent the operator states calls through
             # the model broker may call a model (docs/specs/model-accounts.md, invariant 14).
@@ -578,6 +578,10 @@ class Conductor:
                         profile.profile_id,
                     )
                     if decision.refusal == "action-class-mismatch"
+                    else problems.setting_not_declared(
+                        spec.agent_id, decision.reason, profile.profile_id
+                    )
+                    if decision.refusal == "setting-not-declared"
                     else problems.agent_not_permitted(spec.agent_id, profile.profile_id)
                 )
             elif bypasses:
@@ -679,7 +683,12 @@ class Conductor:
                     grant = self._issue_grant(request, acting_for)
                     sent_grant = DelegationGrant(url=self.harness_url, token=grant.token)
                 model_grant = self._model_grant(agent, request, acting_for)
-                ctx = RunContext(tracer=tracer, input_ref=input_ref, input_hash=input_hash)
+                ctx = RunContext(
+                    tracer=tracer,
+                    input_ref=input_ref,
+                    input_hash=input_hash,
+                    settings=decision.settings,
+                )
                 # The agent is never told which project it works in (docs/specs/projects.md).
                 sent = request.model_copy(update={"project_id": None})
                 watch.started(steps.AGENT)

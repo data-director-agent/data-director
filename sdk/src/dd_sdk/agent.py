@@ -78,6 +78,18 @@ class ModelUse:
 
 
 @dataclass(frozen=True)
+class Setting:
+    """An option the agent offers, which a deployment's profile may set (`agent_settings`,
+    docs/specs/policy-and-identity.md). `choices` are the values it accepts; `default` applies
+    where the profile does not set it. The conductor refuses a profile value outside `choices`
+    before the agent runs, and sends the agent the value that applies (`RunContext.settings`)."""
+
+    choices: tuple[str, ...]
+    default: str
+    description: str = ""
+
+
+@dataclass(frozen=True)
 class AgentSpec:
     agent_id: str
     version: str
@@ -101,6 +113,9 @@ class AgentSpec:
     # The persona's name as a researcher sees it ("Metadata Librarian", docs/specs/agents.md).
     # Empty: the app and the orchestrators show `agent_id` instead.
     title: str = ""
+    # The options a deployment's profile may set, by name (docs/specs/policy-and-identity.md).
+    # Empty: the agent offers none, and a profile that sets one for it is refused at invocation.
+    settings: Mapping[str, Setting] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         unknown = sorted(set(self.serves) - STEPS)
@@ -122,6 +137,12 @@ class AgentSpec:
             )
         for path, derived in self.derivations.items():
             _check_derivation(self, path, derived)
+        for name, setting in self.settings.items():
+            _check_setting(self.agent_id, name, setting)
+
+    def default_settings(self) -> dict[str, str]:
+        """Each setting's default: what applies where the profile sets none."""
+        return {name: s.default for name, s in self.settings.items()}
 
     def accepts_names(self) -> tuple[str, ...]:
         return tuple(c.name for c in self.accepts)
@@ -201,6 +222,18 @@ def _check_derivation(spec: AgentSpec, path: str, derived: Derived) -> None:
             raise SpecError(f"{where}: {holder}.{derived.recorded_in} is not a Derivation field")
 
 
+def _check_setting(agent_id: str, name: str, setting: Setting) -> None:
+    where = f"agent {agent_id!r} setting {name!r}"
+    if not name or not isinstance(name, str):
+        raise SpecError(f"{where}: a setting needs a name")
+    if not setting.choices or not all(isinstance(c, str) and c for c in setting.choices):
+        raise SpecError(f"{where}: choices must be one or more non-empty strings")
+    if len(set(setting.choices)) != len(setting.choices):
+        raise SpecError(f"{where}: a choice is listed more than once")
+    if setting.default not in setting.choices:
+        raise SpecError(f"{where}: default {setting.default!r} is not one of its choices")
+
+
 def describe(spec: AgentSpec) -> dict[str, Any]:
     """The manifest entry for one agent. JSON-ready."""
     return {
@@ -219,6 +252,14 @@ def describe(spec: AgentSpec) -> dict[str, Any]:
         "models": [_model_use(m) for m in spec.models],
         "serves": list(spec.serves),
         "title": spec.title,
+        "settings": {
+            name: {
+                "choices": list(s.choices),
+                "default": s.default,
+                "description": s.description,
+            }
+            for name, s in spec.settings.items()
+        },
         "schemas": {c.name: c.describe() for c in spec.schemas()},
     }
 
@@ -295,6 +336,18 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
     title = entry.get("title") or ""
     if not isinstance(title, str):
         raise SpecError(f"agent {agent_id!r}: title is not a string")
+    # `settings` may be absent: a card written before docs/specs/policy-and-identity.md offers none.
+    try:
+        settings = {
+            str(name): Setting(
+                tuple(str(c) for c in s["choices"]),
+                str(s["default"]),
+                str(s.get("description") or ""),
+            )
+            for name, s in (entry.get("settings") or {}).items()
+        }
+    except (AttributeError, KeyError, TypeError) as exc:
+        raise SpecError(f"agent {agent_id!r}: malformed settings: {exc}") from exc
     return AgentSpec(
         agent_id=agent_id,
         version=str(entry["version"]),
@@ -308,6 +361,7 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
         models=models,
         serves=tuple(str(r) for r in serves),
         title=title,
+        settings=settings,
     )
 
 
@@ -390,6 +444,11 @@ class RunContext:
     (docs/specs/orchestration.md). It is None for every other agent, and for a delegation agent run
     where the harness has no callback address (the CLI).
 
+    `settings` are the agent's settings for this invocation: the defaults its card declares,
+    overlaid by the profile's `agent_settings` (docs/specs/policy-and-identity.md). An agent reads
+    a setting with `setting(ctx, spec, name)`, which falls back to the card's default where the
+    caller sent none, as a test or the CLI may not.
+
     `model_grant` is the model grant the conductor minted for this invocation, if the agent's card
     declares `models` and the harness is configured to mint one (docs/specs/model-accounts.md). It
     is opaque: the agent never parses it, and the SDK's model adapters send it to the broker with
@@ -401,6 +460,17 @@ class RunContext:
     input_hash: str
     delegate: Delegate | None = None
     model_grant: str | None = None
+    settings: Mapping[str, str] = field(default_factory=dict)
+
+
+def setting(ctx: RunContext, spec: AgentSpec, name: str) -> str:
+    """The value of one of the agent's own settings for this invocation: what the conductor sent,
+    or the card's default. A name the card does not declare is a programmer error."""
+    declared = spec.settings.get(name)
+    if declared is None:
+        raise KeyError(f"agent {spec.agent_id!r} declares no setting {name!r}")
+    sent = ctx.settings.get(name)
+    return sent if sent in declared.choices else declared.default
 
 
 @runtime_checkable

@@ -41,10 +41,22 @@ policy:PolicyContext a sh:NodeShape ;
     sh:targetClass policy:PolicyContext .
 
 policy:Actor a sh:NodeShape ;
-    rdfs:comment "A funder, journal or institution. The FAIRsharing identifier of its policy is used when given; otherwise the name is looked up. A funder is first identified in ROR, by its ROR identifier when given, otherwise by its name. A journal is identified by its ISSN when given, otherwise by its title, and linked to its publisher." ;
+    rdfs:comment "A funder, journal or institution. The FAIRsharing identifier of its policy is used when given; otherwise the name is looked up. A funder is first identified in ROR, by its ROR identifier when given, otherwise by its name. A journal is identified by its ISSN when given, otherwise by its title, and linked to its publisher. The policy's own text is read from policy_url when given, as well as from the address each matched record names." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
+    sh:property [ sh:in ( "funder" "journal" "institution" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 0 ;
+            sh:path policy:role ],
+        [ sh:datatype xsd:string ;
+            sh:description "The address of the page or PDF that publishes the actor's data policy, when the researcher knows it. Its text is read as well as that of any policy record matched." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path policy:policy_url ;
+            sh:pattern "^https?://\\S+$" ],
+        [ sh:datatype xsd:string ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -70,11 +82,6 @@ policy:Actor a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 4 ;
             sh:path policy:issn ;
-            sh:pattern "^\\d{4}-?\\d{3}[\\dXx]$" ],
-        [ sh:in ( "funder" "journal" "institution" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 0 ;
-            sh:path policy:role ] ;
+            sh:pattern "^\\d{4}-?\\d{3}[\\dXx]$" ] ;
     sh:targetClass policy:Actor .
 

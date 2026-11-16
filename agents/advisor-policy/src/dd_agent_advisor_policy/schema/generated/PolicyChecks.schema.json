@@ -233,6 +233,63 @@
          "title": "PolicyConflict",
          "type": "object"
       },
+      "PolicyReading": {
+         "additionalProperties": false,
+         "description": "What a model read in one policy's own text, fetched from the address its policy record names or the researcher gave. Grounded on the text, and on the policy record it was reached from, if any. Each obligation kept quotes the text word for word, and the code has found the quote in it; what was dropped, and why, is in dropped. A person confirms each against the policy.",
+         "properties": {
+            "actor": {
+               "description": "The name of the actor, as given in the input.",
+               "type": "string"
+            },
+            "role": {
+               "$ref": "#/$defs/ActorRole"
+            },
+            "status": {
+               "$ref": "#/$defs/ReadingStatus"
+            },
+            "stated": {
+               "items": {
+                  "$ref": "#/$defs/StatedObligation"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "dropped": {
+               "description": "What the model said that was not kept, and why, such as a quote not found in the text.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "reason": {
+               "description": "Why the text was not read, or was read in part.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "grounded_on": {
+               "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",
+               "items": {
+                  "$ref": "#/$defs/GroundingRef"
+               },
+               "type": "array"
+            }
+         },
+         "required": [
+            "actor",
+            "role",
+            "status",
+            "grounded_on"
+         ],
+         "title": "PolicyReading",
+         "type": "object"
+      },
       "PolicyRegistry": {
          "description": "",
          "enum": [
@@ -249,6 +306,16 @@
             "publication"
          ],
          "title": "PolicyScope",
+         "type": "string"
+      },
+      "ReadingStatus": {
+         "description": "",
+         "enum": [
+            "read",
+            "not_read",
+            "unreadable"
+         ],
+         "title": "ReadingStatus",
          "type": "string"
       },
       "RepositoryRef": {
@@ -371,6 +438,34 @@
          "title": "SearchedSummary",
          "type": "object"
       },
+      "StatedObligation": {
+         "additionalProperties": false,
+         "description": "One obligation a policy's own text states, as a model read it: its kind, its strength and what it asks, with the passage that says so.",
+         "properties": {
+            "kind": {
+               "$ref": "#/$defs/ObligationKind"
+            },
+            "strength": {
+               "$ref": "#/$defs/Strength"
+            },
+            "value": {
+               "description": "What the policy asks, in brief, e.g. \"within two years of the end of the grant\" or \"CC BY 4.0\".",
+               "type": "string"
+            },
+            "quote": {
+               "description": "The words of the record that state the obligation, found in it word for word by the agent.",
+               "type": "string"
+            }
+         },
+         "required": [
+            "kind",
+            "strength",
+            "value",
+            "quote"
+         ],
+         "title": "StatedObligation",
+         "type": "object"
+      },
       "Strength": {
          "description": "",
          "enum": [
@@ -426,6 +521,16 @@
          "description": "Actors for which no FAIRsharing policy record was found.",
          "items": {
             "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "readings": {
+         "description": "What a model read in each policy's own text, or why the text was not read. Each obligation quotes the passage it comes from; a person confirms it.",
+         "items": {
+            "$ref": "#/$defs/PolicyReading"
          },
          "type": [
             "array",

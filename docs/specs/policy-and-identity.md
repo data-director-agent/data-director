@@ -113,11 +113,19 @@ them.
     agent's, so a key in one agent's settings reaches no other.
 21. **Tests and CI never need a real key.** Model calls are replayed from cassettes with the
     network blocked, and recorded cassettes have credential headers removed (root `conftest.py`).
+22. **A profile sets only the options an agent's card offers.** An agent's card may declare
+    settings, each with its choices and a default. The profile's `agent_settings` sets them per
+    agent, as strings. At load, a profile that sets options for an agent it does not enable is
+    refused. At invocation, the gate refuses an agent whose card does not declare a setting the
+    profile gives it, or does not accept the value, with `setting-not-declared`, and the agent is
+    not run. Otherwise the conductor sends the agent its card's defaults overlaid by the profile,
+    and nothing else (`test_a_setting_the_card_does_not_offer_fails_and_the_agent_is_not_run`,
+    `test_an_agent_is_sent_its_card_defaults_overlaid_by_the_profile`).
 
 ## Boundaries and contracts
 
-**The policy gate** answers two questions and nothing else: may this agent run, and does the class
-the profile assigns it require approval? It runs before the input check. An action class needing
+**The policy gate** answers three questions and nothing else: may this agent run, with which of
+its declared settings, and does the class the profile assigns it require approval? It runs before the input check. An action class needing
 approval yields `referred(policy_requires_approval)` to `data_steward`, and the agent is not run.
 Nothing yet resumes a referred run; see Open questions. The gate decides whether the harness calls
 an agent; it cannot stop an agent's own service doing something it did not declare. That is why no
@@ -127,10 +135,13 @@ propose the change in its payload and the conductor is to perform it after appro
 (TODO(#72)).
 
 **The profile vocabulary** is the identifier, version, description, the agent-to-class mapping,
-the classes requiring approval, the optional orchestrator, `hosted_models` and `model_accounts`
+the classes requiring approval, the optional orchestrator, `hosted_models`, `model_accounts`
 (whether people may or must use their own model account, whether the deployment pays for someone
 who has none, and which providers and base URLs their account may use;
-[A person's own model account](model-accounts.md)). A change to which orchestrator is
+[A person's own model account](model-accounts.md)) and `agent_settings` (the options each agent's
+card offers, such as whether it reads a source live; invariant 22). A setting is the agent's own
+option, chosen by the steward: the conductor checks it against the card and sends it, and the agent
+applies it. It is not a way to grant an agent anything the other keys withhold. A change to which orchestrator is
 named raises the profile's version. Approved repositories (R1), persistent identifier systems
 (R7) and registry access return as keys only together with the agent or check that enforces them.
 `hosted_models` lists the classes of project content (`inventory`, `documentation`,

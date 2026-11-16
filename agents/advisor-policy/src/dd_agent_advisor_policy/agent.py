@@ -31,7 +31,9 @@ which they mean. ROR's records are evidence like FAIRsharing's, under the same c
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Any
 
 from dd_agent_advisor_policy import assess, discover, match
 from dd_agent_advisor_policy.advise import Lookups
@@ -41,10 +43,13 @@ from dd_agent_advisor_policy.classes import (
     AmbiguousActor,
     MatchedPolicy,
     Obligation,
+    ObligationKind,
     PolicyChecks,
     PolicyConflict,
     PolicyContext,
+    PolicyReading,
     PolicyRegistry,
+    ReadingStatus,
     RepositoryRef,
     ResolvedFunder,
     ResolvedJournal,
@@ -52,8 +57,21 @@ from dd_agent_advisor_policy.classes import (
     Strength,
 )
 from dd_agent_advisor_policy.crossref import CrossrefJournals
-from dd_agent_advisor_policy.explain import Explainer, Item, Rationale, TemplateExplainer
+from dd_agent_advisor_policy.explain import (
+    Explainer,
+    Explanation,
+    Item,
+    Rationale,
+    TemplateExplainer,
+)
+from dd_agent_advisor_policy.extract import Extractor, NoExtractor
 from dd_agent_advisor_policy.opf import OpenPolicyFinder, OpfRecord
+from dd_agent_advisor_policy.policy_text import (
+    Pages,
+    PolicyText,
+    UnreadableError,
+    readable_url,
+)
 from dd_agent_advisor_policy.records import PolicyRecord
 from dd_agent_advisor_policy.resolve import Ambiguous, Resolution, Resolved, Unknown, names, resolve
 from dd_agent_advisor_policy.retrieve import (
@@ -63,7 +81,7 @@ from dd_agent_advisor_policy.retrieve import (
     SourceRecord,
 )
 from dd_agent_advisor_policy.ror import Organisation, Organisations
-from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
+from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext, Setting, setting
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Derivation,
@@ -76,7 +94,12 @@ from dd_sdk.contract.models import (
     ReasonCode,
 )
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, HASH_ALGORITHM, content_hash
+from dd_sdk.prompts import ModelCallLog
 from dd_sdk.tracing import retrieval_span
+
+# The setting that decides whether each policy's own text is read.
+POLICY_TEXT = "policy_text"
+READ, OFF = "read", "off"
 
 
 def _abstain(reason: ReasonCode, statement: str) -> AgentResult:
@@ -132,6 +155,32 @@ def _registry(record: SourceRecord) -> PolicyRegistry:
     )
 
 
+def _text_hash(text: PolicyText) -> str:
+    return content_hash(text.document(), DOCUMENT_CANONICALISATION)
+
+
+def _text_ref(text: PolicyText) -> GroundingRef:
+    return GroundingRef(source_id=text.url, content_hash=_text_hash(text))
+
+
+@dataclass
+class TextReadings:
+    """What reading the policies' own text gave: the readings, the evidence and references they
+    rest on, the tokens and calls spent, and a sentence for the statement."""
+
+    readings: list[PolicyReading] = field(default_factory=list)
+    evidence: list[EvidenceItem] = field(default_factory=list)
+    refs: list[GroundingRef] = field(default_factory=list)
+    input_tokens: int = 0
+    output_tokens: int = 0
+    calls: ModelCallLog | None = None
+    note: str = ""
+
+
+def _plural(n: int, word: str) -> str:
+    return f"{n} {word}{'' if n == 1 else 's'}"
+
+
 def _stated(obligations: tuple[Obligation, ...]) -> list[Obligation]:
     return list(obligations)
 
@@ -164,8 +213,25 @@ class PolicyAgent:
             "mandated_repositories.name": Derived(Derivation.REGISTRY),
             "funders.crossref_funder_id": Derived(Derivation.REGISTRY),
             "journals.publisher": Derived(Derivation.REGISTRY),
+            "readings.status": Derived(Derivation.TEMPLATE),
+            "readings.reason": Derived(Derivation.TEMPLATE),
+            "readings.dropped": Derived(Derivation.TEMPLATE),
+            # The quote is not listed: the code has found it, word for word, in the cited text.
+            "readings.stated.kind": Derived(Derivation.MODEL),
+            "readings.stated.strength": Derived(Derivation.MODEL),
+            "readings.stated.value": Derived(Derivation.MODEL),
         },
         serves=("governance.policies", "repository.mandated"),
+        settings={
+            POLICY_TEXT: Setting(
+                (READ, OFF),
+                READ,
+                "Fetch each matched policy's own page or PDF, and any the researcher gives, and "
+                "have the agent's model report what it requires, quoting the passage each "
+                "obligation comes from; the code keeps only quotes it finds in the text. Needs a "
+                "model. Off: only the registries' records are read.",
+            ),
+        },
     )
 
     def __init__(
@@ -177,6 +243,8 @@ class PolicyAgent:
         organisations_fallback: Organisations | None = None,
         opf: OpenPolicyFinder | None = None,
         crossref: CrossrefJournals | None = None,
+        pages: Pages | None = None,
+        extractor: Extractor | None = None,
     ) -> None:
         self.policies = policies
         self.fallback = fallback
@@ -185,6 +253,8 @@ class PolicyAgent:
         self.organisations_fallback = organisations_fallback
         self.opf = opf
         self.crossref = crossref
+        self.pages = pages
+        self.extractor = extractor or NoExtractor()
 
     def _resolve(self, actors: list[Actor]) -> tuple[list[Resolution], str | None, str | None]:
         """Each actor's resolution in ROR, which copy of ROR answered, and why ROR was not
@@ -421,13 +491,15 @@ class PolicyAgent:
                 )
                 + "."
             )
-        if not records and not organisations:
+        texts = self._read_texts(matched, ctx)
+        if not records and not organisations and not texts.readings:
             no_record = [actor.name for actor, _ in searched]
             return _abstain(
                 ReasonCode.NO_CANDIDATES_RETRIEVED,
                 f"No registry ({'; '.join(labels)}) has a policy record for "
                 f"{', '.join(no_record)}. Many institutions have none; check the policies "
                 "directly, including whether they require a particular repository."
+                + texts.note
                 + ror_note
                 + opf_note,
             )
@@ -493,9 +565,6 @@ class PolicyAgent:
             for grounding in jr.grounded_on:
                 if grounding.source_id in records:
                     cited[grounding.source_id] = records[grounding.source_id]
-        model_id = self.explainer.model_id if explanation.calls else None
-        model_calls = explanation.calls.calls if explanation.calls else ()
-        prompts = explanation.calls.prompts if explanation.calls else {}
         # No policy, but ROR identified a funder, a journal was identified, or there are
         # candidates to choose from: the payload carries them, grounded on their records.
         if not advised:
@@ -508,7 +577,7 @@ class PolicyAgent:
                     f"{', '.join(no_record)}; check their policies directly, including whether "
                     "they require a particular repository."
                 )
-            statement += ror_note + opf_note
+            statement += texts.note + ror_note + opf_note
             if remarks:
                 statement += " " + remarks
             statement += " Human review is required."
@@ -518,18 +587,17 @@ class PolicyAgent:
                     no_record=no_record,
                     funders=funders,
                     journals=resolved_journals,
+                    readings=texts.readings,
                     ambiguous=unresolved,
                     searched=searched_summary,
                     grounded_on=[_ref(r) for _, r in sorted(cited.items())]
-                    + [_org_ref(o) for _, o in sorted(organisations.items())],
+                    + [_org_ref(o) for _, o in sorted(organisations.items())]
+                    + texts.refs,
                 ),
                 evidence=self._evidence(cited, self._labels(where, ror_where))
-                + self._org_evidence(organisations, ror_where or ""),
-                model_id=model_id,
-                input_tokens=explanation.usage.input_tokens,
-                output_tokens=explanation.usage.output_tokens,
-                model_calls=model_calls,
-                prompts=prompts,
+                + self._org_evidence(organisations, ror_where or "")
+                + texts.evidence,
+                **self._model_use(explanation, texts),
             )
 
         policies = [
@@ -612,7 +680,12 @@ class PolicyAgent:
                 " Repositories a policy's text requires, as a model read it (quoted in the "
                 "obligations): " + "; ".join(named_repositories) + "."
             )
-        if not mandated and not named_repositories:
+        read_required = any(
+            o.kind.value == "repository" and o.strength == Strength.REQUIRED
+            for r in texts.readings
+            for o in r.stated
+        )
+        if not mandated and not named_repositories and not read_required:
             statement += (
                 " No matched record names a required repository. The registries' records do "
                 "not always say which repositories a policy requires, so this is not evidence "
@@ -624,7 +697,7 @@ class PolicyAgent:
                 f" No policy record for: {', '.join(no_record)}; what they require, including "
                 "any required repository, was not checked."
             )
-        statement += ror_note + opf_note
+        statement += texts.note + ror_note + opf_note
         if remarks:
             statement += " " + remarks
         statement += " Human review is required."
@@ -637,18 +710,209 @@ class PolicyAgent:
                 no_record=no_record,
                 funders=funders,
                 journals=resolved_journals,
+                readings=texts.readings,
                 ambiguous=unresolved,
                 searched=searched_summary,
                 grounded_on=[_ref(r) for _, r in sorted(cited.items())]
-                + [_org_ref(o) for _, o in sorted(organisations.items())],
+                + [_org_ref(o) for _, o in sorted(organisations.items())]
+                + texts.refs,
             ),
-            evidence=evidence + self._org_evidence(organisations, ror_where or ""),
-            model_id=model_id,
-            input_tokens=explanation.usage.input_tokens,
-            output_tokens=explanation.usage.output_tokens,
-            model_calls=model_calls,
-            prompts=prompts,
+            evidence=evidence + self._org_evidence(organisations, ror_where or "") + texts.evidence,
+            **self._model_use(explanation, texts),
         )
+
+    def _read_texts(
+        self, matched: list[tuple[Actor, list[PolicyRecord]]], ctx: RunContext
+    ) -> TextReadings:
+        """Fetch and read each policy's own text: the page each matched record names, and each
+        `policy_url` given. Every page is fetched, with its retrieval span, before any model is
+        called (docs/specs/grounding.md, G1)."""
+        out = TextReadings()
+        targets: dict[str, tuple[Actor, SourceRecord | None]] = {}
+        for actor, found in matched:
+            for record in found:
+                url = readable_url(record.homepage)
+                if url:
+                    targets.setdefault(url, (actor, record))
+        for actor, _ in matched:
+            url = readable_url(actor.policy_url)
+            if url:
+                targets.setdefault(url, (actor, None))
+        if not targets:
+            return out
+        if setting(ctx, self.spec, POLICY_TEXT) == OFF:
+            out.note = " The policies' own text was not read: the deployment turns reading off."
+            return out
+        if self.pages is None or isinstance(self.extractor, NoExtractor):
+            out.note = (
+                " The policies' own text was not read: no model is configured to read it, so "
+                "only FAIRsharing's curated records were."
+            )
+            return out
+        where = self.pages.snapshot_ref().as_string()
+        fetched: list[tuple[str, Actor, SourceRecord | None, PolicyText | None, str | None]] = []
+        for url, (actor, source) in targets.items():
+            try:
+                text = self.pages.fetch(url)
+            except RegistryUnavailable as exc:
+                fetched.append((url, actor, source, None, f"it could not be fetched: {exc}"))
+                continue
+            except UnreadableError as exc:
+                fetched.append((url, actor, source, None, f"unreadable: {exc}"))
+                continue
+            with retrieval_span(ctx.tracer, url, _text_hash(text)):
+                pass
+            fetched.append((url, actor, source, text, None))
+        unread: list[str] = []
+        now = datetime.now(UTC)
+        for url, actor, origin, page, problem in fetched:
+            record_refs = [_ref(origin)] if origin is not None else []
+            if page is None:
+                if not record_refs:
+                    unread.append(f"{url} ({problem})")
+                    continue
+                out.readings.append(
+                    PolicyReading(
+                        actor=actor.name,
+                        role=actor.role,
+                        status=(
+                            ReadingStatus.UNREADABLE
+                            if (problem or "").startswith("unreadable")
+                            else ReadingStatus.NOT_READ
+                        ),
+                        reason=f"The policy's page {url}: {problem}.",
+                        grounded_on=record_refs,
+                    )
+                )
+                continue
+            reading = self.extractor.extract(actor, page, ctx, out.calls)
+            out.calls = reading.calls or out.calls
+            out.input_tokens += reading.usage.input_tokens or 0
+            out.output_tokens += reading.usage.output_tokens or 0
+            ref = _text_ref(page)
+            out.refs.append(ref)
+            out.evidence.append(
+                EvidenceItem(
+                    source_id=page.url,
+                    source_uri=page.url,
+                    retrieved_at=now,
+                    snapshot_ref=where,
+                    hash_algorithm=HASH_ALGORITHM,
+                    canonicalisation=DOCUMENT_CANONICALISATION,
+                    content_hash=ref.content_hash,
+                    content=page.document(),
+                )
+            )
+            reasons = []
+            if reading.why_not:
+                reasons.append(f"The text was not read: {reading.why_not}.")
+            if page.truncated:
+                reasons.append("The text was long and only its first part was read.")
+            out.readings.append(
+                PolicyReading(
+                    actor=actor.name,
+                    role=actor.role,
+                    status=ReadingStatus.NOT_READ if reading.why_not else ReadingStatus.READ,
+                    stated=reading.checked.stated,
+                    dropped=reading.checked.dropped,
+                    reason=" ".join(reasons) or None,
+                    grounded_on=[ref, *record_refs],
+                )
+            )
+        out.note = self._reading_note(out.readings, matched, unread)
+        return out
+
+    def _reading_note(
+        self,
+        readings: list[PolicyReading],
+        matched: list[tuple[Actor, list[PolicyRecord]]],
+        unread: list[str],
+    ) -> str:
+        read = [r for r in readings if r.status == ReadingStatus.READ]
+        note = ""
+        if read:
+            stated = sum(len(r.stated) for r in read)
+            note += (
+                f" The policies' own text was read for {_plural(len(read), 'policy')} by a model "
+                f"({self.extractor.model_id}): {_plural(stated, 'obligation')} found, each with "
+                "the passage it comes from, which the agent has checked is in the text. A person "
+                "should confirm each against the policy."
+            )
+            required = sorted(
+                {
+                    o.value
+                    for r in read
+                    for o in r.stated
+                    if o.kind == ObligationKind.REPOSITORY and o.strength == Strength.REQUIRED
+                }
+            )
+            if required:
+                note += " Repositories the text says are required: " + "; ".join(required) + "."
+            differ = self._differences(read, matched)
+            if differ:
+                note += (
+                    " The text and its FAIRsharing record state these differently: "
+                    + "; ".join(differ)
+                    + ". Both are shown; a person should decide."
+                )
+        not_read = [r for r in readings if r.status != ReadingStatus.READ]
+        if not_read:
+            note += (
+                f" The text of {_plural(len(not_read), 'policy')} was not read; each reading "
+                "says why."
+            )
+        if unread:
+            note += " A page given for a policy could not be read: " + "; ".join(unread) + "."
+        return note
+
+    @staticmethod
+    def _differences(
+        read: list[PolicyReading], matched: list[tuple[Actor, list[PolicyRecord]]]
+    ) -> list[str]:
+        records = {r.source_id: r for _, found in matched for r in found}
+        out: list[str] = []
+        for reading in read:
+            for ref in reading.grounded_on:
+                record = records.get(ref.source_id)
+                if record is None:
+                    continue
+                curated = {
+                    o.kind: o.strength
+                    for o in assess.obligations(record)
+                    if o.strength != Strength.UNSTATED
+                }
+                for kind in sorted({o.kind for o in reading.stated}):
+                    strengths = {o.strength for o in reading.stated if o.kind == kind}
+                    if kind in curated and curated[kind] not in strengths:
+                        out.append(
+                            f"{kind.value.replace('_', ' ')} for {reading.actor!r}: the record "
+                            f"says {curated[kind].value}, the text "
+                            f"{' and '.join(sorted(s.value for s in strengths))}"
+                        )
+        return out
+
+    def _model_use(self, explanation: Explanation, texts: TextReadings) -> dict[str, Any]:
+        """The models called in this run, their tokens, calls and prompts: the explainer's and
+        the extractor's together."""
+        logs = [log for log in (explanation.calls, texts.calls) if log]
+        if not logs:
+            return {
+                "input_tokens": explanation.usage.input_tokens,
+                "output_tokens": explanation.usage.output_tokens,
+            }
+
+        def total(a: int | None, b: int) -> int | None:
+            return None if a is None and not b else (a or 0) + b
+
+        return {
+            "model_id": (explanation.calls and self.explainer.model_id)
+            or (texts.calls and self.extractor.model_id)
+            or None,
+            "input_tokens": total(explanation.usage.input_tokens, texts.input_tokens),
+            "output_tokens": total(explanation.usage.output_tokens, texts.output_tokens),
+            "model_calls": tuple(c for log in logs for c in log.calls),
+            "prompts": {k: v for log in logs for k, v in log.prompts.items()},
+        }
 
     def _labels(self, where: str, ror_where: str | None) -> dict[str, str]:
         """The `snapshot_ref` of each registry's evidence."""

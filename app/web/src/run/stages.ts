@@ -78,7 +78,8 @@ function check(id: "grounding" | "sources", checks: Checks, ranOver: boolean): S
 export function inferStages({ envelope, checks }: RunResult): Stage[] {
   const slug = problemSlug(envelope.problem?.type);
   const { status, reason_code } = envelope.outcome;
-  const refusedByGate = slug === "agent-not-permitted" || slug === "action-class-mismatch";
+  const refusedByGate =
+    slug === "agent-not-permitted" || slug === "action-class-mismatch" || slug === "setting-not-declared";
   const needsApproval = status === "referred" && reason_code === "policy_requires_approval";
 
   if (refusedByGate || needsApproval) {
