@@ -145,6 +145,15 @@ export function waitingCount(lines: readonly Line[]): number {
   return lines.reduce((n, l) => n + l.items.filter((i) => i.waiting).length, 0);
 }
 
+/** How many things wait on the researcher in a project, given its documents once they are read. */
+export function waitingOn(
+  flow: ProcessFlow,
+  progress: ProjectProgress,
+  documents: readonly ProjectDocument[] | undefined,
+): number {
+  return waitingCount(journey(flow, progress, documents && waitingDocuments(documents)));
+}
+
 /** The phase and step for a step id, or null if the flow has none. */
 export function locate(
   flow: ProcessFlow,

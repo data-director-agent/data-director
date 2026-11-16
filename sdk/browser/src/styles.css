@@ -23,6 +23,7 @@
     --dd-color-border-subtle: var(--color-border-subtle, #d0d0d0);
     --dd-color-text-muted: var(--color-text-muted, #595959);
     --dd-color-danger: var(--color-danger-fg, #a1121a);
+    --dd-font-mono: var(--font-mono, ui-monospace, monospace);
   }
 
   /* An agent card. */
@@ -49,6 +50,18 @@
     margin: 0;
     min-width: 0;
     overflow-wrap: anywhere;
+  }
+
+  /* At narrow widths a value goes under its name, so a long value does not squeeze the name. */
+  @media (width <= 30rem) {
+    .dd-kvs {
+      grid-template-columns: 1fr;
+      gap: 0;
+    }
+
+    .dd-kvs dd {
+      margin-bottom: var(--dd-space-2);
+    }
   }
 
   .dd-chips {
@@ -92,7 +105,7 @@
   }
 
   .dd-digest {
-    font-family: ui-monospace, monospace;
+    font-family: var(--dd-font-mono);
     font-size: 0.85em;
   }
 

@@ -159,7 +159,7 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
   };
 
   const content = () => {
-    if (load.state === "loading") return <p>Reading the project…</p>;
+    if (load.state === "loading") return <p role="status">Reading the project…</p>;
     if (load.state === "failed") {
       return (
         <div role="alert" className="callout status-danger">

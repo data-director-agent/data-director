@@ -44,6 +44,14 @@ export async function fetchDirectory(signal?: AbortSignal): Promise<Directory> {
   return normalise((await response.json()) as RawAgentsResponse);
 }
 
+/** A project's page, or its journey map, from the path; neither when the path is another. */
+function projectRoute(path: string): { projectId: string | null; onJourney: boolean } {
+  if (!path.startsWith(PROJECT_PREFIX)) return { projectId: null, onJourney: false };
+  const rest = path.slice(PROJECT_PREFIX.length);
+  const onJourney = rest.endsWith(JOURNEY_SUFFIX);
+  return { projectId: onJourney ? rest.slice(0, -JOURNEY_SUFFIX.length) : rest, onJourney };
+}
+
 /**
  * The shell. It asks the server who is signed in before anything else (docs/specs/policy-and-identity.md): where the
  * server signs people in and nobody is, it shows the sign-in page and loads nothing more. Any
@@ -62,10 +70,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
   const onActivity = path === "/activity";
   const onPolicy = path === "/policy";
   const onProjects = path === "/projects";
-  const projectPath = path.startsWith(PROJECT_PREFIX) ? path.slice(PROJECT_PREFIX.length) : null;
-  const onJourney = projectPath?.endsWith(JOURNEY_SUFFIX) ?? false;
-  const projectId =
-    projectPath && onJourney ? projectPath.slice(0, -JOURNEY_SUFFIX.length) : projectPath;
+  const { projectId, onJourney } = projectRoute(path);
   // A project's own page is under Projects in the main navigation.
   const current =
     onProjects || projectId

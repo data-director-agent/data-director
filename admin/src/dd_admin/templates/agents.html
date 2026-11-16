@@ -28,6 +28,8 @@
       <td>{% for m in a.described.models or [] %}{{ m.provider }} {{ m.model }}{% if not loop.last %}, {% endif %}{% else %}<span class="muted">none</span>{% endfor %}</td>
       <td class="mono">{{ a.url }}</td>
     </tr>
+  {% else %}
+    <tr><td colspan="{{ 7 if units is not none else 6 }}" class="empty">No agents are configured.</td></tr>
   {% endfor %}
   </tbody>
 </table>

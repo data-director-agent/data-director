@@ -26,6 +26,7 @@
           "label": "Plan how your data will be documented",
           "optional": false,
           "out_of_scope": false,
+          "prompt": "Help me plan how I will document my data before I start collecting it.",
           "requirements": [
             "R5"
           ],
@@ -36,6 +37,7 @@
           "label": "Choose standard terms to describe your data",
           "optional": false,
           "out_of_scope": false,
+          "prompt": "Help me choose standard terms and vocabularies to describe my data.",
           "requirements": [
             "R3"
           ],
@@ -46,6 +48,7 @@
           "label": "Write a Data Management Plan",
           "optional": true,
           "out_of_scope": true,
+          "prompt": "Help me write a Data Management Plan for my project.",
           "requirements": [],
           "text": "Create a Data Management Plan where none exists"
         },
@@ -54,6 +57,7 @@
           "label": "Review your Data Management Plan",
           "optional": false,
           "out_of_scope": true,
+          "prompt": "Help me review my Data Management Plan.",
           "requirements": [],
           "text": "Review and update the Data Management Plan"
         }
@@ -70,6 +74,7 @@
           "label": "Check what your funder, journal and institution expect",
           "optional": false,
           "out_of_scope": false,
+          "prompt": "What do my funder, journal and institution expect me to do with my data?",
           "requirements": [],
           "text": "Check funder, journal and institutional data sharing policies"
         },
@@ -78,6 +83,7 @@
           "label": "Spot any sensitive information in your data",
           "optional": false,
           "out_of_scope": false,
+          "prompt": "Help me find out whether my data hold any sensitive information.",
           "requirements": [],
           "text": "Identify sensitive data"
         },
@@ -86,6 +92,7 @@
           "label": "Decide how sensitive data will be protected",
           "optional": false,
           "out_of_scope": false,
+          "prompt": "Help me decide how to protect the sensitive information in my data.",
           "requirements": [],
           "text": "Handle sensitive data"
         },
@@ -94,6 +101,7 @@
           "label": "Decide whether to delay public release",
           "optional": false,
           "out_of_scope": false,
+          "prompt": "Help me decide whether I should delay the public release of my data.",
           "requirements": [],
           "text": "Confirm whether an embargo is required"
         },
@@ -102,6 +110,7 @@
           "label": "Check your plans match your Data Management Plan",
           "optional": false,
           "out_of_scope": false,
+          "prompt": "Help me check that my plans for sharing match my Data Management Plan.",
           "requirements": [
             "R8"
           ],
@@ -120,6 +129,7 @@
           "label": "Find out whether you must use a particular repository",
           "optional": false,
           "out_of_scope": false,
+          "prompt": "Do I have to deposit my data in a particular repository?",
           "requirements": [],
           "text": "Check whether the funder, journal or institution mandates a repository"
         },
@@ -128,6 +138,7 @@
           "label": "Choose a repository",
           "optional": false,
           "out_of_scope": false,
+          "prompt": "Help me choose a repository for my data.",
           "requirements": [
             "R1"
           ],
@@ -138,6 +149,7 @@
           "label": "Make sure your data will get a permanent identifier, such as a DOI",
           "optional": false,
           "out_of_scope": false,
+          "prompt": "How will my data get a permanent identifier, such as a DOI?",
           "requirements": [
             "R7"
           ],
@@ -148,6 +160,7 @@
           "label": "Check who can access the data and what depositing costs",
           "optional": false,
           "out_of_scope": false,
+          "prompt": "Who will be able to access my data in the repository, and what will depositing cost?",
           "requirements": [],
           "text": "Check access options and deposit costs"
         },
@@ -156,6 +169,7 @@
           "label": "Check that the repository is trustworthy",
           "optional": true,
           "out_of_scope": false,
+          "prompt": "Help me check that my chosen repository is trustworthy.",
           "requirements": [],
           "text": "Verify repository certification"
         }
@@ -172,6 +186,7 @@
           "label": "Tidy and version your files",
           "optional": false,
           "out_of_scope": false,
+          "prompt": "Help me tidy and version my data files.",
           "requirements": [],
           "text": "Clean and version the data files"
         },
@@ -180,6 +195,7 @@
           "label": "Save your data in open formats",
           "optional": false,
           "out_of_scope": false,
+          "prompt": "Help me check whether my files are in open formats, and what to save them as if not.",
           "requirements": [
             "R3"
           ],
@@ -190,6 +206,7 @@
           "label": "Write a README and a data dictionary",
           "optional": false,
           "out_of_scope": false,
+          "prompt": "Help me write a README and a data dictionary for my data.",
           "requirements": [
             "R5"
           ],
@@ -200,6 +217,7 @@
           "label": "Choose the metadata standard to follow",
           "optional": false,
           "out_of_scope": false,
+          "prompt": "Which metadata standard should I follow for my data?",
           "requirements": [],
           "text": "Identify the appropriate metadata standard"
         },
@@ -208,6 +226,7 @@
           "label": "Fill in the description of your dataset",
           "optional": false,
           "out_of_scope": false,
+          "prompt": "Help me fill in the description of my dataset.",
           "requirements": [
             "R2",
             "R6"
@@ -227,6 +246,7 @@
           "label": "Check the description is complete and correct",
           "optional": false,
           "out_of_scope": false,
+          "prompt": "Help me check that the description of my dataset is complete and correct.",
           "requirements": [
             "R4"
           ],
@@ -237,6 +257,7 @@
           "label": "Choose a licence",
           "optional": false,
           "out_of_scope": false,
+          "prompt": "Help me choose a licence for my data.",
           "requirements": [],
           "text": "Assign a licence"
         },
@@ -245,6 +266,7 @@
           "label": "Link to your paper, your ORCID iD, your institution and your grant",
           "optional": false,
           "out_of_scope": false,
+          "prompt": "Help me link my data to my paper, my ORCID iD, my institution and my grant.",
           "requirements": [
             "R7"
           ],
@@ -255,6 +277,7 @@
           "label": "Set who can see or download the data",
           "optional": false,
           "out_of_scope": false,
+          "prompt": "Help me decide who can see or download my data.",
           "requirements": [],
           "text": "Set access restrictions"
         },
@@ -263,6 +286,7 @@
           "label": "Create a private link for peer reviewers",
           "optional": true,
           "out_of_scope": false,
+          "prompt": "How do I create a private link to my data for peer reviewers?",
           "requirements": [],
           "text": "Generate a private peer review link"
         },
@@ -271,6 +295,7 @@
           "label": "Upload your files",
           "optional": false,
           "out_of_scope": false,
+          "prompt": "Help me upload my files to the repository.",
           "requirements": [],
           "text": "Upload the files"
         },
@@ -279,6 +304,7 @@
           "label": "Review and submit",
           "optional": false,
           "out_of_scope": false,
+          "prompt": "Help me review my deposit before I submit it.",
           "requirements": [],
           "text": "Review and finalise the submission"
         }
@@ -295,6 +321,7 @@
           "label": "Update your Data Management Plan with what you published",
           "optional": false,
           "out_of_scope": true,
+          "prompt": "Help me update my Data Management Plan with what I published.",
           "requirements": [],
           "text": "Update the Data Management Plan to reflect the data published"
         },
@@ -303,6 +330,7 @@
           "label": "Record the deposit with your institution",
           "optional": false,
           "out_of_scope": false,
+          "prompt": "Help me record my deposit with my institution.",
           "requirements": [],
           "text": "Record the deposit in institutional systems where required"
         },
@@ -311,6 +339,7 @@
           "label": "Follow downloads and citations",
           "optional": false,
           "out_of_scope": false,
+          "prompt": "How can I follow the downloads and citations of my data?",
           "requirements": [],
           "text": "Monitor access, downloads and citations"
         },
@@ -319,6 +348,7 @@
           "label": "Release your data when the delay ends",
           "optional": false,
           "out_of_scope": false,
+          "prompt": "Help me release my data when the embargo ends.",
           "requirements": [],
           "text": "Check embargo release"
         },
@@ -327,6 +357,7 @@
           "label": "Check how FAIR your published data are",
           "optional": false,
           "out_of_scope": false,
+          "prompt": "Help me check how FAIR my published data are.",
           "requirements": [
             "R12"
           ],
@@ -337,6 +368,7 @@
           "label": "Improve the description of older datasets",
           "optional": false,
           "out_of_scope": false,
+          "prompt": "Help me improve the description of an older dataset.",
           "requirements": [
             "R9"
           ],
@@ -347,6 +379,7 @@
           "label": "Connect your data to related publications and datasets",
           "optional": false,
           "out_of_scope": false,
+          "prompt": "Help me connect my data to related publications and datasets.",
           "requirements": [
             "R11"
           ],

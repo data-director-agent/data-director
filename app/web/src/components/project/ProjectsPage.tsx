@@ -22,7 +22,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { journey } from "../../flow/journey";
 import { useFlowApi } from "../../flow/api";
-import type { ProcessFlow } from "../../flow/types";
+import type { ProcessFlow, ProjectProgress } from "../../flow/types";
 import { useActiveProject } from "../../project/active";
 import { type DeletedProject, type ProjectSummary, useProjectApi } from "../../project/api";
 import { day, projectName } from "../../project/name";
@@ -32,10 +32,13 @@ import { Button } from "../ui/Button";
 import { JourneyMini } from "../journey/JourneyMini";
 import { NewProjectDialog } from "./NewProjectDialog";
 
+// Each project as the server lists it, with where it is in the process flow.
+type Listed = ProjectSummary & { progress?: ProjectProgress };
+
 type Load =
   | { state: "loading" }
   | { state: "failed"; message: string }
-  | { state: "loaded"; value: ProjectSummary[] };
+  | { state: "loaded"; value: Listed[] };
 
 function plural(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`;

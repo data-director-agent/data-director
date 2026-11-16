@@ -1,0 +1,79 @@
+/**
+ * What the message box offers for attaching: the chip of what is attached, the buttons to attach
+ * a file or make an inventory, and the note on what may be attached. An inventory and a document
+ * may each be attached once (docs/specs/app.md).
+ */
+
+import { Paperclip } from "lucide-react";
+import { FileTrigger } from "react-aria-components";
+
+import { type AttachedDocument, DOCUMENT_EXTENSIONS } from "../../conversation/documentation";
+import type { AttachedInventory } from "../../conversation/inventory";
+import { MakeInventoryDialog } from "../inventory/MakeInventoryDialog";
+import { Button } from "../ui/Button";
+import { DocumentChip } from "./DocumentChip";
+import { InventoryChip } from "./InventoryChip";
+
+export function ComposerAttach({
+  attached,
+  attachedDocument,
+  busy,
+  onAttachFile,
+  onAttachMade,
+  onRemoveInventory,
+  onRemoveDocument,
+}: {
+  attached: AttachedInventory | null;
+  attachedDocument: AttachedDocument | null;
+  busy: boolean;
+  onAttachFile: (file: File | undefined) => void;
+  onAttachMade: (file: File) => void;
+  onRemoveInventory: () => void;
+  onRemoveDocument: () => void;
+}) {
+  return (
+    <>
+      <div className="composer-attach">
+        {attached && (
+          <InventoryChip
+            fileCount={attached.fileCount}
+            madeAt={attached.madeAt}
+            name={attached.name}
+            source={{ document: attached.document }}
+            onRemove={onRemoveInventory}
+          />
+        )}
+        {attachedDocument && (
+          <DocumentChip
+            name={attachedDocument.name}
+            size={attachedDocument.size}
+            onRemove={onRemoveDocument}
+          />
+        )}
+        {!(attached && attachedDocument) && (
+          <FileTrigger
+            acceptedFileTypes={[
+              "application/json",
+              ".json",
+              "text/plain",
+              "text/markdown",
+              ...DOCUMENT_EXTENSIONS,
+            ]}
+            onSelect={(files) => onAttachFile(files?.[0])}
+          >
+            <Button icon={Paperclip} isDisabled={busy} aria-describedby="attach-hint">
+              Attach a file
+            </Button>
+          </FileTrigger>
+        )}
+        {!attached && <MakeInventoryDialog isDisabled={busy} onAttach={onAttachMade} />}
+      </div>
+      <p id="attach-hint" className="hint">
+        Attach an inventory of your data files (.json), which holds their names, sizes, formats
+        and table column headings but not the data themselves, or a document about your data, such
+        as a protocol or codebook (.txt or .md). Never attach the data themselves: your data are
+        not uploaded.
+      </p>
+    </>
+  );
+}

@@ -36,7 +36,7 @@
 
   .question-review-heading {
     margin-block: 0 var(--space-2);
-    font-size: 1rem;
+    font-size: var(--font-size-body);
   }
 
   .question-field legend:focus-visible,

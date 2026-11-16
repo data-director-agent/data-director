@@ -302,8 +302,6 @@ export interface ProjectSummary {
   /** Whether the project's intake still has a question to ask, has none left, or was dismissed;
    * derived from the project log (docs/specs/projects.md, rule 20). */
   intake?: "pending" | "complete" | "dismissed";
-  /** Where the project is in the process flow, as `GET /api/projects/{id}/progress` gives it. */
-  progress?: ProjectProgress;
   /** When the project was deleted, by whom, and until when an owner may restore it; null while
    * it is not deleted (docs/specs/projects.md, invariants 22 to 25). */
   deleted?: ProjectDeletion | null;

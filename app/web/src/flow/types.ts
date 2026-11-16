@@ -10,6 +10,8 @@ export interface FlowStep {
   text: string;
   /** The step in a researcher's words. */
   label: string;
+  /** How a researcher might open a conversation about the step, offered to edit and send. */
+  prompt: string;
   /** The Blueprint requirements applied at this step; empty when the figure names none. */
   requirements: string[];
   optional: boolean;

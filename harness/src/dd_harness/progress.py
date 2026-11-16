@@ -191,19 +191,30 @@ def step_reasons(events: Iterable[Mapping[str, Any]]) -> dict[str, dict[str, Any
             reasons[step_id] = _produced(made, produced_by[step_id], kind_of)
         else:
             reasons[step_id] = _reason(mark, "marked", marked_by[step_id])
-    for step_id, question_id in _intake_skippers(events).items():
-        if step_id not in reasons:
-            reasons[step_id] = {
-                "state": "skipped",
-                "source": "intake",
-                "event": INTAKE_ANSWERED,
-                "question_id": question_id,
-            }
-            at = _answered_at(events, question_id)
-            if at is not None:
-                reasons[step_id]["at"] = at
+    reasons |= _intake_reasons(events, reasons.keys())
     reasons = {k: v for k, v in reasons.items() if v["state"] != "open"}
     return {k: reasons[k] for k in sorted(reasons, key=_ORDER.__getitem__)}
+
+
+def _intake_reasons(
+    events: list[Mapping[str, Any]], decided: Iterable[str]
+) -> dict[str, dict[str, Any]]:
+    """The steps the intake's answers skip that nothing stronger has decided."""
+    decided = set(decided)
+    reasons: dict[str, dict[str, Any]] = {}
+    for step_id, question_id in _intake_skippers(events).items():
+        if step_id in decided:
+            continue
+        reasons[step_id] = {
+            "state": "skipped",
+            "source": "intake",
+            "event": INTAKE_ANSWERED,
+            "question_id": question_id,
+        }
+        at = _answered_at(events, question_id)
+        if at is not None:
+            reasons[step_id]["at"] = at
+    return reasons
 
 
 def _latest(events: Iterable[Mapping[str, Any]]) -> Mapping[str, Any]:

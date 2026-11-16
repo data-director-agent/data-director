@@ -60,6 +60,6 @@
   }
 
   .project-switcher-option[data-focus-visible] {
-    outline-offset: -3px;
+    outline-offset: calc(-1 * var(--focus-width));
   }
 }
