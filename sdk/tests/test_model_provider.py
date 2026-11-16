@@ -9,7 +9,7 @@ from dd_sdk.credentials import ConfigError
 from dd_sdk.model import declared
 from dd_sdk.model_anthropic import AnthropicModel
 from dd_sdk.model_openai import OpenAIModel
-from dd_sdk.model_provider import configured_model, hosting_of
+from dd_sdk.model_provider import configured_model, hosting_of, optional_model
 from dd_sdk.model_route import RoutedModel
 
 LOCAL = "http://localhost:11434/v1"
@@ -269,3 +269,20 @@ def test_a_tool_loop_asks_claude_to_cache_and_fall_back() -> None:
 def test_a_tool_loop_is_declared_on_the_card(env: dict[str, str]) -> None:
     assert declared(configured_model(env, default_model="c", tool_use=True)).tools
     assert not declared(configured_model(env, default_model="c")).tools
+
+
+def test_an_optional_model_is_off_unless_the_agent_defaults_it_on() -> None:
+    env = {"ANTHROPIC_API_KEY": "k"}
+    assert optional_model(env, "DD_X") is None
+    assert isinstance(
+        optional_model(env, "DD_X", default_model="m", default="model"), AnthropicModel
+    )
+    assert optional_model({**env, "DD_X": "template"}, "DD_X", default="model") is None
+
+
+def test_a_model_on_by_default_with_no_key_says_how_to_turn_it_off() -> None:
+    with pytest.raises(ConfigError, match="DD_X=template"):
+        optional_model({}, "DD_X", default_model="m", default="model")
+    with pytest.raises(ConfigError) as raised:
+        optional_model({"DD_X": "model"}, "DD_X", default_model="m", default="model")
+    assert "DD_X=template" not in str(raised.value)

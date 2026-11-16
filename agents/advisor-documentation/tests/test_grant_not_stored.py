@@ -12,7 +12,8 @@ from typing import Any
 import pytest
 
 from dd_agent_advisor_documentation import factory
-from dd_agent_advisor_documentation.prose import ModelWriter
+from dd_agent_advisor_documentation.prose import SYSTEM_PROMPT, ModelWriter
+from dd_agent_advisor_documentation.testing import prose_reply, suggestion_reply
 from dd_harness.testing import TEST_PRINCIPAL, GrantKeys, make_conductor, request
 from dd_sdk.agent import describe
 from dd_sdk.contract.models import (
@@ -49,6 +50,8 @@ class Broker:
     def __call__(self, request: Any) -> Any:
         httpx = pytest.importorskip("httpx2")
         self.headers.append(dict(request.headers))
+        prose = json.loads(request.content)["system"] == SYSTEM_PROMPT
+        text = prose_reply({"overview": OVERVIEW}) if prose else suggestion_reply({})
         return httpx.Response(
             200,
             headers={"X-DD-Model-Account": "deployment", "X-DD-Model-Provider": "anthropic"},
@@ -57,7 +60,7 @@ class Broker:
                 "type": "message",
                 "role": "assistant",
                 "model": MODEL,
-                "content": [{"type": "text", "text": json.dumps({"overview": OVERVIEW})}],
+                "content": [{"type": "text", "text": text}],
                 "stop_reason": "end_turn",
                 "stop_sequence": None,
                 "usage": {"input_tokens": 100, "output_tokens": 40},
@@ -95,19 +98,22 @@ def test_the_grant_and_the_credential_reach_no_stored_record(runs_dir: Path) -> 
 
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     assert env.payload_as(Document).document_derivation == Derivation.MODEL
-    # The call went to the broker with the agent's credential and a grant for this run.
-    [sent] = broker.headers
-    assert SENTINEL in (
-        sent.get("x-api-key"),
-        sent.get("authorization", "").removeprefix("Bearer "),
-    )
-    grant = sent[HEADER_GRANT.lower()]
-    claims = ModelGrantClaims.from_claims(keys.open(grant).claims)
-    assert (claims.agent, claims.invocation) == ("advisor.documentation", env.invocation_id)
+    # Each call (the prose, the suggested answers) went to the broker with the agent's
+    # credential and a grant for this run.
+    assert len(broker.headers) == 2
+    grants = []
+    for sent in broker.headers:
+        assert SENTINEL in (
+            sent.get("x-api-key"),
+            sent.get("authorization", "").removeprefix("Bearer "),
+        )
+        grants.append(grant := sent[HEADER_GRANT.lower()])
+        claims = ModelGrantClaims.from_claims(keys.open(grant).claims)
+        assert (claims.agent, claims.invocation) == ("advisor.documentation", env.invocation_id)
 
     stored = [p for p in runs_dir.rglob("*") if p.is_file()]
     assert any(p.name == "ro-crate-metadata.json" for p in stored)
-    for secret in (SENTINEL, grant):
+    for secret in (SENTINEL, *grants):
         for path in stored:
             assert secret.encode() not in path.read_bytes(), f"a secret is in {path}"
         assert secret not in json.dumps(to_document(env))

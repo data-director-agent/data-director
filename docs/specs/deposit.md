@@ -57,8 +57,9 @@ What is built:
   `repository_url` and listing its `unconfirmed` items, all read from the merged set; the user
   guide's *Depositing your data* covers the same steps.
 
-A researcher chooses a repository in the app from an advisor's shortlist
-(`PUT /api/projects/{id}/repository`, [App](app.md)). Giving a drafter the merged set is
+A researcher chooses a repository in the app, either from an advisor's shortlist or on the
+project's page from the deployment's suggestions or a search of the pinned re3data export
+(`GET /api/repositories`, `PUT /api/projects/{id}/repository`, [App](app.md)). Giving a drafter the merged set is
 TODO(#394, #200).
 
 ## Invariants
@@ -216,7 +217,8 @@ them are `inventory.json`, `requirements.json`, `validation-report.jsonld` and
 project's disclosure of generative AI: its statement, `use-of-generative-ai.md`, and its PROV-O
 graph of each approved version, `provenance.jsonld` ([Disclosure](disclosure.md)). Both name
 each prompt by its digest; the prompts themselves stay in the run store and are not packaged.
-PROV-O alignment of the whole package is TODO(#26) (R10). The harness keeps the package by the SHA-256 of its bytes and records it in
+The whole provenance graph of the project is to replace the disclosure graph as `provenance.jsonld`,
+with the root crate's actions named by the same IRIs ([Provenance](provenance.md), TODO(#803)). The harness keeps the package by the SHA-256 of its bytes and records it in
 the project log with a `package_built` event, which names the report, the merged set, each
 document version and each run it holds.
 

@@ -16,11 +16,12 @@ disclosed ([Disclosure](disclosure.md)).
 
 The Documentation Editor (`advisor.documentation`) is the first drafter. It serves
 `setup.documentation` and `preparation.documentation` and drafts a README or a data dictionary
-from a `DraftRequest`. Where a model is configured, a model writes the README's prose
+from a `DraftRequest`. Where a model is configured, as it is by default, a model writes the
+README's prose
 ([`agents/advisor-documentation/README.md`](../../agents/advisor-documentation/README.md)). The
 researcher answers its questions in the conversation, and the next draft places their answers.
-Where a model is configured, it also suggests a data dictionary's definitions and units, offered
-with the questions. A metadata record drafter follows the same rules when it is built.
+Where a model is configured, it also suggests a data dictionary's definitions and units, and
+answers to some of a README's questions, offered with the questions. A metadata record drafter follows the same rules when it is built.
 
 ## Invariants
 
@@ -81,10 +82,13 @@ with the questions. A metadata record drafter follows the same rules when it is 
    confirms or corrects it, by recording an answer
    (`agents/advisor-documentation/tests/test_suggestions.py`). The Documentation Editor suggests
    only a data dictionary field's definition and unit, never its type, format or missing-value
-   codes, nor a README section. Its model is given the same input as the README's prose
-   (invariant 4), never an answer, a field's description or an earlier version, and a suggestion
-   is offered only if it is one short line of plain text that names no link, email address or
-   identifier its input does not give.
+   codes; and an answer for the README sections its template marks `suggest` (Files, Variables,
+   Access and licence, Software requirements), never the methods, a part of General information
+   or the citation, which only the researcher can give. Its model is given the same input as the
+   README's prose (invariant 4), never an answer, a field's description or an earlier version. A
+   dictionary suggestion is offered only if it is one short line of plain text that names no
+   link, email address or identifier its input does not give; a README suggestion only if it
+   passes the checks the prose does.
 8. **A drafter rests on its input alone.** The Documentation Editor's grounding mode is
    `input_only`, whichever way a particular version was drafted. The metadata record and the answers reach it in its input, never by retrieval, so it
    cites only its input. `document_derivation` records how each version came about: `model`, or

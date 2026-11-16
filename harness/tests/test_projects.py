@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import threading
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
@@ -35,6 +36,7 @@ from dd_harness.projects import (
     UnknownProjectError,
 )
 from dd_harness.requirements import RequirementsError, load_requirements
+from dd_harness.settings import SettingsError, project_storage, projects_dir
 from dd_harness.sources import SourceConfigError, Sources
 from dd_harness.testing import TEST_PRINCIPAL, file_inventory, file_inventory_of_parts
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, content_hash, input_hash
@@ -438,3 +440,42 @@ def test_the_commands_record_the_entry_point_and_a_marked_step(
     assert found["steps"] == {"governance.embargo": "skipped"}
     with pytest.raises(SystemExit):
         server.main(["project", "mark-step", project_id, "R5", "done"])
+
+
+def test_the_command_deletes_and_restores_a_project(
+    operator: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert server.main(["project", "create"]) == 0
+    project_id = capsys.readouterr().out.strip()
+    assert server.main(["project", "delete", project_id]) == 0
+    deleted = json.loads(capsys.readouterr().out)
+    assert set(deleted) == {"at", "by", "restorable_until"}
+    assert ProjectStore(operator).is_deleted(project_id)
+    with pytest.raises(SystemExit):
+        server.main(["project", "delete", project_id])
+    assert server.main(["project", "restore", project_id]) == 0
+    assert not ProjectStore(operator).is_deleted(project_id)
+    events = ProjectStore(operator).events(project_id)
+    assert [e["caused_by"] for e in events[1:]] == [
+        "dd-harness project delete",
+        "dd-harness project restore",
+    ]
+    with pytest.raises(SystemExit):
+        server.main(["project", "restore", project_id])
+
+
+@pytest.mark.parametrize(("value", "days"), [("", 30), ("0", 0), ("7", 7)])
+def test_the_restore_period_comes_from_the_settings(
+    operator: Path, monkeypatch: pytest.MonkeyPatch, value: str, days: int
+) -> None:
+    monkeypatch.setenv("DD_PROJECT_RESTORE_DAYS", value)
+    assert project_storage(projects_dir()).restore_period == timedelta(days=days)
+
+
+@pytest.mark.parametrize("value", ["-1", "two", "1.5"])
+def test_a_restore_period_that_is_not_whole_days_stops_start_up(
+    operator: Path, monkeypatch: pytest.MonkeyPatch, value: str
+) -> None:
+    monkeypatch.setenv("DD_PROJECT_RESTORE_DAYS", value)
+    with pytest.raises(SettingsError, match="DD_PROJECT_RESTORE_DAYS"):
+        project_storage(projects_dir())

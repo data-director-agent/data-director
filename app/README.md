@@ -78,6 +78,11 @@ It is built from:
   - `GET /api/projects`: the projects the person signed in has a role in, the one created
     last first and a page at a time (`?limit=`, `?before=`, a `Link` to the next page), each
     with its inventory, its documents counted by state and the conversations started in it. The shell draws it at `/projects`, the first item in the main navigation;
+  - `DELETE /api/projects/{id}` (body `{"title": …}`, the project's name as its owner typed it),
+    `POST /api/projects/{id}/restore` and `GET /api/projects/deleted`: an owner deletes a
+    project, which hides it and removes nothing, and restores it within the restore period. The
+    shell confirms on the project's page and lists deleted projects under **Recently deleted**
+    on `/projects`;
   - `GET /api/projects/{id}/documents`: a project's documents, each version with its text and
     state as the project log records it, and the harness's rule for when a decision needs a
     reason. The shell draws it at `/projects/{id}`;

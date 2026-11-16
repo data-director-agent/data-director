@@ -18,6 +18,7 @@ import time
 from collections.abc import AsyncIterator, Callable, Mapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Any
 
 from dd_app.config import DEFAULT_PROJECTS_DIR, DEFAULT_REPOSITORIES_DIR
@@ -386,6 +387,10 @@ class Governance:
             return None
         return project_access.role_of(self.projects, project_id, principal)
 
+    def is_deleted(self, project_id: str) -> bool:
+        """Whether the project `project_id` is deleted (docs/specs/projects.md, invariant 22)."""
+        return self.projects is not None and self.projects.is_deleted(project_id)
+
     def may_read_project(self, project_id: str, reader: Principal) -> bool:
         """Whether `reader` may read the project `project_id`."""
         return project_access.allowed(self.role(project_id, reader), Action.READ)
@@ -476,6 +481,40 @@ class Governance:
                 return Page(found, found[-1]["project_id"])
             found.append({**summary, "conversations": listed})
         return Page(found)
+
+    def deleted_projects_for(
+        self, owner: Principal, *, limit: int = PAGE_SIZE, before: str | None = None
+    ) -> Page:
+        """A page of the deleted projects `owner` may still restore, the one deleted last first
+        (`GET /api/projects/deleted`, docs/specs/projects.md, invariant 23): each project's
+        summary, whose `deleted` says when, by whom and until when. One whose restore period is
+        over is not listed, since the app can no longer restore it. The cursor is the last
+        listed project."""
+        check_limit(limit)
+        if self.projects is None:
+            return Page([])
+        now = datetime.now(UTC)
+        summaries = [
+            self.projects.summary(project_id)
+            for project_id in project_access.deleted_projects(self.projects, owner)
+        ]
+        restorable = sorted(
+            (
+                s
+                for s in summaries
+                if datetime.fromisoformat(s["deleted"]["restorable_until"]) > now
+            ),
+            key=lambda s: s["deleted"]["at"],
+            reverse=True,
+        )
+        if before is not None:
+            ids = [s["project_id"] for s in restorable]
+            if before not in ids:
+                return Page([])
+            restorable = restorable[ids.index(before) + 1 :]
+        if len(restorable) > limit:
+            return Page(restorable[:limit], restorable[limit - 1]["project_id"])
+        return Page(restorable)
 
     def _every_conversation(self, readable: Readable) -> list[dict[str, Any]]:
         """Every conversation `readable` includes, most recently active first, read a page at a

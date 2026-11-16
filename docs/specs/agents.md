@@ -62,9 +62,11 @@ is in [`harness/docs/registry.md`](../../harness/docs/registry.md).
     substantiates no Blueprint requirement; its tests may be marked only with the project's own
     contract requirements (`DD-*`) that the harness enforces on every agent.
 14. A model-backed alpha advisor sits between a mock and a persona. It has a pre-release version,
-    its grounding mode is `input_only`, and its description does not begin "Mock.". Its default
-    writer is `template`, which calls no model, so it runs and its tests pass with no key; it
-    declares a model in `AgentSpec.models` only when one is configured. Its payload says in
+    its grounding mode is `input_only`, and its description does not begin "Mock.". It has a
+    `template` writer, which calls no model, so it runs and its tests pass with no key; that
+    writer is its default, except for the Documentation Editor, whose model is on by default
+    (Model-backed personas). It declares a model in `AgentSpec.models` only when one is
+    configured. Its payload says in
     `limitations` what it still does not do. Like a mock, it substantiates no Blueprint
     requirement until it leaves alpha. Each such advisor's own tests check that its description
     has no "Mock." prefix; nothing yet checks the rest of this rule across the roster.
@@ -174,8 +176,13 @@ What a persona that drafts project documents may infer, ask and write is in
 ## Model-backed personas
 
 Every advisor that calls a model, from its alpha onwards, is built the same way, so that adding
-tools or an evaluation later changes the agent without rewriting it. `advisor-documentation/` is
-the worked example of the `template` default and the declared model (`factory.py`, `prose.py`).
+tools or an evaluation later changes the agent without rewriting it. `advisor-standards/` is the
+worked example of the `template` default (`factory.py`, `explain.py`), and
+`advisor-documentation/` of the declared model and of structured output (`factory.py`,
+`prose.py`). Every model-backed advisor has a `template` path an operator can select; the
+Documentation Editor is the one advisor whose model is on by default
+(`dd_sdk.model_provider.optional_model(..., default="model")`), because its model only adds prose
+and suggestions beside a draft made by rule.
 
 1. **Deterministic shell, model core.** Input checks, abstentions, scores and anything exact
    (checksums, licence ids, the shape of a schema) stay in code; the model does judgement and
@@ -302,8 +309,8 @@ conductor recorded. The source check re-hashes each against the deployment's pin
   steward to assess. A narrow role keeps each agent's sources, failure modes and evaluation
   separate. Naming steps that no agent serves makes the whole intended design visible.
 - **A model-backed alpha.** It shows a persona's model-backed design to researchers early without
-  claiming it is validated. The `template` default keeps CI and deployments without a key
-  working, and keeping exact work in a deterministic shell keeps it testable and lets a failed
+  claiming it is validated. The `template` path keeps CI and deployments without a key
+  working (the Documentation Editor's by being selected, the others' by default), and keeping exact work in a deterministic shell keeps it testable and lets a failed
   or rejected model reply fall back to rule output.
 - **Tools through the harness.** A retrieval an agent makes itself is only its own account of
   what it read, so the linter can check only that the account agrees with itself

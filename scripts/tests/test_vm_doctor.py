@@ -507,6 +507,42 @@ def test_the_model_orchestrator_with_its_key_is_started_and_waited_for(vm: Vm) -
     assert any(call[0] == "env" for call in system.calls)  # credentials drop-ins rewritten
 
 
+def with_documentation(vm: Vm) -> None:
+    """The release also lists the Documentation Editor, whose model is on by default."""
+    listed = vm.current / "app" / "config" / "agents.yaml"
+    listed.write_text(AGENTS + "  - name: advisor-documentation\n    url: http://127.0.0.1:8114/\n")
+
+
+def test_the_documentation_editor_with_no_key_is_refused_until_it_has_one_or_is_turned_off(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with_documentation(vm)
+    assert apply(FakeVm(), Place.vm(vm), vm) == 1
+    out = capsys.readouterr().out
+    assert says(out, "refused", "secret set advisor-documentation anthropic-api-key")
+    assert says(out, "refused", "DD_DOCUMENTATION_WRITER=template")
+
+    settings = vm.agent_env("advisor-documentation")
+    settings.parent.mkdir(parents=True, exist_ok=True)
+    settings.write_text("DD_DOCUMENTATION_WRITER=template\n")
+    assert apply(FakeVm(), Place.vm(vm), vm) == 0
+
+
+def test_the_documentation_editor_on_by_default_with_no_key_is_a_problem(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with_documentation(vm)
+    system = FakeVm(answering={8101, 8106, 8114})
+    system.units["data-director-agent@advisor-documentation.service"] = {
+        "ActiveState": "failed",
+        "UnitFileState": "enabled",
+        "NRestarts": "3",
+    }
+    status, out = check(system, vm, capsys)
+    assert status == 1
+    assert says(out, "fix", "data-director secret set advisor-documentation anthropic-api-key")
+
+
 def test_a_disabled_agent_leaves_the_profile_and_its_running_unit_is_stopped(vm: Vm) -> None:
     (vm.etc / "deployment.yaml").write_text(
         "name: test\norchestrator: stub\ndisabled: [example-hello]\n"

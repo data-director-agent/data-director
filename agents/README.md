@@ -44,7 +44,7 @@ registry lists an agent built against an incompatible one as **incompatible**.
 | `advisor-dmp/` | `advisor.dmp` | `DmpCommitments` | `none` | `DmpDiscrepancies` | `dd-advisor-dmp`, port 8112 | **Mock.** Compares what a data management plan committed to share with what is planned at publication, and flags each difference for human review without enforcing it. |
 | `advisor-fairness/` | `advisor.fairness` | `PublishedRecord` | `none` | `FairnessReport` | `dd-advisor-fairness`, port 8117 | **Mock.** Checks a published dataset's metadata against a short list of FAIR-related presence checks and suggests what to retrofit, without retrieving anything or giving a FAIRness evaluation. |
 | `advisor-metadata/` | `advisor.metadata` | `DraftRequest` | `none` | `Document` | `dd-advisor-metadata`, port 8113 | **Mock.** The stub drafter of the metadata record (#200): a DataCite record with every property the chosen repository asks for, filling only the resource type and the formats and sizes the inventory gives. |
-| `advisor-documentation/` | `advisor.documentation` | `DraftRequest` | `input_only` | `Document` | `dd-advisor-documentation`, port 8114 | Drafts the README and the data dictionary ([Drafting documents](../docs/specs/drafting.md)): copies the inventory's files and fields and the approved metadata record's title, creators, abstract and licence, marks each dictionary value as inferred, supplied or unknown, and leaves the methods, definitions, units and missing value codes as marked gaps, each asked as a question. With a model configured, it writes the README's prose from those facts alone. |
+| `advisor-documentation/` | `advisor.documentation` | `DraftRequest` | `input_only` | `Document` | `dd-advisor-documentation`, port 8114 | Drafts the README and the data dictionary ([Drafting documents](../docs/specs/drafting.md)): copies the inventory's files and fields and the approved metadata record's title, creators, abstract and licence, marks each dictionary value as inferred, supplied or unknown, and leaves the methods, definitions, units and missing value codes as marked gaps, each asked as a question. Its model, on by default (`DD_DOCUMENTATION_WRITER=template` turns it off), writes the README's prose from those facts alone and suggests answers beside some questions, never in the draft. |
 | `advisor-rights/` | `advisor.rights` | `RightsContext` | `none` | `RightsOptions` | `dd-advisor-rights`, port 8115 | **Mock.** Lists data licences that fit the reuse wanted, and access levels with when each applies, for the researcher to choose from; never chooses. |
 | `advisor-linking/` | `advisor.linking` | `LinkCandidates` | `none` | `RelatedIdentifiers` | `dd-advisor-linking`, port 8116 | **Mock.** Recognises DOIs, ORCID iDs, ROR IDs and grant numbers by form, checks ORCID checksums, gives canonical https forms and suggests how to record each link, resolving nothing. |
 
@@ -130,8 +130,10 @@ CLI, transports or viewer, this agent will show it.
    - a class with `spec = AgentSpec(...)` and `run`;
    - a module-level `build() -> Agent` and `main() -> int` that returns `serve.main(build)`.
 
-   Read the agent's own `DD_<AGENT>_*` environment variables in `build`. A content problem is an
-   outcome (`abstained` with a reason code), not an exception.
+   Read the agent's own `DD_<AGENT>_*` environment variables in `build`. They are for how the
+   agent works, such as an endpoint or a path; what the deployment allows is set in its
+   institutional profile, not in a variable ([Policy and identity](../docs/specs/policy-and-identity.md)).
+   A content problem is an outcome (`abstained` with a reason code), not an exception.
 
    A source copy too large to commit is built where it is used, from something the package pins.
    Declare it as a `dd_sdk.sources.BuiltSource` (its name, pin, what is wrong with the built copy,

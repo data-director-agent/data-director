@@ -77,7 +77,9 @@ document should have been drafted with a model is a matter for policy
    `prov:used` the version and is associated with the person who approved it. The approved
    version carries schema.org `digitalSourceType` from the IPTC Digital Source Type vocabulary.
    A prompt is identified by its RFC 6920 `ni:` URI, so the graph names it without carrying it
-   (`test_the_disclosure_reads_as_prov_o`).
+   (`test_the_disclosure_reads_as_prov_o`). This graph is the part of the project's provenance
+   graph reachable from each approved version, with the same IRIs
+   ([Provenance](provenance.md), invariant 10); today it is built on its own, TODO(#799).
 
 ## Boundaries and contracts
 
@@ -160,6 +162,6 @@ media, so they are carried alongside the PROV account, not instead of it.
 - Whether, and how, the statement is offered for the researcher to add to the README or the
   metadata record's description, which they would then approve: TODO(#478).
 - A run that raises after calling a model reports none of its calls, and the grounding linter
-  does not check that each `chat` span has a call. Both bear on audit-trail completeness:
-  TODO(#26).
+  does not check that each `chat` span has a call. Both bear on the completeness of the project's
+  provenance ([Provenance](provenance.md), invariant 3): TODO(#800).
 - The w3id namespace under which models are named is not yet registered: TODO(#3).

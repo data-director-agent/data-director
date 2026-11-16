@@ -64,6 +64,15 @@ package. **Versions** lists each earlier version, what was decided on it and why
 version changed. Your decision form is under the document. If you edit the text, the preview
 shows your version before you approve it.
 
+### Deleting a project
+
+If you created a project, its page has **Delete project**. Type the project's name to confirm,
+and it leaves your lists, with its conversations, and takes no new work. Deleting hides a project
+and does not erase it: its record, documents and decisions are kept, and a deposit package
+already built or downloaded is not recalled. Until the day the dialog names, 30 days unless your
+deployment sets another period, you can bring it back as it was: on **Projects**, under
+**Recently deleted**, select **Restore**.
+
 ## Where you can see it
 
 - **After a run**, the page shows the stages it went through, the outcome, the result and the
@@ -106,6 +115,7 @@ A data steward sets the policy; it cannot be changed from the app.
 
 ## How long records are kept
 
-Records are kept until whoever runs the deployment removes them. The app does not yet let you
-delete a run or a conversation, and there is no automatic expiry (TODO(#41, #156)). Ask the
+Records are kept until whoever runs the deployment removes them. Deleting a project hides it but
+keeps its record (see Projects, above). The app does not yet let you delete a run or a
+conversation, and there is no automatic expiry (TODO(#41, #156)). Ask the
 person who runs your deployment if you need a record removed.

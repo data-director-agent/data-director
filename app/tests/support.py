@@ -34,8 +34,14 @@ RECORDS = (
         "re3data_id": ORDA,
         "name": "ORDA - The University of Sheffield Research Data Catalogue and Repository",
         "metadata_standards": ["Dublin Core"],
+        "url": "https://orda.shef.ac.uk/",
     },
-    {"re3data_id": ZENODO, "name": "Zenodo", "metadata_standards": ["DataCite Metadata Schema"]},
+    {
+        "re3data_id": ZENODO,
+        "name": "Zenodo",
+        "metadata_standards": ["DataCite Metadata Schema"],
+        "url": "https://zenodo.org/",
+    },
 )
 
 

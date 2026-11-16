@@ -226,6 +226,27 @@ export interface ChosenRepository {
   chosen_at: string;
 }
 
+/** What a search of the pinned re3data export shows of one repository. */
+export interface RepositoryMatch {
+  re3data_id: string;
+  name: string;
+  additional_names: string[];
+  url: string | null;
+  doi: string | null;
+}
+
+/**
+ * Repositories a researcher may choose on a project's page (docs/specs/deposit.md): those the
+ * pinned re3data export holds that `query` names, or, when `suggested`, those the deployment
+ * offers before a search.
+ */
+export interface RepositorySearch {
+  snapshot_ref: string;
+  query: string;
+  suggested: boolean;
+  repositories: RepositoryMatch[];
+}
+
 /** One field a repository's requirements name, and how much the deposit needs it. */
 export interface RequiredField {
   property: string;
@@ -281,7 +302,27 @@ export interface ProjectSummary {
   /** Whether the project's intake still has a question to ask, has none left, or was dismissed;
    * derived from the project log (docs/specs/projects.md, rule 20). */
   intake?: "pending" | "complete" | "dismissed";
+  /** When the project was deleted, by whom, and until when an owner may restore it; null while
+   * it is not deleted (docs/specs/projects.md, invariants 22 to 25). */
+  deleted?: ProjectDeletion | null;
+  /** For how many days after a deletion an owner may restore the project; 0 makes deletion
+   * final. The deployment sets it. */
+  restore_days?: number;
 }
+
+/** A deletion that stands: nothing is removed, and an owner may restore the project until
+ * `restorable_until`. */
+export interface ProjectDeletion {
+  at: string;
+  by: RecordedPrincipal;
+  restorable_until: string;
+}
+
+/** A deleted project as `GET /api/projects/deleted` lists it: its summary, without the
+ * conversations a list of projects gives. */
+export type DeletedProject = Omit<ProjectSummary, "conversations" | "deleted"> & {
+  deleted: ProjectDeletion;
+};
 
 /** An identifier from another scheme, as an ORCID record gives it, such as a DOI. */
 export interface ExternalIdentifier {
@@ -373,6 +414,13 @@ export interface ProjectApi {
   create(title?: string): Promise<ProjectSummary>;
   /** Give the project a person's name; a model's name never replaces it. */
   rename(projectId: string, title: string): Promise<unknown>;
+  /** Delete the project, which removes nothing, sending the name the owner typed: its title, or
+   * its identifier while it has none (`DELETE /api/projects/{id}`). Answers with its summary. */
+  remove(projectId: string, typedName: string): Promise<DeletedProject>;
+  /** Restore a deleted project within its restore period (`POST /api/projects/{id}/restore`). */
+  restore(projectId: string): Promise<unknown>;
+  /** The deleted projects the person may still restore, the one deleted last first. */
+  deletedProjects(signal?: AbortSignal): Promise<DeletedProject[]>;
   documents(projectId: string, signal?: AbortSignal): Promise<ProjectDocuments>;
   disclosure(projectId: string, signal?: AbortSignal): Promise<Disclosure>;
   decide(projectId: string, documentId: string, request: DecisionRequest): Promise<ProjectDocuments>;
@@ -404,6 +452,9 @@ export interface ProjectApi {
   /** Choose a repository by its re3data identifier; answers with the requirements it resolved
    * to. A change is a new choice, and the last one counts. */
   chooseRepository(projectId: string, re3dataId: string): Promise<RepositoryRequirements>;
+  /** Repositories in the pinned re3data export that `query` names by name, re3data identifier,
+   * re3data DOI or URL; with an empty `query`, those the deployment suggests. */
+  searchRepositories(query: string, signal?: AbortSignal): Promise<RepositorySearch>;
   /** Validates the project against its chosen repository's requirements; the log keeps it. */
   validate(projectId: string): Promise<Validation>;
   /** Validates the project and, if it is valid, builds its deposit package; else `PackageRefused`. */
@@ -519,6 +570,17 @@ export const httpProjectApi: ProjectApi = {
   async rename(projectId, title) {
     return json(await fetch(`${projectPath(projectId)}/title`, put({ title })));
   },
+  async remove(projectId, typedName) {
+    return json(
+      await fetch(projectPath(projectId), { ...put({ title: typedName }), method: "DELETE" }),
+    );
+  },
+  async restore(projectId) {
+    return json(await fetch(`${projectPath(projectId)}/restore`, post({})));
+  },
+  async deletedProjects(signal) {
+    return json(await fetch("/api/projects/deleted", signal ? { signal } : {}));
+  },
   async documents(projectId, signal) {
     return json(await fetch(documentsPath(projectId), signal ? { signal } : {}));
   },
@@ -587,6 +649,12 @@ export const httpProjectApi: ProjectApi = {
         put({ re3data_id: re3dataId }),
       ),
     );
+  },
+  async searchRepositories(query, signal) {
+    const params = new URLSearchParams();
+    if (query.trim()) params.set("q", query.trim());
+    const search = params.size > 0 ? `?${params.toString()}` : "";
+    return json(await fetch(`/api/repositories${search}`, signal ? { signal } : {}));
   },
   async validate(projectId) {
     return json(await fetch(`${projectPath(projectId)}/validation`, {

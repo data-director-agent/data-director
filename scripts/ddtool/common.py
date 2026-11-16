@@ -35,6 +35,10 @@ PROVIDER_KEYS = {
 KEY_VARS = tuple(v for key in PROVIDER_KEYS.values() for v in (key, f"{key}_FILE"))
 # Agents that stop at start-up without a model key, so `start` skips them when they have none.
 MODEL_BACKED = {"orchestrator-model"}
+# Agents whose model is on unless their own setting says `template`, by that setting
+# (agents/advisor-documentation/README.md). Left unset with no key, `start` runs them with
+# `template`; a deployment on a VM is refused until they have a key or are set to `template`.
+MODEL_BY_DEFAULT = {"advisor-documentation": "DD_DOCUMENTATION_WRITER"}
 NODE_MAJOR = 22  # the oldest Node the shell's toolchain supports (README, "Quick start")
 APP_PORT = 7860  # dd_app's default (DD_APP_PORT)
 WEB_PORT = 5173  # Vite's default
@@ -180,6 +184,12 @@ def agent_env(agent: Agent) -> dict[str, str]:
 
 def has_key(env: dict[str, str]) -> bool:
     return any(env.get(var) for var in KEY_VARS)
+
+
+def model_on_by_default(name: str, settings: dict[str, str]) -> bool:
+    """Whether `name` is an agent whose model is on by default and `settings` leave it on."""
+    var = MODEL_BY_DEFAULT.get(name)
+    return var is not None and (settings.get(var) or "").strip() != "template"
 
 
 def ensure_local_tree() -> list[Path]:

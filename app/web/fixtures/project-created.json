@@ -8,6 +8,7 @@
     "principal_id": "https://orcid.org/0000-0002-1825-0097",
     "principal_kind": "person"
   },
+  "deleted": null,
   "documents": {
     "approved": 0,
     "proposed": 0,
@@ -23,6 +24,7 @@
   },
   "project_id": "01900000-0000-7000-8000-000000000001",
   "repository": null,
+  "restore_days": 30,
   "title": "Soil cores",
   "title_source": "researcher"
 }

@@ -33,6 +33,10 @@ These are policy, not secrets, and are safe to review and to keep under version 
 | `app/config/agents.yaml` | Where each agent is, by URL. | `DD_AGENTS_CONFIG` |
 | `app/config/sources.yaml` | The pinned source copies the source check resolves evidence against. | `DD_SOURCES_CONFIG` |
 
+How long an owner may restore a project they deleted is `DD_PROJECT_RESTORE_DAYS`, in the app's
+environment: whole days, 30 if unset, and 0 to make deletion final to the app. Deleting a project
+never removes its record ([Projects](../../specs/projects.md), invariant 25).
+
 Raise the profile's `version` on every change. Each stored run records the profile and version it
 was held to, with the digest of its bytes, so a later reader can tell which rules applied. A
 request cannot name a profile; only the operator chooses it

@@ -301,7 +301,8 @@ touching the contract, the agents or the checks.
   records the agent read or the metadata it changed; it does not link a delegated run to its
   parent, names an accountable role as a `Person`, records the outcome as an unreferenced
   `PropertyValue`, does not name the schema digests, and is not checked against the profile with
-  `rocrate-validator` or aligned with PROV-O (R10). TODO(#26)
+  `rocrate-validator`. Its alignment with PROV-O (R10) is set out in [Provenance](provenance.md).
+  TODO(#26, #800)
 - Envelopes stored under an older contract lack the contract version and schema digests and do not
   validate against the current schema; they are shown as raw JSON until migrated. TODO(#247)
 - Why the core models are hand-written mirrors rather than LinkML's `gen-pydantic` output is not

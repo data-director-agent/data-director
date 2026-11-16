@@ -295,16 +295,33 @@ def _declared_model(
 
 
 def optional_model(
-    env: Mapping[str, str], setting: str, *, default_model: str | None = None
+    env: Mapping[str, str],
+    setting: str,
+    *,
+    default_model: str | None = None,
+    default: Literal["template", "model"] = "template",
 ) -> Model | None:
     """For an agent that a model only helps: the model if `env[setting]` is `model`, None if it is
-    `template` or unset. `anthropic` is the older name for `model` with `DD_MODEL_PROVIDER` left
-    as `anthropic`, so settings written before other providers keep working."""
-    choice = (env.get(setting) or "template").strip()
+    `template`. Unset, it is `default`: `template` for most agents, `model` for one whose model is
+    on unless an operator turns it off. `anthropic` is the older name for `model` with
+    `DD_MODEL_PROVIDER` left as `anthropic`, so settings written before other providers keep
+    working.
+
+    A model that cannot be built is a `ConfigError`; when it was on only by default, the error
+    says how to run without it."""
+    choice = (env.get(setting) or "").strip() or default
     if choice == "template":
         return None
     if choice == "anthropic" and provider_name(env) != DEFAULT_PROVIDER:
         raise ConfigError(f"{setting}=anthropic but {PROVIDER} is not: set {setting}=model")
     if choice not in ("model", "anthropic"):
         raise ConfigError(f"{setting}={choice!r}: expected template or model")
-    return configured_model(env, default_model=default_model)
+    try:
+        return configured_model(env, default_model=default_model)
+    except ConfigError as error:
+        if (env.get(setting) or "").strip():
+            raise
+        raise ConfigError(
+            f"{error} ({setting} is model by default: set {setting}=template to run without a "
+            "model)"
+        ) from error

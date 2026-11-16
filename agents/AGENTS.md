@@ -35,6 +35,11 @@ the workbench, stop.
   the viewer work out the rest of the presentation from the schema, whose property order
   `dd-gen-schema` keeps as the LinkML slot order. Do not add an RJSF fragment, widget name or
   layout hint to `AgentSpec`.
+- **An agent's settings are operational, never policy.** Its `DD_<AGENT>_*` variables say how it
+  works (a model, an endpoint, a snapshot path); what the deployment allows it to do comes from the
+  institutional profile, applied by the conductor and passed in the grant. If you find yourself
+  adding a variable that permits, forbids or requires approval for something, stop: it is a
+  profile key ([Policy and identity](../docs/specs/policy-and-identity.md)).
 - **A content problem is an outcome, not an exception.** Empty search → `abstained`; registry
   down → `abstained(registry_unavailable)`; policy refusal → `failed` with Problem Details or
   `referred`.
@@ -54,4 +59,6 @@ the workbench, stop.
   and reviewed against
   [Reviewing a model-backed agent](../docs/guide/developer-guide/reviewing-a-model-backed-agent.md).
   If you find yourself letting a model remove a rule's flag, write a value the researcher must
-  give, or run with no `template` default, stop.
+  give, or build an advisor with no `template` path an operator can select, stop. The default is
+  `template`, except for `advisor-documentation`, whose model is on by default
+  ([Model-backed personas](../docs/specs/agents.md#model-backed-personas)).

@@ -62,6 +62,12 @@ fixtures in `app/web/fixtures` and `sdk/browser/tests/fixtures`, and the AG-UI c
 - The core schema, SDK, harness, app and workbench name no agent class ([Contract](docs/specs/contract.md)).
 - Nothing but tests imports an agent; others reach agents through `RemoteAgent`.
 - Only the conductor fills identifiers, timestamps, telemetry, grounding mode, input hash and lineage.
+- A deployment's policy choices (which agents run, their action classes, what needs approval,
+  what may reach a hosted model, whose model account pays) live in its institutional profile, the
+  YAML file named by `DD_PROFILE` and recorded with every run, never in an environment variable.
+  Environment variables say where things are and hold secrets. A new choice is a profile key that
+  something enforces ([Policy and identity](docs/specs/policy-and-identity.md),
+  [Configuration](docs/guide/operations/configuration.md)).
 - A content problem is an outcome, not an exception; exceptions are for programmer and
   configuration errors.
 - A canonicalisation is registered in `dd_sdk.evidence.CANONICALISATIONS`; an existing name's bytes

@@ -35,7 +35,8 @@ Projects (docs/specs/projects.md). A run belongs to a project when its conversat
 in one, or, for a delegated child, when its parent did. The conductor sets `project_id` on the
 request and the envelope; a caller may not, and the agent is never sent it. A run in a project
 whose principal may not read it (`project_access`) is refused with `UnknownProjectError` before
-anything is stored. Before the input is
+anything is stored, and a run in a deleted project with `ProjectDeletedError`; a run already going
+when its project is deleted finishes and is recorded, its draft included. Before the input is
 hashed, the conductor puts the project's facts into an input class that asks for them
 (`project_facts`). A run in a project that succeeds with a `Document` is recorded in the project
 as a proposed version, caused by the run; a draft the project refuses fails the run instead. A
@@ -52,6 +53,7 @@ two run on separate pools and a child never queues behind its parent.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import functools
 import logging
 import secrets
@@ -72,7 +74,12 @@ from dd_harness import sources as source_check
 from dd_harness.model_grants import GrantMinter
 from dd_harness.observe import RunObserver, Watch
 from dd_harness.progress import ENTRY_BY_MODEL
-from dd_harness.projects import TITLE_BY_MODEL, ProjectError, UnknownProjectError
+from dd_harness.projects import (
+    TITLE_BY_MODEL,
+    ProjectDeletedError,
+    ProjectError,
+    UnknownProjectError,
+)
 from dd_harness.provenance import process_run_crate
 from dd_harness.registry import Registered, Registry
 from dd_harness.remote import Received, RemoteAgent
@@ -296,6 +303,13 @@ class Conductor:
             )
         ):
             raise UnknownProjectError(f"no project {project_id!r}")
+        # A deleted project takes no new run, not even its owner's (invariant 24).
+        if (
+            project_id is not None
+            and self.projects is not None
+            and self.projects.is_deleted(project_id)
+        ):
+            raise ProjectDeletedError(f"project {project_id} is deleted")
         return self._invoke(
             request, acting_for, project_id=project_id, watch=Watch(observer, cancel)
         )
@@ -868,13 +882,16 @@ class Conductor:
                 and doc.get("payload", {}).get("schema_class") == REPLY
                 and new_title
             ):
-                self.projects.rename(
-                    envelope.project_id,
-                    str(new_title),
-                    source=TITLE_BY_MODEL,
-                    acted_for=acting_for,
-                    caused_by=envelope.invocation_id,
-                )
+                # A project deleted while the run went takes no new title (invariant 24); the
+                # run is still recorded.
+                with contextlib.suppress(ProjectDeletedError):
+                    self.projects.rename(
+                        envelope.project_id,
+                        str(new_title),
+                        source=TITLE_BY_MODEL,
+                        acted_for=acting_for,
+                        caused_by=envelope.invocation_id,
+                    )
             # 7a''. An entry point a model worked out in a succeeded reply is recorded as its
             # word, caused by this run, unless the researcher has chosen one
             # (docs/specs/orchestration.md, invariant 18). The value passed the contract already.
@@ -886,13 +903,14 @@ class Conductor:
                 and doc.get("payload", {}).get("schema_class") == REPLY
                 and new_entry is not None
             ):
-                self.projects.choose_entry(
-                    envelope.project_id,
-                    int(new_entry),
-                    source=ENTRY_BY_MODEL,
-                    acted_for=acting_for,
-                    caused_by=envelope.invocation_id,
-                )
+                with contextlib.suppress(ProjectDeletedError):
+                    self.projects.choose_entry(
+                        envelope.project_id,
+                        int(new_entry),
+                        source=ENTRY_BY_MODEL,
+                        acted_for=acting_for,
+                        caused_by=envelope.invocation_id,
+                    )
             # The schemas the run was checked against, kept by digest for the viewer
             # (docs/specs/contract.md).
             checked = [accepted] if accepted else []

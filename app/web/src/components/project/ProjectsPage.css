@@ -38,4 +38,8 @@
     font-size: var(--font-size-small);
     vertical-align: middle;
   }
+
+  .recently-deleted {
+    margin-block-start: var(--space-6);
+  }
 }

@@ -10,7 +10,7 @@ named. This spec covers four things that make that true:
 - the **principal**, the human every invocation acts for, named by the authentication boundary
   and recorded beside the agent (Blueprint §5.4, P5);
 - **signing in**, by which a person establishes who they are through OpenID Connect, with ORCID
-  as the first provider (C1);
+  as the first provider and an institution's sign-in reached through the same protocol (C1);
 - **model credentials**: where an API key for a hosted model lives, and what may never carry it
   (C1, C2). A person's own model account, held by the model broker rather than by an agent, is in
   [A person's own model account](model-accounts.md).
@@ -84,7 +84,9 @@ them.
     (`test_every_state_changing_api_route_refuses_a_body_that_is_not_json`).
 15. **Only the `openid` scope is requested**, so no email address is asked for or held
     (`test_the_app_asks_for_openid_alone_and_authenticates_with_its_secret`).
-16. **Two routes are two principals.** Accounts are never linked by matching email addresses or
+16. **A principal is keyed on its issuer and subject, and two routes are two principals.** The
+    identifier is derived from the ID token's `iss` and `sub` alone, never from an email address or
+    a name, which an issuer may reassign. Accounts are never linked by matching email addresses or
     names.
 17. **Only the calling agent's process holds the deployment's model key, and only the model broker
     holds a person's own.** When the profile turns own accounts on, the broker holds the
@@ -174,8 +176,9 @@ Each sign-in callback and the bearer authenticator verify a token with the one f
 **Admins.** A deployed workbench admits only the ORCID iDs its deployment lists
 (`DD_WORKBENCH_ADMINS`). The flow refuses anyone else after verifying their token and before
 opening a session, and every request is checked against the list, so an admin taken off it is
-refused at once. TODO(#154): the list stands in for an administrator role until people have
-roles.
+refused at once. Once more than one issuer is accepted, the list holds principal identifiers,
+not only iDs (TODO(#936)). TODO(#154): the list stands in for an administrator role until people
+have roles.
 
 **The admin service.** The admin service (`admin/`) shows an operator every person's runs and
 projects, and the deployment's settings with secret values hidden. It has no sign-in of its own:
@@ -190,12 +193,25 @@ authorisation-code flow. The flow and the sessions are the harness's (`dd_harnes
 `dd_harness.sessions`), so any way in that signs people in runs the same checks; the way in serves
 the routes and names its own cookies. The code names no provider; a provider is configuration (issuer, client
 identifier, client secret). The first version accepts one issuer, ORCID (`https://orcid.org`;
-the sandbox issuer in development and CI). The flow sends a fresh `state` and `nonce` per sign-in
+the sandbox issuer in development and CI); a deployment is to accept several, each configured the
+same way, with the sign-in page letting the person choose (TODO(#936)). The flow sends a fresh `state` and `nonce` per sign-in
 and checks both; binds `state` to the browser that started it, so a callback carried to another
 browser opens no session; and verifies the ID token's signature against the issuer's published
 keys (RS256 only, so a token cannot choose a weaker algorithm), its issuer, audience, expiry and
 nonce. PKCE is to be added if ORCID advertises it; a confidential client checking `state` and
 `nonce` does not depend on it. Sign-in calls no ORCID API, so a free public API client suffices.
+
+**Other providers.** Every provider Data Director talks to speaks OpenID Connect. An institution's
+single sign-on that offers OpenID Connect is configured directly. One that offers only SAML, and
+federated sign-in through the UK Access Management Federation or eduGAIN, is reached through a
+broker run by the deployment or the institution (Keycloak or SATOSA, for example) that speaks
+SAML to the identity providers and OpenID Connect to Data Director. To Data Director the broker is
+the issuer: it is what `vouched_by` records and whose keys verify the token. What is ORCID's
+choice today becomes each provider's configuration, read from its discovery document and checked:
+the signing algorithms (asymmetric only; `none` and shared-secret algorithms are always refused)
+and the client authentication method. Only `openid` is requested from any provider. Groups,
+affiliation or entitlement claims an institutional provider may assert are not acted on until
+people have roles (TODO(#154)). The implementation is TODO(#936).
 
 **A person's public ORCID record** is read only when that person asks, from ORCID's public API,
 which needs no credential and returns only what the holder made public, and only for their own
@@ -203,8 +219,13 @@ iD: the one ORCID vouched for at sign-in, or on a development server the operato
 URL (`dd_harness.orcid.issuer_of`). What they keep of it in a project, and how it reaches agents,
 is in [Projects](projects.md), invariant 27. An email address is never read from it.
 
-**The principal.** Its identifier is an absolute IRI: for ORCID, the iD URL; for staff without an
-iD and for roles, a `mailto:` IRI or a URN. Its kind is `person` or `accountable_role`, the latter
+**The principal.** Its identifier is an absolute IRI. For ORCID it is the iD URL, whose path is
+the token's `sub`. For any other issuer it is a URN made from the issuer and the subject alone,
+`urn:data-director:oidc:<iss>:<sub>`, each part percent-encoded (RFC 3986) so that a colon in
+either cannot be mistaken for the separator and the pair can be read back. The `sub` is the
+issuer's stable identifier for the person; an issuer that offers a pairwise subject gives a
+different principal at another relying party, which is intended. A `mailto:` IRI is used only for
+a principal the operator asserts or an accountable role, never one derived from a token. Its kind is `person` or `accountable_role`, the latter
 covering §5.4's case of acting for an institution. Its name is a label for a reader (ORCID's
 `name`, else given and family names, else the iD itself) and nothing decides anything by it. An
 ORCID holder may make their name private.
@@ -278,6 +299,14 @@ decides which endpoint serves it, and a person's endpoint is not known at start-
 - **The record says who vouched**, so a reader can weigh an identity claim by who made it. No
   published vocabulary has a term meaning exactly this, so the contract mints `dd:vouched_by` and
   the crate carries it as `vouchedBy`, referencing an `Organization` entity for the issuer.
+- **A broker for SAML and federations**, rather than SAML in Data Director: a SAML service
+  provider, its metadata handling and federation membership are mature plumbing that Keycloak and
+  SATOSA already provide, and one protocol keeps one verification function for every way in. The
+  cost is that the record names the broker, not the institution behind it, as the party that
+  vouched; the broker is the party Data Director trusts and checks, so that is the honest record.
+- **The subject, not the email address, is the key**, because an issuer may reassign an address
+  to another person while its `sub` for a person never changes. Deriving the identifier from
+  `iss` and `sub` alone also keeps the `openid`-only scope, so no address is asked for.
 - **ORCID first** because the Blueprint prefers persistent identifiers for people (P5) and ORCID
   publishes a standard OpenID Connect configuration. Only `openid` is requested, which is all ORCID
   offers and keeps email addresses out (C2).
@@ -307,6 +336,12 @@ decides which endpoint serves it, and a person's endpoint is not known at start-
 - **The operator's principal for an unauthenticated HTTP caller** on a server with a provider.
 - **Linking accounts by matching email addresses or names**: anyone who controls a matching
   address at another provider would become the same principal.
+- **SAML implemented in Data Director**, beside OpenID Connect: a second protocol, a second
+  verification path and federation metadata to keep, all of which a broker already does.
+- **A `mailto:` principal from a token's `email` claim**: an address can be reassigned, and
+  asking for it breaks the `openid`-only scope.
+- **The `<issuer>/<sub>` form for every issuer**: it reads as a URL the issuer serves, which only
+  ORCID's iD URLs are.
 - **Keeping tokens** in the browser, the session or the run store, and **scopes beyond `openid`**.
 - **Letting the provider SDK find a key for itself**, including a command-line login: nobody could
   say from the configuration which credential a run used.
@@ -346,14 +381,18 @@ decides which endpoint serves it, and a person's endpoint is not known at start-
 - TODO(#372, #373): escalation to a data steward as a record the harness keeps, routed by the
   profile, and what a steward may do in a researcher's project.
 - TODO(#154): roles (researcher, steward, administrator), and per-user or per-group profiles.
-- TODO(#179): a second provider, such as an institution's single sign-on, for staff without an
-  iD; its principal form, and an explicit act of linking accounts.
+- TODO(#936): accepting several issuers, and the principal form above for those that are not
+  ORCID.
+- TODO(#937): an explicit act of linking a person's principals from two providers, with both
+  sign-ins completed in one session; the principal who signed in stays the one recorded, and the
+  link is a record of its own. Until then invariant 16 holds without exception.
 - TODO(#17): whether an ID token is the right credential for a program calling the harness, or
   whether that waits for machine-to-machine authentication. Until then the harness's A2A
   transport refuses an unauthenticated caller inside the task, with the `unauthenticated` problem
   document, rather than answering the HTTP request `401` with `WWW-Authenticate: Bearer`.
-- TODO(#26): Process Run Crate has no convention for an accountable role; until one is settled a
-  role is recorded as a `Person` whose description states its kind.
+- TODO(#800): an accountable role is a `prov:Agent` typed `dd:AccountableRole`, never a person
+  ([Provenance](provenance.md), invariant 4), but the Process Run Crate still records it as a
+  `Person` whose description states its kind.
 - TODO(#40): enforcing a manifest's model declarations beyond project content
   ([Projects](projects.md), invariant 8), such as which models may receive a conversation's text.
 - TODO(#37): the threat model this spec's controls answer to. Their baseline against C1 is

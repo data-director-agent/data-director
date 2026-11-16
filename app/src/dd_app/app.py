@@ -17,6 +17,12 @@ and a page at a time, each with what it holds and the conversations started in i
 (docs/specs/projects.md, docs/specs/app.md, docs/specs/storage.md "Listing"); `POST /api/projects`
 creates one for the person signed in, with no conversation, named by the optional `title` it is
 sent, and answers `201` with its summary as the list shows it (docs/specs/app.md, rule 27).
+`DELETE /api/projects/{id}` deletes a project for an owner who sends its name as `{"title": …}`
+(its identifier while it has none), `400` otherwise; deleting removes nothing, and the summary it
+answers with says until when the project may be restored. `POST /api/projects/{id}/restore`
+restores it within that period, `409` after it or for a project not deleted, and
+`GET /api/projects/deleted` lists the deleted projects the person may still restore, the one
+deleted last first (docs/specs/projects.md, invariants 22 to 25).
 `GET /api/projects/{id}/documents` reads a project's documents, each version's state and the
 rule for when a decision needs a reason; `POST /api/projects/{id}/documents/{document_id}/decisions`
 approves or rejects the latest version, or approves an edit of it, for the person signed in, and
@@ -36,6 +42,9 @@ project holds none with that digest (docs/specs/projects.md).
 and `404` when none has been; `PUT` on it chooses one by its re3data identifier, which the pinned
 re3data export resolves to the repository's name and declared standards, for the person signed in,
 and answers with the requirements it resolved to and their warnings (docs/specs/deposit.md).
+`GET /api/repositories?q=…` searches the pinned re3data export by name, re3data identifier,
+re3data DOI or URL; without `q` it answers with the repositories the deployment suggests (its
+overrides, then `suggested.yaml`), so a researcher can choose one on the project's page.
 `GET /api/projects/{id}/intake` says whether the project's intake is pending, complete or
 dismissed, with its next question and each question asked from the project's entry point and its
 current answer; `POST /api/projects/{id}/intake/{question_id}` records the person's answer to one
@@ -69,7 +78,10 @@ Every `/api` route that runs or reads anything acts for the person the request's
 and answers `401` with an `unauthenticated` problem when there is none. Every
 `/api/projects/{id}/…` route also needs the person to have a role in that project
 (`dd_harness.project_access`): someone without one is answered `404`, as for a project that does
-not exist, and a member asking for an owner's action `403` (docs/specs/projects.md). `/api/about`,
+not exist, and a member asking for an owner's action `403` (docs/specs/projects.md). A deleted
+project is answered as missing to anyone but an owner, and a route that would add to it, or start
+or continue a conversation in it, answers `409` with a `project-deleted` problem until it is
+restored. `/api/about`,
 `/api/session` and the sign-in routes are open, so the shell can draw its sign-in page. A server
 with no provider configured is a development server: every request acts for the operator.
 
@@ -136,8 +148,10 @@ from dd_harness.project_access import Action, allowed
 from dd_harness.projects import (
     TITLE_BY_RESEARCHER,
     ChangeRefusedError,
+    ProjectDeletedError,
     ProjectError,
     Refusal,
+    RestoreRefusedError,
     UnknownProjectError,
 )
 from dd_harness.registry import RegistryError
@@ -172,8 +186,12 @@ ANSWERS_REFUSED = "Data Director could not record these answers"
 PROGRESS_REFUSED = "Data Director could not record where the project is"
 INTAKE_REFUSED = "Data Director could not record this answer"
 TITLE_REFUSED = "Data Director could not rename this project"
+DELETE_REFUSED = "Data Director could not delete this project"
+RESTORE_REFUSED = "Data Director could not restore this project"
 CREATE_REFUSED = "Data Director could not create this project"
 REPOSITORY_REFUSED = "Data Director could not record this repository"
+# The most repositories one search of the pinned re3data export answers with.
+REPOSITORY_SEARCH_LIMIT = 20
 RESEARCHER_REFUSED = "Data Director could not keep these ORCID facts"
 INVENTORY_REFUSED = "Data Director could not add this inventory"
 DEFAULT_HOST = "127.0.0.1"
@@ -289,6 +307,12 @@ def build_app(
                     "Not yours to do in this project",
                     f"In project {project_id!r} a {role} may not {action}.",
                 )
+            # A deleted project takes no new work until it is restored; an owner may still read
+            # it and restore it (docs/specs/projects.md, invariant 24).
+            if action not in (Action.READ, Action.MANAGE) and await run_in_threadpool(
+                governance.is_deleted, project_id
+            ):
+                return _project_deleted(project_id)
             return await handler(request, principal)
 
         return signed_in(checked)
@@ -353,6 +377,8 @@ def build_app(
             )
         except UnknownProjectError:
             return _no_project(str(project_id))
+        except ProjectDeletedError:
+            return _project_deleted(str(project_id))
         found = governance.conversation(conversation_id, acting_for) or {}
         return JSONResponse(
             {"conversation_id": conversation_id, "project_id": found.get("project_id")},
@@ -448,6 +474,9 @@ def build_app(
         except TurnConflictError as exc:
             outcome = "conflict"
             return _problem(409, "turn-conflict", "The conversation has moved on", exc.detail)
+        except ProjectDeletedError as exc:
+            outcome = "project deleted"
+            return _problem(409, "project-deleted", "This project is deleted", str(exc))
         # A `ProjectError` (an inventory or document the project refuses) is a `ValueError`.
         except (ContractViolation, ValueError, UnknownAgent, PolicyError, IdentityError) as exc:
             outcome = "refused"
@@ -485,6 +514,74 @@ def build_app(
             return _refused(str(exc), "Data Director could not list the projects")
         page = await run_in_threadpool(lambda: governance.projects_for(reader, **paging))
         return page_response(request, page)
+
+    async def list_deleted_projects(request: Request, owner: Principal) -> Response:
+        try:
+            paging = page_params(request)
+        except PagingError as exc:
+            return _refused(str(exc), "Data Director could not list the deleted projects")
+        page = await run_in_threadpool(lambda: governance.deleted_projects_for(owner, **paging))
+        return page_response(request, page)
+
+    async def delete_project(request: Request, person: Principal) -> Response:
+        """Delete the project, which hides it and removes nothing, once the person has typed its
+        name: its title, or its identifier while it has none (docs/specs/projects.md, "Deletion
+        and retention"). The check is here as well as on the page, so no client can skip it.
+        Answers with the project's summary, whose `deleted` says until when it may be restored."""
+        project_id = request.path_params["project_id"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        try:
+            body = await request.json()
+        except ValueError:
+            return _refused("The body is not JSON.", DELETE_REFUSED)
+        typed = body.get("title") if isinstance(body, dict) else None
+        if not isinstance(typed, str):
+            return _refused(
+                "`title` is the project's name, as the person typed it.", DELETE_REFUSED
+            )
+        caused_by = f"{request.method} {request.url.path}"
+
+        def delete() -> dict[str, Any] | None:
+            summary = store.summary(project_id)
+            if typed.strip() != (summary["title"] or project_id):
+                return None
+            store.delete(project_id, acted_for=person, caused_by=caused_by)
+            return store.summary(project_id)
+
+        try:
+            deleted = await run_in_threadpool(delete)
+        except UnknownProjectError:
+            return _no_project(project_id)
+        except ProjectDeletedError:
+            return _project_deleted(project_id)
+        if deleted is None:
+            return _refused(
+                "`title` is not the project's name. Type it exactly to delete the project.",
+                DELETE_REFUSED,
+            )
+        return JSONResponse(deleted)
+
+    async def restore_project(request: Request, person: Principal) -> Response:
+        """Restore a deleted project within its restore period: it is then as it was
+        (docs/specs/projects.md, invariant 25). Answers with the project's summary."""
+        project_id = request.path_params["project_id"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        caused_by = f"{request.method} {request.url.path}"
+
+        def restore() -> dict[str, Any]:
+            store.restore(project_id, acted_for=person, caused_by=caused_by)
+            return store.summary(project_id)
+
+        try:
+            return JSONResponse(await run_in_threadpool(restore))
+        except UnknownProjectError:
+            return _no_project(project_id)
+        except RestoreRefusedError as exc:
+            return _problem(409, "project-restore-refused", RESTORE_REFUSED, str(exc))
 
     async def create_project(request: Request, person: Principal) -> Response:
         """A project of its own, with no conversation, named by the optional `title` the body
@@ -909,6 +1006,29 @@ def build_app(
         except (ProjectError, RequirementsError) as exc:
             return _refused(str(exc), REPOSITORY_REFUSED)
 
+    async def search_repositories(request: Request, _: Principal) -> Response:
+        """Repositories a researcher may choose: those the pinned re3data export holds that `q`
+        names, or, without `q`, those the deployment suggests (docs/specs/deposit.md)."""
+        query = request.query_params.get("q", "").strip()
+        sources, requirements = governance.conductor.sources, governance.requirements
+
+        def search() -> dict[str, Any]:
+            if query:
+                found = sources.find_repositories(query, limit=REPOSITORY_SEARCH_LIMIT)
+            else:
+                found = sources.repositories(requirements.suggested if requirements else ())
+            return {
+                "snapshot_ref": sources.re3data_export_ref(),
+                "query": query,
+                "suggested": not query,
+                "repositories": [m.describe() for m in found],
+            }
+
+        try:
+            return JSONResponse(await run_in_threadpool(search))
+        except SourceConfigError as exc:
+            return _problem(503, "re3data-unavailable", "Repositories cannot be searched", str(exc))
+
     async def validate_project(request: Request, acting_for: Principal) -> Response:
         project_id = request.path_params["project_id"]
         store = governance.projects
@@ -1308,6 +1428,17 @@ def build_app(
             ),
             Route("/api/projects", signed_in(list_projects), methods=["GET"]),
             Route("/api/projects", signed_in(create_project), methods=["POST"]),
+            Route("/api/projects/deleted", signed_in(list_deleted_projects), methods=["GET"]),
+            Route(
+                "/api/projects/{project_id}",
+                in_project(Action.MANAGE, delete_project),
+                methods=["DELETE"],
+            ),
+            Route(
+                "/api/projects/{project_id}/restore",
+                in_project(Action.MANAGE, restore_project),
+                methods=["POST"],
+            ),
             Route(
                 "/api/projects/{project_id}/title",
                 in_project(Action.CONTRIBUTE, rename_project),
@@ -1425,6 +1556,7 @@ def build_app(
                 methods=["POST"],
             ),
             Route("/api/researcher/orcid", signed_in(get_orcid_record), methods=["GET"]),
+            Route("/api/repositories", signed_in(search_repositories), methods=["GET"]),
             Route("/api/examples", signed_in(list_examples), methods=["GET"]),
             Route("/api/process-flow", signed_in(get_process_flow), methods=["GET"]),
             Route("/api/policy", signed_in(get_policy), methods=["GET"]),
@@ -1529,6 +1661,15 @@ def _no_conversation(conversation_id: str) -> Response:
 
 def _no_project(project_id: str) -> Response:
     return _problem(404, "project-not-found", "No such project", f"No project {project_id!r}.")
+
+
+def _project_deleted(project_id: str) -> Response:
+    return _problem(
+        409,
+        "project-deleted",
+        "This project is deleted",
+        f"Project {project_id!r} is deleted; an owner may restore it.",
+    )
 
 
 def _refused(detail: str, title: str = "Data Director could not start this run") -> Response:
