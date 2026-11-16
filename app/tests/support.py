@@ -1,21 +1,39 @@
-"""What the app's tests share beyond fixtures (`conftest.py`)."""
+"""What the app's tests share: environment, governance and app builders, and route helpers."""
 
 from __future__ import annotations
 
 import hashlib
 import json
 import os
+import re
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pytest
 import yaml
+from starlette.testclient import TestClient
 
 from dd_agent_advisor_standards import factory as standards
-from dd_app.config import settings_from_env
-from dd_app.governance import Governance
-from dd_harness.testing import TEST_PRINCIPAL, in_process
+from dd_agent_example_hello.agent import build as build_hello
+from dd_agent_orchestrator_stub.agent import build as build_director
+from dd_app.app import build_app
+from dd_app.config import DEFAULT_PROFILE, settings_from_env
+from dd_app.governance import (
+    Governance,
+)
+from dd_harness.conductor import Conductor
+from dd_harness.identity import OperatorAssertion
+from dd_harness.policy import load_profile
+from dd_harness.projects import ProjectStore
+from dd_harness.registry import Registry
+from dd_harness.store import RunStore
+from dd_harness.testing import (
+    TEST_PRINCIPAL,
+    asgi_client_factory,
+    in_process,
+)
 
 PATH_VARIABLES = ("DD_PROFILE", "DD_AGENTS_CONFIG", "DD_SOURCES_CONFIG", "DD_REPOSITORIES_DIR")
 APP_URL = "http://app.test"
@@ -172,3 +190,136 @@ def dist_dir(tmp_path: Path) -> Path:
     built.mkdir()
     (built / "index.html").write_text("<!doctype html><title>shell</title>", encoding="utf-8")
     return built
+
+
+# What the route tests share (moved from test_app.py).
+
+STANDARDS_AGENT_ID = "advisor.standards"
+
+EXAMPLES = Path(__file__).resolve().parents[1] / "config/examples"
+FIXED_RUN_ID = "01900000-0000-7000-8000-000000000001"
+FIXED_TIME = "2026-01-01T00:00:00Z"
+
+
+def example(name: str) -> dict[str, Any]:
+    document: dict[str, Any] = json.loads((EXAMPLES / f"{name}.json").read_text("utf-8"))
+    return document
+
+
+def run(client: TestClient, input: Any, agent_id: str = STANDARDS_AGENT_ID) -> Any:
+    return client.post("/api/runs", json={"agent_id": agent_id, "input": input})
+
+
+def normalised(body: dict[str, Any]) -> dict[str, Any]:
+    envelope = body["envelope"]
+    envelope["invocation_id"] = FIXED_RUN_ID
+    envelope["completed_at"] = FIXED_TIME
+    envelope["telemetry"]["trace_id"] = "0" * 32
+    for item in envelope.get("evidence") or []:
+        item["retrieved_at"] = FIXED_TIME
+    return body
+
+
+UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+SHA256 = re.compile(r"(?<![0-9a-f])[0-9a-f]{64}(?![0-9a-f])")
+TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})")
+TRACE_ID = re.compile(r'"trace_id": "[0-9a-f]{32}"')
+
+
+def normalised_conversation(body: Any) -> Any:
+    """`body` with each identifier and hash that changes between two runs of the same
+    conversation replaced by a fixed one, numbered in order of first appearance, so the same
+    value stays the same throughout. A turn's input hash covers the history, which names the
+    earlier turns' runs, and a delegation's content hash covers the child's envelope, so the
+    hashes change with the identifiers."""
+    text = json.dumps(body, sort_keys=True)
+    seen: dict[str, str] = {}
+
+    def fixed(template: str) -> Any:
+        def replace(match: re.Match[str]) -> str:
+            value = match.group(0)
+            if value not in seen:
+                seen[value] = template.format(len(seen) + 1)
+            return seen[value]
+
+        return replace
+
+    text = UUID.sub(fixed("01900000-0000-7000-8000-{:012d}"), text)
+    text = SHA256.sub(fixed("{:064d}"), text)
+    text = TIMESTAMP.sub(FIXED_TIME, text)
+    text = TRACE_ID.sub(f'"trace_id": "{"0" * 32}"', text)
+    return json.loads(text)
+
+
+def start(client: TestClient) -> str:
+    response = client.post("/api/conversations", headers=JSON_HEADERS)
+    assert response.status_code == 201
+    conversation_id: str = response.json()["conversation_id"]
+    assert response.headers["location"] == f"/api/conversations/{conversation_id}"
+    return conversation_id
+
+
+def turn(
+    client: TestClient,
+    conversation_id: str,
+    text: str,
+    follows: str | None = None,
+    **extra: Any,
+) -> Any:
+    return client.post(
+        f"/api/conversations/{conversation_id}/turns",
+        json={"agent_id": "orchestrator.stub", "message_text": text, "follows": follows, **extra},
+    )
+
+
+def a_file_inventory(*paths: str) -> dict[str, Any]:
+    """What `dd-inventory` writes for files at `paths`."""
+    return {
+        "schema_class": "FileInventory",
+        "inventory_tool": "dd-inventory",
+        "inventory_tool_version": "0.1.0",
+        "inventory_made_at": "2026-11-01T09:00:00Z",
+        "inventory_files": [
+            {
+                "file_path": path,
+                "file_size": 10,
+                "file_sha256": "a" * 64,
+                "file_media_type": "text/csv",
+                "file_identified_by": "extension",
+            }
+            for path in paths
+        ],
+    }
+
+
+PROTOCOL = "# Sampling protocol\n\nSediment cores were taken monthly from three sites.\n"
+
+
+def a_document(text: str = PROTOCOL, name: str = "protocol.md") -> dict[str, str]:
+    return {"name": name, "media_type": "text/markdown", "text": text}
+
+
+OTHER = TEST_PRINCIPAL.model_copy(
+    update={"principal_id": "https://orcid.org/0000-0001-5000-0007", "name": "Ada Example"}
+)
+
+
+def delegating_app(env: Path, dist: Path, projects: ProjectStore | None) -> tuple[Governance, Any]:
+    served: dict[str, Any] = {}
+
+    def app_client(base_url: str, timeout_s: float) -> httpx.AsyncClient:
+        return asgi_client_factory(served["app"])(base_url, timeout_s)
+
+    registry = Registry.from_agents(
+        [
+            in_process(build_director(), delegate_client_factory=app_client),
+            in_process(build_hello()),
+        ]
+    )
+    conductor = Conductor(
+        registry=registry, store=RunStore(env), profile=load_profile(DEFAULT_PROFILE)
+    )
+    conductor.harness_url = APP_URL
+    governance = Governance(conductor, OperatorAssertion(TEST_PRINCIPAL), projects)
+    served["app"] = build_app(governance, dist)
+    return governance, served["app"]
