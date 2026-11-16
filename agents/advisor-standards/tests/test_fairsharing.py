@@ -22,10 +22,10 @@ from dd_agent_advisor_standards.fairsharing.snapshot import (
     DEFAULT_SNAPSHOT,
     SnapshotBackend,
 )
-from dd_agent_advisor_standards.retrieve import Query, RegistryUnavailable
 from dd_agent_advisor_standards.testing import make_conductor, request
 from dd_harness.testing import TEST_PRINCIPAL
 from dd_sdk.contract.models import OutcomeStatus
+from dd_sdk.registry import Query, RegistryUnavailable
 
 PUBLIC_SHAPE = {
     "fairsharing_data_licence": "https://creativecommons.org/licenses/by-sa/4.0/ ...",
