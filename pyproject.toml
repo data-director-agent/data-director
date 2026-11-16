@@ -78,6 +78,7 @@ dev = [
   "pytest-xdist>=3.8.0",
   "deptry>=0.25.1",
   "import-linter>=2.15",
+  "packaging>=26.3",
 ]
 docs = [
   "mkdocs>=1.6",
