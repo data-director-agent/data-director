@@ -125,7 +125,7 @@ from dd_app.governance import (
 from dd_app.model_accounts import broker_path
 from dd_app.privacy import notice_url
 from dd_app.project_service import ProjectService
-from dd_app.routes import conversations, materials, meta, projects, runs, session
+from dd_app.routes import conversations, materials, meta, progress, projects, runs, session
 from dd_app.routes.common import Deps, Feedback
 from dd_harness.deposit import PackageRefusedError, build_package, check
 from dd_harness.disclosure import disclose
@@ -165,8 +165,6 @@ PUBLIC_URL_VARIABLE = "DD_APP_PUBLIC_URL"
 
 DECISION_REFUSED = "Data Director could not record this decision"
 ANSWERS_REFUSED = "Data Director could not record these answers"
-PROGRESS_REFUSED = "Data Director could not record where the project is"
-INTAKE_REFUSED = "Data Director could not record this answer"
 TITLE_REFUSED = "Data Director could not rename this project"
 DELETE_REFUSED = "Data Director could not delete this project"
 RESTORE_REFUSED = "Data Director could not restore this project"
@@ -337,117 +335,6 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
         except UnknownProjectError:
             return _no_project(project_id)
         return JSONResponse({**found.to_document(), "prov": found.prov_jsonld()})
-
-    async def get_progress(request: Request, _: Principal) -> Response:
-        project_id = request.path_params["project_id"]
-        store = governance.projects
-        if store is None:
-            return _no_project(project_id)
-        try:
-            return JSONResponse(await run_in_threadpool(store.progress, project_id))
-        except UnknownProjectError:
-            return _no_project(project_id)
-
-    async def change_progress(request: Request, person: Principal) -> Response:
-        """The researcher's word on where the project is: the entry point they chose, or a step
-        they marked done, skipped or open again (docs/specs/orchestration.md). Whom it acts for is
-        whom the authenticator names, never the body. Answers with the progress derived anew."""
-        project_id = request.path_params["project_id"]
-        store = governance.projects
-        if store is None:
-            return _no_project(project_id)
-        try:
-            body = await request.json()
-        except ValueError:
-            return _refused("The body is not JSON.", PROGRESS_REFUSED)
-        if not isinstance(body, dict):
-            return _refused("The body is not a JSON object.", PROGRESS_REFUSED)
-        step_id = request.path_params.get("step_id")
-        caused_by = f"{request.method} {request.url.path}"
-
-        def change() -> dict[str, Any]:
-            if step_id is None:
-                entry = body.get("entry")
-                if not isinstance(entry, int) or isinstance(entry, bool):
-                    raise ProjectError("`entry` is the entry point's number, 1, 2 or 3.")
-                store.choose_entry(project_id, entry, acted_for=person, caused_by=caused_by)
-            else:
-                mark = body.get("mark")
-                if not isinstance(mark, str):
-                    raise ProjectError("`mark` is one of done, skipped or open.")
-                store.mark_step(project_id, step_id, mark, acted_for=person, caused_by=caused_by)
-            return store.progress(project_id)
-
-        try:
-            return JSONResponse(await run_in_threadpool(change), status_code=201)
-        except UnknownProjectError:
-            return _no_project(project_id)
-        except ProjectError as exc:
-            return _refused(str(exc), PROGRESS_REFUSED)
-
-    async def get_intake(request: Request, _: Principal) -> Response:
-        project_id = request.path_params["project_id"]
-        store = governance.projects
-        if store is None:
-            return _no_project(project_id)
-        try:
-            return JSONResponse(await run_in_threadpool(store.intake, project_id))
-        except UnknownProjectError:
-            return _no_project(project_id)
-
-    async def answer_intake(request: Request, person: Principal) -> Response:
-        """The researcher's answer to one intake question (docs/specs/app.md, rule 25), recorded
-        for whom the authenticator names, never the body. A malformed body is refused with `400`
-        and an answer the harness rejects with `409`, recording nothing; otherwise the server
-        answers with where the intake then stands: the next question, or the progress the card
-        names once it is complete."""
-        project_id = request.path_params["project_id"]
-        question_id = request.path_params["question_id"]
-        store = governance.projects
-        if store is None:
-            return _no_project(project_id)
-        try:
-            body = await request.json()
-        except ValueError:
-            return _refused("The body is not JSON.", INTAKE_REFUSED)
-        values = body.get("answer_values") if isinstance(body, dict) else None
-        if not isinstance(values, list) or not all(isinstance(v, str) for v in values):
-            return _refused(
-                "The body is an object whose `answer_values` is a list of option values.",
-                INTAKE_REFUSED,
-            )
-        caused_by = f"{request.method} {request.url.path}"
-
-        def record() -> dict[str, Any]:
-            store.answer_intake(
-                project_id, question_id, values, acted_for=person, caused_by=caused_by
-            )
-            return store.intake(project_id)
-
-        try:
-            return JSONResponse(await run_in_threadpool(record), status_code=201)
-        except UnknownProjectError:
-            return _no_project(project_id)
-        except ProjectError as exc:
-            return _problem(409, "intake-answer-refused", INTAKE_REFUSED, str(exc))
-
-    async def dismiss_intake(request: Request, person: Principal) -> Response:
-        """The researcher passing the intake by (docs/specs/app.md, rule 25); an answer recorded
-        later opens it again. Answers with where the intake then stands."""
-        project_id = request.path_params["project_id"]
-        store = governance.projects
-        if store is None:
-            return _no_project(project_id)
-        caused_by = f"{request.method} {request.url.path}"
-
-        def dismiss() -> dict[str, Any]:
-            store.dismiss_intake(project_id, acted_for=person, caused_by=caused_by)
-            return store.intake(project_id)
-
-        try:
-            return JSONResponse(await run_in_threadpool(dismiss), status_code=201)
-        except UnknownProjectError:
-            return _no_project(project_id)
 
     async def get_repository(request: Request, _: Principal) -> Response:
         project_id = request.path_params["project_id"]
@@ -694,6 +581,7 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
             # ROUTE MODULES
             *session.routes(deps),
             *meta.routes(deps),
+            *progress.routes(deps),
             *materials.routes(deps),
             *projects.routes(deps),
             *conversations.routes(deps),
@@ -718,37 +606,7 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
                 in_project(Action.CONTRIBUTE, choose_repository),
                 methods=["PUT"],
             ),
-            Route(
-                "/api/projects/{project_id}/progress",
-                in_project(Action.READ, get_progress),
-                methods=["GET"],
-            ),
-            Route(
-                "/api/projects/{project_id}/progress/entry",
-                in_project(Action.CONTRIBUTE, change_progress),
-                methods=["PUT"],
-            ),
-            Route(
-                "/api/projects/{project_id}/progress/steps/{step_id}",
-                in_project(Action.CONTRIBUTE, change_progress),
-                methods=["PUT"],
-            ),
-            Route(
-                "/api/projects/{project_id}/intake",
-                in_project(Action.READ, get_intake),
-                methods=["GET"],
-            ),
             # Before the route below, which would read `dismiss` as a question.
-            Route(
-                "/api/projects/{project_id}/intake/dismiss",
-                in_project(Action.CONTRIBUTE, dismiss_intake),
-                methods=["POST"],
-            ),
-            Route(
-                "/api/projects/{project_id}/intake/{question_id}",
-                in_project(Action.CONTRIBUTE, answer_intake),
-                methods=["POST"],
-            ),
             Route(
                 "/api/projects/{project_id}/validation",
                 in_project(Action.CONTRIBUTE, validate_project),
