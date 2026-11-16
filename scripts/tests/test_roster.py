@@ -38,11 +38,11 @@ ROSTER: Mapping[str, str] = {
     "advisor.files": MOCK,
     "advisor.linking": MOCK,
     "advisor.metadata": MOCK,
-    "advisor.rights": MOCK,
     "advisor.dmp": ALPHA,
     "advisor.documentation": ALPHA,
     "advisor.ethics": ALPHA,
     "advisor.policy": ALPHA,
+    "advisor.rights": ALPHA,
     "advisor.quality": PERSONA,
     "advisor.repository": PERSONA,
     "advisor.standards": PERSONA,
@@ -63,6 +63,7 @@ ALPHA_SWITCHES: Mapping[str, tuple[str, str, str]] = {
     ),
     "advisor.ethics": ("dd_agent_advisor_ethics.factory", "DD_ETHICS_READER", "template"),
     "advisor.policy": ("dd_agent_advisor_policy.factory", "DD_POLICY_ADVISOR", "model"),
+    "advisor.rights": ("dd_agent_advisor_rights.factory", "DD_RIGHTS_INTERPRETER", "template"),
 }
 
 # Blueprint requirements a mock's or an alpha's tests still name, by agent. The list only shrinks:

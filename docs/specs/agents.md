@@ -180,8 +180,8 @@ Each in-tree agent's state now, as `scripts/tests/test_roster.py` holds it:
 
 | State | Agents |
 |---|---|
-| Mock (invariant 13) | `advisor.fairness`, `advisor.files`, `advisor.linking`, `advisor.metadata`, `advisor.rights` |
-| Model-backed alpha (invariant 14) | `advisor.dmp`, `advisor.documentation`, `advisor.ethics`, `advisor.policy` |
+| Mock (invariant 13) | `advisor.fairness`, `advisor.files`, `advisor.linking`, `advisor.metadata` |
+| Model-backed alpha (invariant 14) | `advisor.dmp`, `advisor.documentation`, `advisor.ethics`, `advisor.policy`, `advisor.rights` |
 | Persona | `advisor.quality`, `advisor.repository`, `advisor.standards` |
 | Deterministic by design, or not an advisor | `example.hello`, `orchestrator.model`, `orchestrator.stub` |
 
