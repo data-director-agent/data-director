@@ -5,6 +5,7 @@ import { ActivityLog } from "./components/workspace/ActivityLog";
 import { FeedbackPage } from "./components/feedback/FeedbackPage";
 import { ConversationHome } from "./components/conversation/ConversationHome";
 import { Frame } from "./components/frame/Frame";
+import { JourneyPage } from "./components/journey/JourneyPage";
 import { PolicyPage } from "./components/policy/PolicyPage";
 import { ProfilePage } from "./components/profile/ProfilePage";
 import { ProjectPage } from "./components/project/ProjectPage";
@@ -26,8 +27,9 @@ import {
 } from "./session/api";
 
 // The person's projects: `/projects`; a project's documents: `/projects/{project_id}`
-// (docs/specs/projects.md).
+// (docs/specs/projects.md); its journey map: `/projects/{project_id}/journey`.
 const PROJECT_PREFIX = "/projects/";
+const JOURNEY_SUFFIX = "/journey";
 
 type Load<T> = { state: "loading" } | { state: "failed"; message: string } | { state: "loaded"; value: T };
 
@@ -60,7 +62,10 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
   const onActivity = path === "/activity";
   const onPolicy = path === "/policy";
   const onProjects = path === "/projects";
-  const projectId = path.startsWith(PROJECT_PREFIX) ? path.slice(PROJECT_PREFIX.length) : null;
+  const projectPath = path.startsWith(PROJECT_PREFIX) ? path.slice(PROJECT_PREFIX.length) : null;
+  const onJourney = projectPath?.endsWith(JOURNEY_SUFFIX) ?? false;
+  const projectId =
+    projectPath && onJourney ? projectPath.slice(0, -JOURNEY_SUFFIX.length) : projectPath;
   // A project's own page is under Projects in the main navigation.
   const current =
     onProjects || projectId
@@ -135,6 +140,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
     if (onProfile) return <ProfilePage session={session.value} />;
     if (onActivity) return <ActivityLog />;
     if (onProjects) return <ProjectsPage />;
+    if (projectId && onJourney) return <JourneyPage projectId={projectId} query={query ?? ""} />;
     if (projectId) return <ProjectPage projectId={projectId} query={query ?? ""} />;
     if (state.state === "loading") return <p role="status">Loading the agents…</p>;
     if (state.state === "failed") {

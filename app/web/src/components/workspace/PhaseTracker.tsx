@@ -23,8 +23,10 @@ import type {
   StepMark,
   StepState,
 } from "../../flow/types";
-import { ListChecks } from "lucide-react";
+import { ListChecks, Map as MapIcon } from "lucide-react";
 
+import { locate } from "../../flow/journey";
+import { Link, journeyPath } from "../../route";
 import { Button } from "../ui/Button";
 
 export type FlowLoad =
@@ -41,6 +43,10 @@ export interface TrackedProgress {
   error?: string | null;
   /** Opens the intake card with the current answers chosen (docs/specs/app.md, rule 25). */
   answerIntakeAgain?: () => void;
+  /** The project, whose journey map the strip links to. */
+  projectId?: string;
+  /** How many things wait on the researcher: documents to decide on and questions to answer. */
+  waiting?: number;
 }
 
 const STATE_LABEL: Record<StepState, string> = {
@@ -57,8 +63,9 @@ export function PhaseTracker({
   tracked?: TrackedProgress | null;
 }) {
   const flow = load.state === "loaded" ? load.flow : null;
-  const suggested =
-    flow && tracked ? stepById(flow, tracked.progress.suggested) : null;
+  const located = flow && tracked ? locate(flow, tracked.progress.suggested) : null;
+  const suggested = located?.step ?? null;
+  const mapPath = tracked?.projectId ? journeyPath(tracked.projectId) : null;
   return (
     <nav
       aria-labelledby="phases-heading"
@@ -97,9 +104,19 @@ export function PhaseTracker({
                 </p>
               )}
             <p className="phase-strip-where" role="status">
-              {suggested ? (
+              {suggested && located ? (
                 <>
-                  Suggested next: <strong>{suggested.label}</strong>
+                  Suggested next:{" "}
+                  {tracked.projectId ? (
+                    <Link to={journeyPath(tracked.projectId, suggested.id)}>
+                      <strong>{suggested.label}</strong>
+                    </Link>
+                  ) : (
+                    <strong>{suggested.label}</strong>
+                  )}{" "}
+                  <span className="muted">
+                    (phase {located.phase.number}, {located.phase.name})
+                  </span>
                 </>
               ) : tracked.progress.entry === null ? (
                 "Choose where you started, or tell Data Director, to get a suggested next step."
@@ -107,6 +124,20 @@ export function PhaseTracker({
                 "Every step from where you started is done or skipped."
               )}
             </p>
+            {mapPath && tracked.waiting !== undefined && tracked.waiting > 0 && (
+              <p className="phase-strip-where">
+                <Link to={mapPath}>
+                  <span className="status status-warn">Waiting on you: {tracked.waiting}</span>
+                </Link>
+              </p>
+            )}
+            {mapPath && (
+              <p className="phase-strip-where">
+                <Link to={mapPath}>
+                  <MapIcon size="1em" aria-hidden="true" /> Open the journey map
+                </Link>
+              </p>
+            )}
             {tracked.answerIntakeAgain && (
               <Button size="small" icon={ListChecks} onPress={tracked.answerIntakeAgain}>
                 Answer the setup questions again
@@ -256,15 +287,6 @@ function Step({
       )}
     </div>
   );
-}
-
-function stepById(flow: ProcessFlow, id: string | null): FlowStep | null {
-  if (!id) return null;
-  for (const phase of flow.phases) {
-    const found = phase.steps.find((s) => s.id === id);
-    if (found) return found;
-  }
-  return null;
 }
 
 function capitalised(text: string): string {

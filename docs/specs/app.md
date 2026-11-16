@@ -468,6 +468,22 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   or open it again (`PUT .../progress/entry`, `PUT .../progress/steps/{step_id}`); the server
   records it acting for the person signed in and answers with the progress derived anew. The
   shell computes no state and no suggestion of its own.
+- **The journey map** draws a project's journey whole, at `/projects/{id}/journey`, after the
+  Blueprint's §8 figures: each phase a line of stops, the entry points pinned to the phases they
+  join at, the intake's decision points as diamonds before the steps they can skip, with the
+  answer given, a band across the map saying every action is recorded (linking to the activity
+  log), and the last phase looping back rather than ending. Like the strip it names no agent and
+  no requirement, and computes no state: each stop's state, the word that decided it
+  (`reasons`) and the decision points (`decisions`) are the harness's, in the progress it
+  serves. Each stop is a button that says its state in words; opening one (`?step=`) shows what
+  the step is, its state and why, a link to the document or page that produced it, the marks the
+  researcher may make, and **Ask Data Director about this**, which opens the conversation with a
+  question about the step in the message box, unsent (`/?ask={step_id}`), so the researcher's
+  own word starts the turn. **Waiting on you** picks out the steps whose document awaits the
+  researcher's decision and the decision points not yet answered; the strip shows the same count
+  and links to the map, and names the suggested step's phase. Each card on the projects page
+  shows the journey at a glance, linking to the map
+  (`app/web/src/flow/journey.test.ts`, `app/web/src/components/journey/JourneyPage.test.tsx`).
 - **The agent directory** is read-only and for end users: each agent's name, description, what it
   takes and returns, what powers it and whether this deployment will run it. A person does not run
   or message an agent from it; they work through the conversation. Below that, folded away, is

@@ -20,12 +20,16 @@ import "./ProjectsPage.css";
 import { FolderOpen, FolderPlus, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
+import { journey } from "../../flow/journey";
+import { useFlowApi } from "../../flow/api";
+import type { ProcessFlow } from "../../flow/types";
 import { useActiveProject } from "../../project/active";
 import { type DeletedProject, type ProjectSummary, useProjectApi } from "../../project/api";
 import { day, projectName } from "../../project/name";
 import { Link, navigate } from "../../route";
 import { PageHeader } from "../frame/PageHeader";
 import { Button } from "../ui/Button";
+import { JourneyMini } from "../journey/JourneyMini";
 import { NewProjectDialog } from "./NewProjectDialog";
 
 type Load =
@@ -146,6 +150,14 @@ export function ProjectsPage() {
   const { projectId: activeId, setProjectId, reloadProjects } = useActiveProject();
   const [creating, setCreating] = useState(false);
   const [generation, setGeneration] = useState(0);
+  // The process flow, for each card's journey at a glance; without it the cards have none.
+  const flowApi = useFlowApi();
+  const [flow, setFlow] = useState<ProcessFlow | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    flowApi.get(controller.signal).then(setFlow, () => undefined);
+    return () => controller.abort();
+  }, [flowApi]);
 
   function open(projectId: string) {
     setProjectId(projectId);
@@ -203,6 +215,14 @@ export function ProjectsPage() {
                 <Link to={`/projects/${encodeURIComponent(project.project_id)}`}>{name}</Link>
                 {active && <span className="status status-ok">Current project</span>}
               </h2>
+              {flow && project.progress && (
+                <JourneyMini
+                  projectId={project.project_id}
+                  lines={journey(flow, project.progress)}
+                  flow={flow}
+                  progress={project.progress}
+                />
+              )}
               <Holds project={project} />
               <Documents counts={project.documents} />
               <p>

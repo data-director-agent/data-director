@@ -79,6 +79,7 @@ import { documentName } from "../../project/name";
 import { STATES } from "../project/DocumentFacts";
 import { ContextPanel } from "../workspace/ContextPanel";
 import { type FlowLoad, PhaseTracker, type TrackedProgress } from "../workspace/PhaseTracker";
+import { journey, locate, waitingCount, waitingDocuments } from "../../flow/journey";
 import { Workspace } from "../workspace/Workspace";
 import { ProjectSwitcher } from "../project/ProjectSwitcher";
 import { Button } from "../ui/Button";
@@ -301,6 +302,18 @@ export function ConversationHome({ directory }: { directory: Directory }) {
           markStep: (stepId, mark) =>
             changeProgress(projectApi.markStep(projectId, stepId, mark), projectId),
           error: progressError,
+          projectId,
+          ...(flow.state === "loaded"
+            ? {
+                waiting: waitingCount(
+                  journey(
+                    flow.flow,
+                    progressOf.progress,
+                    documents.state === "loaded" ? waitingDocuments(documents.documents) : undefined,
+                  ),
+                ),
+              }
+            : {}),
           ...(intake
             ? {
                 answerIntakeAgain: () => openIntakeAgain(projectId),
@@ -318,6 +331,27 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     );
     return () => abort.abort();
   }, [flowApi]);
+
+  // A step asked about from the journey map (`?ask=`) fills the message box, unsent, so that the
+  // researcher's own word starts the turn; the address then drops it so a reload does not refill.
+  const askAbout = params.get("ask");
+  const [askedAbout, setAskedAbout] = useState<string | null>(null);
+  if (askAbout && flow.state === "loaded" && askedAbout !== askAbout) {
+    setAskedAbout(askAbout);
+    const found = locate(flow.flow, askAbout);
+    if (found) {
+      setText(
+        `Can you help me with this step: ${found.step.label} (phase ${found.phase.number}, ${found.phase.name})?`,
+      );
+    }
+  }
+  useEffect(() => {
+    if (!askAbout || askedAbout !== askAbout) return;
+    box.current?.focus();
+    navigate(homePath({ conversation: urlConversation, run: runId }), true);
+    // Only the step asked about, once its text is in the box, is acted on.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [askAbout, askedAbout]);
 
   // A conversation closed by switching project is taken out of the address, and not read again
   // from it. This runs before the effect below, which would otherwise reopen it.

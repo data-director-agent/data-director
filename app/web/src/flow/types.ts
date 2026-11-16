@@ -57,4 +57,35 @@ export interface ProjectProgress {
   entry_source?: "researcher" | "model" | null;
   steps: Record<string, StepState>;
   suggested: string | null;
+  /** Why each step in `steps` is in its state, keyed the same; derived with the states. */
+  reasons?: Record<string, StepReason>;
+  /** The intake's decision points, which the journey map draws before their steps. */
+  decisions?: Decision[];
+}
+
+/**
+ * The word that decided a step's state: the log's work (`produced`, naming the event and any
+ * document), the researcher's mark (`marked`), or an intake answer that skipped it (`intake`).
+ */
+export interface StepReason {
+  state: StepState;
+  source: "produced" | "marked" | "intake";
+  event: string;
+  /** When the deciding event was recorded, where the log says. */
+  at?: string;
+  document_id?: string;
+  document_kind?: string;
+  question_id?: string;
+}
+
+/** One of the intake's decision points (Blueprint §8's diamonds) with its current answer. */
+export interface Decision {
+  question_id: string;
+  prompt: string;
+  /** The step the decision sits before. */
+  before: string;
+  /** Whether it is asked from the project's entry point. */
+  asked: boolean;
+  answer_values: string[] | null;
+  answer_labels: string[] | null;
 }

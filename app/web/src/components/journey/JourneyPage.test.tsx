@@ -1,0 +1,69 @@
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { axe } from "jest-axe";
+
+import flowFixture from "../../../fixtures/process-flow.json";
+import { FlowApiContext } from "../../flow/api";
+import type { ProcessFlow, ProjectProgress, StepMark } from "../../flow/types";
+import { type ProjectApi, ProjectApiContext } from "../../project/api";
+import { JourneyPage } from "./JourneyPage";
+
+const FLOW = flowFixture as ProcessFlow;
+const STEP = FLOW.phases.flatMap((p) => p.steps).find((s) => !s.out_of_scope);
+if (!STEP) throw new Error("the fixture has no step in scope");
+
+function fakeApi(progress: ProjectProgress, markStep: ProjectApi["markStep"]): ProjectApi {
+  return {
+    progress: () => Promise.resolve(progress),
+    markStep,
+    documents: () =>
+      Promise.resolve({ project_id: "p", documents: [], review: {} } as never),
+  } as unknown as ProjectApi;
+}
+
+function renderPage(api: ProjectApi, query = "") {
+  return render(
+    <FlowApiContext.Provider value={{ get: () => Promise.resolve(FLOW) }}>
+      <ProjectApiContext.Provider value={api}>
+        <JourneyPage projectId="p" query={query} />
+      </ProjectApiContext.Provider>
+    </FlowApiContext.Provider>,
+  );
+}
+
+describe("JourneyPage", () => {
+  it("draws every phase as a list and every step as a button that says its state", async () => {
+    const progress: ProjectProgress = { entry: 1, steps: {}, suggested: STEP.id };
+    const { container } = renderPage(fakeApi(progress, () => Promise.resolve(progress)));
+    const phases = await screen.findByRole("list", { name: "The phases in order" });
+    expect(phases.children).toHaveLength(FLOW.phases.length);
+    expect(
+      screen.getByRole("button", { name: new RegExp(`^${STEP.label}: .*suggested next`) }),
+    ).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("opens a step's details and marks it through the server, showing what it answers", async () => {
+    const before: ProjectProgress = { entry: 1, steps: {}, suggested: null };
+    const after: ProjectProgress = {
+      entry: 1,
+      steps: { [STEP.id]: "done" },
+      suggested: null,
+      reasons: { [STEP.id]: { state: "done", source: "marked", event: "step_marked" } },
+    };
+    const marks: [string, StepMark][] = [];
+    renderPage(
+      fakeApi(before, (_project, stepId, mark) => {
+        marks.push([stepId, mark]);
+        return Promise.resolve(after);
+      }),
+      `step=${STEP.id}`,
+    );
+    const panel = await screen.findByRole("region", { name: STEP.label });
+    expect(panel).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Mark done" }));
+    expect(marks).toEqual([[STEP.id, "done"]]);
+    expect(await screen.findByText("You marked this done.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open again" })).toBeInTheDocument();
+  });
+});

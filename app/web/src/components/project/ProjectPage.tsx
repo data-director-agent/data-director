@@ -38,7 +38,7 @@ import {
   useProjectApi,
 } from "../../project/api";
 import { deletionName, documentName, projectName } from "../../project/name";
-import { Link } from "../../route";
+import { Link, journeyPath } from "../../route";
 import { AddInventory } from "../inventory/AddInventory";
 import { PageHeader } from "../frame/PageHeader";
 import { DisclosurePanel } from "./DisclosurePanel";
@@ -237,6 +237,8 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
     <>
       <p>
         <Link to="/projects">All projects</Link>
+        {" · "}
+        <Link to={journeyPath(projectId)}>Journey map</Link>
       </p>
       <PageHeader title={title ?? "Project documents"}>
         {project && title && (

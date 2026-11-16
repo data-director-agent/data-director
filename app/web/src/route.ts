@@ -29,27 +29,42 @@ export function navigate(to: string, replace = false): void {
   window.dispatchEvent(new Event(CHANGED));
 }
 
-/** The conversation page's address: the open conversation (`?conversation=`) and the run shown
- * (`?run=`), each left out when none. */
+/** The conversation page's address: the open conversation (`?conversation=`), the run shown
+ * (`?run=`) and a step of the journey to ask about (`?ask=`), each left out when none. */
 export function homePath({
   conversation,
   run,
+  ask,
 }: {
   conversation?: string | null;
   run?: string | null;
+  ask?: string | null;
 }): string {
   const query = new URLSearchParams();
   if (conversation) query.set("conversation", conversation);
   if (run) query.set("run", run);
+  if (ask) query.set("ask", ask);
   const text = query.toString();
   return text ? `/?${text}` : "/";
+}
+
+/** A project's journey map, with a step open (`?step=`) when one is given. */
+export function journeyPath(projectId: string, step?: string | null): string {
+  const base = `/projects/${encodeURIComponent(projectId)}/journey`;
+  return step ? `${base}?step=${encodeURIComponent(step)}` : base;
 }
 
 export function Link({
   to,
   children,
   ...rest
-}: { to: string; children: ReactNode; className?: string; "aria-current"?: "page" }) {
+}: {
+  to: string;
+  children: ReactNode;
+  className?: string;
+  "aria-current"?: "page";
+  "aria-label"?: string;
+}) {
   return createElement(
     "a",
     {
