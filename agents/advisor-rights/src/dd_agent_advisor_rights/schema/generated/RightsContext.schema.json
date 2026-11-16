@@ -13,7 +13,7 @@
          "type": "string"
       },
       "reuse_wanted": {
-         "description": "The reuse the researcher wants to allow, e.g. any, attribution, share-alike or non-commercial. Unknown if absent.",
+         "description": "The reuse the researcher wants to allow, in their own words or as one of any, attribution, share-alike or non-commercial. Unknown if absent.",
          "type": [
             "string",
             "null"

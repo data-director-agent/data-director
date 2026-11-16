@@ -10,7 +10,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from dd_sdk.contract.models import Frozen, Grounded
+from dd_sdk.contract.models import Derivation, Frozen, Grounded
 
 
 class RightsContext(Frozen):
@@ -26,6 +26,12 @@ class LicenceOption(Frozen):
     name: str
     url: str
     note: str | None = None
+    derivation: Derivation
+
+
+class RightsQuestion(Frozen):
+    text: str
+    derivation: Derivation
 
 
 class AccessOption(Frozen):
@@ -37,5 +43,6 @@ class RightsOptions(Grounded):
     schema_class: Literal["RightsOptions"] = "RightsOptions"
     licences: list[LicenceOption] = Field(default_factory=list)
     access_levels: list[AccessOption] = Field(default_factory=list)
-    questions: list[str] = Field(default_factory=list)
+    questions: list[RightsQuestion] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
+    dropped: list[str] = Field(default_factory=list)
