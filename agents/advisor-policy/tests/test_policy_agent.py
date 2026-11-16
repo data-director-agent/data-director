@@ -19,6 +19,7 @@ from dd_agent_advisor_policy.classes import (
     PolicyContext,
     Strength,
 )
+from dd_agent_advisor_policy.journals import Journal
 from dd_agent_advisor_policy.records import Clause, PolicyRecord, Relation
 from dd_agent_advisor_policy.retrieve import Query, RegistryUnavailable, SnapshotRef
 from dd_agent_advisor_policy.ror import Organisation, RorDump
@@ -492,3 +493,120 @@ def test_a_failed_live_ror_route_falls_back_to_the_dump_marked_stale(
 
 def test_its_classes_are_generated_from_its_linkml() -> None:
     assert gen.stale(SCHEMA) == [], f"run `uv run dd-gen-schema {SCHEMA}`"
+
+
+# --- journals and their publishers (#905) -----------------------------------------------------
+
+REPORTS = Journal(
+    id="https://api.crossref.org/journals/1234-5678",
+    title="Acme Reports",
+    publisher="Acme B.V.",
+    issns=["1234-5678"],
+)
+REPORTS_NAMESAKE = Journal(
+    id="https://api.crossref.org/journals/1111-2222",
+    title="Acme Reports",
+    publisher="Other Press Ltd",
+    issns=["1111-2222"],
+)
+
+
+class FakeJournals:
+    def __init__(self, journals: list[Journal], down: bool = False) -> None:
+        self.journals = journals
+        self.down = down
+        self.asked = 0
+
+    def snapshot_ref(self) -> SnapshotRef:
+        return SnapshotRef(label="fake-crossref")
+
+    def get(self, value: str) -> Journal | None:
+        self.asked += 1
+        if self.down:
+            raise RegistryUnavailable("fake Crossref is down")
+        return next((j for j in self.journals if value in j.issns), None)
+
+    def find(self, title: str) -> list[Journal]:
+        self.asked += 1
+        if self.down:
+            raise RegistryUnavailable("fake Crossref is down")
+        return [j for j in self.journals if j.matches(title)]
+
+
+ACME_REPORTS = Actor(role=ActorRole.JOURNAL, name="Acme Reports")
+
+
+def test_a_journal_with_no_policy_of_its_own_finds_its_publishers(runs_dir: Path) -> None:
+    advisor = PolicyAgent(FakePolicies(), journals=FakeJournals([REPORTS]))
+    env = invoke(runs_dir, PolicyContext(actors=[ACME_REPORTS]), advisor)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    checks = env.payload_as(PolicyChecks)
+    # The publisher's own policy, found by Crossref's publisher name without its legal form; not
+    # the policy of the publisher's other journal, Acme Letters.
+    assert [p.grounded_on[0].source_id for p in checks.policies] == [PUBLISHER.fairsharing_id]
+    assert [(j.actor, j.issn) for j in checks.journals] == [("Acme Reports", "1234-5678")]
+    assert [g.source_id for g in checks.journals[0].grounded_on] == [REPORTS.id]
+    crossref = [e for e in env.evidence if e.source_id == REPORTS.id]
+    assert len(crossref) == 1 and crossref[0].snapshot_ref == "fake-crossref"
+    assert crossref[0].content is not None
+    assert verify(crossref[0].content, crossref[0].canonicalisation, crossref[0].content_hash)
+    assert "Acme B.V." in env.outcome.statement
+
+
+def test_without_crossref_the_same_journal_has_no_record(runs_dir: Path) -> None:
+    env = invoke(runs_dir, PolicyContext(actors=[ACME_REPORTS]), PolicyAgent(FakePolicies()))
+    assert env.outcome.status == OutcomeStatus.ABSTAINED
+
+
+@pytest.mark.requirement("DD-OUTCOME")
+def test_a_title_of_two_publishers_asks_for_the_issn(runs_dir: Path) -> None:
+    policies = RecordingPolicies()
+    advisor = PolicyAgent(policies, journals=FakeJournals([REPORTS, REPORTS_NAMESAKE]))
+    env = invoke(runs_dir, PolicyContext(actors=[ACME_REPORTS, TESTING]), advisor)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    checks = env.payload_as(PolicyChecks)
+    assert [(a.actor, a.role) for a in checks.ambiguous] == [("Acme Reports", ActorRole.JOURNAL)]
+    assert {g.source_id for g in checks.ambiguous[0].grounded_on} == {
+        REPORTS.id,
+        REPORTS_NAMESAKE.id,
+    }
+    assert "Acme Reports" not in policies.searched and "ISSN" in env.outcome.statement
+
+    # Given the ISSN, the journal is identified and its publisher's policy found.
+    chosen = Actor(role=ActorRole.JOURNAL, name="Acme Reports", issn="1234-5678")
+    env = invoke(runs_dir, PolicyContext(actors=[chosen]), advisor)
+    checks = env.payload_as(PolicyChecks)
+    assert checks.ambiguous == [] and [j.issn for j in checks.journals] == ["1234-5678"]
+
+
+def test_when_crossref_is_down_the_journal_is_searched_as_given_and_the_statement_says_so(
+    runs_dir: Path,
+) -> None:
+    advisor = PolicyAgent(FakePolicies(), journals=FakeJournals([REPORTS], down=True))
+    env = invoke(runs_dir, PolicyContext(actors=[ACME_REPORTS, TESTING]), advisor)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    checks = env.payload_as(PolicyChecks)
+    assert checks.journals == [] and checks.no_record == ["Acme Reports"]
+    assert "Crossref was not consulted" in env.outcome.statement
+
+
+@pytest.mark.requirement("DD-POLICY")
+def test_a_profile_can_turn_the_crossref_lookup_off(runs_dir: Path, tmp_path: Path) -> None:
+    profile = tmp_path / "profile.yaml"
+    profile.write_text(
+        "profile_id: no-crossref\nagents:\n  advisor.policy: advise\n"
+        'agent_settings:\n  advisor.policy:\n    journals: "off"\n',
+        encoding="utf-8",
+    )
+    journals = FakeJournals([REPORTS])
+    conductor = make_conductor(
+        runs_dir, PolicyAgent(FakePolicies(), journals=journals), profile=profile
+    )
+    env = conductor.invoke(
+        request("advisor.policy", PolicyContext(actors=[ACME_REPORTS, TESTING])),
+        acting_for=TEST_PRINCIPAL,
+    )
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert journals.asked == 0
+    checks = env.payload_as(PolicyChecks)
+    assert checks.journals == [] and checks.no_record == ["Acme Reports"]

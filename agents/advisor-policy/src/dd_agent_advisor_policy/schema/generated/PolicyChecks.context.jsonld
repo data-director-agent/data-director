@@ -25,6 +25,9 @@
       "ResolvedFunder": {
          "@id": "https://w3id.org/data-director/agents/policy/ResolvedFunder"
       },
+      "ResolvedJournal": {
+         "@id": "https://w3id.org/data-director/agents/policy/ResolvedJournal"
+      },
       "SearchedSummary": {
          "@id": "https://w3id.org/data-director/agents/policy/SearchedSummary"
       },
@@ -57,6 +60,13 @@
       },
       "grounded_on": {
          "@id": "https://w3id.org/data-director/grounded_on",
+         "@type": "@id"
+      },
+      "issn": {
+         "@id": "https://w3id.org/data-director/agents/policy/issn"
+      },
+      "journals": {
+         "@id": "https://w3id.org/data-director/agents/policy/journals",
          "@type": "@id"
       },
       "kind": {

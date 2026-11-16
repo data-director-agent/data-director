@@ -13,7 +13,7 @@
       },
       "AmbiguousActor": {
          "additionalProperties": false,
-         "description": "A funder whose name could mean more than one organisation in ROR. Grounded on each candidate, likeliest first; the agent does not choose. Its policy was not looked up: the researcher says which they mean, by giving its ROR identifier.",
+         "description": "A funder whose name could mean more than one organisation in ROR, or a journal title that Crossref gives to journals of different publishers. Grounded on each candidate, likeliest first; the agent does not choose. Its policy was not looked up: the researcher says which they mean, by giving a funder's ROR identifier or a journal's ISSN.",
          "properties": {
             "actor": {
                "description": "The name of the actor, as given in the input.",
@@ -239,6 +239,37 @@
          "title": "ResolvedFunder",
          "type": "object"
       },
+      "ResolvedJournal": {
+         "additionalProperties": false,
+         "description": "A journal identified in Crossref, grounded on each of its Crossref records. The publisher Crossref records is in the cited evidence items' content (docs/specs/grounding.md); its policy was searched for as well as the journal's own.",
+         "properties": {
+            "actor": {
+               "description": "The name of the actor, as given in the input.",
+               "type": "string"
+            },
+            "issn": {
+               "description": "A journal's ISSN, print or electronic, e.g. 0022-1694. Given for a journal, it is how the journal and its publisher are identified in Crossref.",
+               "pattern": "^\\d{4}-?\\d{3}[\\dXx]$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "grounded_on": {
+               "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",
+               "items": {
+                  "$ref": "#/$defs/GroundingRef"
+               },
+               "type": "array"
+            }
+         },
+         "required": [
+            "actor",
+            "grounded_on"
+         ],
+         "title": "ResolvedJournal",
+         "type": "object"
+      },
       "SearchedSummary": {
          "additionalProperties": false,
          "description": "What was looked for, so a reader can judge an abstention as well as a match.",
@@ -340,8 +371,18 @@
             "null"
          ]
       },
+      "journals": {
+         "description": "The journals identified in Crossref, each grounded on its Crossref records, so that its publisher's policy could be searched for too.",
+         "items": {
+            "$ref": "#/$defs/ResolvedJournal"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
       "ambiguous": {
-         "description": "Funders whose name could mean more than one organisation in ROR. The researcher should say which; their policies were not looked up.",
+         "description": "Funders whose name could mean more than one organisation in ROR, and journal titles that Crossref gives to journals of different publishers. The researcher should say which; their policies were not looked up.",
          "items": {
             "$ref": "#/$defs/AmbiguousActor"
          },

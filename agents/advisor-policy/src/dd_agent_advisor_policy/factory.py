@@ -11,6 +11,9 @@
   pinned dump (`uv run dd-sources prepare` builds it); `live` asks ROR's API, which needs no
   account, and falls back to the built registry, marked stale, when the route fails. Where
   neither answers, funders are searched by the name given and the statement says so.
+- Journals are identified in Crossref's public API (`journals.py`), which needs no account. Whether
+  they are is the agent's `journals` setting, which a deployment's institutional profile sets
+  (`agent_settings`, docs/specs/policy-and-identity.md), not an environment variable.
 - `DD_POLICY_EXPLAINER`: `template` (default) or `model`, which has a model write the rationale
   (`anthropic`, its older name, still works).
 - With `model`: `DD_MODEL_PROVIDER` (`anthropic` by default), `DD_MODEL_ID` (Claude Sonnet 5.5
@@ -35,6 +38,7 @@ from dd_agent_advisor_policy.explain import (
     ModelExplainer,
     TemplateExplainer,
 )
+from dd_agent_advisor_policy.journals import CrossrefJournals
 from dd_agent_advisor_policy.live import PolicyLive
 from dd_agent_advisor_policy.ror import RorDump, RorLive
 from dd_agent_advisor_policy.snapshot import PolicySnapshot
@@ -79,6 +83,7 @@ def build(env: Mapping[str, str] | None = None) -> PolicyAgent:
         agent.organisations, agent.organisations_fallback = RorLive(), RorDump()
     else:
         agent.organisations = RorDump()
+    agent.journals = CrossrefJournals()
     if isinstance(explainer, ModelExplainer):
         agent.spec = replace(agent.spec, models=(declared(explainer.model),))
     return agent

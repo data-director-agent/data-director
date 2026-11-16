@@ -41,10 +41,22 @@ policy:PolicyContext a sh:NodeShape ;
     sh:targetClass policy:PolicyContext .
 
 policy:Actor a sh:NodeShape ;
-    rdfs:comment "A funder, journal or institution. The FAIRsharing identifier of its policy is used when given; otherwise the name is looked up. A funder is first identified in ROR, by its ROR identifier when given, otherwise by its name." ;
+    rdfs:comment "A funder, journal or institution. The FAIRsharing identifier of its policy is used when given; otherwise the name is looked up. A funder is first identified in ROR, by its ROR identifier when given, otherwise by its name. A journal is first identified in Crossref, by its ISSN when given, otherwise by its exact title, so that its publisher's policy is found too." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
+    sh:property [ sh:in ( "funder" "journal" "institution" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 0 ;
+            sh:path policy:role ],
+        [ sh:datatype xsd:string ;
+            sh:description "A journal's ISSN, print or electronic, e.g. 0022-1694. Given for a journal, it is how the journal and its publisher are identified in Crossref." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path policy:issn ;
+            sh:pattern "^\\d{4}-?\\d{3}[\\dXx]$" ],
+        [ sh:datatype xsd:string ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -63,11 +75,6 @@ policy:Actor a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
             sh:path policy:fairsharing_id ;
-            sh:pattern "^FAIRsharing\\.\\S+$" ],
-        [ sh:in ( "funder" "journal" "institution" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 0 ;
-            sh:path policy:role ] ;
+            sh:pattern "^FAIRsharing\\.\\S+$" ] ;
     sh:targetClass policy:Actor .
 

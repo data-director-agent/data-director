@@ -18,8 +18,9 @@ against the policy text. The agent flags where policies differ and never decides
 
 `PolicyContext` names the actors, each a `funder`, `journal` or `institution` with a name and,
 when known, the FAIRsharing identifier of its policy. A funder may also carry its ROR identifier
-(`ror_id`), which is how the researcher answers when its name is ambiguous. It may also give the disciplines, the kinds
-of data and the publication date.
+(`ror_id`), which is how the researcher answers when its name is ambiguous. A journal may carry
+its ISSN (`issn`), which identifies it and its publisher exactly. It may also give the
+disciplines, the kinds of data and the publication date.
 
 `PolicyChecks` holds:
 
@@ -34,9 +35,12 @@ of data and the publication date.
 - `no_record`: the actors with no policy record.
 - `funders`: each funder identified in ROR, grounded on its ROR record (the identifier is stated
   there only), with the Crossref Funder ID ROR prefers, so that both can be passed on.
-- `ambiguous`: each funder whose name could mean more than one organisation in ROR, grounded on
-  every candidate, likeliest first. Its policy was not looked up, and the statement asks the
-  researcher which they mean.
+- `journals`: each journal identified in Crossref, with its ISSN, grounded on its Crossref
+  records, which name its publisher.
+- `ambiguous`: each funder whose name could mean more than one organisation in ROR, and each
+  journal title Crossref gives to journals of different publishers, grounded on every candidate,
+  likeliest first. Its policy was not looked up, and the statement asks the researcher which they
+  mean, by ROR identifier or ISSN.
 
 ## How it decides
 
@@ -50,6 +54,17 @@ Retrieval comes first, and no model matches a policy or states an obligation:
   organisations with a Crossref Funder ID shown first. A name such as "UKRI-NERC" that ROR does
   not hold is read through ROR's own parent relationships. No alias table is kept. When ROR
   cannot be read, funders are searched by the name given and the statement says so.
+- **Identifying journals** (`journals.py`, `resolve.py`). Most journals follow their publisher's
+  data policy and have no FAIRsharing record of their own. Each journal is looked up in
+  Crossref's public journal API, by its ISSN when given, otherwise by an exact match of its title,
+  ignoring case and spacing. Records that all name one publisher identify it, and FAIRsharing is
+  searched by the journal's title and by the publisher's name, as Crossref gives it, without
+  its legal form ("Elsevier BV" as "Elsevier") and without a bracketed imprint ("Wiley (Blackwell
+  Publishing)" as "Wiley"). A record found by the publisher's name is kept only
+  if FAIRsharing types it as a journal publisher's policy, so another of the publisher's journals'
+  policies is not matched. Records naming different publishers are not guessed: the researcher is
+  asked for the ISSN. When Crossref cannot be read, the journal is searched by the name given and
+  the statement says so. No table of journals or publishers is kept.
 - **Matching** (`match.py`). An actor given with a FAIRsharing identifier is fetched by it.
   Otherwise each of its names is searched, and a record is kept only when FAIRsharing types it for the
   actor's role (a journal matches a journal or journal publisher policy) and its name or
@@ -73,6 +88,14 @@ Retrieval comes first, and no model matches a policy or states an obligation:
   never research data.
 
 ## Configuration
+
+The deployment's institutional profile sets the agent's options (`agent_settings`,
+[Policy and identity](../../docs/specs/policy-and-identity.md)):
+
+- `journals`: `crossref` (the default) identifies journals in Crossref's public API, which needs
+  no account; `off` matches journals by the name given only.
+
+Its environment variables:
 
 - `DD_POLICY_RETRIEVAL`: `snapshot` (the default) or `live`. Live search needs a FAIRsharing
   account: `FAIRSHARING_LOGIN`, and `FAIRSHARING_PASSWORD` or `FAIRSHARING_PASSWORD_FILE`.
@@ -109,8 +132,13 @@ its label is `ror:dump:<version>`. `uv run dd-ror fetch --update-pin` pins the n
   An empty list is not evidence that no repository is mandated, and the statement says so,
   naming the actors with no record as unchecked. TODO(#302, #331)
 - An actor is matched by name, and only to a record whose name contains one of its names. A
-  funder is searched by every name ROR gives it, but a journal or institution only by the name
-  given. ROR's live search reads the first page of results only, so a common name may need the
+  funder is searched by every name ROR gives it, and a journal by its Crossref title and its
+  publisher's name, but an institution only by the name given. A publisher whose FAIRsharing name
+  differs from Crossref's by more than its legal form ("Springer Science and Business Media" and
+  "Springer Nature") is not found.
+- Crossref is read live; there is no pinned copy, so the source check reports its evidence as
+  unresolved, as it does every live route. Its search reads the first page of results only, so a
+  common title may need its ISSN. ROR's live search reads the first page of results only, so a common name may need the
   dump or the identifier.
 - A funder's affiliation country does not yet rank its ROR candidates.
 - Differences are found between strengths only. Two policies that require different

@@ -24,8 +24,8 @@ name comes from ROR.
 
 This module does not use the Data Director contract: it is the part of the agent that would be
 useful without it (docs/specs/system.md). Moving it to a library of its own, which the Linking
-Adviser could share, is TODO(#360). This module and `live.py` are the importers of `httpx`
-(docs/specs/dependencies.md).
+Adviser could share, is TODO(#360). This module, `journals.py` and `live.py` are the importers of
+`httpx` (docs/specs/dependencies.md).
 """
 
 from __future__ import annotations

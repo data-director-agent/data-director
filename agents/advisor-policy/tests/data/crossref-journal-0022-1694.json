@@ -1,0 +1,19 @@
+{
+  "status": "ok",
+  "message-type": "journal",
+  "message-version": "1.0.0",
+  "message": {
+    "title": "Journal of Hydrology",
+    "publisher": "Elsevier",
+    "ISSN": [
+      "0022-1694"
+    ],
+    "issn-type": [
+      {
+        "type": "print",
+        "value": "0022-1694"
+      }
+    ],
+    "subjects": []
+  }
+}

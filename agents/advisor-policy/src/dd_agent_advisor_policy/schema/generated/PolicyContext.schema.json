@@ -3,7 +3,7 @@
    "$defs": {
       "Actor": {
          "additionalProperties": false,
-         "description": "A funder, journal or institution. The FAIRsharing identifier of its policy is used when given; otherwise the name is looked up. A funder is first identified in ROR, by its ROR identifier when given, otherwise by its name.",
+         "description": "A funder, journal or institution. The FAIRsharing identifier of its policy is used when given; otherwise the name is looked up. A funder is first identified in ROR, by its ROR identifier when given, otherwise by its name. A journal is first identified in Crossref, by its ISSN when given, otherwise by its exact title, so that its publisher's policy is found too.",
          "properties": {
             "role": {
                "$ref": "#/$defs/ActorRole"
@@ -22,6 +22,14 @@
             "ror_id": {
                "description": "The organisation's ROR identifier, e.g. https://ror.org/02b5d8509 or 02b5d8509.",
                "pattern": "^(https?://ror\\.org/)?0[a-z0-9]{6}[0-9]{2}$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "issn": {
+               "description": "A journal's ISSN, print or electronic, e.g. 0022-1694. Given for a journal, it is how the journal and its publisher are identified in Crossref.",
+               "pattern": "^\\d{4}-?\\d{3}[\\dXx]$",
                "type": [
                   "string",
                   "null"
