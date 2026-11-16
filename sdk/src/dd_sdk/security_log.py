@@ -65,6 +65,20 @@ def emit(
     unknown = context.keys() - CONTEXT_KEYS
     if unknown:
         raise ValueError(f"a security event carries no field {sorted(unknown)!r}")
+    # Plain `str`, not a `StrEnum` member: a record's fields must survive any serialiser that
+    # checks exact types (pytest-xdist's execnet, for one), not only `json`.
+    if isinstance(principal, str):
+        principal = str(principal)
+    if isinstance(reason, str):
+        reason = str(reason)
+    context = {
+        key: [str(v) for v in value]
+        if isinstance(value, list)
+        else str(value)
+        if isinstance(value, str)
+        else value
+        for key, value in context.items()
+    }
     fields: dict[str, Any] = {
         "time": datetime.now(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
         "event": event.value,

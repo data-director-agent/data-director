@@ -94,3 +94,20 @@ def test_every_record_has_only_fixed_and_allowed_fields(caplog: pytest.LogCaptur
     )
     [event] = security_events(caplog.records)
     assert event.keys() <= FIXED | CONTEXT_KEYS
+
+
+def test_enum_values_are_recorded_as_plain_strings(caplog: pytest.LogCaptureFixture) -> None:
+    # pytest-xdist serialises captured log records with execnet, which refuses a `StrEnum`.
+    caplog.set_level(logging.INFO, logger=security_log.LOGGER)
+    emit(
+        SecurityEvent.CALLER_REFUSED,
+        outcome="failure",
+        service="harness",
+        reason=SecurityEvent.SIGN_OUT,
+        transport=SecurityEvent.SIGN_OUT,
+        models=[SecurityEvent.SIGN_OUT],
+    )
+    [event] = security_events(caplog.records)
+    assert type(event["reason"]) is str
+    assert type(event["transport"]) is str
+    assert [type(m) for m in event["models"]] == [str]
