@@ -290,7 +290,7 @@ def call[T: BaseModel](
 ) -> ModelReply[T]: ...
 
 
-def call[T: BaseModel](
+def call[T: BaseModel](  # noqa: PLR0913
     model: Model,
     ctx: RunContext,
     *,

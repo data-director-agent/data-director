@@ -431,7 +431,7 @@ class Doctor:
 
     # --- The stores and their backups -----------------------------------------------------------
 
-    def storage(self, now: datetime | None = None) -> None:
+    def storage(self, now: datetime | None = None) -> None:  # noqa: C901, PLR0912
         """The backup timer and the newest backup, the free space where the stores and the backups
         are kept, and whether each database a store names answers with this release's schema."""
         system, vm, report = self.system, self.vm, self.report

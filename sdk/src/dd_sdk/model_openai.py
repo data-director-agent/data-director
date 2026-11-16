@@ -184,7 +184,7 @@ class OpenAIModel:
     `api_key` the agent's broker credential (`openai_client`). `tool_use` says the agent relies on
     the model to call tools, which its card declares."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         model_id: str,
         *,

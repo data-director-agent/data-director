@@ -52,7 +52,7 @@ from ddtool.vm import System, Vm, detect
 from ddtool.vm_doctor import vm_doctor
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument(
         "--target",
