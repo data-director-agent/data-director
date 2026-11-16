@@ -14,6 +14,10 @@
  * page's polite live region; the focus moves to it only once the researcher has acted. The card
  * is not a turn and never holds up the message box below it.
  *
+ * An entry point Data Director worked out from what the researcher said answers the entry
+ * question, but only as Data Director's: the card asks it with that answer chosen and says whose
+ * it is, and Next records it as the researcher's own. Skipping it records nothing.
+ *
  * An answer may carry a notice, which the card shows as soon as it is chosen and keeps showing
  * once it is recorded (`notices` on the question); it changes no step.
  */
@@ -60,6 +64,9 @@ function noticesOf(
   return [...new Set(notices)];
 }
 
+/** The intake's entry question, whose answer is the project's entry point (`dd_sdk.intake.ENTRY`). */
+const ENTRY_QUESTION = "intake.entry";
+
 function sameValues(a: readonly string[], b: readonly string[] | null): boolean {
   return b !== null && a.length === b.length && a.every((v) => b.includes(v));
 }
@@ -96,8 +103,13 @@ export function IntakeCard({
   // The focus moves only once the researcher has acted, never when the card first shows.
   const moved = useRef(false);
 
+  // An entry point Data Director recorded is offered for the researcher to confirm.
+  const byModel = (q: IntakeQuestion): boolean =>
+    q.question_id === ENTRY_QUESTION &&
+    q.answer_values !== null &&
+    intake.progress.entry_source === "model";
   const shown: IntakeQuestion | undefined = intake.questions.find(
-    (q) => !passed.has(q.question_id) && (again || q.answer_values === null),
+    (q) => !passed.has(q.question_id) && (again || q.answer_values === null || byModel(q)),
   );
   const draftOf = (q: IntakeQuestion): Draft =>
     drafts[q.question_id] ?? { values: q.answer_values ?? [], words: "" };
@@ -136,7 +148,7 @@ export function IntakeCard({
       setError("Choose an answer, or skip the question.");
       return;
     }
-    if (again && sameValues(answer.answer_values, shown.answer_values)) {
+    if (again && !byModel(shown) && sameValues(answer.answer_values, shown.answer_values)) {
       pass(shown.question_id);
       return;
     }
@@ -172,6 +184,11 @@ export function IntakeCard({
           {notice}
         </p>
       ))}
+      {shown && byModel(shown) && (
+        <p role="note" className="intake-card-notice">
+          Worked out by Data Director from what you said. Choose Next to confirm, or pick another.
+        </p>
+      )}
       {shown ? (
         <form onSubmit={(e) => void next(e)} aria-labelledby={`${id}-heading`}>
           <fieldset className="question-step" disabled={busy}>

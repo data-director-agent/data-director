@@ -124,6 +124,44 @@ describe("IntakeCard", () => {
     expect(onDismiss).not.toHaveBeenCalled();
   });
 
+  // The intake once Data Director has recorded the entry point from what the researcher said.
+  const BY_MODEL: ProjectIntake = {
+    ...COMPLETE,
+    progress: { ...COMPLETE.progress, entry_source: "model" },
+  };
+  const MODEL_ENTRY = first(BY_MODEL.questions);
+
+  function chosenIn(prompt: string): string[] {
+    return within(screen.getByRole("group", { name: prompt }))
+      .getAllByRole("radio")
+      .filter((r) => (r as HTMLInputElement).checked)
+      .map((r) => (r as HTMLInputElement).value);
+  }
+
+  it("offers the entry point Data Director worked out, chosen and marked, to confirm", async () => {
+    const { container, onAnswer } = renderCard({ intake: BY_MODEL });
+    expect(chosenIn(MODEL_ENTRY.question.question_prompt)).toEqual(MODEL_ENTRY.answer_values);
+    expect(screen.getByRole("note")).toBeVisible();
+    expect(await axe(container)).toHaveNoViolations();
+
+    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(onAnswer).toHaveBeenCalledWith(MODEL_ENTRY.question_id, MODEL_ENTRY.answer_values);
+  });
+
+  it("asked again, records the entry point Data Director worked out once confirmed", async () => {
+    const { onAnswer } = renderCard({ intake: BY_MODEL, again: true });
+    expect(chosenIn(MODEL_ENTRY.question.question_prompt)).toEqual(MODEL_ENTRY.answer_values);
+    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(onAnswer).toHaveBeenCalledWith(MODEL_ENTRY.question_id, MODEL_ENTRY.answer_values);
+  });
+
+  it("records nothing when the entry point Data Director worked out is skipped", async () => {
+    const { onAnswer } = renderCard({ intake: BY_MODEL });
+    await userEvent.click(screen.getByRole("button", { name: "Skip" }));
+    expect(onAnswer).not.toHaveBeenCalled();
+    expect(screen.queryByRole("group", { name: MODEL_ENTRY.question.question_prompt })).toBeNull();
+  });
+
   it("asked again, closes from Skip these questions without dismissing", async () => {
     const { onClose, onDismiss } = renderCard({ intake: COMPLETE, again: true });
     await userEvent.click(screen.getByRole("button", { name: "Skip these questions" }));
