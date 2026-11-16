@@ -16,7 +16,8 @@ authors:
     family-names: Uzwyshyn
     affiliation: 'University of California, Riverside'
     orcid: 'https://orcid.org/0009-0002-3697-8548'
-  - alias: TianHengZhuang
+  - given-names: Tian Heng
+    family-names: Zhuang
     email: 39034691+TianHengZhuang@users.noreply.github.com
 repository-code: 'https://github.com/data-director-agent/data-director/'
 license: MIT
