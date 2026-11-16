@@ -27,12 +27,7 @@ from dd_agent_advisor_repository.classes import (
 )
 from dd_agent_advisor_repository.explain import Explainer, Item, TemplateExplainer
 from dd_agent_advisor_repository.records import DatabaseRecord, Re3dataRecord
-from dd_agent_advisor_repository.retrieve import (
-    Databases,
-    RegistryUnavailable,
-    Repositories,
-    SnapshotRef,
-)
+from dd_agent_advisor_repository.retrieve import Databases, Repositories
 from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
@@ -46,6 +41,7 @@ from dd_sdk.contract.models import (
     ReasonCode,
 )
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, HASH_ALGORITHM
+from dd_sdk.registry import RegistryUnavailable, SnapshotRef
 from dd_sdk.tracing import retrieval_span
 
 

@@ -7,8 +7,8 @@ import pytest
 from dd_agent_advisor_repository import assess, dfg, rank
 from dd_agent_advisor_repository.classes import AccessNeed, Affiliation, RepositoryNeeds
 from dd_agent_advisor_repository.records import Institution, Re3dataRecord
-from dd_agent_advisor_repository.retrieve import Hit, Query
 from dd_agent_advisor_repository.snapshot import fold, tokenise
+from dd_sdk.registry import Hit, Query
 
 NAMES = {
     "2": "Life Sciences",

@@ -13,6 +13,8 @@ import re
 import unicodedata
 from typing import Any
 
+from dd_sdk import explain
+
 # The fewest characters and words a quote needs to state an obligation, so that "yes" or
 # "required" alone, which occur in most records, cannot stand as evidence.
 MIN_QUOTE_CHARS = 15
@@ -64,9 +66,9 @@ def quote_problem(quote: str, document: dict[str, Any]) -> str | None:
     return None
 
 
-_IDENTIFIER = re.compile(r"\bFAIRsharing\.[0-9A-Za-z-]+", re.IGNORECASE)
+IDENTIFIER = re.compile(r"\bFAIRsharing\.[0-9A-Za-z-]+", re.IGNORECASE)
 
 
 def names_other_identifier(text: str, allowed: set[str]) -> bool:
     """Whether `text` names a FAIRsharing identifier outside `allowed`."""
-    return bool({x.casefold() for x in _IDENTIFIER.findall(text)} - {a.casefold() for a in allowed})
+    return explain.names_other_identifier(text, allowed, IDENTIFIER)

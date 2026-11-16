@@ -16,7 +16,8 @@ from collections.abc import Sequence
 
 from dd_agent_advisor_policy.classes import Actor, ActorRole
 from dd_agent_advisor_policy.records import PolicyRecord
-from dd_agent_advisor_policy.retrieve import Policies, Query
+from dd_agent_advisor_policy.retrieve import Policies
+from dd_sdk.registry import Query
 
 # FAIRsharing's policy types that answer for each role.
 TYPES = {

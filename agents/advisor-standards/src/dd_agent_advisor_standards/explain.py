@@ -21,27 +21,20 @@ from typing import Protocol
 from dd_agent_advisor_standards.classes import DatasetProfile, RecommendationKind
 from dd_agent_advisor_standards.fairsharing.records import Record
 from dd_agent_advisor_standards.retrieve import RetrievalAdapter
+from dd_sdk import explain
 from dd_sdk.agent import RunContext
-from dd_sdk.contract.models import Derivation
+from dd_sdk.explain import Rationale as Rationale
 from dd_sdk.model import Usage as Usage
-from dd_sdk.prompts import ModelCallLog
 
 # (record, kind, target, ranking reasons) — what an explainer is told about each recommendation.
 Item = tuple[Record, RecommendationKind, str, tuple[str, ...]]
 
-_FAIRSHARING_ID = re.compile(r"FAIRsharing\.[0-9a-z-]+", re.IGNORECASE)
+IDENTIFIER = re.compile(r"FAIRsharing\.[0-9a-z-]+", re.IGNORECASE)
 
 
 def names_other_identifier(text: str, allowed: set[str]) -> bool:
     """Whether `text` names a FAIRsharing identifier outside `allowed`."""
-    wanted = {a.lower() for a in allowed}
-    return any(m.lower() not in wanted for m in _FAIRSHARING_ID.findall(text))
-
-
-@dataclass(frozen=True)
-class Rationale:
-    text: str
-    derivation: Derivation
+    return explain.names_other_identifier(text, allowed, IDENTIFIER)
 
 
 @dataclass(frozen=True)
@@ -56,18 +49,11 @@ class Addition:
 
 
 @dataclass(frozen=True)
-class Explanation:
-    """One rationale per item, and the tokens spent on this call; with a model, what it added,
-    the concern it noted beside each item (or None), and what the agent did not take from it.
+class Explanation(explain.Explanation):
+    """One rationale per item, and the tokens spent on this call (`dd_sdk.explain.Explanation`);
+    with a model, what it added, the concern it noted beside each item (or None), and what the
+    agent did not take from it."""
 
-    Usage is returned rather than kept on the explainer, because one explainer instance serves
-    concurrent runs (`dd_sdk.serve` runs each request on its own thread).
-    """
-
-    rationales: list[Rationale]
-    usage: Usage
-    # The model calls made and the prompts sent (dd_sdk.prompts); None if no model was called.
-    calls: ModelCallLog | None = None
     concerns: Sequence[str | None] = ()
     additions: Sequence[Addition] = ()
     remarks: Sequence[str] = field(default_factory=list)
@@ -129,16 +115,9 @@ def template_rationale(
     )
 
 
-class TemplateExplainer:
-    model_id: str | None = None
+class TemplateExplainer(explain.TemplateExplainer[DatasetProfile, Item, Explanation]):
+    def rationale(self, item: Item) -> str:
+        return template_rationale(*item)
 
-    def explain(
-        self,
-        profile: DatasetProfile,
-        items: list[Item],
-        ctx: RunContext,
-        lookups: Lookups | None = None,
-    ) -> Explanation:
-        return Explanation(
-            [Rationale(template_rationale(*item), Derivation.TEMPLATE) for item in items], Usage()
-        )
+    def result(self, rationales: list[Rationale], usage: Usage) -> Explanation:
+        return Explanation(rationales, usage)

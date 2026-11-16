@@ -38,17 +38,16 @@ import re
 import sys
 import zipfile
 from collections.abc import Iterator, Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import cached_property
-from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import IO, Any, Protocol, runtime_checkable
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
-from dd_agent_advisor_policy.retrieve import RegistryUnavailable, SnapshotRef
+from dd_sdk.registry import RegistryUnavailable, SnapshotRef, pinned
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data" / "ror"
 MANIFEST = DATA_DIR / "manifest.json"
@@ -63,7 +62,6 @@ ZENODO_CONCEPT = "6347574"
 CITATION = "Research Organization Registry (ROR) data dump. https://doi.org/10.5281/zenodo.6347574"
 LICENCE = "CC0 1.0 (ROR data); see SOURCE.md"
 FETCH_COMMAND = "uv run dd-ror fetch"
-PREPARE_COMMAND = "uv run dd-sources prepare"
 TIMEOUT_S = 120.0
 LIVE_TIMEOUT_S = 20.0
 # The label of evidence from each copy: the registry, then which copy answered.
@@ -81,16 +79,7 @@ ACTIVE = "active"
 FUNDER = "funder"
 
 
-def _user_agent() -> str:
-    """Names the project and where to find it, never a person."""
-    try:
-        ours = version("data-director-agent-advisor-policy")
-    except PackageNotFoundError:
-        ours = "unknown"
-    return (
-        f"data-director-advisor-policy/{ours} "
-        "(+https://github.com/data-director-agent/data-director)"
-    )
+USER_AGENT = pinned.user_agent("data-director-agent-advisor-policy", "data-director-advisor-policy")
 
 
 def ror_url(value: str) -> str | None:
@@ -226,8 +215,11 @@ class Organisations(Protocol):
 # --- The pinned dump -----------------------------------------------------------------------
 
 
-class RorError(Exception):
+class RorError(pinned.PinError):
     """The registry cannot be built or read as pinned. The message says what to do."""
+
+
+DOWNLOAD = pinned.Downloader(USER_AGENT, TIMEOUT_S, RorError)
 
 
 @dataclass(frozen=True)
@@ -249,23 +241,10 @@ class Pin:
 
     @classmethod
     def load(cls, path: Path = MANIFEST) -> Pin:
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-            return cls(**data)
-        except (OSError, ValueError, TypeError) as exc:
-            raise RorError(f"ROR pin {path} cannot be read: {exc}") from None
+        return pinned.read_pin(cls, path, "ROR", RorError)
 
     def write(self, path: Path = MANIFEST) -> None:
-        text = json.dumps(asdict(self), indent=2, ensure_ascii=False) + "\n"
-        path.write_text(text, encoding="utf-8")
-
-
-def _sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as fh:
-        for chunk in iter(lambda: fh.read(1 << 20), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+        pinned.write_pin(self, path)
 
 
 def problem(registry: Path = REGISTRY, manifest: Path = MANIFEST) -> str | None:
@@ -274,14 +253,7 @@ def problem(registry: Path = REGISTRY, manifest: Path = MANIFEST) -> str | None:
         pin = Pin.load(manifest)
     except RorError as exc:
         return str(exc)
-    if not registry.is_file():
-        return f"the ROR registry is not built at {registry}; run `{PREPARE_COMMAND}`"
-    if _sha256(registry) != pin.snapshot_sha256:
-        return (
-            f"the ROR registry at {registry} does not match the pinned dump {pin.version}; "
-            f"run `{PREPARE_COMMAND}`"
-        )
-    return None
+    return pinned.problem(registry, pin.snapshot_sha256, "ROR", f"the pinned dump {pin.version}")
 
 
 def _items(fh: IO[str]) -> Iterator[dict[str, Any]]:
@@ -361,55 +333,12 @@ def build(archive: Path) -> bytes:
     ).encode("utf-8")
 
 
-def _client(client: httpx.Client | None, timeout: float) -> tuple[httpx.Client, bool]:
-    if client is not None:
-        return client, False
-    return httpx.Client(
-        timeout=timeout, follow_redirects=True, headers={"User-Agent": _user_agent()}
-    ), True
-
-
-def _download(url: str, dest: Path, client: httpx.Client | None) -> None:
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    partial = dest.with_suffix(".part")
-    http, own = _client(client, TIMEOUT_S)
-    try:
-        with http.stream("GET", url) as resp:
-            if resp.status_code != 200:
-                raise RorError(f"{url}: HTTP {resp.status_code}")
-            with partial.open("wb") as fh:
-                for chunk in resp.iter_bytes():
-                    fh.write(chunk)
-    except httpx.HTTPError as exc:
-        raise RorError(f"{url}: {exc}") from None
-    finally:
-        if own:
-            http.close()
-    partial.replace(dest)
-
-
 def _archive(url: str, sha256: str | None, cache_dir: Path, client: httpx.Client | None) -> Path:
-    """The dump at `url`, from the cache when it holds the pinned bytes. Downloaded at most once
-    per pin (Blueprint P14)."""
+    """The dump at `url`, from the cache when it holds the pinned bytes (`pinned.Downloader`)."""
     name = url.split("?", 1)[0].rstrip("/").rsplit("/", 1)[-1]
     if name == "content":  # Zenodo's API serves a file at .../files/<name>/content
         name = url.split("?", 1)[0].rstrip("/").rsplit("/", 2)[-2]
-    path = cache_dir / name
-    if path.is_file() and (
-        _sha256(path) == sha256 if sha256 is not None else zipfile.is_zipfile(path)
-    ):
-        return path
-    _download(url, path, client)
-    if sha256 is not None and (actual := _sha256(path)) != sha256:
-        raise RorError(f"{url} has sha256 {actual}, not the pinned {sha256}")
-    return path
-
-
-def _write(path: Path, data: bytes) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    partial = path.with_suffix(".part")
-    partial.write_bytes(data)
-    partial.replace(path)
+    return DOWNLOAD.archive(url, sha256, cache_dir / name, client)
 
 
 @dataclass(frozen=True)
@@ -423,7 +352,7 @@ class Latest:
 
 def latest(client: httpx.Client | None = None) -> Latest:
     """The newest ROR dump on Zenodo: its version (such as v2.15), file URL and DOI."""
-    http, own = _client(client, TIMEOUT_S)
+    http, own = DOWNLOAD.client(client)
     try:
         resp = http.get(f"{ZENODO_RECORDS}/{ZENODO_CONCEPT}/versions/latest")
         if resp.status_code != 200:
@@ -477,7 +406,7 @@ def fetch(
                 f"ror.py changed, run `{FETCH_COMMAND} --update-pin` and update both "
                 "sources.yaml pins"
             )
-        _write(registry, data)
+        pinned.write_atomic(registry, data)
         return Report(pin.version, pin.records, downloaded=True, pinned=False)
 
     now = now or datetime.now(UTC)
@@ -488,11 +417,11 @@ def fetch(
     except RorError:
         archive.unlink(missing_ok=True)
         raise
-    _write(registry, data)
+    pinned.write_atomic(registry, data)
     pin = Pin(
         version=newest.version,
         archive=newest.url,
-        archive_sha256=_sha256(archive),
+        archive_sha256=pinned.sha256_file(archive),
         doi=newest.doi,
         records=data.count(b"\n"),
         snapshot_sha256=hashlib.sha256(data).hexdigest(),
@@ -502,11 +431,7 @@ def fetch(
         current: Pin | None = Pin.load(manifest)
     except RorError:
         current = None
-    unchanged = current is not None and (
-        current.archive,
-        current.archive_sha256,
-        current.snapshot_sha256,
-    ) == (pin.archive, pin.archive_sha256, pin.snapshot_sha256)
+    unchanged = pinned.same_pin(current, pin)
     if not unchanged:
         pin.write(manifest)
     return Report(pin.version, pin.records, downloaded=True, pinned=not unchanged)
@@ -522,9 +447,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     sub.add_parser("check", help="exit 1 unless the registry is built as pinned")
     args = parser.parse_args(argv)
     if args.command == "check":
-        found = problem()
-        sys.stdout.write((found or "ROR registry matches its pin") + "\n")
-        return 1 if found else 0
+        return pinned.check(problem(), "ROR registry matches its pin")
     try:
         report = fetch(args.update_pin, args.cache_dir)
     except RorError as exc:
@@ -598,9 +521,7 @@ class RorLive:
 
     def _http(self) -> httpx.Client:
         if self._client is None:
-            self._client = httpx.Client(
-                timeout=LIVE_TIMEOUT_S, headers={"User-Agent": _user_agent()}
-            )
+            self._client = httpx.Client(timeout=LIVE_TIMEOUT_S, headers={"User-Agent": USER_AGENT})
         return self._client
 
     def _get(self, url: str, params: dict[str, str] | None = None) -> httpx.Response:

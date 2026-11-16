@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from dd_agent_advisor_policy.classes import Actor
 from dd_agent_advisor_policy.crossref import CrossrefJournal, CrossrefJournals, normal_issn
 from dd_agent_advisor_policy.opf import OpenPolicyFinder, OpfRecord
-from dd_agent_advisor_policy.retrieve import RegistryUnavailable
+from dd_sdk.registry import RegistryUnavailable
 
 # Records kept for one actor from Open Policy Finder, as from FAIRsharing (match.PER_ACTOR).
 PER_ACTOR = 3

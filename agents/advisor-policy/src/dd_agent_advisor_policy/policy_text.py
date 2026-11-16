@@ -29,14 +29,14 @@ import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from html.parser import HTMLParser
-from importlib.metadata import PackageNotFoundError, version
 from typing import Any, Protocol
 from urllib.parse import urljoin, urlsplit
 
 import httpx
 
 from dd_agent_advisor_policy import pdf_text
-from dd_agent_advisor_policy.retrieve import RegistryUnavailable, SnapshotRef
+from dd_agent_advisor_policy.ror import USER_AGENT
+from dd_sdk.registry import RegistryUnavailable, SnapshotRef
 
 LABEL = "policy-text"
 TIMEOUT_S = 30.0
@@ -68,18 +68,6 @@ _SPACES = re.compile(r"[ \t\f\v\u00a0]+")
 _LINES = re.compile(r"\n\s*\n+")
 _ANY_SPACE = re.compile(r"\s+")
 _SAYS_PDF = re.compile(r"\bpdf\b", re.IGNORECASE)
-
-
-def _user_agent() -> str:
-    """Names the project and where to find it, never a person."""
-    try:
-        ours = version("data-director-agent-advisor-policy")
-    except PackageNotFoundError:
-        ours = "unknown"
-    return (
-        f"data-director-advisor-policy/{ours} "
-        "(+https://github.com/data-director-agent/data-director)"
-    )
 
 
 class _Text(HTMLParser):
@@ -216,7 +204,7 @@ class PolicyPages:
     def _http(self) -> httpx.Client:
         if self._client is None:
             self._client = httpx.Client(
-                timeout=TIMEOUT_S, headers={"User-Agent": _user_agent()}, follow_redirects=True
+                timeout=TIMEOUT_S, headers={"User-Agent": USER_AGENT}, follow_redirects=True
             )
         return self._client
 
