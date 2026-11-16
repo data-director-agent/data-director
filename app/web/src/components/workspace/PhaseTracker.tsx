@@ -27,8 +27,11 @@ import type {
   StepMark,
   StepState,
 } from "../../flow/types";
-import { ListChecks, MessageSquarePlus } from "lucide-react";
+import { ListChecks, Map as MapIcon, MessageSquarePlus } from "lucide-react";
 
+import { locate, waitingOn } from "../../flow/journey";
+import type { ProjectDocument } from "../../project/api";
+import { Link, journeyPath } from "../../route";
 import { Button } from "../ui/Button";
 
 export type FlowLoad =
@@ -47,6 +50,10 @@ export interface TrackedProgress {
   error?: string | null;
   /** Opens the intake card with the current answers chosen (docs/specs/app.md, rule 25). */
   answerIntakeAgain?: () => void;
+  /** The project, whose journey map the strip links to. */
+  projectId?: string;
+  /** The project's documents, once read, for the count of what waits on the researcher. */
+  documents?: readonly ProjectDocument[];
 }
 
 const STATE_LABEL: Record<StepState, string> = {
@@ -63,8 +70,7 @@ export function PhaseTracker({
   tracked?: TrackedProgress | null;
 }) {
   const flow = load.state === "loaded" ? load.flow : null;
-  const suggested =
-    flow && tracked ? stepById(flow, tracked.progress.suggested) : null;
+  const located = flow && tracked ? locate(flow, tracked.progress.suggested) : null;
   return (
     <nav
       aria-labelledby="phases-heading"
@@ -103,10 +109,12 @@ export function PhaseTracker({
                 </p>
               )}
             <SuggestedNext
-              suggested={suggested}
+              located={located}
               entryChosen={tracked.progress.entry !== null}
+              projectId={tracked.projectId}
               start={tracked.startConversation}
             />
+            <JourneyLinks projectId={tracked.projectId} waiting={waitingOn(flow, tracked.progress, tracked.documents)} />
             {tracked.answerIntakeAgain && (
               <Button size="small" icon={ListChecks} onPress={tracked.answerIntakeAgain}>
                 Answer the setup questions again
@@ -261,21 +269,61 @@ function Step({
   );
 }
 
+function JourneyLinks({
+  projectId,
+  waiting,
+}: {
+  projectId: string | undefined;
+  waiting: number | undefined;
+}) {
+  if (!projectId) return null;
+  const mapPath = journeyPath(projectId);
+  return (
+    <>
+      {waiting !== undefined && waiting > 0 && (
+        <p className="phase-strip-where">
+          <Link to={mapPath}>
+            <span className="status status-warn">Waiting on you: {waiting}</span>
+          </Link>
+        </p>
+      )}
+      <p className="phase-strip-where">
+        <Link to={mapPath}>
+          <MapIcon size="1em" aria-hidden="true" /> Open the journey map
+        </Link>
+      </p>
+    </>
+  );
+}
+
 function SuggestedNext({
-  suggested,
+  located,
   entryChosen,
+  projectId,
   start,
 }: {
-  suggested: FlowStep | null;
+  located: ReturnType<typeof locate> | null;
   entryChosen: boolean;
+  projectId: string | undefined;
   start: ((step: FlowStep) => void) | undefined;
 }) {
+  const suggested = located?.step ?? null;
   return (
     <>
       <p className="phase-strip-where" role="status">
-        {suggested ? (
+        {suggested && located ? (
           <>
-            Suggested next: <strong>{suggested.label}</strong>
+            Suggested next:{" "}
+            {projectId ? (
+              <Link to={journeyPath(projectId, suggested.id)}>
+                <strong>{suggested.label}</strong>
+              </Link>
+            ) : (
+              <strong>{suggested.label}</strong>
+            )}{" "}
+            <span className="muted">
+              (phase {located.phase.number}, {located.phase.name})
+            </span>
           </>
         ) : entryChosen ? (
           "Every step from where you started is done or skipped."
@@ -306,15 +354,6 @@ function StartButton({
       Start a conversation
     </Button>
   );
-}
-
-function stepById(flow: ProcessFlow, id: string | null): FlowStep | null {
-  if (!id) return null;
-  for (const phase of flow.phases) {
-    const found = phase.steps.find((s) => s.id === id);
-    if (found) return found;
-  }
-  return null;
 }
 
 function capitalised(text: string): string {

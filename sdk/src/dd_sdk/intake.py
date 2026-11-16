@@ -65,6 +65,9 @@ class IntakeQuestion:
     options: tuple[IntakeOption, ...]
     # The entry points (their numbers) the question is asked from.
     asked_from: tuple[int, ...]
+    # The step the question's decision sits before in §8's figures, where the journey map draws
+    # it; empty for the entry question, which the map draws as the entry points themselves.
+    before: str = ""
 
     def asked_at(self, entry: int | None) -> bool:
         """Whether the question is asked of a project at `entry`; the entry question always is."""
@@ -96,6 +99,7 @@ def _yes_no(
     yes: tuple[str, ...] = (),
     no: tuple[str, ...] = (),
     yes_notice: str = "",
+    before: str,
 ) -> IntakeQuestion:
     return IntakeQuestion(
         question_id,
@@ -106,6 +110,7 @@ def _yes_no(
             IntakeOption(NOT_SURE, "Not sure"),
         ),
         asked_from,
+        before,
     )
 
 
@@ -130,6 +135,7 @@ INTAKE: tuple[IntakeQuestion, ...] = (
         "intake.dmp",
         "Do you have a Data Management Plan for this project?",
         (1, 2),
+        before="setup.dmp-create",
     ),
     _yes_no(
         "intake.sensitive",
@@ -137,6 +143,7 @@ INTAKE: tuple[IntakeQuestion, ...] = (
         (1, 2),
         no=("governance.sensitive-data-identify", "governance.sensitive-data-handle"),
         yes_notice=SENSITIVE_NOTICE,
+        before="governance.sensitive-data-identify",
     ),
     _yes_no(
         "intake.repository-mandated",
@@ -144,6 +151,7 @@ INTAKE: tuple[IntakeQuestion, ...] = (
         (1, 2, 3),
         yes=("repository.recommend",),
         no=("repository.mandated",),
+        before="repository.mandated",
     ),
 )
 
