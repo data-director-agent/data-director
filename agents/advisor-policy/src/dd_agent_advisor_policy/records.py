@@ -14,7 +14,8 @@ is the same document, so what the reader is shown is what the hash covers (docs/
 
 from __future__ import annotations
 
-from typing import Any
+import json
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -100,9 +101,31 @@ class PolicyRecord(BaseModel):
         unique = {(r.relation, r.registry, r.name, r.numeric_id): r for r in values}
         return [unique[k] for k in sorted(unique, key=lambda k: tuple(x or "" for x in k))]
 
+    # What every source record offers the agent (retrieve.SourceRecord).
+    registry: ClassVar[str] = "FAIRsharing"
+
+    @property
+    def source_id(self) -> str:
+        return self.fairsharing_id
+
     @property
     def source_uri(self) -> str:
         return PUBLIC_RECORD_URL.format(id=self.fairsharing_id)
+
+    @property
+    def label(self) -> str:
+        return f"{self.name} ({self.fairsharing_id})"
+
+    @property
+    def kind(self) -> str | None:
+        return self.policy_type
+
+    def all_names(self) -> list[str]:
+        return self.names()
+
+    def prompt_text(self, limit: int = 6000) -> str:
+        text = json.dumps(self.document(), ensure_ascii=False, sort_keys=True)
+        return text if len(text) <= limit else text[:limit] + " …(truncated)"
 
     def document(self) -> dict[str, Any]:
         return self.model_dump(mode="json")

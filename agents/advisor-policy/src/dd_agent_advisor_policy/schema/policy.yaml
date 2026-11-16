@@ -41,12 +41,14 @@ classes:
     description: >-
       A funder, journal or institution. The FAIRsharing identifier of its policy is used when
       given; otherwise the name is looked up. A funder is first identified in ROR, by its ROR
-      identifier when given, otherwise by its name.
+      identifier when given, otherwise by its name. A journal is identified by its ISSN when
+      given, otherwise by its title, and linked to its publisher.
     slots:
       - role
       - name
       - fairsharing_id
       - ror_id
+      - issn
 
   PolicyChecks:
     description: >-
@@ -62,18 +64,23 @@ classes:
       - mandated_repositories
       - no_record
       - funders
+      - journals
       - ambiguous
       - searched
 
   MatchedPolicy:
     description: >-
-      One policy record matched to an actor. It is named only in grounded_on; the record's name,
-      clauses and relations are in the cited evidence item's content (docs/specs/grounding.md).
+      One policy record matched to an actor, from FAIRsharing or Open Policy Finder. It is named
+      only in grounded_on; the record's name, clauses and policies are in the cited evidence
+      item's content (docs/specs/grounding.md). A record a model found with its tools, rather
+      than the first search, has match_derivation model.
     mixins:
       - Grounded
     slots:
       - actor
       - role
+      - registry
+      - match_derivation
       - obligations
       - notes
       - rationale
@@ -81,12 +88,17 @@ classes:
 
   Obligation:
     description: >-
-      What a policy record says about one kind of obligation, read from a curated field by a
-      fixed rule.
+      What a policy record says about one kind of obligation. Read from a curated field by a
+      fixed rule (derivation registry), or stated by a model with a quote from the record that
+      the agent found in it, word for word, before keeping it (derivation model).
     slots:
       - kind
       - strength
       - recorded_as
+      - scope
+      - value
+      - quote
+      - derivation
 
   PolicyConflict:
     description: >-
@@ -116,11 +128,23 @@ classes:
       - actor
       - crossref_funder_id
 
+  ResolvedJournal:
+    description: >-
+      A journal identified in Crossref or Open Policy Finder, and the publisher whose policy it
+      follows. Grounded on the journal's record.
+    mixins:
+      - Grounded
+    slots:
+      - actor
+      - publisher
+      - issn
+
   AmbiguousActor:
     description: >-
-      A funder whose name could mean more than one organisation in ROR. Grounded on each
-      candidate, likeliest first; the agent does not choose. Its policy was not looked up: the
-      researcher says which they mean, by giving its ROR identifier.
+      A funder whose name could mean more than one organisation in ROR, or a journal title that
+      could mean more than one journal. Grounded on each candidate, likeliest first; the agent
+      does not choose. Its policy was not looked up: the researcher says which they mean, by
+      giving its ROR identifier or ISSN.
     mixins:
       - Grounded
     slots:
@@ -166,6 +190,11 @@ slots:
     description: >-
       The organisation's ROR identifier, e.g. https://ror.org/02b5d8509 or 02b5d8509.
     pattern: "^(https?://ror\\.org/)?0[a-z0-9]{6}[0-9]{2}$"
+  issn:
+    description: A journal's ISSN, e.g. 0048-9697.
+    pattern: "^\\d{4}-?\\d{3}[\\dXx]$"
+  publisher:
+    description: The publisher's name, as the journal's record gives it.
   re3data_id:
     description: The re3data identifier, e.g. r3d100010230.
     pattern: "^r3d\\d+$"
@@ -195,10 +224,17 @@ slots:
     range: ResolvedFunder
     multivalued: true
     inlined_as_list: true
+  journals:
+    description: >-
+      The journals identified, each with its publisher and grounded on its record, so that the
+      publisher's policy can be looked up.
+    range: ResolvedJournal
+    multivalued: true
+    inlined_as_list: true
   ambiguous:
     description: >-
-      Funders whose name could mean more than one organisation in ROR. The researcher should say
-      which; their policies were not looked up.
+      Funders or journals whose name could mean more than one. The researcher should say which;
+      their policies were not looked up.
     range: AmbiguousActor
     multivalued: true
     inlined_as_list: true
@@ -221,6 +257,16 @@ slots:
       Facts to weigh beside the obligations, such as a policy subject outside the discipline or a
       policy dated after the publication.
     multivalued: true
+  registry:
+    description: The registry the policy record came from.
+    range: PolicyRegistry
+    required: true
+  match_derivation:
+    description: >-
+      How the record was matched to the actor: registry, by the agent's fixed rule over the
+      first search, or model, by a model with its search tools.
+    range: Derivation
+    required: true
   rationale:
     required: true
   rationale_derivation:
@@ -237,6 +283,21 @@ slots:
     description: >-
       The value FAIRsharing's curators recorded, such as "suggested" or "no", kept so that an
       unstated strength does not hide what the record says.
+  scope:
+    description: >-
+      What the obligation is about: the data, or the publication (an open access policy's
+      embargo or licence applies to the article, not the data).
+    range: PolicyScope
+  value:
+    description: >-
+      What the policy asks, in brief, e.g. "within two years of the end of the grant" or
+      "CC BY 4.0".
+  quote:
+    description: >-
+      The words of the record that state the obligation, found in it word for word by the agent.
+  derivation:
+    description: How the obligation was read, registry (a fixed rule) or model.
+    range: Derivation
   description:
     required: true
 
@@ -273,6 +334,20 @@ enums:
         description: The licence the outputs are released under.
       timing:
         description: When the data must be shared.
+
+  PolicyRegistry:
+    permissible_values:
+      fairsharing:
+        description: FAIRsharing's policy records.
+      open_policy_finder:
+        description: Jisc Open Policy Finder (formerly Sherpa Romeo and Juliet).
+
+  PolicyScope:
+    permissible_values:
+      data:
+        description: The research data.
+      publication:
+        description: The article or other publication, e.g. where it may be deposited.
 
   Strength:
     permissible_values:

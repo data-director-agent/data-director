@@ -1,15 +1,25 @@
-"""The policy advisor: retrieve → match → assess → explain, over FAIRsharing's policy records.
+"""The policy advisor: retrieve → match → assess → advise, over FAIRsharing's policy records,
+Jisc Open Policy Finder's and Crossref's journals.
 
 It serves the first step of Phase 2 (Figure 2), checking funder, journal and institutional data
 sharing policies, and the first step of Phase 3 (Figure 3), whether the funder, journal or
 institution mandates a repository. The repositories a policy requires are returned in the form
 `advisor.repository` takes as `RepositoryNeeds.mandated`.
 
-Grounding invariant: retrieval precedes any model call, and the model never determines which
-policies are matched or what any obligation is. A matched policy names its record once, in
-`grounded_on`; what the reader is shown about it is the evidence item's `content`, which the linter
-re-hashes (E1, docs/specs/grounding.md). Where policies differ, the agent flags it for human review
-and never decides which applies.
+Grounding invariant: retrieval precedes any model call, and a model's word is never taken alone.
+The first search is fixed rules (`match.py`, `discover.py`); the model advisor then reads what it
+found and may search for more, and the agent keeps an obligation it states only with a quote found
+in the cited record, a record it adds only if a tool retrieved it in this run and it is a policy
+of the actor's kind, and never removes a policy or an obligation the rules found (`advise.py`).
+Each value says how it was derived (`match_derivation`, `derivation`). A matched policy names its
+record once, in `grounded_on`; what the reader is shown about it is the evidence item's `content`,
+which the linter re-hashes (E1, docs/specs/grounding.md). Where policies differ, the agent flags it
+for human review and never decides which applies.
+
+A journal is identified by its ISSN or title in Open Policy Finder and Crossref, and its
+publisher's name is searched too, since most journals follow their publisher's policy (#905).
+Open Policy Finder is read live, with a key; without one it is not searched and the statement
+says so.
 
 Before FAIRsharing is searched, each funder is identified in ROR (`resolve.py`): a name that ROR
 gives to one organisation is searched by every name ROR records for it, and the funder's ROR record
@@ -20,25 +30,38 @@ which they mean. ROR's records are evidence like FAIRsharing's, under the same c
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import UTC, datetime
 
-from dd_agent_advisor_policy import assess, match
+from dd_agent_advisor_policy import assess, discover, match
+from dd_agent_advisor_policy.advise import Lookups
 from dd_agent_advisor_policy.classes import (
     Actor,
     ActorRole,
     AmbiguousActor,
     MatchedPolicy,
+    Obligation,
     PolicyChecks,
     PolicyConflict,
     PolicyContext,
+    PolicyRegistry,
     RepositoryRef,
     ResolvedFunder,
+    ResolvedJournal,
     SearchedSummary,
+    Strength,
 )
-from dd_agent_advisor_policy.explain import Explainer, Item, TemplateExplainer
+from dd_agent_advisor_policy.crossref import CrossrefJournals
+from dd_agent_advisor_policy.explain import Explainer, Item, Rationale, TemplateExplainer
+from dd_agent_advisor_policy.opf import OpenPolicyFinder, OpfRecord
 from dd_agent_advisor_policy.records import PolicyRecord
 from dd_agent_advisor_policy.resolve import Ambiguous, Resolution, Resolved, Unknown, names, resolve
-from dd_agent_advisor_policy.retrieve import Policies, RegistryUnavailable, SnapshotRef
+from dd_agent_advisor_policy.retrieve import (
+    Policies,
+    RegistryUnavailable,
+    SnapshotRef,
+    SourceRecord,
+)
 from dd_agent_advisor_policy.ror import Organisation, Organisations
 from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
 from dd_sdk.contract.classes import ClassSchema
@@ -62,8 +85,8 @@ def _abstain(reason: ReasonCode, statement: str) -> AgentResult:
     )
 
 
-def _ref(record: PolicyRecord) -> GroundingRef:
-    return GroundingRef(source_id=record.fairsharing_id, content_hash=record.content_hash())
+def _ref(record: SourceRecord) -> GroundingRef:
+    return GroundingRef(source_id=record.source_id, content_hash=record.content_hash())
 
 
 def organisation_hash(org: Organisation) -> str:
@@ -93,14 +116,35 @@ def _ambiguity(actor: Actor, candidates: tuple[Organisation, ...]) -> str:
     )
 
 
+def _journal_ambiguity(actor: Actor, candidates: Sequence[SourceRecord]) -> str:
+    return (
+        f"{actor.name!r} could be any of {len(candidates)} journals: "
+        + "; ".join(c.label for c in candidates)
+        + ". Say which, by giving its ISSN, and its policy will be looked up."
+    )
+
+
+def _registry(record: SourceRecord) -> PolicyRegistry:
+    return (
+        PolicyRegistry.FAIRSHARING
+        if isinstance(record, PolicyRecord)
+        else PolicyRegistry.OPEN_POLICY_FINDER
+    )
+
+
+def _stated(obligations: tuple[Obligation, ...]) -> list[Obligation]:
+    return list(obligations)
+
+
 class PolicyAgent:
     spec = AgentSpec(
         agent_id="advisor.policy",
         title="Policy Adviser",
         version="0.1.0-alpha",
         description=(
-            "Checks what the data policies of a project's funders, journals and institution ask "
-            "of its data, as FAIRsharing's policy records state it, and flags where they differ. "
+            "Checks what the data and open access policies of a project's funders, journals and "
+            "institution ask of it, from FAIRsharing's policy records and Jisc Open Policy "
+            "Finder's, with each obligation quoted from its record, and flags where they differ. "
             "A person decides which applies."
         ),
         action_class="advise",
@@ -108,13 +152,18 @@ class PolicyAgent:
         grounding_mode=GroundingMode.RETRIEVAL,
         payload=ClassSchema.of(PolicyChecks),
         derivations={
-            "policies.obligations.strength": Derived(Derivation.REGISTRY),
+            "policies.match_derivation": Derived(Derivation.REGISTRY),
+            "policies.obligations.strength": Derived(Derivation.REGISTRY, recorded_in="derivation"),
             "policies.obligations.recorded_as": Derived(Derivation.REGISTRY),
+            "policies.obligations.scope": Derived(Derivation.REGISTRY, recorded_in="derivation"),
+            "policies.obligations.value": Derived(Derivation.MODEL, recorded_in="derivation"),
+            "policies.obligations.quote": Derived(Derivation.MODEL, recorded_in="derivation"),
             "policies.notes": Derived(Derivation.TEMPLATE),
             "policies.rationale": Derived(Derivation.MODEL, recorded_in="rationale_derivation"),
             "conflicts.description": Derived(Derivation.TEMPLATE),
             "mandated_repositories.name": Derived(Derivation.REGISTRY),
             "funders.crossref_funder_id": Derived(Derivation.REGISTRY),
+            "journals.publisher": Derived(Derivation.REGISTRY),
         },
         serves=("governance.policies", "repository.mandated"),
     )
@@ -126,12 +175,16 @@ class PolicyAgent:
         fallback: Policies | None = None,
         organisations: Organisations | None = None,
         organisations_fallback: Organisations | None = None,
+        opf: OpenPolicyFinder | None = None,
+        crossref: CrossrefJournals | None = None,
     ) -> None:
         self.policies = policies
         self.fallback = fallback
         self.explainer = explainer or TemplateExplainer()
         self.organisations = organisations
         self.organisations_fallback = organisations_fallback
+        self.opf = opf
+        self.crossref = crossref
 
     def _resolve(self, actors: list[Actor]) -> tuple[list[Resolution], str | None, str | None]:
         """Each actor's resolution in ROR, which copy of ROR answered, and why ROR was not
@@ -155,6 +208,16 @@ class PolicyAgent:
             stale = SnapshotRef(label=self.organisations_fallback.snapshot_ref().label, stale=True)
             return found, stale.as_string(), None
 
+    def _journals(self, actors: list[Actor]) -> dict[int, discover.Journal]:
+        """What Open Policy Finder and Crossref say about each journal given by name or ISSN."""
+        if self.opf is None and self.crossref is None:
+            return {}
+        return {
+            n: discover.journal(actor, self.opf, self.crossref)
+            for n, actor in enumerate(actors)
+            if actor.role == ActorRole.JOURNAL and not actor.fairsharing_id
+        }
+
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
         context = request.input
         assert isinstance(context, PolicyContext)  # the conductor checked spec.accepts
@@ -164,24 +227,31 @@ class PolicyAgent:
                 "The context names no funder, journal or institution, so there was no policy "
                 "to look up.",
             )
+        actors = list(context.actors)
 
-        resolutions, ror_where, ror_unavailable = self._resolve(context.actors)
+        # --- the first search: fixed rules over each registry --------------------------------
+        resolutions, ror_where, ror_unavailable = self._resolve(actors)
+        journals = self._journals(actors)
         ambiguous = [
             (actor, r.candidates)
-            for actor, r in zip(context.actors, resolutions, strict=True)
+            for actor, r in zip(actors, resolutions, strict=True)
             if isinstance(r, Ambiguous)
+        ]
+        ambiguous_journals = [
+            (actors[n], list(j.candidates)) for n, j in journals.items() if j.candidates
         ]
         resolved = [
             (actor, r.organisation)
-            for actor, r in zip(context.actors, resolutions, strict=True)
+            for actor, r in zip(actors, resolutions, strict=True)
             if isinstance(r, Resolved)
         ]
-        # An ambiguous funder is not searched: its policy is looked up once the researcher says
-        # which organisation they mean.
+        blocked = {a.name for a, _ in ambiguous} | {a.name for a, _ in ambiguous_journals}
+        # An ambiguous funder or journal is not searched: its policy is looked up once the
+        # researcher says which they mean. A journal is searched by its publisher's names too.
         searched = [
-            (actor, names(actor, r))
-            for actor, r in zip(context.actors, resolutions, strict=True)
-            if not isinstance(r, Ambiguous)
+            (actor, names(actor, r) + (journals[n].publisher_names if n in journals else []))
+            for n, (actor, r) in enumerate(zip(actors, resolutions, strict=True))
+            if actor.name not in blocked
         ]
 
         snapshot_ref = self.policies.snapshot_ref()
@@ -207,17 +277,56 @@ class PolicyAgent:
             )
         where = snapshot_ref.as_string()
 
-        records: dict[str, PolicyRecord] = {}
-        for _, found in matched:
-            for record in found:
-                records.setdefault(record.fairsharing_id, record)
+        problems: list[str] = []
+        queries_extra: list[str] = []
+        opf_matched: list[tuple[Actor, list[OpfRecord]]] = []
+        by_name = {a.name: n for n, a in enumerate(actors)}
+        for actor, wanted in searched:
+            n = by_name[actor.name]
+            if actor.role == ActorRole.FUNDER and self.opf is not None:
+                try:
+                    found, asked = discover.funders(actor, wanted, self.opf)
+                    queries_extra += asked
+                    opf_matched.append((actor, found))
+                except RegistryUnavailable as exc:
+                    problems.append(str(exc))
+            elif n in journals:
+                journal = journals[n]
+                queries_extra += journal.queries
+                problems += journal.problems
+                # The journal's own record carries its publishers' policies; a publisher's
+                # record stands in only when Open Policy Finder has none for the journal.
+                own = [journal.record] if journal.record else journal.publishers
+                opf_matched.append((actor, own[: discover.PER_ACTOR]))
+        for _, j in journals.items():
+            queries_extra += (
+                [q for q in j.queries if q not in queries_extra] if j.candidates else []
+            )
+
+        # Every record retrieved, which a model may read and the payload may cite.
+        records: dict[str, SourceRecord] = {}
+        for _, fs in matched:
+            for fs_record in fs:
+                records.setdefault(fs_record.source_id, fs_record)
+        for _, opf_records in opf_matched:
+            for opf_record in opf_records:
+                records.setdefault(opf_record.source_id, opf_record)
+        for journal in journals.values():
+            for other in (
+                journal.record,
+                journal.crossref,
+                *journal.publishers,
+                *journal.candidates,
+            ):
+                if other is not None:
+                    records.setdefault(other.source_id, other)
         organisations: dict[str, Organisation] = {org.id: org for _, org in resolved}
         for _, candidates in ambiguous:
             for org in candidates:
                 organisations.setdefault(org.id, org)
         # One retrieval span per record: this is the evidence the linter matches on.
-        for fid, record in records.items():
-            with retrieval_span(ctx.tracer, fid, record.content_hash()):
+        for sid, retrieved in records.items():
+            with retrieval_span(ctx.tracer, sid, retrieved.content_hash()):
                 pass
         for oid, org in organisations.items():
             with retrieval_span(ctx.tracer, oid, organisation_hash(org)):
@@ -230,13 +339,28 @@ class PolicyAgent:
         ]
         queries += [f"ror: {actor.ror_id or repr(actor.name)}" for actor, _ in ambiguous]
         queries += [f"ror: {actor.ror_id or repr(actor.name)}" for actor, _ in resolved]
-        no_record = [actor.name for actor, found in matched if not found]
+        queries += queries_extra
         ror_note = (
             f" ROR was not consulted ({ror_unavailable}); funders were searched by the name given."
             if ror_unavailable
             else ""
         )
-        questions = " ".join(_ambiguity(actor, candidates) for actor, candidates in ambiguous)
+        opf_note = ""
+        if self.opf is None and any(
+            a.role in (ActorRole.FUNDER, ActorRole.JOURNAL) for a in actors
+        ):
+            opf_note = (
+                " Open Policy Finder was not searched: no OPEN_POLICY_FINDER_API_KEY is set, so "
+                "funders' and journals' open access policies were not checked."
+            )
+        if problems:
+            opf_note += (
+                " Not every registry could be asked: " + "; ".join(dict.fromkeys(problems)) + "."
+            )
+        questions = " ".join(
+            [_ambiguity(actor, candidates) for actor, candidates in ambiguous]
+            + [_journal_ambiguity(actor, candidates) for actor, candidates in ambiguous_journals]
+        )
         funders = [
             ResolvedFunder(
                 actor=actor.name,
@@ -245,6 +369,16 @@ class PolicyAgent:
             )
             for actor, org in resolved
         ]
+        resolved_journals = [
+            ResolvedJournal(
+                actor=actors[n].name,
+                publisher=j.publisher,
+                issn=j.issn,
+                grounded_on=[_ref(r) for r in (j.record, j.crossref) if r is not None],
+            )
+            for n, j in journals.items()
+            if not j.candidates and (j.record or j.crossref)
+        ]
         unresolved = [
             AmbiguousActor(
                 actor=actor.name,
@@ -252,13 +386,25 @@ class PolicyAgent:
                 grounded_on=[_org_ref(o) for o in candidates],
             )
             for actor, candidates in ambiguous
+        ] + [
+            AmbiguousActor(actor=actor.name, role=actor.role, grounded_on=[_ref(c) for c in cands])
+            for actor, cands in ambiguous_journals
         ]
-        org_refs = [_org_ref(o) for _, o in sorted(organisations.items())]
-        searched_summary = SearchedSummary(
-            queries=queries,
-            snapshot_ref=where if ror_where is None else f"{where}; {ror_where}",
-            policies_retrieved=len(records),
-        )
+        labels = [where] + [
+            ref
+            for ref, used in (
+                (ror_where, ror_where is not None),
+                (
+                    self.opf.snapshot_ref().as_string() if self.opf else None,
+                    bool(opf_matched) or bool(journals),
+                ),
+                (
+                    self.crossref.snapshot_ref().as_string() if self.crossref else None,
+                    any(j.crossref or j.candidates for j in journals.values()),
+                ),
+            )
+            if used and ref
+        ]
         identified = (
             " Funders identified in ROR: "
             + "; ".join(f"{actor.name!r} as {_candidate(org)}" for actor, org in resolved)
@@ -266,38 +412,27 @@ class PolicyAgent:
             if resolved
             else ""
         )
+        if resolved_journals:
+            identified += (
+                " Journals identified: "
+                + "; ".join(
+                    f"{j.actor!r}, published by {j.publisher or 'a publisher not named'}"
+                    for j in resolved_journals
+                )
+                + "."
+            )
         if not records and not organisations:
+            no_record = [actor.name for actor, _ in searched]
             return _abstain(
                 ReasonCode.NO_CANDIDATES_RETRIEVED,
-                f"FAIRsharing ({where}) has no policy record for {', '.join(no_record)}. "
-                "Many institutions have none; check the policies directly, including whether "
-                "they require a particular repository." + ror_note,
-            )
-        # No policy, but ROR identified a funder or found candidates for one: the payload carries
-        # them, grounded on their ROR records, so the identifier can be passed on or chosen.
-        if not records:
-            statement = "No policy record was matched." + identified
-            if questions:
-                statement += " " + questions
-            if no_record:
-                statement += (
-                    f" FAIRsharing ({where}) has no policy record for {', '.join(no_record)}; "
-                    "check their policies directly, including whether they require a particular "
-                    "repository."
-                )
-            statement += ror_note + " Human review is required."
-            return AgentResult(
-                outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement=statement),
-                payload=PolicyChecks(
-                    no_record=no_record,
-                    funders=funders,
-                    ambiguous=unresolved,
-                    searched=searched_summary,
-                    grounded_on=org_refs,
-                ),
-                evidence=self._org_evidence(organisations, ror_where or ""),
+                f"No registry ({'; '.join(labels)}) has a policy record for "
+                f"{', '.join(no_record)}. Many institutions have none; check the policies "
+                "directly, including whether they require a particular repository."
+                + ror_note
+                + opf_note,
             )
 
+        # --- assess by rule, then advise ------------------------------------------------------
         items = [
             Item(
                 record=record,
@@ -307,43 +442,160 @@ class PolicyAgent:
             )
             for actor, found in matched
             for record in found
+        ] + [
+            Item(record=record, actor=actor, obligations=(), notes=())
+            for actor, found in opf_matched
+            for record in found
         ]
-        # Explain — after retrieval, over assessed policies only.
-        explanation = self.explainer.explain(context, items, ctx)
+        lookups = Lookups(
+            policies=self.fallback if snapshot_ref.stale else self.policies,
+            opf=self.opf,
+            crossref=self.crossref,
+            records=dict(records),
+            blocked=frozenset(blocked),
+        )
+        explanation = self.explainer.explain(context, items, ctx, lookups)
+        if explanation.obligations is not None or explanation.notes is not None:
+            items = [
+                Item(
+                    record=item.record,
+                    actor=item.actor,
+                    obligations=(
+                        explanation.obligations[n]
+                        if explanation.obligations is not None
+                        else item.obligations
+                    ),
+                    notes=explanation.notes[n] if explanation.notes is not None else item.notes,
+                    matched_by=item.matched_by,
+                )
+                for n, item in enumerate(items)
+            ]
+        advised: list[tuple[Item, Rationale]] = list(
+            zip(items, explanation.rationales, strict=True)
+        ) + list(explanation.found)
+        # Records a model's tools retrieved, of which those cited are evidence.
+        for sid, looked_up in lookups.records.items():
+            records.setdefault(sid, looked_up)
+
+        no_record = [
+            actor.name
+            for actor, _ in searched
+            if not any(item.actor.name == actor.name for item, _ in advised)
+        ]
+        searched_summary = SearchedSummary(
+            queries=queries,
+            snapshot_ref="; ".join(labels),
+            policies_retrieved=len({item.record.source_id for item, _ in advised}),
+        )
+        remarks = " ".join(explanation.remarks)
+        cited: dict[str, SourceRecord] = {}
+        for jr in resolved_journals + [u for u in unresolved if u.role == ActorRole.JOURNAL]:
+            for grounding in jr.grounded_on:
+                if grounding.source_id in records:
+                    cited[grounding.source_id] = records[grounding.source_id]
+        model_id = self.explainer.model_id if explanation.calls else None
+        model_calls = explanation.calls.calls if explanation.calls else ()
+        prompts = explanation.calls.prompts if explanation.calls else {}
+        # No policy, but ROR identified a funder, a journal was identified, or there are
+        # candidates to choose from: the payload carries them, grounded on their records.
+        if not advised:
+            statement = "No policy record was matched." + identified
+            if questions:
+                statement += " " + questions
+            if no_record:
+                statement += (
+                    f" No registry ({'; '.join(labels)}) has a policy record for "
+                    f"{', '.join(no_record)}; check their policies directly, including whether "
+                    "they require a particular repository."
+                )
+            statement += ror_note + opf_note
+            if remarks:
+                statement += " " + remarks
+            statement += " Human review is required."
+            return AgentResult(
+                outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement=statement),
+                payload=PolicyChecks(
+                    no_record=no_record,
+                    funders=funders,
+                    journals=resolved_journals,
+                    ambiguous=unresolved,
+                    searched=searched_summary,
+                    grounded_on=[_ref(r) for _, r in sorted(cited.items())]
+                    + [_org_ref(o) for _, o in sorted(organisations.items())],
+                ),
+                evidence=self._evidence(cited, self._labels(where, ror_where))
+                + self._org_evidence(organisations, ror_where or ""),
+                model_id=model_id,
+                input_tokens=explanation.usage.input_tokens,
+                output_tokens=explanation.usage.output_tokens,
+                model_calls=model_calls,
+                prompts=prompts,
+            )
+
         policies = [
             MatchedPolicy(
                 actor=item.actor.name,
                 role=item.actor.role,
-                obligations=list(item.obligations),
+                registry=_registry(item.record),
+                match_derivation=item.matched_by,
+                obligations=_stated(item.obligations),
                 notes=list(item.notes),
                 rationale=rationale.text,
                 rationale_derivation=rationale.derivation,
                 grounded_on=[_ref(item.record)],
             )
-            for item, rationale in zip(items, explanation.rationales, strict=True)
+            for item, rationale in advised
         ]
-
+        stated: dict[str, assess.Stated] = {}
+        for item, _ in advised:
+            held = stated.get(item.record.source_id)
+            obligations = (*held.obligations, *item.obligations) if held else item.obligations
+            stated[item.record.source_id] = assess.Stated(item.record, obligations)
         conflicts = [
             PolicyConflict(
                 kind=kind,
                 description=description,
                 grounded_on=[_ref(r) for r in involved],
             )
-            for kind, involved, description in assess.conflicts(
-                [assess.Stated(r, assess.obligations(r)) for r in records.values()]
-            )
+            for kind, involved, description in assess.conflicts(list(stated.values()))
         ]
         mandated: dict[str, RepositoryRef] = {}
-        for record in records.values():
-            for ref in assess.mandated(record):
-                mandated.setdefault(ref.name.casefold(), ref)
-
-        evidence = self._evidence(records, where)
-        statement = (
-            f"Policies matched: {len(policies)} for "
-            f"{len(searched) - len(no_record)} of {len(context.actors)} actor(s), "
-            f"grounded in {len(evidence)} FAIRsharing record(s) ({where})."
+        for item, _ in advised:
+            if isinstance(item.record, PolicyRecord):
+                for ref in assess.mandated(item.record):
+                    mandated.setdefault(ref.name.casefold(), ref)
+        named_repositories = sorted(
+            {
+                o.value
+                for item, _ in advised
+                for o in item.obligations
+                if o.kind.value == "repository"
+                and o.strength == Strength.REQUIRED
+                and o.derivation == Derivation.MODEL
+                and o.value
+            }
         )
+        for item, _ in advised:
+            cited[item.record.source_id] = item.record
+
+        evidence = self._evidence(cited, self._labels(where, ror_where))
+        actors_matched = len({item.actor.name for item, _ in advised})
+        by_model = sum(1 for item, _ in advised if item.matched_by == Derivation.MODEL)
+        quoted = sum(
+            1 for item, _ in advised for o in item.obligations if o.derivation == Derivation.MODEL
+        )
+        registries = sorted({item.record.registry for item, _ in advised})
+        statement = (
+            f"Policies matched: {len(policies)} for {actors_matched} of {len(actors)} actor(s), "
+            f"from {' and '.join(registries)} ({'; '.join(labels)})."
+        )
+        if by_model:
+            statement += f" Of these, {by_model} were found by a model with its search tools."
+        if quoted:
+            statement += (
+                f" Obligations read from the records' text by a model: {quoted}, each with a "
+                "quote found in its record."
+            )
         statement += identified
         if questions:
             statement += " " + questions
@@ -355,18 +607,27 @@ class PolicyAgent:
         if mandated:
             statement += " Repositories required: " + ", ".join(r.name for r in mandated.values())
             statement += "."
-        else:
+        if named_repositories:
             statement += (
-                " No matched record names a required repository. FAIRsharing's policy records do "
-                "not say which repositories a policy requires, so this is not evidence that none "
-                "is required: check each policy's own text before choosing a repository."
+                " Repositories a policy's text requires, as a model read it (quoted in the "
+                "obligations): " + "; ".join(named_repositories) + "."
+            )
+        if not mandated and not named_repositories:
+            statement += (
+                " No matched record names a required repository. The registries' records do "
+                "not always say which repositories a policy requires, so this is not evidence "
+                "that none is required: check each policy's own text before choosing a "
+                "repository."
             )
         if no_record:
             statement += (
                 f" No policy record for: {', '.join(no_record)}; what they require, including "
                 "any required repository, was not checked."
             )
-        statement += ror_note + " Human review is required."
+        statement += ror_note + opf_note
+        if remarks:
+            statement += " " + remarks
+        statement += " Human review is required."
         return AgentResult(
             outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement=statement),
             payload=PolicyChecks(
@@ -375,33 +636,43 @@ class PolicyAgent:
                 mandated_repositories=list(mandated.values()),
                 no_record=no_record,
                 funders=funders,
+                journals=resolved_journals,
                 ambiguous=unresolved,
                 searched=searched_summary,
-                grounded_on=[_ref(r) for _, r in sorted(records.items())] + org_refs,
+                grounded_on=[_ref(r) for _, r in sorted(cited.items())]
+                + [_org_ref(o) for _, o in sorted(organisations.items())],
             ),
             evidence=evidence + self._org_evidence(organisations, ror_where or ""),
-            model_id=self.explainer.model_id,
+            model_id=model_id,
             input_tokens=explanation.usage.input_tokens,
             output_tokens=explanation.usage.output_tokens,
-            model_calls=explanation.calls.calls if explanation.calls else (),
-            prompts=explanation.calls.prompts if explanation.calls else {},
+            model_calls=model_calls,
+            prompts=prompts,
         )
 
+    def _labels(self, where: str, ror_where: str | None) -> dict[str, str]:
+        """The `snapshot_ref` of each registry's evidence."""
+        return {
+            "FAIRsharing": where,
+            "Open Policy Finder": self.opf.snapshot_ref().as_string() if self.opf else "",
+            "Crossref": self.crossref.snapshot_ref().as_string() if self.crossref else "",
+        }
+
     @staticmethod
-    def _evidence(records: dict[str, PolicyRecord], snapshot_ref: str) -> list[EvidenceItem]:
+    def _evidence(records: dict[str, SourceRecord], labels: dict[str, str]) -> list[EvidenceItem]:
         now = datetime.now(UTC)
         return [
             EvidenceItem(
-                source_id=fid,
+                source_id=sid,
                 source_uri=record.source_uri,
                 retrieved_at=now,
-                snapshot_ref=snapshot_ref,
+                snapshot_ref=labels.get(record.registry) or None,
                 hash_algorithm=HASH_ALGORITHM,
                 canonicalisation=DOCUMENT_CANONICALISATION,
                 content_hash=record.content_hash(),
                 content=record.document(),
             )
-            for fid, record in sorted(records.items())
+            for sid, record in sorted(records.items())
         ]
 
     @staticmethod
