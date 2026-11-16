@@ -1,0 +1,9 @@
+{
+  "version_ref": {
+    "document_id": "01930000-0000-7000-8000-00000000a001",
+    "version": 1
+  },
+  "media_type": "application/json",
+  "conforms_to": "http://datacite.org/schema/kernel-4",
+  "document_text": "{\n  \"titles\": [\n    {\n      \"title\": \"Microclimate and soil moisture on a restored upland moor: Hallam Moor logger network, 2024 to 2025\"\n    }\n  ],\n  \"creators\": [\n    {\n      \"name\": \"Whitcombe, Dan\",\n      \"nameType\": \"Personal\"\n    },\n    {\n      \"name\": \"Example, A.\",\n      \"nameType\": \"Personal\"\n    }\n  ],\n  \"descriptions\": [\n    {\n      \"description\": \"Air temperature, relative humidity, soil temperature, soil moisture and PM2.5 logged every 30 minutes by six solar-powered sensor nodes on an elevation transect across a restored upland moor, with the nodes' locations, calibration offsets and an hourly reference weather record.\",\n      \"descriptionType\": \"Abstract\"\n    }\n  ],\n  \"dates\": [\n    {\n      \"date\": \"2024-03-01/2025-02-28\",\n      \"dateType\": \"Collected\"\n    }\n  ],\n  \"geoLocations\": [\n    {\n      \"geoLocationPlace\": \"Hallam Moor, South Pennines, United Kingdom\"\n    }\n  ],\n  \"fundingReferences\": [\n    {\n      \"funderName\": \"Natural Environment Research Council\",\n      \"awardNumber\": \"NE/X999999/1\"\n    }\n  ],\n  \"rightsList\": [\n    {\n      \"rights\": null\n    }\n  ],\n  \"publicationYear\": null,\n  \"types\": {\n    \"resourceTypeGeneral\": \"Dataset\"\n  }\n}"
+}

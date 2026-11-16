@@ -145,7 +145,7 @@ def test_a_report_files_an_issue_with_the_build(governance: Governance, dist: Pa
     sent = json.loads(request.content)
     assert sent["title"] == "The run hangs"
     assert sent["type"] == "Bug"
-    assert sent["labels"] == ["area: app"]
+    assert sent["labels"] == ["area: app", "user report"]
     for line in ("`1.2.3`", "`0.4.5`", "`abc1234def`", "It never ends."):
         assert line in sent["body"]
 
@@ -264,3 +264,11 @@ def test_the_token_comes_from_a_value_or_a_credential_file(tmp_path: Path) -> No
         feedback.token_from_env({f"{feedback.TOKEN_VARIABLE}_FILE": "token"})
     with pytest.raises(ConfigError):
         feedback.token_from_env({f"{feedback.TOKEN_VARIABLE}_FILE": str(tmp_path / "none")})
+
+
+def test_only_a_bug_is_marked_as_a_user_report() -> None:
+    from dd_app.feedback import labels_for
+
+    assert labels_for("bug") == ["area: app", "user report"]
+    assert labels_for("feature") == ["area: app"]
+    assert labels_for("other") == ["area: app"]

@@ -368,6 +368,9 @@ export interface KeepChoice {
 
 export interface ProjectApi {
   projects(signal?: AbortSignal): Promise<ProjectSummary[]>;
+  /** Start a project of the person's own, with no conversation yet, named by `title` if given
+   * (`POST /api/projects`, docs/specs/app.md rule 27). */
+  create(title?: string): Promise<ProjectSummary>;
   /** Give the project a person's name; a model's name never replaces it. */
   rename(projectId: string, title: string): Promise<unknown>;
   documents(projectId: string, signal?: AbortSignal): Promise<ProjectDocuments>;
@@ -509,6 +512,9 @@ function documentsPath(projectId: string): string {
 export const httpProjectApi: ProjectApi = {
   async projects(signal) {
     return json(await fetch("/api/projects", signal ? { signal } : {}));
+  },
+  async create(title) {
+    return json(await fetch("/api/projects", post(title ? { title } : {})));
   },
   async rename(projectId, title) {
     return json(await fetch(`${projectPath(projectId)}/title`, put({ title })));

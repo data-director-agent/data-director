@@ -28,7 +28,8 @@ with the questions. A metadata record drafter follows the same rules when it is 
    and the chosen repository's requirements record: the files, their formats and sizes, the
    tables, and each field's name, type and format. It opens no file. Per-field summary values,
    such as ranges, counts or categories, are not inferred, because the inventory does not carry
-   them until there is statistical disclosure control (#571).
+   them until the command applies disclosure control to them
+   ([Personal data and disclosure control](personal-data.md), #571).
 2. **Supplied means given by a person.** A value is supplied when it comes from a field
    description in the inventory, from the project's approved metadata record (the version a
    person approved last, [Projects](projects.md), invariant 6), from a person's edit of an earlier
@@ -39,8 +40,9 @@ with the questions. A metadata record drafter follows the same rules when it is 
    `unknown` cell is empty. A model never writes a cell's value: the dictionary is drafted by rule
    before a model is asked anything, and a model-backed draft's text is the template's, byte for
    byte (`agents/advisor-documentation/tests/test_documentation_agent.py`,
-   `agents/advisor-documentation/tests/test_suggestions.py`). The evaluation checks it for a
-   model-backed drafter too (TODO(#576)).
+   `agents/advisor-documentation/tests/test_suggestions.py`). The evaluation scores it for every
+   case (`no_model_value_in_cell`), and its tests run it with a fake model too
+   (`agents/advisor-documentation/tests/test_documentation_evals.py`).
 4. **A model writes README prose only from the drafter's input.** That input is the inventory, the
    metadata record and the repository's requirements; the model is never given an answer or an
    earlier version. What they do not support is a gap and is left unwritten: methods, study
@@ -134,7 +136,8 @@ how many gaps it left and how many questions it asked, and, for a mock, that it 
 ([Agents](agents.md)).
 
 **The template path stays.** A drafter that calls a model keeps a deterministic path, used when no
-model is configured and run by the CI evaluation (TODO(#576)). A version drafted on that path
+model is configured and run by the CI evaluation
+(`agents/advisor-documentation/src/dd_agent_advisor_documentation/evals/`). A version drafted on that path
 records `template`.
 
 **Disclosure is per version.** A version drafted with a model is disclosed as `model`, even where
@@ -186,7 +189,8 @@ as any other answer is.
 ## Non-functional requirements
 
 - **Privacy.** A drafter sees the inventory, never the data, and the inventory carries no summary
-  values until there is statistical disclosure control (#571). Project content other than the
+  values until the command applies disclosure control to them
+  ([Personal data and disclosure control](personal-data.md), #571). Project content other than the
   inventory reaches a hosted model only as the profile allows.
 - **Accessibility.** Questions are answered through the app's form controls, whose accessibility
   is set out in #529.

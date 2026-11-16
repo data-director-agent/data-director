@@ -1,8 +1,9 @@
 /**
  * The person's projects, the first page in the main navigation (docs/specs/app.md): each project
  * they may read, the one created last first, with what it holds. A project is the unit of work
- * (docs/specs/projects.md), so this page is where the work is organised; a conversation still
- * starts one, so a person never has to make a project before saying what they need.
+ * (docs/specs/projects.md), so this page is where the work is organised. **New project** opens a
+ * dialog that creates one (docs/specs/app.md, rule 27) and goes to its workspace, where Data
+ * Director asks its intake questions first.
  *
  * The app starts projects untitled, so a project is named by its first conversation's title, as
  * the harness derives it, or else by when it was started. The app works in one project at a time
@@ -21,6 +22,7 @@ import { day, projectName } from "../../project/name";
 import { Link, navigate } from "../../route";
 import { PageHeader } from "../frame/PageHeader";
 import { Button } from "../ui/Button";
+import { NewProjectDialog } from "./NewProjectDialog";
 
 type Load =
   | { state: "loading" }
@@ -63,8 +65,9 @@ export function ProjectsPage() {
   const api = useProjectApi();
   const [load, setLoad] = useState<Load>({ state: "loading" });
   const { projectId: activeId, setProjectId } = useActiveProject();
+  const [creating, setCreating] = useState(false);
 
-  function open(projectId: string | null) {
+  function open(projectId: string) {
     setProjectId(projectId);
     navigate("/");
   }
@@ -93,8 +96,8 @@ export function ProjectsPage() {
     if (load.value.length === 0) {
       return (
         <p>
-          You have no project yet. Start a new project: your first message in it keeps the
-          inventory you attach and the documents agents draft for you.
+          You have no project yet. Start a new project: it keeps the inventory you attach and the
+          documents agents draft for you.
         </p>
       );
     }
@@ -141,11 +144,12 @@ export function ProjectsPage() {
         </p>
       </PageHeader>
       <p>
-        <Button icon={FolderPlus} onPress={() => open(null)}>
+        <Button icon={FolderPlus} onPress={() => setCreating(true)}>
           Start a new project
         </Button>{" "}
-        <span className="hint">Your first message in it starts the project.</span>
+        <span className="hint">Data Director asks a few questions to place it in the process.</span>
       </p>
+      <NewProjectDialog isOpen={creating} onOpenChange={setCreating} />
       {content()}
     </>
   );

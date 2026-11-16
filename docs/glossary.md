@@ -12,7 +12,8 @@ Terms used in Data Director, in alphabetical order.
 | Conductor | The function that runs an agent and applies every check. See [`conductor.md`](../harness/docs/conductor.md). |
 | Conformance report | `CONFORMANCE.md`, generated from the test results and the review record. For each requirement it gives a test verdict and, where the requirement needs one, a review verdict. See [`conformance.md`](conformance.md). |
 | Content hash | A short fingerprint of a record's content when it was read. If the content changes, the hash changes. See [`grounding.md`](../harness/docs/grounding.md#source-ids-and-content-hashes). |
-| Deposit package | What the loop ends with: a zip file that is an RO-Crate of the dataset, holding the approved documents, the file inventory, the validation report and the audit trail, but no data files. A person uploads it, with the files, to the chosen repository. See [Deposit](specs/deposit.md). |
+| Deposit package | What the loop ends with: the project rendered by a packager into one format, holding no data files. The default is a zip file that is an RO-Crate of the dataset, holding the approved documents, the file inventory, the validation report and the audit trail; every other format holds it, travels with it or names it. A person uploads a package, with the files, to the chosen repository, or a deposit transport sends it. See [Deposit](specs/deposit.md). |
+| Deposit transport | How a package or a rendered record reaches a repository: a platform's API connector, SWORD v2, or a person uploading by hand (the manual transport). Chosen apart from the package's format. See [Deposit](specs/deposit.md#packagers-and-transports). |
 | Disclosure | What a project's approved documents owe to generative AI, read from the project's record: for each, whether a model drafted it, which model and when, whether a person changed it, and who approved it. It is given as a statement a researcher can cite and as a PROV-O graph. See [Disclosure](specs/disclosure.md). |
 | Envelope | The response to one request: the outcome, the payload if any, the evidence and the telemetry. See [`contract.md`](contract.md). |
 | Evidence | The list of source records an envelope rests on, each with a content hash. |
@@ -22,6 +23,7 @@ Terms used in Data Director, in alphabetical order.
 | MCP server | A service that offers tools over the Model Context Protocol. A persona uses one as a source, reached only through the tool gateway. See [Agents](specs/agents.md#tools-mcp-servers-and-agent-skills). |
 | OpenTelemetry | A widely used open standard for recording what software does while it runs. The harness uses it for traces. |
 | Outcome | What happened in a run: `succeeded`, `abstained`, `referred`, `failed` or `suspended`. See [`contract.md`](contract.md). |
+| Packager | What renders a project into a deposit package in one format, such as an RO-Crate zip or a BagIt bag, from a valid validation report. See [Deposit](specs/deposit.md#packagers-and-transports). |
 | Payload | The agent's result, present only when the outcome is `succeeded`. |
 | Policy profile | A YAML file in `profiles/` that says which agents an institution enables, which action class each is assigned, and which classes need approval. The deployment chooses it; a request cannot. |
 | Problem Details | The RFC 9457 format used to describe a `failed` or `suspended` outcome. |
