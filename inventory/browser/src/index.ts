@@ -3,7 +3,8 @@
  * user interface and no policy: parse a document, summarise it, arrange its files as folders,
  * search them, put its facts into words, and edit it: leave things out and state what the command
  * cannot know (`edit`). It also says in words how to make one, the text the
- * user guide shares (`making`).
+ * user guide shares (`making`), and which files a person should look at, judged from names alone
+ * (`hints`).
  */
 
 export {
@@ -32,6 +33,14 @@ export {
   type InventoryDiff,
   type InventoryEdits,
 } from "./edit";
+export {
+  fileHints,
+  HINT_LABELS,
+  HINT_LIMITATION,
+  HINT_RULES,
+  type FileHint,
+  type HintKind,
+} from "./hints";
 export {
   MAKING_AN_INVENTORY,
   systemFromPlatform,

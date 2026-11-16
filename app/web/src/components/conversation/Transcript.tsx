@@ -1,6 +1,9 @@
 /**
- * The transcript: an ordered list of turns. Each reply is labelled `agent_id@agent_version`,
- * a change of version since an earlier turn is marked (docs/specs/orchestration.md), and each delegated child
+ * The transcript: an ordered list of turns, each the person's message and the agent's reply. The
+ * person's part sits on a surface at the end edge, the agent's at the start edge beside a rule, so
+ * the two differ by surface and position as well as by their labels (WCAG 1.4.1). Each reply is
+ * headed by the agent's name from its card, with `agent_id@agent_version` beneath it; a change of
+ * version since an earlier turn is marked (docs/specs/orchestration.md), and each delegated child
  * is a card that opens its run, with its evidence, in place. Abstained, referred and failed
  * replies use the run view's outcome wording, not a generic error. A turn on which the project's
  * inventory changed, as when the researcher attached one, shows it as a chip (#443), and so does
@@ -39,7 +42,6 @@ import type { AgentView } from "../../manifest/normalise";
 import { Link } from "../../route";
 import { OUTCOME, REASON } from "../../manifest/wording";
 import type { Envelope } from "../../run/types";
-import { ModelTag } from "../capabilities/ModelDisclosure";
 import { Button } from "../ui/Button";
 import { Markdown } from "../ui/Markdown";
 import { DocumentCard } from "./DocumentCard";
@@ -49,6 +51,7 @@ import { InventoryChip } from "./InventoryChip";
 import { Pending } from "./Pending";
 import { RepositoryShortlist } from "./RepositoryShortlist";
 import { RunDetail } from "./RunDetail";
+import { nameOf, Speaker } from "./Speaker";
 
 function replyText(conversation: Conversation, turn: ConversationTurn): string {
   // A Reply's own text: the history adds the question after it, which is shown as choices.
@@ -77,18 +80,6 @@ function documentsGiven(conversation: Conversation, index: number): Documentatio
   const key = (d: DocumentationSummary) => `${d.documentation_name}\u0000${d.documentation_digest}`;
   const before = new Set(of(conversation.turns[index - 1]).map(key));
   return of(conversation.turns[index]).filter((d) => !before.has(key(d)));
-}
-
-/** What powers the agent, beside its name; nothing when it is not in the directory. */
-function ModelOf({ agents, agentId }: { agents: AgentView[]; agentId: string }) {
-  const agent = agents.find((a) => a.id === agentId);
-  if (!agent) return null;
-  return (
-    <>
-      {" "}
-      <ModelTag agent={agent} />
-    </>
-  );
 }
 
 function OutcomeNote({ envelope }: { envelope: Envelope }) {
@@ -124,13 +115,13 @@ function ChildCard({
   const { label, tone } = OUTCOME[child.outcome.status];
   // TODO(#72, #73): a suspended run is the only sign of review waiting until the gate exists.
   const waiting = child.outcome.status === "suspended";
-  const name = `${child.agent_id}@${child.agent_version}`;
+  const name = nameOf(agents, child.agent_id);
   const regionId = `run-${child.invocation_id}`;
   return (
     <li className="callout child-card" {...(selected ? { "aria-current": "true" as const } : {})}>
+      <Speaker agents={agents} agentId={child.agent_id} agentVersion={child.agent_version} />
       <p>
-        <code>{name}</code> <span className={`status status-${tone}`}>{label}</span>
-        <ModelOf agents={agents} agentId={child.agent_id} />
+        <span className={`status status-${tone}`}>{label}</span>
         {waiting && (
           <>
             {" "}
@@ -149,7 +140,7 @@ function ChildCard({
         <span className="visually-hidden"> of {name}</span>
       </Button>{" "}
       <Link to={`/agents?agent=${encodeURIComponent(child.agent_id)}`}>
-        About this agent<span className="visually-hidden"> {child.agent_id}</span>
+        About this agent<span className="visually-hidden"> {name}</span>
       </Link>
       <div id={regionId} className="child-run" hidden={!selected}>
         {selected && (
@@ -222,7 +213,10 @@ export function Transcript({
     [projectApi, projectId],
   );
   return (
-    <ol className="transcript" aria-label="Conversation">
+    // The numbers are dropped (Transcript.css), and WebKit then stops announcing a list unless
+    // its role is given, so it is, though it is the element's own.
+    // eslint-disable-next-line jsx-a11y/no-redundant-roles
+    <ol className="transcript" role="list" aria-label="Conversation">
       {conversation?.turns.map((turn, index) => {
         const given = inventoryGiven(conversation, index);
         const attachedDocuments = documentsGiven(conversation, index);
@@ -241,107 +235,104 @@ export function Transcript({
           .map((envelope) => ({ envelope, shortlist: shortlistOf(envelope) }))
           .filter(({ shortlist }) => shortlist.length > 0);
         return (
-        <li key={turn.invocation_id}>
-          {conversation.version_changes
-            .filter((c) => c.turn_index === turn.turn_index)
-            .map((c) => (
-              <p key={`${c.agent_id}-${c.to}`} className="callout status-warn">
-                <code>{c.agent_id}</code> changed version from <code>{c.from}</code> to{" "}
-                <code>{c.to}</code> since an earlier turn.
+        <li key={turn.invocation_id} className="turn">
+          <div className="turn-person">
+            <Speaker />
+            <p>{conversation.inputs[turn.invocation_id]?.message_text}</p>
+            {given && (
+              <p>
+                <InventoryChip
+                  fileCount={given.inventory_file_count}
+                  madeAt={given.inventory_made_at}
+                  source={given.inventory_digest === current ? source : undefined}
+                />
+              </p>
+            )}
+            {attachedDocuments.map((d) => (
+              <p key={`${d.documentation_name}-${d.documentation_digest}`}>
+                <DocumentChip name={d.documentation_name} size={d.documentation_size} />
               </p>
             ))}
-          <p>
-            <strong>You:</strong> {conversation.inputs[turn.invocation_id]?.message_text}
-          </p>
-          {given && (
-            <p>
-              <InventoryChip
-                fileCount={given.inventory_file_count}
-                madeAt={given.inventory_made_at}
-                source={given.inventory_digest === current ? source : undefined}
-              />
-            </p>
-          )}
-          {attachedDocuments.map((d) => (
-            <p key={`${d.documentation_name}-${d.documentation_digest}`}>
-              <DocumentChip name={d.documentation_name} size={d.documentation_size} />
-            </p>
-          ))}
-          <p>
-            <strong>
-              <code>
-                {turn.agent_id}@{turn.agent_version}
-              </code>
-              :
-            </strong>
-            <ModelOf agents={agents} agentId={turn.agent_id} />
-          </p>
-          <div className="markdown">
-            <Markdown>{replyText(conversation, turn)}</Markdown>
           </div>
-          {questions.length > 0 &&
-            (latest && onAnswer ? (
-              // Kept while a message is sent, disabled, so a failed send keeps the answers.
-              <QuestionSeries
-                key={turn.invocation_id}
-                questions={questions}
-                askedBy={turn.invocation_id}
-                askedByName={turn.agent_id}
-                onAnswer={onAnswer}
-                disabled={pending !== null}
-              />
-            ) : (
-              <AskedQuestions
-                questions={questions}
-                answers={answers?.answer_to === turn.invocation_id ? answers : null}
-              />
-            ))}
-          <OutcomeNote envelope={turn.envelope} />
-          {projectId && drafted.length > 0 && (
-            <ul aria-label="Documents drafted on this turn" className="plain-list">
-              {drafted.map((d) => (
-                <DocumentCard
-                  key={`${d.document.document_id}-${d.version.version}`}
+          <div className="turn-agent">
+            {conversation.version_changes
+              .filter((c) => c.turn_index === turn.turn_index)
+              .map((c) => (
+                <p key={`${c.agent_id}-${c.to}`} className="callout status-warn">
+                  {nameOf(agents, c.agent_id) !== c.agent_id && `${nameOf(agents, c.agent_id)}, `}
+                  <code>{c.agent_id}</code>, changed version from <code>{c.from}</code> to{" "}
+                  <code>{c.to}</code> since an earlier turn.
+                </p>
+              ))}
+            <Speaker agents={agents} agentId={turn.agent_id} agentVersion={turn.agent_version} />
+            <div className="markdown">
+              <Markdown>{replyText(conversation, turn)}</Markdown>
+            </div>
+            {questions.length > 0 &&
+              (latest && onAnswer ? (
+                // Kept while a message is sent, disabled, so a failed send keeps the answers.
+                <QuestionSeries
+                  key={turn.invocation_id}
+                  questions={questions}
+                  askedBy={turn.invocation_id}
+                  askedByName={nameOf(agents, turn.agent_id)}
+                  onAnswer={onAnswer}
+                  disabled={pending !== null}
+                />
+              ) : (
+                <AskedQuestions
+                  questions={questions}
+                  answers={answers?.answer_to === turn.invocation_id ? answers : null}
+                />
+              ))}
+            <OutcomeNote envelope={turn.envelope} />
+            {projectId && drafted.length > 0 && (
+              <ul aria-label="Documents drafted on this turn" className="plain-list">
+                {drafted.map((d) => (
+                  <DocumentCard
+                    key={`${d.document.document_id}-${d.version.version}`}
+                    projectId={projectId}
+                    drafted={d}
+                    idPrefix={`drafted-${turn.invocation_id}-${d.document.document_id}-${d.version.version}`}
+                    {...(onDocumentAnswered ? { onAnswered: onDocumentAnswered } : {})}
+                  />
+                ))}
+              </ul>
+            )}
+            {projectId &&
+              onRepositoryChosen &&
+              shortlists.map(({ envelope, shortlist }) => (
+                <RepositoryShortlist
+                  key={`shortlist-${envelope.invocation_id}`}
                   projectId={projectId}
-                  drafted={d}
-                  idPrefix={`drafted-${turn.invocation_id}-${d.document.document_id}-${d.version.version}`}
-                  {...(onDocumentAnswered ? { onAnswered: onDocumentAnswered } : {})}
+                  shortlist={shortlist}
+                  chosenId={chosenRepository}
+                  idPrefix={`shortlist-${envelope.invocation_id}`}
+                  onChosen={onRepositoryChosen}
                 />
               ))}
-            </ul>
-          )}
-          {projectId &&
-            onRepositoryChosen &&
-            shortlists.map(({ envelope, shortlist }) => (
-              <RepositoryShortlist
-                key={`shortlist-${envelope.invocation_id}`}
-                projectId={projectId}
-                shortlist={shortlist}
-                chosenId={chosenRepository}
-                idPrefix={`shortlist-${envelope.invocation_id}`}
-                onChosen={onRepositoryChosen}
-              />
-            ))}
-          {turn.children.length > 0 && (
-            <ul aria-label={`Agents ${turn.agent_id} delegated to`} className="plain-list">
-              {turn.children.map((child) => (
-                <ChildCard
-                  key={child.invocation_id}
-                  child={child}
-                  agents={agents}
-                  onToggle={onToggleRun}
-                  selected={child.invocation_id === selectedRun}
-                  project={runProject}
-                />
-              ))}
-            </ul>
-          )}
+            {turn.children.length > 0 && (
+              <ul aria-label={`Agents ${turn.agent_id} delegated to`} className="plain-list">
+                {turn.children.map((child) => (
+                  <ChildCard
+                    key={child.invocation_id}
+                    child={child}
+                    agents={agents}
+                    onToggle={onToggleRun}
+                    selected={child.invocation_id === selectedRun}
+                    project={runProject}
+                  />
+                ))}
+              </ul>
+            )}
+          </div>
         </li>
         );
       })}
       {pending && (
         <Pending
           agentId={pending.agentId}
+          agentName={nameOf(agents, pending.agentId)}
           message={pending.message}
           inventory={pending.inventory ?? null}
           document={pending.document ?? null}

@@ -46,12 +46,6 @@ export interface RunRow {
   acting_for: string | null;
 }
 
-export interface Example {
-  name: string;
-  schema_class: string | null;
-  input: Record<string, unknown>;
-}
-
 /**
  * The grounding check's report, as the harness's AG-UI binding sends it in `CUSTOM dd.grounding`
  * (`GroundingReport`, harness/src/dd_harness/grounding.py).

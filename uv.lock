@@ -898,6 +898,7 @@ dev = [
     { name = "import-linter" },
     { name = "linkml" },
     { name = "mypy" },
+    { name = "packaging" },
     { name = "playwright" },
     { name = "pytest" },
     { name = "pytest-cov" },
@@ -953,6 +954,7 @@ dev = [
     { name = "import-linter", specifier = ">=2.15" },
     { name = "linkml", specifier = ">=1.12.1" },
     { name = "mypy", specifier = ">=2.4.0" },
+    { name = "packaging", specifier = ">=26.3" },
     { name = "playwright", specifier = ">=1.55" },
     { name = "pytest", specifier = ">=8.3" },
     { name = "pytest-cov", specifier = ">=7.1.0" },
@@ -1284,7 +1286,7 @@ dev = [{ name = "data-director-harness", editable = "harness" }]
 
 [[package]]
 name = "data-director-agent-advisor-rights"
-version = "0.1.0a1"
+version = "0.2.0a1"
 source = { editable = "agents/advisor-rights" }
 dependencies = [
     { name = "data-director-sdk" },

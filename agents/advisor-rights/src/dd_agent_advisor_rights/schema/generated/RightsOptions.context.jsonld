@@ -13,6 +13,9 @@
       "RightsOptions": {
          "@id": "https://w3id.org/data-director/agents/rights/RightsOptions"
       },
+      "RightsQuestion": {
+         "@id": "https://w3id.org/data-director/agents/rights/RightsQuestion"
+      },
       "access_levels": {
          "@id": "https://w3id.org/data-director/agents/rights/access_levels",
          "@type": "@id"
@@ -23,6 +26,12 @@
       "dcat": "http://www.w3.org/ns/dcat#",
       "dcterms": "http://purl.org/dc/terms/",
       "dd": "https://w3id.org/data-director/",
+      "derivation": {
+         "@id": "https://w3id.org/data-director/agents/rights/derivation"
+      },
+      "dropped": {
+         "@id": "https://w3id.org/data-director/agents/rights/dropped"
+      },
       "grounded_on": {
          "@id": "https://w3id.org/data-director/grounded_on",
          "@type": "@id"
@@ -46,7 +55,8 @@
       },
       "prov": "http://www.w3.org/ns/prov#",
       "questions": {
-         "@id": "https://w3id.org/data-director/agents/rights/questions"
+         "@id": "https://w3id.org/data-director/agents/rights/questions",
+         "@type": "@id"
       },
       "rights": "https://w3id.org/data-director/agents/rights/",
       "schema": "http://schema.org/",
@@ -60,6 +70,9 @@
       "spdx": "http://spdx.org/rdf/terms#",
       "spdx_id": {
          "@id": "https://w3id.org/data-director/agents/rights/spdx_id"
+      },
+      "text": {
+         "@id": "https://w3id.org/data-director/agents/rights/text"
       },
       "url": {
          "@id": "https://w3id.org/data-director/agents/rights/url"

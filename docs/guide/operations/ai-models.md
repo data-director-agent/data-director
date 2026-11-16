@@ -1,6 +1,6 @@
 # AI models
 
-Most of Data Director runs without a model. Five agents can call an AI model, and an operator
+Most of Data Director runs without a model. Several agents can call an AI model, and an operator
 decides whether they do, which provider and model they call, and whose key pays for it. This page covers those
 decisions. [Policy and identity](../../specs/policy-and-identity.md) records why the key is handled as it is.
 
@@ -14,6 +14,7 @@ decisions. [Policy and identity](../../specs/policy-and-identity.md) records why
 | `advisor.repository` | Only with `DD_REPOSITORY_EXPLAINER=model`. The default is `template`. | `claude-sonnet-5-5` | Only in that mode, and not for a local endpoint. |
 | `advisor.documentation` | By default: it writes a README's prose and suggests answers to a draft's questions. `DD_DOCUMENTATION_WRITER=template` turns the model off. | `claude-sonnet-5-5` | Yes, unless set to `template` or on a local endpoint: it does not start without one. Locally, `dd.py start` runs it with `template` when it has no key. On a VM, `apply` is refused until it has a key or is set to `template`. `docker/compose.image.yaml` runs it with `template` unless the shell sets `model`. |
 | `advisor.dmp` | Only with `DD_DMP_MATCHER=model`: it reads what its rules leave over, to pair renamed outputs and reconcile two names for one licence or repository. The default is `template`. | `claude-sonnet-5-5` | Only in that mode, and not for a local endpoint. |
+| `advisor.rights` | Only with `DD_RIGHTS_INTERPRETER=model`: it reads a reuse wish in the researcher's own words as the licence table's reuse values, and tailors questions about third-party content or a mandate. It chooses only from its own table. The default is `template`. | `claude-sonnet-5-5` | Only in that mode, and not for a local endpoint. |
 | Every other agent, such as `example.hello` and `orchestrator.stub` | Never. | none | No. |
 
 A new `deployment.yaml` names `orchestrator: stub`, the agent a researcher converses with. The
