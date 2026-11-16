@@ -235,7 +235,7 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
   return (
     <>
       <p>
-        <Link to="/projects">All projects</Link> · <Link to="/">This project&apos;s conversations</Link>
+        <Link to="/projects">All projects</Link>
       </p>
       <PageHeader title={title ?? "Project documents"}>
         {project && title && (
