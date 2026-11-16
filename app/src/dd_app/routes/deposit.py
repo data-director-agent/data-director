@@ -90,7 +90,7 @@ async def choose_repository(request: Request, person: Principal, deps: Deps) -> 
     """The researcher's choice of repository (`ProjectService.choose_repository`). Answers with
     the requirements it resolved to."""
     project_id = request.path_params["project_id"]
-    if deps.governance.requirements is None:
+    if not deps.projects.offers_repositories:
         return _repositories_unavailable("This server has no repository requirement sets.")
     body = await parse_body(request, ChooseRepository, REPOSITORY_REFUSED)
     if isinstance(body, Response):

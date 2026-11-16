@@ -55,6 +55,11 @@ class ProjectService:
     def keeps_projects(self) -> bool:
         return self.governance.projects is not None
 
+    @property
+    def offers_repositories(self) -> bool:
+        """Whether this server has repository requirement sets, so that one may be chosen."""
+        return self.governance.requirements is not None
+
     # Lifecycle (docs/specs/projects.md, "Deletion and retention").
 
     def create(self, title: str | None, *, acted_for: Principal) -> dict[str, Any]:

@@ -176,6 +176,16 @@ source_modules = ["dd_app"]
 forbidden_modules = ["workbench", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
 
 [[tool.importlinter.contracts]]
+name = "the app's routes reach the stores only through its governance"
+type = "forbidden"
+source_modules = ["dd_app.routes"]
+forbidden_modules = ["dd_harness.storage", "dd_harness.store", "dd_harness.deposit", "dd_harness.disclosure"]
+# A route needs `Action` (dd_harness.project_access) and `UnknownAgent` (dd_harness.conductor),
+# which import the stores themselves; only a route's own import reaches past dd_app.governance
+# and dd_app.project_service (#975).
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
 name = "the admin service imports neither the app, the workbench nor an agent"
 type = "forbidden"
 source_modules = ["dd_admin"]
