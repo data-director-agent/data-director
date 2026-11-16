@@ -33,6 +33,7 @@ from dd_agent_orchestrator_stub.agent import build as build_director
 from dd_app.app import build_app
 from dd_app.config import DEFAULT_PROFILE
 from dd_app.governance import Governance
+from dd_app.turn_body import Turn
 from dd_harness import testing as fakes
 from dd_harness.conductor import Conductor
 from dd_harness.identity import OperatorAssertion
@@ -243,11 +244,9 @@ def test_delegated(tmp_path: Path, doubles: list[Conductor]) -> None:
     conversation_id = governance.start_conversation(TEST_PRINCIPAL)
 
     def start(observer: RunObserver, cancel: threading.Event) -> Awaitable[Envelope]:
-        return governance.turn_run(
+        return governance.turn(
             conversation_id,
-            "orchestrator.stub",
-            "hello world",
-            None,
+            Turn("orchestrator.stub", "hello world", None),
             TEST_PRINCIPAL,
             observer=observer,
             cancel=cancel,

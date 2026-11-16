@@ -193,6 +193,7 @@ export function NextSteps({ choice }: { choice: RepositoryRequirements | null })
   );
 }
 
+// eslint-disable-next-line complexity -- recorded debt: split it, do not add to it (docs/architecture-review.md)
 export function DepositPanel({ projectId, revision }: { projectId: string; revision: number }) {
   const api = useProjectApi();
   const [busy, setBusy] = useState<"checking" | "building" | null>(null);

@@ -46,7 +46,7 @@ def list_samples(directory: Path = SAMPLES_DIR) -> list[dict[str, str | None]]:
     return out
 
 
-def build_app(
+def build_app(  # noqa: C901
     conductor: Conductor,
     authenticator: Authenticator,
     base_url: str = "http://127.0.0.1:8000",

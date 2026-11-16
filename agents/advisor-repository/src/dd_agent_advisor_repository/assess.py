@@ -118,7 +118,7 @@ class Assessment:
     notes: list[str] = field(default_factory=list)
 
 
-def assess(
+def assess(  # noqa: C901, PLR0912
     record: Re3dataRecord, database: DatabaseRecord | None, needs: RepositoryNeeds
 ) -> Assessment:
     out = Assessment()

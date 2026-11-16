@@ -22,6 +22,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from dd_app.config import DEFAULT_PROJECTS_DIR, DEFAULT_REPOSITORIES_DIR
+from dd_app.turn_body import AttachedDocument, Turn
 from dd_harness import conversations, project_access
 from dd_harness.conductor import Conductor
 from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
@@ -44,7 +45,6 @@ from dd_sdk.contract.models import (
     Envelope,
     InvocationRequest,
     Principal,
-    ReplyAnswers,
     new_invocation_id,
 )
 
@@ -65,15 +65,6 @@ LISTED_CONVERSATION = ("conversation_id", "title", "started_at", "last_completed
 # How long `GET /api/about`, which is open to anyone, waits between retries of the agents still
 # missing: a caller with no session must not make the server read their cards on every request.
 ABOUT_REFRESH_INTERVAL_S = 30.0
-
-
-@dataclass(frozen=True)
-class AttachedDocument:
-    """A supporting document a turn attaches: its file name, media type and text."""
-
-    name: str
-    media_type: str
-    text: str
 
 
 def _attached_text(
@@ -171,16 +162,8 @@ class Governance:
         if self.projects is not None:
             self.conductor.projects = self.projects
 
-    async def invoke(
-        self,
-        request: InvocationRequest,
-        acting_for: Principal,
-        observer: RunObserver | None = None,
-        cancel: threading.Event | None = None,
-    ) -> Envelope:
-        return await self.conductor.ainvoke(
-            request, acting_for=acting_for, observer=observer, cancel=cancel
-        )
+    async def invoke(self, request: InvocationRequest, acting_for: Principal) -> Envelope:
+        return await self.conductor.ainvoke(request, acting_for=acting_for)
 
     async def run(
         self, agent_id: str, input: dict[str, Any], acting_for: Principal
@@ -222,47 +205,16 @@ class Governance:
     async def turn(
         self,
         conversation_id: str,
-        agent_id: str,
-        message_text: str,
-        follows: str | None,
+        sent: Turn,
         acting_for: Principal,
-        inventory: Mapping[str, Any] | None = None,
-        answer: ReplyAnswers | None = None,
-        documentation: AttachedDocument | None = None,
-    ) -> dict[str, Any]:
-        """One turn of a conversation, start to finish (`POST /api/conversations/{id}/turns`): a
-        `Message` to `agent_id`, answered as `run` answers. `turn_run` says what it does."""
-        envelope = await self.turn_run(
-            conversation_id,
-            agent_id,
-            message_text,
-            follows,
-            acting_for,
-            inventory,
-            answer,
-            documentation,
-        )
-        return {"envelope": envelope.to_document(), "checks": self.checks(envelope.invocation_id)}
-
-    async def turn_run(
-        self,
-        conversation_id: str,
-        agent_id: str,
-        message_text: str,
-        follows: str | None,
-        acting_for: Principal,
-        inventory: Mapping[str, Any] | None = None,
-        answer: ReplyAnswers | None = None,
-        documentation: AttachedDocument | None = None,
         *,
         observer: RunObserver | None = None,
         cancel: threading.Event | None = None,
     ) -> Envelope:
-        """One turn of a conversation: a `Message` to `agent_id`, and the envelope of its run.
-
-        `observer` and `cancel` are the conductor's (`Conductor.invoke`): the turn's stream
-        (`POST /api/conversations/{id}/turns/stream`) watches the run through them and may cancel
-        it (docs/specs/app.md, "Run events to the browser").
+        """One turn of a conversation (`POST /api/conversations/{id}/turns`, and its stream): a
+        `Message` to `agent_id`, and the envelope of its run. `sent` is what the turn gives, as
+        `Turn` names it; `observer` and `cancel` are the conductor's, through which the turn's
+        stream watches the run and may cancel it.
 
         A turn may attach an `inventory`, which is added to the conversation's project before the
         orchestrator runs, so the conductor tells it what the project now holds
@@ -297,6 +249,8 @@ class Governance:
         anything runs. Raises `UnknownConversationError`, or what `Conductor.invoke` raises for a
         request it refuses before running.
         """
+        agent_id, message_text, follows = sent.agent_id, sent.message_text, sent.follows
+        inventory, answer, documentation = sent.inventory, sent.answer, sent.documentation
         orchestrator = self.conductor.profile.orchestrator
         if orchestrator is None:
             raise ValueError(
@@ -345,14 +299,12 @@ class Governance:
             }
             if answer is not None:
                 message["reply_answers"] = answer.model_dump(mode="json", exclude_none=True)
+            request = InvocationRequest(
+                agent_id=agent_id, conversation_id=conversation_id, input=message
+            )
             run = asyncio.ensure_future(
-                self.invoke(
-                    InvocationRequest(
-                        agent_id=agent_id, conversation_id=conversation_id, input=message
-                    ),
-                    acting_for,
-                    observer,
-                    cancel,
+                self.conductor.ainvoke(
+                    request, acting_for=acting_for, observer=observer, cancel=cancel
                 )
             )
             try:

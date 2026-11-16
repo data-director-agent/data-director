@@ -72,7 +72,7 @@ from dd_harness import grounding, policy, project_access, project_facts, shacl
 from dd_harness import observe as steps
 from dd_harness import sources as source_check
 from dd_harness.model_grants import GrantMinter
-from dd_harness.observe import RunObserver, Watch
+from dd_harness.observe import RunObserver, Watch, cancelled_result
 from dd_harness.progress import ENTRY_BY_MODEL
 from dd_harness.projects import (
     TITLE_BY_MODEL,
@@ -104,7 +104,6 @@ from dd_sdk.contract.models import (
     Outcome,
     OutcomeStatus,
     Principal,
-    ProblemDetails,
     ReasonCode,
     Telemetry,
     input_source_id,
@@ -174,8 +173,7 @@ class Grant:
     delegations: list[Delegation] = field(default_factory=list)
     # Children admitted under this grant and not yet finished; revocation waits for them.
     in_flight: int = 0
-    # The parent's watch, told when each child starts and ends (docs/specs/transport.md).
-    watch: Watch | None = None
+    watch: Watch = field(default_factory=lambda: Watch(None, None))  # told of each child
 
 
 @dataclass
@@ -347,20 +345,9 @@ class Conductor:
                 "project_id": None,
             }
         )
-        watch = grant.watch or Watch(None, None)
-        watch.child_started(child.invocation_id, child.agent_id)
-        try:
-            envelope = self._invoke(
-                child,
-                grant.acting_for,
-                link=_span_context(traceparent),
-                project_id=grant.project_id,
-            )
-        except Exception as exc:
-            watch.child_failed(child.invocation_id, child.agent_id, str(exc))
-            raise
-        watch.child_finished(
-            envelope.invocation_id, envelope.agent_id, envelope.outcome.status.value
+        link = _span_context(traceparent)
+        envelope = grant.watch.child(
+            child, lambda: self._invoke(child, grant.acting_for, link, project_id=grant.project_id)
         )
         record = Delegation(
             delegated_invocation_id=envelope.invocation_id,
@@ -428,7 +415,7 @@ class Conductor:
         return minted
 
     def _issue_grant(
-        self, request: InvocationRequest, acting_for: Principal, watch: Watch | None = None
+        self, request: InvocationRequest, acting_for: Principal, watch: Watch
     ) -> Grant:
         grant = Grant(
             token=secrets.token_urlsafe(32),
@@ -509,7 +496,7 @@ class Conductor:
             agent = self.registry.get(agent_id)
         return tuple(agent.spec.models) if agent is not None else ()
 
-    def _run(
+    def _run(  # noqa: C901, PLR0912, PLR0915
         self,
         request: InvocationRequest,
         request_doc: dict[str, Any],
@@ -637,7 +624,7 @@ class Conductor:
                 )
                 prob = None
             elif watch.cancelled():
-                result, prob = _cancelled(spec.agent_id, ran=False)
+                result, prob = cancelled_result(spec.agent_id, ran=False)
             elif refused:
                 # 2. Input check, against the class schema the agent's card carries
                 # (docs/specs/contract.md).
@@ -758,7 +745,7 @@ class Conductor:
                 # A blocking call cannot be stopped, so a run cancelled while its agent worked
                 # ends here: what the agent answered is discarded, and its model calls are kept.
                 if watch.cancelled():
-                    result, prob = _cancelled(spec.agent_id, ran=True)
+                    result, prob = cancelled_result(spec.agent_id, ran=True)
                     from_agent = False
 
             if grant is not None:
@@ -970,20 +957,6 @@ class Conductor:
             path = Path(tmp) / SPANS
             self.tracing.write_jsonl(path, trace_id)
             return path.read_bytes()
-
-
-def _cancelled(agent_id: str, *, ran: bool) -> tuple[AgentResult, ProblemDetails]:
-    """The result of a run its caller cancelled: failed with `run-cancelled`, nothing kept of what
-    the agent answered (docs/specs/transport.md)."""
-    detail = (
-        f"The run was cancelled while {agent_id} worked; what it answered was discarded."
-        if ran
-        else f"The run was cancelled before {agent_id} was run."
-    )
-    return (
-        AgentResult(outcome=Outcome(status=OutcomeStatus.FAILED, statement=detail)),
-        problems.run_cancelled(detail),
-    )
 
 
 def _input_refusal(spec: AgentSpec, document: dict[str, Any]) -> tuple[str, list[str]] | None:

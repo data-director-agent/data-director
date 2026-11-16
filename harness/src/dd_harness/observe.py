@@ -10,11 +10,21 @@ from __future__ import annotations
 
 import logging
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol
 
 from dd_harness.grounding import GroundingReport
 from dd_harness.sources import SourceReport
+from dd_sdk.agent import AgentResult
+from dd_sdk.contract import problem as problems
+from dd_sdk.contract.models import (
+    Envelope,
+    InvocationRequest,
+    Outcome,
+    OutcomeStatus,
+    ProblemDetails,
+)
 
 log = logging.getLogger(__name__)
 
@@ -126,6 +136,18 @@ class Watch:
     def sources(self, report: SourceReport) -> None:
         self._tell("sources", report)
 
+    def child(self, request: InvocationRequest, run: Callable[[], Envelope]) -> Envelope:
+        """`run()`, the delegated child `request`, told to the observer as it starts and as it
+        finishes with its outcome status, or fails if the conductor could not make a run of it."""
+        self.child_started(request.invocation_id, request.agent_id)
+        try:
+            envelope = run()
+        except Exception as exc:
+            self.child_failed(request.invocation_id, request.agent_id, str(exc))
+            raise
+        self.child_finished(envelope.invocation_id, envelope.agent_id, envelope.outcome.status)
+        return envelope
+
     def child_started(self, invocation_id: str, agent_id: str) -> None:
         self._tell("child_started", invocation_id, agent_id)
 
@@ -134,3 +156,17 @@ class Watch:
 
     def child_failed(self, invocation_id: str, agent_id: str, message: str) -> None:
         self._tell("child_failed", invocation_id, agent_id, message)
+
+
+def cancelled_result(agent_id: str, *, ran: bool) -> tuple[AgentResult, ProblemDetails]:
+    """The result of a run its caller cancelled: failed with `run-cancelled`, nothing kept of what
+    the agent answered (docs/specs/transport.md)."""
+    detail = (
+        f"The run was cancelled while {agent_id} worked; what it answered was discarded."
+        if ran
+        else f"The run was cancelled before {agent_id} was run."
+    )
+    return (
+        AgentResult(outcome=Outcome(status=OutcomeStatus.FAILED, statement=detail)),
+        problems.run_cancelled(detail),
+    )

@@ -654,7 +654,7 @@ class ModelOrchestrator:
         failed = envelope.outcome.status == OutcomeStatus.FAILED
         return _tool_result(call, json.dumps(result, default=str), failed)
 
-    def _reply(
+    def _reply(  # noqa: PLR0913
         self,
         message: Message,
         turn: ModelReply,

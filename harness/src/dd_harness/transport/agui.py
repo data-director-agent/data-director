@@ -304,7 +304,7 @@ def _stored_events(envelope: dict[str, Any], thread_id: str, run_id: str) -> lis
     ]
 
 
-def agui_routes(
+def agui_routes(  # noqa: C901
     conductor: Conductor,
     authenticator: Authenticator,
     runs: RunsInFlight | None = None,
