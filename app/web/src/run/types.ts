@@ -5,8 +5,8 @@
  * `@data-director/agent-view`. These types cover the fields the shell uses; a field it does not
  * know is ignored, not refused.
  *
- * TODO(#69): generate these from the contract's JSON Schema, and replace the one-shot run
- * with the AG-UI event stream.
+ * TODO(#69): generate these from the contract's JSON Schema. The run's AG-UI event stream is
+ * read by `reduce.ts` (#947); the one-shot run goes when the app serves that stream (#945).
  */
 
 import type { Envelope, OutcomeStatus } from "@data-director/agent-view";
@@ -50,4 +50,27 @@ export interface Example {
   name: string;
   schema_class: string | null;
   input: Record<string, unknown>;
+}
+
+/**
+ * The grounding check's report, as the harness's AG-UI binding sends it in `CUSTOM dd.grounding`
+ * (`GroundingReport`, harness/src/dd_harness/grounding.py).
+ */
+export interface GroundingReport {
+  passed: boolean;
+  mode?: string | null;
+  violations?: string[];
+  retrieval_count?: number;
+  chat_count?: number;
+}
+
+/**
+ * The source check's report, as sent in `CUSTOM dd.sources` (`SourceReport`,
+ * harness/src/dd_harness/sources.py).
+ */
+export interface SourceReport {
+  passed: boolean;
+  verified?: number;
+  unresolved?: string[];
+  violations?: string[];
 }
