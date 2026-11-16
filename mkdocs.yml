@@ -157,6 +157,7 @@ nav:
           - Repository advisor: /agents/advisor-repository/README.md
           - DMP advisor: /agents/advisor-dmp/README.md
           - Documentation advisor: /agents/advisor-documentation/README.md
+          - Documentation evaluation: /agents/advisor-documentation/src/dd_agent_advisor_documentation/evals/README.md
           - Ethics advisor: /agents/advisor-ethics/README.md
           - FAIRness advisor: /agents/advisor-fairness/README.md
           - Files advisor: /agents/advisor-files/README.md
