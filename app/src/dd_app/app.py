@@ -131,7 +131,7 @@ from dd_app.governance import (
 from dd_app.model_accounts import broker_path
 from dd_app.privacy import notice_url
 from dd_app.project_service import ProjectService
-from dd_app.routes import meta, session
+from dd_app.routes import meta, runs, session
 from dd_app.routes.common import Deps, Feedback
 from dd_harness import orcid
 from dd_harness.conductor import UnknownAgent
@@ -322,29 +322,6 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
 
         return signed_in(checked)
 
-    async def agents(request: Request, acting_for: Principal) -> Response:
-        # Off the event loop: refreshing the registry reads agent cards, which blocks.
-        return JSONResponse(await run_in_threadpool(governance.agents, acting_for))
-
-    async def start_run(request: Request, acting_for: Principal) -> Response:
-        try:
-            body = await request.json()
-        except ValueError:
-            return _refused("The body is not JSON.")
-        if not isinstance(body, dict):
-            return _refused("The body must be an object with `agent_id` and `input`.")
-        agent_id, input = body.get("agent_id"), body.get("input")
-        if not isinstance(agent_id, str) or not isinstance(input, dict):
-            return _refused(
-                "The body must name `agent_id` (a string) and give `input` (an object)."
-            )
-        try:
-            return JSONResponse(await governance.run(agent_id, input, acting_for))
-        # Refused before the run began, so nothing was stored (as `workbench/transport/agui.py`).
-        except (ContractViolation, ValueError, UnknownAgent, PolicyError, IdentityError) as exc:
-            return _refused(str(exc))
-
-    # Each person sees only their own runs and conversations (#153); someone else's is answered
     # with 404, as one that does not exist.
     async def list_runs(request: Request, reader: Principal) -> Response:
         try:
@@ -353,13 +330,6 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
             return _refused(str(exc), "Data Director could not list the runs")
         page = await run_in_threadpool(lambda: governance.runs(reader, **paging))
         return page_response(request, page)
-
-    async def get_run(request: Request, reader: Principal) -> Response:
-        invocation_id = request.path_params["invocation_id"]
-        run = await run_in_threadpool(governance.stored_run, invocation_id, reader)
-        if run is None:
-            return _problem(404, "run-not-found", "No such run", f"No run {invocation_id!r}.")
-        return JSONResponse(run)
 
     async def start_conversation(request: Request, acting_for: Principal) -> Response:
         # No body starts the conversation in a new project; `{"project_id": …}` in that one.
@@ -1192,10 +1162,7 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
             # ROUTE MODULES
             *session.routes(deps),
             *meta.routes(deps),
-            Route("/api/agents", signed_in(agents), methods=["GET"]),
-            Route("/api/runs", signed_in(start_run), methods=["POST"]),
-            Route("/api/runs", signed_in(list_runs), methods=["GET"]),
-            Route("/api/runs/{invocation_id}", signed_in(get_run), methods=["GET"]),
+            *runs.routes(deps),
             Route("/api/conversations", signed_in(start_conversation), methods=["POST"]),
             Route("/api/conversations", signed_in(list_conversations), methods=["GET"]),
             Route(
