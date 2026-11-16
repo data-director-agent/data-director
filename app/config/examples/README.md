@@ -1,7 +1,8 @@
 # Example inputs
 
-The Run tab's **Load example** offers these. Each carries `schema_class`, and the shell lists an
-example only for agents that accept that class. They are copies of the workbench's samples, held
+`GET /api/examples` serves these, for scripting `POST /api/runs`; the shell no longer offers
+them, since it runs agents only through conversation turns. Each carries `schema_class`, the
+class it is an input for. They are copies of the workbench's samples, held
 here because the app must not depend on the workbench. TODO(#108): agents should declare their own
 examples, and this directory should then go.
 

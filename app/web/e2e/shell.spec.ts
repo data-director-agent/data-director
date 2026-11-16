@@ -8,8 +8,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { type Page, expect, test } from "@playwright/test";
 
-import empty from "../../config/examples/empty.profile.json" with { type: "json" };
-import soil from "../../config/examples/soil-chemistry.profile.json" with { type: "json" };
 import reference from "../fixtures/agents.json" with { type: "json" };
 import several from "../fixtures/agents-several.json" with { type: "json" };
 import conversation from "../fixtures/conversation.json" with { type: "json" };
@@ -27,11 +25,6 @@ import development from "../fixtures/session-development.json" with { type: "jso
 import signedIn from "../fixtures/session-signed-in.json" with { type: "json" };
 import signedOut from "../fixtures/session-signed-out.json" with { type: "json" };
 
-const EXAMPLES = [
-  { name: "empty.profile", schema_class: "DatasetProfile", input: empty },
-  { name: "soil-chemistry.profile", schema_class: "DatasetProfile", input: soil },
-];
-
 function row(run: typeof succeeded | typeof abstained) {
   const { envelope } = run;
   return {
@@ -43,11 +36,10 @@ function row(run: typeof succeeded | typeof abstained) {
   };
 }
 
-/** Answer the shell's API from the fixtures: the agents, the phases, the examples, and a run. */
+/** Answer the shell's API from the fixtures: the agents, the phases and a run. */
 async function serve(page: Page, body: unknown, run: unknown = succeeded) {
   await page.route("/api/agents", (route) => route.fulfill({ json: body }));
   await page.route("/api/process-flow", (route) => route.fulfill({ json: flow }));
-  await page.route("/api/examples", (route) => route.fulfill({ json: EXAMPLES }));
   await page.route("/api/runs", (route) =>
     route.fulfill({ json: route.request().method() === "POST" ? run : [row(succeeded)] }),
   );
