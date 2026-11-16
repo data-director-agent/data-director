@@ -1,6 +1,6 @@
 // Inspect: run one agent on one input, or reload a stored run, and show its envelope.
 // ?invocation_id=… reloads a run.
-import { $, el, icon, statusIcon, wireCopy, inputs, rememberInput, copyButton, fmtTime, shortId, statusPill, kvList, inspectLink, chatLink, parseSse, newRequest, postRun } from "./common.js";
+import { $, el, icon, statusIcon, wireCopy, inputs, rememberInput, copyButton, fmtTime, shortId, statusPill, kvList, inspectLink, chatLink, parseSse, newRequest, postRun, getJson } from "./common.js";
 import { closeTip, help } from "./help.js";
 import { agents, classSchema, notRunnable, loadRegistry, renderAgents, renderAgentDetail, renderClasses, renderSamples, fetchSample } from "./registry.js";
 import { payloadView } from "./payload.js";
@@ -196,7 +196,7 @@ async function run(agentId) {
 
 // --- Controls ---------------------------------------------------------------------------
 async function loadRuns() {
-  const runs = await (await fetch("/runs")).json();
+  const runs = await getJson("/runs");
   const list = $("history"); list.replaceChildren();
   if (!runs.length) list.append(el("li", { className: "muted", textContent: "None yet." }));
   for (const r of runs) {

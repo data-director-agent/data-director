@@ -31,6 +31,7 @@ export function FooterBuild() {
         <span className="app-footer-privacy">
           <a href={about.privacy_notice_url} target="_blank" rel="noreferrer">
             Privacy notice
+            <span className="visually-hidden"> (opens in a new tab)</span>
           </a>
         </span>
       ) : null}

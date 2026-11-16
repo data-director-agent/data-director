@@ -75,6 +75,7 @@ modules are not dependencies here.
 | `react-aria-components` | App shell | The few widgets that need an ARIA pattern | The WAI-ARIA Authoring Practices patterns by hand, or Radix primitives. |
 | `react-markdown`, `remark-gfm` | App shell | `ui/Markdown`, the one component that renders Markdown: an agent's reply or a drafted document | Another sanitising Markdown renderer, or plain text with its line breaks kept. |
 | `lucide-react` | App shell | Icons | Inline SVG. |
+| `@ag-ui/client` (with `rxjs`) | App shell | `run/transport` and `run/cassette`: `HttpAgent` for a live turn's stream, and `CassetteAgent`, an `AbstractAgent` that replays a recorded one | `fetch` and the stream's `text/event-stream` lines parsed by hand into the run reducer. |
 | `@fontsource-variable/inter` | App shell | The stylesheet's font stack | The system font stack. |
 
 Validation against SHACL shapes uses `pyshacl` in the harness only, behind its one validation

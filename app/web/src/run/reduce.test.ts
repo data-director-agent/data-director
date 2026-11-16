@@ -5,15 +5,8 @@ import failedGroundingStream from "../../cassettes/failed-grounding.jsonl?raw";
 import referredStream from "../../cassettes/referred.jsonl?raw";
 import runErrorStream from "../../cassettes/run-error.jsonl?raw";
 import succeededStream from "../../cassettes/succeeded.jsonl?raw";
+import { parseCassette as events } from "./cassette";
 import { initialRunState, reduce, reduceAll, streamEnded, type RunState } from "./reduce";
-
-/** A cassette's events, one JSON object per line. */
-function events(cassette: string): unknown[] {
-  return cassette
-    .split("\n")
-    .filter((line) => line.trim() !== "")
-    .map((line) => JSON.parse(line) as unknown);
-}
 
 /** What the run view draws from a state, without the envelope's full contents. */
 function summary(state: RunState) {

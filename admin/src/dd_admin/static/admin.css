@@ -59,7 +59,6 @@ code, .mono, pre { font-family: var(--mono); font-size: 0.88em; }
 code { background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 4px; overflow-wrap: anywhere; }
 h1, h2, h3 { line-height: 1.25; }
 h2 { font-size: 1.05rem; margin: 0 0 0.75rem; }
-h2.inline { display: inline; }
 h3 { font-size: 0.95rem; margin: 1.25rem 0 0.5rem; }
 
 .skip { position: absolute; left: -999px; }
@@ -113,7 +112,7 @@ main { padding: 1.5rem 2rem 3rem; max-width: 1200px; width: 100%; }
   background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--line);
   border-radius: var(--radius); padding: 0.8rem 1rem; color: var(--text); text-decoration: none;
 }
-.tile:hover { border-color: var(--accent); }
+a.tile:hover { border-color: var(--accent); }
 .tile.good { border-left-color: var(--good); }
 .tile.warn { border-left-color: var(--warn); }
 .tile.bad { border-left-color: var(--bad); }
@@ -178,7 +177,7 @@ button, .button { background: var(--accent); color: var(--surface); border-color
 
 @media (max-width: 760px) {
   .shell { grid-template-columns: minmax(0, 1fr); background: none; }
-  td .mono.muted { display: none; }
+  td .mono { overflow-wrap: anywhere; }
   .side { position: static; height: auto; background: var(--surface); border-bottom: 1px solid var(--line); padding: 0.75rem 16px; }
   .side ul { display: flex; flex-wrap: wrap; gap: 0.25rem; }
   .side-note, .brand { margin: 0 0 0.5rem; }

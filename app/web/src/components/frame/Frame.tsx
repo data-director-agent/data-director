@@ -104,6 +104,7 @@ export function Frame({
             >
               <BannerIcon icon={BookOpen} />
               User guide
+              <span className="visually-hidden"> (opens in a new tab)</span>
             </a>
             <Link
               to={report}
@@ -141,6 +142,7 @@ export function Frame({
                     width={497}
                     height={200}
                   />
+                  <span className="visually-hidden"> (opens in a new tab)</span>
                 </a>
               </li>
               <li>
@@ -157,6 +159,7 @@ export function Frame({
                     width={640}
                     height={384}
                   />
+                  <span className="visually-hidden"> (opens in a new tab)</span>
                 </a>
               </li>
             </ul>
@@ -166,10 +169,12 @@ export function Frame({
               A reference implementation of the{" "}
               <a href={BLUEPRINT} target="_blank" rel="noreferrer">
                 RDA Data Director Agentic AI Blueprint
+                <span className="visually-hidden"> (opens in a new tab)</span>
               </a>
               . Open source under the MIT licence:{" "}
               <a href={SOURCE} target="_blank" rel="noreferrer">
                 view the code
+                <span className="visually-hidden"> (opens in a new tab)</span>
               </a>
               .
             </p>

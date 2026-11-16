@@ -375,6 +375,22 @@ def test_a_run_page_shows_its_envelope(
     assert client.get("/runs/..%2F..%2Fetc").status_code == 404
 
 
+def test_every_page_names_its_icon_and_the_icon_is_served(client: TestClient) -> None:
+    page = client.get("/").text
+    assert 'rel="icon"' in page
+    icon = client.get("/static/favicon.svg")
+    assert icon.status_code == 200
+    assert icon.headers["content-type"].startswith("image/svg+xml")
+
+
+def test_an_error_page_names_the_error_and_offers_no_refresh(client: TestClient) -> None:
+    response = client.get(f"/runs/{new_invocation_id()}")
+    assert response.status_code == 404
+    title = response.text.split("<title>", 1)[1].split("</title>", 1)[0]
+    assert not title.startswith("404")
+    assert 'class="as-of"' not in response.text
+
+
 def test_a_project_page_shows_its_events_and_runs(
     client: TestClient, stores: tuple[Path, Path, dict[str, str]]
 ) -> None:

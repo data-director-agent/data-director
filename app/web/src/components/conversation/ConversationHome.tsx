@@ -35,6 +35,10 @@
  * Markdown, which is opened to be checked, attached as a chip only when the researcher confirms,
  * and goes to the project, never into the text (docs/specs/app.md). A message may carry one
  * inventory and one document.
+ *
+ * A step of the data journey, or one of the prompts an empty conversation offers, starts a new
+ * conversation with the step's prompt in the message box, unsent. A message already being written
+ * is replaced only when the researcher confirms.
  */
 
 import {
@@ -47,13 +51,11 @@ import {
   useState,
 } from "react";
 
-import { Paperclip, SendHorizontal, X } from "lucide-react";
-import { FileTrigger } from "react-aria-components";
+import { SendHorizontal, X } from "lucide-react";
 import { TurnConflict, Unreachable, useConversationApi } from "../../conversation/api";
 import { type ReplyAnswers, replyQuestions } from "../../conversation/question";
 import {
   type AttachedDocument,
-  DOCUMENT_EXTENSIONS,
   NotADocument,
   isDocumentName,
   readDocument,
@@ -65,7 +67,8 @@ import {
   readInventory,
 } from "../../conversation/inventory";
 import { useFlowApi } from "../../flow/api";
-import type { ProjectProgress } from "../../flow/types";
+import { startablePrompts } from "../../flow/prompts";
+import type { FlowStep, ProjectProgress } from "../../flow/types";
 import type { Conversation, ConversationSummary } from "../../conversation/types";
 import type { AgentView, Directory } from "../../manifest/normalise";
 import { useActiveProject } from "../../project/active";
@@ -84,12 +87,12 @@ import { ProjectSwitcher } from "../project/ProjectSwitcher";
 import { Button } from "../ui/Button";
 import { EarlierConversations } from "./EarlierConversations";
 import { InventoryReviewDialog } from "../inventory/InventoryReviewDialog";
-import { MakeInventoryDialog } from "../inventory/MakeInventoryDialog";
-import { DocumentChip } from "./DocumentChip";
+import { ComposerAttach } from "./ComposerAttach";
 import { DocumentReviewDialog } from "./DocumentReviewDialog";
 import { IntakeCard } from "./IntakeCard";
-import { InventoryChip } from "./InventoryChip";
+import { MessageField } from "./MessageField";
 import { RunDetail } from "./RunDetail";
+import { StartFromStep } from "./StartFromStep";
 import { Transcript } from "./Transcript";
 
 /** Why the named orchestrator cannot be conversed with, or null when it can. */
@@ -140,6 +143,8 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   const [error, setError] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const [flow, setFlow] = useState<FlowLoad>({ state: "loading" });
+  // A step whose prompt waits on the researcher's leave to replace the message being written.
+  const [replacing, setReplacing] = useState<FlowStep | null>(null);
   const params = new URLSearchParams(useLocation().split("?")[1]);
   const runId = params.get("run");
   // The open conversation is kept in the address, so a reload or a link reopens it.
@@ -302,6 +307,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
           markStep: (stepId, mark) =>
             changeProgress(projectApi.markStep(projectId, stepId, mark), projectId),
           error: progressError,
+          ...(busy ? {} : { startConversation: (step: FlowStep) => startStep(step) }),
           ...(intake
             ? {
                 answerIntakeAgain: () => openIntakeAgain(projectId),
@@ -634,6 +640,28 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     }
   }
 
+  /** Starts a new conversation about `step`, asking first if a message is being written. */
+  function startStep(step: FlowStep) {
+    if (text.trim() || attached || attachedDocument) setReplacing(step);
+    else beginWith(step);
+  }
+
+  /** A new conversation, with the step's prompt in the box to edit and send. */
+  function beginWith(step: FlowStep) {
+    setReplacing(null);
+    reset();
+    setText(step.prompt);
+    setAnnouncement(
+      `New conversation about ${step.label}. The message box holds a suggested message: edit it if you wish, then send.`,
+    );
+    requestAnimationFrame(() => {
+      const input = box.current;
+      if (!input) return;
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+    });
+  }
+
   function reset() {
     setConversationId(null);
     setConversation(null);
@@ -742,6 +770,24 @@ export function ConversationHome({ directory }: { directory: Directory }) {
                 : {})}
             />
           )}
+          <StartFromStep
+            offered={
+              tracked &&
+              flow.state === "loaded" &&
+              !intake?.open &&
+              !busy &&
+              sent === null &&
+              !conversation?.turns.length &&
+              !text.trim() &&
+              !attached &&
+              !attachedDocument
+                ? startablePrompts(flow.flow, tracked.progress)
+                : null
+            }
+            replacing={replacing}
+            onChoose={beginWith}
+            onCancel={() => setReplacing(null)}
+          />
           {runId && !inTranscript && (
             <section aria-labelledby="linked-run" className="callout">
               <h3 id="linked-run">
@@ -764,77 +810,22 @@ export function ConversationHome({ directory }: { directory: Directory }) {
             onDragLeave={() => setDropping(false)}
             onDrop={onDrop}
           >
-            <div className="field">
-              <label htmlFor="message">What would you like to do?</label>
-              <textarea
-                id="message"
-                ref={box}
-                rows={3}
-                aria-describedby="message-hint"
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                onPaste={onPaste}
-                onKeyDown={(e) => {
-                  // Ctrl+Enter (Cmd+Enter on a Mac) sends; the Send button's rules still apply.
-                  if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.nativeEvent.isComposing) {
-                    e.preventDefault();
-                    if (!busy && (text.trim() || attached || attachedDocument)) {
-                      e.currentTarget.form?.requestSubmit();
-                    }
-                  }
-                }}
-              />
-              <p id="message-hint" className="hint">
-                Press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> (<kbd>Cmd</kbd>+<kbd>Enter</kbd> on a Mac)
-                to send.
-              </p>
-            </div>
-            <div className="composer-attach">
-              {attached && (
-                <InventoryChip
-                  fileCount={attached.fileCount}
-                  madeAt={attached.madeAt}
-                  name={attached.name}
-                  source={{ document: attached.document }}
-                  onRemove={removeInventory}
-                />
-              )}
-              {attachedDocument && (
-                <DocumentChip
-                  name={attachedDocument.name}
-                  size={attachedDocument.size}
-                  onRemove={removeDocument}
-                />
-              )}
-              {!(attached && attachedDocument) && (
-                <FileTrigger
-                  acceptedFileTypes={[
-                    "application/json",
-                    ".json",
-                    "text/plain",
-                    "text/markdown",
-                    ...DOCUMENT_EXTENSIONS,
-                  ]}
-                  onSelect={(files) => void attachFile(files?.[0])}
-                >
-                  <Button icon={Paperclip} isDisabled={busy} aria-describedby="attach-hint">
-                    Attach a file
-                  </Button>
-                </FileTrigger>
-              )}
-              {!attached && (
-                <MakeInventoryDialog
-                  isDisabled={busy}
-                  onAttach={(file) => void attachFromDialog(file)}
-                />
-              )}
-            </div>
-            <p id="attach-hint" className="hint">
-              Attach an inventory of your data files (.json), which holds their names, sizes,
-              formats and table column headings but not the data themselves, or a document about
-              your data, such as a protocol or codebook (.txt or .md). Never attach the data
-              themselves: your data are not uploaded.
-            </p>
+            <MessageField
+              inputRef={box}
+              value={text}
+              canSend={!busy && Boolean(text.trim() || attached || attachedDocument)}
+              onChange={setText}
+              onPaste={onPaste}
+            />
+            <ComposerAttach
+              attached={attached}
+              attachedDocument={attachedDocument}
+              busy={busy}
+              onAttachFile={(file) => void attachFile(file)}
+              onAttachMade={(file) => void attachFromDialog(file)}
+              onRemoveInventory={removeInventory}
+              onRemoveDocument={removeDocument}
+            />
             <InventoryReviewDialog
               pending={pending}
               onAttach={confirmInventory}

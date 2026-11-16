@@ -6,6 +6,13 @@ export const el = (tag, props = {}, ...children) => {
   for (const c of children) if (c != null) node.append(c);
   return node;
 };
+// Fetches JSON, and says which request failed when the server answers with an error, rather than
+// failing later on a body that is not JSON.
+export async function getJson(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`${url} answered ${r.status} ${r.statusText}`.trim());
+  return r.json();
+}
 export const isEmpty = (v) => v === null || v === undefined || v === "";
 // UUIDv7 (RFC 9562): 48-bit Unix milliseconds, then random bits, with version and variant set.
 export function uuid7() {

@@ -37,6 +37,9 @@ button, select { font: inherit; padding: 0.3rem 0.7rem; border: 1px solid var(--
 button:hover:not(:disabled), select:hover { background: var(--hover); }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
 :focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
+/* The skip link stays off screen until it has focus, then sits above the header. */
+.skip-link { position: absolute; left: -999px; top: 0.5rem; z-index: 10; background: var(--paper); color: var(--ink); padding: 0.5rem 0.75rem; border-radius: 6px; }
+.skip-link:focus { left: 0.5rem; }
 button.primary, button.primary:hover:not(:disabled) { background: var(--ok); border-color: var(--ok); color: var(--on-ok); font-weight: 600; width: 100%; padding: 0.45rem; }
 button.primary:hover:not(:disabled) { filter: brightness(1.1); }
 button.small { font-size: 0.75rem; padding: 0.05rem 0.4rem; min-height: 24px; }

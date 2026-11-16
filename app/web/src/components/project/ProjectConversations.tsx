@@ -47,9 +47,19 @@ export function ProjectConversations({ projectId }: { projectId: string }) {
   }, [api, projectId]);
 
   const list = () => {
-    if (load.state === "loading") return <p className="muted">Reading the conversations…</p>;
+    if (load.state === "loading") {
+      return (
+        <p role="status" className="muted">
+          Reading the conversations…
+        </p>
+      );
+    }
     if (load.state === "failed") {
-      return <p className="muted">The conversations could not be read.</p>;
+      return (
+        <p role="alert" className="callout status-danger">
+          The conversations could not be read.
+        </p>
+      );
     }
     if (load.value.length === 0) return <p className="muted">No conversations yet.</p>;
     return (
