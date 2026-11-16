@@ -18,6 +18,8 @@ import question from "../fixtures/conversation-question.json" with { type: "json
 import flow from "../fixtures/process-flow.json" with { type: "json" };
 import answeredProject from "../fixtures/project-answers.json" with { type: "json" };
 import project from "../fixtures/project-documents.json" with { type: "json" };
+import suggested from "../fixtures/repositories-suggested.json" with { type: "json" };
+import chosenRepository from "../fixtures/repository-chosen.json" with { type: "json" };
 import turn from "../fixtures/conversation-turn.json" with { type: "json" };
 import abstained from "../fixtures/run-abstained.json" with { type: "json" };
 import succeeded from "../fixtures/run-succeeded.json" with { type: "json" };
@@ -245,6 +247,53 @@ test("a project's document is rejected with the keyboard alone, at 320px, and th
   expect(sent).toEqual([
     { version: 1, digest: draft.digest, decision: "rejected", reason: "No site named." },
   ]);
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(0);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
+
+test("a suggested repository is chosen on the project's page with the keyboard alone, at 320px", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  let chosen: unknown = null;
+  const sent: unknown[] = [];
+  await page.route(`/api/projects/${project.project_id}/documents`, (route) =>
+    route.fulfill({ json: project }),
+  );
+  await page.route(`/api/projects/${project.project_id}/repository`, (route) => {
+    if (route.request().method() === "PUT") {
+      sent.push(route.request().postDataJSON());
+      chosen = chosenRepository;
+      return route.fulfill({ status: 201, json: chosenRepository });
+    }
+    return chosen
+      ? route.fulfill({ json: chosen })
+      : route.fulfill({
+          status: 404,
+          json: { type: "/problems/repository-not-chosen", title: "No repository chosen", status: 404 },
+        });
+  });
+  await page.route("/api/repositories*", (route) => route.fulfill({ json: suggested }));
+  await page.goto(`/projects/${project.project_id}?doc=repository`);
+  const box = page.getByRole("combobox", { name: "Find a repository" });
+  // Checked with the list closed: while it is open, react-aria hides the rest of the page.
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await box.focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(page.getByRole("option")).toHaveCount(suggested.repositories.length);
+  await page.keyboard.press("Enter");
+  await expect(box).toHaveValue(suggested.repositories[0]?.name ?? "");
+  // The combo box's own button is left out of the tab order, so the next stop is Choose.
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "Choose repository" })).toBeFocused();
+  await page.keyboard.press("Enter");
+
+  const panel = page.getByRole("region", { name: "Repository" });
+  await expect(panel.getByText("orda@v3")).toBeVisible();
+  expect(sent).toEqual([{ re3data_id: suggested.repositories[0]?.re3data_id }]);
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );

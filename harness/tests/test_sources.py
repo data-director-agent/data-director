@@ -195,3 +195,80 @@ def test_conductor_records_a_verified_result(tmp_path: Path) -> None:
     envelope, run_dir = _fact_check(tmp_path, source, _sources(tmp_path))
     assert envelope.outcome.status == OutcomeStatus.SUCCEEDED
     assert (run_dir / "sources.txt").read_text() == "sources: 1 verified, 0 unresolved\n"
+
+
+ZENODO = {
+    "re3data_id": "r3d100010468",
+    "name": "Zenodo",
+    "doi": "10.17616/R3TEST1",
+    "url": "https://zenodo.org/",
+    "metadata_standards": [],
+}
+ORDA = {
+    "re3data_id": "r3d100012124",
+    "name": "ORDA - The University of Sheffield Research Data Catalogue and Repository",
+    "additional_names": ["Sheffield Research Data Repository"],
+    "url": "https://orda.shef.ac.uk/",
+    "metadata_standards": [],
+}
+SHEFFIELD_ARCHIVE = {"re3data_id": "r3d100099999", "name": "Archive of Sheffield Data"}
+REGISTRY = [ZENODO, ORDA, SHEFFIELD_ARCHIVE]
+
+
+def _registry(tmp_path: Path) -> Sources:
+    path, pin = _pinned(tmp_path, REGISTRY)
+    return Sources({"re3data:export:2026-11": RecordsFile.load(path, "re3data_id", pin)})
+
+
+def _ids(sources: Sources, query: str, limit: int = 20) -> list[str]:
+    return [m.re3data_id for m in sources.find_repositories(query, limit)]
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "r3d100010468",
+        "R3D100010468",
+        "10.17616/R3TEST1",
+        "10.17616/r3test1",
+        "https://doi.org/10.17616/R3TEST1",
+        "doi:10.17616/R3TEST1",
+        "https://zenodo.org/",
+        "http://www.zenodo.org",
+        "zenodo.org",
+    ],
+)
+def test_a_repository_is_found_by_its_own_identifiers(tmp_path: Path, query: str) -> None:
+    assert _ids(_registry(tmp_path), query) == [ZENODO["re3data_id"]]
+
+
+def test_names_that_start_with_the_query_come_before_names_that_contain_it(
+    tmp_path: Path,
+) -> None:
+    sources = _registry(tmp_path)
+    assert _ids(sources, "sheffield") == [ORDA["re3data_id"], SHEFFIELD_ARCHIVE["re3data_id"]]
+    assert _ids(sources, "University of Sheffield Research") == [ORDA["re3data_id"]]
+    assert _ids(sources, "  ORDA ") == [ORDA["re3data_id"]]
+    assert _ids(sources, "a") == []
+    assert _ids(sources, "") == []
+    assert _ids(sources, "sheffield", limit=1) == [ORDA["re3data_id"]]
+    assert _ids(sources, "sheffield") == _ids(sources, "sheffield")
+
+
+def test_an_institutions_ror_does_not_identify_a_repository(tmp_path: Path) -> None:
+    assert _ids(_registry(tmp_path), "https://ror.org/05krs5044") == []
+
+
+def test_suggested_repositories_keep_their_order_and_skip_unknown_ones(tmp_path: Path) -> None:
+    sources = _registry(tmp_path)
+    found = sources.repositories([ORDA["re3data_id"], "r3d100000001", ZENODO["re3data_id"]])
+    assert [m.re3data_id for m in found] == [ORDA["re3data_id"], ZENODO["re3data_id"]]
+    assert found[0].additional_names == tuple(ORDA["additional_names"])
+
+
+def test_searching_with_no_export_built_is_a_configuration_error(tmp_path: Path) -> None:
+    with pytest.raises(SourceConfigError, match="pins no re3data export"):
+        Sources().find_repositories("zenodo")
+    unbuilt = Sources(unbuilt=frozenset({"re3data:export:2026-11"}))
+    with pytest.raises(SourceConfigError, match="not built"):
+        unbuilt.repositories([ORDA["re3data_id"]])
