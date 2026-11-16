@@ -13,8 +13,12 @@ import { ProjectsPage } from "./ProjectsPage";
 const PROJECTS = fixture as ProjectSummary[];
 const FIRST = PROJECTS[0] as ProjectSummary;
 
-function renderPage(projects: ProjectApi["projects"], active: Partial<ActiveProject> = {}) {
-  const api = { projects, documents: vi.fn(), disclosure: vi.fn(), decide: vi.fn() };
+function renderPage(
+  projects: ProjectApi["projects"],
+  active: Partial<ActiveProject> = {},
+  create: ProjectApi["create"] = () => Promise.reject(new Error("no project created in this test")),
+) {
+  const api = { projects, create, documents: vi.fn(), disclosure: vi.fn(), decide: vi.fn() };
   const value: ActiveProject = {
     projectId: null,
     projects: [],
@@ -51,14 +55,51 @@ describe("ProjectsPage", () => {
     expect(screen.queryByText(/rejected/)).not.toBeInTheDocument();
   });
 
-  it("says how to start a project when there is none, and starts one with no project active", async () => {
+  it("says how to start a project when there is none, and creates one from the dialog", async () => {
     history.pushState(null, "", "/projects");
     const setProjectId = vi.fn();
-    renderPage(() => Promise.resolve([]), { projectId: "p1", setProjectId });
+    const reloadProjects = vi.fn();
+    const create = vi.fn<ProjectApi["create"]>(() => Promise.resolve({ ...FIRST, project_id: "p-new" }));
+    const { baseElement } = renderPage(
+      () => Promise.resolve([]),
+      { projectId: "p1", setProjectId, reloadProjects },
+      create,
+    );
     expect(await screen.findByText(/You have no project yet/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Start a new project" }));
-    expect(setProjectId).toHaveBeenCalledWith(null);
+    const dialog = await screen.findByRole("dialog", { name: "New project" });
+    expect(await axe(baseElement)).toHaveNoViolations();
+    await userEvent.type(within(dialog).getByRole("textbox"), "  Soil cores  ");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Create project" }));
+    expect(create).toHaveBeenCalledWith("Soil cores");
+    expect(setProjectId).toHaveBeenCalledWith("p-new");
+    expect(reloadProjects).toHaveBeenCalled();
     expect(location.pathname).toBe("/");
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("creates an unnamed project when the name is left blank", async () => {
+    const create = vi.fn<ProjectApi["create"]>(() => Promise.resolve({ ...FIRST, project_id: "p-new" }));
+    renderPage(() => Promise.resolve([]), {}, create);
+    await userEvent.click(await screen.findByRole("button", { name: "Start a new project" }));
+    const dialog = await screen.findByRole("dialog", { name: "New project" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Create project" }));
+    expect(create).toHaveBeenCalledWith(undefined);
+  });
+
+  it("says why a project was not created, and keeps what was typed", async () => {
+    history.pushState(null, "", "/projects");
+    const setProjectId = vi.fn();
+    const create = vi.fn<ProjectApi["create"]>(() => Promise.reject(new Error("the title is too long")));
+    renderPage(() => Promise.resolve([]), { setProjectId }, create);
+    await userEvent.click(await screen.findByRole("button", { name: "Start a new project" }));
+    const dialog = await screen.findByRole("dialog", { name: "New project" });
+    await userEvent.type(within(dialog).getByRole("textbox"), "Soil cores");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Create project" }));
+    expect(await within(dialog).findByRole("alert")).toBeVisible();
+    expect(within(dialog).getByRole("textbox")).toHaveValue("Soil cores");
+    expect(setProjectId).not.toHaveBeenCalled();
+    expect(location.pathname).toBe("/projects");
   });
 
   it("marks the current project, and opens another's conversations", async () => {

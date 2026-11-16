@@ -325,8 +325,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     (rule 25). A project created this way is listed on the Projects page before it holds
     anything; one the server created for a conversation that named no project is listed once it
     does (`app/tests/test_app.py`). A refusal or failure is said in the dialog, which keeps what
-    was typed. Not built yet: the addresses and landing page, TODO(#764); the dialog,
-    TODO(#765).
+    was typed (`app/web/src/components/project/NewProjectDialog.tsx`). Not built yet: the
+    addresses and landing page, TODO(#764).
 
 ## Boundaries and contracts
 

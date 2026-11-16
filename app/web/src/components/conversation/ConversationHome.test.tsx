@@ -19,6 +19,7 @@ import { type FlowApi, FlowApiContext } from "../../flow/api";
 import { ActiveProjectProvider } from "../../project/active";
 import intakeCompleteFixture from "../../../fixtures/intake-complete.json";
 import intakePendingFixture from "../../../fixtures/intake-pending.json";
+import projectCreatedFixture from "../../../fixtures/project-created.json";
 import projectsFixture from "../../../fixtures/projects.json";
 import projectFixture from "../../../fixtures/project-documents.json";
 import {
@@ -1002,7 +1003,7 @@ describe("ConversationHome", () => {
         projects: () => Promise.resolve([]),
       });
       expect(
-        await screen.findByRole("button", { name: /New project/ }),
+        await screen.findByRole("button", { name: /No project/ }),
       ).toBeVisible();
       await userEvent.type(
         screen.getByRole("textbox", { name: "What would you like to do?" }),
@@ -1037,7 +1038,7 @@ describe("ConversationHome", () => {
         projects: () => Promise.resolve([]),
       });
       expect(
-        await screen.findByRole("button", { name: /New project/ }),
+        await screen.findByRole("button", { name: /No project/ }),
       ).toBeVisible();
       expect(
         screen.queryByRole("link", { name: "Project details" }),
@@ -1630,6 +1631,41 @@ describe("ConversationHome", () => {
       expect(
         within(phases).getByRole("combobox", { name: "Where you started" }),
       ).toHaveValue("2");
+    });
+
+    it("asks the intake as soon as New project creates a project, before anything is typed", async () => {
+      const created = projectCreatedFixture as unknown as ProjectSummary;
+      const pending = intakePendingFixture as ProjectIntake;
+      const entry = pending.questions[0];
+      if (!entry) throw new Error("the intake fixture asks nothing");
+      const listed: ProjectSummary[] = [];
+      const create = vi.fn<ProjectApi["create"]>(() => {
+        listed.push(created);
+        return Promise.resolve(created);
+      });
+      const intake = vi.fn<ProjectApi["intake"]>(() => Promise.resolve(pending));
+      const startConversation = vi.fn();
+      renderHome(
+        withOrchestrator(),
+        fakeApi({ create: startConversation }),
+        FLOW,
+        withProgress({ projects: () => Promise.resolve([...listed]), create, intake }),
+      );
+      await userEvent.click(await screen.findByRole("button", { name: /No project/ }));
+      await userEvent.click(await screen.findByRole("option", { name: "New project" }));
+      const dialog = await screen.findByRole("dialog", { name: "New project" });
+      await userEvent.type(within(dialog).getByRole("textbox"), "Soil cores");
+      await userEvent.click(within(dialog).getByRole("button", { name: "Create project" }));
+
+      expect(create).toHaveBeenCalledWith("Soil cores");
+      expect(
+        await screen.findByRole("group", { name: entry.question.question_prompt }),
+      ).toBeVisible();
+      expect(intake).toHaveBeenCalledWith(created.project_id, expect.anything());
+      expect(screen.queryByRole("dialog")).toBeNull();
+      // No message was sent, so no conversation was started.
+      expect(startConversation).not.toHaveBeenCalled();
+      expect(localStorage.getItem("dd-project")).toBe(created.project_id);
     });
 
     it("opens a pending project with the intake card and keeps the message box usable", async () => {

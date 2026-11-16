@@ -50,6 +50,7 @@ function decided(state: "approved" | "rejected", reason: string | null = null): 
 function fakeApi(overrides: Partial<ProjectApi> = {}): ProjectApi {
   return {
     projects: () => Promise.resolve([]),
+    create: () => Promise.reject(new Error("no project created in these tests")),
     rename: () => Promise.resolve({}),
     documents: () => Promise.resolve(PROJECT),
     disclosure: () => Promise.resolve(DISCLOSURE),
