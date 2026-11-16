@@ -103,6 +103,9 @@
   --color-danger-bg: #fbe6e7;
   --color-undeclared-fg: #4a4f57;
   --color-undeclared-bg: #eceef1;
+
+  /* The ground behind partner logos, which are drawn for white; the same in both schemes. */
+  --color-logo-plate: #fff;
 }
 
 :root[data-theme="dark"] {

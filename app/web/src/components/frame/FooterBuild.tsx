@@ -26,18 +26,18 @@ export function FooterBuild() {
 
   if (!about) return null;
   return (
-    <>
+    <p className="app-footer-meta">
       {about.privacy_notice_url ? (
-        <p className="app-footer-privacy">
+        <span className="app-footer-privacy">
           <a href={about.privacy_notice_url} target="_blank" rel="noreferrer">
             Privacy notice
             <span className="visually-hidden"> (opens in a new tab)</span>
           </a>
-        </p>
+        </span>
       ) : null}
-      <p className="app-footer-build" title={about.commit ?? undefined}>
+      <span className="app-footer-build" title={about.commit ?? undefined}>
         Build <code>{describeBuild(about)}</code>
-      </p>
-    </>
+      </span>
+    </p>
   );
 }

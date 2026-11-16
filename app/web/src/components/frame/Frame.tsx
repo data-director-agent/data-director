@@ -125,33 +125,61 @@ export function Frame({
       </main>
       <footer className="app-footer">
         <div className="app-footer-inner">
-          <p className="app-footer-support">
-            Supported by{" "}
-            <a href={SHEFFIELD} target="_blank" rel="noreferrer">
-              The University of Sheffield
-              <span className="visually-hidden"> (opens in a new tab)</span>
-            </a>{" "}
-            and the{" "}
-            <a href={RDA} target="_blank" rel="noreferrer">
-              Research Data Alliance
-              <span className="visually-hidden"> (opens in a new tab)</span>
-            </a>{" "}
-            (RDA).
-          </p>
-          <p className="app-footer-about">
-            A reference implementation of the{" "}
-            <a href={BLUEPRINT} target="_blank" rel="noreferrer">
-              RDA Data Director Agentic AI Blueprint
-              <span className="visually-hidden"> (opens in a new tab)</span>
-            </a>
-            . Open source under the MIT licence:{" "}
-            <a href={SOURCE} target="_blank" rel="noreferrer">
-              view the code
-              <span className="visually-hidden"> (opens in a new tab)</span>
-            </a>
-            .
-          </p>
-          <FooterBuild />
+          <div className="app-footer-partners">
+            <p className="app-footer-support">Supported by</p>
+            <ul className="app-footer-logos">
+              <li>
+                <a
+                  className="app-footer-logo-link"
+                  href={SHEFFIELD}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <img
+                    className="app-footer-logo"
+                    src="/logos/university-of-sheffield.svg"
+                    alt="The University of Sheffield"
+                    width={497}
+                    height={200}
+                  />
+                  <span className="visually-hidden"> (opens in a new tab)</span>
+                </a>
+              </li>
+              <li>
+                <a
+                  className="app-footer-logo-link"
+                  href={RDA}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <img
+                    className="app-footer-logo"
+                    src="/logos/research-data-alliance.png"
+                    alt="Research Data Alliance"
+                    width={640}
+                    height={384}
+                  />
+                  <span className="visually-hidden"> (opens in a new tab)</span>
+                </a>
+              </li>
+            </ul>
+          </div>
+          <div className="app-footer-details">
+            <p className="app-footer-about">
+              A reference implementation of the{" "}
+              <a href={BLUEPRINT} target="_blank" rel="noreferrer">
+                RDA Data Director Agentic AI Blueprint
+                <span className="visually-hidden"> (opens in a new tab)</span>
+              </a>
+              . Open source under the MIT licence:{" "}
+              <a href={SOURCE} target="_blank" rel="noreferrer">
+                view the code
+                <span className="visually-hidden"> (opens in a new tab)</span>
+              </a>
+              .
+            </p>
+            <FooterBuild />
+          </div>
         </div>
       </footer>
     </>
