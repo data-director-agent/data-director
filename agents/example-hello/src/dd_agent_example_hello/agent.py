@@ -1,12 +1,11 @@
 """example.hello: the template agent. Greets whoever the input names, and nothing else.
 
-This package exists to be copied. It is the smallest agent that walks the whole recipe in
-`agents/README.md` — a new input class, a new payload class, a grounding mode, the payload's
-derivations, a console script, a profile entry, a sample and marked tests — with no domain logic
-in the way. It runs as its own service (`dd-example-hello serve`); the harness's conductor
-reaches it over A2A.
-`advisor.quality` and `advisor.standards` show what a real agent does; this one shows only what the
-harness requires. Read it top to bottom, then delete the greeting.
+This package is the worked example; `dd.py new-agent` writes a new agent. It is the smallest
+agent that walks the whole recipe in `agents/README.md` — a new input class, a new payload class,
+a grounding mode, the payload's derivations, a console script, a profile entry, a sample and
+marked tests — with no domain logic in the way. It runs as its own service
+(`dd-example-hello serve`); the harness's conductor reaches it over A2A. `advisor.quality` and
+`advisor.standards` show what a real agent does; this one shows only what the harness requires.
 
 It also keeps the harness's modularity claim honest: if adding an agent ever starts to require
 an edit to the conductor, linter, CLI, transport or viewer, this agent will be the one that shows
@@ -112,8 +111,8 @@ class HelloWorld:
                 greeting_derivation=Derivation.TEMPLATE,
                 grounded_on=[ref],
             ),
-            # Step 3: the canonicalisation is a registered name from `dd_sdk.evidence`
-            # (docs/specs/grounding.md), never a literal invented here.
+            # Step 3: `input_evidence` names the input's registered canonicalisation from
+            # `dd_sdk.evidence` (docs/specs/grounding.md), never a literal invented here.
             evidence=[input_evidence(ctx)],
             # `model_id` and the token counts stay unset: mode `none` calls no model. The
             # conductor fills the rest of the telemetry, and every identifier and timestamp.
