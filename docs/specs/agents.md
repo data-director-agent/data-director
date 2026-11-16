@@ -58,18 +58,24 @@ is in [`harness/docs/registry.md`](../../harness/docs/registry.md).
     (`dd_sdk.process_flow`). `AgentSpec` refuses a step id that is not in the flow. No two
     advisors serve the same step. That last rule is not yet checked by a test.
 13. A mock advisor's description begins "Mock.", its grounding mode is `none`, and its payload
-    says in `limitations` what it does not yet do. Each mock's own tests check the prefix. A mock
+    says in `limitations` what it does not yet do; a payload of the core `Document` class, which
+    has no such slot, says it in the outcome statement instead. A mock declares no model and
     substantiates no Blueprint requirement; its tests may be marked only with the project's own
     contract requirements (`DD-*`) that the harness enforces on every agent.
 14. A model-backed alpha advisor sits between a mock and a persona. It has a pre-release version,
-    its grounding mode is `input_only`, and its description does not begin "Mock.". It has a
-    `template` writer, which calls no model, so it runs and its tests pass with no key; that
-    writer is its default, except for the Documentation Editor and the Policy Adviser, whose
-    models are on by default (Model-backed personas). It declares a model in `AgentSpec.models` only when one is
-    configured. Its payload says in
-    `limitations` what it still does not do. Like a mock, it substantiates no Blueprint
-    requirement until it leaves alpha. Each such advisor's own tests check that its description
-    has no "Mock." prefix; nothing yet checks the rest of this rule across the roster.
+    its grounding mode is `input_only`, or `retrieval` where it reads outside records (the Policy
+    Adviser), and its description does not begin "Mock.". It has a `template` writer, which
+    calls no model, so it runs and its tests pass with no key; that writer is its default, except
+    for the Documentation Editor and the Policy Adviser, whose models are on by default
+    (Model-backed personas). It declares a model in `AgentSpec.models` only when one is
+    configured. Its payload says what it still does not do, as a mock's does. Like a mock, it
+    substantiates no Blueprint requirement until it leaves alpha.
+
+    `scripts/tests/test_roster.py` checks invariants 13 and 14 across the roster, from the cards:
+    it holds each in-tree agent's state (the tables in [The roster](#the-roster)), and fails on an
+    agent with none. Each rule's known gaps are listed there, each with its issue, and the list
+    only shrinks. Whether an outcome statement states a `Document` payload's limitations is prose
+    and is not checked.
 
 ## Boundaries and contracts
 
@@ -169,6 +175,15 @@ roster for #353 found:
 | `advisor.quality` | Stays rule-based; it overlaps the FAIR Assessor (#18). |
 | `advisor.linking`, `advisor.files` | Stay deterministic: identifier syntax, checksums and format lookup are exact. Their next step is retrieval (#360, #354). |
 | `orchestrator.stub`, `example.hello` | Stay deterministic by design. |
+
+Each in-tree agent's state now, as `scripts/tests/test_roster.py` holds it:
+
+| State | Agents |
+|---|---|
+| Mock (invariant 13) | `advisor.dmp`, `advisor.ethics`, `advisor.fairness`, `advisor.files`, `advisor.linking`, `advisor.metadata`, `advisor.rights` |
+| Model-backed alpha (invariant 14) | `advisor.documentation`, `advisor.policy` |
+| Persona | `advisor.quality`, `advisor.repository`, `advisor.standards` |
+| Deterministic by design, or not an advisor | `example.hello`, `orchestrator.model`, `orchestrator.stub` |
 
 What a persona that drafts project documents may infer, ask and write is in
 [Drafting documents](drafting.md).
