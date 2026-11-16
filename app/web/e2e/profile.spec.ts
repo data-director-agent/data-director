@@ -160,3 +160,34 @@ test("an OpenAI-compatible account is chosen and added by keyboard alone", async
   await expect(page.getByRole("status").filter({ hasText: "checked and saved" })).toBeVisible();
   expect(sent).toEqual([{ provider: "openai-compatible", key: KEY, base_url: `${ORIGIN}/v1` }]);
 });
+
+test("preferences apply at once, survive a reload and can match the device", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "dark", reducedMotion: "no-preference" });
+  await serve(page, none, { status: 200, json: held });
+  await page.goto("/profile");
+  const html = page.locator("html");
+  const rootStyle = (property: string) =>
+    page.evaluate((p) => getComputedStyle(document.documentElement).getPropertyValue(p), property);
+
+  // Light by default, whatever the device prefers.
+  await expect(html).toHaveAttribute("data-theme", "light");
+  await page.getByRole("radio", { name: "Match my device" }).first().check();
+  await expect(html).toHaveAttribute("data-theme", "dark");
+  await expect(page.getByRole("button", { name: "Dark mode" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await page.emulateMedia({ colorScheme: "light" });
+  await expect(html).toHaveAttribute("data-theme", "light");
+
+  await page.getByRole("radio", { name: "Larger" }).check();
+  expect(await rootStyle("font-size")).toBe("20px");
+  await page.getByRole("radio", { name: "Reduce" }).check();
+  expect((await rootStyle("--duration-fast")).trim()).toMatch(/^0m?s$/);
+
+  await page.reload();
+  await expect(page.getByRole("radio", { name: "Larger" })).toBeChecked();
+  await expect(html).toHaveAttribute("data-text-size", "larger");
+  await expect(html).toHaveAttribute("data-motion", "reduce");
+  expect(await axeViolations(page)).toEqual([]);
+});

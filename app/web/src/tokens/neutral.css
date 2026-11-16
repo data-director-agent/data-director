@@ -3,7 +3,10 @@
  *
  * Components use these custom properties and no literal colour, size or font. A theme is a
  * file like this one that redefines them; nothing else changes. The scheme is light unless
- * `data-theme="dark"` is set on <html>, which the banner's dark mode switch does (`theme.ts`).
+ * `data-theme="dark"` is set on <html>, which the person's preferences do (`preferences.ts`): the
+ * banner's dark mode switch, or the profile page, where the scheme may also match the system's.
+ * The preferences also set `data-text-size`, `data-density` and `data-motion` on <html>; the
+ * rules for them are at the end of this file.
  *
  * Every text/background pair below meets WCAG 2.2 AA (4.5:1 for text, 3:1 for control borders
  * and the focus ring) in both schemes. `--color-border-subtle` only separates regions that are
@@ -131,8 +134,39 @@
   --color-undeclared-bg: #2a2d32;
 }
 
+/* Motion: none where the system asks for less, unless the person chose full motion, and none
+   where the person chose less whatever the system says. `--motion` is read by animations. */
 @media (prefers-reduced-motion: reduce) {
-  :root {
+  :root:not([data-motion="full"]) {
     --duration-fast: 0ms;
+    --motion: none;
   }
+}
+
+:root[data-motion="reduce"] {
+  --duration-fast: 0ms;
+  --motion: none;
+}
+
+/* Text size. Every size is in rem, so this scales text, space and controls together, as the
+   browser's own zoom does. */
+:root[data-text-size="large"] {
+  font-size: 112.5%;
+}
+
+:root[data-text-size="larger"] {
+  font-size: 125%;
+}
+
+/* Density: less space between and inside things. The small control height still meets the 24 CSS
+   pixel target of WCAG 2.2 SC 2.5.8. */
+:root[data-density="compact"] {
+  --space-3: 0.5rem;
+  --space-4: 0.75rem;
+  --space-5: 1rem;
+  --space-6: 1.5rem;
+  --control-height: 2.125rem;
+  --control-height-small: 1.75rem;
+  --control-padding-inline: var(--space-3);
+  --control-padding-inline-small: var(--space-2);
 }

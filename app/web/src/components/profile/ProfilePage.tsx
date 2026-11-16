@@ -3,7 +3,8 @@
  * how the identity was confirmed and when the session ends. The page reads nothing from ORCID
  * (docs/specs/app.md, rule 20); it says that only facts a person keeps in a project, from their
  * public record, are held beyond these (docs/specs/policy-and-identity.md). Where the deployment
- * offers it, the person may add their own AI account here too (`ModelAccount`).
+ * offers it, the person may add their own AI account here too (`ModelAccount`). Last come the
+ * person's preferences for this browser (`Preferences`).
  */
 
 import "./ProfilePage.css";
@@ -15,6 +16,8 @@ import { type Session, assuranceText, providerName } from "../../session/api";
 import { PageHeader } from "../frame/PageHeader";
 import { OrcidIcon } from "../ui/BrandIcon";
 import { ModelAccount } from "./ModelAccount";
+import { Preferences } from "./Preferences";
+import { formatDateTime } from "../../format";
 
 const ORCID_ID = /^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/;
 
@@ -67,7 +70,7 @@ export function ProfilePage({ session }: { session: Session }) {
           <div>
             <dt>Session ends</dt>
             <dd>
-              <time dateTime={expires.toISOString()}>{expires.toLocaleString()}</time>
+              <time dateTime={expires.toISOString()}>{formatDateTime(expires)}</time>
             </dd>
           </div>
         )}
@@ -80,6 +83,7 @@ export function ProfilePage({ session }: { session: Session }) {
       {session.modelAccounts && session.signsIn && (
         <ModelAccount providers={session.modelAccountProviders} />
       )}
+      <Preferences />
       <p>
         <Link to="/">Back to the conversation</Link>
       </p>

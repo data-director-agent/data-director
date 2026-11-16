@@ -13,12 +13,10 @@ import type { ConversationSummary } from "../../conversation/types";
 import { Button } from "../ui/Button";
 
 import "./EarlierConversations.css";
+import { formatDateTime } from "../../format";
 
 function started(at: string): string {
-  const date = new Date(at);
-  return Number.isNaN(date.getTime())
-    ? at
-    : date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+  return formatDateTime(at, { dateStyle: "medium", timeStyle: "short" });
 }
 
 export function EarlierConversations({
