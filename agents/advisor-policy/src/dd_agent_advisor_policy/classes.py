@@ -30,6 +30,16 @@ class ObligationKind(StrEnum):
     TIMING = "timing"
 
 
+class PolicyRegistry(StrEnum):
+    FAIRSHARING = "fairsharing"
+    OPEN_POLICY_FINDER = "open_policy_finder"
+
+
+class PolicyScope(StrEnum):
+    DATA = "data"
+    PUBLICATION = "publication"
+
+
 class Strength(StrEnum):
     REQUIRED = "required"
     RECOMMENDED = "recommended"
@@ -41,6 +51,7 @@ class Actor(Frozen):
     name: str
     fairsharing_id: str | None = Field(default=None, pattern=r"^FAIRsharing\.\S+$")
     ror_id: str | None = Field(default=None, pattern=r"^(https?://ror\.org/)?0[a-z0-9]{6}[0-9]{2}$")
+    issn: str | None = Field(default=None, pattern=r"^\d{4}-?\d{3}[\dXx]$")
 
 
 class PolicyContext(Frozen):
@@ -55,6 +66,10 @@ class Obligation(Frozen):
     kind: ObligationKind
     strength: Strength
     recorded_as: str | None = None
+    scope: PolicyScope | None = None
+    value: str | None = None
+    quote: str | None = None
+    derivation: Derivation | None = None
 
 
 class MatchedPolicy(Grounded):
@@ -63,6 +78,8 @@ class MatchedPolicy(Grounded):
 
     actor: str
     role: ActorRole
+    registry: PolicyRegistry
+    match_derivation: Derivation
     obligations: list[Obligation] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
     rationale: str
@@ -88,9 +105,18 @@ class ResolvedFunder(Grounded):
     crossref_funder_id: str | None = None
 
 
+class ResolvedJournal(Grounded):
+    """A journal identified in Crossref or Open Policy Finder, with its publisher. Names its
+    record only in `grounded_on`."""
+
+    actor: str
+    publisher: str | None = None
+    issn: str | None = Field(default=None, pattern=r"^\d{4}-?\d{3}[\dXx]$")
+
+
 class AmbiguousActor(Grounded):
-    """A funder whose name could mean more than one organisation in ROR. Grounded on each
-    candidate, likeliest first."""
+    """A funder or journal whose name could mean more than one. Grounded on each candidate,
+    likeliest first."""
 
     actor: str
     role: ActorRole
@@ -109,5 +135,6 @@ class PolicyChecks(Grounded):
     mandated_repositories: list[RepositoryRef] = Field(default_factory=list)
     no_record: list[str] = Field(default_factory=list)
     funders: list[ResolvedFunder] = Field(default_factory=list)
+    journals: list[ResolvedJournal] = Field(default_factory=list)
     ambiguous: list[AmbiguousActor] = Field(default_factory=list)
     searched: SearchedSummary | None = None

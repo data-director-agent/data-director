@@ -10,15 +10,17 @@ decisions. [Policy and identity](../../specs/policy-and-identity.md) records why
 |---|---|---|---|
 | `orchestrator.model` | Always. It writes the replies in the app's conversation, and names each new conversation. | `claude-sonnet-5-5`, and `claude-haiku-5-5` for the name | Yes: it does not start without one, except on a local endpoint. |
 | `advisor.standards` | Only with `DD_STANDARDS_EXPLAINER=model`. The default, `template`, is deterministic. | `claude-sonnet-5-5` | Only in that mode, and not for a local endpoint. |
-| `advisor.policy` | Only with `DD_POLICY_EXPLAINER=model`. The default is `template`. | `claude-sonnet-5-5` | Only in that mode, and not for a local endpoint. |
+| `advisor.policy` | By default: it reads the policy records found, searches Open Policy Finder, Crossref and FAIRsharing for more, and states each obligation with a quote from its record. `DD_POLICY_ADVISOR=template` (or its older name, `DD_POLICY_EXPLAINER`) turns the model off. | `claude-sonnet-5-5` | Yes, unless set to `template` or on a local endpoint, as for `advisor.documentation`. Its model must support tool calls. |
 | `advisor.repository` | Only with `DD_REPOSITORY_EXPLAINER=model`. The default is `template`. | `claude-sonnet-5-5` | Only in that mode, and not for a local endpoint. |
 | `advisor.documentation` | By default: it writes a README's prose and suggests answers to a draft's questions. `DD_DOCUMENTATION_WRITER=template` turns the model off. | `claude-sonnet-5-5` | Yes, unless set to `template` or on a local endpoint: it does not start without one. Locally, `dd.py start` runs it with `template` when it has no key. On a VM, `apply` is refused until it has a key or is set to `template`. `docker/compose.image.yaml` runs it with `template` unless the shell sets `model`. |
 | Every other agent, such as `example.hello` and `orchestrator.stub` | Never. | none | No. |
 
 A new `deployment.yaml` names `orchestrator: stub`, the agent a researcher converses with. The
-documentation advisor calls its model by default, so a default installation sends a project's
-facts to a model provider when that advisor drafts a document, once it has a key; set
-`DD_DOCUMENTATION_WRITER=template` in its own settings file to send nothing. The rest become
+documentation and policy advisors call their models by default, so a default installation sends
+a project's facts to a model provider when the documentation advisor drafts a document, and the
+project's funders, journals, disciplines and kinds of data, with the policy records found, when
+the policy advisor checks policies, once each has a key. Set `DD_DOCUMENTATION_WRITER=template`
+or `DD_POLICY_ADVISOR=template` in the agent's own settings file to send nothing. The rest become
 model-backed when you choose, below.
 
 `anthropic`, the older value of these four settings, still works and means `model` with the
@@ -200,8 +202,11 @@ here.
    The command keeps the key in a file only root can read, has systemd hand it to this agent
    alone (every agent runs as `datadirector`), and restarts the advisor.
 
-The policy and repository advisors are turned on the same way, with `DD_POLICY_EXPLAINER` or
-`DD_REPOSITORY_EXPLAINER` and their own names (`advisor-policy`, `advisor-repository`). The app
+The repository advisor is turned on the same way, with `DD_REPOSITORY_EXPLAINER` and its own
+name (`advisor-repository`). The policy advisor's model is on by default, so it needs only its
+key, under its own name (`advisor-policy`); `DD_POLICY_MAX_LOOKUPS` limits the searches its model
+may make in one run (6 by default). It also searches Jisc Open Policy Finder when given a free
+key: `sudo data-director secret set advisor-policy open-policy-finder-api-key`. The app
 runs no agent in its own process, so there is nothing to change in the app ([The app](../../specs/app.md)).
 
 ## Turn on the model-backed orchestrator

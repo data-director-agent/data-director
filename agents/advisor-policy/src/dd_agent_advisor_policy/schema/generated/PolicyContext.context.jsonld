@@ -23,6 +23,9 @@
       "fairsharing_id": {
          "@id": "https://w3id.org/data-director/agents/policy/fairsharing_id"
       },
+      "issn": {
+         "@id": "https://w3id.org/data-director/agents/policy/issn"
+      },
       "linkml": "https://w3id.org/linkml/",
       "name": {
          "@id": "http://schema.org/name"
