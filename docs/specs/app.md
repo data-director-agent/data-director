@@ -268,6 +268,11 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     - `POST /api/projects/{id}/intake/{question_id}` records an answer (`{"answer_values": […]}`).
       It answers with the next question, or, once the intake is complete, with the phase the
       project starts at and the suggested step, both from the project summary.
+      Before the project's first turn, the card's ending then offers "Start with" the suggested
+      step and "Not now". Start closes the card and sends the researcher's opening turn, which
+      names that step, by the ordinary turn path, so the conversation begins with Data
+      Director's guidance on it. Not now closes the card and sends nothing. Asked again from the
+      tracker, or once a turn exists, the ending offers only Close.
     - `POST /api/projects/{id}/intake/dismiss` records a dismissal.
 
     Neither body names who answered: the server records the answer for the person signed in. A
