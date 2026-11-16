@@ -28,7 +28,8 @@ with the questions. A metadata record drafter follows the same rules when it is 
    and the chosen repository's requirements record: the files, their formats and sizes, the
    tables, and each field's name, type and format. It opens no file. Per-field summary values,
    such as ranges, counts or categories, are not inferred, because the inventory does not carry
-   them until there is statistical disclosure control (#571).
+   them until the command applies disclosure control to them
+   ([Personal data and disclosure control](personal-data.md), #571).
 2. **Supplied means given by a person.** A value is supplied when it comes from a field
    description in the inventory, from the project's approved metadata record (the version a
    person approved last, [Projects](projects.md), invariant 6), from a person's edit of an earlier
@@ -186,7 +187,8 @@ as any other answer is.
 ## Non-functional requirements
 
 - **Privacy.** A drafter sees the inventory, never the data, and the inventory carries no summary
-  values until there is statistical disclosure control (#571). Project content other than the
+  values until the command applies disclosure control to them
+  ([Personal data and disclosure control](personal-data.md), #571). Project content other than the
   inventory reaches a hosted model only as the profile allows.
 - **Accessibility.** Questions are answered through the app's form controls, whose accessibility
   is set out in #529.
