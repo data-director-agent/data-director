@@ -161,13 +161,77 @@ def test_the_store_records_the_researchers_word_and_derives_progress(store: Proj
     project = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
     store.choose_entry(project, 3, acted_for=TEST_PRINCIPAL, caused_by="test")
     store.mark_step(project, "repository.mandated", "done", acted_for=TEST_PRINCIPAL, caused_by="t")
-    assert store.progress(project) == {
+    found = store.progress(project)
+    assert {k: found[k] for k in ("entry", "entry_source", "steps", "suggested")} == {
         "entry": 3,
         "entry_source": "researcher",
         "steps": {"repository.mandated": "done"},
         "suggested": "repository.recommend",
     }
+    # Each state says why, with when the log recorded it.
+    reason = found["reasons"]["repository.mandated"]
+    assert reason["source"] == "marked" and reason["state"] == "done" and reason["at"]
     assert store.summary(project)["progress"] == store.progress(project)
+
+
+def test_each_state_has_the_reason_that_decided_it() -> None:
+    events: list[dict[str, Any]] = [
+        {"event": progress.ENTRY_CHOSEN, "entry": 1},
+        {"event": INVENTORY_ADDED, "at": "2026-11-01T00:00:00+00:00"},
+        added("r", "readme"),
+        marked("preparation.files", "skipped"),
+        marked("governance.embargo", "skipped"),
+        {
+            "event": progress.INTAKE_ANSWERED,
+            "question_id": "intake.sensitive",
+            "answer_values": [NO],
+        },
+        marked("governance.sensitive-data-handle", "open"),
+    ]
+    reasons = progress.step_reasons(events)
+    # The states are step_states', in the same order.
+    assert {k: v["state"] for k, v in reasons.items()} == progress.step_states(events)
+    assert list(reasons) == list(progress.step_states(events))
+    # The log's work outranks a skip and is the reason given.
+    assert reasons["preparation.files"]["source"] == "produced"
+    assert reasons["preparation.files"]["event"] == INVENTORY_ADDED
+    assert "at" in reasons["preparation.files"]
+    # A document step names the document that started it.
+    assert reasons["preparation.documentation"]["state"] == "started"
+    assert reasons["preparation.documentation"]["document_id"] == "r"
+    assert reasons["preparation.documentation"]["document_kind"] == "readme"
+    assert reasons["governance.embargo"]["source"] == "marked"
+    # An answer's skip names its question; a step opened again is open and has none.
+    assert reasons["governance.sensitive-data-identify"]["source"] == "intake"
+    assert reasons["governance.sensitive-data-identify"]["question_id"] == "intake.sensitive"
+    assert "governance.sensitive-data-handle" not in reasons
+
+
+def test_an_approved_document_is_the_reason_its_step_is_done() -> None:
+    reasons = progress.step_reasons([added("m", "metadata_record"), decided("m")])
+    assert reasons["preparation.metadata"]["state"] == "done"
+    assert reasons["preparation.metadata"]["event"] == DOCUMENT_VERSION_DECIDED
+    assert reasons["preparation.metadata"]["document_kind"] == "metadata_record"
+
+
+def test_the_decisions_are_the_intake_questions_with_their_answers() -> None:
+    events: list[dict[str, Any]] = [
+        {"event": progress.ENTRY_CHOSEN, "entry": 3},
+        {
+            "event": progress.INTAKE_ANSWERED,
+            "question_id": "intake.repository-mandated",
+            "answer_values": [YES],
+        },
+    ]
+    found = {d["question_id"]: d for d in progress.decisions(events)}
+    assert "intake.entry" not in found
+    mandated = found["intake.repository-mandated"]
+    assert mandated["asked"] and mandated["answer_values"] == [YES]
+    assert mandated["answer_labels"] == [question("intake.repository-mandated").options[0].label]
+    assert mandated["before"] == question("intake.repository-mandated").before
+    # Not asked from entry 3, and unanswered.
+    assert not found["intake.sensitive"]["asked"]
+    assert found["intake.sensitive"]["answer_values"] is None
 
 
 def test_the_store_refuses_what_is_no_entry_step_or_mark(store: ProjectStore) -> None:

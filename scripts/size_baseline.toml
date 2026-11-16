@@ -30,7 +30,7 @@ lines = 603
 
 [[file]]
 path = "app/src/dd_app/governance.py"
-lines = 706
+lines = 700
 
 [[file]]
 path = "app/web/src/components/conversation/ConversationHome.tsx"
@@ -46,7 +46,7 @@ lines = 726
 
 [[file]]
 path = "harness/src/dd_harness/conductor.py"
-lines = 1022
+lines = 1012
 
 [[file]]
 path = "harness/src/dd_harness/deposit.py"

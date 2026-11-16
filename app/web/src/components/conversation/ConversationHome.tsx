@@ -82,6 +82,7 @@ import { documentName } from "../../project/name";
 import { STATES } from "../project/DocumentFacts";
 import { ContextPanel } from "../workspace/ContextPanel";
 import { type FlowLoad, PhaseTracker, type TrackedProgress } from "../workspace/PhaseTracker";
+import { useAskAbout } from "./useAskAbout";
 import { Workspace } from "../workspace/Workspace";
 import { ProjectSwitcher } from "../project/ProjectSwitcher";
 import { Button } from "../ui/Button";
@@ -307,12 +308,10 @@ export function ConversationHome({ directory }: { directory: Directory }) {
           markStep: (stepId, mark) =>
             changeProgress(projectApi.markStep(projectId, stepId, mark), projectId),
           error: progressError,
+          projectId,
+          ...(documents.state === "loaded" ? { documents: documents.documents } : {}),
           ...(busy ? {} : { startConversation: (step: FlowStep) => startStep(step) }),
-          ...(intake
-            ? {
-                answerIntakeAgain: () => openIntakeAgain(projectId),
-              }
-            : {}),
+          ...(intake ? { answerIntakeAgain: () => openIntakeAgain(projectId) } : {}),
         }
       : null;
 
@@ -326,6 +325,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     return () => abort.abort();
   }, [flowApi]);
 
+  useAskAbout(flow, setText, box, { conversation: urlConversation, run: runId });
   // A conversation closed by switching project is taken out of the address, and not read again
   // from it. This runs before the effect below, which would otherwise reopen it.
   const [closed, setClosed] = useState<{ id: string } | null>(null);

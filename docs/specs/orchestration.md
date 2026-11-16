@@ -182,7 +182,13 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     steps (TODO(#908)). The conductor
     puts the entry point and the states into a `Message` in a project (`project_entry`,
     `project_progress`), so the input hash covers them, and the project summary carries the same
-    derivation for the phase tracker. Work done out of order, or before the entry phase, counts.
+    derivation for the phase tracker. With each state it gives the word that decided it
+    (`step_reasons`): the log's work, naming the event and any document; the researcher's mark; or
+    the intake question whose answer skipped it, with when it was recorded. So the app can say why
+    a step stands where it does and the shell works out no state of its own. It also gives the
+    intake's decision points (`decisions`), each with the step it sits before in §8's figures
+    (`IntakeQuestion.before`) and its current answer, which the journey map draws. Neither reaches
+    a `Message`. Work done out of order, or before the entry phase, counts.
     (`harness/tests/test_progress.py`,
     `test_a_message_in_a_project_is_told_its_entry_point_and_progress`,
     `test_a_reply_records_the_entry_point_a_model_worked_out`, the storage conformance kit's

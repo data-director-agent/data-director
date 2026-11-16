@@ -3,9 +3,13 @@
 `POST /api/conversations` starts a conversation, in the project it names or else a new one, and
 `POST /api/conversations/{id}/turns` sends it one message, which may attach a `dd-inventory` file
 and a supporting document's text for the project to keep, answered as a run is, or refused with
-`409` unless it follows the latest turn. `GET /api/conversations` and `GET /api/conversations/{id}`
-read them back as the harness derives them from the run store (#130). Each person sees only their
-own conversations (#153); someone else's is answered with 404, as one that does not exist.
+`409` unless it follows the latest turn. `POST /api/conversations/{id}/turns/stream` sends the same
+turn as an AG-UI `RunAgentInput` and streams its run as it is made, and
+`POST /api/conversations/{id}/turns/{run_id}/cancel` cancels it while its stream is open
+(docs/specs/app.md, "Run events to the browser"). `GET /api/conversations` and
+`GET /api/conversations/{id}` read them back as the harness derives them from the run store (#130).
+Each person sees only their own conversations (#153); someone else's is answered with 404, as one
+that does not exist.
 """
 
 from __future__ import annotations
@@ -20,7 +24,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
-from dd_app.governance import AttachedDocument, TurnConflictError, UnknownConversationError
+from dd_app.governance import TurnConflictError, UnknownConversationError
 from dd_app.routes.common import (
     RUN_REFUSED,
     Deps,
@@ -34,6 +38,8 @@ from dd_app.routes.common import (
     signed_in,
 )
 from dd_app.routes.runs import REFUSED_BEFORE_RUN
+from dd_app.turn_body import AttachedDocument, Turn
+from dd_app.turn_stream import TurnStreams
 from dd_harness.projects import ProjectDeletedError, UnknownProjectError
 from dd_harness.transport.paging import PagingError, page_params, page_response
 from dd_sdk.contract.models import Principal, ReplyAnswers
@@ -121,8 +127,19 @@ class SendTurn(RequestBody):
         d = self.documentation
         return None if d is None else AttachedDocument(d.name, d.media_type, d.text)
 
+    def turn(self) -> Turn:
+        return Turn(
+            self.agent_id,
+            self.message_text,
+            self.follows,
+            self.inventory,
+            self.reply_answers,
+            self.attached(),
+        )
+
 
 def routes(deps: Deps) -> list[Route]:
+    streams = TurnStreams(deps.governance)
     return [
         Route("/api/conversations", signed_in(deps, start_conversation), methods=["POST"]),
         Route("/api/conversations", signed_in(deps, list_conversations), methods=["GET"]),
@@ -134,6 +151,16 @@ def routes(deps: Deps) -> list[Route]:
         Route(
             "/api/conversations/{conversation_id}/turns",
             signed_in(deps, send_turn),
+            methods=["POST"],
+        ),
+        Route(
+            "/api/conversations/{conversation_id}/turns/stream",
+            signed_in(deps, lambda request, principal, _deps: streams.stream(request, principal)),
+            methods=["POST"],
+        ),
+        Route(
+            "/api/conversations/{conversation_id}/turns/{run_id}/cancel",
+            signed_in(deps, lambda request, principal, _deps: streams.cancel(request, principal)),
             methods=["POST"],
         ),
     ]
@@ -171,18 +198,9 @@ async def send_turn(request: Request, acting_for: Principal, deps: Deps) -> Resp
     started = time.monotonic()
     outcome = "answered"
     try:
-        return JSONResponse(
-            await governance.turn(
-                conversation_id,
-                body.agent_id,
-                body.message_text,
-                body.follows,
-                acting_for,
-                body.inventory,
-                body.reply_answers,
-                body.attached(),
-            )
-        )
+        envelope = await governance.turn(conversation_id, body.turn(), acting_for)
+        checks = governance.checks(envelope.invocation_id)
+        return JSONResponse({"envelope": envelope.to_document(), "checks": checks})
     except UnknownConversationError:
         outcome = "unknown conversation"
         return no_conversation(conversation_id)

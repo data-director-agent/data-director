@@ -31,11 +31,12 @@ from dd_app.governance import (
     TurnConflictError,
     UnknownConversationError,
 )
+from dd_app.turn_body import Turn
 from dd_harness.projects import ProjectStore
 from dd_harness.testing import (
     TEST_PRINCIPAL,
 )
-from dd_sdk.contract.models import UUID7_PATTERN, InvocationRequest, Principal
+from dd_sdk.contract.models import UUID7_PATTERN, Envelope, InvocationRequest, Principal
 
 
 @pytest.fixture
@@ -288,17 +289,17 @@ def test_a_cancelled_turn_still_comes_before_the_next(delegating: tuple[Governan
     def top_level_turns() -> list[dict[str, Any]]:
         return [e for e in conductor.store.iter_envelopes() if not e.get("parent_invocation_id")]
 
-    async def scenario() -> dict[str, Any]:
+    async def scenario() -> Envelope:
         first = asyncio.create_task(
             governance.turn(
-                conversation_id, "orchestrator.stub", "hello world", None, TEST_PRINCIPAL
+                conversation_id, Turn("orchestrator.stub", "hello world", None), TEST_PRINCIPAL
             )
         )
         await asyncio.to_thread(entered.wait, 30)
         first.cancel()
         with pytest.raises(TurnConflictError, match="still running"):
             await governance.turn(
-                conversation_id, "orchestrator.stub", "hello world", None, TEST_PRINCIPAL
+                conversation_id, Turn("orchestrator.stub", "hello world", None), TEST_PRINCIPAL
             )
         release.set()
         with pytest.raises(asyncio.CancelledError):
@@ -306,9 +307,7 @@ def test_a_cancelled_turn_still_comes_before_the_next(delegating: tuple[Governan
         (stored,) = top_level_turns()
         return await governance.turn(
             conversation_id,
-            "orchestrator.stub",
-            "hello again",
-            stored["invocation_id"],
+            Turn("orchestrator.stub", "hello again", stored["invocation_id"]),
             TEST_PRINCIPAL,
         )
 
@@ -318,7 +317,7 @@ def test_a_cancelled_turn_still_comes_before_the_next(delegating: tuple[Governan
         release.set()
         conductor.close()
 
-    shown = (conductor.store.get_request(second["envelope"]["invocation_id"]) or {})["input"]
+    shown = (conductor.store.get_request(second.invocation_id) or {})["input"]
     user, _agent = shown["history"]
     assert user["turn_text"] == "hello world"
     assert len(top_level_turns()) == 2  # the resend never ran
@@ -429,15 +428,15 @@ def test_a_conversation_and_its_delegations_are_its_starters_alone(
     with pytest.raises(UnknownConversationError):
         asyncio.run(
             governance.turn(
-                conversation_id, "orchestrator.stub", "hello world", None, TEST_PRINCIPAL
+                conversation_id, Turn("orchestrator.stub", "hello world", None), TEST_PRINCIPAL
             )
         )
     assert list(governance.conductor.store.iter_envelopes()) == []
 
     answered = asyncio.run(
-        governance.turn(conversation_id, "orchestrator.stub", "hello world", None, OTHER)
+        governance.turn(conversation_id, Turn("orchestrator.stub", "hello world", None), OTHER)
     )
-    envelope = answered["envelope"]
+    envelope = answered.to_document()
     (child,) = envelope["delegations"]
 
     # The delegated child is the starter's, as its parent is.
@@ -457,9 +456,7 @@ def test_a_conversation_and_its_delegations_are_its_starters_alone(
         asyncio.run(
             governance.turn(
                 conversation_id,
-                "orchestrator.stub",
-                "hello again",
-                envelope["invocation_id"],
+                Turn("orchestrator.stub", "hello again", envelope["invocation_id"]),
                 TEST_PRINCIPAL,
             )
         )

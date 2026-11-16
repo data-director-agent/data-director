@@ -4,7 +4,8 @@ process. Outside CI a stale cassette is rewritten (`support.check_cassette`); in
 
 The succeeded, abstained and refused runs go through the app's own conductor and agents; the
 referred, withheld and cancelled ones need an outcome no in-tree agent gives on demand, so they use
-the harness's scripted doubles.
+the harness's scripted doubles. The delegated one is a conversation turn, made as the app's turn
+stream makes it (`Governance.turn_run`), with the orchestrator's child in it as `SUBAGENT_*`.
 """
 
 from __future__ import annotations
@@ -16,24 +17,38 @@ from collections.abc import Awaitable, Callable, Iterator
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pytest
 from support import (
+    APP_URL,
     CASSETTES,
     check_cassette,
     configure_env,
+    dist_dir,
     new_governance,
 )
 
+from dd_agent_example_hello.agent import build as build_hello
+from dd_agent_orchestrator_stub.agent import build as build_director
+from dd_app.app import build_app
+from dd_app.config import DEFAULT_PROFILE
 from dd_app.governance import Governance
+from dd_app.turn_body import Turn
 from dd_harness import testing as fakes
 from dd_harness.conductor import Conductor
+from dd_harness.identity import OperatorAssertion
 from dd_harness.observe import RunObserver
+from dd_harness.policy import load_profile
+from dd_harness.registry import Registry
+from dd_harness.store import RunStore
 from dd_harness.testing import (
     RESTRICTIVE,
     TEST_PRINCIPAL,
     AbstainingStub,
     Chat,
     ScriptedAgent,
+    asgi_client_factory,
+    in_process,
     make_conductor,
     request,
 )
@@ -44,6 +59,8 @@ from dd_sdk.contract.models import Envelope, GroundingMode, InvocationRequest
 EXAMPLES = Path(__file__).resolve().parents[1] / "config/examples"
 STANDARDS_AGENT_ID = "advisor.standards"
 FIXED_RUN_ID = "01900000-0000-7000-8000-000000000001"
+FIXED_CHILD_ID = "01900000-0000-7000-8000-000000000002"
+FIXED_CONVERSATION_ID = "01900000-0000-7000-8000-000000000003"
 FIXED_TIME = "2026-01-01T00:00:00Z"
 THREAD = "thread"
 RUN = "run"
@@ -88,8 +105,10 @@ def _starting(conductor: Conductor, invocation: InvocationRequest) -> Start:
 def _normalised(event: dict[str, Any]) -> dict[str, Any]:
     """The event with what changes between two runs of the same input held fixed."""
     envelope = event.get("result")
-    if isinstance(envelope, dict):
-        envelope["invocation_id"] = FIXED_RUN_ID
+    if event["type"] == "RUN_FINISHED" and isinstance(envelope, dict):
+        # The run's id is also in what cites its input (`input:<id>`).
+        envelope = json.loads(json.dumps(envelope).replace(envelope["invocation_id"], FIXED_RUN_ID))
+        event["result"] = envelope
         envelope["completed_at"] = FIXED_TIME
         envelope["telemetry"]["trace_id"] = "0" * 32
         for item in envelope.get("evidence") or []:
@@ -201,6 +220,55 @@ def test_cancelled(tmp_path: Path, doubles: list[Conductor]) -> None:
     assert _last(events)["outcome"] == {"type": "cancelled"}
 
 
+def test_delegated(tmp_path: Path, doubles: list[Conductor]) -> None:
+    """A conversation turn to `orchestrator.stub`, which delegates to `example.hello` through the
+    app's own A2A routes, under the app's reference profile."""
+    served: dict[str, Any] = {}
+
+    def app_client(base_url: str, timeout_s: float) -> httpx.AsyncClient:
+        return asgi_client_factory(served["app"])(base_url, timeout_s)
+
+    registry = Registry.from_agents(
+        [
+            in_process(build_director(), delegate_client_factory=app_client),
+            in_process(build_hello()),
+        ]
+    )
+    conductor = Conductor(
+        registry=registry, store=RunStore(tmp_path / "runs"), profile=load_profile(DEFAULT_PROFILE)
+    )
+    doubles.append(conductor)
+    conductor.harness_url = APP_URL
+    governance = Governance(conductor, OperatorAssertion(TEST_PRINCIPAL))
+    served["app"] = build_app(governance, dist_dir(tmp_path))
+    conversation_id = governance.start_conversation(TEST_PRINCIPAL)
+
+    def start(observer: RunObserver, cancel: threading.Event) -> Awaitable[Envelope]:
+        return governance.turn(
+            conversation_id,
+            Turn("orchestrator.stub", "hello world", None),
+            TEST_PRINCIPAL,
+            observer=observer,
+            cancel=cancel,
+        )
+
+    recorded = _record(start)
+    envelope = _last(recorded)["result"]
+    [delegation] = envelope["delegations"]
+    # The identifiers and the child's content hash change from one run to the next.
+    text = json.dumps(recorded)
+    for found, fixed in (
+        (delegation["delegated_invocation_id"], FIXED_CHILD_ID),
+        (delegation["content_hash"], "0" * 64),
+        (conversation_id, FIXED_CONVERSATION_ID),
+    ):
+        text = text.replace(found, fixed)
+    events = _check("delegated.jsonl", json.loads(text))
+    types = [e["type"] for e in events]
+    assert types.index("SUBAGENT_STARTED") < types.index("SUBAGENT_FINISHED")
+    assert _last(events)["result"]["outcome"]["status"] == "succeeded"
+
+
 def test_every_cassette_is_made_here() -> None:
     """A cassette nothing here makes would never be checked, so it would go stale unnoticed."""
     made = {
@@ -210,5 +278,6 @@ def test_every_cassette_is_made_here() -> None:
         "referred.jsonl",
         "failed-grounding.jsonl",
         "cancelled.jsonl",
+        "delegated.jsonl",
     }
     assert {path.name for path in CASSETTES.glob("*.jsonl")} <= made

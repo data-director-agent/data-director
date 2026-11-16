@@ -28,7 +28,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from typing import Any, Final, Literal
 
-from dd_sdk.intake import question
+from dd_sdk.intake import ENTRY, INTAKE, question
 from dd_sdk.process_flow import (
     OUT_OF_SCOPE,
     PHASES,
@@ -111,14 +111,19 @@ def intake_answers(events: Iterable[Mapping[str, Any]]) -> dict[str, tuple[str, 
 def intake_skips(events: Iterable[Mapping[str, Any]]) -> frozenset[str]:
     """The steps the intake's latest answers mark skipped, counting only the questions asked
     from the entry point chosen last."""
+    return frozenset(_intake_skippers(events))
+
+
+def _intake_skippers(events: Iterable[Mapping[str, Any]]) -> dict[str, str]:
+    """Each step the intake's latest answers mark skipped, with the question whose answer does."""
     events = list(events)
     chosen = entry_chosen(events)
-    skipped: set[str] = set()
+    skipped: dict[str, str] = {}
     for question_id, values in intake_answers(events).items():
         asked = question(question_id)
         if asked.asked_at(chosen):
-            skipped |= asked.skips(values)
-    return frozenset(skipped)
+            skipped.update(dict.fromkeys(asked.skips(values), question_id))
+    return skipped
 
 
 def step_states(events: Iterable[Mapping[str, Any]]) -> dict[str, StepState]:
@@ -126,54 +131,156 @@ def step_states(events: Iterable[Mapping[str, Any]]) -> dict[str, StepState]:
 
     The strongest word comes first: work the log shows, then the researcher's own mark, then a
     skip the intake implies."""
+    return {k: v["state"] for k, v in step_reasons(events).items()}
+
+
+def step_reasons(events: Iterable[Mapping[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Each step `step_states` shows, in flow order, with its state and the word that decided it,
+    so the app can say why (docs/specs/app.md, "The phases"). Derived with the states, never
+    stored. A reason's `source` is "produced" (the log shows the step's work: `event` names the
+    event, and a document step names the `document_id` and `document_kind`), "marked" (the
+    researcher marked it) or "intake" (an answer to the intake skipped it: `question_id`). `at` is
+    when the deciding event was recorded, where the log says."""
     events = list(events)
     produced: dict[str, StepState] = {}
+    produced_by: dict[str, Mapping[str, Any]] = {}
     marked: dict[str, StepState] = {}
+    marked_by: dict[str, Mapping[str, Any]] = {}
     kinds_proposed: set[str] = set()
     kinds_approved: set[str] = set()
     kind_of: dict[str, str] = {}
+    # The latest event bearing on each document kind: a proposal, or an approval.
+    proposed_by: dict[str, Mapping[str, Any]] = {}
+    approved_by: dict[str, Mapping[str, Any]] = {}
     for event in events:
         name = event["event"]
         if name in DONE_BY_EVENT:
             produced[DONE_BY_EVENT[name]] = "done"
+            produced_by[DONE_BY_EVENT[name]] = event
         elif name == DOCUMENT_VERSION_ADDED:
             kind_of[event["document_id"]] = event["document_kind"]
             kinds_proposed.add(event["document_kind"])
+            proposed_by[event["document_kind"]] = event
         elif name == DOCUMENT_VERSION_DECIDED and event.get("decision") == "approved":
             kind = kind_of.get(event["document_id"])
             if kind is not None:
                 kinds_approved.add(kind)
+                approved_by[kind] = event
         elif name == PROJECT_VALIDATED:
             # The last validation decides: one that fails after a pass shows the step begun again.
             produced[VALIDATE_STEP] = "done" if event["conforms"] else "started"
+            produced_by[VALIDATE_STEP] = event
         elif name == STEP_MARKED:
             # An "open" mark is kept: it withdraws an earlier mark and overrides the intake.
             marked[event["step_id"]] = event["mark"]
+            marked_by[event["step_id"]] = event
     for step_id, (needed, also) in DOCUMENT_STEPS.items():
         drafted = {needed, *also} & kinds_proposed
         if needed in kinds_approved and drafted <= kinds_approved:
             produced[step_id] = "done"
+            produced_by[step_id] = _latest(approved_by[k] for k in drafted)
         elif drafted:
             produced[step_id] = "started"
-    # The further of the two: what the log produced outranks a skip, and a researcher may call a
-    # started step done.
-    states = {
-        step_id: max(
-            produced.get(step_id, "open"), marked.get(step_id, "open"), key=_RANK.__getitem__
+            produced_by[step_id] = _latest(proposed_by[k] for k in drafted)
+    reasons: dict[str, dict[str, Any]] = {}
+    for step_id in produced.keys() | marked.keys():
+        # The further of the two: what the log produced outranks a skip, and a researcher may
+        # call a started step done. On a tie the log's own work is the reason.
+        made, mark = produced.get(step_id, "open"), marked.get(step_id, "open")
+        if _RANK[made] >= _RANK[mark] and made != "open":
+            reasons[step_id] = _produced(made, produced_by[step_id], kind_of)
+        else:
+            reasons[step_id] = _reason(mark, "marked", marked_by[step_id])
+    reasons |= _intake_reasons(events, reasons.keys())
+    reasons = {k: v for k, v in reasons.items() if v["state"] != "open"}
+    return {k: reasons[k] for k in sorted(reasons, key=_ORDER.__getitem__)}
+
+
+def _intake_reasons(
+    events: list[Mapping[str, Any]], decided: Iterable[str]
+) -> dict[str, dict[str, Any]]:
+    """The steps the intake's answers skip that nothing stronger has decided."""
+    decided = set(decided)
+    reasons: dict[str, dict[str, Any]] = {}
+    for step_id, question_id in _intake_skippers(events).items():
+        if step_id in decided:
+            continue
+        reasons[step_id] = {
+            "state": "skipped",
+            "source": "intake",
+            "event": INTAKE_ANSWERED,
+            "question_id": question_id,
+        }
+        at = _answered_at(events, question_id)
+        if at is not None:
+            reasons[step_id]["at"] = at
+    return reasons
+
+
+def _latest(events: Iterable[Mapping[str, Any]]) -> Mapping[str, Any]:
+    """The event recorded last of `events`, by its `at` where the log gives one."""
+    return max(events, key=lambda e: str(e.get("at", "")))
+
+
+def _reason(state: str, source: str, event: Mapping[str, Any]) -> dict[str, Any]:
+    reason: dict[str, Any] = {"state": state, "source": source, "event": event["event"]}
+    if "at" in event:
+        reason["at"] = event["at"]
+    return reason
+
+
+def _produced(state: str, event: Mapping[str, Any], kind_of: Mapping[str, str]) -> dict[str, Any]:
+    reason = _reason(state, "produced", event)
+    if "document_id" in event:
+        reason["document_id"] = event["document_id"]
+        kind = event.get("document_kind") or kind_of.get(event["document_id"])
+        if kind is not None:
+            reason["document_kind"] = kind
+    return reason
+
+
+def _answered_at(events: Iterable[Mapping[str, Any]], question_id: str) -> str | None:
+    answers = [
+        e for e in events if e["event"] == INTAKE_ANSWERED and e["question_id"] == question_id
+    ]
+    return answers[-1].get("at") if answers else None
+
+
+def decisions(events: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """The intake's decision points as the journey map draws them (§8's diamonds): each question
+    but the entry question, in order, with the step it sits before, whether it is asked from the
+    project's entry point, and the current answer's values and labels (None while unanswered)."""
+    events = list(events)
+    chosen, answers = entry_chosen(events), intake_answers(events)
+    found = []
+    for q in INTAKE:
+        if q.id == ENTRY:
+            continue
+        values = answers.get(q.id)
+        labels = {o.value: o.label for o in q.options}
+        found.append(
+            {
+                "question_id": q.id,
+                "prompt": q.prompt,
+                "before": q.before,
+                "asked": q.asked_at(chosen),
+                "answer_values": list(values) if values is not None else None,
+                "answer_labels": [labels[v] for v in values if v in labels]
+                if values is not None
+                else None,
+            }
         )
-        for step_id in produced.keys() | marked.keys()
-    }
-    for step_id in intake_skips(events) - states.keys():
-        states[step_id] = "skipped"
-    states = {k: v for k, v in states.items() if v != "open"}
-    return {k: states[k] for k in sorted(states, key=_ORDER.__getitem__)}
+    return found
 
 
 def describe(events: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
     """The entry point and who recorded it, the step states and the step `suggested_next`
-    names, as a project summary carries them and the app's phase tracker shows them."""
+    names, as a project summary carries them and the app's phase tracker shows them, with why
+    each step is in its state (`step_reasons`) and the intake's decision points (`decisions`),
+    which the journey map draws."""
     events = list(events)
-    (chosen, source), states = entry_and_source(events), step_states(events)
+    (chosen, source), reasons = entry_and_source(events), step_reasons(events)
+    states = {k: v["state"] for k, v in reasons.items()}
     start = entry(chosen) if chosen is not None else None
     suggested = suggested_next(progress(start, states, []), start)
     return {
@@ -181,4 +288,6 @@ def describe(events: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
         "entry_source": source,
         "steps": states,
         "suggested": suggested.step.id if suggested is not None else None,
+        "reasons": reasons,
+        "decisions": decisions(events),
     }

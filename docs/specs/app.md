@@ -400,10 +400,21 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   carries on and is stored, as any cancelled run is. One stream per child was rejected because
   the browser would have to open and pair several streams for one turn, while a child's grant and
   lifetime belong to its parent's run. `POST /api/runs`, which runs one agent and answers when it
-  has ended, is kept for scripting and tests; the browser does not call it. The app does not
-  serve the stream yet, so a turn answers when it has ended, its stages are read back, not
-  watched, and it cannot be cancelled, TODO(#945). The run view drawn from the stream, with
-  Cancel and the activity log, is TODO(#949).
+  has ended, is kept for scripting and tests; the browser does not call it.
+  `POST /api/conversations/{id}/turns/stream` serves the stream. Its body is an AG-UI
+  `RunAgentInput`, as `HttpAgent` posts it: `runId` names the run, `threadId` (if given) must be
+  the conversation, and `forwardedProps` is the turn's body, checked as
+  `POST /api/conversations/{id}/turns` checks it; `messages` is not read, since the server builds
+  the history from the stored turns. A turn refused before the stream opens (a malformed body,
+  a conversation the person may not read, a `runId` already streaming) is answered with a problem,
+  as the other routes answer; one refused once it is open (it no longer follows the latest turn,
+  or goes to an agent other than the orchestrator) is `RUN_ERROR` alone.
+  `POST /api/conversations/{id}/turns/{runId}/cancel` cancels the person's own turn while its
+  stream is open (`202`), and answers `404` for any other; the stream ends with a cancelled
+  `RUN_FINISHED` and the run is stored as `run-cancelled` ([Transport and tracing](transport.md),
+  Cancelling). `POST /api/conversations/{id}/turns`, which answers when the turn has ended, is
+  kept beside it, and the shell still calls it until the run view is drawn from the stream, with
+  Cancel and the activity log, TODO(#949).
 - **The shell reads a run's stream through `@ag-ui/client`**, one way for a live run and a recorded
   one: an `HttpAgent` posts the turn to its stream route, and a `CassetteAgent` replays a cassette
   from `app/web/cassettes`, all at once or paced (`run/transport.ts`, `run/cassette.ts`). Tests and
@@ -487,6 +498,22 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   or open it again (`PUT .../progress/entry`, `PUT .../progress/steps/{step_id}`); the server
   records it acting for the person signed in and answers with the progress derived anew. The
   shell computes no state and no suggestion of its own.
+- **The journey map** draws a project's journey whole, at `/projects/{id}/journey`, after the
+  Blueprint's §8 figures: each phase a line of stops, the entry points pinned to the phases they
+  join at, the intake's decision points as diamonds before the steps they can skip, with the
+  answer given, a band across the map saying every action is recorded (linking to the activity
+  log), and the last phase looping back rather than ending. Like the strip it names no agent and
+  no requirement, and computes no state: each stop's state, the word that decided it
+  (`reasons`) and the decision points (`decisions`) are the harness's, in the progress it
+  serves. Each stop is a button that says its state in words; opening one (`?step=`) shows what
+  the step is, its state and why, a link to the document or page that produced it, the marks the
+  researcher may make, and **Ask Data Director about this**, which opens the conversation with a
+  question about the step in the message box, unsent (`/?ask={step_id}`), so the researcher's
+  own word starts the turn. **Waiting on you** picks out the steps whose document awaits the
+  researcher's decision and the decision points not yet answered; the strip shows the same count
+  and links to the map, and names the suggested step's phase. Each card on the projects page
+  shows the journey at a glance, linking to the map
+  (`app/web/src/flow/journey.test.ts`, `app/web/src/components/journey/JourneyPage.test.tsx`).
 - **A conversation can be started from a step.** In a project, each in-scope step not done or
   skipped, and the suggested step beside the suggestion, offers "Start a conversation". It closes
   the open conversation and puts the step's `prompt` in the message box for the researcher to
@@ -664,9 +691,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   answers `/api` from fixtures.
 - TODO(#244): whether the shell's tests feed `CONFORMANCE.md`; until then they carry no
   requirement marker and C6 rests on review.
-- TODO(#69): serving a turn's stream with cancel (#945), the client transport (#946), the
-  announcer for live regions (#948), and the run view and activity log drawn from the stream
-  (#949). Streaming a reply's text is TODO(#159).
+- TODO(#69): the client transport (#946), the announcer for live regions (#948), and the run
+  view and activity log drawn from the stream (#949). Streaming a reply's text is TODO(#159).
 - TODO(#72, #73): the review gate, and how the conversation docks once there is a working
   surface. A suspended child's card says it is waiting for review.
 - TODO(#160): the project's current phase in the workspace.

@@ -5,6 +5,7 @@ import { ActivityLog } from "./components/workspace/ActivityLog";
 import { FeedbackPage } from "./components/feedback/FeedbackPage";
 import { ConversationHome } from "./components/conversation/ConversationHome";
 import { Frame } from "./components/frame/Frame";
+import { JourneyPage } from "./components/journey/JourneyPage";
 import { PolicyPage } from "./components/policy/PolicyPage";
 import { ProfilePage } from "./components/profile/ProfilePage";
 import { ProjectPage } from "./components/project/ProjectPage";
@@ -26,8 +27,9 @@ import {
 } from "./session/api";
 
 // The person's projects: `/projects`; a project's documents: `/projects/{project_id}`
-// (docs/specs/projects.md).
+// (docs/specs/projects.md); its journey map: `/projects/{project_id}/journey`.
 const PROJECT_PREFIX = "/projects/";
+const JOURNEY_SUFFIX = "/journey";
 
 type Load<T> = { state: "loading" } | { state: "failed"; message: string } | { state: "loaded"; value: T };
 
@@ -40,6 +42,14 @@ export async function fetchDirectory(signal?: AbortSignal): Promise<Directory> {
   checkSignedIn(response);
   if (!response.ok) throw new Error(`the server answered ${response.status}`);
   return normalise((await response.json()) as RawAgentsResponse);
+}
+
+/** A project's page, or its journey map, from the path; neither when the path is another. */
+function projectRoute(path: string): { projectId: string | null; onJourney: boolean } {
+  if (!path.startsWith(PROJECT_PREFIX)) return { projectId: null, onJourney: false };
+  const rest = path.slice(PROJECT_PREFIX.length);
+  const onJourney = rest.endsWith(JOURNEY_SUFFIX);
+  return { projectId: onJourney ? rest.slice(0, -JOURNEY_SUFFIX.length) : rest, onJourney };
 }
 
 /**
@@ -60,7 +70,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
   const onActivity = path === "/activity";
   const onPolicy = path === "/policy";
   const onProjects = path === "/projects";
-  const projectId = path.startsWith(PROJECT_PREFIX) ? path.slice(PROJECT_PREFIX.length) : null;
+  const { projectId, onJourney } = projectRoute(path);
   // A project's own page is under Projects in the main navigation.
   const current =
     onProjects || projectId
@@ -136,6 +146,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
     if (onProfile) return <ProfilePage session={session.value} />;
     if (onActivity) return <ActivityLog />;
     if (onProjects) return <ProjectsPage />;
+    if (projectId && onJourney) return <JourneyPage projectId={projectId} query={query ?? ""} />;
     if (projectId) return <ProjectPage projectId={projectId} query={query ?? ""} />;
     if (state.state === "loading") return <p role="status">Loading the agents…</p>;
     if (state.state === "failed") {

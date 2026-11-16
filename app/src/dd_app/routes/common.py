@@ -14,12 +14,15 @@ import httpx
 from pydantic import BaseModel, ConfigDict, ValidationError
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
+from starlette.responses import Response
 
 from dd_app import feedback
 from dd_app.config import EXAMPLES_DIR
 from dd_app.github_auth import TokenSource
 from dd_app.governance import Governance
+from dd_app.problems import no_conversation as no_conversation
+from dd_app.problems import problem as problem
+from dd_app.problems import refused as refused
 from dd_app.project_service import ProjectService
 from dd_harness.identity import Unauthenticated
 from dd_harness.project_access import Action, allowed
@@ -241,20 +244,7 @@ async def read_json(request: Request, title: str, *, empty: bool = False) -> Any
 # Problems (RFC 9457).
 
 
-def problem(status: int, slug: str, title: str, detail: str, **extra: Any) -> Response:
-    """An RFC 9457 problem; `extra` are its extension members."""
-    return JSONResponse(
-        {"type": PROBLEM_BASE + slug, "title": title, "status": status, "detail": detail, **extra},
-        status_code=status,
-        media_type="application/problem+json",
-    )
-
-
 RUN_REFUSED = "Data Director could not start this run"
-
-
-def refused(detail: str, title: str = RUN_REFUSED) -> Response:
-    return problem(400, "request-refused", title, detail)
 
 
 def no_project(project_id: str) -> Response:
@@ -274,15 +264,6 @@ def project_deleted(project_id: str) -> Response:
         "project-deleted",
         "This project is deleted",
         f"Project {project_id!r} is deleted; an owner may restore it.",
-    )
-
-
-def no_conversation(conversation_id: str) -> Response:
-    return problem(
-        404,
-        "conversation-not-found",
-        "No such conversation",
-        f"No conversation {conversation_id!r}.",
     )
 
 
