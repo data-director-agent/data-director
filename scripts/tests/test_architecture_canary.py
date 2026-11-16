@@ -25,6 +25,8 @@ import check_boundaries as cb  # noqa: E402
 HARNESS = "harness/src/dd_harness/__init__.py"
 AGENT = "agents/example-hello/src/dd_agent_example_hello/__init__.py"
 SDK = "sdk/src/dd_sdk/__init__.py"
+# A route module of the app, which reaches the stores only through its governance.
+APP_ROUTES = "app/src/dd_app/routes/projects.py"
 
 
 def _tracked(*patterns: str) -> list[str]:
@@ -86,6 +88,8 @@ def test_the_copy_passes_both_checks(copy: Path) -> None:
         (HARNESS, "import workbench"),  # the harness reaches up to a way in
         (SDK, "import dd_harness"),  # the sdk reaches up to the harness
         (AGENT, "import dd_agent_advisor_quality"),  # an agent reaches sideways to another
+        (APP_ROUTES, "import dd_harness.store"),  # a route reaches past governance to a store
+        (APP_ROUTES, "from dd_harness.storage import ProjectStorage"),
     ],
 )
 def test_import_linter_fails_on_a_direction_violation(copy: Path, relative: str, line: str) -> None:

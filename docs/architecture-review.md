@@ -117,19 +117,12 @@ common, so it is copied.
   (`harness/src/dd_harness/testing/results.py:21-31`), where production code cannot use them.
   `agents/README.md` tells authors to copy `example-hello`, so every new agent copies the skeleton
   again.
-- **Registry access.** The policy, repository and standards advisers each define the same
-  `RegistryUnavailable`, `Query` and `SnapshotRef` types in their `retrieve.py`, and the
-  repository and standards advisers also define the same `Hit`. Beyond that:
-  - repository and standards share a BM25 tokeniser;
-  - policy and standards share a FAIRsharing sign-in;
-  - policy's `ror.py` and repository's `registry.py` share a pinned-download pipeline
-    (`Pin`, `_sha256`, `fetch`, about 150 lines).
-
-  The policy adviser's `live.py` says so itself: "a copy of the standards advisor's client"
-  (TODO(#280)).
-- **Explainers.** `Rationale`, `Explanation` and `TemplateExplainer` are identical in three agents.
-  `ModelExplainer` is the same shape in the repository and standards advisers
-  (`explain.py:105-185` and `explain.py:112-190`).
+- **Registry access and explainers** (resolved by #977). The policy, repository and standards
+  advisers defined the same retrieval types, BM25 tokeniser, FAIRsharing sign-in and
+  pinned-download pipeline, and the same `Rationale`, `Explanation` and `TemplateExplainer`. Each
+  is now defined once, in `dd_sdk.registry` and `dd_sdk.explain`, with `ModelExplainer`
+  parameterised by prompt and identifier pattern; the advisers keep only their records, stop
+  words, templates and prompts.
 
 A fix to any of these has to be made in two or three places, and will not be.
 

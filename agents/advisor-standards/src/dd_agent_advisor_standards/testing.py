@@ -10,10 +10,10 @@ from typing import Any
 from dd_agent_advisor_standards.classes import DatasetProfile, Recommendation
 from dd_agent_advisor_standards.explain import Explanation, Item, Lookups, Rationale, Usage
 from dd_agent_advisor_standards.fairsharing.records import MODEL_AND_FORMAT, TERMINOLOGY, Record
-from dd_agent_advisor_standards.retrieve import Hit, Query, RegistryUnavailable, SnapshotRef
 from dd_sdk.agent import RunContext
 from dd_sdk.contract.models import Derivation, Envelope, InvocationRequest
 from dd_sdk.evidence import resolve
+from dd_sdk.registry import Hit, Query, RegistryUnavailable, SnapshotRef
 from dd_sdk.tracing import chat_span
 
 ISO8601 = Record(
@@ -84,12 +84,12 @@ class FakeRetrieval:
     def snapshot_ref(self) -> SnapshotRef:
         return SnapshotRef(label="fake")
 
-    def search(self, query: Query) -> list[Hit]:
+    def search(self, query: Query) -> list[Hit[Record]]:
         self.queries.append(query)
         if self.unavailable:
             raise RegistryUnavailable("fake registry is down")
         words = [w.lower() for w in query.text.split()]
-        hits: list[Hit] = []
+        hits: list[Hit[Record]] = []
         for r in self.records:
             if query.record_type and r.record_type != query.record_type:
                 continue

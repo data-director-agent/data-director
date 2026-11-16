@@ -13,8 +13,9 @@ from starlette.testclient import TestClient
 from support import check_fixture, configure_env, dist_dir, new_governance
 from test_document_decisions import normalised
 
-from dd_app.app import ANSWERS_REFUSED, build_app
+from dd_app.app import build_app
 from dd_app.governance import Governance
+from dd_app.routes.documents import ANSWERS_REFUSED
 from dd_harness.projects import DOCUMENT_CHANGE_REFUSED, DOCUMENT_QUESTION_ANSWERED
 from dd_harness.storage import ProjectStorage
 from dd_harness.testing import (

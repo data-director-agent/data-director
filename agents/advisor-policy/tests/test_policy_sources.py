@@ -19,10 +19,10 @@ from dd_agent_advisor_policy.explain import TemplateExplainer
 from dd_agent_advisor_policy.live import PolicyLive
 from dd_agent_advisor_policy.opf import OpenPolicyFinder
 from dd_agent_advisor_policy.records import from_api_json, from_public_json
-from dd_agent_advisor_policy.retrieve import Query, RegistryUnavailable
 from dd_agent_advisor_policy.ror import RorDump, RorLive
 from dd_agent_advisor_policy.snapshot import SNAPSHOT, PolicySnapshot
 from dd_sdk.credentials import ConfigError
+from dd_sdk.registry import Query, RegistryUnavailable
 
 DATA = Path(__file__).with_name("data")
 PUBLIC = json.loads((DATA / "FAIRsharing.e081af.public.json").read_text(encoding="utf-8"))

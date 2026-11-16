@@ -13,16 +13,16 @@ cannot remove a policy the first search matched, nor change an obligation read b
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol
 
 from dd_agent_advisor_policy.classes import Actor, Obligation, PolicyContext, Strength
 from dd_agent_advisor_policy.retrieve import SourceRecord
+from dd_sdk import explain
 from dd_sdk.agent import RunContext
 from dd_sdk.contract.models import Derivation
+from dd_sdk.explain import Rationale as Rationale
 from dd_sdk.model import Usage as Usage
-from dd_sdk.prompts import ModelCallLog
 
 if TYPE_CHECKING:
     from dd_agent_advisor_policy.advise import Lookups
@@ -41,20 +41,10 @@ class Item:
 
 
 @dataclass(frozen=True)
-class Rationale:
-    text: str
-    derivation: Derivation
+class Explanation(explain.Explanation):
+    """One rationale per item, and the tokens spent (`dd_sdk.explain.Explanation`), and what the
+    model advisor may say besides."""
 
-
-@dataclass(frozen=True)
-class Explanation:
-    """One rationale per item, and the tokens spent. Returned rather than kept on the explainer,
-    because one explainer serves concurrent runs."""
-
-    rationales: list[Rationale]
-    usage: Usage
-    # The model calls made and the prompts sent (dd_sdk.prompts); None if no model was called.
-    calls: ModelCallLog | None = None
     # Each item's obligations after a model's verified additions; None leaves them as they were.
     obligations: list[tuple[Obligation, ...]] | None = None
     # Each item's notes after the model advisor's; None leaves them as they were.
@@ -75,9 +65,6 @@ class Explainer(Protocol):
         ctx: RunContext,
         lookups: Lookups | None = None,
     ) -> Explanation: ...
-
-
-_IDENTIFIER = re.compile(r"\bFAIRsharing\.[0-9A-Za-z-]+", re.IGNORECASE)
 
 
 def _kinds(item: Item, strength: Strength) -> str:
@@ -111,16 +98,9 @@ def template_rationale(item: Item) -> str:
     return " ".join(parts)
 
 
-class TemplateExplainer:
-    model_id: str | None = None
+class TemplateExplainer(explain.TemplateExplainer[PolicyContext, Item, Explanation]):
+    def rationale(self, item: Item) -> str:
+        return template_rationale(item)
 
-    def explain(
-        self,
-        context: PolicyContext,
-        items: list[Item],
-        ctx: RunContext,
-        lookups: Lookups | None = None,
-    ) -> Explanation:
-        return Explanation(
-            [Rationale(template_rationale(item), Derivation.TEMPLATE) for item in items], Usage()
-        )
+    def result(self, rationales: list[Rationale], usage: Usage) -> Explanation:
+        return Explanation(rationales, usage)

@@ -36,19 +36,18 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from dd_agent_advisor_standards import rank as ranking
 from dd_agent_advisor_standards.classes import DatasetProfile, RecommendationKind
 from dd_agent_advisor_standards.explain import (
+    IDENTIFIER,
     Addition,
     Explanation,
     Item,
     Lookups,
     Rationale,
     TemplateExplainer,
-    names_other_identifier,
     template_rationale,
 )
 from dd_agent_advisor_standards.fairsharing.records import MODEL_AND_FORMAT, TERMINOLOGY, Record
-from dd_agent_advisor_standards.retrieve import Query, RegistryUnavailable
 from dd_sdk.agent import RunContext
-from dd_sdk.contract.models import Derivation
+from dd_sdk.explain import add_usage, checked_rationale, missing_rationale, with_reason
 from dd_sdk.model import (
     Model,
     ModelCallError,
@@ -61,6 +60,7 @@ from dd_sdk.model import (
     call,
 )
 from dd_sdk.prompts import ModelCallLog
+from dd_sdk.registry import Query, RegistryUnavailable
 from dd_sdk.tracing import retrieval_span
 
 DEFAULT_MODEL = "claude-sonnet-5-5"
@@ -242,11 +242,7 @@ def _run_tool(run: _Run, made: ToolCall) -> ToolResult:
 
 
 def _rationale(text: str, record: Record, fallback: str) -> Rationale:
-    if names_other_identifier(text, {record.fairsharing_id}):
-        return Rationale(
-            fallback + " (Model rationale replaced: ungrounded reference.)", Derivation.TEMPLATE
-        )
-    return Rationale(" ".join(text.split()), Derivation.MODEL)
+    return checked_rationale(text, {record.fairsharing_id}, IDENTIFIER, fallback)
 
 
 def _addition_problem(claim: AdditionClaim, record: Record, profile: DatasetProfile) -> str | None:
@@ -325,25 +321,13 @@ def _apply(
         )
 
     final = [
-        r
-        if r is not None
-        else Rationale(
-            template_rationale(*item) + " (No model rationale; template used.)",
-            Derivation.TEMPLATE,
-        )
+        r if r is not None else missing_rationale(template_rationale(*item))
         for item, r in zip(items, rationales, strict=True)
     ]
     return Explanation(final, Usage(), concerns=concerns, additions=additions, remarks=remarks)
 
 
 # --- the advisor -----------------------------------------------------------------------------
-
-
-def _total(a: Usage, b: Usage) -> Usage:
-    def add(x: int | None, y: int | None) -> int | None:
-        return None if x is None and y is None else (x or 0) + (y or 0)
-
-    return Usage(add(a.input_tokens, b.input_tokens), add(a.output_tokens, b.output_tokens))
 
 
 class ModelAdvisor:
@@ -394,10 +378,7 @@ class ModelAdvisor:
     ) -> Explanation:
         plain = self.fallback.explain(profile, items, ctx)
         return Explanation(
-            [
-                Rationale(r.text + f" ({why}; template used.)", r.derivation)
-                for r in plain.rationales
-            ],
+            with_reason(plain.rationales, why),
             usage,
             calls,
             remarks=[f"The model advisor gave no recommendations ({why}); the template was used."],
@@ -440,7 +421,7 @@ class ModelAdvisor:
                 )
             except ModelCallError as exc:
                 return self._fallback(profile, items, ctx, f"model unavailable: {exc}", usage, log)
-            log, usage = reply.calls, _total(usage, reply.usage)
+            log, usage = reply.calls, add_usage(usage, reply.usage)
             if reply.refused:
                 return self._fallback(profile, items, ctx, "model declined", usage, log)
             messages.append(reply.message)

@@ -21,19 +21,14 @@ from dd_agent_advisor_repository.classes import (
     RepositoryRef,
 )
 from dd_agent_advisor_repository.records import DatabaseRecord, Institution, Re3dataRecord
-from dd_agent_advisor_repository.retrieve import (
-    Hit,
-    Query,
-    RegistryUnavailable,
-    SnapshotRef,
-    find_by_name,
-)
+from dd_agent_advisor_repository.retrieve import find_by_name
 from dd_agent_advisor_repository.snapshot import FairsharingSnapshot, Re3dataRegistry
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import describe
 from dd_sdk.contract.models import Envelope, OutcomeStatus, ReasonCode
 from dd_sdk.evidence import verify
 from dd_sdk.process_flow import STEPS
+from dd_sdk.registry import Hit, Query, RegistryUnavailable, SnapshotRef
 from dd_sdk.schema import gen
 
 SCHEMA = Path(dd_agent_advisor_repository.__file__).parent / "schema" / "repository.yaml"

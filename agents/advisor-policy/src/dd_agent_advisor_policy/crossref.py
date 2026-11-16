@@ -25,9 +25,9 @@ from typing import Any, ClassVar
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
-from dd_agent_advisor_policy.retrieve import RegistryUnavailable, SnapshotRef
-from dd_agent_advisor_policy.ror import _user_agent
+from dd_agent_advisor_policy.ror import USER_AGENT
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, content_hash
+from dd_sdk.registry import RegistryUnavailable, SnapshotRef
 
 API_BASE = "https://api.crossref.org/journals"
 REGISTRY_LABEL = "crossref-journals"
@@ -119,7 +119,7 @@ class CrossrefJournals:
 
     def _http(self) -> httpx.Client:
         if self._client is None:
-            self._client = httpx.Client(timeout=TIMEOUT_S, headers={"User-Agent": _user_agent()})
+            self._client = httpx.Client(timeout=TIMEOUT_S, headers={"User-Agent": USER_AGENT})
         return self._client
 
     def snapshot_ref(self) -> SnapshotRef:
@@ -131,7 +131,7 @@ class CrossrefJournals:
 
     def _get(self, url: str, params: dict[str, str] | None = None) -> Any:
         try:
-            resp = self._http().get(url, params=params, headers={"User-Agent": _user_agent()})
+            resp = self._http().get(url, params=params, headers={"User-Agent": USER_AGENT})
         except httpx.HTTPError as exc:
             raise RegistryUnavailable(f"Crossref: {type(exc).__name__}") from None
         if resp.status_code == 404:

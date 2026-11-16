@@ -13,7 +13,6 @@ module is its only importer (docs/specs/dependencies.md).
 from __future__ import annotations
 
 import json
-import re
 from functools import cached_property
 from pathlib import Path
 
@@ -21,60 +20,17 @@ from rank_bm25 import BM25Okapi
 
 from dd_agent_advisor_repository import dfg, registry
 from dd_agent_advisor_repository.records import DatabaseRecord, Re3dataRecord
-from dd_agent_advisor_repository.retrieve import (
-    Hit,
-    Query,
-    RegistryUnavailable,
-    SnapshotRef,
-)
+from dd_sdk.registry import Hit, Query, RegistryUnavailable, SnapshotRef
+from dd_sdk.registry.tokenise import STOP_WORDS
+from dd_sdk.registry.tokenise import fold as fold
+from dd_sdk.registry.tokenise import tokenise as shared_tokenise
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 FAIRSHARING_SNAPSHOT = DATA_DIR / "fairsharing" / "snapshot.jsonl"
 
-_TOKEN = re.compile(r"[a-z0-9]+")
-_STOP = frozenset(
-    [
-        "the",
-        "a",
-        "an",
-        "of",
-        "and",
-        "or",
-        "for",
-        "to",
-        "in",
-        "on",
-        "with",
-        "by",
-        "from",
-        "at",
-        "as",
-        "is",
-        "are",
-        "be",
-        "this",
-        "that",
-        "its",
-        "it",
-        "data",
-    ]
-)
-
-
-def fold(token: str) -> str:
-    """A plural as its singular, so that "science" finds a record that says only "sciences"
-    (#741). A light rule rather than a stemmer: `-ies` to `-y`, and a final `s` dropped unless
-    the word ends in `ss`, `us` or `is`. Queries and records fold alike, so a word it gets wrong
-    (`series` to `serie`) still matches itself."""
-    if len(token) > 4 and token.endswith("ies"):
-        return token[:-3] + "y"
-    if len(token) > 3 and token.endswith("s") and not token.endswith(("ss", "us", "is")):
-        return token[:-1]
-    return token
-
 
 def tokenise(text: str) -> list[str]:
-    return [fold(t) for t in _TOKEN.findall(text.lower()) if t not in _STOP and len(t) > 1]
+    return shared_tokenise(text, STOP_WORDS | {"data"}, fold_plurals=True)
 
 
 def _lines(path: Path) -> list[dict[str, object]]:
@@ -156,7 +112,7 @@ class Re3dataRegistry:
     def credit(self) -> str:
         return self.pin.credit
 
-    def search(self, query: Query) -> list[Hit]:
+    def search(self, query: Query) -> list[Hit[Re3dataRecord]]:
         """Records that contain every word of the query, as re3data's own search requires, in
         BM25 order. A record matching only some words is not a hit: a ranking that counts any
         hit as a match must not be fed partial ones (#440)."""
