@@ -29,7 +29,7 @@ is in [`harness/docs/registry.md`](../../harness/docs/registry.md).
    and the app shell) reads that manifest and nothing else about the agent. A spec rebuilt from a
    card equals the agent's own description: `harness/tests/test_registry.py`.
 4. The registry's configuration holds addresses only. An agent's identity, classes, grounding
-   mode, derivations, models, steps served and title come from its card, never from the
+   mode, derivations, models, steps served, title and settings come from its card, never from the
    configuration. The `agent_id` is the card's, not the configured name.
 5. A card that lacks the Data Director extension, names a class it carries no schema for, carries
    a schema that does not match its digest, or declares an ungrounded payload class makes its
@@ -99,6 +99,14 @@ own model accounts pay ([A person's own model account](model-accounts.md), invar
 read from the configuration alone, never from the agent's card. Reloading a changed
 configuration and checking the health of registered agents while running are not built yet:
 TODO(#251).
+
+**Settings.** An agent may offer options, each a name with its choices, a default and a
+description, such as whether it reads a source live. The manifest carries them; a profile sets
+them in `agent_settings`; the conductor refuses a value the card does not offer and sends the
+agent the values that apply, which it reads with `dd_sdk.agent.setting`
+([Policy and identity](policy-and-identity.md), invariant 22). A setting is not configuration
+that differs per machine, such as a key or an address: those stay in the agent's own settings
+file.
 
 **Derivations.** For each payload field the agent produces rather than copies, the manifest
 says how (`model`, `template`, a rule, and so on, from the contract's `Derivation`). An unlisted

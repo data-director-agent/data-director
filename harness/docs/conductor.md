@@ -54,7 +54,7 @@ reviewer all see the same record.
 
 | Step | What it checks | If the check fails |
 |---|---|---|
-| 1. Policy gate | Is the agent enabled in the institution's profile? Does it declare the action class the profile assigns it? Does that class need approval? | Not enabled: `failed`, problem `agent-not-permitted`. Another class: `failed`, problem `action-class-mismatch`. Needs approval: `referred` to a data steward. The agent does not run. |
+| 1. Policy gate | Is the agent enabled in the institution's profile? Does it declare the action class the profile assigns it, and offer the settings the profile gives it? Does that class need approval? | Not enabled: `failed`, problem `agent-not-permitted`. Another class: `failed`, problem `action-class-mismatch`. A setting the profile gives it that its card does not offer: `failed`, problem `setting-not-declared`. Needs approval: `referred` to a data steward. The agent does not run. |
 | 2. Input check | Does the agent read this input class? | `failed`, problem `input-not-accepted`. The agent does not run. |
 | 3. Project content | In a project, may the classes of project content the conductor put into the input (`inventory`, `documentation`) go to this agent? Only an agent whose card declares a `hosted` model is checked, against the profile's `hosted_models` ([Projects](../../docs/specs/projects.md), invariant 8). | `failed`, problem `project-content-withheld`. The agent does not run. |
 | 4. Run the agent | The agent runs. The conductor checks it returned the payload class it declared. | An exception, or a payload of the wrong class: `failed`, problem `agent-error`. |

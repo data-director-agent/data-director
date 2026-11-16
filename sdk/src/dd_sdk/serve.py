@@ -73,6 +73,7 @@ from dd_sdk.wire import (
     META_INPUT_HASH,
     META_INPUT_REF,
     META_MODEL_GRANT,
+    META_SETTINGS,
     META_TRACEPARENT,
     reply_to_document,
 )
@@ -149,6 +150,7 @@ def run_traced(
     grant = delegation.DelegationGrant.from_metadata(metadata)
     sent = metadata.get(META_MODEL_GRANT)
     model_grant = sent if isinstance(sent, str) and sent else None
+    settings = _settings(metadata.get(META_SETTINGS))
     token = otel_context.attach(parent)
     try:
         with bind_grant(model_grant):
@@ -170,6 +172,7 @@ def run_traced(
                             else None
                         ),
                         model_grant=model_grant,
+                        settings=settings,
                     ),
                 )
             )
@@ -304,6 +307,14 @@ def app(
     return Starlette(
         routes=[*create_agent_card_routes(card), *create_jsonrpc_routes(handler, JSONRPC_PATH)]
     )
+
+
+def _settings(sent: object) -> dict[str, str]:
+    """The settings the harness sent, keeping only string names with string values; anything else
+    is dropped, and the agent's card defaults apply (`dd_sdk.agent.setting`)."""
+    if not isinstance(sent, dict):
+        return {}
+    return {k: v for k, v in sent.items() if isinstance(k, str) and isinstance(v, str)}
 
 
 # How `--reload` hands the agent to the reloaded worker, which uvicorn starts from an import string.

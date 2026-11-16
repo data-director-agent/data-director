@@ -10,14 +10,14 @@ checked against it, never trusted on its own.
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Iterable
-from dataclasses import dataclass
+from collections.abc import Iterable, Mapping
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-from dd_sdk.agent import ModelUse
+from dd_sdk.agent import ModelUse, Setting
 from dd_sdk.model_grant import Account, origin
 
 # The whole vocabulary. A key outside it is refused: a key nothing enforces would tell a steward
@@ -32,6 +32,7 @@ PROFILE_KEYS = frozenset(
         "orchestrator",
         "hosted_models",
         "model_accounts",
+        "agent_settings",
     }
 )
 
@@ -279,6 +280,9 @@ class Profile:
     hosted_models: frozenset[str] = DEFAULT_HOSTED_MODELS
     # Whose account pays for model calls (docs/specs/model-accounts.md). Off unless written.
     model_accounts: ModelAccounts = ModelAccounts()
+    # agent_id -> {setting: value}: the options the steward sets for each agent, which the gate
+    # checks against those the agent's card declares (docs/specs/policy-and-identity.md).
+    agent_settings: dict[str, dict[str, str]] = field(default_factory=dict)
 
     @property
     def ref(self) -> str:
@@ -321,9 +325,38 @@ class Profile:
                 description=str(data.get("description") or "").strip(),
                 hosted_models=frozenset(str(c) for c in hosted),
                 model_accounts=ModelAccounts.from_value(data.get("model_accounts")),
+                agent_settings=_agent_settings(data.get("agent_settings"), agents),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise PolicyError(f"profile {source!r} is malformed: {exc}") from exc
+
+
+def _agent_settings(value: Any, agents: dict[Any, Any]) -> dict[str, dict[str, str]]:
+    """Read the profile's `agent_settings`: each enabled agent's settings, as strings. Whether the
+    agent declares them is checked at invocation, against its card (`gate`)."""
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise TypeError("agent_settings must map each agent_id to its settings")
+    out: dict[str, dict[str, str]] = {}
+    for agent_id, settings in value.items():
+        if str(agent_id) not in {str(a) for a in agents}:
+            raise ValueError(
+                f"agent_settings names {agent_id!r}, which is not one of the agents the profile "
+                "enables"
+            )
+        if not isinstance(settings, dict):
+            raise TypeError(f"agent_settings for {agent_id!r} must map each setting to a value")
+        for name, setting in settings.items():
+            # YAML reads on/off/yes/no as booleans and bare numbers as numbers; a setting's
+            # choices are strings, so ask for the value to be written as one.
+            if not isinstance(setting, str):
+                raise TypeError(
+                    f"agent_settings {agent_id}.{name} is {setting!r}; write the value as a "
+                    "quoted string"
+                )
+        out[str(agent_id)] = {str(k): v for k, v in settings.items()}
+    return out
 
 
 def load_profile(path: Path) -> Profile:
@@ -342,12 +375,24 @@ class GateDecision:
     allowed: bool
     requires_approval: bool
     reason: str
-    # Why a refused agent was refused: "not-enabled" or "action-class-mismatch".
+    # Why a refused agent was refused: "not-enabled", "action-class-mismatch" or
+    # "setting-not-declared".
     refusal: str | None = None
+    # The agent's settings for this invocation, when it may run: its card's defaults overlaid by
+    # the profile's `agent_settings`.
+    settings: Mapping[str, str] = field(default_factory=dict)
 
 
-def gate(profile: Profile, agent_id: str, declared_action_class: str) -> GateDecision:
-    """May this agent run, and does the class the profile gives it require approval?"""
+def gate(
+    profile: Profile,
+    agent_id: str,
+    declared_action_class: str,
+    declared_settings: Mapping[str, Setting] | None = None,
+) -> GateDecision:
+    """May this agent run, with which settings, and does the class the profile gives it require
+    approval? A setting the profile gives an agent whose card does not declare it, or a value
+    outside its choices, refuses the agent: a setting nothing would apply must not look as if it
+    were in force."""
     assigned = profile.agents.get(agent_id)
     if assigned is None:
         return GateDecision(False, False, f"agent {agent_id!r} not enabled", "not-enabled")
@@ -359,13 +404,36 @@ def gate(profile: Profile, agent_id: str, declared_action_class: str) -> GateDec
             f"profile {profile.profile_id!r} assigns it {assigned!r}",
             "action-class-mismatch",
         )
+    declared = declared_settings or {}
+    settings = {name: s.default for name, s in declared.items()}
+    for name, value in profile.agent_settings.get(agent_id, {}).items():
+        offered = declared.get(name)
+        if offered is None or value not in offered.choices:
+            accepts = (
+                f"it accepts {', '.join(map(repr, offered.choices))}"
+                if offered is not None
+                else (
+                    f"its settings are {', '.join(map(repr, sorted(declared)))}"
+                    if declared
+                    else "it declares no settings"
+                )
+            )
+            return GateDecision(
+                False,
+                False,
+                f"profile {profile.profile_id!r} sets {agent_id}'s {name!r} to {value!r}; "
+                f"{accepts}",
+                "setting-not-declared",
+            )
+        settings[name] = value
     if assigned in profile.actions_requiring_approval:
         return GateDecision(
             True,
             True,
             f"action class {assigned!r} requires approval under {profile.profile_id!r}",
+            settings=settings,
         )
-    return GateDecision(True, False, "permitted")
+    return GateDecision(True, False, "permitted", settings=settings)
 
 
 def withheld(profile: Profile, hostings: Iterable[str], given: Iterable[str]) -> list[str]:

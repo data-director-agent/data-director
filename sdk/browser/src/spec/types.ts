@@ -47,4 +47,15 @@ export interface RawAgentSpec {
   serves?: string[];
   /** The persona's name as a researcher sees it (docs/specs/agents.md). Absent or empty: none. */
   title?: string;
+  /**
+   * The options a deployment's profile may set, by name (docs/specs/policy-and-identity.md).
+   * Absent on an older card, which offers none.
+   */
+  settings?: Record<string, RawSetting>;
+}
+
+export interface RawSetting {
+  choices: string[];
+  default: string;
+  description: string;
 }

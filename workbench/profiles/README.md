@@ -43,9 +43,13 @@ hosted_models:               # optional: the classes of project content an agent
 model_accounts:              # optional: whose model account pays; see "People's own model
   own: off                   # accounts" below. Without this key, as with `own: off`, the
                              # deployment pays for every model call
+
+agent_settings:              # optional: options an agent offers on its card, per agent.
+  advisor.policy:            # Write each value as a quoted string. Without this key every
+    journals: "off"          # agent uses its card's defaults
 ```
 
-Those eight keys are the whole vocabulary. A profile with any other key is refused when the
+Those nine keys are the whole vocabulary. A profile with any other key is refused when the
 workbench starts, so a misspelt or out-of-date key cannot look as if it were in force.
 
 ## How it is applied
@@ -58,18 +62,23 @@ Before an agent runs, the conductor checks:
    class, but the class that counts is yours. If the two differ (for example, an agent upgraded
    from `advise` to `metadata_write`), the invocation **fails** with the problem
    `action-class-mismatch` until you update the profile. Nothing is run.
-3. Does the assigned class appear in `actions_requiring_approval`? If so, the invocation is
+3. Does the agent offer every setting `agent_settings` gives it, with that value? Each agent's
+   card lists its settings, their choices and defaults (`workbench agents` shows them). If not,
+   the invocation **fails** with the problem `setting-not-declared` until you update the profile.
+   Nothing is run. Otherwise the agent is sent its defaults, overlaid by what you set.
+
+4. Does the assigned class appear in `actions_requiring_approval`? If so, the invocation is
    **referred** to the data steward with reason `policy_requires_approval`. Nothing is run.
    There is not yet a way to approve a referred run and let it continue; see issue #16.
 
-4. In a project, if the agent's card declares a `hosted` model, are all the classes of project
+5. In a project, if the agent's card declares a `hosted` model, are all the classes of project
    content it would be given listed under `hosted_models`? If not, the invocation **fails** with
    the problem `project-content-withheld`. Nothing is sent to the agent.
 
-5. If the profile lets people use their own model account, the grant each model-backed agent is
+6. If the profile lets people use their own model account, the grant each model-backed agent is
    sent says so, and the model broker pays for its calls as the next section describes. In a
    project, an agent that may call a person's own endpoint counts as calling a `hosted` model for
-   step 4, unless every endpoint the profile allows is declared `local`.
+   step 5, unless every endpoint the profile allows is declared `local`.
 
 That is all the gate does. It cannot express conditions ("allow deposit if the dataset is under
 1 GB"). If such a rule is ever needed, the profile format will be extended and compiled to a

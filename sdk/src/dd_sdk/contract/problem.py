@@ -38,6 +38,15 @@ def action_class_mismatch(
     )
 
 
+def setting_not_declared(agent_id: str, reason: str, profile_id: str) -> ProblemDetails:
+    return problem(
+        "setting-not-declared",
+        "The institutional profile sets an agent option the agent does not offer",
+        f"{reason}. The steward must update profile {profile_id!r} before agent {agent_id!r} runs.",
+        http_status=403,
+    )
+
+
 def unauthenticated(detail: str) -> ProblemDetails:
     """A caller whose credential is missing or bad (docs/specs/policy-and-identity.md). `detail`
     never holds the credential."""
