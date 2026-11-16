@@ -16,6 +16,8 @@ import {
   ProjectApiContext,
   digestOf,
 } from "../../project/api";
+import { type ConversationApi, ConversationApiContext } from "../../conversation/api";
+import type { ConversationSummary } from "../../conversation/types";
 import { ProjectPage } from "./ProjectPage";
 
 // What the server says (app/tests/test_document_decisions.py): a README proposed, and a data
@@ -76,12 +78,38 @@ function fakeApi(overrides: Partial<ProjectApi> = {}): ProjectApi {
   };
 }
 
-function renderPage(api: ProjectApi, query = "") {
+function fakeConversations(
+  list: ConversationApi["list"] = () => Promise.resolve([]),
+): ConversationApi {
+  return {
+    create: () => Promise.reject(new Error("nothing started in these tests")),
+    sendTurn: () => Promise.reject(new Error("nothing sent in these tests")),
+    list,
+    get: () => Promise.reject(new Error("nothing opened in these tests")),
+  };
+}
+
+function renderPage(api: ProjectApi, query = "", conversations = fakeConversations()) {
   return render(
-    <ProjectApiContext.Provider value={api}>
-      <ProjectPage projectId={PROJECT.project_id} query={query} />
-    </ProjectApiContext.Provider>,
+    <ConversationApiContext.Provider value={conversations}>
+      <ProjectApiContext.Provider value={api}>
+        <ProjectPage projectId={PROJECT.project_id} query={query} />
+      </ProjectApiContext.Provider>
+    </ConversationApiContext.Provider>,
   );
+}
+
+/** A conversation summary as `GET /api/conversations` lists one. */
+function summary(conversation_id: string, project_id: string | null, title: string): ConversationSummary {
+  return {
+    conversation_id,
+    project_id,
+    agent_id: "orchestrator",
+    title,
+    title_source: "model",
+    turns: 2,
+    started_at: "2026-11-01T10:00:00Z",
+  };
 }
 
 /** `PROJECT` with the README's text and media type replaced, as the given kind of document. */
@@ -211,6 +239,46 @@ describe("ProjectPage", () => {
     renderPage(fakeApi(), "doc=nonesuch");
     expect(await screen.findByText(/That document is not in this project/)).toBeVisible();
     expect(screen.getByRole("navigation", { name: "Documents" })).toBeVisible();
+  });
+
+  it("lists the project's conversations beside its documents, each a link to open it", async () => {
+    const { container } = renderPage(
+      fakeApi(),
+      "",
+      fakeConversations(() =>
+        Promise.resolve([
+          summary("conv-1", PROJECT.project_id, "Soil cores deposit"),
+          summary("conv-2", "another-project", "Not this project"),
+          summary("conv-3", PROJECT.project_id, "Data dictionary questions"),
+        ]),
+      ),
+    );
+    const nav = await screen.findByRole("navigation", { name: /Conversations/ });
+    const first = await within(nav).findByRole("link", { name: /Soil cores deposit/ });
+    expect(first.getAttribute("href")).toBe("/?conversation=conv-1");
+    expect(within(nav).getByRole("link", { name: /Data dictionary questions/ })).toBeTruthy();
+    expect(within(nav).queryByRole("link", { name: /Not this project/ })).toBeNull();
+    expect(within(nav).getByRole("link", { name: /New conversation/ }).getAttribute("href")).toBe(
+      "/",
+    );
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("says when the project has no conversations yet", async () => {
+    renderPage(fakeApi());
+    const nav = await screen.findByRole("navigation", { name: /Conversations/ });
+    expect(await within(nav).findByText(/No conversations yet/)).toBeTruthy();
+  });
+
+  it("keeps the documents when the conversations cannot be read", async () => {
+    renderPage(
+      fakeApi(),
+      "",
+      fakeConversations(() => Promise.reject(new Error("unreachable"))),
+    );
+    const nav = await screen.findByRole("navigation", { name: /Conversations/ });
+    expect(await within(nav).findByText(/could not be read/)).toBeTruthy();
+    expect(await readme()).toBeTruthy();
   });
 
   it("names the page after the project", async () => {
