@@ -391,7 +391,7 @@ for (const scheme of ["light", "dark"] as const) {
 
     const group = page.getByRole("group", { name: "Where are you with your research data?" });
     await expect(group).toBeVisible();
-    await expect(page.getByRole("status")).toContainText("It asks: Where are you");
+    await expect(page.getByRole("log", { name: "Announcements" })).toContainText("It asks: Where are you");
     expect(await overflow(page), "horizontal overflow with a question").toBeLessThanOrEqual(0);
     expect(await axeViolations(page)).toEqual([]);
 
@@ -446,7 +446,7 @@ for (const scheme of ["light", "dark"] as const) {
 
     const form = page.getByRole("form", { name: /asks 3 questions for you/ });
     await expect(form.getByText("Question 1 of 3")).toBeVisible();
-    await expect(page.getByRole("status")).toContainText("3 questions, one at a time");
+    await expect(page.getByRole("log", { name: "Announcements" })).toContainText("3 questions, one at a time");
     expect(await overflow(page), "horizontal overflow with a series of questions").toBeLessThanOrEqual(0);
     expect(await axeViolations(page)).toEqual([]);
 

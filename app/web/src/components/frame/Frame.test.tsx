@@ -26,6 +26,22 @@ describe("Frame", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("holds one polite and one assertive live region from the start", () => {
+    render(
+      <Frame current="/agents">
+        <p>Content</p>
+      </Frame>,
+    );
+    expect(screen.getByRole("log", { name: "Announcements" })).toHaveAttribute(
+      "aria-live",
+      "polite",
+    );
+    expect(screen.getByRole("log", { name: "Errors" })).toHaveAttribute(
+      "aria-live",
+      "assertive",
+    );
+  });
+
   it("links the app name in the banner to the home page", () => {
     render(
       <Frame current="/agents">

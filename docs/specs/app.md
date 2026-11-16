@@ -667,6 +667,12 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   horizontal scrolling. Automated checks find only some failures; the rest is human review
   ([Evaluation and conformance](evaluation.md)). Chat content needs particular care
   (`docs/ui/best-practices.md`).
+- **Live regions.** The frame mounts two, once, so they are in the page from load: a polite log
+  (`aria-live="polite"`, `aria-atomic="false"`) and an assertive one for errors
+  (`components/ui/Announcer.tsx`). Components speak through `useAnnounce()`; a lint rule stops
+  anything else setting `aria-live`. A run's progress is drawn from the reducer's state
+  (`run/announce.ts`): each step is said once when it starts, a failed check when its report
+  arrives, and the end; `RUN_ERROR`, a malformed event and an interrupted stream are assertive.
 - **Colour scheme.** Light by default whatever the system prefers; the person's choice of dark,
   or of matching the device, is remembered in that browser (`shell.spec.ts`, `profile.spec.ts`).
   Reduced motion follows the device unless the person's preferences say otherwise.
@@ -691,8 +697,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   answers `/api` from fixtures.
 - TODO(#244): whether the shell's tests feed `CONFORMANCE.md`; until then they carry no
   requirement marker and C6 rests on review.
-- TODO(#69): the client transport (#946), the announcer for live regions (#948), and the run
-  view and activity log drawn from the stream (#949). Streaming a reply's text is TODO(#159).
+- TODO(#69): the client transport (#946), and the run view and activity log drawn from the
+  stream (#949), which says its progress through the announcer (`useRunAnnouncements`).
+  Streaming a reply's text is TODO(#159).
 - TODO(#72, #73): the review gate, and how the conversation docks once there is a working
   surface. A suspended child's card says it is waiting for review.
 - TODO(#160): the project's current phase in the workspace.

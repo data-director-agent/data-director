@@ -3,7 +3,8 @@
  *
  * The banner holds the same things on every page (the name, the main navigation, who is signed
  * in and the dark mode switch), so nothing in it moves when the page changes. What a page is
- * about, and for whom it acts, is said in the page itself.
+ * about, and for whom it acts, is said in the page itself. The page's two live regions are
+ * mounted here, once, so they are present from load (`ui/Announcer`).
  */
 
 import "./Frame.css";
@@ -21,6 +22,7 @@ import {
 import type { ReactNode } from "react";
 
 import { Link } from "../../route";
+import { AnnouncerProvider } from "../ui/Announcer";
 import { FooterBuild } from "./FooterBuild";
 import { ThemeSwitch } from "./ThemeSwitch";
 
@@ -64,7 +66,7 @@ export function Frame({
   const run = new URLSearchParams(from.split("?")[1]).get("run");
   const report = `/feedback?from=${encodeURIComponent(from)}${run ? `&run=${encodeURIComponent(run)}` : ""}`;
   return (
-    <>
+    <AnnouncerProvider>
       <a className="skip-link" href="#main">
         Skip to main content
       </a>
@@ -182,6 +184,6 @@ export function Frame({
           </div>
         </div>
       </footer>
-    </>
+    </AnnouncerProvider>
   );
 }

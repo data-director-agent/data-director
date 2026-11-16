@@ -16,9 +16,9 @@
  * Until there is authentication (#17) the conversation acts for the operator (docs/specs/policy-and-identity.md).
  *
  * While a reply is awaited the message sits in the transcript beside a pulsing sign that the
- * orchestrator is working. A new reply is announced in a polite live region, with any document
- * version the turn drafted once the project's documents have been read again, the busy state is
- * announced, and focus returns to the message box. The project's documents are read once for
+ * orchestrator is working. A new reply is announced in the frame's polite region
+ * (`useAnnounce`), with any document version the turn drafted once the project's documents have
+ * been read again, the busy state is announced, and focus returns to the message box. The project's documents are read once for
  * both the transcript's cards and the side bar's list.
  *
  * A reply may ask a choice question, which the transcript shows as choices; sending the answer
@@ -85,6 +85,7 @@ import { type FlowLoad, PhaseTracker, type TrackedProgress } from "../workspace/
 import { useAskAbout } from "./useAskAbout";
 import { Workspace } from "../workspace/Workspace";
 import { ProjectSwitcher } from "../project/ProjectSwitcher";
+import { useAnnounce } from "../ui/Announcer";
 import { Button } from "../ui/Button";
 import { EarlierConversations } from "./EarlierConversations";
 import { InventoryReviewDialog } from "../inventory/InventoryReviewDialog";
@@ -142,7 +143,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     document: AttachedDocument | null;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [announcement, setAnnouncement] = useState("");
+  const announce = useAnnounce();
   const [flow, setFlow] = useState<FlowLoad>({ state: "loading" });
   // A step whose prompt waits on the researcher's leave to replace the message being written.
   const [replacing, setReplacing] = useState<FlowStep | null>(null);
@@ -191,7 +192,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
             ({ document, version }) =>
               `${documentName(document)} drafted, version ${version.version}: ${STATES[version.state].label}.`,
           );
-          setAnnouncement([pending.said, ...what].join(" "));
+          announce([pending.said, ...what].join(" "));
         }
       },
       (e: unknown) => {
@@ -201,7 +202,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
       },
     );
     return () => abort.abort();
-  }, [projectApi, projectId, turnCount]);
+  }, [announce, projectApi, projectId, turnCount]);
   const documents: DocumentsRead =
     projectId && documentsOf?.projectId === projectId ? documentsOf.read : { state: "loading" };
 
@@ -285,7 +286,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
       (changed) => {
         intakeChanged(of, changed);
         closeIntake();
-        setAnnouncement("Setup questions skipped. You can answer them from the phase tracker.");
+        announce("Setup questions skipped. You can answer them from the phase tracker.");
       },
       (e: unknown) => setError(`Data Director could not skip the setup questions: ${errorMessage(e)}`),
     );
@@ -376,7 +377,6 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     setConversation(null);
     setOpenProject(undefined);
     setError(null);
-    setAnnouncement("");
   }
 
   const frame = {
@@ -456,39 +456,39 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   function confirmInventory(checked: AttachedInventory) {
     setPending(null);
     setAttached(checked);
-    setAnnouncement("Inventory attached.");
+    announce("Inventory attached.");
     requestAnimationFrame(() => box.current?.focus());
   }
 
   function discardInventory() {
     setPending(null);
-    setAnnouncement("Inventory not attached.");
+    announce("Inventory not attached.");
     requestAnimationFrame(() => box.current?.focus());
   }
 
   function confirmDocument(checked: AttachedDocument) {
     setPendingDocument(null);
     setAttachedDocument(checked);
-    setAnnouncement(`${checked.name} attached.`);
+    announce(`${checked.name} attached.`);
     requestAnimationFrame(() => box.current?.focus());
   }
 
   function discardDocument() {
     setPendingDocument(null);
-    setAnnouncement("Document not attached.");
+    announce("Document not attached.");
     requestAnimationFrame(() => box.current?.focus());
   }
 
   function removeDocument() {
     const name = attachedDocument?.name ?? "Document";
     setAttachedDocument(null);
-    setAnnouncement(`${name} removed.`);
+    announce(`${name} removed.`);
     box.current?.focus();
   }
 
   function removeInventory() {
     setAttached(null);
-    setAnnouncement("Inventory removed.");
+    announce("Inventory removed.");
     box.current?.focus();
   }
 
@@ -537,7 +537,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     setBusy(true);
     setError(null);
     setAttachError(null);
-    setAnnouncement("Waiting for a reply.");
+    announce("Waiting for a reply.");
     // The message and its inventory move into the transcript while the reply is awaited, and
     // come back to the box if the send fails, so nothing typed or attached is lost.
     setSent({ message, inventory, document: attachedDoc });
@@ -591,7 +591,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
         ? { said, invocationIds: [last.invocation_id, ...last.children.map((c) => c.invocation_id)] }
         : null;
       setConversation(updated);
-      setAnnouncement(said);
+      announce(said);
       void reloadPast();
       reloadProjects();
     } catch (e) {
@@ -602,7 +602,6 @@ export function ConversationHome({ directory }: { directory: Directory }) {
           "Your message was sent and answered, but Data Director could not show the reply " +
             `(${errorMessage(e)}). Open this conversation from Conversations to see it.`,
         );
-        setAnnouncement("");
         return;
       }
       if (fromBox) {
@@ -632,7 +631,6 @@ export function ConversationHome({ directory }: { directory: Directory }) {
             : `Data Director could not send this: ${errorMessage(e)}`,
         );
       }
-      setAnnouncement("");
     } finally {
       setSent(null);
       setBusy(false);
@@ -651,7 +649,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     setReplacing(null);
     reset();
     setText(step.prompt);
-    setAnnouncement(
+    announce(
       `New conversation about ${step.label}. The message box holds a suggested message: edit it if you wish, then send.`,
     );
     requestAnimationFrame(() => {
@@ -673,7 +671,6 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     setAttached(null);
     setAttachedDocument(null);
     setAttachError(null);
-    setAnnouncement("");
     box.current?.focus();
   }
 
@@ -734,7 +731,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
                   ? startFromIntake
                   : undefined
               }
-              onAnnounce={setAnnouncement}
+              onAnnounce={announce}
             />
           )}
           {((conversation && conversation.turns.length > 0) || sent !== null) && (
@@ -851,9 +848,6 @@ export function ConversationHome({ directory }: { directory: Directory }) {
               {busy ? "Sending…" : "Send"}
             </Button>
           </form>
-          <div role="status" aria-live="polite" className="visually-hidden">
-            {announcement}
-          </div>
           {error && (
             <div role="alert" className="callout status-danger">
               <p>{error}</p>
