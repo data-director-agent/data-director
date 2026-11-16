@@ -39,7 +39,6 @@ import {
   IDENTIFICATION_METHODS,
   isOmitted,
   NO_EDITS,
-  pronomUrl,
   searchFiles,
   summarise,
   type EditAction,
@@ -47,7 +46,6 @@ import {
   type FileInventory,
   type FileRole,
   type FolderNode,
-  type FormatGroup,
   type InventoryEdits,
   type InventoryFile,
   type TableField,
@@ -56,6 +54,7 @@ import {
 } from "@data-director/inventory";
 import { createContext, useContext, useId, useMemo, useState } from "react";
 import { TableScroll } from "../ui/TableScroll";
+import { Formats } from "./InventoryFormats";
 
 /** The most search results drawn at once; the rest are counted. */
 export const SHOWN = 200;
@@ -202,58 +201,6 @@ function IncludePath({ path, label }: { path: string; label: string }) {
       disabled={left && !omitted.paths.has(path)}
       onChange={(e) => editing.dispatch({ kind: e.currentTarget.checked ? "include" : "omit", path })}
     />
-  );
-}
-
-function Formats({ formats }: { formats: readonly FormatGroup[] }) {
-  if (formats.length === 0) return null;
-  return (
-    <section aria-labelledby="inventory-formats">
-      <h3 id="inventory-formats">Formats</h3>
-      <TableScroll label="Formats in the inventory">
-        <table className="data-table">
-          <caption className="visually-hidden">Formats in the inventory</caption>
-          <thead>
-            <tr>
-              <th scope="col">Media type</th>
-              <th scope="col">PRONOM</th>
-              <th scope="col" className="num">
-                Files
-              </th>
-              <th scope="col" className="num">
-                Size
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {formats.map((format) => (
-              <tr key={format.mediaType ?? ""}>
-                <td>{format.mediaType ? <code>{format.mediaType}</code> : "Not known"}</td>
-                <td>
-                  <Puids ids={format.pronomIds} />
-                </td>
-                <td className="num">{format.fileCount}</td>
-                <td className="num">{formatBytes(format.bytes)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </TableScroll>
-    </section>
-  );
-}
-
-function Puids({ ids }: { ids: readonly string[] }) {
-  if (ids.length === 0) return <span className="muted">None</span>;
-  return (
-    <>
-      {ids.map((id, index) => (
-        <span key={id}>
-          {index > 0 && ", "}
-          <a href={pronomUrl(id)}>{id}</a>
-        </span>
-      ))}
-    </>
   );
 }
 
