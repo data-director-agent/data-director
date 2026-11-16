@@ -137,7 +137,11 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
     its questions as `Question`s of kind `choice` too, outside any reply; its answers go to the
     project, not a turn, so they carry no `ReplyAnswers` and the core schema does not change for
     them
-    ([Orchestration](orchestration.md), invariant 20).
+    ([Orchestration](orchestration.md), invariant 20). A `Reply` may instead carry
+    `intake_suggestions`, each an intake question id and the option values a model read in the
+    researcher's words, which an agent that sets it declares model-derived and the harness
+    records as suggestions, never answers ([Projects](projects.md), rule 20). Adding it will raise
+    the contract version; it is not in the schema yet, TODO(#908).
 24. A `Document` may carry `document_questions`, one `DocumentQuestion` for each gap the version
     leaves: an identifier unique within the document (`q-` and 16 hexadecimal digits, derived
     from the gap), the text put to the person, and a target that is either a README section or a

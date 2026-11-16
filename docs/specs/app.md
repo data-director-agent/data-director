@@ -273,13 +273,20 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     Neither body names who answered: the server records the answer for the person signed in. A
     malformed body is refused with a 400, and an answer the harness rejects with a 409; nothing is
     recorded in either case. The message box stays usable throughout. A turn sent while the
-    intake is pending leaves it pending, and does not count as an answer. The intake is a card of
-    the project, not a turn: no orchestrator runs for it, and the history holds none of it. Its
+    intake is pending leaves it pending, and does not count as an answer. A question with only a model's
+    suggestion (`suggested_values`), and the entry question while its entry point is a model's, are asked with that answer chosen and a note that Data Director
+    took it from what the researcher wrote; Next records it as the researcher's own answer, and
+    Skip leaves the suggestion unrecorded as an answer. A question with neither is asked with
+    nothing chosen ([Orchestration](orchestration.md), invariant 20). The card does not yet
+    show suggestions, and a model's entry point still completes the entry question rather than
+    leaving the intake pending until it is confirmed, TODO(#908). The intake is a card
+    of the project, not a turn: no orchestrator runs for it, and the history holds none of it. Its
     answers reach the orchestrator through the project's entry point and step states. The phase
     tracker offers "Answer the setup questions again", which shows the card with the current
     answers chosen and records only an answer that changed. The card reads the intake again after
-    each turn and when asked again from the tracker. An entry point Data Director worked out from
-    what the researcher said (`entry_source` `model`) is shown chosen, with a note saying it is
+    each turn, as the workspace reads the project's progress, and when asked again from the
+    tracker; a read after a turn changes what the card holds, never whether it is open. An
+    entry point Data Director worked out from what the researcher said (`entry_source` `model`) is shown chosen, with a note saying it is
     Data Director's; Next records it as the researcher's own, and nothing records it otherwise
     (`ConversationHome.test.tsx`). The card's Skip passes one question
     by for that visit only, recording nothing, so it is asked again when the workspace next opens;

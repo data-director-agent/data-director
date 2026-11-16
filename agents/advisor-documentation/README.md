@@ -151,7 +151,7 @@ The model writer needs the package's `model` extra. With a hosted model, the age
 it `hosted`, so in a project it runs only where the profile's `hosted_models` lists
 `documentation` (docs/specs/projects.md, invariant 8): it is given the approved metadata record
 and people's answers. The shipped profiles list it. The CI evaluation runs the template path
-(TODO(#576)).
+([The Documentation Editor evaluation](src/dd_agent_advisor_documentation/evals/README.md)).
 
 ## What it does not do
 

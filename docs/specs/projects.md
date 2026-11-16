@@ -201,6 +201,17 @@ intended design, and each part says where it is not built yet.
       other answer is an `intake_answered` event, `{question_id, answer_values}`.
     - `ProjectStore.dismiss_intake` writes `intake_dismissed`.
 
+    A third kind of event holds what an orchestrator's model read in the researcher's words: the
+    conductor writes each of a succeeded `Reply`'s `intake_suggestions` as an `intake_suggested`
+    event, `{question_id, answer_values}`, caused by the run, checked against its question as an
+    answer is ([Orchestration](orchestration.md), invariant 8). It records nothing for a question
+    the researcher has already answered, and the latest suggestion for a question counts. A
+    suggestion is not an answer: it marks no step, it leaves its question unanswered, and
+    `ProjectStore.intake` reads it beside the current answer (`suggested_values`) only so that the
+    card can show it chosen. Whether the entry point is the researcher's or a model's is read from
+    the `entry_chosen` event's `entry_source`; a model's leaves the entry question to be confirmed.
+    None of this is built yet, TODO(#908).
+
     An answer that fails the check records nothing (rule 3). For each question the latest answer
     counts (rule 5), and an answer recorded after a dismissal opens the intake again. A step's state
     is derived from the log (`dd_harness.progress`), with the strongest source first:
@@ -212,7 +223,9 @@ intended design, and each part says where it is not built yet.
     overrides the intake without changing the answer. `dd_harness.intake.next_question` derives
     which question comes next in the same way, and none is stored; `ProjectStore.intake` reads the
     questions with their current answers for the app's card. Any entry point recorded,
-    the researcher's or one a model worked out, answers the entry question, and an answer marks
+    the researcher's or one a model worked out, places the project and decides which questions
+    are asked; only the researcher's answers the entry question, so a model's is asked again for
+    them to confirm (TODO(#908); today a model's answers it too). An answer marks
     steps skipped only while the entry point is one its question is asked from. The project
     summary says whether the intake is `pending`, `complete` or `dismissed`.
     (`harness/tests/test_project_intake.py`; `harness/tests/test_progress.py`)
@@ -517,12 +530,17 @@ store, and writes to neither ([Disclosure](disclosure.md)).
   erasure exist.
 - **An "archived" state beside deleted.** It would hide a project in the same way and differ only
   in the word. Revisit it if researchers want to retire a project without a restore deadline.
+- **A model's intake suggestion as an `intake_answered` event with a source**, as `entry_chosen`
+  carries one. Every reader of `intake_answered` would have to remember that one source marks
+  no step; an event of its own cannot be mistaken for an answer.
 
 ## Non-functional requirements
 
 - **Privacy.** File and field names, a project's title, uploaded documentation and a person's
   edits may identify people. Limiting what goes to a hosted model limits what leaves; it does not show that nothing
-  personal did. Detecting personal data is TODO(#39, #40), and the tool never anonymises (C2).
+  personal did. Detecting personal data where the inventory is made, and disclosure control for
+  any summary value it carries, are [Personal data and disclosure control](personal-data.md);
+  personal data in conversation text is TODO(#40). The tool never anonymises (C2).
   No email address is asked for or held for a member. Researcher facts are public, but
   personal: they go to a hosted model only where the profile lists `researcher` (invariant 8),
   and withdrawing them stops them being given but does not erase them from the log, TODO(#156). Members see each other's words and work,

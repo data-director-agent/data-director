@@ -164,6 +164,8 @@ layers = [
 ignore_imports = [
   "dd_agent_advisor_standards.evals.* -> workbench.*",
   "dd_agent_advisor_standards.testing -> workbench.*",
+  # The Documentation Editor's evaluation declares the workbench in its `eval` extra.
+  "dd_agent_advisor_documentation.evals.* -> workbench.*",
 ]
 
 [[tool.importlinter.contracts]]
