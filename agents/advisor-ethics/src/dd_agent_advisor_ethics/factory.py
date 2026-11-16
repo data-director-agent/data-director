@@ -21,6 +21,7 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping
 from dataclasses import replace
+from typing import Literal
 
 from dd_agent_advisor_ethics.agent import EthicsAdviser
 from dd_agent_advisor_ethics.reader import DEFAULT_MODEL, ModelReader, Reader, TemplateReader
@@ -28,9 +29,12 @@ from dd_sdk import serve
 from dd_sdk.model import declared
 from dd_sdk.model_provider import optional_model
 
+SWITCH = "DD_ETHICS_READER"
+DEFAULT: Literal["template", "model"] = "template"
+
 
 def build_reader(env: Mapping[str, str]) -> Reader:
-    model = optional_model(env, "DD_ETHICS_READER", default_model=DEFAULT_MODEL)
+    model = optional_model(env, SWITCH, default_model=DEFAULT_MODEL, default=DEFAULT)
     return TemplateReader() if model is None else ModelReader(model)
 
 

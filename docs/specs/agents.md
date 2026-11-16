@@ -66,16 +66,17 @@ is in [`harness/docs/registry.md`](../../harness/docs/registry.md).
     its grounding mode is `input_only`, or `retrieval` where it reads outside records (the Policy
     Adviser), and its description does not begin "Mock.". It has a `template` writer, which
     calls no model, so it runs and its tests pass with no key; that writer is its default, except
-    for the Documentation Editor, the Policy Adviser and the Standards Librarian, whose models
-    are on by default (Model-backed personas). It declares a model in `AgentSpec.models` only
-    when one is configured. Its payload says what it still does not do, as a mock's does. Like a
-    mock, it substantiates no Blueprint requirement until it leaves alpha.
+    for the Documentation Editor and the Policy Adviser, whose models are on by default
+    (Model-backed personas). Its `factory` module names the setting that chooses the writer
+    (`SWITCH`) and that setting's default (`DEFAULT`). It declares a model in `AgentSpec.models`
+    only when one is configured. Its payload says what it still does not do, as a mock's does.
+    Like a mock, it substantiates no Blueprint requirement until it leaves alpha.
 
     `scripts/tests/test_roster.py` checks invariants 13 and 14 across the roster, from the cards:
-    it holds each in-tree agent's state (the tables in [The roster](#the-roster)), and fails on an
-    agent with none. Each rule's known gaps are listed there, each with its issue, and the list
-    only shrinks. Whether an outcome statement states a `Document` payload's limitations is prose
-    and is not checked.
+    it reads each in-tree agent's state from the table in [The roster](#the-roster), and fails on
+    an agent with none. Each rule's known gaps are listed in the test, each with its issue, and
+    the list only shrinks. Whether an outcome statement states a `Document` payload's limitations
+    is prose and is not checked.
 
 ## Boundaries and contracts
 
@@ -176,12 +177,13 @@ roster for #353 found:
 | `advisor.linking`, `advisor.files` | Stay deterministic: identifier syntax, checksums and format lookup are exact. Their next step is retrieval (#360, #354). |
 | `orchestrator.stub`, `example.hello` | Stay deterministic by design. |
 
-Each in-tree agent's state now, as `scripts/tests/test_roster.py` holds it:
+Each in-tree agent's state now. This table is the one place a state is written down:
+`scripts/tests/test_roster.py` reads it, and fails on an agent missing from it.
 
 | State | Agents |
 |---|---|
-| Mock (invariant 13) | `advisor.fairness`, `advisor.files`, `advisor.linking`, `advisor.metadata`, `advisor.rights` |
-| Model-backed alpha (invariant 14) | `advisor.dmp`, `advisor.documentation`, `advisor.ethics`, `advisor.policy` |
+| Mock (invariant 13) | `advisor.fairness`, `advisor.files`, `advisor.linking`, `advisor.metadata` |
+| Model-backed alpha (invariant 14) | `advisor.dmp`, `advisor.documentation`, `advisor.ethics`, `advisor.policy`, `advisor.rights` |
 | Persona | `advisor.quality`, `advisor.repository`, `advisor.standards` |
 | Deterministic by design, or not an advisor | `example.hello`, `orchestrator.model`, `orchestrator.stub` |
 

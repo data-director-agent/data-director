@@ -20,6 +20,7 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping
 from dataclasses import replace
+from typing import Literal
 
 from dd_agent_advisor_dmp.agent import DmpChecker
 from dd_agent_advisor_dmp.match import DEFAULT_MODEL, Matcher, ModelMatcher, TemplateMatcher
@@ -28,10 +29,11 @@ from dd_sdk.model import declared
 from dd_sdk.model_provider import optional_model
 
 SWITCH = "DD_DMP_MATCHER"
+DEFAULT: Literal["template", "model"] = "template"
 
 
 def build_matcher(env: Mapping[str, str]) -> Matcher:
-    model = optional_model(env, SWITCH, default_model=DEFAULT_MODEL)
+    model = optional_model(env, SWITCH, default_model=DEFAULT_MODEL, default=DEFAULT)
     return TemplateMatcher() if model is None else ModelMatcher(model)
 
 
