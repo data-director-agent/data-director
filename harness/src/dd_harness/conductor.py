@@ -492,7 +492,7 @@ class Conductor:
             agent = self.registry.get(agent_id)
         return tuple(agent.spec.models) if agent is not None else ()
 
-    def _run(
+    def _run(  # noqa: C901, PLR0912, PLR0915
         self,
         request: InvocationRequest,
         request_doc: dict[str, Any],

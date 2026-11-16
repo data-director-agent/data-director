@@ -119,7 +119,7 @@ class Stack:
                     os.killpg(service.proc.pid, signal.SIGKILL)
 
 
-def start(agents_only: bool, web: bool, reload: bool = True) -> int:
+def start(agents_only: bool, web: bool, reload: bool = True) -> int:  # noqa: C901, PLR0912, PLR0915
     ensure_local_tree()
     agents = load_agents()
     # deployment.yaml says which agents run and which orchestrator the home page converses with;
