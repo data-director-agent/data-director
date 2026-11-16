@@ -18,6 +18,13 @@ and it implements the project log, never the project rules ([Storage](../docs/sp
   its own: each path comes from a `DD_*` variable or the caller's default (the workbench's
   development defaults are in `workbench.config`, the app's in `app/config/`). If you find
   yourself computing a default from a harness module's `__file__`, stop.
+- **Policy is in the profile, not the environment ([Policy and identity](../docs/specs/policy-and-identity.md)).**
+  A `DD_*` variable names a path, an address or a credential; what a deployment allows comes from
+  the institutional profile it names, whose version and digest every envelope records. A new
+  policy choice is a profile key the gate enforces, added to the vocabulary in the spec and in
+  [`workbench/profiles/README.md`](../workbench/profiles/README.md), and refused at load until
+  something enforces it. If you find yourself reading an allow, deny or approval rule from a
+  `DD_*` variable, stop: a run could not say which rule it was held to.
 - **The harness imports no agent.** Agents are services reached through `RemoteAgent`
   (`dd_harness.remote`), and a registry file lists their URLs. Tests may import agent packages to
   serve them in memory (`dd_harness.testing.in_process`), and `src/` must not.

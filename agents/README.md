@@ -130,8 +130,10 @@ CLI, transports or viewer, this agent will show it.
    - a class with `spec = AgentSpec(...)` and `run`;
    - a module-level `build() -> Agent` and `main() -> int` that returns `serve.main(build)`.
 
-   Read the agent's own `DD_<AGENT>_*` environment variables in `build`. A content problem is an
-   outcome (`abstained` with a reason code), not an exception.
+   Read the agent's own `DD_<AGENT>_*` environment variables in `build`. They are for how the
+   agent works, such as an endpoint or a path; what the deployment allows is set in its
+   institutional profile, not in a variable ([Policy and identity](../docs/specs/policy-and-identity.md)).
+   A content problem is an outcome (`abstained` with a reason code), not an exception.
 
    A source copy too large to commit is built where it is used, from something the package pins.
    Declare it as a `dd_sdk.sources.BuiltSource` (its name, pin, what is wrong with the built copy,
