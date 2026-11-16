@@ -28,7 +28,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from http.cookies import CookieError, SimpleCookie
 
-from dd_harness.identity import Unauthenticated
+from dd_harness.identity import RefusalReason, Unauthenticated
 from dd_sdk.contract.models import Principal
 
 SESSION_COOKIE = "dd_session"
@@ -155,5 +155,7 @@ class SessionAuthenticator:
     def principal_for(self, headers: Mapping[str, str] | None) -> Principal:
         session = self.session(headers)
         if session is None:
-            raise Unauthenticated("not signed in, or the session has ended: sign in to act")
+            raise Unauthenticated(
+                "not signed in, or the session has ended: sign in to act", RefusalReason.NO_SESSION
+            )
         return session.principal

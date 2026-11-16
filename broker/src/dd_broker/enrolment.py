@@ -41,9 +41,10 @@ from starlette.responses import JSONResponse, Response
 from dd_broker import anthropic, chat_completions
 from dd_broker.grants import TicketVerifier
 from dd_broker.guard import BaseUrlRefused, Resolver, Target, check_base_url, system_resolver
-from dd_broker.reasons import Reason, Refused
+from dd_broker.reasons import ACCESS, SERVICE, Reason, Refused
 from dd_broker.store import AccountLabel, Store
 from dd_sdk.model_grant import HEADER_REASON
+from dd_sdk.security_log import SecurityEvent, emit
 
 log = logging.getLogger("dd_broker")
 
@@ -211,12 +212,26 @@ async def enrol(
         )
     )
     log.info("enrolled provider=%s", wanted.provider)
+    emit(
+        SecurityEvent.BROKER_ENROLLED,
+        outcome="success",
+        service=SERVICE,
+        principal=pseudonym,
+        provider=wanted.provider,
+    )
     return await read_account(enrolment.store, pseudonym)
 
 
 async def remove(store: Store, pseudonym: str) -> Response:
     removed = await run_in_threadpool(store.remove, pseudonym)
     log.info("removed account=%s", "yes" if removed else "none")
+    if removed:
+        emit(
+            SecurityEvent.BROKER_ACCOUNT_REMOVED,
+            outcome="success",
+            service=SERVICE,
+            principal=pseudonym,
+        )
     return Response(status_code=204, headers=_NO_STORE)
 
 
@@ -237,4 +252,12 @@ async def account(enrolment: Enrolment, client: httpx.AsyncClient, request: Requ
         return await remove(enrolment.store, pseudonym)
     except Refused as refused:
         log.info("enrolment refused reason=%s status=%d", refused.reason.value, refused.status)
+        # The ticket names whom it was refused for only once it is verified, so never here.
+        if refused.reason in ACCESS:
+            emit(
+                SecurityEvent.BROKER_ENROLMENT_REFUSED,
+                outcome="failure",
+                service=SERVICE,
+                reason=refused.reason.value,
+            )
         return enrolment_refusal(refused.status, refused.reason)

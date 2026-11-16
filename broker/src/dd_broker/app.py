@@ -68,7 +68,7 @@ from dd_broker.guard import (
     origin,
     system_resolver,
 )
-from dd_broker.reasons import Reason, Refused
+from dd_broker.reasons import ACCESS, SERVICE, Reason, Refused
 from dd_broker.seal import SealError
 from dd_broker.settings import BrokerSettings
 from dd_broker.store import OwnAccount, Store
@@ -80,6 +80,7 @@ from dd_sdk.model_grant import (
     Account,
     Payer,
 )
+from dd_sdk.security_log import SecurityEvent, emit
 
 log = logging.getLogger("dd_broker")
 
@@ -410,6 +411,18 @@ async def _answer_route(broker: Broker, request: Request) -> Response:
     return JSONResponse({"provider": provider, "model": model})
 
 
+def record_refusal(reason: Reason) -> None:
+    """A refused call is a security event when it is about who may call (`reasons.ACCESS`).
+    It names no one: a refused grant is not to be believed about whom it is for."""
+    if reason in ACCESS:
+        emit(
+            SecurityEvent.BROKER_CALL_REFUSED,
+            outcome="failure",
+            service=SERVICE,
+            reason=reason.value,
+        )
+
+
 def build_app(broker: Broker) -> Starlette:
     clients: list[httpx.AsyncClient] = []
 
@@ -425,6 +438,7 @@ def build_app(broker: Broker) -> Starlette:
             return await _call(broker, clients[0], request, provider, form)
         except Refused as refused:
             log.info("refused reason=%s status=%d", refused.reason.value, refused.status)
+            record_refusal(refused.reason)
             return form.refuse(refused.status, refused.reason)
 
     async def messages(request: Request) -> Response:
@@ -454,6 +468,7 @@ def build_app(broker: Broker) -> Starlette:
             return await _answer_route(broker, request)
         except Refused as refused:
             log.info("refused reason=%s status=%d", refused.reason.value, refused.status)
+            record_refusal(refused.reason)
             return route_refusal(refused.status, refused.reason)
 
     async def healthz(request: Request) -> Response:

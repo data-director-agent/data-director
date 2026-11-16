@@ -110,6 +110,7 @@ from dd_sdk.evidence import input_hash as compute_input_hash
 from dd_sdk.model_account import accounted
 from dd_sdk.model_grant import Account
 from dd_sdk.prompts import prompt_digest
+from dd_sdk.security_log import SecurityEvent, emit
 from dd_sdk.tracing import (
     ATTR_OUTCOME,
     Tracing,
@@ -374,7 +375,7 @@ class Conductor:
         accounts = self.profile.model_accounts
         account = accounts.account
         own = account is not Account.DEPLOYMENT
-        return self.model_grants.mint(
+        minted = self.model_grants.mint(
             agent_id=spec.agent_id,
             invocation_id=request.invocation_id,
             models=(model.model for model in spec.models),
@@ -385,6 +386,18 @@ class Conductor:
             base_urls=accounts.base_urls if own else (),
             model_map=accounts.model_map(spec.models) if own else None,
         )
+        # The security event names the grant's terms, never the grant (docs/specs/security.md).
+        emit(
+            SecurityEvent.GRANT_MINTED,
+            outcome="success",
+            service="harness",
+            principal=acting_for.principal_id,
+            agent_id=spec.agent_id,
+            invocation_id=request.invocation_id,
+            models=[model.model for model in spec.models],
+            account=account.value,
+        )
+        return minted
 
     def _issue_grant(self, request: InvocationRequest, acting_for: Principal) -> Grant:
         grant = Grant(
@@ -568,6 +581,16 @@ class Conductor:
                     )
                 )
                 prob = problems.model_broker_bypassed(spec.agent_id, profile.profile_id)
+                emit(
+                    SecurityEvent.BROKER_BYPASS_REFUSED,
+                    outcome="failure",
+                    service="harness",
+                    principal=acting_for.principal_id,
+                    reason="model-broker-bypassed",
+                    agent_id=spec.agent_id,
+                    invocation_id=request.invocation_id,
+                    profile_id=profile.profile_id,
+                )
             elif decision.requires_approval:
                 result = AgentResult(
                     outcome=Outcome(

@@ -252,6 +252,7 @@ sudo systemctl start data-director-deploy.service       # look now
 journalctl -u data-director -u 'data-director-agent@*' -f   # the app and agents
 journalctl -u data-director-workbench -f                # the workbench
 journalctl -u data-director-admin -f                    # the admin service
+journalctl -u data-director -u data-director-model-broker -o cat | grep '^{'  # security events
 readlink /opt/data-director/current                     # which commit is linked
 curl -s http://127.0.0.1:7860/api/about                 # which commit is running
 ```

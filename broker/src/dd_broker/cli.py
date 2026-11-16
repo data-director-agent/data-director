@@ -15,12 +15,14 @@ def cmd_serve(args: argparse.Namespace) -> int:
 
     from dd_broker.app import Broker, build_app
     from dd_broker.settings import BrokerSettings, SettingsError
+    from dd_sdk import security_log
 
     try:
         broker = Broker.open(BrokerSettings.from_env())
     except SettingsError as exc:
         sys.exit(f"dd-model-broker: {exc}")
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    security_log.configure()
     uvicorn.run(build_app(broker), host=args.host, port=args.port, server_header=False)
     return 0
 

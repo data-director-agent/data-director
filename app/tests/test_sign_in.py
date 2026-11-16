@@ -8,6 +8,7 @@ The provider is `FakeIdentityProvider`, so no test needs the network or an ORCID
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import time
@@ -29,10 +30,13 @@ from dd_app import app as dd_app
 from dd_app.app import build_app
 from dd_app.config import settings_from_env
 from dd_app.governance import Governance
-from dd_harness.identity import IdentityError, OperatorAssertion
+from dd_harness.identity import IdentityError, OperatorAssertion, RefusalReason
 from dd_harness.sessions import PENDING_S, SESSION_COOKIE, SessionStore
 from dd_harness.signin import SignIn, SignInSettings
 from dd_harness.testing import TEST_PRINCIPAL, FakeIdentityProvider
+from dd_sdk import security_log
+from dd_sdk.security_log import SecurityEvent
+from dd_sdk.testing import security_events
 
 PUBLIC_URL = "https://app.test"
 EXAMPLE = Path(__file__).resolve().parents[1] / "config/examples/soil-chemistry.profile.json"
@@ -546,3 +550,81 @@ def test_nobody_reads_or_continues_another_persons_conversation(deployment: Depl
         assert found.json()["type"].endswith("/conversation-not-found")
         assert sent.json()["type"].endswith("/conversation-not-found")
     assert list(deployment.runs.glob("*/envelope.json")) == []
+
+
+# Security events (docs/specs/security.md, Security events).
+
+
+@pytest.fixture
+def events(caplog: pytest.LogCaptureFixture) -> pytest.LogCaptureFixture:
+    caplog.set_level(logging.INFO, logger=security_log.LOGGER)
+    return caplog
+
+
+def recorded(caplog: pytest.LogCaptureFixture) -> list[dict[str, Any]]:
+    return security_events(caplog.records)
+
+
+def test_signing_in_and_out_is_recorded_for_the_person(
+    deployment: Deployment, events: pytest.LogCaptureFixture
+):
+    browser = deployment.browser()
+    sign_in(deployment, browser)
+    browser.post("/api/sign-out", headers=JSON_HEADERS)
+    signed_in, signed_out = recorded(events)
+    assert signed_in["event"] == SecurityEvent.SIGN_IN_SUCCEEDED
+    assert signed_out["event"] == SecurityEvent.SIGN_OUT
+    for event in (signed_in, signed_out):
+        assert event["outcome"] == "success"
+        assert JOSIAH in event["principal"]
+
+
+def test_a_refused_sign_in_is_recorded_with_its_reason_and_no_one_named(
+    deployment: Deployment, events: pytest.LogCaptureFixture
+):
+    sign_in(deployment, deployment.browser(), nonce="another-nonce")
+    [event] = recorded(events)
+    assert event["event"] == SecurityEvent.SIGN_IN_FAILED
+    assert event["outcome"] == "failure"
+    assert event["reason"] == RefusalReason.TOKEN_REFUSED
+    assert event["principal"] is None
+
+
+def test_a_declined_sign_in_is_recorded(deployment: Deployment, events: pytest.LogCaptureFixture):
+    browser = deployment.browser()
+    come_back(browser, deployment.idp.deny(start(browser)))
+    [event] = recorded(events)
+    assert event["reason"] == RefusalReason.PROVIDER_DECLINED
+
+
+def test_a_session_cookie_that_names_no_session_is_recorded(
+    deployment: Deployment, events: pytest.LogCaptureFixture
+):
+    anonymous = deployment.browser()
+    anonymous.get("/api/agents")
+    assert recorded(events) == []
+
+    stale = deployment.browser()
+    stale.cookies.set(SESSION_COOKIE, "made-up", domain="app.test")
+    stale.get("/api/agents")
+    [event] = recorded(events)
+    assert event["event"] == SecurityEvent.CALLER_REFUSED
+    assert event["reason"] == RefusalReason.NO_SESSION
+
+
+def test_no_secret_reaches_a_security_event(
+    deployment: Deployment, events: pytest.LogCaptureFixture
+):
+    browser = deployment.browser()
+    sign_in(deployment, browser)
+    session_id = browser.cookies.get(SESSION_COOKIE)
+    browser.post("/api/sign-out", headers=JSON_HEADERS)
+    sign_in(deployment, deployment.browser(), nonce="another-nonce")
+    written = [json.dumps(event) for event in recorded(events)]
+    assert written
+    (form, _) = deployment.idp.token_requests
+    for line in written:
+        assert "eyJ" not in line  # a JWT's header
+        assert session_id and session_id not in line
+        assert form["code"] not in line
+        assert deployment.idp.client_secret not in line

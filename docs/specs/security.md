@@ -48,8 +48,8 @@ reviewer reads the control table below against the code and the deployment.
    agent did and for whom, in the run store. Security events record who signed in, who was
    refused, which grants were minted and which accounts were enrolled, in a structured log of
    their own. They are not mixed into run provenance, because they have different readers,
-   retention and integrity needs. The structured log does not exist yet; today these events are
-   free-text journal lines or absent (TODO(#884)).
+   retention and integrity needs. Security events are one JSON line each on the `dd.security`
+   logger (Security events, below).
 6. **Anything downloaded at run time is pinned by hash.** A data snapshot, model weight or
    detector that the system fetches rather than installs as a locked package is recorded with
    its source URL and SHA-256, and checked on load, as the re3data snapshot is
@@ -75,12 +75,55 @@ The status column uses four values:
 | SC-12, SC-28 | People's own model keys are sealed by the broker with a key-encryption key. Other data at rest is encrypted by the deployment's disk or volume. | Partial; Deployment, TODO(#887) | `broker/src/dd_broker/seal.py`, [A person's own model account](model-accounts.md) |
 | SC-28, SI-12 | No secret reaches a stored record (invariant 2). | Partial, TODO(#885) | `agents/advisor-standards/tests/test_key_not_stored.py`, `agents/orchestrator-model/tests/test_orchestrator_key_not_stored.py`, `agents/advisor-documentation/tests/test_grant_not_stored.py`, `broker/tests/test_broker_key_not_leaked.py` |
 | AC-3, CM-7 | Store directories and files are private to the service. The shipped units set umask 0027 (0077 for the broker), and the installer creates state directories 0750 and credential directories 0700. The harness does not yet set modes itself. | Partial, TODO(#886) | `deploy/systemd/`, `deploy/install.sh` |
-| AU-2, AU-3, AU-12 | Run provenance records each invocation, the person it acted for and whose account paid (C13). There is no structured security event log yet. | Partial, TODO(#884) | [Policy and identity](policy-and-identity.md), [Disclosure](disclosure.md) |
+| AU-2, AU-3, AU-12 | Run provenance records each invocation, the person it acted for and whose account paid (C13). Sign-in, sign-out, refused callers, minted grants, broker-bypass refusals and broker enrolment are security events: one JSON record each, with time, event, outcome, principal and reason code. Calls between the harness and its agents are not yet authenticated, so they raise no event. | Partial, TODO(#17) | `sdk/src/dd_sdk/security_log.py`, `sdk/tests/test_security_log.py`, `app/tests/test_sign_in.py`, `harness/tests/test_model_grants.py`, `broker/tests/test_broker_security_events.py` |
 | AU-9, AU-11 | A run is written once and never changed. Retention is not yet set. | Partial, TODO(#156) | [Storage](storage.md), invariant 2 |
 | CM-6 | An ambiguous identity configuration, an anonymous principal, and grant settings without keys all stop start-up. | Met | `harness/src/dd_harness/settings.py` and its tests |
 | SI-11 | An error names a setting, not its value (invariant 4). | Met | `harness/src/dd_harness/settings.py` (`redact_location`), `harness/tests/test_storage.py` |
 | RA-5, SI-2 | Dependencies are audited daily and on every lock-file change. Pull requests run dependency review. CodeQL scans Python, JavaScript and the workflows. Dependabot proposes updates. | Met | `.github/workflows/audit.yml`, `.github/workflows/ci.yml`, `.github/workflows/codeql.yml`, `.github/dependabot.yml` |
 | SR-3, SR-4, SR-11 | Actions are pinned to a commit SHA and linted with zizmor. Base images are pinned by digest. Released images carry an SBOM and build provenance. Runtime dependencies are tiered with a fallback each. Downloaded data is pinned by hash (invariant 6). | Met | `.github/workflows/images.yml`, `docker/`, [Dependencies](dependencies.md), `scripts/pin_re3data.py` |
+
+## Security events
+
+Each service that authenticates a caller or mints a credential writes its security events with
+`dd_sdk.security_log.emit` to the `dd.security` logger. `configure()`, called at start-up by
+`data-director`, `dd-harness serve` and `dd-model-broker serve`, writes them to standard error as
+one JSON object per line, apart from free-text lines. Under systemd the journal keeps them, under
+each unit's `SyslogIdentifier`.
+
+### Record
+
+| Field | Value |
+|---|---|
+| `time` | UTC, ISO 8601 with milliseconds and `Z`. |
+| `event` | One of the events below. |
+| `outcome` | `success` or `failure`. |
+| `service` | The component that recorded it: `app`, `harness` or `model-broker`. |
+| `principal` | The person's identifier (their ORCID iD URL) in the app and the harness. In the broker, which knows nobody by name, the person's pseudonym (see [A person's own model account](model-accounts.md)). `null` where nobody has been verified. |
+| `reason` | A reason code for a failure, or `null`. Never a message. |
+| `agent_id`, `invocation_id`, `profile_id`, `provider`, `models`, `account`, `transport` | Present where they apply. No other field can be written. |
+
+### Events
+
+| Event | Recorded by | When | Reason codes |
+|---|---|---|---|
+| `sign-in.succeeded` | app | A session is opened. | |
+| `sign-in.failed` | app | A sign-in could not start, was declined at the provider, or opened no session. | `dd_harness.identity.RefusalReason` |
+| `sign-out` | app | A person ends their session. | |
+| `caller.refused` | app, harness | A request through A2A or AG-UI is refused for its credential, or an app request carries a session cookie that names no session. A request with no cookie at all is someone not yet signed in and is not recorded. | `RefusalReason` |
+| `grant.minted` | harness | A model grant is minted, with its agent, invocation, models and account. | |
+| `agent.broker-bypass-refused` | harness | An agent is refused because it does not call through the model broker. | `model-broker-bypassed` |
+| `broker.enrolled`, `broker.account-removed` | model-broker | A person adds, replaces or removes their own model account. | |
+| `broker.enrolment-refused`, `broker.call-refused` | model-broker | A request is refused for its ticket, grant, agent credential or base URL (`dd_broker.reasons.ACCESS`). A refusal about a provider or an account is not a security event. | `dd_broker.reasons.Reason` |
+
+### Rules
+
+1. A record has only the fields above, so a token, key, cookie or grant has no field to travel in
+   (invariant 2). The app's sign-in tests check this with a recognisable value of each.
+2. A refusal names a principal only when the provider has vouched for them (`not-admitted`).
+   Otherwise whatever a caller claims is not believed, and is not recorded.
+3. Retention, and whether the client's address is recorded, are the deployment's until
+   TODO(#156) decides them. The journal's integrity (AU-9) is the deployment's, for example
+   journald `Seal=yes` or forwarding to a separate host.
 
 ## Rationale
 
@@ -127,9 +170,9 @@ kept for different lengths of time. A failed sign-in has no invocation to belong
   key-encryption key is kept apart from backups.
 - TODO(#882): refuse to serve beyond loopback with no sign-in unless explicitly allowed.
 - TODO(#883): the FAIRsharing password read from a credential file, and a sentinel test for it.
-- TODO(#884): the structured security event log.
 - TODO(#885): keep secrets out of spans imported from remote agents.
 - TODO(#886): store directories and files private to the service whatever the umask.
 - TODO(#887): operations guidance on encryption at rest and TLS to a remote PostgreSQL.
 - TODO(#17): authentication between the harness and its agents.
-- TODO(#154): roles a deployment defines, and what each may see and do.
+- TODO(#154): roles a deployment defines, and what each may see and do, and the security events a
+  steward's or an administrator's actions raise.
