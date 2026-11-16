@@ -400,10 +400,21 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   carries on and is stored, as any cancelled run is. One stream per child was rejected because
   the browser would have to open and pair several streams for one turn, while a child's grant and
   lifetime belong to its parent's run. `POST /api/runs`, which runs one agent and answers when it
-  has ended, is kept for scripting and tests; the browser does not call it. The app does not
-  serve the stream yet, so a turn answers when it has ended, its stages are read back, not
-  watched, and it cannot be cancelled, TODO(#945). The run view drawn from the stream, with
-  Cancel and the activity log, is TODO(#949).
+  has ended, is kept for scripting and tests; the browser does not call it.
+  `POST /api/conversations/{id}/turns/stream` serves the stream. Its body is an AG-UI
+  `RunAgentInput`, as `HttpAgent` posts it: `runId` names the run, `threadId` (if given) must be
+  the conversation, and `forwardedProps` is the turn's body, checked as
+  `POST /api/conversations/{id}/turns` checks it; `messages` is not read, since the server builds
+  the history from the stored turns. A turn refused before the stream opens (a malformed body,
+  a conversation the person may not read, a `runId` already streaming) is answered with a problem,
+  as the other routes answer; one refused once it is open (it no longer follows the latest turn,
+  or goes to an agent other than the orchestrator) is `RUN_ERROR` alone.
+  `POST /api/conversations/{id}/turns/{runId}/cancel` cancels the person's own turn while its
+  stream is open (`202`), and answers `404` for any other; the stream ends with a cancelled
+  `RUN_FINISHED` and the run is stored as `run-cancelled` ([Transport and tracing](transport.md),
+  Cancelling). `POST /api/conversations/{id}/turns`, which answers when the turn has ended, is
+  kept beside it, and the shell still calls it until the run view is drawn from the stream, with
+  Cancel and the activity log, TODO(#949).
 - **The shell reads a run's stream through `@ag-ui/client`**, one way for a live run and a recorded
   one: an `HttpAgent` posts the turn to its stream route, and a `CassetteAgent` replays a cassette
   from `app/web/cassettes`, all at once or paced (`run/transport.ts`, `run/cassette.ts`). Tests and
@@ -680,9 +691,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   answers `/api` from fixtures.
 - TODO(#244): whether the shell's tests feed `CONFORMANCE.md`; until then they carry no
   requirement marker and C6 rests on review.
-- TODO(#69): serving a turn's stream with cancel (#945), the client transport (#946), the
-  announcer for live regions (#948), and the run view and activity log drawn from the stream
-  (#949). Streaming a reply's text is TODO(#159).
+- TODO(#69): the client transport (#946), the announcer for live regions (#948), and the run
+  view and activity log drawn from the stream (#949). Streaming a reply's text is TODO(#159).
 - TODO(#72, #73): the review gate, and how the conversation docks once there is a working
   surface. A suspended child's card says it is waiting for review.
 - TODO(#160): the project's current phase in the workspace.

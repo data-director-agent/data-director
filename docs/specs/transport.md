@@ -114,7 +114,8 @@ whom an invocation acts for, and how that is established, is in
   and checks it against the contract ([Agents](agents.md)). The extension URIs are placeholders
   until a persistent identifier is registered, TODO(#3).
 - **AG-UI** lives in the harness (`dd_harness.transport.agui`), and any way in mounts it. The
-  workbench serves it to its viewer; the app does not serve it yet, TODO(#945).
+  workbench serves it to its viewer. The app serves the binding for conversation turns, one
+  stream per turn ([App](app.md), "Run events to the browser").
   - `POST /agui` takes a `RunAgentInput` whose forwarded properties carry the
     `InvocationRequest`. The AG-UI thread is the contract's conversation, and a `threadId` naming
     another conversation is refused; the history an agent sees travels in the contract, not in
@@ -124,8 +125,9 @@ whom an invocation acts for, and how that is established, is in
   - `GET /agui/runs/{invocationId}` replays a stored run as `RUN_STARTED` then `RUN_FINISHED`
     with its envelope. A run's stages and reports are not stored as events, so a replay has none.
   - `dd_harness.transport.agui.stream_run` makes the events of any run started through
-    `Conductor.ainvoke`, so a way in that wraps the conductor (the app's conversation turns,
-    TODO(#945)) streams the same binding.
+    `Conductor.ainvoke`, so a way in that wraps the conductor (the app's conversation turns)
+    streams the same binding. Such a way in names the refusals of its own it makes once the
+    stream is open, and they are answered with `RUN_ERROR` as the conductor's are.
 - **The AG-UI binding.** The conductor tells an observer (`dd_harness.observe`) what it is doing,
   and the binding turns that into AG-UI events, in this order:
 
@@ -136,7 +138,7 @@ whom an invocation acts for, and how that is established, is in
   | `STEP_STARTED`, `STEP_FINISHED` | `stepName`, a stage's id, for each stage that runs. After a policy refusal or referral the input check and the agent do not run; after an input refusal the agent does not. The checks run on every envelope. |
   | `CUSTOM dd.grounding` | The grounding linter's report, inside the `grounding` stage: `passed`, `mode`, `violations`, `retrieval_count`, `chat_count`. |
   | `CUSTOM dd.sources` | The source check's report, inside the `sources` stage: `passed`, `verified`, `unresolved`, `violations`. |
-  | `SUBAGENT_STARTED`, `SUBAGENT_FINISHED` | In a conversation turn's stream only: a child the turn delegates to, with `subagentRunId` its invocation id and `name` its agent; when it ends, its outcome. A child's stages are not streamed. Not yet sent, TODO(#945). |
+  | `SUBAGENT_STARTED`, `SUBAGENT_FINISHED`, `SUBAGENT_ERROR` | Inside the `agent` stage of a delegation agent's run: a child it delegates to, with `subagentRunId` the child's invocation id. `SUBAGENT_STARTED` carries `name`, the child's agent; `SUBAGENT_FINISHED` carries `result: {status}`, the child's outcome status in the contract's vocabulary, since AG-UI's own `outcome` says only success or suspended; `SUBAGENT_ERROR` carries `message`, for a child the conductor could not make a run of. A child's stages are not streamed, and its record is read from the run store. |
   | `RUN_FINISHED` | `result`: the envelope, as stored. When cancelled: `outcome: {type: "cancelled"}` and no `result`. |
   | `RUN_ERROR` | `message`, alone, for a request the harness could not make a run of (invariant 12). |
 
@@ -151,7 +153,7 @@ whom an invocation acts for, and how that is established, is in
   outcome vocabulary is unchanged.
 - **The app** must not import the workbench. It streams a conversation turn, one stream per turn,
   with the turn's delegated children as `SUBAGENT_*` events in it ([App](app.md), "Run events to
-  the browser"). Until it serves the binding, a turn answers when it has ended, TODO(#945).
+  the browser"): `POST /api/conversations/{id}/turns/stream` and its cancel.
 
 ## Rationale
 

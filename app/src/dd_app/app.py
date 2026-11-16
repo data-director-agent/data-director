@@ -4,12 +4,16 @@
 agent through the conductor and answers when the run has ended, with its envelope and the
 checks' reports; `GET /api/runs` and `GET /api/runs/{id}` read the run store; `GET /api/examples`
 lists example inputs; `GET /api/process-flow` is the Blueprint's entry points and phases
-(`dd_sdk.process_flow`), which the shell's phase tracker draws. The run endpoint is a stopgap
-until runs stream over AG-UI (#69).
+(`dd_sdk.process_flow`), which the shell's phase tracker draws. The run endpoint is kept for
+scripting and tests; the browser runs agents only through conversation turns.
 `POST /api/conversations` starts a conversation, in the project it names or else a new one, and
 `POST /api/conversations/{id}/turns` sends it one message, which may attach a `dd-inventory` file
 and a supporting document's text for the project to keep, answered as a run is, or refused with
-`409` unless it follows the latest turn (docs/specs/orchestration.md, docs/specs/app.md);
+`409` unless it follows the latest turn (docs/specs/orchestration.md, docs/specs/app.md).
+`POST /api/conversations/{id}/turns/stream` sends the same turn as an AG-UI `RunAgentInput` and
+streams its run as it is made, its delegated children included, and
+`POST /api/conversations/{id}/turns/{run_id}/cancel` cancels it while its stream is open
+(docs/specs/app.md, "Run events to the browser");
 `GET /api/conversations` and `GET /api/conversations/{id}` read them back as the harness derives
 them from the run store (docs/specs/orchestration.md, #130).
 `GET /api/projects` lists the projects the person signed in may read, the one created last first
@@ -129,7 +133,6 @@ from dd_app.config import EXAMPLES_DIR, WEB_DIST, settings_from_env
 from dd_app.github_auth import TokenSource
 from dd_app.governance import (
     CREATED_BY_ROUTE,
-    AttachedDocument,
     Governance,
     TurnConflictError,
     UnknownConversationError,
@@ -137,6 +140,11 @@ from dd_app.governance import (
 )
 from dd_app.model_accounts import broker_path
 from dd_app.privacy import notice_url
+from dd_app.problems import no_conversation as _no_conversation
+from dd_app.problems import problem as _problem
+from dd_app.problems import refused as _refused
+from dd_app.turn_body import parse_turn
+from dd_app.turn_stream import TurnStreams
 from dd_harness import orcid
 from dd_harness.conductor import UnknownAgent
 from dd_harness.deposit import PackageRefusedError, build_package, check
@@ -164,7 +172,7 @@ from dd_harness.sources import SourceConfigError
 from dd_harness.transport.a2a import a2a_routes
 from dd_harness.transport.paging import PagingError, page_params, page_response
 from dd_sdk import security_log
-from dd_sdk.contract.models import Principal, ReplyAnswers, now
+from dd_sdk.contract.models import Principal, now
 from dd_sdk.contract.problem import PROBLEM_BASE, unauthenticated
 from dd_sdk.contract.validate import ContractViolation
 from dd_sdk.credentials import ConfigError
@@ -261,6 +269,8 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
         if model_accounts
         else []
     )
+
+    turn_streams = TurnStreams(governance)
 
     def signed_in(handler: Handler) -> Callable[[Request], Awaitable[Response]]:
         """`handler`, given the principal the request acts for; a request with none is refused
@@ -386,88 +396,23 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
             headers={"Location": f"/api/conversations/{conversation_id}"},
         )
 
-    async def send_turn(request: Request, acting_for: Principal) -> Response:  # noqa: C901, PLR0911, PLR0912
+    async def send_turn(request: Request, acting_for: Principal) -> Response:
         conversation_id = request.path_params["conversation_id"]
         try:
             body = await request.json()
         except ValueError:
             return _refused("The body is not JSON.")
-        if not isinstance(body, dict):
-            return _refused(
-                "The body must be an object with `agent_id`, `message_text` and `follows`."
-            )
-        if "history" in body:
-            return _refused(
-                "A turn may not give a history: the server builds it from the stored turns."
-            )
-        allowed = {
-            "agent_id",
-            "message_text",
-            "follows",
-            "inventory",
-            "documentation",
-            "reply_answers",
-        }
-        if extra := sorted(set(body) - allowed):
-            return _refused(
-                "A turn takes only `agent_id`, `message_text`, `follows`, `inventory`, "
-                f"`documentation` and `reply_answers`, not {extra}."
-            )
-        agent_id, message_text = body.get("agent_id"), body.get("message_text")
-        if not isinstance(agent_id, str) or not isinstance(message_text, str):
-            return _refused("The body must name `agent_id` and give `message_text`, as strings.")
-        follows = body.get("follows")
-        if "follows" not in body or not (follows is None or isinstance(follows, str)):
-            return _refused(
-                "The body must give `follows`: the `invocation_id` of the turn this one follows, "
-                "or null for the first turn."
-            )
-        inventory = body.get("inventory")
-        if not (inventory is None or isinstance(inventory, dict)):
-            return _refused("`inventory` must be the object `dd-inventory` wrote.")
-        documentation = None
-        if body.get("documentation") is not None:
-            attached = body["documentation"]
-            fields = ("name", "media_type", "text")
-            if not (
-                isinstance(attached, dict)
-                and set(attached) == set(fields)
-                and all(isinstance(attached[key], str) for key in fields)
-            ):
-                return _refused(
-                    "`documentation` must be an object giving the document's `name`, "
-                    "`media_type` and `text`, as strings."
-                )
-            documentation = AttachedDocument(**attached)
-        if not message_text.strip() and inventory is None and documentation is None:
-            return _refused("The message is empty.")
-        answer = None
-        if body.get("reply_answers") is not None:
-            try:
-                answer = ReplyAnswers.model_validate(body["reply_answers"])
-            except ValueError:
-                return _refused(
-                    "`reply_answers` must name the turn it answers (`answer_to`) and give "
-                    "`given_answers`: for each question answered, its `answered_key`, the "
-                    "`answer_values` chosen and optionally `answer_words`."
-                )
+        sent = parse_turn(body)
+        if isinstance(sent, Response):
+            return sent
         if await run_in_threadpool(governance.conversation, conversation_id, acting_for) is None:
             return _no_conversation(conversation_id)
         started = time.monotonic()
         outcome = "answered"
         try:
-            return JSONResponse(
-                await governance.turn(
-                    conversation_id,
-                    agent_id,
-                    message_text,
-                    follows,
-                    acting_for,
-                    inventory,
-                    answer,
-                    documentation,
-                )
-            )
+            envelope = await governance.turn(conversation_id, sent, acting_for)
+            checks = governance.checks(envelope.invocation_id)
+            return JSONResponse({"envelope": envelope.to_document(), "checks": checks})
         except UnknownConversationError:
             outcome = "unknown conversation"
             return _no_conversation(conversation_id)
@@ -1426,6 +1371,16 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
                 signed_in(send_turn),
                 methods=["POST"],
             ),
+            Route(
+                "/api/conversations/{conversation_id}/turns/stream",
+                signed_in(turn_streams.stream),
+                methods=["POST"],
+            ),
+            Route(
+                "/api/conversations/{conversation_id}/turns/{run_id}/cancel",
+                signed_in(turn_streams.cancel),
+                methods=["POST"],
+            ),
             Route("/api/projects", signed_in(list_projects), methods=["GET"]),
             Route("/api/projects", signed_in(create_project), methods=["POST"]),
             Route("/api/projects/deleted", signed_in(list_deleted_projects), methods=["GET"]),
@@ -1641,24 +1596,6 @@ def _requires_json(request: Request) -> Response | None:
     )
 
 
-def _problem(status: int, slug: str, title: str, detail: str, **extra: Any) -> Response:
-    """An RFC 9457 problem; `extra` are its extension members."""
-    return JSONResponse(
-        {"type": PROBLEM_BASE + slug, "title": title, "status": status, "detail": detail, **extra},
-        status_code=status,
-        media_type="application/problem+json",
-    )
-
-
-def _no_conversation(conversation_id: str) -> Response:
-    return _problem(
-        404,
-        "conversation-not-found",
-        "No such conversation",
-        f"No conversation {conversation_id!r}.",
-    )
-
-
 def _no_project(project_id: str) -> Response:
     return _problem(404, "project-not-found", "No such project", f"No project {project_id!r}.")
 
@@ -1670,10 +1607,6 @@ def _project_deleted(project_id: str) -> Response:
         "This project is deleted",
         f"Project {project_id!r} is deleted; an owner may restore it.",
     )
-
-
-def _refused(detail: str, title: str = "Data Director could not start this run") -> Response:
-    return _problem(400, "request-refused", title, detail)
 
 
 def _orcid_unavailable(detail: str) -> Response:

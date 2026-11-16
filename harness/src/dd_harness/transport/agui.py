@@ -4,9 +4,11 @@
 A run streams as it is made: `RUN_STARTED`, `CUSTOM dd.plan` with the conductor's fixed stages,
 `STEP_STARTED` and `STEP_FINISHED` for each stage that runs, `CUSTOM dd.grounding` and
 `CUSTOM dd.sources` with the checks' reports inside their stages, then `RUN_FINISHED` with the
-envelope as `result`. A run the caller cancels ends with `RUN_FINISHED` whose outcome is
-`cancelled`, at once, while the conductor finishes and stores it as failed with `run-cancelled`.
-`RUN_ERROR` is only for a request the harness could not make a run of.
+envelope as `result`. A delegation agent's children are `SUBAGENT_STARTED` and `SUBAGENT_FINISHED`
+(or `SUBAGENT_ERROR`) inside the agent stage, with no stages of their own. A run the caller
+cancels ends with `RUN_FINISHED` whose outcome is `cancelled`, at once, while the conductor
+finishes and stores it as failed with `run-cancelled`. `RUN_ERROR` is only for a request the
+harness could not make a run of.
 
 Agents are called without streaming and the checks judge the finished envelope, so no text of a
 reply reaches a browser before the checks have run; only the stages and the reports stream.
@@ -38,6 +40,9 @@ from ag_ui.core import (
     RunStartedEvent,
     StepFinishedEvent,
     StepStartedEvent,
+    SubagentErrorEvent,
+    SubagentFinishedEvent,
+    SubagentStartedEvent,
 )
 from ag_ui.encoder import EventEncoder
 from starlette.requests import Request
@@ -108,6 +113,31 @@ class _Events:
     def sources(self, report: SourceReport) -> None:
         self._put(CustomEvent(type=EventType.CUSTOM, name=SOURCES, value=sources_value(report)))
 
+    def child_started(self, invocation_id: str, agent_id: str) -> None:
+        self._put(
+            SubagentStartedEvent(
+                type=EventType.SUBAGENT_STARTED, subagent_run_id=invocation_id, name=agent_id
+            )
+        )
+
+    def child_finished(self, invocation_id: str, agent_id: str, status: str) -> None:
+        # AG-UI's own `outcome` says only success or suspended, so the child's outcome status
+        # travels in `result`, in the contract's vocabulary.
+        self._put(
+            SubagentFinishedEvent(
+                type=EventType.SUBAGENT_FINISHED,
+                subagent_run_id=invocation_id,
+                result={"status": status},
+            )
+        )
+
+    def child_failed(self, invocation_id: str, agent_id: str, message: str) -> None:
+        self._put(
+            SubagentErrorEvent(
+                type=EventType.SUBAGENT_ERROR, subagent_run_id=invocation_id, message=message
+            )
+        )
+
 
 class Cancellation:
     """One streamed run's cancel: `flag` is what the conductor looks at, `asked` what the stream
@@ -165,6 +195,7 @@ async def stream_run(
     thread_id: str,
     run_id: str,
     cancellation: Cancellation | None = None,
+    refusals: tuple[type[Exception], ...] = REFUSALS,
 ) -> AsyncGenerator[BaseEvent]:
     """The events of one run, as the conductor makes it. `start(observer, cancel)` starts the run
     (`Conductor.ainvoke` with that observer and cancel flag, or a caller's wrapper of it) and gives
@@ -175,6 +206,9 @@ async def stream_run(
     `RUN_FINISHED` whose outcome is `cancelled`; the run goes on in its thread until the conductor
     next looks, and is stored as failed with `run-cancelled`. A stream that ends any other way
     before the run (the client went away) cancels it too.
+
+    `start` raising one of `refusals` is answered with `RUN_ERROR` alone; a caller that wraps the
+    conductor adds the refusals of its own that it makes before the run starts.
     """
     cancellation = cancellation or Cancellation()
     queue: asyncio.Queue[BaseEvent] = asyncio.Queue()
@@ -213,7 +247,7 @@ async def stream_run(
         # queued by now.
         try:
             envelope = run.result()
-        except REFUSALS as exc:
+        except refusals as exc:
             yield RunErrorEvent(type=EventType.RUN_ERROR, message=str(exc))
             return
         if not sent_start:
