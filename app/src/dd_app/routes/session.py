@@ -71,7 +71,7 @@ async def get_session(request: Request, deps: Deps) -> Response:
     # which is what the shell's "Stay signed in" sends (WCAG 2.2.1).
     accounts = {
         "model_accounts": deps.model_accounts,
-        "model_account_providers": deps.model_account_providers,
+        "model_account_providers": deps.model_account_providers or [],
     }
     sign_in = deps.sign_in
     if sign_in is None:

@@ -22,6 +22,7 @@ from starlette.routing import Route
 
 from dd_app.governance import AttachedDocument, TurnConflictError, UnknownConversationError
 from dd_app.routes.common import (
+    RUN_REFUSED,
     Deps,
     RequestBody,
     no_conversation,
@@ -32,7 +33,7 @@ from dd_app.routes.common import (
     refused,
     signed_in,
 )
-from dd_app.routes.runs import REFUSED_BEFORE_RUN, RUN_REFUSED
+from dd_app.routes.runs import REFUSED_BEFORE_RUN
 from dd_harness.projects import ProjectDeletedError, UnknownProjectError
 from dd_harness.transport.paging import PagingError, page_params, page_response
 from dd_sdk.contract.models import Principal, ReplyAnswers

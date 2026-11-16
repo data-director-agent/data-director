@@ -18,6 +18,7 @@ from dd_app.about import about, commit
 from dd_app.app import build_app
 from dd_app.github_auth import StaticToken
 from dd_app.governance import Governance
+from dd_app.routes.common import Feedback
 from dd_harness.testing import TEST_PRINCIPAL
 from dd_sdk.credentials import ConfigError
 
@@ -58,7 +59,7 @@ def client_for(
 
     github = httpx.AsyncClient(transport=httpx.MockTransport(answer))
     source = StaticToken(token) if token is not None else None
-    app = build_app(governance, dist, feedback_source=source, feedback_client=github, build=BUILD)
+    app = build_app(governance, dist, feedback=Feedback(source, client=github), build=BUILD)
     return TestClient(app), seen
 
 

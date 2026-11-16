@@ -16,7 +16,15 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
-from dd_app.routes.common import Deps, RequestBody, parse_body, problem, refused, signed_in
+from dd_app.routes.common import (
+    RUN_REFUSED,
+    Deps,
+    RequestBody,
+    parse_body,
+    problem,
+    refused,
+    signed_in,
+)
 from dd_harness.conductor import UnknownAgent
 from dd_harness.identity import IdentityError
 from dd_harness.policy import PolicyError
@@ -24,7 +32,6 @@ from dd_harness.transport.paging import PagingError, page_params, page_response
 from dd_sdk.contract.models import Principal
 from dd_sdk.contract.validate import ContractViolation
 
-RUN_REFUSED = "Data Director could not start this run"
 # Refused before a run or turn began, so nothing was stored (as `workbench/transport/agui.py`).
 REFUSED_BEFORE_RUN = (ContractViolation, ValueError, UnknownAgent, PolicyError, IdentityError)
 

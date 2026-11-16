@@ -17,6 +17,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
 from dd_app import feedback
+from dd_app.config import EXAMPLES_DIR
 from dd_app.github_auth import TokenSource
 from dd_app.governance import Governance
 from dd_app.project_service import ProjectService
@@ -55,7 +56,6 @@ class Deps:
     governance: Governance
     projects: ProjectService
     web_dist: Path
-    examples_dir: Path
     # The build's identity (version and commit), as `GET /api/about` names it.
     identity: Mapping[str, str | None]
     feedback: Feedback = field(default_factory=Feedback)
@@ -64,10 +64,16 @@ class Deps:
     orcid_transport: httpx.BaseTransport | None = None
     # Where the browser reaches the model broker, when a person may add their own model account.
     model_broker_path: str | None = None
-    model_accounts: bool = False
-    model_account_providers: list[dict[str, Any]] = field(default_factory=list)
+    # The providers a person's own model account may use; None where they may not add one.
+    model_account_providers: list[dict[str, Any]] | None = None
     privacy_notice_url: str | None = None
+    examples_dir: Path = EXAMPLES_DIR
     started: float = field(default_factory=time.monotonic)
+
+    @property
+    def model_accounts(self) -> bool:
+        """Whether a person may add their own model account here."""
+        return self.model_account_providers is not None
 
 
 def caused_by(request: Request) -> str:
