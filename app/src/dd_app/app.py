@@ -103,10 +103,8 @@ import sys
 import time
 import webbrowser
 from collections.abc import Awaitable, Callable, Mapping
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlencode
 
 import httpx
 import uvicorn
@@ -117,7 +115,6 @@ from starlette.responses import (
     FileResponse,
     JSONResponse,
     PlainTextResponse,
-    RedirectResponse,
     Response,
 )
 from starlette.routing import Mount, Route
@@ -133,15 +130,17 @@ from dd_app.governance import (
     Governance,
     TurnConflictError,
     UnknownConversationError,
-    principal_summary,
 )
 from dd_app.model_accounts import broker_path
 from dd_app.privacy import notice_url
+from dd_app.project_service import ProjectService
+from dd_app.routes import session
+from dd_app.routes.common import Deps, Feedback
 from dd_harness import orcid
 from dd_harness.conductor import UnknownAgent
 from dd_harness.deposit import PackageRefusedError, build_package, check
 from dd_harness.disclosure import disclose
-from dd_harness.identity import IdentityError, RefusalReason, Unauthenticated
+from dd_harness.identity import IdentityError, Unauthenticated
 from dd_harness.model_grants import jwks_routes
 from dd_harness.policy import PolicyError
 from dd_harness.project_access import Action, allowed
@@ -157,9 +156,9 @@ from dd_harness.projects import (
 from dd_harness.registry import RegistryError
 from dd_harness.requirements import RequirementsError
 from dd_harness.server import LOOPBACK
-from dd_harness.sessions import PENDING_S, SESSION_COOKIE, SIGN_IN_COOKIE, cookie
+from dd_harness.sessions import SESSION_COOKIE, cookie
 from dd_harness.settings import SettingsError
-from dd_harness.signin import CALLBACK_PATH, NotAdmitted, SignIn, SignInSettings
+from dd_harness.signin import SignIn, SignInSettings
 from dd_harness.sources import SourceConfigError
 from dd_harness.transport.a2a import a2a_routes
 from dd_harness.transport.paging import PagingError, page_params, page_response
@@ -201,9 +200,6 @@ UNTRUSTED_WARNING = (
     "are not authenticated; expose the app to the host or a private network only "
     "(docs/specs/agents.md).\n"
 )
-# Why a sign-in came back to `/sign-in` without opening a session, for the shell to say.
-SIGN_IN_DECLINED = "declined"
-SIGN_IN_FAILED = "failed"
 
 
 class ShellNotBuiltError(FileNotFoundError):
@@ -260,6 +256,20 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
         ]
         if model_accounts
         else []
+    )
+    deps = Deps(
+        governance=governance,
+        projects=ProjectService(governance),
+        web_dist=web_dist,
+        examples_dir=examples_dir,
+        identity=dict(build) if build is not None else about(),
+        feedback=Feedback(feedback_source, feedback_repo, feedback_client),
+        sign_in=sign_in,
+        orcid_transport=orcid_transport,
+        model_broker_path=model_broker_path,
+        model_accounts=model_accounts,
+        model_account_providers=model_account_providers,
+        privacy_notice_url=privacy_notice_url,
     )
 
     def signed_in(handler: Handler) -> Callable[[Request], Awaitable[Response]]:
@@ -1260,146 +1270,6 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
             return _problem(502, "feedback-failed", "The report was not filed", str(exc))
         return JSONResponse(created, status_code=201)
 
-    async def get_session(request: Request) -> Response:
-        if (refused := _requires_json(request)) is not None:
-            return refused
-        # `GET` says when the session ends and does not keep it going; `POST` keeps it going,
-        # which is what the shell's "Stay signed in" sends (WCAG 2.2.1).
-        if sign_in is None:
-            operator = governance.authenticator.principal_for(None)
-            return JSONResponse(
-                {
-                    "signs_in": False,
-                    "issuer": None,
-                    "principal": _principal(operator),
-                    "expires_at": None,
-                    "model_accounts": model_accounts,
-                    "model_account_providers": model_account_providers,
-                }
-            )
-        session = sign_in.authenticator.session(request.headers, touch=request.method == "POST")
-        body: dict[str, Any] = {
-            "signs_in": True,
-            "issuer": sign_in.issuer,
-            "model_accounts": model_accounts,
-            "model_account_providers": model_account_providers,
-        }
-        if session is None:
-            return JSONResponse({**body, "principal": None, "expires_at": None})
-        expires_at = datetime.fromtimestamp(sign_in.store.expires_at(session), UTC)
-        return JSONResponse(
-            {
-                **body,
-                "principal": _principal(session.principal),
-                "expires_at": expires_at.isoformat().replace("+00:00", "Z"),
-            }
-        )
-
-    async def model_account_ticket(request: Request, acting_for: Principal) -> Response:
-        # The ticket names the person only by their pseudonym, sealed to the broker. The key
-        # itself goes from the browser to the broker and never comes here.
-        if not model_accounts or minter is None or model_broker_path is None:
-            return _problem(
-                404,
-                "model-accounts-unavailable",
-                "Own model accounts are not offered here",
-                "This deployment does not let people add their own model account.",
-            )
-        ticket, expires = minter.enrolment_ticket(acting_for=acting_for)
-        return JSONResponse(
-            {
-                "ticket": ticket,
-                "broker_url": model_broker_path,
-                "expires_at": datetime.fromtimestamp(expires, UTC)
-                .isoformat()
-                .replace("+00:00", "Z"),
-            },
-            headers={"Cache-Control": "no-store"},
-        )
-
-    async def begin_sign_in(request: Request) -> Response:
-        if sign_in is None:
-            return _no_sign_in()
-        try:
-            url, state = await sign_in.start(request.query_params.get("return_to"))
-        except Unauthenticated as exc:
-            log.warning("data-director: sign-in could not start: %s", exc)
-            emit(
-                SecurityEvent.SIGN_IN_FAILED, outcome="failure", service=SERVICE, reason=exc.reason
-            )
-            return _back_to_sign_in(SIGN_IN_FAILED)
-        response = RedirectResponse(url, status_code=302)
-        response.set_cookie(SIGN_IN_COOKIE, state, max_age=PENDING_S, **_SIGN_IN_COOKIE)
-        return response
-
-    async def finish_sign_in(request: Request) -> Response:
-        if sign_in is None:
-            return _no_sign_in()
-        params = request.query_params
-        response: Response
-        if params.get("error"):
-            # The person declined at the provider, or the provider refused the request.
-            sign_in.store.take(params.get("state") or "")
-            # `%r`: the parameter is the caller's, so it cannot write a line of its own.
-            log.warning("data-director: the provider answered %r", params["error"][:64])
-            emit(
-                SecurityEvent.SIGN_IN_FAILED,
-                outcome="failure",
-                service=SERVICE,
-                reason=RefusalReason.PROVIDER_DECLINED,
-            )
-            response = _back_to_sign_in(SIGN_IN_DECLINED)
-        else:
-            try:
-                session_id, return_to = await sign_in.finish(
-                    params.get("code"), params.get("state"), cookie(request.headers, SIGN_IN_COOKIE)
-                )
-            except Unauthenticated as exc:
-                log.warning("data-director: sign-in refused: %s", exc)
-                emit(
-                    SecurityEvent.SIGN_IN_FAILED,
-                    outcome="failure",
-                    service=SERVICE,
-                    # Only a person the provider vouched for is named: anything else is unverified.
-                    principal=exc.principal.principal_id if isinstance(exc, NotAdmitted) else None,
-                    reason=exc.reason,
-                )
-                response = _back_to_sign_in(SIGN_IN_FAILED)
-            else:
-                if (opened := sign_in.store.get(session_id, touch=False)) is not None:
-                    emit(
-                        SecurityEvent.SIGN_IN_SUCCEEDED,
-                        outcome="success",
-                        service=SERVICE,
-                        principal=opened.principal.principal_id,
-                    )
-                # A session open in this browser before is ended, not carried over.
-                if previous := cookie(request.headers, SESSION_COOKIE):
-                    sign_in.store.delete(previous)
-                response = RedirectResponse(return_to, status_code=303)
-                response.set_cookie(
-                    SESSION_COOKIE, session_id, max_age=sign_in.settings.lifetime_s, **_SESSION
-                )
-        response.delete_cookie(SIGN_IN_COOKIE, **_SIGN_IN_COOKIE)
-        return response
-
-    async def sign_out(request: Request) -> Response:
-        if (refused := _requires_json(request)) is not None:
-            return refused
-        response = Response(status_code=204)
-        if sign_in is not None:
-            if session_id := cookie(request.headers, SESSION_COOKIE):
-                if (ended := sign_in.store.get(session_id, touch=False)) is not None:
-                    emit(
-                        SecurityEvent.SIGN_OUT,
-                        outcome="success",
-                        service=SERVICE,
-                        principal=ended.principal.principal_id,
-                    )
-                sign_in.store.delete(session_id)
-            response.delete_cookie(SESSION_COOKIE, **_SESSION)
-        return response
-
     async def shell(request: Request) -> Response:
         # A page of the shell's own, so a reload or a link lands on it rather than a 404.
         return FileResponse(web_dist / "index.html")
@@ -1410,6 +1280,8 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
     delegation = a2a_routes(governance.conductor, None, callback)[1] if callback else []
     return Starlette(
         routes=[
+            # ROUTE MODULES
+            *session.routes(deps),
             Route("/api/agents", signed_in(agents), methods=["GET"]),
             Route("/api/runs", signed_in(start_run), methods=["POST"]),
             Route("/api/runs", signed_in(list_runs), methods=["GET"]),
@@ -1563,11 +1435,6 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
             Route("/api/about", get_about, methods=["GET"]),
             Route("/server-status", server_status, methods=["GET"]),
             Route("/api/feedback", signed_in(send_feedback), methods=["POST"]),
-            Route("/api/session", get_session, methods=["GET", "POST"]),
-            Route("/api/model-account/ticket", signed_in(model_account_ticket), methods=["POST"]),
-            Route("/api/sign-in", begin_sign_in, methods=["GET"]),
-            Route(CALLBACK_PATH, finish_sign_in, methods=["GET"]),
-            Route("/api/sign-out", sign_out, methods=["POST"]),
             *delegation,
             # The harness's public keys for model grants, when it mints them
             # (docs/specs/model-accounts.md).
@@ -1584,17 +1451,6 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
             Mount("/", StaticFiles(directory=web_dist, html=True)),
         ]
     )
-
-
-# docs/specs/policy-and-identity.md: the session cookie is opaque, unreadable by script, sent only
-# over HTTPS, and `Lax` because the provider sends the person back across sites. A browser treats
-# `127.0.0.1` and `localhost` as secure, so a development sign-in over plain HTTP still works.
-_SESSION: dict[str, Any] = {"path": "/", "secure": True, "httponly": True, "samesite": "lax"}
-_SIGN_IN_COOKIE: dict[str, Any] = {**_SESSION, "path": "/api/sign-in"}
-
-
-def _principal(principal: Principal) -> dict[str, Any]:
-    return {"principal_id": principal.principal_id, **principal_summary(principal)}
 
 
 def process_flow() -> dict[str, Any]:
@@ -1683,19 +1539,6 @@ def _orcid_unavailable(detail: str) -> Response:
 def _unauthenticated(detail: str) -> Response:
     found = unauthenticated(detail)
     return _problem(401, found.type.removeprefix(PROBLEM_BASE), found.title or "", detail)
-
-
-def _no_sign_in() -> Response:
-    return _problem(
-        404,
-        "sign-in-unavailable",
-        "This server signs nobody in",
-        "No identity provider is configured: this is a development server.",
-    )
-
-
-def _back_to_sign_in(reason: str) -> Response:
-    return RedirectResponse("/sign-in?" + urlencode({"problem": reason}), status_code=303)
 
 
 def main() -> int:
