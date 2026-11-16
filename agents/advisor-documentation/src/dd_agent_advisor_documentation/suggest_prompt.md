@@ -7,4 +7,4 @@ Your suggestions are never written into the data dictionary. Each is shown to th
 
 Write in British English, plainly. Each suggestion is a single short line of plain text: no Markdown, HTML, links or line breaks.
 
-Reply with a single JSON object and nothing else. Its keys are the `question_id`s you were given. Each value is your suggestion, or null where you have none.
+Your reply is constrained to a schema. Give your suggestions in `suggestions`, one item for each question you have a suggestion for, with the question's `question_id` exactly as you were given it and the suggestion in `answer`. Leave out a question you have no suggestion for.

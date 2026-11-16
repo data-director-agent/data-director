@@ -54,4 +54,6 @@ the workbench, stop.
   and reviewed against
   [Reviewing a model-backed agent](../docs/guide/developer-guide/reviewing-a-model-backed-agent.md).
   If you find yourself letting a model remove a rule's flag, write a value the researcher must
-  give, or run with no `template` default, stop.
+  give, or build an advisor with no `template` path an operator can select, stop. The default is
+  `template`, except for `advisor-documentation`, whose model is on by default
+  ([Model-backed personas](../docs/specs/agents.md#model-backed-personas)).

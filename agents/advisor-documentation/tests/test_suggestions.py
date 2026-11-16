@@ -7,6 +7,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+from collections.abc import Mapping
 from pathlib import Path
 
 import pytest
@@ -16,11 +17,14 @@ from dd_agent_advisor_documentation.agent import DocumentationEditor, Source
 from dd_agent_advisor_documentation.prose import (
     MAX_SUGGESTION,
     SUGGEST_PROMPT,
+    SUGGEST_README_PROMPT,
     SUGGESTED_COLUMNS,
     Ask,
     ModelWriter,
+    SuggestionReply,
     check_suggestions,
 )
+from dd_agent_advisor_documentation.testing import suggestion_reply
 from dd_harness.conductor import Conductor
 from dd_harness.projects import ProjectStore
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
@@ -36,6 +40,10 @@ from dd_sdk.contract.models import (
 from dd_sdk.model_anthropic import AnthropicModel
 
 DICTIONARY = "soil-survey.data-dictionary.draft.json"
+
+
+def replied(answers: Mapping[str, str | None]) -> SuggestionReply:
+    return SuggestionReply.model_validate_json(suggestion_reply(answers))
 
 
 def suggestible(document: Document) -> list[DocumentQuestion]:
@@ -114,14 +122,11 @@ def test_a_confirmed_suggestion_comes_back_supplied(runs_dir: Path) -> None:
         ("- metres", "not plain text"),
         ("metres<br>per second", "not plain text"),
         ("metres\nper second", "not plain text"),
-        (42, "not text"),
     ],
 )
-def test_a_suggestion_that_is_not_one_plain_line_is_not_offered(
-    suggestion: object, why: str
-) -> None:
+def test_a_suggestion_that_is_not_one_plain_line_is_not_offered(suggestion: str, why: str) -> None:
     ask = Ask("q-" + "0" * 16, "data/readings.csv", "depth_cm", "unit")
-    got = check_suggestions(json.dumps({ask.question_id: suggestion}), {}, [ask])
+    got = check_suggestions(replied({ask.question_id: suggestion}), {}, [ask])
     assert got.answers == {}
     assert len(got.dropped) == 1 and why in got.dropped[0]
 
@@ -136,7 +141,7 @@ def test_only_a_definition_or_unit_that_was_asked_is_offered() -> None:
         asks[1].question_id: "-99",
         "q-" + "2" * 16: "years",
     }
-    got = check_suggestions(json.dumps(reply), {}, asks)
+    got = check_suggestions(replied(reply), {}, asks)
     assert got.answers == {asks[0].question_id: "The participant's age in years"}
     assert len(got.dropped) == 2
 
@@ -291,7 +296,7 @@ def test_no_model_call_when_no_definition_or_unit_is_asked() -> None:
 def test_a_null_or_blank_suggestion_is_no_suggestion_and_not_dropped() -> None:
     asks = [Ask(f"q-{n:016x}", "a.csv", "age_yrs", "unit") for n in range(2)]
     got = check_suggestions(
-        json.dumps({asks[0].question_id: None, asks[1].question_id: " "}), {}, asks
+        replied({asks[0].question_id: None, asks[1].question_id: " "}), {}, asks
     )
     assert got.answers == {} and got.dropped == ()
 
@@ -300,6 +305,80 @@ def test_a_link_the_facts_give_may_be_named() -> None:
     link = "https://example.org/codebook"
     ask = Ask("q-" + "0" * 16, "a.csv", "age_yrs", "description")
     got = check_suggestions(
-        json.dumps({ask.question_id: f"Age, as {link} defines it"}), {"see": link}, [ask]
+        replied({ask.question_id: f"Age, as {link} defines it"}), {"see": link}, [ask]
     )
     assert ask.question_id in got.answers
+
+
+README = "soil-survey.readme.draft.json"
+# The README sections whose questions a model may suggest an answer to (readme.yaml).
+SUGGESTED_SECTIONS = {"Files", "Variables", "Access and licence", "Software requirements"}
+
+
+def every_section_suggestion(document: Document) -> dict[str, str | None]:
+    """A reply suggesting an answer to every question the template README asks."""
+    return {q.question_id: f"Suggested for {q.gap_section}." for q in document.document_questions}
+
+
+@pytest.mark.requirement("R5", "DD-GROUNDING-MODE", "DD-GROUNDED-PAYLOAD")
+def test_a_readme_suggestion_is_offered_only_for_a_marked_section_and_never_written(
+    runs_dir: Path,
+) -> None:
+    asked = sample(README)
+    template = template_draft(runs_dir, asked)
+    client = StubClient({}, suggestions=every_section_suggestion(template))
+    env, grounded = draft(runs_dir, client, asked)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED and grounded
+    document = env.payload_as(Document)
+
+    # No prose was written, so the README is the template's, to the byte.
+    assert document.document_text == template.document_text
+    assert [q.question_id for q in document.document_questions] == [
+        q.question_id for q in template.document_questions
+    ]
+    offered = {q.gap_section for q in document.document_questions if q.suggested_answer}
+    assert offered and offered <= SUGGESTED_SECTIONS
+    for q in document.document_questions:
+        if q.suggested_answer:
+            assert q.suggestion_derivation == Derivation.MODEL and q.gap_part is None
+            assert q.suggested_answer not in document.document_text
+        else:
+            assert q.suggestion_derivation is None
+    # Only the marked sections were asked about: a part, Methods or a citation never.
+    (sent,) = [s for s in client.sent if s["system"] == SUGGEST_README_PROMPT]
+    questions = json.loads(
+        sent["messages"][0]["content"]
+        .split("Questions you may suggest an answer to:\n", 1)[1]
+        .split("\n\nFacts:", 1)[0]
+    )
+    assert {q["section"] for q in questions} <= SUGGESTED_SECTIONS
+    assert all(q["asks"] for q in questions)
+
+
+def test_a_readme_suggestion_naming_what_the_facts_do_not_give_is_not_offered() -> None:
+    ask = Ask("q-" + "0" * 16, section="Software requirements", asks="anything needed")
+    facts = {"files": [{"path": "data/readings.csv", "format": "text/csv"}]}
+    got = check_suggestions(
+        replied({ask.question_id: "Open `data/readings.csv` with Python 3.12."}), facts, [ask]
+    )
+    assert got.answers == {} and "names" in got.dropped[0]
+    kept = "Open `data/readings.csv` in any spreadsheet or text editor."
+    got = check_suggestions(replied({ask.question_id: kept}), facts, [ask])
+    assert got.answers == {ask.question_id: kept}
+
+
+def test_a_readme_suggestion_may_be_a_few_sentences_but_not_structure() -> None:
+    ask = Ask("q-" + "0" * 16, section="Files", asks="how the files relate")
+    for answer, why in (("x " * 400, "too long"), ("- one\n- two", "not plain prose")):
+        got = check_suggestions(replied({ask.question_id: answer}), {}, [ask])
+        assert got.answers == {} and why in got.dropped[0]
+
+
+def test_a_readme_and_a_dictionary_are_never_asked_about_together() -> None:
+    writer = ModelWriter(AnthropicModel(MODEL, client=StubClient({})))  # type: ignore[arg-type]
+    asks = [
+        Ask("q-" + "0" * 16, section="Files", asks="how the files relate"),
+        Ask("q-" + "1" * 16, "a.csv", "age_yrs", "unit"),
+    ]
+    with pytest.raises(ValueError):
+        writer.suggest({}, asks, None)  # type: ignore[arg-type]

@@ -18,6 +18,7 @@ from ddtool.common import (
     APP_PORT,
     EXAMPLE_PRINCIPAL,
     MODEL_BACKED,
+    MODEL_BY_DEFAULT,
     WEB_PORT,
     Agent,
     DevError,
@@ -27,6 +28,7 @@ from ddtool.common import (
     ensure_local_tree,
     has_key,
     load_agents,
+    model_on_by_default,
     omissions_note,
     port_free,
     prepare_sources,
@@ -160,7 +162,14 @@ def start(agents_only: bool, web: bool, reload: bool = True) -> int:
             if agent.name not in running:
                 print(f"skip  {agent.script}: not run by {shown(place.deployment)}")
                 continue
-            if agent.name in MODEL_BACKED and not has_key(env):
+            switch = MODEL_BY_DEFAULT.get(agent.name)
+            if switch and not (env.get(switch) or "").strip() and not has_key(env):
+                # On by default, with no key: run it as it runs with its model turned off.
+                env = env | {switch: "template"}
+                print(f"note  {agent.script}: no model key, so it runs with {switch}=template")
+            if (agent.name in MODEL_BACKED or model_on_by_default(agent.name, env)) and not has_key(
+                env
+            ):
                 print(
                     f"skip  {agent.script}: no model key "
                     f"(run setup, or set it in {agent.env_file.relative_to(paths.ROOT)})"
