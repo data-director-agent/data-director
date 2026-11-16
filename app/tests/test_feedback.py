@@ -199,7 +199,7 @@ def test_github_failing_is_a_502_and_is_logged(
     governance: Governance, dist: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     client, _ = client_for(governance, dist, lambda _: httpx.Response(500))
-    with caplog.at_level("WARNING", logger="dd_app.app"):
+    with caplog.at_level("WARNING", logger="dd_app.routes.meta"):
         response = client.post("/api/feedback", json=REPORT)
     assert response.status_code == 502
     assert "t0ken" not in response.text

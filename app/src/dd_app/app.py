@@ -95,8 +95,6 @@ token (`DD_FEEDBACK_GITHUB_TOKEN`, or `_FILE`) turns problem reports on, into `D
 
 from __future__ import annotations
 
-import dataclasses
-import json
 import logging
 import os
 import sys
@@ -112,7 +110,6 @@ from starlette.applications import Starlette
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 from starlette.responses import (
-    FileResponse,
     JSONResponse,
     PlainTextResponse,
     Response,
@@ -134,7 +131,7 @@ from dd_app.governance import (
 from dd_app.model_accounts import broker_path
 from dd_app.privacy import notice_url
 from dd_app.project_service import ProjectService
-from dd_app.routes import session
+from dd_app.routes import meta, session
 from dd_app.routes.common import Deps, Feedback
 from dd_harness import orcid
 from dd_harness.conductor import UnknownAgent
@@ -167,7 +164,6 @@ from dd_sdk.contract.models import Principal, ReplyAnswers, now
 from dd_sdk.contract.problem import PROBLEM_BASE, unauthenticated
 from dd_sdk.contract.validate import ContractViolation
 from dd_sdk.credentials import ConfigError
-from dd_sdk.process_flow import ENTRIES, PHASES
 from dd_sdk.security_log import SecurityEvent, emit
 
 log = logging.getLogger(__name__)
@@ -179,7 +175,6 @@ Handler = Callable[[Request, Principal], Awaitable[Response]]
 # Where people reach the app, which the provider sends them back to (dd_harness.signin).
 PUBLIC_URL_VARIABLE = "DD_APP_PUBLIC_URL"
 
-FEEDBACK_REFUSED = "Data Director could not file this report"
 DECISION_REFUSED = "Data Director could not record this decision"
 ANSWERS_REFUSED = "Data Director could not record these answers"
 PROGRESS_REFUSED = "Data Director could not record where the project is"
@@ -1188,92 +1183,6 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
         found = await run_in_threadpool(documents.view, store, project_id)
         return JSONResponse({**found, "answered": answered.model_dump()}, status_code=201)
 
-    async def list_examples(request: Request, _: Principal) -> Response:
-        return JSONResponse(examples(examples_dir))
-
-    async def get_process_flow(request: Request, _: Principal) -> Response:
-        return JSONResponse(process_flow())
-
-    identity = dict(build) if build is not None else about()
-    started = time.monotonic()
-
-    async def server_status(request: Request) -> Response:
-        # Answers a monitor's `GET /server-status?auto` (collectd's apache plugin), in the shape
-        # Apache's mod_status uses: `Key: value` lines. Open on the app's own port; NGINX answers
-        # 404 to it, so only the VM's monitor reaches it.
-        uptime = int(time.monotonic() - started)
-        lines = [
-            f"ServerVersion: data-director/{identity.get('app_version')}",
-            f"ServerUptimeSeconds: {uptime}",
-            f"Uptime: {uptime}",
-        ]
-        return Response("\n".join(lines) + "\n", media_type="text/plain")
-
-    limiter = feedback.RateLimiter()
-
-    async def get_policy(request: Request, _: Principal) -> Response:
-        return JSONResponse(governance.policy())
-
-    async def get_about(request: Request) -> Response:
-        deployment = await run_in_threadpool(governance.deployment)
-        return JSONResponse(
-            {
-                **identity,
-                **deployment,
-                "feedback_enabled": feedback_source is not None,
-                "privacy_notice_url": privacy_notice_url,
-            }
-        )
-
-    async def send_feedback(request: Request, reporter: Principal) -> Response:
-        if feedback_source is None:
-            return _problem(
-                503,
-                "feedback-unavailable",
-                "Reports are not switched on",
-                "This deployment has no GitHub credential for problem reports.",
-            )
-        try:
-            body = await request.json()
-        except ValueError:
-            return _refused("The body is not JSON.", FEEDBACK_REFUSED)
-        try:
-            report = feedback.parse(body)
-        except feedback.FeedbackRefusedError as exc:
-            return _refused(str(exc), FEEDBACK_REFUSED)
-        try:
-            limiter.check()
-        except feedback.RateLimitedError as exc:
-            return _problem(429, "rate-limited", "Too many reports", str(exc))
-        context: list[str] = []
-        if report.include_context:
-            # Only what the reporter may read themselves goes into a report (#153).
-            if report.run and (stored := governance.stored_run(report.run, reporter)) is not None:
-                context += feedback.run_context(stored)
-            if report.conversation:
-                found = governance.conversation(report.conversation, reporter)
-                if found is not None:
-                    context += feedback.conversation_context(found)
-        text = feedback.issue_body(report, identity, context)
-        try:
-            if feedback_client is not None:
-                created = await feedback.create_issue(
-                    report, text, repo=feedback_repo, source=feedback_source, client=feedback_client
-                )
-            else:
-                async with httpx.AsyncClient(timeout=feedback.GITHUB_TIMEOUT_SECONDS) as client:
-                    created = await feedback.create_issue(
-                        report, text, repo=feedback_repo, source=feedback_source, client=client
-                    )
-        except feedback.FeedbackFailedError as exc:
-            log.warning("a problem report was not filed: %s", exc)
-            return _problem(502, "feedback-failed", "The report was not filed", str(exc))
-        return JSONResponse(created, status_code=201)
-
-    async def shell(request: Request) -> Response:
-        # A page of the shell's own, so a reload or a link lands on it rather than a 404.
-        return FileResponse(web_dist / "index.html")
-
     callback = governance.conductor.harness_url
     # No authenticator: delegation callbacks only, so the app is no other way in
     # (docs/specs/orchestration.md).
@@ -1282,6 +1191,7 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
         routes=[
             # ROUTE MODULES
             *session.routes(deps),
+            *meta.routes(deps),
             Route("/api/agents", signed_in(agents), methods=["GET"]),
             Route("/api/runs", signed_in(start_run), methods=["POST"]),
             Route("/api/runs", signed_in(list_runs), methods=["GET"]),
@@ -1429,48 +1339,14 @@ def build_app(  # noqa: C901, PLR0913, PLR0915
             ),
             Route("/api/researcher/orcid", signed_in(get_orcid_record), methods=["GET"]),
             Route("/api/repositories", signed_in(search_repositories), methods=["GET"]),
-            Route("/api/examples", signed_in(list_examples), methods=["GET"]),
-            Route("/api/process-flow", signed_in(get_process_flow), methods=["GET"]),
-            Route("/api/policy", signed_in(get_policy), methods=["GET"]),
-            Route("/api/about", get_about, methods=["GET"]),
-            Route("/server-status", server_status, methods=["GET"]),
-            Route("/api/feedback", signed_in(send_feedback), methods=["POST"]),
             *delegation,
             # The harness's public keys for model grants, when it mints them
             # (docs/specs/model-accounts.md).
             *jwks_routes(governance.conductor.model_grants),
-            Route("/activity", shell, methods=["GET"]),
-            Route("/agents", shell, methods=["GET"]),
-            Route("/policy", shell, methods=["GET"]),
-            Route("/feedback", shell, methods=["GET"]),
-            Route("/profile", shell, methods=["GET"]),
-            Route("/projects", shell, methods=["GET"]),
-            Route("/projects/{project_id}", shell, methods=["GET"]),
-            Route("/sign-in", shell, methods=["GET"]),
-            Route("/signed-out", shell, methods=["GET"]),
+            *meta.shell_routes(deps),
             Mount("/", StaticFiles(directory=web_dist, html=True)),
         ]
     )
-
-
-def process_flow() -> dict[str, Any]:
-    """The Blueprint's entry points and phases, the same for every deployment
-    (docs/specs/orchestration.md)."""
-    return {
-        "entries": [dataclasses.asdict(e) for e in ENTRIES],
-        "phases": [dataclasses.asdict(p) for p in PHASES],
-    }
-
-
-def examples(directory: Path) -> list[dict[str, Any]]:
-    """The example inputs in `directory`, each with the class it names (`GET /api/examples`)."""
-    found = []
-    for path in sorted(directory.glob("*.json")):
-        document = json.loads(path.read_text(encoding="utf-8"))
-        found.append(
-            {"name": path.stem, "schema_class": document.get("schema_class"), "input": document}
-        )
-    return found
 
 
 _CHANGES_STATE = frozenset({"POST", "PUT", "PATCH", "DELETE"})
