@@ -11,6 +11,7 @@ import flowFixture from "../../../fixtures/process-flow.json";
 import {
   type ConversationApi,
   ConversationApiContext,
+  NoAnswer,
   TurnConflict,
   Unreachable,
 } from "../../conversation/api";
@@ -743,6 +744,21 @@ describe("ConversationHome", () => {
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "could not reach the server, so this message may not have been sent",
+    );
+    expect(screen.getByRole("textbox")).toHaveValue("hi");
+    expect(get).toHaveBeenCalledWith("c1");
+  });
+
+  it("says a gateway error may mean the message is still being answered, and reloads", async () => {
+    const get = vi.fn().mockResolvedValue(conversationFixture as Conversation);
+    renderHome(
+      withOrchestrator(),
+      fakeApi({ sendTurn: () => Promise.reject(new NoAnswer(502)), get }),
+    );
+    await userEvent.type(screen.getByRole("textbox"), "hi");
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "did not answer in time (it answered 502)",
     );
     expect(screen.getByRole("textbox")).toHaveValue("hi");
     expect(get).toHaveBeenCalledWith("c1");

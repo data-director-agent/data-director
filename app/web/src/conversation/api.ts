@@ -57,6 +57,7 @@ async function json<T>(response: Response): Promise<T> {
   checkSignedIn(response);
   if (response.status === 400) throw new RunRefused((await response.json()) as Problem);
   if (response.status === 409) throw new TurnConflict((await response.json()) as Problem);
+  if (GATEWAY_ERRORS.includes(response.status)) throw new NoAnswer(response.status);
   if (!response.ok) throw new Error(`the server answered ${response.status}`);
   return (await response.json()) as T;
 }
@@ -65,11 +66,24 @@ function init(signal?: AbortSignal): RequestInit {
   return signal ? { signal } : {};
 }
 
-/** The request got no HTTP response at all (the browser's `Failed to fetch`), so the server may
- * not have received it. */
+/** The request got no HTTP response at all (the browser's `Failed to fetch`), or a proxy answered
+ * for the app (`NoAnswer`), so the server may not have received it, or may still be running it. */
 export class Unreachable extends Error {
   constructor() {
     super("the server could not be reached");
+  }
+}
+
+/** What a proxy in front of the app (NGINX, or the Vite dev server) answers when the app gave it
+ * no answer in time, or none at all. */
+const GATEWAY_ERRORS = [502, 503, 504];
+
+/** A proxy in front of the app answered for it (502, 503 or 504): the app may have received the
+ * request and may still be running it, so this is handled as if no response had come. */
+export class NoAnswer extends Unreachable {
+  constructor(readonly status: number) {
+    super();
+    this.message = `the server answered ${status} without a reply from Data Director`;
   }
 }
 
