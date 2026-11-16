@@ -226,9 +226,11 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     [],
   );
 
-  // The project's intake (docs/specs/app.md, rule 25), read when the project is known. The card
-  // opens while the intake is pending, or when asked for again from the phase tracker, and stays
-  // open until the researcher closes or dismisses it, so that it can end with its summary.
+  // The project's intake (docs/specs/app.md, rule 25), read when the project is known and after
+  // each turn, as a turn may record the entry point Data Director worked out. The card opens
+  // while the intake is first read pending, or when asked for again from the phase tracker, and
+  // stays open until the researcher closes or dismisses it, so that it can end with its summary;
+  // a read after a turn changes what the card holds, never whether it is open.
   const [intakeOf, setIntakeOf] = useState<{
     projectId: string;
     intake: ProjectIntake;
@@ -240,11 +242,27 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     const abort = new AbortController();
     projectApi.intake(projectId, abort.signal).then(
       (intake) =>
-        setIntakeOf({ projectId, intake, open: intake.state === "pending", again: false }),
+        setIntakeOf((was) =>
+          was?.projectId === projectId
+            ? { ...was, intake }
+            : { projectId, intake, open: intake.state === "pending", again: false },
+        ),
       () => undefined,
     );
     return () => abort.abort();
-  }, [projectApi, projectId]);
+  }, [projectApi, projectId, turnCount]);
+  // Asked again from the tracker, the card shows the answers as they are now, read afresh: the
+  // entry point may have been chosen in the tracker or by Data Director since the last read.
+  function openIntakeAgain(of: string) {
+    const open = (intake?: ProjectIntake) =>
+      setIntakeOf((was) =>
+        was?.projectId === of ? { ...was, ...(intake ? { intake } : {}), open: true, again: true } : was,
+      );
+    projectApi.intake(of).then(
+      (read) => open(read),
+      () => open(),
+    );
+  }
   const intake = projectId && intakeOf?.projectId === projectId ? intakeOf : null;
   const intakeChanged = useCallback((of: string, changed: ProjectIntake) => {
     setIntakeOf((was) => (was?.projectId === of ? { ...was, intake: changed } : was));
@@ -279,8 +297,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
           error: progressError,
           ...(intake
             ? {
-                answerIntakeAgain: () =>
-                  setIntakeOf((was) => (was ? { ...was, open: true, again: true } : was)),
+                answerIntakeAgain: () => openIntakeAgain(projectId),
               }
             : {}),
         }

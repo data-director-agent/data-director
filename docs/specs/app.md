@@ -277,7 +277,11 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     the project, not a turn: no orchestrator runs for it, and the history holds none of it. Its
     answers reach the orchestrator through the project's entry point and step states. The phase
     tracker offers "Answer the setup questions again", which shows the card with the current
-    answers chosen and records only an answer that changed. The card's Skip passes one question
+    answers chosen and records only an answer that changed. The card reads the intake again after
+    each turn and when asked again from the tracker. An entry point Data Director worked out from
+    what the researcher said (`entry_source` `model`) is shown chosen, with a note saying it is
+    Data Director's; Next records it as the researcher's own, and nothing records it otherwise
+    (`ConversationHome.test.tsx`). The card's Skip passes one question
     by for that visit only, recording nothing, so it is asked again when the workspace next opens;
     "Skip these questions" records the dismissal. The card's questions are drawn by
     `ChoiceQuestion.tsx`, as a reply's are (`app/tests/test_intake_routes.py`,
