@@ -24,7 +24,8 @@ The harness keeps the project as an append-only log of events, each saying what 
 it acted for and what caused it. The run store is separate and unchanged: conversations are still
 derived from it ([Orchestration](orchestration.md)), and the project is not. The log's events and
 how they are stored are the harness's format, described in
-[`harness/docs/projects.md`](../../harness/docs/projects.md). The inventory command is described
+[`harness/docs/projects.md`](../../harness/docs/projects.md); how each event is read into the
+project's PROV-O history is in [Provenance](provenance.md). The inventory command is described
 in [`inventory/README.md`](../../inventory/README.md).
 
 Out of scope: research data files, which are never uploaded or read by the platform; actions on

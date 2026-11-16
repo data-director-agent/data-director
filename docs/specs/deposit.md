@@ -217,7 +217,8 @@ them are `inventory.json`, `requirements.json`, `validation-report.jsonld` and
 project's disclosure of generative AI: its statement, `use-of-generative-ai.md`, and its PROV-O
 graph of each approved version, `provenance.jsonld` ([Disclosure](disclosure.md)). Both name
 each prompt by its digest; the prompts themselves stay in the run store and are not packaged.
-PROV-O alignment of the whole package is TODO(#26) (R10). The harness keeps the package by the SHA-256 of its bytes and records it in
+The whole provenance graph of the project is to replace the disclosure graph as `provenance.jsonld`,
+with the root crate's actions named by the same IRIs ([Provenance](provenance.md), TODO(#803)). The harness keeps the package by the SHA-256 of its bytes and records it in
 the project log with a `package_built` event, which names the report, the merged set, each
 document version and each run it holds.
 

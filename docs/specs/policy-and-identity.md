@@ -341,8 +341,9 @@ decides which endpoint serves it, and a person's endpoint is not known at start-
   whether that waits for machine-to-machine authentication. Until then the harness's A2A
   transport refuses an unauthenticated caller inside the task, with the `unauthenticated` problem
   document, rather than answering the HTTP request `401` with `WWW-Authenticate: Bearer`.
-- TODO(#26): Process Run Crate has no convention for an accountable role; until one is settled a
-  role is recorded as a `Person` whose description states its kind.
+- TODO(#800): an accountable role is a `prov:Agent` typed `dd:AccountableRole`, never a person
+  ([Provenance](provenance.md), invariant 4), but the Process Run Crate still records it as a
+  `Person` whose description states its kind.
 - TODO(#40): enforcing a manifest's model declarations beyond project content
   ([Projects](projects.md), invariant 8), such as which models may receive a conversation's text.
 - TODO(#37): the threat model this spec's controls answer to. Their baseline against C1 is
