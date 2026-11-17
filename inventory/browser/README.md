@@ -1,8 +1,9 @@
 # @data-director/inventory
 
 Reading a `FileInventory`, the document [`dd-inventory`](../README.md) writes, in TypeScript. The
-app uses it to show a researcher what an inventory holds; the browser scanner (#554) will join it
-here, so that what makes an inventory and what reads one share one set of types.
+app uses it to show a researcher what an inventory holds. It also builds the
+[browser bundle](#browser-bundle) of `dd-inventory` itself, which the browser scanner (#554) is to
+run, so that what makes an inventory and what reads one live together.
 
 The package holds no user interface and no policy, and has no runtime dependencies. It is pure
 functions over the contract's slots, in British English where it puts facts into words. The
@@ -48,3 +49,55 @@ The types mirror the contract's `FileInventory` class (`sdk/src/dd_sdk/schema/da
 by hand. The tests read a copy of the workbench's soil-survey sample, which `dd-inventory` wrote,
 so a change to what the command writes shows up here when the copy is refreshed (#555 will share
 one sample folder between both scanners).
+
+## Browser bundle
+
+The browser scanner is `dd-inventory` itself, run under [Pyodide](https://pyodide.org/) in a Web
+Worker: one scanner in two runtimes ([spike on #367](https://github.com/data-director-agent/data-director/issues/367#issuecomment-6708613929)).
+`bundle/` builds what that needs into one folder the app can serve from its own origin, and checks
+that it writes the command's inventory. It is development tooling: nothing under `src/` imports
+it, and Pyodide is a development dependency of this package only.
+
+```console
+$ cd inventory/browser
+$ npm ci
+$ npm run bundle      # writes dist/inventory-bundle/; needs uv, and the network on the first run
+$ npm run parity      # the command natively and under Pyodide, on ../tests/data/mixed
+```
+
+`dist/inventory-bundle/` holds:
+
+- Pyodide's runtime (`pyodide.mjs`, `pyodide.asm.mjs`, `pyodide.asm.wasm`, `python_stdlib.zip`),
+  copied from the `pyodide` npm package, pinned exactly in `package.json`;
+- `wheels/`: the command's wheel, built by `uv build` from this commit, and every wheel it needs;
+- `pyodide-lock.json`: a lock of those wheels alone, each with its SHA-256, which Pyodide checks
+  as it installs them. The command's entry depends on every other wheel, so
+  `pyodide.loadPackage("data-director-inventory")` installs the bundle (`bundle/load.ts`) and
+  nothing is fetched from PyPI or a CDN;
+- `manifest.json`: the Pyodide and command versions, each wheel with its source and digest, and
+  each file's size, raw and gzipped.
+
+Which wheel is taken (`bundle/resolve.ts`): the command's dependencies are those `uv export`
+gives from the workspace lock, leaving out any whose environment marker does not hold under
+Pyodide. A package Pyodide builds is taken from Pyodide's lock, with what Pyodide's lock says it
+depends on, since Pyodide built and tested those versions together; it compiles some of them
+(`pydantic-core`, PyYAML, MarkupSafe, rpds-py), and its `pydantic` matches its `pydantic-core`
+where the workspace's newer one would not. Any other package is the workspace lock's pure Python
+wheel, and a package with neither fails the build. Each download is checked against the SHA-256
+in its lock (Pyodide's comes with the npm package) and kept in `.cache/wheels/`, so a rebuild
+needs no network. Presidio, once the command depends on it (#470), will need a small import shim
+for spaCy here ([Personal data](../../docs/specs/personal-data.md)).
+
+The parity check (`bundle/parity.ts`) runs `dd-inventory` natively through `uv`, then loads the
+bundle in Node, mounts the folder at `/data` and runs `make_inventory` there. It fails on any
+difference but `inventory_made_at` and the runtime's label in `inventory_tool_version`
+(`0.1.0a4` natively, `0.1.0a4+pyodide.314.0.8` under Pyodide), and on any network request under
+Pyodide. `inventory/tests/data/mixed` is the shared sample folder: CSV and TSV tables of every
+simple field type, a format identified by its byte signature, a container format, a PNG named
+`.csv`, an empty file, a nested folder, and hidden files. CI's **Inventory browser bundle
+(parity)** job runs both scripts whenever the command, its dependencies, the bundle or the sample
+change, and writes the bundle's size and its Pyodide, fido and PRONOM signature versions to the
+job summary, so that a change to any of them is seen.
+
+The bundle carries Pyodide (MPL-2.0), fido (Apache-2.0) and The National Archives' PRONOM
+signatures (Open Government Licence), which the app is to credit when it serves the bundle (#554).

@@ -90,6 +90,7 @@ from dd_harness.projects.rules import (
     UnknownProjectError,
     deletion,
 )
+from dd_harness.projects.snapshot import SnapshotLog
 
 __all__ = [
     "ANSWER_MAX_LENGTH",
@@ -140,6 +141,7 @@ __all__ = [
     "RepositoryChoice",
     "Researchers",
     "RestoreRefusedError",
+    "SnapshotLog",
     "TitleSource",
     "UnknownProjectError",
     "Verdict",
@@ -159,7 +161,12 @@ class Projects(
     docs/specs/storage.md): the `ProjectStorage` every backend gives its callers. The log stores
     and reads; everything that decides whether a change is allowed, and what the log means, is in
     the areas this is made of, and what a finished run does to its project is
-    `RunEffects.after_run` (`dd_harness.project_effects`). It adds nothing of its own."""
+    `RunEffects.after_run` (`dd_harness.project_effects`). It adds only `snapshot`."""
+
+    def snapshot(self, project_id: str) -> Projects:
+        """The rules over the project `project_id` as its log reads now, read once however much
+        is asked of it, for the reads of one invocation (`SnapshotLog`). It takes no change."""
+        return Projects(SnapshotLog(self.log, project_id), restore_period=self.restore_period)
 
 
 class ProjectStore(Projects):

@@ -309,3 +309,48 @@ def test_the_command_takes_several_folders_and_names_them(dataset: Path, tmp_pat
     written = json.loads(out.read_text("utf-8"))
     assert [p["part_folder"] for p in written["inventory_parts"]] == ["2024", "2025"]
     assert ClassSchema.of(FileInventory).errors(written) == []
+
+
+# The sample folder both runtimes describe: natively here, and under Pyodide in the browser
+# bundle's parity check (inventory/browser/README.md), which compares the two slot by slot.
+MIXED = Path(__file__).parent / "data" / "mixed"
+
+
+@pytest.fixture(scope="module")
+def mixed() -> Inventory:
+    return make_inventory(MIXED)
+
+
+def test_the_mixed_sample_is_a_core_file_inventory(mixed: Inventory) -> None:
+    assert ClassSchema.of(FileInventory).errors(mixed) == []
+
+
+def test_the_mixed_sample_needs_signature_container_and_extension(mixed: Inventory) -> None:
+    files = _by_path(mixed)
+    assert files["images/plot-map.png"]["file_identified_by"] == "signature"
+    assert files["reports/report.docx"]["file_identified_by"] == "container"
+    assert files["reports/report.docx"]["file_pronom_ids"] == ["fmt/412"]
+    assert files["tables/plots.csv"]["file_identified_by"] == "extension"
+
+
+def test_the_mixed_sample_has_a_misleading_extension(mixed: Inventory) -> None:
+    misnamed = _by_path(mixed)["misnamed.csv"]
+    assert misnamed["file_identified_by"] == "signature"
+    assert misnamed["file_pronom_ids"] == _by_path(mixed)["images/plot-map.png"]["file_pronom_ids"]
+    assert "file_fields" not in misnamed
+    assert any("misnamed.csv" in note for note in mixed["inventory_limitations"])
+
+
+def test_the_mixed_sample_has_tables_of_every_simple_field_type(mixed: Inventory) -> None:
+    files = _by_path(mixed)
+    for table in ("tables/plots.csv", "tables/nested/readings.tsv"):
+        types_ = {f["field_type"] for f in files[table]["file_fields"]}
+        assert types_ == {"integer", "number", "boolean", "date", "string"}
+
+
+def test_the_mixed_sample_has_an_empty_file_and_hidden_ones_left_out(mixed: Inventory) -> None:
+    files = _by_path(mixed)
+    assert files["empty.txt"]["file_size"] == 0
+    assert not any(part.startswith(".") for p in files for part in p.split("/"))
+    assert (MIXED / ".DS_Store").is_file()
+    assert (MIXED / ".hidden").is_dir()
