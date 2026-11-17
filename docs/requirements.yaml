@@ -197,11 +197,19 @@ requirements:
   - id: C17
     source: blueprint
     title: Affordability
+  - id: C17.1
+    source: project
+    parent: C17
+    title: Each run's Process Run Crate records an estimated cost for each model call and for the run, from the prices in the profile's model_footprint; a call or run it cannot price has no figure, never zero; that the prices are current, cached-token pricing and spend limits are not exercised (#163)
 
   # --- Blueprint §6 principles the project carries a slot for -------------------------------
   - id: P14
     source: blueprint
     title: Low Impact — energy footprint captured in provenance records
+  - id: P14.1
+    source: project
+    parent: P14
+    title: Each run's envelope and Process Run Crate record an estimated energy figure for each model call and for the run, from the per-token factors in the profile's model_footprint, marked estimated, never measured; a run it cannot estimate stays not_measured; the factors' accuracy, compute other than model calls and a workflow total across delegations are not exercised (#480)
 
   # --- Project obligations (the contract itself) --------------------------------------------
   - id: DD-OUTCOME
