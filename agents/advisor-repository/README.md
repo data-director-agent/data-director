@@ -176,5 +176,3 @@ from the export (`tests/data/SOURCE.md`), so they need no network.
   types (`dataset`, `image`), so a kind of data matches only the words re3data uses.
 - The metadata standards each repository lists are in the evidence, but the chosen repository
   does not yet shape Phase 4. TODO(#321)
-- The FAIRsharing client is a copy of the standards advisor's, since an agent may not import
-  another ([System and boundaries](../../docs/specs/system.md)). TODO(#280)

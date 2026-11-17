@@ -15,6 +15,7 @@ import {
   Bot,
   Bug,
   FolderOpen,
+  Map as MapIcon,
   MessagesSquare,
   Shield,
   type LucideIcon,
@@ -27,9 +28,12 @@ import { FooterBuild } from "./FooterBuild";
 import { ThemeSwitch } from "./ThemeSwitch";
 
 // Projects first: the project is the unit of work that the rest belongs to (docs/specs/app.md).
-// The conversation stays the page a person lands on, so nobody must make a project first.
+// The journey map follows it, as the project's place in the process is the next thing a person
+// looks for; `/journey` opens the current project's map. The conversation stays the page a
+// person lands on, so nobody must make a project first.
 const PAGES: readonly { to: string; label: string; icon: LucideIcon }[] = [
   { to: "/projects", label: "Projects", icon: FolderOpen },
+  { to: "/journey", label: "Journey map", icon: MapIcon },
   { to: "/", label: "Conversation", icon: MessagesSquare },
   { to: "/activity", label: "Activity log", icon: Activity },
   { to: "/agents", label: "Agents", icon: Bot },

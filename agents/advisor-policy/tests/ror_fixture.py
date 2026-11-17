@@ -5,10 +5,10 @@ the two organisations called ESRC, both called UKRI, Wellcome, and one inactive 
 
 from __future__ import annotations
 
-import hashlib
 from pathlib import Path
 
 from dd_agent_advisor_policy import ror
+from dd_sdk.registry import pinned
 
 FIXTURE = Path(__file__).with_name("data") / "ror-dump-fixture.zip"
 NERC = "https://ror.org/02b5d8509"
@@ -19,16 +19,14 @@ INACTIVE = "https://ror.org/01952nm43"
 
 
 def build_fixture(directory: Path) -> ror.RorDump:
-    data = ror.build(FIXTURE)
-    path = directory / "registry.jsonl"
-    path.write_bytes(data)
+    built = pinned.install(directory, ror.build(FIXTURE), FIXTURE)
     ror.Pin(
         version="v2.15",
         archive="https://zenodo.org/records/23500708/files/v2.15-2026-10-20-ror-data.zip",
-        archive_sha256=hashlib.sha256(FIXTURE.read_bytes()).hexdigest(),
+        archive_sha256=built.archive_sha256,
         doi="https://doi.org/10.5281/zenodo.23500708",
-        records=data.count(b"\n"),
-        snapshot_sha256=hashlib.sha256(data).hexdigest(),
+        records=built.records,
+        snapshot_sha256=built.snapshot_sha256,
         fetched_at="2026-11-15T00:00:00+00:00",
     ).write(directory / "manifest.json")
-    return ror.RorDump(path, directory / "manifest.json")
+    return ror.RorDump(built.path, directory / "manifest.json")

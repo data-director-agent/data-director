@@ -277,11 +277,9 @@ known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_example_hell
 "harness/src/dd_harness/identity.py" = ["N818"]
 "sdk/src/dd_sdk/contract/validate.py" = ["N818"]
 "sdk/src/dd_sdk/delegate.py" = ["N818"]
+"sdk/src/dd_sdk/registry/retrieve.py" = ["N818"]
 "broker/src/dd_broker/guard.py" = ["N818"]
 "broker/src/dd_broker/reasons.py" = ["N818"]
-"agents/advisor-standards/src/dd_agent_advisor_standards/retrieve.py" = ["N818"]
-"agents/advisor-repository/src/dd_agent_advisor_repository/retrieve.py" = ["N818"]
-"agents/advisor-policy/src/dd_agent_advisor_policy/retrieve.py" = ["N818"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"

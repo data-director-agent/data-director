@@ -5,6 +5,7 @@ import { ActivityLog } from "./components/workspace/ActivityLog";
 import { FeedbackPage } from "./components/feedback/FeedbackPage";
 import { ConversationHome } from "./components/conversation/ConversationHome";
 import { Frame } from "./components/frame/Frame";
+import { JourneyLanding } from "./components/journey/JourneyLanding";
 import { JourneyPage } from "./components/journey/JourneyPage";
 import { PolicyPage } from "./components/policy/PolicyPage";
 import { ProfilePage } from "./components/profile/ProfilePage";
@@ -27,7 +28,8 @@ import {
 } from "./session/api";
 
 // The person's projects: `/projects`; a project's documents: `/projects/{project_id}`
-// (docs/specs/projects.md); its journey map: `/projects/{project_id}/journey`.
+// (docs/specs/projects.md); its journey map: `/projects/{project_id}/journey`. `/journey`, in the
+// main navigation, opens the current project's journey map, or asks which project's.
 const PROJECT_PREFIX = "/projects/";
 const JOURNEY_SUFFIX = "/journey";
 
@@ -52,6 +54,16 @@ function projectRoute(path: string): { projectId: string | null; onJourney: bool
   return { projectId: onJourney ? rest.slice(0, -JOURNEY_SUFFIX.length) : rest, onJourney };
 }
 
+/** The main navigation's entry that `path` is under. A project's journey map is under Journey
+ * map; its other pages are under Projects. */
+function navCurrent(path: string): string {
+  const { projectId, onJourney } = projectRoute(path);
+  if (path === "/journey" || (projectId && onJourney)) return "/journey";
+  if (path === "/projects" || projectId) return "/projects";
+  const pages = ["/activity", "/agents", "/feedback", "/policy", "/profile", "/sign-in", "/signed-out"];
+  return pages.includes(path) ? path : "/";
+}
+
 /**
  * The shell. It asks the server who is signed in before anything else (docs/specs/policy-and-identity.md): where the
  * server signs people in and nobody is, it shows the sign-in page and loads nothing more. Any
@@ -70,14 +82,9 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
   const onActivity = path === "/activity";
   const onPolicy = path === "/policy";
   const onProjects = path === "/projects";
+  const onJourneyLanding = path === "/journey";
   const { projectId, onJourney } = projectRoute(path);
-  // A project's own page is under Projects in the main navigation.
-  const current =
-    onProjects || projectId
-      ? "/projects"
-      : ["/activity", "/agents", "/feedback", "/policy", "/profile", "/sign-in", "/signed-out"].includes(path)
-        ? path
-        : "/";
+  const current = navCurrent(path);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -146,6 +153,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
     if (onProfile) return <ProfilePage session={session.value} />;
     if (onActivity) return <ActivityLog />;
     if (onProjects) return <ProjectsPage />;
+    if (onJourneyLanding) return <JourneyLanding />;
     if (projectId && onJourney) return <JourneyPage projectId={projectId} query={query ?? ""} />;
     if (projectId) return <ProjectPage projectId={projectId} query={query ?? ""} />;
     if (state.state === "loading") return <p role="status">Loading the agents…</p>;

@@ -29,8 +29,8 @@ from dd_agent_advisor_policy.policy_text import (
     html_text,
     readable_url,
 )
-from dd_agent_advisor_policy.retrieve import RegistryUnavailable
 from dd_sdk.agent import RunContext
+from dd_sdk.registry import RegistryUnavailable
 from dd_sdk.testing import FakeModel
 from dd_sdk.tracing import make_tracing
 

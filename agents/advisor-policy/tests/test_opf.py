@@ -22,8 +22,8 @@ from dd_agent_advisor_policy import discover
 from dd_agent_advisor_policy.classes import Actor, ActorRole
 from dd_agent_advisor_policy.crossref import normal_issn
 from dd_agent_advisor_policy.opf import from_item
-from dd_agent_advisor_policy.retrieve import RegistryUnavailable
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, verify
+from dd_sdk.registry import RegistryUnavailable
 
 # --- the Open Policy Finder client ------------------------------------------------------------
 

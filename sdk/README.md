@@ -25,6 +25,8 @@ package.
 | `dd_sdk.testing` | `FakeModel`, a `Model` for tests that needs no key. |
 | `dd_sdk.credentials` | `api_key(env)`: a model key, read once at start-up, and `ConfigError` ([Policy and identity](../docs/specs/policy-and-identity.md)). |
 | `dd_sdk.sources` | `BuiltSource`, how an agent declares a source copy it builds outside git, and `dd-sources`, which prepares them all ([Evidence and grounding](../docs/specs/grounding.md)). |
+| `dd_sdk.registry` | What agents that read a registry share: `Query`, `Hit`, `SnapshotRef` and `RegistryUnavailable`; the snapshot tokeniser (`registry.tokenise`); the pinned-archive pipeline (`registry.pinned`); and FAIRsharing's sign-in, search and record reads (`registry.fairsharing`). |
+| `dd_sdk.explain` | `Rationale`, `Explanation`, `TemplateExplainer` and `ModelExplainer`, and the check that a model's rationale names only identifiers it was given ([Agents](../docs/specs/agents.md)). |
 
 ## Contract
 

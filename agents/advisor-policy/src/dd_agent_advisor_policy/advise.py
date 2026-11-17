@@ -55,10 +55,11 @@ from dd_agent_advisor_policy.explain import (
 from dd_agent_advisor_policy.match import TYPES
 from dd_agent_advisor_policy.opf import ITEM_TYPES, OpenPolicyFinder
 from dd_agent_advisor_policy.records import PolicyRecord
-from dd_agent_advisor_policy.retrieve import Policies, Query, RegistryUnavailable, SourceRecord
-from dd_agent_advisor_policy.verify import names_other_identifier, quote_problem
+from dd_agent_advisor_policy.retrieve import Policies, SourceRecord
+from dd_agent_advisor_policy.verify import IDENTIFIER, quote_problem
 from dd_sdk.agent import RunContext
 from dd_sdk.contract.models import Derivation
+from dd_sdk.explain import add_usage, checked_rationale, missing_rationale, with_reason
 from dd_sdk.model import (
     Model,
     ModelCallError,
@@ -71,6 +72,7 @@ from dd_sdk.model import (
     call,
 )
 from dd_sdk.prompts import ModelCallLog
+from dd_sdk.registry import Query, RegistryUnavailable
 from dd_sdk.tracing import retrieval_span
 
 DEFAULT_MODEL = "claude-sonnet-5-5"
@@ -397,12 +399,7 @@ def _apply(reply: PolicyReply, items: list[Item], run: _Run, context: PolicyCont
 
     def rationale(text: str, record: SourceRecord, fallback: Item) -> Rationale:
         allowed = {record.source_id} if isinstance(record, PolicyRecord) else set()
-        if names_other_identifier(text, allowed):
-            return Rationale(
-                template_rationale(fallback) + " (Model rationale replaced: ungrounded reference.)",
-                Derivation.TEMPLATE,
-            )
-        return Rationale(" ".join(text.split()), Derivation.MODEL)
+        return checked_rationale(text, allowed, IDENTIFIER, template_rationale(fallback))
 
     for finding in reply.findings:
         record = run.record(finding.record)
@@ -458,12 +455,7 @@ def _apply(reply: PolicyReply, items: list[Item], run: _Run, context: PolicyCont
         found.append((item, rationale(finding.rationale, record, item)))
 
     final = [
-        r
-        if r is not None
-        else Rationale(
-            template_rationale(item) + " (No model rationale; template used.)",
-            Derivation.TEMPLATE,
-        )
+        r if r is not None else missing_rationale(template_rationale(item))
         for item, r in zip(items, rationales, strict=True)
     ]
     return Explanation(
@@ -472,13 +464,6 @@ def _apply(reply: PolicyReply, items: list[Item], run: _Run, context: PolicyCont
 
 
 # --- the advisor -----------------------------------------------------------------------------
-
-
-def _total(a: Usage, b: Usage) -> Usage:
-    def add(x: int | None, y: int | None) -> int | None:
-        return None if x is None and y is None else (x or 0) + (y or 0)
-
-    return Usage(add(a.input_tokens, b.input_tokens), add(a.output_tokens, b.output_tokens))
 
 
 class ModelAdvisor:
@@ -539,10 +524,7 @@ class ModelAdvisor:
     ) -> Explanation:
         plain = self.fallback.explain(context, items, ctx)
         return Explanation(
-            [
-                Rationale(r.text + f" ({why}; template used.)", r.derivation)
-                for r in plain.rationales
-            ],
+            with_reason(plain.rationales, why),
             usage,
             calls,
             remarks=[f"The model advisor gave no findings ({why}); the template was used."],
@@ -585,7 +567,7 @@ class ModelAdvisor:
                 )
             except ModelCallError as exc:
                 return self._fallback(context, items, ctx, f"model unavailable: {exc}", usage, log)
-            log, usage = reply.calls, _total(usage, reply.usage)
+            log, usage = reply.calls, add_usage(usage, reply.usage)
             if reply.refused:
                 return self._fallback(context, items, ctx, "model declined", usage, log)
             messages.append(reply.message)
