@@ -83,6 +83,8 @@ from dd_harness.projects import (
     UnknownProjectError,
 )
 from dd_harness.registry import Registry
+from dd_harness.run_state import Grant as Grant
+from dd_harness.run_state import RunState
 from dd_harness.storage import SPANS, RunStorage
 from dd_sdk.agent import ModelUse
 from dd_sdk.contract import validate
@@ -137,22 +139,6 @@ class DuplicateInvocation(ValueError):
 # The most recent grounding reports kept in memory, for a caller that reads one straight after
 # `invoke` (the CLI, the evaluation). Each run's `grounding.txt` artifact is the durable copy.
 GROUNDING_REPORTS_KEPT = 256
-
-
-@dataclass
-class Grant:
-    """One delegation grant, live while its parent invocation runs."""
-
-    token: str
-    parent_invocation_id: str
-    parent_agent_id: str
-    conversation_id: str | None
-    project_id: str | None
-    acting_for: Principal
-    delegations: list[Delegation] = field(default_factory=list)
-    # Children admitted under this grant and not yet finished; revocation waits for them.
-    in_flight: int = 0
-    watch: Watch = field(default_factory=lambda: Watch(None, None))  # told of each child
 
 
 @dataclass
@@ -449,9 +435,7 @@ class Conductor:
             )
         watch = watch or Watch(None, None)
         watch.plan()
-        run = pipeline.RunState(
-            request, request_doc, acting_for, agent, watch, link, given, unfillable
-        )
+        run = RunState(request, request_doc, acting_for, agent, watch, link, given, unfillable)
         spec = agent.spec
         with invoke_agent_span(
             self.tracing.tracer, spec.agent_id, spec.grounding_mode.value, run.input_hash, link=link

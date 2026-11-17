@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from dd_harness.projects.decisions import Decision, check_answers, check_names
+from dd_harness.projects.decisions import Decision, check_answers, check_decision, check_names
 from dd_harness.projects.fold import APPROVED, check_latest, fold, text_digest
 from dd_harness.projects.rules import (
     DOCUMENT_QUESTION_ANSWERED,
@@ -151,7 +151,7 @@ class Documents(ProjectRules):
         Raises `ProjectError` for a decision malformed in itself, which records nothing, and
         `ChangeRefusedError` for one on any text but the undecided latest, which records the
         refusal."""
-        decision.check()
+        check_decision(decision)
 
         def change(section: ProjectSection) -> DocumentVersionRef | Refused:
             decided = check_latest(
