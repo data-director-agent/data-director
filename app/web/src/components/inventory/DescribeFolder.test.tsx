@@ -48,6 +48,12 @@ function withPath(name: string, path: string, text = "a,b\n1,2\n"): File {
   return file;
 }
 
+/** A file that says it is `size` bytes long, as a very large one would. */
+function sized(file: File, size: number): File {
+  Object.defineProperty(file, "size", { value: size });
+  return file;
+}
+
 function renderPanel(scanner: Scanner, onDescribed: (file: File) => void = () => undefined) {
   return render(
     <AnnouncerProvider>
@@ -193,6 +199,49 @@ describe("DescribeFolder", () => {
     expect(await within(polite()).findByText("Stopped describing the folder.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Choose a folder…" })).toBeVisible();
     expect(onDescribed).not.toHaveBeenCalled();
+  });
+
+  it("advises the command before describing a folder with a very large file", async () => {
+    const { scanner, scans } = drivenScanner();
+    const user = userEvent.setup();
+    renderPanel(scanner);
+    await section();
+    await user.upload(folderInput(), [
+      withPath("a.csv", "survey/a.csv"),
+      sized(withPath("big.tif", "survey/images/big.tif"), 5_200_000_000),
+    ]);
+    const advice = screen.getByText(/survey holds a file of 5\.2 GB, images\/big\.tif\./);
+    expect(advice).toHaveTextContent(/may close the page if it runs short/);
+    expect(advice).toHaveFocus();
+    expect(scans).toEqual([]);
+    expect(await axe(document.body)).toHaveNoViolations();
+
+    await user.click(screen.getByRole("button", { name: "Describe it here anyway" }));
+    expect(first(scans).folder.files.map((f) => f.path)).toEqual(["a.csv", "images/big.tif"]);
+    expect(screen.getByRole("progressbar")).toBeVisible();
+  });
+
+  it("goes back to choosing a folder when the advice is cancelled", async () => {
+    const { scanner, scans } = drivenScanner();
+    const user = userEvent.setup();
+    renderPanel(scanner);
+    await section();
+    await user.upload(folderInput(), [sized(withPath("big.bin", "survey/big.bin"), 4_000_000_000)]);
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(scans).toEqual([]);
+    expect(screen.queryByText(/holds a file of/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Choose a folder…" })).toHaveFocus();
+  });
+
+  it("describes a folder whose files are all under 4 GB without asking", async () => {
+    const { scanner, scans } = drivenScanner();
+    renderPanel(scanner);
+    await section();
+    await userEvent.upload(folderInput(), [
+      sized(withPath("big.bin", "survey/big.bin"), 3_999_999_999),
+    ]);
+    expect(scans).toHaveLength(1);
+    expect(screen.queryByText(/holds a file of/)).toBeNull();
   });
 
   it("cancels a scan still running when the dialog closes", async () => {

@@ -9,9 +9,10 @@ calls the steps.
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from dd_harness.observe import cancelled_result
+from dd_harness.run_state import RunHost, RunState
 from dd_sdk.agent import AgentResult, AgentSpec
 from dd_sdk.contract import problem as problems
 from dd_sdk.contract.models import (
@@ -22,16 +23,12 @@ from dd_sdk.contract.models import (
 )
 from dd_sdk.security_log import SecurityEvent, emit
 
-if TYPE_CHECKING:
-    from dd_harness.conductor import Conductor
-    from dd_harness.pipeline import RunState
-
 DATA_STEWARD = "data_steward"
 
 type Decided = tuple[AgentResult, ProblemDetails | None]
 
 
-def refuse(conductor: Conductor, run: RunState) -> None:
+def refuse(conductor: RunHost, run: RunState) -> None:
     """Decide the run without its agent, by the first of `REFUSALS` that applies."""
     for refusal in REFUSALS:
         if (decided := refusal(conductor, run)) is not None:
@@ -44,7 +41,7 @@ def failed_result(statement: str) -> AgentResult:
     return AgentResult(outcome=Outcome(status=OutcomeStatus.FAILED, statement=statement))
 
 
-def _not_allowed(conductor: Conductor, run: RunState) -> Decided | None:
+def _not_allowed(conductor: RunHost, run: RunState) -> Decided | None:
     decision, spec, profile = run.gate_decision, run.spec, conductor.profile
     if decision.allowed:
         return None
@@ -59,7 +56,7 @@ def _not_allowed(conductor: Conductor, run: RunState) -> Decided | None:
     return failed_result(f"{decision.reason}. The agent was not run."), prob
 
 
-def _broker_bypassed(conductor: Conductor, run: RunState) -> Decided | None:
+def _broker_bypassed(conductor: RunHost, run: RunState) -> Decided | None:
     """Refused before a steward is asked to approve it: approval cannot make the deployment's
     configuration honour the profile."""
     if not run.bypasses:
@@ -84,7 +81,7 @@ def _broker_bypassed(conductor: Conductor, run: RunState) -> Decided | None:
     return failed_result(statement), problems.model_broker_bypassed(agent_id, profile_id)
 
 
-def _needs_approval(conductor: Conductor, run: RunState) -> Decided | None:
+def _needs_approval(conductor: RunHost, run: RunState) -> Decided | None:
     decision = run.gate_decision
     if not decision.requires_approval:
         return None
@@ -97,11 +94,11 @@ def _needs_approval(conductor: Conductor, run: RunState) -> Decided | None:
     return AgentResult(outcome=outcome), None
 
 
-def _cancelled(conductor: Conductor, run: RunState) -> Decided | None:
+def _cancelled(conductor: RunHost, run: RunState) -> Decided | None:
     return cancelled_result(run.spec.agent_id, ran=False) if run.watch.cancelled() else None
 
 
-def _input_refused(conductor: Conductor, run: RunState) -> Decided | None:
+def _input_refused(conductor: RunHost, run: RunState) -> Decided | None:
     """2. Input check, against the class schema the agent's card carries (docs/specs/contract.md).
     A valid request addressed to an agent that does not read this input is an outcome, not an
     exception: the caller, the store and a reviewer all see the refusal as an envelope, as they
@@ -119,7 +116,7 @@ def _input_refused(conductor: Conductor, run: RunState) -> Decided | None:
     return failed_result(f"{statement} The agent was not run."), prob
 
 
-def _unfillable(conductor: Conductor, run: RunState) -> Decided | None:
+def _unfillable(conductor: RunHost, run: RunState) -> Decided | None:
     """3. Project facts: the document a redraft names must be one of the project's, of the kind
     asked for (docs/specs/projects.md, invariant 6)."""
     if run.unfillable is None:
@@ -128,7 +125,7 @@ def _unfillable(conductor: Conductor, run: RunState) -> Decided | None:
     return failed_result(statement), problems.revision_refused(run.unfillable)
 
 
-def _kept_back(conductor: Conductor, run: RunState) -> Decided | None:
+def _kept_back(conductor: RunHost, run: RunState) -> Decided | None:
     """4. Project content, against the profile's `hosted_models` (docs/specs/projects.md,
     invariant 8): nothing is sent that the profile does not let an agent calling a hosted model
     see."""
@@ -145,7 +142,7 @@ def _kept_back(conductor: Conductor, run: RunState) -> Decided | None:
 
 
 # In order: the first that applies decides the run, and its agent is not run.
-REFUSALS: tuple[Callable[[Conductor, RunState], Decided | None], ...] = (
+REFUSALS: tuple[Callable[[RunHost, RunState], Decided | None], ...] = (
     _not_allowed,
     _broker_bypassed,
     _needs_approval,

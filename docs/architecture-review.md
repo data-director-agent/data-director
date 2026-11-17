@@ -233,7 +233,10 @@ written or moved first, so that behaviour is pinned before the code moves.
   through an allowed list, so that features do not tangle.
 - Record each refactor above as a short decision in `docs/specs`, so that the reason for a module's
   shape outlives the pull request.
-- Review the size baseline and the markers below each quarter. The count should fall.
+- Watch the size baseline, the markers below and the boundary exceptions fall. They are counted by
+  `scripts/architecture_debt.py`, whose table, "Recorded architecture debt", is in the summary of
+  the "Architecture" job of every CI run on `main`; compare it across runs instead of counting by
+  hand.
 
 ## Checks added with this review
 

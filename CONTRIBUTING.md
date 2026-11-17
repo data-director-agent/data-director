@@ -157,8 +157,10 @@ The code that exceeded a limit when it was introduced carries a marker: `# noqa:
 like) in Python, `// eslint-disable-next-line complexity` in TypeScript, or an entry in the size
 baseline. These record debt. Remove the marker when you split the function or file; a marker that
 no longer suppresses anything is itself an error (Ruff's RUF100, ESLint's unused-directive
-report). The same holds for an entry in the duplication baseline. Never add one to get new code past these checks: split the code by responsibility
-instead, and if that is not possible in your pull request, open an issue and say so.
+report). Never add one to get new code past these checks: split the code by responsibility
+instead, and if that is not possible in your pull request, open an issue and say so. The CI
+"Architecture" job counts these markers, the baseline entries and the boundary exceptions in its
+summary (`scripts/architecture_debt.py`), so the count can be seen to fall.
 
 ## Writing tests
 

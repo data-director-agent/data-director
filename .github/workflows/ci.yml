@@ -140,6 +140,12 @@ jobs:
       # Each workspace member imports only what it declares and reads only its own files
       # (docs/specs/system.md). Known exceptions only shrink: a stale one fails.
       - run: uv run --no-project --python 3.14 scripts/check_boundaries.py
+      # The recorded debt (complexity markers, size baseline, boundary and Import Linter
+      # exceptions), counted into the job summary so that it can be seen to fall
+      # (docs/architecture-review.md). Information only: it never fails the run.
+      - name: Recorded architecture debt
+        continue-on-error: true
+        run: uv run --no-project --python 3.14 scripts/architecture_debt.py --summary "$GITHUB_STEP_SUMMARY"
       # The VM and the Compose stack run every agent the app lists, on the port it expects
       # (deploy/README.md, docker/agents.yaml).
       - run: uv run python scripts/check_deploy.py

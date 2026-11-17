@@ -136,7 +136,10 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     (`showDirectoryPicker` where the browser has it, else `<input webkitdirectory>`; dropping one
     is a shortcut), and `dd-inventory` describes it under Pyodide in a Web Worker with no network
     (`@data-director/inventory`, Browser scanner). Each stage is announced once and the files are
-    counted on a progress bar; Cancel ends the worker, as does closing the dialog. The inventory
+    counted on a progress bar; Cancel ends the worker, as does closing the dialog. A folder
+    holding a file of 4 GB or more is described only after advice that the command suits it
+    better, since the browser's memory grows on files that large and the page can be killed
+    when it runs short (`LargeFileNotice.tsx`; measurements in `inventory/browser/README.md`). The inventory
     it makes is handed on as `<folder>-inventory.json`, so it goes through the check above
     unchanged. The section credits the PRONOM signatures as their licence asks and links to the
     bundle's `NOTICES.md`. The second route is the command, for data on a server or a cluster or
@@ -384,13 +387,15 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   `model-account`, `scan`) hold types and API clients, `scan` the browser scanner's client, and
   reading an inventory is `@data-director/inventory`'s (`inventory/browser/`);
   `components/` holds the interface, one folder per feature, with the shared kit in
-  `components/ui/`. Three rules are checked: no file depends on itself through other files
+  `components/ui/`. Four rules are checked: no file depends on itself through other files
   (dependency-cruiser, `.dependency-cruiser.cjs`, in `npm run lint`); the kit imports no feature
-  component; and a domain folder imports no component (eslint-plugin-boundaries, in
-  `eslint.config.js`, with a test in `src/architecture.test.ts` that planted violations are
-  reported, because the plugin does nothing without its TypeScript resolver). Rules between
-  feature folders are not yet set, as several features import each other today;
-  TODO(#497) decide them and add them to the dependency-cruiser config.
+  component; a domain folder imports no component; and a feature folder imports another only
+  through an allow-list, `FEATURE_IMPORTS`, each entry with its reason (eslint-plugin-boundaries,
+  in `eslint.config.js`, with a test in `src/architecture.test.ts` that planted violations are
+  reported, because the plugin does nothing without its TypeScript resolver). The allow-list
+  started as the imports between features in November 2026. Three pairs import each other
+  (`conversation` and `workspace`, `agent` and `capabilities`, `journey` and `project`);
+  TODO(#494) untangle the first two.
 - **Conversations and delegation** are specified in [Orchestration](orchestration.md); the app
   supplies the conductor's callback and the conversation API over it. Which agent is the
   orchestrator is a profile key ([Policy and identity](policy-and-identity.md)). A person's

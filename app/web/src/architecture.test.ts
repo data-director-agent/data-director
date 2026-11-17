@@ -41,6 +41,43 @@ describe("layer rules", () => {
   });
 });
 
+// Feature folders (#1060): one imports another only through FEATURE_IMPORTS in eslint.config.js.
+describe("feature import rule", () => {
+  it("reports a feature importing another that is not on the allow-list", async () => {
+    const messages = await boundaryMessages(
+      "src/components/run/Planted.tsx",
+      'import { InventoryDialog } from "../inventory/InventoryDialog";\nexport const x = InventoryDialog;\n',
+    );
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toContain("Feature run may not import feature inventory");
+  });
+
+  it("allows an import on the allow-list", async () => {
+    const messages = await boundaryMessages(
+      "src/components/conversation/Planted.tsx",
+      'import { InventoryDialog } from "../inventory/InventoryDialog";\nexport const x = InventoryDialog;\n',
+    );
+    expect(messages).toEqual([]);
+  });
+
+  it("checks the direction of an allowed pair", async () => {
+    const messages = await boundaryMessages(
+      "src/components/inventory/Planted.tsx",
+      'import { Speaker } from "../conversation/Speaker";\nexport const x = Speaker;\n',
+    );
+    expect(messages).toHaveLength(1);
+  });
+
+  it("allows a feature to import its own files and the shared NotBuilt", async () => {
+    const messages = await boundaryMessages(
+      "src/components/run/result/Planted.tsx",
+      'import { Outcome } from "../Outcome";\nimport { NotBuilt } from "../../NotBuilt";\n' +
+        "export const x = [Outcome, NotBuilt];\n",
+    );
+    expect(messages).toEqual([]);
+  });
+});
+
 // The function-size rules (eslint.config.js): a planted function over the limit is reported, so
 // a misplaced `files` or `ignores` pattern cannot switch them off unnoticed.
 describe("function size rules", () => {
