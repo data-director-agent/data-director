@@ -177,7 +177,7 @@ describe("Frame", () => {
     const nav = within(screen.getByRole("contentinfo")).getByRole(
       "navigation",
       {
-        name: "Project",
+        name: "Footer",
       },
     );
     const site = "https://data-director-agent.github.io/data-director/";

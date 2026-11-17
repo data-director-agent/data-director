@@ -180,7 +180,7 @@ export function Frame({
             </ul>
           </div>
           <div className="app-footer-details">
-            <nav aria-label="Project" className="app-footer-nav">
+            <nav aria-label="Footer" className="app-footer-nav">
               <ul className="app-footer-links">
                 {PROJECT_LINKS.map(({ href, label }) => (
                   <li key={href}>
