@@ -10,49 +10,14 @@
  * CI, to the job summary.
  */
 
-import { execFileSync } from "node:child_process";
-import { appendFileSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { appendFileSync, readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { loadPyodide } from "pyodide";
 
-import { parityProblems, type Json } from "./compare.ts";
-import { loadInventoryRuntime } from "./load.ts";
+import { loadInventoryRuntime, scanFolder } from "../src/scanner/runtime.ts";
+import { parityProblems } from "./compare.ts";
 import { BUNDLE_DIR, MANIFEST, summarise, type Manifest } from "./manifest.ts";
-
-const PACKAGE = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const MEMBER = resolve(PACKAGE, "..");
-const SAMPLE = join(MEMBER, "tests", "data", "mixed");
-
-type Inventory = Record<string, Json>;
-
-/** The inventory the command writes natively, through uv, from the workspace's lock. */
-function nativeInventory(folder: string): Inventory {
-  const out = mkdtempSync(join(tmpdir(), "dd-inventory-native-"));
-  const file = join(out, "inventory.json");
-  execFileSync(
-    "uv",
-    [
-      "run",
-      "--frozen",
-      "--quiet",
-      "--package",
-      "data-director-inventory",
-      "dd-inventory",
-      folder,
-      "-o",
-      file,
-    ],
-    {
-      cwd: MEMBER,
-      stdio: ["ignore", "inherit", "inherit"],
-    },
-  );
-  const inventory = JSON.parse(readFileSync(file, "utf8")) as Inventory;
-  rmSync(out, { recursive: true, force: true });
-  return inventory;
-}
+import { nativeInventory, PACKAGE, SAMPLE, type Inventory } from "./native.ts";
 
 /** The inventory the same code writes under Pyodide, over the folder mounted at `/data`. */
 async function pyodideInventory(
@@ -67,11 +32,7 @@ async function pyodideInventory(
   );
   pyodide.FS.mkdir("/data");
   pyodide.mountNodeFS("/data", folder);
-  const text = pyodide.runPython(
-    "import json\nfrom pathlib import Path\nfrom dd_inventory import make_inventory\n" +
-      'json.dumps(make_inventory(Path("/data")))',
-  ) as string;
-  return JSON.parse(text) as Inventory;
+  return JSON.parse(scanFolder(pyodide, "/data")) as Inventory;
 }
 
 /**

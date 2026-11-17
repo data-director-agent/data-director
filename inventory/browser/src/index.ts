@@ -79,3 +79,36 @@ export {
   type InventoryPart,
   type TableField,
 } from "./types";
+export {
+  BUNDLE_URL,
+  fetchBundle,
+  matchesIntegrity,
+  serveFrom,
+  type BundleAssets,
+  type BundleManifest,
+} from "./scanner/assets";
+export {
+  canPickDirectory,
+  fromDirectoryHandle,
+  fromEntries,
+  fromFileList,
+  NotAFolder,
+  type ChosenFile,
+  type ChosenFolder,
+  type DirectoryEntryLike,
+  type DirectoryHandleLike,
+  type EntryLike,
+  type FileEntryLike,
+  type FileHandleLike,
+  type RelativeFile,
+} from "./scanner/choose";
+export {
+  startScan,
+  type ScanEvent,
+  type ScanHandle,
+  type ScanOutcome,
+  type ScanRequest,
+  type ScanStage,
+  type WorkerLike,
+} from "./scanner/protocol";
+export type { FileProgress } from "./scanner/runtime";

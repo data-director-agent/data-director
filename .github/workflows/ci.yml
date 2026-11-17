@@ -453,13 +453,15 @@ jobs:
   # Builds the bundle the app is to serve (Pyodide, the command's wheel from this commit and its
   # dependencies), then runs the command natively and under Pyodide on inventory/tests/data/mixed.
   # Fails on any difference but when each inventory was made and the runtime's label, and on any
-  # network request under Pyodide. The bundle's size and versions go to the job summary.
+  # network request under Pyodide. The bundle's size and versions go to the job summary. Then the
+  # browser scanner runs the same bundle in a worker in Chromium, with no network, over a copy of
+  # that folder holding a canary that must appear in no request.
   inventory-bundle:
     name: Inventory browser bundle (parity)
     needs: changes
     if: needs.changes.outputs.inventory == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: inventory/browser
@@ -478,6 +480,18 @@ jobs:
       - run: npm ci
       - run: npm run bundle
       - run: npm run parity
+      - uses: ./.github/actions/playwright # zizmor: ignore[self-repository]
+        with:
+          playwright: npx playwright
+          working-directory: inventory/browser
+      # playwright.config.ts builds the test page before it serves it with the bundle.
+      - run: npm run e2e
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: inventory-scanner-playwright-report
+          path: inventory/browser/playwright-report
+          retention-days: 14
 
   # --- Deployment: the way in from outside the VM (deploy/README.md). -----------------------------
 
