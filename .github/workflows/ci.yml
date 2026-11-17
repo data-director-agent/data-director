@@ -140,6 +140,10 @@ jobs:
       # Each workspace member imports only what it declares and reads only its own files
       # (docs/specs/system.md). Known exceptions only shrink: a stale one fails.
       - run: uv run --no-project --python 3.14 scripts/check_boundaries.py
+      # No function, method, class or import in a member's src/ that nothing calls (vulture).
+      # Code reached dynamically, and the unused code recorded with the check, are listed in
+      # scripts/unused_code.toml; a stale entry fails.
+      - run: uv run python scripts/check_unused.py
       # The recorded debt (complexity markers, size baseline, boundary and Import Linter
       # exceptions), counted into the job summary so that it can be seen to fall
       # (docs/architecture-review.md). Information only: it never fails the run.
@@ -161,7 +165,7 @@ jobs:
           DD_REQUIRE_JSCPD: "1"
         run: >-
           uv run pytest scripts/tests/test_architecture_canary.py scripts/tests/test_check_boundaries.py
-          scripts/tests/test_check_duplication.py
+          scripts/tests/test_check_duplication.py scripts/tests/test_check_unused.py
 
   # Sources that agents build outside git, such as the repository advisor's re3data registry
   # (dd-sources, sdk/src/dd_sdk/sources.py). This job builds them and saves what they are built

@@ -55,13 +55,6 @@ export function problemSlug(type: string | undefined | null): string | null {
   return type.startsWith(PROBLEM_BASE) ? type.slice(PROBLEM_BASE.length) : type;
 }
 
-/** Every stage waiting, then the first one running: what the page shows while it waits. */
-export function pendingStages(): Stage[] {
-  return (["gate", "input", "agent", "grounding", "sources"] as const)
-    .map((id): Stage => ({ id, label: LABELS[id], state: id === "gate" ? "running" : "waiting" }))
-    .concat(REVIEW);
-}
-
 function stage(id: Stage["id"], state: StageState, detail?: string): Stage {
   return detail === undefined
     ? { id, label: LABELS[id], state }
