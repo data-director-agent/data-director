@@ -103,6 +103,16 @@
     max-width: 38rem;
   }
 
+  .app-footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-weight: var(--font-weight-heavy);
+  }
+
   .app-footer-about,
   .app-footer-meta {
     margin: 0;

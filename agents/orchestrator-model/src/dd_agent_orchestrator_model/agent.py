@@ -62,12 +62,20 @@ import json
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC
 from typing import Any
 
 from dd_agent_orchestrator_model.prompt import SYSTEM_PROMPT
 from dd_agent_orchestrator_model.title import clean, titled
-from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
+from dd_sdk.agent import (
+    AgentResult,
+    AgentSpec,
+    Derived,
+    RunContext,
+    abstain,
+    input_evidence,
+    input_ref,
+)
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     CHOICE_OPTIONS_MAX,
@@ -76,9 +84,7 @@ from dd_sdk.contract.models import (
     QUESTION_KEY_PATTERN,
     QUESTIONS_MAX,
     Derivation,
-    EvidenceItem,
     GroundingMode,
-    GroundingRef,
     InvocationRequest,
     Message,
     OpenInput,
@@ -91,7 +97,6 @@ from dd_sdk.contract.models import (
     TurnRole,
 )
 from dd_sdk.delegate import Delegated, DelegationRefused
-from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 from dd_sdk.model import (
     Model,
     ModelCallError,
@@ -493,7 +498,7 @@ class ModelOrchestrator:
         assert isinstance(message, Message)  # the conductor refused anything else
 
         if ctx.delegate is None:
-            return _abstain(
+            return abstain(
                 ReasonCode.CAPABILITY_NOT_IMPLEMENTED,
                 "The harness gave this run no way to delegate (for example, it was started "
                 "from `workbench invoke`), so no agent was asked.",
@@ -694,7 +699,6 @@ class ModelOrchestrator:
             if title is not None:
                 input_tokens += title.input_tokens
                 output_tokens += title.output_tokens
-        input_ref = GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)
         return AgentResult(
             outcome=Outcome(
                 status=OutcomeStatus.SUCCEEDED,
@@ -707,16 +711,10 @@ class ModelOrchestrator:
                 reply_questions=questions,
                 new_project_title=name,
                 new_project_entry=entry_point,
-                grounded_on=[input_ref, *(d.ref for d in delegated)],
+                grounded_on=[input_ref(ctx), *(d.ref for d in delegated)],
             ),
             evidence=[
-                EvidenceItem(
-                    source_id=ctx.input_ref,
-                    retrieved_at=datetime.now(UTC),
-                    hash_algorithm=HASH_ALGORITHM,
-                    canonicalisation=INPUT_CANONICALISATION,
-                    content_hash=ctx.input_hash,
-                ),
+                input_evidence(ctx),
                 *(d.evidence for d in delegated),
             ],
             model_id=model_id,
@@ -792,9 +790,3 @@ def _entry_of(call: ToolCall, *, offered: bool) -> tuple[int | None, ToolResult]
 
 def _tool_result(call: ToolCall, content: str, is_error: bool) -> ToolResult:
     return ToolResult(call.id, content, is_error)
-
-
-def _abstain(reason: ReasonCode, statement: str) -> AgentResult:
-    return AgentResult(
-        outcome=Outcome(status=OutcomeStatus.ABSTAINED, reason_code=reason, statement=statement)
-    )

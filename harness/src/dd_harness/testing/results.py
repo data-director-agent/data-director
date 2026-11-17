@@ -4,31 +4,15 @@ from __future__ import annotations
 
 from dd_harness.testing.classes import ProbeCheck, ProbeReview
 from dd_harness.testing.doubles import Retrieve
-from dd_sdk.agent import AgentResult, RunContext
+from dd_sdk.agent import AgentResult, RunContext, input_evidence, input_ref
 from dd_sdk.contract.models import (
     Derivation,
-    EvidenceItem,
-    GroundingRef,
     InvocationRequest,
     Outcome,
     OutcomeStatus,
     Reply,
 )
 from dd_sdk.delegate import Delegated, HarnessDelegate
-from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
-
-
-def input_ref(ctx: RunContext) -> GroundingRef:
-    return GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)
-
-
-def input_evidence(ctx: RunContext) -> EvidenceItem:
-    return EvidenceItem(
-        source_id=ctx.input_ref,
-        hash_algorithm=HASH_ALGORITHM,
-        canonicalisation=INPUT_CANONICALISATION,
-        content_hash=ctx.input_hash,
-    )
 
 
 def review_of_input(request: InvocationRequest, ctx: RunContext) -> AgentResult:

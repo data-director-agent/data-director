@@ -1,8 +1,9 @@
 # agents
 
 Rules for working on an agent under `agents/<name>/`. The recipe for adding one is
-[`README.md`](README.md), and [`example-hello/`](example-hello/) is the worked example to copy
-([Agents](../docs/specs/agents.md)). The repository-wide rules in the root
+[`README.md`](README.md): start a new agent with `uv run scripts/dd.py new-agent <name>`, which
+writes it from a template on the agent kit in `dd_sdk.agent` and registers it. [`example-hello/`](example-hello/)
+is the worked example ([Agents](../docs/specs/agents.md)). The repository-wide rules in the root
 [`AGENTS.md`](../AGENTS.md) apply as well.
 
 An agent's code, data, schema, scripts, evaluation cases and tests live in its own directory. If
@@ -17,6 +18,9 @@ the workbench, stop.
   linter, CLI, transport, viewer or app shell to add an agent, stop.
 - **An agent is a service.** Nothing outside `agents/` imports `dd_agent_*` from its `src/`; only
   tests do, to serve an agent in memory (`dd_harness.testing.in_process`).
+- **Use the agent kit, not a copy of it.** `abstain`, `input_ref` and `input_evidence` are in
+  `dd_sdk.agent`; `scripts/tests/test_agent_kit_usage.py` fails on a private `_abstain` or an
+  input citation written out by hand.
 - **An agent returns an `AgentResult` (outcome, payload, evidence) and nothing more.** If you find
   yourself setting `invocation_id` or `grounding_mode` in an agent, stop: only the conductor
   fills them.

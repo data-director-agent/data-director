@@ -48,7 +48,6 @@ import hashlib
 import io
 import json
 from collections.abc import Mapping, Sequence
-from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import Any, NamedTuple
@@ -62,7 +61,15 @@ from dd_agent_advisor_documentation.prose import (
     TemplateWriter,
     Writer,
 )
-from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
+from dd_sdk.agent import (
+    AgentResult,
+    AgentSpec,
+    Derived,
+    RunContext,
+    abstain,
+    input_evidence,
+    input_ref,
+)
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     ApprovedMetadataRecord,
@@ -73,17 +80,14 @@ from dd_sdk.contract.models import (
     DocumentQuestion,
     DraftAnswer,
     DraftRequest,
-    EvidenceItem,
     FileInventory,
     GroundingMode,
-    GroundingRef,
     InvocationRequest,
     Outcome,
     OutcomeStatus,
     ReasonCode,
     RepositoryRequirements,
 )
-from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 from dd_sdk.model import Usage
 
 README = Path(__file__).with_name("readme.yaml")
@@ -279,14 +283,14 @@ class DocumentationEditor:
         assert isinstance(asked, DraftRequest)  # the conductor checked spec.accepts
         kind = asked.document_kind
         if kind not in TITLES:
-            return _abstain(
+            return abstain(
                 ReasonCode.OUTSIDE_AGENT_SCOPE,
                 "The Documentation Editor drafts a README or a data dictionary, not a "
                 f"{kind.value}.",
             )
         inventory = asked.inventory
         if inventory is None or not inventory.inventory_files:
-            return _abstain(
+            return abstain(
                 ReasonCode.INSUFFICIENT_INPUT,
                 "Add the project's file inventory first: the draft is made from it.",
             )
@@ -328,7 +332,7 @@ class DocumentationEditor:
         else:
             fields = sum(len(f.file_fields) for f in inventory.inventory_files)
             if not fields:
-                return _abstain(
+                return abstain(
                     ReasonCode.INSUFFICIENT_INPUT,
                     "The inventory lists no table with fields, so there is no data dictionary to "
                     "draft.",
@@ -360,7 +364,7 @@ class DocumentationEditor:
         current = asked.current_version
         if current is not None:
             statement += f" It replaces version {current.version_ref.version} of the document."
-        ref = GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)
+        ref = input_ref(ctx)
         # A README's model may write prose and suggest answers: two calls, recorded together.
         logs = [log for log in (prose.calls, suggested.calls) if log is not None]
         usage = _sum(prose.usage, suggested.usage)
@@ -376,15 +380,7 @@ class DocumentationEditor:
                 document_questions=questions,
                 grounded_on=[ref],
             ),
-            evidence=[
-                EvidenceItem(
-                    source_id=ctx.input_ref,
-                    retrieved_at=datetime.now(UTC),
-                    hash_algorithm=HASH_ALGORITHM,
-                    canonicalisation=INPUT_CANONICALISATION,
-                    content_hash=ctx.input_hash,
-                )
-            ],
+            evidence=[input_evidence(ctx)],
             model_id=prose.model_id or suggested.model_id,
             input_tokens=usage.input_tokens,
             output_tokens=usage.output_tokens,
@@ -877,12 +873,6 @@ def _answers(given: Sequence[DraftAnswer]) -> dict[str, str]:
 
 def _count(n: int, noun: str) -> str:
     return f"{n} {noun}" if n == 1 else f"{n} {noun}s"
-
-
-def _abstain(reason: ReasonCode, statement: str) -> AgentResult:
-    return AgentResult(
-        outcome=Outcome(status=OutcomeStatus.ABSTAINED, reason_code=reason, statement=statement)
-    )
 
 
 def build() -> DocumentationEditor:
