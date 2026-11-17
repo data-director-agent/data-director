@@ -272,3 +272,12 @@ for it.
 | `scripts/check_size.py` | 600 lines (Python), 500 (TypeScript) | 500 lines (Python), 400 (TypeScript) |
 
 The table under "Checks added with this review" records the limits as this review first set them.
+
+## Checks added since the review
+
+Each follows the same rule as those above: today's excess is recorded where it is, and may only
+shrink.
+
+| Check | Limit | How the existing excess is recorded |
+|---|---|---|
+| Ruff `PLR0904` (Python outside tests; #1056) | 20 public methods in a class | `# noqa: PLR0904` on `Governance` and `ProjectService` in `dd_app` |

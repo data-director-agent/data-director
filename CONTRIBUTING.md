@@ -126,13 +126,15 @@ dependency against the advisory databases each day. Dependabot proposes updates 
 ### Keeping the code in shape
 
 The package boundaries are checked by Import Linter and `scripts/check_boundaries.py`. Inside a
-package, three ratchets keep code from growing past what a reviewer can follow
+package, four ratchets keep code from growing past what a reviewer can follow
 ([Architecture review](docs/architecture-review.md)):
 
 - **Function complexity.** Ruff applies mccabe complexity 12 and the pylint limits on branches
   (12), statements (50), arguments (7) and returns (6) to Python outside tests. ESLint applies
   complexity 18 and nesting depth 4 to `app/web`, `sdk/browser` and `inventory/browser` outside
   tests.
+- **Class size.** Ruff's PLR0904 holds a Python class outside tests to 20 public methods, so that
+  a class cannot grow by adding small ones.
 - **File size.** `scripts/check_size.py` holds each Python source file to 500 lines and each
   TypeScript one to 400. A file already over the limit is recorded in `scripts/size_baseline.toml`
   at its present size and may not grow. The pre-commit hook lowers an entry when its file shrinks;
@@ -141,12 +143,12 @@ package, three ratchets keep code from growing past what a reviewer can follow
   all each agent, appears in every list that names members by hand: the root `pyproject.toml`
   and the files that deploy every agent.
 
-The code that exceeded a limit when it was introduced carries a marker: `# noqa: C901` (and the
-like) in Python, `// eslint-disable-next-line complexity` in TypeScript, or an entry in the size
-baseline. These record debt. Remove the marker when you split the function or file; a marker that
-no longer suppresses anything is itself an error (Ruff's RUF100, ESLint's unused-directive
-report). Never add one to get new code past these checks: split the code by responsibility
-instead, and if that is not possible in your pull request, open an issue and say so.
+The code that exceeded a limit when it was introduced carries a marker: `# noqa: C901`,
+`# noqa: PLR0904` and the like in Python, `// eslint-disable-next-line complexity` in TypeScript,
+or an entry in the size baseline. These record debt. Remove the marker when you split the function or file; a
+marker that no longer suppresses anything is itself an error (Ruff's RUF100, ESLint's
+unused-directive report). Never add one to get new code past these checks: split the code by
+responsibility instead, and if that is not possible in your pull request, open an issue and say so.
 
 ## Writing tests
 

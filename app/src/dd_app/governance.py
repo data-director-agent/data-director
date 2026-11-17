@@ -98,7 +98,7 @@ def _report(stored: bytes | None) -> dict[str, Any] | None:
     return {"passed": "FAILED" not in summary, "summary": summary}
 
 
-@dataclass
+@dataclass  # noqa: PLR0904
 class Governance:
     """The conductor, and the authenticator that says whom each request's runs act for.
 

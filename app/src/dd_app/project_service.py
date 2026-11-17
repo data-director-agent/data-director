@@ -52,7 +52,7 @@ class RepositoriesUnavailableError(Exception):
     """This server has no repository requirement sets, so no repository can be chosen."""
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True)  # noqa: PLR0904
 class ProjectService:
     governance: Governance
 

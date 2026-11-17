@@ -250,14 +250,19 @@ target-version = "py314"
 # C90 and the PLR09 rules hold functions to a size and shape a reviewer can follow. The functions
 # that exceed them today carry `# noqa` at their definition: that is recorded debt, so remove the
 # marker when you split one, and never add a new one to get code past these rules
-# (docs/architecture-review.md).
-select = ["E", "F", "W", "I", "N", "UP", "B", "BLE", "SIM", "ANN", "RUF", "PTH", "TID", "C4", "DTZ", "T20", "C90", "PLR0911", "PLR0912", "PLR0913", "PLR0915"]
+# (docs/architecture-review.md). PLR0904 does the same for classes, so that a class cannot grow
+# by adding small methods; it is a preview rule, and explicit-preview-rules keeps every other
+# preview rule off.
+select = ["E", "F", "W", "I", "N", "UP", "B", "BLE", "SIM", "ANN", "RUF", "PTH", "TID", "C4", "DTZ", "T20", "C90", "PLR0904", "PLR0911", "PLR0912", "PLR0913", "PLR0915"]
 ignore = ["ANN401"]
+preview = true
+explicit-preview-rules = true
 
 [tool.ruff.lint.mccabe]
 max-complexity = 12
 
 [tool.ruff.lint.pylint]
+max-public-methods = 20
 max-branches = 12
 max-statements = 50
 max-args = 7
