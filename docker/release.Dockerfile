@@ -10,6 +10,8 @@
 # dd_app finds app/config and app/web/dist beside its own source, and the repository advisor builds
 # its registry beside its package, so the workspace is installed editable in its source tree, as
 # deploy/deploy.sh builds a release, and is copied whole into the final stage at the same path.
+# The browser scanner's bundle (inventory/browser/README.md, Browser bundle) is built in a stage of
+# its own and copied into the shell's dist, where the app serves it at /inventory-bundle/.
 #
 #   docker build -f docker/release.Dockerfile --build-arg REVISION="$(git rev-parse HEAD)" -t data-director .
 
@@ -24,6 +26,25 @@ COPY app/config app/config
 COPY app/web app/web
 WORKDIR /src/app/web
 RUN npm ci --no-audit --no-fund --loglevel=error && npm run build
+
+# --- The browser scanner's bundle ---------------------------------------------------------------
+
+# Pyodide, the command's wheel built from this commit, and its dependencies. The build needs uv,
+# Python 3.14 and the whole workspace (uv build and uv export read it), so it runs on the uv image
+# with Node taken from the shell's stage, and fetches the wheels from the network, each checked
+# against the SHA-256 its lock gives. The wheels are kept in the build cache between builds.
+FROM ghcr.io/astral-sh/uv:python3.14-bookworm-slim@sha256:7cf77f594be8042dab6daa9fe326f90962252268b4f120a7f5dccce4d947e6c1 AS bundle
+ENV UV_LINK_MODE=copy \
+    UV_PYTHON_DOWNLOADS=never
+COPY --from=web /usr/local/bin/node /usr/local/bin/node
+COPY --from=web /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
+RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
+WORKDIR /src
+COPY . .
+WORKDIR /src/inventory/browser
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=cache,target=/src/inventory/browser/.cache/wheels \
+    npm ci --no-audit --no-fund --loglevel=error && npm run bundle
 
 # --- The workspace ------------------------------------------------------------------------------
 
@@ -64,6 +85,7 @@ RUN useradd --system --uid 10001 --user-group --home-dir /nonexistent --no-creat
 
 COPY --from=build /opt/data-director /opt/data-director
 COPY --from=web /src/app/web/dist /opt/data-director/app/web/dist
+COPY --from=bundle /src/inventory/browser/dist/inventory-bundle /opt/data-director/app/web/dist/inventory-bundle
 # The commit the app reports as its build (dd_app.about, GET /api/about).
 RUN printf '%s\n' "${REVISION}" > /opt/data-director/REVISION
 

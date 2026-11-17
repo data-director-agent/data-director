@@ -84,6 +84,10 @@ $ npm run parity      # the command natively and under Pyodide, on ../tests/data
   Serving the bundle redistributes all of it, so the notices go with it; no scan reads them, so
   they are not in the manifest's `files`.
 
+Deployments build it from the commit they run: the release image in a stage of its own
+(`docker/release.Dockerfile`), and the VM deploy beside the app's shell (`deploy/deploy.sh`), each
+copying it to `app/web/dist/inventory-bundle/`, where the app serves it.
+
 Which wheel is taken (`bundle/resolve.ts`): the command's dependencies are those `uv export`
 gives from the workspace lock, leaving out any whose environment marker does not hold under
 Pyodide. A package Pyodide builds is taken from Pyodide's lock, with what Pyodide's lock says it

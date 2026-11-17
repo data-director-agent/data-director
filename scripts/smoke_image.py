@@ -2,8 +2,8 @@
 
 Starts `docker/compose.image.yaml` (every agent and the app, each a container of the one image),
 waits until every agent serves its card and the app answers `/api/agents`, then checks that the
-app reaches every agent the stack runs, finds none incompatible, serves the shell, and reports the
-commit the image was built from. It always stops the stack and removes its volumes.
+app reaches every agent the stack runs, finds none incompatible, serves the shell and the browser
+scanner's bundle, and reports the commit the image was built from. It always stops the stack and removes its volumes.
 
     python3 scripts/smoke_image.py --image data-director:test --revision "$(git rev-parse HEAD)"
 
@@ -20,6 +20,7 @@ import os
 import subprocess
 import sys
 import urllib.request
+from email.message import Message
 from pathlib import Path
 from typing import Any
 
@@ -46,14 +47,44 @@ def compose(env: dict[str, str], *args: str, capture: bool = False) -> str:
     return done.stdout if capture else ""
 
 
+# The browser scanner's bundle (inventory/browser/README.md): the app offers Describe a folder in
+# this browser exactly when it serves the manifest (app/web/src/scan/scanner.ts).
+BUNDLE = "inventory-bundle"
+BUNDLE_WASM = "pyodide.asm.wasm"
+BUNDLE_CACHING = "no-cache"
+
+
+def fetch(url: str) -> tuple[Message, bytes]:
+    with urllib.request.urlopen(url, timeout=30) as response:
+        return response.headers, response.read()
+
+
 def get(url: str) -> tuple[str, bytes]:
-    with urllib.request.urlopen(url, timeout=10) as response:
-        return response.headers.get_content_type(), response.read()
+    headers, body = fetch(url)
+    return headers.get_content_type(), body
 
 
 def get_json(url: str) -> Any:
     _, body = get(url)
     return json.loads(body)
+
+
+def check_bundle(base: str) -> None:
+    """Raise SmokeError unless the app serves the scanner's bundle as a browser needs it."""
+    headers, body = fetch(f"{base}/{BUNDLE}/manifest.json")
+    manifest = json.loads(body)
+    if not (manifest.get("pyodide") and manifest.get("wheels") and manifest.get("files")):
+        raise SmokeError(f"/{BUNDLE}/manifest.json names no Pyodide, wheels or files")
+    if headers.get("cache-control") != BUNDLE_CACHING:
+        raise SmokeError(f"/{BUNDLE}/ is sent Cache-Control {headers.get('cache-control')!r}")
+    for path in manifest["files"]:
+        fetch(f"{base}/{BUNDLE}/{path}")
+    kind, _ = get(f"{base}/{BUNDLE}/{BUNDLE_WASM}")
+    if kind != "application/wasm":
+        raise SmokeError(f"/{BUNDLE}/{BUNDLE_WASM} is served as {kind}")
+    notices = manifest.get("notices")
+    if not notices or not get(f"{base}/{BUNDLE}/{notices}")[1]:
+        raise SmokeError(f"/{BUNDLE}/ serves no licence notices")
 
 
 def check(base: str, agents: set[str], revision: str | None) -> None:
@@ -71,6 +102,7 @@ def check(base: str, agents: set[str], revision: str | None) -> None:
     kind, body = get(f"{base}/")
     if kind != "text/html" or b"<html" not in body.lower():
         raise SmokeError(f"/ serves {kind}, not the shell")
+    check_bundle(base)
 
 
 def main(argv: list[str] | None = None) -> int:
