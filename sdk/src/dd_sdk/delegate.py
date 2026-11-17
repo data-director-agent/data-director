@@ -18,6 +18,7 @@ itself never sees it.
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -25,9 +26,12 @@ from datetime import UTC, datetime
 from typing import Any, Self
 
 import httpx
-from a2a.client import ClientConfig, create_client
+from a2a.client import Client, ClientConfig, create_client
+from a2a.client import ClientFactory as A2AClientFactory
+from a2a.client.card_resolver import parse_agent_card
 from a2a.helpers import get_data_parts, get_text_parts, new_data_part
-from a2a.types import Message, Role, SendMessageRequest, TaskState
+from a2a.types import AgentCard, Message, Role, SendMessageRequest, TaskState
+from google.protobuf.json_format import ParseError
 from opentelemetry.trace import Tracer
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
@@ -97,6 +101,20 @@ def default_client(base_url: str, timeout_s: float) -> httpx.AsyncClient:
     return httpx.AsyncClient(base_url=base_url, timeout=timeout_s)
 
 
+def parse_card(card: dict[str, Any]) -> AgentCard:
+    """The A2A `AgentCard` of a card document, which is left as it is."""
+    return parse_agent_card(copy.deepcopy(card))
+
+
+async def a2a_client(url: str, hc: httpx.AsyncClient, card: AgentCard | None = None) -> Client:
+    """A non-streaming A2A client for the agent at `url`. Given the agent's `card`, which the
+    caller already holds, it is built from that; otherwise the card is fetched from `url`."""
+    config = ClientConfig(streaming=False, httpx_client=hc)
+    if card is None:
+        return await create_client(agent=url, client_config=config)
+    return A2AClientFactory(config).create(card)
+
+
 @dataclass
 class HarnessDelegate:
     """The `Delegate` `dd_sdk.serve` hands a delegation agent, bound to one grant."""
@@ -106,19 +124,25 @@ class HarnessDelegate:
     tracer: Tracer
     timeout_s: float = DEFAULT_TIMEOUT_S
     client_factory: ClientFactory = default_client
-    _manifest: list[dict[str, Any]] | None = field(default=None, init=False, repr=False)
+    _card_document: dict[str, Any] | None = field(default=None, init=False, repr=False)
+    _a2a_card: AgentCard | None = field(default=None, init=False, repr=False)
 
     def manifest(self) -> list[dict[str, Any]]:
-        """The agents the harness's card lists (`MANIFEST_EXTENSION_URI`), read once per grant."""
-        if self._manifest is None:
+        """The agents the harness's card lists (`MANIFEST_EXTENSION_URI`)."""
+        return _manifest_from_card(self._harness_card())
+
+    def _harness_card(self) -> dict[str, Any]:
+        """The harness's card, read once per grant and used for every call under it."""
+        if self._card_document is None:
             try:
                 card = asyncio.run(self._card())
-            except (httpx.HTTPError, TimeoutError, ValueError) as exc:
+                self._a2a_card = parse_card(card)
+            except (httpx.HTTPError, TimeoutError, ValueError, ParseError) as exc:
                 raise DelegationRefused(
                     f"cannot read the harness card at {self.grant.url}: {exc!r}"
                 ) from exc
-            self._manifest = _manifest_from_card(card)
-        return self._manifest
+            self._card_document = card
+        return self._card_document
 
     async def _card(self) -> dict[str, Any]:
         async with asyncio.timeout(self.timeout_s):
@@ -141,6 +165,7 @@ class HarnessDelegate:
                 META_DELEGATION_TOKEN: self.grant.token,
                 META_TRACEPARENT: carrier.get(META_TRACEPARENT, ""),
             }
+            self._harness_card()
             try:
                 response = asyncio.run(self._send(to_document(request), metadata))
             except (httpx.HTTPError, TimeoutError) as exc:
@@ -169,10 +194,7 @@ class HarnessDelegate:
     async def _send(self, request_doc: dict[str, Any], metadata: dict[str, str]) -> Any:
         async with asyncio.timeout(self.timeout_s):
             async with self.client_factory(self.grant.url, self.timeout_s) as hc:
-                client = await create_client(
-                    agent=self.grant.url,
-                    client_config=ClientConfig(streaming=False, httpx_client=hc),
-                )
+                client = await a2a_client(self.grant.url, hc, self._a2a_card)
                 message = Message(
                     role=Role.ROLE_USER,
                     parts=[new_data_part(request_doc)],

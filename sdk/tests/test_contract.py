@@ -88,6 +88,18 @@ def test_generated_schemas_are_current() -> None:
     assert gen.stale() == [], "run `uv run dd-gen-schema`"
 
 
+def test_generated_shapes_are_compared_as_graphs_when_their_text_differs() -> None:
+    """Text that differs only in the order of blank nodes is current; a changed triple is not."""
+    path = Path("Example.shacl.ttl")
+    one = "@prefix ex: <https://example.org/> .\nex:a ex:p [ ex:q 1 ], [ ex:q 2 ] .\n"
+    reordered = "@prefix ex: <https://example.org/> .\nex:a ex:p [ ex:q 2 ], [ ex:q 1 ] .\n"
+    changed = "@prefix ex: <https://example.org/> .\nex:a ex:p [ ex:q 2 ], [ ex:q 3 ] .\n"
+    assert gen._same(path, one, one)
+    assert gen._same(path, one, reordered)
+    assert not gen._same(path, one, changed)
+    assert not gen._same(Path("Example.schema.json"), "{}\n", "{ }\n")
+
+
 def test_a_class_schema_is_closed_self_contained_and_says_it_is_generated() -> None:
     schema = json.loads((SCHEMA / "generated" / "Reply.schema.json").read_text(encoding="utf-8"))
     assert schema["$comment"].endswith("Do not edit.")
