@@ -21,7 +21,7 @@ const LIVE_REGION = {
 // Which feature folders (components/<feature>) may import which, and why (docs/architecture-review.md,
 // #1060). A feature imports another only through an entry here; any other import between feature
 // folders fails `npm run lint`. The list started as the imports of November 2026: an entry whose
-// reason is a TODO is debt to remove, not a pattern to copy. Remove an entry when its import goes.
+// reason is marked TODO(#494) is debt to remove, not a pattern to copy. Remove an entry when its import goes.
 const FEATURE_IMPORTS = [
   // The frame's page header is the top of every page, so that each page names itself the same way.
   ...["feedback", "journey", "policy", "profile", "project", "session", "workspace"].map((from) => ({
