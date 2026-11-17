@@ -301,7 +301,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     tracker; a read after a turn changes what the card holds, never whether it is open. An
     entry point Data Director worked out from what the researcher said (`entry_source` `model`) is shown chosen, with a note saying it is
     Data Director's; Next records it as the researcher's own, and nothing records it otherwise
-    (`ConversationHome.test.tsx`). The card's Skip passes one question
+    (`IntakeCard.test.tsx`, `useIntake.test.tsx`). The card's Skip passes one question
     by for that visit only, recording nothing, so it is asked again when the workspace next opens;
     "Skip these questions" records the dismissal. The card's questions are drawn by
     `ChoiceQuestion.tsx`, as a reply's are (`app/tests/test_intake_routes.py`,
