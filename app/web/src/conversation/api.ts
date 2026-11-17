@@ -52,22 +52,37 @@ export class TurnConflict extends Error {
   }
 }
 
-/** A response's body, or its error, with a refused turn raised as `TurnConflict`. */
+/** A response's body, or its error, with a refused turn raised as `TurnConflict` and a proxy's
+ * gateway error as `NoAnswer`. */
 function parse<T>(response: Response): Promise<T> {
-  return json<T>(response, (status, problem) =>
-    status === 409 && problem ? new TurnConflict(problem) : null,
-  );
+  return json<T>(response, (status, problem) => {
+    if (status === 409 && problem) return new TurnConflict(problem);
+    return GATEWAY_ERRORS.includes(status) ? new NoAnswer(status) : null;
+  });
 }
 
 function init(signal?: AbortSignal): RequestInit {
   return signal ? { signal } : {};
 }
 
-/** The request got no HTTP response at all (the browser's `Failed to fetch`), so the server may
- * not have received it. */
+/** The request got no HTTP response at all (the browser's `Failed to fetch`), or a proxy answered
+ * for the app (`NoAnswer`), so the server may not have received it, or may still be running it. */
 export class Unreachable extends Error {
   constructor() {
     super("the server could not be reached");
+  }
+}
+
+/** What a proxy in front of the app (NGINX, or the Vite dev server) answers when the app gave it
+ * no answer in time, or none at all. */
+const GATEWAY_ERRORS = [502, 503, 504];
+
+/** A proxy in front of the app answered for it (502, 503 or 504): the app may have received the
+ * request and may still be running it, so this is handled as if no response had come. */
+export class NoAnswer extends Unreachable {
+  constructor(readonly status: number) {
+    super();
+    this.message = `the server answered ${status} without a reply from Data Director`;
   }
 }
 

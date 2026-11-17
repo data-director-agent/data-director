@@ -13,7 +13,7 @@
 
 import { type RefObject, useEffect, useRef, useState } from "react";
 
-import { TurnConflict, Unreachable, useConversationApi, type ConversationApi } from "../../conversation/api";
+import { NoAnswer, TurnConflict, Unreachable, useConversationApi, type ConversationApi } from "../../conversation/api";
 import { type ReplyAnswers, replyQuestions } from "../../conversation/question";
 import type { Conversation, ConversationSummary, ConversationTurn } from "../../conversation/types";
 import { OUTCOME } from "../../manifest/wording";
@@ -80,6 +80,14 @@ export function replyAnnouncement(last: ConversationTurn | undefined): string {
 
 /** Why a turn could not be sent, for one that was not stored. */
 export function sendFailure(e: unknown): string {
+  if (e instanceof NoAnswer) {
+    return (
+      `Data Director's server did not answer in time (it answered ${e.status}), so this ` +
+      "message may not have been sent, or may still be being answered. Your message is " +
+      "kept: check the conversation above, and send it again if no reply appears. " +
+      "Sending it again is safe, because a message that was received is not run twice."
+    );
+  }
   if (e instanceof Unreachable) {
     return (
       "Data Director could not reach the server, so this message may not have been sent. " +
