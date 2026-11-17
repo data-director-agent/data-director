@@ -15,26 +15,30 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 
 import yaml
 
 from dd_agent_advisor_linking.classes import LinkCandidates, RelatedIdentifiers, RelatedLink
 from dd_sdk import serve
-from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
+from dd_sdk.agent import (
+    AgentResult,
+    AgentSpec,
+    Derived,
+    RunContext,
+    abstain,
+    input_evidence,
+    input_ref,
+)
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Derivation,
-    EvidenceItem,
     GroundingMode,
-    GroundingRef,
     InvocationRequest,
     Outcome,
     OutcomeStatus,
     ReasonCode,
 )
-from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 
 SCHEMES = Path(__file__).with_name("schemes.yaml")
 UNKNOWN = "unknown"
@@ -125,19 +129,14 @@ class LinkingAdviser:
         assert isinstance(candidates, LinkCandidates)  # the conductor checked spec.accepts
         given = [g.strip() for g in candidates.identifiers if g.strip()]
         if not given:
-            return AgentResult(
-                outcome=Outcome(
-                    status=OutcomeStatus.ABSTAINED,
-                    reason_code=ReasonCode.INSUFFICIENT_INPUT,
-                    statement=(
-                        "Give the identifiers to link: DOIs, ORCID iDs, ROR ids or grant numbers."
-                    ),
-                )
+            return abstain(
+                ReasonCode.INSUFFICIENT_INPUT,
+                "Give the identifiers to link: DOIs, ORCID iDs, ROR ids or grant numbers.",
             )
 
         links = [self._link(g) for g in given]
         recognised = sum(link.scheme != UNKNOWN for link in links)
-        ref = GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)
+        ref = input_ref(ctx)
         return AgentResult(
             outcome=Outcome(
                 status=OutcomeStatus.SUCCEEDED,
@@ -151,15 +150,7 @@ class LinkingAdviser:
                 limitations=list(LIMITATIONS),
                 grounded_on=[ref],
             ),
-            evidence=[
-                EvidenceItem(
-                    source_id=ctx.input_ref,
-                    retrieved_at=datetime.now(UTC),
-                    hash_algorithm=HASH_ALGORITHM,
-                    canonicalisation=INPUT_CANONICALISATION,
-                    content_hash=ctx.input_hash,
-                )
-            ],
+            evidence=[input_evidence(ctx)],
         )
 
     def _link(self, given: str) -> RelatedLink:

@@ -54,6 +54,21 @@
     flex: none;
   }
 
+  /* A link drawn as a button (a page to go to, not an action): it has no React Aria data
+     attributes, so it takes the same states from the plain pseudo-classes. */
+  a.button {
+    text-decoration: none;
+  }
+
+  a.button:hover {
+    background: var(--color-control-hover);
+  }
+
+  a.button:focus-visible {
+    outline: var(--focus-width) solid var(--color-focus);
+    outline-offset: var(--focus-offset);
+  }
+
   .button-small {
     min-height: var(--control-height-small);
     padding-inline: var(--control-padding-inline-small);

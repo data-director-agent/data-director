@@ -15,9 +15,8 @@
 import type { FileInventory } from "@data-director/inventory";
 import { createContext, useContext } from "react";
 
-import { RunRefused } from "../run/api";
+import { json } from "../http";
 import type { Problem } from "../run/types";
-import { checkSignedIn } from "../session/api";
 import type { AttachedDocument } from "./documentation";
 import type { ReplyAnswers } from "./question";
 import type { Conversation, ConversationSummary } from "./types";
@@ -53,13 +52,13 @@ export class TurnConflict extends Error {
   }
 }
 
-async function json<T>(response: Response): Promise<T> {
-  checkSignedIn(response);
-  if (response.status === 400) throw new RunRefused((await response.json()) as Problem);
-  if (response.status === 409) throw new TurnConflict((await response.json()) as Problem);
-  if (GATEWAY_ERRORS.includes(response.status)) throw new NoAnswer(response.status);
-  if (!response.ok) throw new Error(`the server answered ${response.status}`);
-  return (await response.json()) as T;
+/** A response's body, or its error, with a refused turn raised as `TurnConflict` and a proxy's
+ * gateway error as `NoAnswer`. */
+function parse<T>(response: Response): Promise<T> {
+  return json<T>(response, (status, problem) => {
+    if (status === 409 && problem) return new TurnConflict(problem);
+    return GATEWAY_ERRORS.includes(status) ? new NoAnswer(status) : null;
+  });
 }
 
 function init(signal?: AbortSignal): RequestInit {
@@ -71,15 +70,6 @@ function init(signal?: AbortSignal): RequestInit {
 export class Unreachable extends Error {
   constructor() {
     super("the server could not be reached");
-  }
-
-  /** What to tell the person: their message is kept, and sending it again is safe. */
-  get advice(): string {
-    return (
-      "Data Director could not reach the server, so this message may not have been sent. " +
-      "Your message is kept: sending it again is safe, because a message that was " +
-      "received is not run twice."
-    );
   }
 }
 
@@ -93,15 +83,6 @@ export class NoAnswer extends Unreachable {
   constructor(readonly status: number) {
     super();
     this.message = `the server answered ${status} without a reply from Data Director`;
-  }
-
-  override get advice(): string {
-    return (
-      `Data Director's server did not answer in time (it answered ${this.status}), so this ` +
-      "message may not have been sent, or may still be being answered. Your message is " +
-      "kept: check the conversation above, and send it again if no reply appears. " +
-      "Sending it again is safe, because a message that was received is not run twice."
-    );
   }
 }
 
@@ -117,7 +98,7 @@ async function request(url: string, init: RequestInit): Promise<Response> {
 
 export const httpConversationApi: ConversationApi = {
   async create(projectId, signal) {
-    const created = await json<{ conversation_id: string; project_id?: string | null }>(
+    const created = await parse<{ conversation_id: string; project_id?: string | null }>(
       await request("/api/conversations", {
         ...init(signal),
         method: "POST",
@@ -128,7 +109,7 @@ export const httpConversationApi: ConversationApi = {
     return { conversation_id: created.conversation_id, project_id: created.project_id ?? null };
   },
   async sendTurn(conversationId, agentId, messageText, follows, inventory, signal, answer, document) {
-    await json(
+    await parse(
       await request(`/api/conversations/${encodeURIComponent(conversationId)}/turns`, {
         ...init(signal),
         method: "POST",
@@ -153,10 +134,10 @@ export const httpConversationApi: ConversationApi = {
     );
   },
   async list(signal) {
-    return json(await request("/api/conversations", init(signal)));
+    return parse(await request("/api/conversations", init(signal)));
   },
   async get(conversationId, signal) {
-    return json(
+    return parse(
       await request(`/api/conversations/${encodeURIComponent(conversationId)}`, init(signal)),
     );
   },

@@ -301,7 +301,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     tracker; a read after a turn changes what the card holds, never whether it is open. An
     entry point Data Director worked out from what the researcher said (`entry_source` `model`) is shown chosen, with a note saying it is
     Data Director's; Next records it as the researcher's own, and nothing records it otherwise
-    (`ConversationHome.test.tsx`). The card's Skip passes one question
+    (`IntakeCard.test.tsx`, `useIntake.test.tsx`). The card's Skip passes one question
     by for that visit only, recording nothing, so it is asked again when the workspace next opens;
     "Skip these questions" records the dismissal. The card's questions are drawn by
     `ChoiceQuestion.tsx`, as a reply's are (`app/tests/test_intake_routes.py`,
@@ -511,8 +511,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   question about the step in the message box, unsent (`/?ask={step_id}`), so the researcher's
   own word starts the turn. **Waiting on you** picks out the steps whose document awaits the
   researcher's decision and the decision points not yet answered; the strip shows the same count
-  and links to the map, and names the suggested step's phase. Each card on the projects page
-  shows the journey at a glance, linking to the map
+  and leads with a button-styled link to the map, and names the suggested step's phase. Each card
+  on the projects page shows the journey at a glance, linking to the map, and a **Journey map**
+  link beside **Open conversations**
   (`app/web/src/flow/journey.test.ts`, `app/web/src/components/journey/JourneyPage.test.tsx`).
 - **A conversation can be started from a step.** In a project, each in-scope step not done or
   skipped, and the suggested step beside the suggestion, offers "Start a conversation". It closes
@@ -545,9 +546,10 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   (`null` when none is set), from `DD_PRIVACY_NOTICE_URL`, which `apply` writes from
   `privacy_notice` in `deployment.yaml` and removes when that is unset. The address is an
   absolute `https` URL: anything else stops the app at start-up, so a wrong setting never becomes
-  a link. With none set the footer shows no link. It does not fall back to the project's notice,
+  a link. With none set the footer shows no such link. It does not fall back to the project's notice,
   which covers only the documentation site and the project's work on GitHub, and so would
-  mislead. The address is deliberately not in the profile: it is not policy, and a change to it
+  mislead. The footer's project navigation (About, Contribute) does link that notice, labelled
+  "Project privacy notice" so that it is not taken for the operator's. The address is deliberately not in the profile: it is not policy, and a change to it
   must not change the profile's digest, which every stored run records.
 - **Problem reports** go to one repository, named in the app's configuration, as an issue of type
   Bug, Feature or Task with the label `area: app`; a Bug also carries `user report`, so that a
@@ -569,7 +571,13 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
 - **Projects first, on arrival and in the navigation.** The project is the unit of work
   ([Projects](projects.md)): its conversations, inventory, documents and decisions belong to it.
   So a person lands on their projects (`/`), the Projects page is the first item in the main
-  navigation, and a project's own pages are marked as under it. Starting a project is one press
+  navigation, and a project's own pages are marked as under it, except its journey map. **Journey
+  map** follows Projects in the main navigation: `/journey` opens the active project's map in its
+  place (so Back skips it), or lists the person's projects to choose one when none is active, and
+  a project's map is marked as under it. Each of a project's pages starts with the same block: a
+  breadcrumb (Projects › the project's name) and tabs for its **Documents**, **Journey map** and
+  **Conversations**, the page shown marked as current, so the documents and the map are one press
+  apart. Starting a project is one press
   and an optional name, and it lets Data Director speak first: the intake (rule 25) places the
   project in the process flow before the researcher types anything. A returning researcher sees
   every project and what waits in each (documents to review) before choosing where to work. A

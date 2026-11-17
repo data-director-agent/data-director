@@ -11,6 +11,7 @@
     uv run scripts/dd.py secret set AGENT SECRET | remove AGENT SECRET | list
     uv run scripts/dd.py backup    # VM: back up the settings, secrets and stores now
     uv run scripts/dd.py restore [--force] BACKUP   # VM: put a backup back (deploy/README.md)
+    uv run scripts/dd.py new-agent NAME             # development: write and register a new agent
 
 On a VM deployed with deploy/install.sh, which installs this as `data-director`:
 
@@ -41,10 +42,12 @@ from __future__ import annotations
 import argparse
 import sys
 
+from ddtool import paths
 from ddtool.backup import run_script
 from ddtool.common import DevError
 from ddtool.deployment import Place, apply
 from ddtool.doctor import doctor
+from ddtool.new_agent import new_agent
 from ddtool.secret import secret
 from ddtool.setup import Prompter, setup
 from ddtool.start import start
@@ -105,14 +108,22 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911
         "--force", action="store_true", help="set aside or replace stores that hold something"
     )
     restore_cmd.add_argument("backup", help="the backup's directory, such as /var/backups/...")
+    new_agent_cmd = commands.add_parser(
+        "new-agent", help="development: write a new agent from the template and register it"
+    )
+    new_agent_cmd.add_argument(
+        "name", help="its directory under agents/, such as advisor-foo (agent id advisor.foo)"
+    )
     args = parser.parse_args(argv)
     target = args.target or ("vm" if detect(System(), Vm()) else "dev")
     try:
-        if args.command in {"setup", "start"} and target == "vm":
+        if args.command in {"setup", "start", "new-agent"} and target == "vm":
             raise DevError(
                 f"`{args.command}` is for development; on a VM, deploy/install.sh sets it up "
                 "and systemd runs it (deploy/README.md)"
             )
+        if args.command == "new-agent":
+            return new_agent(paths.ROOT, args.name)
         if args.command == "setup":
             return setup(Prompter(accept_defaults=args.yes), install=not args.no_install)
         if args.command == "start":

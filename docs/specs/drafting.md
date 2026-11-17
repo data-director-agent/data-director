@@ -15,9 +15,11 @@ decisions are recorded ([Projects](projects.md)), what a drafter may cite
 disclosed ([Disclosure](disclosure.md)).
 
 The Documentation Editor (`advisor.documentation`) is the first drafter. It serves
-`setup.documentation` and `preparation.documentation` and drafts a README or a data dictionary
-from a `DraftRequest`. Where a model is configured, as it is by default, a model writes the
-README's prose
+`preparation.documentation` and drafts a README or a data dictionary from a `DraftRequest`. It
+does not serve `setup.documentation`, planning the documentation before data are collected,
+because a drafter infers only from a file inventory (invariant 1), which a project has only once
+its data exist; that step has no agent yet (#1017). Where a model is configured, as it is by
+default, a model writes the README's prose
 ([`agents/advisor-documentation/README.md`](../../agents/advisor-documentation/README.md)). The
 researcher answers its questions in the conversation, and the next draft places their answers.
 Where a model is configured, it also suggests a data dictionary's definitions and units, and

@@ -28,7 +28,7 @@ from dd_agent_advisor_standards.explain import Explainer, Lookups, TemplateExpla
 from dd_agent_advisor_standards.fairsharing.records import Record
 from dd_agent_advisor_standards.fairsharing.snapshot import SnapshotBackend
 from dd_agent_advisor_standards.retrieve import RetrievalAdapter
-from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
+from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext, abstain
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Derivation,
@@ -132,28 +132,20 @@ class StandardsAgent:
         assert isinstance(profile, DatasetProfile)  # the conductor checked spec.accepts
         queries = ranking.build_queries(profile)
         if not queries:
-            return AgentResult(
-                outcome=Outcome(
-                    status=OutcomeStatus.ABSTAINED,
-                    reason_code=ReasonCode.INSUFFICIENT_INPUT,
-                    statement=(
-                        "The dataset profile has no title, keywords, themes, media types or "
-                        "temporal fields to search on, so no registry query was possible."
-                    ),
-                )
+            return abstain(
+                ReasonCode.INSUFFICIENT_INPUT,
+                (
+                    "The dataset profile has no title, keywords, themes, media types or "
+                    "temporal fields to search on, so no registry query was possible."
+                ),
             )
 
         try:
             results, ref, retrieved, adapter = self._search_all(queries, ctx)
         except RegistryUnavailable as exc:
-            return AgentResult(
-                outcome=Outcome(
-                    status=OutcomeStatus.ABSTAINED,
-                    reason_code=ReasonCode.REGISTRY_UNAVAILABLE,
-                    statement=(
-                        f"FAIRsharing could not be searched: {exc}. This is not an empty result."
-                    ),
-                )
+            return abstain(
+                ReasonCode.REGISTRY_UNAVAILABLE,
+                (f"FAIRsharing could not be searched: {exc}. This is not an empty result."),
             )
 
         searched = SearchedSummary(
@@ -162,13 +154,10 @@ class StandardsAgent:
             candidates_retrieved=len(retrieved),
         )
         if not retrieved:
-            return AgentResult(
-                outcome=Outcome(
-                    status=OutcomeStatus.ABSTAINED,
-                    reason_code=ReasonCode.NO_CANDIDATES_RETRIEVED,
-                    statement=f"FAIRsharing ({ref.as_string()}) returned nothing for: "
-                    + "; ".join(searched.queries),
-                )
+            return abstain(
+                ReasonCode.NO_CANDIDATES_RETRIEVED,
+                f"FAIRsharing ({ref.as_string()}) returned nothing for: "
+                + "; ".join(searched.queries),
             )
 
         # Rank per query, keep qualifying, cap per (query, kind), dedupe across queries. The cap
@@ -190,17 +179,12 @@ class StandardsAgent:
         searched = searched.model_copy(update={"candidates_qualifying": len(chosen)})
 
         if not chosen:
-            return AgentResult(
-                outcome=Outcome(
-                    status=OutcomeStatus.ABSTAINED,
-                    reason_code=ReasonCode.NO_QUALIFYING_RESOURCE,
-                    statement=(
-                        f"{len(retrieved)} FAIRsharing records were retrieved "
-                        f"({ref.as_string()}) but none scored at or above the confidence "
-                        f"floor of {ranking.config()['confidence_floor']}. "
-                        "Searched: " + "; ".join(searched.queries)
-                    ),
-                )
+            return abstain(
+                ReasonCode.NO_QUALIFYING_RESOURCE,
+                f"{len(retrieved)} FAIRsharing records were retrieved "
+                f"({ref.as_string()}) but none scored at or above the confidence "
+                f"floor of {ranking.config()['confidence_floor']}. "
+                "Searched: " + "; ".join(searched.queries),
             )
 
         # Field-level targets: one recommendation per temporal field for the ISO 8601 hit.

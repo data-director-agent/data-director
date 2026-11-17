@@ -14,6 +14,7 @@ import {
   Bot,
   Bug,
   FolderOpen,
+  Map as MapIcon,
   MessagesSquare,
   Shield,
   type LucideIcon,
@@ -25,9 +26,12 @@ import { FooterBuild } from "./FooterBuild";
 import { ThemeSwitch } from "./ThemeSwitch";
 
 // Projects first: the project is the unit of work that the rest belongs to (docs/specs/app.md).
-// The conversation stays the page a person lands on, so nobody must make a project first.
+// The journey map follows it, as the project's place in the process is the next thing a person
+// looks for; `/journey` opens the current project's map. The conversation stays the page a
+// person lands on, so nobody must make a project first.
 const PAGES: readonly { to: string; label: string; icon: LucideIcon }[] = [
   { to: "/projects", label: "Projects", icon: FolderOpen },
+  { to: "/journey", label: "Journey map", icon: MapIcon },
   { to: "/", label: "Conversation", icon: MessagesSquare },
   { to: "/activity", label: "Activity log", icon: Activity },
   { to: "/agents", label: "Agents", icon: Bot },
@@ -45,6 +49,17 @@ const BLUEPRINT = "https://doi.org/10.15497/RDA00157";
 const SOURCE = "https://github.com/data-director-agent/data-director";
 const USER_GUIDE =
   "https://data-director-agent.github.io/data-director/user-guide/";
+const SITE = "https://data-director-agent.github.io/data-director/";
+const CONTRIBUTING =
+  "https://github.com/data-director-agent/data-director/blob/main/CONTRIBUTING.md";
+
+// The project's own pages. The privacy notice here covers the project's website, not an
+// instance, so it is labelled as the project's and the operator's notice stays in the build line.
+const PROJECT_LINKS: readonly { href: string; label: string }[] = [
+  { href: SITE, label: "About" },
+  { href: `${SITE}privacy/`, label: "Project privacy notice" },
+  { href: CONTRIBUTING, label: "Contribute" },
+];
 
 /**
  * `from` is the page the reader is on, which the report form carries so a report says where it
@@ -165,6 +180,21 @@ export function Frame({
             </ul>
           </div>
           <div className="app-footer-details">
+            <nav aria-label="Footer" className="app-footer-nav">
+              <ul className="app-footer-links">
+                {PROJECT_LINKS.map(({ href, label }) => (
+                  <li key={href}>
+                    <a href={href} target="_blank" rel="noreferrer">
+                      {label}
+                      <span className="visually-hidden">
+                        {" "}
+                        (opens in a new tab)
+                      </span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
             <p className="app-footer-about">
               A reference implementation of the{" "}
               <a href={BLUEPRINT} target="_blank" rel="noreferrer">

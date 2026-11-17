@@ -4,13 +4,14 @@
 (docs/specs/agents.md), and the drafter of a project's README and data dictionary
 ([Drafting documents](../../docs/specs/drafting.md)). It is likely to change shape.
 
-The Documentation Editor drafts a README and a data dictionary for a dataset (Blueprint R5). It
-serves two steps of the process flow:
+The Documentation Editor drafts a README and a data dictionary for a dataset (Blueprint R5), from
+the project's file inventory and approved metadata record. It serves one step of the process flow,
+`preparation.documentation`.
 
-| Step | What it does |
-|---|---|
-| `setup.documentation` | Drafts a README or a data dictionary from the project's file inventory and approved metadata record. |
-| `preparation.documentation` | The same, for documentation drafted or reviewed while preparing the deposit. |
+It does not serve the Phase 1 step `setup.documentation`, planning the documentation before data
+are collected: a project has a file inventory only once its data exist, so the editor would have
+nothing to draft from. That step has no agent yet; a planning mode that needs no inventory is
+#1017.
 
 ## Input and output
 

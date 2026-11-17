@@ -38,7 +38,7 @@ import {
   useProjectApi,
 } from "../../project/api";
 import { deletionName, documentName, projectName } from "../../project/name";
-import { Link, journeyPath } from "../../route";
+import { Link } from "../../route";
 import { AddInventory } from "../inventory/AddInventory";
 import { PageHeader } from "../frame/PageHeader";
 import { DisclosurePanel } from "./DisclosurePanel";
@@ -55,6 +55,7 @@ import {
 import { DeleteProject } from "./DeleteProject";
 import { DocumentReader } from "./DocumentReader";
 import { ProjectConversations } from "./ProjectConversations";
+import { ProjectNav } from "./ProjectNav";
 import { ProjectRename } from "./ProjectRename";
 import { RepositoryPanel } from "./RepositoryPanel";
 import { ResearcherPanel } from "./ResearcherPanel";
@@ -235,11 +236,7 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
 
   return (
     <>
-      <p>
-        <Link to="/projects">All projects</Link>
-        {" · "}
-        <Link to={journeyPath(projectId)}>Journey map</Link>
-      </p>
+      <ProjectNav projectId={projectId} name={title} current="documents" />
       <PageHeader title={title ?? "Project documents"}>
         {project && title && (
           <p className="project-name-actions">

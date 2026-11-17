@@ -21,14 +21,21 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import yaml
 
 from dd_sdk import serve
-from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
+from dd_sdk.agent import (
+    AgentResult,
+    AgentSpec,
+    Derived,
+    RunContext,
+    abstain,
+    input_evidence,
+    input_ref,
+)
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Affiliation,
@@ -37,10 +44,8 @@ from dd_sdk.contract.models import (
     Document,
     DocumentKind,
     DraftRequest,
-    EvidenceItem,
     FileInventory,
     GroundingMode,
-    GroundingRef,
     InvocationRequest,
     Obligation,
     Outcome,
@@ -50,7 +55,6 @@ from dd_sdk.contract.models import (
     ResearcherFunding,
     ResearcherRecord,
 )
-from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 
 DATACITE_FORM = Path(__file__).with_name("datacite.yaml")
 # The schema every record follows in the MVP (docs/specs/deposit.md).
@@ -120,19 +124,19 @@ class MetadataLibrarian:
         asked = request.input
         assert isinstance(asked, DraftRequest)  # the conductor checked spec.accepts
         if asked.document_kind != DocumentKind.METADATA_RECORD:
-            return _abstain(
+            return abstain(
                 ReasonCode.OUTSIDE_AGENT_SCOPE,
                 "The Metadata Librarian drafts a metadata record, not a "
                 f"{asked.document_kind.value}.",
             )
         requirements = asked.requirements
         if requirements is None:
-            return _abstain(
+            return abstain(
                 ReasonCode.INSUFFICIENT_INPUT,
                 "Choose a repository first: the record has the properties it asks for.",
             )
         if requirements.conforms_to != DATACITE:
-            return _abstain(
+            return abstain(
                 ReasonCode.CAPABILITY_NOT_IMPLEMENTED,
                 f"The mock drafts DataCite records only, not {requirements.conforms_to}.",
             )
@@ -149,7 +153,7 @@ class MetadataLibrarian:
         if current is not None:
             statement += f" It replaces version {current.version_ref.version} of the document."
 
-        ref = GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)
+        ref = input_ref(ctx)
         return AgentResult(
             outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement=f"{statement} {LIMITATIONS}"),
             payload=Document(
@@ -163,15 +167,7 @@ class MetadataLibrarian:
                 revises=current.version_ref if current else None,
                 grounded_on=[ref],
             ),
-            evidence=[
-                EvidenceItem(
-                    source_id=ctx.input_ref,
-                    retrieved_at=datetime.now(UTC),
-                    hash_algorithm=HASH_ALGORITHM,
-                    canonicalisation=INPUT_CANONICALISATION,
-                    content_hash=ctx.input_hash,
-                )
-            ],
+            evidence=[input_evidence(ctx)],
         )
 
     def _record(
@@ -274,12 +270,6 @@ def _funding(funding: ResearcherFunding) -> dict[str, Any]:
         entry["awardNumber"] = funding.award_identifier
     entry["awardTitle"] = funding.funding_title
     return entry
-
-
-def _abstain(reason: ReasonCode, statement: str) -> AgentResult:
-    return AgentResult(
-        outcome=Outcome(status=OutcomeStatus.ABSTAINED, reason_code=reason, statement=statement)
-    )
 
 
 def build() -> MetadataLibrarian:

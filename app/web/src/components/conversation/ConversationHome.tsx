@@ -39,345 +39,196 @@
  * A step of the data journey, or one of the prompts an empty conversation offers, starts a new
  * conversation with the step's prompt in the message box, unsent. A message already being written
  * is replaced only when the researcher confirms.
+ *
+ * The page puts together hooks that each hold one part: the open conversation and its turns
+ * (`useConversationTurns`), what a message carries (`useAttachments`), and the project's
+ * documents, progress and intake (`useProjectDocuments`, `useProjectProgress`, `useIntake`), each
+ * read with `useResource`.
  */
 
-import {
-  type ClipboardEvent,
-  type DragEvent,
-  type FormEvent,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useRef, useState } from "react";
 
-import { SendHorizontal, X } from "lucide-react";
-import { TurnConflict, Unreachable, useConversationApi } from "../../conversation/api";
-import { type ReplyAnswers, replyQuestions } from "../../conversation/question";
-import {
-  type AttachedDocument,
-  NotADocument,
-  isDocumentName,
-  readDocument,
-} from "../../conversation/documentation";
-import {
-  type AttachedInventory,
-  NotAnInventory,
-  looksLikeInventory,
-  readInventory,
-} from "../../conversation/inventory";
-import { useFlowApi } from "../../flow/api";
+import { X } from "lucide-react";
+import type { ReplyAnswers } from "../../conversation/question";
 import { startablePrompts } from "../../flow/prompts";
-import type { FlowStep, ProjectProgress } from "../../flow/types";
-import type { Conversation, ConversationSummary } from "../../conversation/types";
-import type { AgentView, Directory } from "../../manifest/normalise";
+import type { FlowStep } from "../../flow/types";
+import type { Directory } from "../../manifest/normalise";
 import { useActiveProject } from "../../project/active";
-import { type ProjectDocuments, type ProjectIntake, useProjectApi } from "../../project/api";
-import { type DocumentsRead, draftedBy } from "../../project/drafted";
+import {
+  type ProjectApi,
+  type ProjectDocuments,
+  type ProjectSummary,
+  useProjectApi,
+} from "../../project/api";
+import type { DocumentsRead } from "../../project/drafted";
 import { Link, homePath, navigate, useLocation } from "../../route";
-import { OUTCOME } from "../../manifest/wording";
-import { RunRefused, errorMessage } from "../../run/api";
 import type { Envelope } from "../../run/types";
-import { documentName } from "../../project/name";
-import { STATES } from "../project/DocumentFacts";
+import type { Conversation } from "../../conversation/types";
 import { ContextPanel } from "../workspace/ContextPanel";
 import { type FlowLoad, PhaseTracker, type TrackedProgress } from "../workspace/PhaseTracker";
+import { useFlowLoad } from "../workspace/useFlowLoad";
 import { useAskAbout } from "./useAskAbout";
 import { Workspace } from "../workspace/Workspace";
 import { ProjectSwitcher } from "../project/ProjectSwitcher";
 import { Button } from "../ui/Button";
+import { Composer } from "./Composer";
 import { EarlierConversations } from "./EarlierConversations";
-import { InventoryReviewDialog } from "../inventory/InventoryReviewDialog";
-import { ComposerAttach } from "./ComposerAttach";
-import { DocumentReviewDialog } from "./DocumentReviewDialog";
 import { IntakeCard } from "./IntakeCard";
-import { MessageField } from "./MessageField";
+import { whyUnusable } from "./orchestrator";
 import { RunDetail } from "./RunDetail";
 import { StartFromStep } from "./StartFromStep";
 import { Transcript } from "./Transcript";
+import { useAttachments } from "./useAttachments";
+import { useConversationTurns } from "./useConversationTurns";
+import { type IntakeRead, useIntake } from "./useIntake";
+import { useProjectDocuments } from "./useProjectDocuments";
+import { type ProjectProgressRead, useProjectProgress } from "./useProjectProgress";
 
-/** Why the named orchestrator cannot be conversed with, or null when it can. */
-function whyUnusable(named: string | null, agent: AgentView | undefined): string | null {
-  if (named === null) {
-    return "The policy in force names no agent to converse with.";
-  }
-  if (!agent) {
-    return `The policy in force names ${named} to converse with, but it is not available.`;
-  }
-  if (agent.groundingMode !== "delegation") {
-    return `The policy in force names ${named} to converse with, but it does not delegate to other agents.`;
-  }
-  if (agent.gate.kind === "not-permitted" || agent.gate.kind === "mismatch") {
-    return `The policy in force does not permit ${named} to run here.`;
-  }
-  return null;
+/** The project's progress for the phase tracker, with how to change it, once it has been read. */
+function trackedProgress(
+  projectId: string | null,
+  read: ProjectProgressRead,
+  how: {
+    projectApi: ProjectApi;
+    documents: DocumentsRead;
+    startConversation: ((step: FlowStep) => void) | undefined;
+    answerIntakeAgain: ((projectId: string) => void) | undefined;
+  },
+): TrackedProgress | null {
+  const { progress, change, error } = read;
+  if (!projectId || !progress) return null;
+  const { projectApi, documents, startConversation, answerIntakeAgain } = how;
+  return {
+    progress,
+    chooseEntry: (entry) => change(projectApi.chooseEntry(projectId, entry), projectId),
+    markStep: (stepId, mark) => change(projectApi.markStep(projectId, stepId, mark), projectId),
+    error,
+    projectId,
+    ...(documents.state === "loaded" ? { documents: documents.documents } : {}),
+    ...(startConversation ? { startConversation } : {}),
+    ...(answerIntakeAgain ? { answerIntakeAgain: () => answerIntakeAgain(projectId) } : {}),
+  };
 }
 
-// eslint-disable-next-line complexity -- recorded debt: split it, do not add to it (docs/architecture-review.md)
+/** The prompts a conversation yet to begin offers, from the steps that can be started now. */
+function offeredPrompts(flow: FlowLoad, tracked: TrackedProgress | null, offering: boolean) {
+  if (!offering || !tracked || flow.state !== "loaded") return null;
+  return startablePrompts(flow.flow, tracked.progress);
+}
+
+/** The repository chosen for the project, if one has been. */
+function chosenRepository(project: ProjectSummary | null): string | null {
+  return project?.repository?.re3data_id ?? null;
+}
+
+/** Whether `runId` is one of the runs in the conversation's transcript. */
+function holdsRun(conversation: Conversation | null, runId: string): boolean {
+  return Boolean(
+    conversation?.turns.flatMap((t) => t.children).some((c) => c.invocation_id === runId),
+  );
+}
+
+/** The project's intake card, while it is open. */
+function OpenIntake({
+  projectId,
+  read,
+  flow,
+  onStart,
+  onAnnounce,
+}: {
+  projectId: string | null;
+  read: IntakeRead;
+  flow: FlowLoad;
+  onStart: ((message: string) => void) | undefined;
+  onAnnounce: (said: string) => void;
+}) {
+  const { intake } = read;
+  if (!projectId || !intake?.open) return null;
+  return (
+    <IntakeCard
+      key={`${projectId}-${intake.again ? "again" : "pending"}`}
+      intake={intake.intake}
+      again={intake.again}
+      flow={flow.state === "loaded" ? flow.flow : null}
+      onAnswer={(questionId, values) => read.answer(projectId, questionId, values)}
+      onDismiss={() => read.dismiss(projectId)}
+      onClose={read.close}
+      onStart={onStart}
+      onAnnounce={onAnnounce}
+    />
+  );
+}
+
+/** A run named in the address but not in the transcript, so that the link still opens it. */
+function LinkedRun({ runId, agents }: { runId: string; agents: Directory["agents"] }) {
+  return (
+    <section aria-labelledby="linked-run" className="callout">
+      <h3 id="linked-run">
+        Run <code>{runId}</code>
+      </h3>
+      <RunDetail invocationId={runId} agents={agents} idPrefix="linked-run" />
+      <p>
+        <Button icon={X} onPress={() => navigate("/")}>Close the run</Button>
+      </p>
+    </section>
+  );
+}
+
 export function ConversationHome({ directory }: { directory: Directory }) {
-  const api = useConversationApi();
-  const flowApi = useFlowApi();
+  const projectApi = useProjectApi();
   const named = directory.orchestratorId;
   const orchestrator = directory.agents.find((a) => a.id === named);
   const unusable = whyUnusable(named, orchestrator);
-  const { projectId, projects, setProjectId, reloadProjects } = useActiveProject();
-  const [conversationId, setConversationId] = useState<string | null>(null);
-  // The project of the open conversation, once it has been started or reopened.
-  const [openProject, setOpenProject] = useState<string | null | undefined>(undefined);
-  const [conversation, setConversation] = useState<Conversation | null>(null);
-  const [past, setPast] = useState<ConversationSummary[]>([]);
+  const { projectId, projects, reloadProjects } = useActiveProject();
   const [text, setText] = useState("");
-  const [attached, setAttached] = useState<AttachedInventory | null>(null);
-  // An inventory read from a file and being checked, not yet attached (#472).
-  const [pending, setPending] = useState<AttachedInventory | null>(null);
-  const [attachedDocument, setAttachedDocument] = useState<AttachedDocument | null>(null);
-  // A document read from a file and being checked, not yet attached.
-  const [pendingDocument, setPendingDocument] = useState<AttachedDocument | null>(null);
-  const [attachError, setAttachError] = useState<string | null>(null);
-  const [dropping, setDropping] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [sent, setSent] = useState<{
-    message: string;
-    inventory: AttachedInventory | null;
-    document: AttachedDocument | null;
-  } | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
-  const [flow, setFlow] = useState<FlowLoad>({ state: "loading" });
   // A step whose prompt waits on the researcher's leave to replace the message being written.
   const [replacing, setReplacing] = useState<FlowStep | null>(null);
   const params = new URLSearchParams(useLocation().split("?")[1]);
   const runId = params.get("run");
   // The open conversation is kept in the address, so a reload or a link reopens it.
   const urlConversation = params.get("conversation");
-  // The conversation the page already holds, or has deliberately closed, so that the address
-  // changing to it is not read as a request to load it.
-  const handled = useRef<string | null>(null);
   const box = useRef<HTMLTextAreaElement>(null);
 
-  const reloadPast = useCallback(
-    (signal?: AbortSignal) => api.list(signal).then(setPast, () => undefined),
-    [api],
+  const attachments = useAttachments(box, setAnnouncement);
+  const turns = useConversationTurns({
+    orchestratorId: orchestrator?.id,
+    runId,
+    urlConversation,
+    box,
+    announce: setAnnouncement,
+    setText,
+    restore: attachments.restore,
+    clearAttachError: attachments.clearError,
+  });
+  const { conversation, busy, sent, turnCount, quiet } = turns;
+  const { inventory: attached, document: attachedDocument } = attachments;
+  const writing = Boolean(text.trim()) || attachments.carries;
+  const { documents, answered } = useProjectDocuments(
+    projectId,
+    turnCount,
+    turns.awaitedDrafts,
+    setAnnouncement,
   );
+  const progress = useProjectProgress(projectId, turnCount);
+  const intakeRead = useIntake(projectId, turnCount, {
+    progressed: progress.set,
+    announce: setAnnouncement,
+    failed: turns.setError,
+  });
+  const { intake } = intakeRead;
 
-  useEffect(() => {
-    const abort = new AbortController();
-    void reloadPast(abort.signal);
-    return () => abort.abort();
-  }, [reloadPast]);
+  const tracked = trackedProgress(projectId, progress, {
+    projectApi,
+    documents,
+    // A new conversation is not started while a reply is awaited.
+    startConversation: busy ? undefined : (step: FlowStep) => startStep(step),
+    answerIntakeAgain: intakeRead.intake ? intakeRead.openAgain : undefined,
+  });
 
-  // The project's documents, read when the conversation's project is known and again after each
-  // turn, for the cards on the turns that drafted them and the side bar's list. A read is kept
-  // with the project it is of, so that another project's documents are never shown.
-  const projectApi = useProjectApi();
-  const turnCount = conversation?.turns.length ?? 0;
-  const [documentsOf, setDocumentsOf] = useState<{ projectId: string; read: DocumentsRead } | null>(
-    null,
-  );
-  // The newest reply's announcement and the runs it made, until the documents are read and what
-  // they drafted can be said too.
-  const announceDrafts = useRef<{ said: string; invocationIds: string[] } | null>(null);
-  useEffect(() => {
-    if (!projectId) return;
-    const abort = new AbortController();
-    projectApi.documents(projectId, abort.signal).then(
-      (value) => {
-        setDocumentsOf({ projectId, read: { state: "loaded", documents: value.documents } });
-        const pending = announceDrafts.current;
-        announceDrafts.current = null;
-        const drafted = pending ? draftedBy(pending.invocationIds, value.documents) : [];
-        if (pending && drafted.length > 0) {
-          const what = drafted.map(
-            ({ document, version }) =>
-              `${documentName(document)} drafted, version ${version.version}: ${STATES[version.state].label}.`,
-          );
-          setAnnouncement([pending.said, ...what].join(" "));
-        }
-      },
-      (e: unknown) => {
-        if (abort.signal.aborted) return;
-        announceDrafts.current = null;
-        setDocumentsOf({ projectId, read: { state: "failed", message: errorMessage(e) } });
-      },
-    );
-    return () => abort.abort();
-  }, [projectApi, projectId, turnCount]);
-  const documents: DocumentsRead =
-    projectId && documentsOf?.projectId === projectId ? documentsOf.read : { state: "loading" };
-
-  // Where the project is in the flow, read with its documents: when the project is known and
-  // after each turn. A read is kept with the project it is of, as the documents are.
-  const [progressOf, setProgressOf] = useState<{ projectId: string; progress: ProjectProgress } | null>(
-    null,
-  );
-  const [progressError, setProgressError] = useState<string | null>(null);
-  useEffect(() => {
-    if (!projectId) return;
-    const abort = new AbortController();
-    projectApi.progress(projectId, abort.signal).then(
-      (progress) => setProgressOf({ projectId, progress }),
-      () => undefined,
-    );
-    return () => abort.abort();
-  }, [projectApi, projectId, turnCount]);
-  const changeProgress = useCallback(
-    (change: Promise<ProjectProgress>, of: string) => {
-      change.then(
-        (progress) => {
-          setProgressError(null);
-          setProgressOf({ projectId: of, progress });
-        },
-        (e: unknown) => setProgressError(errorMessage(e)),
-      );
-    },
-    [],
-  );
-
-  // The project's intake (docs/specs/app.md, rule 25), read when the project is known and after
-  // each turn, as a turn may record the entry point Data Director worked out. The card opens
-  // while the intake is first read pending, or when asked for again from the phase tracker, and
-  // stays open until the researcher closes or dismisses it, so that it can end with its summary;
-  // a read after a turn changes what the card holds, never whether it is open.
-  const [intakeOf, setIntakeOf] = useState<{
-    projectId: string;
-    intake: ProjectIntake;
-    open: boolean;
-    again: boolean;
-  } | null>(null);
-  useEffect(() => {
-    if (!projectId) return;
-    const abort = new AbortController();
-    projectApi.intake(projectId, abort.signal).then(
-      (intake) =>
-        setIntakeOf((was) =>
-          was?.projectId === projectId
-            ? { ...was, intake }
-            : { projectId, intake, open: intake.state === "pending", again: false },
-        ),
-      () => undefined,
-    );
-    return () => abort.abort();
-  }, [projectApi, projectId, turnCount]);
-  // Asked again from the tracker, the card shows the answers as they are now, read afresh: the
-  // entry point may have been chosen in the tracker or by Data Director since the last read.
-  function openIntakeAgain(of: string) {
-    const open = (intake?: ProjectIntake) =>
-      setIntakeOf((was) =>
-        was?.projectId === of ? { ...was, ...(intake ? { intake } : {}), open: true, again: true } : was,
-      );
-    projectApi.intake(of).then(
-      (read) => open(read),
-      () => open(),
-    );
-  }
-  const intake = projectId && intakeOf?.projectId === projectId ? intakeOf : null;
-  const intakeChanged = useCallback((of: string, changed: ProjectIntake) => {
-    setIntakeOf((was) => (was?.projectId === of ? { ...was, intake: changed } : was));
-    setProgressOf({ projectId: of, progress: changed.progress });
-  }, []);
-  async function answerIntake(of: string, questionId: string, values: string[]) {
-    const changed = await projectApi.answerIntake(of, questionId, values);
-    intakeChanged(of, changed);
-    return changed;
-  }
-  function dismissIntake(of: string) {
-    projectApi.dismissIntake(of).then(
-      (changed) => {
-        intakeChanged(of, changed);
-        closeIntake();
-        setAnnouncement("Setup questions skipped. You can answer them from the phase tracker.");
-      },
-      (e: unknown) => setError(`Data Director could not skip the setup questions: ${errorMessage(e)}`),
-    );
-  }
-  function closeIntake() {
-    setIntakeOf((was) => (was ? { ...was, open: false, again: false } : was));
-  }
-  // The finished intake hands over to the conversation: the researcher's press sends their
-  // opening turn, naming the suggested step, by the ordinary path.
-  function startFromIntake(message: string) {
-    closeIntake();
-    void deliver(message, null, null);
-  }
-
-  const tracked: TrackedProgress | null =
-    projectId && progressOf?.projectId === projectId
-      ? {
-          progress: progressOf.progress,
-          chooseEntry: (entry) => changeProgress(projectApi.chooseEntry(projectId, entry), projectId),
-          markStep: (stepId, mark) =>
-            changeProgress(projectApi.markStep(projectId, stepId, mark), projectId),
-          error: progressError,
-          projectId,
-          ...(documents.state === "loaded" ? { documents: documents.documents } : {}),
-          ...(busy ? {} : { startConversation: (step: FlowStep) => startStep(step) }),
-          ...(intake ? { answerIntakeAgain: () => openIntakeAgain(projectId) } : {}),
-        }
-      : null;
-
-  // The phases do not depend on the conversation: if they fail, only the tracker says so.
-  useEffect(() => {
-    const abort = new AbortController();
-    flowApi.get(abort.signal).then(
-      (loaded) => setFlow({ state: "loaded", flow: loaded }),
-      (e: unknown) => abort.signal.aborted || setFlow({ state: "failed", message: errorMessage(e) }),
-    );
-    return () => abort.abort();
-  }, [flowApi]);
+  const flow = useFlowLoad();
 
   useAskAbout(flow, setText, box, { conversation: urlConversation, run: runId });
-  // A conversation closed by switching project is taken out of the address, and not read again
-  // from it. This runs before the effect below, which would otherwise reopen it.
-  const [closed, setClosed] = useState<{ id: string } | null>(null);
-  useEffect(() => {
-    if (closed === null) return;
-    handled.current = closed.id;
-    navigate(homePath({ run: runId }), true);
-    // Only a closing is acted on; the run is read as it is then.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [closed]);
-
-  // A conversation named in the address and not yet held, as after a reload or Back, is read and
-  // opened in its own project.
-  useEffect(() => {
-    if (!urlConversation) {
-      handled.current = null;
-      return;
-    }
-    if (urlConversation === handled.current) return;
-    const id = urlConversation;
-    const abort = new AbortController();
-    handled.current = id;
-    api.get(id, abort.signal).then(
-      (found) => {
-        setConversation(found);
-        setConversationId(id);
-        setOpenProject(found.project_id ?? null);
-        if ((found.project_id ?? null) !== projectId) setProjectId(found.project_id ?? null);
-        setError(null);
-      },
-      (e: unknown) => {
-        if (abort.signal.aborted) return;
-        handled.current = null;
-        setError(`Data Director could not open that conversation: ${errorMessage(e)}`);
-        navigate(homePath({ run: runId }), true);
-      },
-    );
-    return () => abort.abort();
-    // Only the address decides what is loaded; the project is read as it is when the read lands.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api, urlConversation]);
-
-  // Switching project closes the conversation open in another; starting a project by sending the
-  // first message does not, since the open conversation is the one that started it.
-  if (openProject !== undefined && openProject !== projectId) {
-    if (urlConversation) setClosed({ id: urlConversation });
-    setConversationId(null);
-    setConversation(null);
-    setOpenProject(undefined);
-    setError(null);
-    setAnnouncement("");
-  }
 
   const frame = {
     project: <ProjectSwitcher />,
@@ -403,249 +254,33 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     );
   }
 
-  /**
-   * Reads `text` as an inventory and opens it to be checked before it is attached, or says why
-   * it cannot (#472).
-   */
-  function attach(content: string, name: string | null): boolean {
-    try {
-      setPending(readInventory(content, name));
-      setAttachError(null);
-      return true;
-    } catch (e) {
-      setAttachError(e instanceof NotAnInventory ? e.message : errorMessage(e));
-      return false;
-    }
-  }
-
-  /** Reads a text or Markdown file as a document and opens it to be checked, or says why not. */
-  function attachDocument(content: string, name: string) {
-    try {
-      setPendingDocument(readDocument(content, name));
-      setAttachError(null);
-    } catch (e) {
-      setAttachError(e instanceof NotADocument ? e.message : errorMessage(e));
-    }
-  }
-
-  /** A file chosen or dropped: a document by its name, otherwise read as an inventory. */
-  async function attachFile(file: File | undefined) {
-    if (!file) return;
-    try {
-      const content = await file.text();
-      if (isDocumentName(file.name)) attachDocument(content, file.name);
-      else attach(content, file.name);
-    } catch (e) {
-      setAttachError(`Data Director could not read ${file.name}: ${errorMessage(e)}`);
-    }
-  }
-
-  /**
-   * A file chosen at the end of the Make an inventory dialog. Once it is attached the dialog's
-   * button gives way to the chip, so focus goes to the message box rather than nowhere; if it is
-   * not an inventory, the dialog's button stays and takes the focus back.
-   */
-  async function attachFromDialog(file: File) {
-    await attachFile(file);
-    requestAnimationFrame(() => {
-      if (!document.activeElement || document.activeElement === document.body) box.current?.focus();
-    });
-  }
-
-  /** The checked inventory, without what the researcher left out, becomes the chip. */
-  function confirmInventory(checked: AttachedInventory) {
-    setPending(null);
-    setAttached(checked);
-    setAnnouncement("Inventory attached.");
-    requestAnimationFrame(() => box.current?.focus());
-  }
-
-  function discardInventory() {
-    setPending(null);
-    setAnnouncement("Inventory not attached.");
-    requestAnimationFrame(() => box.current?.focus());
-  }
-
-  function confirmDocument(checked: AttachedDocument) {
-    setPendingDocument(null);
-    setAttachedDocument(checked);
-    setAnnouncement(`${checked.name} attached.`);
-    requestAnimationFrame(() => box.current?.focus());
-  }
-
-  function discardDocument() {
-    setPendingDocument(null);
-    setAnnouncement("Document not attached.");
-    requestAnimationFrame(() => box.current?.focus());
-  }
-
-  function removeDocument() {
-    const name = attachedDocument?.name ?? "Document";
-    setAttachedDocument(null);
-    setAnnouncement(`${name} removed.`);
-    box.current?.focus();
-  }
-
-  function removeInventory() {
-    setAttached(null);
-    setAnnouncement("Inventory removed.");
-    box.current?.focus();
-  }
-
-  // A whole inventory pasted into the box becomes a chip, not text (#443).
-  function onPaste(event: ClipboardEvent<HTMLTextAreaElement>) {
-    const pasted = event.clipboardData.getData("text");
-    if (!looksLikeInventory(pasted)) return;
-    event.preventDefault();
-    attach(pasted, null);
-  }
-
-  function onDragOver(event: DragEvent<HTMLFormElement>) {
-    if (!event.dataTransfer.types.includes("Files")) return;
-    event.preventDefault();
-    setDropping(true);
-  }
-
-  function onDrop(event: DragEvent<HTMLFormElement>) {
-    if (!event.dataTransfer.types.includes("Files")) return;
-    event.preventDefault();
-    setDropping(false);
-    void attachFile(event.dataTransfer.files[0]);
-  }
-
-  async function send(event: FormEvent) {
-    event.preventDefault();
-    await deliver(text.trim(), attached, null, attachedDocument);
+  async function send() {
+    await turns.deliver(text.trim(), { inventory: attached, document: attachedDocument }, null);
   }
 
   /** Sends the answers to the latest turn's questions, said in words as `message`. What is in
    * the message box stays there. */
   async function answerQuestions(answers: ReplyAnswers, message: string) {
-    await deliver(message, null, answers);
+    await turns.deliver(message, { inventory: null, document: null }, answers);
   }
 
-  // eslint-disable-next-line complexity -- recorded debt: split it, do not add to it (docs/architecture-review.md)
-  async function deliver(
-    message: string,
-    inventory: AttachedInventory | null,
-    answer: ReplyAnswers | null,
-    attachedDoc: AttachedDocument | null = null,
-  ) {
-    if (!orchestrator || (!message && !inventory && !attachedDoc) || busy) return;
-    // A typed message comes from the box, and goes back to it if the send fails.
-    const fromBox = answer === null;
-    setBusy(true);
-    setError(null);
-    setAttachError(null);
-    setAnnouncement("Waiting for a reply.");
-    // The message and its inventory move into the transcript while the reply is awaited, and
-    // come back to the box if the send fails, so nothing typed or attached is lost.
-    setSent({ message, inventory, document: attachedDoc });
-    if (fromBox) {
-      setText("");
-      setAttached(null);
-      setAttachedDocument(null);
-    }
-    let id = conversationId;
-    let stored = false;
-    // The latest turn this page shows: the server refuses the turn if the conversation has
-    // moved on since, so a message sent again after a dropped connection never runs twice.
-    const follows = conversation?.turns[conversation.turns.length - 1]?.invocation_id ?? null;
-    try {
-      if (id === null) {
-        const started = await api.create(projectId);
-        id = started.conversation_id;
-        setOpenProject(started.project_id);
-        // With no project active, the server started one: the shell is now working in it.
-        if (started.project_id !== projectId) setProjectId(started.project_id);
-        handled.current = id;
-        navigate(homePath({ conversation: id, run: runId }), true);
-      }
-      setConversationId(id);
-      const document = inventory?.document ?? null;
-      await (answer
-        ? api.sendTurn(id, orchestrator.id, message, follows, document, undefined, answer)
-        : attachedDoc
-          ? api.sendTurn(id, orchestrator.id, message, follows, document, undefined, null, attachedDoc)
-          : api.sendTurn(id, orchestrator.id, message, follows, document));
-      // The turn is stored: from here a failure is in showing the reply, not in sending it, so
-      // the message must not come back to the box to be sent twice (#337).
-      stored = true;
-      // Once more if the first read gets no response: the reply is there to be read.
-      const sentTo = id;
-      const updated = await api.get(sentTo).catch((e: unknown) => {
-        if (e instanceof Unreachable) return api.get(sentTo);
-        throw e;
-      });
-      const last = updated.turns[updated.turns.length - 1];
-      const asks = last ? replyQuestions(last.envelope) : [];
-      const said = last
-        ? `New reply from ${last.agent_id}: ${OUTCOME[last.envelope.outcome.status].label}.` +
-          (asks.length === 1
-            ? ` It asks: ${asks[0]?.question_prompt}`
-            : asks.length > 1
-              ? ` It asks you ${asks.length} questions, one at a time.`
-              : "")
-        : "";
-      announceDrafts.current = last
-        ? { said, invocationIds: [last.invocation_id, ...last.children.map((c) => c.invocation_id)] }
-        : null;
-      setConversation(updated);
-      setAnnouncement(said);
-      void reloadPast();
-      reloadProjects();
-    } catch (e) {
-      if (stored) {
-        void reloadPast();
-        reloadProjects();
-        setError(
-          "Your message was sent and answered, but Data Director could not show the reply " +
-            `(${errorMessage(e)}). Open this conversation from Conversations to see it.`,
-        );
-        setAnnouncement("");
-        return;
-      }
-      if (fromBox) {
-        setText(message);
-        setAttached(inventory);
-        setAttachedDocument(attachedDoc);
-      }
-      if (e instanceof Unreachable) {
-        // The server may have received the turn and be running it, so show what it stored.
-        if (id) api.get(id).then(setConversation, () => undefined);
-        setError(e.advice);
-      } else if (e instanceof TurnConflict) {
-        if (id) api.get(id).then(setConversation, () => undefined);
-        setError(
-          "This conversation has changed since you wrote this: another message was answered or " +
-            "is still being answered. Your message is kept. Check the conversation above, then " +
-            "send it again if it is still needed.",
-        );
-      } else {
-        setError(
-          e instanceof RunRefused
-            ? `${e.problem.title}: ${e.message}`
-            : `Data Director could not send this: ${errorMessage(e)}`,
-        );
-      }
-      setAnnouncement("");
-    } finally {
-      setSent(null);
-      setBusy(false);
-      box.current?.focus();
-    }
+  // The finished intake hands over to the conversation: the researcher's press sends their
+  // opening turn, naming the suggested step, by the ordinary path.
+  function startFromIntake(message: string) {
+    intakeRead.close();
+    void turns.deliver(message, { inventory: null, document: null }, null);
   }
 
   /** Starts a new conversation about `step`, asking first if a message is being written. */
   function startStep(step: FlowStep) {
-    if (text.trim() || attached || attachedDocument) setReplacing(step);
+    if (writing) setReplacing(step);
     else beginWith(step);
   }
 
   /** A new conversation, with the step's prompt in the box to edit and send. */
   function beginWith(step: FlowStep) {
     setReplacing(null);
-    reset();
+    turns.reset();
     setText(step.prompt);
     setAnnouncement(
       `New conversation about ${step.label}. The message box holds a suggested message: edit it if you wish, then send.`,
@@ -658,38 +293,6 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     });
   }
 
-  function reset() {
-    setConversationId(null);
-    setConversation(null);
-    setOpenProject(undefined);
-    handled.current = null;
-    if (runId || urlConversation) navigate("/");
-    setError(null);
-    setText("");
-    setAttached(null);
-    setAttachedDocument(null);
-    setAttachError(null);
-    setAnnouncement("");
-    box.current?.focus();
-  }
-
-  async function reopen(id: string) {
-    try {
-      const found = await api.get(id);
-      handled.current = id;
-      setConversation(found);
-      setConversationId(id);
-      setOpenProject(found.project_id ?? null);
-      // A conversation is opened in its own project, so the workspace follows it there.
-      if ((found.project_id ?? null) !== projectId) setProjectId(found.project_id ?? null);
-      setError(null);
-      navigate(homePath({ conversation: id }));
-      box.current?.focus();
-    } catch (e) {
-      setError(`Data Director could not open that conversation: ${errorMessage(e)}`);
-    }
-  }
-
   // Opening a run shows it in its card and closing it hides it; focus stays on the card's button.
   function toggleRun(envelope: Envelope) {
     navigate(
@@ -700,11 +303,6 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     );
   }
 
-  // A run named in the address but not in the transcript, as when its conversation is not the one
-  // open, is shown above the message box so the link still opens it.
-  const inTranscript = conversation?.turns
-    .flatMap((t) => t.children)
-    .some((c) => c.invocation_id === runId);
 
   return (
     <Workspace
@@ -716,50 +314,27 @@ export function ConversationHome({ directory }: { directory: Directory }) {
           <h2 id="conversation-heading" className="visually-hidden">
             Conversation
           </h2>
-          {projectId && intake?.open && (
-            <IntakeCard
-              key={`${projectId}-${intake.again ? "again" : "pending"}`}
-              intake={intake.intake}
-              again={intake.again}
-              flow={flow.state === "loaded" ? flow.flow : null}
-              onAnswer={(questionId, values) => answerIntake(projectId, questionId, values)}
-              onDismiss={() => dismissIntake(projectId)}
-              onClose={closeIntake}
-              onStart={
-                orchestrator && !busy && sent === null && !conversation?.turns.length
-                  ? startFromIntake
-                  : undefined
-              }
-              onAnnounce={setAnnouncement}
-            />
-          )}
-          {((conversation && conversation.turns.length > 0) || sent !== null) && (
+          <OpenIntake
+            projectId={projectId}
+            read={intakeRead}
+            flow={flow}
+            onStart={quiet ? startFromIntake : undefined}
+            onAnnounce={setAnnouncement}
+          />
+          {(turnCount > 0 || sent !== null) && (
             <Transcript
               conversation={conversation}
               agents={directory.agents}
               onToggleRun={toggleRun}
               selectedRun={runId}
               documents={documents.state === "loaded" ? documents.documents : null}
-              pending={
-                sent === null
-                  ? null
-                  : {
-                      agentId: orchestrator.id,
-                      message: sent.message,
-                      inventory: sent.inventory,
-                      document: sent.document,
-                    }
-              }
+              pending={sent && { agentId: orchestrator.id, ...sent }}
               onAnswer={(answers, message) => void answerQuestions(answers, message)}
-              chosenRepository={project?.repository?.re3data_id ?? null}
+              chosenRepository={chosenRepository(project)}
               project={project}
               {...(projectId
                 ? {
-                    onDocumentAnswered: (value: ProjectDocuments) =>
-                      setDocumentsOf({
-                        projectId,
-                        read: { state: "loaded", documents: value.documents },
-                      }),
+                    onDocumentAnswered: (value: ProjectDocuments) => answered(projectId, value),
                     // The panel reads the choice from the projects list, so it is read again.
                     onRepositoryChosen: () => reloadProjects(),
                   }
@@ -767,102 +342,38 @@ export function ConversationHome({ directory }: { directory: Directory }) {
             />
           )}
           <StartFromStep
-            offered={
-              tracked &&
-              flow.state === "loaded" &&
-              !intake?.open &&
-              !busy &&
-              sent === null &&
-              !conversation?.turns.length &&
-              !text.trim() &&
-              !attached &&
-              !attachedDocument
-                ? startablePrompts(flow.flow, tracked.progress)
-                : null
-            }
+            offered={offeredPrompts(flow, tracked, quiet && !writing && !intake?.open)}
             replacing={replacing}
             onChoose={beginWith}
             onCancel={() => setReplacing(null)}
           />
-          {runId && !inTranscript && (
-            <section aria-labelledby="linked-run" className="callout">
-              <h3 id="linked-run">
-                Run <code>{runId}</code>
-              </h3>
-              <RunDetail invocationId={runId} agents={directory.agents} idPrefix="linked-run" />
-              <p>
-                <Button icon={X} onPress={() => navigate("/")}>Close the run</Button>
-              </p>
-            </section>
+          {runId && !holdsRun(conversation, runId) && (
+            <LinkedRun runId={runId} agents={directory.agents} />
           )}
-          {/* Dropping a file is a shortcut for the Attach a file button, which keyboard and
-              screen reader users have, so the form's drag listeners need no role of their own. */}
-          {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
-          <form
-            onSubmit={(e) => void send(e)}
-            aria-busy={busy}
-            className={dropping ? "dropping" : undefined}
-            onDragOver={onDragOver}
-            onDragLeave={() => setDropping(false)}
-            onDrop={onDrop}
-          >
-            <MessageField
-              inputRef={box}
-              value={text}
-              canSend={!busy && Boolean(text.trim() || attached || attachedDocument)}
-              onChange={setText}
-              onPaste={onPaste}
-            />
-            <ComposerAttach
-              attached={attached}
-              attachedDocument={attachedDocument}
-              busy={busy}
-              onAttachFile={(file) => void attachFile(file)}
-              onAttachMade={(file) => void attachFromDialog(file)}
-              onRemoveInventory={removeInventory}
-              onRemoveDocument={removeDocument}
-            />
-            <InventoryReviewDialog
-              pending={pending}
-              onAttach={confirmInventory}
-              onDiscard={discardInventory}
-            />
-            <DocumentReviewDialog
-              pending={pendingDocument}
-              onAttach={confirmDocument}
-              onDiscard={discardDocument}
-            />
-            {attachError && (
-              <p role="alert" className="callout status-danger">
-                {attachError}
-              </p>
-            )}
-            <Button
-              type="submit"
-              variant="primary"
-              icon={SendHorizontal}
-              isDisabled={!busy && !text.trim() && !attached && !attachedDocument}
-              isPending={busy}
-            >
-              {busy ? "Sending…" : "Send"}
-            </Button>
-          </form>
+          <Composer
+            box={box}
+            text={text}
+            onText={setText}
+            attachments={attachments}
+            busy={busy}
+            onSend={() => void send()}
+          />
           <div role="status" aria-live="polite" className="visually-hidden">
             {announcement}
           </div>
-          {error && (
+          {turns.error && (
             <div role="alert" className="callout status-danger">
-              <p>{error}</p>
+              <p>{turns.error}</p>
             </div>
           )}
         </section>
       }
       history={
         <EarlierConversations
-          conversations={past.filter((c) => (c.project_id ?? null) === projectId)}
-          currentId={conversationId}
-          onOpen={(id) => void reopen(id)}
-          onNew={reset}
+          conversations={turns.past.filter((c) => (c.project_id ?? null) === projectId)}
+          currentId={turns.conversationId}
+          onOpen={(id) => void turns.reopen(id)}
+          onNew={turns.reset}
         />
       }
       context={
