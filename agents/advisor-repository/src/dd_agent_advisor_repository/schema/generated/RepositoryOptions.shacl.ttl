@@ -41,13 +41,7 @@ repository:RepositoryCandidate a sh:NodeShape ;
     rdfs:comment "One repository. It is named only in grounded_on; its name, PID systems, access and upload conditions, certificates and metadata standards are in the cited evidence items' content (docs/specs/grounding.md). The judgements here are read from those records or compared with the needs." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:description "Whether the registry lists a persistent identifier system the repository uses. re3data does not say whether assignment is automatic." ;
-            sh:in ( "yes" "no" "unstated" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 2 ;
-            sh:path repository:assigns_pids ],
-        [ sh:datatype xsd:string ;
+    sh:property [ sh:datatype xsd:string ;
             sh:description "The needs this repository meets, as recorded by its registry entries." ;
             sh:nodeKind sh:Literal ;
             sh:order 5 ;
@@ -105,7 +99,13 @@ repository:RepositoryCandidate a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 10 ;
-            sh:path repository:rationale_derivation ] ;
+            sh:path repository:rationale_derivation ],
+        [ sh:description "Whether the registry lists a persistent identifier system the repository uses. re3data does not say whether assignment is automatic." ;
+            sh:in ( "yes" "no" "unstated" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 2 ;
+            sh:path repository:assigns_pids ] ;
     sh:targetClass repository:RepositoryCandidate .
 
 repository:SearchedSummary a sh:NodeShape ;

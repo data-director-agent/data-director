@@ -9,12 +9,6 @@ hello:Salutation a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
-            sh:description "BCP 47 tag for the language to greet in. English if absent." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path hello:language ],
-        [ sh:datatype xsd:string ;
             sh:description "Whom to greet." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -27,6 +21,12 @@ hello:Salutation a sh:NodeShape ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
-            sh:path <https://w3id.org/data-director/schema_class> ] ;
+            sh:path <https://w3id.org/data-director/schema_class> ],
+        [ sh:datatype xsd:string ;
+            sh:description "BCP 47 tag for the language to greet in. English if absent." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path hello:language ] ;
     sh:targetClass hello:Salutation .
 
