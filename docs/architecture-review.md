@@ -282,3 +282,4 @@ shrink.
 |---|---|---|
 | Ruff `PLR0904` (Python outside tests; #1056) | 20 public methods in a class | `# noqa: PLR0904` on `Governance` and `ProjectService` in `dd_app` |
 | dependency-cruiser `no-circular` in `sdk/browser` and `inventory/browser` (#1059), as `app/web` has | no import cycle in `src/` | none: neither package has one |
+| `app/web/src/fixtures.test.ts` (#981, first step) | each fixture in `app/web/fixtures` satisfies its TypeScript interface, and a new fixture must be listed | three fixtures that are not one interface are listed with the reason |
