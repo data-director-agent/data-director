@@ -144,8 +144,18 @@ jobs:
       # (deploy/README.md, docker/agents.yaml).
       - run: uv run python scripts/check_deploy.py
       # The canary: a planted violation of each kind must fail its check, so that a misconfigured
-      # check cannot pass silently.
-      - run: uv run pytest scripts/tests/test_architecture_canary.py scripts/tests/test_check_boundaries.py
+      # check cannot pass silently. The duplication canary needs the pinned jscpd, which it would
+      # otherwise skip without; DD_REQUIRE_JSCPD makes a missing one fail. The duplication check
+      # itself runs in the "Pre-commit hooks" job, on every pull request.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - run: npm ci --prefix scripts/jscpd --ignore-scripts --no-audit --no-fund
+      - env:
+          DD_REQUIRE_JSCPD: "1"
+        run: >-
+          uv run pytest scripts/tests/test_architecture_canary.py scripts/tests/test_check_boundaries.py
+          scripts/tests/test_check_duplication.py
 
   # Sources that agents build outside git, such as the repository advisor's re3data registry
   # (dd-sources, sdk/src/dd_sdk/sources.py). This job builds them and saves what they are built
@@ -556,6 +566,10 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: false
+      # The duplication hook installs jscpd with npm (scripts/jscpd).
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
       # The hooks in .pre-commit-config.yaml, for every contributor whether or not they installed
       # them. Skipped here: the branch rule (pushes to main), the lock (UV_LOCKED holds every job
       # to it), Ruff (the lint job) and zizmor (the workflows job runs it online).
