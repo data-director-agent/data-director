@@ -37,11 +37,13 @@ PROFILE_KEYS = frozenset(
 )
 
 # The classes of project content (docs/specs/projects.md, invariant 8): the inventory of the data
-# files, documentation (a document's text, or what a person wrote about one), and the facts
-# researchers kept from their public ORCID records.
-CONTENT_CLASSES = ("inventory", "documentation", "researcher")
+# files, documentation (a document's text, or what a person wrote about one), the facts
+# researchers kept from their public ORCID records, and the facts people decided about the project
+# (its funders, required repositories, which files go in, sensitivity and licence), which hold
+# structured values only, never a person's words.
+CONTENT_CLASSES = ("inventory", "documentation", "researcher", "decisions")
 # What may be given to an agent whose card declares a hosted model, where the profile does not say.
-DEFAULT_HOSTED_MODELS = frozenset({"inventory"})
+DEFAULT_HOSTED_MODELS = frozenset({"inventory", "decisions"})
 
 
 class PolicyError(Exception):

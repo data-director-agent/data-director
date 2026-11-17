@@ -111,31 +111,38 @@ intended design, and each part says where it is not built yet.
    fails the run with problem `revision-refused` before the agent is called, and outside a
    project it is removed (`ProjectStore.current_version`). A `Message`'s `project_researchers` and
    a `DraftRequest`'s `researchers` are the researcher facts the project holds (invariant 27); a
-   `Message`'s are removed outside a project, so a caller can never claim them. Filling any other
-   class is not built yet.
+   `Message`'s are removed outside a project, so a caller can never claim them. A `Message`'s and
+   a `DraftRequest`'s `project_decisions` are the facts people in the project decided
+   (invariant 28), the last decision on each kind and subject, without anyone's words about why;
+   what an agent only proposed is never given, and a `Message`'s are removed outside a project.
+   Filling any other class is not built yet.
 7. **The conductor fills `project_id`.** The request and the envelope carry an optional
    `project_id`, which the conductor takes from the conversation and a caller cannot set. A
    conversation started from a project is a `conversation_started` event of its log, so the
    harness can say which project a conversation is in after a restart (`ProjectStore.project_of`,
    `harness/tests/test_projects.py`). A delegated child takes its parent's project from the
    grant. The agent is never sent `project_id` (`harness/tests/test_project_runs.py`).
-8. **Only `inventory` goes to a hosted model by default.** Project content is of three classes:
-   `inventory`, `documentation` (uploaded text, and any document version given back to an
-   agent) and `researcher` (the facts researchers kept from their ORCID records, invariant 27). The profile lists the classes that may be given to an agent whose card declares a
-   `hosted` model; where it does not say, only `inventory` may. The conductor refuses anything
+8. **Only `inventory` and `decisions` go to a hosted model by default.** Project content is of
+   four classes: `inventory`, `documentation` (uploaded text, and any document version given
+   back to an agent), `researcher` (the facts researchers kept from their ORCID records,
+   invariant 27) and `decisions` (the facts people decided, invariant 28, which hold structured
+   values and never anyone's words). The profile lists the classes that may be given to an agent
+   whose card declares a `hosted` model; where it does not say, `inventory` and `decisions` may. The conductor refuses anything
    else before it is sent, with a Problem Details response, and records the refusal. The key is
    `hosted_models` (`dd_harness.policy`). A `DraftRequest`'s inventory, a plain `FileInventory`
    and a `Message`'s `project_inventory` are `inventory`; a metadata record, the version a
    drafter regenerates and a person's answers are `documentation`; a `Message`'s
-   `project_researchers` and a `DraftRequest`'s `researchers` are `researcher`; a repository's
-   requirements are none of these (`dd_harness.project_facts.given`). The conductor checks after the input check: a
+   `project_researchers` and a `DraftRequest`'s `researchers` are `researcher`; the
+   `project_decisions` of either are `decisions`; a repository's requirements are none of these (`dd_harness.project_facts.given`). The conductor checks after the input check: a
    run it refuses fails with problem `project-content-withheld` and is stored, and the agent is
    not called (`harness/tests/test_project_runs.py`). Researcher facts are the exception: they add
    to what an agent is given and no agent needs them, so where the profile keeps `researcher`
    from an agent the conductor leaves them out of its input, before it is hashed, and the run goes
    ahead, so a conversation with a hosted orchestrator does not stop because someone kept facts
-   (`dd_harness.project_facts.leave_out`). What a caller sends outside a project is not the
-   project's, and the key does not apply to it.
+   (`dd_harness.project_facts.leave_out`). Decided facts are not: a drafter given none would draft
+   as if nothing had been decided, listing a file a person excluded, so a profile that keeps
+   `decisions` from an agent refuses its runs once the project holds any. What a caller sends
+   outside a project is not the project's, and the key does not apply to it.
 9. **Only a `Document` payload of a succeeded run becomes a project document.** When a run that
    belongs to a project succeeds with a `Document` payload, the conductor records it as a new
    version. A run that does not succeed adds no version, whatever it returned. Another payload
@@ -296,6 +303,26 @@ intended design, and each part says where it is not built yet.
     `GET /api/projects/{project_id}/researchers`, `READ`) (`harness/tests/test_orcid.py`,
     `dd_harness.testing.storage`, `harness/tests/test_project_runs.py`,
     `app/tests/test_researcher_facts.py`).
+28. **A fact about a project is what a person decided, never what an agent proposed.** A check
+    agent may propose facts in its payload (`ProjectFact`, [Contract](contract.md), invariant
+    25): a funder, a repository a funder, journal or institution requires, whether a file is
+    deposited (`include`, `exclude`, or `undecided`, which a person must decide before deposit),
+    whether a sensitive field or file may be published (`publish` or `generalise`, at a
+    precision, `withhold`, or `undecided`), or the licence. A succeeded run's proposals are
+    `fact_proposed` events, one each, caused by the run and naming its agent, from a payload of
+    any class (`dd_harness.project_effects`). A person decides each as a `fact_decided` event:
+    `confirmed` takes the proposal as it is, `changed` takes the person's own value for its kind
+    and subject, and `rejected` removes it; a person may also state a fact nobody proposed. A
+    decision on a proposal the project does not hold (`proposal-not-found`), or a changed fact of
+    another kind or subject (`fact-not-proposed`), is refused and the refusal recorded
+    (invariant 12). The fact that stands is the last decision on its kind and subject
+    (`ProjectStore.propose_facts`, `decide_fact`, `decisions`, `proposals`), and the conductor
+    gives it to every drafter and orchestrator in the project (invariant 6). A member decides
+    funders, required repositories and which files go in; whether sensitive data may be
+    published, and the licence, have legal consequences, so only an owner decides them
+    (`GET /api/projects/{project_id}/facts`, `READ`; `POST …/facts/decisions`, `CONTRIBUTE`, or
+    `DECIDE` for `sensitivity` and `licence`) (`dd_harness.testing.storage`,
+    `harness/tests/test_project_decisions.py`, `app/tests/test_project_facts.py`).
 
 ## Boundaries and contracts
 
@@ -402,7 +429,8 @@ document's text to a drafter, and a profile that refuses documentation altogethe
 yet.
 
 **Agents** propose; they do not write. The only proposed change is a document version, returned as
-a `Document` payload. No agent writes anywhere or holds credentials to. A general proposed action
+a `Document` payload; a check agent's proposed facts (invariant 28) are about the project, not a
+change to anything, and become facts only when a person decides them. No agent writes anywhere or holds credentials to. A general proposed action
 for a change outside the project waits for the first agent that needs one, TODO(#72). A drafted
 version may also carry questions to the researcher, which the log keeps with the version. A
 person's answers are project log events that the conductor puts into the next `DraftRequest`
@@ -520,7 +548,12 @@ store, and writes to neither ([Disclosure](disclosure.md)).
 - **A drafting run that suspends until a person decides.** Runs would stay open for days, and the
   run's outcome would duplicate the version's state.
 - **A general proposed-action class now.** It adds a core class with one use that `Document`
-  already covers.
+  already covers. `ProjectFact` is not one: it proposes no action outside the project, only what
+  a person may confirm about it.
+- **Passing one agent's result to the next as it came.** A model, or an orchestrator's code, would
+  carry what a check found into the next agent's input, so the funder, an exclusion or a location
+  to withhold would reach a drafter only when that turn remembered it, and without a person
+  having confirmed it. A decided fact is in the log, and every later run is given it.
 - **Merging concurrent edits.** A merged text is a version nobody wrote or saw.
 - **Conversations only their starter may continue, or private conversations with a shared record.**
   A team's work would split into private threads, and what was said would be lost to colleagues.

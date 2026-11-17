@@ -179,7 +179,7 @@ requirements:
   - id: C13.5
     source: project
     parent: C13
-    title: An agent whose card declares a hosted model is given only the classes of project content the profile's hosted_models lists, inventory alone by default, and is otherwise refused before anything is sent; that the card declares every model the agent calls is not checked
+    title: An agent whose card declares a hosted model is given only the classes of project content the profile's hosted_models lists, inventory and decided facts by default, and is otherwise refused before anything is sent; that the card declares every model the agent calls is not checked
   - id: C14
     source: blueprint
     title: Explainability — human-readable explanations for recommendations and decisions

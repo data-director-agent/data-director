@@ -5,8 +5,8 @@ Import everything from here; the modules are an internal arrangement:
 
 - `serving`: `in_process` and `make_conductor`, which serve agents and the conductor in memory
   over the real A2A wire, and `send_to_harness`.
-- `doubles`: `AbstainingStub`, `DocumentStub` and `ScriptedAgent`, with the spans a scripted
-  agent emits.
+- `doubles`: `AbstainingStub`, `DocumentStub`, `FactStub` and `ScriptedAgent`, with the spans a
+  scripted agent emits.
 - `results`: results a scripted agent can return, and the sources they are grounded on.
 - `input_ref` and `input_evidence` are the agent kit's own (`dd_sdk.agent`), re-exported here.
 - `classes`: the doubles' own `Probe*` classes, declared in `../schema/doubles.yaml`.
@@ -30,6 +30,7 @@ from dd_harness.testing.classes import (
     ProbeCheck,
     ProbeClaim,
     ProbeDocumentRequest,
+    ProbeFindings,
     ProbeProfile,
     ProbeRecord,
     ProbeReview,
@@ -41,6 +42,7 @@ from dd_harness.testing.doubles import (
     Behaviour,
     Chat,
     DocumentStub,
+    FactStub,
     Retrieve,
     ScriptedAgent,
 )
@@ -108,6 +110,7 @@ __all__ = [
     "Behaviour",
     "Chat",
     "DocumentStub",
+    "FactStub",
     "FakeIdentityProvider",
     "FakeOrcidRegistry",
     "GrantKeys",
@@ -115,6 +118,7 @@ __all__ = [
     "ProbeCheck",
     "ProbeClaim",
     "ProbeDocumentRequest",
+    "ProbeFindings",
     "ProbeProfile",
     "ProbeRecord",
     "ProbeReview",
