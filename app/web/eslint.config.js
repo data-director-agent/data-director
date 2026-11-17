@@ -71,7 +71,7 @@ export default tseslint.config(
   },
   {
     // The announcer owns the live regions for run progress. AddInventory says an upload's result
-    // in its own region, which is not run progress; it can move to the announcer later (#948).
+    // in its own region, which is not run progress; TODO(#1025): move it to the announcer.
     files: ["src/components/ui/Announcer.tsx", "src/components/inventory/AddInventory.tsx"],
     rules: { "no-restricted-syntax": ["error", BUTTON] },
   },
