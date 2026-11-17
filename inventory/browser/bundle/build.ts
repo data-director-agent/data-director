@@ -76,7 +76,10 @@ function buildCommand(into: string): CommandWheel {
 
 /** The command's dependencies as the workspace locks them. */
 function workspacePackages(): PylockPackage[] {
-  const text = run("uv", [
+  // Written to a file, not read from stdout, which uv highlights when FORCE_COLOR is set.
+  const out = mkdtempSync(join(tmpdir(), "dd-inventory-lock-"));
+  const lock = join(out, "pylock.toml");
+  run("uv", [
     "export",
     "--format",
     "pylock.toml",
@@ -86,7 +89,11 @@ function workspacePackages(): PylockPackage[] {
     "--no-emit-workspace",
     "--frozen",
     "--quiet",
+    "--output-file",
+    lock,
   ]);
+  const text = readFileSync(lock, "utf8");
+  rmSync(out, { recursive: true, force: true });
   return (parseToml(text) as unknown as { packages: PylockPackage[] }).packages;
 }
 
