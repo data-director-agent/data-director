@@ -15,6 +15,10 @@ import { errorMessage } from "../../run/api";
 import { Link, journeyPath, navigate } from "../../route";
 import { PageHeader } from "../frame/PageHeader";
 
+/** The user guide's page on the workflow the journey map draws. */
+export const WORKFLOW_GUIDE =
+  "https://data-director-agent.github.io/data-director/user-guide/workflow/";
+
 type Load =
   | { state: "loading" }
   | { state: "failed"; message: string }
@@ -80,6 +84,12 @@ export function JourneyLanding() {
     <>
       <PageHeader title="Your data journey" />
       {content()}
+      {!opening && (
+        <p className="muted">
+          New to the workflow?{" "}
+          <a href={WORKFLOW_GUIDE}>Read how the steps fit together in the user guide</a>.
+        </p>
+      )}
     </>
   );
 }
