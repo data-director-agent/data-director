@@ -17,7 +17,7 @@
 
 import "./ProjectsPage.css";
 
-import { FolderOpen, FolderPlus, RotateCcw } from "lucide-react";
+import { FolderOpen, FolderPlus, Map as MapIcon, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { journey } from "../../flow/journey";
@@ -26,7 +26,7 @@ import type { ProcessFlow, ProjectProgress } from "../../flow/types";
 import { useActiveProject } from "../../project/active";
 import { type DeletedProject, type ProjectSummary, useProjectApi } from "../../project/api";
 import { day, projectName } from "../../project/name";
-import { Link, navigate } from "../../route";
+import { Link, journeyPath, navigate } from "../../route";
 import { PageHeader } from "../frame/PageHeader";
 import { Button } from "../ui/Button";
 import { JourneyMini } from "../journey/JourneyMini";
@@ -236,7 +236,15 @@ export function ProjectsPage() {
                   aria-label={`Open the conversations of ${name}`}
                 >
                   Open conversations
-                </Button>
+                </Button>{" "}
+                <Link
+                  to={journeyPath(project.project_id)}
+                  className="button button-secondary button-small"
+                  aria-label={`Open the journey map of ${name}`}
+                >
+                  <MapIcon className="button-icon" size="1.125em" aria-hidden="true" />
+                  Journey map
+                </Link>
               </p>
             </li>
           );
