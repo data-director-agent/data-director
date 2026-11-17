@@ -7,6 +7,7 @@
 
 import "./Pending.css";
 
+import { AgentIcon } from "../../manifest/normalise";
 import type { AttachedDocument } from "../../conversation/documentation";
 import type { AttachedInventory } from "../../conversation/inventory";
 import { DocumentChip } from "./DocumentChip";
@@ -16,6 +17,7 @@ import { Speaker } from "./Speaker";
 export function Pending({
   agentId,
   agentName = agentId,
+  agentIcon = "",
   message,
   inventory = null,
   document = null,
@@ -23,6 +25,8 @@ export function Pending({
   agentId: string;
   /** What to call the agent: its card's title, or its id, which it is when not given. */
   agentName?: string;
+  /** The icon its card declares; empty, or not given, for the default. */
+  agentIcon?: string;
   message: string;
   inventory?: AttachedInventory | null;
   document?: AttachedDocument | null;
@@ -50,6 +54,7 @@ export function Pending({
       </div>
       <div className="turn-agent">
         <p className="muted">
+          <AgentIcon agent={{ icon: agentIcon }} />
           {agentName === agentId ? <code>{agentId}</code> : agentName} is working on a reply
           <span className="pending-dots" aria-hidden="true">
             <span />

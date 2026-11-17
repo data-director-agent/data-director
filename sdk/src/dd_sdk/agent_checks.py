@@ -104,3 +104,20 @@ def check_setting(agent_id: str, name: str, setting: Setting) -> None:
         raise SpecError(f"{where}: a choice is listed more than once")
     if setting.default not in setting.choices:
         raise SpecError(f"{where}: default {setting.default!r} is not one of its choices")
+
+
+# Enough code points for a ZWJ sequence or a skin tone, too few for a word.
+ICON_MAX_CODE_POINTS = 8
+
+
+def check_icon(agent_id: str, icon: str) -> None:
+    """An agent's icon is empty or one emoji: short, with no whitespace and no ASCII letters or
+    digits, so a name or a sentence cannot pass for one (docs/specs/agents.md)."""
+    if not icon:
+        return
+    if (
+        len(icon) > ICON_MAX_CODE_POINTS
+        or any(c.isspace() for c in icon)
+        or any(c.isascii() and c.isalnum() for c in icon)
+    ):
+        raise SpecError(f"agent {agent_id!r}: icon {icon!r} is not a single emoji")

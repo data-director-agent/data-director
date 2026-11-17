@@ -11,7 +11,8 @@ import { type AgentSpec, specFromRaw } from "@data-director/agent-view";
 
 import type { RawAgentsResponse, RawManifestEntry } from "./types";
 
-export { agentName, type Derivation } from "@data-director/agent-view";
+export { agentIcon, agentName, type Derivation } from "@data-director/agent-view";
+export { AgentIcon } from "@data-director/agent-view/react";
 
 export type Declared<T> = { state: "declared"; value: T } | { state: "undeclared" };
 

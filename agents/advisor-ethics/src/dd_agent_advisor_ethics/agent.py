@@ -90,6 +90,7 @@ class EthicsAdviser:
         agent_id="advisor.ethics",
         version="0.1.0a1",
         title="Research Ethics Adviser",
+        icon="🧭",
         description=(
             "Flags fields whose names suggest personal or otherwise sensitive data, by keyword "
             "and, where one is configured, with a model that may add flags but never remove one. "

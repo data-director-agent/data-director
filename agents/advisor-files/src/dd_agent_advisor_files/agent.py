@@ -127,6 +127,7 @@ class FileArchivist:
         agent_id="advisor.files",
         version="0.1.0a1",
         title="File Archivist",
+        icon="🗄️",
         description=(
             "Mock. Lists each file of a project's inventory with the format its media type or "
             "extension suggests, and whether that format is open, and the files whose names, "

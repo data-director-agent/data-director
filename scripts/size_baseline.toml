@@ -10,7 +10,7 @@ lines = 880
 
 [[file]]
 path = "agents/advisor-policy/src/dd_agent_advisor_policy/agent.py"
-lines = 895
+lines = 891
 
 [[file]]
 path = "agents/orchestrator-model/src/dd_agent_orchestrator_model/agent.py"

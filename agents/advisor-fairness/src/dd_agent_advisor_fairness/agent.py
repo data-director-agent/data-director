@@ -120,6 +120,7 @@ class FairAssessor:
         agent_id="advisor.fairness",
         version="0.2.0a1",
         title="FAIR Assessor",
+        icon="🌱",
         description=(
             "Alpha. Checks the metadata given for a published dataset against a short list of "
             "FAIR-related presence checks and recommends what to retrofit; with a model "
