@@ -80,6 +80,15 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      # No block is copied between members' sources, and the copies already there only shrink
+      # (docs/architecture-review.md). jscpd takes well under a second; the first run installs it
+      # from scripts/jscpd/package-lock.json, so needs Node.js. --update lowers the baseline; stage it.
+      - id: check-duplication
+        name: no code is copied between source files
+        entry: uv run --no-project --python 3.14 scripts/check_duplication.py --update
+        language: system
+        pass_filenames: false
+        always_run: true
       # Each workspace member, above all each agent, is in every list that names members by hand.
       - id: check-members
         name: every member is registered everywhere

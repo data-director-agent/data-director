@@ -25,18 +25,19 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
 
 from opentelemetry.trace import Tracer
 
+from dd_sdk.agent_checks import Derived as Derived
+from dd_sdk.agent_checks import Setting as Setting
 from dd_sdk.agent_checks import SpecError as SpecError
 from dd_sdk.agent_checks import check_derivation, check_setting
+from dd_sdk.agent_result import AgentResult as AgentResult
 from dd_sdk.contract.classes import ClassSchema, ClassSchemaError
 from dd_sdk.contract.models import (
     Derivation,
     EvidenceItem,
     Frozen,
-    Grounded,
     GroundingMode,
     GroundingRef,
     InvocationRequest,
-    ModelCall,
     Outcome,
     OutcomeStatus,
     ReasonCode,
@@ -54,19 +55,6 @@ class ContractVersionError(SpecError):
 
 
 @dataclass(frozen=True)
-class Derived:
-    """How an agent produces one payload field that it does not copy from input or evidence.
-
-    `recorded_in` names a sibling field of type `Derivation` in which each value records how it
-    actually came about, so a template fallback where a model would normally write is shown as
-    template. Without it, `how` holds for every value.
-    """
-
-    how: Derivation
-    recorded_in: str | None = None
-
-
-@dataclass(frozen=True)
 class ModelUse:
     """A model the agent sends data to, as configured: who provides it, which model, and whether
     it runs on the provider's service (`hosted`) or on the institution's own (`local`)
@@ -78,18 +66,6 @@ class ModelUse:
     model: str
     hosting: Literal["hosted", "local"]
     tools: bool = False
-
-
-@dataclass(frozen=True)
-class Setting:
-    """An option the agent offers, which a deployment's profile may set (`agent_settings`,
-    docs/specs/policy-and-identity.md). `choices` are the values it accepts; `default` applies
-    where the profile does not set it. The conductor refuses a profile value outside `choices`
-    before the agent runs, and sends the agent the value that applies (`RunContext.settings`)."""
-
-    choices: tuple[str, ...]
-    default: str
-    description: str = ""
 
 
 @dataclass(frozen=True)
@@ -139,7 +115,7 @@ class AgentSpec:
                 "Grounded (its schema does not require grounded_on)"
             )
         for path, derived in self.derivations.items():
-            check_derivation(self, path, derived)
+            check_derivation(self.agent_id, self.payload, path, derived)
         for name, setting in self.settings.items():
             check_setting(self.agent_id, name, setting)
 
@@ -356,21 +332,6 @@ def typed_request(spec: AgentSpec, request: InvocationRequest) -> InvocationRequ
         return request
     document = request.input.model_dump(mode="json", exclude_none=True)
     return request.model_copy(update={"input": accepted.parse_input(document)})
-
-
-@dataclass(frozen=True)
-class AgentResult:
-    outcome: Outcome
-    payload: Grounded | None = None
-    evidence: list[EvidenceItem] = field(default_factory=list)
-    model_id: str | None = None
-    input_tokens: int | None = None
-    output_tokens: int | None = None
-    # Each model call, and the prompts they name by digest (`dd_sdk.prompts`,
-    # docs/specs/disclosure.md). The conductor puts the calls in the envelope's telemetry and keeps
-    # the prompts beside the run, never in the envelope.
-    model_calls: tuple[ModelCall, ...] = ()
-    prompts: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
 
 
 class Delegate(Protocol):

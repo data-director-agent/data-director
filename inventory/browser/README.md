@@ -84,6 +84,10 @@ $ npm run parity      # the command natively and under Pyodide, on ../tests/data
   Serving the bundle redistributes all of it, so the notices go with it; no scan reads them, so
   they are not in the manifest's `files`.
 
+Deployments build it from the commit they run: the release image in a stage of its own
+(`docker/release.Dockerfile`), and the VM deploy beside the app's shell (`deploy/deploy.sh`), each
+copying it to `app/web/dist/inventory-bundle/`, where the app serves it.
+
 Which wheel is taken (`bundle/resolve.ts`): the command's dependencies are those `uv export`
 gives from the workspace lock, leaving out any whose environment marker does not hold under
 Pyodide. A package Pyodide builds is taken from Pyodide's lock, with what Pyodide's lock says it
@@ -163,9 +167,21 @@ What differs from the command on disk:
   described where the command would skip it and say so.
 - **Speed and memory.** About three times slower than the command, and ten times on hashing (see
   the [spike on #367](https://github.com/data-director-agent/data-director/issues/367#issuecomment-6708613929)).
-  Memory rises while a large file is hashed, most likely from WORKERFS's per-read buffers waiting
-  to be collected: in headless Chromium the whole browser rose from about 0.4 GB to 2.4 GB on an
-  8 GB file and to 2.8 GB on a 16 GB file, almost all of it in the renderer that runs the
-  worker. The growth slows as files get larger, but is a reason to use the command for very
-  large datasets.
+  Memory rises while a large file is hashed, almost all of it in the renderer that runs the
+  worker. In headless Chromium on a 16 GB machine the whole browser rose from about 0.4 GB to
+  2.4 GB on an 8 GB file and to 2.8 GB on a 16 GB file. A 50 GB file was hashed correctly in
+  9.4 minutes (about 91 MB/s), with the browser peaking 2.7 GB above where it started, so the
+  growth levels off rather than following the file's size.
+
+  The memory is what WORKERFS's reads leave for the garbage collector: each read is a `Blob`
+  slice and an `ArrayBuffer` from `FileReaderSync`, and the same loop in a bare worker, with no
+  Pyodide, grows alike. Chromium collects them only as V8 sees memory pressure, which it judges
+  by the machine's memory, not by what the system will actually let it have. Detaching each
+  buffer once it is copied (`ArrayBuffer.prototype.transfer(0)`) made it worse: the browser
+  then grew by the whole file, as V8 no longer counted the memory and so never collected. With
+  the browser held to 1 GB by a cgroup (a scan of a small folder needs about 0.5 GB), a 4 GB file
+  had the renderer killed, which closes the page and the app with it, not only the scan. So
+  **Describe a folder…** advises the command before describing a folder with a file of 4 GB or
+  more, and describes it only if the researcher goes on
+  (`app/web/src/components/inventory/LargeFileNotice.tsx`).
 - **Browsers.** CI runs Chromium only. Firefox and Safari need a manual check.

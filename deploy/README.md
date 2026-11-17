@@ -61,9 +61,10 @@ process ([The app](../docs/specs/app.md)).
 | Path | Holds |
 |---|---|
 | `/opt/data-director/repo.git` | A bare clone of the branch. |
-| `/opt/data-director/releases/<sha>/` | One built commit each: source, `.venv`, the re3data registry, `app/web/dist`, and `REVISION`, the full commit hash the app reports as its build. The newest three are kept. |
+| `/opt/data-director/releases/<sha>/` | One built commit each: source, `.venv`, the re3data registry, `app/web/dist` with the browser scanner's bundle in `app/web/dist/inventory-bundle/`, and `REVISION`, the full commit hash the app reports as its build. The newest three are kept. |
 | `/opt/data-director/current` | Link to the live release. The units run from it. |
 | `/opt/data-director/cache/sources/` | What agents' built sources are built from (`dd-sources prepare`), one subdirectory per source, such as the pinned re3data export: downloaded once per pin and shared by releases. |
+| `/opt/data-director/cache/inventory-wheels/` | The wheels the browser scanner's bundle holds (`npm run bundle` in `inventory/browser`): Pyodide's builds from `cdn.jsdelivr.net` and the rest from PyPI, each checked against its lock. Downloaded once per pin and shared by releases. |
 | `/opt/data-director/failed-commits` | Commits that did not start. They are not tried again. |
 | `/var/lib/data-director/runs/` | The run store (`DD_RUNS_DIR`). It outlives releases. |
 | `/var/lib/data-director/projects/` | The project store (`DD_PROJECTS_DIR`): each project's log and documents. It outlives releases. |
@@ -618,7 +619,8 @@ Each push to `main`, and each release of the app, publishes one image that holds
 built shell and every in-tree agent: `ghcr.io/data-director-agent/data-director`, for
 `linux/amd64` and `linux/arm64` (`.github/workflows/images.yml`, built from
 `docker/release.Dockerfile`). It is an alternative to building on a VM as this page does, for a
-deployment elsewhere (#222). It holds no Node or uv, runs as a non-root user (uid 10001) and
+deployment elsewhere (#222). It serves the browser scanner's bundle at `/inventory-bundle/`,
+built in a stage of its own, so **Describe a folder in this browser** is offered. It holds no Node or uv, runs as a non-root user (uid 10001) and
 reports the commit it was built from at `GET /api/about`.
 
 | Tag | What it is |

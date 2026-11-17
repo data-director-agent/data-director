@@ -137,6 +137,18 @@ package, four ratchets keep code from growing past what a reviewer can follow
   TypeScript one to 400. A file already over the limit is recorded in `scripts/size_baseline.toml`
   at its present size and may not grow. The pre-commit hook lowers an entry when its file shrinks;
   commit the change.
+- **Copied code.** Agents may not import one another, so copying a block between them is the easy
+  route. `scripts/check_duplication.py` runs [jscpd](https://github.com/kucherenko/jscpd) over the
+  Python and TypeScript sources of every member (not tests or generated code) and fails on a block
+  of 5 lines and 50 tokens or more that appears twice. The copies already there are recorded in
+  `scripts/duplication_baseline.toml`, by pair of files, with the number of blocks and lines they
+  share; a pair may not gain a block or a line, and a new pair fails. Move shared code to the
+  package whose job it is, above all `dd_sdk` for what agents share, and import it. The check is a
+  pre-commit hook, as it takes about a second; the first run installs the jscpd pinned in
+  `scripts/jscpd/package-lock.json` with `npm ci`, so it needs Node.js. The hook lowers an entry
+  when a copy is removed; commit the change. Its canary, `scripts/tests/test_check_duplication.py`,
+  plants a block in two agents and expects the check to fail; it is skipped where jscpd is not
+  installed, and CI's "Architecture" job installs it.
 - **Unused code.** `uv run python scripts/check_unused.py` runs vulture over the Python, counting
   a use in a test or script, and fails a function, method, class or import in a member's `src/`
   that nothing calls. Code reached by a name vulture cannot see (a template, a base class that
@@ -153,7 +165,9 @@ like) in Python, `// eslint-disable-next-line complexity` in TypeScript, or an e
 baseline. These record debt. Remove the marker when you split the function or file; a marker that
 no longer suppresses anything is itself an error (Ruff's RUF100, ESLint's unused-directive
 report). Never add one to get new code past these checks: split the code by responsibility
-instead, and if that is not possible in your pull request, open an issue and say so.
+instead, and if that is not possible in your pull request, open an issue and say so. The CI
+"Architecture" job counts these markers, the baseline entries and the boundary exceptions in its
+summary (`scripts/architecture_debt.py`), so the count can be seen to fall.
 
 ## Writing tests
 
@@ -271,7 +285,9 @@ uv tool install pre-commit && pre-commit install
 Before each commit they fix trailing whitespace, final newlines and line endings; check YAML, TOML
 and JSON parse, and that no merge marker, private key or file over 1 MB is committed; check file
 modes against shebangs; run Ruff (lint with fixes, then format, at the version in `uv.lock`);
-check each to-do marker names an issue (`scripts/check_todos.py`); re-lock `uv.lock` (below);
+check each to-do marker names an issue (`scripts/check_todos.py`); hold source files to their
+size and copied code to its baseline (`scripts/check_size.py`, `scripts/check_duplication.py`);
+check every member is registered (`scripts/check_members.py`); re-lock `uv.lock` (below);
 lint the workflows with actionlint and zizmor (offline); and refuse a commit made directly on
 `main`. A `commit-msg` hook holds each commit subject to the pull request title rule
 (`scripts/check_names.py`): a Conventional Commit, `type(scope): summary`. The title itself is

@@ -5,7 +5,7 @@
 #   1. fetch the branch into the bare clone;
 #   2. stop if its tip is already running, failed here before, or has not passed CI;
 #   3. build the tip into its own release directory (uv sync, the re3data registry, npm build of
-#      app/web);
+#      app/web, the browser scanner's bundle);
 #   4. point /opt/data-director/current at it and ask for data-director.target to be restarted
 #      (restart() below);
 #   5. if the app does not report the new commit, point `current` back and restart again.
@@ -264,7 +264,17 @@ if [[ ! -f "$release/.built" ]]; then
       cd app/web &&
       npm ci --no-audit --no-fund --loglevel=error &&
       npm run build --silent &&
-      rm -rf node_modules
+      rm -rf node_modules &&
+      # The browser scanner's bundle (inventory/browser/README.md, Browser bundle), served from
+      # dist/inventory-bundle/. Its wheels are kept outside the releases, as the sources are, and
+      # each is checked against its lock whether it was downloaded or read back.
+      cd ../../inventory/browser &&
+      mkdir -p "$ROOT/cache/inventory-wheels" .cache &&
+      ln -sfn "$ROOT/cache/inventory-wheels" .cache/wheels &&
+      npm ci --no-audit --no-fund --loglevel=error &&
+      npm run bundle --silent &&
+      cp -R dist/inventory-bundle ../../app/web/dist/ &&
+      rm -rf node_modules dist .cache
   ) || die "$short: build failed"
   echo "$sha" >"$release/.built"
 fi

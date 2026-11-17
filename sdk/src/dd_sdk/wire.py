@@ -29,7 +29,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from dd_sdk.agent import AgentResult
+from dd_sdk.agent_result import AgentResult
 from dd_sdk.contract.models import (
     EvidenceItem,
     Grounded,

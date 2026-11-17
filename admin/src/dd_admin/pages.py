@@ -24,7 +24,7 @@ from dd_harness.projects import ProjectError
 from dd_harness.settings import redact_location
 
 if TYPE_CHECKING:
-    from dd_admin.app import Admin
+    from dd_admin.reader import Admin
 
 PAGE_SIZE = 50
 

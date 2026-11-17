@@ -233,7 +233,10 @@ written or moved first, so that behaviour is pinned before the code moves.
   through an allowed list, so that features do not tangle.
 - Record each refactor above as a short decision in `docs/specs`, so that the reason for a module's
   shape outlives the pull request.
-- Review the size baseline and the markers below each quarter. The count should fall.
+- Watch the size baseline, the markers below and the boundary exceptions fall. They are counted by
+  `scripts/architecture_debt.py`, whose table, "Recorded architecture debt", is in the summary of
+  the "Architecture" job of every CI run on `main`; compare it across runs instead of counting by
+  hand.
 
 ## Checks added with this review
 
@@ -246,13 +249,15 @@ it can shrink but not grow.
 | ESLint `complexity`, `max-depth` (`app/web`, `sdk/browser`, `inventory/browser`, outside tests) | complexity 20, depth 4 | `eslint-disable-next-line complexity` at the 11 functions over the limit; an unused marker is an error |
 | `scripts/check_size.py` | 600 lines (Python), 500 (TypeScript) | `scripts/size_baseline.toml` (18 files); an entry may not grow, and a slack or stale one fails |
 | `scripts/check_members.py` | each member in every hand-kept list | none: the drift it found (seven agents missing from `mypy_path`) is fixed |
+| `scripts/check_duplication.py` (jscpd over every member's sources, #1057) | no block of 5 lines and 50 tokens in two places | `scripts/duplication_baseline.toml` (57 pairs of files, 71 blocks, 772 lines in November 2026); a pair may not gain a block or a line, and a slack or stale entry fails |
 
 Two things are shared by the checks:
 
-- **Where they run.** The size and registration checks are pre-commit hooks, so they also run in
+- **Where they run.** The size, duplication and registration checks are pre-commit hooks, so they also run in
   CI's "Pre-commit hooks" job on every pull request, including one that changes only TypeScript.
 - **Canaries.** Their tests are in `scripts/tests/test_check_size.py`,
-  `scripts/tests/test_check_members.py` and `app/web/src/architecture.test.ts`. Each plants a
+  `scripts/tests/test_check_members.py`, `scripts/tests/test_check_duplication.py` and
+  `app/web/src/architecture.test.ts`. Each plants a
   violation and expects the check to fail.
 
 The rule for contributors is in CONTRIBUTING.md under "Keeping the code in shape": never add a
