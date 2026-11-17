@@ -408,6 +408,16 @@ def apply(system: System, place: Place, vm: Vm | None = None, check: bool = Fals
         return 1 if (check and pending) else 0
     if place.unit_dir is not None and not system.is_root():
         raise DevError("apply changes systemd units: run it as root (sudo data-director apply)")
+    _write_changes(result)
+    if place.unit_dir is None:
+        print("Restart `dd.py start` for the app to read it.")
+        return 0
+    assert vm is not None
+    return _reload_units(system, place, vm, result)
+
+
+def _write_changes(result: Plan) -> None:
+    """Write each file that differs from the plan, and set the app's settings that do."""
     for write in result.writes:
         if not write.path.is_file() or write.path.read_text(encoding="utf-8") != write.text:
             _write(write)
@@ -418,10 +428,11 @@ def apply(system: System, place: Place, vm: Vm | None = None, check: bool = Fals
         if changed := [name for name, value in settings.items() if have.get(name) != value]:
             _set_app_settings(env_file, settings)
             print(f"set {', '.join(changed)} in {shown(env_file)}")
-    if place.unit_dir is None:
-        print("Restart `dd.py start` for the app to read it.")
-        return 0
-    assert vm is not None
+
+
+def _reload_units(system: System, place: Place, vm: Vm, result: Plan) -> int:
+    """On a VM: sync the agents' credentials, reload systemd, stop the units the plan drops and
+    restart the stack. 1 if the credentials did not sync."""
     sync = system.run(
         "env",
         f"CREDENTIALS={vm.credentials}",
