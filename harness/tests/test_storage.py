@@ -10,6 +10,8 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from hypothesis import HealthCheck, example, given, settings
+from project_changes import document_changes
 
 from dd_harness.project_files import FileProjectLog
 from dd_harness.project_log import ProjectLog
@@ -29,9 +31,11 @@ from dd_harness.testing import (
     PROJECT_LOG_CHECKS,
     PROJECT_STORAGE_CHECKS,
     RUN_STORAGE_CHECKS,
+    check_a_log_replays_as_it_folds,
     check_project_rules,
     check_shared_record,
 )
+from dd_harness.testing.replay import SAMPLE_CHANGES
 
 
 @pytest.mark.parametrize("check", RUN_STORAGE_CHECKS.values(), ids=RUN_STORAGE_CHECKS.keys())
@@ -63,6 +67,16 @@ def test_the_project_rules_keep_each_guarantee_over_a_log_that_only_stores(
     """What a new backend runs: the rules, over its log, pass every `ProjectStorage` check."""
     check_project_rules(lambda name: FileProjectLog(tmp_path / name))
     assert isinstance(ProjectStore(tmp_path / "projects"), Projects)
+
+
+# Every example writes a project of its own, so the stores in `tmp_path` serve them all.
+@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+@given(changes=document_changes())
+@example(changes=list(SAMPLE_CHANGES))
+def test_the_file_project_log_replays_as_its_events_fold(
+    tmp_path: Path, changes: list[dict[str, object]]
+) -> None:
+    check_a_log_replays_as_it_folds(lambda name: FileProjectLog(tmp_path / name), changes)
 
 
 def test_a_location_is_a_path_or_a_file_url(tmp_path: Path) -> None:

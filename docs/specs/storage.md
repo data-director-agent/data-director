@@ -100,7 +100,10 @@ one store. `check_shared_record` checks two logs opened over one record contendi
 project, as two harness instances over one database do; only a backend whose section holds across
 instances passes it, so the file backend does not run it. `harness/tests/test_storage.py` runs the
 kit against the file backends, and `harness/tests/test_postgres.py` against the PostgreSQL
-backend, with every check above and a contention between processes.
+backend, with every check above and a contention between processes. Both also run
+`check_a_log_replays_as_it_folds` on change sequences that Hypothesis generates: a log appended
+whole and one appended an event at a time fold to the same documents, after every event and once
+opened again.
 
 ## Boundaries and contracts
 
@@ -204,8 +207,8 @@ A backend:
    factory imports the module only when its scheme is named, so a deployment on files does not
    install the driver;
 2. implements `RunStorage` and `ProjectLog`, keeping every guarantee above;
-3. passes the conformance kit (`check_run_storage`, `check_project_log` and
-   `check_project_rules`), run from the harness's tests against a real database. Those tests
+3. passes the conformance kit (`check_run_storage`, `check_project_log`,
+   `check_project_rules` and `check_a_log_replays_as_it_folds`), run from the harness's tests against a real database. Those tests
    are skipped when no database is named for them, and CI names one;
 4. changes its schema only through numbered SQL files, applied by an explicit command. Start-up
    refuses a database whose schema is older or newer than the build expects, naming the command.
