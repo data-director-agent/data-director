@@ -149,59 +149,10 @@ def count(
     now = now or datetime.now(UTC)
     usage = Usage(made_at=now)
     people: dict[str, Person] = {}
-
-    def person(acted_for: dict[str, Any]) -> Person | None:
-        principal_id = acted_for.get("principal_id")
-        if not principal_id:
-            return None
-        found = people.get(principal_id)
-        if found is None:
-            found = people[principal_id] = Person(
-                principal_id=principal_id,
-                name=str(acted_for.get("name") or principal_id),
-                assurance=acted_for.get("assurance"),
-            )
-        return found
-
     if runs is not None:
-        try:
-            envelopes = list(runs.iter_envelopes())
-        except Exception as exc:  # noqa: BLE001 - any backend failure is shown, not raised
-            usage.errors.append(f"the run store cannot be read: {exc}")
-            envelopes = []
-        for envelope in envelopes:
-            row = run_row(envelope)
-            usage.runs.append(row)
-            usage.by_status[row["status"] or "unknown"] += 1
-            usage.by_agent.setdefault(row["agent_id"] or "unknown", Counter())[
-                row["status"] or "unknown"
-            ] += 1
-            usage.input_tokens += int(row["input_tokens"])
-            usage.output_tokens += int(row["output_tokens"])
-            who = person(envelope.get("acting_for") or {})
-            if who is not None:
-                who.saw(row["at"])
-                if not row["delegated"]:
-                    who.runs += 1
-                if row["conversation_id"]:
-                    who.conversations.add(row["conversation_id"])
-        usage.runs.reverse()
-
+        _count_runs(usage, runs, people)
     if projects is not None:
-        try:
-            summaries = projects.projects()
-        except Exception as exc:  # noqa: BLE001 - any backend failure is shown, not raised
-            usage.errors.append(f"the project store cannot be read: {exc}")
-            summaries = []
-        for summary in summaries:
-            created_by = summary.get("created_by") or {}
-            at = _when(summary.get("created_at"))
-            usage.projects.append({**summary, "at": at})
-            who = person(created_by)
-            if who is not None:
-                who.projects += 1
-                who.saw(at)
-        usage.projects.reverse()
+        _count_projects(usage, projects, people)
 
     days = [(now - timedelta(days=n)).date() for n in range(DAYS_CHARTED - 1, -1, -1)]
     per_day = Counter(run["at"].date() for run in usage.runs if run["at"] is not None)
@@ -212,3 +163,62 @@ def count(
         reverse=True,
     )
     return usage
+
+
+def _person(people: dict[str, Person], acted_for: dict[str, Any]) -> Person | None:
+    """The person `acted_for` names, added to `people` when first seen; None if it names none."""
+    principal_id = acted_for.get("principal_id")
+    if not principal_id:
+        return None
+    found = people.get(principal_id)
+    if found is None:
+        found = people[principal_id] = Person(
+            principal_id=principal_id,
+            name=str(acted_for.get("name") or principal_id),
+            assurance=acted_for.get("assurance"),
+        )
+    return found
+
+
+def _count_runs(usage: Usage, runs: RunStorage, people: dict[str, Person]) -> None:
+    """Count the runs in `runs` into `usage`, and each run into the person it acted for."""
+    try:
+        envelopes = list(runs.iter_envelopes())
+    except Exception as exc:  # noqa: BLE001 - any backend failure is shown, not raised
+        usage.errors.append(f"the run store cannot be read: {exc}")
+        envelopes = []
+    for envelope in envelopes:
+        row = run_row(envelope)
+        usage.runs.append(row)
+        usage.by_status[row["status"] or "unknown"] += 1
+        usage.by_agent.setdefault(row["agent_id"] or "unknown", Counter())[
+            row["status"] or "unknown"
+        ] += 1
+        usage.input_tokens += int(row["input_tokens"])
+        usage.output_tokens += int(row["output_tokens"])
+        who = _person(people, envelope.get("acting_for") or {})
+        if who is not None:
+            who.saw(row["at"])
+            if not row["delegated"]:
+                who.runs += 1
+            if row["conversation_id"]:
+                who.conversations.add(row["conversation_id"])
+    usage.runs.reverse()
+
+
+def _count_projects(usage: Usage, projects: ProjectStorage, people: dict[str, Person]) -> None:
+    """Count the projects in `projects` into `usage`, and each into the person who made it."""
+    try:
+        summaries = projects.projects()
+    except Exception as exc:  # noqa: BLE001 - any backend failure is shown, not raised
+        usage.errors.append(f"the project store cannot be read: {exc}")
+        summaries = []
+    for summary in summaries:
+        created_by = summary.get("created_by") or {}
+        at = _when(summary.get("created_at"))
+        usage.projects.append({**summary, "at": at})
+        who = _person(people, created_by)
+        if who is not None:
+            who.projects += 1
+            who.saw(at)
+    usage.projects.reverse()
