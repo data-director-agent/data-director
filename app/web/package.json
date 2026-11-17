@@ -61,6 +61,9 @@
     "vitest": "5.0.5"
   },
   "overrides": {
+    "@ag-ui/client": {
+      "rxjs": "$rxjs"
+    },
     "eslint-plugin-jsx-a11y": {
       "eslint": "$eslint"
     },

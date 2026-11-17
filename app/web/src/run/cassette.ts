@@ -51,11 +51,12 @@ export class CassetteAgent extends AbstractAgent {
       let next = 0;
       let timer: ReturnType<typeof setTimeout> | undefined;
       const emit = () => {
-        if (next >= events.length) {
+        const event = events[next];
+        if (event === undefined) {
           subscriber.complete();
           return;
         }
-        subscriber.next(events[next]);
+        subscriber.next(event);
         next += 1;
         timer = setTimeout(emit, paceMs);
       };
