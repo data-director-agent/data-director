@@ -21,12 +21,10 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import subprocess
 import sys
 import tempfile
 from collections.abc import Iterator
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -71,24 +69,23 @@ def generate(source: Path = CORE) -> dict[Path, str]:
         importmap.write_text(json.dumps({CORE_IMPORT: str(CORE.with_suffix(""))}), "utf-8")
         view = _view(source, importmap)
         classes = designated_classes(source, view)
-        # Each generator run is its own Python process, most of whose time is importing LinkML,
-        # so they run side by side; the outputs are assembled in a fixed order below.
+        # Most of a generator run is importing LinkML, so every run this source needs is made
+        # in one process (`linkml_batch`): the SHACL shapes, then one JSON Schema per top class.
         documents = list(CORE_DOCUMENTS) if core else []
-        with ThreadPoolExecutor(max_workers=min(8, os.cpu_count() or 1)) as pool:
-            shacl = pool.submit(
-                _run, "linkml.generators.shaclgen", *_imports(importmap), str(source)
-            )
-            generated = iter(
-                pool.map(lambda top: _json_schema(source, top, importmap), documents + classes)
-            )
-            for top_class in documents:
-                schema = next(generated)
-                filename = CORE_DOCUMENTS[top_class]
-                outputs[out / filename] = _dump(_repair(schema, top_class, view), source)
-            shapes_text = shacl.result()
-            if core:
-                outputs[out / SHACL] = shapes_text
-            class_schemas = list(generated)
+        shapes_text, *printed = _run_batch(
+            [
+                ["linkml.generators.shaclgen", *_imports(importmap), str(source)],
+                *(_json_schema_command(source, top, importmap) for top in documents + classes),
+            ]
+        )
+        generated = iter(json.loads(text) for text in printed)
+        for top_class in documents:
+            schema = next(generated)
+            filename = CORE_DOCUMENTS[top_class]
+            outputs[out / filename] = _dump(_repair(schema, top_class, view), source)
+        if core:
+            outputs[out / SHACL] = shapes_text
+        class_schemas = list(generated)
         shapes = _graph(shapes_text) if classes else None
         for class_name, schema in zip(classes, class_schemas, strict=True):
             schema = _prune(_repair(schema, class_name, view))
@@ -216,24 +213,28 @@ def _view(source: Path, importmap: Path) -> Any:
     return SchemaView(str(source), importmap=json.loads(importmap.read_text("utf-8")))
 
 
-def _run(module: str, *args: str) -> str:
+def _run_batch(commands: list[list[str]]) -> list[str]:
+    """What each generator command, `[module, *args]`, prints, run in one LinkML process."""
     result = subprocess.run(
-        [sys.executable, "-m", module, *args], check=True, capture_output=True, text=True
+        [sys.executable, "-m", "dd_sdk.schema.linkml_batch"],
+        input=json.dumps(commands),
+        check=True,
+        capture_output=True,
+        text=True,
     )
-    return result.stdout
+    printed: list[str] = json.loads(result.stdout)
+    return printed
 
 
-def _json_schema(source: Path, top_class: str, importmap: Path) -> dict[str, Any]:
-    text = _run(
+def _json_schema_command(source: Path, top_class: str, importmap: Path) -> list[str]:
+    return [
         "linkml.generators.jsonschemagen",
         "--top-class",
         top_class,
         "--importmap",
         str(importmap),
         str(source),
-    )
-    schema: dict[str, Any] = json.loads(text)
-    return schema
+    ]
 
 
 def _repair(schema: dict[str, Any], top_class: str, view: Any) -> dict[str, Any]:
@@ -336,7 +337,9 @@ def stale(source: Path = CORE) -> list[str]:
 
 
 def _same(path: Path, current: str, fresh: str) -> bool:
-    if path.suffix != ".ttl":
+    # Equal text is an equal graph; comparing graphs, which is slow, is needed only when the
+    # serialiser has ordered blank nodes differently.
+    if current == fresh or path.suffix != ".ttl":
         return current == fresh
     from rdflib import Graph
     from rdflib.compare import to_isomorphic
