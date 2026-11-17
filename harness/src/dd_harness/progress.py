@@ -109,12 +109,6 @@ def intake_answers(events: Iterable[Mapping[str, Any]]) -> dict[str, tuple[str, 
     }
 
 
-def intake_skips(events: Iterable[Mapping[str, Any]]) -> frozenset[str]:
-    """The steps the intake's latest answers mark skipped, counting only the questions asked
-    from the entry point chosen last."""
-    return frozenset(_intake_skippers(events))
-
-
 def _intake_skippers(events: Iterable[Mapping[str, Any]]) -> dict[str, str]:
     """Each step the intake's latest answers mark skipped, with the question whose answer does."""
     events = list(events)

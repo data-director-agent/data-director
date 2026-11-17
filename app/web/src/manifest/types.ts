@@ -11,13 +11,6 @@
 
 import type { RawAgentSpec } from "@data-director/agent-view";
 
-export type {
-  DerivationHow,
-  GroundingMode,
-  RawDerived,
-  RawModelUse,
-} from "@data-director/agent-view";
-
 export interface RawManifestEntry extends RawAgentSpec {
   assigned_action_class: string | null;
   requires_approval: boolean;

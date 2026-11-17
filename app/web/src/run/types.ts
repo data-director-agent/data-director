@@ -16,9 +16,7 @@ export type {
   Envelope,
   EvidenceItem,
   GroundingRef,
-  ModelAccount,
   ModelCall,
-  Outcome,
   OutcomeStatus,
   Problem,
 } from "@data-director/agent-view";

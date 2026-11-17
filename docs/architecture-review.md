@@ -272,3 +272,17 @@ for it.
 | `scripts/check_size.py` | 600 lines (Python), 500 (TypeScript) | 500 lines (Python), 400 (TypeScript) |
 
 The table under "Checks added with this review" records the limits as this review first set them.
+
+## Unused code, November 2026
+
+Refactors such as #975 to #980 left behind code that nothing called any more, and nothing found it
+(#1058). Two checks now do.
+
+| Check | What fails | How the existing findings are recorded |
+|---|---|---|
+| `scripts/check_unused.py` (vulture, Python in a member's `src/`; a use anywhere in the repository counts) | an unused function, method, class, attribute or import | `scripts/unused_code.toml`: `[[reached]]` for code reached by a name vulture cannot see, with how; `[[unused]]` for three SDK helpers no member calls, which may only shrink. A stale entry fails |
+| knip (`npm run lint` in `app/web`, `sdk/browser`, `inventory/browser`) | an unused file, export (one its own file does not use either) or dependency | none: the eleven unused exports it found in `app/web` were removed, as were three unused Python functions and classes. An ignore entry that matches nothing fails |
+
+Unused variables are not checked in Python: vulture reports every Pydantic field and enum member
+as one, and Ruff already reports unused locals. The Python check runs in CI's architecture job, and
+`scripts/tests/test_check_unused.py` plants unused code and a stale entry and expects it to fail.

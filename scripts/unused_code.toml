@@ -1,0 +1,95 @@
+# Code in the workspace members' sources that vulture finds unused, checked by
+# scripts/check_unused.py. An entry no finding matches fails the check: remove it, or run
+# `scripts/check_unused.py --update`.
+#
+# [[reached]]: reached at run time by a name vulture cannot see; `how` says what reaches it. Add
+#   an entry only for code that is used.
+# [[unused]]: unused code recorded when the check was added (#1058). It only shrinks: delete the
+#   code, or call it, and remove its entry. Never add one; delete the code instead.
+
+[[reached]]
+path = "admin/src/dd_admin/usage.py"
+name = "projects_since"
+how = "the overview page calls it (admin/src/dd_admin/templates/overview.html)"
+
+[[reached]]
+path = "agents/advisor-policy/src/dd_agent_advisor_policy/policy_text.py"
+name = "handle_data"
+how = "html.parser.HTMLParser calls it as it reads the page"
+
+[[reached]]
+path = "agents/advisor-policy/src/dd_agent_advisor_policy/policy_text.py"
+name = "handle_endtag"
+how = "html.parser.HTMLParser calls it as it reads the page"
+
+[[reached]]
+path = "agents/advisor-policy/src/dd_agent_advisor_policy/policy_text.py"
+name = "handle_starttag"
+how = "html.parser.HTMLParser calls it as it reads the page"
+
+[[reached]]
+path = "harness/src/dd_harness/observe.py"
+name = "step_finished"
+how = "a run observer's method, which the run calls by name (`_tell`)"
+
+[[reached]]
+path = "harness/src/dd_harness/observe.py"
+name = "step_started"
+how = "a run observer's method, which the run calls by name (`_tell`)"
+
+[[reached]]
+path = "harness/src/dd_harness/package_crate.py"
+name = "compress_type"
+how = "zipfile reads it from the ZipInfo when it writes the entry"
+
+[[reached]]
+path = "harness/src/dd_harness/package_crate.py"
+name = "external_attr"
+how = "zipfile reads it from the ZipInfo when it writes the entry"
+
+[[reached]]
+path = "harness/src/dd_harness/transport/agui.py"
+name = "step_finished"
+how = "a run observer's method, which the run calls by name (dd_harness.observe)"
+
+[[reached]]
+path = "harness/src/dd_harness/transport/agui.py"
+name = "step_started"
+how = "a run observer's method, which the run calls by name (dd_harness.observe)"
+
+[[reached]]
+path = "sdk/src/dd_sdk/serve.py"
+name = "on_cancel_task"
+how = "an override: a2a-sdk's request handler dispatches each A2A method to it"
+
+[[reached]]
+path = "sdk/src/dd_sdk/serve.py"
+name = "on_get_task"
+how = "an override: a2a-sdk's request handler dispatches each A2A method to it"
+
+[[reached]]
+path = "sdk/src/dd_sdk/serve.py"
+name = "on_list_tasks"
+how = "an override: a2a-sdk's request handler dispatches each A2A method to it"
+
+[[reached]]
+path = "sdk/src/dd_sdk/serve.py"
+name = "on_subscribe_to_task"
+how = "an override: a2a-sdk's request handler dispatches each A2A method to it"
+
+[[reached]]
+path = "workbench/src/workbench/evaluation.py"
+name = "completed"
+how = "Inspect reads it from the TaskState the solver returns"
+
+[[unused]]
+path = "sdk/src/dd_sdk/agent.py"
+name = "default_settings"
+
+[[unused]]
+path = "sdk/src/dd_sdk/contract/classes.py"
+name = "parse_payload"
+
+[[unused]]
+path = "sdk/src/dd_sdk/tracing.py"
+name = "execute_tool_span"

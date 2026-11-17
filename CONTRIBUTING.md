@@ -126,7 +126,7 @@ dependency against the advisory databases each day. Dependabot proposes updates 
 ### Keeping the code in shape
 
 The package boundaries are checked by Import Linter and `scripts/check_boundaries.py`. Inside a
-package, three ratchets keep code from growing past what a reviewer can follow
+package, four ratchets keep code from growing past what a reviewer can follow
 ([Architecture review](docs/architecture-review.md)):
 
 - **Function complexity.** Ruff applies mccabe complexity 12 and the pylint limits on branches
@@ -137,6 +137,13 @@ package, three ratchets keep code from growing past what a reviewer can follow
   TypeScript one to 400. A file already over the limit is recorded in `scripts/size_baseline.toml`
   at its present size and may not grow. The pre-commit hook lowers an entry when its file shrinks;
   commit the change.
+- **Unused code.** `uv run python scripts/check_unused.py` runs vulture over the Python, counting
+  a use in a test or script, and fails a function, method, class or import in a member's `src/`
+  that nothing calls. Code reached by a name vulture cannot see (a template, a base class that
+  calls an override) is listed under `[[reached]]` in `scripts/unused_code.toml` with how it is
+  reached; the unused code found when the check was added is listed under `[[unused]]` and may
+  only shrink. `npm run lint` in `app/web`, `sdk/browser` and `inventory/browser` runs knip, which
+  fails an unused file, export or dependency. A stale entry in either fails.
 - **Member registration.** `scripts/check_members.py` checks that each workspace member, and above
   all each agent, appears in every list that names members by hand: the root `pyproject.toml`
   and the files that deploy every agent.
