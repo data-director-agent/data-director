@@ -386,7 +386,7 @@
       },
       "DocumentQuestion": {
          "additionalProperties": false,
-         "description": "A question a drafter asks the researcher about one gap in the version it drafted: a README section it could not write, or a data dictionary cell it could not fill. The target is either gap_section, with gap_part when the section is asked part by part, or gap_file, gap_field and gap_column together. question_id is derived from the target, so it is the same in every version that leaves the same gap (docs/specs/drafting.md). A question may offer a suggested_answer, with how it was derived (suggestion_derivation); a suggestion is never placed in the document, and becomes supplied only when a person records it as their answer.",
+         "description": "A question a drafter asks the researcher about one gap in the version it drafted: a README section it could not write, a data dictionary cell it could not fill, or a metadata record property it left null. The target is either gap_section, with gap_part when the section is asked part by part, or gap_file, gap_field and gap_column together, or gap_property alone. question_id is derived from the target, so it is the same in every version that leaves the same gap (docs/specs/drafting.md). A question may offer a suggested_answer, with how it was derived (suggestion_derivation); a suggestion is never placed in the document, and becomes supplied only when a person records it as their answer.",
          "properties": {
             "question_id": {
                "description": "The question's identifier within its document: q- and 16 lower-case hexadecimal digits, derived from the gap it targets.",
@@ -427,6 +427,13 @@
             },
             "gap_column": {
                "description": "The data dictionary column the question would fill, such as unit.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "gap_property": {
+               "description": "The metadata record value the question would fill, as a path into the record's JSON form: property names joined by dots, with a list entry's position in brackets, such as titles[0].title.",
                "type": [
                   "string",
                   "null"
@@ -2805,5 +2812,5 @@
    ],
    "title": "data_director_core",
    "type": "object",
-   "version": "0.11.0"
+   "version": "0.12.0"
 }

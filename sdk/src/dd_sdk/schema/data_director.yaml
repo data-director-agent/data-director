@@ -12,7 +12,7 @@ description: >-
   schema_class (docs/specs/contract.md); every payload mixes in Grounded so the grounding linter can check it
   without knowing its class (docs/specs/grounding.md). Formats here are fixed; see docs/specs/ for why.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.11.0
+version: 0.12.0
 license: MIT
 
 prefixes:
@@ -624,9 +624,10 @@ classes:
   DocumentQuestion:
     description: >-
       A question a drafter asks the researcher about one gap in the version it drafted: a README
-      section it could not write, or a data dictionary cell it could not fill. The target is
-      either gap_section, with gap_part when the section is asked part by part, or gap_file,
-      gap_field and gap_column together. question_id is derived
+      section it could not write, a data dictionary cell it could not fill, or a metadata record
+      property it left null. The target is either gap_section, with gap_part when the section is
+      asked part by part, or gap_file, gap_field and gap_column together, or gap_property alone.
+      question_id is derived
       from the target, so it is the same in every version that leaves the same gap
       (docs/specs/drafting.md). A question may offer a suggested_answer, with how it was derived
       (suggestion_derivation); a suggestion is never placed in the document, and becomes supplied
@@ -639,6 +640,7 @@ classes:
       - gap_file
       - gap_field
       - gap_column
+      - gap_property
       - suggested_answer
       - suggestion_derivation
 
@@ -1313,6 +1315,11 @@ slots:
     description: The field whose data dictionary row the question would fill.
   gap_column:
     description: The data dictionary column the question would fill, such as unit.
+  gap_property:
+    description: >-
+      The metadata record value the question would fill, as a path into the record's JSON form:
+      property names joined by dots, with a list entry's position in brackets, such as
+      titles[0].title.
   suggested_answer:
     description: >-
       An answer the drafter suggests, offered to the person with the question and never placed in

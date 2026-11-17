@@ -23,7 +23,14 @@ default, a model writes the README's prose
 ([`agents/advisor-documentation/README.md`](../../agents/advisor-documentation/README.md)). The
 researcher answers its questions in the conversation, and the next draft places their answers.
 Where a model is configured, it also suggests a data dictionary's definitions and units, and
-answers to some of a README's questions, offered with the questions. A metadata record drafter follows the same rules when it is built.
+answers to some of a README's questions, offered with the questions.
+
+The Metadata Librarian (`advisor.metadata`) drafts the metadata record by the same rules. It
+serves `preparation.metadata` and drafts a DataCite record in its JSON form from a `DraftRequest`
+with the chosen repository's requirements, asks about every value it leaves null, and places the
+answers recorded to them. Where a model is configured, which it is not by default, the model
+suggests some of those values beside their questions
+([`agents/advisor-metadata/README.md`](../../agents/advisor-metadata/README.md)).
 
 ## Invariants
 
@@ -90,9 +97,17 @@ answers to some of a README's questions, offered with the questions. A metadata 
    README's prose (invariant 4), never an answer, a field's description or an earlier version. A
    dictionary suggestion is offered only if it is one short line of plain text that names no
    link, email address or identifier its input does not give; a README suggestion only if it
-   passes the checks the prose does.
-8. **A drafter rests on its input alone.** The Documentation Editor's grounding mode is
-   `input_only`, whichever way a particular version was drafted. The metadata record and the answers reach it in its input, never by retrieval, so it
+   passes the checks the prose does. The Metadata Librarian suggests only the values its rule
+   table marks `suggest` (`agents/advisor-metadata/src/dd_agent_advisor_metadata/datacite.yaml`):
+   a title, a description, a free keyword and a language; never a creator, contributor, date,
+   rights statement, funder, related identifier or place, which only the researcher can give,
+   and never an entry the repository asks for from a named vocabulary, TODO(#703). Its model is
+   given the repository's requirements and the inventory's structure, never an answer, a
+   description a person wrote, the researchers' records or an earlier version, and a suggestion
+   is offered only if it is one line of plain text that names no link, DOI, email address or
+   ORCID iD its input does not give (`agents/advisor-metadata/tests/test_suggestions.py`).
+8. **A drafter rests on its input alone.** The grounding mode of the Documentation Editor and of
+   the Metadata Librarian is `input_only`, whichever way a particular version was drafted. The metadata record and the answers reach it in its input, never by retrieval, so it
    cites only its input. `document_derivation` records how each version came about: `model`, or
    `template` when no model is configured or none of the model's draft was used. The manifest names it
    as the recorder of `document_text` (`recorded_in`, [Agents](agents.md)).
@@ -106,7 +121,10 @@ hexadecimal digits, that is stable within the document across regenerations, so 
 from what the question fills and never from its position; the Documentation Editor takes the
 digits from the SHA-256 of its target. It also has the text put to the person and its target: a
 README section (`gap_section`), with the part of it (`gap_part`) when the section is asked part by
-part, or a data dictionary cell named by `gap_file`, `gap_field` and `gap_column`. An answer (`DraftAnswer`) names the question it answers and gives the text. The
+part, a data dictionary cell named by `gap_file`, `gap_field` and `gap_column`, or a metadata
+record value named by its path in the record's JSON form (`gap_property`, such as
+`titles[0].title`). A metadata record marks a gap by leaving its value `null`, since JSON has no
+comments. An answer (`DraftAnswer`) names the question it answers and gives the text. The
 classes are in the core contract because the conductor, the app and an orchestrator all read them
 without knowing the drafter. A question may carry a suggested answer (`suggested_answer`) with
 how it was derived (`suggestion_derivation`); the one is present exactly when the other is. A set

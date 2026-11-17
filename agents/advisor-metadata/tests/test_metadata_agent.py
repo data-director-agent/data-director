@@ -1,5 +1,5 @@
-"""advisor.metadata through the conductor: the Metadata Librarian mock
-(docs/specs/agents.md) as the stub drafter of the metadata record (#200)."""
+"""advisor.metadata through the conductor: the Metadata Librarian (docs/specs/agents.md) as the
+drafter of the metadata record (#200), on its template path."""
 
 from __future__ import annotations
 
@@ -50,7 +50,7 @@ def test_drafts_a_datacite_record_with_every_property_the_repository_asks_for(
     asked = sample()
     env, grounded = draft(runs_dir, asked)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
-    assert env.grounding_mode == GroundingMode.NONE and grounded
+    assert env.grounding_mode == GroundingMode.INPUT_ONLY and grounded
     document = env.payload_as(Document)
     assert document.document_kind == DocumentKind.METADATA_RECORD
     assert (document.media_type, document.conforms_to) == ("application/json", DATACITE)
@@ -59,7 +59,7 @@ def test_drafts_a_datacite_record_with_every_property_the_repository_asks_for(
     assert asked.requirements is not None
     for field in asked.requirements.fields:
         assert field.property.split(".")[0] in record, field.property
-    # The mock fills only what holds for any deposit and what the inventory states.
+    # The template fills only what holds for any deposit and what the inventory states.
     assert record["types"] == {"resourceTypeGeneral": "Dataset"}
     assert record["titles"] == [{"title": None}]
     assert {"subject": None, "subjectScheme": "ANZSRC Fields of Research"} in record["subjects"]
@@ -146,6 +146,6 @@ def test_abstains_without_a_repository_or_for_another_kind_or_standard(runs_dir:
 def test_the_card_names_the_persona_and_its_steps() -> None:
     entry = describe(MetadataLibrarian.spec)
     assert entry["title"] == "Metadata Librarian"
-    assert entry["description"].startswith("Mock.")
+    assert not entry["description"].startswith("Mock.")
     assert entry["serves"] == ["preparation.metadata-standard", "preparation.metadata"]
     json.dumps(entry)

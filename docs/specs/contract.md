@@ -144,9 +144,11 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
     the contract version; it is not in the schema yet, TODO(#908).
 24. A `Document` may carry `document_questions`, one `DocumentQuestion` for each gap the version
     leaves: an identifier unique within the document (`q-` and 16 hexadecimal digits, derived
-    from the gap), the text put to the person, and a target that is either a README section or a
-    data dictionary cell named by file, field and column, and optionally a suggested answer with
-    how it was derived (`suggested_answer` and `suggestion_derivation`, both or neither). A
+    from the gap), the text put to the person, and a target that is one of a README section, a
+    data dictionary cell named by file, field and column, or a metadata record value named by its
+    path in the record's JSON form (`gap_property`, such as `titles[0].title`), and optionally a
+    suggested answer with how it was derived (`suggested_answer` and `suggestion_derivation`,
+    both or neither). Adding `gap_property` raised the contract version to 0.12.0. A
     `DraftRequest` may carry `draft_answers`, each a `DraftAnswer` naming the question it answers
     and the text, which the drafter places as given ([Drafting documents](drafting.md), `sdk/tests/test_contract.py`).
 
