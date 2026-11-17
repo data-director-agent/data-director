@@ -130,13 +130,24 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     `app/web/fixtures/inventory-left-out.json`, `app/tests/test_app.py`). The checked inventory
     shows as a chip, never as its text. Beside the attach button, **Make an inventory** opens a
     dialog for a researcher who has none: one sentence on what an inventory is and that the data
-    stay on their computer, a tab per operating system (the browser's own selected) with the
+    stay on their computer, then two routes. The first, where the deployment serves the browser
+    scanner's bundle at `inventory-bundle/`, is **Describe a folder in this browser**
+    (`components/inventory/DescribeFolder.tsx`, `src/scan/`): the researcher chooses a folder
+    (`showDirectoryPicker` where the browser has it, else `<input webkitdirectory>`; dropping one
+    is a shortcut), and `dd-inventory` describes it under Pyodide in a Web Worker with no network
+    (`@data-director/inventory`, Browser scanner). Each stage is announced once and the files are
+    counted on a progress bar; Cancel ends the worker, as does closing the dialog. The inventory
+    it makes is handed on as `<folder>-inventory.json`, so it goes through the check above
+    unchanged. The section credits the PRONOM signatures as their licence asks and links to the
+    bundle's `NOTICES.md`. The second route is the command, for data on a server or a cluster or
+    a very large dataset: a tab per operating system (the browser's own selected) with the
     commands that install uv and run `dd-inventory`, each with a copy button, and at the end the
-    file picker, whose file is attached as if chosen with the button. Its text is
+    file picker, whose file is attached as if chosen with the button. The command's text is
     `@data-director/inventory`'s `making.json`, which the user guide's *Making an inventory* page
     renders too (`docs/hooks_inventory.py`), so the two cannot drift; the dialog names no agent and
-    holds no policy. A browser scanner will be its first choice (TODO(#367))
-    (`app/web/src/components/inventory/MakeInventoryDialog.test.tsx`). The
+    holds no policy (`MakeInventoryDialog.test.tsx`, `DescribeFolder.test.tsx`, and
+    `app/web/e2e/scan.spec.ts`, which scans a folder holding a canary and checks that no request
+    carries it). The release image and VM deploy do not yet serve the bundle (TODO(#1052)). The
     transcript shows the chip on the turn where the project's inventory changed, read from the
     `project_inventory` the conductor gave that turn (`app/tests/test_app.py`,
     `app/web/src/components/conversation/ConversationHome.test.tsx`).
@@ -367,8 +378,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
 - **Depends on** the harness (`dd_harness`) and the SDK only. Workspace-level dependency rules
   are in [System and boundaries](system.md).
 - **Web source layout and import rules.** In `app/web/src`, the domain folders (`run`,
-  `manifest`, `conversation`, `flow`, `session`, `project`, `feedback`, `policy`) hold types and API
-  clients, and reading an inventory is `@data-director/inventory`'s (`inventory/browser/`);
+  `manifest`, `conversation`, `flow`, `session`, `project`, `feedback`, `policy`,
+  `model-account`, `scan`) hold types and API clients, `scan` the browser scanner's client, and
+  reading an inventory is `@data-director/inventory`'s (`inventory/browser/`);
   `components/` holds the interface, one folder per feature, with the shared kit in
   `components/ui/`. Three rules are checked: no file depends on itself through other files
   (dependency-cruiser, `.dependency-cruiser.cjs`, in `npm run lint`); the kit imports no feature
@@ -685,6 +697,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   or of matching the device, is remembered in that browser (`shell.spec.ts`, `profile.spec.ts`).
   Reduced motion follows the device unless the person's preferences say otherwise.
 - **Privacy.** No font or other asset is fetched from a third party; the typeface is self-hosted.
+  The browser scanner reads a chosen folder in the browser and sends only the inventory, after
+  the researcher has checked it; its bundle comes from the app's own origin.
   A problem report is public, and the page says so and shows what will be sent beside the form.
 - **Security.** The credential for filing reports is a secret the app holds, read from a
   credential file or, for a token, the environment. It is one of two, and configuring both stops
@@ -695,7 +709,10 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   The App itself should be granted Issues: read and write and nothing else, so even its key cannot
   do more. A **fine-grained personal access token** is the alternative; give it no scope beyond
   Issues on the one repository, and note that it belongs to a person and expires. Anyone who can
-  reach the app can file a public issue as the project's bot. A delegation grant is a bearer token, so the
+  reach the app can file a public issue as the project's bot. The browser scanner's worker script
+  is sent `default-src 'none'; script-src blob: 'wasm-unsafe-eval'; connect-src 'none'`
+  (`dd_app.worker_policy`, and the preview server in `app/web/vite.config.ts`), so it can neither
+  fetch nor send anything: the page hands it the bundle's bytes. A delegation grant is a bearer token, so the
   app warns at start-up when it is not bound to a loopback address. TODO(#17): authenticate
   callers.
 

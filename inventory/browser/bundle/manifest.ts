@@ -22,6 +22,8 @@ export interface Manifest {
   command: { name: string; version: string };
   /** The package whose installation installs the rest (`loadPackage(entry)`). */
   entry: string;
+  /** The licence notices (`notices.ts`), beside the manifest; not in `files`, as no scan reads them. */
+  notices: string;
   wheels: { name: string; version: string; file: string; sha256: string; source: WheelSource }[];
   /** Every file in the bundle, by its path in it, with its size raw and gzipped. */
   files: Record<string, { bytes: number; gzip: number }>;

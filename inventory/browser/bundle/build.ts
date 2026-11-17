@@ -30,6 +30,7 @@ import { gzipSync } from "node:zlib";
 import { parse as parseToml } from "smol-toml";
 
 import { BUNDLE_DIR, CORE_FILES, MANIFEST, type Manifest } from "./manifest.ts";
+import { NOTICES, renderNotices, wheelLicence } from "./notices.ts";
 import {
   BundleError,
   resolveBundle,
@@ -115,6 +116,39 @@ async function fetchWheel(wheel: BundleWheel): Promise<Uint8Array> {
   return data;
 }
 
+/** Python that prints, for each wheel named, its `METADATA` and the paths in it, as JSON. */
+const READ_WHEELS = `
+import json, sys, zipfile
+out = {}
+for path in sys.argv[1:]:
+    with zipfile.ZipFile(path) as z:
+        names = z.namelist()
+        meta = next(n for n in names if n.endswith(".dist-info/METADATA"))
+        out[path] = {"metadata": z.read(meta).decode("utf-8"), "paths": names}
+print(json.dumps(out))
+`;
+
+/** `NOTICES.md` for the wheels the bundle in `out` holds (`notices.ts`). */
+function writeNotices(out: string, wheels: BundleWheel[], python: string): void {
+  const paths = wheels.map((w) => join(out, "wheels", w.file));
+  const read = JSON.parse(
+    run("uv", ["run", "--no-project", "--quiet", "python", "-I", "-c", READ_WHEELS, ...paths]),
+  ) as Record<string, { metadata: string; paths: string[] }>;
+  const licences = wheels.map((w, i) => {
+    const wheel = read[paths[i] as string];
+    if (!wheel) throw new BundleError(`${w.file} could not be read`);
+    return wheelLicence(w.name, w.version, wheel.metadata, wheel.paths);
+  });
+  const pronom = Object.values(read)
+    .flatMap((w) => w.paths)
+    .map((p) => /^fido\/conf\/formats-(v\d+)\.xml$/.exec(p)?.[1])
+    .find(Boolean);
+  writeFileSync(
+    join(out, NOTICES),
+    renderNotices({ pyodide: pyodideVersion, python, wheels: licences, pronom }),
+  );
+}
+
 async function main(): Promise<void> {
   const out = join(PACKAGE, BUNDLE_DIR);
   rmSync(out, { recursive: true, force: true });
@@ -141,6 +175,7 @@ async function main(): Promise<void> {
     copyFileSync(join(pyodideDir, file), join(out, file));
     record(file, readFileSync(join(out, file)));
   }
+  writeNotices(out, wheels, String(pyodideLock.info.python ?? ""));
   const lockText = JSON.stringify(lock, null, 1);
   writeFileSync(join(out, "pyodide-lock.json"), lockText);
   record("pyodide-lock.json", new TextEncoder().encode(lockText));
@@ -149,6 +184,7 @@ async function main(): Promise<void> {
     pyodide: pyodideVersion,
     command: { name: command.name, version: command.version },
     entry: DISTRIBUTION,
+    notices: NOTICES,
     wheels: wheels.map(({ name, version, file, sha256, source }) => ({
       name,
       version,

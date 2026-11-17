@@ -187,6 +187,7 @@ describe("summarise", () => {
     pyodide: "314.0.8",
     command: { name: "data-director-inventory", version: "0.1.0a4" },
     entry: "data-director-inventory",
+    notices: "NOTICES.md",
     wheels: [
       { name: "opf-fido", version: "1.6.1", file: "f.whl", sha256: "x", source: "workspace" },
       { name: "pydantic", version: "2.12.5", file: "p.whl", sha256: "y", source: "pyodide" },

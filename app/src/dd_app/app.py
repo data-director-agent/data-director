@@ -40,6 +40,7 @@ from typing import Any
 import httpx
 import uvicorn
 from starlette.applications import Starlette
+from starlette.middleware import Middleware
 from starlette.routing import BaseRoute, Mount
 from starlette.staticfiles import StaticFiles
 
@@ -62,6 +63,7 @@ from dd_app.routes import (
     session,
 )
 from dd_app.routes.common import Deps, Feedback
+from dd_app.worker_policy import WorkerPolicy
 from dd_harness.identity import IdentityError
 from dd_harness.model_grants import jwks_routes
 from dd_harness.policy import PolicyError
@@ -147,7 +149,8 @@ def build_app(
             *jwks_routes(governance.conductor.model_grants),
             *meta.shell_routes(deps),
             Mount("/", StaticFiles(directory=web_dist, html=True)),
-        ]
+        ],
+        middleware=[Middleware(WorkerPolicy)],
     )
 
 

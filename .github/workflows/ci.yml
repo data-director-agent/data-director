@@ -416,12 +416,14 @@ jobs:
           flags: web
           fail_ci_if_error: false
 
+  # The shell's browser tests, among them Describe a folder… with the real browser scanner
+  # (e2e/scan.spec.ts), so the scanner's bundle is built first for the preview server to serve.
   web-e2e:
     name: App shell in a browser (Playwright)
     needs: changes
     if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: app/web
@@ -429,11 +431,24 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          cache-dependency-glob: uv.lock
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: app/web/package-lock.json
+          cache-dependency-path: |
+            app/web/package-lock.json
+            inventory/browser/package-lock.json
+      # The wheels the bundle downloads, each checked against its lock as it is read back.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: inventory/browser/.cache/wheels
+          key: inventory-wheels-${{ hashFiles('uv.lock', 'inventory/browser/package-lock.json') }}
+          restore-keys: inventory-wheels-
+      - run: npm ci && npm run bundle
+        working-directory: inventory/browser
       - run: npm ci
       - uses: ./.github/actions/playwright # zizmor: ignore[self-repository]
         with:

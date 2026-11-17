@@ -10,7 +10,8 @@
   },
   "sideEffects": false,
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./scanner/worker": "./src/scanner/worker.ts"
   },
   "files": [
     "src"
