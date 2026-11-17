@@ -84,6 +84,11 @@ three times, and a browser uses a lot of memory on very large files. Use the com
 - your data are on a server, a cluster or network storage that your browser cannot reach;
 - the dataset is very large, with files of several gigabytes or more.
 
+If the folder you choose holds a file of 4 GB or more, the browser says so before it starts, and
+suggests the command. Your browser's memory grows while it reads a file that large, and if your
+computer runs short it may close the page, and the app with it. You can still go on with
+**Describe it here anyway**.
+
 An inventory made in the browser says so: the version of the tool that made it ends in
 `+pyodide`, followed by a version number.
 

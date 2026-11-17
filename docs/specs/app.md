@@ -136,7 +136,10 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     (`showDirectoryPicker` where the browser has it, else `<input webkitdirectory>`; dropping one
     is a shortcut), and `dd-inventory` describes it under Pyodide in a Web Worker with no network
     (`@data-director/inventory`, Browser scanner). Each stage is announced once and the files are
-    counted on a progress bar; Cancel ends the worker, as does closing the dialog. The inventory
+    counted on a progress bar; Cancel ends the worker, as does closing the dialog. A folder
+    holding a file of 4 GB or more is described only after advice that the command suits it
+    better, since the browser's memory grows on files that large and the page can be killed
+    when it runs short (`LargeFileNotice.tsx`; measurements in `inventory/browser/README.md`). The inventory
     it makes is handed on as `<folder>-inventory.json`, so it goes through the check above
     unchanged. The section credits the PRONOM signatures as their licence asks and links to the
     bundle's `NOTICES.md`. The second route is the command, for data on a server or a cluster or
