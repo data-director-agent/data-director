@@ -5,6 +5,7 @@
 #
 #   python=true|false   the Python workspace (ci.yml; the viewer in accessibility.yml)
 #   web=true|false      app/web and the libraries it links, inventory/browser and sdk/browser (ci.yml)
+#   inventory=true|false  the command and its browser bundle, checked against each other (ci.yml)
 #   deploy=true|false   the NGINX site and the systemd units (ci.yml)
 #   docs=true|false     the documentation site (accessibility.yml, which builds it)
 #   codeql=[...]        the languages CodeQL analyses, as a JSON list (codeql.yml)
@@ -19,6 +20,7 @@ set -euo pipefail
 if [ "${1:-}" = --all ]; then
   echo "python=true"
   echo "web=true"
+  echo "inventory=true"
   echo "deploy=true"
   echo "docs=true"
   echo 'codeql=["python","javascript-typescript","actions"]'
@@ -27,6 +29,7 @@ fi
 
 python=false
 web=false
+inventory=false
 deploy=false
 docs=false
 codeql_python=false
@@ -67,6 +70,15 @@ while IFS= read -r f; do
     LICENSE | CITATION.cff) ;;
     *) python=true ;;
   esac
+  # The browser bundle is the command run under Pyodide, so anything that changes the command, its
+  # dependencies, the bundle's build or the sample folder both runtimes describe is checked again
+  # (inventory/browser/README.md). Independent of the rules above.
+  case "$f" in
+    .github/* | scripts/ci_changes.sh | uv.lock | inventory/src/* | inventory/pyproject.toml \
+      | inventory/tests/data/mixed/* | inventory/browser/bundle/* | inventory/browser/package.json \
+      | inventory/browser/package-lock.json)
+      inventory=true ;;
+  esac
   # CodeQL reads source by language, without building it.
   case "$f" in
     .github/workflows/codeql.yml | scripts/ci_changes.sh)
@@ -77,7 +89,7 @@ while IFS= read -r f; do
       | package.json | */package.json | package-lock.json | */package-lock.json)
       codeql_js=true ;;
   esac
-  echo "$f: python=$python web=$web deploy=$deploy docs=$docs" >&2
+  echo "$f: python=$python web=$web inventory=$inventory deploy=$deploy docs=$docs" >&2
 done
 
 languages=()
@@ -87,6 +99,7 @@ if [ "$codeql_actions" = true ]; then languages+=('"actions"'); fi
 
 echo "python=$python"
 echo "web=$web"
+echo "inventory=$inventory"
 echo "deploy=$deploy"
 echo "docs=$docs"
 echo "codeql=[$(IFS=,; echo "${languages[*]+"${languages[*]}"}")]"

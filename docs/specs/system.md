@@ -23,7 +23,11 @@ library that reads a `FileInventory`: it parses, summarises, arranges the files 
 searches them and puts the facts into words. It has no runtime dependencies, holds no user
 interface and no policy, and imports nothing else in the repository. `app/web` links it as source
 (`file:../../inventory/browser`) and never the reverse; the browser scanner (#554) is to join it.
-Its readme says how it is checked.
+Its readme says how it is checked. Its `bundle/` folder builds the browser bundle of
+`dd-inventory`: Pyodide, the command's wheel built from `inventory/` and its dependencies, for the
+app to serve from its own origin. It builds from the `inventory/` member's own source and lock,
+so it crosses no boundary, and Pyodide is a development dependency of the library only, which
+nothing under its `src/` imports. A CI job checks that the bundle writes the command's inventory.
 
 Likewise `sdk/browser/` is `@data-director/agent-view`, a TypeScript and React library for
 inspecting what an agent publishes: its A2A agent card, the Data Director extensions on it

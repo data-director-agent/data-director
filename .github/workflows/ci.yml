@@ -55,6 +55,7 @@ jobs:
     outputs:
       python: ${{ steps.paths.outputs.python }}
       web: ${{ steps.paths.outputs.web }}
+      inventory: ${{ steps.paths.outputs.inventory }}
       deploy: ${{ steps.paths.outputs.deploy }}
     steps:
       # A pull request is checked out as GitHub's merge commit, whose first parent is the base
@@ -447,6 +448,37 @@ jobs:
           path: app/web/playwright-report
           retention-days: 14
 
+  # --- The command's browser bundle (inventory/browser/README.md). --------------------------------
+
+  # Builds the bundle the app is to serve (Pyodide, the command's wheel from this commit and its
+  # dependencies), then runs the command natively and under Pyodide on inventory/tests/data/mixed.
+  # Fails on any difference but when each inventory was made and the runtime's label, and on any
+  # network request under Pyodide. The bundle's size and versions go to the job summary.
+  inventory-bundle:
+    name: Inventory browser bundle (parity)
+    needs: changes
+    if: needs.changes.outputs.inventory == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: inventory/browser
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          cache-dependency-glob: uv.lock
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: inventory/browser/package-lock.json
+      - run: npm ci
+      - run: npm run bundle
+      - run: npm run parity
+
   # --- Deployment: the way in from outside the VM (deploy/README.md). -----------------------------
 
   nginx:
@@ -584,6 +616,7 @@ jobs:
       - web-checks
       - web-unit
       - web-e2e
+      - inventory-bundle
       - nginx
       - systemd
       - hooks
