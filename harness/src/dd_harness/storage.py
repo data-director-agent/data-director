@@ -485,6 +485,11 @@ class ProjectStorage(
     7. A malformed `project_id` names no project.
     """
 
+    def snapshot(self, project_id: str) -> ProjectStorage:
+        """The project as its log reads now, read once for one invocation's reads; it takes no
+        change (invariant 12)."""
+        ...
+
 
 class DepositSource(
     ProjectHoldings, ProjectRepository, ProjectDocuments, ProjectDeposits, Protocol
