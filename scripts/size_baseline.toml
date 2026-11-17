@@ -30,7 +30,7 @@ lines = 700
 
 [[file]]
 path = "app/web/src/components/conversation/ConversationHome.tsx"
-lines = 883
+lines = 879
 
 [[file]]
 path = "app/web/src/components/inventory/InventoryView.tsx"

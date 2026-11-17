@@ -72,6 +72,15 @@ export class Unreachable extends Error {
   constructor() {
     super("the server could not be reached");
   }
+
+  /** What to tell the person: their message is kept, and sending it again is safe. */
+  get advice(): string {
+    return (
+      "Data Director could not reach the server, so this message may not have been sent. " +
+      "Your message is kept: sending it again is safe, because a message that was " +
+      "received is not run twice."
+    );
+  }
 }
 
 /** What a proxy in front of the app (NGINX, or the Vite dev server) answers when the app gave it
@@ -84,6 +93,15 @@ export class NoAnswer extends Unreachable {
   constructor(readonly status: number) {
     super();
     this.message = `the server answered ${status} without a reply from Data Director`;
+  }
+
+  override get advice(): string {
+    return (
+      `Data Director's server did not answer in time (it answered ${this.status}), so this ` +
+      "message may not have been sent, or may still be being answered. Your message is " +
+      "kept: check the conversation above, and send it again if no reply appears. " +
+      "Sending it again is safe, because a message that was received is not run twice."
+    );
   }
 }
 

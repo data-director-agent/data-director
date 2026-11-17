@@ -52,7 +52,7 @@ import {
 } from "react";
 
 import { SendHorizontal, X } from "lucide-react";
-import { NoAnswer, TurnConflict, Unreachable, useConversationApi } from "../../conversation/api";
+import { TurnConflict, Unreachable, useConversationApi } from "../../conversation/api";
 import { type ReplyAnswers, replyQuestions } from "../../conversation/question";
 import {
   type AttachedDocument,
@@ -613,16 +613,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
       if (e instanceof Unreachable) {
         // The server may have received the turn and be running it, so show what it stored.
         if (id) api.get(id).then(setConversation, () => undefined);
-        setError(
-          e instanceof NoAnswer
-            ? `Data Director's server did not answer in time (it answered ${e.status}), so this ` +
-                "message may not have been sent, or may still be being answered. Your message is " +
-                "kept: check the conversation above, and send it again if no reply appears. " +
-                "Sending it again is safe, because a message that was received is not run twice."
-            : "Data Director could not reach the server, so this message may not have been sent. " +
-                "Your message is kept: sending it again is safe, because a message that was " +
-                "received is not run twice.",
-        );
+        setError(e.advice);
       } else if (e instanceof TurnConflict) {
         if (id) api.get(id).then(setConversation, () => undefined);
         setError(
