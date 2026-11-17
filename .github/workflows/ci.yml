@@ -418,6 +418,7 @@ jobs:
 
   # The shell's browser tests, among them Describe a folder… with the real browser scanner
   # (e2e/scan.spec.ts), so the scanner's bundle is built first for the preview server to serve.
+  # That test runs in Firefox and WebKit too; the rest in Chromium.
   web-e2e:
     name: App shell in a browser (Playwright)
     needs: changes
@@ -454,6 +455,7 @@ jobs:
         with:
           playwright: npx playwright
           working-directory: app/web
+          other-browsers: "true"
       # playwright.config.ts builds the shell before it serves it, so there is no build step here.
       - run: npm run e2e
       - if: failure()
@@ -469,8 +471,8 @@ jobs:
   # dependencies), then runs the command natively and under Pyodide on inventory/tests/data/mixed.
   # Fails on any difference but when each inventory was made and the runtime's label, and on any
   # network request under Pyodide. The bundle's size and versions go to the job summary. Then the
-  # browser scanner runs the same bundle in a worker in Chromium, with no network, over a copy of
-  # that folder holding a canary that must appear in no request.
+  # browser scanner runs the same bundle in a worker in Chromium, Firefox and WebKit, with no
+  # network, over a copy of that folder holding a canary that must appear in no request.
   inventory-bundle:
     name: Inventory browser bundle (parity)
     needs: changes
@@ -499,6 +501,7 @@ jobs:
         with:
           playwright: npx playwright
           working-directory: inventory/browser
+          other-browsers: "true"
       # playwright.config.ts builds the test page before it serves it with the bundle.
       - run: npm run e2e
       - if: failure()
