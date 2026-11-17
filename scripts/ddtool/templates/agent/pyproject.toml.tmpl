@@ -1,0 +1,24 @@
+[build-system]
+requires = ["hatchling>=1.32.4"]
+build-backend = "hatchling.build"
+
+[project]
+name = "$distribution"
+version = "0.1.0a0"
+description = "$agent_id: $title"
+requires-python = ">=3.14"
+license = "MIT"
+authors = $authors
+dependencies = ["data-director-sdk>=0.2.0a0", "pydantic>=2.14.1,<3"]
+
+[project.scripts]
+$script = "$package.agent:main"
+
+# What this package's tests import from the workspace (docs/specs/system.md, scripts/check_boundaries.py).
+[dependency-groups]
+dev = [
+  "data-director-harness",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/$package"]

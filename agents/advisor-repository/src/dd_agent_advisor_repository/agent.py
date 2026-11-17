@@ -28,7 +28,7 @@ from dd_agent_advisor_repository.classes import (
 from dd_agent_advisor_repository.explain import Explainer, Item, TemplateExplainer
 from dd_agent_advisor_repository.records import DatabaseRecord, Re3dataRecord
 from dd_agent_advisor_repository.retrieve import Databases, Repositories
-from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
+from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext, abstain
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Derivation,
@@ -43,12 +43,6 @@ from dd_sdk.contract.models import (
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, HASH_ALGORITHM
 from dd_sdk.registry import RegistryUnavailable, SnapshotRef
 from dd_sdk.tracing import retrieval_span
-
-
-def _abstain(reason: ReasonCode, statement: str) -> AgentResult:
-    return AgentResult(
-        outcome=Outcome(status=OutcomeStatus.ABSTAINED, reason_code=reason, statement=statement)
-    )
 
 
 def _ambiguous(got: _Retrieved) -> str:
@@ -194,7 +188,7 @@ class RepositoryAgent:
         needs = request.input
         assert isinstance(needs, RepositoryNeeds)  # the conductor checked spec.accepts
         if not (needs.mandated or rank.queries(needs)):
-            return _abstain(
+            return abstain(
                 ReasonCode.INSUFFICIENT_INPUT,
                 "The needs name no mandated repository, no theme or kind of data, and no "
                 "affiliation, so there was nothing to look up.",
@@ -205,7 +199,7 @@ class RepositoryAgent:
             got = _Retrieved(source.snapshot_ref())
             mandated, not_found, matches, hits = self._from_re3data(needs, source, got)
         except RegistryUnavailable as exc:
-            return _abstain(
+            return abstain(
                 ReasonCode.REGISTRY_UNAVAILABLE,
                 f"re3data could not be read: {exc}. This is not an empty result.",
             )
@@ -237,7 +231,7 @@ class RepositoryAgent:
         on_theme = False  # whether a recommended repository matches a theme
         if needs.mandated:
             if not mandated:
-                return _abstain(
+                return abstain(
                     ReasonCode.NO_CANDIDATES_RETRIEVED,
                     f"No re3data record was found for {', '.join(not_found)} "
                     f"({got.summary()}).{_ambiguous(got)} Check the names, or give the re3data "
@@ -246,7 +240,7 @@ class RepositoryAgent:
             chosen = [(r, CandidateBasis.MANDATED, None, ()) for r in mandated]
         else:
             if not hits:
-                return _abstain(
+                return abstain(
                     ReasonCode.NO_CANDIDATES_RETRIEVED,
                     f"re3data ({got.summary()}) returned nothing for: "
                     + "; ".join(queries)
@@ -255,7 +249,7 @@ class RepositoryAgent:
                 )
             ranked = rank.rank(matches, hits, needs)
             if not ranked:
-                return _abstain(
+                return abstain(
                     ReasonCode.NO_QUALIFYING_RESOURCE,
                     f"{len(hits)} repositories were retrieved ({got.summary()}) but none "
                     f"reached the floor of {rank.config()['confidence_floor']} or accepts "

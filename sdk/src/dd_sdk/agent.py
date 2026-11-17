@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
 
 from opentelemetry.trace import Tracer
@@ -31,11 +32,15 @@ from dd_sdk.contract.models import (
     Frozen,
     Grounded,
     GroundingMode,
+    GroundingRef,
     InvocationRequest,
     ModelCall,
     Outcome,
+    OutcomeStatus,
+    ReasonCode,
 )
 from dd_sdk.contract.version import CONTRACT_VERSION, compatible
+from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 from dd_sdk.process_flow import OUT_OF_SCOPE, STEPS
 
 if TYPE_CHECKING:
@@ -471,6 +476,36 @@ def setting(ctx: RunContext, spec: AgentSpec, name: str) -> str:
         raise KeyError(f"agent {spec.agent_id!r} declares no setting {name!r}")
     sent = ctx.settings.get(name)
     return sent if sent in declared.choices else declared.default
+
+
+# The agent kit: what every agent's `run` builds, written once. An agent may not import another
+# agent, so what they share lives here (docs/architecture-review.md, finding 4).
+
+
+def abstain(reason: ReasonCode, statement: str) -> AgentResult:
+    """An abstention: the agent declines to answer, with no payload and no evidence."""
+    return AgentResult(
+        outcome=Outcome(status=OutcomeStatus.ABSTAINED, reason_code=reason, statement=statement)
+    )
+
+
+def input_ref(ctx: RunContext) -> GroundingRef:
+    """The grounding reference to this invocation's input, as an input_only or none agent cites."""
+    return GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)
+
+
+def input_evidence(ctx: RunContext, *, retrieved_at: datetime | None = None) -> EvidenceItem:
+    """The evidence item for this invocation's input, which `input_ref(ctx)` points at.
+
+    `retrieved_at` defaults to now; pass it to pin the time.
+    """
+    return EvidenceItem(
+        source_id=ctx.input_ref,
+        retrieved_at=retrieved_at if retrieved_at is not None else datetime.now(UTC),
+        hash_algorithm=HASH_ALGORITHM,
+        canonicalisation=INPUT_CANONICALISATION,
+        content_hash=ctx.input_hash,
+    )
 
 
 @runtime_checkable

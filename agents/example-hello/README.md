@@ -2,7 +2,8 @@
 
 **Template, alpha** (`0.1.1a1`): the Friendly Greeter, the smallest agent that meets the whole of
 the contract. It greets whoever the input names, in English, Welsh, French or German, and does
-nothing else. Copy it to start a new agent ([Agents](../README.md)).
+nothing else. Read it to see each step of the recipe; start a new agent with
+`uv run scripts/dd.py new-agent <name>` ([Agents](../README.md)).
 
 | Part | In this agent |
 |---|---|

@@ -18,7 +18,6 @@ TODO(#700).
 from __future__ import annotations
 
 import re
-from datetime import UTC, datetime
 from pathlib import Path
 
 import yaml
@@ -30,19 +29,24 @@ from dd_agent_advisor_ethics.classes import (
     SensitivityQuestion,
 )
 from dd_agent_advisor_ethics.reader import Reader, Reading, TemplateReader
-from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
+from dd_sdk.agent import (
+    AgentResult,
+    AgentSpec,
+    Derived,
+    RunContext,
+    abstain,
+    input_evidence,
+    input_ref,
+)
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Derivation,
-    EvidenceItem,
     GroundingMode,
-    GroundingRef,
     InvocationRequest,
     Outcome,
     OutcomeStatus,
     ReasonCode,
 )
-from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 
 KEYWORDS = Path(__file__).with_name("keywords.yaml")
 WORD = re.compile(r"[a-z]+")
@@ -117,12 +121,9 @@ class EthicsAdviser:
         context = request.input
         assert isinstance(context, SensitivityContext)  # the conductor checked spec.accepts
         if not context.fields and context.involves_people is None:
-            return AgentResult(
-                outcome=Outcome(
-                    status=OutcomeStatus.ABSTAINED,
-                    reason_code=ReasonCode.INSUFFICIENT_INPUT,
-                    statement="Give the dataset's field names, or say whether it involves people.",
-                )
+            return abstain(
+                ReasonCode.INSUFFICIENT_INPUT,
+                "Give the dataset's field names, or say whether it involves people.",
             )
 
         lexical = [flag for name in context.fields if (flag := self._flag(name)) is not None]
@@ -151,7 +152,7 @@ class EthicsAdviser:
             KEYWORD_LIMITATION if self.reader.model_id is None else MODEL_LIMITATION,
         ]
 
-        ref = GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)
+        ref = input_ref(ctx)
         calls = reading.calls
         return AgentResult(
             outcome=Outcome(
@@ -169,15 +170,7 @@ class EthicsAdviser:
                 dropped=list(reading.dropped),
                 grounded_on=[ref],
             ),
-            evidence=[
-                EvidenceItem(
-                    source_id=ctx.input_ref,
-                    retrieved_at=datetime.now(UTC),
-                    hash_algorithm=HASH_ALGORITHM,
-                    canonicalisation=INPUT_CANONICALISATION,
-                    content_hash=ctx.input_hash,
-                )
-            ],
+            evidence=[input_evidence(ctx)],
             model_id=reading.model_id,
             input_tokens=reading.usage.input_tokens,
             output_tokens=reading.usage.output_tokens,
