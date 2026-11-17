@@ -46,7 +46,7 @@
  * read with `useResource`.
  */
 
-import { useRef, useState } from "react";
+import { type ComponentProps, useRef, useState } from "react";
 
 import { X } from "lucide-react";
 import type { ReplyAnswers } from "../../conversation/question";
@@ -65,7 +65,11 @@ import { Link, homePath, navigate, useLocation } from "../../route";
 import type { Envelope } from "../../run/types";
 import type { Conversation } from "../../conversation/types";
 import { ContextPanel } from "../workspace/ContextPanel";
-import { type FlowLoad, PhaseTracker, type TrackedProgress } from "../workspace/PhaseTracker";
+import {
+  type FlowLoad,
+  PhaseTracker,
+  type TrackedProgress,
+} from "../workspace/PhaseTracker";
 import { useFlowLoad } from "../workspace/useFlowLoad";
 import { useAskAbout } from "./useAskAbout";
 import { Workspace } from "../workspace/Workspace";
@@ -83,7 +87,10 @@ import { useAttachments } from "./useAttachments";
 import { useConversationTurns } from "./useConversationTurns";
 import { type IntakeRead, useIntake } from "./useIntake";
 import { useProjectDocuments } from "./useProjectDocuments";
-import { type ProjectProgressRead, useProjectProgress } from "./useProjectProgress";
+import {
+  type ProjectProgressRead,
+  useProjectProgress,
+} from "./useProjectProgress";
 
 /** The project's progress for the phase tracker, with how to change it, once it has been read. */
 function trackedProgress(
@@ -101,18 +108,26 @@ function trackedProgress(
   const { projectApi, documents, startConversation, answerIntakeAgain } = how;
   return {
     progress,
-    chooseEntry: (entry) => change(projectApi.chooseEntry(projectId, entry), projectId),
-    markStep: (stepId, mark) => change(projectApi.markStep(projectId, stepId, mark), projectId),
+    chooseEntry: (entry) =>
+      change(projectApi.chooseEntry(projectId, entry), projectId),
+    markStep: (stepId, mark) =>
+      change(projectApi.markStep(projectId, stepId, mark), projectId),
     error,
     projectId,
     ...(documents.state === "loaded" ? { documents: documents.documents } : {}),
     ...(startConversation ? { startConversation } : {}),
-    ...(answerIntakeAgain ? { answerIntakeAgain: () => answerIntakeAgain(projectId) } : {}),
+    ...(answerIntakeAgain
+      ? { answerIntakeAgain: () => answerIntakeAgain(projectId) }
+      : {}),
   };
 }
 
 /** The prompts a conversation yet to begin offers, from the steps that can be started now. */
-function offeredPrompts(flow: FlowLoad, tracked: TrackedProgress | null, offering: boolean) {
+function offeredPrompts(
+  flow: FlowLoad,
+  tracked: TrackedProgress | null,
+  offering: boolean,
+) {
   if (!offering || !tracked || flow.state !== "loaded") return null;
   return startablePrompts(flow.flow, tracked.progress);
 }
@@ -125,7 +140,9 @@ function chosenRepository(project: ProjectSummary | null): string | null {
 /** Whether `runId` is one of the runs in the conversation's transcript. */
 function holdsRun(conversation: Conversation | null, runId: string): boolean {
   return Boolean(
-    conversation?.turns.flatMap((t) => t.children).some((c) => c.invocation_id === runId),
+    conversation?.turns
+      .flatMap((t) => t.children)
+      .some((c) => c.invocation_id === runId),
   );
 }
 
@@ -151,7 +168,9 @@ function OpenIntake({
       intake={intake.intake}
       again={intake.again}
       flow={flow.state === "loaded" ? flow.flow : null}
-      onAnswer={(questionId, values) => read.answer(projectId, questionId, values)}
+      onAnswer={(questionId, values) =>
+        read.answer(projectId, questionId, values)
+      }
       onDismiss={() => read.dismiss(projectId)}
       onClose={read.close}
       onStart={onStart}
@@ -161,7 +180,13 @@ function OpenIntake({
 }
 
 /** A run named in the address but not in the transcript, so that the link still opens it. */
-function LinkedRun({ runId, agents }: { runId: string; agents: Directory["agents"] }) {
+function LinkedRun({
+  runId,
+  agents,
+}: {
+  runId: string;
+  agents: Directory["agents"];
+}) {
   return (
     <section aria-labelledby="linked-run" className="callout">
       <h3 id="linked-run">
@@ -169,9 +194,62 @@ function LinkedRun({ runId, agents }: { runId: string; agents: Directory["agents
       </h3>
       <RunDetail invocationId={runId} agents={agents} idPrefix="linked-run" />
       <p>
-        <Button icon={X} onPress={() => navigate("/")}>Close the run</Button>
+        <Button icon={X} onPress={() => navigate("/")}>
+          Close the run
+        </Button>
       </p>
     </section>
+  );
+}
+
+function projectNamed(
+  projects: ProjectSummary[],
+  projectId: string | null,
+): ProjectSummary | null {
+  return projects.find((p) => p.project_id === projectId) ?? null;
+}
+
+/** What the transcript does with the project's documents and repository choice; nothing outside a
+ * project. */
+function projectHandlers(
+  projectId: string | null,
+  answered: (projectId: string, value: ProjectDocuments) => void,
+  reloadProjects: () => void | Promise<void>,
+) {
+  if (!projectId) return {};
+  return {
+    onDocumentAnswered: (value: ProjectDocuments) => answered(projectId, value),
+    // The panel reads the choice from the projects list, so it is read again.
+    onRepositoryChosen: () => void reloadProjects(),
+  };
+}
+
+/** The page when no orchestrator can be talked to: why, and the way to the agents. */
+function NoConversation({
+  frame,
+  why,
+  projectId,
+  project,
+}: {
+  frame: Pick<ComponentProps<typeof Workspace>, "project" | "phases">;
+  why: string | null;
+  projectId: string | null;
+  project: ProjectSummary | null;
+}) {
+  return (
+    <Workspace
+      {...frame}
+      title="No conversation is available"
+      centre={
+        <>
+          <p>{why} You can still use each agent on its own.</p>
+          <p>
+            <Link to="/agents">Open the agent directory</Link>
+          </p>
+        </>
+      }
+      context={<ContextPanel projectId={projectId} project={project} />}
+    />
   );
 }
 
@@ -229,34 +307,34 @@ export function ConversationHome({ directory }: { directory: Directory }) {
 
   const flow = useFlowLoad();
 
-  useAskAbout(flow, setText, box, { conversation: urlConversation, run: runId });
+  useAskAbout(flow, setText, box, {
+    conversation: urlConversation,
+    run: runId,
+  });
 
   const frame = {
     project: <ProjectSwitcher />,
     phases: <PhaseTracker load={flow} tracked={tracked} />,
   };
-  const project = projects.find((p) => p.project_id === projectId) ?? null;
+  const project = projectNamed(projects, projectId);
 
   if (unusable || !orchestrator) {
     return (
-      <Workspace
-        {...frame}
-        title="No conversation is available"
-        centre={
-          <>
-            <p>{unusable} You can still use each agent on its own.</p>
-            <p>
-              <Link to="/agents">Open the agent directory</Link>
-            </p>
-          </>
-        }
-        context={<ContextPanel projectId={projectId} project={project} />}
+      <NoConversation
+        frame={frame}
+        why={unusable}
+        projectId={projectId}
+        project={project}
       />
     );
   }
 
   async function send() {
-    await turns.deliver(text.trim(), { inventory: attached, document: attachedDocument }, null);
+    await turns.deliver(
+      text.trim(),
+      { inventory: attached, document: attachedDocument },
+      null,
+    );
   }
 
   /** Sends the answers to the latest turn's questions, said in words as `message`. What is in
@@ -304,14 +382,16 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     );
   }
 
-
   return (
     <Workspace
       {...frame}
       title="Talk to Data Director"
       titleHidden
       centre={
-        <section aria-labelledby="conversation-heading" className="conversation-main">
+        <section
+          aria-labelledby="conversation-heading"
+          className="conversation-main"
+        >
           <h2 id="conversation-heading" className="visually-hidden">
             Conversation
           </h2>
@@ -328,22 +408,24 @@ export function ConversationHome({ directory }: { directory: Directory }) {
               agents={directory.agents}
               onToggleRun={toggleRun}
               selectedRun={runId}
-              documents={documents.state === "loaded" ? documents.documents : null}
+              documents={
+                documents.state === "loaded" ? documents.documents : null
+              }
               pending={sent && { agentId: orchestrator.id, ...sent }}
-              onAnswer={(answers, message) => void answerQuestions(answers, message)}
+              onAnswer={(answers, message) =>
+                void answerQuestions(answers, message)
+              }
               chosenRepository={chosenRepository(project)}
               project={project}
-              {...(projectId
-                ? {
-                    onDocumentAnswered: (value: ProjectDocuments) => answered(projectId, value),
-                    // The panel reads the choice from the projects list, so it is read again.
-                    onRepositoryChosen: () => reloadProjects(),
-                  }
-                : {})}
+              {...projectHandlers(projectId, answered, reloadProjects)}
             />
           )}
           <StartFromStep
-            offered={offeredPrompts(flow, tracked, quiet && !writing && !intake?.open)}
+            offered={offeredPrompts(
+              flow,
+              tracked,
+              quiet && !writing && !intake?.open,
+            )}
             replacing={replacing}
             onChoose={beginWith}
             onCancel={() => setReplacing(null)}
@@ -368,7 +450,9 @@ export function ConversationHome({ directory }: { directory: Directory }) {
       }
       history={
         <EarlierConversations
-          conversations={turns.past.filter((c) => (c.project_id ?? null) === projectId)}
+          conversations={turns.past.filter(
+            (c) => (c.project_id ?? null) === projectId,
+          )}
           currentId={turns.conversationId}
           onOpen={(id) => void turns.reopen(id)}
           onNew={turns.reset}
