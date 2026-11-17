@@ -43,7 +43,7 @@ from dd_sdk.contract.models import (
     ReasonCode,
 )
 from dd_sdk.tracing import ATTR_GROUNDING_MODE, ATTR_INPUT_HASH, records_from_jsonl
-from dd_sdk.wire import WireError, reply_from_document, reply_to_document
+from dd_sdk.wire import CARD_PATH, WireError, reply_from_document, reply_to_document
 
 
 def spans_of(runs_dir: Path, invocation_id: str) -> list[dict[str, object]]:
@@ -149,6 +149,34 @@ def test_an_agent_that_goes_away_after_registration_is_a_failed_envelope(runs_di
     env = conductor.invoke(request(gone.spec.agent_id), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.FAILED
     assert env.problem is not None and "connection refused" in (env.problem.detail or "")
+
+
+def test_a_call_is_made_from_the_card_read_at_registration(runs_dir: Path) -> None:
+    """Each call reaches the agent without reading its card again."""
+    registered = in_process(ScriptedAgent(GroundingMode.NONE, review_of_input))
+    paths: list[str] = []
+
+    async def record(sent: httpx.Request) -> None:
+        paths.append(sent.url.path)
+
+    def recording(base_url: str, timeout_s: float) -> httpx.AsyncClient:
+        client = registered.client_factory(base_url, timeout_s)
+        client.event_hooks["request"].append(record)
+        return client
+
+    agent = RemoteAgent(
+        spec=registered.spec, url=registered.url, card=registered.card, client_factory=recording
+    )
+    conductor = Conductor(
+        registry=Registry.from_agents([agent]),
+        store=RunStore(runs_dir),
+        profile=load_profile(PERMISSIVE),
+        write_crate=False,
+    )
+    for _ in range(2):
+        env = conductor.invoke(request(agent.spec.agent_id), acting_for=TEST_PRINCIPAL)
+        assert env.outcome.status != OutcomeStatus.FAILED
+    assert paths and CARD_PATH not in paths
 
 
 def test_an_in_process_agent_and_its_remote_twin_produce_the_same_outcome(runs_dir: Path) -> None:
