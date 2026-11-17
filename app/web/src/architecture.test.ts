@@ -53,12 +53,12 @@ describe("function size rules", () => {
     Array.from({ length: count }, (_, i) => `  if (n === ${i}) return ${i};`).join("\n");
 
   it("reports a function more complex than the limit", async () => {
-    const code = `export function planted(n: number): number {\n${branches(20)}\n  return -1;\n}\n`;
+    const code = `export function planted(n: number): number {\n${branches(18)}\n  return -1;\n}\n`;
     expect(await ruleIds("src/run/planted.ts", code)).toContain("complexity");
   });
 
   it("allows a function within the limit", async () => {
-    const code = `export function planted(n: number): number {\n${branches(19)}\n  return -1;\n}\n`;
+    const code = `export function planted(n: number): number {\n${branches(17)}\n  return -1;\n}\n`;
     expect(await ruleIds("src/run/planted.ts", code)).not.toContain("complexity");
   });
 

@@ -129,12 +129,12 @@ The package boundaries are checked by Import Linter and `scripts/check_boundarie
 package, three ratchets keep code from growing past what a reviewer can follow
 ([Architecture review](docs/architecture-review.md)):
 
-- **Function complexity.** Ruff applies mccabe complexity 15 and the pylint limits on branches
-  (15), statements (60), arguments (8) and returns (8) to Python outside tests. ESLint applies
-  complexity 20 and nesting depth 4 to `app/web`, `sdk/browser` and `inventory/browser` outside
+- **Function complexity.** Ruff applies mccabe complexity 12 and the pylint limits on branches
+  (12), statements (50), arguments (7) and returns (6) to Python outside tests. ESLint applies
+  complexity 18 and nesting depth 4 to `app/web`, `sdk/browser` and `inventory/browser` outside
   tests.
-- **File size.** `scripts/check_size.py` holds each Python source file to 600 lines and each
-  TypeScript one to 500. A file already over the limit is recorded in `scripts/size_baseline.toml`
+- **File size.** `scripts/check_size.py` holds each Python source file to 500 lines and each
+  TypeScript one to 400. A file already over the limit is recorded in `scripts/size_baseline.toml`
   at its present size and may not grow. The pre-commit hook lowers an entry when its file shrinks;
   commit the change.
 - **Member registration.** `scripts/check_members.py` checks that each workspace member, and above

@@ -255,3 +255,17 @@ Two things are shared by the checks:
 The rule for contributors is in CONTRIBUTING.md under "Keeping the code in shape": never add a
 marker or a baseline entry to get new code past a check, and remove one when you split the code it
 marks.
+
+## Limits tightened, November 2026
+
+The limits were lowered to keep pushing the code towards a size a reviewer can follow. The code
+that the new limits caught was split in the same change, so no marker or baseline entry was added
+for it.
+
+| Check | Before | After |
+|---|---|---|
+| Ruff (Python outside tests) | complexity 15, branches 15, statements 60, arguments 8, returns 8 | complexity 12, branches 12, statements 50, arguments 7, returns 6 |
+| ESLint `complexity` | 20 | 18 |
+| `scripts/check_size.py` | 600 lines (Python), 500 (TypeScript) | 500 lines (Python), 400 (TypeScript) |
+
+The table under "Checks added with this review" records the limits as this review first set them.
