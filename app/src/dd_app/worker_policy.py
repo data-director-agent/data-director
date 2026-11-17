@@ -41,35 +41,47 @@ def _with_header(message: Message, name: bytes, value: str) -> Message:
     return {**message, "headers": headers}
 
 
-class WorkerPolicy:
+class _HeaderOnPath:
+    """ASGI middleware: one header set on the responses to the paths `applies_to` accepts."""
+
+    header: bytes
+    value: str
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    @staticmethod
+    def applies_to(path: str) -> bool:
+        raise NotImplementedError
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or not self.applies_to(scope["path"]):
+            await self.app(scope, receive, send)
+            return
+
+        async def send_with_header(message: Message) -> None:
+            await send(_with_header(message, self.header, self.value))
+
+        await self.app(scope, receive, send_with_header)
+
+
+class WorkerPolicy(_HeaderOnPath):
     """ASGI middleware: the worker's policy on its script's response, and nothing else changed."""
 
-    def __init__(self, app: ASGIApp) -> None:
-        self.app = app
+    header = b"content-security-policy"
+    value = WORKER_POLICY
 
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http" or not WORKER_PATH.fullmatch(scope["path"]):
-            await self.app(scope, receive, send)
-            return
-
-        async def send_with_policy(message: Message) -> None:
-            await send(_with_header(message, b"content-security-policy", WORKER_POLICY))
-
-        await self.app(scope, receive, send_with_policy)
+    @staticmethod
+    def applies_to(path: str) -> bool:
+        return WORKER_PATH.fullmatch(path) is not None
 
 
-class BundleCaching:
+class BundleCaching(_HeaderOnPath):
     """ASGI middleware: `Cache-Control: no-cache` on the bundle, and nothing else changed."""
 
-    def __init__(self, app: ASGIApp) -> None:
-        self.app = app
+    header = b"cache-control"
+    value = BUNDLE_CACHING
 
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http" or not scope["path"].startswith(BUNDLE_PREFIX):
-            await self.app(scope, receive, send)
-            return
-
-        async def send_with_caching(message: Message) -> None:
-            await send(_with_header(message, b"cache-control", BUNDLE_CACHING))
-
-        await self.app(scope, receive, send_with_caching)
+    @staticmethod
+    def applies_to(path: str) -> bool:
+        return path.startswith(BUNDLE_PREFIX)
