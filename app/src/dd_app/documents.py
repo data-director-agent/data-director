@@ -20,7 +20,7 @@ from dd_harness.projects import (
     Verdict,
     review_rules,
 )
-from dd_harness.storage import ProjectStorage
+from dd_harness.storage import ProjectDocuments
 from dd_sdk.contract.models import QUESTION_ID_PATTERN, UUID7_PATTERN, DraftAnswer
 
 DIGEST = re.compile(r"[0-9a-f]{64}")
@@ -39,7 +39,7 @@ class DecisionRequestError(ValueError):
     recorded."""
 
 
-def view(store: ProjectStorage, project_id: str) -> dict[str, Any]:
+def view(store: ProjectDocuments, project_id: str) -> dict[str, Any]:
     """`GET /api/projects/{id}/documents`: each document with every version and its state, the
     answers given to its questions, and the rules a decision or answer form states. Raises
     `UnknownProjectError` for an unknown project."""

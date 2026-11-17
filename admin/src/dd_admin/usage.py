@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from dd_harness.storage import ProjectStorage, RunStorage
+from dd_harness.storage import ProjectLifecycle, RunStorage
 
 DAYS_CHARTED = 30
 
@@ -142,7 +142,7 @@ def run_row(envelope: dict[str, Any]) -> dict[str, Any]:
 
 
 def count(
-    runs: RunStorage | None, projects: ProjectStorage | None, now: datetime | None = None
+    runs: RunStorage | None, projects: ProjectLifecycle | None, now: datetime | None = None
 ) -> Usage:
     """Read both stores and count what they hold. A store that cannot be read is named in
     `errors` and counted as empty, so the rest of the page still shows."""

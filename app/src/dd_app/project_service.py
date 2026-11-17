@@ -26,7 +26,18 @@ from dd_harness.projects import (
     UnknownProjectError,
 )
 from dd_harness.requirements import Requirements
-from dd_harness.storage import ProjectStorage
+from dd_harness.storage import (
+    DepositSource,
+    ProjectDeposits,
+    ProjectDocuments,
+    ProjectHoldings,
+    ProjectLifecycle,
+    ProjectProgress,
+    ProjectRecord,
+    ProjectRepository,
+    ProjectResearchers,
+    ProjectStorage,
+)
 from dd_sdk.contract.models import DraftAnswer, Principal
 
 # The most repositories one search of the pinned re3data export answers with.
@@ -64,7 +75,7 @@ class ProjectService:
 
     def create(self, title: str | None, *, acted_for: Principal) -> dict[str, Any]:
         """A project of its own, with no conversation, as `GET /api/projects` lists it."""
-        store = self._store
+        store: ProjectLifecycle = self._store
         project_id = store.create(acted_for=acted_for, caused_by=CREATED_BY_ROUTE, title=title)
         return {**store.summary(project_id), "conversations": []}
 
@@ -75,7 +86,7 @@ class ProjectService:
         name: its title, or its identifier while it has none. The check is here as well as on the
         page, so no client can skip it. Answers with its summary, whose `deleted` says until when
         it may be restored."""
-        store = self._store
+        store: ProjectLifecycle = self._store
         if typed.strip() != (store.summary(project_id)["title"] or project_id):
             raise TitleMismatchError(
                 "`title` is not the project's name. Type it exactly to delete the project."
@@ -84,7 +95,7 @@ class ProjectService:
         return store.summary(project_id)
 
     def restore(self, project_id: str, *, acted_for: Principal, caused_by: str) -> dict[str, Any]:
-        store = self._store
+        store: ProjectLifecycle = self._store
         store.restore(project_id, acted_for=acted_for, caused_by=caused_by)
         return store.summary(project_id)
 
@@ -92,7 +103,7 @@ class ProjectService:
         self, project_id: str, title: str, *, acted_for: Principal, caused_by: str
     ) -> dict[str, Any]:
         """A person's name for the project, which a model's never replaces."""
-        store = self._store
+        store: ProjectLifecycle = self._store
         store.rename(
             project_id, title, source=TITLE_BY_RESEARCHER, acted_for=acted_for, caused_by=caused_by
         )
@@ -101,7 +112,8 @@ class ProjectService:
     # What the project holds of the researcher's files, and of the researcher.
 
     def inventory(self, project_id: str) -> dict[str, Any] | None:
-        return self._store.inventory(project_id)
+        store: ProjectHoldings = self._store
+        return store.inventory(project_id)
 
     def add_inventory(
         self, project_id: str, inventory: dict[str, Any], *, acted_for: Principal, caused_by: str
@@ -113,25 +125,28 @@ class ProjectService:
         return held
 
     def documentation(self, project_id: str) -> list[dict[str, Any]]:
-        return self._store.documentation(project_id)
+        store: ProjectHoldings = self._store
+        return store.documentation(project_id)
 
     def documentation_text(self, project_id: str, digest: str) -> str | None:
-        return self._store.documentation_text(project_id, digest)
+        store: ProjectHoldings = self._store
+        return store.documentation_text(project_id, digest)
 
     def researchers(self, project_id: str) -> list[dict[str, Any]]:
-        return self._store.researchers(project_id) or []
+        store: ProjectResearchers = self._store
+        return store.researchers(project_id) or []
 
     def keep_researcher(
         self, project_id: str, chosen: dict[str, Any], *, acted_for: Principal, caused_by: str
     ) -> list[dict[str, Any]]:
-        store = self._store
+        store: ProjectResearchers = self._store
         store.add_researcher(project_id, chosen, acted_for=acted_for, caused_by=caused_by)
         return store.researchers(project_id) or []
 
     def withdraw_researcher(
         self, project_id: str, *, acted_for: Principal, caused_by: str
     ) -> list[dict[str, Any]]:
-        store = self._store
+        store: ProjectResearchers = self._store
         store.withdraw_researcher(
             project_id, acted_for.principal_id, acted_for=acted_for, caused_by=caused_by
         )
@@ -140,24 +155,26 @@ class ProjectService:
     # Where the project is (docs/specs/orchestration.md) and its intake (docs/specs/app.md).
 
     def progress(self, project_id: str) -> dict[str, Any]:
-        return self._store.progress(project_id)
+        store: ProjectProgress = self._store
+        return store.progress(project_id)
 
     def choose_entry(
         self, project_id: str, entry: int, *, acted_for: Principal, caused_by: str
     ) -> dict[str, Any]:
-        store = self._store
+        store: ProjectProgress = self._store
         store.choose_entry(project_id, entry, acted_for=acted_for, caused_by=caused_by)
         return store.progress(project_id)
 
     def mark_step(
         self, project_id: str, step_id: str, mark: str, *, acted_for: Principal, caused_by: str
     ) -> dict[str, Any]:
-        store = self._store
+        store: ProjectProgress = self._store
         store.mark_step(project_id, step_id, mark, acted_for=acted_for, caused_by=caused_by)
         return store.progress(project_id)
 
     def intake(self, project_id: str) -> dict[str, Any]:
-        return self._store.intake(project_id)
+        store: ProjectProgress = self._store
+        return store.intake(project_id)
 
     def answer_intake(
         self,
@@ -168,7 +185,7 @@ class ProjectService:
         acted_for: Principal,
         caused_by: str,
     ) -> dict[str, Any]:
-        store = self._store
+        store: ProjectProgress = self._store
         store.answer_intake(
             project_id, question_id, values, acted_for=acted_for, caused_by=caused_by
         )
@@ -177,19 +194,20 @@ class ProjectService:
     def dismiss_intake(
         self, project_id: str, *, acted_for: Principal, caused_by: str
     ) -> dict[str, Any]:
-        store = self._store
+        store: ProjectProgress = self._store
         store.dismiss_intake(project_id, acted_for=acted_for, caused_by=caused_by)
         return store.intake(project_id)
 
     # Documents (docs/specs/projects.md, docs/specs/drafting.md).
 
     def documents(self, project_id: str) -> dict[str, Any]:
-        return documents.view(self._store, project_id)
+        store: ProjectDocuments = self._store
+        return documents.view(store, project_id)
 
     def decide(
         self, project_id: str, decision: Decision, *, acted_for: Principal, caused_by: str
     ) -> dict[str, Any]:
-        store = self._store
+        store: ProjectDocuments = self._store
         decided = store.decide(project_id, decision, acted_for=acted_for, caused_by=caused_by)
         return {**documents.view(store, project_id), "decided": decided.model_dump()}
 
@@ -203,7 +221,7 @@ class ProjectService:
         acted_for: Principal,
         caused_by: str,
     ) -> dict[str, Any]:
-        store = self._store
+        store: ProjectDocuments = self._store
         answered = store.answer(
             project_id, document_id, version, answers, acted_for=acted_for, caused_by=caused_by
         )
@@ -212,7 +230,8 @@ class ProjectService:
     # Repository choice and deposit (docs/specs/deposit.md).
 
     def requirements(self, project_id: str) -> dict[str, Any] | None:
-        return self._store.requirements(project_id)
+        store: ProjectRepository = self._store
+        return store.requirements(project_id)
 
     def choose_repository(
         self, project_id: str, re3data_id: str, *, acted_for: Principal, caused_by: str
@@ -252,9 +271,8 @@ class ProjectService:
         }
 
     def validate(self, project_id: str, *, acted_for: Principal, caused_by: str) -> dict[str, Any]:
-        validation, digest = check(
-            self._store, project_id, acted_for=acted_for, caused_by=caused_by
-        )
+        store: DepositSource = self._store
+        validation, digest = check(store, project_id, acted_for=acted_for, caused_by=caused_by)
         return deposit.validation_view(validation, digest)
 
     def package(
@@ -262,7 +280,7 @@ class ProjectService:
     ) -> tuple[Package, dict[str, Any]]:
         """The deposit package, built only if the project is valid, and the validation as the
         shell draws it. Raises `PackageRefusedError` when it is not valid."""
-        store = self._store
+        store: DepositSource = self._store
         built = build_package(
             store,
             self.governance.conductor.store,
@@ -273,19 +291,19 @@ class ProjectService:
         return built, self.validation_view(project_id, built.validation)
 
     def validation_view(self, project_id: str, validation: Validation) -> dict[str, Any]:
-        return deposit.validation_view(
-            validation, deposit.last_report_digest(self._store, project_id)
-        )
+        store: ProjectRecord = self._store
+        return deposit.validation_view(validation, deposit.last_report_digest(store, project_id))
 
     def package_content(self, project_id: str, digest: str) -> bytes | None:
         """A package the project log records as built, or None (a digest that is not one too)."""
-        store = self._store
+        store: ProjectDeposits = self._store
         if not deposit.DIGEST.fullmatch(digest):
             return None
         return store.package(project_id, digest)
 
     def disclosure(self, project_id: str) -> Disclosure:
-        return disclose(self._store, self.governance.conductor.store, project_id)
+        store: ProjectDocuments = self._store
+        return disclose(store, self.governance.conductor.store, project_id)
 
 
 __all__ = [

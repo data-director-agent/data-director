@@ -52,11 +52,18 @@ an agent the conductor leaves them out (`leave_out`) rather than refusing the ru
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, Protocol
 
 from dd_harness.progress import ENTRY_BY_RESEARCHER
 from dd_harness.projects import TITLE_BY_RESEARCHER
-from dd_harness.storage import ProjectStorage
+from dd_harness.storage import (
+    ProjectDocuments,
+    ProjectHoldings,
+    ProjectLifecycle,
+    ProjectProgress,
+    ProjectRepository,
+    ProjectResearchers,
+)
 from dd_sdk.contract.models import DocumentKind
 from dd_sdk.evidence import input_hash
 
@@ -82,12 +89,26 @@ DOCUMENTATION = "documentation"
 RESEARCHER = "researcher"
 # The slots that hold researcher facts, of a `Message` and of a `DraftRequest`.
 RESEARCHER_SLOTS = ("project_researchers", "researchers")
+
+
 # A `DraftRequest`'s slots that hold documentation.
+class FactSource(
+    ProjectLifecycle,
+    ProjectHoldings,
+    ProjectResearchers,
+    ProjectRepository,
+    ProjectProgress,
+    ProjectDocuments,
+    Protocol,
+):
+    """The areas of a project its facts are read from: every area but its deposits."""
+
+
 DOCUMENTATION_SLOTS = ("metadata_record", "current_version", "draft_answers")
 
 
 def give(
-    store: ProjectStorage | None, project_id: str | None, input_doc: Mapping[str, Any]
+    store: FactSource | None, project_id: str | None, input_doc: Mapping[str, Any]
 ) -> dict[str, Any]:
     """`input_doc` with the project's facts put in, for a class that asks for them. With no
     store or no project, only what a caller may never set is removed."""
@@ -150,7 +171,7 @@ def give(
 
 
 def refusal(
-    store: ProjectStorage | None, project_id: str | None, filled: Mapping[str, Any]
+    store: FactSource | None, project_id: str | None, filled: Mapping[str, Any]
 ) -> str | None:
     """Why the conductor refuses to run `filled`, an input `give` returned for `project_id`: a
     `DraftRequest` naming a `redraft_document` that is not the project's, or is of another kind.
@@ -166,7 +187,7 @@ def refusal(
 
 
 def given(
-    store: ProjectStorage | None, project_id: str | None, filled: Mapping[str, Any]
+    store: FactSource | None, project_id: str | None, filled: Mapping[str, Any]
 ) -> frozenset[str]:
     """The classes of project content in `filled`, an input `give` returned for `project_id`.
     Empty outside a project."""
@@ -201,7 +222,7 @@ def leave_out(filled: Mapping[str, Any], classes: frozenset[str]) -> dict[str, A
     return kept
 
 
-def summarise(store: ProjectStorage, project_id: str) -> dict[str, Any] | None:
+def summarise(store: FactSource, project_id: str) -> dict[str, Any] | None:
     """What the project's inventory is, as an `InventorySummary`, or None if it holds none."""
     held = store.inventory(project_id)
     if held is None:
@@ -219,7 +240,7 @@ def summarise(store: ProjectStorage, project_id: str) -> dict[str, Any] | None:
 
 
 def _current(
-    store: ProjectStorage, project_id: str, filled: Mapping[str, Any]
+    store: FactSource, project_id: str, filled: Mapping[str, Any]
 ) -> dict[str, Any] | None:
     """The version a drafter regenerates. None for a kind that is not one, which the request's
     validation then refuses, and for a `redraft_document` that `refusal` refuses."""
@@ -233,7 +254,7 @@ def _current(
         return None
 
 
-def _answers(store: ProjectStorage, project_id: str, kind: Any) -> list[dict[str, Any]] | None:
+def _answers(store: FactSource, project_id: str, kind: Any) -> list[dict[str, Any]] | None:
     """The recorded answers for a drafter of `kind`. None for a kind that is not one, which
     the request's validation then refuses."""
     try:

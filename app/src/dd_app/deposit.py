@@ -12,7 +12,7 @@ from typing import Any
 
 from dd_harness.deposit import Result, Validation
 from dd_harness.projects import PROJECT_VALIDATED
-from dd_harness.storage import ProjectStorage
+from dd_harness.storage import ProjectRecord
 
 DIGEST = re.compile(r"[0-9a-f]{64}")
 
@@ -41,7 +41,7 @@ def validation_view(validation: Validation, report_digest: str | None) -> dict[s
     }
 
 
-def last_report_digest(projects: ProjectStorage, project_id: str) -> str | None:
+def last_report_digest(projects: ProjectRecord, project_id: str) -> str | None:
     """The digest of the validation report the project log kept last, or None."""
     found = [e for e in projects.events(project_id) if e["event"] == PROJECT_VALIDATED]
     return found[-1]["digest"] if found else None

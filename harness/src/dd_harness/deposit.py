@@ -53,7 +53,7 @@ from dd_harness.provenance import AGENT_BASE, VALIDATION_FILE
 from dd_harness.shacl import DD, SH, VIOLATION, WARNING, Result, Severity
 from dd_harness.shacl import report_jsonld as shacl_report
 from dd_harness.shacl import run as run_shacl
-from dd_harness.storage import ProjectStorage, RunStorage
+from dd_harness.storage import DepositSource, RunStorage
 from dd_sdk.contract.models import DocumentKind, Principal, now
 
 SCHEMA = Namespace("http://schema.org/")
@@ -166,7 +166,7 @@ class Package:
     validation: Validation
 
 
-def validate(projects: ProjectStorage, project_id: str) -> Validation:
+def validate(projects: DepositSource, project_id: str) -> Validation:
     """The validation of the project against the merged requirement set recorded for the
     repository chosen last. Reads the project log and writes nothing. Raises
     `UnknownProjectError` for an unknown project."""
@@ -209,7 +209,7 @@ def validate(projects: ProjectStorage, project_id: str) -> Validation:
 
 
 def check(
-    projects: ProjectStorage, project_id: str, *, acted_for: Principal, caused_by: str
+    projects: DepositSource, project_id: str, *, acted_for: Principal, caused_by: str
 ) -> tuple[Validation, str]:
     """Validate the project and keep the report in its log. Returns the validation and the
     report's digest."""
@@ -226,7 +226,7 @@ def check(
 
 
 def build_package(
-    projects: ProjectStorage,
+    projects: DepositSource,
     runs: RunStorage,
     project_id: str,
     *,
@@ -462,7 +462,7 @@ def _check_inventory(
         )
 
 
-def _requirements_digest(projects: ProjectStorage, project_id: str) -> str | None:
+def _requirements_digest(projects: DepositSource, project_id: str) -> str | None:
     chosen = [e for e in projects.events(project_id) if e["event"] == "repository_chosen"]
     return str(chosen[-1]["digest"]) if chosen else None
 
@@ -497,7 +497,7 @@ def _file_iri(project_id: str, path: str) -> str:
 
 
 def _package(
-    projects: ProjectStorage, runs: RunStorage, project_id: str, validation: Validation
+    projects: DepositSource, runs: RunStorage, project_id: str, validation: Validation
 ) -> tuple[bytes, dict[str, Any]]:
     """The package's bytes, and what the project log says of it."""
     requirements = projects.requirements(project_id) or {}

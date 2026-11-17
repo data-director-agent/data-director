@@ -60,7 +60,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 from opentelemetry.trace import SpanContext
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
@@ -69,17 +69,15 @@ from dd_harness import grounding, pipeline, policy, project_access, project_fact
 from dd_harness import sources as source_check
 from dd_harness.model_grants import GrantMinter
 from dd_harness.observe import RunObserver, Watch
+from dd_harness.project_effects import ProjectEffects
+from dd_harness.project_facts import FactSource
 from dd_harness.projects import (
     ProjectDeletedError,
     UnknownProjectError,
 )
 from dd_harness.registry import Registered, Registry
 from dd_harness.remote import RemoteAgent
-from dd_harness.storage import (
-    SPANS,
-    ProjectStorage,
-    RunStorage,
-)
+from dd_harness.storage import SPANS, RunStorage
 from dd_sdk.agent import ModelUse
 from dd_sdk.contract import validate
 from dd_sdk.contract.models import (
@@ -100,6 +98,11 @@ from dd_sdk.tracing import (
 )
 
 log = logging.getLogger(__name__)
+
+
+class RunProjects(FactSource, ProjectEffects, Protocol):
+    """The project areas a run reads facts from (every area but deposits, which no run records),
+    and what a finished run does to its project (`dd_harness.project_effects`)."""
 
 
 class UnknownAgent(Exception):
@@ -160,9 +163,9 @@ class Conductor:
     # The harness's own A2A address, sent to delegation agents as their callback. None (the
     # CLI) means no grant is issued and a delegation agent runs without `delegate`.
     harness_url: str | None = None
-    # The projects runs may belong to (docs/specs/projects.md). None (most tests, the workbench
-    # without DD_PROJECTS_DIR) means no run is in a project.
-    projects: ProjectStorage | None = None
+    # The projects runs may belong to (docs/specs/projects.md), as `RunProjects`. None (most
+    # tests, the workbench without DD_PROJECTS_DIR) means no run is in a project.
+    projects: RunProjects | None = None
     # Mints the model grant each invocation of a model-backed agent is sent
     # (docs/specs/model-accounts.md). None (the default) mints none.
     model_grants: GrantMinter | None = None
