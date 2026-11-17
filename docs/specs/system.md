@@ -22,12 +22,15 @@ Beside the Python members, `inventory/browser/` is `@data-director/inventory`, a
 library that reads a `FileInventory`: it parses, summarises, arranges the files as folders,
 searches them and puts the facts into words. It has no runtime dependencies, holds no user
 interface and no policy, and imports nothing else in the repository. `app/web` links it as source
-(`file:../../inventory/browser`) and never the reverse; the browser scanner (#554) is to join it.
-Its readme says how it is checked. Its `bundle/` folder builds the browser bundle of
-`dd-inventory`: Pyodide, the command's wheel built from `inventory/` and its dependencies, for the
-app to serve from its own origin. It builds from the `inventory/` member's own source and lock,
-so it crosses no boundary, and Pyodide is a development dependency of the library only, which
-nothing under its `src/` imports. A CI job checks that the bundle writes the command's inventory.
+(`file:../../inventory/browser`) and never the reverse. Its `src/scanner/` is the browser
+scanner: a Web Worker, with no network, that runs the browser bundle over a folder the researcher
+chooses; the app is to offer it (#554). Its readme says how it is checked. Its `bundle/` folder
+builds the browser bundle of `dd-inventory`: Pyodide, the command's wheel built from `inventory/`
+and its dependencies, for the app to serve from its own origin. It builds from the `inventory/`
+member's own source and lock, so it crosses no boundary, and Pyodide is a development dependency
+of the library only, which nothing under its `src/` imports: the worker is handed Pyodide's files
+with the rest of the bundle. A CI job checks that the bundle writes the command's inventory, natively and in the
+worker in Chromium.
 
 Likewise `sdk/browser/` is `@data-director/agent-view`, a TypeScript and React library for
 inspecting what an agent publishes: its A2A agent card, the Data Director extensions on it

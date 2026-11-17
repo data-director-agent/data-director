@@ -71,12 +71,13 @@ while IFS= read -r f; do
     *) python=true ;;
   esac
   # The browser bundle is the command run under Pyodide, so anything that changes the command, its
-  # dependencies, the bundle's build or the sample folder both runtimes describe is checked again
-  # (inventory/browser/README.md). Independent of the rules above.
+  # dependencies, the bundle's build, the browser scanner that runs it or the sample folder both
+  # runtimes describe is checked again (inventory/browser/README.md). Independent of the rules above.
   case "$f" in
     .github/* | scripts/ci_changes.sh | uv.lock | inventory/src/* | inventory/pyproject.toml \
       | inventory/tests/data/mixed/* | inventory/browser/bundle/* | inventory/browser/package.json \
-      | inventory/browser/package-lock.json)
+      | inventory/browser/package-lock.json | inventory/browser/src/scanner/* | inventory/browser/e2e/* \
+      | inventory/browser/playwright.config.ts)
       inventory=true ;;
   esac
   # CodeQL reads source by language, without building it.

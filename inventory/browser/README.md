@@ -2,8 +2,9 @@
 
 Reading a `FileInventory`, the document [`dd-inventory`](../README.md) writes, in TypeScript. The
 app uses it to show a researcher what an inventory holds. It also builds the
-[browser bundle](#browser-bundle) of `dd-inventory` itself, which the browser scanner (#554) is to
-run, so that what makes an inventory and what reads one live together.
+[browser bundle](#browser-bundle) of `dd-inventory` itself, and holds the
+[browser scanner](#browser-scanner) that runs it over a folder the researcher chooses, so that
+what makes an inventory and what reads one live together.
 
 The package holds no user interface and no policy, and has no runtime dependencies. It is pure
 functions over the contract's slots, in British English where it puts facts into words. The
@@ -23,6 +24,7 @@ the contract's class schema before a project keeps it ([Projects](../../docs/spe
 | `format` | `formatBytes`, `formatFileCount`, `formatDate`, `describeInventory`, `identificationLabel`, `pronomUrl` |
 | `hints` | `fileHints(inventory)`: the files whose folder, file or field names, size or digest call for a person to look before deposit (free text, coordinates, someone else's material, terms, system files, empty files, copies), each with what to check; `HINT_LABELS`, `HINT_RULES`, and `HINT_LIMITATION`, the sentence that says no hint is not clearance. A prompt, never a finding: the inventory holds no contents (#449). The rules are a copy of the File Archivist's `hints.yaml`; change both together |
 | `making` | `MAKING_AN_INVENTORY`, how to make an inventory on each operating system, and `systemFromPlatform(platform)` |
+| `scanner/` | The [browser scanner](#browser-scanner): `fromDirectoryHandle`, `fromFileList` and `fromEntries` turn a chosen folder into a `ChosenFolder`; `fetchBundle` fetches the bundle for the worker; `startScan` runs a scan in the worker (`scanner/worker.ts`) and gives its events and outcome |
 
 `making` reads its text from `src/making.json`. The user guide's
 [Making an inventory](../../docs/guide/user-guide/making-an-inventory.md) page renders the same file
@@ -72,7 +74,7 @@ $ npm run parity      # the command natively and under Pyodide, on ../tests/data
 - `wheels/`: the command's wheel, built by `uv build` from this commit, and every wheel it needs;
 - `pyodide-lock.json`: a lock of those wheels alone, each with its SHA-256, which Pyodide checks
   as it installs them. The command's entry depends on every other wheel, so
-  `pyodide.loadPackage("data-director-inventory")` installs the bundle (`bundle/load.ts`) and
+  `pyodide.loadPackage("data-director-inventory")` installs the bundle (`src/scanner/runtime.ts`) and
   nothing is fetched from PyPI or a CDN;
 - `manifest.json`: the Pyodide and command versions, each wheel with its source and digest, and
   each file's size, raw and gzipped.
@@ -101,3 +103,59 @@ job summary, so that a change to any of them is seen.
 
 The bundle carries Pyodide (MPL-2.0), fido (Apache-2.0) and The National Archives' PRONOM
 signatures (Open Government Licence), which the app is to credit when it serves the bundle (#554).
+
+## Browser scanner
+
+`src/scanner/` runs the bundle in a Web Worker over a folder the researcher chooses, so that a
+researcher with only a browser can make an inventory (#554). The files are read where they are;
+only the inventory comes back to the page.
+
+1. **Choosing a folder.** `fromDirectoryHandle` takes a folder from `showDirectoryPicker`
+   (`canPickDirectory()` says whether the browser has it), `fromFileList` the files of an
+   `<input type="file" webkitdirectory>`, and `fromEntries` a dropped folder's
+   `webkitGetAsEntry()`. Each gives a `ChosenFolder`: the folder's name and every file under it,
+   by its path relative to the folder. Hidden files are kept; the command skips and counts them
+   itself. Prefer the directory picker where there is one: Chromium's prompt for
+   `webkitdirectory` asks whether to *upload* the files, which is not what happens.
+2. **The bundle.** The page fetches the whole bundle with `fetchBundle(baseUrl)` and hands it to
+   the worker, which has no network: it imports Pyodide's two scripts from `blob:` URLs made of
+   those bytes, and answers Pyodide's requests for the rest from memory (`serveFrom`), checking
+   each wheel against the SHA-256 in the bundle's lock as a browser would. Caching the bundle
+   across scans is left to HTTP caching where the app serves it.
+3. **The scan.** `startScan(worker, assets, folder, onEvent)` posts the request to a fresh worker
+   (`new Worker(new URL(".../scanner/worker.ts", import.meta.url), { type: "module" })`). The
+   worker mounts the files read-only at `/data` with Emscripten's WORKERFS, which reads slices of
+   each file on demand and copies none of them, and runs the command's `make_inventory` there.
+   `onEvent` hears each stage (`starting`, `installing`, `reading`) and each file
+   (`progress`: path, size, done, total). The outcome is the inventory's JSON text, a sentence
+   saying why there is none, or `cancelled`: `cancel()` ends the worker. A worker serves one scan.
+
+The worker is meant to run under this Content Security Policy, which whoever serves it sends with
+the worker's script:
+
+```text
+default-src 'none'; script-src blob: 'wasm-unsafe-eval'; connect-src 'none'
+```
+
+`'unsafe-eval'` is not needed, and neither is `'self'` in `script-src`.
+
+`npm run e2e` (after `npm run bundle`) proves this in Chromium. `e2e/vite.config.ts` builds a test
+page and serves it with the bundle from one origin, sending the worker the policy above. The test
+copies `../tests/data/mixed`, adds a file holding a canary string, chooses the copy through
+`webkitdirectory`, and checks that the inventory equals the command's on the same copy (apart from
+when it was made and the runtime's label), that progress reached the last file, and that every
+request was a `GET` of the page or the bundle with no body and no canary. CI's **Inventory
+browser bundle (parity)** job runs it after the parity check.
+
+What differs from the command on disk:
+
+- **Symbolic links.** Browsers do not show them: a linked file is offered as a file, and so is
+  described where the command would skip it and say so.
+- **Speed and memory.** About three times slower than the command, and ten times on hashing (see
+  the [spike on #367](https://github.com/data-director-agent/data-director/issues/367#issuecomment-6708613929)).
+  Memory rises while a large file is hashed, most likely from WORKERFS's per-read buffers waiting
+  to be collected: in headless Chromium the whole browser rose from about 0.4 GB to 2.4 GB on an
+  8 GB file and to 2.8 GB on a 16 GB file, almost all of it in the renderer that runs the
+  worker. The growth slows as files get larger, but is a reason to use the command for very
+  large datasets.
+- **Browsers.** CI runs Chromium only. Firefox and Safari need a manual check.
