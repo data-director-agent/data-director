@@ -53,6 +53,26 @@ def pytest_json_runtest_metadata(item: pytest.Item, call: pytest.CallInfo[Any]) 
     return {"requirements": ids} if ids else {}
 
 
+# How to run the PostgreSQL storage tests (harness/tests/test_postgres.py) locally, as CI does.
+POSTGRES_HINT = (
+    "docker run -d --rm -p 5432:5432 -e POSTGRES_PASSWORD=dd-test postgres:17, then "
+    "DD_TEST_POSTGRES=postgresql://postgres@localhost:5432/postgres PGPASSWORD=dd-test "
+    "uv run pytest -m postgres"
+)
+
+
+def pytest_terminal_summary(terminalreporter: pytest.TerminalReporter) -> None:
+    """Say so when the PostgreSQL storage tests were skipped, so that a local run that passes is
+    not mistaken for one that tested both storage backends."""
+    skipped = [r for r in terminalreporter.stats.get("skipped", []) if "postgres" in r.keywords]
+    if skipped:
+        terminalreporter.write_sep("-", "PostgreSQL storage tests skipped", yellow=True)
+        terminalreporter.write_line(
+            f"{len(skipped)} PostgreSQL backend tests did not run: DD_TEST_POSTGRES is unset."
+        )
+        terminalreporter.write_line(f"To run them: {POSTGRES_HINT}")
+
+
 @pytest.fixture(scope="session")
 def vcr_config() -> dict[str, Any]:
     # record_mode is deliberately absent: setting it here would override --record-mode on the

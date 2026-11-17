@@ -168,6 +168,15 @@ should fail when behaviour breaks, not when a sentence is reworded or an agent i
   ([Evaluation and conformance](docs/specs/evaluation.md)).
 * Test module basenames are unique across the workspace. Test directories are not packages;
   shared doubles live in `dd_harness.testing` and in an agent's own `testing` module.
+* The PostgreSQL storage tests (`harness/tests/test_postgres.py`, marked `postgres`) run only when
+  `DD_TEST_POSTGRES` names a database. CI sets it; a local run skips them and says so at the end.
+  Run them before changing storage:
+
+  ```bash
+  docker run -d --rm -p 5432:5432 -e POSTGRES_PASSWORD=dd-test postgres:17
+  DD_TEST_POSTGRES=postgresql://postgres@localhost:5432/postgres PGPASSWORD=dd-test uv run pytest -m postgres
+  ```
+
 * Cassettes must not contain credentials. The root `conftest.py` filters the auth headers and the
   sign-in password; check a new cassette before committing it.
 
