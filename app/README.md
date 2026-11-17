@@ -155,8 +155,8 @@ To run it on a server that keeps itself up to date with `main`, see `deploy/READ
 serves the scanner's bundle at `/inventory-bundle/`. Build it with `npm ci && npm run bundle` in
 `inventory/browser`; `npm run dev` and `vite preview` then serve it from there, with its licence
 notices (`NOTICES.md`). `uv run data-director` serves it once it is copied into
-`app/web/dist/inventory-bundle/`; the release image and the VM deploy do not do that yet
-(TODO(#1052)). The app sends the scanner's worker its own Content Security Policy
+`app/web/dist/inventory-bundle/`, as the release image and the VM deploy do. The app sends the
+scanner's worker its own Content Security Policy, and the bundle `Cache-Control: no-cache`
 (`dd_app.worker_policy`).
 
 `DD_APP_HOST` and `DD_APP_PORT` change the address. The agents call the app back on

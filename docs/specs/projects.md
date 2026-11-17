@@ -383,7 +383,7 @@ deployment lists; the shared deployment lists none. The app's **Describe a folde
 scanner in the browser that sends only the inventory ([The app](app.md)): it is the same code run
 under Pyodide, and its inventory's `inventory_tool_version` carries a local version label naming
 the runtime, such as `0.1.0a4+pyodide.314.0.8`, while the command's has none. It is offered where
-the deployment serves its bundle (TODO(#1052)).
+the deployment serves its bundle, as the release image and the VM deploy do.
 
 **Documentation** may be added as text, within a size limit and from a list of media types. A
 turn of the app may attach one document, plain text or Markdown of at most 256 KB under a file
