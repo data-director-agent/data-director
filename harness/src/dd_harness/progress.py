@@ -26,6 +26,7 @@ Nothing here orders the steps or keeps a current one. The order, and the step to
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
+from dataclasses import dataclass, field
 from typing import Any, Final, Literal
 
 from dd_sdk.intake import ENTRY, INTAKE, question
@@ -142,58 +143,76 @@ def step_reasons(events: Iterable[Mapping[str, Any]]) -> dict[str, dict[str, Any
     researcher marked it) or "intake" (an answer to the intake skipped it: `question_id`). `at` is
     when the deciding event was recorded, where the log says."""
     events = list(events)
-    produced: dict[str, StepState] = {}
-    produced_by: dict[str, Mapping[str, Any]] = {}
-    marked: dict[str, StepState] = {}
-    marked_by: dict[str, Mapping[str, Any]] = {}
-    kinds_proposed: set[str] = set()
-    kinds_approved: set[str] = set()
-    kind_of: dict[str, str] = {}
-    # The latest event bearing on each document kind: a proposal, or an approval.
-    proposed_by: dict[str, Mapping[str, Any]] = {}
-    approved_by: dict[str, Mapping[str, Any]] = {}
-    for event in events:
-        name = event["event"]
-        if name in DONE_BY_EVENT:
-            produced[DONE_BY_EVENT[name]] = "done"
-            produced_by[DONE_BY_EVENT[name]] = event
-        elif name == DOCUMENT_VERSION_ADDED:
-            kind_of[event["document_id"]] = event["document_kind"]
-            kinds_proposed.add(event["document_kind"])
-            proposed_by[event["document_kind"]] = event
-        elif name == DOCUMENT_VERSION_DECIDED and event.get("decision") == "approved":
-            kind = kind_of.get(event["document_id"])
-            if kind is not None:
-                kinds_approved.add(kind)
-                approved_by[kind] = event
-        elif name == PROJECT_VALIDATED:
-            # The last validation decides: one that fails after a pass shows the step begun again.
-            produced[VALIDATE_STEP] = "done" if event["conforms"] else "started"
-            produced_by[VALIDATE_STEP] = event
-        elif name == STEP_MARKED:
-            # An "open" mark is kept: it withdraws an earlier mark and overrides the intake.
-            marked[event["step_id"]] = event["mark"]
-            marked_by[event["step_id"]] = event
-    for step_id, (needed, also) in DOCUMENT_STEPS.items():
-        drafted = {needed, *also} & kinds_proposed
-        if needed in kinds_approved and drafted <= kinds_approved:
-            produced[step_id] = "done"
-            produced_by[step_id] = _latest(approved_by[k] for k in drafted)
-        elif drafted:
-            produced[step_id] = "started"
-            produced_by[step_id] = _latest(proposed_by[k] for k in drafted)
+    tally = _tally(events)
+    _document_steps(tally)
     reasons: dict[str, dict[str, Any]] = {}
-    for step_id in produced.keys() | marked.keys():
+    for step_id in tally.produced.keys() | tally.marked.keys():
         # The further of the two: what the log produced outranks a skip, and a researcher may
         # call a started step done. On a tie the log's own work is the reason.
-        made, mark = produced.get(step_id, "open"), marked.get(step_id, "open")
+        made, mark = tally.produced.get(step_id, "open"), tally.marked.get(step_id, "open")
         if _RANK[made] >= _RANK[mark] and made != "open":
-            reasons[step_id] = _produced(made, produced_by[step_id], kind_of)
+            reasons[step_id] = _produced(made, tally.produced_by[step_id], tally.kind_of)
         else:
-            reasons[step_id] = _reason(mark, "marked", marked_by[step_id])
+            reasons[step_id] = _reason(mark, "marked", tally.marked_by[step_id])
     reasons |= _intake_reasons(events, reasons.keys())
     reasons = {k: v for k, v in reasons.items() if v["state"] != "open"}
     return {k: reasons[k] for k in sorted(reasons, key=_ORDER.__getitem__)}
+
+
+@dataclass
+class _Tally:
+    """What the log shows of each step, gathered in one pass by `_tally`."""
+
+    produced: dict[str, StepState] = field(default_factory=dict)
+    produced_by: dict[str, Mapping[str, Any]] = field(default_factory=dict)
+    marked: dict[str, StepState] = field(default_factory=dict)
+    marked_by: dict[str, Mapping[str, Any]] = field(default_factory=dict)
+    kinds_proposed: set[str] = field(default_factory=set)
+    kinds_approved: set[str] = field(default_factory=set)
+    kind_of: dict[str, str] = field(default_factory=dict)
+    # The latest event bearing on each document kind: a proposal, or an approval.
+    proposed_by: dict[str, Mapping[str, Any]] = field(default_factory=dict)
+    approved_by: dict[str, Mapping[str, Any]] = field(default_factory=dict)
+
+
+def _tally(events: Iterable[Mapping[str, Any]]) -> _Tally:
+    """What the log shows of each step: its work, the researcher's marks and the documents."""
+    tally = _Tally()
+    for event in events:
+        name = event["event"]
+        if name in DONE_BY_EVENT:
+            tally.produced[DONE_BY_EVENT[name]] = "done"
+            tally.produced_by[DONE_BY_EVENT[name]] = event
+        elif name == DOCUMENT_VERSION_ADDED:
+            tally.kind_of[event["document_id"]] = event["document_kind"]
+            tally.kinds_proposed.add(event["document_kind"])
+            tally.proposed_by[event["document_kind"]] = event
+        elif name == DOCUMENT_VERSION_DECIDED and event.get("decision") == "approved":
+            kind = tally.kind_of.get(event["document_id"])
+            if kind is not None:
+                tally.kinds_approved.add(kind)
+                tally.approved_by[kind] = event
+        elif name == PROJECT_VALIDATED:
+            # The last validation decides: one that fails after a pass shows the step begun again.
+            tally.produced[VALIDATE_STEP] = "done" if event["conforms"] else "started"
+            tally.produced_by[VALIDATE_STEP] = event
+        elif name == STEP_MARKED:
+            # An "open" mark is kept: it withdraws an earlier mark and overrides the intake.
+            tally.marked[event["step_id"]] = event["mark"]
+            tally.marked_by[event["step_id"]] = event
+    return tally
+
+
+def _document_steps(tally: _Tally) -> None:
+    """Add to `tally` each document step its documents show started or done."""
+    for step_id, (needed, also) in DOCUMENT_STEPS.items():
+        drafted = {needed, *also} & tally.kinds_proposed
+        if needed in tally.kinds_approved and drafted <= tally.kinds_approved:
+            tally.produced[step_id] = "done"
+            tally.produced_by[step_id] = _latest(tally.approved_by[k] for k in drafted)
+        elif drafted:
+            tally.produced[step_id] = "started"
+            tally.produced_by[step_id] = _latest(tally.proposed_by[k] for k in drafted)
 
 
 def _intake_reasons(

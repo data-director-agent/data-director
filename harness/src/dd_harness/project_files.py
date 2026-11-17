@@ -1,4 +1,4 @@
-"""The file backend of `ProjectLog` (`dd_harness.storage`, docs/specs/storage.md).
+"""The file backend of `ProjectLog` (`dd_harness.project_log`, docs/specs/storage.md).
 
 It keeps each project under its root:
 

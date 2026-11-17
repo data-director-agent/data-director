@@ -65,7 +65,14 @@ from typing import Any
 from opentelemetry.trace import SpanContext
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
-from dd_harness import grounding, pipeline, policy, project_access, project_facts
+from dd_harness import (
+    grounding,
+    model_accounts,
+    pipeline,
+    policy,
+    project_access,
+    project_facts,
+)
 from dd_harness import sources as source_check
 from dd_harness.model_grants import GrantMinter
 from dd_harness.observe import RunObserver, Watch
@@ -73,8 +80,7 @@ from dd_harness.projects import (
     ProjectDeletedError,
     UnknownProjectError,
 )
-from dd_harness.registry import Registered, Registry
-from dd_harness.remote import RemoteAgent
+from dd_harness.registry import Registry
 from dd_harness.storage import (
     SPANS,
     ProjectStorage,
@@ -90,8 +96,6 @@ from dd_sdk.contract.models import (
     to_document,
 )
 from dd_sdk.evidence import envelope_hash
-from dd_sdk.model_grant import Account
-from dd_sdk.security_log import SecurityEvent, emit
 from dd_sdk.tracing import (
     ATTR_OUTCOME,
     Tracing,
@@ -189,7 +193,7 @@ class Conductor:
             )
         # Each run of these is refused; say so once at start-up, where the operator looks.
         for agent in self.registry:
-            if self._bypasses_broker(agent):
+            if model_accounts.bypasses_broker(self.profile, agent):
                 log.warning(
                     "profile %r lets people's own model accounts pay, and agent %r calls a model "
                     "without the agent configuration stating model_broker: true; its runs will "
@@ -326,60 +330,6 @@ class Conductor:
         with self._grants_lock:
             grant.delegations.append(record)
         return envelope
-
-    def _bypasses_broker(self, agent: Registered) -> bool:
-        """Whether `agent` may call a model without the model broker while the profile lets
-        people's own accounts pay (docs/specs/model-accounts.md, invariant 14).
-
-        Only the operator's statement in the registry's configuration (`model_broker`) counts,
-        never the agent's card. An agent run in this process is never sent a grant, so it cannot
-        call through the broker.
-        """
-        if self.profile.model_accounts.own == "off" or not agent.spec.models:
-            return False
-        return not (isinstance(agent, RemoteAgent) and agent.model_broker)
-
-    def _model_grant(
-        self, agent: Registered, request: InvocationRequest, acting_for: Principal
-    ) -> str | None:
-        """The model grant for this invocation, or None (docs/specs/model-accounts.md).
-
-        Minted afresh for every invocation of a remote agent whose card declares `models`,
-        delegated children included, and only here: a request cannot carry one. It expires with
-        the agent's transport timeout, and is passed to the agent alone: it never enters the
-        envelope, a span or a store (invariant 6).
-        """
-        spec = agent.spec
-        if self.model_grants is None or not spec.models or not isinstance(agent, RemoteAgent):
-            return None
-        # Who pays is the profile's decision, never the agent's or the request's; the broker
-        # enforces what the grant says.
-        accounts = self.profile.model_accounts
-        account = accounts.account
-        own = account is not Account.DEPLOYMENT
-        minted = self.model_grants.mint(
-            agent_id=spec.agent_id,
-            invocation_id=request.invocation_id,
-            models=(model.model for model in spec.models),
-            account=account,
-            acting_for=acting_for,
-            lifetime_s=agent.timeout_s,
-            providers=accounts.provider_names if own else (),
-            base_urls=accounts.base_urls if own else (),
-            model_map=accounts.model_map(spec.models) if own else None,
-        )
-        # The security event names the grant's terms, never the grant (docs/specs/security.md).
-        emit(
-            SecurityEvent.GRANT_MINTED,
-            outcome="success",
-            service="harness",
-            principal=acting_for.principal_id,
-            agent_id=spec.agent_id,
-            invocation_id=request.invocation_id,
-            models=[model.model for model in spec.models],
-            account=account.value,
-        )
-        return minted
 
     def _issue_grant(
         self, request: InvocationRequest, acting_for: Principal, watch: Watch

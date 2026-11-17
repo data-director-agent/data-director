@@ -16,7 +16,7 @@ from dd_sdk.contract.models import (
 )
 
 
-def question_answer_problem(question: Question, answer: QuestionAnswer) -> str | None:  # noqa: PLR0911
+def question_answer_problem(question: Question, answer: QuestionAnswer) -> str | None:
     """Why `answer` does not fit `question`, or None if it does.
 
     A choice answer's values are options of its question, each chosen once and at most one
@@ -27,18 +27,27 @@ def question_answer_problem(question: Question, answer: QuestionAnswer) -> str |
     if answer.answer_words is not None and not words:
         return "the answer in the researcher's own words is empty"
     if question.question_kind is not QuestionKind.CHOICE:
-        limit = (
-            SHORT_TEXT_MAX if question.question_kind is QuestionKind.SHORT_TEXT else LONG_TEXT_MAX
-        )
-        if answer.answer_values:
-            return "the question takes words, not options"
-        if not words:
-            return "nothing is said"
-        if len(words) > limit:
-            return f"the answer is longer than {limit} characters"
-        if question.question_kind is QuestionKind.SHORT_TEXT and "\n" in words:
-            return "the answer is more than one line"
-        return None
+        return _text_answer_problem(question, answer, words)
+    return _choice_answer_problem(question, answer, words)
+
+
+def _text_answer_problem(question: Question, answer: QuestionAnswer, words: str) -> str | None:
+    """Why `answer`, with its stripped `words`, does not fit a text question."""
+    short = question.question_kind is QuestionKind.SHORT_TEXT
+    limit = SHORT_TEXT_MAX if short else LONG_TEXT_MAX
+    if answer.answer_values:
+        return "the question takes words, not options"
+    if not words:
+        return "nothing is said"
+    if len(words) > limit:
+        return f"the answer is longer than {limit} characters"
+    if short and "\n" in words:
+        return "the answer is more than one line"
+    return None
+
+
+def _choice_answer_problem(question: Question, answer: QuestionAnswer, words: str) -> str | None:
+    """Why `answer`, with its stripped `words`, does not fit a choice question."""
     offered = {o.option_value for o in question.question_options or []}
     unknown = [v for v in answer.answer_values if v not in offered]
     if unknown:
@@ -49,6 +58,11 @@ def question_answer_problem(question: Question, answer: QuestionAnswer) -> str |
         return "the question takes only its options"
     if len(words) > SHORT_TEXT_MAX:
         return f"the answer is longer than {SHORT_TEXT_MAX} characters"
+    return _choice_count_problem(question, answer, words)
+
+
+def _choice_count_problem(question: Question, answer: QuestionAnswer, words: str) -> str | None:
+    """Why the number of things `answer` chooses does not fit the question."""
     chosen = len(answer.answer_values) + (1 if words else 0)
     if chosen == 0:
         return "nothing is chosen"

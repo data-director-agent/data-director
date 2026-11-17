@@ -1,7 +1,7 @@
 """The project record: an append-only log of what changed in a project (docs/specs/projects.md).
 
 A project is a record of its own that outlives any conversation. These are the project rules,
-written once over a `ProjectLog` (`dd_harness.storage`, docs/specs/storage.md) that a backend
+written once over a `ProjectLog` (`dd_harness.project_log`, docs/specs/storage.md) that a backend
 provides and that only stores: `Projects` is the rules, and `ProjectStore` the rules over the
 file log, `dd_harness.project_files`, under `DD_PROJECTS_DIR`.
 
@@ -125,7 +125,7 @@ from dd_sdk.evidence import INPUT_CANONICALISATION, canonicalise, input_hash
 from dd_sdk.intake import ENTRY as ENTRY_QUESTION
 
 if TYPE_CHECKING:
-    from dd_harness.storage import ProjectLog, ProjectSection
+    from dd_harness.project_log import ProjectLog, ProjectSection
 
 PROJECT_CREATED = "project_created"
 PROJECT_RENAMED = "project_renamed"
@@ -312,7 +312,7 @@ def _check_names(document_id: str, digest: str) -> None:
 
 
 class Projects(RunEffects):
-    """The project rules, written once over a `ProjectLog` (`dd_harness.storage`,
+    """The project rules, written once over a `ProjectLog` (`dd_harness.project_log`,
     docs/specs/storage.md): the `ProjectStorage` every backend gives its callers. The log stores
     and reads; everything that decides whether a change is allowed, and what the log means, is
     here. What a finished run does to its project is `RunEffects.after_run`."""

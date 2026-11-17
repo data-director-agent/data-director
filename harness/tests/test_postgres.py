@@ -21,9 +21,10 @@ from urllib.parse import quote
 import pytest
 
 from dd_harness.listing import Readable, scan_conversations, scan_runs
+from dd_harness.project_log import ProjectLog
 from dd_harness.projects import Projects
 from dd_harness.settings import SettingsError, project_storage, run_storage
-from dd_harness.storage import ProjectLog, ProjectStorage, RunStorage
+from dd_harness.storage import ProjectStorage, RunStorage
 from dd_harness.testing import (
     PROJECT_LOG_CHECKS,
     PROJECT_STORAGE_CHECKS,

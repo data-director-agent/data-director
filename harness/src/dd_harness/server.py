@@ -31,6 +31,7 @@ import json
 import sys
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 
 from starlette.applications import Starlette
 
@@ -310,7 +311,8 @@ def cmd_storage_status(args: argparse.Namespace) -> int:
     return 1 if behind else 0
 
 
-def main(argv: list[str] | None = None) -> int:
+def _parser() -> argparse.ArgumentParser:
+    """The command line: `serve`, and the `storage` and `project` command groups."""
     parser = argparse.ArgumentParser(
         prog="dd-harness",
         description="Data Director harness: serve the conductor over A2A, and keep projects",
@@ -322,6 +324,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--port", type=int, default=8000)
     p.set_defaults(func=cmd_serve)
 
+    _add_storage_commands(sub)
+    _add_project_commands(sub)
+    return parser
+
+
+def _add_storage_commands(sub: Any) -> None:
     p = sub.add_parser(
         "storage",
         help="keep the schema of a PostgreSQL run or project storage (docs/specs/storage.md)",
@@ -348,6 +356,8 @@ def main(argv: list[str] | None = None) -> int:
         )
         p.set_defaults(func=func)
 
+
+def _add_project_commands(sub: Any) -> None:
     p = sub.add_parser(
         "project", help="keep a project's record under DD_PROJECTS_DIR (docs/specs/projects.md)"
     )
@@ -417,7 +427,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("project_id")
     p.set_defaults(func=cmd_project_events)
 
-    args = parser.parse_args(argv)
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parser().parse_args(argv)
     try:
         result: int = args.func(args)
     # No principal (docs/specs/policy-and-identity.md), a path the deployment must name
