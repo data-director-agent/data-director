@@ -5,7 +5,7 @@ import fixture from "../../../fixtures/projects.json";
 import { type ActiveProject, ActiveProjectTestContext } from "../../project/active";
 import { type ProjectApi, type ProjectSummary, ProjectApiContext } from "../../project/api";
 import { projectName } from "../../project/name";
-import { JourneyLanding } from "./JourneyLanding";
+import { JourneyLanding, WORKFLOW_GUIDE } from "./JourneyLanding";
 
 const PROJECTS = fixture as ProjectSummary[];
 const FIRST = PROJECTS[0] as ProjectSummary;
@@ -49,6 +49,12 @@ describe("JourneyLanding", () => {
     renderLanding(PROJECTS, "gone");
     expect(await screen.findByRole("link", { name: projectName(FIRST) })).toBeInTheDocument();
     expect(location.pathname).toBe("/journey");
+  });
+
+  it("links to the user guide's workflow page", async () => {
+    renderLanding(PROJECTS);
+    const link = await screen.findByRole("link", { name: /how the steps fit together/ });
+    expect(link).toHaveAttribute("href", WORKFLOW_GUIDE);
   });
 
   it("offers to start a project when there is none", async () => {
