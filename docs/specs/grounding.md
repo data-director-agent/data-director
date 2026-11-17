@@ -60,7 +60,8 @@ mixin are in [Contract](contract.md); the `dd.*` span attributes the rules read 
    in `dd_sdk.evidence` and a contract violation in an envelope.
 7. A registered canonicalisation never changes the bytes it produces. Changing what a hash
    covers means registering a new name and keeping the old one, so that stored runs still
-   verify. No test pins the bytes of each name yet; review is the only guard.
+   verify. `sdk/tests/test_evidence_properties.py` pins each name's digest of a fixed record and
+   checks its bytes against a reference written out in the test, for generated documents.
 8. A payload states an external identity once, in `grounded_on`. It carries no descriptive copy
    of the record it cites. What a reader is shown about a cited record is the `content` of the
    evidence item with the same source id and content hash (`dd_sdk.evidence.resolve`).

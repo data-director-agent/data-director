@@ -157,8 +157,8 @@ drifted: `[tool.mypy].mypy_path` was missing seven agents. This change adds them
 
 - `app/tests/test_app.py` is a 1,597-line catch-all of 69 tests. It mirrors `build_app` and should
   be split with it.
-- There is no property-based testing. The code the project owns outright (canonicalisation, the
-  policy gate, event replay) is where it would pay most.
+- Property-based testing (Hypothesis) covers evidence canonicalisation, the contract validators
+  and project event replay. The policy gate has none yet.
 - Codecov's patch target is informational, and the per-package floors are deferred (TODO(#243)).
 - `harness/tests/test_registry.py:144` relies on a 50 ms sleep to make threads overlap, which may
   fail under load.
@@ -214,11 +214,9 @@ written or moved first, so that behaviour is pinned before the code moves.
 
 ## Proposed testing measures
 
-- **Hypothesis property tests** for:
-  - evidence canonicalisation (the bytes of a registered canonicalisation never change, and
-    canonicalising twice gives the same bytes);
-  - the contract validators;
-  - `Projects` event replay (folding a log gives the same state as applying its events one by one).
+- **Hypothesis property tests** for the policy gate. Evidence canonicalisation, the contract
+  validators and project event replay have them (`sdk/tests/test_evidence_properties.py`,
+  `sdk/tests/test_contract_properties.py`, `dd_harness.testing.check_a_log_replays_as_it_folds`).
 - **A loud PostgreSQL skip.** Report the skipped conformance tests in the run summary, and give
   `compose.yaml` a test database so that `DD_TEST_POSTGRES` is easy to set locally.
 - **Replace the sleep** in `harness/tests/test_registry.py:144` with an event or barrier.
