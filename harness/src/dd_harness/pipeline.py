@@ -16,35 +16,26 @@ contract fails as the agent's error, and the project takes the run's effects
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
-
-from opentelemetry.trace import SpanContext
+from typing import Any
 
 from dd_harness import grounding, model_accounts, policy, shacl
 from dd_harness import observe as steps
 from dd_harness import sources as source_check
-from dd_harness.observe import Watch, cancelled_result
+from dd_harness.observe import cancelled_result
 from dd_harness.provenance import process_run_crate
 from dd_harness.refusals import failed_result, input_refusal, refuse
-from dd_harness.registry import Registered
 from dd_harness.remote import Received, RemoteAgent
+from dd_harness.run_state import RunHost, RunState, Step
 from dd_harness.storage import CRATE, GROUNDING, SOURCES, SPANS, VALIDATION
 from dd_sdk.agent import AgentResult, AgentSpec, RunContext, typed_request
 from dd_sdk.contract import problem as problems
 from dd_sdk.contract import validate
-from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
-    Delegation,
     Envelope,
     GroundingMode,
-    InvocationRequest,
-    ModelCall,
     Outcome,
     OutcomeStatus,
-    Principal,
     ProblemDetails,
     Telemetry,
     input_source_id,
@@ -52,79 +43,13 @@ from dd_sdk.contract.models import (
 )
 from dd_sdk.contract.version import CONTRACT_VERSION
 from dd_sdk.delegate import DelegationGrant
-from dd_sdk.evidence import input_hash as compute_input_hash
 from dd_sdk.model_account import accounted
 from dd_sdk.prompts import prompt_digest
 from dd_sdk.tracing import policy_gate_span
 
-if TYPE_CHECKING:
-    from dd_harness.conductor import Conductor, Grant
-
-
-@dataclass
-class RunState:
-    """One invocation as it goes through the steps: what it was asked, then what each step
-    found. `given` is the classes of project content the conductor put into the input, and
-    `unfillable` why it could not fill it from the project, if it could not."""
-
-    request: InvocationRequest
-    request_doc: dict[str, Any]
-    acting_for: Principal
-    agent: Registered
-    watch: Watch
-    link: SpanContext | None = None
-    given: frozenset[str] = frozenset()
-    unfillable: str | None = None
-    started: datetime = field(default_factory=lambda: datetime.now(UTC))
-    input_hash: str = field(init=False)
-    trace_id: str = ""
-    decision: policy.GateDecision | None = None
-    bypasses: bool = False
-    refused: tuple[str, list[str]] | None = None
-    kept_back: list[str] = field(default_factory=list)
-    result: AgentResult | None = None
-    prob: ProblemDetails | None = None
-    from_agent: bool = False
-    # The agent's model calls and the prompts they name, kept whatever becomes of its result
-    # (docs/specs/disclosure.md).
-    model_calls: tuple[ModelCall, ...] = ()
-    prompts: dict[str, dict[str, Any]] = field(default_factory=dict)
-    grant: Grant | None = None
-    delegations: list[Delegation] = field(default_factory=list)
-    envelope: Envelope | None = None
-    doc: dict[str, Any] = field(default_factory=dict)
-    report: grounding.GroundingReport | None = None
-    source_report: source_check.SourceReport | None = None
-    shapes_report: bytes | None = None
-
-    @property
-    def spec(self) -> AgentSpec:
-        return self.agent.spec
-
-    def __post_init__(self) -> None:
-        self.input_hash = compute_input_hash(self.request_doc["input"])
-
-    @property
-    def accepted(self) -> ClassSchema | None:
-        """The class schema the card carries for the input, if the agent accepts its class."""
-        return self.spec.accepted(str(self.request_doc["input"].get("schema_class")))
-
-    @property
-    def gate_decision(self) -> policy.GateDecision:
-        assert self.decision is not None, "the gate runs first"
-        return self.decision
-
-    @property
-    def finished(self) -> Envelope:
-        assert self.envelope is not None, "the envelope is built inside the span"
-        return self.envelope
-
-
-type Step = Callable[[Conductor, RunState], None]
-
 
 # 1. Policy gate, against the deployment's profile.
-def gate(conductor: Conductor, run: RunState) -> None:
+def gate(conductor: RunHost, run: RunState) -> None:
     """The policy gate, and who pays: with own accounts on, only an agent the operator states
     calls through the model broker may call a model (docs/specs/model-accounts.md, invariant
     14)."""
@@ -141,7 +66,7 @@ def gate(conductor: Conductor, run: RunState) -> None:
 
 
 # 2-4. The input check.
-def check_input(conductor: Conductor, run: RunState) -> None:
+def check_input(conductor: RunHost, run: RunState) -> None:
     """The input against the agent's card, the project's facts and what the profile keeps from
     hosted models. Run only for an agent the gate lets run straight away, and not once the run is
     cancelled."""
@@ -157,7 +82,7 @@ def check_input(conductor: Conductor, run: RunState) -> None:
 
 
 # 5. Run the agent. An exception becomes a failed outcome; never a crash.
-def invoke_agent(conductor: Conductor, run: RunState) -> None:
+def invoke_agent(conductor: RunHost, run: RunState) -> None:
     """Run the agent, unless a refusal decided the run. A run cancelled while its agent worked
     ends here: a blocking call cannot be stopped, so what the agent answered is discarded, and
     its model calls are kept."""
@@ -205,7 +130,7 @@ def invoke_agent(conductor: Conductor, run: RunState) -> None:
         run.from_agent = False
 
 
-def _received(conductor: Conductor, run: RunState, received: Received) -> None:
+def _received(conductor: RunHost, run: RunState, received: Received) -> None:
     """Take what the agent answered. An agent that returns a payload other than the class it
     declared, or one its own class schema does not admit, or prompts that are not those its
     calls name, is contradicting its specification: a programmer error, handled the same way as
@@ -230,13 +155,13 @@ def _received(conductor: Conductor, run: RunState, received: Received) -> None:
         run.prob = problems.agent_error(spec.agent_id, mismatch)
 
 
-def collect_delegations(conductor: Conductor, run: RunState) -> None:
+def collect_delegations(conductor: RunHost, run: RunState) -> None:
     """Recorded whatever the agent did afterwards: the children ran and are stored."""
     if run.grant is not None:
         run.delegations = conductor._revoke_grant(run.grant)
 
 
-def build_envelope(conductor: Conductor, run: RunState) -> None:
+def build_envelope(conductor: RunHost, run: RunState) -> None:
     """The envelope, with everything an agent must not decide about itself."""
     spec, request, profile = run.spec, run.request, conductor.profile
     assert run.result is not None, "a refusal or the agent decided the run"
@@ -285,7 +210,7 @@ INSIDE_SPAN: tuple[Step, ...] = (
 
 
 # 6. Grounding linter, over the finished tree of this trace.
-def lint_grounding(conductor: Conductor, run: RunState) -> None:
+def lint_grounding(conductor: RunHost, run: RunState) -> None:
     run.watch.started(steps.GROUNDING)
     records = conductor.tracing.finished_records(run.trace_id)
     report = run.report = grounding.lint(records, run.finished.to_document())
@@ -295,14 +220,14 @@ def lint_grounding(conductor: Conductor, run: RunState) -> None:
 
 
 # 6a. Source check, over the evidence the linter has just read (docs/specs/grounding.md).
-def check_sources(conductor: Conductor, run: RunState) -> None:
+def check_sources(conductor: RunHost, run: RunState) -> None:
     run.watch.started(steps.SOURCES)
     run.source_report = source_check.check(run.finished.to_document(), conductor.sources)
     run.watch.sources(run.source_report)
     run.watch.finished(steps.SOURCES)
 
 
-def withhold_violations(conductor: Conductor, run: RunState) -> None:
+def withhold_violations(conductor: RunHost, run: RunState) -> None:
     """A violation of the grounding linter or the source check withholds a succeeded result."""
     assert run.report is not None and run.source_report is not None
     withheld = [
@@ -329,7 +254,7 @@ def withhold_violations(conductor: Conductor, run: RunState) -> None:
 # as a payload of the wrong class is: it is stored as failed(agent-error), not raised past the
 # store. An envelope the conductor built itself that breaks the contract is a conductor bug, and
 # raises.
-def validate_contract(conductor: Conductor, run: RunState) -> None:
+def validate_contract(conductor: RunHost, run: RunState) -> None:
     run.doc = run.finished.to_document()
     try:
         validate.validate_envelope(run.doc)
@@ -345,7 +270,7 @@ def validate_contract(conductor: Conductor, run: RunState) -> None:
 
 # 7a. The run's effects on its project (`dd_harness.project_effects`). A draft the project
 # refuses fails the run, and that failed run is the record.
-def apply_project_effects(conductor: Conductor, run: RunState) -> None:
+def apply_project_effects(conductor: RunHost, run: RunState) -> None:
     if conductor.projects is None:
         return
     refusal = conductor.projects.after_run(run.finished, acted_for=run.acting_for)
@@ -358,7 +283,7 @@ def apply_project_effects(conductor: Conductor, run: RunState) -> None:
 
 
 # 7b. The payload against its class's SHACL shapes. Reported, never withheld.
-def check_shapes(conductor: Conductor, run: RunState) -> None:
+def check_shapes(conductor: RunHost, run: RunState) -> None:
     envelope, payload = run.finished, run.spec.payload
     if envelope.payload is None or payload is None or payload.shapes is None:
         return
@@ -369,7 +294,7 @@ def check_shapes(conductor: Conductor, run: RunState) -> None:
 
 # 8. Store, trace file, provenance. Everything else a run keeps is a named artifact beside it
 # (docs/specs/storage.md).
-def store_run(conductor: Conductor, run: RunState) -> None:
+def store_run(conductor: RunHost, run: RunState) -> None:
     store, envelope, accepted = conductor.store, run.finished, run.accepted
     assert run.report is not None and run.source_report is not None
     # The schemas the run was checked against, kept by digest for the viewer

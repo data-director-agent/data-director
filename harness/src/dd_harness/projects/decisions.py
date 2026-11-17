@@ -10,14 +10,14 @@ log (`dd_harness.projects.fold.check_latest`), and that refusal is recorded.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any
 
+from dd_harness.project_decision import Decision as Decision
+from dd_harness.project_decision import Verdict as Verdict
 from dd_harness.projects.fold import APPROVED, REJECTED
 from dd_harness.projects.rules import DIGEST, PROJECT_ID, ProjectError
 from dd_sdk.contract.models import QUESTION_ID_PATTERN, DraftAnswer
 
-type Verdict = Literal["approved", "rejected"]
 QUESTION_ID = re.compile(QUESTION_ID_PATTERN)
 # The longest reason the harness keeps, in characters: room for a paragraph, not a document.
 REASON_MAX_LENGTH = 2000
@@ -52,35 +52,19 @@ def check_names(document_id: str, digest: str) -> None:
         raise ProjectError("a digest is a SHA-256 in lower-case hex")
 
 
-@dataclass(frozen=True)
-class Decision:
-    """What a person sent: the version they saw, the digest of its text as shown, their verdict
-    and reason, and, to approve an edit of it, the edited text. It never names who decided."""
-
-    document_id: str
-    version: int
-    digest: str
-    verdict: Verdict
-    reason: str | None = None
-    edited_text: str | None = None
-
-    @property
-    def stated_reason(self) -> str | None:
-        return (self.reason or "").strip() or None
-
-    def check(self) -> None:
-        """Raises `ProjectError` for a decision malformed in itself, which records nothing."""
-        check_names(self.document_id, self.digest)
-        if self.verdict not in (APPROVED, REJECTED):
-            raise ProjectError(f"a decision is {APPROVED!r} or {REJECTED!r}, not {self.verdict!r}")
-        edited = self.edited_text is not None
-        if edited and self.verdict == REJECTED:
-            raise ProjectError("an edited text can be approved, not rejected")
-        reason = self.stated_reason
-        if reason is None and reason_required(self.verdict, edited=edited):
-            raise ProjectError(f"{'approving an edit' if edited else 'rejecting'} needs a reason")
-        if reason is not None and len(reason) > REASON_MAX_LENGTH:
-            raise ProjectError(f"a reason is at most {REASON_MAX_LENGTH} characters")
+def check_decision(decision: Decision) -> None:
+    """Raises `ProjectError` for a decision malformed in itself, which records nothing."""
+    check_names(decision.document_id, decision.digest)
+    if decision.verdict not in (APPROVED, REJECTED):
+        raise ProjectError(f"a decision is {APPROVED!r} or {REJECTED!r}, not {decision.verdict!r}")
+    edited = decision.edited_text is not None
+    if edited and decision.verdict == REJECTED:
+        raise ProjectError("an edited text can be approved, not rejected")
+    reason = decision.stated_reason
+    if reason is None and reason_required(decision.verdict, edited=edited):
+        raise ProjectError(f"{'approving an edit' if edited else 'rejecting'} needs a reason")
+    if reason is not None and len(reason) > REASON_MAX_LENGTH:
+        raise ProjectError(f"a reason is at most {REASON_MAX_LENGTH} characters")
 
 
 def check_answers(answers: list[DraftAnswer]) -> list[DraftAnswer]:
