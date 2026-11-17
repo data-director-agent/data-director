@@ -328,8 +328,9 @@ files.
 - **Durability.** A call that stores something returns after it is durable: flushed to disk in
   the file backends, committed in the database.
 - **Performance.** The file backends scan: conversations read every envelope, and `project_of` reads
-  every project's log for a conversation it has not found before (a conversation's project, once
-  found, is kept, as invariant 12 allows). They are not indexed; a deployment that outgrows a
+  what each project's log has gained since it last looked, for a conversation it has not found
+  before (a conversation's project, once found, is kept, as invariant 12 allows). They are not
+  indexed; a deployment that outgrows a
   scan moves to the database. In the database, listing runs and conversations reads a page from
   an index ("Listing"), and finding a conversation's project and the projects a person may read
   are indexed queries. The file backend finds a person's projects by reading every project's log.
