@@ -242,6 +242,46 @@ type = "forbidden"
 source_modules = ["dd_inventory"]
 forbidden_modules = ["dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
 
+[[tool.importlinter.contracts]]
+name = "the harness's way in, conductor, storage and checks are layered"
+type = "layers"
+containers = ["dd_harness"]
+# The governance spine (docs/specs/system.md): a request enters through the server and transport,
+# the conductor and its pipeline run it, storage keeps it, and the checks the project owns sit at
+# the bottom, importing none of the machinery that calls them. Modules not named are unconstrained.
+layers = [
+  "server",
+  "transport",
+  "conductor : pipeline : refusals",
+  "storage",
+  "policy | grounding | provenance | shacl | sources | identity | requirements | model_grants",
+]
+
+[[tool.importlinter.contracts]]
+name = "the app is wired, routed, then governed"
+type = "layers"
+containers = ["dd_app"]
+# `app` builds the application, `routes` hold the handlers, `project_service` the project rules
+# they call, and `governance` the one way to the harness (docs/specs/app.md).
+layers = ["app", "routes", "project_service", "governance"]
+
+[[tool.importlinter.contracts]]
+name = "no package's modules import one another in a cycle"
+type = "acyclic_siblings"
+ancestors = ["dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_inventory", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
+# The cycles that existed when this contract was added. Most are imports for type annotations
+# only (`if TYPE_CHECKING:`); two run at import time. An entry that no longer matches fails, so the
+# list only shrinks. TODO(#1066): break these cycles and delete the entries.
+ignore_imports = [
+  "dd_admin.pages -> dd_admin.app",  # type only
+  "dd_harness.pipeline -> dd_harness.conductor",  # type only
+  "dd_harness.refusals -> dd_harness.conductor",  # type only
+  "dd_harness.refusals -> dd_harness.pipeline",  # type only
+  "dd_harness.storage -> dd_harness.projects.decisions",
+  "dd_sdk.agent_checks -> dd_sdk.agent",  # type only
+  "dd_sdk.wire -> dd_sdk.agent",
+]
+
 [tool.ruff]
 line-length = 100
 target-version = "py314"

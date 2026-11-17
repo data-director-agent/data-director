@@ -125,9 +125,12 @@ dependency against the advisory databases each day. Dependabot proposes updates 
 
 ### Keeping the code in shape
 
-The package boundaries are checked by Import Linter and `scripts/check_boundaries.py`. Inside a
-package, four ratchets keep code from growing past what a reviewer can follow
-([Architecture review](docs/architecture-review.md)):
+The package boundaries are checked by Import Linter and `scripts/check_boundaries.py`. Import
+Linter also checks inside a package: no package's modules import one another in a cycle (the
+cycles that existed when the check was added are listed in its `ignore_imports`, and may only be
+removed), and `dd_harness` and `dd_app` keep their layers, from the way in down to the checks the
+project owns. Inside a package, four ratchets keep code from growing past what a reviewer can
+follow ([Architecture review](docs/architecture-review.md)):
 
 - **Function complexity.** Ruff applies mccabe complexity 12 and the pylint limits on branches
   (12), statements (50), arguments (7) and returns (6) to Python outside tests. ESLint applies

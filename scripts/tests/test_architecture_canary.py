@@ -27,6 +27,12 @@ AGENT = "agents/example-hello/src/dd_agent_example_hello/__init__.py"
 SDK = "sdk/src/dd_sdk/__init__.py"
 # A route module of the app, which reaches the stores only through its governance.
 APP_ROUTES = "app/src/dd_app/routes/projects.py"
+# The app's way to the harness, below its routes.
+APP_GOVERNANCE = "app/src/dd_app/governance.py"
+# A check the harness owns, at the bottom of its layers.
+HARNESS_POLICY = "harness/src/dd_harness/policy.py"
+# A module outside the harness's layers that `intake` imports, so a cycle breaks only that check.
+HARNESS_ANSWERS = "harness/src/dd_harness/answers.py"
 
 
 def _tracked(*patterns: str) -> list[str]:
@@ -90,10 +96,27 @@ def test_the_copy_passes_both_checks(copy: Path) -> None:
         (AGENT, "import dd_agent_advisor_quality"),  # an agent reaches sideways to another
         (APP_ROUTES, "import dd_harness.store"),  # a route reaches past governance to a store
         (APP_ROUTES, "from dd_harness.storage import ProjectStorage"),
+        (HARNESS_POLICY, "import dd_harness.conductor"),  # a check reaches up to the conductor
+        (APP_GOVERNANCE, "import dd_app.routes"),  # governance reaches up to the routes
+        (HARNESS_ANSWERS, "import dd_harness.intake"),  # intake imports answers: a cycle
     ],
 )
 def test_import_linter_fails_on_a_direction_violation(copy: Path, relative: str, line: str) -> None:
     _plant(copy, relative, line)
+    result = _lint_imports(copy)
+    assert result.returncode != 0, result.stdout
+
+
+def test_import_linter_fails_on_a_stale_cycle_exception(copy: Path) -> None:
+    """A recorded cycle that no longer occurs is reported, so the list of exceptions only shrinks."""
+    pyproject = copy / "pyproject.toml"
+    recorded = '"dd_sdk.wire -> dd_sdk.agent",'
+    text = pyproject.read_text(encoding="utf-8")
+    assert recorded in text
+    pyproject.write_text(
+        text.replace(recorded, f'{recorded}\n  "dd_sdk.wire -> dd_sdk.evidence",', 1),
+        encoding="utf-8",
+    )
     result = _lint_imports(copy)
     assert result.returncode != 0, result.stdout
 

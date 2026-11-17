@@ -283,3 +283,5 @@ shrink.
 | Ruff `PLR0904` (Python outside tests; #1056) | 20 public methods in a class | `# noqa: PLR0904` on `Governance` and `ProjectService` in `dd_app` |
 | dependency-cruiser `no-circular` in `sdk/browser` and `inventory/browser` (#1059), as `app/web` has | no import cycle in `src/` | none: neither package has one |
 | `app/web/src/fixtures.test.ts` (#981, first step) | each fixture in `app/web/fixtures` satisfies its TypeScript interface, and a new fixture must be listed | three fixtures that are not one interface are listed with the reason |
+| Import Linter `acyclic_siblings` over every member (#1055) | no cycle between a package's modules | the 7 cycles found, as `ignore_imports` entries; a stale entry fails (TODO(#1066)) |
+| Import Linter `layers` in `dd_harness` and `dd_app` (#1055) | server, transport, conductor and pipeline, storage, then the checks; app, routes, project service, then governance | none: both already held |
