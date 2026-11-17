@@ -27,7 +27,7 @@ export interface RecordedPrincipal {
   vouched_by?: string;
 }
 
-/** A drafter's question about one gap: a README section, or a data dictionary cell. */
+/** A drafter's question about one gap: a README section, a data dictionary cell, or a metadata record value. */
 export interface DocumentQuestion {
   question_id: string;
   question_prompt: string;
@@ -36,6 +36,7 @@ export interface DocumentQuestion {
   gap_file?: string;
   gap_field?: string;
   gap_column?: string;
+  gap_property?: string;
   /** A drafter's suggested answer, offered beside the question and never put into the draft. */
   suggested_answer?: string;
   /** How the suggestion came about, such as `model`. */
@@ -706,11 +707,10 @@ export function openQuestions(document: ProjectDocument, version: DocumentVersio
   return version.questions.filter((q) => !answered.has(q.question_id));
 }
 
-/** What a question fills, in words: a README section or one part of it, or a data dictionary cell. */
+/** What a question fills, in words: a README section or one part of it, a data dictionary cell, or a record value. */
 export function questionTarget(question: DocumentQuestion): string {
-  if (question.gap_section && question.gap_part)
-    return `Section “${question.gap_section}” › ${question.gap_part}`;
-  if (question.gap_section) return `Section “${question.gap_section}”`;
+  if (question.gap_property) return `Property “${question.gap_property}”`;
+  if (question.gap_section) return `Section “${question.gap_section}”${question.gap_part ? ` › ${question.gap_part}` : ""}`;
   return `${question.gap_file ?? ""} › ${question.gap_field ?? ""} › ${question.gap_column ?? ""}`;
 }
 

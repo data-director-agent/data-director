@@ -108,6 +108,11 @@ class RunProjects(FactSource, ProjectEffects, Protocol):
     """The project areas a run reads facts from (every area but deposits, which no run records),
     and what a finished run does to its project (`dd_harness.project_effects`)."""
 
+    def snapshot(self, project_id: str) -> FactSource:
+        """The project's facts as its log reads now, read once for one invocation's questions
+        (`dd_harness.projects.SnapshotLog`, docs/specs/storage.md, invariant 12)."""
+        ...
+
 
 class UnknownAgent(Exception):
     pass
@@ -266,26 +271,26 @@ class Conductor:
             if self.projects is not None and request.conversation_id is not None
             else None
         )
+        # Everything this run asks of its project before it runs is read from one snapshot.
+        facts = (
+            self.projects.snapshot(project_id)
+            if self.projects is not None and project_id is not None
+            else None
+        )
         # Only someone who may read the project runs anything in it; anyone else is answered as
         # for a project that does not exist (docs/specs/projects.md, invariant 17). A delegated
         # child is not checked again: its grant carries its parent's project.
         if (
             project_id is not None
-            and self.projects is not None
-            and not project_access.may(
-                self.projects, project_id, acting_for, project_access.Action.READ
-            )
+            and facts is not None
+            and not project_access.may(facts, project_id, acting_for, project_access.Action.READ)
         ):
             raise UnknownProjectError(f"no project {project_id!r}")
         # A deleted project takes no new run, not even its owner's (invariant 24).
-        if (
-            project_id is not None
-            and self.projects is not None
-            and self.projects.is_deleted(project_id)
-        ):
+        if project_id is not None and facts is not None and facts.is_deleted(project_id):
             raise ProjectDeletedError(f"project {project_id} is deleted")
         return self._invoke(
-            request, acting_for, project_id=project_id, watch=Watch(observer, cancel)
+            request, acting_for, project_id=project_id, facts=facts, watch=Watch(observer, cancel)
         )
 
     def invoke_delegated(
@@ -369,22 +374,26 @@ class Conductor:
         link: SpanContext | None = None,
         *,
         project_id: str | None = None,
+        facts: FactSource | None = None,
         watch: Watch | None = None,
     ) -> Envelope:
         # The project's facts go in before anything is hashed or stored, so the input hash and
         # request.json cover what the agent was shown; outside a project, what only the conductor
-        # may fill is removed (docs/specs/projects.md).
+        # may fill is removed (docs/specs/projects.md). They are read from one snapshot of the
+        # project: the caller's, or one taken here for a delegated child.
         in_project = project_id if self.projects is not None else None
+        if facts is None and self.projects is not None and in_project is not None:
+            facts = self.projects.snapshot(in_project)
         sent = to_document(request.input)
-        filled = project_facts.give(self.projects, in_project, sent)
-        given = project_facts.given(self.projects, in_project, filled)
+        filled = project_facts.give(facts, in_project, sent)
+        given = project_facts.given(facts, in_project, filled)
         # Researcher facts the profile keeps from this agent's hosted model are left out, not
         # refused (docs/specs/projects.md, invariant 8): no agent needs them.
         if project_facts.RESEARCHER in given:
             hostings = [model.hosting for model in self._models_of(request.agent_id)]
             out = frozenset(policy.withheld(self.profile, hostings, {project_facts.RESEARCHER}))
             filled, given = project_facts.leave_out(filled, out), given - out
-        refused = project_facts.refusal(self.projects, in_project, filled)
+        refused = project_facts.refusal(facts, in_project, filled)
         if in_project is not None or filled != sent:
             request = InvocationRequest.model_validate(
                 {**to_document(request), "input": filled, "project_id": in_project}

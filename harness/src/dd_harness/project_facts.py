@@ -65,7 +65,6 @@ from dd_harness.storage import (
     ProjectResearchers,
 )
 from dd_sdk.contract.models import DocumentKind
-from dd_sdk.evidence import input_hash
 
 # The core input classes whose slots the conductor fills from a project.
 DRAFT_REQUEST = "DraftRequest"
@@ -101,7 +100,8 @@ class FactSource(
     ProjectDocuments,
     Protocol,
 ):
-    """The areas of a project its facts are read from: every area but its deposits."""
+    """The areas of a project its facts are read from: every area but its deposits. The
+    conductor reads them from one snapshot of the project per invocation (`Projects.snapshot`)."""
 
 
 DOCUMENTATION_SLOTS = ("metadata_record", "current_version", "draft_answers")
@@ -122,12 +122,12 @@ def give(
             filled.pop("redraft_document", None)
         return filled
     if schema_class == MESSAGE:
-        where = store.progress(project_id)
         summary = store.summary(project_id)
+        where = summary["progress"]
         _put(
             filled,
             {
-                "project_inventory": summarise(store, project_id),
+                "project_inventory": summarise(store, project_id, summary["inventory"]),
                 "project_entry": where["entry"],
                 # Left out while every step is open, as `project_entry` is until one is chosen.
                 "project_progress": [
@@ -222,14 +222,19 @@ def leave_out(filled: Mapping[str, Any], classes: frozenset[str]) -> dict[str, A
     return kept
 
 
-def summarise(store: FactSource, project_id: str) -> dict[str, Any] | None:
-    """What the project's inventory is, as an `InventorySummary`, or None if it holds none."""
-    held = store.inventory(project_id)
-    if held is None:
+def summarise(
+    store: FactSource, project_id: str, recorded: Mapping[str, Any] | None
+) -> dict[str, Any] | None:
+    """What the project's inventory is, as an `InventorySummary`, or None if it holds none.
+    `recorded` is what the project's summary says of the inventory added last: its digest and
+    file count are the ones its `inventory_added` event recorded, so the inventory is not hashed
+    again on every turn."""
+    held = store.inventory(project_id) if recorded is not None else None
+    if recorded is None or held is None:
         return None
     summary = {
-        "inventory_digest": input_hash(held),
-        "inventory_file_count": len(held.get("inventory_files") or []),
+        "inventory_digest": recorded["digest"],
+        "inventory_file_count": recorded["file_count"],
         "inventory_tool": held["inventory_tool"],
         "inventory_tool_version": held["inventory_tool_version"],
         "inventory_made_at": held["inventory_made_at"],

@@ -73,7 +73,9 @@ It does not cover what a run or a project contains ([Contract](contract.md), [Pr
 12. **What a store answers is what is stored when asked.** `project_of`, the list of projects and
     the list of conversations read what is stored at the time of the call, so several harness
     instances over one database agree, and each holds after a restart. A backend may cache only
-    what can never change, such as a conversation's project once it is recorded.
+    what can never change, such as a conversation's project once it is recorded. A snapshot of
+    one project (`Projects.snapshot`) answers every read from one read of its log; the conductor
+    takes one per invocation, for what it asks before the run, and it takes no change.
 13. **A location never carries a credential.** `where` and every error name a location without a
     password or token. The PostgreSQL backend takes its credentials from libpq's own sources (a
     password file, a service file or its environment variables), never from the location.
@@ -184,6 +186,14 @@ events. Content is kept by digest before the event that names it is appended, ou
 section; content kept for a change that is then refused is named by nothing and harms nothing.
 `FileProjectLog` (`dd_harness.project_files`) is the file log, and `ProjectStore` is `Projects`
 over it, keeping the file backend's name and constructor.
+
+Every read of the rules reads the project's log, so a caller that asks one project many questions
+takes a snapshot instead: `Projects.snapshot` is the same rules over `SnapshotLog`
+(`dd_harness.projects.snapshot`), a read-only log that reads the project's events once and keeps
+each blob it reads. The conductor's access check, deletion check and the facts it gives an agent
+(`dd_harness.project_facts`) all come from one snapshot, so they agree with each other, and a
+change made meanwhile is seen by the next invocation. A snapshot refuses every change with
+`TypeError`.
 
 ## Adding a backend
 

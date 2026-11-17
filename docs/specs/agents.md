@@ -182,8 +182,8 @@ Each in-tree agent's state now. This table is the one place a state is written d
 
 | State | Agents |
 |---|---|
-| Mock (invariant 13) | `advisor.files`, `advisor.linking`, `advisor.metadata` |
-| Model-backed alpha (invariant 14) | `advisor.dmp`, `advisor.documentation`, `advisor.ethics`, `advisor.fairness`, `advisor.policy`, `advisor.rights` |
+| Mock (invariant 13) | `advisor.files`, `advisor.linking` |
+| Model-backed alpha (invariant 14) | `advisor.dmp`, `advisor.documentation`, `advisor.ethics`, `advisor.fairness`, `advisor.metadata`, `advisor.policy`, `advisor.rights` |
 | Persona | `advisor.quality`, `advisor.repository`, `advisor.standards` |
 | Deterministic by design, or not an advisor | `example.hello`, `orchestrator.model`, `orchestrator.stub` |
 
