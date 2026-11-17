@@ -281,3 +281,4 @@ shrink.
 | Check | Limit | How the existing excess is recorded |
 |---|---|---|
 | Ruff `PLR0904` (Python outside tests; #1056) | 20 public methods in a class | `# noqa: PLR0904` on `Governance` and `ProjectService` in `dd_app` |
+| dependency-cruiser `no-circular` in `sdk/browser` and `inventory/browser` (#1059), as `app/web` has | no import cycle in `src/` | none: neither package has one |
