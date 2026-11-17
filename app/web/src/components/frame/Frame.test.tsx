@@ -71,7 +71,9 @@ describe("Frame", () => {
     const link = within(nav).getByRole("link", { name: "Journey map" });
     expect(link).toHaveAttribute("href", "/journey");
     expect(link).toHaveAttribute("aria-current", "page");
-    expect(within(nav).getByRole("link", { name: "Projects" })).not.toHaveAttribute("aria-current");
+    expect(
+      within(nav).getByRole("link", { name: "Projects" }),
+    ).not.toHaveAttribute("aria-current");
   });
 
   it("has the activity log as a page of its own in the main navigation", () => {
@@ -151,7 +153,9 @@ describe("Frame", () => {
     );
     const footer = screen.getByRole("contentinfo");
     expect(
-      within(footer).getByRole("link", { name: /^The University of Sheffield/ }),
+      within(footer).getByRole("link", {
+        name: /^The University of Sheffield/,
+      }),
     ).toHaveAttribute("href", "https://www.sheffield.ac.uk/");
     expect(
       within(footer).getByRole("link", { name: /^Research Data Alliance/ }),
@@ -161,6 +165,35 @@ describe("Frame", () => {
         name: /Data Director Agentic AI Blueprint/,
       }),
     ).toHaveAttribute("href", "https://doi.org/10.15497/RDA00157");
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("links the project's pages in a footer navigation", async () => {
+    const { container } = render(
+      <Frame current="/">
+        <p>Content</p>
+      </Frame>,
+    );
+    const nav = within(screen.getByRole("contentinfo")).getByRole(
+      "navigation",
+      {
+        name: "Footer",
+      },
+    );
+    const site = "https://data-director-agent.github.io/data-director/";
+    expect(within(nav).getByRole("link", { name: /^About/ })).toHaveAttribute(
+      "href",
+      site,
+    );
+    expect(
+      within(nav).getByRole("link", { name: /^Project privacy notice/ }),
+    ).toHaveAttribute("href", `${site}privacy/`);
+    expect(
+      within(nav).getByRole("link", { name: /^Contribute/ }),
+    ).toHaveAttribute(
+      "href",
+      "https://github.com/data-director-agent/data-director/blob/main/CONTRIBUTING.md",
+    );
     expect(await axe(container)).toHaveNoViolations();
   });
 
@@ -231,9 +264,11 @@ describe("Frame", () => {
     );
     const footer = screen.getByRole("contentinfo");
     // The build line arrives with the same answer, so once it is there the link would be too.
-    expect(await within(footer).findByText("v0.3.0 (abcdef0)")).toBeInTheDocument();
     expect(
-      within(footer).queryByRole("link", { name: /privacy/i }),
+      await within(footer).findByText("v0.3.0 (abcdef0)"),
+    ).toBeInTheDocument();
+    expect(
+      within(footer).queryByRole("link", { name: /^Privacy notice/ }),
     ).not.toBeInTheDocument();
   });
 
