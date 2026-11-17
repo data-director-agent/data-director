@@ -4,6 +4,7 @@ location names a backend this build has. The PostgreSQL backend's own tests are 
 
 from __future__ import annotations
 
+import json
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -177,3 +178,21 @@ def test_only_a_database_shares_a_section_between_stores(tmp_path: Path) -> None
     (harness/tests/test_postgres.py)."""
     with pytest.raises(AssertionError):
         check_shared_record(lambda name: FileProjectLog(tmp_path / name))
+
+
+def test_a_conversation_whose_start_is_still_being_written_is_found_once_it_is(
+    tmp_path: Path,
+) -> None:
+    """The file log reads each log only as far as its last whole line, so a line another process
+    has not finished writing is read in full on a later look."""
+    log = FileProjectLog(tmp_path)
+    project_id = "0190a9b8-0000-7000-8000-000000000001"
+    log.create(project_id, {"event": "project_created"})
+    line = json.dumps({"event": "conversation_started", "conversation_id": "c-1"}) + "\n"
+    path = tmp_path / project_id / "events.jsonl"
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write(line[:20])
+    assert log.project_of("c-1") is None
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write(line[20:])
+    assert log.project_of("c-1") == project_id

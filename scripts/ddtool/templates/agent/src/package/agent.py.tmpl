@@ -1,0 +1,91 @@
+"""$agent_id: $title.
+
+Made by `dd.py new-agent`: replace the placeholder advice with what the agent does. It starts as
+a mock (docs/specs/agents.md, invariant 13): its description begins "Mock." and its payload says
+in `limitations` what it does not yet do. When it grows past that, move it to its new row of the
+roster table in docs/specs/agents.md.
+
+Grounding mode `none` (docs/specs/grounding.md): deterministic over the input, no retrieval and no
+model call. The one legal citation is the input itself, which `input_ref(ctx)` and
+`input_evidence(ctx)` cite from what the conductor handed over in `ctx`. An agent that retrieves
+or calls a model declares another mode; see `agents/README.md` and the agents that do.
+"""
+
+from __future__ import annotations
+
+from $package.classes import $payload_class, $input_class
+from dd_sdk import serve
+from dd_sdk.agent import (
+    AgentResult,
+    AgentSpec,
+    Derived,
+    RunContext,
+    abstain,
+    input_evidence,
+    input_ref,
+)
+from dd_sdk.contract.classes import ClassSchema
+from dd_sdk.contract.models import (
+    Derivation,
+    GroundingMode,
+    InvocationRequest,
+    Outcome,
+    OutcomeStatus,
+    ReasonCode,
+)
+
+
+# What the agent does not yet do, said in every payload while it is a mock.
+LIMITATIONS = ("This is a mock: its advice is a placeholder, not advice.",)
+
+
+class $agent_class:
+    spec = AgentSpec(
+        agent_id="$agent_id",
+        version="0.1.0a0",
+        title="$title",
+        description="Mock. A new agent that gives placeholder advice. Say here what it does.",
+        action_class="advise",
+        accepts=(ClassSchema.of($input_class),),
+        grounding_mode=GroundingMode.NONE,
+        payload=ClassSchema.of($payload_class),
+        derivations={
+            "advice_text": Derived(Derivation.TEMPLATE, recorded_in="advice_derivation"),
+            "limitations": Derived(Derivation.TEMPLATE),
+        },
+        # The steps of the Blueprint's process flow it helps with (`dd_sdk.process_flow`).
+        serves=(),
+    )
+
+    def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
+        given = request.input
+        # The conductor has already refused any class not in `spec.accepts`.
+        assert isinstance(given, $input_class)
+
+        if not given.subject.strip():
+            # A content problem is an outcome, not an exception.
+            return abstain(ReasonCode.INSUFFICIENT_INPUT, "Say what to advise on.")
+
+        return AgentResult(
+            outcome=Outcome(
+                status=OutcomeStatus.SUCCEEDED,
+                statement="Wrote placeholder advice. Deterministic; human review is required.",
+            ),
+            payload=$payload_class(
+                advice_text=f"No advice yet about {given.subject}.",
+                advice_derivation=Derivation.TEMPLATE,
+                limitations=list(LIMITATIONS),
+                grounded_on=[input_ref(ctx)],
+            ),
+            evidence=[input_evidence(ctx)],
+        )
+
+
+def build() -> $agent_class:
+    """The factory `main` serves. Read the agent's own configuration here."""
+    return $agent_class()
+
+
+def main() -> int:
+    """The `$script` console script: serve this agent over A2A with `dd_sdk.serve`."""
+    return serve.main(build)

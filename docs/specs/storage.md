@@ -27,8 +27,8 @@ It does not cover what a run or a project contains ([Contract](contract.md), [Pr
 ## Invariants
 
 1. **Callers reach a store through its protocol.** The conductor, conversations, disclosure, the
-   project facts, the app and the workbench name `RunStorage` and `ProjectStorage`, never a
-   backend's layout. Only a backend's own tests read its files or tables (`RunStore.root`,
+   project facts, the app and the workbench name `RunStorage` and `ProjectStorage`, or the
+   narrower area Protocols `ProjectStorage` is composed of, never a backend's layout. Only a backend's own tests read its files or tables (`RunStore.root`,
    `run_dir`, `ProjectStore.root`). Enforced by mypy over the callers' annotations.
 2. **A run is written once.** Storing an envelope whose `invocation_id` is already stored raises
    `FileExistsError` and changes nothing the store returns. The conductor refuses a duplicate
@@ -164,10 +164,22 @@ run an exclusive section in which the rules read and append (invariants 10 and 1
 content by digest, find a conversation's project, and list projects. Nothing in a `ProjectLog`
 decides whether a change is allowed.
 
-The rules are `dd_harness.projects.Projects`, constructed over a `ProjectLog`. Every change runs
-in a section of the log: the rules read the log there, decide, and append the change's events in
-one call, or a `document_change_refused` event, and raise `ChangeRefusedError` once the section has
-ended. The rules fill each event's identifier and timestamp, so every backend stores the same
+The rules are split by area, and each area is a class over the same `ProjectLog`, sharing its
+one fold of the log into documents (`dd_harness.projects.fold`): lifecycle, holdings (inventory and
+documentation), researchers, repository, flow (progress and intake), documents (drafts,
+decisions, answers and what is read from them) and deposits (validation reports and packages).
+`dd_harness.projects.Projects` is every area together, constructed over a `ProjectLog`.
+`ProjectStorage` is composed in the same way, of one Protocol per area (`ProjectLifecycle`,
+`ProjectHoldings`, `ProjectResearchers`, `ProjectRepository`, `ProjectProgress`,
+`ProjectDocuments`, `ProjectDeposits`), and of `ProjectEffects`, what a finished run does to
+its project (`dd_harness.project_effects`), which `Projects` gives through `RunEffects`. A
+caller names only the areas it uses, so a new feature of one area does not reach a caller of
+another; the conductor names `RunProjects`, every area but deposits with the run's effects.
+Code that builds a store or hands it on names `ProjectStorage`.
+
+Every change runs in a section of the log: the rules read the log there, decide, and append the
+change's events in one call, or a `document_change_refused` event, and raise `ChangeRefusedError`
+once the section has ended. The rules fill each event's identifier and timestamp, so every backend stores the same
 events. Content is kept by digest before the event that names it is appended, outside the
 section; content kept for a change that is then refused is named by nothing and harms nothing.
 `FileProjectLog` (`dd_harness.project_files`) is the file log, and `ProjectStore` is `Projects`
@@ -328,8 +340,9 @@ files.
 - **Durability.** A call that stores something returns after it is durable: flushed to disk in
   the file backends, committed in the database.
 - **Performance.** The file backends scan: conversations read every envelope, and `project_of` reads
-  every project's log for a conversation it has not found before (a conversation's project, once
-  found, is kept, as invariant 12 allows). They are not indexed; a deployment that outgrows a
+  what each project's log has gained since it last looked, for a conversation it has not found
+  before (a conversation's project, once found, is kept, as invariant 12 allows). They are not
+  indexed; a deployment that outgrows a
   scan moves to the database. In the database, listing runs and conversations reads a page from
   an index ("Listing"), and finding a conversation's project and the projects a person may read
   are indexed queries. The file backend finds a person's projects by reading every project's log.

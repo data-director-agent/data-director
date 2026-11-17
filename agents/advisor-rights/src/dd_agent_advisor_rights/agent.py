@@ -20,7 +20,6 @@ repository's own licence options and an evaluation set are TODO(#702).
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -40,19 +39,24 @@ from dd_agent_advisor_rights.interpret import (
     TemplateInterpreter,
     key,
 )
-from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
+from dd_sdk.agent import (
+    AgentResult,
+    AgentSpec,
+    Derived,
+    RunContext,
+    abstain,
+    input_evidence,
+    input_ref,
+)
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Derivation,
-    EvidenceItem,
     GroundingMode,
-    GroundingRef,
     InvocationRequest,
     Outcome,
     OutcomeStatus,
     ReasonCode,
 )
-from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 
 LICENCES = Path(__file__).with_name("licences.yaml")
 SPDX_URL = "https://spdx.org/licenses/{}.html"
@@ -152,16 +156,13 @@ class RightsAdviser:
             and context.mandated_licence is None
             and context.third_party_content is None
         ):
-            return AgentResult(
-                outcome=Outcome(
-                    status=OutcomeStatus.ABSTAINED,
-                    reason_code=ReasonCode.INSUFFICIENT_INPUT,
-                    statement=(
-                        "Say what reuse you want to allow, whether the data are sensitive, any "
-                        "licence you are required to use, or whether they include third-party "
-                        "content."
-                    ),
-                )
+            return abstain(
+                ReasonCode.INSUFFICIENT_INPUT,
+                (
+                    "Say what reuse you want to allow, whether the data are sensitive, any "
+                    "licence you are required to use, or whether they include third-party "
+                    "content."
+                ),
             )
 
         template, model = Derivation.TEMPLATE, Derivation.MODEL
@@ -228,7 +229,7 @@ class RightsAdviser:
         access = [AccessOption(level=lv, when=self.table["access_levels"][lv]) for lv in levels]
 
         calls = reading.calls
-        ref = GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)
+        ref = input_ref(ctx)
         return AgentResult(
             outcome=Outcome(
                 status=OutcomeStatus.SUCCEEDED,
@@ -246,15 +247,7 @@ class RightsAdviser:
                 dropped=list(reading.dropped),
                 grounded_on=[ref],
             ),
-            evidence=[
-                EvidenceItem(
-                    source_id=ctx.input_ref,
-                    retrieved_at=datetime.now(UTC),
-                    hash_algorithm=HASH_ALGORITHM,
-                    canonicalisation=INPUT_CANONICALISATION,
-                    content_hash=ctx.input_hash,
-                )
-            ],
+            evidence=[input_evidence(ctx)],
             model_id=reading.model_id if reading.called else None,
             input_tokens=reading.usage.input_tokens,
             output_tokens=reading.usage.output_tokens,

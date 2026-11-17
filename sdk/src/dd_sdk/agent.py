@@ -20,10 +20,13 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
 
 from opentelemetry.trace import Tracer
 
+from dd_sdk.agent_checks import SpecError as SpecError
+from dd_sdk.agent_checks import check_derivation, check_setting
 from dd_sdk.contract.classes import ClassSchema, ClassSchemaError
 from dd_sdk.contract.models import (
     Derivation,
@@ -31,19 +34,19 @@ from dd_sdk.contract.models import (
     Frozen,
     Grounded,
     GroundingMode,
+    GroundingRef,
     InvocationRequest,
     ModelCall,
     Outcome,
+    OutcomeStatus,
+    ReasonCode,
 )
 from dd_sdk.contract.version import CONTRACT_VERSION, compatible
+from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 from dd_sdk.process_flow import OUT_OF_SCOPE, STEPS
 
 if TYPE_CHECKING:
     from dd_sdk.delegate import Delegated
-
-
-class SpecError(Exception):
-    """A description does not rebuild into an `AgentSpec` against this contract."""
 
 
 class ContractVersionError(SpecError):
@@ -136,9 +139,9 @@ class AgentSpec:
                 "Grounded (its schema does not require grounded_on)"
             )
         for path, derived in self.derivations.items():
-            _check_derivation(self, path, derived)
+            check_derivation(self, path, derived)
         for name, setting in self.settings.items():
-            _check_setting(self.agent_id, name, setting)
+            check_setting(self.agent_id, name, setting)
 
     def default_settings(self) -> dict[str, str]:
         """Each setting's default: what applies where the profile sets none."""
@@ -172,66 +175,6 @@ DESCRIPTION_KEYS = frozenset(
         "schemas",
     }
 )
-DERIVATION_REF = "#/$defs/Derivation"
-
-
-def _resolve(schema: Mapping[str, Any], node: Mapping[str, Any]) -> Mapping[str, Any]:
-    """Follow `$ref` into the class schema's `$defs`, a list into its items, and an optional
-    (`anyOf` with null) into the arm that is not null."""
-    while True:
-        ref = node.get("$ref")
-        arms = [a for a in node.get("anyOf", ()) if a.get("type") != "null"]
-        if isinstance(ref, str) and ref.startswith("#/$defs/"):
-            node = schema.get("$defs", {}).get(ref.removeprefix("#/$defs/"), {})
-        elif "items" in node:
-            node = node["items"]
-        elif len(arms) == 1:
-            node = arms[0]
-        else:
-            return node
-
-
-def _is_derivation(node: Mapping[str, Any]) -> bool:
-    if node.get("$ref") == DERIVATION_REF:
-        return True
-    return any(_is_derivation(arm) for arm in node.get("anyOf", ()))
-
-
-def _check_derivation(spec: AgentSpec, path: str, derived: Derived) -> None:
-    """A derivation names a field of the payload class's schema; `recorded_in` a Derivation."""
-    where = f"agent {spec.agent_id!r} derivation {path!r}"
-    if spec.payload is None:
-        raise SpecError(f"{where}: the agent declares no payload")
-    if not isinstance(derived.how, Derivation):
-        raise SpecError(f"{where}: {derived.how!r} is not a Derivation")
-    schema = spec.payload.json_schema
-    *parents, name = path.split(".")
-    node: Mapping[str, Any] = schema
-    holder = spec.payload.name
-    for part in parents:
-        nested = _resolve(schema, node.get("properties", {}).get(part, {}))
-        if "properties" not in nested:
-            raise SpecError(f"{where}: {holder} has no nested field {part!r}")
-        node, holder = nested, str(nested.get("title", part))
-    properties = node.get("properties", {})
-    if name not in properties:
-        raise SpecError(f"{where}: {holder} has no field {name!r}")
-    if derived.recorded_in is not None:
-        recorder = properties.get(derived.recorded_in)
-        if recorder is None or not _is_derivation(recorder):
-            raise SpecError(f"{where}: {holder}.{derived.recorded_in} is not a Derivation field")
-
-
-def _check_setting(agent_id: str, name: str, setting: Setting) -> None:
-    where = f"agent {agent_id!r} setting {name!r}"
-    if not name or not isinstance(name, str):
-        raise SpecError(f"{where}: a setting needs a name")
-    if not setting.choices or not all(isinstance(c, str) and c for c in setting.choices):
-        raise SpecError(f"{where}: choices must be one or more non-empty strings")
-    if len(set(setting.choices)) != len(setting.choices):
-        raise SpecError(f"{where}: a choice is listed more than once")
-    if setting.default not in setting.choices:
-        raise SpecError(f"{where}: default {setting.default!r} is not one of its choices")
 
 
 def describe(spec: AgentSpec) -> dict[str, Any]:
@@ -482,6 +425,36 @@ def setting(ctx: RunContext, spec: AgentSpec, name: str) -> str:
         raise KeyError(f"agent {spec.agent_id!r} declares no setting {name!r}")
     sent = ctx.settings.get(name)
     return sent if sent in declared.choices else declared.default
+
+
+# The agent kit: what every agent's `run` builds, written once. An agent may not import another
+# agent, so what they share lives here (docs/architecture-review.md, finding 4).
+
+
+def abstain(reason: ReasonCode, statement: str) -> AgentResult:
+    """An abstention: the agent declines to answer, with no payload and no evidence."""
+    return AgentResult(
+        outcome=Outcome(status=OutcomeStatus.ABSTAINED, reason_code=reason, statement=statement)
+    )
+
+
+def input_ref(ctx: RunContext) -> GroundingRef:
+    """The grounding reference to this invocation's input, as an input_only or none agent cites."""
+    return GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)
+
+
+def input_evidence(ctx: RunContext, *, retrieved_at: datetime | None = None) -> EvidenceItem:
+    """The evidence item for this invocation's input, which `input_ref(ctx)` points at.
+
+    `retrieved_at` defaults to now; pass it to pin the time.
+    """
+    return EvidenceItem(
+        source_id=ctx.input_ref,
+        retrieved_at=retrieved_at if retrieved_at is not None else datetime.now(UTC),
+        hash_algorithm=HASH_ALGORITHM,
+        canonicalisation=INPUT_CANONICALISATION,
+        content_hash=ctx.input_hash,
+    )
 
 
 @runtime_checkable

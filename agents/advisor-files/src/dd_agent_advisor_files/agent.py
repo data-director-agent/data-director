@@ -23,7 +23,6 @@ import re
 from collections import defaultdict
 from collections.abc import Iterator
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 
 import yaml
@@ -36,21 +35,26 @@ from dd_agent_advisor_files.classes import (
     JudgedBy,
 )
 from dd_sdk import serve
-from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
+from dd_sdk.agent import (
+    AgentResult,
+    AgentSpec,
+    Derived,
+    RunContext,
+    abstain,
+    input_evidence,
+    input_ref,
+)
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Derivation,
-    EvidenceItem,
     FileInventory,
     GroundingMode,
-    GroundingRef,
     InventoryFile,
     InvocationRequest,
     Outcome,
     OutcomeStatus,
     ReasonCode,
 )
-from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 
 FORMATS = Path(__file__).with_name("formats.yaml")
 HINTS = Path(__file__).with_name("hints.yaml")
@@ -162,21 +166,18 @@ class FileArchivist:
         inventory = request.input
         assert isinstance(inventory, FileInventory)  # the conductor checked spec.accepts
         if not inventory.inventory_files:
-            return AgentResult(
-                outcome=Outcome(
-                    status=OutcomeStatus.ABSTAINED,
-                    reason_code=ReasonCode.INSUFFICIENT_INPUT,
-                    statement=(
-                        "The inventory lists no files. Run dd-inventory on the dataset's folder "
-                        "and add the inventory to the project."
-                    ),
-                )
+            return abstain(
+                ReasonCode.INSUFFICIENT_INPUT,
+                (
+                    "The inventory lists no files. Run dd-inventory on the dataset's folder "
+                    "and add the inventory to the project."
+                ),
             )
 
         assessments = [self._assess(file) for file in inventory.inventory_files]
         checks = self._checks(inventory.inventory_files)
         closed = sum(not a.open_format for a in assessments)
-        ref = GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)
+        ref = input_ref(ctx)
         return AgentResult(
             outcome=Outcome(
                 status=OutcomeStatus.SUCCEEDED,
@@ -188,15 +189,7 @@ class FileArchivist:
                 limitations=list(LIMITATIONS),
                 grounded_on=[ref],
             ),
-            evidence=[
-                EvidenceItem(
-                    source_id=ctx.input_ref,
-                    retrieved_at=datetime.now(UTC),
-                    hash_algorithm=HASH_ALGORITHM,
-                    canonicalisation=INPUT_CANONICALISATION,
-                    content_hash=ctx.input_hash,
-                )
-            ],
+            evidence=[input_evidence(ctx)],
         )
 
     def _checks(self, files: list[InventoryFile]) -> list[FileCheck]:

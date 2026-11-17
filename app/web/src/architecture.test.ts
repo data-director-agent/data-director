@@ -69,3 +69,31 @@ describe("function size rules", () => {
     expect(await ruleIds("src/run/planted.ts", code)).toContain("max-depth");
   });
 });
+
+// Live regions (#948): only the announcer sets `aria-live`, so run progress is said in the frame's
+// two regions and nowhere else.
+describe("live region rule", () => {
+  async function restricted(filePath: string, code: string): Promise<string[]> {
+    const [result] = await eslint.lintText(code, { filePath });
+    return (result?.messages ?? [])
+      .filter((m) => m.ruleId === "no-restricted-syntax")
+      .map((m) => m.message);
+  }
+
+  const region = 'export const x = <div aria-live="polite">Step started.</div>;\n';
+
+  it("reports a component that sets aria-live itself", async () => {
+    const messages = await restricted("src/components/run/Planted.tsx", region);
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toContain("useAnnounce");
+  });
+
+  it("allows the announcer to set it", async () => {
+    expect(await restricted("src/components/ui/Announcer.tsx", region)).toEqual([]);
+  });
+
+  it("still reports a bare button in the announcer", async () => {
+    const button = "export const x = <button>Go</button>;\n";
+    expect(await restricted("src/components/ui/Announcer.tsx", button)).toHaveLength(1);
+  });
+});

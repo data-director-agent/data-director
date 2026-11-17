@@ -8,6 +8,7 @@ Import everything from here; the modules are an internal arrangement:
 - `doubles`: `AbstainingStub`, `DocumentStub` and `ScriptedAgent`, with the spans a scripted
   agent emits.
 - `results`: results a scripted agent can return, and the sources they are grounded on.
+- `input_ref` and `input_evidence` are the agent kit's own (`dd_sdk.agent`), re-exported here.
 - `classes`: the doubles' own `Probe*` classes, declared in `../schema/doubles.yaml`.
 - `fixtures`: the test profiles (in `profiles/`), `TEST_PRINCIPAL` and inputs.
 - `model_grants`: `GrantKeys`, keys for a conductor that mints model grants, which opens a grant
@@ -63,8 +64,6 @@ from dd_harness.testing.results import (
     SOURCE_B,
     fact_check_over,
     grant_token,
-    input_evidence,
-    input_ref,
     reply_over,
     review_of_input,
 )
@@ -88,6 +87,7 @@ from dd_harness.testing.storage import (
     file_inventory,
     file_inventory_of_parts,
 )
+from dd_sdk.agent import input_evidence, input_ref
 
 __all__ = [
     "HARNESS_URL",

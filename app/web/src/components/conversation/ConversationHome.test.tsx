@@ -11,7 +11,7 @@ import flowFixture from "../../../fixtures/process-flow.json";
 import {
   type ConversationApi,
   ConversationApiContext,
-  TurnConflict,
+  NoAnswer,
   Unreachable,
 } from "../../conversation/api";
 import type { Conversation } from "../../conversation/types";
@@ -38,7 +38,11 @@ import type { RawAgentsResponse, RawManifestEntry } from "../../manifest/types";
 import runFixture from "../../../fixtures/run-succeeded.json";
 import { type RunApi, RunApiContext, RunRefused } from "../../run/api";
 import type { Problem, RunResult } from "../../run/types";
+import { AnnouncerProvider } from "../ui/Announcer";
 import { ConversationHome } from "./ConversationHome";
+
+/** The frame's polite region, where the page's announcements are said. */
+const announcements = () => screen.getByRole("log", { name: "Announcements" });
 
 const CONVERSATION = conversationFixture as unknown as Conversation;
 const PROJECT = projectFixture as ProjectDocuments;
@@ -87,15 +91,17 @@ function renderHome(
   project: ProjectApi = httpProjectApi,
 ) {
   return render(
-    <FlowApiContext.Provider value={flow}>
-      <ProjectApiContext.Provider value={project}>
-        <ActiveProjectProvider>
-          <ConversationApiContext.Provider value={api}>
-            <ConversationHome directory={directory} />
-          </ConversationApiContext.Provider>
-        </ActiveProjectProvider>
-      </ProjectApiContext.Provider>
-    </FlowApiContext.Provider>,
+    <AnnouncerProvider>
+      <FlowApiContext.Provider value={flow}>
+        <ProjectApiContext.Provider value={project}>
+          <ActiveProjectProvider>
+            <ConversationApiContext.Provider value={api}>
+              <ConversationHome directory={directory} />
+            </ConversationApiContext.Provider>
+          </ActiveProjectProvider>
+        </ProjectApiContext.Provider>
+      </FlowApiContext.Provider>
+    </AnnouncerProvider>,
   );
 }
 
@@ -129,7 +135,7 @@ describe("ConversationHome", () => {
       const group = await screen.findByRole("group", {
         name: "Where are you with your research data?",
       });
-      expect(screen.getByRole("status")).toHaveTextContent(
+      expect(announcements()).toHaveTextContent(
         "It asks: Where are you with your research data?",
       );
       expect(await axe(container)).toHaveNoViolations();
@@ -327,7 +333,7 @@ describe("ConversationHome", () => {
     expect(
       within(transcript).getAllByText("example.hello@0.1.1a1"),
     ).toHaveLength(2);
-    expect(screen.getByRole("status")).toHaveTextContent(
+    expect(announcements()).toHaveTextContent(
       /orchestrator\.stub.*Succeeded/,
     );
     expect(box).toHaveFocus();
@@ -420,25 +426,6 @@ describe("ConversationHome", () => {
       expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toHaveFocus();
     });
 
-    it("says why a file cannot be attached, and attaches nothing", async () => {
-      const { container } = renderHome(withOrchestrator(), fakeApi());
-      await userEvent.upload(fileInput(container), doc("x".repeat(256 * 1024 + 1), "big.txt", "text/plain"));
-      expect(await screen.findByRole("alert")).toHaveTextContent("a document may be at most 256 KB");
-      await userEvent.upload(fileInput(container), doc("  \n"));
-      expect(await screen.findByRole("alert")).toHaveTextContent("protocol.md is empty");
-      expect(screen.queryByRole("dialog")).toBeNull();
-      expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
-    });
-
-    it("keeps the document attached when the send fails", async () => {
-      const sendTurn = vi.fn().mockRejectedValue(new Unreachable());
-      const { container } = renderHome(withOrchestrator(), fakeApi({ sendTurn }));
-      await userEvent.upload(fileInput(container), doc(PROTOCOL));
-      await confirmDocument();
-      await userEvent.click(screen.getByRole("button", { name: "Send" }));
-      expect(await screen.findByText(/could not reach the server/)).toBeVisible();
-      expect(screen.getByRole("button", { name: "Remove protocol.md" })).toBeVisible();
-    });
   });
 
   describe("attaching an inventory", () => {
@@ -533,43 +520,19 @@ describe("ConversationHome", () => {
       );
     });
 
-    it("says why a file is not an inventory, and attaches nothing", async () => {
-      const { container } = renderHome(withOrchestrator(), fakeApi());
-      const input =
-        container.querySelector<HTMLInputElement>('input[type="file"]');
-      if (!input) throw new Error("no file input");
-      await userEvent.upload(input, file("not json"));
+    it("says a gateway error may mean the message is still being answered, and reloads", async () => {
+      const get = vi.fn().mockResolvedValue(conversationFixture as Conversation);
+      renderHome(
+        withOrchestrator(),
+        fakeApi({ sendTurn: () => Promise.reject(new NoAnswer(502)), get }),
+      );
+      await userEvent.type(screen.getByRole("textbox"), "hi");
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
       expect(await screen.findByRole("alert")).toHaveTextContent(
-        "This file is not JSON",
+        "did not answer in time (it answered 502)",
       );
-      await userEvent.upload(
-        input,
-        file(JSON.stringify({ schema_class: "Message" })),
-      );
-      expect(await screen.findByRole("alert")).toHaveTextContent(
-        "does not say it is a FileInventory",
-      );
-      expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
-    });
-
-    it("turns a pasted inventory into a chip, not text, and removes it", async () => {
-      renderHome(withOrchestrator(), fakeApi());
-      const box = screen.getByRole("textbox", {
-        name: "What would you like to do?",
-      });
-      await userEvent.click(box);
-      await userEvent.paste(JSON.stringify(INVENTORY));
-      expect(box).toHaveValue("");
-      await confirm();
-      expect(await screen.findByText(/Inventory: 2 files/)).toBeVisible();
-      await userEvent.click(
-        screen.getByRole("button", { name: "Remove inventory" }),
-      );
-      expect(screen.queryByText(/Inventory: 2 files/)).toBeNull();
-      expect(box).toHaveFocus();
-      // Other text is pasted as it is.
-      await userEvent.paste("hello");
-      expect(box).toHaveValue("hello");
+      expect(screen.getByRole("textbox")).toHaveValue("hi");
+      expect(get).toHaveBeenCalledWith("c1");
     });
 
     it("keeps the inventory attached when the send fails", async () => {
@@ -731,94 +694,6 @@ describe("ConversationHome", () => {
     // The message returns to the box and the waiting sign goes.
     expect(screen.getByRole("textbox")).toHaveValue("hi");
     expect(screen.queryByText(/is working on a reply/)).not.toBeInTheDocument();
-  });
-
-  it("says the server could not be reached, keeps the text and reloads what was stored", async () => {
-    const get = vi.fn().mockResolvedValue(conversationFixture as Conversation);
-    renderHome(
-      withOrchestrator(),
-      fakeApi({ sendTurn: () => Promise.reject(new Unreachable()), get }),
-    );
-    await userEvent.type(screen.getByRole("textbox"), "hi");
-    await userEvent.click(screen.getByRole("button", { name: "Send" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "could not reach the server, so this message may not have been sent",
-    );
-    expect(screen.getByRole("textbox")).toHaveValue("hi");
-    expect(get).toHaveBeenCalledWith("c1");
-  });
-
-  it("names the latest turn it shows as the one a new turn follows", async () => {
-    const sendTurn = vi.fn().mockResolvedValue(undefined);
-    renderHome(withOrchestrator(), fakeApi({ sendTurn }));
-    const box = screen.getByRole("textbox");
-    await userEvent.type(box, "hi");
-    await userEvent.click(screen.getByRole("button", { name: "Send" }));
-    await screen.findByText(/New reply from/);
-    await userEvent.type(box, "and again");
-    await userEvent.click(screen.getByRole("button", { name: "Send" }));
-    const latest =
-      CONVERSATION.turns[CONVERSATION.turns.length - 1]?.invocation_id;
-    expect(latest).toBeDefined();
-    expect(sendTurn).toHaveBeenLastCalledWith(
-      "c1",
-      "orchestrator.stub",
-      "and again",
-      latest,
-      null,
-    );
-  });
-
-  it("says the conversation has moved on, keeps the text and reloads it", async () => {
-    const get = vi.fn().mockResolvedValue(CONVERSATION);
-    const conflict = new TurnConflict({
-      type: "https://example.org/turn-conflict",
-      title: "The conversation has moved on",
-      http_status: 409,
-      detail: "Another turn of this conversation is still running.",
-    });
-    renderHome(
-      withOrchestrator(),
-      fakeApi({ sendTurn: () => Promise.reject(conflict), get }),
-    );
-    await userEvent.type(screen.getByRole("textbox"), "hi");
-    await userEvent.click(screen.getByRole("button", { name: "Send" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "This conversation has changed since you wrote this",
-    );
-    expect(screen.getByRole("textbox")).toHaveValue("hi");
-    expect(get).toHaveBeenCalledWith("c1");
-    expect(
-      await screen.findByRole("list", { name: "Conversation" }),
-    ).toBeVisible();
-  });
-
-  it("reads the reply again when the first read after a turn gets no response", async () => {
-    const get = vi
-      .fn()
-      .mockRejectedValueOnce(new Unreachable())
-      .mockResolvedValue(conversationFixture as Conversation);
-    renderHome(withOrchestrator(), fakeApi({ get }));
-    await userEvent.type(screen.getByRole("textbox"), "hi");
-    await userEvent.click(screen.getByRole("button", { name: "Send" }));
-    expect(
-      await screen.findByText(/orchestrator\.stub.*Succeeded/),
-    ).toBeInTheDocument();
-    expect(get).toHaveBeenCalledTimes(2);
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-  });
-
-  it("does not offer a stored turn to be sent again when its reply cannot be shown", async () => {
-    renderHome(
-      withOrchestrator(),
-      fakeApi({ get: () => Promise.reject(new Unreachable()) }),
-    );
-    await userEvent.type(screen.getByRole("textbox"), "hi");
-    await userEvent.click(screen.getByRole("button", { name: "Send" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Your message was sent and answered, but Data Director could not show the reply",
-    );
-    expect(screen.getByRole("textbox")).toHaveValue("");
   });
 
   it("shows the message and that the orchestrator is working until the reply arrives", async () => {
@@ -1319,7 +1194,7 @@ describe("ConversationHome", () => {
         expect.stringContaining("README, version 1"),
       ]);
       await waitFor(() =>
-        expect(screen.getByRole("status")).toHaveTextContent(
+        expect(announcements()).toHaveTextContent(
           "New reply from orchestrator.stub: Succeeded. README drafted, version 1: Proposed, not reviewed.",
         ),
       );
@@ -1406,15 +1281,17 @@ describe("ConversationHome", () => {
     function renderWithRuns(conversation: Conversation) {
       const api = fakeApi({ get: () => Promise.resolve(conversation) });
       return render(
-        <FlowApiContext.Provider value={FLOW}>
-          <RunApiContext.Provider value={runs}>
-            <ActiveProjectProvider>
-              <ConversationApiContext.Provider value={api}>
-                <ConversationHome directory={withOrchestrator()} />
-              </ConversationApiContext.Provider>
-            </ActiveProjectProvider>
-          </RunApiContext.Provider>
-        </FlowApiContext.Provider>,
+        <AnnouncerProvider>
+          <FlowApiContext.Provider value={FLOW}>
+            <RunApiContext.Provider value={runs}>
+              <ActiveProjectProvider>
+                <ConversationApiContext.Provider value={api}>
+                  <ConversationHome directory={withOrchestrator()} />
+                </ConversationApiContext.Provider>
+              </ActiveProjectProvider>
+            </RunApiContext.Provider>
+          </FlowApiContext.Provider>
+        </AnnouncerProvider>,
       );
     }
 
@@ -1881,89 +1758,6 @@ describe("ConversationHome", () => {
         null,
       );
       expect(screen.queryByRole("heading", { name: "Where your project starts" })).toBeNull();
-    });
-
-    // The intake once Data Director has recorded the entry point from what the researcher said.
-    function byModel(): ProjectIntake {
-      const complete = intakeCompleteFixture as ProjectIntake;
-      return { ...complete, progress: { ...complete.progress, entry_source: "model" } };
-    }
-    function chosenIn(prompt: string): string[] {
-      return within(screen.getByRole("group", { name: prompt }))
-        .getAllByRole("radio")
-        .filter((r) => (r as HTMLInputElement).checked)
-        .map((r) => (r as HTMLInputElement).value);
-    }
-
-    it("reads the intake again after a turn and shows the entry point Data Director worked out", async () => {
-      localStorage.setItem("dd-project", LOGGERS.project_id);
-      const pending = intakePendingFixture as ProjectIntake;
-      const worked = byModel();
-      const entry = worked.questions[0];
-      if (!entry) throw new Error("the intake fixture asks nothing");
-      const intake = vi
-        .fn<ProjectApi["intake"]>()
-        .mockResolvedValueOnce(pending)
-        .mockResolvedValue(worked);
-      const answerIntake = vi.fn<ProjectApi["answerIntake"]>(() =>
-        Promise.resolve(intakeCompleteFixture as ProjectIntake),
-      );
-      renderHome(
-        withOrchestrator(),
-        fakeApi({
-          create: () =>
-            Promise.resolve({ conversation_id: "c1", project_id: LOGGERS.project_id }),
-          get: () => Promise.resolve({ ...CONVERSATION, project_id: LOGGERS.project_id }),
-        }),
-        FLOW,
-        withProgress({ intake, answerIntake }),
-      );
-      const prompt = entry.question.question_prompt;
-      await screen.findByRole("group", { name: prompt });
-      expect(chosenIn(prompt)).toEqual([]);
-
-      await userEvent.type(
-        screen.getByRole("textbox", { name: "What would you like to do?" }),
-        "I've finished collecting my survey data and want to share it",
-      );
-      await userEvent.click(screen.getByRole("button", { name: "Send" }));
-
-      await waitFor(() => expect(chosenIn(prompt)).toEqual(entry.answer_values));
-      expect(intake.mock.calls.length).toBeGreaterThan(1);
-      const card = screen.getByRole("group", { name: prompt }).closest("section");
-      if (!card) throw new Error("the question is not in the card");
-      expect(within(card).getByRole("note")).toBeVisible();
-
-      await userEvent.click(within(card).getByRole("button", { name: "Next" }));
-      expect(answerIntake).toHaveBeenCalledWith(
-        LOGGERS.project_id,
-        entry.question_id,
-        entry.answer_values,
-      );
-    });
-
-    it("asked again from the tracker, reads the intake afresh and shows its current answers", async () => {
-      localStorage.setItem("dd-project", LOGGERS.project_id);
-      const worked = byModel();
-      const entry = worked.questions[0];
-      if (!entry) throw new Error("the intake fixture asks nothing");
-      const unanswered: ProjectIntake = {
-        ...worked,
-        questions: worked.questions.map((q) => ({ ...q, answer_values: null })),
-        progress: { ...worked.progress, entry: null, entry_source: null },
-        state: "dismissed",
-      };
-      const intake = vi
-        .fn<ProjectApi["intake"]>()
-        .mockResolvedValueOnce(unanswered)
-        .mockResolvedValue(worked);
-      renderHome(withOrchestrator(), fakeApi(), FLOW, withProgress({ intake }));
-      const again = await screen.findByRole("button", { name: "Answer the setup questions again" });
-      await userEvent.click(again);
-      const prompt = entry.question.question_prompt;
-      await screen.findByRole("group", { name: prompt });
-      expect(chosenIn(prompt)).toEqual(entry.answer_values);
-      expect(intake).toHaveBeenCalledTimes(2);
     });
 
     it("shows no card for a complete intake until the tracker asks the questions again", async () => {

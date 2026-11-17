@@ -8,7 +8,12 @@ fairness:FairnessReport a sh:NodeShape ;
     rdfs:comment "The payload of advisor.fairness: which of a short list of FAIR-related checks the record meets, with a suggestion for each that it does not. It is advisory and changes no record (R9, R12); the researcher decides what to submit to the repository." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:class <https://w3id.org/data-director/GroundingRef> ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "What this assessor does not do." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path fairness:limitations ],
+        [ sh:class <https://w3id.org/data-director/GroundingRef> ;
             sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
             sh:minCount 1 ;
             sh:nodeKind sh:BlankNodeOrIRI ;
@@ -21,11 +26,6 @@ fairness:FairnessReport a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path <https://w3id.org/data-director/schema_class> ],
-        [ sh:datatype xsd:string ;
-            sh:description "What this mock does not yet do." ;
-            sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path fairness:limitations ],
         [ sh:class fairness:FairCheck ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 1 ;
@@ -75,6 +75,11 @@ fairness:FairCheck a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
             sh:path fairness:check ],
+        [ sh:description "How the recommendation came about: template, the rule table's own text, or model, where a model wrote it for this record. Absent when the check is met." ;
+            sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:maxCount 1 ;
+            sh:order 4 ;
+            sh:path fairness:recommendation_derivation ],
         [ sh:datatype xsd:string ;
             sh:description "The FAIR sub-principle the check bears on, e.g. F1 or R1.1." ;
             sh:maxCount 1 ;

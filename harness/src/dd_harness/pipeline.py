@@ -331,15 +331,16 @@ def withhold_violations(conductor: Conductor, run: RunState) -> None:
 # raises.
 def validate_contract(conductor: Conductor, run: RunState) -> None:
     run.doc = run.finished.to_document()
-    if run.from_agent:
-        try:
-            validate.validate_envelope(run.doc)
-        except validate.ContractViolation as exc:
-            statement = "Agent result violates the contract: " + "; ".join(exc.messages)
-            prob = problems.agent_error(run.spec.agent_id, exc)
-            run.envelope = failed(run.finished, statement, prob)
-            run.doc = run.envelope.to_document()
-    validate.validate_envelope(run.doc)
+    try:
+        validate.validate_envelope(run.doc)
+    except validate.ContractViolation as exc:
+        if not run.from_agent:
+            raise
+        statement = "Agent result violates the contract: " + "; ".join(exc.messages)
+        prob = problems.agent_error(run.spec.agent_id, exc)
+        run.envelope = failed(run.finished, statement, prob)
+        run.doc = run.envelope.to_document()
+        validate.validate_envelope(run.doc)
 
 
 # 7a. The run's effects on its project (`dd_harness.project_effects`). A draft the project

@@ -7,26 +7,14 @@
 
 import { createContext, useContext } from "react";
 
-import { checkSignedIn } from "../session/api";
-import type { Problem, RunResult, RunRow } from "./types";
+import { json } from "../http";
+import type { RunResult, RunRow } from "./types";
 
-/** The server refused the request before any run began (a 400 with Problem Details). */
-export class RunRefused extends Error {
-  constructor(readonly problem: Problem) {
-    super(problem.detail ?? problem.title);
-  }
-}
+export { RunRefused } from "../http";
 
 export interface RunApi {
   list(signal?: AbortSignal): Promise<RunRow[]>;
   get(invocationId: string, signal?: AbortSignal): Promise<RunResult>;
-}
-
-async function json<T>(response: Response): Promise<T> {
-  checkSignedIn(response);
-  if (response.status === 400) throw new RunRefused((await response.json()) as Problem);
-  if (!response.ok) throw new Error(`the server answered ${response.status}`);
-  return (await response.json()) as T;
 }
 
 function init(signal?: AbortSignal): RequestInit {

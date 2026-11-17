@@ -10,6 +10,7 @@ payload check and grounding linter do.
 
 `from_url` reads the agent card and rebuilds the `AgentSpec` from the Data Director extension:
 the class schemas it carries, pinned by digest, and the contract version (docs/specs/contract.md).
+Each call is made from that card, so the card is read once, not once per call.
 
 Each call opens its own event loop (`asyncio.run`): the conductor is synchronous, and every
 transport already calls it from a worker thread. `client_factory` gives the httpx client for one
@@ -21,18 +22,17 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
-from a2a.client import ClientConfig, create_client
 from a2a.helpers import get_data_parts, get_text_parts, new_data_part
-from a2a.types import Message, Role, SendMessageRequest, TaskState
+from a2a.types import AgentCard, Message, Role, SendMessageRequest, TaskState
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 from dd_sdk.agent import AgentResult, AgentSpec, RunContext, SpecError, spec_from_description
 from dd_sdk.contract.models import InvocationRequest, new_invocation_id, to_document
-from dd_sdk.delegate import DelegationGrant
+from dd_sdk.delegate import DelegationGrant, a2a_client, parse_card
 from dd_sdk.tracing import records_from_jsonl
 from dd_sdk.wire import (
     ARTIFACT_NAME,
@@ -90,6 +90,9 @@ class RemoteAgent:
     # (`model_broker` in `agents.yaml`, docs/specs/model-accounts.md, invariant 14). Never read
     # from the agent's card: the agent's own claim does not decide who pays.
     model_broker: bool = False
+    # `card` as A2A reads it, parsed on first use: each call is built from it rather than
+    # fetching the card again.
+    _a2a_card: AgentCard | None = field(default=None, init=False, repr=False, compare=False)
 
     @classmethod
     def from_url(
@@ -162,9 +165,7 @@ class RemoteAgent:
                 # whole envelope, so the conductor waits for the agent's finished reply and
                 # nothing reaches a person before those checks have run. Streaming text to the
                 # shell is a separate matter, TODO(#159).
-                client = await create_client(
-                    agent=self.url, client_config=ClientConfig(streaming=False, httpx_client=hc)
-                )
+                client = await a2a_client(self.url, hc, self._parsed_card())
                 message = Message(
                     role=Role.ROLE_USER,
                     parts=[new_data_part(request_doc)],
@@ -175,6 +176,11 @@ class RemoteAgent:
                 async for response in client.send_message(SendMessageRequest(message=message)):
                     last = response
                 return last
+
+    def _parsed_card(self) -> AgentCard | None:
+        if self._a2a_card is None and self.card is not None:
+            self._a2a_card = parse_card(self.card)
+        return self._a2a_card
 
     def _parse(self, response: Any) -> Received:
         agent_id = self.spec.agent_id

@@ -20,8 +20,6 @@ TODO(#701).
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-
 from dd_agent_advisor_dmp.classes import (
     Discrepancy,
     DmpCommitments,
@@ -37,19 +35,24 @@ from dd_agent_advisor_dmp.match import (
     key,
     residue_of,
 )
-from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
+from dd_sdk.agent import (
+    AgentResult,
+    AgentSpec,
+    Derived,
+    RunContext,
+    abstain,
+    input_evidence,
+    input_ref,
+)
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Derivation,
-    EvidenceItem,
     GroundingMode,
-    GroundingRef,
     InvocationRequest,
     Outcome,
     OutcomeStatus,
     ReasonCode,
 )
-from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 
 LIMITATIONS = (
     "It reads no data management plan: it compares the commitments it is given. Reading a "
@@ -117,12 +120,9 @@ class DmpChecker:
         commitments = request.input
         assert isinstance(commitments, DmpCommitments)  # the conductor checked spec.accepts
         if not commitments.committed_outputs:
-            return AgentResult(
-                outcome=Outcome(
-                    status=OutcomeStatus.ABSTAINED,
-                    reason_code=ReasonCode.INSUFFICIENT_INPUT,
-                    statement="Give the outputs the data management plan committed to share.",
-                )
+            return abstain(
+                ReasonCode.INSUFFICIENT_INPUT,
+                "Give the outputs the data management plan committed to share.",
             )
 
         residue = residue_of(commitments.committed_outputs, commitments.planned_outputs)
@@ -135,7 +135,7 @@ class DmpChecker:
             f"{count} between the plan's commitments and the planned sharing, each for a person "
             f"to review. {_how_matched(matches, reconciled)}"
         )
-        ref = GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)
+        ref = input_ref(ctx)
         calls = matches.calls
         return AgentResult(
             outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement=statement),
@@ -146,15 +146,7 @@ class DmpChecker:
                 limitations=list(LIMITATIONS),
                 grounded_on=[ref],
             ),
-            evidence=[
-                EvidenceItem(
-                    source_id=ctx.input_ref,
-                    retrieved_at=datetime.now(UTC),
-                    hash_algorithm=HASH_ALGORITHM,
-                    canonicalisation=INPUT_CANONICALISATION,
-                    content_hash=ctx.input_hash,
-                )
-            ],
+            evidence=[input_evidence(ctx)],
             model_id=matches.model_id if matches.called else None,
             input_tokens=matches.usage.input_tokens,
             output_tokens=matches.usage.output_tokens,

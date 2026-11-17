@@ -10,6 +10,7 @@ import webbrowser
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 import pytest
@@ -110,41 +111,17 @@ def test_api_agents_retries_an_agent_that_was_down_and_still_reports_it(
 
 
 def test_the_reference_set_lists_and_enables_every_in_tree_agent():
+    # scripts/check_members.py checks that the list names every in-tree agent; here, that each
+    # has a port of its own on this machine and that the reference profile enables each one.
     entries = load_config(DEFAULT_AGENTS_CONFIG)
-    assert [(e["name"], e["url"]) for e in entries] == [
-        ("example-hello", "http://127.0.0.1:8101"),
-        ("advisor-quality", "http://127.0.0.1:8102"),
-        ("advisor-standards", "http://127.0.0.1:8105"),
-        ("advisor-policy", "http://127.0.0.1:8108"),
-        ("advisor-repository", "http://127.0.0.1:8109"),
-        ("advisor-ethics", "http://127.0.0.1:8111"),
-        ("advisor-files", "http://127.0.0.1:8110"),
-        ("advisor-dmp", "http://127.0.0.1:8112"),
-        ("advisor-metadata", "http://127.0.0.1:8113"),
-        ("advisor-documentation", "http://127.0.0.1:8114"),
-        ("advisor-rights", "http://127.0.0.1:8115"),
-        ("advisor-linking", "http://127.0.0.1:8116"),
-        ("advisor-fairness", "http://127.0.0.1:8117"),
-        ("orchestrator-stub", "http://127.0.0.1:8106"),
-        ("orchestrator-model", "http://127.0.0.1:8107"),
-    ]
-    enabled = (
-        STANDARDS_AGENT_ID,
-        "advisor.policy",
-        "advisor.repository",
-        "example.hello",
-        "advisor.quality",
-        "advisor.ethics",
-        "advisor.files",
-        "advisor.dmp",
-        "advisor.metadata",
-        "advisor.documentation",
-        "advisor.rights",
-        "advisor.linking",
-        "advisor.fairness",
-        "orchestrator.stub",
-        "orchestrator.model",
-    )
+    names = [e["name"] for e in entries]
+    urls = [urlsplit(e["url"]) for e in entries]
+    assert {"example-hello", "orchestrator-stub"} <= set(names)
+    assert len(set(names)) == len(names)
+    assert {url.hostname for url in urls} == {"127.0.0.1"}
+    assert len({url.port for url in urls}) == len(urls)
+    # An agent id is its directory's name with the first hyphen a dot (agents/README.md).
+    enabled = [name.replace("-", ".", 1) for name in names]
     profile = load_profile(DEFAULT_PROFILE)
     assert profile.agents == dict.fromkeys(enabled, "advise")
     # The rule-based stub, which needs no model key, is the conversation until a deployment

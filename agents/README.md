@@ -42,7 +42,7 @@ registry lists an agent built against an incompatible one as **incompatible**.
 | `advisor-ethics/` | `advisor.ethics` | `SensitivityContext` | `input_only` | `SensitivityFlags` | `dd-advisor-ethics`, port 8111 | **Alpha.** Flags field names that suggest sensitive data, by keyword and, with `DD_ETHICS_READER=model`, a model that may add flags but never remove one; asks what must be confirmed about consent and embargo; never decides how the data are treated (`advisor-ethics/README.md`). |
 | `advisor-files/` | `advisor.files` | `FileInventory` | `none` | `FormatAssessment` | `dd-advisor-files`, port 8110 | **Mock.** Lists each file of a project's inventory with the format its media type or extension suggests and whether that format is open, and the files whose names, size or digest call for a person to look before deposit, without reading any file. |
 | `advisor-dmp/` | `advisor.dmp` | `DmpCommitments` | `input_only` | `DmpDiscrepancies` | `dd-advisor-dmp`, port 8112 | **Alpha.** Compares what a data management plan committed to share with what is planned at publication, and flags each difference for human review without enforcing it. Its matcher model, off by default (`DD_DMP_MATCHER=model` turns it on), reads only what the rules leave over: it may merge a missing and an unplanned output into one renamed flag, or reconcile two names for one licence or repository, each shown with its reason. It reads no plan itself yet (#701). |
-| `advisor-fairness/` | `advisor.fairness` | `PublishedRecord` | `none` | `FairnessReport` | `dd-advisor-fairness`, port 8117 | **Mock.** Checks a published dataset's metadata against a short list of FAIR-related presence checks and suggests what to retrofit, without retrieving anything or giving a FAIRness evaluation. |
+| `advisor-fairness/` | `advisor.fairness` | `PublishedRecord` | `input_only` | `FairnessReport` | `dd-advisor-fairness`, port 8117 | **Alpha.** Checks a published dataset's metadata against a short list of FAIR-related presence checks and recommends what to retrofit, without retrieving anything or giving a FAIRness evaluation. Its writer model, off by default (`DD_FAIRNESS_WRITER=model` turns it on), tailors each recommendation to the record; whether a check is met stays by rule (`advisor-fairness/README.md`). Resolving the record and running F-UJI is #704; discovering related datasets is #954. |
 | `advisor-metadata/` | `advisor.metadata` | `DraftRequest` | `none` | `Document` | `dd-advisor-metadata`, port 8113 | **Mock.** The stub drafter of the metadata record (#200): a DataCite record with every property the chosen repository asks for, filling only the resource type and the formats and sizes the inventory gives. |
 | `advisor-documentation/` | `advisor.documentation` | `DraftRequest` | `input_only` | `Document` | `dd-advisor-documentation`, port 8114 | Drafts the README and the data dictionary ([Drafting documents](../docs/specs/drafting.md)): copies the inventory's files and fields and the approved metadata record's title, creators, abstract and licence, marks each dictionary value as inferred, supplied or unknown, and leaves the methods, definitions, units and missing value codes as marked gaps, each asked as a question. Its model, on by default (`DD_DOCUMENTATION_WRITER=template` turns it off), writes the README's prose from those facts alone and suggests answers beside some questions, never in the draft. |
 | `advisor-rights/` | `advisor.rights` | `RightsContext` | `input_only` | `RightsOptions` | `dd-advisor-rights`, port 8115 | **Alpha.** Lists data licences from a short fixed table that fit the reuse wanted, and access levels with when each applies, for the researcher to choose from; never chooses. Its interpreter model, off by default (`DD_RIGHTS_INTERPRETER=model` turns it on), reads a reuse wish in the researcher's own words and tailors questions about third-party content or a mandate, choosing only from the table (`advisor-rights/README.md`). Licences from SPDX through the tool gateway are #877. |
@@ -59,25 +59,51 @@ the roster in [Agents](../docs/specs/agents.md) with a `title` that people see) 
 `example` (templates). A directory, package and serve command spell the id with hyphens or underscores:
 `advisor.policy` is `advisor-policy/`, `dd_agent_advisor_policy` and `dd-advisor-policy`.
 
-## Start from `example-hello/`
+## Start with `dd.py new-agent`
 
-`example-hello/src/dd_agent_example_hello/agent.py` is the smallest agent that walks the whole of the recipe
-below with no domain logic in the way. It has:
+```sh
+uv run scripts/dd.py new-agent advisor-foo
+uv sync --all-packages --all-extras
+```
 
-- its own input class and its own payload class;
-- a declared grounding mode;
-- its payload fields' derivations;
+writes `advisor-foo/`: the package `dd_agent_advisor_foo`, with agent id `advisor.foo`, served
+by `dd-advisor-foo` on the port after the highest the app lists. The name is lower-case words
+joined by hyphens; the first hyphen is the dot in the agent id. The new agent is a working mock
+(grounding mode `none`) with:
+
+- its own input class and its own payload class, and their generated schemas;
+- its payload fields' derivations, and a `limitations` slot saying what it does not yet do;
 - a console script;
-- a profile entry;
-- a sample;
-- marked tests.
+- tests through a conductor, with their sample input.
 
-It is commented against the numbered steps. Copy the directory, rename it, and delete the
-greeting.
+It is written on the agent kit in `dd_sdk.agent`, which every agent uses rather than its own
+copy:
 
-It is also the check on the claim in the last line of this file. `example.hello` has no reason to
-fail other than the harness. If adding an agent ever needs an edit to the conductor, linter,
-CLI, transports or viewer, this agent will show it.
+- `abstain(reason, statement)` returns an abstention, with no payload or evidence.
+- `input_ref(ctx)` and `input_evidence(ctx)` return the grounding reference and the evidence item
+  that cite the invocation's input, which is all a `none` or `input_only` agent may cite.
+
+The command also does steps 5 to 7 below. It lists the agent wherever `example-hello` is listed:
+
+- the root `pyproject.toml`, then `uv lock`;
+- `compose.yaml`, `docker/compose.image.yaml` and `docker/agents.yaml`;
+- `app/config/agents.yaml`, `workbench/agents.yaml` and `deploy/agents/<name>.env`;
+- the three profiles;
+- the docs navigation in `mkdocs.yml`;
+- the Mock row of the roster table in [Agents](../docs/specs/agents.md).
+
+The new agent passes `uv run pytest`, `uv run mypy`, `uv run lint-imports`,
+`scripts/check_boundaries.py` and `scripts/check_members.py` as written. Then:
+
+1. Replace its placeholder advice.
+2. Add its row to the table above.
+3. Move it in the roster table when it is no longer a mock.
+
+`example-hello/` stays the worked example. `example-hello/src/dd_agent_example_hello/agent.py`
+walks the whole of the recipe below with no domain logic in the way, and is commented against
+the numbered steps. It is also the check on the claim in the last line of this file.
+`example.hello` has no reason to fail other than the harness. If adding an agent ever needs an
+edit to the conductor, linter, CLI, transports or viewer, this agent will show it.
 
 ## Adding an agent
 
@@ -119,12 +145,12 @@ CLI, transports or viewer, this agent will show it.
      ([Orchestration](../docs/specs/orchestration.md)). `ctx.delegate` is `None` when no grant was issued (for example under
      `workbench invoke`); handle that as an outcome. `orchestrator-stub/` is the worked example.
 
-   In `input_only` and `none`, `grounded_on` and `evidence` cite `ctx.input_ref` /
-   `ctx.input_hash` and nothing else. Always use `ctx.tracer`. A span started some other way is
+   In `input_only` and `none`, `grounded_on` and `evidence` cite the input and nothing else:
+   `input_ref(ctx)` and `input_evidence(ctx)` from `dd_sdk.agent`. Always use `ctx.tracer`. A span started some other way is
    outside the invocation's trace, and the linter's G0 rule withholds the output.
 3. **Hash what you retrieved** with a registered canonicalisation from `dd_sdk.evidence`
    ([Evidence and grounding](../docs/specs/grounding.md)). Register a new name there if none fits; never invent one in the agent.
-4. **Write the package.** Copy `example-hello/`. You need:
+4. **Write the package.** `dd.py new-agent` writes it (above). You need:
    - `pyproject.toml` depending on `data-director-sdk`, with a console script
      `dd-<name> = "dd_agent_<name>.agent:main"`;
    - a class with `spec = AgentSpec(...)` and `run`;
@@ -133,7 +159,8 @@ CLI, transports or viewer, this agent will show it.
    Read the agent's own `DD_<AGENT>_*` environment variables in `build`. They are for how the
    agent works, such as an endpoint or a path; what the deployment allows is set in its
    institutional profile, not in a variable ([Policy and identity](../docs/specs/policy-and-identity.md)).
-   A content problem is an outcome (`abstained` with a reason code), not an exception.
+   A content problem is an outcome (`abstain(reason, statement)` from `dd_sdk.agent`), not an
+   exception.
 
    A source copy too large to commit is built where it is used, from something the package pins.
    Declare it as a `dd_sdk.sources.BuiltSource` (its name, pin, what is wrong with the built copy,
@@ -167,16 +194,19 @@ CLI, transports or viewer, this agent will show it.
    model may write, a fake client in its tests, and an evaluation set before it leaves alpha.
    Reviewers check it against
    [Reviewing a model-backed agent](../docs/guide/developer-guide/reviewing-a-model-backed-agent.md).
-5. **Add it to the workspace.** Add the distribution to the `dependencies` and
-   `[tool.uv.sources]` of the root `pyproject.toml`, then run `uv sync --all-packages`. A package
-   that lives outside this repository skips this step; it only has to be served.
-6. **Register it.** Add one entry with a name and the URL it is served at to each registry file
-   (`app/config/agents.yaml` and `workbench/agents.yaml`), and its port to
-   `scripts/run-agents.sh`.
+5. **Add it to the workspace.** `dd.py new-agent` has done this. It adds the distribution to
+   the `dependencies` and `[tool.uv.sources]` of the root `pyproject.toml`, and the package to
+   every other list there that `scripts/check_members.py` checks, then runs `uv lock`. Run
+   `uv sync --all-packages --all-extras`. A package that lives outside this repository skips this
+   step; it only has to be served.
+6. **Register it.** `dd.py new-agent` has done this. It adds one entry with a name and the URL it
+   is served at to each registry file (`app/config/agents.yaml`, `workbench/agents.yaml` and
+   `docker/agents.yaml`). It adds a service to `compose.yaml` and `docker/compose.image.yaml`, and
+   writes `deploy/agents/<name>.env`. `scripts/run-agents.sh` reads the app's list.
 7. **Enable it** in the profiles that should run it (`app/config/profile.yaml.example`,
    `workbench/profiles/default.yaml` and the harness's test profile
-   `harness/src/dd_harness/testing/profiles/test-permissive.yaml`). Registration is not
-   permission.
+   `harness/src/dd_harness/testing/profiles/test-permissive.yaml`). `dd.py new-agent` enables it
+   in all three; take it out of any that should not run it. Registration is not permission.
 8. **Ship a sample input and declare the payload's derivations.**
    - Put a sample input, with `schema_class` set, in `workbench/samples/`. The viewer builds its
      input form from the class schema in the agent's card.

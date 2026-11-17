@@ -57,12 +57,14 @@ class FileProjectLog:
         # sees half of one. Each project has its own lock, so projects do not wait on each other.
         self._locks: dict[str, threading.RLock] = {}
         self._locks_guard = threading.Lock()
-        # The project of each conversation found so far. A conversation's project never changes
-        # once recorded, so only what was found is kept; one not found is looked for again, in
-        # case another log over the same root has started it since (docs/specs/storage.md,
-        # invariant 12). Each miss reads every log; a deployment that outgrows that keeps its
-        # projects in the database, where finding one is an indexed query.
+        # The project of each conversation seen so far, and how many bytes of each log have been
+        # read to find them. A conversation's project never changes once recorded and a log only
+        # grows, so both are kept (docs/specs/storage.md, invariant 12). One not found is looked
+        # for again in what each log has gained since, in case another log over the same root has
+        # started it; a deployment that outgrows that keeps its projects in the database, where
+        # finding one is an indexed query.
         self._conversations: dict[str, str] = {}
+        self._scanned: dict[str, int] = {}
         self._conversations_guard = threading.Lock()
 
     def create(self, project_id: str, event: dict[str, Any]) -> None:
@@ -117,18 +119,31 @@ class FileProjectLog:
         if found is not None:
             return found
         for path in self.root.glob(f"*/{EVENTS_NAME}"):
-            project_id = path.parent.name
-            if not self.exists(project_id):
-                continue
-            for event in self.events(project_id):
-                if (
-                    event["event"] == _CONVERSATION_STARTED
-                    and event["conversation_id"] == conversation_id
-                ):
-                    with self._conversations_guard:
-                        self._conversations[conversation_id] = project_id
-                    return project_id
-        return None
+            if self.exists(path.parent.name):
+                self._read_conversations(path.parent.name)
+        with self._conversations_guard:
+            return self._conversations.get(conversation_id)
+
+    def _read_conversations(self, project_id: str) -> None:
+        """Record the conversations started in the part of the project's log not yet read."""
+        with self._lock(project_id):
+            with self._conversations_guard:
+                start = self._scanned.get(project_id, 0)
+            with self._events_path(project_id).open("rb") as fh:
+                fh.seek(start)
+                gained = fh.read()
+            # Up to the last whole line: one that another process is still writing is read next.
+            end = gained.rfind(b"\n") + 1
+            started: dict[str, str] = {}
+            for line in gained[:end].splitlines():
+                if _CONVERSATION_STARTED.encode() in line:
+                    event = json.loads(line)
+                    if event["event"] == _CONVERSATION_STARTED:
+                        started.setdefault(event["conversation_id"], project_id)
+            with self._conversations_guard:
+                for conversation_id, found in started.items():
+                    self._conversations.setdefault(conversation_id, found)
+                self._scanned[project_id] = start + end
 
     def project_ids(self) -> list[str]:
         # UUIDv7s sort by the time they were made, so this is the order the projects were created.

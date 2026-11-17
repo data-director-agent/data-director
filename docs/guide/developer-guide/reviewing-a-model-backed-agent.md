@@ -120,7 +120,9 @@ next and how. Check a pull request for one of them against its row as well.
 - **Metadata (`advisor.metadata`).** The model suggests beside a value the researcher must give;
   it never fills or overwrites the value.
 - **FAIRness (`advisor.fairness`).** The model writes the recommendations only. Assessments and
-  scores stay in code.
+  scores stay in code. In the alpha it is given only the checks the rules found unmet, and each
+  recommendation it writes for a check not sent, or naming a DOI, ORCID iD or address the record
+  does not give, is dropped and the template's kept (`advisor-fairness/write.py`, `check`).
 - **Policy (`advisor.policy`).** The model may add policies it found with its tools and
   obligations it read, each with a quote the agent finds in the cited record; it never removes a
   policy the rules matched or weakens an obligation read by rule, and it never names an actor

@@ -78,7 +78,7 @@ from dd_agent_advisor_policy.retrieve import Policies, SourceRecord
 from dd_agent_advisor_policy.ror import Organisations
 from dd_agent_advisor_policy.ror_records import Organisation
 from dd_agent_advisor_policy.tools import Lookups
-from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext, Setting, setting
+from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext, Setting, abstain, setting
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Derivation,
@@ -97,12 +97,6 @@ from dd_sdk.tracing import retrieval_span
 # The setting that decides whether each policy's own text is read.
 POLICY_TEXT = "policy_text"
 READ, OFF = "read", "off"
-
-
-def _abstain(reason: ReasonCode, statement: str) -> AgentResult:
-    return AgentResult(
-        outcome=Outcome(status=OutcomeStatus.ABSTAINED, reason_code=reason, statement=statement)
-    )
 
 
 def _ref(record: SourceRecord) -> GroundingRef:
@@ -267,7 +261,7 @@ class PolicyAgent:
         context = request.input
         assert isinstance(context, PolicyContext)  # the conductor checked spec.accepts
         if not context.actors:
-            return _abstain(
+            return abstain(
                 ReasonCode.INSUFFICIENT_INPUT,
                 "The context names no funder, journal or institution, so there was no policy "
                 "to look up.",
@@ -304,14 +298,14 @@ class PolicyAgent:
             matched = _matched(searched, self.policies)
         except RegistryUnavailable as exc:
             if self.fallback is None:
-                return _abstain(
+                return abstain(
                     ReasonCode.REGISTRY_UNAVAILABLE,
                     f"FAIRsharing could not be searched: {exc}. This is not an empty result.",
                 )
             try:
                 matched = _matched(searched, self.fallback)
             except RegistryUnavailable as again:
-                return _abstain(
+                return abstain(
                     ReasonCode.REGISTRY_UNAVAILABLE,
                     f"FAIRsharing could not be searched ({exc}), nor its snapshot ({again}).",
                 )
@@ -469,7 +463,7 @@ class PolicyAgent:
         texts = self._read_texts(matched, ctx)
         if not records and not organisations and not texts.readings:
             no_record = [actor.name for actor, _ in searched]
-            return _abstain(
+            return abstain(
                 ReasonCode.NO_CANDIDATES_RETRIEVED,
                 f"No registry ({'; '.join(labels)}) has a policy record for "
                 f"{', '.join(no_record)}. Many institutions have none; check the policies "

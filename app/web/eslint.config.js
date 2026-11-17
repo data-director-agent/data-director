@@ -5,6 +5,19 @@ import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
+// Every button is the kit's, so that they look and behave alike (components/ui/Button.tsx).
+const BUTTON = {
+  selector: "JSXOpeningElement[name.name='button']",
+  message: "Use Button or ToggleButton from components/ui/Button.tsx.",
+};
+
+// Live regions are the frame's two, spoken through the announcer (components/ui/Announcer.tsx,
+// #948), so run progress is said once and errors go to the assertive region.
+const LIVE_REGION = {
+  selector: "JSXAttribute[name.name='aria-live']",
+  message: "Announce through useAnnounce (components/ui/Announcer.tsx) instead of an aria-live region.",
+};
+
 export default tseslint.config(
   { ignores: ["dist", "coverage", "playwright-report", "test-results", ".dependency-cruiser.cjs"] },
   js.configs.recommended,
@@ -53,15 +66,14 @@ export default tseslint.config(
     plugins: { "react-hooks": reactHooks },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      // Every button is the kit's, so that they look and behave alike (components/ui/Button.tsx).
-      "no-restricted-syntax": [
-        "error",
-        {
-          selector: "JSXOpeningElement[name.name='button']",
-          message: "Use Button or ToggleButton from components/ui/Button.tsx.",
-        },
-      ],
+      "no-restricted-syntax": ["error", BUTTON, LIVE_REGION],
     },
+  },
+  {
+    // The announcer owns the live regions for run progress. AddInventory says an upload's result
+    // in its own region, which is not run progress; TODO(#1025): move it to the announcer.
+    files: ["src/components/ui/Announcer.tsx", "src/components/inventory/AddInventory.tsx"],
+    rules: { "no-restricted-syntax": ["error", BUTTON] },
   },
   {
     // Functions a reviewer can follow (docs/architecture-review.md). A function over these limits

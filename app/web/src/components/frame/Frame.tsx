@@ -3,7 +3,8 @@
  *
  * The banner holds the same things on every page (the name, the main navigation, who is signed
  * in and the dark mode switch), so nothing in it moves when the page changes. What a page is
- * about, and for whom it acts, is said in the page itself.
+ * about, and for whom it acts, is said in the page itself. The page's two live regions are
+ * mounted here, once, so they are present from load (`ui/Announcer`).
  */
 
 import "./Frame.css";
@@ -22,6 +23,7 @@ import {
 import type { ReactNode } from "react";
 
 import { Link } from "../../route";
+import { AnnouncerProvider } from "../ui/Announcer";
 import { FooterBuild } from "./FooterBuild";
 import { ThemeSwitch } from "./ThemeSwitch";
 
@@ -49,6 +51,17 @@ const BLUEPRINT = "https://doi.org/10.15497/RDA00157";
 const SOURCE = "https://github.com/data-director-agent/data-director";
 const USER_GUIDE =
   "https://data-director-agent.github.io/data-director/user-guide/";
+const SITE = "https://data-director-agent.github.io/data-director/";
+const CONTRIBUTING =
+  "https://github.com/data-director-agent/data-director/blob/main/CONTRIBUTING.md";
+
+// The project's own pages. The privacy notice here covers the project's website, not an
+// instance, so it is labelled as the project's and the operator's notice stays in the build line.
+const PROJECT_LINKS: readonly { href: string; label: string }[] = [
+  { href: SITE, label: "About" },
+  { href: `${SITE}privacy/`, label: "Project privacy notice" },
+  { href: CONTRIBUTING, label: "Contribute" },
+];
 
 /**
  * `from` is the page the reader is on, which the report form carries so a report says where it
@@ -68,7 +81,7 @@ export function Frame({
   const run = new URLSearchParams(from.split("?")[1]).get("run");
   const report = `/feedback?from=${encodeURIComponent(from)}${run ? `&run=${encodeURIComponent(run)}` : ""}`;
   return (
-    <>
+    <AnnouncerProvider>
       <a className="skip-link" href="#main">
         Skip to main content
       </a>
@@ -169,6 +182,21 @@ export function Frame({
             </ul>
           </div>
           <div className="app-footer-details">
+            <nav aria-label="Footer" className="app-footer-nav">
+              <ul className="app-footer-links">
+                {PROJECT_LINKS.map(({ href, label }) => (
+                  <li key={href}>
+                    <a href={href} target="_blank" rel="noreferrer">
+                      {label}
+                      <span className="visually-hidden">
+                        {" "}
+                        (opens in a new tab)
+                      </span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
             <p className="app-footer-about">
               A reference implementation of the{" "}
               <a href={BLUEPRINT} target="_blank" rel="noreferrer">
@@ -186,6 +214,6 @@ export function Frame({
           </div>
         </div>
       </footer>
-    </>
+    </AnnouncerProvider>
   );
 }

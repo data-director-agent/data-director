@@ -31,6 +31,7 @@ MODEL_SWITCHES = {
     "advisor-documentation": "DD_DOCUMENTATION_WRITER",
     "advisor-dmp": "DD_DMP_MATCHER",
     "advisor-rights": "DD_RIGHTS_INTERPRETER",
+    "advisor-fairness": "DD_FAIRNESS_WRITER",
 }
 
 
