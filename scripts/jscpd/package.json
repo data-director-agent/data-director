@@ -3,6 +3,6 @@
   "private": true,
   "description": "jscpd, pinned for scripts/check_duplication.py",
   "devDependencies": {
-    "jscpd": "5.4.2"
+    "jscpd": "5.4.3"
   }
 }
