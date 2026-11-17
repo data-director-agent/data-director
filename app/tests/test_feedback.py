@@ -15,7 +15,7 @@ from support import configure_env, dist_dir, new_governance
 
 from dd_app import feedback
 from dd_app.about import about, commit
-from dd_app.app import build_app
+from dd_app.app import Links, build_app
 from dd_app.github_auth import StaticToken
 from dd_app.governance import Governance
 from dd_app.routes.common import Feedback
@@ -102,7 +102,7 @@ def test_about_gives_the_operators_privacy_notice_only_when_one_is_set(
     unset, _ = client_for(governance, dist)
     assert unset.get("/api/about").json()["privacy_notice_url"] is None
     url = "https://example.ac.uk/data-director/privacy"
-    app = build_app(governance, dist, build=BUILD, privacy_notice_url=url)
+    app = build_app(governance, dist, build=BUILD, links=Links(privacy_notice_url=url))
     assert TestClient(app).get("/api/about").json()["privacy_notice_url"] == url
 
 

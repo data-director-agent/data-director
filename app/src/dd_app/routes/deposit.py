@@ -101,15 +101,29 @@ async def choose_repository(request: Request, person: Principal, deps: Deps) -> 
                 project_id, body.re3data_id, acted_for=person, caused_by=f"PUT {request.url.path}"
             )
         )
-    except RepositoriesUnavailableError as exc:
-        return _repositories_unavailable(str(exc))
-    except SourceConfigError as exc:
-        return problem(503, "re3data-unavailable", REPOSITORY_REFUSED, str(exc))
-    except ProjectError as exc:
-        return project_refused(exc, project_id, REPOSITORY_REFUSED)
-    except RequirementsError as exc:
-        return problem(400, "request-refused", REPOSITORY_REFUSED, str(exc))
+    except (
+        RepositoriesUnavailableError,
+        SourceConfigError,
+        ProjectError,
+        RequirementsError,
+    ) as exc:
+        return _choice_refused(exc, project_id)
     return JSONResponse(chosen, status_code=201)
+
+
+def _choice_refused(
+    exc: RepositoriesUnavailableError | SourceConfigError | ProjectError | RequirementsError,
+    project_id: str,
+) -> Response:
+    """The problem that answers a refused choice of repository, by what refused it, tried in the
+    order the choice's handler names them."""
+    if isinstance(exc, RepositoriesUnavailableError):
+        return _repositories_unavailable(str(exc))
+    if isinstance(exc, SourceConfigError):
+        return problem(503, "re3data-unavailable", REPOSITORY_REFUSED, str(exc))
+    if isinstance(exc, ProjectError):
+        return project_refused(exc, project_id, REPOSITORY_REFUSED)
+    return problem(400, "request-refused", REPOSITORY_REFUSED, str(exc))
 
 
 def _repositories_unavailable(detail: str) -> Response:

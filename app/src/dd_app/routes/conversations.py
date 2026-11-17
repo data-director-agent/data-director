@@ -24,7 +24,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
-from dd_app.governance import TurnConflictError, UnknownConversationError
+from dd_app.governance import Governance, TurnConflictError, UnknownConversationError
 from dd_app.routes.common import (
     RUN_REFUSED,
     Deps,
@@ -196,27 +196,10 @@ async def send_turn(request: Request, acting_for: Principal, deps: Deps) -> Resp
     if await run_in_threadpool(governance.conversation, conversation_id, acting_for) is None:
         return no_conversation(conversation_id)
     started = time.monotonic()
-    outcome = "answered"
+    outcome = "failed or dropped"
     try:
-        envelope = await governance.turn(conversation_id, body.turn(), acting_for)
-        checks = governance.checks(envelope.invocation_id)
-        return JSONResponse({"envelope": envelope.to_document(), "checks": checks})
-    except UnknownConversationError:
-        outcome = "unknown conversation"
-        return no_conversation(conversation_id)
-    except TurnConflictError as exc:
-        outcome = "conflict"
-        return problem(409, "turn-conflict", "The conversation has moved on", exc.detail)
-    except ProjectDeletedError as exc:
-        outcome = "project deleted"
-        return problem(409, "project-deleted", "This project is deleted", str(exc))
-    # A `ProjectError` (an inventory or document the project refuses) is a `ValueError`.
-    except REFUSED_BEFORE_RUN as exc:
-        outcome = "refused"
-        return refused(str(exc))
-    except BaseException:
-        outcome = "failed or dropped"
-        raise
+        response, outcome = await _take_turn(governance, conversation_id, body, acting_for)
+        return response
     finally:
         log.info(
             "data-director: turn %s %s in %.1f s",
@@ -224,6 +207,28 @@ async def send_turn(request: Request, acting_for: Principal, deps: Deps) -> Resp
             outcome,
             time.monotonic() - started,
         )
+
+
+async def _take_turn(
+    governance: Governance, conversation_id: str, body: SendTurn, acting_for: Principal
+) -> tuple[Response, str]:
+    """The answer to one turn sent as JSON, and the outcome to log: answered, or refused for
+    why. Anything else, raised, has failed or been dropped."""
+    try:
+        envelope = await governance.turn(conversation_id, body.turn(), acting_for)
+        checks = governance.checks(envelope.invocation_id)
+        return JSONResponse({"envelope": envelope.to_document(), "checks": checks}), "answered"
+    except UnknownConversationError:
+        return no_conversation(conversation_id), "unknown conversation"
+    except TurnConflictError as exc:
+        conflict = problem(409, "turn-conflict", "The conversation has moved on", exc.detail)
+        return conflict, "conflict"
+    except ProjectDeletedError as exc:
+        deleted = problem(409, "project-deleted", "This project is deleted", str(exc))
+        return deleted, "project deleted"
+    # A `ProjectError` (an inventory or document the project refuses) is a `ValueError`.
+    except REFUSED_BEFORE_RUN as exc:
+        return refused(str(exc)), "refused"
 
 
 async def list_conversations(request: Request, reader: Principal, deps: Deps) -> Response:
