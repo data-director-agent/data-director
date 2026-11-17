@@ -147,6 +147,31 @@ dataset for the same task (TODO(#22)).
 - **Run-specific facts in the committed report.** They would make `--check` fail on every run of
   an unchanged commit.
 
+## Benchmark
+
+The harness's performance over the PostgreSQL run store (Blueprint C10, C11) is benchmarked by
+`harness/scripts/bench_postgres.py`, weekly and on demand in `.github/workflows/bench.yml`
+against the same PostgreSQL service as the test job. Every run goes through the conductor to a
+stub agent that abstains, so it times the harness's own work and the database, not an agent or a
+model. It reports:
+
+- one invocation's latency (p50, p95, slowest), with the agent over in-memory A2A and called
+  directly, the Process Run Crate written;
+- reading a page of runs, a page of conversations and one run, in a store of 1,000 and of
+  20,000 runs, filled by the same synthetic runs as the listing tests
+  (`dd_harness.testing.postgres`);
+- runs stored per second by 1, 2, 4 and 8 writer processes at once, each with its own conductor
+  and pool.
+
+Its figures are measurements, so invariants 9 and 18 apply: no `requirement` marker, nothing in
+`CONFORMANCE.md`. They go to the job summary and a JSON artefact naming the commit, the
+PostgreSQL and Python versions, the runner and the pool size. They substantiate neither C10 nor
+C11: the Blueprint assesses both at deployment, there is no budget to hold the figures to, and a
+CI runner is not a deployment. `test_the_benchmark_runs_and_reports_each_measure` checks only
+that it runs. A committed baseline, with tolerances and rewritten only in its own commit as the
+evaluations' are (invariant 8), waits until several weekly runs show how much the figures vary:
+TODO(#35).
+
 ## Non-functional requirements
 
 - The evaluation and the conformance run need no network and no credentials; the evaluation
@@ -165,5 +190,6 @@ dataset for the same task (TODO(#22)).
 - TODO(#244): whether the app shell's tests feed `CONFORMANCE.md`.
 - TODO(#7): evaluation and workshop materials for D4, including Exercise 4 ("Should it have
   stopped?"), which can build on the stopping score.
-- TODO(#35, #42): how to benchmark Data Director beyond seeded defects, and evaluation of the
-  guardrails.
+- TODO(#35, #42): how to benchmark Data Director beyond seeded defects and the harness's own
+  performance ([Benchmark](#benchmark)): agents, models and whole workflows, at deployment, and
+  evaluation of the guardrails.
