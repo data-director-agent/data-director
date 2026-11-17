@@ -65,6 +65,14 @@ describe("ProjectsPage", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("offers each project's journey map as a link on its card", async () => {
+    renderPage(() => Promise.resolve(PROJECTS));
+    const link = await screen.findByRole("link", {
+      name: `Open the journey map of ${projectName(FIRST)}`,
+    });
+    expect(link).toHaveAttribute("href", `/projects/${FIRST.project_id}/journey`);
+  });
+
   it("counts a project's documents by state", async () => {
     const counted = { ...FIRST, documents: { proposed: 2, approved: 1, rejected: 0 } };
     renderPage(() => Promise.resolve([counted]));

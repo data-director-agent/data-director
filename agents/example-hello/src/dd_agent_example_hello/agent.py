@@ -1,12 +1,11 @@
 """example.hello: the template agent. Greets whoever the input names, and nothing else.
 
-This package exists to be copied. It is the smallest agent that walks the whole recipe in
-`agents/README.md` — a new input class, a new payload class, a grounding mode, the payload's
-derivations, a console script, a profile entry, a sample and marked tests — with no domain logic
-in the way. It runs as its own service (`dd-example-hello serve`); the harness's conductor
-reaches it over A2A.
-`advisor.quality` and `advisor.standards` show what a real agent does; this one shows only what the
-harness requires. Read it top to bottom, then delete the greeting.
+This package is the worked example; `dd.py new-agent` writes a new agent. It is the smallest
+agent that walks the whole recipe in `agents/README.md` — a new input class, a new payload class,
+a grounding mode, the payload's derivations, a console script, a profile entry, a sample and
+marked tests — with no domain logic in the way. It runs as its own service
+(`dd-example-hello serve`); the harness's conductor reaches it over A2A. `advisor.quality` and
+`advisor.standards` show what a real agent does; this one shows only what the harness requires.
 
 It also keeps the harness's modularity claim honest: if adding an agent ever starts to require
 an edit to the conductor, linter, CLI, transport or viewer, this agent will be the one that shows
@@ -20,23 +19,26 @@ whose source id and content hash the conductor computed and handed over in `ctx`
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-
 from dd_agent_example_hello.classes import Greeting, Salutation
 from dd_sdk import serve
-from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
+from dd_sdk.agent import (
+    AgentResult,
+    AgentSpec,
+    Derived,
+    RunContext,
+    abstain,
+    input_evidence,
+    input_ref,
+)
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Derivation,
-    EvidenceItem,
     GroundingMode,
-    GroundingRef,
     InvocationRequest,
     Outcome,
     OutcomeStatus,
     ReasonCode,
 )
-from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 
 # The whole of this agent's domain knowledge. A real agent would load a rule file or reach a
 # backend here; the point is that neither is the harness's business.
@@ -84,21 +86,16 @@ class HelloWorld:
         if language not in GREETINGS:
             # A content problem is an outcome, not an exception. Exceptions are reserved for
             # programmer and configuration errors.
-            return AgentResult(
-                outcome=Outcome(
-                    status=OutcomeStatus.ABSTAINED,
-                    reason_code=ReasonCode.CAPABILITY_NOT_IMPLEMENTED,
-                    statement=(
-                        f"No greeting is packaged for language {language!r}; "
-                        f"this agent knows {', '.join(sorted(GREETINGS))}."
-                    ),
-                )
+            return abstain(
+                ReasonCode.CAPABILITY_NOT_IMPLEMENTED,
+                f"No greeting is packaged for language {language!r}; "
+                f"this agent knows {', '.join(sorted(GREETINGS))}.",
             )
 
         # The one identity this payload rests on. Under `none` and `input_only` it is always the
         # input and only the input; `ctx.input_ref` and `ctx.input_hash` come from the conductor,
         # so an agent cannot misreport what it worked from.
-        ref = GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)
+        ref = input_ref(ctx)
 
         return AgentResult(
             outcome=Outcome(
@@ -114,17 +111,9 @@ class HelloWorld:
                 greeting_derivation=Derivation.TEMPLATE,
                 grounded_on=[ref],
             ),
-            # Step 3: the canonicalisation is a registered name from `dd_sdk.evidence`
-            # (docs/specs/grounding.md), never a literal invented here.
-            evidence=[
-                EvidenceItem(
-                    source_id=ctx.input_ref,
-                    retrieved_at=datetime.now(UTC),
-                    hash_algorithm=HASH_ALGORITHM,
-                    canonicalisation=INPUT_CANONICALISATION,
-                    content_hash=ctx.input_hash,
-                )
-            ],
+            # Step 3: `input_evidence` names the input's registered canonicalisation from
+            # `dd_sdk.evidence` (docs/specs/grounding.md), never a literal invented here.
+            evidence=[input_evidence(ctx)],
             # `model_id` and the token counts stay unset: mode `none` calls no model. The
             # conductor fills the rest of the telemetry, and every identifier and timestamp.
         )

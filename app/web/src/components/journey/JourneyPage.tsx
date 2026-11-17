@@ -16,8 +16,9 @@ import { useActiveProject } from "../../project/active";
 import { type ProjectDocument, useProjectApi } from "../../project/api";
 import { projectName } from "../../project/name";
 import { errorMessage } from "../../run/api";
-import { Link, homePath, journeyPath, navigate } from "../../route";
+import { homePath, journeyPath, navigate } from "../../route";
 import { PageHeader } from "../frame/PageHeader";
+import { ProjectNav } from "../project/ProjectNav";
 import { ToggleButton } from "../ui/Button";
 import { JourneyMap, stopId } from "./JourneyMap";
 import { StationPanel } from "./StationPanel";
@@ -107,13 +108,11 @@ export function JourneyPage({ projectId, query = "" }: { projectId: string; quer
 
   return (
     <>
-      <p>
-        <Link to={`/projects/${encodeURIComponent(projectId)}`}>
-          {project ? projectName(project) : "The project"}
-        </Link>
-        {" · "}
-        <Link to="/">Back to the conversation</Link>
-      </p>
+      <ProjectNav
+        projectId={projectId}
+        name={project ? projectName(project) : null}
+        current="journey"
+      />
       <PageHeader title="Your data journey">
         <p className="hint">
           The whole route from planning your data to sharing it, and where this project is on it.

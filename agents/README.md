@@ -59,25 +59,51 @@ the roster in [Agents](../docs/specs/agents.md) with a `title` that people see) 
 `example` (templates). A directory, package and serve command spell the id with hyphens or underscores:
 `advisor.policy` is `advisor-policy/`, `dd_agent_advisor_policy` and `dd-advisor-policy`.
 
-## Start from `example-hello/`
+## Start with `dd.py new-agent`
 
-`example-hello/src/dd_agent_example_hello/agent.py` is the smallest agent that walks the whole of the recipe
-below with no domain logic in the way. It has:
+```sh
+uv run scripts/dd.py new-agent advisor-foo
+uv sync --all-packages --all-extras
+```
 
-- its own input class and its own payload class;
-- a declared grounding mode;
-- its payload fields' derivations;
+writes `advisor-foo/`: the package `dd_agent_advisor_foo`, with agent id `advisor.foo`, served
+by `dd-advisor-foo` on the port after the highest the app lists. The name is lower-case words
+joined by hyphens; the first hyphen is the dot in the agent id. The new agent is a working mock
+(grounding mode `none`) with:
+
+- its own input class and its own payload class, and their generated schemas;
+- its payload fields' derivations, and a `limitations` slot saying what it does not yet do;
 - a console script;
-- a profile entry;
-- a sample;
-- marked tests.
+- tests through a conductor, with their sample input.
 
-It is commented against the numbered steps. Copy the directory, rename it, and delete the
-greeting.
+It is written on the agent kit in `dd_sdk.agent`, which every agent uses rather than its own
+copy:
 
-It is also the check on the claim in the last line of this file. `example.hello` has no reason to
-fail other than the harness. If adding an agent ever needs an edit to the conductor, linter,
-CLI, transports or viewer, this agent will show it.
+- `abstain(reason, statement)` returns an abstention, with no payload or evidence.
+- `input_ref(ctx)` and `input_evidence(ctx)` return the grounding reference and the evidence item
+  that cite the invocation's input, which is all a `none` or `input_only` agent may cite.
+
+The command also does steps 5 to 7 below. It lists the agent wherever `example-hello` is listed:
+
+- the root `pyproject.toml`, then `uv lock`;
+- `compose.yaml`, `docker/compose.image.yaml` and `docker/agents.yaml`;
+- `app/config/agents.yaml`, `workbench/agents.yaml` and `deploy/agents/<name>.env`;
+- the three profiles;
+- the docs navigation in `mkdocs.yml`;
+- the Mock row of the roster table in [Agents](../docs/specs/agents.md).
+
+The new agent passes `uv run pytest`, `uv run mypy`, `uv run lint-imports`,
+`scripts/check_boundaries.py` and `scripts/check_members.py` as written. Then:
+
+1. Replace its placeholder advice.
+2. Add its row to the table above.
+3. Move it in the roster table when it is no longer a mock.
+
+`example-hello/` stays the worked example. `example-hello/src/dd_agent_example_hello/agent.py`
+walks the whole of the recipe below with no domain logic in the way, and is commented against
+the numbered steps. It is also the check on the claim in the last line of this file.
+`example.hello` has no reason to fail other than the harness. If adding an agent ever needs an
+edit to the conductor, linter, CLI, transports or viewer, this agent will show it.
 
 ## Adding an agent
 
@@ -119,12 +145,12 @@ CLI, transports or viewer, this agent will show it.
      ([Orchestration](../docs/specs/orchestration.md)). `ctx.delegate` is `None` when no grant was issued (for example under
      `workbench invoke`); handle that as an outcome. `orchestrator-stub/` is the worked example.
 
-   In `input_only` and `none`, `grounded_on` and `evidence` cite `ctx.input_ref` /
-   `ctx.input_hash` and nothing else. Always use `ctx.tracer`. A span started some other way is
+   In `input_only` and `none`, `grounded_on` and `evidence` cite the input and nothing else:
+   `input_ref(ctx)` and `input_evidence(ctx)` from `dd_sdk.agent`. Always use `ctx.tracer`. A span started some other way is
    outside the invocation's trace, and the linter's G0 rule withholds the output.
 3. **Hash what you retrieved** with a registered canonicalisation from `dd_sdk.evidence`
    ([Evidence and grounding](../docs/specs/grounding.md)). Register a new name there if none fits; never invent one in the agent.
-4. **Write the package.** Copy `example-hello/`. You need:
+4. **Write the package.** `dd.py new-agent` writes it (above). You need:
    - `pyproject.toml` depending on `data-director-sdk`, with a console script
      `dd-<name> = "dd_agent_<name>.agent:main"`;
    - a class with `spec = AgentSpec(...)` and `run`;
@@ -133,7 +159,8 @@ CLI, transports or viewer, this agent will show it.
    Read the agent's own `DD_<AGENT>_*` environment variables in `build`. They are for how the
    agent works, such as an endpoint or a path; what the deployment allows is set in its
    institutional profile, not in a variable ([Policy and identity](../docs/specs/policy-and-identity.md)).
-   A content problem is an outcome (`abstained` with a reason code), not an exception.
+   A content problem is an outcome (`abstain(reason, statement)` from `dd_sdk.agent`), not an
+   exception.
 
    A source copy too large to commit is built where it is used, from something the package pins.
    Declare it as a `dd_sdk.sources.BuiltSource` (its name, pin, what is wrong with the built copy,
@@ -167,16 +194,19 @@ CLI, transports or viewer, this agent will show it.
    model may write, a fake client in its tests, and an evaluation set before it leaves alpha.
    Reviewers check it against
    [Reviewing a model-backed agent](../docs/guide/developer-guide/reviewing-a-model-backed-agent.md).
-5. **Add it to the workspace.** Add the distribution to the `dependencies` and
-   `[tool.uv.sources]` of the root `pyproject.toml`, then run `uv sync --all-packages`. A package
-   that lives outside this repository skips this step; it only has to be served.
-6. **Register it.** Add one entry with a name and the URL it is served at to each registry file
-   (`app/config/agents.yaml` and `workbench/agents.yaml`), and its port to
-   `scripts/run-agents.sh`.
+5. **Add it to the workspace.** `dd.py new-agent` has done this. It adds the distribution to
+   the `dependencies` and `[tool.uv.sources]` of the root `pyproject.toml`, and the package to
+   every other list there that `scripts/check_members.py` checks, then runs `uv lock`. Run
+   `uv sync --all-packages --all-extras`. A package that lives outside this repository skips this
+   step; it only has to be served.
+6. **Register it.** `dd.py new-agent` has done this. It adds one entry with a name and the URL it
+   is served at to each registry file (`app/config/agents.yaml`, `workbench/agents.yaml` and
+   `docker/agents.yaml`). It adds a service to `compose.yaml` and `docker/compose.image.yaml`, and
+   writes `deploy/agents/<name>.env`. `scripts/run-agents.sh` reads the app's list.
 7. **Enable it** in the profiles that should run it (`app/config/profile.yaml.example`,
    `workbench/profiles/default.yaml` and the harness's test profile
-   `harness/src/dd_harness/testing/profiles/test-permissive.yaml`). Registration is not
-   permission.
+   `harness/src/dd_harness/testing/profiles/test-permissive.yaml`). `dd.py new-agent` enables it
+   in all three; take it out of any that should not run it. Registration is not permission.
 8. **Ship a sample input and declare the payload's derivations.**
    - Put a sample input, with `schema_class` set, in `workbench/samples/`. The viewer builds its
      input form from the class schema in the agent's card.

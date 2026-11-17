@@ -21,11 +21,11 @@ from typing import Protocol
 from dd_agent_advisor_repository.assess import Assessment
 from dd_agent_advisor_repository.classes import CandidateBasis, RepositoryNeeds
 from dd_agent_advisor_repository.records import DatabaseRecord, Re3dataRecord
+from dd_sdk import explain
 from dd_sdk.agent import RunContext
-from dd_sdk.contract.models import Derivation
-from dd_sdk.model import Model, call
+from dd_sdk.explain import Explanation as Explanation
+from dd_sdk.explain import Rationale as Rationale
 from dd_sdk.model import Usage as Usage
-from dd_sdk.prompts import ModelCallLog
 
 
 @dataclass(frozen=True)
@@ -39,23 +39,6 @@ class Item:
     reasons: tuple[str, ...]
 
 
-@dataclass(frozen=True)
-class Rationale:
-    text: str
-    derivation: Derivation
-
-
-@dataclass(frozen=True)
-class Explanation:
-    """One rationale per item, and the tokens spent. Returned rather than kept on the explainer,
-    because one explainer serves concurrent runs."""
-
-    rationales: list[Rationale]
-    usage: Usage
-    # The model calls made and the prompts sent (dd_sdk.prompts); None if no model was called.
-    calls: ModelCallLog | None = None
-
-
 class Explainer(Protocol):
     model_id: str | None
 
@@ -64,7 +47,7 @@ class Explainer(Protocol):
     ) -> Explanation: ...
 
 
-_IDENTIFIER = re.compile(r"\b(r3d\d+|FAIRsharing\.[0-9A-Za-z-]+)", re.IGNORECASE)
+IDENTIFIER = re.compile(r"\b(r3d\d+|FAIRsharing\.[0-9A-Za-z-]+)", re.IGNORECASE)
 
 
 def template_rationale(item: Item) -> str:
@@ -87,13 +70,9 @@ def template_rationale(item: Item) -> str:
     )
 
 
-class TemplateExplainer:
-    model_id: str | None = None
-
-    def explain(self, needs: RepositoryNeeds, items: list[Item], ctx: RunContext) -> Explanation:
-        return Explanation(
-            [Rationale(template_rationale(item), Derivation.TEMPLATE) for item in items], Usage()
-        )
+class TemplateExplainer(explain.TemplateExplainer[RepositoryNeeds, Item]):
+    def rationale(self, item: Item) -> str:
+        return template_rationale(item)
 
 
 DEFAULT_MODEL = "claude-sonnet-5-5"
@@ -102,15 +81,14 @@ DEFAULT_MODEL = "claude-sonnet-5-5"
 SYSTEM_PROMPT = Path(__file__).with_name("system_prompt.md").read_text(encoding="utf-8").strip()
 
 
-class ModelExplainer:
-    """Explains with the model the agent's settings name (`dd_sdk.model_provider`). The call goes
-    through `dd_sdk.model.call`, which records its `chat` span, its tokens and its prompt."""
+class ModelExplainer(explain.ModelExplainer[RepositoryNeeds, Item]):
+    """Explains with the model the agent's settings name (`dd_sdk.model_provider`), in one call
+    (`dd_sdk.explain.ModelExplainer`)."""
 
-    def __init__(self, model: Model) -> None:
-        self.model = model
-        self.model_id: str | None = model.model_id
+    system_prompt = SYSTEM_PROMPT
+    pattern = IDENTIFIER
 
-    def _prompt(self, needs: RepositoryNeeds, items: list[Item]) -> str:
+    def prompt(self, needs: RepositoryNeeds, items: list[Item]) -> str:
         lines = [
             "Needs:",
             f"  themes: {', '.join(needs.themes) or '(none)'}",
@@ -133,53 +111,9 @@ class ModelExplainer:
             )
         return "\n".join(lines)
 
-    def explain(self, needs: RepositoryNeeds, items: list[Item], ctx: RunContext) -> Explanation:
-        if not items:
-            return Explanation([], Usage())
-        reply = call(
-            self.model,
-            ctx,
-            system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": self._prompt(needs, items)}],
-        )
-        if reply.refused:
-            return Explanation(
-                [
-                    Rationale(
-                        template_rationale(item) + " (Model declined; template used.)",
-                        Derivation.TEMPLATE,
-                    )
-                    for item in items
-                ],
-                reply.usage,
-                reply.calls,
-            )
-        return Explanation(self._parse(reply.text, items), reply.usage, reply.calls)
+    def template(self, item: Item) -> str:
+        return template_rationale(item)
 
-    def _parse(self, text: str, items: list[Item]) -> list[Rationale]:
-        numbered: dict[int, str] = {}
-        for line in text.splitlines():
-            m = re.match(r"\s*(\d+)[.)]\s+(.*\S)", line)
-            if m:
-                numbered[int(m.group(1))] = m.group(2)
-        allowed = set()
-        for item in items:
-            allowed.add(item.record.re3data_id.lower())
-            if item.record.fairsharing_id:
-                allowed.add(item.record.fairsharing_id.lower())
-        out: list[Rationale] = []
-        for n, item in enumerate(items, start=1):
-            candidate = numbered.get(n)
-            mentioned = {x.lower() for x in _IDENTIFIER.findall(candidate or "")}
-            if not candidate or (mentioned - allowed):
-                # Missing line, or the model named an identifier it was not given: fall back.
-                out.append(
-                    Rationale(
-                        template_rationale(item)
-                        + " (Model rationale replaced: ungrounded reference.)",
-                        Derivation.TEMPLATE,
-                    )
-                )
-            else:
-                out.append(Rationale(candidate, Derivation.MODEL))
-        return out
+    def allowed(self, items: list[Item]) -> set[str]:
+        ids = {item.record.re3data_id for item in items}
+        return ids | {i.record.fairsharing_id for i in items if i.record.fairsharing_id}

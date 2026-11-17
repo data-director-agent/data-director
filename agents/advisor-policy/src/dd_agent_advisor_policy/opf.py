@@ -44,9 +44,9 @@ from typing import Any, ClassVar, Literal
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
-from dd_agent_advisor_policy.retrieve import RegistryUnavailable, SnapshotRef
-from dd_agent_advisor_policy.ror import _user_agent
+from dd_agent_advisor_policy.ror import USER_AGENT
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, content_hash
+from dd_sdk.registry import RegistryUnavailable, SnapshotRef
 
 API_BASE = "https://api.openpolicyfinder.jisc.ac.uk"
 RETRIEVE = f"{API_BASE}/retrieve"
@@ -237,7 +237,7 @@ class OpenPolicyFinder:
 
     def _http(self) -> httpx.Client:
         if self._client is None:
-            self._client = httpx.Client(timeout=TIMEOUT_S, headers={"User-Agent": _user_agent()})
+            self._client = httpx.Client(timeout=TIMEOUT_S, headers={"User-Agent": USER_AGENT})
         return self._client
 
     def snapshot_ref(self) -> SnapshotRef:
@@ -253,7 +253,7 @@ class OpenPolicyFinder:
             resp = self._http().get(
                 url,
                 params={"format": "Json", **params},
-                headers={"x-api-key": self._key, "User-Agent": _user_agent()},
+                headers={"x-api-key": self._key, "User-Agent": USER_AGENT},
             )
         except httpx.HTTPError as exc:
             raise RegistryUnavailable(f"Open Policy Finder: {type(exc).__name__}") from None
@@ -315,7 +315,7 @@ CHECKS: tuple[tuple[str, ItemType, str], ...] = (
 def check(api_key: str, record_to: Path | None = None) -> int:
     """Ask the live route for each of `CHECKS` and say what came back. With `record_to`, write
     each raw answer there, for use as a test fixture once read and trimmed."""
-    client = httpx.Client(timeout=TIMEOUT_S, headers={"User-Agent": _user_agent()})
+    client = httpx.Client(timeout=TIMEOUT_S, headers={"User-Agent": USER_AGENT})
     source = OpenPolicyFinder(api_key, client=client)
     failures = 0
     for n, (how, item_type, text) in enumerate(CHECKS, start=1):

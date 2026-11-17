@@ -1,6 +1,9 @@
 """What the harness asks of the stores it keeps runs and projects in (docs/specs/storage.md).
 
-`RunStorage` and `ProjectStorage` are the interfaces callers use. `dd_harness.store.RunStore`
+`RunStorage` and `ProjectStorage` are the interfaces callers use; `ProjectStorage` is composed
+of one Protocol per area of the project rules (`ProjectLifecycle`, `ProjectHoldings`,
+`ProjectResearchers`, `ProjectRepository`, `ProjectProgress`, `ProjectDocuments`,
+`ProjectDeposits`), so that a caller depends only on the areas it uses. `dd_harness.store.RunStore`
 implements `RunStorage` over files. `ProjectStorage` is implemented once, by the project rules
 (`dd_harness.projects.Projects`), over a `ProjectLog` that a backend provides;
 `dd_harness.project_files.FileProjectLog` is the file one, and `dd_harness.projects.ProjectStore`
@@ -22,7 +25,9 @@ from typing import Any, Protocol
 
 from dd_harness.listing import Page, Readable
 from dd_harness.progress import ENTRY_BY_RESEARCHER, EntrySource
-from dd_harness.projects import Decision, TitleSource
+from dd_harness.project_effects import ProjectEffects
+from dd_harness.project_errors import TitleSource
+from dd_harness.projects.decisions import Decision
 from dd_harness.requirements import Requirements
 from dd_harness.sources import Sources
 from dd_sdk.contract.classes import ClassSchema
@@ -135,30 +140,22 @@ class RunStorage(Protocol):
         ...
 
 
-class ProjectStorage(Protocol):
-    """Where the harness keeps each project's log of events, and the content they added
-    (docs/specs/projects.md).
+class ProjectRecord(Protocol):
+    """Every area reads a project's events and asks whether it exists; each area Protocol
+    below extends this one."""
 
-    A backend keeps these guarantees:
+    def exists(self, project_id: str) -> bool:
+        """Whether the project exists."""
+        ...
 
-    1. A project's log is append-only: an event is never changed or removed, and events come
-       back in the order they were appended.
-    2. A change checked against the log (`edit`, `decide`, `answer`, `record_draft`, `rename`,
-       `restore`, and every change to a deleted project, which is refused)
-       reads the log, applies the project rules and appends its events in an exclusive section
-       for that project: no other change to the project enters it. The file backend holds a
-       lock per project; a database holds a lock on the project's row for one transaction.
-       Events a change writes together (an edit and its approval) are kept together or not at
-       all.
-    3. A refusal is recorded, then raised: the `document_change_refused` event is kept with the
-       section, and `ChangeRefusedError` is raised after the section ends.
-    4. Projects do not wait on one another.
-    5. Content an event adds is kept once by digest, and read back byte for byte.
-    6. `project_of`, `projects` and every other read answer from what is stored when asked, so
-       several stores over one record agree, and each holds after a restart. Only what can
-       never change, such as a conversation's project once recorded, may be cached.
-    7. A malformed `project_id` names no project.
-    """
+    def events(self, project_id: str) -> list[dict[str, Any]]:
+        """Every event of the project, oldest first."""
+        ...
+
+
+class ProjectLifecycle(ProjectRecord, Protocol):
+    """Creating, naming, deleting and restoring a project, the conversations started in it, and
+    what a list of projects shows of each (`dd_harness.projects.lifecycle`)."""
 
     def create(self, *, acted_for: Principal, caused_by: str, title: str | None = None) -> str:
         """A new project and its `project_created` event; returns its `project_id`."""
@@ -216,9 +213,9 @@ class ProjectStorage(Protocol):
         """What a list of projects shows of one."""
         ...
 
-    def exists(self, project_id: str) -> bool:
-        """Whether the project exists."""
-        ...
+
+class ProjectHoldings(ProjectRecord, Protocol):
+    """A project's file inventory and supporting documentation (`dd_harness.projects.holdings`)."""
 
     def add_inventory(
         self,
@@ -229,6 +226,10 @@ class ProjectStorage(Protocol):
         caused_by: str,
     ) -> str:
         """Add a `FileInventory`; returns its digest."""
+        ...
+
+    def inventory(self, project_id: str) -> dict[str, Any] | None:
+        """The inventory added last, or None."""
         ...
 
     def add_documentation(
@@ -252,6 +253,10 @@ class ProjectStorage(Protocol):
         """The text of the project's document with this digest, or None."""
         ...
 
+
+class ProjectResearchers(ProjectRecord, Protocol):
+    """The researcher records a project keeps (`dd_harness.projects.researchers`)."""
+
     def add_researcher(
         self,
         project_id: str,
@@ -273,6 +278,11 @@ class ProjectStorage(Protocol):
         """The `ResearcherRecord`s that stand, the one kept first first; None while none."""
         ...
 
+
+class ProjectRepository(ProjectRecord, Protocol):
+    """The repository chosen and the requirements it resolved to
+    (`dd_harness.projects.repository`)."""
+
     def choose_repository(
         self,
         project_id: str,
@@ -286,6 +296,14 @@ class ProjectStorage(Protocol):
         """Record the repository chosen by its re3data identifier; returns the merged
         requirement set's digest."""
         ...
+
+    def requirements(self, project_id: str) -> dict[str, Any] | None:
+        """The merged requirements of the repository chosen last, or None."""
+        ...
+
+
+class ProjectProgress(ProjectRecord, Protocol):
+    """A project's place in the process flow, and its intake (`dd_harness.projects.flow`)."""
 
     def choose_entry(
         self,
@@ -329,6 +347,11 @@ class ProjectStorage(Protocol):
     def intake(self, project_id: str) -> dict[str, Any]:
         """Where the intake stands and its questions with their current answers."""
         ...
+
+
+class ProjectDocuments(ProjectRecord, Protocol):
+    """A project's documents: drafts, edits, decisions and answers, and what is read from them
+    (`dd_harness.projects.documents`)."""
 
     def record_draft(self, project_id: str, envelope: Envelope) -> DocumentVersionRef:
         """Record a run's `Document` payload as a proposed version."""
@@ -385,22 +408,15 @@ class ProjectStorage(Protocol):
         given to its questions."""
         ...
 
-    def events(self, project_id: str) -> list[dict[str, Any]]:
-        """Every event of the project, oldest first."""
-        ...
-
-    def inventory(self, project_id: str) -> dict[str, Any] | None:
-        """The inventory added last, or None."""
-        ...
-
-    def requirements(self, project_id: str) -> dict[str, Any] | None:
-        """The merged requirements of the repository chosen last, or None."""
-        ...
-
     def metadata_record(self, project_id: str) -> dict[str, Any] | None:
         """The `metadata_record` version a person approved last, as an `ApprovedMetadataRecord`, or
         None."""
         ...
+
+
+class ProjectDeposits(ProjectRecord, Protocol):
+    """The validation reports and deposit packages a project keeps
+    (`dd_harness.projects.deposits`)."""
 
     def record_validation(
         self,
@@ -430,6 +446,51 @@ class ProjectStorage(Protocol):
     def package(self, project_id: str, digest: str) -> bytes | None:
         """The bytes of a package the log records as built, or None."""
         ...
+
+
+class ProjectStorage(
+    ProjectLifecycle,
+    ProjectHoldings,
+    ProjectResearchers,
+    ProjectRepository,
+    ProjectProgress,
+    ProjectDocuments,
+    ProjectDeposits,
+    ProjectEffects,
+    Protocol,
+):
+    """Where the harness keeps each project's log of events, and the content they added
+    (docs/specs/projects.md): every area of the project rules together, as
+    `dd_harness.projects.Projects` gives them. Whoever builds a store or hands it on names this;
+    a caller that uses a store names only the area Protocols it calls.
+
+    A backend keeps these guarantees:
+
+    1. A project's log is append-only: an event is never changed or removed, and events come
+       back in the order they were appended.
+    2. A change checked against the log (`edit`, `decide`, `answer`, `record_draft`, `rename`,
+       `restore`, and every change to a deleted project, which is refused)
+       reads the log, applies the project rules and appends its events in an exclusive section
+       for that project: no other change to the project enters it. The file backend holds a
+       lock per project; a database holds a lock on the project's row for one transaction.
+       Events a change writes together (an edit and its approval) are kept together or not at
+       all.
+    3. A refusal is recorded, then raised: the `document_change_refused` event is kept with the
+       section, and `ChangeRefusedError` is raised after the section ends.
+    4. Projects do not wait on one another.
+    5. Content an event adds is kept once by digest, and read back byte for byte.
+    6. `project_of`, `projects` and every other read answer from what is stored when asked, so
+       several stores over one record agree, and each holds after a restart. Only what can
+       never change, such as a conversation's project once recorded, may be cached.
+    7. A malformed `project_id` names no project.
+    """
+
+
+class DepositSource(
+    ProjectHoldings, ProjectRepository, ProjectDocuments, ProjectDeposits, Protocol
+):
+    """The areas of a project that validating and packaging it read and record
+    (`dd_harness.deposit`)."""
 
 
 class ProjectSection(Protocol):

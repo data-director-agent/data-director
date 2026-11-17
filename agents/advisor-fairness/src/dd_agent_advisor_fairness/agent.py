@@ -19,26 +19,30 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 
 import yaml
 
 from dd_agent_advisor_fairness.classes import FairCheck, FairnessReport, PublishedRecord
 from dd_agent_advisor_fairness.write import TemplateWriter, Unmet, Writer, Writing
-from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
+from dd_sdk.agent import (
+    AgentResult,
+    AgentSpec,
+    Derived,
+    RunContext,
+    abstain,
+    input_evidence,
+    input_ref,
+)
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Derivation,
-    EvidenceItem,
     GroundingMode,
-    GroundingRef,
     InvocationRequest,
     Outcome,
     OutcomeStatus,
     ReasonCode,
 )
-from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 
 CHECKS = Path(__file__).with_name("checks.yaml")
 TESTS = frozenset({"present", "doi", "one_of", "any_in", "covered"})
@@ -146,12 +150,8 @@ class FairAssessor:
         record = request.input
         assert isinstance(record, PublishedRecord)  # the conductor checked spec.accepts
         if not record.identifier and not record.title:
-            return AgentResult(
-                outcome=Outcome(
-                    status=OutcomeStatus.ABSTAINED,
-                    reason_code=ReasonCode.INSUFFICIENT_INPUT,
-                    statement="Give the published dataset's identifier or title.",
-                )
+            return abstain(
+                ReasonCode.INSUFFICIENT_INPUT, "Give the published dataset's identifier or title."
             )
 
         met = {rule.check: meets(rule, record) for rule in self.rules}
@@ -177,7 +177,7 @@ class FairAssessor:
         by_model = any(r.derivation == Derivation.MODEL for r in writing.recommendations)
         limitations = [*LIMITATIONS, MODEL_LIMITATION] if by_model else list(LIMITATIONS)
 
-        ref = GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)
+        ref = input_ref(ctx)
         calls = writing.calls
         return AgentResult(
             outcome=Outcome(
@@ -193,15 +193,7 @@ class FairAssessor:
                 limitations=limitations,
                 grounded_on=[ref],
             ),
-            evidence=[
-                EvidenceItem(
-                    source_id=ctx.input_ref,
-                    retrieved_at=datetime.now(UTC),
-                    hash_algorithm=HASH_ALGORITHM,
-                    canonicalisation=INPUT_CANONICALISATION,
-                    content_hash=ctx.input_hash,
-                )
-            ],
+            evidence=[input_evidence(ctx)],
             model_id=writing.model_id,
             input_tokens=writing.usage.input_tokens,
             output_tokens=writing.usage.output_tokens,

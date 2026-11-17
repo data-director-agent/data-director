@@ -228,7 +228,8 @@ def test_the_card_names_the_persona_and_its_steps() -> None:
         "how": "model",
         "recorded_in": "document_derivation",
     }
-    assert entry["serves"] == ["setup.documentation", "preparation.documentation"]
+    # Not `setup.documentation`: before collection there is no inventory to draft from (#1017).
+    assert entry["serves"] == ["preparation.documentation"]
     json.dumps(entry)
 
 
