@@ -26,7 +26,7 @@ dependencies = [
 
 [project.optional-dependencies]
 # The Claude adapter behind the model seam (dd_sdk.model_anthropic, docs/specs/dependencies.md).
-anthropic = ["anthropic>=1.15.0,<2.7"]
+anthropic = ["anthropic>=1.15.0,<2.9"]
 # The adapter for OpenAI-compatible Chat Completions endpoints behind the model seam: OpenAI,
 # Gemini, local servers and gateways (dd_sdk.model_openai, docs/specs/dependencies.md).
 openai = ["openai>=3.40,<4"]
