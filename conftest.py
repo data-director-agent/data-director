@@ -16,9 +16,16 @@ from typing import Any
 
 import pytest
 import yaml
+from hypothesis import settings
 
 ROOT = Path(__file__).resolve().parent
 REGISTER = ROOT / "docs" / "requirements.yaml"
+
+# Property tests (Hypothesis) run a bounded number of examples, so they keep to the suite's time
+# budget, and have no per-example deadline, which a loaded CI runner would miss at random. A test
+# that needs fewer examples, such as one against a database, says so with its own `@settings`.
+settings.register_profile("data-director", max_examples=50, deadline=None, print_blob=True)
+settings.load_profile("data-director")
 
 
 def _registered_requirements() -> dict[str, list[str]]:

@@ -17,6 +17,8 @@ from collections.abc import Callable, Iterator
 from typing import Any
 
 import pytest
+from hypothesis import HealthCheck, given, settings
+from project_changes import document_changes
 
 from dd_harness.listing import Readable, scan_conversations, scan_runs
 from dd_harness.project_log import ProjectLog
@@ -29,6 +31,7 @@ from dd_harness.testing import (
     RUN_STORAGE_CHECKS,
     SHARED_RECORD_CHECKS,
     TEST_PRINCIPAL,
+    check_a_log_replays_as_it_folds,
 )
 from dd_harness.testing.storage import stored_envelope
 
@@ -122,6 +125,16 @@ def test_the_project_rules_keep_each_guarantee_over_the_log(
     locate: Locate, check: Callable[[Callable[[str], ProjectStorage]], None]
 ) -> None:
     check(lambda name: Projects(postgres.PostgresProjectLog(locate(name))))
+
+
+# Fewer examples than the file backend's, each a few round trips to the database. Every example
+# writes a project of its own, so the test's schemas serve them all.
+@settings(max_examples=15, suppress_health_check=[HealthCheck.function_scoped_fixture])
+@given(changes=document_changes())
+def test_the_project_log_replays_as_its_events_fold(
+    locate: Locate, changes: list[dict[str, Any]]
+) -> None:
+    check_a_log_replays_as_it_folds(lambda name: postgres.PostgresProjectLog(locate(name)), changes)
 
 
 @pytest.mark.parametrize("check", SHARED_RECORD_CHECKS.values(), ids=SHARED_RECORD_CHECKS.keys())
