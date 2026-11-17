@@ -49,6 +49,7 @@ import { AskedQuestions, QuestionSeries } from "./QuestionSeries";
 import { DocumentChip } from "./DocumentChip";
 import { InventoryChip } from "./InventoryChip";
 import { Pending } from "./Pending";
+import type { LiveRun } from "./useConversationTurns";
 import { RepositoryShortlist } from "./RepositoryShortlist";
 import { RunDetail } from "./RunDetail";
 import { nameOf, Speaker } from "./Speaker";
@@ -210,6 +211,8 @@ export function Transcript({
     message: string;
     inventory?: AttachedInventory | null;
     document?: AttachedDocument | null;
+    /** The message's run, drawn live from its stream. */
+    live?: LiveRun | null;
   } | null;
   /** Sends the answers to the latest turn's questions; without it, none can be answered. */
   onAnswer?: (answers: ReplyAnswers, text: string) => void;
@@ -355,6 +358,7 @@ export function Transcript({
           message={pending.message}
           inventory={pending.inventory ?? null}
           document={pending.document ?? null}
+          live={pending.live ?? null}
         />
       )}
     </ol>

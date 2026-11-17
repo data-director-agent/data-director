@@ -5,7 +5,9 @@
  *
  * `CassetteAgent` is an `AbstractAgent`, as `HttpAgent` is, so a replayed run goes through the same
  * client pipeline (`runAgent`, its event checks and its subscribers) as a live one. The cassette is
- * replayed as recorded: its `threadId` and `runId` are not rewritten.
+ * replayed as recorded: its `threadId` and `runId` are not rewritten. A paced replay can be
+ * cancelled, ending as the harness's binding ends a cancelled run: `RUN_FINISHED` with a
+ * cancelled outcome straight after the events already sent, the running step left open, TODO(#1007).
  */
 
 import { AbstractAgent, type AgentConfig, type BaseEvent, type RunAgentInput } from "@ag-ui/client";
@@ -26,10 +28,24 @@ export interface CassetteAgentConfig extends AgentConfig {
   paceMs?: number;
 }
 
+/** The cancelled `RUN_FINISHED` the harness sends, naming the cassette's thread and run. */
+function cancelledFinish(events: readonly BaseEvent[]): BaseEvent {
+  const started = events.find((event) => event.type === "RUN_STARTED") as
+    | (BaseEvent & { threadId?: string; runId?: string })
+    | undefined;
+  return {
+    type: "RUN_FINISHED",
+    threadId: started?.threadId ?? "",
+    runId: started?.runId ?? "",
+    outcome: { type: "cancelled" },
+  } as BaseEvent;
+}
+
 /** An agent that replays a cassette instead of calling the server. */
 export class CassetteAgent extends AbstractAgent {
   readonly events: readonly unknown[];
   readonly paceMs: number;
+  private cancelReplay: () => void = () => {};
 
   constructor({ events, paceMs = 0, ...config }: CassetteAgentConfig) {
     super(config);
@@ -50,6 +66,12 @@ export class CassetteAgent extends AbstractAgent {
       }
       let next = 0;
       let timer: ReturnType<typeof setTimeout> | undefined;
+      this.cancelReplay = () => {
+        if (subscriber.closed) return;
+        clearTimeout(timer);
+        subscriber.next(cancelledFinish(events));
+        subscriber.complete();
+      };
       const emit = () => {
         if (next >= events.length) {
           subscriber.complete();
@@ -63,6 +85,11 @@ export class CassetteAgent extends AbstractAgent {
       // Unsubscribing (`abortRun`) stops the replay.
       return () => clearTimeout(timer);
     });
+  }
+
+  /** Cancels a paced replay still under way, as the person's Cancel would cancel a live run. */
+  cancel(): void {
+    this.cancelReplay();
   }
 
   clone(): CassetteAgent {
