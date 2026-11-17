@@ -70,8 +70,32 @@ If you prefer pip, install the command once with `pip install data-director-inve
 `data-director-inventory path/to/dataset -o inventory.json`. The package is published on
 [PyPI](https://pypi.org/project/data-director-inventory/).
 
-If you would rather not use a terminal, ask your research data support team, or whoever is
-running a workshop you are in, to make the inventory for you.
+If you would rather not use a terminal, describe the folder in your browser instead (below),
+where the app offers it, or ask your research data support team, or whoever is running a
+workshop you are in, to make the inventory for you.
+
+### Describing a folder in your browser
+
+Where your organisation's Data Director offers it, **Make an inventory** begins with **Describe a
+folder in this browser**. Select **Choose a folder…** and pick the folder that holds your
+dataset. Your browser reads the files and makes the inventory itself, running the same
+`dd-inventory` code as the command. None of your files is sent anywhere: the app attaches only the
+inventory, and only after you have checked it (below). You can also drop the folder onto that part
+of the dialog.
+
+Chrome and Edge ask whether to let the site **view** the files in the folder; allow it. Some other
+browsers ask whether to **upload** the files instead. That is the browser's standard wording for
+choosing a folder: nothing is uploaded.
+
+The first time, your browser fetches the scanner (about 16 MB), so allow a little longer.
+Describing a folder in the browser is slower than the command, by about three times, and a
+browser uses a lot of memory on very large files. Use the command instead when:
+
+- your data are on a server, a cluster or network storage that your browser cannot reach;
+- the dataset is very large, with files of several gigabytes or more.
+
+An inventory made in the browser says so: the version of the tool that made it ends in
+`+pyodide`, followed by a version number.
 
 ## Attaching it in the app
 

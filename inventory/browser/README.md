@@ -77,7 +77,12 @@ $ npm run parity      # the command natively and under Pyodide, on ../tests/data
   `pyodide.loadPackage("data-director-inventory")` installs the bundle (`src/scanner/runtime.ts`) and
   nothing is fetched from PyPI or a CDN;
 - `manifest.json`: the Pyodide and command versions, each wheel with its source and digest, and
-  each file's size, raw and gzipped.
+  each file's size, raw and gzipped;
+- `NOTICES.md` (`bundle/notices.ts`): the licence of Pyodide and of every wheel, with where its
+  source is, and the Open Government Licence attribution for the PRONOM signatures fido carries.
+  Each wheel's licence is read from its own metadata, and a wheel naming none fails the build.
+  Serving the bundle redistributes all of it, so the notices go with it; no scan reads them, so
+  they are not in the manifest's `files`.
 
 Which wheel is taken (`bundle/resolve.ts`): the command's dependencies are those `uv export`
 gives from the workspace lock, leaving out any whose environment marker does not hold under
@@ -101,8 +106,9 @@ simple field type, a format identified by its byte signature, a container format
 change, and writes the bundle's size and its Pyodide, fido and PRONOM signature versions to the
 job summary, so that a change to any of them is seen.
 
-The bundle carries Pyodide (MPL-2.0), fido (Apache-2.0) and The National Archives' PRONOM
-signatures (Open Government Licence), which the app is to credit when it serves the bundle (#554).
+The bundle carries Pyodide (MPL-2.0), fido (Apache-2.0), The National Archives' PRONOM
+signatures (Open Government Licence) and some 40 other wheels, each credited in `NOTICES.md`,
+which the app links to beside **Describe a folder…**.
 
 ## Browser scanner
 
@@ -122,8 +128,10 @@ only the inventory comes back to the page.
    those bytes, and answers Pyodide's requests for the rest from memory (`serveFrom`), checking
    each wheel against the SHA-256 in the bundle's lock as a browser would. Caching the bundle
    across scans is left to HTTP caching where the app serves it.
-3. **The scan.** `startScan(worker, assets, folder, onEvent)` posts the request to a fresh worker
-   (`new Worker(new URL(".../scanner/worker.ts", import.meta.url), { type: "module" })`). The
+3. **The scan.** `startScan(worker, assets, folder, onEvent)` posts the request to a fresh worker.
+   The package exports the worker's module as `@data-director/inventory/scanner/worker`, which a
+   Vite app starts with `import ScanWorker from "@data-director/inventory/scanner/worker?worker"`
+   and `new ScanWorker()`, as `app/web/src/scan/scanner.ts` does. The
    worker mounts the files read-only at `/data` with Emscripten's WORKERFS, which reads slices of
    each file on demand and copies none of them, and runs the command's `make_inventory` there.
    `onEvent` hears each stage (`starting`, `installing`, `reading`) and each file
@@ -137,7 +145,9 @@ the worker's script:
 default-src 'none'; script-src blob: 'wasm-unsafe-eval'; connect-src 'none'
 ```
 
-`'unsafe-eval'` is not needed, and neither is `'self'` in `script-src`.
+`'unsafe-eval'` is not needed, and neither is `'self'` in `script-src`. The app sends it with its
+built worker, `assets/inventory-scanner-<hash>.js` (`dd_app.worker_policy`, and its preview
+server), and serves the bundle at `/inventory-bundle/` where it has been built.
 
 `npm run e2e` (after `npm run bundle`) proves this in Chromium. `e2e/vite.config.ts` builds a test
 page and serves it with the bundle from one origin, sending the worker the policy above. The test

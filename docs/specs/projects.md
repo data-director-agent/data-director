@@ -379,10 +379,11 @@ refused as stale, are TODO(#391).
 member, not even the contract ([System and boundaries](system.md)); its tests check its output
 against the `FileInventory` schema. It runs where the data live. An app installed on the
 researcher's own machine may run the same code on a folder, read only and only under folders the
-deployment lists; the shared deployment lists none. A scanner in the browser that sends only the
-inventory is TODO(#367): it is the same code run under Pyodide, and its inventory's
-`inventory_tool_version` carries a local version label naming the runtime, such as
-`0.1.0a3+pyodide.314.0.7`, while the command's has none.
+deployment lists; the shared deployment lists none. The app's **Describe a folder…** is a
+scanner in the browser that sends only the inventory ([The app](app.md)): it is the same code run
+under Pyodide, and its inventory's `inventory_tool_version` carries a local version label naming
+the runtime, such as `0.1.0a4+pyodide.314.0.8`, while the command's has none. It is offered where
+the deployment serves its bundle (TODO(#1052)).
 
 **Documentation** may be added as text, within a size limit and from a list of media types. A
 turn of the app may attach one document, plain text or Markdown of at most 256 KB under a file

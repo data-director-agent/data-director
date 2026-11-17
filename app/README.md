@@ -151,6 +151,14 @@ app's own A2A endpoint, under a grant the conductor issues for that run.
 
 To run it on a server that keeps itself up to date with `main`, see `deploy/README.md`.
 
+**Describe a folder…**, the browser scanner in Make an inventory, is offered only where the app
+serves the scanner's bundle at `/inventory-bundle/`. Build it with `npm ci && npm run bundle` in
+`inventory/browser`; `npm run dev` and `vite preview` then serve it from there, with its licence
+notices (`NOTICES.md`). `uv run data-director` serves it once it is copied into
+`app/web/dist/inventory-bundle/`; the release image and the VM deploy do not do that yet
+(TODO(#1052)). The app sends the scanner's worker its own Content Security Policy
+(`dd_app.worker_policy`).
+
 `DD_APP_HOST` and `DD_APP_PORT` change the address. The agents call the app back on
 `http://DD_APP_HOST:DD_APP_PORT`; set `DD_HARNESS_URL` if they reach it at another address. To work on the shell, run the server as
 above and `npm run dev` in `app/web`, which proxies `/api` to it (set `DD_APP_URL` if it is
@@ -337,6 +345,9 @@ cd app/web
 npm run lint && npm run typecheck && npm test      # ESLint (with jsx-a11y), Stylelint, tsc, Vitest + axe
 npx playwright install chromium && npm run e2e      # axe light and dark, keyboard, 400% reflow
 ```
+
+`npm run e2e` includes `e2e/scan.spec.ts`, which describes a folder with the real scanner and
+needs its bundle built first (`npm ci && npm run bundle` in `inventory/browser`).
 
 The shell's tests draw manifests from `app/web/fixtures/`. `app/tests/test_app.py` builds them
 from the real server. Run locally, `uv run pytest app/tests` rewrites a fixture that has drifted,

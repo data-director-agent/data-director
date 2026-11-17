@@ -21,37 +21,18 @@ import projects from "../fixtures/projects.json" with { type: "json" };
 import suggested from "../fixtures/repositories-suggested.json" with { type: "json" };
 import chosenRepository from "../fixtures/repository-chosen.json" with { type: "json" };
 import turn from "../fixtures/conversation-turn.json" with { type: "json" };
-import abstained from "../fixtures/run-abstained.json" with { type: "json" };
 import succeeded from "../fixtures/run-succeeded.json" with { type: "json" };
 import development from "../fixtures/session-development.json" with { type: "json" };
 import signedIn from "../fixtures/session-signed-in.json" with { type: "json" };
 import signedOut from "../fixtures/session-signed-out.json" with { type: "json" };
-
-function row(run: typeof succeeded | typeof abstained) {
-  const { envelope } = run;
-  return {
-    invocation_id: envelope.invocation_id,
-    agent_id: envelope.agent_id,
-    status: envelope.outcome.status,
-    completed_at: envelope.completed_at,
-    acting_for: envelope.acting_for.name,
-  };
-}
-
-/** Answer the shell's API from the fixtures: the agents, the phases and a run. */
-async function serve(page: Page, body: unknown, run: unknown = succeeded) {
-  await page.route("/api/agents", (route) => route.fulfill({ json: body }));
-  await page.route("/api/process-flow", (route) => route.fulfill({ json: flow }));
-  await page.route("/api/runs", (route) =>
-    route.fulfill({ json: route.request().method() === "POST" ? run : [row(succeeded)] }),
-  );
-  await page.route("/api/runs/*", (route) => route.fulfill({ json: succeeded }));
-}
-
-/** Who is signed in. Unless a test says otherwise, a development server: nobody signs in. */
-async function serveSession(page: Page, session: unknown) {
-  await page.route("/api/session", (route) => route.fulfill({ json: session }));
-}
+import {
+  axeViolations,
+  overflow,
+  serve,
+  serveConversation,
+  serveSession,
+  withOrchestrator,
+} from "./support";
 
 test.beforeEach(async ({ page }) => {
   await serveSession(page, development);
@@ -62,47 +43,9 @@ async function gotoDirectory(page: Page) {
   await page.goto("/agents");
 }
 
-/** The several-agents set plus an orchestrator, named by the profile (docs/specs/app.md). */
-const withOrchestrator = {
-  ...several,
-  profile: { ...several.profile, orchestrator: "orchestrator.stub" },
-  agents: [
-    ...several.agents,
-    { ...several.agents[0], agent_id: "orchestrator.stub", grounding_mode: "delegation" },
-  ],
-};
-
-async function serveConversation(page: Page) {
-  await serve(page, withOrchestrator);
-  await page.route("/api/conversations", (route) =>
-    route.fulfill(
-      route.request().method() === "POST"
-        ? { status: 201, json: { conversation_id: conversation.conversation_id } }
-        : { json: [] },
-    ),
-  );
-  await page.route("/api/conversations/*/turns", (route) =>
-    route.fulfill({ status: 201, json: turn }),
-  );
-  await page.route("/api/conversations/*", (route) => route.fulfill({ json: conversation }));
-}
-
 /** Choose the scheme as the banner's switch would, before the page loads. */
 async function useScheme(page: Page, scheme: "light" | "dark") {
   await page.addInitScript((value) => localStorage.setItem("dd-theme", value), scheme);
-}
-
-async function axeViolations(page: Page) {
-  const results = await new AxeBuilder({ page })
-    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
-    .analyze();
-  return results.violations;
-}
-
-async function overflow(page: Page) {
-  return page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  );
 }
 
 for (const [name, body] of [
