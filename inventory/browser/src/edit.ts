@@ -325,6 +325,41 @@ function hasStatements(file: InventoryFile): boolean {
   );
 }
 
+/** The edits to `rescan` that carry over what the researcher stated about one file, `file`. */
+function carryFile(
+  rescan: FileInventory,
+  start: InventoryEdits,
+  file: InventoryFile,
+  current: InventoryFile,
+): InventoryEdits {
+  let edits = start;
+  const path = file.file_path;
+  if (file.file_description !== undefined) {
+    edits = edit(rescan, edits, { kind: "describe", path, text: file.file_description });
+  }
+  if (file.file_role !== undefined) {
+    edits = edit(rescan, edits, { kind: "role", paths: [path], role: file.file_role });
+  }
+  if (file.file_identified_by === "researcher" && file.file_sha256 === current.file_sha256) {
+    const pronomId = file.file_pronom_ids?.length === 1 ? file.file_pronom_ids[0] : undefined;
+    const format: FormatStatement = {
+      ...(pronomId && current.file_pronom_ids?.includes(pronomId) ? { pronomId } : {}),
+      ...(file.file_media_type ? { mediaType: file.file_media_type } : {}),
+    };
+    edits = edit(rescan, edits, { kind: "format", path, format });
+  }
+  for (const field of file.file_fields ?? []) {
+    if (field.field_description === undefined) continue;
+    edits = edit(rescan, edits, {
+      kind: "describe-column",
+      path,
+      column: field.name,
+      text: field.field_description,
+    });
+  }
+  return edits;
+}
+
 /**
  * What the researcher stated in `previous`, the inventory a project holds, as edits to `rescan`,
  * a new inventory of the same dataset, matched by path. A chosen format carries over only to a
@@ -348,30 +383,7 @@ export function carryOver(
       orphaned.push(file.file_path);
       continue;
     }
-    const path = file.file_path;
-    if (file.file_description !== undefined) {
-      edits = edit(rescan, edits, { kind: "describe", path, text: file.file_description });
-    }
-    if (file.file_role !== undefined) {
-      edits = edit(rescan, edits, { kind: "role", paths: [path], role: file.file_role });
-    }
-    if (file.file_identified_by === "researcher" && file.file_sha256 === current.file_sha256) {
-      const pronomId = file.file_pronom_ids?.length === 1 ? file.file_pronom_ids[0] : undefined;
-      const format: FormatStatement = {
-        ...(pronomId && current.file_pronom_ids?.includes(pronomId) ? { pronomId } : {}),
-        ...(file.file_media_type ? { mediaType: file.file_media_type } : {}),
-      };
-      edits = edit(rescan, edits, { kind: "format", path, format });
-    }
-    for (const field of file.file_fields ?? []) {
-      if (field.field_description === undefined) continue;
-      edits = edit(rescan, edits, {
-        kind: "describe-column",
-        path,
-        column: field.name,
-        text: field.field_description,
-      });
-    }
+    edits = carryFile(rescan, edits, file, current);
   }
   return { edits, orphaned: orphaned.sort() };
 }

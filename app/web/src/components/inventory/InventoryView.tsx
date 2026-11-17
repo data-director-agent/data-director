@@ -33,7 +33,6 @@ import {
   formatBytes,
   formatDate,
   formatFileCount,
-  HINT_LABELS,
   HINT_LIMITATION,
   identificationLabel,
   IDENTIFICATION_METHODS,
@@ -54,6 +53,7 @@ import {
 } from "@data-director/inventory";
 import { createContext, useContext, useId, useMemo, useState } from "react";
 import { TableScroll } from "../ui/TableScroll";
+import { FormatStatus, HintBadges, HintList } from "./FileStatus";
 import { Formats } from "./InventoryFormats";
 
 /** The most search results drawn at once; the rest are counted. */
@@ -405,8 +405,6 @@ function columns(count: number): string {
 
 function FileLine({ file, name }: { file: InventoryFile; name: string }) {
   const editing = useContext(EditingContext);
-  const ids = file.file_pronom_ids ?? [];
-  const doubtful = file.file_identified_by === "none" || ids.length > 1;
   const isNew = editing?.newPaths?.has(file.file_path) ?? false;
   const hints = useContext(HintsContext).get(file.file_path) ?? [];
   return (
@@ -418,38 +416,16 @@ function FileLine({ file, name }: { file: InventoryFile; name: string }) {
         {file.file_media_type && <>, {file.file_media_type}</>}
         {file.file_fields?.length ? <>, a table of {columns(file.file_fields.length)}</> : null}
       </span>{" "}
-      {doubtful ? (
-        <span className="status status-warn">
-          {ids.length > 1 ? `Could be any of ${ids.length} formats` : identificationLabel("none")}
-        </span>
-      ) : file.file_identified_by === "researcher" ? (
-        <span className="status status-ok">Format chosen by you</span>
-      ) : (
-        <span className="muted">({identificationLabel(file.file_identified_by).toLowerCase()})</span>
-      )}
+      <FormatStatus file={file} />
       {file.file_role && (
         <>
           {" "}
           <span className="inventory-role">{ROLE_LABELS[file.file_role]}</span>
         </>
       )}
-      {hints.map((hint) => (
-        <span key={hint.kind}>
-          {" "}
-          <span className="status status-warn">{HINT_LABELS[hint.kind]}</span>
-        </span>
-      ))}
+      <HintBadges hints={hints} />
       {file.file_description && <span className="inventory-description">{file.file_description}</span>}
-      {hints.length > 0 && (
-        <ul className="inventory-hints" aria-label={`What to check in ${file.file_path}`}>
-          {hints.map((hint) => (
-            <li key={hint.kind}>
-              {hint.question}
-              {hint.related?.length ? <> Same as: {hint.related.join(", ")}.</> : null}
-            </li>
-          ))}
-        </ul>
-      )}
+      <HintList file={file} hints={hints} />
       {editing && !isOmitted(file.file_path, editing.edits.omitted.paths) && (
         <FileEditor file={file} />
       )}

@@ -26,7 +26,7 @@ lines = 883
 
 [[file]]
 path = "app/web/src/components/inventory/InventoryView.tsx"
-lines = 673
+lines = 649
 
 [[file]]
 path = "app/web/src/project/api.ts"
