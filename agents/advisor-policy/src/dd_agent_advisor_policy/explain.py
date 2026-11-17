@@ -25,7 +25,7 @@ from dd_sdk.explain import Rationale as Rationale
 from dd_sdk.model import Usage as Usage
 
 if TYPE_CHECKING:
-    from dd_agent_advisor_policy.advise import Lookups
+    from dd_agent_advisor_policy.tools import Lookups
 
 
 @dataclass(frozen=True)

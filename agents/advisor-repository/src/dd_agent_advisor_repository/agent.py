@@ -25,7 +25,7 @@ from dd_agent_advisor_repository.classes import (
     RepositoryOptions,
     SearchedSummary,
 )
-from dd_agent_advisor_repository.explain import Explainer, Item, TemplateExplainer
+from dd_agent_advisor_repository.explain import Explainer, Item, Rationale, TemplateExplainer
 from dd_agent_advisor_repository.records import DatabaseRecord, Re3dataRecord
 from dd_agent_advisor_repository.retrieve import Databases, Repositories
 from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
@@ -59,6 +59,10 @@ def _ambiguous(got: _Retrieved) -> str:
     )
 
 
+# A candidate chosen: its record, why it is offered, its score and the reasons it was ranked by.
+_Chosen = tuple[Re3dataRecord, CandidateBasis, float | None, tuple[str, ...]]
+
+
 class _Retrieved:
     """The records one run retrieved, and which copy of each registry answered."""
 
@@ -76,6 +80,101 @@ class _Retrieved:
         refs = [self.re3data_ref.as_string()]
         refs += sorted({ref.as_string() for _, ref in self.databases.values()})
         return "; ".join(refs)
+
+
+def _mandated(
+    needs: RepositoryNeeds, source: Repositories, got: _Retrieved
+) -> tuple[list[Re3dataRecord], list[str]]:
+    """The mandated repositories' records, and the names not found (`_from_re3data`)."""
+    mandated: list[Re3dataRecord] = []
+    not_found: list[str] = []
+    for ref in needs.mandated:
+        if ref.re3data_id:
+            by_id = source.fetch(ref.re3data_id)
+            named = [by_id] if by_id is not None else []
+        else:
+            named = source.find(ref.name)
+        if len(named) != 1:
+            not_found.append(ref.name)
+            if named:
+                got.ambiguous[ref.name] = [n.re3data_id for n in named]
+            continue
+        if named[0].re3data_id not in {m.re3data_id for m in mandated}:
+            mandated.append(named[0])
+    return mandated, not_found
+
+
+def _shortlist(
+    needs: RepositoryNeeds, source: Repositories
+) -> tuple[rank.Matches, dict[str, Re3dataRecord]]:
+    """The shortlist's hits, by text and by the themes' DFG subjects, and the generalist
+    repositories (`_from_re3data`)."""
+    matches = rank.Matches()
+    hits: dict[str, Re3dataRecord] = {}
+    limit = int(rank.config()["search_limit"])
+    themes = [q.text for q in rank.queries(needs) if q.label == rank.THEME]
+    if themes:
+        rank.resolve(themes, source.subjects(), matches)
+    for query in rank.queries(needs):
+        found = source.search(query)
+        matches.add(query, found)
+        for hit in found[:limit]:
+            hits.setdefault(hit.record.re3data_id, hit.record)
+    for theme in themes:
+        filed = [r for c in matches.subjects[theme] for r in source.with_subject(c)]
+        for found_record in rank.by_subject(theme, filed, matches):
+            hits.setdefault(found_record.re3data_id, found_record)
+    for rid in rank.generalists():
+        if rid not in hits and (record := source.fetch(rid)) is not None:
+            hits[rid] = record
+    return matches, hits
+
+
+def _items(chosen: list[_Chosen], got: _Retrieved, needs: RepositoryNeeds) -> list[Item]:
+    """What the explainer is told about each candidate chosen."""
+    items: list[Item] = []
+    for record, basis, _, reasons in chosen:
+        pair = got.databases.get(record.fairsharing_id or "")
+        cross = pair[0] if pair else None
+        items.append(
+            Item(
+                record=record,
+                database=cross,
+                basis=basis,
+                assessment=assess.assess(record, cross, needs),
+                reasons=reasons,
+            )
+        )
+    return items
+
+
+def _candidate(
+    item: Item, score: float | None, reasons: tuple[str, ...], rationale: Rationale
+) -> RepositoryCandidate:
+    grounded = [
+        GroundingRef(source_id=item.record.re3data_id, content_hash=item.record.content_hash())
+    ]
+    if item.database is not None:
+        grounded.append(
+            GroundingRef(
+                source_id=item.database.fairsharing_id,
+                content_hash=item.database.content_hash(),
+            )
+        )
+    return RepositoryCandidate(
+        basis=item.basis,
+        score=score,
+        assigns_pids=assess.assigns_pids(item.record),
+        commercial=assess.commercial(item.record),
+        fee_required=assess.fee_required(item.record),
+        meets=item.assessment.meets,
+        misses=item.assessment.misses,
+        notes=item.assessment.notes,
+        ranked_by=list(reasons),
+        rationale=rationale.text,
+        rationale_derivation=rationale.derivation,
+        grounded_on=grounded,
+    )
 
 
 class RepositoryAgent:
@@ -131,41 +230,28 @@ class RepositoryAgent:
         themes' DFG subjects) and the generalist repositories. A name that several records bear
         is not found, and noted in `got`: the researcher is asked for the identifier rather than
         given a guess."""
-        mandated: list[Re3dataRecord] = []
-        not_found: list[str] = []
-        matches = rank.Matches()
-        hits: dict[str, Re3dataRecord] = {}
-        for ref in needs.mandated:
-            if ref.re3data_id:
-                by_id = source.fetch(ref.re3data_id)
-                named = [by_id] if by_id is not None else []
-            else:
-                named = source.find(ref.name)
-            if len(named) != 1:
-                not_found.append(ref.name)
-                if named:
-                    got.ambiguous[ref.name] = [n.re3data_id for n in named]
-                continue
-            if named[0].re3data_id not in {m.re3data_id for m in mandated}:
-                mandated.append(named[0])
-        if not needs.mandated:
-            limit = int(rank.config()["search_limit"])
-            themes = [q.text for q in rank.queries(needs) if q.label == rank.THEME]
-            if themes:
-                rank.resolve(themes, source.subjects(), matches)
-            for query in rank.queries(needs):
-                found = source.search(query)
-                matches.add(query, found)
-                for hit in found[:limit]:
-                    hits.setdefault(hit.record.re3data_id, hit.record)
-            for theme in themes:
-                filed = [r for c in matches.subjects[theme] for r in source.with_subject(c)]
-                for found_record in rank.by_subject(theme, filed, matches):
-                    hits.setdefault(found_record.re3data_id, found_record)
-            for rid in rank.generalists():
-                if rid not in hits and (record := source.fetch(rid)) is not None:
-                    hits[rid] = record
+        mandated, not_found = _mandated(needs, source, got)
+        if needs.mandated:
+            return mandated, not_found, rank.Matches(), {}
+        matches, hits = _shortlist(needs, source)
         return mandated, not_found, matches, hits
+
+    def _collect(self, records: list[Re3dataRecord], got: _Retrieved, ctx: RunContext) -> None:
+        """Keep the records retrieved, fetch the FAIRsharing records they cross-reference, and
+        open one retrieval span per record: this is the evidence the linter matches on."""
+        for record in records:
+            got.repositories[record.re3data_id] = record
+        for record in got.repositories.values():
+            if record.fairsharing_id and record.fairsharing_id not in got.databases:
+                self._database(record.fairsharing_id, got)
+        for rid, repository in got.repositories.items():
+            with retrieval_span(ctx.tracer, rid, repository.content_hash()):
+                pass
+        # A FAIRsharing record by its own identifier, as the candidate cites it, not as re3data
+        # wrote it (#741).
+        for database, _ in got.databases.values():
+            with retrieval_span(ctx.tracer, database.fairsharing_id, database.content_hash()):
+                pass
 
     def _database(self, fairsharing_id: str, got: _Retrieved) -> None:
         """Fetch the FAIRsharing record re3data cross-references. Optional: if FAIRsharing cannot
@@ -190,7 +276,7 @@ class RepositoryAgent:
 
     # --- assembly -------------------------------------------------------------------------
 
-    def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:  # noqa: C901, PLR0912
+    def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
         needs = request.input
         assert isinstance(needs, RepositoryNeeds)  # the conductor checked spec.accepts
         if not (needs.mandated or rank.queries(needs)):
@@ -209,20 +295,7 @@ class RepositoryAgent:
                 ReasonCode.REGISTRY_UNAVAILABLE,
                 f"re3data could not be read: {exc}. This is not an empty result.",
             )
-        for record in [*mandated, *hits.values()]:
-            got.repositories[record.re3data_id] = record
-        for record in got.repositories.values():
-            if record.fairsharing_id and record.fairsharing_id not in got.databases:
-                self._database(record.fairsharing_id, got)
-        # One retrieval span per record: this is the evidence the linter matches on.
-        for rid, repository in got.repositories.items():
-            with retrieval_span(ctx.tracer, rid, repository.content_hash()):
-                pass
-        # A FAIRsharing record by its own identifier, as the candidate cites it, not as re3data
-        # wrote it (#741).
-        for database, _ in got.databases.values():
-            with retrieval_span(ctx.tracer, database.fairsharing_id, database.content_hash()):
-                pass
+        self._collect([*mandated, *hits.values()], got, ctx)
 
         queries = [f"mandated: {r.name!r}" for r in needs.mandated] or [
             q.describe() for q in rank.queries(needs)
@@ -233,7 +306,7 @@ class RepositoryAgent:
             candidates_retrieved=len(got.repositories),
         )
 
-        chosen: list[tuple[Re3dataRecord, CandidateBasis, float | None, tuple[str, ...]]]
+        chosen: list[_Chosen]
         on_theme = False  # whether a recommended repository matches a theme
         if needs.mandated:
             if not mandated:
@@ -265,54 +338,16 @@ class RepositoryAgent:
             on_theme = any(r.on_theme and r.fit == rank.DISCIPLINE for r in ranked)
         searched = searched.model_copy(update={"candidates_qualifying": len(chosen)})
 
-        items: list[Item] = []
-        for record, basis, _, reasons in chosen:
-            pair = got.databases.get(record.fairsharing_id or "")
-            cross = pair[0] if pair else None
-            items.append(
-                Item(
-                    record=record,
-                    database=cross,
-                    basis=basis,
-                    assessment=assess.assess(record, cross, needs),
-                    reasons=reasons,
-                )
-            )
+        items = _items(chosen, got, needs)
         # Explain — after retrieval, over decided candidates only.
         explanation = self.explainer.explain(needs, items, ctx)
 
-        candidates: list[RepositoryCandidate] = []
-        for item, (_, _, score, reasons), rationale in zip(
-            items, chosen, explanation.rationales, strict=True
-        ):
-            grounded = [
-                GroundingRef(
-                    source_id=item.record.re3data_id, content_hash=item.record.content_hash()
-                )
-            ]
-            if item.database is not None:
-                grounded.append(
-                    GroundingRef(
-                        source_id=item.database.fairsharing_id,
-                        content_hash=item.database.content_hash(),
-                    )
-                )
-            candidates.append(
-                RepositoryCandidate(
-                    basis=item.basis,
-                    score=score,
-                    assigns_pids=assess.assigns_pids(item.record),
-                    commercial=assess.commercial(item.record),
-                    fee_required=assess.fee_required(item.record),
-                    meets=item.assessment.meets,
-                    misses=item.assessment.misses,
-                    notes=item.assessment.notes,
-                    ranked_by=list(reasons),
-                    rationale=rationale.text,
-                    rationale_derivation=rationale.derivation,
-                    grounded_on=grounded,
-                )
+        candidates = [
+            _candidate(item, score, reasons, rationale)
+            for item, (_, _, score, reasons), rationale in zip(
+                items, chosen, explanation.rationales, strict=True
             )
+        ]
 
         evidence = self._evidence(candidates, got)
         grounded_on = [

@@ -31,7 +31,7 @@ ROR releases its data under [CC0 1.0](https://creativecommons.org/publicdomain/z
 registry carries no conditions. We attribute ROR nonetheless: in `CITATION.cff`, in the README,
 and in the advisor's statement, which names the copy of ROR that answered.
 
-- **Fields.** Only the fields of `Organisation` in `src/dd_agent_advisor_policy/ror.py` are
+- **Fields.** Only the fields of `Organisation` in `src/dd_agent_advisor_policy/ror_records.py` are
   kept: the identifier, names with their types and languages, the kinds of organisation, status,
   country codes, Crossref Funder IDs and parent organisations. Links, domains, coordinates and
   ROR's administrative dates are dropped.

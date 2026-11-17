@@ -12,10 +12,11 @@ from typing import Any, Literal
 import pytest
 
 from dd_agent_advisor_standards import testing as fakes
-from dd_agent_advisor_standards.advise import SEARCH, SUBMIT, SYSTEM_PROMPT, ModelAdvisor
+from dd_agent_advisor_standards.advise import SUBMIT, SYSTEM_PROMPT, ModelAdvisor
 from dd_agent_advisor_standards.agent import StandardsAgent
 from dd_agent_advisor_standards.classes import Recommendation, Recommendations
 from dd_agent_advisor_standards.fairsharing.records import TERMINOLOGY, Record
+from dd_agent_advisor_standards.tools import SEARCH
 from dd_harness.testing import TEST_PRINCIPAL
 from dd_sdk.contract.models import Derivation, Envelope, OutcomeStatus
 from dd_sdk.model import (

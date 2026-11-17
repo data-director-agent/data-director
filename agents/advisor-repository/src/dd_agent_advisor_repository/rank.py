@@ -189,7 +189,93 @@ def _theme(theme: str, record: Re3dataRecord, matches: Matches) -> tuple[float, 
     return share * subject_grade + (1 - share) * text_grade, reasons
 
 
-def rank(  # noqa: C901, PLR0912
+@dataclass(frozen=True)
+class _Ranking:
+    """What ranking each repository in one run shares (`rank`): the needs, the matches, the
+    themes and kinds of data asked for, the generalists, and the researcher's country."""
+
+    matches: Matches
+    needs: RepositoryNeeds
+    themes: list[str]
+    kinds: list[str]
+    general: set[str]
+    # The researcher's country as given, else as re3data records their institution's.
+    country: str | None
+    whose: str
+    inferred: bool
+
+
+def _relevance(rid: str, record: Re3dataRecord, run: _Ranking) -> tuple[float, list[str], bool]:
+    """A repository's score from the themes and the kinds of data, why, and whether it matches
+    a theme."""
+    weights = config()["weights"]
+    reasons: list[str] = []
+    score = 0.0
+    on_theme = False
+    if rid in run.general:
+        score += weights["generalist"]
+        reasons.append("A generalist repository, which takes data from any discipline.")
+    elif run.themes:
+        graded = {t: _theme(t, record, run.matches) for t in run.themes}
+        matched = {t for t, (grade, _) in graded.items() if grade > 0}
+        if matched:
+            on_theme = True
+            score += weights["theme"] * sum(g for g, _ in graded.values()) / len(run.themes)
+            noun = "theme" if len(matched) == 1 else "themes"
+            reasons.append(
+                f"Matches the {noun} {_quoted(matched)} ({len(matched)} of {len(run.themes)} "
+                "given)."
+            )
+            for theme in sorted(matched):
+                reasons.extend(graded[theme][1])
+    found = run.matches.data_kinds.get(rid, {})
+    if (matched := set(found)) and rid not in run.general:
+        score += weights["data_kind"] * sum(m.grade for m in found.values()) / len(run.kinds)
+        noun = "kind" if len(matched) == 1 else "kinds"
+        reasons.append(f"Matches the {noun} of data {_quoted(matched)}.")
+    return score, reasons, on_theme
+
+
+def _ranked(rid: str, record: Re3dataRecord, run: _Ranking) -> Ranked | None:
+    """One repository as ranked, or None when it cannot be offered."""
+    cfg = config()
+    weights = cfg["weights"]
+    needs = run.needs
+    home = assess.affiliated(record, needs.affiliation)
+    if "closed" in record.data_upload_types:
+        return None  # it takes no deposits, so it cannot be recommended for one
+    if assess.members_only(record) and home is None:
+        return None  # it takes deposits only from another institution's members
+    score, reasons, on_theme = _relevance(rid, record, run)
+    access_unmet = assess.access_met(record, needs.access) is False
+    if access_unmet:
+        score += weights["access_unmet"]
+    score = round(score, 4)
+    nudge = 0.0
+    if score >= cfg["confidence_floor"]:
+        fit = GENERALIST if rid in run.general else DISCIPLINE
+        # After the floor, so the country reorders matches and never makes one (#741).
+        if (local := assess.in_country(record, run.country)) is not None:
+            score = round(score + weights["country"], 4)
+            nudge = weights["country"] if run.inferred else 0.0
+            reasons.append(f"Operated in {run.country}, {run.whose}, by {local.name}.")
+        if home is not None:
+            reasons.append(f"Operated by {home.name}, the researcher's institution.")
+    elif home is not None and not access_unmet:
+        fit = INSTITUTIONAL
+        reasons.append(
+            f"Operated by {home.name}, the researcher's institution, and offered as a "
+            "fallback: a repository of the dataset's discipline, or one a funder, journal or "
+            "project requires, may suit the data better."
+        )
+    else:
+        return None
+    if access_unmet:
+        reasons.append(f"Does not list {needs.access} access, which the data needs.")
+    return Ranked(record, score, tuple(reasons), fit, on_theme, nudge)
+
+
+def rank(
     matches: Matches, records: dict[str, Re3dataRecord], needs: RepositoryNeeds
 ) -> list[Ranked]:
     """Every retrieved repository that reaches the floor, capped, and the researcher's
@@ -208,72 +294,24 @@ def rank(  # noqa: C901, PLR0912
     match elsewhere (#741).
     """
     cfg = config()
-    weights = cfg["weights"]
-    themes = [q.text for q in queries(needs) if q.label == THEME]
-    kinds = [q.text for q in queries(needs) if q.label == DATA_KIND]
-    general = set(generalists())
     # The researcher's country as given, else as re3data records their institution's.
     country, whose, inferred = needs.country, "the researcher's country", False
     if country is None:
         country = assess.home_country(records.values(), needs.affiliation)
         whose, inferred = "the country of the researcher's institution", True
-    ranked: list[Ranked] = []
-    for rid, record in records.items():
-        home = assess.affiliated(record, needs.affiliation)
-        if "closed" in record.data_upload_types:
-            continue  # it takes no deposits, so it cannot be recommended for one
-        if assess.members_only(record) and home is None:
-            continue  # it takes deposits only from another institution's members
-        reasons: list[str] = []
-        score = 0.0
-        on_theme = False
-        if rid in general:
-            score += weights["generalist"]
-            reasons.append("A generalist repository, which takes data from any discipline.")
-        elif themes:
-            graded = {t: _theme(t, record, matches) for t in themes}
-            matched = {t for t, (grade, _) in graded.items() if grade > 0}
-            if matched:
-                on_theme = True
-                score += weights["theme"] * sum(g for g, _ in graded.values()) / len(themes)
-                noun = "theme" if len(matched) == 1 else "themes"
-                reasons.append(
-                    f"Matches the {noun} {_quoted(matched)} ({len(matched)} of {len(themes)} "
-                    "given)."
-                )
-                for theme in sorted(matched):
-                    reasons.extend(graded[theme][1])
-        found = matches.data_kinds.get(rid, {})
-        if (matched := set(found)) and rid not in general:
-            score += weights["data_kind"] * sum(m.grade for m in found.values()) / len(kinds)
-            noun = "kind" if len(matched) == 1 else "kinds"
-            reasons.append(f"Matches the {noun} of data {_quoted(matched)}.")
-        access_unmet = assess.access_met(record, needs.access) is False
-        if access_unmet:
-            score += weights["access_unmet"]
-        score = round(score, 4)
-        nudge = 0.0
-        if score >= cfg["confidence_floor"]:
-            fit = GENERALIST if rid in general else DISCIPLINE
-            # After the floor, so the country reorders matches and never makes one (#741).
-            if (local := assess.in_country(record, country)) is not None:
-                score = round(score + weights["country"], 4)
-                nudge = weights["country"] if inferred else 0.0
-                reasons.append(f"Operated in {country}, {whose}, by {local.name}.")
-            if home is not None:
-                reasons.append(f"Operated by {home.name}, the researcher's institution.")
-        elif home is not None and not access_unmet:
-            fit = INSTITUTIONAL
-            reasons.append(
-                f"Operated by {home.name}, the researcher's institution, and offered as a "
-                "fallback: a repository of the dataset's discipline, or one a funder, journal or "
-                "project requires, may suit the data better."
-            )
-        else:
-            continue
-        if access_unmet:
-            reasons.append(f"Does not list {needs.access} access, which the data needs.")
-        ranked.append(Ranked(record, score, tuple(reasons), fit, on_theme, nudge))
+    run = _Ranking(
+        matches=matches,
+        needs=needs,
+        themes=[q.text for q in queries(needs) if q.label == THEME],
+        kinds=[q.text for q in queries(needs) if q.label == DATA_KIND],
+        general=set(generalists()),
+        country=country,
+        whose=whose,
+        inferred=inferred,
+    )
+    ranked = [
+        found for rid, record in records.items() if (found := _ranked(rid, record, run)) is not None
+    ]
     # The cap applies only to repositories the researcher's institution does not operate, so
     # naming an institution adds its repositories and never displaces another (#441).
     cap = int(cfg["max_candidates"])
