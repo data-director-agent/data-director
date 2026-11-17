@@ -49,6 +49,17 @@ const BLUEPRINT = "https://doi.org/10.15497/RDA00157";
 const SOURCE = "https://github.com/data-director-agent/data-director";
 const USER_GUIDE =
   "https://data-director-agent.github.io/data-director/user-guide/";
+const SITE = "https://data-director-agent.github.io/data-director/";
+const CONTRIBUTING =
+  "https://github.com/data-director-agent/data-director/blob/main/CONTRIBUTING.md";
+
+// The project's own pages. The privacy notice here covers the project's website, not an
+// instance, so it is labelled as the project's and the operator's notice stays in the build line.
+const PROJECT_LINKS: readonly { href: string; label: string }[] = [
+  { href: SITE, label: "About" },
+  { href: `${SITE}privacy/`, label: "Project privacy notice" },
+  { href: CONTRIBUTING, label: "Contribute" },
+];
 
 /**
  * `from` is the page the reader is on, which the report form carries so a report says where it
@@ -169,6 +180,21 @@ export function Frame({
             </ul>
           </div>
           <div className="app-footer-details">
+            <nav aria-label="Project" className="app-footer-nav">
+              <ul className="app-footer-links">
+                {PROJECT_LINKS.map(({ href, label }) => (
+                  <li key={href}>
+                    <a href={href} target="_blank" rel="noreferrer">
+                      {label}
+                      <span className="visually-hidden">
+                        {" "}
+                        (opens in a new tab)
+                      </span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
             <p className="app-footer-about">
               A reference implementation of the{" "}
               <a href={BLUEPRINT} target="_blank" rel="noreferrer">
