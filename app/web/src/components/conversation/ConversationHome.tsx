@@ -70,6 +70,7 @@ import { useFlowLoad } from "../workspace/useFlowLoad";
 import { useAskAbout } from "./useAskAbout";
 import { Workspace } from "../workspace/Workspace";
 import { ProjectSwitcher } from "../project/ProjectSwitcher";
+import { useAnnounce } from "../ui/Announcer";
 import { Button } from "../ui/Button";
 import { Composer } from "./Composer";
 import { EarlierConversations } from "./EarlierConversations";
@@ -181,7 +182,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   const unusable = whyUnusable(named, orchestrator);
   const { projectId, projects, reloadProjects } = useActiveProject();
   const [text, setText] = useState("");
-  const [announcement, setAnnouncement] = useState("");
+  const announce = useAnnounce();
   // A step whose prompt waits on the researcher's leave to replace the message being written.
   const [replacing, setReplacing] = useState<FlowStep | null>(null);
   const params = new URLSearchParams(useLocation().split("?")[1]);
@@ -190,13 +191,13 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   const urlConversation = params.get("conversation");
   const box = useRef<HTMLTextAreaElement>(null);
 
-  const attachments = useAttachments(box, setAnnouncement);
+  const attachments = useAttachments(box, announce);
   const turns = useConversationTurns({
     orchestratorId: orchestrator?.id,
     runId,
     urlConversation,
     box,
-    announce: setAnnouncement,
+    announce: announce,
     setText,
     restore: attachments.restore,
     clearAttachError: attachments.clearError,
@@ -208,12 +209,12 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     projectId,
     turnCount,
     turns.awaitedDrafts,
-    setAnnouncement,
+    announce,
   );
   const progress = useProjectProgress(projectId, turnCount);
   const intakeRead = useIntake(projectId, turnCount, {
     progressed: progress.set,
-    announce: setAnnouncement,
+    announce: announce,
     failed: turns.setError,
   });
   const { intake } = intakeRead;
@@ -282,7 +283,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     setReplacing(null);
     turns.reset();
     setText(step.prompt);
-    setAnnouncement(
+    announce(
       `New conversation about ${step.label}. The message box holds a suggested message: edit it if you wish, then send.`,
     );
     requestAnimationFrame(() => {
@@ -319,7 +320,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
             read={intakeRead}
             flow={flow}
             onStart={quiet ? startFromIntake : undefined}
-            onAnnounce={setAnnouncement}
+            onAnnounce={announce}
           />
           {(turnCount > 0 || sent !== null) && (
             <Transcript
@@ -358,9 +359,6 @@ export function ConversationHome({ directory }: { directory: Directory }) {
             busy={busy}
             onSend={() => void send()}
           />
-          <div role="status" aria-live="polite" className="visually-hidden">
-            {announcement}
-          </div>
           {turns.error && (
             <div role="alert" className="callout status-danger">
               <p>{turns.error}</p>

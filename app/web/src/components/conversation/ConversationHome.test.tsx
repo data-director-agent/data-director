@@ -38,7 +38,11 @@ import type { RawAgentsResponse, RawManifestEntry } from "../../manifest/types";
 import runFixture from "../../../fixtures/run-succeeded.json";
 import { type RunApi, RunApiContext, RunRefused } from "../../run/api";
 import type { Problem, RunResult } from "../../run/types";
+import { AnnouncerProvider } from "../ui/Announcer";
 import { ConversationHome } from "./ConversationHome";
+
+/** The frame's polite region, where the page's announcements are said. */
+const announcements = () => screen.getByRole("log", { name: "Announcements" });
 
 const CONVERSATION = conversationFixture as unknown as Conversation;
 const PROJECT = projectFixture as ProjectDocuments;
@@ -87,15 +91,17 @@ function renderHome(
   project: ProjectApi = httpProjectApi,
 ) {
   return render(
-    <FlowApiContext.Provider value={flow}>
-      <ProjectApiContext.Provider value={project}>
-        <ActiveProjectProvider>
-          <ConversationApiContext.Provider value={api}>
-            <ConversationHome directory={directory} />
-          </ConversationApiContext.Provider>
-        </ActiveProjectProvider>
-      </ProjectApiContext.Provider>
-    </FlowApiContext.Provider>,
+    <AnnouncerProvider>
+      <FlowApiContext.Provider value={flow}>
+        <ProjectApiContext.Provider value={project}>
+          <ActiveProjectProvider>
+            <ConversationApiContext.Provider value={api}>
+              <ConversationHome directory={directory} />
+            </ConversationApiContext.Provider>
+          </ActiveProjectProvider>
+        </ProjectApiContext.Provider>
+      </FlowApiContext.Provider>
+    </AnnouncerProvider>,
   );
 }
 
@@ -129,7 +135,7 @@ describe("ConversationHome", () => {
       const group = await screen.findByRole("group", {
         name: "Where are you with your research data?",
       });
-      expect(screen.getByRole("status")).toHaveTextContent(
+      expect(announcements()).toHaveTextContent(
         "It asks: Where are you with your research data?",
       );
       expect(await axe(container)).toHaveNoViolations();
@@ -327,7 +333,7 @@ describe("ConversationHome", () => {
     expect(
       within(transcript).getAllByText("example.hello@0.1.1a1"),
     ).toHaveLength(2);
-    expect(screen.getByRole("status")).toHaveTextContent(
+    expect(announcements()).toHaveTextContent(
       /orchestrator\.stub.*Succeeded/,
     );
     expect(box).toHaveFocus();
@@ -1188,7 +1194,7 @@ describe("ConversationHome", () => {
         expect.stringContaining("README, version 1"),
       ]);
       await waitFor(() =>
-        expect(screen.getByRole("status")).toHaveTextContent(
+        expect(announcements()).toHaveTextContent(
           "New reply from orchestrator.stub: Succeeded. README drafted, version 1: Proposed, not reviewed.",
         ),
       );
@@ -1275,15 +1281,17 @@ describe("ConversationHome", () => {
     function renderWithRuns(conversation: Conversation) {
       const api = fakeApi({ get: () => Promise.resolve(conversation) });
       return render(
-        <FlowApiContext.Provider value={FLOW}>
-          <RunApiContext.Provider value={runs}>
-            <ActiveProjectProvider>
-              <ConversationApiContext.Provider value={api}>
-                <ConversationHome directory={withOrchestrator()} />
-              </ConversationApiContext.Provider>
-            </ActiveProjectProvider>
-          </RunApiContext.Provider>
-        </FlowApiContext.Provider>,
+        <AnnouncerProvider>
+          <FlowApiContext.Provider value={FLOW}>
+            <RunApiContext.Provider value={runs}>
+              <ActiveProjectProvider>
+                <ConversationApiContext.Provider value={api}>
+                  <ConversationHome directory={withOrchestrator()} />
+                </ConversationApiContext.Provider>
+              </ActiveProjectProvider>
+            </RunApiContext.Provider>
+          </FlowApiContext.Provider>
+        </AnnouncerProvider>,
       );
     }
 

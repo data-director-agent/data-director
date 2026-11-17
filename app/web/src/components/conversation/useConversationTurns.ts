@@ -205,7 +205,6 @@ export function useConversationTurns(options: TurnsOptions): Turns {
     setConversation(null);
     setOpenProject(undefined);
     setError(null);
-    announce("");
   }
 
   /** Starts a conversation in the project being worked in, or in a new one the server starts. */
@@ -247,7 +246,6 @@ export function useConversationTurns(options: TurnsOptions): Turns {
       api.get(id).then(setConversation, () => undefined);
     }
     setError(sendFailure(e));
-    announce("");
   }
 
   async function deliver(message: string, carried: Carried, answer: ReplyAnswers | null) {
@@ -285,7 +283,6 @@ export function useConversationTurns(options: TurnsOptions): Turns {
           "Your message was sent and answered, but Data Director could not show the reply " +
             `(${errorMessage(e)}). Open this conversation from Conversations to see it.`,
         );
-        announce("");
       } else {
         notSent(e, id, fromBox ? { message, ...carried } : null);
       }
@@ -316,7 +313,6 @@ export function useConversationTurns(options: TurnsOptions): Turns {
     setText("");
     options.restore(NOTHING);
     options.clearAttachError();
-    announce("");
     box.current?.focus();
   }
 
