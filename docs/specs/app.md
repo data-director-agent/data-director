@@ -147,7 +147,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     renders too (`docs/hooks_inventory.py`), so the two cannot drift; the dialog names no agent and
     holds no policy (`MakeInventoryDialog.test.tsx`, `DescribeFolder.test.tsx`, and
     `app/web/e2e/scan.spec.ts`, which scans a folder holding a canary and checks that no request
-    carries it). The release image and VM deploy do not yet serve the bundle (TODO(#1052)). The
+    carries it). The release image and the VM deploy build the bundle from the same commit and serve
+    it (`docker/release.Dockerfile`, `deploy/deploy.sh`), and their smoke test checks it is served
+    (`scripts/smoke_image.py`). The
     transcript shows the chip on the turn where the project's inventory changed, read from the
     `project_inventory` the conductor gave that turn (`app/tests/test_app.py`,
     `app/web/src/components/conversation/ConversationHome.test.tsx`).
@@ -712,7 +714,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   reach the app can file a public issue as the project's bot. The browser scanner's worker script
   is sent `default-src 'none'; script-src blob: 'wasm-unsafe-eval'; connect-src 'none'`
   (`dd_app.worker_policy`, and the preview server in `app/web/vite.config.ts`), so it can neither
-  fetch nor send anything: the page hands it the bundle's bytes. A delegation grant is a bearer token, so the
+  fetch nor send anything: the page hands it the bundle's bytes. Every file under
+  `/inventory-bundle/` is sent `Cache-Control: no-cache` (`dd_app.worker_policy`), so a browser
+  revalidates its copy and never pairs one release's lock with another's wheel. A delegation grant is a bearer token, so the
   app warns at start-up when it is not bound to a loopback address. TODO(#17): authenticate
   callers.
 
