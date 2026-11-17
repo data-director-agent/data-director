@@ -187,6 +187,10 @@ should fail when behaviour breaks, not when a sentence is reworded or an agent i
   ID from `docs/requirements.yaml` that it actually exercises. These tests feed `CONFORMANCE.md`:
   loosen what they assert, but keep them. An evaluation test carries no requirement marker
   ([Evaluation and conformance](docs/specs/evaluation.md)).
+* Property tests use Hypothesis, for code the project owns outright (evidence canonicalisation,
+  the contract validators, project event replay). The root `conftest.py` bounds every property
+  test to 50 examples with no deadline; a slower one, such as one against a database, sets fewer
+  with its own `@settings`.
 * Test module basenames are unique across the workspace. Test directories are not packages;
   shared doubles live in `dd_harness.testing` and in an agent's own `testing` module.
 * Cassettes must not contain credentials. The root `conftest.py` filters the auth headers and the
