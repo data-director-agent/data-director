@@ -46,212 +46,43 @@
  * read with `useResource`.
  */
 
-import { type ComponentProps, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
-import { X } from "lucide-react";
 import type { ReplyAnswers } from "../../conversation/question";
-import { startablePrompts } from "../../flow/prompts";
 import type { FlowStep } from "../../flow/types";
 import type { Directory } from "../../manifest/normalise";
 import { useActiveProject } from "../../project/active";
-import {
-  type ProjectApi,
-  type ProjectDocuments,
-  type ProjectSummary,
-  useProjectApi,
-} from "../../project/api";
-import type { DocumentsRead } from "../../project/drafted";
-import { Link, homePath, navigate, useLocation } from "../../route";
+import { useProjectApi } from "../../project/api";
+import { homePath, navigate, useLocation } from "../../route";
 import type { Envelope } from "../../run/types";
-import type { Conversation } from "../../conversation/types";
 import { ContextPanel } from "../workspace/ContextPanel";
-import {
-  type FlowLoad,
-  PhaseTracker,
-  type TrackedProgress,
-} from "../workspace/PhaseTracker";
+import { PhaseTracker } from "../workspace/PhaseTracker";
 import { useFlowLoad } from "../workspace/useFlowLoad";
 import { useAskAbout } from "./useAskAbout";
 import { Workspace } from "../workspace/Workspace";
 import { ProjectSwitcher } from "../project/ProjectSwitcher";
 import { useAnnounce } from "../ui/Announcer";
-import { Button } from "../ui/Button";
 import { Composer } from "./Composer";
 import { EarlierConversations } from "./EarlierConversations";
-import { IntakeCard } from "./IntakeCard";
+import {
+  LinkedRun,
+  NoConversation,
+  OpenIntake,
+  chosenRepository,
+  holdsRun,
+  offeredPrompts,
+  projectHandlers,
+  projectNamed,
+  trackedProgress,
+} from "./ConversationHomeParts";
 import { whyUnusable } from "./orchestrator";
-import { RunDetail } from "./RunDetail";
 import { StartFromStep } from "./StartFromStep";
 import { Transcript } from "./Transcript";
 import { useAttachments } from "./useAttachments";
 import { useConversationTurns } from "./useConversationTurns";
-import { type IntakeRead, useIntake } from "./useIntake";
+import { useIntake } from "./useIntake";
 import { useProjectDocuments } from "./useProjectDocuments";
-import {
-  type ProjectProgressRead,
-  useProjectProgress,
-} from "./useProjectProgress";
-
-/** The project's progress for the phase tracker, with how to change it, once it has been read. */
-function trackedProgress(
-  projectId: string | null,
-  read: ProjectProgressRead,
-  how: {
-    projectApi: ProjectApi;
-    documents: DocumentsRead;
-    startConversation: ((step: FlowStep) => void) | undefined;
-    answerIntakeAgain: ((projectId: string) => void) | undefined;
-  },
-): TrackedProgress | null {
-  const { progress, change, error } = read;
-  if (!projectId || !progress) return null;
-  const { projectApi, documents, startConversation, answerIntakeAgain } = how;
-  return {
-    progress,
-    chooseEntry: (entry) =>
-      change(projectApi.chooseEntry(projectId, entry), projectId),
-    markStep: (stepId, mark) =>
-      change(projectApi.markStep(projectId, stepId, mark), projectId),
-    error,
-    projectId,
-    ...(documents.state === "loaded" ? { documents: documents.documents } : {}),
-    ...(startConversation ? { startConversation } : {}),
-    ...(answerIntakeAgain
-      ? { answerIntakeAgain: () => answerIntakeAgain(projectId) }
-      : {}),
-  };
-}
-
-/** The prompts a conversation yet to begin offers, from the steps that can be started now. */
-function offeredPrompts(
-  flow: FlowLoad,
-  tracked: TrackedProgress | null,
-  offering: boolean,
-) {
-  if (!offering || !tracked || flow.state !== "loaded") return null;
-  return startablePrompts(flow.flow, tracked.progress);
-}
-
-/** The repository chosen for the project, if one has been. */
-function chosenRepository(project: ProjectSummary | null): string | null {
-  return project?.repository?.re3data_id ?? null;
-}
-
-/** Whether `runId` is one of the runs in the conversation's transcript. */
-function holdsRun(conversation: Conversation | null, runId: string): boolean {
-  return Boolean(
-    conversation?.turns
-      .flatMap((t) => t.children)
-      .some((c) => c.invocation_id === runId),
-  );
-}
-
-/** The project's intake card, while it is open. */
-function OpenIntake({
-  projectId,
-  read,
-  flow,
-  onStart,
-  onAnnounce,
-}: {
-  projectId: string | null;
-  read: IntakeRead;
-  flow: FlowLoad;
-  onStart: ((message: string) => void) | undefined;
-  onAnnounce: (said: string) => void;
-}) {
-  const { intake } = read;
-  if (!projectId || !intake?.open) return null;
-  return (
-    <IntakeCard
-      key={`${projectId}-${intake.again ? "again" : "pending"}`}
-      intake={intake.intake}
-      again={intake.again}
-      flow={flow.state === "loaded" ? flow.flow : null}
-      onAnswer={(questionId, values) =>
-        read.answer(projectId, questionId, values)
-      }
-      onDismiss={() => read.dismiss(projectId)}
-      onClose={read.close}
-      onStart={onStart}
-      onAnnounce={onAnnounce}
-    />
-  );
-}
-
-/** A run named in the address but not in the transcript, so that the link still opens it. */
-function LinkedRun({
-  runId,
-  agents,
-}: {
-  runId: string;
-  agents: Directory["agents"];
-}) {
-  return (
-    <section aria-labelledby="linked-run" className="callout">
-      <h3 id="linked-run">
-        Run <code>{runId}</code>
-      </h3>
-      <RunDetail invocationId={runId} agents={agents} idPrefix="linked-run" />
-      <p>
-        <Button icon={X} onPress={() => navigate("/")}>
-          Close the run
-        </Button>
-      </p>
-    </section>
-  );
-}
-
-function projectNamed(
-  projects: ProjectSummary[],
-  projectId: string | null,
-): ProjectSummary | null {
-  return projects.find((p) => p.project_id === projectId) ?? null;
-}
-
-/** What the transcript does with the project's documents and repository choice; nothing outside a
- * project. */
-function projectHandlers(
-  projectId: string | null,
-  answered: (projectId: string, value: ProjectDocuments) => void,
-  reloadProjects: () => void | Promise<void>,
-) {
-  if (!projectId) return {};
-  return {
-    onDocumentAnswered: (value: ProjectDocuments) => answered(projectId, value),
-    // The panel reads the choice from the projects list, so it is read again.
-    onRepositoryChosen: () => void reloadProjects(),
-  };
-}
-
-/** The page when no orchestrator can be talked to: why, and the way to the agents. */
-function NoConversation({
-  frame,
-  why,
-  projectId,
-  project,
-}: {
-  frame: Pick<ComponentProps<typeof Workspace>, "project" | "phases">;
-  why: string | null;
-  projectId: string | null;
-  project: ProjectSummary | null;
-}) {
-  return (
-    <Workspace
-      {...frame}
-      title="No conversation is available"
-      centre={
-        <>
-          <p>{why} You can still use each agent on its own.</p>
-          <p>
-            <Link to="/agents">Open the agent directory</Link>
-          </p>
-        </>
-      }
-      context={<ContextPanel projectId={projectId} project={project} />}
-    />
-  );
-}
+import { useProjectProgress } from "./useProjectProgress";
 
 export function ConversationHome({ directory }: { directory: Directory }) {
   const projectApi = useProjectApi();
