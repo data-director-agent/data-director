@@ -666,8 +666,8 @@ class DocumentVersionRef(Frozen):
 
 
 class DocumentQuestion(Frozen):
-    """A drafter's question about one gap in its draft: a README section, or a data dictionary
-    cell named by file, field and column (docs/specs/drafting.md)."""
+    """A drafter's question about one gap in its draft: a README section, a data dictionary cell
+    named by file, field and column, or a metadata record value (docs/specs/drafting.md)."""
 
     question_id: str = Field(pattern=QUESTION_ID_PATTERN)
     question_prompt: str
@@ -677,6 +677,8 @@ class DocumentQuestion(Frozen):
     gap_file: str | None = None
     gap_field: str | None = None
     gap_column: str | None = None
+    # A metadata record value, by its path in the record's JSON form, such as titles[0].title.
+    gap_property: str | None = None
     # Offered with the question, never placed in the document (docs/specs/drafting.md).
     suggested_answer: str | None = None
     suggestion_derivation: Derivation | None = None
@@ -688,13 +690,10 @@ class DocumentQuestion(Frozen):
         cell = (self.gap_file, self.gap_field, self.gap_column)
         if self.gap_part is not None and self.gap_section is None:
             raise ValueError("a question targets a part only within a README section")
-        if self.gap_section is not None:
-            if any(c is not None for c in cell):
-                raise ValueError("a question targets a README section or a cell, not both")
-        elif any(c is None for c in cell):
-            raise ValueError(
-                "a question targets a README section, or a cell by file, field and column"
-            )
+        if None in cell and any(c is not None for c in cell):
+            raise ValueError("a question targets a cell by file, field and column together")
+        if sum(t is not None for t in (self.gap_section, self.gap_file, self.gap_property)) != 1:
+            raise ValueError("a question targets one of a README section, a cell or a property")
         return self
 
 

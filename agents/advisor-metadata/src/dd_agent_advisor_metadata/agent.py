@@ -1,32 +1,45 @@
-"""advisor.metadata: the Metadata Librarian persona (docs/specs/agents.md). A mock, and the
-stub drafter of the project's metadata record (#200).
+"""advisor.metadata: the Metadata Librarian persona (docs/specs/agents.md), a model-backed alpha,
+and the drafter of the project's metadata record (#200, #698).
 
 Serves `preparation.metadata-standard` and `preparation.metadata` (R2). Given a `DraftRequest` for
 a `metadata_record`, it drafts a project document (docs/specs/projects.md): a DataCite record in
 DataCite's JSON form, with `conforms_to` set to the chosen repository's (docs/specs/deposit.md).
 Every property the repository's requirements list is written, with its qualifier, and its value
-left null for the researcher. The mock fills only what holds for any deposit, that the resource
-is a dataset, what the inventory states, the files' formats and sizes, and what the project's
-researchers kept from their public ORCID records (docs/specs/projects.md): each researcher as a
-creator, with their iD and current employers, their keywords as subjects, and their grants as
-funding references, wherever the repository asks for those properties.
+left null for the researcher. The librarian fills only what holds for any deposit, that the
+resource is a dataset, what the inventory states, the files' formats and sizes, and what the
+project's researchers kept from their public ORCID records (docs/specs/projects.md): each
+researcher as a creator, with their iD and current employers, their keywords as subjects, and
+their grants as funding references, wherever the repository asks for those properties.
+
+Each value it leaves null is a gap with a question (`questions.py`), and an answer the researcher
+recorded to it is placed as given (docs/specs/drafting.md). Where a model is configured
+(`factory.py`), it suggests values for some questions, beside the question and never in the
+record (`suggest.py`); the record's text is the rule's either way.
 
 It reads the DataCite JSON form from `datacite.yaml`. It consults no source, uses no controlled
-vocabulary, maps nothing between schemas (R6) and calls no model, so its grounding mode is `none`
-and it cites only its input. Regenerating a record drafts it afresh, and names the version it
-replaces in `revises`. The real librarian is TODO(#357).
+vocabulary and maps nothing between schemas (R6), so its grounding mode is `input_only` and it
+cites only its input. Regenerating a record drafts it afresh, and names the version it replaces
+in `revises`. Controlled vocabularies and schema mapping are TODO(#703).
 """
 
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-from dd_sdk import serve
+from dd_agent_advisor_metadata.questions import (
+    Gap,
+    answers_by_question,
+    ask,
+    gaps,
+    place,
+)
+from dd_agent_advisor_metadata.suggest import Ask, Suggester, Suggestions, TemplateSuggester
 from dd_sdk.agent import (
     AgentResult,
     AgentSpec,
@@ -43,6 +56,7 @@ from dd_sdk.contract.models import (
     Derivation,
     Document,
     DocumentKind,
+    DocumentQuestion,
     DraftRequest,
     FileInventory,
     GroundingMode,
@@ -61,13 +75,13 @@ DATACITE_FORM = Path(__file__).with_name("datacite.yaml")
 DATACITE = "http://datacite.org/schema/kernel-4"
 MEDIA_TYPE = "application/json"
 
-# What the mock does not do, said in every outcome: its payload is the core Document, which has
-# no room for a list of limitations (docs/specs/agents.md).
+# What the librarian does not do, said in every outcome: its payload is the core Document, which
+# has no room for a list of limitations (docs/specs/agents.md).
 LIMITATIONS = (
-    "This is a mock: it writes the properties the repository asks for and fills none that only "
-    "you can, beyond what you kept from your ORCID record; it uses no controlled vocabularies, "
-    "maps nothing between schemas, and reads neither an earlier version nor the reason given for "
-    "a decision on it."
+    "It is an alpha: it fills no value that only you can give, beyond what you kept from your "
+    "ORCID record and the answers you recorded; it uses no controlled vocabularies, maps nothing "
+    "between schemas, does not check that a value is correct, and reads neither an earlier "
+    "version nor the reason given for a decision on it."
 )
 # DataCite's names for the identifier schemes ORCID gives funders in.
 FUNDER_SCHEMES = {"FUNDREF": "Crossref Funder ID", "ROR": "ROR", "GRID": "GRID", "ISNI": "ISNI"}
@@ -77,10 +91,13 @@ SCHEME_URIS = {"ROR": "https://ror.org", "GRID": "https://www.grid.ac", "ISNI": 
 @dataclass(frozen=True, slots=True)
 class Form:
     """How one DataCite property is written: the key of its value in a list entry, or a value
-    the mock fills itself."""
+    the librarian fills itself; the question asked about a value left null, and whether a model
+    may suggest one."""
 
     value: str | None = None
     filled: str | None = None
+    ask: str | None = None
+    suggest: bool = False
 
 
 def load_form(path: Path = DATACITE_FORM) -> dict[str, Form]:
@@ -88,9 +105,13 @@ def load_form(path: Path = DATACITE_FORM) -> dict[str, Form]:
         table = yaml.safe_load(fh)
     form = {}
     for prop, entry in table.items():
-        unknown = set(entry) - {"value", "filled"}
-        if unknown or len(entry) != 1:
-            raise ValueError(f"{path}: {prop} needs exactly one of value or filled")
+        unknown = set(entry) - {"value", "filled", "ask", "suggest"}
+        if unknown:
+            raise ValueError(f"{path}: {prop} has unknown keys {sorted(unknown)}")
+        if "value" in entry and "filled" in entry:
+            raise ValueError(f"{path}: {prop} has a value key or a filled value, not both")
+        if "filled" in entry and {"ask", "suggest"} & set(entry):
+            raise ValueError(f"{path}: {prop} is filled, so nothing is asked or suggested")
         form[str(prop)] = Form(**entry)
     return form
 
@@ -98,27 +119,36 @@ def load_form(path: Path = DATACITE_FORM) -> dict[str, Form]:
 class MetadataLibrarian:
     spec = AgentSpec(
         agent_id="advisor.metadata",
-        version="0.1.0a1",
+        version="0.2.0a1",
         title="Metadata Librarian",
         description=(
-            "Mock. Drafts a project's metadata record in DataCite's JSON form, with every property "
-            "the chosen repository requires or recommends, filling only the resource type, the "
-            "formats and sizes the file inventory gives, and the creators, subjects and funding "
-            "the researchers kept from their ORCID records. The researcher writes the rest."
+            "Alpha. Drafts a project's metadata record in DataCite's JSON form, with every "
+            "property the chosen repository requires or recommends, filling only the resource "
+            "type, the formats and sizes the file inventory gives, the creators, subjects and "
+            "funding the researchers kept from their ORCID records, and the answers they "
+            "recorded. It asks about every value it leaves empty, and where a model is "
+            "configured suggests some, beside the question and never in the record."
         ),
         action_class="advise",
         accepts=(ClassSchema.of(DraftRequest),),
-        grounding_mode=GroundingMode.NONE,
+        grounding_mode=GroundingMode.INPUT_ONLY,
         payload=ClassSchema.of(Document),
         derivations={
             "document_title": Derived(Derivation.TEMPLATE),
             "document_text": Derived(Derivation.TEMPLATE),
+            "document_questions": Derived(Derivation.TEMPLATE),
+            "document_questions.suggested_answer": Derived(
+                Derivation.MODEL, recorded_in="suggestion_derivation"
+            ),
         },
         serves=("preparation.metadata-standard", "preparation.metadata"),
     )
 
-    def __init__(self, form: dict[str, Form] | None = None) -> None:
+    def __init__(
+        self, form: dict[str, Form] | None = None, suggester: Suggester | None = None
+    ) -> None:
         self.form = form if form is not None else load_form()
+        self.suggester = suggester if suggester is not None else TemplateSuggester()
 
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
         asked = request.input
@@ -138,16 +168,24 @@ class MetadataLibrarian:
         if requirements.conforms_to != DATACITE:
             return abstain(
                 ReasonCode.CAPABILITY_NOT_IMPLEMENTED,
-                f"The mock drafts DataCite records only, not {requirements.conforms_to}.",
+                f"The librarian drafts DataCite records only, not {requirements.conforms_to}.",
             )
 
         record, filled = self._record(requirements, asked.inventory)
         filled += _from_researchers(record, asked.researchers)
+        found = gaps(record)
+        open_gaps = place(record, found, answers_by_question(asked.draft_answers))
+        questions, suggested = self._questions(
+            open_gaps, _facts(requirements, asked.inventory), ctx
+        )
         required = sum(f.obligation == Obligation.REQUIRED for f in requirements.fields)
         statement = (
-            f"Mock: a DataCite record for {requirements.repository_name} with the "
-            f"{len(requirements.fields)} properties it asks for ({required} required). Filled: "
-            f"{', '.join(filled) or 'nothing'}. Every null value is for you to write."
+            f"A DataCite record for {requirements.repository_name} with the "
+            f"{len(requirements.fields)} properties it asks for ({required} required), drafted "
+            f"by rule. Filled: {', '.join(filled) or 'nothing'}"
+            f"{_placed(len(found) - len(open_gaps))}. It asks "
+            f"{_count(len(questions), 'question')}, one for each value left null. "
+            f"{_how_suggested(suggested)}"
         )
         current = asked.current_version
         if current is not None:
@@ -165,10 +203,40 @@ class MetadataLibrarian:
                 document_text=json.dumps(record, ensure_ascii=False, indent=2) + "\n",
                 document_derivation=Derivation.TEMPLATE,
                 revises=current.version_ref if current else None,
+                document_questions=questions,
                 grounded_on=[ref],
             ),
             evidence=[input_evidence(ctx)],
+            model_id=suggested.model_id,
+            input_tokens=suggested.usage.input_tokens,
+            output_tokens=suggested.usage.output_tokens,
+            model_calls=tuple(suggested.calls.calls) if suggested.calls else (),
+            prompts=dict(suggested.calls.prompts) if suggested.calls else {},
         )
+
+    def _questions(
+        self, open_gaps: Sequence[Gap], facts: Mapping[str, Any], ctx: RunContext
+    ) -> tuple[list[DocumentQuestion], Suggestions]:
+        """A question for each open gap, with the suggester's value where it offered one. The
+        suggester is given the facts the record is drafted from and the questions on properties
+        the rule table lets it suggest, never an answer or an earlier version
+        (docs/specs/drafting.md, invariant 7)."""
+        prompts = {prop: form.ask for prop, form in self.form.items()}
+        questions = [ask(gap, prompts) for gap in open_gaps]
+        asks = [
+            Ask(q.question_id, gap.path, gap.prop, q.question_prompt, gap.qualifier)
+            for gap, q in zip(open_gaps, questions, strict=True)
+            if self.form.get(gap.prop, Form()).suggest and not gap.names_a_vocabulary
+        ]
+        suggested = self.suggester.suggest(facts, asks, ctx) if asks else Suggestions()
+        return [
+            q.model_copy(
+                update={"suggested_answer": value, "suggestion_derivation": Derivation.MODEL}
+            )
+            if (value := suggested.answers.get(q.question_id))
+            else q
+            for q in questions
+        ], suggested
 
     def _record(
         self, requirements: RepositoryRequirements, inventory: FileInventory | None
@@ -272,10 +340,64 @@ def _funding(funding: ResearcherFunding) -> dict[str, Any]:
     return entry
 
 
+def _facts(requirements: RepositoryRequirements, inventory: FileInventory | None) -> dict[str, Any]:
+    """What a suggester is given: the repository, the properties it asks for, and the inventory's
+    structure. Never the data, a description a person wrote, the researchers' records or an
+    answer (docs/specs/drafting.md, invariant 4)."""
+    files = inventory.inventory_files if inventory is not None else []
+    return {
+        "repository": requirements.repository_name,
+        "conforms_to": requirements.conforms_to,
+        "properties": [
+            {
+                "property": f.property,
+                "obligation": f.obligation.value,
+                **({"qualifier": f.qualifier} if f.qualifier else {}),
+            }
+            for f in requirements.fields
+        ],
+        "files": [
+            {
+                "path": f.file_path,
+                "media_type": f.file_media_type,
+                "size": f.file_size,
+                "fields": [
+                    {"name": c.name, "type": c.field_type, "format": c.field_format}
+                    for c in f.file_fields
+                ],
+            }
+            for f in files
+        ],
+    }
+
+
+def _count(n: int, noun: str) -> str:
+    return f"{n} {noun}" if n == 1 else f"{n} {noun}s"
+
+
+def _placed(n: int) -> str:
+    return f", and {_count(n, 'answer')} you recorded" if n else ""
+
+
+def _how_suggested(suggested: Suggestions) -> str:
+    """The sentence saying whether a model suggested values, and what was not offered."""
+    if suggested.model_id is None:
+        return "No model suggested values."
+    if suggested.unused is not None:
+        return f"No suggestion is offered: {suggested.unused}."
+    sentence = (
+        f"A model suggested {_count(len(suggested.answers), 'value')}, offered beside its "
+        "question and never written into the record."
+    )
+    if suggested.dropped:
+        sentence += (
+            f" {_count(len(suggested.dropped), 'suggestion')} not offered: "
+            + "; ".join(suggested.dropped)
+            + "."
+        )
+    return sentence
+
+
 def build() -> MetadataLibrarian:
+    """The librarian with no model; `factory.build` reads the agent's settings."""
     return MetadataLibrarian()
-
-
-def main() -> int:
-    """The `dd-advisor-metadata` console script: serve over A2A with `dd_sdk.serve`."""
-    return serve.main(build)

@@ -807,9 +807,9 @@ def test_a_document_is_a_core_payload_that_may_name_the_version_it_revises() -> 
 
 @pytest.mark.requirement("R5")
 def test_a_document_asks_about_its_gaps_and_a_draft_request_carries_answers() -> None:
-    """A version's questions each target one README section or one data dictionary cell, under
-    an identifier of their own; the answers come back in the next DraftRequest
-    (docs/specs/drafting.md)."""
+    """A version's questions each target one README section, one data dictionary cell or one
+    metadata record value, under an identifier of their own; the answers come back in the next
+    DraftRequest (docs/specs/drafting.md)."""
     section = DocumentQuestion(
         question_id="q-" + "0" * 16, question_prompt="Methods?", gap_section="Methods"
     )
@@ -836,10 +836,28 @@ def test_a_document_asks_about_its_gaps_and_a_draft_request_carries_answers() ->
         Document.model_validate(
             {**asking.model_dump(mode="json"), "document_questions": [section.model_dump()] * 2}
         )
-    with pytest.raises(ValueError, match="not both"):
+    with pytest.raises(ValueError, match="one of"):
         DocumentQuestion(
-            question_id="q-" + "2" * 16, question_prompt="?", gap_section="A", gap_file="a.csv"
+            question_id="q-" + "2" * 16,
+            question_prompt="?",
+            gap_section="A",
+            gap_file="a.csv",
+            gap_field="x",
+            gap_column="unit",
         )
+    value = DocumentQuestion(
+        question_id="q-" + "4" * 16, question_prompt="Title?", gap_property="titles[0].title"
+    )
+    assert DocumentQuestion.model_validate(value.model_dump(mode="json")) == value
+    with pytest.raises(ValueError, match="one of"):
+        DocumentQuestion(
+            question_id="q-" + "4" * 16,
+            question_prompt="?",
+            gap_section="A",
+            gap_property="titles[0].title",
+        )
+    with pytest.raises(ValueError, match="one of"):
+        DocumentQuestion(question_id="q-" + "4" * 16, question_prompt="?")
     with pytest.raises(ValueError, match="file, field and column"):
         DocumentQuestion(question_id="q-" + "2" * 16, question_prompt="?", gap_file="a.csv")
     part = DocumentQuestion(

@@ -101,6 +101,24 @@ describe("DocumentQuestions", () => {
     expect(screen.getAllByRole("textbox")).toHaveLength(1);
   });
 
+  it("names the metadata record value a question fills, with its suggestion", () => {
+    const title: DocumentQuestion = {
+      question_id: `q-${(200).toString(16).padStart(16, "0")}`,
+      question_prompt: "What is the dataset's title?",
+      gap_property: "titles[0].title",
+      suggested_answer: "Soil pH and nitrate readings",
+      suggestion_derivation: "model",
+    };
+    const document: ProjectDocument = {
+      ...UNANSWERED,
+      versions: [{ ...VERSION, questions: [title] }],
+    };
+    renderQuestions(document, vi.fn());
+    expect(screen.getByRole("textbox", { name: "What is the dataset's title?" })).toHaveAccessibleDescription(
+      /titles\[0\]\.title/,
+    );
+  });
+
   it("sends only the answers given, for the version asked, and hands back what the server read", async () => {
     const answer = vi.fn<ProjectApi["answer"]>().mockResolvedValue(ANSWERED);
     const { onAnswered } = renderQuestions(UNANSWERED, answer);

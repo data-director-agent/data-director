@@ -1166,10 +1166,11 @@ dev = [{ name = "data-director-harness", editable = "harness" }]
 
 [[package]]
 name = "data-director-agent-advisor-metadata"
-version = "0.1.0a1"
+version = "0.2.0a1"
 source = { editable = "agents/advisor-metadata" }
 dependencies = [
     { name = "data-director-sdk" },
+    { name = "pydantic" },
     { name = "pyyaml" },
 ]
 
@@ -1181,6 +1182,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "data-director-sdk", editable = "sdk" },
+    { name = "pydantic", specifier = ">=2.14.1,<3" },
     { name = "pyyaml", specifier = ">=6.0" },
 ]
 
