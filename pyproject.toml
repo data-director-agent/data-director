@@ -92,6 +92,11 @@ accessibility = [
   "axe-playwright-python>=0.1.8",
   "playwright>=1.55",
 ]
+# The weekly mutation testing of the governance modules (.github/workflows/mutation.yml); the
+# settings are under [tool.mutmut] in sdk/pyproject.toml and harness/pyproject.toml.
+mutation = [
+  "mutmut>=3.8.1",
+]
 
 [tool.uv]
 package = false

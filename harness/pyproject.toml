@@ -56,3 +56,13 @@ dev = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dd_harness"]
+
+# Weekly mutation testing of the policy gate and the grounding linter
+# (.github/workflows/mutation.yml, CONTRIBUTING.md). Run from this directory:
+# `uv run --group mutation mutmut run`.
+[tool.mutmut]
+source_paths = ["src"]
+only_mutate = ["src/dd_harness/policy.py", "src/dd_harness/grounding.py"]
+# One process: the root addopts spread tests over workers, which mutmut cannot follow.
+pytest_add_cli_args = ["-n0"]
+pytest_add_cli_args_test_selection = ["tests"]
