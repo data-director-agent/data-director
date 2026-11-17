@@ -51,7 +51,9 @@ runtime, such as `0.1.0a3+pyodide.314.0.7`; `inventory_tool` is `dd-inventory` i
 inventory whose version has no `+` label was made by the command. `make_inventory` detects the
 runtime, and a caller may pass it in as `runtime=`. A caller may also pass `on_file=`, which is
 called once per file with a `FileProgress` (its relative path and size, and how many of the
-files are done), to show progress.
+files are done), to show progress. `browser/bundle/` builds the browser bundle (Pyodide, this
+package's wheel and its dependencies), and CI checks that it writes the same inventory as the
+command on `tests/data/mixed` ([browser bundle](https://github.com/data-director-agent/data-director/blob/main/inventory/browser/README.md#browser-bundle)).
 
 To read an inventory in TypeScript, as the app does to show one to the researcher, use
 [`@data-director/inventory`](https://github.com/data-director-agent/data-director/blob/main/inventory/browser/README.md) in `browser/`, which is not part of this Python

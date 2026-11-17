@@ -14,7 +14,9 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": ["vitest/globals"]
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "types": ["vitest/globals", "node"]
   },
-  "include": ["src", "tests", "vitest.config.ts"]
+  "include": ["src", "bundle", "tests", "vitest.config.ts"]
 }
