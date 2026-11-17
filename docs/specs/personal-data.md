@@ -123,25 +123,38 @@ data steward that C2 asks for, and hints to the ethics adviser) is #471's.
 
 **The detector.** Microsoft [Presidio](https://github.com/microsoft/presidio) (`presidio-analyzer`)
 is a required dependency of the command, behind one module, `dd_inventory.personal`, and a
-`Detector` protocol, so that the comparison #39 asks for can replace it without touching the scan.
-It is configured, not taken with its defaults:
+`Detector` protocol, so that the comparison #39 asks for (GLiNER-PII, column typing) can replace
+it without touching the scan. The same detector, with the same configuration, runs natively and
+under Pyodide in the browser scanner (#367), so that the two routes give the same findings (The
+browser scanner, below). It is configured, not taken with its defaults:
 
-- **No language model by default.** Presidio's default engine downloads `en_core_web_lg` if it is
-  missing. The command builds its engine over a blank spaCy pipeline instead, so it uses
-  Presidio's pattern, checksum and context recognisers only. A spaCy model cannot be a dependency
-  of a package on PyPI (model wheels are published by URL), so name and location recognition
-  runs only when the researcher names an installed spaCy model on the command line. Without one,
-  the limitations say that names and places were not looked for in values.
+- **Pattern recognisers only, by default.** Presidio's default engine downloads `en_core_web_lg`
+  if it is missing. The command uses Presidio's own `NoOpNlpEngine` instead, which loads no
+  language model, so only Presidio's pattern, checksum and context recognisers run. Names and
+  places in values need named-entity recognition (NER), which this default does not have.
+- **NER is an opt-in extra of the command.** `dd-inventory[pii-ner]` adds spaCy and a model (or
+  GLiNER-PII, if #39's comparison chooses it). The base command stays light for `uvx`, and its
+  default matches the browser's. An inventory made without NER says in its limitations that names
+  and places were checked from column headers only.
 - **No public-suffix download.** Presidio's e-mail recogniser calls `tldextract`, which fetches
-  the public-suffix list on first use. The command replaces that recogniser with one that uses
-  `tldextract`'s bundled snapshot only.
-- **UK recognisers.** Presidio has the NHS number. The command adds the National Insurance
-  number and the UK postcode, and leaves out recognisers for United States identifiers, which
-  misread UK postcodes and National Insurance numbers as US driving licences. Which recognisers
-  run is listed in the finding's detector string, so a reader knows what was looked for.
-- **Field names and file names** are matched by a keyword table of the command's own, by
-  category (direct identifier, contact, location, date of birth, health, and so on), copied from
-  and kept in step with the ethics adviser's table, which the command may not import.
+  the public-suffix list on first use. The command passes it a `TLDExtract(suffix_list_urls=())`,
+  so that only the snapshot bundled with `tldextract` is used.
+- **UK recognisers.** Presidio ships recognisers for the National Insurance number, the UK
+  postcode, the UK passport and the UK driving licence, but disables them by default. The
+  command's own recogniser configuration enables them, alongside the NHS number, and leaves out
+  recognisers for United States identifiers, which misread UK postcodes and National Insurance
+  numbers as US driving licences. Which recognisers run is listed in the finding's detector
+  string, so a reader knows what was looked for.
+- **Column headers, field names and file names.** A Presidio recogniser of the command's own
+  matches column headers (`name`, `surname`, `dob`, `address`, …), since names and places in
+  values need NER. Field names and file names are matched by a keyword table, by category
+  (direct identifier, contact, location, date of birth, health, and so on), copied from and kept
+  in step with the ethics adviser's table, which the command may not import.
+- **Pinned exactly.** Presidio imports spaCy at module level, even with the `NoOpNlpEngine`.
+  Until that import is optional upstream (raised with Presidio from #470), the browser bundle
+  (#555) carries a small import shim for spaCy, kept in the bundle's build and not in
+  `dd_inventory`, and Presidio is pinned to one version so that a release adding another spaCy
+  import cannot reach the bundle unnoticed.
 
 **What is scanned.** For a CSV or TSV table, the rows Frictionless samples to infer its fields
 (1,000), column by column, and its field names; every file and folder name; and free-text files
@@ -180,10 +193,17 @@ fewer than two candidates is not checked, and the limitations say so.
 more` for group sizes; `under 1%`, `1 to 10%`, `10 to 50%`, `over 50%` for proportions), not as
 numbers, so that a finding cannot be differenced into a count.
 
-**The browser scanner.** spaCy and ACRO do not run under Pyodide. Where the command detects that
-runtime, it runs neither detection nor summaries, leaves both slots absent (invariant 2), and says
-so in the limitations. When #367 builds the browser scanner, it installs the package without
-these dependencies.
+**The browser scanner.** The browser scanner is `dd_inventory` itself, run under Pyodide (#367).
+Detection runs there as it does natively: Presidio with pattern recognisers only, the UK
+recognisers and the header recogniser, for about 3.5 MB more in the bundle and about 2.4 s at
+start ([spike on #609](https://github.com/data-director-agent/data-director/issues/609#issuecomment-6905215462)).
+The NER extra does not run under Pyodide, so a browser inventory always says that names and
+places were checked from column headers only. #555's parity check covers the findings, and
+asserts that the detector makes no network request in either runtime. ACRO loads under Pyodide
+but adds about 42 MB and 18 s before a scan starts, so summaries and the quasi-identifier check
+do not run there: the command leaves those slots absent (invariant 2) and says so in the
+limitations. Whether the rules move into `dd_inventory` so that they run in both, with ACRO as a
+test oracle, TODO(#609).
 
 ## Wording for researchers
 
@@ -232,6 +252,12 @@ The app's wording, and the next steps C2 asks for, are #471's; this is the subst
   inventory between those who installed it and those who did not (Rationale).
 - **Presidio's defaults.** They download a large spaCy model on first use and fetch the public
   suffix list, both network calls from a researcher's computer during a scan.
+- **No detection in the browser.** The browser scanner would say that no detector ran. That
+  makes the route for people least able to run a command the weaker one, and a browser inventory
+  and a command inventory of the same folder would disagree.
+- **Copying Presidio's regular expressions into this repository.** Vendoring, which
+  [Dependencies](dependencies.md) rejects: upstream fixes would be lost, and the checksum
+  validators would have to be copied too.
 - **Storing matched values under protection.** #39 allows storing a value "under the same
   protection as the source". The inventory goes to a shared project and may go to a hosted
   model, so it has no such protection, and a value is never stored.
@@ -248,7 +274,9 @@ The app's wording, and the next steps C2 asks for, are #471's; this is the subst
 - **Performance.** Detection and summaries run on capped rows; on a laptop, a table adds seconds,
   not minutes. Recall by kind, false alarms on ordinary metadata and CPU time are reported with
   the corpus (#39).
-- **Portability.** Native runs only; see the browser scanner above.
+- **Portability.** Detection runs natively and under Pyodide with the same findings; NER, and
+  for now summaries and the quasi-identifier check, run natively only. See the browser scanner
+  above.
 
 ## Open questions
 
@@ -258,5 +286,5 @@ The app's wording, and the next steps C2 asks for, are #471's; this is the subst
   it, TODO(#471).
 - Differencing between two scans of the same data (a revised inventory, or parts), which ACRO's
   linked-table check warns of and the command does not yet guard against, TODO(#611).
-- How the browser scanner (#367) gets detection, if it ever does: a WebAssembly build of the
-  recognisers, or none, TODO(#367).
+- Whether names from values are ever detected in the browser, through an optional NER model
+  fetched only when the researcher asks, decided on #39's numbers, TODO(#39).
