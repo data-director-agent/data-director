@@ -31,12 +31,10 @@ which they mean. ROR's records are evidence like FAIRsharing's, under the same c
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
 from dd_agent_advisor_policy import assess, discover, match
-from dd_agent_advisor_policy.advise import Lookups
 from dd_agent_advisor_policy.classes import (
     Actor,
     ActorRole,
@@ -66,16 +64,20 @@ from dd_agent_advisor_policy.explain import (
 )
 from dd_agent_advisor_policy.extract import Extractor, NoExtractor
 from dd_agent_advisor_policy.opf import OpenPolicyFinder, OpfRecord
-from dd_agent_advisor_policy.policy_text import (
-    Pages,
-    PolicyText,
-    UnreadableError,
-    readable_url,
+from dd_agent_advisor_policy.policy_text import Pages
+from dd_agent_advisor_policy.reading import (
+    TextReadings,
+    fetch_pages,
+    reading_targets,
+    text_ref,
+    unread_reading,
 )
 from dd_agent_advisor_policy.records import PolicyRecord
 from dd_agent_advisor_policy.resolve import Ambiguous, Resolution, Resolved, Unknown, names, resolve
 from dd_agent_advisor_policy.retrieve import Policies, SourceRecord
-from dd_agent_advisor_policy.ror import Organisation, Organisations
+from dd_agent_advisor_policy.ror import Organisations
+from dd_agent_advisor_policy.ror_records import Organisation
+from dd_agent_advisor_policy.tools import Lookups
 from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext, Setting, abstain, setting
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
@@ -89,7 +91,6 @@ from dd_sdk.contract.models import (
     ReasonCode,
 )
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, HASH_ALGORITHM, content_hash
-from dd_sdk.prompts import ModelCallLog
 from dd_sdk.registry import RegistryUnavailable, SnapshotRef
 from dd_sdk.tracing import retrieval_span
 
@@ -143,28 +144,6 @@ def _registry(record: SourceRecord) -> PolicyRegistry:
         if isinstance(record, PolicyRecord)
         else PolicyRegistry.OPEN_POLICY_FINDER
     )
-
-
-def _text_hash(text: PolicyText) -> str:
-    return content_hash(text.document(), DOCUMENT_CANONICALISATION)
-
-
-def _text_ref(text: PolicyText) -> GroundingRef:
-    return GroundingRef(source_id=text.url, content_hash=_text_hash(text))
-
-
-@dataclass
-class TextReadings:
-    """What reading the policies' own text gave: the readings, the evidence and references they
-    rest on, the tokens and calls spent, and a sentence for the statement."""
-
-    readings: list[PolicyReading] = field(default_factory=list)
-    evidence: list[EvidenceItem] = field(default_factory=list)
-    refs: list[GroundingRef] = field(default_factory=list)
-    input_tokens: int = 0
-    output_tokens: int = 0
-    calls: ModelCallLog | None = None
-    note: str = ""
 
 
 def _plural(n: int, word: str) -> str:
@@ -711,24 +690,15 @@ class PolicyAgent:
             **self._model_use(explanation, texts),
         )
 
-    def _read_texts(  # noqa: C901, PLR0912
+    def _read_texts(
         self, matched: list[tuple[Actor, list[PolicyRecord]]], ctx: RunContext
     ) -> TextReadings:
         """Fetch and read each policy's own text: the page each matched record names, and each
         `policy_url` given. Every page is fetched, with its retrieval span, before any model is
         called (docs/specs/grounding.md, G1)."""
         out = TextReadings()
-        targets: dict[str, tuple[Actor, SourceRecord | None]] = {}
-        for actor, found in matched:
-            for record in found:
-                url = readable_url(record.homepage)
-                if url:
-                    targets.setdefault(url, (actor, record))
-        for actor, _ in matched:
-            url = readable_url(actor.policy_url)
-            if url:
-                targets.setdefault(url, (actor, None))
-        if not targets:
+        wanted = reading_targets(matched)
+        if not wanted:
             return out
         if setting(ctx, self.spec, POLICY_TEXT) == OFF:
             out.note = " The policies' own text was not read: the deployment turns reading off."
@@ -740,46 +710,22 @@ class PolicyAgent:
             )
             return out
         where = self.pages.snapshot_ref().as_string()
-        fetched: list[tuple[str, Actor, SourceRecord | None, PolicyText | None, str | None]] = []
-        for url, (actor, source) in targets.items():
-            try:
-                text = self.pages.fetch(url)
-            except RegistryUnavailable as exc:
-                fetched.append((url, actor, source, None, f"it could not be fetched: {exc}"))
-                continue
-            except UnreadableError as exc:
-                fetched.append((url, actor, source, None, f"unreadable: {exc}"))
-                continue
-            with retrieval_span(ctx.tracer, url, _text_hash(text)):
-                pass
-            fetched.append((url, actor, source, text, None))
         unread: list[str] = []
         now = datetime.now(UTC)
-        for url, actor, origin, page, problem in fetched:
+        for fetched in fetch_pages(self.pages, wanted, ctx):
+            url, actor, origin, page, problem = fetched
             record_refs = [_ref(origin)] if origin is not None else []
             if page is None:
-                if not record_refs:
+                if record_refs:
+                    out.readings.append(unread_reading(fetched, record_refs))
+                else:
                     unread.append(f"{url} ({problem})")
-                    continue
-                out.readings.append(
-                    PolicyReading(
-                        actor=actor.name,
-                        role=actor.role,
-                        status=(
-                            ReadingStatus.UNREADABLE
-                            if (problem or "").startswith("unreadable")
-                            else ReadingStatus.NOT_READ
-                        ),
-                        reason=f"The policy's page {url}: {problem}.",
-                        grounded_on=record_refs,
-                    )
-                )
                 continue
             reading = self.extractor.extract(actor, page, ctx, out.calls)
             out.calls = reading.calls or out.calls
             out.input_tokens += reading.usage.input_tokens or 0
             out.output_tokens += reading.usage.output_tokens or 0
-            ref = _text_ref(page)
+            ref = text_ref(page)
             out.refs.append(ref)
             out.evidence.append(
                 EvidenceItem(

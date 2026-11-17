@@ -23,8 +23,9 @@ import {
 import { type ModelAccountProvider, SignedOut } from "../../session/api";
 import { Button } from "../ui/Button";
 import { DialogTrigger, ModalDialog } from "../ui/Dialog";
-import { formatDateTime, formatNumber } from "../../format";
-import { TableScroll } from "../ui/TableScroll";
+import { formatDateTime } from "../../format";
+import { ModelAccountUsage } from "./ModelAccountUsage";
+import { COMPATIBLE, DEFAULT_PROVIDERS, describe, underOrigin } from "./modelProviders";
 
 type Load = { state: "loading" } | { state: "loaded"; value: Account } | { state: "failed" };
 type Change =
@@ -32,56 +33,6 @@ type Change =
   | { state: "sending" }
   | { state: "failed"; message: string }
   | { state: "done"; message: string };
-
-const COMPATIBLE = "openai-compatible";
-
-/** How the page names each provider the broker serves, and where a person gets a key. */
-const PROVIDERS: Record<string, { name: string; key: string; hint: string }> = {
-  anthropic: {
-    name: "Anthropic",
-    key: "Anthropic API key",
-    hint: "Create a key in the Anthropic Console and paste it here.",
-  },
-  openai: {
-    name: "OpenAI",
-    key: "OpenAI API key",
-    hint: "Create a key in the OpenAI dashboard and paste it here.",
-  },
-  gemini: {
-    name: "Google Gemini",
-    key: "Gemini API key",
-    hint: "Create a key in Google AI Studio and paste it here.",
-  },
-  [COMPATIBLE]: {
-    name: "A model service your institution runs",
-    key: "API key for the service",
-    hint: "Ask the people who run the service for a key, and paste it here.",
-  },
-};
-
-/** Where an account is offered when the server names no providers: Anthropic, as before. */
-const DEFAULT_PROVIDERS: ModelAccountProvider[] = [{ provider: "anthropic", baseUrls: [] }];
-
-function describe(provider: string) {
-  return (
-    PROVIDERS[provider] ?? {
-      name: provider,
-      key: "API key",
-      hint: "Paste the key here.",
-    }
-  );
-}
-
-/** Whether `url` is an `https` address under one of `origins`, as the profile lists them. */
-function underOrigin(url: string, origins: string[]): boolean {
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return false;
-  }
-  return parsed.protocol === "https:" && origins.includes(parsed.origin);
-}
 
 function messageOf(error: unknown): string {
   return error instanceof AccountRefused ? reasonText(error.reason) : reasonText("");
@@ -367,48 +318,7 @@ export function ModelAccount({
         </form>
       )}
 
-      {load.state === "loaded" && (
-        <>
-          <h3>Your token use</h3>
-          {usage.length === 0 ? (
-            <p>No model calls have been made for you in the last 30 days.</p>
-          ) : (
-            <TableScroll label="Your token use">
-              <table className="data-table">
-                <caption className="visually-hidden">Tokens used for you in the last 30 days</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Day</th>
-                    <th scope="col">Provider</th>
-                    <th scope="col">Model</th>
-                    <th scope="col">Paid by</th>
-                    <th scope="col" className="num">
-                      Input tokens
-                    </th>
-                    <th scope="col" className="num">
-                      Output tokens
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {usage.map((row) => (
-                    <tr key={`${row.day} ${row.payer} ${row.provider} ${row.model}`}>
-                      <td>
-                        <time dateTime={row.day}>{row.day}</time>
-                      </td>
-                      <td>{describe(row.provider).name}</td>
-                      <td>{row.model}</td>
-                      <td>{row.payer === "own" ? "Your account" : "The deployment"}</td>
-                      <td className="num">{formatNumber(row.inputTokens)}</td>
-                      <td className="num">{formatNumber(row.outputTokens)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </TableScroll>
-          )}
-        </>
-      )}
+      {load.state === "loaded" && <ModelAccountUsage usage={usage} />}
     </section>
   );
 }

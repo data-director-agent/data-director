@@ -208,39 +208,11 @@ class FileArchivist:
     def _check(
         self, hint: Hint, file: InventoryFile, copies: dict[str, list[str]]
     ) -> FileCheck | None:
-        path = PurePosixPath(file.file_path)
         if hint.kind == CheckKind.EMPTY:
-            if file.file_size == 0:
-                return FileCheck(path=file.file_path, kind=hint.kind, question=hint.question)
-            return None
+            return _empty(hint, file)
         if hint.kind == CheckKind.DUPLICATE:
-            others = [p for p in copies.get(file.file_sha256 or "", ()) if p != file.file_path]
-            if others:
-                return FileCheck(
-                    path=file.file_path,
-                    kind=hint.kind,
-                    question=hint.question,
-                    related_paths=others,
-                )
-            return None
-        name = path.name.lower()
-        if name in hint.names or (bool(hint.prefixes) and name.startswith(hint.prefixes)):
-            return FileCheck(
-                path=file.file_path, kind=hint.kind, matched=path.name, question=hint.question
-            )
-        places: list[str] = []
-        if "folders" in hint.within:
-            places += path.parts[:-1]
-        if "file" in hint.within:
-            places.append(path.name)
-        if "fields" in hint.within:
-            places += [f.name for f in file.file_fields]
-        for word in _words(*places):
-            if word in hint.words:
-                return FileCheck(
-                    path=file.file_path, kind=hint.kind, matched=word, question=hint.question
-                )
-        return None
+            return _duplicate(hint, file, copies)
+        return _named(hint, file)
 
     def _assess(self, file: InventoryFile) -> FileAssessment:
         extension = PurePosixPath(file.file_path).suffix.lstrip(".").lower()
@@ -265,6 +237,47 @@ class FileArchivist:
             open_format=known.open,
             judged_by=judged_by,
         )
+
+
+def _empty(hint: Hint, file: InventoryFile) -> FileCheck | None:
+    if file.file_size == 0:
+        return FileCheck(path=file.file_path, kind=hint.kind, question=hint.question)
+    return None
+
+
+def _duplicate(hint: Hint, file: InventoryFile, copies: dict[str, list[str]]) -> FileCheck | None:
+    others = [p for p in copies.get(file.file_sha256 or "", ()) if p != file.file_path]
+    if others:
+        return FileCheck(
+            path=file.file_path,
+            kind=hint.kind,
+            question=hint.question,
+            related_paths=others,
+        )
+    return None
+
+
+def _named(hint: Hint, file: InventoryFile) -> FileCheck | None:
+    """A check whose file's name, or a word in its folders, name or fields, the hint names."""
+    path = PurePosixPath(file.file_path)
+    name = path.name.lower()
+    if name in hint.names or (bool(hint.prefixes) and name.startswith(hint.prefixes)):
+        return FileCheck(
+            path=file.file_path, kind=hint.kind, matched=path.name, question=hint.question
+        )
+    places: list[str] = []
+    if "folders" in hint.within:
+        places += path.parts[:-1]
+    if "file" in hint.within:
+        places.append(path.name)
+    if "fields" in hint.within:
+        places += [f.name for f in file.file_fields]
+    for word in _words(*places):
+        if word in hint.words:
+            return FileCheck(
+                path=file.file_path, kind=hint.kind, matched=word, question=hint.question
+            )
+    return None
 
 
 def _statement(checks: list[FileCheck], closed: int, total: int) -> str:

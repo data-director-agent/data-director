@@ -35,13 +35,32 @@ from ddtool.deployment import Place, plan
 from ddtool.vm import System
 
 
-def doctor() -> int:  # noqa: C901, PLR0912
+def doctor() -> int:
     print(f"target: dev ({paths.LOCAL_DIR})")
     problems = tool_problems()
     for stray in stray_files():
         problems.append(
             f"settings file of the old layout, move it: {stray} (docs/specs/policy-and-identity.md)"
         )
+    problems.extend(_settings_problems())
+    problems.extend(_deployment_problems())
+    problems.extend(_agent_problems())
+    if found := sources_problem():
+        detail = found.replace("\n", "\n  ")
+        print(f"note: not every built source is built as pinned; `start` will build it\n  {detail}")
+    if needs_install() or needs_build():
+        print("note: the shell is not built or is out of date; `start` will build it")
+    problems.extend(_running_problems())
+
+    for problem in problems:
+        print(f"problem: {problem}")
+    print("All good." if not problems else f"{len(problems)} problem(s).")
+    return 1 if problems else 0
+
+
+def _settings_problems() -> list[str]:
+    """Read every settings file and the profile, noting what `start` will fill in."""
+    problems = []
     for path in [
         paths.APP_ENV,
         paths.AGENTS_ENV,
@@ -70,20 +89,32 @@ def doctor() -> int:  # noqa: C901, PLR0912
             )
     except DevError as exc:
         problems.append(str(exc))
+    return problems
+
+
+def _deployment_problems() -> list[str]:
+    """Whether deployment.yaml exists, plans without refusal and is applied."""
     place = Place.dev()
     if not place.deployment.is_file():
         print(f"note: no {shown(place.deployment)} yet; `start` creates it from the example")
-    else:
-        try:
-            _, planned = plan(System(), place)
-            problems.extend(planned.refusals)
-            if pending := planned.pending(System()):
-                print(
-                    f"note: {shown(place.deployment)} is not applied yet "
-                    f"({', '.join(pending)}); `start` applies it"
-                )
-        except DevError as exc:
-            problems.append(str(exc))
+        return []
+    problems: list[str] = []
+    try:
+        _, planned = plan(System(), place)
+        problems.extend(planned.refusals)
+        if pending := planned.pending(System()):
+            print(
+                f"note: {shown(place.deployment)} is not applied yet "
+                f"({', '.join(pending)}); `start` applies it"
+            )
+    except DevError as exc:
+        problems.append(str(exc))
+    return problems
+
+
+def _agent_problems() -> list[str]:
+    """Read each agent's settings, noting which have no model key."""
+    problems = []
     for agent in load_agents():
         try:
             keyed = has_key(agent_env(agent) | dict(os.environ))
@@ -97,12 +128,12 @@ def doctor() -> int:  # noqa: C901, PLR0912
                 f"note: {agent.script} has no model key, so `start` runs it with "
                 f"{switch}=template unless you set it to model"
             )
-    if found := sources_problem():
-        detail = found.replace("\n", "\n  ")
-        print(f"note: not every built source is built as pinned; `start` will build it\n  {detail}")
-    if needs_install() or needs_build():
-        print("note: the shell is not built or is out of date; `start` will build it")
+    return problems
 
+
+def _running_problems() -> list[str]:
+    """Note the ports in use and ask a running app which agents it cannot reach."""
+    problems = []
     agents = load_agents()
     busy = [a.port for a in agents if not port_free(a.port)] + [
         p for p in (APP_PORT, WEB_PORT) if not port_free(p)
@@ -114,8 +145,4 @@ def doctor() -> int:  # noqa: C901, PLR0912
             listing: dict[str, Any] = yaml.safe_load(resp.read())
         for url, reason in dict(listing.get("unavailable") or {}).items():
             problems.append(f"the app cannot reach {url}: {reason}")
-
-    for problem in problems:
-        print(f"problem: {problem}")
-    print("All good." if not problems else f"{len(problems)} problem(s).")
-    return 1 if problems else 0
+    return problems

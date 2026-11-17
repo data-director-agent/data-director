@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from collections.abc import Callable
 
 from ddtool import paths
 from ddtool.backup import run_script
@@ -55,7 +56,8 @@ from ddtool.vm import System, Vm, detect
 from ddtool.vm_doctor import vm_doctor
 
 
-def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911
+def _parser() -> argparse.ArgumentParser:
+    """The command line: each command, with the options it takes."""
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument(
         "--target",
@@ -114,7 +116,44 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911
     new_agent_cmd.add_argument(
         "name", help="its directory under agents/, such as advisor-foo (agent id advisor.foo)"
     )
-    args = parser.parse_args(argv)
+    return parser
+
+
+def _apply(target: str, args: argparse.Namespace) -> int:
+    vm = Vm()
+    place = Place.vm(vm) if target == "vm" else Place.dev()
+    return apply(System(), place, vm if target == "vm" else None, check=args.check)
+
+
+def _doctor(target: str, args: argparse.Namespace) -> int:
+    if target == "vm":
+        return vm_doctor(as_json=args.json)
+    if args.json:
+        raise DevError("doctor --json reports on a VM; run it there, or without --json")
+    return doctor()
+
+
+# Each command, as a function of the target and the parsed arguments.
+COMMANDS: dict[str, Callable[[str, argparse.Namespace], int]] = {
+    "new-agent": lambda _target, args: new_agent(paths.ROOT, args.name),
+    "setup": lambda _target, args: setup(
+        Prompter(accept_defaults=args.yes), install=not args.no_install
+    ),
+    "start": lambda _target, args: start(
+        agents_only=args.agents_only, web=not args.no_web, reload=not args.no_reload
+    ),
+    "backup": lambda target, _args: run_script(target, "backup", []),
+    "restore": lambda target, args: run_script(
+        target, "restore", [*(["--force"] if args.force else []), args.backup]
+    ),
+    "secret": lambda target, args: secret(target, args.args),
+    "apply": _apply,
+    "doctor": _doctor,
+}
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parser().parse_args(argv)
     target = args.target or ("vm" if detect(System(), Vm()) else "dev")
     try:
         if args.command in {"setup", "start", "new-agent"} and target == "vm":
@@ -122,31 +161,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911
                 f"`{args.command}` is for development; on a VM, deploy/install.sh sets it up "
                 "and systemd runs it (deploy/README.md)"
             )
-        if args.command == "new-agent":
-            return new_agent(paths.ROOT, args.name)
-        if args.command == "setup":
-            return setup(Prompter(accept_defaults=args.yes), install=not args.no_install)
-        if args.command == "start":
-            return start(
-                agents_only=args.agents_only, web=not args.no_web, reload=not args.no_reload
-            )
-        if args.command == "backup":
-            return run_script(target, "backup", [])
-        if args.command == "restore":
-            return run_script(
-                target, "restore", [*(["--force"] if args.force else []), args.backup]
-            )
-        if args.command == "secret":
-            return secret(target, args.args)
-        if args.command == "apply":
-            vm = Vm()
-            place = Place.vm(vm) if target == "vm" else Place.dev()
-            return apply(System(), place, vm if target == "vm" else None, check=args.check)
-        if target == "vm":
-            return vm_doctor(as_json=args.json)
-        if args.json:
-            raise DevError("doctor --json reports on a VM; run it there, or without --json")
-        return doctor()
+        return COMMANDS[args.command](target, args)
     except DevError as exc:
         print(f"dd.py: {exc}", file=sys.stderr)
         return 1

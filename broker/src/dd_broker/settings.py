@@ -84,59 +84,34 @@ class BrokerSettings:
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> BrokerSettings:
         env = os.environ if env is None else env
-
-        def secret(name: str) -> str:
-            try:
-                return api_key(env, name)
-            except ConfigError as exc:
-                raise SettingsError(str(exc)) from None
-
-        def text(name: str) -> str:
-            return (env.get(name) or "").strip()
-
+        kek = _key_encryption_key(env)
         try:
-            kek = base64.b64decode(secret(KEY_ENCRYPTION_KEY), validate=True)
-        except binascii.Error, ValueError:
-            raise SettingsError(f"{KEY_ENCRYPTION_KEY} is not base64") from None
-        if len(kek) != KEY_ENCRYPTION_KEY_BYTES:
-            raise SettingsError(
-                f"{KEY_ENCRYPTION_KEY} is not {KEY_ENCRYPTION_KEY_BYTES} bytes "
-                f"(make one with: openssl rand -base64 {KEY_ENCRYPTION_KEY_BYTES})"
-            )
-        try:
-            subject = subject_key(secret(SUBJECT_KEY))
+            subject = subject_key(_secret(env, SUBJECT_KEY))
         except ValueError as exc:
             raise SettingsError(f"{SUBJECT_KEY}: {exc}") from None
         try:
-            agents = AgentCredentials.from_json(secret(AGENT_CREDENTIALS))
+            agents = AgentCredentials.from_json(_secret(env, AGENT_CREDENTIALS))
         except ValueError as exc:
             raise SettingsError(f"{AGENT_CREDENTIALS}: {exc}") from None
 
-        jwks_url, jwks_file = text(HARNESS_JWKS_URL), text(HARNESS_JWKS_FILE)
+        jwks_url, jwks_file = _text(env, HARNESS_JWKS_URL), _text(env, HARNESS_JWKS_FILE)
         if bool(jwks_url) == bool(jwks_file):
             raise SettingsError(f"set one of {HARNESS_JWKS_URL} or {HARNESS_JWKS_FILE}")
         if jwks_url and urlsplit(jwks_url).scheme not in {"http", "https"}:
             raise SettingsError(f"{HARNESS_JWKS_URL} is not an http(s) URL")
 
-        store = text(STORE)
+        store = _text(env, STORE)
         if not store:
             raise SettingsError(f"set {STORE} to the broker's SQLite file")
 
         deployment_keys = {
-            provider: secret(name)
+            provider: _secret(env, name)
             for provider, name in DEPLOYMENT_KEYS.items()
-            if text(name) or text(f"{name}_FILE")
+            if _text(env, name) or _text(env, f"{name}_FILE")
         }
-        deployment_base_url = text(DEPLOYMENT_BASE_URL) or None
+        deployment_base_url = _text(env, DEPLOYMENT_BASE_URL) or None
         if deployment_base_url and urlsplit(deployment_base_url).scheme not in {"http", "https"}:
             raise SettingsError(f"{DEPLOYMENT_BASE_URL} is not an http(s) URL")
-
-        def origins(name: str) -> tuple[str, ...]:
-            entries = [entry for entry in text(name).split(",") if entry.strip()]
-            try:
-                return tuple(origin(entry) for entry in entries)
-            except BaseUrlRefused as exc:
-                raise SettingsError(f"{name}: {exc}") from None
 
         return cls(
             key_encryption_key=kek,
@@ -147,6 +122,39 @@ class BrokerSettings:
             harness_jwks_file=Path(jwks_file) if jwks_file else None,
             deployment_keys=deployment_keys,
             deployment_base_url=deployment_base_url.rstrip("/") if deployment_base_url else None,
-            allowed_base_urls=origins(ALLOWED_BASE_URLS),
-            private_base_urls=origins(PRIVATE_BASE_URLS),
+            allowed_base_urls=_origins(env, ALLOWED_BASE_URLS),
+            private_base_urls=_origins(env, PRIVATE_BASE_URLS),
         )
+
+
+def _secret(env: Mapping[str, str], name: str) -> str:
+    try:
+        return api_key(env, name)
+    except ConfigError as exc:
+        raise SettingsError(str(exc)) from None
+
+
+def _text(env: Mapping[str, str], name: str) -> str:
+    return (env.get(name) or "").strip()
+
+
+def _key_encryption_key(env: Mapping[str, str]) -> bytes:
+    """The key-encryption key `env` holds, decoded and of the right length."""
+    try:
+        kek = base64.b64decode(_secret(env, KEY_ENCRYPTION_KEY), validate=True)
+    except binascii.Error, ValueError:
+        raise SettingsError(f"{KEY_ENCRYPTION_KEY} is not base64") from None
+    if len(kek) != KEY_ENCRYPTION_KEY_BYTES:
+        raise SettingsError(
+            f"{KEY_ENCRYPTION_KEY} is not {KEY_ENCRYPTION_KEY_BYTES} bytes "
+            f"(make one with: openssl rand -base64 {KEY_ENCRYPTION_KEY_BYTES})"
+        )
+    return kek
+
+
+def _origins(env: Mapping[str, str], name: str) -> tuple[str, ...]:
+    entries = [entry for entry in _text(env, name).split(",") if entry.strip()]
+    try:
+        return tuple(origin(entry) for entry in entries)
+    except BaseUrlRefused as exc:
+        raise SettingsError(f"{name}: {exc}") from None

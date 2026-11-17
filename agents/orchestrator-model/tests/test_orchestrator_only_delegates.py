@@ -36,7 +36,7 @@ from dd_harness.projects import ProjectStore
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.contract.models import Message, OutcomeStatus
 from dd_sdk.model import Model
-from dd_sdk.model_anthropic import FALLBACK_BETA, AnthropicModel
+from dd_sdk.model_anthropic import FALLBACK_BETA, AnthropicModel, ToolLoopOptions
 from dd_sdk.model_openai import OpenAIModel, openai_client
 
 PACKAGE = Path(__file__).resolve().parents[1]
@@ -137,9 +137,7 @@ def _anthropic() -> tuple[Model, list[dict[str, Any]]]:
     model = AnthropicModel(
         "claude-sonnet-5-5",
         client=client,  # type: ignore[arg-type]
-        effort="high",
-        fallback=True,
-        cache_system=True,
+        options=ToolLoopOptions(effort="high", fallback=True, cache_system=True),
     )
     return model, client.requests
 

@@ -31,7 +31,7 @@ ROOT = Path(__file__).resolve().parents[1]
 BASELINE = ROOT / "scripts" / "size_baseline.toml"
 
 # Line limits by suffix. Physical lines, as `wc -l` counts them, so the figure needs no tool.
-LIMITS = {".py": 600, ".ts": 500, ".tsx": 500}
+LIMITS = {".py": 500, ".ts": 400, ".tsx": 400}
 
 # Where the limits apply: the packages' sources, the browser libraries and the repository tooling.
 INCLUDED = ("*/src/**", "agents/*/src/**", "*/browser/src/**", "app/web/src/**", "scripts/**")

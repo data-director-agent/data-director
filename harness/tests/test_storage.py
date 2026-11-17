@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from dd_harness.project_files import FileProjectLog
+from dd_harness.project_log import ProjectLog
 from dd_harness.projects import Projects, ProjectStore
 from dd_harness.settings import (
     Settings,
@@ -22,7 +23,7 @@ from dd_harness.settings import (
     run_storage,
     storage_location,
 )
-from dd_harness.storage import ProjectLog, ProjectStorage, RunStorage
+from dd_harness.storage import ProjectStorage, RunStorage
 from dd_harness.store import RunStore
 from dd_harness.testing import (
     PROJECT_LOG_CHECKS,

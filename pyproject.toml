@@ -255,13 +255,13 @@ select = ["E", "F", "W", "I", "N", "UP", "B", "BLE", "SIM", "ANN", "RUF", "PTH",
 ignore = ["ANN401"]
 
 [tool.ruff.lint.mccabe]
-max-complexity = 15
+max-complexity = 12
 
 [tool.ruff.lint.pylint]
-max-branches = 15
-max-statements = 60
-max-args = 8
-max-returns = 8
+max-branches = 12
+max-statements = 50
+max-args = 7
+max-returns = 6
 
 [tool.ruff.lint.isort]
 known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_example_hello", "dd_agent_advisor_quality", "dd_agent_advisor_standards", "dd_agent_advisor_repository", "dd_agent_advisor_policy", "dd_agent_advisor_ethics", "dd_agent_advisor_files", "dd_agent_advisor_dmp", "dd_agent_advisor_metadata", "dd_agent_advisor_documentation", "dd_agent_advisor_rights", "dd_agent_advisor_linking", "dd_agent_advisor_fairness", "dd_agent_orchestrator_stub", "dd_agent_orchestrator_model", "dd_app", "dd_admin", "dd_broker", "dd_inventory"]

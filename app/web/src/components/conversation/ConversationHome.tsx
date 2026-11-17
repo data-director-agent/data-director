@@ -48,132 +48,41 @@
 
 import { useRef, useState } from "react";
 
-import { X } from "lucide-react";
 import type { ReplyAnswers } from "../../conversation/question";
-import { startablePrompts } from "../../flow/prompts";
 import type { FlowStep } from "../../flow/types";
 import type { Directory } from "../../manifest/normalise";
 import { useActiveProject } from "../../project/active";
-import {
-  type ProjectApi,
-  type ProjectDocuments,
-  type ProjectSummary,
-  useProjectApi,
-} from "../../project/api";
-import type { DocumentsRead } from "../../project/drafted";
-import { Link, homePath, navigate, useLocation } from "../../route";
+import { useProjectApi } from "../../project/api";
+import { homePath, navigate, useLocation } from "../../route";
 import type { Envelope } from "../../run/types";
-import type { Conversation } from "../../conversation/types";
 import { ContextPanel } from "../workspace/ContextPanel";
-import { type FlowLoad, PhaseTracker, type TrackedProgress } from "../workspace/PhaseTracker";
+import { PhaseTracker } from "../workspace/PhaseTracker";
 import { useFlowLoad } from "../workspace/useFlowLoad";
 import { useAskAbout } from "./useAskAbout";
 import { Workspace } from "../workspace/Workspace";
 import { ProjectSwitcher } from "../project/ProjectSwitcher";
 import { useAnnounce } from "../ui/Announcer";
-import { Button } from "../ui/Button";
 import { Composer } from "./Composer";
 import { EarlierConversations } from "./EarlierConversations";
-import { IntakeCard } from "./IntakeCard";
+import {
+  LinkedRun,
+  NoConversation,
+  OpenIntake,
+  chosenRepository,
+  holdsRun,
+  offeredPrompts,
+  projectHandlers,
+  projectNamed,
+  trackedProgress,
+} from "./ConversationHomeParts";
 import { whyUnusable } from "./orchestrator";
-import { RunDetail } from "./RunDetail";
 import { StartFromStep } from "./StartFromStep";
 import { Transcript } from "./Transcript";
 import { useAttachments } from "./useAttachments";
 import { useConversationTurns } from "./useConversationTurns";
-import { type IntakeRead, useIntake } from "./useIntake";
+import { useIntake } from "./useIntake";
 import { useProjectDocuments } from "./useProjectDocuments";
-import { type ProjectProgressRead, useProjectProgress } from "./useProjectProgress";
-
-/** The project's progress for the phase tracker, with how to change it, once it has been read. */
-function trackedProgress(
-  projectId: string | null,
-  read: ProjectProgressRead,
-  how: {
-    projectApi: ProjectApi;
-    documents: DocumentsRead;
-    startConversation: ((step: FlowStep) => void) | undefined;
-    answerIntakeAgain: ((projectId: string) => void) | undefined;
-  },
-): TrackedProgress | null {
-  const { progress, change, error } = read;
-  if (!projectId || !progress) return null;
-  const { projectApi, documents, startConversation, answerIntakeAgain } = how;
-  return {
-    progress,
-    chooseEntry: (entry) => change(projectApi.chooseEntry(projectId, entry), projectId),
-    markStep: (stepId, mark) => change(projectApi.markStep(projectId, stepId, mark), projectId),
-    error,
-    projectId,
-    ...(documents.state === "loaded" ? { documents: documents.documents } : {}),
-    ...(startConversation ? { startConversation } : {}),
-    ...(answerIntakeAgain ? { answerIntakeAgain: () => answerIntakeAgain(projectId) } : {}),
-  };
-}
-
-/** The prompts a conversation yet to begin offers, from the steps that can be started now. */
-function offeredPrompts(flow: FlowLoad, tracked: TrackedProgress | null, offering: boolean) {
-  if (!offering || !tracked || flow.state !== "loaded") return null;
-  return startablePrompts(flow.flow, tracked.progress);
-}
-
-/** The repository chosen for the project, if one has been. */
-function chosenRepository(project: ProjectSummary | null): string | null {
-  return project?.repository?.re3data_id ?? null;
-}
-
-/** Whether `runId` is one of the runs in the conversation's transcript. */
-function holdsRun(conversation: Conversation | null, runId: string): boolean {
-  return Boolean(
-    conversation?.turns.flatMap((t) => t.children).some((c) => c.invocation_id === runId),
-  );
-}
-
-/** The project's intake card, while it is open. */
-function OpenIntake({
-  projectId,
-  read,
-  flow,
-  onStart,
-  onAnnounce,
-}: {
-  projectId: string | null;
-  read: IntakeRead;
-  flow: FlowLoad;
-  onStart: ((message: string) => void) | undefined;
-  onAnnounce: (said: string) => void;
-}) {
-  const { intake } = read;
-  if (!projectId || !intake?.open) return null;
-  return (
-    <IntakeCard
-      key={`${projectId}-${intake.again ? "again" : "pending"}`}
-      intake={intake.intake}
-      again={intake.again}
-      flow={flow.state === "loaded" ? flow.flow : null}
-      onAnswer={(questionId, values) => read.answer(projectId, questionId, values)}
-      onDismiss={() => read.dismiss(projectId)}
-      onClose={read.close}
-      onStart={onStart}
-      onAnnounce={onAnnounce}
-    />
-  );
-}
-
-/** A run named in the address but not in the transcript, so that the link still opens it. */
-function LinkedRun({ runId, agents }: { runId: string; agents: Directory["agents"] }) {
-  return (
-    <section aria-labelledby="linked-run" className="callout">
-      <h3 id="linked-run">
-        Run <code>{runId}</code>
-      </h3>
-      <RunDetail invocationId={runId} agents={agents} idPrefix="linked-run" />
-      <p>
-        <Button icon={X} onPress={() => navigate("/")}>Close the run</Button>
-      </p>
-    </section>
-  );
-}
+import { useProjectProgress } from "./useProjectProgress";
 
 export function ConversationHome({ directory }: { directory: Directory }) {
   const projectApi = useProjectApi();
@@ -229,34 +138,34 @@ export function ConversationHome({ directory }: { directory: Directory }) {
 
   const flow = useFlowLoad();
 
-  useAskAbout(flow, setText, box, { conversation: urlConversation, run: runId });
+  useAskAbout(flow, setText, box, {
+    conversation: urlConversation,
+    run: runId,
+  });
 
   const frame = {
     project: <ProjectSwitcher />,
     phases: <PhaseTracker load={flow} tracked={tracked} />,
   };
-  const project = projects.find((p) => p.project_id === projectId) ?? null;
+  const project = projectNamed(projects, projectId);
 
   if (unusable || !orchestrator) {
     return (
-      <Workspace
-        {...frame}
-        title="No conversation is available"
-        centre={
-          <>
-            <p>{unusable} You can still use each agent on its own.</p>
-            <p>
-              <Link to="/agents">Open the agent directory</Link>
-            </p>
-          </>
-        }
-        context={<ContextPanel projectId={projectId} project={project} />}
+      <NoConversation
+        frame={frame}
+        why={unusable}
+        projectId={projectId}
+        project={project}
       />
     );
   }
 
   async function send() {
-    await turns.deliver(text.trim(), { inventory: attached, document: attachedDocument }, null);
+    await turns.deliver(
+      text.trim(),
+      { inventory: attached, document: attachedDocument },
+      null,
+    );
   }
 
   /** Sends the answers to the latest turn's questions, said in words as `message`. What is in
@@ -304,14 +213,16 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     );
   }
 
-
   return (
     <Workspace
       {...frame}
       title="Talk to Data Director"
       titleHidden
       centre={
-        <section aria-labelledby="conversation-heading" className="conversation-main">
+        <section
+          aria-labelledby="conversation-heading"
+          className="conversation-main"
+        >
           <h2 id="conversation-heading" className="visually-hidden">
             Conversation
           </h2>
@@ -328,22 +239,24 @@ export function ConversationHome({ directory }: { directory: Directory }) {
               agents={directory.agents}
               onToggleRun={toggleRun}
               selectedRun={runId}
-              documents={documents.state === "loaded" ? documents.documents : null}
+              documents={
+                documents.state === "loaded" ? documents.documents : null
+              }
               pending={sent && { agentId: orchestrator.id, ...sent }}
-              onAnswer={(answers, message) => void answerQuestions(answers, message)}
+              onAnswer={(answers, message) =>
+                void answerQuestions(answers, message)
+              }
               chosenRepository={chosenRepository(project)}
               project={project}
-              {...(projectId
-                ? {
-                    onDocumentAnswered: (value: ProjectDocuments) => answered(projectId, value),
-                    // The panel reads the choice from the projects list, so it is read again.
-                    onRepositoryChosen: () => reloadProjects(),
-                  }
-                : {})}
+              {...projectHandlers(projectId, answered, reloadProjects)}
             />
           )}
           <StartFromStep
-            offered={offeredPrompts(flow, tracked, quiet && !writing && !intake?.open)}
+            offered={offeredPrompts(
+              flow,
+              tracked,
+              quiet && !writing && !intake?.open,
+            )}
             replacing={replacing}
             onChoose={beginWith}
             onCancel={() => setReplacing(null)}
@@ -368,7 +281,9 @@ export function ConversationHome({ directory }: { directory: Directory }) {
       }
       history={
         <EarlierConversations
-          conversations={turns.past.filter((c) => (c.project_id ?? null) === projectId)}
+          conversations={turns.past.filter(
+            (c) => (c.project_id ?? null) === projectId,
+          )}
           currentId={turns.conversationId}
           onOpen={(id) => void turns.reopen(id)}
           onNew={turns.reset}

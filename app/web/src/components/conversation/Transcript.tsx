@@ -158,6 +158,33 @@ function ChildCard({
   );
 }
 
+/**
+ * What the transcript shows about `turn`, the one at `index`: what was given with it, the documents it
+ * drafted (when the project's `documents` have been read), its questions and the answers to them,
+ * and the repositories it shortlisted.
+ */
+function turnFacts(
+  conversation: Conversation,
+  turn: ConversationTurn,
+  index: number,
+  documents: ProjectDocument[] | null,
+) {
+  const next = conversation.turns[index + 1];
+  return {
+    given: inventoryGiven(conversation, index),
+    attachedDocuments: documentsGiven(conversation, index),
+    drafted: documents
+      ? draftedBy([turn.invocation_id, ...turn.children.map((child) => child.invocation_id)], documents)
+      : [],
+    questions: replyQuestions(turn.envelope),
+    latest: index === conversation.turns.length - 1,
+    answers: next ? (conversation.inputs[next.invocation_id]?.reply_answers ?? null) : null,
+    shortlists: [turn.envelope, ...turn.children]
+      .map((envelope) => ({ envelope, shortlist: shortlistOf(envelope) }))
+      .filter(({ shortlist }) => shortlist.length > 0),
+  };
+}
+
 export function Transcript({
   conversation,
   agents,
@@ -220,22 +247,12 @@ export function Transcript({
     // eslint-disable-next-line jsx-a11y/no-redundant-roles
     <ol className="transcript" role="list" aria-label="Conversation">
       {conversation?.turns.map((turn, index) => {
-        const given = inventoryGiven(conversation, index);
-        const attachedDocuments = documentsGiven(conversation, index);
-        const drafted =
-          projectId && documents
-            ? draftedBy(
-                [turn.invocation_id, ...turn.children.map((child) => child.invocation_id)],
-                documents,
-              )
-            : [];
-        const questions = replyQuestions(turn.envelope);
-        const latest = index === conversation.turns.length - 1;
-        const next = conversation.turns[index + 1];
-        const answers = next ? (conversation.inputs[next.invocation_id]?.reply_answers ?? null) : null;
-        const shortlists = [turn.envelope, ...turn.children]
-          .map((envelope) => ({ envelope, shortlist: shortlistOf(envelope) }))
-          .filter(({ shortlist }) => shortlist.length > 0);
+        const { given, attachedDocuments, drafted, questions, latest, answers, shortlists } = turnFacts(
+          conversation,
+          turn,
+          index,
+          projectId && documents ? documents : null,
+        );
         return (
         <li key={turn.invocation_id} className="turn">
           <div className="turn-person">

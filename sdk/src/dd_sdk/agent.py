@@ -25,6 +25,8 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
 
 from opentelemetry.trace import Tracer
 
+from dd_sdk.agent_checks import SpecError as SpecError
+from dd_sdk.agent_checks import check_derivation, check_setting
 from dd_sdk.contract.classes import ClassSchema, ClassSchemaError
 from dd_sdk.contract.models import (
     Derivation,
@@ -45,10 +47,6 @@ from dd_sdk.process_flow import OUT_OF_SCOPE, STEPS
 
 if TYPE_CHECKING:
     from dd_sdk.delegate import Delegated
-
-
-class SpecError(Exception):
-    """A description does not rebuild into an `AgentSpec` against this contract."""
 
 
 class ContractVersionError(SpecError):
@@ -141,9 +139,9 @@ class AgentSpec:
                 "Grounded (its schema does not require grounded_on)"
             )
         for path, derived in self.derivations.items():
-            _check_derivation(self, path, derived)
+            check_derivation(self, path, derived)
         for name, setting in self.settings.items():
-            _check_setting(self.agent_id, name, setting)
+            check_setting(self.agent_id, name, setting)
 
     def default_settings(self) -> dict[str, str]:
         """Each setting's default: what applies where the profile sets none."""
@@ -177,66 +175,6 @@ DESCRIPTION_KEYS = frozenset(
         "schemas",
     }
 )
-DERIVATION_REF = "#/$defs/Derivation"
-
-
-def _resolve(schema: Mapping[str, Any], node: Mapping[str, Any]) -> Mapping[str, Any]:
-    """Follow `$ref` into the class schema's `$defs`, a list into its items, and an optional
-    (`anyOf` with null) into the arm that is not null."""
-    while True:
-        ref = node.get("$ref")
-        arms = [a for a in node.get("anyOf", ()) if a.get("type") != "null"]
-        if isinstance(ref, str) and ref.startswith("#/$defs/"):
-            node = schema.get("$defs", {}).get(ref.removeprefix("#/$defs/"), {})
-        elif "items" in node:
-            node = node["items"]
-        elif len(arms) == 1:
-            node = arms[0]
-        else:
-            return node
-
-
-def _is_derivation(node: Mapping[str, Any]) -> bool:
-    if node.get("$ref") == DERIVATION_REF:
-        return True
-    return any(_is_derivation(arm) for arm in node.get("anyOf", ()))
-
-
-def _check_derivation(spec: AgentSpec, path: str, derived: Derived) -> None:
-    """A derivation names a field of the payload class's schema; `recorded_in` a Derivation."""
-    where = f"agent {spec.agent_id!r} derivation {path!r}"
-    if spec.payload is None:
-        raise SpecError(f"{where}: the agent declares no payload")
-    if not isinstance(derived.how, Derivation):
-        raise SpecError(f"{where}: {derived.how!r} is not a Derivation")
-    schema = spec.payload.json_schema
-    *parents, name = path.split(".")
-    node: Mapping[str, Any] = schema
-    holder = spec.payload.name
-    for part in parents:
-        nested = _resolve(schema, node.get("properties", {}).get(part, {}))
-        if "properties" not in nested:
-            raise SpecError(f"{where}: {holder} has no nested field {part!r}")
-        node, holder = nested, str(nested.get("title", part))
-    properties = node.get("properties", {})
-    if name not in properties:
-        raise SpecError(f"{where}: {holder} has no field {name!r}")
-    if derived.recorded_in is not None:
-        recorder = properties.get(derived.recorded_in)
-        if recorder is None or not _is_derivation(recorder):
-            raise SpecError(f"{where}: {holder}.{derived.recorded_in} is not a Derivation field")
-
-
-def _check_setting(agent_id: str, name: str, setting: Setting) -> None:
-    where = f"agent {agent_id!r} setting {name!r}"
-    if not name or not isinstance(name, str):
-        raise SpecError(f"{where}: a setting needs a name")
-    if not setting.choices or not all(isinstance(c, str) and c for c in setting.choices):
-        raise SpecError(f"{where}: choices must be one or more non-empty strings")
-    if len(set(setting.choices)) != len(setting.choices):
-        raise SpecError(f"{where}: a choice is listed more than once")
-    if setting.default not in setting.choices:
-        raise SpecError(f"{where}: default {setting.default!r} is not one of its choices")
 
 
 def describe(spec: AgentSpec) -> dict[str, Any]:
@@ -278,17 +216,7 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
     class, and a payload class that does not mix in `Grounded` are each a `SpecError`
     (docs/specs/contract.md). No class needs to be known in advance.
     """
-    declared = entry.get("contract_version")
-    if not isinstance(declared, str):
-        raise ContractVersionError(
-            f"agent {entry.get('agent_id')!r} declares no contract version; this harness "
-            f"governs contract {CONTRACT_VERSION}"
-        )
-    if not compatible(declared):
-        raise ContractVersionError(
-            f"agent {entry.get('agent_id')!r} was built against contract {declared}; this "
-            f"harness governs contract {CONTRACT_VERSION}"
-        )
+    declared = _contract_version(entry)
     missing = DESCRIPTION_KEYS - set(entry)
     if missing:
         raise SpecError(f"agent description lacks {sorted(missing)}")
@@ -318,20 +246,7 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
         }
     except (AttributeError, KeyError, TypeError, ValueError) as exc:
         raise SpecError(f"agent {agent_id!r}: malformed derivations: {exc}") from exc
-    # `models` may be absent: a card written before docs/specs/policy-and-identity.md declares no
-    # model.
-    try:
-        models = tuple(
-            ModelUse(
-                str(m["provider"]),
-                str(m["model"]),
-                _hosting(m["hosting"]),
-                _tools(m.get("tools", False)),
-            )
-            for m in entry.get("models", ())
-        )
-    except (KeyError, TypeError, ValueError) as exc:
-        raise SpecError(f"agent {agent_id!r}: malformed models: {exc}") from exc
+    models = _models(agent_id, entry)
     # `serves` may be absent: a card written before docs/specs/orchestration.md serves no
     # requirement.
     serves = entry.get("serves", ())
@@ -368,6 +283,40 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
         title=title,
         settings=settings,
     )
+
+
+def _contract_version(entry: Mapping[str, Any]) -> str:
+    """The contract version `entry` declares, or a `ContractVersionError` if this one cannot
+    govern it."""
+    declared = entry.get("contract_version")
+    if not isinstance(declared, str):
+        raise ContractVersionError(
+            f"agent {entry.get('agent_id')!r} declares no contract version; this harness "
+            f"governs contract {CONTRACT_VERSION}"
+        )
+    if not compatible(declared):
+        raise ContractVersionError(
+            f"agent {entry.get('agent_id')!r} was built against contract {declared}; this "
+            f"harness governs contract {CONTRACT_VERSION}"
+        )
+    return declared
+
+
+def _models(agent_id: str, entry: Mapping[str, Any]) -> tuple[ModelUse, ...]:
+    """The models `entry` declares. They may be absent: a card written before
+    docs/specs/policy-and-identity.md declares no model."""
+    try:
+        return tuple(
+            ModelUse(
+                str(m["provider"]),
+                str(m["model"]),
+                _hosting(m["hosting"]),
+                _tools(m.get("tools", False)),
+            )
+            for m in entry.get("models", ())
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise SpecError(f"agent {agent_id!r}: malformed models: {exc}") from exc
 
 
 def _hosting(value: object) -> Literal["hosted", "local"]:

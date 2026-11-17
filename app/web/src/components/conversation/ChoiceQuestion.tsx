@@ -63,6 +63,24 @@ export function problemOf(question: Question, draft: Draft): string | null {
   return null;
 }
 
+/** How to answer `question`, said before its controls. */
+function howToAnswer(question: Question, multiple: boolean): string {
+  if (question.question_kind === "choice") return multiple ? "Choose one or more." : "Choose one.";
+  return question.question_kind === "short_text" ? "Answer in a line." : "Answer in a few sentences.";
+}
+
+/** The options `question` offers, with "Something else" last where it takes other answers. */
+function optionsOf(question: Question, other: string | null) {
+  return [
+    ...(question.question_options ?? []).map((o) => ({
+      value: o.option_value,
+      label: o.option_label,
+      help: o.option_help ?? null,
+    })),
+    ...(other !== null ? [{ value: other, label: "Something else", help: null }] : []),
+  ];
+}
+
 /** One question's field: the controls, inside a fieldset whose legend is the question. */
 export function QuestionField({
   question,
@@ -93,23 +111,8 @@ export function QuestionField({
     onChange({ ...draft, values });
   }
 
-  const how =
-    question.question_kind === "choice"
-      ? multiple
-        ? "Choose one or more."
-        : "Choose one."
-      : question.question_kind === "short_text"
-        ? "Answer in a line."
-        : "Answer in a few sentences.";
-
-  const options = [
-    ...(question.question_options ?? []).map((o) => ({
-      value: o.option_value,
-      label: o.option_label,
-      help: o.option_help ?? null,
-    })),
-    ...(other !== null ? [{ value: other, label: "Something else", help: null }] : []),
-  ];
+  const how = howToAnswer(question, multiple);
+  const options = optionsOf(question, other);
 
   return (
     <fieldset className={error ? "field field-invalid question-field" : "field question-field"} aria-describedby={described}>

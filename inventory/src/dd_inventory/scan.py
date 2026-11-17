@@ -161,6 +161,18 @@ def part_folder_problem(folder: str) -> str | None:
     return None
 
 
+def _check_part_names(names: list[str]) -> None:
+    """Raise `ValueError` for a name that cannot be a part's, or names of which one is inside
+    another."""
+    for name in names:
+        if problem := part_folder_problem(name):
+            raise ValueError(problem)
+    for i, a in enumerate(names):
+        for b in names[i + 1 :]:
+            if a == b or a.startswith(b + "/") or b.startswith(a + "/"):
+                raise ValueError(f"the folders {a!r} and {b!r} overlap")
+
+
 def make_inventory_of(
     parts: Mapping[str, Path],
     *,
@@ -176,14 +188,7 @@ def make_inventory_of(
 
     Raises `ValueError` for a name that cannot be a part's, or names of which one is inside
     another, and `NotADirectoryError` for a folder that is not one."""
-    names = list(parts)
-    for name in names:
-        if problem := part_folder_problem(name):
-            raise ValueError(problem)
-    for i, a in enumerate(names):
-        for b in names[i + 1 :]:
-            if a == b or a.startswith(b + "/") or b.startswith(a + "/"):
-                raise ValueError(f"the folders {a!r} and {b!r} overlap")
+    _check_part_names(list(parts))
     if isinstance(runtime, _Detect):
         runtime = detect_runtime()
     unavailable = None

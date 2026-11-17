@@ -95,6 +95,11 @@ function fileProblem(file: unknown): string | null {
   if (!IDENTIFICATION_METHODS.includes(file.file_identified_by as never)) {
     return "does not say how its format was identified";
   }
+  return statementProblem(file);
+}
+
+/** What is wrong with the optional statements about a file, or null if nothing is. */
+function statementProblem(file: Record<string, unknown>): string | null {
   if (file.file_media_type !== undefined && typeof file.file_media_type !== "string") {
     return "has a media type that is not text";
   }

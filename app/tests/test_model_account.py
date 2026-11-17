@@ -21,7 +21,7 @@ import pytest
 from starlette.testclient import TestClient
 from support import JSON_HEADERS, check_fixture, configure_env, dist_dir, with_standards
 
-from dd_app.app import build_app
+from dd_app.app import Links, build_app
 from dd_app.config import EXAMPLE_PROFILE, settings_from_env
 from dd_app.governance import Governance
 from dd_app.model_accounts import BROKER_URL_VARIABLE, broker_path
@@ -184,7 +184,9 @@ def make_deployment(
         client=httpx.AsyncClient(transport=idp.transport()),
     )
     governance = with_standards(Governance.create(settings, PUBLIC_URL, sign_in.authenticator))
-    app = build_app(governance, dist_dir(tmp_path), sign_in=sign_in, model_broker_path=broker)
+    app = build_app(
+        governance, dist_dir(tmp_path), sign_in=sign_in, links=Links(model_broker_path=broker)
+    )
     return Deployment(idp, keys, governance, Recorder(app), tmp_path)
 
 

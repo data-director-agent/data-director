@@ -89,11 +89,10 @@ def _turn_shape(body: Any) -> Response | None:
     return None
 
 
-def parse_turn(body: Any) -> Turn | Response:
-    """A turn's body, checked, or the `400` problem that refuses it. The turn's stream takes the
-    same body as its `forwardedProps`."""
-    if (wrong_shape := _turn_shape(body)) is not None:
-        return wrong_shape
+def _turn_fields(body: dict[str, Any]) -> Response | None:
+    """The `400` problem that refuses a turn's body for its plain fields, or None: `agent_id` and
+    `message_text` are strings, `follows` is given as a string or null, and `inventory` is an
+    object if given."""
     agent_id, message_text = body.get("agent_id"), body.get("message_text")
     if not isinstance(agent_id, str) or not isinstance(message_text, str):
         return refused("The body must name `agent_id` and give `message_text`, as strings.")
@@ -106,6 +105,16 @@ def parse_turn(body: Any) -> Turn | Response:
     inventory = body.get("inventory")
     if not (inventory is None or isinstance(inventory, dict)):
         return refused("`inventory` must be the object `dd-inventory` wrote.")
+    return None
+
+
+def parse_turn(body: Any) -> Turn | Response:
+    """A turn's body, checked, or the `400` problem that refuses it. The turn's stream takes the
+    same body as its `forwardedProps`."""
+    if (wrong := _turn_shape(body)) is not None or (wrong := _turn_fields(body)) is not None:
+        return wrong
+    agent_id, message_text = body["agent_id"], body["message_text"]
+    follows, inventory = body["follows"], body.get("inventory")
     documentation = _documentation(body.get("documentation"))
     if isinstance(documentation, Response):
         return documentation

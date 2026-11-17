@@ -24,7 +24,7 @@ from dd_sdk.model import (
     ToolSpec,
     call,
 )
-from dd_sdk.model_anthropic import FALLBACK_BETA, AnthropicModel
+from dd_sdk.model_anthropic import FALLBACK_BETA, AnthropicModel, ToolLoopOptions
 from dd_sdk.model_openai import OpenAIModel, openai_client
 
 BASE = "http://endpoint.test/v1"
@@ -88,7 +88,11 @@ class Claude:
 def test_claude_is_sent_tools_results_and_its_own_turn_back(ctx: RunContext) -> None:
     thinking = {"type": "thinking", "thinking": "...", "signature": "sig"}
     client = Claude([Block(type="text", text="Hello, Ada!")])
-    model = AnthropicModel("claude-test", client=client, effort="high", fallback=True)  # type: ignore[arg-type]
+    model = AnthropicModel(
+        "claude-test",
+        client=client,  # type: ignore[arg-type]
+        options=ToolLoopOptions(effort="high", fallback=True),
+    )
 
     replay = Replay("anthropic", (thinking, {"type": "tool_use", "id": "call_1"}))
     reply = call(

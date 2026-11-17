@@ -23,7 +23,8 @@ from dd_agent_advisor_policy.classes import (
 from dd_agent_advisor_policy.extract import Extraction, ModelExtractor, Read, found
 from dd_agent_advisor_policy.policy_text import PolicyText, html_text
 from dd_agent_advisor_policy.records import Clause, PolicyRecord, Relation
-from dd_agent_advisor_policy.ror import Organisation, RorDump
+from dd_agent_advisor_policy.ror import RorDump
+from dd_agent_advisor_policy.ror_records import Organisation
 from dd_agent_advisor_policy.snapshot import PolicySnapshot
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import describe

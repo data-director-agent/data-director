@@ -248,33 +248,41 @@ def _choose(
                 # An account the profile does not allow is never used, and the deployment does not
                 # pay in its place.
                 raise Refused(403, Reason.ACCOUNT_UNSUPPORTED)
-            if own.base_url:
-                try:
-                    # The profile's allow-list, carried by the grant, and the operator's must both
-                    # name the origin.
-                    if origin(own.base_url) not in grant.claims.base_urls:
-                        raise BaseUrlRefused("the base URL is not one the profile allows")
-                    target = check_base_url(
-                        own.base_url,
-                        broker.allowed_base_urls,
-                        private=broker.private_base_urls,
-                        resolve=broker.resolve,
-                    )
-                except BaseUrlRefused:
-                    raise Refused(403, Reason.BASE_URL_REFUSED) from None
-            else:
-                endpoint = provider_endpoint(own.provider)
-                if endpoint is None:
-                    # An OpenAI-compatible account is stored with its base URL; one without is
-                    # not an account the broker can serve.
-                    raise Refused(403, Reason.ACCOUNT_UNSUPPORTED)
-                target = Target(url=endpoint)
-            return _Payment(Payer.OWN, own.provider, target, own.key)
+            return _Payment(Payer.OWN, own.provider, _own_target(broker, grant, own), own.key)
         if account is Account.OWN or mapped:
             raise Refused(403, Reason.MODEL_ACCOUNT_MISSING)
     if mapped:
         # Only a grant that may use a person's own account carries a map.
         raise Refused(403, Reason.MODEL_NOT_GRANTED)
+    return _deployment_payment(broker, provider)
+
+
+def _own_target(broker: Broker, grant: VerifiedGrant, own: OwnAccount) -> Target:
+    """Where a call paid for by the person's own account `own` goes."""
+    if own.base_url:
+        try:
+            # The profile's allow-list, carried by the grant, and the operator's must both
+            # name the origin.
+            if origin(own.base_url) not in grant.claims.base_urls:
+                raise BaseUrlRefused("the base URL is not one the profile allows")
+            return check_base_url(
+                own.base_url,
+                broker.allowed_base_urls,
+                private=broker.private_base_urls,
+                resolve=broker.resolve,
+            )
+        except BaseUrlRefused:
+            raise Refused(403, Reason.BASE_URL_REFUSED) from None
+    endpoint = provider_endpoint(own.provider)
+    if endpoint is None:
+        # An OpenAI-compatible account is stored with its base URL; one without is
+        # not an account the broker can serve.
+        raise Refused(403, Reason.ACCOUNT_UNSUPPORTED)
+    return Target(url=endpoint)
+
+
+def _deployment_payment(broker: Broker, provider: str) -> _Payment:
+    """A call to `provider` paid for by the deployment's own account."""
     key = broker.deployment_keys.get(provider)
     if not key:
         raise Refused(503, Reason.DEPLOYMENT_ACCOUNT_UNAVAILABLE)

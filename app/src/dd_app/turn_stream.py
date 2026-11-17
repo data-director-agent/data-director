@@ -16,7 +16,7 @@ from starlette.responses import JSONResponse, Response
 
 from dd_app.governance import Governance, TurnConflictError, UnknownConversationError
 from dd_app.problems import no_conversation, problem, refused
-from dd_app.turn_body import parse_turn
+from dd_app.turn_body import Turn, parse_turn
 from dd_harness.observe import RunObserver
 from dd_harness.transport.agui import REFUSALS, RunsInFlight, sse, stream_run
 from dd_sdk.contract.models import Envelope, Principal
@@ -46,22 +46,10 @@ class TurnStreams:
         as the JSON route answers it; a turn refused once the stream is open, such as one that no
         longer follows the latest turn, is `RUN_ERROR` alone."""
         conversation_id = request.path_params["conversation_id"]
-        try:
-            body = await request.json()
-        except ValueError:
-            return refused("The body is not JSON.")
-        if not isinstance(body, dict):
-            return refused("The body must be an AG-UI RunAgentInput.")
-        run_id, thread_id = body.get("runId"), body.get("threadId")
-        if not isinstance(run_id, str) or not run_id:
-            return refused("The body must give `runId`, a string naming this run.")
-        if thread_id is not None and thread_id != conversation_id:
-            return refused(
-                f"`threadId` {thread_id!r} is not this conversation, {conversation_id!r}."
-            )
-        sent = parse_turn(body.get("forwardedProps"))
-        if isinstance(sent, Response):
-            return sent
+        given = await _run_input(request, conversation_id)
+        if isinstance(given, Response):
+            return given
+        run_id, sent = given
         if (
             await run_in_threadpool(self.governance.conversation, conversation_id, acting_for)
             is None
@@ -114,3 +102,23 @@ class TurnStreams:
                 f"No run {run_id!r} of yours is streaming.",
             )
         return JSONResponse({"cancelled": run_id}, status_code=202)
+
+
+async def _run_input(request: Request, conversation_id: str) -> tuple[str, Turn] | Response:
+    """A streamed turn's AG-UI `RunAgentInput`, checked: its `runId` and the turn its
+    `forwardedProps` gives, or the `400` problem that refuses it."""
+    try:
+        body = await request.json()
+    except ValueError:
+        return refused("The body is not JSON.")
+    if not isinstance(body, dict):
+        return refused("The body must be an AG-UI RunAgentInput.")
+    run_id, thread_id = body.get("runId"), body.get("threadId")
+    if not isinstance(run_id, str) or not run_id:
+        return refused("The body must give `runId`, a string naming this run.")
+    if thread_id is not None and thread_id != conversation_id:
+        return refused(f"`threadId` {thread_id!r} is not this conversation, {conversation_id!r}.")
+    sent = parse_turn(body.get("forwardedProps"))
+    if isinstance(sent, Response):
+        return sent
+    return run_id, sent

@@ -12,7 +12,7 @@ import httpx
 import pytest
 from ror_fixture import FIXTURE, INACTIVE, NERC, NERC_JO, NERC_SD, UKRI, build_fixture
 
-from dd_agent_advisor_policy import ror
+from dd_agent_advisor_policy import ror, ror_records
 from dd_agent_advisor_policy.classes import Actor, ActorRole
 from dd_agent_advisor_policy.resolve import Ambiguous, Resolved, Unknown, names, resolve
 from dd_sdk.registry import RegistryUnavailable
@@ -37,7 +37,7 @@ def test_the_build_is_deterministic_and_keeps_only_what_identifies(tmp_path: Pat
     assert first == second
     lines = [json.loads(line) for line in first.decode().splitlines()]
     assert [d["id"] for d in lines] == sorted(d["id"] for d in lines)
-    assert set(lines[0]) == set(ror.Organisation.model_fields)
+    assert set(lines[0]) == set(ror_records.Organisation.model_fields)
     # Each line is the document as hashed: re-serialising it gives the same bytes.
     for raw, doc in zip(first.decode().splitlines(), lines, strict=True):
         assert json.dumps(doc, sort_keys=True, ensure_ascii=False) == raw

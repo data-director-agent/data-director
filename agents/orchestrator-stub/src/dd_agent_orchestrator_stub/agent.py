@@ -47,12 +47,18 @@ was; the child's own status is on its envelope and on the parent's `delegations`
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
-import yaml
-
+from dd_agent_orchestrator_stub.routing import (
+    EntryRule,
+    Rule,
+    entry_named,
+    load_entries,
+    load_next,
+    load_rules,
+    load_steps,
+    route,
+)
 from dd_sdk import serve
 from dd_sdk.agent import (
     AgentResult,
@@ -89,72 +95,6 @@ from dd_sdk.process_flow import (
     progress,
     suggested_next,
 )
-
-HERE = Path(__file__).resolve().parent
-ROUTING = HERE / "routing.yaml"
-
-MENTION = re.compile(r"^@(?P<agent>[\w.-]+)\s+(?P<rest>.+)$", re.DOTALL)
-
-
-@dataclass(frozen=True)
-class Rule:
-    name: str
-    agent_id: str
-    pattern: re.Pattern[str]
-    input: dict[str, Any]
-    mention_input: dict[str, Any]
-    relay_field: str | None
-    example: str
-
-
-def load_rules(path: Path = ROUTING) -> list[Rule]:
-    doc = yaml.safe_load(path.read_text(encoding="utf-8"))
-    return [
-        Rule(
-            name=r["name"],
-            agent_id=r["agent_id"],
-            pattern=re.compile(r["pattern"], re.IGNORECASE | re.DOTALL),
-            input=r["input"],
-            mention_input=r["mention_input"],
-            relay_field=r.get("relay_field"),
-            example=r["example"],
-        )
-        for r in doc["rules"]
-    ]
-
-
-@dataclass(frozen=True)
-class EntryRule:
-    entry: Entry
-    pattern: re.Pattern[str]
-
-
-def load_entries(path: Path = ROUTING) -> list[EntryRule]:
-    doc = yaml.safe_load(path.read_text(encoding="utf-8"))
-    return [
-        EntryRule(entry(int(e["entry"])), re.compile(e["pattern"], re.IGNORECASE | re.DOTALL))
-        for e in doc.get("entries") or []
-    ]
-
-
-def load_next(path: Path = ROUTING) -> re.Pattern[str] | None:
-    """How a message asks what to do next, if `routing.yaml` says."""
-    doc = yaml.safe_load(path.read_text(encoding="utf-8"))
-    pattern = doc.get("next")
-    return re.compile(pattern, re.IGNORECASE) if pattern else None
-
-
-def load_steps(path: Path = ROUTING) -> dict[str, list[dict[str, Any]]]:
-    """The inputs to send when a step is chosen, by step id."""
-    doc = yaml.safe_load(path.read_text(encoding="utf-8"))
-    return {str(k): list(v) for k, v in (doc.get("steps") or {}).items()}
-
-
-def entry_named(text: str, entries: list[EntryRule]) -> Entry | None:
-    """The entry point a message names, if any."""
-    text = text.strip()
-    return next((e.entry for e in entries if e.pattern.search(text)), None)
-
 
 ENTRY_KEY = "entry"
 NEXT_STEP_KEY = "next-step"
@@ -248,43 +188,6 @@ def next_question(steps: list[ProgressStep], start: Entry | None) -> Question | 
     )
 
 
-def fill(template: Any, values: dict[str, str]) -> Any:
-    """Fill `{name}` placeholders in every string of a template document."""
-    if isinstance(template, str):
-        return template.format_map(values)
-    if isinstance(template, dict):
-        return {k: fill(v, values) for k, v in template.items()}
-    if isinstance(template, list):
-        return [fill(v, values) for v in template]
-    return template
-
-
-@dataclass(frozen=True)
-class Route:
-    rule: Rule
-    input_document: dict[str, Any]
-
-
-def route(text: str, rules: list[Rule]) -> Route | str:
-    """The rule a message routes by and the child input it builds, or why there is none."""
-    text = text.strip()
-    mention = MENTION.match(text)
-    if mention:
-        agent_id, rest = mention["agent"], mention["rest"].strip()
-        for rule in rules:
-            if rule.agent_id == agent_id:
-                match = rule.pattern.match(rest)
-                if match:
-                    return Route(rule, fill(rule.input, match.groupdict()))
-                return Route(rule, fill(rule.mention_input, {"rest": rest}))
-        return f"No routing rule names {agent_id!r}."
-    for rule in rules:
-        match = rule.pattern.match(text)
-        if match:
-            return Route(rule, fill(rule.input, match.groupdict()))
-    return "No routing rule matched the message."
-
-
 class DirectorStub:
     spec = AgentSpec(
         agent_id="orchestrator.stub",
@@ -341,32 +244,7 @@ class DirectorStub:
             )
         found = route(message.message_text, self.rules)
         if isinstance(found, str):
-            start = entry_named(message.message_text, self.entries)
-            if start is not None:
-                return self._where(
-                    start,
-                    message,
-                    ctx,
-                    f"Listed the steps from entry point {start.number}; no agent was asked.",
-                )
-            known = project_entry(message)
-            asks_next = bool(self.next_pattern and self.next_pattern.search(message.message_text))
-            if asks_next or (known is not None and not message.history):
-                return self._where(
-                    known,
-                    message,
-                    ctx,
-                    "Listed where the project is and suggested a next step; no agent was asked.",
-                )
-            if not message.history:
-                return _template_reply(
-                    f"Where are you with your research data? Choose one below, or ask for one "
-                    f"thing directly. {self._routable()}",
-                    "Asked which entry point applies; no agent was asked.",
-                    ctx,
-                    question=entry_question(),
-                )
-            return abstain(ReasonCode.OUTSIDE_AGENT_SCOPE, f"{found} {self._routable()}")
+            return self._unrouted(found, message, ctx)
 
         # A refused delegation (unknown agent, unreachable conductor) raises DelegationRefused;
         # the conductor records it as failed(agent-error), which is what a developer should see.
@@ -374,6 +252,36 @@ class DirectorStub:
             found.rule.agent_id, OpenInput.model_validate(found.input_document)
         )
         return self._relay(found.rule, delegated, ctx)
+
+    def _unrouted(self, why: str, message: Message, ctx: RunContext) -> AgentResult:
+        """A message no rule routes: the steps from an entry point it names or the project's,
+        a question which entry applies on a first turn, or why no agent was asked."""
+        start = entry_named(message.message_text, self.entries)
+        if start is not None:
+            return self._where(
+                start,
+                message,
+                ctx,
+                f"Listed the steps from entry point {start.number}; no agent was asked.",
+            )
+        known = project_entry(message)
+        asks_next = bool(self.next_pattern and self.next_pattern.search(message.message_text))
+        if asks_next or (known is not None and not message.history):
+            return self._where(
+                known,
+                message,
+                ctx,
+                "Listed where the project is and suggested a next step; no agent was asked.",
+            )
+        if not message.history:
+            return _template_reply(
+                f"Where are you with your research data? Choose one below, or ask for one "
+                f"thing directly. {self._routable()}",
+                "Asked which entry point applies; no agent was asked.",
+                ctx,
+                question=entry_question(),
+            )
+        return abstain(ReasonCode.OUTSIDE_AGENT_SCOPE, f"{why} {self._routable()}")
 
     def _relay(self, rule: Rule, delegated: Delegated, ctx: RunContext) -> AgentResult:
         child = delegated.envelope

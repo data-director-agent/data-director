@@ -13,13 +13,8 @@ import pytest
 from dd_agent_advisor_quality.agent import QualityReviewer
 from dd_agent_advisor_standards.factory import build as build_standards
 from dd_agent_example_hello.agent import HelloWorld
-from dd_agent_orchestrator_stub.agent import (
-    DirectorStub,
-    entry_named,
-    load_entries,
-    load_rules,
-    route,
-)
+from dd_agent_orchestrator_stub.agent import DirectorStub
+from dd_agent_orchestrator_stub.routing import entry_named, load_entries, load_rules, route
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.contract.models import (
     ConversationTurn,

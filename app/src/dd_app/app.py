@@ -34,6 +34,7 @@ import os
 import sys
 import webbrowser
 from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -92,6 +93,20 @@ class ShellNotBuiltError(FileNotFoundError):
     """`app/web/dist` holds no built shell."""
 
 
+@dataclass(frozen=True)
+class Links:
+    """Where the browser reaches what the app links to but does not serve itself.
+
+    `model_broker_path` is where the browser reaches the model broker (`dd_app.model_accounts`);
+    with it and a harness that mints model grants, a person may add their own model account.
+    `privacy_notice_url` is the operator's privacy notice (`dd_app.privacy`), which `GET /api/about`
+    gives so that the footer can link to it; without it the footer has no link.
+    """
+
+    model_broker_path: str | None = None
+    privacy_notice_url: str | None = None
+
+
 def build_app(
     governance: Governance,
     web_dist: Path = WEB_DIST,
@@ -100,19 +115,16 @@ def build_app(
     build: Mapping[str, str | None] | None = None,
     sign_in: SignIn | None = None,
     orcid_transport: httpx.BaseTransport | None = None,
-    model_broker_path: str | None = None,
-    privacy_notice_url: str | None = None,
+    links: Links | None = None,
 ) -> Starlette:
     """The server. `web_dist` must hold a built shell (its `index.html`).
 
     Problem reports are on when `feedback` names a credential (`dd_app.feedback`); its client and
     `build` let a test stand in for GitHub and for the build's identity. `sign_in` signs people in;
     its authenticator must be `governance.authenticator`. Without it, the server signs nobody in.
-    `orcid_transport` lets a test stand in for ORCID's public API (`dd_harness.orcid`).
-    `model_broker_path` is where the browser reaches the model broker (`dd_app.model_accounts`);
-    with it and a harness that mints model grants, a person may add their own model account.
-    `privacy_notice_url` is the operator's privacy notice (`dd_app.privacy`), which `GET /api/about`
-    gives so that the footer can link to it; without it the footer has no link.
+    `orcid_transport` lets a test stand in for ORCID's public API (`dd_harness.orcid`). `links`
+    says where the model broker and the operator's privacy notice are (`Links`); without it, there
+    is neither.
     """
     if not (web_dist / "index.html").is_file():
         raise ShellNotBuiltError(
@@ -121,6 +133,7 @@ def build_app(
         )
     if sign_in is not None and governance.authenticator is not sign_in.authenticator:
         raise IdentityError("the app signs people in, so it must act for whom it signed in")
+    links = links or Links()
     deps = Deps(
         governance=governance,
         projects=ProjectService(governance),
@@ -129,9 +142,9 @@ def build_app(
         feedback=feedback or Feedback(),
         sign_in=sign_in,
         orcid_transport=orcid_transport,
-        model_broker_path=model_broker_path,
-        model_account_providers=_model_account_providers(governance, model_broker_path),
-        privacy_notice_url=privacy_notice_url,
+        model_broker_path=links.model_broker_path,
+        model_account_providers=_model_account_providers(governance, links.model_broker_path),
+        privacy_notice_url=links.privacy_notice_url,
     )
     callback = governance.conductor.harness_url
     # No authenticator: delegation callbacks only, so the app is no other way in
@@ -203,8 +216,7 @@ def main() -> int:
             governance,
             feedback=Feedback(feedback.source_from_env(os.environ, feedback_repo), feedback_repo),
             sign_in=sign_in,
-            model_broker_path=broker_path(os.environ),
-            privacy_notice_url=notice_url(os.environ),
+            links=Links(broker_path(os.environ), notice_url(os.environ)),
         )
         if host not in LOOPBACK and sign_in is None:
             sys.stderr.write(UNTRUSTED_WARNING.format(host=host))
