@@ -1,4 +1,6 @@
-"""The browser scanner's worker is sent its own Content Security Policy (`dd_app.worker_policy`).
+"""The browser scanner's assets get the headers they need (`dd_app.worker_policy`).
+
+The worker is sent its own Content Security Policy, and the bundle is revalidated on every use.
 
 An alpha substantiates no requirement, so these tests carry no requirement marker.
 """
@@ -13,7 +15,7 @@ from starlette.testclient import TestClient
 from support import configure_env, dist_dir, new_governance
 
 from dd_app.app import build_app
-from dd_app.worker_policy import WORKER_POLICY
+from dd_app.worker_policy import BUNDLE_CACHING, WORKER_POLICY
 
 WORKER = "assets/inventory-scanner-AbC123.js"
 
@@ -51,3 +53,21 @@ def test_no_other_response_gets_the_worker_policy(client: TestClient, path: str)
 def test_the_bundle_is_served_with_types_a_browser_accepts(client: TestClient) -> None:
     response = client.get("/inventory-bundle/pyodide.asm.wasm")
     assert response.headers["content-type"] == "application/wasm"
+
+
+def test_the_bundle_is_revalidated_on_every_use(client: TestClient) -> None:
+    response = client.get("/inventory-bundle/pyodide.asm.wasm")
+    assert response.headers.get_list("cache-control") == [BUNDLE_CACHING]
+    assert "etag" in response.headers
+    again = client.get(
+        "/inventory-bundle/pyodide.asm.wasm",
+        headers={"if-none-match": response.headers["etag"]},
+    )
+    assert again.status_code == 304
+    assert again.headers.get_list("cache-control") == [BUNDLE_CACHING]
+
+
+@pytest.mark.parametrize("path", ["/", f"/{WORKER}", "/assets/index-AbC123.js", "/api/about"])
+def test_nothing_outside_the_bundle_gets_its_caching(client: TestClient, path: str) -> None:
+    response = client.get(path)
+    assert response.headers.get("cache-control") != BUNDLE_CACHING

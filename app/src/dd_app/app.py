@@ -64,7 +64,7 @@ from dd_app.routes import (
     session,
 )
 from dd_app.routes.common import Deps, Feedback
-from dd_app.worker_policy import WorkerPolicy
+from dd_app.worker_policy import BundleCaching, WorkerPolicy
 from dd_harness.identity import IdentityError
 from dd_harness.model_grants import jwks_routes
 from dd_harness.policy import PolicyError
@@ -163,7 +163,7 @@ def build_app(
             *meta.shell_routes(deps),
             Mount("/", StaticFiles(directory=web_dist, html=True)),
         ],
-        middleware=[Middleware(WorkerPolicy)],
+        middleware=[Middleware(WorkerPolicy), Middleware(BundleCaching)],
     )
 
 
