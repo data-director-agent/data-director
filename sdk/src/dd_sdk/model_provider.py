@@ -47,7 +47,7 @@ from urllib.parse import urlsplit
 from dd_sdk.credentials import BROKER_URL, ConfigError, ModelEndpoint, api_key, model_endpoint
 from dd_sdk.model import Model, ModelCallError
 from dd_sdk.model_anthropic import EFFORTS as CLAUDE_EFFORTS
-from dd_sdk.model_anthropic import AnthropicModel
+from dd_sdk.model_anthropic import AnthropicModel, ToolLoopOptions
 from dd_sdk.model_openai import EFFORTS as OPENAI_EFFORTS
 from dd_sdk.model_openai import OpenAIModel
 from dd_sdk.model_route import Builder, RoutedModel
@@ -176,7 +176,10 @@ def _routed_builder(
         endpoint = ModelEndpoint(credential, f"{broker_url}/{name}")
         if name == DEFAULT_PROVIDER:
             return AnthropicModel(
-                model_id, endpoint=endpoint, effort=kept, cache_system=tool_use, tool_use=tool_use
+                model_id,
+                endpoint=endpoint,
+                options=ToolLoopOptions(effort=kept, cache_system=tool_use),
+                tool_use=tool_use,
             )
         assert endpoint.base_url is not None
         return OpenAIModel(
@@ -194,16 +197,10 @@ def _routed_builder(
     return build
 
 
-def _declared_model(
-    env: Mapping[str, str],
-    *,
-    default_model: str | None = None,
-    effort: str | None = None,
-    effort_setting: str = "effort",
-    tool_use: bool = False,
-) -> Model:
-    """The adapter for the model `env` declares, as `configured_model` describes it."""
-    name = provider_name(env)
+def _declared_provider(
+    env: Mapping[str, str], name: str, effort: str | None, effort_setting: str
+) -> Provider:
+    """The provider `env` names, once it accepts `effort` and no other provider's key is set."""
     provider = PROVIDERS.get(name)
     if provider is None:
         raise ConfigError(f"{PROVIDER}={name!r}: expected one of {', '.join(PROVIDERS)}")
@@ -220,6 +217,20 @@ def _declared_model(
             f"{foreign[0]} is set but {PROVIDER} is {name}: an agent holds only its own provider's "
             f"key, {provider.key}"
         )
+    return provider
+
+
+def _declared_model(
+    env: Mapping[str, str],
+    *,
+    default_model: str | None = None,
+    effort: str | None = None,
+    effort_setting: str = "effort",
+    tool_use: bool = False,
+) -> Model:
+    """The adapter for the model `env` declares, as `configured_model` describes it."""
+    name = provider_name(env)
+    provider = _declared_provider(env, name, effort, effort_setting)
     model_id = (env.get(MODEL_ID) or "").strip() or (
         default_model if name == DEFAULT_PROVIDER else None
     )
@@ -233,9 +244,7 @@ def _declared_model(
         return AnthropicModel(
             model_id,
             endpoint=model_endpoint(env),
-            effort=effort,
-            fallback=tool_use,
-            cache_system=tool_use,
+            options=ToolLoopOptions(effort=effort, fallback=tool_use, cache_system=tool_use),
             tool_use=tool_use,
         )
     if (env.get(BROKER_URL) or "").strip():
@@ -256,31 +265,8 @@ def _declared_model(
             brokered=True,
             tool_use=tool_use,
         )
-
     if name == COMPATIBLE:
-        if not base_url:
-            raise ConfigError(f"{BASE_URL} is required with {PROVIDER}={COMPATIBLE}")
-        if not base_url.startswith(("http://", "https://")):
-            raise ConfigError(f"{BASE_URL} is not an http or https URL")
-        hosting = hosting_of(base_url)
-        # A local endpoint may need no key; leaving both variables unset says so.
-        key = None
-        if _is_set(env, provider.key):
-            key = api_key(env, provider.key)
-        elif hosting == "hosted":
-            raise ConfigError(
-                f"no model key: set {provider.key} or {provider.key}_FILE; only a local "
-                f"{BASE_URL} may have none"
-            )
-        return OpenAIModel(
-            model_id,
-            provider=_endpoint_name(base_url),
-            hosting=hosting,
-            base_url=base_url,
-            api_key=key,
-            effort=effort,
-            tool_use=tool_use,
-        )
+        return _compatible_model(env, provider, model_id, base_url, effort, tool_use=tool_use)
     assert provider.base_url is not None
     return OpenAIModel(
         model_id,
@@ -289,6 +275,41 @@ def _declared_model(
         base_url=provider.base_url,
         api_key=api_key(env, provider.key),
         max_tokens_field=provider.max_tokens_field,
+        effort=effort,
+        tool_use=tool_use,
+    )
+
+
+def _compatible_model(
+    env: Mapping[str, str],
+    provider: Provider,
+    model_id: str,
+    base_url: str,
+    effort: str | None,
+    *,
+    tool_use: bool,
+) -> Model:
+    """The adapter for an OpenAI-compatible endpoint at `base_url`, hosted or local."""
+    if not base_url:
+        raise ConfigError(f"{BASE_URL} is required with {PROVIDER}={COMPATIBLE}")
+    if not base_url.startswith(("http://", "https://")):
+        raise ConfigError(f"{BASE_URL} is not an http or https URL")
+    hosting = hosting_of(base_url)
+    # A local endpoint may need no key; leaving both variables unset says so.
+    key = None
+    if _is_set(env, provider.key):
+        key = api_key(env, provider.key)
+    elif hosting == "hosted":
+        raise ConfigError(
+            f"no model key: set {provider.key} or {provider.key}_FILE; only a local "
+            f"{BASE_URL} may have none"
+        )
+    return OpenAIModel(
+        model_id,
+        provider=_endpoint_name(base_url),
+        hosting=hosting,
+        base_url=base_url,
+        api_key=key,
         effort=effort,
         tool_use=tool_use,
     )

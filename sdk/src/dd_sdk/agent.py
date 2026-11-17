@@ -273,17 +273,7 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
     class, and a payload class that does not mix in `Grounded` are each a `SpecError`
     (docs/specs/contract.md). No class needs to be known in advance.
     """
-    declared = entry.get("contract_version")
-    if not isinstance(declared, str):
-        raise ContractVersionError(
-            f"agent {entry.get('agent_id')!r} declares no contract version; this harness "
-            f"governs contract {CONTRACT_VERSION}"
-        )
-    if not compatible(declared):
-        raise ContractVersionError(
-            f"agent {entry.get('agent_id')!r} was built against contract {declared}; this "
-            f"harness governs contract {CONTRACT_VERSION}"
-        )
+    declared = _contract_version(entry)
     missing = DESCRIPTION_KEYS - set(entry)
     if missing:
         raise SpecError(f"agent description lacks {sorted(missing)}")
@@ -313,20 +303,7 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
         }
     except (AttributeError, KeyError, TypeError, ValueError) as exc:
         raise SpecError(f"agent {agent_id!r}: malformed derivations: {exc}") from exc
-    # `models` may be absent: a card written before docs/specs/policy-and-identity.md declares no
-    # model.
-    try:
-        models = tuple(
-            ModelUse(
-                str(m["provider"]),
-                str(m["model"]),
-                _hosting(m["hosting"]),
-                _tools(m.get("tools", False)),
-            )
-            for m in entry.get("models", ())
-        )
-    except (KeyError, TypeError, ValueError) as exc:
-        raise SpecError(f"agent {agent_id!r}: malformed models: {exc}") from exc
+    models = _models(agent_id, entry)
     # `serves` may be absent: a card written before docs/specs/orchestration.md serves no
     # requirement.
     serves = entry.get("serves", ())
@@ -363,6 +340,40 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
         title=title,
         settings=settings,
     )
+
+
+def _contract_version(entry: Mapping[str, Any]) -> str:
+    """The contract version `entry` declares, or a `ContractVersionError` if this one cannot
+    govern it."""
+    declared = entry.get("contract_version")
+    if not isinstance(declared, str):
+        raise ContractVersionError(
+            f"agent {entry.get('agent_id')!r} declares no contract version; this harness "
+            f"governs contract {CONTRACT_VERSION}"
+        )
+    if not compatible(declared):
+        raise ContractVersionError(
+            f"agent {entry.get('agent_id')!r} was built against contract {declared}; this "
+            f"harness governs contract {CONTRACT_VERSION}"
+        )
+    return declared
+
+
+def _models(agent_id: str, entry: Mapping[str, Any]) -> tuple[ModelUse, ...]:
+    """The models `entry` declares. They may be absent: a card written before
+    docs/specs/policy-and-identity.md declares no model."""
+    try:
+        return tuple(
+            ModelUse(
+                str(m["provider"]),
+                str(m["model"]),
+                _hosting(m["hosting"]),
+                _tools(m.get("tools", False)),
+            )
+            for m in entry.get("models", ())
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise SpecError(f"agent {agent_id!r}: malformed models: {exc}") from exc
 
 
 def _hosting(value: object) -> Literal["hosted", "local"]:

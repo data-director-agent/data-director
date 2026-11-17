@@ -81,7 +81,7 @@ def conditional_errors(envelope: dict[str, Any]) -> list[str]:
     return errors
 
 
-def grounding_errors(envelope: dict[str, Any]) -> list[str]:  # noqa: C901
+def grounding_errors(envelope: dict[str, Any]) -> list[str]:
     """Self-consistency between grounding_mode, payload and evidence (docs/specs/grounding.md).
 
     Agreement with the trace is the linter's job; these rules hold on the document alone.
@@ -109,39 +109,59 @@ def grounding_errors(envelope: dict[str, Any]) -> list[str]:  # noqa: C901
         if payload is not None and not payload.get("grounded_on"):
             errors.append("grounding_mode=retrieval and succeeded requires non-empty grounded_on")
     elif mode in (GroundingMode.INPUT_ONLY, GroundingMode.NONE, GroundingMode.DELEGATION):
-        cites_input = [
-            ev
-            for ev in evidence
-            if ev.get("canonicalisation") == INPUT_CANONICALISATION
-            and str(ev.get("source_id", "")).startswith("input:")
-        ]
-        if not cites_input:
-            errors.append(
-                f"grounding_mode={mode} and succeeded requires evidence citing the input "
-                f"({INPUT_CANONICALISATION}, source_id input:<invocation_id>)"
+        errors.extend(_input_grounding_errors(envelope, mode, evidence))
+    return errors
+
+
+def _input_grounding_errors(
+    envelope: dict[str, Any], mode: Any, evidence: list[dict[str, Any]]
+) -> list[str]:
+    """The rules for a succeeded envelope whose grounding_mode cites the input: input_only, none
+    or delegation."""
+    errors: list[str] = []
+    cites_input = [
+        ev
+        for ev in evidence
+        if ev.get("canonicalisation") == INPUT_CANONICALISATION
+        and str(ev.get("source_id", "")).startswith("input:")
+    ]
+    if not cites_input:
+        errors.append(
+            f"grounding_mode={mode} and succeeded requires evidence citing the input "
+            f"({INPUT_CANONICALISATION}, source_id input:<invocation_id>)"
+        )
+    if mode == GroundingMode.DELEGATION:
+        errors.extend(_delegation_errors(envelope, evidence, cites_input))
+    elif len(cites_input) != len(evidence):
+        errors.append(f"grounding_mode={mode} permits no evidence other than the input")
+    return errors
+
+
+def _delegation_errors(
+    envelope: dict[str, Any], evidence: list[dict[str, Any]], cites_input: list[dict[str, Any]]
+) -> list[str]:
+    """Each item of evidence under grounding_mode=delegation that is neither the input nor a
+    recorded delegation."""
+    errors: list[str] = []
+    recorded = {
+        (f"invocation:{d.get('delegated_invocation_id')}", d.get("content_hash"))
+        for d in envelope.get("delegations") or []
+    }
+    for ev in evidence:
+        if ev in cites_input:
+            continue
+        if (
+            ev.get("canonicalisation") != ENVELOPE_CANONICALISATION
+            or (
+                ev.get("source_id"),
+                ev.get("content_hash"),
             )
-        if mode == GroundingMode.DELEGATION:
-            recorded = {
-                (f"invocation:{d.get('delegated_invocation_id')}", d.get("content_hash"))
-                for d in envelope.get("delegations") or []
-            }
-            for ev in evidence:
-                if ev in cites_input:
-                    continue
-                if (
-                    ev.get("canonicalisation") != ENVELOPE_CANONICALISATION
-                    or (
-                        ev.get("source_id"),
-                        ev.get("content_hash"),
-                    )
-                    not in recorded
-                ):
-                    errors.append(
-                        f"grounding_mode=delegation: evidence {ev.get('source_id')!r} is neither "
-                        f"the input nor a recorded delegation ({ENVELOPE_CANONICALISATION})"
-                    )
-        elif len(cites_input) != len(evidence):
-            errors.append(f"grounding_mode={mode} permits no evidence other than the input")
+            not in recorded
+        ):
+            errors.append(
+                f"grounding_mode=delegation: evidence {ev.get('source_id')!r} is neither "
+                f"the input nor a recorded delegation ({ENVELOPE_CANONICALISATION})"
+            )
     return errors
 
 

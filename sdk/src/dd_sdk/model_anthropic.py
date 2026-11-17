@@ -18,6 +18,7 @@ the current run's model grant (`dd_sdk.model.current_grant`) as `X-DD-Model-Gran
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
 from dd_sdk import model_account
@@ -138,15 +139,25 @@ _STOPS: dict[str, StopReason] = {
 }
 
 
+@dataclass(frozen=True)
+class ToolLoopOptions:
+    """What an agent with a long tool loop (the orchestrator) asks of Claude: an `effort`
+    (`EFFORTS`), `fallback`, which lets the API route a declined request to another model by
+    the refusal's category, and `cache_system`, which caches the fixed system prompt across
+    calls. The defaults ask for none of them: the request is the plain Messages API call."""
+
+    effort: str | None = None
+    fallback: bool = False
+    cache_system: bool = False
+
+
 class AnthropicModel:
     """Claude, by model id. Give a `client` (tests), an `endpoint`
     (`dd_sdk.credentials.model_endpoint`) or an `api_key`.
 
-    An agent with a long tool loop (the orchestrator) asks for three more things: an `effort`
-    (`EFFORTS`), `fallback`, which lets the API route a declined request to another model by
-    the refusal's category, and `cache_system`, which caches the fixed system prompt across
-    calls. Without them the request is the plain Messages API call. `tool_use` says the agent
-    relies on the model to call tools, which its card declares (`dd_sdk.model.declared`)."""
+    An agent with a long tool loop asks for more through `options` (`ToolLoopOptions`).
+    `tool_use` says the agent relies on the model to call tools, which its card declares
+    (`dd_sdk.model.declared`)."""
 
     provider = PROVIDER
     # Claude is served by Anthropic, or by the gateway the broker forwards to on its behalf.
@@ -159,9 +170,7 @@ class AnthropicModel:
         api_key: str | None = None,
         endpoint: ModelEndpoint | None = None,
         client: anthropic.Anthropic | None = None,
-        effort: str | None = None,
-        fallback: bool = False,
-        cache_system: bool = False,
+        options: ToolLoopOptions | None = None,
         tool_use: bool = False,
     ) -> None:
         if client is None:
@@ -172,9 +181,10 @@ class AnthropicModel:
             client = anthropic_client(endpoint)
         self._client = client
         self.model_id = model_id
-        self.effort = effort
-        self.fallback = fallback
-        self.cache_system = cache_system
+        options = options or ToolLoopOptions()
+        self.effort = options.effort
+        self.fallback = options.fallback
+        self.cache_system = options.cache_system
         self.tool_use = tool_use
 
     def send(self, request: ModelRequest) -> ModelResponse:
