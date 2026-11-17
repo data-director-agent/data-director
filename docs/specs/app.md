@@ -387,13 +387,15 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   `model-account`, `scan`) hold types and API clients, `scan` the browser scanner's client, and
   reading an inventory is `@data-director/inventory`'s (`inventory/browser/`);
   `components/` holds the interface, one folder per feature, with the shared kit in
-  `components/ui/`. Three rules are checked: no file depends on itself through other files
+  `components/ui/`. Four rules are checked: no file depends on itself through other files
   (dependency-cruiser, `.dependency-cruiser.cjs`, in `npm run lint`); the kit imports no feature
-  component; and a domain folder imports no component (eslint-plugin-boundaries, in
-  `eslint.config.js`, with a test in `src/architecture.test.ts` that planted violations are
-  reported, because the plugin does nothing without its TypeScript resolver). Rules between
-  feature folders are not yet set, as several features import each other today;
-  TODO(#497) decide them and add them to the dependency-cruiser config.
+  component; a domain folder imports no component; and a feature folder imports another only
+  through an allow-list, `FEATURE_IMPORTS`, each entry with its reason (eslint-plugin-boundaries,
+  in `eslint.config.js`, with a test in `src/architecture.test.ts` that planted violations are
+  reported, because the plugin does nothing without its TypeScript resolver). The allow-list
+  started as the imports between features in November 2026. Three pairs import each other
+  (`conversation` and `workspace`, `agent` and `capabilities`, `journey` and `project`);
+  TODO(#494) untangle the first two.
 - **Conversations and delegation** are specified in [Orchestration](orchestration.md); the app
   supplies the conductor's callback and the conversation API over it. Which agent is the
   orchestrator is a profile key ([Policy and identity](policy-and-identity.md)). A person's
