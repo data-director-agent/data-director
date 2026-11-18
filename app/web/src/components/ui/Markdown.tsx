@@ -20,6 +20,17 @@ interface MdNode {
 
 const COMMENT = /<!--[\s\S]*?-->/g;
 
+// One pass can splice a new comment together (`<!<!-- x -->--`), so repeat until the text is stable.
+function stripComments(text: string): string {
+  let previous: string;
+  let current = text;
+  do {
+    previous = current;
+    current = previous.replace(COMMENT, "");
+  } while (current !== previous);
+  return current;
+}
+
 function dropComments(node: MdNode): void {
   if (!node.children) return;
   node.children = node.children.flatMap((child) => {
@@ -27,7 +38,7 @@ function dropComments(node: MdNode): void {
       dropComments(child);
       return [child];
     }
-    const rest = (child.value ?? "").replace(COMMENT, "");
+    const rest = stripComments(child.value ?? "");
     return rest.trim() === "" ? [] : [{ ...child, value: rest }];
   });
 }
