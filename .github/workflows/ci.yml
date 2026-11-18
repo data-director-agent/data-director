@@ -190,12 +190,20 @@ jobs:
       - run: uv sync --all-packages --all-extras
       - uses: ./.github/actions/built-sources # zizmor: ignore[self-repository]
 
+  # The suite runs as three jobs side by side, each a third of the test files (--test-shard, the
+  # root conftest.py), because a runner has two cores and the whole suite on one took eight
+  # minutes. Each shard hands its JSON report to the conformance job and its coverage data to the
+  # coverage job, which combine them.
   test:
-    name: pytest
+    name: pytest (${{ matrix.shard }} of 3)
     needs: changes
     if: needs.changes.outputs.python == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     # The database the PostgreSQL storage backend's tests run against
     # (harness/tests/test_postgres.py); without DD_TEST_POSTGRES they are skipped. The password
     # reaches libpq through PGPASSWORD, never the URL, as a deployment's must (docs/specs/storage.md).
@@ -215,6 +223,7 @@ jobs:
     env:
       DD_TEST_POSTGRES: postgresql://postgres@localhost:5432/postgres
       PGPASSWORD: dd-ci
+      SHARD: ${{ matrix.shard }}/3
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -231,25 +240,56 @@ jobs:
           sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
           scripts/retry.sh sudo apt-get install -y -q postgresql-client-17
       # --record-mode=none --block-network come from pyproject addopts: no cassette, no call.
-      # The JSON report is handed to the conformance job, which decides CONFORMANCE.md from it.
-      # Coverage is measured over the same session (pyproject.toml, [tool.coverage]); the report
-      # goes to the job summary, and one XML goes to Codecov, which splits it into a flag per
-      # package (codecov.yml).
-      # pytest-xdist spreads the session over the runner's cores (pyproject addopts); the JSON
-      # report and coverage are merged from the workers into the one session. --durations lists
-      # the slowest tests in the log, to show where the time goes.
+      # pytest-xdist spreads the shard over the runner's cores (pyproject addopts); the JSON
+      # report and coverage are merged from the workers into the one session. Coverage is
+      # measured over the same session (pyproject.toml, [tool.coverage]). --durations lists the
+      # slowest tests in the log, to show where the time goes.
       - run: >-
-          uv run pytest --durations=20
-          --json-report --json-report-file=.report.json --cov --cov-report=
+          uv run pytest --test-shard "$SHARD" --durations=20
+          --json-report --json-report-file=.report-${{ matrix.shard }}.json --cov --cov-report=
       - name: Hand the test report to the conformance job
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: pytest-report
-          path: .report.json
+          name: pytest-report-${{ matrix.shard }}
+          path: .report-${{ matrix.shard }}.json
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 1
+      - name: Hand the coverage data to the coverage job
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-${{ matrix.shard }}
+          path: .coverage
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
+  # Coverage of the whole suite, combined from the shards: a shard alone covers too little to
+  # meet the floor in pyproject.toml ([tool.coverage.report] fail_under). The report goes to the
+  # job summary, and one XML goes to Codecov, which splits it into a flag per package
+  # (codecov.yml).
+  coverage:
+    name: Coverage
+    needs: [changes, test]
+    if: needs.changes.outputs.python == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          cache-dependency-glob: uv.lock
+      # Coverage reads the recorded data and the source, not imports: the development tools are
+      # enough.
+      - run: uv sync --only-dev
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: coverage-*
+          path: shards
+      - run: uv run coverage combine shards/*/.coverage
       - name: Coverage report
         run: |
           {
@@ -269,8 +309,8 @@ jobs:
           fail_ci_if_error: false
 
   # CONFORMANCE.md is decided by the register, the review record, the report script and the outcome
-  # of every requirement-marked test, so this job reads the report that `test` wrote. It runs even
-  # when a test failed, so a stale file is reported beside the failure.
+  # of every requirement-marked test, so this job reads the reports the `test` shards wrote. It
+  # runs even when a test failed, so a stale file is reported beside the failure.
   # It is advisory for now: `ci-passed` does not need it, and a stale file is raised as a warning
   # annotation, so the job stays green and nothing blocks a pull request.
   # TODO(#458): decide how the file is kept current and require it again.
@@ -290,10 +330,11 @@ jobs:
       - run: uv sync --all-packages --all-extras
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: pytest-report
+          pattern: pytest-report-*
+          merge-multiple: true
       - name: Check CONFORMANCE.md (warning only)
         run: |
-          if ! uv run python scripts/conformance_report.py --check --summary "$GITHUB_STEP_SUMMARY"; then
+          if ! uv run python scripts/conformance_report.py --check --report .report-*.json --summary "$GITHUB_STEP_SUMMARY"; then
             echo "::warning title=CONFORMANCE.md is out of date::Run scripts/conformance_report.py after pytest and commit the result (docs/conformance.md)."
           fi
 
@@ -418,8 +459,8 @@ jobs:
           cache: npm
           cache-dependency-path: app/web/package-lock.json
       - run: npm ci
-      # Vitest measures coverage as the pytest job does: the report goes to the job summary, and
-      # lcov to Codecov under the `web` flag.
+      # Vitest measures coverage as the Python suite does (the coverage job): the report goes to
+      # the job summary, and lcov to Codecov under the `web` flag.
       - run: npm test -- --coverage
       - name: Coverage report
         run: |
@@ -707,6 +748,7 @@ jobs:
       - architecture
       - sources
       - test
+      - coverage
       - packages
       - viewer
       - web-checks

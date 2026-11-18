@@ -119,6 +119,26 @@ def load_report(path: Path = REPORT) -> dict[str, Any]:
     return report
 
 
+def merge_reports(reports: list[dict[str, Any]]) -> dict[str, Any]:
+    """One report from the reports of a suite run in parts, as CI's pytest shards run it.
+
+    The tests are every part's tests, the summary's counts are summed, and the run started when
+    its first part did.
+    """
+    if len(reports) == 1:
+        return reports[0]
+    summary: dict[str, int] = {}
+    for report in reports:
+        for key, value in report.get("summary", {}).items():
+            if isinstance(value, int):
+                summary[key] = summary.get(key, 0) + value
+    return {
+        "created": min(report.get("created", 0) for report in reports),
+        "summary": summary,
+        "tests": [test for report in reports for test in report.get("tests", [])],
+    }
+
+
 def tests_by_requirement(report: dict[str, Any]) -> dict[str, list[tuple[str, str]]]:
     """requirement id -> [(nodeid, outcome)], read from the metadata the conftest hook wrote."""
     index: dict[str, list[tuple[str, str]]] = {}
@@ -322,7 +342,12 @@ def run_summary(report: dict[str, Any]) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--report", default=str(REPORT))
+    ap.add_argument(
+        "--report",
+        nargs="+",
+        default=[str(REPORT)],
+        help="pytest-json-report file; several when the suite ran in parts",
+    )
     ap.add_argument("--reviews", default=str(REVIEWS))
     ap.add_argument("--output", default=str(OUTPUT))
     ap.add_argument(
@@ -336,7 +361,7 @@ def main(argv: list[str] | None = None) -> int:
     except RegisterError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
-    report = load_report(Path(ns.report))
+    report = merge_reports([load_report(Path(path)) for path in ns.report])
     text = render(register, report, reviews)
     if ns.summary:
         with Path(ns.summary).open("a", encoding="utf-8") as fh:
