@@ -267,8 +267,11 @@ gateway](../../deploy/llm-gateway/README.md), with a gateway key in place of eac
 Anthropic's calls to its `/v1/messages`, every other provider's to its `/v1/chat/completions`. An
 `openai-compatible` call has no endpoint of the deployment's own, so the deployment pays for one
 only through the gateway, with the key in `DD_MODEL_API_KEY`. The gateway's budgets and spend
-reports then cover the deployment's calls as before. A call on a person's own key never passes through the gateway,
-which would otherwise see the key.
+reports then cover the deployment's calls as before. Through the gateway, the broker tags each call
+with the agent the grant names (`agent:<name>`, in the `x-litellm-tags` header), so the gateway's
+reports show the deployment's spend by agent; the tag never names or identifies the person. A call
+on a person's own key never passes through the gateway, which would otherwise see the key, and is
+not tagged.
 
 **Enrolment.** A signed-in person adds, replaces or removes their account on the Settings page.
 The steps are:

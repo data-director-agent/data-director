@@ -50,7 +50,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
-from dd_broker import anthropic, chat_completions, enrolment
+from dd_broker import anthropic, chat_completions, enrolment, gateway
 from dd_broker.agents import AgentCredentials
 from dd_broker.grants import (
     GrantVerifier,
@@ -254,7 +254,7 @@ def _choose(
     if mapped:
         # Only a grant that may use a person's own account carries a map.
         raise Refused(403, Reason.MODEL_NOT_GRANTED)
-    return _deployment_payment(broker, provider)
+    return _deployment_payment(broker, provider, grant.claims.agent)
 
 
 def _own_target(broker: Broker, grant: VerifiedGrant, own: OwnAccount) -> Target:
@@ -281,15 +281,14 @@ def _own_target(broker: Broker, grant: VerifiedGrant, own: OwnAccount) -> Target
     return Target(url=endpoint)
 
 
-def _deployment_payment(broker: Broker, provider: str) -> _Payment:
-    """A call to `provider` paid for by the deployment's own account."""
+def _deployment_payment(broker: Broker, provider: str, agent: str) -> _Payment:
+    """A call to `provider` made by `agent` and paid for by the deployment's own account."""
     key = broker.deployment_keys.get(provider)
     if not key:
         raise Refused(503, Reason.DEPLOYMENT_ACCOUNT_UNAVAILABLE)
     if broker.deployment_base_url:
-        gateway = broker.deployment_base_url
-        url = gateway if provider == anthropic.PROVIDER else gateway + chat_completions.GATEWAY_PATH
-        return _Payment(Payer.DEPLOYMENT, provider, Target(url=url), key)
+        target = gateway.target(broker.deployment_base_url, provider, agent)
+        return _Payment(Payer.DEPLOYMENT, provider, target, key)
     endpoint = provider_endpoint(provider)
     if endpoint is None:
         # The deployment pays for an OpenAI-compatible endpoint only through its gateway.

@@ -13,6 +13,7 @@ import httpx
 import openai
 import pytest
 from broker_support import (
+    AGENT,
     AGENT_CREDENTIAL,
     GATEWAY,
     PSEUDONYM,
@@ -22,6 +23,7 @@ from broker_support import (
 )
 
 from dd_broker.app import Broker
+from dd_broker.gateway import TAGS_HEADER as GATEWAY_TAGS_HEADER
 from dd_sdk.model_grant import (
     HEADER_ACCOUNT,
     HEADER_GRANT,
@@ -166,6 +168,8 @@ def test_the_deployment_pays_at_the_providers_own_endpoint(
     (sent,) = provider.seen
     assert str(sent.url) == url
     assert sent.headers["authorization"] == f"Bearer {key}"
+    # Only the deployment's own gateway is told which agent called.
+    assert GATEWAY_TAGS_HEADER not in sent.headers
     usage = broker.store.usage(PSEUDONYM)
     assert [(u.payer.value, u.provider, u.model) for u in usage] == [("deployment", name, MODEL)]
     assert (usage[0].input_tokens, usage[0].output_tokens) == (120, 30)
@@ -193,6 +197,7 @@ def test_the_deployments_calls_go_through_the_gateway(
     (sent,) = provider.seen
     assert str(sent.url) == f"{GATEWAY}/v1/chat/completions"
     assert sent.headers["authorization"] == f"Bearer {GATEWAY_KEY}"
+    assert sent.headers[GATEWAY_TAGS_HEADER] == f"agent:{AGENT}"
 
 
 def test_the_deployment_pays_an_openai_compatible_endpoint_only_through_its_gateway(
@@ -240,6 +245,22 @@ def test_an_own_openai_account_pays(
     assert str(sent.url) == "https://api.openai.com/v1/chat/completions"
     assert sent.headers["authorization"] == f"Bearer {OWN_KEY}"
     assert [u.payer.value for u in broker.store.usage(PSEUDONYM)] == ["own"]
+
+
+def test_an_own_account_call_neither_goes_through_the_gateway_nor_names_the_agent(
+    harness: FakeHarness, tmp_path: Path, provider: Provider
+) -> None:
+    broker = broker_with(harness, tmp_path, provider, keys={"openai": GATEWAY_KEY}, gateway=GATEWAY)
+    own(broker)
+    with client(broker) as http:
+        response = http.post(completions(), json=body(), headers=headers(grant(harness)))
+
+    assert response.status_code == 200
+    assert response.headers[HEADER_ACCOUNT] == "own"
+    (sent,) = provider.seen
+    assert str(sent.url) == "https://api.openai.com/v1/chat/completions"
+    assert sent.headers["authorization"] == f"Bearer {OWN_KEY}"
+    assert GATEWAY_TAGS_HEADER not in sent.headers
 
 
 def test_an_own_openai_compatible_account_is_called_at_the_address_that_was_checked(
