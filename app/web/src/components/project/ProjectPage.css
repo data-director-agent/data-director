@@ -73,6 +73,19 @@
     font-size: var(--font-size-small);
   }
 
+  /* Recently deleted conversations (DeletedConversations.tsx): each with when, and Restore. */
+  .deleted-conversations {
+    margin-top: var(--space-4);
+  }
+
+  .deleted-conversation {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-1);
+    padding: var(--space-2);
+  }
+
   @media (width <= 48rem) {
     .document-browser-side {
       position: static;

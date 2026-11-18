@@ -93,6 +93,9 @@ function fakeConversations(
     create: () => Promise.reject(new Error("nothing started in these tests")),
     list,
     get: () => Promise.reject(new Error("nothing opened in these tests")),
+    remove: () => Promise.reject(new Error("nothing deleted in these tests")),
+    restore: () => Promise.resolve(),
+    deleted: () => Promise.resolve([]),
   };
 }
 
