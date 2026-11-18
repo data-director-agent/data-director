@@ -259,37 +259,51 @@ Several personas need the same source, and some procedures (reading a machine-ac
 choosing a licence) are the same whichever agent follows them. A source is shared as an MCP
 server, and a procedure as an Agent Skill. Both are framework-neutral resources
 ([System and boundaries](system.md)), and a persona consumes them under the harness's
-governance as follows. Skills are loaded by `dd_sdk.skills`; the gateway is not built yet,
-TODO(#875).
+governance as follows. Skills are loaded by `dd_sdk.skills`; MCP servers are reached through the
+harness's tool gateway (`dd_harness.gateway`), which an agent calls through `ctx.tools`
+(`dd_sdk.tools`).
 
-Until the gateway exists, `advisor.policy` offers its model read-only tools that reach
+Two advisors predate the gateway. `advisor.policy` offers its model read-only tools that reach
 FAIRsharing, Jisc Open Policy Finder and Crossref from the agent itself, and `advisor.standards`
 one that searches FAIRsharing's standards. Each follows items 5 to 7
 below: its shell makes the first retrieval; the tools are limited per run
 (`DD_POLICY_MAX_LOOKUPS`, `DD_STANDARDS_MAX_LOOKUPS`); each record a tool returns is retrieved by the agent, with its
 `retrieval` span, before it may be cited; tool results reach the model as numbered, untrusted
-records in the user turn; and the model cites records only by those numbers. Its tools move
-onto the gateway when it is built. TODO(#875)
+records in the user turn; and the model cites records only by those numbers. Their tools move
+behind the gateway, TODO(#1143).
 
 **MCP servers for sources.**
 
-1. The deployment lists the MCP servers it runs, as it lists agents: names and addresses. Each
-   entry also names the source the server serves: which field identifies a record, the
-   registered canonicalisation its records are hashed under, and the pinned copy, if there is
-   one ([Evidence and grounding](grounding.md)). A server is `local` or `remote`, classified as
-   a model is ([Policy and identity](policy-and-identity.md)).
-2. The deployment pins each server's tool definitions by digest. A server whose tool list has
-   changed is unavailable until an operator pins the new list, so a changed tool description
-   cannot reach a prompt unreviewed.
+1. The deployment lists the MCP servers it runs, as it lists agents, in the file
+   `DD_TOOLS_CONFIG` names (`dd_harness.gateway.config`): each server's name and address, and
+   the source it serves: which field identifies a record, the registered canonicalisation its
+   records are hashed under, and the pinned copy, if there is one
+   ([Evidence and grounding](grounding.md)). A server is `local` or `remote`, worked out from its
+   address as a model's endpoint is ([Policy and identity](policy-and-identity.md)). Without the
+   file there is no gateway, and no agent is sent a tools grant.
+2. The deployment pins each server's tool definitions by digest (`tools_sha256`, the
+   `dd-mcp-tools-v1` digest of each tool's name, description, input schema and output schema).
+   At start-up the harness lists each server's tools; a server whose list has changed, or that
+   cannot be reached, is unavailable until an operator reviews the new list and pins it
+   (`dd-harness tools pins`), so a changed tool description cannot reach a prompt unreviewed.
 3. A persona reaches a server only through the harness's **tool gateway**, under its
    invocation's grant, as an orchestrator reaches its children. It never connects to a server
-   itself. Its card declares the servers and tools it uses, and the profile grants servers per
-   agent. The gateway refuses a call to a server the card does not declare or the profile does
-   not grant.
+   itself. Its card declares the servers and tools it uses (`AgentSpec.tools`), and the profile
+   grants servers per agent (`tool_servers`). The conductor sends a grant only for servers both
+   name that are available: the gateway's address and a token, in the A2A metadata
+   (`dd.tools_url`, `dd.tools_token`), which `dd_sdk.serve` binds to `ctx.tools`. The gateway is
+   one MCP endpoint at `/mcp` beside the delegation callback, speaking the stateless revision of
+   the streamable HTTP transport, and lists each tool as `<server>.<tool>`. It refuses a call to
+   a tool the grant does not cover, and a token whose invocation has ended.
 4. The conductor records each record a tool returns, so a retrieval through the gateway is the
-   harness's observation, not the agent's account ([Evidence and grounding](grounding.md)).
-5. Only a structured result grounds anything: records in the tool's declared output schema, each
-   with its identifier. Free text from a tool is never evidence.
+   harness's observation, not the agent's account ([Evidence and grounding](grounding.md)). The
+   envelope lists them in `tool_retrievals` ([Contract](contract.md), invariant 26), each call is
+   an `execute_tool` span under the invocation's root, and the gateway tells the agent what it
+   recorded in the result's `_meta`, so the agent cites exactly that (`dd_sdk.tools.ToolRecord`).
+5. Only a structured result grounds anything: `structuredContent` that the tool's pinned output
+   schema admits, either one record or a list of them under `records`, each with its identifier.
+   A record's source id is `tool:<server>/<record id>`. Free text from a tool is never
+   evidence.
 6. The deterministic shell makes the first retrieval, so the model is never called before a
    retrieval has ended (G1). It may then offer the model the granted, read-only tools as
    `dd_sdk.model.ToolSpec`s for follow-up lookups, with a limit per turn. Those calls also pass
@@ -336,8 +350,8 @@ rows of `licences.yaml`. It moves from `input_only` to `retrieval`. A local
 MCP server serves a pinned SPDX licence-list release, whose records are hashed under a
 canonicalisation registered for them. The shell builds the closed set of candidate licences
 from the input and retrieves each candidate through the gateway. The model then chooses from
-that set with a `licence-choice` Skill loaded, and the payload cites `spdx:<id>` records the
-conductor recorded. The source check re-hashes each against the deployment's pinned copy.
+that set with a `licence-choice` Skill loaded, and the payload cites `tool:spdx/<id>` records the
+conductor recorded.
 
 ## Rationale
 

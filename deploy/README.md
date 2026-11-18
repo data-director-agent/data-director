@@ -52,7 +52,7 @@ on loopback alone and is reached through an SSH tunnel.
 | `backup.env.example` | `backup.sh`'s settings: where backups go and how many days they are kept. |
 | `systemd/data-director-backup.{service,timer}` | Runs `backup.sh`, as root, every night. |
 | `wait-for-ports.sh` | Holds the app back until the agents answer, since it reads their cards once at start-up. |
-| `nginx/data-director.conf` | The reverse proxy: HTTPS only, long timeouts for runs, `/a2a` and `/server-status` closed from outside; the app on 443, the workbench on 8443. |
+| `nginx/data-director.conf` | The reverse proxy: HTTPS only, long timeouts for runs, `/a2a`, `/mcp` and `/server-status` closed from outside; the app on 443, the workbench on 8443. |
 
 Every agent, the standards advisor included, is a service of its own; the app runs none in its
 process ([The app](../docs/specs/app.md)).

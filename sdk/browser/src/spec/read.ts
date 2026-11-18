@@ -6,7 +6,7 @@
 
 import { isRecord } from "../card/read";
 import type { JsonSchema } from "../schema/shape";
-import type { DerivationHow, GroundingMode, RawAgentSpec, RawModelUse, RawSkillUse } from "./types";
+import type { DerivationHow, GroundingMode, RawAgentSpec, RawModelUse, RawSkillUse, RawToolUse } from "./types";
 
 export interface Derivation {
   path: string;
@@ -41,6 +41,8 @@ export interface AgentSpec {
   serves: string[];
   /** The Agent Skills it may load into its system prompt, each pinned by version and digest. Empty: none. */
   skills: RawSkillUse[];
+  /** The MCP servers and tools it calls through the harness's tool gateway. Empty: none. */
+  tools: RawToolUse[];
 }
 
 /** What to call the agent in prose: its persona title, or its id when it has none. */
@@ -80,6 +82,7 @@ export function specFromRaw(raw: RawAgentSpec): AgentSpec {
     modelsDeclared: raw.models !== undefined,
     serves: [...(raw.serves ?? [])],
     skills: (raw.skills ?? []).map((s) => ({ ...s })),
+    tools: (raw.tools ?? []).map((t) => ({ server: t.server, tools: [...t.tools] })),
   };
 }
 
@@ -111,7 +114,17 @@ export function readAgentSpec(value: unknown): AgentSpec | null {
     title: typeof value.title === "string" ? value.title : "",
     icon: typeof value.icon === "string" ? value.icon : "",
     ...(Array.isArray(value.skills) ? { skills: value.skills.filter(isSkillUse) } : {}),
+    ...(Array.isArray(value.tools) ? { tools: value.tools.filter(isToolUse) } : {}),
   });
+}
+
+function isToolUse(value: unknown): value is RawToolUse {
+  return (
+    isRecord(value) &&
+    typeof value.server === "string" &&
+    Array.isArray(value.tools) &&
+    value.tools.every((t) => typeof t === "string")
+  );
 }
 
 function isSkillUse(value: unknown): value is RawSkillUse {

@@ -30,6 +30,12 @@ export interface RawSkillUse {
   sha256: string;
 }
 
+/** The tools of one MCP server the agent calls through the harness's tool gateway (docs/specs/agents.md). */
+export interface RawToolUse {
+  server: string;
+  tools: string[];
+}
+
 export interface RawSchemaEntry {
   digest: string;
   json_schema: unknown;
@@ -63,6 +69,8 @@ export interface RawAgentSpec {
   settings?: Record<string, RawSetting>;
   /** The Agent Skills it may load (docs/specs/agents.md). Absent on an older card, which loads none. */
   skills?: RawSkillUse[];
+  /** The MCP servers and tools it calls through the tool gateway (docs/specs/agents.md). Absent on an older card, which calls none. */
+  tools?: RawToolUse[];
 }
 
 export interface RawSetting {

@@ -28,6 +28,7 @@ agents:
   fake.none: advise
   fake.delegation: advise
   fake.inner: advise
+  fake.tools: advise
 
 actions_requiring_approval:
   - deposit

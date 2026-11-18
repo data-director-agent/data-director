@@ -33,6 +33,29 @@ These are policy, not secrets, and are safe to review and to keep under version 
 | `app/config/agents.yaml` | Where each agent is, by URL. | `DD_AGENTS_CONFIG` |
 | `app/config/sources.yaml` | The pinned source copies the source check resolves evidence against. | `DD_SOURCES_CONFIG` |
 
+A fourth file is optional: the MCP servers the harness's tool gateway calls, named by
+`DD_TOOLS_CONFIG` ([Agents](../../specs/agents.md#tools-mcp-servers-and-agent-skills)). Without it
+there is no gateway, and no agent calls a tool. Each server is listed with the source it serves
+and the digest of its tools, which the harness checks at start-up:
+
+```yaml
+servers:
+  - name: spdx                              # what cards and the profile's tool_servers call it
+    url: http://127.0.0.1:8300/mcp          # its streamable HTTP endpoint
+    id_field: licenseId                     # the field that identifies a record
+    canonicalisation: dd-json-document-v1   # registered in dd_sdk.evidence
+    snapshot_ref: spdx:3.27                 # optional: the pinned copy it serves
+    tools_sha256: "<64 hexadecimal digits>" # from `dd-harness tools pins`, quoted
+```
+
+The harness needs its `gateway` extra (`data-director-harness[gateway]`) for this file, and an
+agent that calls tools needs the SDK's `tools` extra. A server whose tools have changed is
+unavailable until you review them and pin the new digest: `dd-harness tools pins` prints each
+server's current digest and exits 1 if any differs. A server on a host name or a public address
+is `remote`, and the profile's `remote_tool_content` decides which project content may go to an
+agent that calls it. The gateway is served at `/mcp` beside the delegation callback; like `/a2a`,
+it is for agents on loopback, and NGINX closes it to everyone else.
+
 How long an owner may restore a project they deleted is `DD_PROJECT_RESTORE_DAYS`, in the app's
 environment: whole days, 30 if unset, and 0 to make deletion final to the app. Deleting a project
 never removes its record ([Projects](../../specs/projects.md), invariant 25).

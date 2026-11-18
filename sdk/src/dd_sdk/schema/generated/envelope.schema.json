@@ -792,6 +792,16 @@
                   "array",
                   "null"
                ]
+            },
+            "tool_retrievals": {
+               "description": "The records tools returned through the harness's tool gateway during this invocation, in the order the gateway returned them; filled only by the conductor.",
+               "items": {
+                  "$ref": "#/$defs/ToolRetrieval"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
             }
          },
          "required": [
@@ -2965,6 +2975,45 @@
          "title": "Telemetry",
          "type": "object"
       },
+      "ToolRetrieval": {
+         "additionalProperties": false,
+         "description": "One record a tool returned through the harness's tool gateway during the invocation (docs/specs/agents.md, docs/specs/grounding.md invariant 15). Recorded by the conductor from the tool's structured result, never reported by the agent. source_id is tool:<server>/<record id>, and content_hash is the record's hash under the canonicalisation the deployment names for the server, which is what a payload citing the record cites.",
+         "properties": {
+            "tool_server": {
+               "description": "The name the deployment's list of MCP servers gives the server.",
+               "type": "string"
+            },
+            "tool_name": {
+               "description": "The tool on that server that returned the record.",
+               "type": "string"
+            },
+            "source_id": {
+               "pattern": "^tool:[^/]+/.+$",
+               "type": "string"
+            },
+            "canonicalisation": {
+               "type": "string"
+            },
+            "content_hash": {
+               "pattern": "^[0-9a-f]{64}$",
+               "type": "string"
+            },
+            "retrieved_at": {
+               "format": "date-time",
+               "type": "string"
+            }
+         },
+         "required": [
+            "tool_server",
+            "tool_name",
+            "source_id",
+            "canonicalisation",
+            "content_hash",
+            "retrieved_at"
+         ],
+         "title": "ToolRetrieval",
+         "type": "object"
+      },
       "TurnRole": {
          "description": "Who spoke in a conversation turn.",
          "enum": [
@@ -3120,6 +3169,16 @@
             "array",
             "null"
          ]
+      },
+      "tool_retrievals": {
+         "description": "The records tools returned through the harness's tool gateway during this invocation, in the order the gateway returned them; filled only by the conductor.",
+         "items": {
+            "$ref": "#/$defs/ToolRetrieval"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
       }
    },
    "required": [
@@ -3138,5 +3197,5 @@
    ],
    "title": "data_director_core",
    "type": "object",
-   "version": "0.13.0"
+   "version": "0.14.0"
 }

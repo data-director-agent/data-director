@@ -12,7 +12,7 @@ description: >-
   schema_class (docs/specs/contract.md); every payload mixes in Grounded so the grounding linter can check it
   without knowing its class (docs/specs/grounding.md). Formats here are fixed; see docs/specs/ for why.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.13.0
+version: 0.14.0
 license: MIT
 
 prefixes:
@@ -81,6 +81,7 @@ classes:
       - project_id
       - parent_invocation_id
       - delegations
+      - tool_retrievals
 
   Delegation:
     description: >-
@@ -94,6 +95,26 @@ classes:
       - delegated_agent_version
       - delegated_status
       - content_hash
+
+  ToolRetrieval:
+    description: >-
+      One record a tool returned through the harness's tool gateway during the invocation
+      (docs/specs/agents.md, docs/specs/grounding.md invariant 15). Recorded by the conductor from the tool's
+      structured result, never reported by the agent. source_id is tool:<server>/<record id>, and
+      content_hash is the record's hash under the canonicalisation the deployment names for the
+      server, which is what a payload citing the record cites.
+    slots:
+      - tool_server
+      - tool_name
+      - source_id
+      - canonicalisation
+      - content_hash
+      - retrieved_at
+    slot_usage:
+      source_id:
+        pattern: "^tool:[^/]+/.+$"
+      retrieved_at:
+        required: true
 
   Principal:
     class_uri: prov:Agent
@@ -957,6 +978,19 @@ slots:
     required: true
   delegated_status:
     range: OutcomeStatus
+    required: true
+  tool_retrievals:
+    description: >-
+      The records tools returned through the harness's tool gateway during this invocation, in
+      the order the gateway returned them; filled only by the conductor.
+    range: ToolRetrieval
+    multivalued: true
+    inlined_as_list: true
+  tool_server:
+    description: The name the deployment's list of MCP servers gives the server.
+    required: true
+  tool_name:
+    description: The tool on that server that returned the record.
     required: true
 
   status:

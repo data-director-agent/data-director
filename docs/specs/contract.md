@@ -161,6 +161,14 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
     `project_decisions`, the facts a person decided, which only the conductor fills in a project
     ([Projects](projects.md), invariants 6 and 28; `sdk/tests/test_contract.py`). Adding them
     raised the contract version to 0.13.0.
+26. An `Envelope` may carry `tool_retrievals`, one `ToolRetrieval` for each record a tool
+    returned through the harness's tool gateway during the run: the server and tool, the
+    record's source id (`tool:<server>/<record id>`), and its content hash under the
+    canonicalisation the deployment names for the server, with when the gateway returned it.
+    Only the conductor fills it, as it fills `delegations`, and evidence naming a `tool:` source
+    must be one of these records (`dd_sdk.contract.validate`; [Agents](agents.md), Tools;
+    [Evidence and grounding](grounding.md), invariant 15). Adding it raised the contract version
+    to 0.14.0.
 
 ## Boundaries and contracts
 
