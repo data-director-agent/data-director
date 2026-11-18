@@ -16,7 +16,7 @@ from ddtool.common import (
     compare_profile,
 )
 from ddtool.deployment import Place, plan
-from ddtool.model_access import secret_name, vm_model_access
+from ddtool.model_access import file_label, vm_model_access
 from ddtool.vm import agent_unit, loaded_secrets, read_settings, systemctl_show, wanted_agents
 from ddtool.vm_report import Checks
 
@@ -80,17 +80,17 @@ class SettingsChecks(Checks):
         if not uses_model:
             return None
         # The secret's name gives the variable the agent reads it from (deploy/credentials.sh).
-        secret = secret_name(PROVIDER_KEYS.get(provider, PROVIDER_KEYS["anthropic"]))
+        label = file_label(PROVIDER_KEYS.get(provider, PROVIDER_KEYS["anthropic"]))
         access = vm_model_access(self.system, self.vm, name)
         if access.brokered:
             return access.broker_problem(name, self.tool)
         if (
             # A local OpenAI-compatible endpoint may need no key; the agent says at start-up.
             provider != "openai-compatible"
-            and secret not in loaded_secrets(self.system, self.vm, name)
+            and label not in loaded_secrets(self.system, self.vm, name)
             and not any(own.get(var) for var in KEY_VARS)
         ):
-            return f"{name} calls a model but has no key", f"{self.tool} secret set {name} {secret}"
+            return f"{name} calls a model but has no key", f"{self.tool} secret set {name} {label}"
         return None
 
     def settings(self, release: Path | None) -> None:

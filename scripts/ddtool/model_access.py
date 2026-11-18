@@ -11,14 +11,14 @@ from ddtool.common import PROVIDER_KEYS
 from ddtool.vm import System, Vm, loaded_secrets, read_settings
 
 BROKER_URL = "DD_MODEL_BROKER_URL"
-BROKER_SECRET = "dd-model-broker-credential"
+BROKER_FILE = "dd-model-broker-credential"
 BROKER_CREDENTIAL = "DD_MODEL_BROKER_CREDENTIAL"
 BROKER_SCRIPT = "sudo deploy/broker-credentials.sh"
 
 
-def secret_name(variable: str) -> str:
-    """The secret whose file deploy/credentials.sh names in `variable`'s `_FILE` form
-    (ANTHROPIC_API_KEY -> anthropic-api-key)."""
+def file_label(variable: str) -> str:
+    """The name under credentials/<agent>/ that deploy/credentials.sh gives `variable` in its
+    `_FILE` form (ANTHROPIC_API_KEY -> anthropic-api-key). It names a file, never holds a value."""
     return variable.lower().replace("_", "-")
 
 
@@ -26,12 +26,12 @@ def secret_name(variable: str) -> str:
 class ModelAccess:
     """What an agent's settings and secrets give it: `brokered` if it calls through the broker,
     `credential` if its broker credential is in place, `key` if its provider's key is, and
-    `secret`, the name of the secret that key is given as."""
+    `provider_file`, the file name that key is given under."""
 
     brokered: bool
     credential: bool
     key: bool
-    secret: str
+    provider_file: str
 
     def broker_problem(self, name: str, tool: str) -> tuple[str, str] | None:
         """Why an agent that calls through the broker stops at start-up, and the fix; None if it
@@ -42,24 +42,24 @@ class ModelAccess:
             return (
                 f"{name} calls through the model broker ({BROKER_URL}) but also holds a provider "
                 "key, so it stops at start-up",
-                f"{tool} secret remove {name} {self.secret}",
+                f"{tool} secret remove {name} {self.provider_file}",
             )
         if not self.credential:
             return (
                 f"{name} calls through the model broker ({BROKER_URL}) but has no broker "
-                f"credential ({BROKER_SECRET})",
+                f"credential ({BROKER_FILE})",
                 f"{BROKER_SCRIPT} <every agent that calls through the broker>",
             )
         return None
 
 
-def _stored(system: System, vm: Vm, name: str, secret: str) -> bool:
-    """Whether agent `name` has `secret`: its file, which only root can see, or else the line in
+def _stored(system: System, vm: Vm, name: str, label: str) -> bool:
+    """Whether agent `name` has the file `label`: its file, which only root can see, or else the line in
     its credentials drop-in that loads it."""
     if system.is_root():
-        stored = vm.credentials / name / secret
+        stored = vm.credentials / name / label
         return stored.is_file() and stored.stat().st_size > 0
-    return secret in loaded_secrets(system, vm, name)
+    return label in loaded_secrets(system, vm, name)
 
 
 def vm_model_access(system: System, vm: Vm, name: str) -> ModelAccess:
@@ -70,13 +70,11 @@ def vm_model_access(system: System, vm: Vm, name: str) -> ModelAccess:
     )
     provider = env.get("DD_MODEL_PROVIDER") or "anthropic"
     variable = PROVIDER_KEYS.get(provider, PROVIDER_KEYS["anthropic"])
-    secret = secret_name(variable)
-    key = bool(
-        env.get(variable) or env.get(f"{variable}_FILE") or _stored(system, vm, name, secret)
-    )
+    label = file_label(variable)
+    key = bool(env.get(variable) or env.get(f"{variable}_FILE") or _stored(system, vm, name, label))
     credential = bool(
         env.get(BROKER_CREDENTIAL)
         or env.get(f"{BROKER_CREDENTIAL}_FILE")
-        or _stored(system, vm, name, BROKER_SECRET)
+        or _stored(system, vm, name, BROKER_FILE)
     )
-    return ModelAccess(bool((env.get(BROKER_URL) or "").strip()), credential, key, secret)
+    return ModelAccess(bool((env.get(BROKER_URL) or "").strip()), credential, key, label)

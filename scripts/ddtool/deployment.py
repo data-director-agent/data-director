@@ -310,7 +310,7 @@ def key_refusal(system: System, place: Place, vm: Vm | None, agent: Agent) -> st
         return None if problem is None else f"{problem[0]}; first: {problem[1]}"
     if access.key:
         return None
-    fix = f"{TOOL} secret set {agent.name} {access.secret}"
+    fix = f"{TOOL} secret set {agent.name} {access.provider_file}"
     if agent.name in MODEL_BACKED:
         return f"{agent.name} calls a model and has no key; first: {fix}"
     return (
