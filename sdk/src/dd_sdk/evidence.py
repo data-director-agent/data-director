@@ -7,7 +7,7 @@ can recompute the hash from the envelope alone (`verify`). The names are registe
 here; an unknown name is a programmer error, and `contract.validate` rejects an envelope that
 cites one.
 
-Four canonicalisations exist:
+Five canonicalisations exist:
 
 - `json-sorted-utf8-v1` — the FAIRsharing record projection the standards advisor uses. Name and
 bytes are unchanged from v0 so hashes in stored runs still verify.
@@ -18,6 +18,8 @@ bytes are unchanged from v0 so hashes in stored runs still verify.
 - `dd-envelope-json-v1` — a whole child envelope, as the conductor stored it in
   `runs/<invocation_id>/envelope.json`. What a `delegation` agent cites for a reply it relays
   (docs/specs/orchestration.md).
+- `dd-spdx-licence-v1` — an SPDX licence record projected to its identity and standing, without
+  the licence text. What the rights adviser cites for a licence the tool gateway returned.
 
 Adding a field to a projection changes every hash it produces; do it deliberately and register
 a new name rather than editing an existing one.
@@ -103,6 +105,33 @@ DOCUMENT_CANONICALISATION = "dd-json-document-v1"
 ENVELOPE_CANONICALISATION = "dd-envelope-json-v1"
 
 
+# --- dd-spdx-licence-v1: an SPDX licence record ----------------------------------------------
+
+SPDX_LICENCE_CANONICALISATION = "dd-spdx-licence-v1"
+
+# What a licence choice rests on: the identifier, the name and the standing flags. The licence
+# text and the cross-reference list are left out, so the hash does not move with a reflow.
+SPDX_LICENCE_FIELDS = (
+    "licenseId",
+    "name",
+    "isOsiApproved",
+    "isFsfLibre",
+    "isDeprecatedLicenseId",
+    "seeAlso",
+)
+
+
+def _spdx_licence_projection(record: dict[str, Any]) -> dict[str, Any]:
+    """Project to SPDX_LICENCE_FIELDS, null when absent; `seeAlso` URLs are sorted."""
+    projection: dict[str, Any] = {}
+    for key in SPDX_LICENCE_FIELDS:
+        value = record.get(key)
+        if isinstance(value, list):
+            value = sorted(str(v) for v in value)
+        projection[key] = value
+    return projection
+
+
 def _dumps(value: Any) -> bytes:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode(
         "utf-8"
@@ -131,6 +160,11 @@ CANONICALISATIONS: dict[str, Canonicalisation] = {
             ENVELOPE_CANONICALISATION,
             "A whole envelope document as stored; lists in document order.",
             _whole,
+        ),
+        Canonicalisation(
+            SPDX_LICENCE_CANONICALISATION,
+            "SPDX licence record projected to SPDX_LICENCE_FIELDS; seeAlso sorted.",
+            _spdx_licence_projection,
         ),
     )
 }

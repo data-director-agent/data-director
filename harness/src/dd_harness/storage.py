@@ -21,6 +21,7 @@ from typing import Any, Protocol
 
 from dd_harness.conversation_storage import ProjectConversations as ProjectConversations
 from dd_harness.fact_storage import ProjectFacts as ProjectFacts
+from dd_harness.holding_storage import ProjectHoldings as ProjectHoldings
 from dd_harness.listing import Page, Readable
 from dd_harness.progress import ENTRY_BY_RESEARCHER, EntrySource
 from dd_harness.project_decision import Decision
@@ -211,46 +212,6 @@ class ProjectLifecycle(ProjectRecord, Protocol):
 
     def summary(self, project_id: str) -> dict[str, Any]:
         """What a list of projects shows of one."""
-        ...
-
-
-class ProjectHoldings(ProjectRecord, Protocol):
-    """A project's file inventory and supporting documentation (`dd_harness.projects.holdings`)."""
-
-    def add_inventory(
-        self,
-        project_id: str,
-        inventory: Mapping[str, Any],
-        *,
-        acted_for: Principal,
-        caused_by: str,
-    ) -> str:
-        """Add a `FileInventory`; returns its digest."""
-        ...
-
-    def inventory(self, project_id: str) -> dict[str, Any] | None:
-        """The inventory added last, or None."""
-        ...
-
-    def add_documentation(
-        self,
-        project_id: str,
-        name: str,
-        media_type: str,
-        text: str,
-        *,
-        acted_for: Principal,
-        caused_by: str,
-    ) -> str:
-        """Add a supporting document's text; returns the SHA-256 of its UTF-8 text."""
-        ...
-
-    def documentation(self, project_id: str) -> list[dict[str, Any]]:
-        """Each document the project holds, without its text, as a `DocumentationSummary`."""
-        ...
-
-    def documentation_text(self, project_id: str, digest: str) -> str | None:
-        """The text of the project's document with this digest, or None."""
         ...
 
 

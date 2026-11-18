@@ -324,7 +324,7 @@ def test_a_cancelled_turn_still_comes_before_the_next(delegating: tuple[Governan
     user, _agent = shown["history"]
     assert user["turn_text"] == "hello world"
     assert len(top_level_turns()) == 2  # the resend never ran
-    assert governance._turn_locks == {}  # nothing kept for a conversation with no turn running
+    assert governance.turn_locks.try_hold(conversation_id) is not None  # the lock was released
 
 
 @pytest.mark.parametrize(

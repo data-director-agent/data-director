@@ -12,20 +12,21 @@
 #   store-<name>.tar.gz  each store kept in a directory (runs, projects, workbench-runs)
 #   db-<name>.pgdump     each database a store names, by pg_dump's custom format
 #   broker.sqlite3       the model broker's store, people's sealed keys and token counts, if any
+#   gateway.pgdump       the LiteLLM gateway's database, its keys, budgets and spend, if it runs
 #   MANIFEST             what was backed up, from where, and the release that ran
 #   SHA256SUMS           a checksum of each file, which restore.sh checks first
 #
 # A store in a directory is copied while the app and the workbench are stopped, since the file
 # backends append to their logs as they run; they are started again straight after. A database is
 # dumped as it runs, and so is the model broker's store, by SQLite's online backup, so the broker
-# keeps running. The directory appears under its final name only once complete, and backups
+# keeps running; so is the LiteLLM gateway's database, inside its own container. The directory appears under its final name only once complete, and backups
 # older than DD_BACKUP_KEEP_DAYS are deleted, the newest always kept.
 #
 # Settings, from /etc/data-director/backup.env: DD_BACKUP_DIR (/var/backups/data-director) and
 # DD_BACKUP_KEEP_DAYS (30). DD_ETC, DD_STATE, DD_BROKER_STATE, DD_ROOT, DD_UNIT_DIR and
 # DD_SYSTEMCTL replace /etc/data-director, /var/lib/data-director,
 # /var/lib/data-director-model-broker, /opt/data-director, /etc/systemd/system and systemctl, for
-# its tests.
+# its tests, as DD_DOCKER and DD_GATEWAY_PROJECT do for the gateway (deploy/gateway-store.sh).
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -37,6 +38,8 @@ UNIT_DIR="${DD_UNIT_DIR:-/etc/systemd/system}"
 SYSTEMCTL="${DD_SYSTEMCTL:-systemctl}"
 # shellcheck source=deploy/stores.sh
 source "$HERE/stores.sh"
+# shellcheck source=deploy/gateway-store.sh
+source "$HERE/gateway-store.sh"
 
 die() { echo "backup.sh: $*" >&2; exit 1; }
 
@@ -152,6 +155,8 @@ for name in "${databases[@]}"; do
     echo "schema $name $version" >>"$manifest"
   fi
 done
+
+gateway_backup "$work" "$manifest"
 
 # The model broker's store (docs/guide/operations/model-broker.md), which exists once the broker has
 # run. SQLite's online backup copies what the broker has committed, its write-ahead log included,

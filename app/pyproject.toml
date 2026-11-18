@@ -15,6 +15,7 @@ dependencies = [
   # Describing a folder on a local install (dd_app.folder_scan).
   "data-director-inventory>=0.1.0a4",
   "data-director-sdk>=0.2.0a0",
+  "detect-secrets==1.5.0",
   "httpx>=0.28",
   "joserfc>=1.0",
   "pydantic>=2.14.1,<3",

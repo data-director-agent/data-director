@@ -7,7 +7,7 @@
 
 services:
   litellm:
-    image: ghcr.io/berriai/litellm:v1.109.0   # pinned; read release notes before bumping
+    image: ghcr.io/berriai/litellm:1.110.0@sha256:4295b064b22eb88f9530e616afc812edd47048891ba64896bfc3fa74e2b883c3   # read release notes before bumping
     # By hand, the settings and secrets are in .env. On a VM, data-director-llm-gateway.service
     # passes them in its environment instead, from root's files (deploy/README.md), so .env is
     # optional and the ones the gateway needs are named here.
@@ -46,7 +46,7 @@ services:
     restart: unless-stopped
 
   db:
-    image: postgres:16
+    image: postgres:16.16@sha256:dd2bf3ce2dc83a81674cf7f217fcfd8a5009a4b325dda5b843bfee82a06cff6f
     environment:
       POSTGRES_USER: litellm
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
@@ -61,7 +61,7 @@ services:
     restart: unless-stopped
 
   prometheus:
-    image: prom/prometheus:v3.5.0
+    image: prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06
     profiles: ["monitoring"]
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
@@ -73,7 +73,7 @@ services:
     restart: unless-stopped
 
   grafana:
-    image: grafana/grafana:12.1.0
+    image: grafana/grafana:13.3.1@sha256:0615ec4fbd4072004b7d86b46ded63013a74b7d6eb1119273dd89e8fa25c13cf
     profiles: ["monitoring"]
     ports:
       - "127.0.0.1:3000:3000"

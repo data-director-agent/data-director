@@ -80,12 +80,17 @@ from dd_harness.storage import (
     ProjectRepository,
     ProjectResearchers,
 )
+from dd_sdk.agent import AgentSpec
 from dd_sdk.contract.models import DocumentKind
 
 # The core input classes whose slots the conductor fills from a project.
 DRAFT_REQUEST = "DraftRequest"
 FILE_INVENTORY = "FileInventory"
 MESSAGE = "Message"
+CORE_CLASSES = frozenset({DRAFT_REQUEST, FILE_INVENTORY, MESSAGE})
+# The core slots an agent's own input class may mix in, which the conductor fills by name
+# (`GivenProjectDocuments`, `GivenProjectDecisions`) without the harness naming the class.
+AGENT_INPUT_SLOTS = ("project_documents", "project_decisions")
 # A `Message`'s slots that only the conductor fills.
 MESSAGE_PROJECT_SLOTS = (
     "project_inventory",
@@ -124,13 +129,35 @@ class FactSource(
 
 
 DOCUMENTATION_SLOTS = ("metadata_record", "current_version", "draft_answers", "project_documents")
+# Which slot of a filled input holds which class of project content, by input class.
+CONTENT_SLOTS: dict[str, tuple[tuple[str, str], ...]] = {
+    MESSAGE: (
+        ("project_inventory", INVENTORY),
+        ("project_researchers", RESEARCHER),
+        ("project_decisions", DECISIONS),
+    ),
+    DRAFT_REQUEST: (
+        ("inventory", INVENTORY),
+        *((slot, DOCUMENTATION) for slot in DOCUMENTATION_SLOTS),
+        ("researchers", RESEARCHER),
+        ("project_decisions", DECISIONS),
+    ),
+}
+AGENT_CONTENT_SLOTS = (("project_documents", DOCUMENTATION), ("project_decisions", DECISIONS))
 
 
 def give(
-    store: FactSource | None, project_id: str | None, input_doc: Mapping[str, Any]
+    store: FactSource | None,
+    project_id: str | None,
+    input_doc: Mapping[str, Any],
+    *,
+    documents: bool = True,
+    spec: AgentSpec | None = None,
 ) -> dict[str, Any]:
     """`input_doc` with the project's facts put in, for a class that asks for them. With no
-    store or no project, only what a caller may never set is removed."""
+    store or no project, only what a caller may never set is removed. Without `documents`, as
+    under a profile that refuses attached documents, no attached document is given: neither a
+    `Message`'s list of them nor a `DraftRequest`'s text of them."""
     filled = dict(input_doc)
     schema_class = filled.get("schema_class")
     if store is None or project_id is None:
@@ -158,7 +185,9 @@ def give(
                 # False while the project is untitled too: the model may name it.
                 "project_title_by_researcher": summary["title_source"] == TITLE_BY_RESEARCHER,
                 # Left out while the project holds none, as `project_inventory` is.
-                "project_documentation": store.documentation(project_id) or None,
+                "project_documentation": (store.documentation(project_id) or None)
+                if documents
+                else None,
                 # Absent until an entry point is recorded, as `project_entry` is.
                 "project_entry_by_researcher": (
                     where["entry_source"] == ENTRY_BY_RESEARCHER
@@ -182,7 +211,7 @@ def give(
                 # Only answers a person recorded may be placed as supplied.
                 "draft_answers": _answers(store, project_id, filled.get("document_kind")),
                 "researchers": store.researchers(project_id),
-                "project_documents": _documents(store, project_id),
+                "project_documents": _documents(store, project_id) if documents else None,
                 # Only facts a person decided, never a proposal.
                 "project_decisions": store.decisions(project_id),
             },
@@ -191,7 +220,25 @@ def give(
         held = store.inventory(project_id)
         if held is not None:
             return dict(held)
+    elif slots := agent_slots(spec, schema_class):
+        # An agent's own class that mixes in a core slot is filled by that slot's name.
+        if "project_documents" in slots:
+            kept = _documents(store, project_id) if documents else None
+            _put(filled, {"project_documents": kept})
+        if "project_decisions" in slots:
+            _put(filled, {"project_decisions": store.decisions(project_id)})
     return filled
+
+
+def agent_slots(spec: AgentSpec | None, schema_class: Any) -> frozenset[str]:
+    """The core slots (`AGENT_INPUT_SLOTS`) the card's schema for an agent's own input class
+    declares, from the mixins `GivenProjectDocuments` and `GivenProjectDecisions`; empty for a core
+    class, which `give` fills by name, or one the agent does not accept."""
+    if spec is None or schema_class in CORE_CLASSES:
+        return frozenset()
+    accepted = spec.accepted(str(schema_class))
+    declared = set(accepted.json_schema.get("properties", {})) if accepted else set()
+    return frozenset(declared & set(AGENT_INPUT_SLOTS))
 
 
 def refusal(
@@ -218,26 +265,11 @@ def given(
     if store is None or project_id is None:
         return frozenset()
     schema_class = filled.get("schema_class")
-    found: set[str] = set()
-    if schema_class == MESSAGE:
-        if filled.get("project_inventory"):
-            found.add(INVENTORY)
-        if filled.get("project_researchers"):
-            found.add(RESEARCHER)
-        if filled.get("project_decisions"):
-            found.add(DECISIONS)
-    elif schema_class == DRAFT_REQUEST:
-        if filled.get("inventory"):
-            found.add(INVENTORY)
-        if any(filled.get(slot) for slot in DOCUMENTATION_SLOTS):
-            found.add(DOCUMENTATION)
-        if filled.get("researchers"):
-            found.add(RESEARCHER)
-        if filled.get("project_decisions"):
-            found.add(DECISIONS)
-    elif schema_class == FILE_INVENTORY and store.inventory(project_id) is not None:
-        found.add(INVENTORY)
-    return frozenset(found)
+    if schema_class == FILE_INVENTORY:
+        return frozenset({INVENTORY}) if store.inventory(project_id) is not None else frozenset()
+    # An agent's own class holds what its mixins ask for (`give`).
+    slots = CONTENT_SLOTS.get(str(schema_class), AGENT_CONTENT_SLOTS)
+    return frozenset(kind for slot, kind in slots if filled.get(slot))
 
 
 def left_out(filled: Mapping[str, Any]) -> frozenset[str]:

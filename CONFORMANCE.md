@@ -72,7 +72,7 @@ them. A Blueprint row whose sub-IDs are substantiated is not thereby substantiat
 | R11 | blueprint | Link datasets to related research outputs including publications, people, grants and software | ⬜ **unsubstantiated** | — | not assessed | — |
 | R12 | blueprint | Discover related datasets relevant to a research project | ⬜ **unsubstantiated** | — | not assessed | — |
 | C1 | blueprint | Security | not assessed | — | ⬜ **unsubstantiated** | — |
-| C2 | blueprint | Privacy | ✅ **substantiated** | `test_personal_data::test_every_string_a_finding_holds_comes_from_a_closed_set`, `test_personal_data::test_no_sampled_value_nor_any_part_of_one_is_written` | ⬜ **unsubstantiated** | — |
+| C2 | blueprint | Privacy | ✅ **substantiated** | `test_documentation_check::test_no_value_nor_part_of_one_is_returned`, `test_documentation_check::test_personal_data_and_a_secret_are_found_by_kind`, `test_documentation_hold::test_a_document_with_personal_data_is_held_naming_the_kinds_and_not_the_values`, `test_documentation_hold::test_the_check_names_what_it_found_and_keeps_nothing`, `test_personal_data::test_every_string_a_finding_holds_comes_from_a_closed_set`, `test_personal_data::test_no_sampled_value_nor_any_part_of_one_is_written` | ⬜ **unsubstantiated** | — |
 | C3 | blueprint | Compliance | not assessed | — | ⬜ **unsubstantiated** | — |
 | C4 | blueprint | Sovereignty | not assessed | — | ⬜ **unsubstantiated** | — |
 | C5 | blueprint | Interoperability — open APIs and established metadata standards | ⬜ **unsubstantiated** | — | not assessed | — |

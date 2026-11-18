@@ -10,11 +10,13 @@
 # restored settings say it is kept, and the model broker's store, if the backup holds it. It refuses a store that already holds something unless given
 # --force: a directory is then moved aside to <store>.before-restore-<time>, and a database's
 # tables are dropped and replaced. A database must exist; restore.sh fills it and creates none.
+# A backup that holds the LiteLLM gateway's database needs the gateway installed (install.sh
+# --gateway) and running; its database is replaced, and the gateway is left stopped.
 # It starts nothing: install.sh, run next, deploys a release if there is none and starts it all.
 #
 # DD_ETC, DD_STATE, DD_BROKER_STATE, DD_UNIT_DIR and DD_SYSTEMCTL replace /etc/data-director,
 # /var/lib/data-director, /var/lib/data-director-model-broker, /etc/systemd/system and systemctl,
-# for its tests.
+# for its tests, as DD_DOCKER and DD_GATEWAY_PROJECT do for the gateway (deploy/gateway-store.sh).
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -27,6 +29,8 @@ USER_NAME=datadirector
 BROKER_USER=data-director-broker
 # shellcheck source=deploy/stores.sh
 source "$HERE/stores.sh"
+# shellcheck source=deploy/gateway-store.sh
+source "$HERE/gateway-store.sh"
 
 die() { echo "restore.sh: $*" >&2; exit 1; }
 usage() { echo "usage: $0 [--force] BACKUP" >&2; exit 2; }
@@ -100,6 +104,7 @@ if [[ -f "$backup/broker.sqlite3" ]]; then
     busy+=("$broker_store (the model broker's store) is not empty")
   fi
 fi
+gateway_restore_check "$backup"
 if ((${#busy[@]})) && ((!force)); then
   printf '%s\n' "restore.sh: these already hold something, and nothing was changed:" "${busy[@]/#/  }" >&2
   echo "Run again with --force to set the directories aside and replace the databases' tables." >&2
@@ -173,6 +178,8 @@ if ((broker_backup)); then
   echo "restored the model broker's store to $broker_store"
 fi
 
+gateway_restore "$backup" "$ETC"
+
 if [[ -z "${DD_UNIT_DIR:-}" ]]; then
   "$SYSTEMCTL" daemon-reload || true
 fi
@@ -188,4 +195,8 @@ echo "  sudo data-director doctor"
 if ((broker_backup)); then
   echo "If the model broker was on, start it again:"
   echo "  sudo systemctl enable --now data-director-model-broker.service"
+fi
+if [[ -f "$backup/$GATEWAY_DUMP" ]]; then
+  echo "The LiteLLM gateway is stopped; install.sh starts it again, or:"
+  echo "  sudo systemctl restart $GATEWAY_UNIT"
 fi
