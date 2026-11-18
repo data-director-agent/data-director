@@ -16,6 +16,7 @@ import stat
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from ddtool.common import MODEL_BACKED, Agent, load_agents
 from ddtool.vm import (
@@ -38,6 +39,11 @@ ADMIN_UNIT = "data-director-admin.service"
 BACKUP_UNIT = "data-director-backup.service"
 BACKUP_TIMER = "data-director-backup.timer"
 BROKER_UNIT = "data-director-model-broker.service"
+GATEWAY_UNIT = "data-director-llm-gateway.service"
+# The settings that send model calls to a gateway, by the file that holds them
+# (deploy/llm-gateway/README.md).
+GATEWAY_SETTINGS = ("DD_BROKER_DEPLOYMENT_BASE_URL", "ANTHROPIC_BASE_URL")
+LOOPBACK = {"127.0.0.1", "localhost", "::1"}
 # A backup older than this means the nightly one has stopped (deploy/README.md, "Backups").
 BACKUP_MAX_AGE = timedelta(days=2)
 BACKUP_NAME = re.compile(r"^\d{8}T\d{6}Z$")
@@ -200,6 +206,31 @@ class Doctor(SettingsChecks):
                     self.install,
                 )
                 return
+
+    def gateway(self) -> None:
+        """A model broker or agent that sends its calls to a gateway on this VM finds it answering;
+        otherwise every such call fails (deploy/llm-gateway/README.md)."""
+        vm, system, report = self.vm, self.system, self.report
+        files = [vm.etc / "model-broker.env", vm.agents_env, *sorted(vm.etc.glob("agents/*.env"))]
+        users: dict[str, list[str]] = {}
+        for path in files:
+            settings = read_settings(system, path)
+            if settings is None:
+                report.skip(str(path))
+                continue
+            for name in GATEWAY_SETTINGS:
+                url = settings.get(name, "").rstrip("/")
+                if urlsplit(url).hostname in LOOPBACK:
+                    users.setdefault(url, []).append(f"{name} in {path}")
+        for url, where in users.items():
+            if system.get(f"{url}/health/liveliness") is not None:
+                continue
+            state = systemctl_show(system, [GATEWAY_UNIT], ["UnitFileState"])
+            enabled = state.get(GATEWAY_UNIT, {}).get("UnitFileState") == "enabled"
+            report.problem(
+                f"no gateway answers at {url}, which {'; '.join(where)} sends model calls to",
+                journal(GATEWAY_UNIT) if enabled else f"{self.install} --gateway",
+            )
 
     # --- What the app reports ------------------------------------------------------------------
 
@@ -380,6 +411,7 @@ class Doctor(SettingsChecks):
         self.config()
         self.agents(agents)
         self.broker()
+        self.gateway()
         self.secrets(agents)
         self.settings(release)
         self.live(live)
