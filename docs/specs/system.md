@@ -30,7 +30,7 @@ and its dependencies, with licence notices for all of them, for the app to serve
 member's own source and lock, so it crosses no boundary, and Pyodide is a development dependency
 of the library only, which nothing under its `src/` imports: the worker is handed Pyodide's files
 with the rest of the bundle. A CI job checks that the bundle writes the command's inventory, natively and in the
-worker in Chromium.
+worker in Chromium, Firefox and WebKit.
 
 Likewise `sdk/browser/` is `@data-director/agent-view`, a TypeScript and React library for
 inspecting what an agent publishes: its A2A agent card, the Data Director extensions on it
