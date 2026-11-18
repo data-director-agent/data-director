@@ -2,8 +2,8 @@
  * The page frame: a skip link, the banner and one main landmark, then a footer that names the build.
  *
  * The banner holds the same things on every page (the name, the main navigation, who is signed
- * in and the dark mode switch), so nothing in it moves when the page changes. What a page is
- * about, and for whom it acts, is said in the page itself. The page's two live regions are
+ * in, the settings and the dark mode switch), so nothing in it moves when the page changes.
+ * What a page is about, and for whom it acts, is said in the page itself. The page's two live regions are
  * mounted here, once, so they are present from load (`ui/Announcer`).
  */
 
@@ -17,6 +17,7 @@ import {
   FolderOpen,
   Map as MapIcon,
   MessagesSquare,
+  Settings as SettingsIcon,
   Shield,
   type LucideIcon,
 } from "lucide-react";
@@ -132,6 +133,16 @@ export function Frame({
             >
               <BannerIcon icon={Bug} />
               Report a problem
+            </Link>
+            <Link
+              to="/settings"
+              className="app-tool-link"
+              {...(current === "/settings"
+                ? { "aria-current": "page" as const }
+                : {})}
+            >
+              <BannerIcon icon={SettingsIcon} />
+              Settings
             </Link>
             <ThemeSwitch />
           </div>

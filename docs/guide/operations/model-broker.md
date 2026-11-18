@@ -170,9 +170,9 @@ the broker asks it, once per run, which provider and model serve each model it d
 person whose account is with the mapped provider is served by the mapped model. The run records
 both the model that served each call and the one the agent declared.
 
-### The Profile page: adding one's own key
+### The Settings page: adding one's own key
 
-A person adds, replaces or removes their key on the Profile page. The browser sends the key to the
+A person adds, replaces or removes their key on the Settings page. The browser sends the key to the
 broker, not to the app, on the app's own site: NGINX passes `/broker/enrolment/` on to the broker
 on `127.0.0.1:8300`, and nothing else of the broker's
 ([`deploy/nginx/data-director.conf`](../../../deploy/nginx/data-director.conf)). To turn the page's
@@ -268,7 +268,7 @@ their provider, never through the gateway.
 ### Custom endpoints
 
 A person's own `openai-compatible` account names its endpoint's base URL when they add it, under
-one of the origins the profile's `providers` lists for it; the Profile page offers no other. The
+one of the origins the profile's `providers` lists for it; the Settings page offers no other. The
 broker checks
 the key there, and later sends calls there, only if the origin is `https` and on
 `DD_BROKER_ALLOWED_BASE_URLS`; for a call, the profile's `model_accounts` (carried in the grant)
@@ -300,5 +300,5 @@ uv run dd-model-broker serve
 It reads the settings listed in `dd_broker.settings`. Docker Compose runs it with the
 `model-broker` profile. Its secrets are files in `config/local/credentials/model-broker/`, and its
 settings are in `config/local/model-broker.env`. The Vite dev server passes `/broker/enrolment/`
-on to it (`DD_BROKER_URL`, by default `http://127.0.0.1:8300`), so the Profile page works there
+on to it (`DD_BROKER_URL`, by default `http://127.0.0.1:8300`), so the Settings page works there
 once `config/local/app.env` sets `DD_APP_MODEL_BROKER_URL=/broker`.

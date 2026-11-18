@@ -67,11 +67,11 @@ describe("CapabilitiesPanel, the person's own AI account", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it("points a person with no account to their Profile page", async () => {
+  it("points a person with no account to their Settings page", async () => {
     renderWith(() => Promise.resolve(NONE), true);
-    expect(await screen.findByRole("link", { name: "Profile page" })).toHaveAttribute(
+    expect(await screen.findByRole("link", { name: "Settings page" })).toHaveAttribute(
       "href",
-      "/profile",
+      "/settings",
     );
   });
 

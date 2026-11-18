@@ -1,5 +1,5 @@
 /**
- * The providers a person's own AI account can be with, as the Profile page names them
+ * The providers a person's own AI account can be with, as the Settings page names them
  * (docs/specs/model-accounts.md, Enrolment).
  */
 

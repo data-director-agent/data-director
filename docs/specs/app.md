@@ -209,18 +209,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     the banner, shows the name and iD the identity provider gave at sign-in, how the person is
     known and when the session ends, and says that nothing more is kept but the facts a person
     chooses, in a project, from their public record. It makes no request to the provider and the
-    app asks for no wider scope (`app/web/src/components/profile/ProfilePage.test.tsx`). Where the
-    deployment offers it, the page also holds the person's own AI account, which it reads from and
-    sends to the model broker alone ([A person's own model account](model-accounts.md),
-    `app/web/src/components/profile/ModelAccount.test.tsx`, `app/web/e2e/profile.spec.ts`).
-    Last comes **Preferences**: the colour scheme (light, dark, or matching the device), text
-    size, spacing, animation (matching the device, reduced or shown), the style dates and numbers
-    are written in and the 12- or 24-hour clock, and whether a visit returns to the project used
-    last or starts with none chosen. Each applies at once and is kept in that browser only, one
-    `localStorage` key each, and none reaches the server (`app/web/src/preferences.ts`,
-    `app/web/src/components/profile/Preferences.test.tsx`, `app/web/e2e/profile.spec.ts`). Every
-    date, time and number the app shows is written through `app/web/src/format.ts`, so that it
-    follows them.
+    app asks for no wider scope (`app/web/src/components/profile/ProfilePage.test.tsx`). It points
+    to the Settings page (rule 29) for the person's own AI account and preferences.
 21. **A reply's questions are answered one at a time in a form, and may be ignored.** A reply's
     `reply_questions` are drawn beneath the reply. On the latest turn each question is a fieldset
     whose legend is the question and whose description is its help: a choice question as radio
@@ -381,6 +371,21 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     while there is nothing in it ([Projects](projects.md), invariants 22 to 25;
     `app/web/src/components/project/DeleteProject.tsx`, `ProjectsPage.test.tsx`,
     `app/tests/test_project_deletion.py`).
+29. **A person's own settings are on the Settings page.** `/settings`, reached from the cog
+    labelled **Settings** in the banner on every page and from the profile page, holds what a
+    person sets for themselves; what the deployment allows for everyone stays on the Policy page.
+    Where the deployment offers it, it holds the person's own AI account, which it reads from and
+    sends to the model broker alone ([A person's own model account](model-accounts.md),
+    `app/web/src/components/settings/ModelAccount.test.tsx`, `app/web/e2e/settings.spec.ts`).
+    Then comes **Preferences**: the colour scheme (light, dark, or matching the device), text
+    size, spacing, animation (matching the device, reduced or shown), the style dates and numbers
+    are written in and the 12- or 24-hour clock, and whether a visit returns to the project used
+    last or starts with none chosen. Each applies at once and is kept in that browser only, one
+    `localStorage` key each, and none reaches the server (`app/web/src/preferences.ts`,
+    `app/web/src/components/settings/Preferences.test.tsx`,
+    `app/web/src/components/settings/SettingsPage.test.tsx`, `app/web/e2e/settings.spec.ts`).
+    Every date, time and number the app shows is written through `app/web/src/format.ts`, so that
+    it follows them.
 
 ## Boundaries and contracts
 
@@ -726,7 +731,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   (`run/announce.ts`): each step is said once when it starts, a failed check when its report
   arrives, and the end; `RUN_ERROR`, a malformed event and an interrupted stream are assertive.
 - **Colour scheme.** Light by default whatever the system prefers; the person's choice of dark,
-  or of matching the device, is remembered in that browser (`shell.spec.ts`, `profile.spec.ts`).
+  or of matching the device, is remembered in that browser (`shell.spec.ts`, `settings.spec.ts`).
   Reduced motion follows the device unless the person's preferences say otherwise.
 - **Privacy.** No font or other asset is fetched from a third party; the typeface is self-hosted.
   The browser scanner reads a chosen folder in the browser and sends only the inventory, after

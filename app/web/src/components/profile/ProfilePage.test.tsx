@@ -28,12 +28,10 @@ describe("ProfilePage", () => {
     expect(screen.queryByText("Session ends")).toBeNull();
   });
 
-  it("offers the person's own AI account only where the deployment does", () => {
-    const { unmount } = render(<ProfilePage session={signedIn()} />);
-    expect(screen.queryByRole("heading", { name: "Your AI account" })).toBeNull();
-    unmount();
+  it("points to the Settings page for the AI account and preferences", () => {
     render(<ProfilePage session={{ ...signedIn(), modelAccounts: true }} />);
-    expect(screen.getByRole("heading", { name: "Your AI account" })).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Your AI account" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/settings");
   });
 
   it("has no accessibility violations", async () => {

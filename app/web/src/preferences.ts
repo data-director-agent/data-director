@@ -1,6 +1,6 @@
 /**
  * The person's preferences: how the app looks, how it writes dates and times, and which project
- * it opens in (docs/specs/app.md, "Preferences"). They are set on the profile page, and the
+ * it opens in (docs/specs/app.md, "Preferences"). They are set on the Settings page, and the
  * colour scheme also from the banner's dark mode switch.
  *
  * Every choice is kept in this browser only, one `localStorage` key each, and none reaches the

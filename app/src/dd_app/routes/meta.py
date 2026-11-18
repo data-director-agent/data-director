@@ -40,6 +40,7 @@ SHELL_PAGES = (
     "/profile",
     "/projects",
     "/projects/{project_id}",
+    "/settings",
     "/sign-in",
     "/signed-out",
 )
