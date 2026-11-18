@@ -11,7 +11,7 @@
       "action_class": "advise",
       "agent_id": "advisor.quality",
       "assigned_action_class": "advise",
-      "contract_version": "0.14.0",
+      "contract_version": "0.15.0",
       "derivations": {
         "findings.message": {
           "how": "lexical",
@@ -338,6 +338,7 @@
       "settings": {},
       "skills": [],
       "title": "Metadata Reviewer",
+      "tools": [],
       "version": "0.1.0"
     },
     {
@@ -347,7 +348,7 @@
       "action_class": "advise",
       "agent_id": "advisor.standards",
       "assigned_action_class": "advise",
-      "contract_version": "0.14.0",
+      "contract_version": "0.15.0",
       "derivations": {
         "items.concern": {
           "how": "model",
@@ -871,6 +872,7 @@
       "settings": {},
       "skills": [],
       "title": "Standards Librarian",
+      "tools": [],
       "version": "0.3.0"
     },
     {
@@ -880,7 +882,7 @@
       "action_class": "advise",
       "agent_id": "example.hello",
       "assigned_action_class": "advise",
-      "contract_version": "0.14.0",
+      "contract_version": "0.15.0",
       "derivations": {
         "greeting_text": {
           "how": "template",
@@ -1084,6 +1086,7 @@
       "settings": {},
       "skills": [],
       "title": "Friendly Greeter",
+      "tools": [],
       "version": "0.1.1a1"
     },
     {
@@ -1093,7 +1096,7 @@
       "action_class": "advise",
       "agent_id": "stub.abstain",
       "assigned_action_class": "advise",
-      "contract_version": "0.14.0",
+      "contract_version": "0.15.0",
       "derivations": {},
       "description": "Abstains unconditionally; exercises the non-success path.",
       "grounding_mode": "none",
@@ -2483,13 +2486,14 @@
       "settings": {},
       "skills": [],
       "title": "",
+      "tools": [],
       "version": "0.3.0"
     }
   ],
   "incompatible": {},
   "profile": {
     "attached_documents": "allowed",
-    "digest": "d27168610a100f432b176ebb8e9b6751dc91d7541523cae2d0caf3835650bcc8",
+    "digest": "3d0adbcbb9d74a5321e1c442c7ff2afeee34bcf455196b1fcf7702122f5c5a87",
     "orchestrator": null,
     "ref": "profile:test-permissive@v9"
   },

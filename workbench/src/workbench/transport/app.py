@@ -15,7 +15,7 @@ from starlette.responses import FileResponse, JSONResponse, Response
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from dd_harness import conversations
+from dd_harness import conversations, gateway
 from dd_harness.conductor import Conductor
 from dd_harness.identity import Authenticator
 from dd_harness.remote import RemoteAgent
@@ -132,6 +132,8 @@ def build_app(  # noqa: C901
         middleware=middleware,
         routes=[
             *routes,
+            # The tool gateway, for agents' calls only, beside the delegation callback.
+            *gateway.routes(conductor.gateway),
             *session_routes,
             *agui_routes(conductor, authenticator),
             Route("/runs", runs_index, methods=["GET"]),

@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -35,8 +36,10 @@ from typing import Any
 
 from starlette.applications import Starlette
 
+from dd_harness import gateway
 from dd_harness.conductor import Conductor
 from dd_harness.deposit import PackageRefusedError, Validation, build_package, check
+from dd_harness.gateway.config import ToolConfigError
 from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
 from dd_harness.model_grants import jwks_routes
 from dd_harness.policy import PolicyError
@@ -89,7 +92,8 @@ def build_app(conductor: Conductor, authenticator: Authenticator, base_url: str)
     """The A2A endpoint at `/a2a`, the agent card at `/.well-known/agent-card.json` and, when the
     harness mints model grants, its public keys at `/.well-known/jwks.json`."""
     _card, routes = a2a_routes(conductor, authenticator, base_url)
-    return Starlette(routes=[*routes, *jwks_routes(conductor.model_grants)])
+    tools = gateway.routes(conductor.gateway)
+    return Starlette(routes=[*routes, *tools, *jwks_routes(conductor.model_grants)])
 
 
 def cmd_serve(args: argparse.Namespace) -> int:
@@ -311,6 +315,32 @@ def cmd_storage_status(args: argparse.Namespace) -> int:
     return 1 if behind else 0
 
 
+def cmd_tools_pins(args: argparse.Namespace) -> int:
+    """Each MCP server DD_TOOLS_CONFIG lists, with the digest of the tools it lists now, so an
+    operator can review a changed list and pin it (docs/specs/agents.md, Tools). Exits 1 if any
+    differs from its pin or cannot be listed."""
+    path = os.environ.get("DD_TOOLS_CONFIG")
+    if not path:
+        raise SettingsError("DD_TOOLS_CONFIG unset: name the deployment's list of MCP servers")
+    try:
+        from dd_harness.gateway.config import load_servers, tools_digest
+        from dd_harness.gateway.core import Gateway
+    except ImportError as exc:
+        raise SettingsError("the tool gateway needs data-director-harness[gateway]") from exc
+    gateway = Gateway(load_servers(Path(path)))
+    changed = False
+    for server, tools in zip(gateway.servers, gateway.list_all(), strict=True):
+        if isinstance(tools, BaseException):
+            changed = True
+            sys.stdout.write(f"{server.name}: could not be listed: {tools}\n")
+            continue
+        digest = tools_digest(tools)
+        changed = changed or digest != server.tools_sha256
+        state = "pinned" if digest == server.tools_sha256 else "changed: review, then pin"
+        sys.stdout.write(f"{server.name}: {digest} ({state})\n")
+    return 1 if changed else 0
+
+
 def _parser() -> argparse.ArgumentParser:
     """The command line: `serve`, and the `storage` and `project` command groups."""
     parser = argparse.ArgumentParser(
@@ -323,6 +353,11 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8000)
     p.set_defaults(func=cmd_serve)
+
+    p = sub.add_parser("tools", help="review the MCP servers the tool gateway calls")
+    tools = p.add_subparsers(dest="tools_command", required=True)
+    p = tools.add_parser("pins", help="print each server's tools digest; exits 1 if one changed")
+    p.set_defaults(func=cmd_tools_pins)
 
     _add_storage_commands(sub)
     _add_project_commands(sub)
@@ -444,6 +479,7 @@ def main(argv: list[str] | None = None) -> int:
         SourceConfigError,
         ProjectError,
         RequirementsError,
+        ToolConfigError,
     ) as exc:
         sys.exit(f"dd-harness: {exc}")
     return result

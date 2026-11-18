@@ -27,14 +27,24 @@ KEY=$($ADMIN key create "model-broker-$RUN" --models 'claude-sonnet-5-5,test-gpt
   uv run pytest -n0 -m gateway broker/tests/test_broker_gateway.py)
 
 # The gateway writes spend in batches, so wait for it (up to about a minute).
+costed=false
 for _ in $(seq 1 24); do
   # shellcheck disable=SC2016 # a sed expression, not the shell's
   spent=$($ADMIN key info "$KEY" | sed -nE 's/.*spent \$([0-9.,]+).*/\1/p' | tr -d ,)
   if python3 -c "import sys; sys.exit(0 if float('${spent:-0}') > 0 else 1)"; then
     echo "PASS  the gateway costed the broker's calls to its key: \$$spent"
-    exit 0
+    costed=true
+    break
   fi
   sleep 5
 done
-echo "FAIL  no spend recorded against the broker's key" >&2
-exit 1
+[[ "$costed" == true ]] || { echo "FAIL  no spend recorded against the broker's key" >&2; exit 1; }
+
+# The broker tags each call with the agent that made it, so the report splits the broker's spend
+# by agent (broker_support.AGENT is the agent the tests call as).
+if $ADMIN spend --by tag | grep -qE '^agent:advisor\.standards '; then
+  echo "PASS  the gateway's report shows the broker's calls by agent"
+else
+  echo "FAIL  no agent:advisor.standards row in the gateway's spend by tag" >&2
+  exit 1
+fi

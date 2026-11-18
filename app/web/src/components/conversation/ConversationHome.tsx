@@ -73,6 +73,7 @@ import {
   offeredPrompts,
   projectHandlers,
   projectNamed,
+  restoreDays,
   trackedProgress,
 } from "./ConversationHomeParts";
 import { whyUnusable } from "./orchestrator";
@@ -248,6 +249,9 @@ export function ConversationHome({ directory }: { directory: Directory }) {
               }
               chosenRepository={chosenRepository(project)}
               project={project}
+              onRetry={(message) =>
+                void turns.deliver(message, { inventory: null, document: null }, null)
+              }
               {...projectHandlers(projectId, answered, reloadProjects)}
             />
           )}
@@ -287,6 +291,11 @@ export function ConversationHome({ directory }: { directory: Directory }) {
           currentId={turns.conversationId}
           onOpen={(id) => void turns.reopen(id)}
           onNew={turns.reset}
+          onDeleted={(id) => {
+            turns.deleted(id);
+            void reloadProjects();
+          }}
+          restoreDays={restoreDays(project)}
         />
       }
       context={

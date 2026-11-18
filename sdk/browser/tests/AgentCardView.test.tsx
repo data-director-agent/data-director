@@ -103,4 +103,14 @@ describe("AgentCardView", () => {
     }
     expect(spec.skills).not.toHaveLength(0);
   });
+
+  it("names each MCP server the agent calls through the gateway, with its tools", () => {
+    const spec = helloSpec();
+    render(<AgentSpecView spec={spec} />);
+    for (const use of spec.tools) {
+      expect(screen.getByText(use.server)).toBeInTheDocument();
+      for (const tool of use.tools) expect(screen.getByText(tool)).toBeInTheDocument();
+    }
+    expect(spec.tools).not.toHaveLength(0);
+  });
 });

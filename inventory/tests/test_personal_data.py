@@ -106,17 +106,30 @@ def _sampled_values() -> set[str]:
     return values
 
 
+def _dumped(*inventories: object) -> str:
+    """The inventories as JSON, without the time each was made: it is written whatever the data,
+    and its digits would match short sampled values, such as `54`, by chance (#1145)."""
+    return json.dumps(
+        [
+            {k: v for k, v in i.items() if k != "inventory_made_at"} if isinstance(i, dict) else i
+            for i in inventories
+        ],
+        ensure_ascii=False,
+    )
+
+
 @pytest.mark.requirement("C2")
 def test_no_sampled_value_nor_any_part_of_one_is_written(
     corpus: Inventory, unchecked: Inventory, tmp_path: Path
 ) -> None:
     """Invariant 1: what the check adds holds no value, nor a token of four or more characters
     from one. Paths and field names are written without the check too, and the check's own
-    sentences and bands whatever the data, so those are not counted."""
-    written = json.dumps(corpus, ensure_ascii=False)
+    sentences and bands whatever the data, so those are not counted, nor is the time the
+    inventory was made."""
+    written = _dumped(corpus)
     enums = (PersonalDataKind, FindingTarget, ProportionBand)
     vocabulary = [e.value for kind in enums for e in kind]
-    already = json.dumps([unchecked, make_inventory(tmp_path), vocabulary], ensure_ascii=False)
+    already = _dumped(unchecked, make_inventory(tmp_path), vocabulary)
     leaked = set()
     for value in _sampled_values():
         tokens = {value, *re.findall(r"[A-Za-z0-9@.+]{4,}", value)}

@@ -131,7 +131,10 @@ gateway key. The broker then pays for the deployment's calls as well. Give the g
 key to the broker instead of to each agent, and point it at the gateway with
 `DD_BROKER_DEPLOYMENT_BASE_URL=http://127.0.0.1:4000`. Make that one key with a tag such as
 `--tags service:model-broker`. The gateway's budgets and spend reports keep covering the
-deployment's calls. It no longer breaks them down by agent, because every call arrives on one key.
+deployment's calls. Every call arrives on that one key, so the broker tags each with the agent
+that made it (`agent:<name>`, in the `x-litellm-tags` header), and `scripts/admin.py spend --by
+tag` shows the deployment's spend by agent. A tag names the agent, never the person: who made a
+call is in the broker's own usage store, by pseudonym.
 
 A call paid for by a person's own account goes from the broker straight to their provider. It
 never passes through the gateway, which would otherwise see their key. The gateway's spend reports

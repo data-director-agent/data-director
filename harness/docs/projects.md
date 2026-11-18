@@ -23,7 +23,7 @@ Every event has these members:
 
 | Member | What it is |
 |---|---|
-| `event` | What happened: `project_created`, `project_renamed`, `project_deleted`, `project_restored`, `conversation_started`, `inventory_added`, `researcher_added`, `researcher_withdrawn`, `repository_chosen`, `document_version_added`, `document_version_decided`, `document_question_answered`, `document_change_refused`, `fact_proposed`, `fact_decided`, `project_validated` or `package_built`. |
+| `event` | What happened: `project_created`, `project_renamed`, `project_deleted`, `project_restored`, `conversation_started`, `conversation_deleted`, `conversation_restored`, `inventory_added`, `researcher_added`, `researcher_withdrawn`, `repository_chosen`, `document_version_added`, `document_version_decided`, `document_question_answered`, `document_change_refused`, `fact_proposed`, `fact_decided`, `project_validated` or `package_built`. |
 | `event_id` | A UUIDv7, so events sort in the order they happened. |
 | `project_id` | The project. |
 | `at` | When, in UTC. |
@@ -58,6 +58,18 @@ so the answers found are kept; a conversation not found is looked for again in e
 does not scale past one deployment's projects. A deployment that outgrows it keeps its projects in
 the database, where finding a conversation's project is an indexed query
 ([Storage](../../docs/specs/storage.md)).
+
+`conversation_deleted` and `conversation_restored` also give the `conversation_id` of a
+conversation started in the project. A conversation is deleted while the last of them for it is a
+deletion (`dd_harness.projects.conversation_deletions`). `delete_conversation` raises
+`UnknownConversationError` for a conversation not started in the project and
+`ConversationDeletedError` for one already deleted; `restore_conversation` raises
+`RestoreRefusedError` as `restore` does, over the same `restore_period`. `deleted_conversations`
+lists those that stand, and a summary's `conversation_count` leaves them out. Who may delete one is
+`project_access.may_delete_conversation`: whoever started it while they may contribute, and an
+owner. `project_access.hidden_conversations` names the deleted ones in a set of projects, which a
+`Readable` leaves out of every listing ([Projects](../../docs/specs/projects.md), invariants 29
+to 31).
 
 `inventory_added` also gives:
 

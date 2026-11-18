@@ -36,17 +36,20 @@ class BaseUrlRefused(ValueError):
 @dataclass(frozen=True)
 class Target:
     """Where one call goes: `url` (with the checked address in place of the host, when pinned),
-    and the host name to send as `Host` and to verify TLS against."""
+    the host name to send as `Host` and to verify TLS against, and any headers the operator's own
+    endpoint is sent besides (`extra`, such as the gateway's request tags)."""
 
     url: str
     host: str | None = None
     port: int | None = None
+    extra: tuple[tuple[str, str], ...] = ()
 
     @property
     def headers(self) -> dict[str, str]:
-        if not self.host:
-            return {}
-        return {"host": self.host if self.port in (None, 443) else f"{self.host}:{self.port}"}
+        sent = dict(self.extra)
+        if self.host:
+            sent["host"] = self.host if self.port in (None, 443) else f"{self.host}:{self.port}"
+        return sent
 
     @property
     def extensions(self) -> dict[str, str]:
