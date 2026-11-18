@@ -56,6 +56,7 @@ export function Composer({
         <ComposerAttach
           attached={attachments.inventory}
           attachedDocument={attachments.document}
+          documents={attachments.documents}
           busy={busy}
           onAttachFile={(file) => void attachments.attachFile(file)}
           onAttachMade={(file) => void attachments.attachFromDialog(file)}

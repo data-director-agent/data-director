@@ -371,7 +371,9 @@ class Conductor:
         if facts is None and self.projects is not None and in_project is not None:
             facts = self.projects.snapshot(in_project)
         sent = to_document(request.input)
-        filled = project_facts.give(facts, in_project, sent)
+        # A profile that refuses attached documents has no agent given any (projects.md).
+        documents = not self.profile.refuses_documents
+        filled = project_facts.give(facts, in_project, sent, documents=documents)
         given = project_facts.given(facts, in_project, filled)
         # Researcher facts, a `Message`'s decided facts and a draft's attached documents that the
         # profile keeps from this agent's hosted model are left out, not refused

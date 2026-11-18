@@ -540,7 +540,8 @@
   ],
   "incompatible": {},
   "profile": {
-    "digest": "729ad4d6d5ca4d77e583793a121447d5b6fbf4174c8ee1797ba1718015311c7d",
+    "attached_documents": "allowed",
+    "digest": "108dd28b01741b8cd0a10531f6fb758df13d08f7483afc489352921c558a195b",
     "orchestrator": "orchestrator.stub",
     "ref": "profile:data-director-app@v9"
   },

@@ -100,7 +100,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   const urlConversation = params.get("conversation");
   const box = useRef<HTMLTextAreaElement>(null);
 
-  const attachments = useAttachments(box, announce);
+  const attachments = useAttachments(box, announce, directory.documentsAllowed);
   const turns = useConversationTurns({
     orchestratorId: orchestrator?.id,
     runId,

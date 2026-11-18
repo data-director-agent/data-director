@@ -35,6 +35,7 @@ PROFILE_KEYS = frozenset(
         "model_accounts",
         "agent_settings",
         "model_footprint",
+        "attached_documents",
     }
 )
 
@@ -46,10 +47,18 @@ PROFILE_KEYS = frozenset(
 CONTENT_CLASSES = ("inventory", "documentation", "researcher", "decisions")
 # What may be given to an agent whose card declares a hosted model, where the profile does not say.
 DEFAULT_HOSTED_MODELS = frozenset({"inventory", "decisions"})
+# Whether people may attach documents to a project (docs/specs/projects.md, Documentation):
+# `refused` keeps none and gives no agent any document a project already holds.
+ATTACHED_DOCUMENTS = ("allowed", "refused")
 
 
 class PolicyError(Exception):
     """A profile could not be loaded or is malformed. Configuration error, so it raises."""
+
+
+class DocumentsRefusedError(ValueError):
+    """The profile refuses attached documents, and a document was attached: a refusal of the
+    request, made before anything is kept (`check_attached_document`)."""
 
 
 # `model_accounts` (docs/specs/model-accounts.md, The profile). `own`: whether people may, or must,
@@ -290,6 +299,13 @@ class Profile:
     # The figures the conductor estimates each run's model energy and cost from (P14, C17;
     # docs/specs/disclosure.md, Footprint). None: nothing is estimated.
     model_footprint: FootprintTable | None = None
+    # Whether people may attach documents to a project, one of ATTACHED_DOCUMENTS.
+    attached_documents: str = "allowed"
+
+    @property
+    def refuses_documents(self) -> bool:
+        """Whether the profile refuses attached documents altogether."""
+        return self.attached_documents == "refused"
 
     @property
     def ref(self) -> str:
@@ -321,6 +337,12 @@ class Profile:
                     f"hosted_models names {', '.join(map(repr, wrong))}; "
                     f"the classes of project content are {', '.join(CONTENT_CLASSES)}"
                 )
+            documents = data.get("attached_documents", "allowed")
+            if documents not in ATTACHED_DOCUMENTS:
+                raise ValueError(
+                    f"attached_documents is {documents!r}; it is one of "
+                    f"{', '.join(ATTACHED_DOCUMENTS)}"
+                )
             return cls(
                 profile_id=str(data["profile_id"]),
                 version=int(data.get("version", 1)),
@@ -334,6 +356,7 @@ class Profile:
                 model_accounts=ModelAccounts.from_value(data.get("model_accounts")),
                 agent_settings=_agent_settings(data.get("agent_settings"), agents),
                 model_footprint=FootprintTable.from_value(data.get("model_footprint")),
+                attached_documents=str(documents),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise PolicyError(f"profile {source!r} is malformed: {exc}") from exc
@@ -365,6 +388,16 @@ def _agent_settings(value: Any, agents: dict[Any, Any]) -> dict[str, dict[str, s
                 )
         out[str(agent_id)] = {str(k): v for k, v in settings.items()}
     return out
+
+
+def check_attached_document(profile: Profile) -> None:
+    """Raise `DocumentsRefusedError` where the profile refuses attached documents. A way in calls it
+    before it keeps anything a request attached (docs/specs/projects.md, Documentation)."""
+    if profile.refuses_documents:
+        raise DocumentsRefusedError(
+            "This deployment does not keep attached documents: its profile refuses them. Give "
+            "what the document says in your message instead."
+        )
 
 
 def load_profile(path: Path) -> Profile:
