@@ -68,7 +68,8 @@ def test_defaults_write_the_example_principal_and_no_key(repo: Path) -> None:
     assert setup(Prompter(accept_defaults=True), install=False) == 0
     local = repo / "config" / "local"
     assert common.read_env(local / "app.env") == common.EXAMPLE_PRINCIPAL | {
-        "DD_PROFILE": str(local / "profile.yaml")
+        "DD_PROFILE": str(local / "profile.yaml"),
+        "DD_AGENTS_CONFIG": str(local / "agents.yaml"),
     }
     assert (local / "agents.env").is_file()
     assert not list((local / "agents").iterdir())

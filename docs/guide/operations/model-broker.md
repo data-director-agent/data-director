@@ -207,8 +207,11 @@ The secret's name becomes the variable, so only that name gives `DD_MODEL_BROKER
 A secret named `model-broker-credential` would give `MODEL_BROKER_CREDENTIAL_FILE`, which no agent
 reads, and the agent would refuse to start without its credential.
 
-Then mark it in `app/config/agents.yaml` (or the file `DD_AGENTS_CONFIG` names), which the
-harness reads and the agent cannot write:
+Then run `sudo data-director apply` (`dd.py start` applies it in development). It writes the
+app's agent list, `agents.yaml` beside `deployment.yaml`, and names it with `DD_AGENTS_CONFIG` in
+`app.env`: the release's `app/config/agents.yaml`, with `model_broker: true` on each agent whose
+settings set `DD_MODEL_BROKER_URL`. The harness reads that statement from the list alone, which the
+agent cannot write:
 
 ```yaml
   - name: orchestrator-model
@@ -217,11 +220,17 @@ harness reads and the agent cannot write:
     model_broker: true
 ```
 
+Do not edit the generated list: `apply` rewrites it. `deploy.sh` does not run `apply`, so a release
+that adds an agent or moves one to another port reaches the app at the next
+`sudo data-director apply`; `sudo data-director doctor` reports a list that no longer matches the
+live release.
+
 While own accounts are on, the harness runs no model-backed agent without `model_broker: true`:
 its runs fail with problem `model-broker-bypassed` and the agent is not called, since an agent
 holding its own provider key would ignore the grant and the deployment would pay without the run
-saying so. The harness logs each such agent when it starts. Mark an agent only once its
-environment is set as below.
+saying so. The harness logs each such agent when it starts. `apply` refuses to turn on an agent
+that calls a model without the broker while `model_accounts` lets people's own accounts pay, and
+`doctor` reports one.
 
 Remove its provider key (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` or
 `DD_MODEL_API_KEY`, and their `_FILE` forms): an agent that calls through the broker holds no

@@ -109,7 +109,9 @@ load, so an agent started after the harness is found without a restart. An entry
 `model_broker: true`: the operator's statement that the agent calls its models through the model
 broker, which the conductor requires of every model-backed agent while the profile lets people's
 own model accounts pay ([A person's own model account](model-accounts.md), invariant 14). It is
-read from the configuration alone, never from the agent's card. Reloading a changed
+read from the configuration alone, never from the agent's card. On a deployment, `dd.py apply`
+writes the configuration from the release's list and marks each agent whose settings, which the
+operator writes, set `DD_MODEL_BROKER_URL` (`scripts/ddtool/agent_list.py`). Reloading a changed
 configuration and checking the health of registered agents while running are not built yet:
 TODO(#251).
 
