@@ -79,13 +79,16 @@ def _personal_data(text: str) -> list[TextFinding]:
 
 
 def _secrets(text: str) -> list[TextFinding]:
+    from detect_secrets.core.plugins.util import get_mapping_from_secret_type_to_class
     from detect_secrets.core.scan import scan_line
-    from detect_secrets.settings import default_settings
+    from detect_secrets.settings import transient_settings
 
+    named = get_mapping_from_secret_type_to_class().items()
+    plugins = [{"name": cls.__name__} for kind, cls in named if kind not in ENTROPY_TYPES]
     counts: dict[str, int] = defaultdict(int)
-    with _SECRETS_LOCK, default_settings():
+    with _SECRETS_LOCK, transient_settings({"plugins_used": plugins}):
         for line in text.splitlines():
-            for secret in {s.type for s in scan_line(line)} - ENTROPY_TYPES:
+            for secret in {s.type for s in scan_line(line)}:
                 counts[secret] += 1
     return [TextFinding(SECRET, t, places_band(n), "high") for t, n in sorted(counts.items())]
 
