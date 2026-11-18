@@ -11,7 +11,7 @@ only its own agent can read.
 
 | What | On a server | In development | Read by |
 |---|---|---|---|
-| What the instance runs: its name, the orchestrator (`model` or `stub`), agents disabled, the address of its [privacy notice](privacy.md) and whether people may use [their own model account](model-broker.md#the-profile-turning-own-accounts-on) | `/etc/data-director/deployment.yaml`, then `sudo data-director apply` | `config/local/deployment.yaml` ([example](../../../config/examples/deployment.yaml)), applied by `dd.py start` | `apply`, which writes the profile (`profile.yaml` beside it, named by `DD_PROFILE`), sets or removes `DD_PRIVACY_NOTICE_URL` in `app.env` and, on a server, the units that start the agents |
+| What the instance runs: its name, the orchestrator (`model` or `stub`), agents disabled, the address of its [privacy notice](privacy.md) and whether people may use [their own model account](model-broker.md#the-profile-turning-own-accounts-on) | `/etc/data-director/deployment.yaml`, then `sudo data-director apply` | `config/local/deployment.yaml` ([example](../../../config/examples/deployment.yaml)), applied by `dd.py start` | `apply`, which writes the profile (`profile.yaml` beside it, named by `DD_PROFILE`) and the app's agent list (`agents.yaml` beside it, named by `DD_AGENTS_CONFIG`, marking each agent that [calls through the model broker](model-broker.md#the-agents-calling-through-the-broker)), sets or removes `DD_PRIVACY_NOTICE_URL` in `app.env` and, on a server, the units that start the agents |
 | The ORCID client, the app's address, problem reports (and the operator, on a development server) | `/etc/data-director/app.env` | `config/local/app.env` ([example](../../../config/examples/app.env)) | The app |
 | The workbench's ORCID client, address and admins | `/etc/data-director/workbench.env` ([example](../../../config/examples/workbench.env)) | none: a local workbench signs nobody in | The workbench |
 | Settings every agent shares | `/etc/data-director/agents.env` | `config/local/agents.env` ([example](../../../config/examples/agents.env)) | Every agent |
@@ -30,7 +30,7 @@ These are policy, not secrets, and are safe to review and to keep under version 
 | File | Sets | Override |
 |---|---|---|
 | Institutional profile (`app/config/profile.yaml.example`; an instance runs the copy `apply` generates from it and `deployment.yaml`) | Which agents may run, the action class each is assigned, which classes need approval, and the agent the home page converses with. | `DD_PROFILE` |
-| `app/config/agents.yaml` | Where each agent is, by URL. | `DD_AGENTS_CONFIG` |
+| `app/config/agents.yaml` (an instance runs the copy `apply` generates from it, with `model_broker: true` on each agent that calls through the model broker) | Where each agent is, by URL, and which agents call through the model broker. | `DD_AGENTS_CONFIG` |
 | `app/config/sources.yaml` | The pinned source copies the source check resolves evidence against. | `DD_SOURCES_CONFIG` |
 
 How long an owner may restore a project they deleted is `DD_PROJECT_RESTORE_DAYS`, in the app's

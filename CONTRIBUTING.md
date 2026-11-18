@@ -286,9 +286,10 @@ and runs again when the title is edited:
 
 * the title is `type(scope)!: summary`. `type` is one of `build`, `chore`, `ci`, `docs`, `feat`,
   `fix`, `perf`, `refactor`, `revert`, `style` or `test`; `(scope)`, usually the package
-  (`app`, `harness`, `sdk`), and `!`, for a breaking change, are optional. The summary starts in
-  lower case unless its first word is a name or acronym, has no closing full stop, and the whole
-  title is at most 90 characters: `feat(app): register every in-tree agent`
+  (`app`, `harness`, `sdk`), and `!`, for a breaking change, are optional. The summary is a
+  sentence that starts with a capital letter, has no closing full stop, and the whole title is at
+  most 90 characters: `feat(app): Register every in-tree agent`. Lower case is also accepted, for
+  a summary that opens with a command or package name such as `uv`
 * the branch is lower-case words joined by hyphens, optionally grouped with slashes, in at most
   60 characters: `ci-faster`, `harness/run-store`
 
