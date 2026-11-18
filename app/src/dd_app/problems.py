@@ -4,14 +4,33 @@ from __future__ import annotations
 
 from typing import Any
 
-from starlette.responses import JSONResponse, Response
+from pydantic import ConfigDict
+from starlette.responses import Response
 
+from dd_app.responses import ResponseBody, respond
 from dd_sdk.contract.problem import PROBLEM_BASE
+
+
+class ProblemDetails(ResponseBody):
+    """An RFC 9457 problem, which every refusal and failure is answered with.
+
+    Open, as RFC 9457 lets a problem carry extension members; a problem whose members are known
+    is described by a subclass that names them (and closes it again with `extra="forbid"`).
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    type: str
+    """The problem's kind: a URI under the deployment's problem base, ending in its slug."""
+    title: str
+    status: int
+    detail: str
 
 
 def problem(status: int, slug: str, title: str, detail: str, **extra: Any) -> Response:
     """An RFC 9457 problem; `extra` are its extension members."""
-    return JSONResponse(
+    return respond(
+        ProblemDetails,
         {"type": PROBLEM_BASE + slug, "title": title, "status": status, "detail": detail, **extra},
         status_code=status,
         media_type="application/problem+json",
