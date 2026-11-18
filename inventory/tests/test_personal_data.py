@@ -112,9 +112,11 @@ def test_no_sampled_value_nor_any_part_of_one_is_written(
 ) -> None:
     """Invariant 1: what the check adds holds no value, nor a token of four or more characters
     from one. Paths and field names are written without the check too, and the check's own
-    sentences whatever the data, so those are not counted."""
+    sentences and bands whatever the data, so those are not counted."""
     written = json.dumps(corpus, ensure_ascii=False)
-    already = json.dumps([unchecked, make_inventory(tmp_path)], ensure_ascii=False)
+    enums = (PersonalDataKind, FindingTarget, ProportionBand)
+    vocabulary = [e.value for kind in enums for e in kind]
+    already = json.dumps([unchecked, make_inventory(tmp_path), vocabulary], ensure_ascii=False)
     leaked = set()
     for value in _sampled_values():
         tokens = {value, *re.findall(r"[A-Za-z0-9@.+]{4,}", value)}
