@@ -107,6 +107,9 @@ def test_the_check_names_what_it_found_and_keeps_nothing(
         json={**a_document(FLAGGED), "media_type": "application/pdf"},
     )
     assert refused.status_code == 400
+    without_text = {"name": "notes.md", "media_type": "text/markdown"}
+    malformed = client.post("/api/documentation/check", headers=JSON_HEADERS, json=without_text)
+    assert malformed.status_code == 400
 
 
 def test_a_streamed_turn_carries_what_was_confirmed() -> None:
