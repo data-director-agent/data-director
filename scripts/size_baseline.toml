@@ -14,7 +14,7 @@ lines = 591
 
 [[file]]
 path = "app/src/dd_app/governance.py"
-lines = 696
+lines = 690
 
 [[file]]
 path = "app/web/src/components/inventory/InventoryView.tsx"
@@ -34,7 +34,7 @@ lines = 638
 
 [[file]]
 path = "harness/src/dd_harness/testing/storage.py"
-lines = 1364
+lines = 1305
 
 [[file]]
 path = "scripts/blueprint/convert.py"

@@ -436,7 +436,19 @@ the deployment serves its bundle, as the release image and the VM deploy do.
 turn of the app may attach one document, plain text or Markdown of at most 256 KB under a file
 name with no folder, which the store keeps as a `documentation_added` event naming its name,
 media type, size and the SHA-256 of its UTF-8 text, under which the text is kept as a blob
-(`ProjectStore.add_documentation`). A document the store refuses leaves no trace, and a turn
+(`ProjectStore.add_documentation`). A turn may instead attach a Word document (`.docx`) or a
+PDF with a text layer, of at most 1 MB (`SOURCE_MAX_BYTES`, what a request through the
+deployment's proxy carries once encoded): the store reads its text inside the deployment
+(`dd_harness.projects.extract`, with `pypdf` and `python-docx`) and keeps it as a plain-text
+document, under the same limits, with the file as a blob beside it; the event names the file's
+media type, size and SHA-256 too, the document's `DocumentationSummary` gives
+`documentation_source_media_type`, and `ProjectStore.documentation_source` returns the file
+(`ProjectStore.add_document_file`, `harness/tests/test_document_files.py`). An encrypted or
+damaged file, a scanned PDF with no text layer (no text is recognised in images) and one whose
+text is blank or too long are refused. The text read from a file is `documentation`, so
+`hosted_models` decides whether it reaches a hosted model, as for one attached as text. Citing
+an attached document as evidence of its own is TODO(#1181), and recording its reading as an agent
+action TODO(#1182). A document the store refuses leaves no trace, and a turn
 that attaches an inventory too adds neither when either is refused. A `Message`'s
 `project_documentation` lists each document the project holds by name, digest, media type, size
 and when it was added, without its text, so that an orchestrator knows it is there; outside a

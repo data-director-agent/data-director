@@ -80,8 +80,10 @@ project's document of that kind, so a redraft is that document's next version; a
 which document with `redraft_document` where the project holds more than one of the kind
 ([Projects](specs/projects.md), invariant 6). Its `project_documents` are the documents a
 researcher attached to the project, each a `ProjectDocument`: the name, digest, media type, size
-and date of a `DocumentationSummary`, with the document's text. A drafter's model may suggest
-answers from them; nothing in them is placed in a document as supplied.
+and date of a `DocumentationSummary`, with the document's text. A document whose text was read
+from a Word document or PDF names that file's media type in `documentation_source_media_type`;
+its text is plain text either way. A drafter's model may suggest answers from them; nothing in
+them is placed in a document as supplied.
 
 A `Document` may ask the researcher about what its drafter could not know: `document_questions`
 holds one `DocumentQuestion` per gap, naming the README section or the data dictionary cell it

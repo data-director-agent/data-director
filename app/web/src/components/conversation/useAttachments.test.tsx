@@ -64,6 +64,35 @@ describe("useAttachments", () => {
     expect(result.current.pendingInventory?.fileCount).toBe(2);
   });
 
+  it("sends a PDF to be read on the server and opens its text to be checked", async () => {
+    const fetched = vi.fn(() =>
+      Promise.resolve(new Response(JSON.stringify({ name: "plan.pdf", text: PROTOCOL, size: 50 }))),
+    );
+    vi.stubGlobal("fetch", fetched);
+    onTestFinished(() => {
+      vi.unstubAllGlobals();
+    });
+    const { result } = render();
+    await act(() => result.current.attachFile(new File(["%PDF-1.4"], "plan.pdf")));
+    expect(fetched).toHaveBeenCalledWith("/api/documentation/extract", expect.anything());
+    expect(result.current.pendingDocument?.text).toBe(PROTOCOL);
+    expect(result.current.pendingDocument?.data).toBeTruthy();
+  });
+
+  it("refuses a PDF over the size a project keeps without sending it", async () => {
+    const fetched = vi.fn();
+    vi.stubGlobal("fetch", fetched);
+    onTestFinished(() => {
+      vi.unstubAllGlobals();
+    });
+    const { result } = render();
+    const big = new File([new Uint8Array(1024 * 1024 + 1)], "plan.pdf");
+    await act(() => result.current.attachFile(big));
+    expect(fetched).not.toHaveBeenCalled();
+    expect(result.current.pendingDocument).toBeNull();
+    expect(result.current.error).toBeTruthy();
+  });
+
   it("opens any other file as an inventory to be checked", async () => {
     const { result } = render();
     await act(() => result.current.attachFile(new File([INVENTORY], "inventory.json")));

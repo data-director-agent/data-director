@@ -205,10 +205,16 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     may be blank and the server supplies a sentence saying a document was attached; a turn may
     carry an inventory and a document together, and if the project refuses either, the turn is
     refused, nothing runs and neither is kept. The shell's one **Attach a file** button, and a
-    drop on the message form, take a `.json` file as an inventory and a `.txt` or `.md` file as a
-    document, unless the agent directory says the profile refuses attached documents
+    drop on the message form, take a `.json` file as an inventory and a `.txt`, `.md`, `.docx`
+    or `.pdf` file as a document, unless the agent directory says the profile refuses attached documents
     (`attached_documents`, [Projects](projects.md)): then they take only an inventory, say why a
-    document is not taken, and the server refuses a turn that carries one. A document is read in the browser, refused there if it is empty or over 256 KB,
+    document is not taken, and the server refuses a turn that carries one. A Word document or PDF
+    is refused in the browser if it is over 1 MB, and otherwise sent to
+    `POST /api/documentation/extract`, which reads its text inside the deployment and keeps
+    nothing; the dialog then shows that text and says where it was read from, and the turn sends
+    the file, not the text, which the server reads again ([Projects](projects.md)).
+    `GET /api/projects/{id}/documentation/{digest}?original` serves the file a document was read
+    from. A text or Markdown document is read in the browser, refused there if it is empty or over 256 KB,
     and first opened to be checked: a dialog shows its name, size and text, says that it will be
     stored in the project, that the Documentation Editor reads its text to suggest answers and
     other agents are told only its name, type and size ([Projects](projects.md)), and

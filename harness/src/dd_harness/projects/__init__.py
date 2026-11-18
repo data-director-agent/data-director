@@ -43,6 +43,7 @@ from dd_harness.projects.decisions import (
 )
 from dd_harness.projects.deposits import DepositRecords
 from dd_harness.projects.documents import Documents
+from dd_harness.projects.extract import SOURCE_MAX_BYTES, SOURCE_MEDIA_TYPES
 from dd_harness.projects.facts import FACT_REASON_MAX_LENGTH, Facts, FactVerdict
 from dd_harness.projects.flow import Flow
 from dd_harness.projects.fold import APPROVED, PROPOSED, REJECTED, text_digest
@@ -52,6 +53,7 @@ from dd_harness.projects.holdings import (
     DOCUMENTATION_NAME_MAX_LENGTH,
     Holdings,
     check_documentation,
+    read_document_file,
 )
 from dd_harness.projects.lifecycle import (
     TITLE_BY_MODEL,
@@ -128,6 +130,8 @@ __all__ = [
     "REPOSITORY_CHOSEN",
     "RESEARCHER_ADDED",
     "RESEARCHER_WITHDRAWN",
+    "SOURCE_MAX_BYTES",
+    "SOURCE_MEDIA_TYPES",
     "TITLE_BY_MODEL",
     "TITLE_BY_RESEARCHER",
     "TITLE_MAX_LENGTH",
@@ -157,6 +161,7 @@ __all__ = [
     "check_answers",
     "check_documentation",
     "deletion",
+    "read_document_file",
     "reason_required",
     "review_rules",
     "text_digest",

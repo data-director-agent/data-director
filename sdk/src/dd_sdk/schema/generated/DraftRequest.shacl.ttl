@@ -12,7 +12,12 @@ dd:DraftRequest a sh:NodeShape ;
     rdfs:comment "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen, the metadata record a person approved last and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory, the requirements and the metadata record in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. In a project the conductor also fills current_version, the latest version of the project's document of that kind, or of the document redraft_document names, so a redraft is that document's next version. The answers a person recorded to the current version's questions are filled in by the conductor in the same way (docs/specs/drafting.md), and so are the researcher facts people in the project chose to keep from their public ORCID records (docs/specs/projects.md), and the text of the documents a researcher attached to the project, from which a drafter's model may suggest answers but never fill a gap." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:class dd:ProjectDocument ;
+    sh:property [ sh:class dd:ProjectFact ;
+            sh:description "The facts a person in the project decided (ProjectFact), the last decision on each subject, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project decided any. A drafter treats each as supplied." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 10 ;
+            sh:path dd:project_decisions ],
+        [ sh:class dd:ProjectDocument ;
             sh:description "The documents the project holds, with their text, in the order they were added. In a project the conductor fills them and a caller leaves them out; outside a project, the caller sends them, as it does the other facts." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 9 ;
@@ -70,12 +75,7 @@ dd:DraftRequest a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 2 ;
-            sh:path dd:inventory ],
-        [ sh:class dd:ProjectFact ;
-            sh:description "The facts a person in the project decided (ProjectFact), the last decision on each subject, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project decided any. A drafter treats each as supplied." ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 10 ;
-            sh:path dd:project_decisions ] ;
+            sh:path dd:inventory ] ;
     sh:targetClass dd:DraftRequest .
 
 dd:Affiliation a sh:NodeShape ;
@@ -429,6 +429,13 @@ dd:ProjectDocument a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
             sh:path dd:documentation_media_type ],
+        [ sh:datatype xsd:string ;
+            sh:description "The document's text, as the researcher attached it, or as read from the file named by documentation_source_media_type." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path dd:documentation_text ],
         [ sh:datatype xsd:dateTime ;
             sh:description "When the document was added to the project." ;
             sh:maxCount 1 ;
@@ -437,12 +444,11 @@ dd:ProjectDocument a sh:NodeShape ;
             sh:order 4 ;
             sh:path dd:documentation_added_at ],
         [ sh:datatype xsd:string ;
-            sh:description "The document's text, as the researcher attached it." ;
+            sh:description "The media type of the Word document or PDF the document's text was read from, inside the deployment; absent for a document attached as text. The project keeps the file beside the text." ;
             sh:maxCount 1 ;
-            sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 5 ;
-            sh:path dd:documentation_text ],
+            sh:path dd:documentation_source_media_type ],
         [ sh:datatype xsd:string ;
             sh:description "The SHA-256 of the document's UTF-8 text, by which the project keeps it." ;
             sh:maxCount 1 ;
@@ -985,13 +991,7 @@ dd:PersonalDataFinding a sh:NodeShape ;
     rdfs:comment "Where the inventory command found what may be personal data, and how sure it is (docs/specs/personal-data.md). It never holds a matched value, any part of one, an offset into a file, a row number or an example: a kind, a place, bands and the detector only. A finding is a prompt for a person, never a decision." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:description "What the detector took the data to be." ;
-            sh:in ( "email address" "phone number" "NHS number" "National Insurance number" "postcode" "passport number" "driving licence number" "bank account number" "payment card number" "IP address" "person name" "direct identifier" "indirect identifier" "special category" "location" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 0 ;
-            sh:path dd:finding_kind ],
-        [ sh:description "The share of a column's sampled, non-empty values that matched, as a band so that it cannot be turned back into a count. Present for a column only." ;
+    sh:property [ sh:description "The share of a column's sampled, non-empty values that matched, as a band so that it cannot be turned back into a count. Present for a column only." ;
             sh:in ( "under 1%" "1 to 10%" "10 to 50%" "over 50%" ) ;
             sh:maxCount 1 ;
             sh:order 4 ;
@@ -1034,6 +1034,12 @@ dd:PersonalDataFinding a sh:NodeShape ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 6 ;
-            sh:path dd:finding_detector ] ;
+            sh:path dd:finding_detector ],
+        [ sh:description "What the detector took the data to be." ;
+            sh:in ( "email address" "phone number" "NHS number" "National Insurance number" "postcode" "passport number" "driving licence number" "bank account number" "payment card number" "IP address" "person name" "direct identifier" "indirect identifier" "special category" "location" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 0 ;
+            sh:path dd:finding_kind ] ;
     sh:targetClass dd:PersonalDataFinding .
 

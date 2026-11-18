@@ -6,8 +6,11 @@ researcher to read; it answers `404` when there is none. `POST /api/projects/{id
 revision of the one it holds, or a new scan. It answers `201` with what the project then holds of
 it. `GET /api/projects/{id}/documentation` lists the documents attached to the project, without
 their text, and `GET /api/projects/{id}/documentation/{digest}` is one document's text, `404` when
-the project holds none with that digest. `GET /api/researcher/orcid` is the signed-in person's
-public ORCID record, and `…/researchers` what of it they kept in a project.
+the project holds none with that digest; with `?original`, the Word document or PDF its text was
+read from, `404` for one attached as text. `POST /api/documentation/extract` reads the text of a
+Word document or PDF (`{"name", "media_type", "data"}`, the file as base64) for the person to
+check before they attach it, and keeps nothing (#961). `GET /api/researcher/orcid` is the
+signed-in person's public ORCID record, and `…/researchers` what of it they kept in a project.
 """
 
 from __future__ import annotations
@@ -19,6 +22,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, PlainTextResponse, Response
 from starlette.routing import Route
 
+from dd_app.problems import refused
 from dd_app.routes.common import (
     Deps,
     Endpoint,
@@ -31,13 +35,16 @@ from dd_app.routes.common import (
     project_refused,
     signed_in,
 )
+from dd_app.turn_body import decoded
 from dd_harness import orcid
+from dd_harness.policy import check_attached_document
 from dd_harness.project_access import Action
-from dd_harness.projects import ProjectError, UnknownProjectError
+from dd_harness.projects import ProjectError, UnknownProjectError, read_document_file
 from dd_sdk.contract.models import Principal, now
 
 INVENTORY_REFUSED = "Data Director could not add this inventory"
 RESEARCHER_REFUSED = "Data Director could not keep these ORCID facts"
+DOCUMENT_REFUSED = "Data Director could not read this document"
 
 
 class AddInventory(RequestBody):
@@ -46,6 +53,19 @@ class AddInventory(RequestBody):
     refusal: ClassVar[str] = "`inventory` must be the object `dd-inventory` wrote."
 
     inventory: dict[str, Any]
+
+
+class ExtractDocument(RequestBody):
+    """A Word document or PDF to read before it is attached: its file name, media type and bytes
+    as base64."""
+
+    refusal: ClassVar[str] = (
+        "`name`, `media_type` and `data` (the file as base64) must each be a string."
+    )
+
+    name: str
+    media_type: str
+    data: str
 
 
 class KeepResearcher(RequestBody):
@@ -74,6 +94,7 @@ def routes(deps: Deps) -> list[Route]:
         Route(f"{project}/researchers/me", contribute(keep_researcher), methods=["PUT"]),
         Route(f"{project}/researchers/me", contribute(withdraw_researcher), methods=["DELETE"]),
         Route("/api/researcher/orcid", signed_in(deps, get_orcid_record), methods=["GET"]),
+        Route("/api/documentation/extract", signed_in(deps, extract_document), methods=["POST"]),
     ]
 
 
@@ -110,6 +131,16 @@ async def list_documentation(request: Request, _: Principal, deps: Deps) -> Resp
 
 async def get_documentation(request: Request, _: Principal, deps: Deps) -> Response:
     project_id, digest = request.path_params["project_id"], request.path_params["digest"]
+    if "original" in request.query_params:
+        source = await run_in_threadpool(deps.projects.documentation_source, project_id, digest)
+        if source is None:
+            return problem(
+                404,
+                "documentation-not-found",
+                "No such file",
+                f"Project {project_id!r} holds no file its document {digest!r} was read from.",
+            )
+        return Response(source[0], media_type=source[1])
     found = await run_in_threadpool(deps.projects.documentation_text, project_id, digest)
     if found is None:
         return problem(
@@ -193,3 +224,19 @@ async def withdraw_researcher(request: Request, person: Principal, deps: Deps) -
 
 def _orcid_unavailable(detail: str) -> Response:
     return problem(502, "orcid-unavailable", "ORCID could not be reached", detail)
+
+
+async def extract_document(request: Request, _: Principal, deps: Deps) -> Response:
+    """The text of a Word document or PDF, for the person to check before attaching it."""
+    body = await parse_body(request, ExtractDocument, DOCUMENT_REFUSED)
+    if isinstance(body, Response):
+        return body
+    data = decoded(body.data)
+    if data is None:
+        return refused("`data` must be the file, encoded as base64.", DOCUMENT_REFUSED)
+    try:
+        check_attached_document(deps.governance.conductor.profile)
+        text = await run_in_threadpool(read_document_file, body.name, body.media_type, data)
+    except ValueError as exc:  # a `ProjectError`, or documents the profile refuses
+        return refused(str(exc), DOCUMENT_REFUSED)
+    return JSONResponse({"name": body.name, "text": text, "size": len(text.encode("utf-8"))})

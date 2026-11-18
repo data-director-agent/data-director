@@ -243,6 +243,7 @@ classes:
       - documentation_media_type
       - documentation_size
       - documentation_added_at
+      - documentation_source_media_type
 
   ProjectDocument:
     description: >-
@@ -255,6 +256,7 @@ classes:
       - documentation_media_type
       - documentation_size
       - documentation_added_at
+      - documentation_source_media_type
       - documentation_text
 
   ResearcherRecord:
@@ -1090,8 +1092,15 @@ slots:
     description: When the document was added to the project.
     range: datetime
     required: true
+  documentation_source_media_type:
+    description: >-
+      The media type of the Word document or PDF the document's text was read from, inside the
+      deployment; absent for a document attached as text. The project keeps the file beside the
+      text.
   documentation_text:
-    description: The document's text, as the researcher attached it.
+    description: >-
+      The document's text, as the researcher attached it, or as read from the file named by
+      documentation_source_media_type.
     required: true
   project_documents:
     description: >-

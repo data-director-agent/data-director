@@ -167,6 +167,8 @@ class DocumentationSummary(Frozen):
     documentation_media_type: str
     documentation_size: int
     documentation_added_at: datetime
+    # The Word or PDF file's media type, for a document whose text was read from one.
+    documentation_source_media_type: str | None = None
 
 
 class ProjectDocument(DocumentationSummary):

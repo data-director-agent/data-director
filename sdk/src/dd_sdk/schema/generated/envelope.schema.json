@@ -521,6 +521,13 @@
                "description": "When the document was added to the project.",
                "format": "date-time",
                "type": "string"
+            },
+            "documentation_source_media_type": {
+               "description": "The media type of the Word document or PDF the document's text was read from, inside the deployment; absent for a document attached as text. The project keeps the file beside the text.",
+               "type": [
+                  "string",
+                  "null"
+               ]
             }
          },
          "required": [
@@ -1910,8 +1917,15 @@
                "format": "date-time",
                "type": "string"
             },
+            "documentation_source_media_type": {
+               "description": "The media type of the Word document or PDF the document's text was read from, inside the deployment; absent for a document attached as text. The project keeps the file beside the text.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
             "documentation_text": {
-               "description": "The document's text, as the researcher attached it.",
+               "description": "The document's text, as the researcher attached it, or as read from the file named by documentation_source_media_type.",
                "type": "string"
             }
          },

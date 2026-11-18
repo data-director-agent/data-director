@@ -134,7 +134,14 @@ dd:InventoryPart a sh:NodeShape ;
     rdfs:comment "One scan of one folder, mounted at a folder name in an inventory made of several (docs/specs/projects.md). Every file of the inventory lies under exactly one part's folder, and a part is replaced whole when its folder is scanned again." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
+    sh:property [ sh:datatype xsd:dateTime ;
+            sh:description "When the part's folder was scanned." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path prov:generatedAtTime ],
+        [ sh:datatype xsd:string ;
             sh:description "The folder name the part is mounted at, such as instrument or raw/2024: relative, with forward slashes, and no empty, . or .. segment. Every file of the part has a path that begins with it and a slash. No part's folder is another's or lies inside another's." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -171,14 +178,7 @@ dd:InventoryPart a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
-            sh:path dd:part_identified_with ],
-        [ sh:datatype xsd:dateTime ;
-            sh:description "When the part's folder was scanned." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 4 ;
-            sh:path prov:generatedAtTime ] ;
+            sh:path dd:part_identified_with ] ;
     sh:targetClass dd:InventoryPart .
 
 dd:TableField a sh:NodeShape ;
