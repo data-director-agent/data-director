@@ -11,7 +11,13 @@ from typing import Any
 
 import pytest
 from starlette.testclient import TestClient
-from support import configure_env, dist_dir, new_governance
+from support import (
+    check_fixture,
+    configure_env,
+    dist_dir,
+    new_governance,
+    normalised_conversation,
+)
 
 from dd_app.app import build_app
 from dd_app.governance import Governance
@@ -170,3 +176,24 @@ def test_only_an_owner_decides_sensitivity_and_licence(
 
     response = decide(client, project_id, {"verdict": "confirmed", "proposal": duplicate})
     assert response.status_code == 201, response.text
+
+
+def test_the_shells_fixtures_are_what_the_server_answers(
+    client: TestClient,
+    store: ProjectStorage,
+    governance: Governance,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The shell's tests are drawn from what the server answers: two proposals, the read-back
+    once one is confirmed, and an owner's kind of fact refused to a member."""
+    project_id, (duplicate, sites) = proposed(store, DUPLICATE, SITES)
+    offered = client.get(f"/api/projects/{project_id}/facts").json()
+    decided = decide(client, project_id, {"verdict": "confirmed", "proposal": duplicate}).json()
+    monkeypatch.setattr(governance, "role", lambda _project_id, _principal: Role.MEMBER)
+    response = decide(client, project_id, {"verdict": "confirmed", "proposal": sites})
+    assert response.status_code == 403
+    # Normalised together, so a proposal keeps its identifier from one fixture to the next.
+    offered, decided, refused = normalised_conversation([offered, decided, response.json()])
+    check_fixture("project-facts.json", offered)
+    check_fixture("project-facts-decided.json", decided)
+    check_fixture("project-facts-forbidden.json", refused)

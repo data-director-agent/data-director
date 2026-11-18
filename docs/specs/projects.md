@@ -323,10 +323,14 @@ intended design, and each part says where it is not built yet.
     (`ProjectStore.propose_facts`, `decide_fact`, `decisions`, `proposals`), and the conductor
     gives it to every drafter and orchestrator in the project (invariant 6). A member decides
     funders, required repositories and which files go in; whether sensitive data may be
-    published, and the licence, have legal consequences, so only an owner decides them
+    published, and the licence, have legal consequences, so only an owner decides them. A person
+    decides on the project page's **Project facts** panel (`FactsPanel.tsx`), which shows each
+    proposal with why it was proposed and lets them confirm, change or reject it, change or remove
+    a fact that stands, or state one nobody proposed
     (`GET /api/projects/{project_id}/facts`, `READ`; `POST …/facts/decisions`, `CONTRIBUTE`, or
     `DECIDE` for `sensitivity` and `licence`) (`dd_harness.testing.storage`,
-    `harness/tests/test_project_decisions.py`, `app/tests/test_project_facts.py`).
+    `harness/tests/test_project_decisions.py`, `app/tests/test_project_facts.py`,
+    `app/web/src/components/project/FactsPanel.test.tsx`).
 
 ## Boundaries and contracts
 
