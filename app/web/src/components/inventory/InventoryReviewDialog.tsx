@@ -12,8 +12,7 @@ import { Check, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 
 import { INVENTORY_GUIDE, withEdits, type AttachedInventory } from "../../conversation/inventory";
-import { Button } from "../ui/Button";
-import { ModalDialog } from "../ui/Dialog";
+import { ReviewDialog } from "../ui/ReviewDialog";
 import { startHistory, type EditHistory } from "./history";
 import { InventoryEditor } from "./InventoryEditor";
 
@@ -41,27 +40,16 @@ export function InventoryReviewDialog({
   if (choice.for !== pending) setChoice({ for: pending, history: startHistory() });
   const history = choice.for === pending ? choice.history : startHistory();
   return (
-    <ModalDialog
+    <ReviewDialog
       title="Check the inventory before attaching it"
       isOpen={pending !== null}
-      onOpenChange={(open) => {
-        if (!open) onDiscard();
+      onDiscard={onDiscard}
+      attach={{
+        label: attachLabel,
+        icon: attachIcon,
+        isPending,
+        onPress: () => pending && onAttach(withEdits(pending, history.present)),
       }}
-      footer={
-        pending && (
-          <>
-            <Button onPress={onDiscard}>Cancel</Button>
-            <Button
-              variant="primary"
-              icon={attachIcon}
-              isPending={isPending}
-              onPress={() => onAttach(withEdits(pending, history.present))}
-            >
-              {attachLabel}
-            </Button>
-          </>
-        )
-      }
     >
       {pending && (
         <>
@@ -88,6 +76,6 @@ export function InventoryReviewDialog({
           />
         </>
       )}
-    </ModalDialog>
+    </ReviewDialog>
   );
 }

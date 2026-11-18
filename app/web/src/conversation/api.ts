@@ -106,6 +106,7 @@ export function turnBody(
             name: document.name,
             media_type: document.media_type,
             text: document.text,
+            ...(document.confirmed?.length ? { confirmed: document.confirmed } : {}),
           },
         }
       : {}),
