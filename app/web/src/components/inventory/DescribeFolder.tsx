@@ -7,7 +7,9 @@
  * The folder is chosen with `showDirectoryPicker` where the browser has it, since Chromium's
  * `<input webkitdirectory>` asks to "upload" files that are never sent; elsewhere with that input.
  * Dropping a folder on the section is a shortcut for the button. The section is shown only where
- * the deployment serves the scanner. A folder holding a very large file is described only once the
+ * the deployment serves the scanner. Edit inventory offers it too, for a new scan of a folder the
+ * project's inventory has or adds (InventoryEditDialog.tsx); there the inventory made is read in
+ * as the new scan, and nothing is kept until the researcher saves. A folder holding a very large file is described only once the
  * researcher has read why the command is better for it and chosen to go on (LargeFileNotice.tsx).
  */
 
@@ -33,13 +35,26 @@ import { STAGE_TEXT, useFolderScan, type FolderScan } from "./useFolderScan";
 /** The attribution the PRONOM signatures' licence asks for (inventory/browser, NOTICES.md). */
 const OGL = "Contains public sector information licensed under the Open Government Licence v3.0.";
 
+/** What the inventory made is for: attaching to a message, or updating the project's inventory. */
+type Purpose = "attach" | "update";
+
+const PURPOSE_TEXT: Record<Purpose, string> = {
+  attach: "only the inventory is attached, after you have checked it.",
+  update: "only the inventory is read in here, and nothing is kept until you save.",
+};
+
 interface Props {
   /** Called with the inventory made, as `<folder>-inventory.json`. */
   onDescribed: (file: File) => void;
   scanner?: Scanner;
+  purpose?: Purpose;
+  /** No folder can be chosen, as when what the scan is of is not yet settled. */
+  isDisabled?: boolean;
+  /** Told when a scan starts and when it ends, however it ends. */
+  onScanning?: (scanning: boolean) => void;
 }
 
-export function DescribeFolder({ onDescribed, scanner = pageScanner() }: Props) {
+export function DescribeFolder({ scanner = pageScanner(), ...props }: Props) {
   const [available, setAvailable] = useState(false);
   useEffect(() => {
     let current = true;
@@ -48,7 +63,7 @@ export function DescribeFolder({ onDescribed, scanner = pageScanner() }: Props) 
       current = false;
     };
   }, [scanner]);
-  return available ? <DescribePanel onDescribed={onDescribed} scanner={scanner} /> : null;
+  return available ? <DescribePanel scanner={scanner} {...props} /> : null;
 }
 
 type Picker = { showDirectoryPicker(options?: { mode?: "read" }): Promise<DirectoryHandleLike> };
@@ -64,9 +79,17 @@ async function pickDirectory(): Promise<ChosenFolder | null> {
   }
 }
 
-function DescribePanel({ onDescribed, scanner }: Required<Props>) {
+function DescribePanel({
+  onDescribed,
+  scanner,
+  purpose = "attach",
+  isDisabled = false,
+  onScanning,
+}: Props & { scanner: Scanner }) {
   const heading = useId();
   const { scan, start, cancel, fail } = useFolderScan(scanner, onDescribed);
+  const scanning = scan.status === "scanning";
+  useEffect(() => onScanning?.(scanning), [onScanning, scanning]);
   const [dropping, setDropping] = useState(false);
   const [large, setLarge] = useState<ChosenFolder | null>(null);
   const largeFile = large && largestLargeFile(large);
@@ -90,13 +113,15 @@ function DescribePanel({ onDescribed, scanner }: Required<Props>) {
     }
   };
 
+  const canDrop = (event: DragEvent<HTMLElement>) =>
+    !isDisabled && !scanning && !large && event.dataTransfer.types.includes("Files");
   const onDragOver = (event: DragEvent<HTMLElement>) => {
-    if (scan.status !== "idle" || large || !event.dataTransfer.types.includes("Files")) return;
+    if (!canDrop(event)) return;
     event.preventDefault();
     setDropping(true);
   };
   const onDrop = (event: DragEvent<HTMLElement>) => {
-    if (scan.status !== "idle" || large || !event.dataTransfer.types.includes("Files")) return;
+    if (!canDrop(event)) return;
     event.preventDefault();
     setDropping(false);
     // Entries are only to be had while the drop event lasts.
@@ -119,7 +144,7 @@ function DescribePanel({ onDescribed, scanner }: Required<Props>) {
       <h3 id={heading}>Describe a folder in this browser</h3>
       <p>
         Your browser reads the files in the folder you choose and makes the inventory here. None of
-        the files is sent anywhere: only the inventory is attached, after you have checked it.
+        the files is sent anywhere: {PURPOSE_TEXT[purpose]}
       </p>
       {scan.status === "scanning" ? (
         <Scanning scan={scan} onCancel={cancel} />
@@ -142,6 +167,7 @@ function DescribePanel({ onDescribed, scanner }: Required<Props>) {
             <Button
               variant="primary"
               icon={FolderOpen}
+              isDisabled={isDisabled}
               onPress={() => void choose(pickDirectory)}
             >
               Choose a folder…
@@ -154,7 +180,7 @@ function DescribePanel({ onDescribed, scanner }: Required<Props>) {
                 files && void choose(async () => fromFileList(Array.from(files)))
               }
             >
-              <Button variant="primary" icon={FolderOpen}>
+              <Button variant="primary" icon={FolderOpen} isDisabled={isDisabled}>
                 Choose a folder…
               </Button>
             </FileTrigger>
