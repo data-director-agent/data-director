@@ -45,6 +45,10 @@ model_accounts:              # optional: whose model account pays; see "People's
   own: off                   # accounts" below. Without this key, as with `own: off`, the
                              # deployment pays for every model call
 
+attached_documents: allowed  # optional: `refused` keeps no document people attach to a project
+                             # and gives no agent any a project holds. Without this key, `allowed`
+                             # (docs/specs/projects.md, Documentation)
+
 agent_settings:              # optional: options an agent offers on its card, per agent.
   advisor.policy:            # Write each value as a quoted string. Without this key every
     journals: "off"          # agent uses its card's defaults

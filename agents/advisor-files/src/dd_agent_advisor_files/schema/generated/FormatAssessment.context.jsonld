@@ -60,6 +60,9 @@
       "path": {
          "@id": "https://w3id.org/data-director/agents/files/path"
       },
+      "pronom_id": {
+         "@id": "https://w3id.org/data-director/agents/files/pronom_id"
+      },
       "prov": "http://www.w3.org/ns/prov#",
       "question": {
          "@id": "https://w3id.org/data-director/agents/files/question"

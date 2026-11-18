@@ -32,6 +32,28 @@ from dd_sdk.contract.models import Derivation, EvidenceItem, Outcome, OutcomeSta
 
 Advised = list[tuple[Item, Rationale]]
 
+# What every payload says it does not do. Each line is true of the code: the sources it reads, what
+# a record is, and what a model's reading of policy text is worth.
+LIMITATIONS = (
+    "It reads FAIRsharing and Jisc Open Policy Finder for policies, Crossref for a journal's "
+    "publisher and ROR for a funder's identity. Where a model reads policy text, it also reads the "
+    "pages those records or the researcher name. No other source is searched, so a policy that "
+    "none of them holds is not found.",
+    "A registry record is a curated summary, not the policy itself. An obligation taken from a "
+    "record is read by fixed rules from its curated fields, and a person checks it against the "
+    "policy.",
+    "The FAIRsharing and ROR data is a dated snapshot by default, so a change made since its date "
+    "is not shown.",
+    "Where a model reads a policy's own text, each obligation kept quotes that text word for word, "
+    "and the code has found the quote in it. The kind, strength and value are the model's reading "
+    "of the quote, and a person confirms each against the policy.",
+    "Open Policy Finder is not searched without an API key. A registry that cannot be asked is "
+    "named in the statement.",
+    "It does not decide which of differing policies applies, nor whether an actor meets a policy's "
+    "requirements.",
+    "It is an alpha with no evaluation set yet: how many policies it misses is not measured.",
+)
+
 
 def _candidate(org: Organisation) -> str:
     where = f", {', '.join(org.country_codes)}" if org.country_codes else ""
@@ -235,6 +257,7 @@ class Report:
                 journals=self.journals,
                 readings=self.texts.readings,
                 ambiguous=self.unresolved,
+                limitations=list(LIMITATIONS),
                 searched=SearchedSummary(
                     queries=found.queries(),
                     snapshot_ref="; ".join(self.labels),

@@ -7,7 +7,8 @@
 #   web=true|false      app/web and the libraries it links, inventory/browser and sdk/browser (ci.yml)
 #   inventory=true|false  the command and its browser bundle, checked against each other (ci.yml)
 #   deploy=true|false   the NGINX site and the systemd units (ci.yml)
-#   gateway=true|false  the LiteLLM gateway's test stack and the model broker that calls it (ci.yml)
+#   gateway=true|false  the LiteLLM gateway's test stack, the model broker that calls it, and the
+#                       backup of its database (ci.yml)
 #   docs=true|false     the documentation site (accessibility.yml, which builds it)
 #   codeql=[...]        the languages CodeQL analyses, as a JSON list (codeql.yml)
 #
@@ -88,7 +89,8 @@ while IFS= read -r f; do
   # (deploy/llm-gateway/README.md). Independent of the rules above.
   case "$f" in
     .github/* | scripts/ci_changes.sh | uv.lock | pyproject.toml | .python-version \
-      | deploy/llm-gateway/* | broker/* | sdk/src/*)
+      | deploy/llm-gateway/* | broker/* | sdk/src/* | deploy/backup.sh | deploy/restore.sh \
+      | deploy/stores.sh | deploy/gateway-store.sh | scripts/tests/test_backup.py)
       gateway=true ;;
   esac
   # CodeQL reads source by language, without building it.

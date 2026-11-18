@@ -32,9 +32,10 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
    is held to every rule any invocation is. (`harness/tests/test_conversations.py`)
 2. **Conversations are derived from the run storage, never stored apart from it.** Turn order is
    the order in which the conductor stored the turns ([Storage](storage.md), invariant 3). So is
-   a conversation's title: the first turn's `Reply.conversation_title` if a model wrote one,
-   otherwise the start of the first message, with `title_source` saying which
-   (`harness/tests/test_conversations.py`).
+   a conversation's title, taken from the first turn that did not fail (or the first turn, if
+   every turn failed), so that a message nobody answered does not name the conversation or its
+   project: that turn's `Reply.conversation_title` if a model wrote one, otherwise the start of
+   its message, with `title_source` saying which (`harness/tests/test_conversations.py`).
 3. **The history is part of the input.** What an agent was shown of earlier turns travels inside
    `Message`, so the input hash covers it and every transport gives the agent the same document.
    (`agents/orchestrator-stub/tests/test_orchestrator_stub.py`,

@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "data-director-agent-advisor-linking"
-version = "0.1.0a1"
-description = "advisor.linking: the Linking Adviser persona (mock)"
+version = "0.2.0a1"
+description = "advisor.linking: the Linking Adviser persona"
 requires-python = ">=3.14"
 license = "MIT"
 authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]

@@ -9,7 +9,7 @@ title: advisor.files classes
 description: >-
   The File Archivist's assessment, in reply to a project's file inventory, of whether each file's
   format is open.
-version: 0.3.0
+version: 0.4.0
 license: MIT
 
 prefixes:
@@ -45,6 +45,7 @@ classes:
       - media_type
       - open_format
       - judged_by
+      - pronom_id
 
   FileCheck:
     description: >-
@@ -83,6 +84,10 @@ slots:
     description: What the judgement rests on.
     range: JudgedBy
     required: true
+  pronom_id:
+    description: >-
+      The PRONOM identifier (PUID) the judgement rests on, or, when judged_by is pronom_unlisted,
+      the first identifier the inventory gave. Absent when the inventory gave none that was used.
   checks:
     description: >-
       The files a person should look at, in the inventory's order and, for each file, in the order
@@ -106,13 +111,19 @@ slots:
     description: For a duplicate, the paths of the other files with the same digest.
     multivalued: true
   limitations:
-    description: What this mock does not yet do.
+    description: What this agent does not yet do.
     multivalued: true
 
 enums:
 
   JudgedBy:
     permissible_values:
+      pronom:
+        description: A PRONOM identifier the inventory gives, which is in formats.yaml.
+      pronom_unlisted:
+        description: >-
+          The inventory gives PRONOM identifiers and none is in formats.yaml: the file is
+          identified, but not as a format this table knows.
       media_type:
         description: The media type the inventory gives, which fido may have read from content.
       extension:
@@ -136,3 +147,7 @@ enums:
         description: The file is empty.
       duplicate:
         description: Another file in the inventory has the same digest.
+      extension_mismatch:
+        description: >-
+          The inventory's content-based identification and the file name's extension name
+          different formats.

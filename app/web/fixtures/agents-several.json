@@ -2492,6 +2492,7 @@
   ],
   "incompatible": {},
   "profile": {
+    "attached_documents": "allowed",
     "digest": "3d0adbcbb9d74a5321e1c442c7ff2afeee34bcf455196b1fcf7702122f5c5a87",
     "orchestrator": null,
     "ref": "profile:test-permissive@v9"

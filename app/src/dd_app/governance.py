@@ -21,6 +21,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from dd_app.config import DEFAULT_PROJECTS_DIR, DEFAULT_REPOSITORIES_DIR
+from dd_app.principals import principal_summary
 from dd_app.turn_body import AttachedDocument, Turn
 from dd_app.turn_lock import hold_turn
 from dd_harness import conversations, project_access
@@ -28,6 +29,7 @@ from dd_harness.conductor import Conductor
 from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
 from dd_harness.listing import Page, Readable, check_limit
 from dd_harness.observe import RunObserver
+from dd_harness.policy import check_attached_document
 from dd_harness.project_access import Action, Role
 from dd_harness.projects import UnknownProjectError, check_documentation
 from dd_harness.requirements import Requirements, load_requirements
@@ -338,6 +340,7 @@ class Governance:
             )
         caused_by = f"POST /api/conversations/{conversation_id}/turns"
         if documentation is not None:
+            check_attached_document(self.conductor.profile)
             check_documentation(documentation.name, documentation.media_type, documentation.text)
         if inventory is not None:
             self.projects.add_inventory(
@@ -606,6 +609,7 @@ class Governance:
                 "ref": profile.ref,
                 "digest": profile.digest,
                 "orchestrator": profile.orchestrator,
+                "attached_documents": profile.attached_documents,
             },
             "acting_for": principal_summary(acting_for),
         }
@@ -679,11 +683,3 @@ class Governance:
             "unavailable": sorted(registry.unavailable),
             "incompatible": sorted(registry.incompatible),
         }
-
-
-def principal_summary(principal: Principal) -> dict[str, Any]:
-    """What the shell is told about a principal: whom runs act for, and who vouched for them."""
-    summary: dict[str, Any] = {"name": principal.name, "assurance": principal.assurance.value}
-    if principal.vouched_by is not None:
-        summary["vouched_by"] = str(principal.vouched_by)
-    return summary

@@ -75,6 +75,7 @@ class PolicyAgent:
             "policies.notes": Derived(Derivation.TEMPLATE),
             "policies.rationale": Derived(Derivation.MODEL, recorded_in="rationale_derivation"),
             "conflicts.description": Derived(Derivation.TEMPLATE),
+            "limitations": Derived(Derivation.TEMPLATE),
             "mandated_repositories.name": Derived(Derivation.REGISTRY),
             "funders.crossref_funder_id": Derived(Derivation.REGISTRY),
             "journals.publisher": Derived(Derivation.REGISTRY),

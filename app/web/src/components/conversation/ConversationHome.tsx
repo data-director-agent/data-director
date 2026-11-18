@@ -101,7 +101,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   const urlConversation = params.get("conversation");
   const box = useRef<HTMLTextAreaElement>(null);
 
-  const attachments = useAttachments(box, announce);
+  const attachments = useAttachments(box, announce, directory.documentsAllowed);
   const turns = useConversationTurns({
     orchestratorId: orchestrator?.id,
     runId,
@@ -249,6 +249,9 @@ export function ConversationHome({ directory }: { directory: Directory }) {
               }
               chosenRepository={chosenRepository(project)}
               project={project}
+              onRetry={(message) =>
+                void turns.deliver(message, { inventory: null, document: null }, null)
+              }
               {...projectHandlers(projectId, answered, reloadProjects)}
             />
           )}
