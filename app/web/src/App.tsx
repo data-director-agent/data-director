@@ -17,6 +17,7 @@ import { SessionTimeout } from "./components/session/SessionTimeout";
 import { SignedOutPage } from "./components/session/SignedOutPage";
 import { SignInPage } from "./components/session/SignInPage";
 import { ActiveProjectProvider } from "./project/active";
+import { RunActivityProvider } from "./run/activity";
 import { useLocation } from "./route";
 import { type Directory, normalise } from "./manifest/normalise";
 import type { RawAgentsResponse } from "./manifest/types";
@@ -189,7 +190,14 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
       )}
       {/* The app works in one project at a time (docs/specs/app.md); only someone signed in has
           projects to work in. */}
-      {signedIn ? <ActiveProjectProvider key={principalId}>{content()}</ActiveProjectProvider> : content()}
+      {/* The runs this tab streams, for the activity log: kept per person signed in. */}
+      {signedIn ? (
+        <ActiveProjectProvider key={principalId}>
+          <RunActivityProvider>{content()}</RunActivityProvider>
+        </ActiveProjectProvider>
+      ) : (
+        content()
+      )}
     </Frame>
   );
 }

@@ -11,12 +11,10 @@ from __future__ import annotations
 
 import multiprocessing
 import os
-import re
 import threading
 import uuid
 from collections.abc import Callable, Iterator
 from typing import Any
-from urllib.parse import quote
 
 import pytest
 from hypothesis import HealthCheck, given, settings
@@ -47,14 +45,9 @@ pytestmark = [
 psycopg = pytest.importorskip("psycopg")
 postgres = pytest.importorskip("dd_harness.postgres")
 psycopg_pool = pytest.importorskip("psycopg_pool")
+kit = pytest.importorskip("dd_harness.testing.postgres")
 
 type Locate = Callable[[str], str]
-
-
-def in_schema(database: str, schema: str) -> str:
-    """`database`, with `schema` first on its search path."""
-    option = quote(f"-csearch_path={schema}", safe="")
-    return f"{database}{'&' if '?' in database else '?'}options={option}"
 
 
 @pytest.fixture(autouse=True)
@@ -92,22 +85,8 @@ def connections(application: str) -> list[tuple[int, Any]]:
 @pytest.fixture
 def blank() -> Iterator[Locate]:
     """Opens an empty schema by name, migrating nothing; the same name opens the same one."""
-    made: dict[str, str] = {}
-    prefix = f"dd_test_{uuid.uuid4().hex[:12]}"
-
-    def locate(name: str) -> str:
-        if name not in made:
-            schema = f"{prefix}_{re.sub(r'[^a-z0-9]', '_', name.lower())}"
-            with psycopg.connect(DATABASE, autocommit=True) as conn:
-                conn.execute(f'create schema "{schema}"')
-            made[name] = in_schema(DATABASE, schema)
-        return made[name]
-
-    yield locate
-    with psycopg.connect(DATABASE, autocommit=True) as conn:
-        for location in made.values():
-            schema = location.rsplit("%3D", 1)[1]
-            conn.execute(f'drop schema "{schema}" cascade')
+    with kit.scratch_schemas(DATABASE) as schemas:
+        yield schemas.blank
 
 
 @pytest.fixture
@@ -386,50 +365,13 @@ def test_the_conductor_keeps_a_run_whole_in_the_database(locate: Locate) -> None
     assert [e["invocation_id"] for e in store.iter_envelopes()] == [env.invocation_id]
 
 
-def _at_version_one(location: str) -> None:
-    """Apply the first migration alone, as a database made before listing was indexed."""
-    _version, name, script = postgres.migrations()[0]
-    with psycopg.connect(location) as conn, conn.transaction():
-        conn.execute(
-            "create table dd_schema (version integer primary key, name text not null,"
-            " applied_at timestamptz not null default now())"
-        )
-        conn.execute(script.encode())
-        conn.execute("insert into dd_schema (version, name) values (1, %s)", (name,))
-
-
-# A store large enough that reading it whole would show in a plan: runs in many conversations,
-# some delegated, for many principals, a third of them in projects.
-LARGE_STORE = """
-insert into runs (invocation_id, conversation_id, envelope)
-select
-    'run-' || i,
-    'conversation-' || (i %% 5000),
-    json_build_object(
-        'invocation_id', 'run-' || i,
-        'agent_id', 'stub.storage',
-        'agent_version', '0.1.0',
-        'conversation_id', 'conversation-' || (i %% 5000),
-        'parent_invocation_id', case when i %% 10 = 0 then 'run-' || (i - 1) end,
-        'project_id', case when (i %% 5000) %% 3 = 0 then 'project-' || (i %% 40) end,
-        'acting_for', json_build_object(
-            'principal_id', 'principal-' || ((i %% 5000) %% 50), 'name', 'Person ' || (i %% 50)
-        ),
-        'completed_at', to_char(timestamp '2026-01-01' + i * interval '1 second',
-            'YYYY-MM-DD"T"HH24:MI:SS"+00:00"'),
-        'outcome', json_build_object('status', 'succeeded', 'statement', 'Stored.')
-    )
-from generate_series(1, %(runs)s) as i
-"""
-
-
 def test_migrating_indexes_the_runs_already_stored(blank: Locate) -> None:
     """Runs stored before listing was indexed are listed after the migration as they would have
     been stored since."""
     location = blank("runs")
-    _at_version_one(location)
+    kit.at_version_one(location)
     with psycopg.connect(location) as conn:
-        conn.execute(LARGE_STORE, {"runs": 2000})
+        conn.execute(kit.LARGE_STORE, {"runs": 2000})
     assert postgres.migrate(location) == [name for _, name, _ in postgres.migrations()[1:]]
     store = postgres.PostgresRunStore(location)
     readable = Readable("principal-7", frozenset({"project-3", "project-21"}))
@@ -454,9 +396,9 @@ def test_a_listing_reads_a_page_not_the_store(blank: Locate, listing: str) -> No
     proportion to the page and the reader's projects, never to the size of the store
     (docs/specs/storage.md, "Listing")."""
     location = blank("runs")
-    _at_version_one(location)
+    kit.at_version_one(location)
     with psycopg.connect(location) as conn:
-        conn.execute(LARGE_STORE, {"runs": 20000})
+        conn.execute(kit.LARGE_STORE, {"runs": 20000})
     postgres.migrate(location)
     with psycopg.connect(location, autocommit=True) as conn:
         conn.execute("analyze")
@@ -522,7 +464,7 @@ def test_migrating_names_the_creators_of_projects_already_stored(blank: Locate) 
     """Projects created before their readers were indexed are found after the migration by
     whoever created them, and by no one who only acted in them."""
     location = blank("projects")
-    _at_version_one(location)
+    kit.at_version_one(location)
     _many_projects(location, 200)
     postgres.migrate(location)
     log = postgres.PostgresProjectLog(location)
@@ -535,7 +477,7 @@ def test_finding_a_persons_projects_reads_their_projects_not_the_store(blank: Lo
     proportion to their projects, never to the number of projects in the store
     (docs/specs/storage.md, "Listing")."""
     location = blank("projects")
-    _at_version_one(location)
+    kit.at_version_one(location)
     _many_projects(location, 20000)
     postgres.migrate(location)
     with psycopg.connect(location, autocommit=True) as conn:

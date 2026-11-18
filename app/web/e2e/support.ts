@@ -3,12 +3,13 @@
  * keeps current, axe, and reflow.
  */
 
+import { readFileSync } from "node:fs";
+
 import AxeBuilder from "@axe-core/playwright";
-import type { Page } from "@playwright/test";
+import type { Page, Route } from "@playwright/test";
 
 import several from "../fixtures/agents-several.json" with { type: "json" };
 import conversation from "../fixtures/conversation.json" with { type: "json" };
-import turn from "../fixtures/conversation-turn.json" with { type: "json" };
 import flow from "../fixtures/process-flow.json" with { type: "json" };
 import abstained from "../fixtures/run-abstained.json" with { type: "json" };
 import succeeded from "../fixtures/run-succeeded.json" with { type: "json" };
@@ -49,6 +50,29 @@ export const withOrchestrator = {
   ],
 };
 
+/** A cassette's events: what the harness's binding streamed for one kind of run. */
+export function cassette(name: string): unknown[] {
+  return readFileSync(new URL(`../cassettes/${name}.jsonl`, import.meta.url), "utf8")
+    .split("\n")
+    .filter((line) => line.trim() !== "")
+    .map((line) => JSON.parse(line) as unknown);
+}
+
+/** Answer a turn's stream with `events`, as server-sent events (docs/specs/app.md). */
+export function streamTurn(route: Route, events: unknown[] = cassette("succeeded")) {
+  return route.fulfill({
+    status: 200,
+    headers: { "content-type": "text/event-stream" },
+    body: events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(""),
+  });
+}
+
+/** The turn's body a turn's stream was sent: its `forwardedProps`. */
+export function turnSent(route: Route): Record<string, unknown> {
+  const input = route.request().postDataJSON() as { forwardedProps?: Record<string, unknown> };
+  return input.forwardedProps ?? {};
+}
+
 export async function serveConversation(page: Page) {
   await serve(page, withOrchestrator);
   await page.route("/api/conversations", (route) =>
@@ -58,9 +82,7 @@ export async function serveConversation(page: Page) {
         : { json: [] },
     ),
   );
-  await page.route("/api/conversations/*/turns", (route) =>
-    route.fulfill({ status: 201, json: turn }),
-  );
+  await page.route("/api/conversations/*/turns/stream", (route) => streamTurn(route));
   await page.route("/api/conversations/*", (route) => route.fulfill({ json: conversation }));
 }
 

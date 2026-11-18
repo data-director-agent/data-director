@@ -25,7 +25,7 @@ export const GLOSSARY = {
   "payload": { term: "payload", text: "The agent's answer, present only when the outcome is succeeded. Its shape is set by its payload class, shown as the schema_class beside the heading; every payload records what it rests on in grounded_on." },
   "schema_class": { term: "schema_class", text: "The name of the schema class a document conforms to. The conductor uses it to check an agent accepts its input; the viewer uses it to find the schema that renders a payload." },
   "evidence": { term: "evidence", text: "One row per thing the run retrieved or rested on, including the input itself: where it came from, when, and a hash of its canonicalised content. Where a row carries the content its hash covers, the grounding linter re-hashes it (E1), so what the payload is shown to cite is what was retrieved." },
-  "telemetry": { term: "telemetry", text: "Run measurements filled by the conductor: the OpenTelemetry trace, the model called and its token counts, and slots for energy use, which are null and not_measured for now." },
+  "telemetry": { term: "telemetry", text: "Run measurements filled by the conductor: the OpenTelemetry trace, the model called and its token counts, and the estimated energy of its model calls where the profile gives per-token factors (otherwise null and not_measured)." },
   "problem": { term: "problem", text: "RFC 9457 Problem Details, present when the outcome is failed or suspended: a problem type URI, a title, a detail and an HTTP status. For suspended it also says when, or on what condition, the run may resume." },
   "requirement": { term: "requirement id", text: "A requirement the agent declares it addresses: a Blueprint requirement (R3, R3.1, …) or a project one, as listed in docs/requirements.yaml. The conformance report traces each to the tests that substantiate it." },
   "accepts": { term: "accepts", text: "The input classes (schema_class values) this agent accepts. An input of any other class fails with input-not-accepted." },
@@ -67,7 +67,7 @@ export const GLOSSARY = {
   "trace_id": { term: "trace_id", text: "The OpenTelemetry trace identifier for the run (32 hex characters). Look it up in a trace viewer to see the run's spans." },
   "model_id": { term: "model_id", text: "The language model the agent called, or null if it called none." },
   "tokens": { term: "tokens in / out", text: "Tokens sent to and received from the model; blank if no model was called." },
-  "energy_estimate_j": { term: "energy_estimate_j", text: "Estimated energy use of the run, in joules. Not yet measured, so null." },
+  "energy_estimate_j": { term: "energy_estimate_j", text: "Estimated energy of the run's model calls, in joules, from the profile's per-token factors. Null where the profile cannot estimate every call." },
   "energy_method": { term: "energy_method", text: "How the energy figure was obtained: not_measured, estimated or measured." },
 };
 // --- Glossary: END ----------------------------------------------------------------------

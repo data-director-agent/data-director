@@ -91,6 +91,7 @@ locally from the repository root:
 | Generated schemas up to date | `uv run dd-gen-schema && git diff --exit-code -- sdk/src/dd_sdk/schema/generated/` |
 | Packages build and install alone | `uv build --all-packages -o dist && uv run python scripts/check_wheels.py dist` |
 | Agents as services (smoke) | `uv run python scripts/smoke_agents.py` |
+| PostgreSQL benchmark (`.github/workflows/bench.yml`, its own workflow, weekly and on demand; reports, never gates) | `DD_TEST_POSTGRES=postgresql://postgres@localhost/postgres uv run python harness/scripts/bench_postgres.py` (`--quick` to check it runs) |
 | Container image (`.github/workflows/images.yml`, its own workflow) | `docker build -f docker/release.Dockerfile --build-arg REVISION="$(git rev-parse HEAD)" -t data-director:smoke . && python3 scripts/smoke_image.py --image data-director:smoke --revision "$(git rev-parse HEAD)"` |
 | Workbench viewer in a browser | `uv run playwright install chromium && uv run pytest workbench/browser_tests` |
 | App shell (three jobs: checks, Vitest, Playwright) | in `app/web`: `npm ci && npm run lint && npm run typecheck && npm run build && npm test && npm run e2e` |

@@ -20,7 +20,6 @@ import project from "../fixtures/project-documents.json" with { type: "json" };
 import projects from "../fixtures/projects.json" with { type: "json" };
 import suggested from "../fixtures/repositories-suggested.json" with { type: "json" };
 import chosenRepository from "../fixtures/repository-chosen.json" with { type: "json" };
-import turn from "../fixtures/conversation-turn.json" with { type: "json" };
 import succeeded from "../fixtures/run-succeeded.json" with { type: "json" };
 import development from "../fixtures/session-development.json" with { type: "json" };
 import signedIn from "../fixtures/session-signed-in.json" with { type: "json" };
@@ -31,6 +30,8 @@ import {
   serve,
   serveConversation,
   serveSession,
+  streamTurn,
+  turnSent,
   withOrchestrator,
 } from "./support";
 
@@ -320,9 +321,9 @@ for (const scheme of ["light", "dark"] as const) {
     await serveConversation(page);
     // Until an answer is sent the conversation ends with the question; then with the answer.
     let sentAnswer: unknown = null;
-    await page.route("/api/conversations/*/turns", (route) => {
-      sentAnswer = route.request().postDataJSON().reply_answers ?? null;
-      return route.fulfill({ status: 201, json: turn });
+    await page.route("/api/conversations/*/turns/stream", (route) => {
+      sentAnswer = turnSent(route).reply_answers ?? null;
+      return streamTurn(route);
     });
     await page.route("/api/conversations/*", (route) =>
       route.fulfill({ json: sentAnswer ? answered : question }),
@@ -377,9 +378,9 @@ for (const scheme of ["light", "dark"] as const) {
       },
     ];
     let sentAnswer: unknown = null;
-    await page.route("/api/conversations/*/turns", (route) => {
-      sentAnswer = route.request().postDataJSON().reply_answers ?? null;
-      return route.fulfill({ status: 201, json: turn });
+    await page.route("/api/conversations/*/turns/stream", (route) => {
+      sentAnswer = turnSent(route).reply_answers ?? null;
+      return streamTurn(route);
     });
     await page.route("/api/conversations/*", (route) => route.fulfill({ json: series }));
     await page.goto("/");
@@ -738,9 +739,9 @@ test("a step of the journey starts a conversation with its prompt, sent only whe
   );
   await page.addInitScript((id) => localStorage.setItem("dd-project", id), active.project_id);
   let sent: unknown = null;
-  await page.route("/api/conversations/*/turns", (route) => {
-    sent = route.request().postDataJSON();
-    return route.fulfill({ status: 201, json: turn });
+  await page.route("/api/conversations/*/turns/stream", (route) => {
+    sent = turnSent(route);
+    return streamTurn(route);
   });
   await page.goto("/");
 

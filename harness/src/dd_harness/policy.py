@@ -17,6 +17,7 @@ from typing import Any
 
 import yaml
 
+from dd_harness.footprint import FootprintTable
 from dd_sdk.agent import ModelUse, Setting
 from dd_sdk.model_grant import Account, origin
 
@@ -33,6 +34,7 @@ PROFILE_KEYS = frozenset(
         "hosted_models",
         "model_accounts",
         "agent_settings",
+        "model_footprint",
     }
 )
 
@@ -283,6 +285,9 @@ class Profile:
     # agent_id -> {setting: value}: the options the steward sets for each agent, which the gate
     # checks against those the agent's card declares (docs/specs/policy-and-identity.md).
     agent_settings: dict[str, dict[str, str]] = field(default_factory=dict)
+    # The figures the conductor estimates each run's model energy and cost from (P14, C17;
+    # docs/specs/disclosure.md, Footprint). None: nothing is estimated.
+    model_footprint: FootprintTable | None = None
 
     @property
     def ref(self) -> str:
@@ -326,6 +331,7 @@ class Profile:
                 hosted_models=frozenset(str(c) for c in hosted),
                 model_accounts=ModelAccounts.from_value(data.get("model_accounts")),
                 agent_settings=_agent_settings(data.get("agent_settings"), agents),
+                model_footprint=FootprintTable.from_value(data.get("model_footprint")),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise PolicyError(f"profile {source!r} is malformed: {exc}") from exc

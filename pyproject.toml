@@ -336,7 +336,7 @@ output = "coverage.xml"
 [tool.mypy]
 python_version = "3.14"
 files = [
-  "conftest.py", "sdk/src", "sdk/tests", "harness/src", "harness/tests", "workbench/src", "workbench/tests",
+  "conftest.py", "sdk/src", "sdk/tests", "harness/src", "harness/tests", "harness/scripts", "workbench/src", "workbench/tests",
   "workbench/browser_tests", "workbench/scripts", "agents/*/src", "agents/*/tests", "agents/advisor-standards/scripts", "agents/advisor-repository/scripts", "agents/advisor-policy/scripts",
   "app/src", "app/tests", "admin/src", "admin/tests", "broker/src", "broker/tests", "inventory/src", "inventory/tests", "scripts",
 ]

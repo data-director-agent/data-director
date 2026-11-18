@@ -19,7 +19,7 @@ import { fileURLToPath } from "node:url";
 
 import { type Request, expect, test } from "@playwright/test";
 
-import { axeViolations, serveConversation, serveSession } from "./support";
+import { axeViolations, serveConversation, serveSession, turnSent } from "./support";
 import development from "../fixtures/session-development.json" with { type: "json" };
 
 const CANARY = "dd-canary-5b1e04d2-do-not-send";
@@ -61,8 +61,8 @@ test("a folder is described in the browser and none of its content leaves it", a
   await serveSession(page, development);
   await serveConversation(page);
   const sent: string[] = [];
-  await page.route("/api/conversations/*/turns", async (route) => {
-    sent.push(route.request().postData() ?? "");
+  await page.route("/api/conversations/*/turns/stream", async (route) => {
+    sent.push(JSON.stringify(turnSent(route)));
     await route.fallback();
   });
 
