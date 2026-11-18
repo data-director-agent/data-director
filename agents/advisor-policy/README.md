@@ -42,6 +42,8 @@ ambiguous. It may also give the disciplines, the kinds of data and the publicati
   within one scope, grounded on every policy involved.
 - `mandated_repositories`: the repositories a matched policy requires.
 - `no_record`: the actors with no policy record.
+- `limitations`: what the adviser does not do (its sources, what a record is, and what a model's
+  reading of the text is worth), on every payload.
 - `funders`: each funder identified in ROR, grounded on its ROR record (the identifier is stated
   there only), with the Crossref Funder ID ROR prefers, so that both can be passed on.
 - `journals`: each journal identified, with its publisher and ISSN, grounded on its Open Policy

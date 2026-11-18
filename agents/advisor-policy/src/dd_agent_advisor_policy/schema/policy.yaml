@@ -70,6 +70,7 @@ classes:
       - journals
       - ambiguous
       - searched
+      - limitations
 
   MatchedPolicy:
     description: >-
@@ -304,6 +305,9 @@ slots:
   searched:
     range: SearchedSummary
     inlined: true
+  limitations:
+    description: What this alpha does not yet do.
+    multivalued: true
 
   actor:
     description: The name of the actor, as given in the input.
