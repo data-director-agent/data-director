@@ -17,6 +17,8 @@ import check_names as cn  # noqa: E402
     "title",
     [
         "feat(app): register every in-tree agent",
+        "feat(app): Register every in-tree agent",
+        "feat: Add a history tab",
         "ci: pin Python 3.14, run pytest under xdist, upload coverage once",
         "ci(release-please): pin actions, scope permissions per job",
         "refactor(harness)!: rename the run store",
@@ -36,7 +38,6 @@ def test_good_titles(title: str) -> None:
         ("feature(app): history tab", "type 'feature'"),
         ("feat(App): history tab", "scope 'App'"),
         ("feat(): history tab", "scope ''"),
-        ("feat: Add a history tab", "capital"),
         ("feat: a history tab.", "full stop"),
         ("feat: ", "empty"),
         ("feat:history tab", "Conventional Commits"),
@@ -93,7 +94,7 @@ def test_tool_branches_are_exempt(title: str, branch: str) -> None:
         ("Merge branch 'main' into x\n", True),
         ("fixup! feat: a thing\n", True),
         ("Add a history tab\n", False),
-        ("feat: Add a history tab\n", False),
+        ("feat: Add a history tab\n", True),
         ("", False),
     ],
 )
