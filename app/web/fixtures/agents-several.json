@@ -336,6 +336,7 @@
         "deposit.validate"
       ],
       "settings": {},
+      "skills": [],
       "title": "Metadata Reviewer",
       "version": "0.1.0"
     },
@@ -868,6 +869,7 @@
         "preparation.formats"
       ],
       "settings": {},
+      "skills": [],
       "title": "Standards Librarian",
       "version": "0.3.0"
     },
@@ -1080,6 +1082,7 @@
       },
       "serves": [],
       "settings": {},
+      "skills": [],
       "title": "Friendly Greeter",
       "version": "0.1.1a1"
     },
@@ -2123,6 +2126,7 @@
       },
       "serves": [],
       "settings": {},
+      "skills": [],
       "title": "",
       "version": "0.3.0"
     }

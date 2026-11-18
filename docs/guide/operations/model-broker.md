@@ -154,7 +154,12 @@ The steward decides, in the profile's `model_accounts`, whether people may or mu
 account and whether the deployment pays for someone who has none
 ([Institutional profiles](../../../workbench/profiles/README.md)). A profile that turns own
 accounts on stops the app at start-up unless the three secrets above are set, since without grants
-nothing would carry that decision to the broker. Raise the profile's `version` with the change.
+nothing would carry that decision to the broker.
+
+On a VM, write `model_accounts` in `/etc/data-director/deployment.yaml` (see
+[`config/examples/deployment.yaml`](../../../config/examples/deployment.yaml)) and run
+`sudo data-director apply`, which copies it into the generated profile and raises the profile's
+`version`. Do not edit the generated `profile.yaml`: `apply` rewrites it.
 
 Every model-backed agent must then call through the broker (below).
 

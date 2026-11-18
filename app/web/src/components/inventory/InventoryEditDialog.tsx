@@ -30,7 +30,7 @@ import { useProjectApi, type SavedInventory } from "../../project/api";
 import { Button } from "../ui/Button";
 import { ModalDialog } from "../ui/Dialog";
 import { startHistory, type EditHistory } from "./history";
-import { DescribeFolder } from "./DescribeFolder";
+import { DescribeFolder, useScannerAvailable } from "./DescribeFolder";
 import { InventoryEditor, type Rescan } from "./InventoryEditor";
 
 /**
@@ -255,6 +255,7 @@ function ScanChooser({
   const problem = choice === NEW && (folder || existing) ? targetProblem(stored, target) : null;
   const ready = targetProblem(stored, target) === null;
   const [scanning, setScanning] = useState(false);
+  const browserScan = useScannerAvailable();
   return (
     <fieldset className="field">
       <legend>Update with a new scan</legend>
@@ -307,12 +308,14 @@ function ScanChooser({
           {problem && <p className="hint">{problem}</p>}
         </>
       )}
-      <DescribeFolder
-        purpose="update"
-        isDisabled={!ready}
-        onScanning={setScanning}
-        onDescribed={(file) => onScan(file, target)}
-      />
+      {browserScan && (
+        <DescribeFolder
+          purpose="update"
+          isDisabled={!ready}
+          onScanning={setScanning}
+          onDescribed={(file) => onScan(file, target)}
+        />
+      )}
       <label htmlFor={`${id}-file`}>New scan</label>
       <input
         id={`${id}-file`}

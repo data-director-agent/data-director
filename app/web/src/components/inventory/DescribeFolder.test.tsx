@@ -84,14 +84,6 @@ afterEach(() => {
 });
 
 describe("DescribeFolder", () => {
-  it("is not offered where the deployment does not serve the scanner", async () => {
-    const { scanner } = drivenScanner(false);
-    const available = vi.spyOn(scanner, "available");
-    renderPanel(scanner);
-    await waitFor(() => expect(available).toHaveBeenCalled());
-    expect(screen.queryByRole("region", { name: /Describe a folder/ })).toBeNull();
-  });
-
   it("says no file is sent, credits the signatures and links to the notices", async () => {
     renderPanel(drivenScanner().scanner);
     const panel = await section();
@@ -277,10 +269,14 @@ describe("DescribeFolder", () => {
 
 describe("MakeInventoryDialog with the scanner served", () => {
   const unserved = pageScanner();
-  beforeEach(() => setPageScanner(drivenScanner().scanner));
+  let driven: ReturnType<typeof drivenScanner>;
+  beforeEach(() => {
+    driven = drivenScanner();
+    setPageScanner(driven.scanner);
+  });
   afterEach(() => setPageScanner(unserved));
 
-  it("offers to describe a folder first, then the command", async () => {
+  async function openDialog() {
     const user = userEvent.setup();
     render(
       <AnnouncerProvider>
@@ -289,15 +285,48 @@ describe("MakeInventoryDialog with the scanner served", () => {
     );
     await user.click(screen.getByRole("button", { name: "Make an inventory" }));
     const dialog = await screen.findByRole("dialog", { name: "Make an inventory" });
-    await within(dialog).findByRole("region", { name: "Describe a folder in this browser" });
-    const headings = within(dialog)
-      .getAllByRole("heading", { level: 3 })
-      .map((h) => h.textContent);
-    expect(headings).toEqual([
-      "Describe a folder in this browser",
-      "Make it with the command",
-      "Attach it",
-    ]);
+    await within(dialog).findByRole("tablist", { name: "How to make it" });
+    return { user, dialog };
+  }
+
+  it("opens on describing a folder in this browser, with the command a tab away", async () => {
+    const { dialog } = await openDialog();
+    expect(within(dialog).getByRole("tab", { name: "In this browser" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(within(dialog).getByRole("tab", { name: "With the command" })).toHaveAttribute(
+      "aria-selected",
+      "false",
+    );
+    expect(
+      within(dialog).getByRole("region", { name: "Describe a folder in this browser" }),
+    ).toBeVisible();
+    expect(within(dialog).queryByRole("tablist", { name: "Operating system" })).toBeNull();
+    expect(await axe(document.body)).toHaveNoViolations();
+  });
+
+  it("goes to the command from the browser route's pointer", async () => {
+    const { user, dialog } = await openDialog();
+    await user.click(within(dialog).getByRole("button", { name: "Use the command instead" }));
+    expect(within(dialog).getByRole("tab", { name: "With the command" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(within(dialog).getByRole("tablist", { name: "Operating system" })).toBeVisible();
+    expect(within(dialog).getByRole("button", { name: "Choose inventory.json" })).toBeVisible();
+    // Kept, so that a scan goes on, but out of reach.
+    const kept = within(dialog).getByRole("region", { hidden: true, name: /Describe a folder/ });
+    expect(kept.closest("[inert]")).not.toBeNull();
+  });
+
+  it("keeps a scan running while the command is shown", async () => {
+    const { user, dialog } = await openDialog();
+    await userEvent.upload(folderInput(), [withPath("a.csv", "survey/a.csv")]);
+    await user.click(within(dialog).getByRole("tab", { name: "With the command" }));
+    await user.click(within(dialog).getByRole("tab", { name: "In this browser" }));
+    expect(first(driven.scans).cancelled).toBe(false);
+    expect(within(dialog).getByRole("progressbar")).toBeVisible();
   });
 });
 
