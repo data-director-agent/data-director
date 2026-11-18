@@ -27,7 +27,15 @@ inventory and one document.
 
 ## Where it goes
 
-The document is stored in your project, and anyone working on the project can read it. The
-agent you are talking to is told the document's name, type and size, but not its text. If agents
-are given its text in future, it will go to an AI model hosted outside your institution only if
-your institution's deployment allows that.
+The document is stored in your project, and anyone working on the project can read it.
+
+When Data Director drafts a README or a data dictionary, the Documentation Editor reads the text
+of the documents you attached, the latest first. Its AI model may then suggest answers to the
+draft's questions from them, such as a field's unit that your field notes give. A suggestion is
+shown beside its question and is never written into the draft: it becomes part of the document
+only when you save it, or a correction of it, as your answer. The outcome of the draft names the
+documents the model was given, and says if one was too long to give in full.
+
+The agent you are talking to, and every other agent, is told only each document's name, type and
+size. The text goes to an AI model hosted outside your institution only if your institution's
+deployment allows that; where it does not, drafts are made without it.

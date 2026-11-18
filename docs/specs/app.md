@@ -191,7 +191,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     drop on the message form, take a `.json` file as an inventory and a `.txt` or `.md` file as a
     document. A document is read in the browser, refused there if it is empty or over 256 KB,
     and first opened to be checked: a dialog shows its name, size and text, says that it will be
-    stored in the project, that agents are told its name, type and size but not its text, and
+    stored in the project, that the Documentation Editor reads its text to suggest answers and
+    other agents are told only its name, type and size ([Projects](projects.md)), and
     that it must be about the data, never the data themselves nor anything that identifies a
     person. Nothing is attached until the researcher presses **Attach this document**; closing
     the dialog any other way discards it. The checked document shows as a chip with its name and

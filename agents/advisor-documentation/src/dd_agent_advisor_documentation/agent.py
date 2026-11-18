@@ -13,7 +13,8 @@ data dictionary's questions about a field's definition or unit, and to the quest
 sections `readme.yaml` marks `suggest` (`prose.py`, `suggest`). The suggestion is offered with the
 question (`suggested_answer`) and never placed in the document: the draft is made by rule before
 the model is asked, and a suggestion becomes `supplied` only when the researcher records it, or a
-correction of it, as their answer (docs/specs/drafting.md, invariant 7).
+correction of it, as their answer (docs/specs/drafting.md, invariant 7). Only for suggestions is
+the model also given the documents the researcher attached (`project_documents`, `with_documents`).
 
 A README also takes, as given, the title, creators, dates of data collection, geographic
 location, funding, abstract and licence of the project's approved metadata record, when the
@@ -60,6 +61,9 @@ from dd_agent_advisor_documentation.prose import (
     Suggestions,
     TemplateWriter,
     Writer,
+    count,
+    how_suggested,
+    with_documents,
 )
 from dd_sdk.agent import (
     AgentResult,
@@ -306,7 +310,7 @@ class DocumentationEditor:
             # The README is drafted first, so nothing the model suggests can reach its text.
             suggestable = {s.heading: s.ask for s in self.sections if s.suggest}
             questions, suggested = self._suggest(
-                _facts(inventory, asked.requirements, record),
+                with_documents(_facts(inventory, asked.requirements, record), asked),
                 [
                     Ask(q.question_id, section=q.gap_section, asks=suggestable[q.gap_section])
                     for q in questions
@@ -315,7 +319,7 @@ class DocumentationEditor:
                 questions,
                 ctx,
             )
-            statement += f" {_how_suggested(suggested, kind)}"
+            statement += f" {how_suggested(suggested, TITLES[kind])}"
             if asked.metadata_record is None:
                 statement += (
                     " It was given no approved metadata record, so it drafts from the inventory "
@@ -341,7 +345,7 @@ class DocumentationEditor:
             text, questions, counts = _dictionary(inventory, asked.current_version, answers)
             record, _ = _record(asked.metadata_record)
             questions, suggested = self._suggest(
-                _facts(inventory, None, record),
+                with_documents(_facts(inventory, None, record), asked),
                 [
                     Ask(q.question_id, q.gap_file, q.gap_field, q.gap_column)
                     for q in questions
@@ -357,8 +361,8 @@ class DocumentationEditor:
                 f"each value marked with where it came from: {counts[Source.INFERRED]} inferred "
                 f"from the inventory, {counts[Source.SUPPLIED]} supplied by you and "
                 f"{counts[Source.UNKNOWN]} unknown. It asks "
-                f"{_count(len(questions), 'question')}, one for each unknown value. "
-                f"{_how_suggested(suggested, kind)}"
+                f"{count(len(questions), 'question')}, one for each unknown value. "
+                f"{how_suggested(suggested, TITLES[kind])}"
             )
 
         current = asked.current_version
@@ -396,8 +400,8 @@ class DocumentationEditor:
         ctx: RunContext,
     ) -> tuple[list[DocumentQuestion], Suggestions]:
         """The questions, each with the writer's suggested answer where it made one. The writer is
-        given the facts the draft is made from, never the answers, a field's description or an
-        earlier version (docs/specs/drafting.md)."""
+        given the facts the draft is made from and the documents the researcher attached, never
+        the answers, a field's description or an earlier version (docs/specs/drafting.md)."""
         suggested = self.writer.suggest(facts, asks, ctx)
         return [
             q.model_copy(
@@ -494,7 +498,7 @@ class DocumentationEditor:
         statement = (
             f"A README of {len(self.sections)} sections, {drafted} of them drafted from the "
             f"project's facts ({complete} in full), and {answered} written from your answers. "
-            f"{_how_written(prose)} It leaves {_count(len(questions), 'gap')} for you to write, "
+            f"{_how_written(prose)} It leaves {count(len(questions), 'gap')} for you to write, "
             "each marked and asked as a question."
         )
         return "\n\n".join(parts) + "\n", questions, statement, prose
@@ -510,14 +514,14 @@ def _how_written(prose: Prose) -> str:
             f"({prose.model_id})."
         )
     said = (
-        f"A model ({prose.model_id}) wrote {_count(prose.written, 'paragraph')} of prose from "
+        f"A model ({prose.model_id}) wrote {count(prose.written, 'paragraph')} of prose from "
         "those facts alone"
         if prose.written
         else f"A model ({prose.model_id}) was asked for prose but its draft added none"
     )
     if prose.dropped:
         said += (
-            f"; {_count(len(prose.dropped), 'paragraph')} it wrote "
+            f"; {count(len(prose.dropped), 'paragraph')} it wrote "
             f"{'was' if len(prose.dropped) == 1 else 'were'} not used ("
             + "; ".join(prose.dropped)
             + ")"
@@ -533,31 +537,6 @@ def _sum(*usages: Usage) -> Usage:
         return sum(known) if known else None
 
     return Usage(total([u.input_tokens for u in usages]), total([u.output_tokens for u in usages]))
-
-
-def _how_suggested(suggested: Suggestions, kind: DocumentKind) -> str:
-    """What the statement says about the suggested answers."""
-    if suggested.model_id is None:
-        return "No model is configured, so it suggests no answers."
-    if suggested.unused:
-        return f"It suggests no answers, because {suggested.unused} ({suggested.model_id})."
-    n = len(suggested.answers)
-    said = (
-        f"A model ({suggested.model_id}) suggested an answer to "
-        f"{_count(n, 'question')}, offered beside the question and not written into the "
-        f"{TITLES[kind].lower()}: a suggestion becomes yours only when you save it, or a "
-        "correction of it, as your answer"
-        if n
-        else f"A model ({suggested.model_id}) was asked to suggest answers but offered none"
-    )
-    if suggested.dropped:
-        said += (
-            f"; {_count(len(suggested.dropped), 'suggestion')} it made "
-            f"{'was' if len(suggested.dropped) == 1 else 'were'} not offered ("
-            + "; ".join(suggested.dropped)
-            + ")"
-        )
-    return said + "."
 
 
 def _facts(
@@ -869,10 +848,6 @@ def _answers(given: Sequence[DraftAnswer]) -> dict[str, str]:
     """The recorded answers by the question they answer. A blank answer leaves its gap open; of
     two answers to one question, the later in the list wins."""
     return {a.answered_question: a.answer_text for a in given if a.answer_text.strip()}
-
-
-def _count(n: int, noun: str) -> str:
-    return f"{n} {noun}" if n == 1 else f"{n} {noun}s"
 
 
 def build() -> DocumentationEditor:
