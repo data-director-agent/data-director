@@ -813,3 +813,74 @@ def test_the_apps_model_grant_secrets_make_apply_sync_the_credentials(
     capsys.readouterr()
     assert apply(FakeVm(), Place.vm(vm), vm, check=True) == 0
     assert "Nothing to change." in capsys.readouterr().out
+
+
+# An agent that calls through the model broker needs its broker credential and no provider key
+# in place of a key (scripts/ddtool/model_access.py).
+BROKERED = "DD_MODEL_BROKER_URL=http://127.0.0.1:8300\n"
+
+
+def model_orchestrator(vm: Vm, settings: str, *secrets: str) -> FakeVm:
+    """The model orchestrator turned on, with these settings and secrets, as `apply` leaves it."""
+    (vm.etc / "deployment.yaml").write_text("name: test\norchestrator: model\n")
+    own = vm.agent_env("orchestrator-model")
+    own.parent.mkdir(parents=True, exist_ok=True)
+    own.write_text(settings)
+    (vm.credentials / "orchestrator-model").mkdir()
+    for secret in secrets:
+        (vm.credentials / "orchestrator-model" / secret).write_text("x")
+    dropin = vm.credentials_dropin("orchestrator-model")
+    dropin.parent.mkdir(parents=True, exist_ok=True)
+    dropin.write_text("[Service]\n" + "".join(f"LoadCredential={s}:/etc/x\n" for s in secrets))
+    system = FakeVm(answering={8101, 8106, 8107})
+    system.units["data-director-agent@orchestrator-model.service"] = {
+        "ActiveState": "active",
+        "UnitFileState": "enabled",
+        "NRestarts": "0",
+    }
+    return system
+
+
+@pytest.mark.parametrize("root", [True, False])
+def test_a_brokered_agent_with_its_credential_and_no_key_is_all_good(
+    vm: Vm, capsys: pytest.CaptureFixture[str], root: bool
+) -> None:
+    system = model_orchestrator(vm, BROKERED, "dd-model-broker-credential")
+    assert apply(system, Place.vm(vm), vm) == 0, capsys.readouterr().out
+    system.root = root
+    status, out = check(system, vm, capsys)
+    assert status == 0, out
+
+
+def test_the_broker_url_in_the_shared_settings_counts(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    system = model_orchestrator(vm, "", "dd-model-broker-credential")
+    vm.agents_env.write_text(BROKERED)
+    assert apply(system, Place.vm(vm), vm) == 0, capsys.readouterr().out
+    status, out = check(system, vm, capsys)
+    assert status == 0, out
+
+
+def test_a_brokered_agent_that_also_holds_a_key_is_told_to_remove_it(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    system = model_orchestrator(vm, BROKERED, "dd-model-broker-credential", "anthropic-api-key")
+    assert apply(system, Place.vm(vm), vm) == 1
+    assert says(capsys.readouterr().out, "refused", "secret remove orchestrator-model")
+    status, out = check(system, vm, capsys)
+    assert status == 1
+    assert says(out, "fix", "data-director secret remove orchestrator-model anthropic-api-key")
+    assert not says(out, "fix", "secret set orchestrator-model")
+
+
+def test_a_brokered_agent_without_its_credential_names_the_broker_script(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    system = model_orchestrator(vm, BROKERED)
+    assert apply(system, Place.vm(vm), vm) == 1
+    assert says(capsys.readouterr().out, "refused", "deploy/broker-credentials.sh")
+    status, out = check(system, vm, capsys)
+    assert status == 1
+    assert says(out, "fix", "deploy/broker-credentials.sh")
+    assert not says(out, "fix", "secret set orchestrator-model anthropic-api-key")
