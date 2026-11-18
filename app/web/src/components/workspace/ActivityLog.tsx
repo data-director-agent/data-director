@@ -25,24 +25,37 @@ function stepLabel(run: RunState, id: string): string {
   return run.steps.find((step) => step.id === id)?.label ?? id;
 }
 
-/** Where the run stands, in a word or two. */
-function phaseLabel(run: RunState): string {
+type Tone = "ok" | "warn" | "danger" | "undeclared";
+
+/** Where the run stands, in a word or two, with the tone of its badge (never colour alone). */
+function phaseBadge(run: RunState): { label: string; tone: Tone; note?: string } {
   switch (run.phase) {
     case "idle":
-      return "Starting";
+      return { label: "Starting", tone: "undeclared" };
     case "running":
-      return "Running";
+      return { label: "Running", tone: "undeclared" };
     case "finished": {
       const status = run.envelope?.outcome.status;
-      return status ? `Finished: ${OUTCOME[status].label}` : "Finished";
+      return status
+        ? { label: `Finished: ${OUTCOME[status].label}`, tone: OUTCOME[status].tone }
+        : { label: "Finished", tone: "ok" };
     }
     case "cancelled":
-      return "Cancelled";
+      return { label: "Cancelled", tone: "warn" };
     case "error":
-      return "Failed";
+      return { label: "Failed", tone: "danger" };
     case "interrupted":
-      return "Interrupted: the connection closed before the run ended";
+      return {
+        label: "Interrupted",
+        tone: "warn",
+        note: "The connection closed before the run ended.",
+      };
   }
+}
+
+/** A run still under way stays open; finished ones fold away so the newest stays in view. */
+function isLive(run: RunState): boolean {
+  return run.phase === "idle" || run.phase === "running";
 }
 
 function Subagent({ entry }: { entry: Extract<LogEntry, { kind: "subagent" }> }) {
@@ -95,32 +108,40 @@ function Entry({ entry, run }: { entry: LogEntry; run: RunState }) {
 function Run({
   run: { key, conversationId, startedAt, state },
   number,
+  newest,
 }: {
   run: ActivityRun;
   /** The run's place in the order the tab sent them, from 1. */
   number: number;
+  newest: boolean;
 }) {
   const headingId = `activity-${key}`;
+  const badge = phaseBadge(state);
+  const steps = state.log.length;
   return (
     <li>
       <article className="activity-run" aria-labelledby={headingId}>
         <h2 id={headingId}>
           Run {number}, sent at {formatTime(startedAt, { timeStyle: "medium" })}
         </h2>
-        <p>
-          {phaseLabel(state)}.{" "}
+        <p className="activity-summary">
+          <span className={`status status-${badge.tone}`}>{badge.label}</span>
+          {badge.note && <span> {badge.note}</span>}{" "}
           <Link to={homePath({ conversation: conversationId })}>Open its conversation</Link>
         </p>
-        {state.log.length > 0 && (
-          <ol className="activity-entries">
-            {state.log.map((entry, i) => (
-              <li key={i}>
-                <Entry entry={entry} run={state} />
-              </li>
-            ))}
-          </ol>
-        )}
         {state.phase === "error" && state.error && <p>The run failed: {state.error}</p>}
+        {steps > 0 && (
+          <details open={newest || isLive(state)} className="activity-details">
+            <summary>{steps === 1 ? "1 step" : `${steps} steps`}</summary>
+            <ol className="activity-entries">
+              {state.log.map((entry, i) => (
+                <li key={i}>
+                  <Entry entry={entry} run={state} />
+                </li>
+              ))}
+            </ol>
+          </details>
+        )}
         <UnrecognisedEvents run={state} />
       </article>
     </li>
@@ -137,12 +158,13 @@ export function ActivityLog() {
         record but not its steps, so only the runs sent from this tab since it was opened are
         listed.
       </p>
+      {runs.length > 1 && <p>{runs.length} runs, newest first.</p>}
       {runs.length === 0 ? (
         <p>No runs in this tab yet. Send a message in a conversation to start one.</p>
       ) : (
         <ol className="activity-runs">
           {runs.map((run, i) => (
-            <Run key={run.key} run={run} number={runs.length - i} />
+            <Run key={run.key} run={run} number={runs.length - i} newest={i === 0} />
           ))}
         </ol>
       )}
