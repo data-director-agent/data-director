@@ -9,13 +9,21 @@ the run, unless a person has given it a title; one that records an entry point
 chosen one (docs/specs/orchestration.md, invariant 18). A project deleted while the run went takes
 no new title or entry point (invariant 24), and its draft is still recorded.
 
-`Projects` implements `ProjectEffects` through `RunEffects`, from its own `record_draft`, `rename`
-and `choose_entry`.
+A succeeded payload of any class that carries `proposed_facts` (`ProposesFacts`) has each
+proposal recorded in the project for a person to decide, caused by the run
+(`dd_harness.projects.facts`); the payload's class is never read. The proposals are checked before
+anything is written and recorded only after the run's draft is kept, so a run that fails, whether
+its proposals or its draft is refused, leaves none. A project deleted while the run went takes
+none.
+
+`Projects` implements `ProjectEffects` through `RunEffects`, from its own `record_draft`, `rename`,
+`choose_entry` and `propose_facts`.
 """
 
 from __future__ import annotations
 
 import contextlib
+from collections.abc import Iterable, Mapping
 from typing import Any, Protocol
 
 from dd_harness.progress import ENTRY_BY_MODEL, EntrySource
@@ -37,6 +45,8 @@ DOCUMENT = "Document"
 # The core payload class whose `new_project_title` renames the run's project, and whose
 # `new_project_entry` records its entry point.
 REPLY = "Reply"
+# The core slot of any payload whose facts are proposed to the run's project.
+PROPOSED_FACTS = "proposed_facts"
 
 
 class ProjectEffects(Protocol):
@@ -75,6 +85,18 @@ class _ProjectRules(Protocol):
         source: EntrySource = ...,
     ) -> bool: ...
 
+    def checked_facts(self, facts: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]: ...
+
+    def propose_facts(
+        self,
+        project_id: str,
+        facts: Iterable[Mapping[str, Any]],
+        *,
+        agent_id: str,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> list[str]: ...
+
 
 class RunEffects:
     """`ProjectEffects` over the project rules, for `Projects` to inherit."""
@@ -84,6 +106,12 @@ class RunEffects:
         if project_id is None or envelope.outcome.status != OutcomeStatus.SUCCEEDED:
             return None
         payload: dict[str, Any] = envelope.to_document().get("payload") or {}
+        # Checked before anything is written, and recorded after the draft is kept, so a run
+        # that fails here leaves no proposal behind.
+        try:
+            proposed = self.checked_facts(payload.get(PROPOSED_FACTS) or [])
+        except ProjectError as exc:
+            return f"its proposed facts were refused: {exc}"
         schema_class = payload.get("schema_class")
         if schema_class == DOCUMENT:
             try:
@@ -111,4 +139,13 @@ class RunEffects:
                         acted_for=acted_for,
                         caused_by=caused_by,
                     )
+        if proposed:
+            with contextlib.suppress(ProjectDeletedError):
+                self.propose_facts(
+                    project_id,
+                    proposed,
+                    agent_id=envelope.agent_id,
+                    acted_for=acted_for,
+                    caused_by=envelope.invocation_id,
+                )
         return None

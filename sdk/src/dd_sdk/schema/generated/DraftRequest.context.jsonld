@@ -37,6 +37,9 @@
       "ProjectDocument": {
          "@id": "https://w3id.org/data-director/ProjectDocument"
       },
+      "ProjectFact": {
+         "@id": "https://w3id.org/data-director/ProjectFact"
+      },
       "RepositoryRequirements": {
          "@id": "https://w3id.org/data-director/RepositoryRequirements"
       },
@@ -142,6 +145,38 @@
          "@id": "https://w3id.org/data-director/external_identifiers",
          "@type": "@id"
       },
+      "fact_check_kind": {
+         "@id": "https://w3id.org/data-director/fact_check_kind"
+      },
+      "fact_crossref_funder_id": {
+         "@id": "https://w3id.org/data-director/fact_crossref_funder_id",
+         "@type": "@id"
+      },
+      "fact_file_path": {
+         "@id": "https://w3id.org/data-director/fact_file_path"
+      },
+      "fact_funder_name": {
+         "@id": "https://w3id.org/data-director/fact_funder_name"
+      },
+      "fact_funder_ror": {
+         "@id": "https://w3id.org/data-director/fact_funder_ror",
+         "@type": "@id"
+      },
+      "fact_kind": {
+         "@id": "https://w3id.org/data-director/fact_kind"
+      },
+      "fact_re3data_id": {
+         "@id": "https://w3id.org/data-director/fact_re3data_id"
+      },
+      "fact_repository_name": {
+         "@id": "https://w3id.org/data-director/fact_repository_name"
+      },
+      "fact_required_by": {
+         "@id": "https://w3id.org/data-director/fact_required_by"
+      },
+      "fact_subject": {
+         "@id": "https://w3id.org/data-director/fact_subject"
+      },
       "field_description": {
          "@id": "http://purl.org/dc/terms/description"
       },
@@ -154,6 +189,9 @@
       "fields": {
          "@id": "https://w3id.org/data-director/fields",
          "@type": "@id"
+      },
+      "file_decision": {
+         "@id": "https://w3id.org/data-director/file_decision"
       },
       "file_description": {
          "@id": "http://purl.org/dc/terms/description"
@@ -249,6 +287,9 @@
       "keywords": {
          "@id": "https://w3id.org/data-director/keywords"
       },
+      "licence_id": {
+         "@id": "https://w3id.org/data-director/licence_id"
+      },
       "licences": {
          "@id": "https://w3id.org/data-director/licences"
       },
@@ -260,6 +301,9 @@
          "@type": "@id"
       },
       "linkml": "https://w3id.org/linkml/",
+      "location_precision": {
+         "@id": "https://w3id.org/data-director/location_precision"
+      },
       "max_file_size": {
          "@id": "https://w3id.org/data-director/max_file_size"
       },
@@ -317,12 +361,19 @@
       "part_tool_version": {
          "@id": "https://w3id.org/data-director/part_tool_version"
       },
+      "project_decisions": {
+         "@id": "https://w3id.org/data-director/project_decisions",
+         "@type": "@id"
+      },
       "project_documents": {
          "@id": "https://w3id.org/data-director/project_documents",
          "@type": "@id"
       },
       "property": {
          "@id": "https://w3id.org/data-director/property"
+      },
+      "proposed_because": {
+         "@id": "https://w3id.org/data-director/proposed_because"
       },
       "prov": "http://www.w3.org/ns/prov#",
       "publication_year": {
@@ -393,6 +444,12 @@
       },
       "schema_org": {
          "@id": "https://w3id.org/data-director/schema_org"
+      },
+      "sensitive_subject": {
+         "@id": "https://w3id.org/data-director/sensitive_subject"
+      },
+      "sensitivity_decision": {
+         "@id": "https://w3id.org/data-director/sensitivity_decision"
       },
       "sha256": {
          "@id": "https://w3id.org/data-director/sha256"

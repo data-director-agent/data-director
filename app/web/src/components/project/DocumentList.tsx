@@ -11,6 +11,7 @@ import {
   ClipboardList,
   FileText,
   Landmark,
+  ListChecks,
   type LucideIcon,
   Package,
   Sparkles,
@@ -39,8 +40,9 @@ export const DISCLOSURE = "disclosure";
 export const REPOSITORY = "repository";
 export const DEPOSIT = "deposit";
 export const RESEARCHERS = "researchers";
+export const FACTS = "facts";
 /** The entries that are not documents, each opening a panel of its own. */
-export const PANELS: readonly string[] = [RESEARCHERS, REPOSITORY, DISCLOSURE, DEPOSIT];
+export const PANELS: readonly string[] = [RESEARCHERS, FACTS, REPOSITORY, DISCLOSURE, DEPOSIT];
 
 /** The state of a document's latest version. */
 export function stateOf(document: ProjectDocument): VersionState | undefined {
@@ -118,6 +120,12 @@ export function DocumentList({
             icon={UserRound}
             label="Researchers"
             current={selected === RESEARCHERS}
+          />
+          <Entry
+            to={hrefFor(FACTS)}
+            icon={ListChecks}
+            label="Project facts"
+            current={selected === FACTS}
           />
           <Entry
             to={hrefFor(REPOSITORY)}

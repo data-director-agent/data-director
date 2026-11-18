@@ -226,6 +226,9 @@ environment is set as below.
 Remove its provider key (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` or
 `DD_MODEL_API_KEY`, and their `_FILE` forms): an agent that calls through the broker holds no
 provider key, and refuses to start with one. It also refuses to start without its credential.
+`sudo data-director doctor` and `sudo data-director apply` check both on a VM: they report an
+agent with `DD_MODEL_BROKER_URL`, in its own settings or in `agents.env`, that still holds a
+provider key or lacks its broker credential, and do not ask such an agent for a provider key.
 Keep its `DD_MODEL_PROVIDER` and `DD_MODEL_ID`; for `openai-compatible`, remove
 `DD_MODEL_BASE_URL`, since the broker decides where the call goes. The broker serves each provider
 in its own format, below its own path (`/anthropic`, `/openai`, `/gemini`,

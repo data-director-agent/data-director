@@ -1,0 +1,29 @@
+{
+  "decisions": [],
+  "proposals": [
+    {
+      "agent_id": "advisor.files",
+      "fact": {
+        "fact_check_kind": "duplicate",
+        "fact_file_path": "data/old/readings (copy).csv",
+        "fact_kind": "file_inclusion",
+        "fact_subject": "data/old/readings (copy).csv",
+        "file_decision": "exclude",
+        "proposed_because": "It is byte for byte the same as data/readings.csv."
+      },
+      "proposal": "01900000-0000-7000-8000-000000000001",
+      "proposed_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "agent_id": "advisor.files",
+      "fact": {
+        "fact_kind": "sensitivity",
+        "fact_subject": "calibration/sites.csv",
+        "sensitive_subject": "calibration/sites.csv",
+        "sensitivity_decision": "undecided"
+      },
+      "proposal": "01900000-0000-7000-8000-000000000002",
+      "proposed_at": "2026-01-01T00:00:00Z"
+    }
+  ]
+}

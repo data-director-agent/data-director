@@ -51,6 +51,8 @@ from dd_sdk.agent import (
 )
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
+    Affiliation,
+    AffiliationKind,
     Derivation,
     Document,
     DocumentKind,
@@ -64,10 +66,6 @@ from dd_sdk.contract.models import (
     OutcomeStatus,
     ReasonCode,
     RepositoryRequirements,
-)
-from dd_sdk.contract.researcher import (
-    Affiliation,
-    AffiliationKind,
     ResearcherFunding,
     ResearcherRecord,
 )

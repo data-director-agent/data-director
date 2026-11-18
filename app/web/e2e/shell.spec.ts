@@ -279,7 +279,7 @@ test("conversation: keyboard only, focus returns to the message box, reflows at 
   expect(await overflow(page), "horizontal overflow on the conversation").toBeLessThanOrEqual(0);
 });
 
-test("Make an inventory: tabs and copy by keyboard, fits 320px, no axe violations", async ({
+test("Make an inventory: routes, tabs and copy by keyboard, fits 320px, no axe violations", async ({
   page,
   context,
 }) => {
@@ -291,8 +291,15 @@ test("Make an inventory: tabs and copy by keyboard, fits 320px, no axe violation
   await make.press("Enter");
   const dialog = page.getByRole("dialog", { name: "Make an inventory" });
   await expect(dialog.getByText(/your data never leave it/)).toBeVisible();
+  // The preview server serves the scanner, so the dialog opens on the browser route; the arrow
+  // keys reach the command.
+  const routes = dialog.getByRole("tablist", { name: "How to make it" });
+  await expect(routes.getByRole("tab", { name: "In this browser" })).toHaveAttribute("aria-selected", "true");
+  await routes.getByRole("tab", { selected: true }).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(routes.getByRole("tab", { name: "With the command" })).toHaveAttribute("aria-selected", "true");
   // The browser's own system is selected; the arrow keys and End reach the others.
-  await dialog.getByRole("tab", { selected: true }).focus();
+  await dialog.getByRole("tablist", { name: "Operating system" }).getByRole("tab", { selected: true }).focus();
   await page.keyboard.press("End");
   const linux = dialog.getByRole("tab", { name: /Linux/ });
   await expect(linux).toBeFocused();

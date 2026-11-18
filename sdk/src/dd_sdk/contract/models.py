@@ -15,11 +15,20 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, SerializeAsAny, model_validator
 
-from dd_sdk.contract.base import Frozen as Frozen  # re-exported: classes import it from here
-from dd_sdk.contract.researcher import ResearcherRecord
+from dd_sdk.contract.base import SHA256_PATTERN as SHA256_PATTERN
+from dd_sdk.contract.base import Frozen as Frozen
+from dd_sdk.contract.facts import Affiliation as Affiliation
+from dd_sdk.contract.facts import AffiliationKind as AffiliationKind
+from dd_sdk.contract.facts import DocumentationSummary as DocumentationSummary
+from dd_sdk.contract.facts import ExternalIdentifier as ExternalIdentifier
+from dd_sdk.contract.facts import ProjectDocument as ProjectDocument
+from dd_sdk.contract.facts import ProjectFact as ProjectFact
+from dd_sdk.contract.facts import ResearcherFunding as ResearcherFunding
+from dd_sdk.contract.facts import ResearcherLink as ResearcherLink
+from dd_sdk.contract.facts import ResearcherRecord as ResearcherRecord
+from dd_sdk.contract.facts import ResearcherWork as ResearcherWork
 
 UUID7_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
-SHA256_PATTERN = r"^[0-9a-f]{64}$"
 POLICY_BUNDLE_REF_PATTERN = r"^profile:[a-z0-9][a-z0-9.-]*@v[0-9]+$"
 IRI_PATTERN = r"^[a-z][a-z0-9+.-]*:\S+$"
 VERSION_PATTERN = r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$"
@@ -263,23 +272,6 @@ class InventorySummary(Frozen):
     inventory_limitations: list[str] = Field(default_factory=list)
 
 
-class DocumentationSummary(Frozen):
-    """What one document attached to a project is, without its text (docs/specs/projects.md)."""
-
-    documentation_name: str
-    documentation_digest: str = Field(pattern=SHA256_PATTERN)
-    documentation_media_type: str
-    documentation_size: int
-    documentation_added_at: datetime
-
-
-class ProjectDocument(DocumentationSummary):
-    """One document attached to a project, with its text, as a drafter is given it
-    (docs/specs/projects.md). The text is the researcher's and untrusted."""
-
-    documentation_text: str
-
-
 class StepProgress(Frozen):
     """How far one process-flow step has gone, as the project log shows it; a step left out is
     open (docs/specs/orchestration.md)."""
@@ -317,8 +309,9 @@ class ReplyAnswers(Frozen):
 class Message(Frozen):
     """One conversational turn and the conversation so far (docs/specs/orchestration.md). The
     conductor fills `project_inventory`, `project_entry`, `project_progress`, `project_title`,
-    `project_title_by_researcher`, `project_entry_by_researcher`, `project_documentation` and
-    `project_researchers` from the conversation's project; a caller never does."""
+    `project_title_by_researcher`, `project_entry_by_researcher`, `project_documentation`,
+    `project_researchers` and `project_decisions` from the conversation's project; a caller never
+    does."""
 
     schema_class: Literal["Message"] = "Message"
     message_text: str
@@ -332,6 +325,7 @@ class Message(Frozen):
     project_documentation: list[DocumentationSummary] | None = None
     project_entry_by_researcher: bool | None = None
     project_researchers: list[ResearcherRecord] | None = None
+    project_decisions: list[ProjectFact] | None = None
 
 
 class TableField(Frozen):
@@ -701,6 +695,8 @@ class DraftRequest(Frozen):
     researchers: list[ResearcherRecord] = Field(default_factory=list)
     # Filled by the conductor in a project, from the documents a researcher attached.
     project_documents: list[ProjectDocument] = Field(default_factory=list)
+    # Filled by the conductor in a project, from the facts people decided.
+    project_decisions: list[ProjectFact] = Field(default_factory=list)
 
 
 # --- Evidence and telemetry -----------------------------------------------------------------

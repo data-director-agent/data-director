@@ -130,6 +130,14 @@ dd:InventoryPart a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
+            sh:description "The folder name the part is mounted at, such as instrument or raw/2024: relative, with forward slashes, and no empty, . or .. segment. Every file of the part has a path that begins with it and a slash. No part's folder is another's or lies inside another's." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:part_folder ;
+            sh:pattern "^[^/]+(/[^/]+)*$" ],
+        [ sh:datatype xsd:string ;
             sh:description "The command that scanned the part's folder, such as dd-inventory." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -160,15 +168,7 @@ dd:InventoryPart a sh:NodeShape ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 4 ;
-            sh:path prov:generatedAtTime ],
-        [ sh:datatype xsd:string ;
-            sh:description "The folder name the part is mounted at, such as instrument or raw/2024: relative, with forward slashes, and no empty, . or .. segment. Every file of the part has a path that begins with it and a slash. No part's folder is another's or lies inside another's." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path dd:part_folder ;
-            sh:pattern "^[^/]+(/[^/]+)*$" ] ;
+            sh:path prov:generatedAtTime ] ;
     sh:targetClass dd:InventoryPart .
 
 dd:TableField a sh:NodeShape ;

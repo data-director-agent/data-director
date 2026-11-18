@@ -117,6 +117,15 @@ suggests some of those values beside their questions
    `template` when no model is configured or none of the model's draft was used. The manifest names it
    as the recorder of `document_text` (`recorded_in`, [Agents](agents.md)).
 
+9. **A decided fact is supplied; a proposed one is not.** In a project, a `DraftRequest`'s
+   `project_decisions` are the facts a person decided about it ([Projects](projects.md),
+   invariant 28): which files go in, whether sensitive fields or files may be published and how,
+   its funders, the repositories required and its licence. A drafter treats each as supplied.
+   What a check agent only proposed never reaches a drafter. How each drafter uses them (leaving
+   an excluded file out of the README's Files table, the data dictionary and the metadata
+   record's formats and sizes, listing it with its reason; asking whether a location may be
+   published before asking for it) is TODO(#1072) and TODO(#1073).
+
 ## Boundaries and contracts
 
 **Questions belong to the version.** A `Document` carries an optional list of questions

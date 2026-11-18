@@ -574,12 +574,12 @@ def withholding(conductor: Conductor, hosted_models: frozenset[str]) -> Conducto
 def test_documentation_is_withheld_from_a_hosted_model_by_default(
     tmp_path: Path, projects: ProjectStore, project: str
 ) -> None:
-    """Only `inventory` goes to an agent that calls a hosted model unless the profile says
-    otherwise (docs/specs/projects.md, invariant 8). The run is refused before anything is sent,
-    and the refusal is stored."""
+    """Only `inventory` and `decisions` go to an agent that calls a hosted model unless the
+    profile says otherwise (docs/specs/projects.md, invariant 8). The run is refused before
+    anything is sent, and the refusal is stored."""
     hosted = DocumentStub("hosted-model", hosting="hosted")
     conductor = conductor_over(tmp_path / "runs", projects, hosted)
-    assert conductor.profile.hosted_models == {"inventory"}
+    assert conductor.profile.hosted_models == {"inventory", "decisions"}
     conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
     record_in(projects, project, approve=True)  # a metadata record is documentation
     before = len(projects.documents(project))
@@ -1016,7 +1016,7 @@ def test_an_orchestrator_is_told_of_the_projects_documentation_without_its_text(
     hosted = naming("Soil", seen)
     hosted.spec = replace(hosted.spec, models=(ModelUse("test", "orchestrator", "hosted"),))
     conductor = conductor_over(tmp_path / "runs", projects, hosted)
-    assert conductor.profile.hosted_models == {"inventory"}
+    assert conductor.profile.hosted_models == {"inventory", "decisions"}
     conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
     text = "# Protocol\n\nSamples were taken weekly.\n"
     digest = projects.add_documentation(

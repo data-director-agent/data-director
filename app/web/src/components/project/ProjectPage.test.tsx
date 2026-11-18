@@ -528,6 +528,19 @@ describe("ProjectPage", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("opens the project's facts from the list, for a person to decide what agents proposed", async () => {
+    const offered = { proposals: [], decisions: [] };
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response(JSON.stringify(offered)))));
+    try {
+      renderPage(fakeApi(), "doc=facts");
+      const panel = await screen.findByRole("region", { name: "Project facts" });
+      expect(await within(panel).findByText(/No agent has proposed anything/)).toBeVisible();
+      expect(screen.getByRole("link", { name: /Project facts/ })).toHaveAttribute("aria-current");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("shows the repository chosen and what it asks for", async () => {
     const { container } = renderPage(fakeApi(), "doc=repository");
     const panel = await screen.findByRole("region", { name: "Repository" });
