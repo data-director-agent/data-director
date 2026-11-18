@@ -19,7 +19,7 @@ ADMIN="python3 scripts/admin.py"
 RUN=$(date +%s)
 
 # One key for the broker, tagged as the README asks, limited to the test models it calls.
-KEY=$($ADMIN key create "model-broker-$RUN" --models claude-sonnet-5-5,test-gpt \
+KEY=$($ADMIN key create "model-broker-$RUN" --models 'claude-sonnet-5-5,test-gpt-*,test-gemini-*' \
       --tags "service:model-broker,run:$RUN" | awk '/^key:/{print $2}')
 [[ "$KEY" == sk-* ]] || { echo "could not create the broker's key" >&2; exit 1; }
 

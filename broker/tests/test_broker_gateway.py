@@ -1,6 +1,8 @@
 """The broker's deployment-paid calls reach a real LiteLLM gateway and come back counted
 (deploy/llm-gateway/README.md, "With the model broker"). Both of the broker's formats are sent:
-Anthropic Messages and OpenAI Chat Completions.
+Anthropic Messages, and OpenAI Chat Completions for OpenAI and for Gemini. Each asks for the model
+by an ID of the provider's own form, which the gateway serves by name or by pattern
+(deploy/llm-gateway/README.md, "Model names").
 
 Skipped unless `DD_TEST_GATEWAY` names a running gateway and `DD_TEST_GATEWAY_KEY` holds one of its
 virtual keys. CI starts the test stack, whose fake provider bills nothing, and sets both
@@ -30,9 +32,11 @@ from dd_sdk.model_grant import HEADER_ACCOUNT, HEADER_GRANT, HEADER_PROVIDER, Ac
 GATEWAY = os.environ.get("DD_TEST_GATEWAY", "").rstrip("/")
 GATEWAY_KEY = os.environ.get("DD_TEST_GATEWAY_KEY", "")
 
-# Model names in deploy/llm-gateway/config.test.yaml, each served by the fake provider.
+# Model names in deploy/llm-gateway/config.test.yaml, each served by the fake provider: Claude by
+# name, the others through the patterns test-gpt-* and test-gemini-*, as config.yaml has gpt-* and
+# gemini-*.
 CLAUDE = "claude-sonnet-5-5"
-GPT = "test-gpt"
+CHAT_MODELS = {"openai": "test-gpt-5", "gemini": "test-gemini-2"}
 
 pytestmark = [
     pytest.mark.gateway,
@@ -53,7 +57,7 @@ def broker(harness: FakeHarness, tmp_path: Path) -> Broker:
     return make_broker(
         harness,
         tmp_path / "broker.sqlite3",
-        deployment_keys={"anthropic": GATEWAY_KEY, "openai": GATEWAY_KEY},
+        deployment_keys={"anthropic": GATEWAY_KEY, "openai": GATEWAY_KEY, "gemini": GATEWAY_KEY},
         deployment_base_url=GATEWAY,
     )
 
@@ -76,24 +80,26 @@ def test_an_anthropic_call_paid_by_the_deployment_goes_through_the_gateway(
     assert usage.output_tokens > 0
 
 
+@pytest.mark.parametrize("provider", sorted(CHAT_MODELS))
 def test_a_chat_completions_call_paid_by_the_deployment_goes_through_the_gateway(
-    harness: FakeHarness, broker: Broker
+    harness: FakeHarness, broker: Broker, provider: str
 ) -> None:
-    grant = harness.grant(account=Account.DEPLOYMENT, models=[GPT])
+    model = CHAT_MODELS[provider]
+    grant = harness.grant(account=Account.DEPLOYMENT, models=[model])
     body = {
-        "model": GPT,
+        "model": model,
         "max_completion_tokens": 64,
         "messages": [{"role": "user", "content": "Which standard fits?"}],
     }
     headers = {"authorization": f"Bearer {AGENT_CREDENTIAL}", HEADER_GRANT: grant}
     with client(broker) as http:
-        response = http.post("/openai/chat/completions", json=body, headers=headers)
+        response = http.post(f"/{provider}/chat/completions", json=body, headers=headers)
 
     assert response.status_code == 200, response.text
     assert response.headers[HEADER_ACCOUNT] == "deployment"
-    assert response.headers[HEADER_PROVIDER] == "openai"
+    assert response.headers[HEADER_PROVIDER] == provider
     assert response.json()["object"] == "chat.completion"
     (usage,) = broker.store.usage(PSEUDONYM)
     assert usage.payer.value == "deployment"
-    assert usage.provider == "openai"
+    assert usage.provider == provider
     assert usage.output_tokens > 0
