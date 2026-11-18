@@ -127,6 +127,16 @@
          "title": "ApprovedMetadataRecord",
          "type": "object"
       },
+      "ConfidenceBand": {
+         "description": "A band of the detector's highest score: low below 0.5, medium from 0.5 and below 0.85, high from 0.85. A low finding is reported, not dropped.",
+         "enum": [
+            "low",
+            "medium",
+            "high"
+         ],
+         "title": "ConfidenceBand",
+         "type": "string"
+      },
       "CurrentVersion": {
          "additionalProperties": false,
          "description": "The version of a project document that a drafter is to regenerate: the document's latest, its text, and its state with the reason a person gave for any decision on it (ADR-0036 decision 7). A drafter that regenerates it names version_ref in its payload's revises.",
@@ -313,6 +323,16 @@
                   "array",
                   "null"
                ]
+            },
+            "inventory_personal_data": {
+               "description": "Where a personal-data detector found possible personal data (docs/specs/personal-data.md). Absent, no detector ran, or the inventory was made by a command without one; empty, a detector ran and found nothing, which does not mean the data hold none. In an inventory made of parts, it is every part's findings, and absent if any part's are absent.",
+               "items": {
+                  "$ref": "#/$defs/PersonalDataFinding"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
             }
          },
          "required": [
@@ -333,6 +353,17 @@
             "other"
          ],
          "title": "FileRole",
+         "type": "string"
+      },
+      "FindingTarget": {
+         "description": "What part of a file a personal-data finding concerns.",
+         "enum": [
+            "column",
+            "field name",
+            "file name",
+            "text"
+         ],
+         "title": "FindingTarget",
          "type": "string"
       },
       "IdentificationMethod": {
@@ -462,6 +493,16 @@
                   "array",
                   "null"
                ]
+            },
+            "part_personal_data": {
+               "description": "The part's findings, as inventory_personal_data, with paths that begin with the part's folder. Absent, no detector ran on the part.",
+               "items": {
+                  "$ref": "#/$defs/PersonalDataFinding"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
             }
          },
          "required": [
@@ -480,6 +521,100 @@
             "recommended"
          ],
          "title": "Obligation",
+         "type": "string"
+      },
+      "PersonalDataFinding": {
+         "additionalProperties": false,
+         "description": "Where the inventory command found what may be personal data, and how sure it is (docs/specs/personal-data.md). It never holds a matched value, any part of one, an offset into a file, a row number or an example: a kind, a place, bands and the detector only. A finding is a prompt for a person, never a decision.",
+         "properties": {
+            "finding_kind": {
+               "$ref": "#/$defs/PersonalDataKind",
+               "description": "What the detector took the data to be."
+            },
+            "finding_file": {
+               "description": "The path of the file the finding concerns, as file_path; or, for a folder's name, the folder's path followed by a slash.",
+               "pattern": "^[^/]",
+               "type": "string"
+            },
+            "finding_target": {
+               "$ref": "#/$defs/FindingTarget",
+               "description": "What part of the file was examined."
+            },
+            "finding_column": {
+               "description": "The table column the finding concerns, for a column or a field name.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "finding_proportion": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/ProportionBand"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "The share of a column's sampled, non-empty values that matched, as a band so that it cannot be turned back into a count. Present for a column only."
+            },
+            "finding_confidence": {
+               "$ref": "#/$defs/ConfidenceBand",
+               "description": "How sure the detector is, as a band of its highest score."
+            },
+            "finding_detector": {
+               "description": "The detector, its version and its configuration, such as the recognisers that ran, so that a reader knows what was looked for.",
+               "type": "string"
+            },
+            "finding_examined": {
+               "description": "How much was examined: the sampled, non-empty values of a column, or the characters of a text file. Absent for a name.",
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "finding_kind",
+            "finding_file",
+            "finding_target",
+            "finding_confidence",
+            "finding_detector"
+         ],
+         "title": "PersonalDataFinding",
+         "type": "object"
+      },
+      "PersonalDataKind": {
+         "description": "What a personal-data finding took the data to be (docs/specs/personal-data.md). The first kinds come from matching values; the last four from matching names against a keyword table, by category.",
+         "enum": [
+            "email address",
+            "phone number",
+            "NHS number",
+            "National Insurance number",
+            "postcode",
+            "passport number",
+            "driving licence number",
+            "bank account number",
+            "payment card number",
+            "IP address",
+            "person name",
+            "direct identifier",
+            "indirect identifier",
+            "special category",
+            "location"
+         ],
+         "title": "PersonalDataKind",
+         "type": "string"
+      },
+      "ProportionBand": {
+         "description": "The share of sampled values that matched, as a band.",
+         "enum": [
+            "under 1%",
+            "1 to 10%",
+            "10 to 50%",
+            "over 50%"
+         ],
+         "title": "ProportionBand",
          "type": "string"
       },
       "RepositoryRequirements": {

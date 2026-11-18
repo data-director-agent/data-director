@@ -13,7 +13,18 @@ For each file under a folder, the inventory records:
 - its size, and a digest (a fingerprint) that later shows the files you deposit are the files
   described;
 - its format;
-- for a table (CSV or TSV), its column names and types, worked out from a sample of rows.
+- for a table (CSV or TSV), its column names and types, worked out from a sample of rows;
+- where it found what may be personal data, such as a column of e-mail addresses, a column
+  headed `dob`, or a phone number in a small text file.
+
+The check for personal data runs on your computer, in the rows the inventory already samples, in
+names and in small `.txt` and `.md` files. It records where it found something and how sure it
+is, never what it found: no value, and no part of one. It looks for e-mail addresses, phone
+numbers, NHS and National Insurance numbers, postcodes and similar identifiers, and finds names
+and places only from column headings and file names. Finding nothing does not mean your data hold
+no personal data: free text in other formats, indirect identifiers and rows beyond the sample are
+not checked. Talk to your data steward or ethics contact about anything it finds. Data Director
+does not change your files.
 
 It never holds what is in a file. It does hold **the names of your files and folders** and **the
 column headings of your tables**, and these can say more than you expect: a file named after a

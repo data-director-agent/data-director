@@ -47,6 +47,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "-o", "--output", type=Path, help="write the inventory to this file, not standard output"
     )
+    parser.add_argument(
+        "--no-detect",
+        dest="detect",
+        action="store_false",
+        help=(
+            "do not look for possible personal data; the inventory then says that no detector ran"
+        ),
+    )
     parser.add_argument("--version", action="version", version=f"%(prog)s {tool_version()}")
     args = parser.parse_args(argv)
 
@@ -60,14 +68,15 @@ def main(argv: list[str] | None = None) -> int:
             return usage(f"{root} is not a folder")
     if args.names is not None and len(args.names) != len(args.roots):
         return usage("give --as once for each folder, or not at all")
+    detector = {} if args.detect else {"detector": None}
     if len(args.roots) == 1 and args.names is None:
-        inventory = make_inventory(args.roots[0])
+        inventory = make_inventory(args.roots[0], **detector)
     else:
         names = args.names or [root.resolve().name for root in args.roots]
         if len(set(names)) != len(names):
             return usage("two folders have the same name: give each a name with --as")
         try:
-            inventory = make_inventory_of(dict(zip(names, args.roots, strict=True)))
+            inventory = make_inventory_of(dict(zip(names, args.roots, strict=True)), **detector)
         except ValueError as exc:
             return usage(f"{exc}; give each folder a name with --as")
     text = json.dumps(inventory, indent=2, ensure_ascii=False) + "\n"

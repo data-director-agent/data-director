@@ -65,6 +65,7 @@ $ cd inventory/browser
 $ npm ci
 $ npm run bundle      # writes dist/inventory-bundle/; needs uv, and the network on the first run
 $ npm run parity      # the command natively and under Pyodide, on ../tests/data/mixed
+$ node bundle/parity.ts ../tests/data/disclosure/direct   # or on another folder
 ```
 
 `dist/inventory-bundle/` holds:
@@ -96,8 +97,17 @@ depends on, since Pyodide built and tested those versions together; it compiles 
 where the workspace's newer one would not. Any other package is the workspace lock's pure Python
 wheel, and a package with neither fails the build. Each download is checked against the SHA-256
 in its lock (Pyodide's comes with the npm package) and kept in `.cache/wheels/`, so a rebuild
-needs no network. Presidio, once the command depends on it (#470), will need a small import shim
-for spaCy here ([Personal data](../../docs/specs/personal-data.md)).
+needs no network.
+
+The personal-data detector, Presidio with pattern recognisers only
+([Personal data](../../docs/specs/personal-data.md)), declares spaCy, preshed and numpy and imports
+only spaCy, which does not build for Pyodide. The export leaves the three out with what only they
+need (`--prune`), and `bundle/spacy-stub/` takes spaCy's place: the names Presidio's modules import
+from spaCy and thinc, and nothing that processes language. `bundle/write_wheel.py` makes it a
+wheel, the same bytes each time, which the command's entry in the lock depends on.
+`inventory/tests/test_spacy_stub.py` runs the command with the stub in spaCy's place and checks
+that it makes the same inventory, so a Presidio release that imports more of spaCy fails there
+first. The detector adds about 3.5 MB gzipped to the bundle.
 
 The parity check (`bundle/parity.ts`) runs `dd-inventory` natively through `uv`, then loads the
 bundle in Node, mounts the folder at `/data` and runs `make_inventory` there. It fails on any

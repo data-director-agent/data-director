@@ -77,6 +77,7 @@ export {
   type IdentificationMethod,
   type InventoryFile,
   type InventoryPart,
+  type PersonalDataFinding,
   type TableField,
 } from "./types";
 export {
