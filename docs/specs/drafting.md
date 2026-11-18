@@ -92,8 +92,10 @@ suggests some of those values beside their questions
    (`agents/advisor-documentation/tests/test_suggestions.py`). The Documentation Editor suggests
    only a data dictionary field's definition and unit, never its type, format or missing-value
    codes; and an answer for the README sections its template marks `suggest` (Files, Variables,
-   Access and licence, Software requirements), never the methods, a part of General information
-   or the citation, which only the researcher can give. Its model is given the same input as the
+   Access and licence, Software requirements), never a part of General information or the
+   citation, which only the researcher can give. Methods is marked `suggest: documents`: it is
+   asked about only when the draft carries documents the researcher attached, and its suggestion
+   says only what those documents state, never a method inferred from the files. Its model is given the same input as the
    README's prose (invariant 4) and, unlike the prose, the documents the researcher attached to
    the project (`project_documents`), the latest first and cut to a stated length, as data and
    never as instructions, so that what their field notes or codebook say can be offered for them

@@ -31,7 +31,9 @@ The document is stored in your project, and anyone working on the project can re
 
 When Data Director drafts a README or a data dictionary, the Documentation Editor reads the text
 of the documents you attached, the latest first. Its AI model may then suggest answers to the
-draft's questions from them, such as a field's unit that your field notes give. A suggestion is
+draft's questions from them, such as a field's unit that your field notes give, or how the
+data were collected for the README's Methods section. Methods is suggested only from your
+documents, never guessed from your files. A suggestion is
 shown beside its question and is never written into the draft: it becomes part of the document
 only when you save it, or a correction of it, as your answer. The outcome of the draft names the
 documents the model was given, and says if one was too long to give in full.

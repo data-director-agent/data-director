@@ -14,7 +14,8 @@ sections `readme.yaml` marks `suggest` (`prose.py`, `suggest`). The suggestion i
 question (`suggested_answer`) and never placed in the document: the draft is made by rule before
 the model is asked, and a suggestion becomes `supplied` only when the researcher records it, or a
 correction of it, as their answer (docs/specs/drafting.md, invariant 7). Only for suggestions is
-the model also given the documents the researcher attached (`project_documents`, `with_documents`).
+the model also given the documents the researcher attached (`project_documents`, `with_documents`),
+and only then is it asked about the README's Methods (`suggest: documents`, `sections.py`).
 
 A README also takes, as given, the title, creators, dates of data collection, geographic
 location, funding, abstract and licence of the project's approved metadata record, when the
@@ -50,10 +51,7 @@ import io
 import json
 from collections.abc import Mapping, Sequence
 from enum import StrEnum
-from pathlib import Path
-from typing import Any, NamedTuple
-
-import yaml
+from typing import Any
 
 from dd_agent_advisor_documentation.prose import (
     Ask,
@@ -65,6 +63,7 @@ from dd_agent_advisor_documentation.prose import (
     how_suggested,
     with_documents,
 )
+from dd_agent_advisor_documentation.sections import RECORD_GENERAL, Section, load_sections
 from dd_sdk.agent import (
     AgentResult,
     AgentSpec,
@@ -94,20 +93,8 @@ from dd_sdk.contract.models import (
 )
 from dd_sdk.model import Usage
 
-README = Path(__file__).with_name("readme.yaml")
 # The key under which a writer is given the approved metadata record's values.
 RECORD_FACTS = "approved_metadata_record"
-# The project facts a README section may be drafted from (readme.yaml explains each).
-SOURCES = frozenset(
-    {
-        "files",
-        "licences",
-        "record_general",
-        "record_abstract",
-        "record_rights",
-        "record_citation",
-    }
-)
 # The metadata record's schema the editor reads: DataCite's, in the JSON form of its REST API's
 # attributes, as advisor.metadata drafts it.
 DATACITE = "http://datacite.org/schema/kernel-4"
@@ -162,91 +149,6 @@ LIMITATIONS = (
     "inventory records. It infers no definitions, units or missing value codes, and does not "
     "read an earlier README or the reason given for a decision on an earlier version."
 )
-
-
-# The approved metadata record's general values a README part may be given by (readme.yaml), and
-# the label each is drafted under.
-RECORD_GENERAL = {
-    "title": "Title",
-    "creators": "Creators",
-    "collected": "Dates of data collection",
-    "location": "Geographic location",
-    "funding": "Funding",
-}
-
-
-class Part(NamedTuple):
-    """One thing a section asks, asked as a question of its own and placed under its label."""
-
-    label: str
-    ask: str
-    # The record's general value that, when the record gives it, says all the part asks.
-    given_by: str | None = None
-
-
-class Section(NamedTuple):
-    heading: str
-    # What the section asks as one question; for a section with parts, all of them in one line.
-    ask: str
-    # The project facts it is drafted from, in order; empty: the researcher writes it all.
-    sources: tuple[str, ...] = ()
-    # The fact that, when it gives anything, says all the section asks, so no gap is left.
-    complete_from: str | None = None
-    # What it asks, part by part; empty: it asks `ask` as one question.
-    parts: tuple[Part, ...] = ()
-    # Whether a model may suggest an answer to its question, offered beside it.
-    suggest: bool = False
-
-
-def load_sections(path: Path = README) -> list[Section]:
-    with path.open(encoding="utf-8") as fh:
-        table = yaml.safe_load(fh)
-    sections = []
-    for entry in table:
-        given = entry.get("from")
-        sources = (given,) if isinstance(given, str) else tuple(given or ())
-        complete_from = entry.get("complete_from")
-        for source in sources:
-            if source not in SOURCES:
-                raise ValueError(
-                    f"{path}: section {entry['heading']!r} drafts from unknown {source!r}"
-                )
-        if complete_from is not None and complete_from not in sources:
-            raise ValueError(
-                f"{path}: section {entry['heading']!r} is completed from {complete_from!r}, "
-                "which it is not drafted from"
-            )
-        parts = tuple(_part(path, entry["heading"], p) for p in entry.get("parts") or ())
-        if ("ask" in entry) == bool(parts):
-            raise ValueError(f"{path}: section {entry['heading']!r} needs either ask or parts")
-        if parts and complete_from is not None:
-            raise ValueError(
-                f"{path}: section {entry['heading']!r} has parts, so it cannot be completed "
-                "from one fact"
-            )
-        suggest = entry.get("suggest", False)
-        if not isinstance(suggest, bool):
-            raise ValueError(f"{path}: section {entry['heading']!r} has a suggest that is not true")
-        if parts and suggest:
-            raise ValueError(
-                f"{path}: section {entry['heading']!r} has parts, which a model does not suggest"
-            )
-        ask = (
-            " ".join(str(entry["ask"]).split())
-            if not parts
-            else "; ".join(f"{p.label.lower()}: {p.ask.rstrip('.')}" for p in parts) + "."
-        )
-        sections.append(Section(str(entry["heading"]), ask, sources, complete_from, parts, suggest))
-    if not sections:
-        raise ValueError(f"{path}: no sections")
-    return sections
-
-
-def _part(path: Path, heading: str, entry: Mapping[str, Any]) -> Part:
-    given_by = entry.get("given_by")
-    if given_by is not None and given_by not in RECORD_GENERAL:
-        raise ValueError(f"{path}: section {heading!r} has a part given by unknown {given_by!r}")
-    return Part(str(entry["label"]), " ".join(str(entry["ask"]).split()), given_by)
 
 
 class DocumentationEditor:
@@ -308,7 +210,11 @@ class DocumentationEditor:
                 inventory, asked.requirements, record, answers, ctx
             )
             # The README is drafted first, so nothing the model suggests can reach its text.
-            suggestable = {s.heading: s.ask for s in self.sections if s.suggest}
+            suggestable = {
+                s.heading: s.ask
+                for s in self.sections
+                if s.suggestable(has_documents=bool(asked.project_documents))
+            }
             questions, suggested = self._suggest(
                 with_documents(_facts(inventory, asked.requirements, record), asked),
                 [
