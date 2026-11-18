@@ -174,6 +174,21 @@ def test_every_other_path_serves_the_built_shell(governance: Governance, dist: P
     assert "<title>shell</title>" in response.text
 
 
+def test_a_missing_page_is_404_with_the_shell_for_a_browser(governance: Governance, dist: Path):
+    client = TestClient(build_app(governance, dist))
+    response = client.get("/no/such/page", headers={"accept": "text/html,application/xhtml+xml"})
+    assert response.status_code == 404
+    assert "<title>shell</title>" in response.text
+
+
+def test_a_missing_path_is_404_plainly_to_anything_else(governance: Governance, dist: Path):
+    client = TestClient(build_app(governance, dist))
+    assert client.get("/no/such/page", headers={"accept": "application/json"}).status_code == 404
+    api = client.get("/api/no-such-route", headers={"accept": "text/html"})
+    assert api.status_code == 404
+    assert "<title>shell</title>" not in api.text
+
+
 @pytest.mark.parametrize("page", ["/agents", "/activity", "/policy"])
 def test_each_page_serves_the_built_shell(governance: Governance, dist: Path, page: str):
     response = TestClient(build_app(governance, dist)).get(page)
