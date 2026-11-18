@@ -270,7 +270,7 @@ sudo systemctl restart data-director-llm-gateway
 `sudo data-director doctor` reports a broker or agent sent to a gateway on the VM that does not
 answer. The gateway's settings and secrets are in the nightly backup with the rest of
 `/etc/data-director`. Its database, with the keys it issued and its spend, is not: back it up as
-the gateway's README says.
+the gateway's README says. TODO(#1128): add it to the nightly backup.
 
 ## Day to day
 
