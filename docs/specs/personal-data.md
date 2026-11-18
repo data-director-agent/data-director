@@ -232,7 +232,10 @@ What the command and the app say about a result, in substance:
 - **Suppressed summaries:** "Some summary values were left out because fewer than *k* records
   shared them. They are not stored anywhere."
 
-The app's wording, and the next steps C2 asks for, are #471's; this is the substance they keep.
+The app says these (`PERSONAL_DATA_TEXT` in `@data-director/inventory`), with a third for an
+inventory made without the check, under **Possible personal data** in the inventory's view,
+before the inventory is added and after. The next steps C2 asks for, the pause and the referral
+to a person, are #471's and #987's.
 
 ## Rationale
 
