@@ -54,18 +54,44 @@ openssl rand -base64 32 > key-encryption-key
 openssl ecparam -name prime256v1 -genkey -noout | openssl pkcs8 -topk8 -nocrypt > subject-key
 ```
 
-The third, `agent-credentials`, lists each agent that may call through the broker, with the
-SHA-256 digest of that agent's broker credential:
+The third, `agent-credentials`, is how the broker recognises an agent. Each agent that may call
+through the broker has a *broker credential*, a random password only that agent holds. The broker
+keeps only its SHA-256 digest, a fingerprint it can compare but not reverse, so a copy of the file
+does not reveal any agent's credential. The file maps each agent's id (its name with a dot,
+`advisor.standards`) to that digest:
 
 ```json
 {"advisor.standards": "<sha256 hex of the agent's broker credential>"}
 ```
 
-Make a credential with `openssl rand -hex 32`, and its digest with `printf %s "$credential" |
-sha256sum`. The agent holds the credential and the broker holds only the digest.
+One script does it for every agent you name. Run it as root from the clone, naming each
+model-backed agent as in `app/config/agents.yaml`:
 
-Set `DD_BROKER_HARNESS_JWKS_URL` in `model-broker.env` to the harness's published keys (below),
-then start the broker:
+```bash
+sudo deploy/broker-credentials.sh advisor-documentation advisor-policy advisor-repository advisor-standards orchestrator-model
+```
+
+For each agent it makes a credential, stores it as the agent's `dd-model-broker-credential` secret
+(restarting the agent if it is running; see [The agents](#the-agents-calling-through-the-broker)),
+and writes the credential's digest into `agent-credentials`, readable by root alone. Then restart
+the broker so it reads the file:
+
+```bash
+sudo systemctl restart data-director-model-broker.service
+```
+
+A run replaces the whole file and makes new credentials for the agents it names, so name every
+agent that calls through the broker each time, and an agent left out loses its access.
+
+??? note "By hand"
+    Make a credential with `openssl rand -hex 32` and its digest with `printf %s "$credential" |
+    sha256sum`. Write the digest into `agent-credentials`, and give the agent the credential
+    itself as its `dd-model-broker-credential` secret (below). The agent holds the credential and
+    the broker holds only the digest.
+
+`install.sh` sets `DD_BROKER_HARNESS_JWKS_URL` in `model-broker.env` to the harness's published
+keys (below) on the app's loopback address, and leaves a value you set there alone. Start the
+broker:
 
 ```bash
 sudo systemctl enable --now data-director-model-broker.service
@@ -73,6 +99,12 @@ sudo systemctl enable --now data-director-model-broker.service
 
 The broker listens on `127.0.0.1:8300`. Like the agents' ports, it must not be reachable from
 beyond the host or a private network (TODO(#17)).
+
+If it fails with `status=203/EXEC` and `Permission denied`, the broker's user cannot reach the
+release's Python: the VM was installed before uv's Python moved to `/opt/data-director/python/`.
+Run `install.sh` again, which rebuilds the live release against it
+([deploy/README.md](../../../deploy/README.md#the-model-broker)). `sudo data-director doctor`
+reports this.
 
 ### The harness: signing grants
 
@@ -159,7 +191,8 @@ An agent calls through the broker when its environment sets:
   (`DD_MODEL_BROKER_CREDENTIAL` in development).
 
 On a VM, `DD_MODEL_BROKER_URL` goes in the agent's `/etc/data-director/agents/<agent>.env`. Give it
-the credential as a secret named `dd-model-broker-credential`:
+the credential as a secret named `dd-model-broker-credential`. `deploy/broker-credentials.sh`
+(above) does this for you; to do it by hand for one agent, whose credential you made yourself:
 
 ```bash
 sudo data-director secret set advisor-standards dd-model-broker-credential

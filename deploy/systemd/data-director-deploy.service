@@ -13,6 +13,9 @@ Type=oneshot
 User=datadirector
 Group=datadirector
 EnvironmentFile=-/etc/data-director/deploy.env
+# uv installs Python here, readable by every service's user, not in the deploy user's home, which
+# the model broker's user cannot enter (deploy/install.sh).
+Environment=UV_PYTHON_INSTALL_DIR=/opt/data-director/python
 ExecStart=/opt/data-director/current/deploy/deploy.sh
 # A first build downloads Python, the locked packages and the shell's npm packages.
 TimeoutStartSec=30min

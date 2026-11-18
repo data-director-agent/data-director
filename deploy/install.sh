@@ -18,6 +18,10 @@ USER_NAME=datadirector
 # The model broker's own user (deploy/systemd/data-director-model-broker.service).
 BROKER_USER=data-director-broker
 ROOT=/opt/data-director
+# The Python interpreters uv installs, which every release's .venv links to. They are kept here,
+# readable by every service's user, not in $STATE: the model broker runs as a user of its own,
+# which cannot enter $STATE.
+PYTHONS="$ROOT/python"
 STATE=/var/lib/data-director
 ETC=/etc/data-director
 
@@ -77,7 +81,7 @@ step "User and directories"
 if ! id "$USER_NAME" &>/dev/null; then
   useradd --system --home-dir "$STATE" --create-home --shell /usr/sbin/nologin "$USER_NAME"
 fi
-install -d -o "$USER_NAME" -g "$USER_NAME" -m 0755 "$ROOT" "$ROOT/releases"
+install -d -o "$USER_NAME" -g "$USER_NAME" -m 0755 "$ROOT" "$ROOT/releases" "$PYTHONS"
 install -d -o "$USER_NAME" -g "$USER_NAME" -m 0750 "$STATE" "$STATE/runs" "$STATE/projects" \
   "$STATE/workbench-runs"
 install -d -o root -g "$USER_NAME" -m 0750 "$ETC"
@@ -89,6 +93,15 @@ new_file() { # new_file DEST [SOURCE]
   chown root:"$USER_NAME" "$1"
   chmod 0640 "$1"
   echo "created $1"
+}
+setting() { sed -n "s/^$1=//p" "${2:-$ETC/app.env}" | tail -n 1; }
+fill() { # fill FILE NAME VALUE: set NAME in FILE if it is empty there; an operator's value stays
+  [[ -n "$(setting "$2" "$1")" ]] && return
+  if grep -qE "^$2=" "$1"; then
+    sed -i "s|^$2=.*|$2=$3|" "$1"
+  else
+    echo "$2=$3" >>"$1"
+  fi
 }
 new_file "$ETC/app.env" "$SRC/config/examples/app.env"
 # Where people reach the app is known from --domain, and ORCID needs it as the redirect URI's base.
@@ -111,6 +124,9 @@ if ! id "$BROKER_USER" &>/dev/null; then
 fi
 install -d -o root -g root -m 0700 "$ETC/credentials/model-broker"
 new_file "$ETC/model-broker.env" "$SRC/config/examples/model-broker.env"
+# The broker checks grants against the keys the app publishes, on the app's loopback address.
+fill "$ETC/model-broker.env" DD_BROKER_HARNESS_JWKS_URL \
+  "http://127.0.0.1:$(setting DD_APP_PORT | grep . || echo 7860)/.well-known/jwks.json"
 new_file "$ETC/deploy.env" "$SRC/deploy/deploy.env.example"
 new_file "$ETC/backup.env" "$SRC/deploy/backup.env.example"
 # Backups hold every secret, so their directory is root's alone.
@@ -127,6 +143,23 @@ step "systemd units"
 (cd "$SRC/deploy/systemd" && find . -type f -printf '%P\n') | while read -r unit; do
   install -D -m 0644 "$SRC/deploy/systemd/$unit" "/etc/systemd/system/$unit"
 done
+
+# A release built before the interpreters moved to $PYTHONS links to one in $STATE, which the model
+# broker's user cannot reach. Rebuild the live release's .venv so that it links to $PYTHONS; the
+# packages come from uv's cache. Older releases kept for rollback still link to $STATE, which
+# stays, so they run as before, all but the broker.
+live="$(readlink -f "$ROOT/current" 2>/dev/null || true)"
+if [[ -n "$live" && -d "$live/.venv" ]] &&
+  [[ "$(readlink -f "$live/.venv/bin/python")" == "$STATE"/* ]]; then
+  step "Rebuilding the live release's Python environment in $PYTHONS"
+  # shellcheck disable=SC2016 # expanded by the inner shell
+  runuser -u "$USER_NAME" -- env HOME="$STATE" UV_PYTHON_INSTALL_DIR="$PYTHONS" \
+    PATH=/usr/local/bin:/usr/bin:/bin \
+    bash -c 'cd "$1" && rm -rf .venv && uv sync --locked --no-dev --quiet' _ "$live"
+  echo "rebuilt $live/.venv"
+  systemctl daemon-reload
+  systemctl try-restart data-director.target
+fi
 
 step "What $ETC/deployment.yaml says this instance runs"
 # The profile, the drop-ins that start each agent and make the app wait for it, and each
@@ -169,7 +202,6 @@ systemctl reload nginx
 
 # The app signs people in with ORCID and does not start without the client (docs/guide/operations/
 # configuration.md), so the first deployment waits until it is in place.
-setting() { sed -n "s/^$1=//p" "${2:-$ETC/app.env}" | tail -n 1; }
 missing=()
 for name in DD_OIDC_ISSUER DD_OIDC_CLIENT_ID DD_APP_PUBLIC_URL; do
   [[ -n "$(setting "$name")" ]] || missing+=("$name in $ETC/app.env")
@@ -209,7 +241,8 @@ if [[ ! -L "$ROOT/current" ]]; then
   # copied where the service user can read it (a clone in a home directory may not be).
   install -m 0755 "$SRC/deploy/deploy.sh" "$ROOT/first-deploy.sh"
   # shellcheck disable=SC2016 # expanded by the inner shell
-  runuser -u "$USER_NAME" -- env HOME="$STATE" PATH=/usr/local/bin:/usr/bin:/bin \
+  runuser -u "$USER_NAME" -- env HOME="$STATE" UV_PYTHON_INSTALL_DIR="$PYTHONS" \
+    PATH=/usr/local/bin:/usr/bin:/bin \
     bash -c 'set -a; source "$1"; set +a; exec "$2"' _ "$ETC/deploy.env" "$ROOT/first-deploy.sh"
   rm -f "$ROOT/first-deploy.sh"
 fi
@@ -227,17 +260,9 @@ echo "  ssh -N -L 8200:127.0.0.1:8200 <you>@$domain   then open http://localhost
 step "Workbench, for admins, at https://$domain:8443/"
 # The workbench uses the app's ORCID client and is reached on port 8443. install.sh fills what it
 # knows into an empty setting, and leaves an operator's value alone.
-fill() { # fill NAME VALUE: set NAME in workbench.env if it is empty there
-  [[ -n "$(setting "$1" "$ETC/workbench.env")" ]] && return
-  if grep -qE "^$1=" "$ETC/workbench.env"; then
-    sed -i "s|^$1=.*|$1=$2|" "$ETC/workbench.env"
-  else
-    echo "$1=$2" >>"$ETC/workbench.env"
-  fi
-}
-fill DD_OIDC_ISSUER "$(setting DD_OIDC_ISSUER)"
-fill DD_OIDC_CLIENT_ID "$(setting DD_OIDC_CLIENT_ID)"
-fill DD_WORKBENCH_PUBLIC_URL "https://$domain:8443"
+fill "$ETC/workbench.env" DD_OIDC_ISSUER "$(setting DD_OIDC_ISSUER)"
+fill "$ETC/workbench.env" DD_OIDC_CLIENT_ID "$(setting DD_OIDC_CLIENT_ID)"
+fill "$ETC/workbench.env" DD_WORKBENCH_PUBLIC_URL "https://$domain:8443"
 # It admits only the ORCID iDs listed and does not start with none, so it is enabled once there is
 # one (deploy/README.md).
 if [[ -n "$(setting DD_WORKBENCH_ADMINS "$ETC/workbench.env")" ]]; then

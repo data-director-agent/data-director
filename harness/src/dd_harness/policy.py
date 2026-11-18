@@ -17,6 +17,7 @@ from typing import Any
 
 import yaml
 
+from dd_harness.footprint import FootprintTable
 from dd_sdk.agent import ModelUse, Setting
 from dd_sdk.model_grant import Account, origin
 
@@ -33,6 +34,7 @@ PROFILE_KEYS = frozenset(
         "hosted_models",
         "model_accounts",
         "agent_settings",
+        "model_footprint",
     }
 )
 
@@ -285,6 +287,9 @@ class Profile:
     # agent_id -> {setting: value}: the options the steward sets for each agent, which the gate
     # checks against those the agent's card declares (docs/specs/policy-and-identity.md).
     agent_settings: dict[str, dict[str, str]] = field(default_factory=dict)
+    # The figures the conductor estimates each run's model energy and cost from (P14, C17;
+    # docs/specs/disclosure.md, Footprint). None: nothing is estimated.
+    model_footprint: FootprintTable | None = None
 
     @property
     def ref(self) -> str:
@@ -328,6 +333,7 @@ class Profile:
                 hosted_models=frozenset(str(c) for c in hosted),
                 model_accounts=ModelAccounts.from_value(data.get("model_accounts")),
                 agent_settings=_agent_settings(data.get("agent_settings"), agents),
+                model_footprint=FootprintTable.from_value(data.get("model_footprint")),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise PolicyError(f"profile {source!r} is malformed: {exc}") from exc
@@ -397,14 +403,19 @@ def gate(
     were in force."""
     assigned = profile.agents.get(agent_id)
     if assigned is None:
-        return GateDecision(False, False, f"agent {agent_id!r} not enabled", "not-enabled")
+        return GateDecision(
+            allowed=False,
+            requires_approval=False,
+            reason=f"agent {agent_id!r} not enabled",
+            refusal="not-enabled",
+        )
     if declared_action_class != assigned:
         return GateDecision(
-            False,
-            False,
-            f"agent {agent_id!r} declares action class {declared_action_class!r}; "
+            allowed=False,
+            requires_approval=False,
+            reason=f"agent {agent_id!r} declares action class {declared_action_class!r}; "
             f"profile {profile.profile_id!r} assigns it {assigned!r}",
-            "action-class-mismatch",
+            refusal="action-class-mismatch",
         )
     declared = declared_settings or {}
     settings = {name: s.default for name, s in declared.items()}
@@ -421,21 +432,23 @@ def gate(
                 )
             )
             return GateDecision(
-                False,
-                False,
-                f"profile {profile.profile_id!r} sets {agent_id}'s {name!r} to {value!r}; "
+                allowed=False,
+                requires_approval=False,
+                reason=f"profile {profile.profile_id!r} sets {agent_id}'s {name!r} to {value!r}; "
                 f"{accepts}",
-                "setting-not-declared",
+                refusal="setting-not-declared",
             )
         settings[name] = value
     if assigned in profile.actions_requiring_approval:
         return GateDecision(
-            True,
-            True,
-            f"action class {assigned!r} requires approval under {profile.profile_id!r}",
+            allowed=True,
+            requires_approval=True,
+            reason=f"action class {assigned!r} requires approval under {profile.profile_id!r}",
             settings=settings,
         )
-    return GateDecision(True, False, "permitted", settings=settings)
+    return GateDecision(
+        allowed=True, requires_approval=False, reason="permitted", settings=settings
+    )
 
 
 def withheld(profile: Profile, hostings: Iterable[str], given: Iterable[str]) -> list[str]:

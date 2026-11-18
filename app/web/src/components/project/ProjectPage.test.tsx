@@ -91,7 +91,6 @@ function fakeConversations(
 ): ConversationApi {
   return {
     create: () => Promise.reject(new Error("nothing started in these tests")),
-    sendTurn: () => Promise.reject(new Error("nothing sent in these tests")),
     list,
     get: () => Promise.reject(new Error("nothing opened in these tests")),
   };

@@ -76,7 +76,7 @@ ALL = [ISO8601, AGROVOC, ENVO, CSV, DEPRECATED]
 class FakeRetrieval:
     """Substring matching over a fixed record list; enough to drive ranking and the linter."""
 
-    def __init__(self, records: list[Record] | None = None, unavailable: bool = False) -> None:
+    def __init__(self, records: list[Record] | None = None, *, unavailable: bool = False) -> None:
         self.records = ALL if records is None else records
         self.unavailable = unavailable
         self.queries: list[Query] = []
@@ -109,7 +109,7 @@ class FakeModelExplainer:
 
     model_id: str | None = "fake-model"
 
-    def __init__(self, hallucinate: bool = False) -> None:
+    def __init__(self, *, hallucinate: bool = False) -> None:
         self.hallucinate = hallucinate
 
     def explain(
@@ -143,7 +143,7 @@ def soil_profile() -> DatasetProfile:
     )
 
 
-def make_conductor(runs_dir: Path, standards: Any = None, crate: bool = True) -> Any:
+def make_conductor(runs_dir: Path, standards: Any = None, *, crate: bool = True) -> Any:
     """The standards advisor and the stub behind a workbench conductor. Imports the workbench
     lazily: it is a development dependency of the workspace, not a dependency of this agent."""
     from dd_agent_advisor_standards.agent import StandardsAgent

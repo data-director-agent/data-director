@@ -48,9 +48,21 @@ model_accounts:              # optional: whose model account pays; see "People's
 agent_settings:              # optional: options an agent offers on its card, per agent.
   advisor.policy:            # Write each value as a quoted string. Without this key every
     journals: "off"          # agent uses its card's defaults
+
+model_footprint:             # optional: figures to estimate each run's model energy and cost.
+                             # The numbers below are illustrative, not real prices or factors.
+  source: Provider price list; energy factors from a published study  # where the figures are from
+  as_of: 2026-11-01          # when they were taken
+  currency: GBP              # ISO 4217; required if any price is given
+  models:                    # keyed by the model ID the provider's response names
+    claude-sonnet-5-5:
+      input_per_mtok: 2.40   # price per million input tokens
+      output_per_mtok: 12.00 # price per million output tokens
+      input_j_per_token: 0.2 # joules per input token (modelled, not measured)
+      output_j_per_token: 2.0
 ```
 
-Those nine keys are the whole vocabulary. A profile with any other key is refused when the
+Those ten keys are the whole vocabulary. A profile with any other key is refused when the
 workbench starts, so a misspelt or out-of-date key cannot look as if it were in force.
 
 ## How it is applied
@@ -149,6 +161,16 @@ workbench stops at start-up rather than appear to apply a rule it cannot.
 A person's own account calls their provider's service, which is hosted. Declare a base URL
 `local: true` only if it is a service your institution runs. While own accounts are on, an agent
 counts as calling a hosted model unless every address the profile allows is declared local.
+
+## Model footprint
+
+With `model_footprint`, the conductor estimates each model call's energy and cost from its token
+counts and the figures you give for that model, and records them in the run's Process Run Crate;
+the run's energy also goes in its envelope (`energy_method: estimated`). A run that called a model
+you did not list, or whose provider reported no token counts, gets no figure rather than a partial
+one. The figures are yours: check prices against the provider's list, and say in `source` where
+the energy factors come from, since providers of hosted models do not publish them
+([Disclosure](../../docs/specs/disclosure.md), invariant 8).
 
 ## Planned keys
 

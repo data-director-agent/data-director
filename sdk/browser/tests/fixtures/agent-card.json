@@ -26,6 +26,7 @@
           },
           "description": "A spec for testing derivations.",
           "grounding_mode": "retrieval",
+          "icon": "",
           "models": [],
           "payload": "Findings",
           "schemas": {

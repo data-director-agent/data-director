@@ -47,12 +47,17 @@ const FEATURE_IMPORTS = [
   {
     from: "conversation",
     to: "run",
-    reason: "A run in the conversation shows the run's stages and outcome, and a drafted document's text.",
+    reason: "A turn's run is drawn live (LiveRun); a delegated run shows its outcome, and a drafted document's text.",
   },
   {
     from: "conversation",
     to: "capabilities",
     reason: "Speaker says what powers an agent the same way as the agent directory (ModelDisclosure).",
+  },
+  {
+    from: "workspace",
+    to: "run",
+    reason: "The activity log draws the events a run could not show as the run view does (UnrecognisedEvents).",
   },
   {
     from: "workspace",

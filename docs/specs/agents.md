@@ -41,7 +41,8 @@ is in [`harness/docs/registry.md`](../../harness/docs/registry.md).
    it ([Policy and identity](policy-and-identity.md)).
 7. The manifest declares derivations and carries no presentation: no uiSchema fragment, widget
    name, layout hint or field order. `workbench/tests/test_viewer.py` checks that the viewer
-   works out a payload's presentation from its schema and the derivations.
+   works out a payload's presentation from its schema and the derivations. A persona's title and
+   icon are its identity, not presentation in this sense.
 8. A derivation names a payload field path the payload class has, and its `recorded_in`, when
    given, names a sibling field of type `Derivation`. An agent with no payload declares no
    derivations. The spec refuses anything else when it is built, both in the agent and when the
@@ -56,7 +57,10 @@ is in [`harness/docs/registry.md`](../../harness/docs/registry.md).
     its reference profile: `app/tests/test_app.py`.
 12. Every advisor is a persona: it has a title, and it serves only steps of the process flow
     (`dd_sdk.process_flow`). `AgentSpec` refuses a step id that is not in the flow. No two
-    advisors serve the same step. That last rule is not yet checked by a test.
+    advisors serve the same step. That last rule is not yet checked by a test. A persona may also
+    have an `icon`, one emoji, which the app shows beside its title; `AgentSpec` refuses an icon
+    that is not one (`sdk/tests/test_agent_spec.py`). A card without an icon gets the client's
+    default (`DEFAULT_AGENT_ICON` in `@data-director/agent-view`).
 13. A mock advisor's description begins "Mock.", its grounding mode is `none`, and its payload
     says in `limitations` what it does not yet do; a payload of the core `Document` class, which
     has no such slot, says it in the outcome statement instead. A mock declares no model and
@@ -342,6 +346,9 @@ conductor recorded. The source check re-hashes each against the deployment's pin
 - **Personas.** A role a person recognises is easier for a researcher to trust and for a data
   steward to assess. A narrow role keeps each agent's sources, failure modes and evaluation
   separate. Naming steps that no agent serves makes the whole intended design visible.
+- **An emoji icon.** An icon lets a researcher tell a conversation's agents apart at a glance. An
+  emoji names no icon library, so any client shows it as text, with no sprite or dependency, and
+  a card stays meaningful wherever it is read.
 - **A model-backed alpha.** It shows a persona's model-backed design to researchers early without
   claiming it is validated. The `template` path keeps CI and deployments without a key
   working (the Documentation Editor's by being selected, the others' by default), and keeping exact work in a deterministic shell keeps it testable and lets a failed

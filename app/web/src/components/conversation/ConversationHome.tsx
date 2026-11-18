@@ -242,7 +242,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
               documents={
                 documents.state === "loaded" ? documents.documents : null
               }
-              pending={sent && { agentId: orchestrator.id, ...sent }}
+              pending={sent && { agentId: orchestrator.id, ...sent, live: turns.live }}
               onAnswer={(answers, message) =>
                 void answerQuestions(answers, message)
               }

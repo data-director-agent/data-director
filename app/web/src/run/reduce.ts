@@ -17,7 +17,7 @@
  *   interrupted, rather than inventing a finish.
  */
 
-import { parseEvent, type PlanStep } from "./events";
+import { parseEvent, type PlanStep, type Subagent } from "./events";
 import type { Envelope, GroundingReport, SourceReport } from "./types";
 
 export type StepState = "waiting" | "running" | "finished" | "stopped" | "not-reached";
@@ -32,7 +32,7 @@ export type LogEntry =
   | { kind: "step-started" | "step-finished"; step: string }
   | { kind: "report"; check: "grounding" | "sources"; passed: boolean }
   | { kind: "tool-call"; id: string; name: string; done: boolean }
-  | { kind: "subagent"; event: string }
+  | ({ kind: "subagent"; event: string } & Subagent)
   | { kind: "malformed"; reason: string };
 
 export interface RunState {
@@ -211,7 +211,10 @@ export function reduce(state: RunState, raw: unknown): RunState {
     case "TOOL_CALL_OTHER":
       return running;
     case "SUBAGENT":
-      return { ...running, log: [...running.log, { kind: "subagent", event: event.original }] };
+      return {
+        ...running,
+        log: [...running.log, { kind: "subagent", event: event.original, ...event.subagent }],
+      };
     case "REASONING":
       return { ...running, reasoning: running.reasoning + 1 };
     case "UNRECOGNISED":

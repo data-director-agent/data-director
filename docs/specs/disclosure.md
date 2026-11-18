@@ -80,6 +80,21 @@ document should have been drafted with a model is a matter for policy
    (`test_the_disclosure_reads_as_prov_o`). This graph is the part of the project's provenance
    graph reachable from each approved version, with the same IRIs
    ([Provenance](provenance.md), invariant 10); today it is built on its own, TODO(#799).
+8. **A run's model footprint is estimated from the profile, never measured.** When the
+   profile has a `model_footprint` table ([Policy and identity](policy-and-identity.md)), the
+   conductor estimates each model call's energy, in joules, and cost, in the table's currency,
+   as its token counts times the table's per-token factors and per-million-token prices for the
+   model the provider named (`dd_harness.footprint`). A run's figure is the sum over its calls,
+   and exists only if every call has one: a call to a model the table does not list, or one
+   whose provider reported no token counts, leaves the run with no figure, never a partial sum or
+   zero. A run that called no model has no figure. The envelope carries the run's energy in
+   `telemetry.energy_estimate_j` with `energy_method: estimated`, and otherwise null and
+   `not_measured`. The Process Run Crate carries each call's token counts and estimates, and the
+   run's totals, as `PropertyValue`s of the call's and the invocation's `CreateAction`, each
+   saying that it is estimated and from which source and date (`unitCode` `JOU` for joules,
+   `unitText` the currency). The cost is in the crate only; the contract has no cost slot
+   (`test_a_runs_crate_records_estimated_energy_and_cost_per_call_and_per_run`,
+   `test_a_model_the_table_does_not_list_is_not_estimated_never_zero`).
 
 ## Boundaries and contracts
 
@@ -154,6 +169,11 @@ media, so they are carried alongside the PROV account, not instead of it.
 - **Auditability.** A disclosure can be made again from the log and the run store at any time,
   and a prompt verified against its digest.
 - **Accessibility.** The statement is plain prose with headings, readable without the graph.
+- **Low impact and affordability (Blueprint P14, C17).** A footprint figure is only as good as
+  the steward's factors. Providers of hosted models publish prices but not energy per token, so
+  an energy factor for one is itself modelled, and the crate says so. A run's figure covers its
+  own model calls: not the agent's other compute, the harness's or the network's, and not a
+  delegated child's, which has its own run.
 
 ## Open questions
 
@@ -165,3 +185,6 @@ media, so they are carried alongside the PROV account, not instead of it.
   does not check that each `chat` span has a call. Both bear on the completeness of the project's
   provenance ([Provenance](provenance.md), invariant 3): TODO(#800).
 - The w3id namespace under which models are named is not yet registered: TODO(#3).
+- Cached input tokens are counted as input, so a cached call is overestimated, and a
+  workflow's total across its delegations is not summed: TODO(#163, #480). A spend limit is
+  TODO(#163); a measured, rather than estimated, figure for a self-hosted model is TODO(#480).

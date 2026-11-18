@@ -389,7 +389,7 @@ def _set_app_settings(env_file: Path, settings: dict[str, str | None]) -> None:
             os.chown(env_file, before.st_uid, before.st_gid)
 
 
-def apply(system: System, place: Place, vm: Vm | None = None, check: bool = False) -> int:
+def apply(system: System, place: Place, vm: Vm | None = None, *, check: bool = False) -> int:
     deployment, result = plan(system, place, vm)
     print(
         f"deployment {deployment.name}: orchestrator {deployment.orchestrator}"

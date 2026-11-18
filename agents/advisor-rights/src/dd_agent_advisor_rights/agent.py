@@ -114,6 +114,7 @@ class RightsAdviser:
         agent_id="advisor.rights",
         version="0.2.0a1",
         title="Rights and Licensing Adviser",
+        icon="⚖️",
         description=(
             "Alpha. Lists data licences that fit the reuse a researcher wants to allow, and the "
             "access levels with when each applies, for the researcher to choose from. With a "

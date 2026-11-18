@@ -11,13 +11,19 @@
  * the run. `runAgent`'s own checks are stricter than the harness's binding, which ends a cancelled
  * run with the stopped stage still open, TODO(#1007).
  *
- * TODO(#949): the run view draws from this; until then nothing does.
+ * Cancelling a turn asks the server to cancel its run; the stream is read on until it ends with
+ * the cancelled `RUN_FINISHED`, so the run view says what the run came to rather than guessing.
  */
 
 import { HttpAgent, type AbstractAgent, type BaseEvent, type RunAgentInput } from "@ag-ui/client";
 import { createContext, useContext } from "react";
 
 import { CassetteAgent } from "./cassette";
+
+/** The route that cancels the turn whose AG-UI run is `runId`. */
+export function turnCancelUrl(conversationId: string, runId: string): string {
+  return `/api/conversations/${encodeURIComponent(conversationId)}/turns/${encodeURIComponent(runId)}/cancel`;
+}
 
 /** The route that streams a turn of the conversation `conversationId`. */
 export function turnStreamUrl(conversationId: string): string {
@@ -27,12 +33,22 @@ export function turnStreamUrl(conversationId: string): string {
 export interface RunTransport {
   /** An agent for one turn of the conversation `conversationId`, its AG-UI thread. */
   agentFor(conversationId: string): AbstractAgent;
+  /** Asks for the turn `runId` of the conversation `conversationId` to be cancelled. Its stream
+   * then ends with a cancelled `RUN_FINISHED`; a turn that has already ended is left as it is. */
+  cancel(conversationId: string, runId: string): Promise<void>;
 }
 
 /** Live turns, streamed from the server. */
 export const httpTransport: RunTransport = {
   agentFor(conversationId) {
     return new HttpAgent({ url: turnStreamUrl(conversationId), threadId: conversationId });
+  },
+  async cancel(conversationId, runId) {
+    const response = await fetch(turnCancelUrl(conversationId, runId), { method: "POST" });
+    // 404: the turn is no longer streaming, so it has ended, and its stream says how.
+    if (!response.ok && response.status !== 404) {
+      throw new Error(`the server answered ${response.status}`);
+    }
   },
 };
 
@@ -41,9 +57,16 @@ export function cassetteTransport(
   events: readonly unknown[],
   { paceMs = 0 }: { paceMs?: number } = {},
 ): RunTransport {
+  const replaying = new Map<string, CassetteAgent>();
   return {
     agentFor(conversationId) {
-      return new CassetteAgent({ events, paceMs, threadId: conversationId });
+      const agent = new CassetteAgent({ events, paceMs, threadId: conversationId });
+      replaying.set(conversationId, agent);
+      return agent;
+    },
+    cancel(conversationId) {
+      replaying.get(conversationId)?.cancel();
+      return Promise.resolve();
     },
   };
 }

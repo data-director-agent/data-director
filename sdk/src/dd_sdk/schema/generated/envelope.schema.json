@@ -2912,7 +2912,7 @@
       },
       "Telemetry": {
          "additionalProperties": false,
-         "description": "Run measurements. The energy slots exist so P14 can be populated later without a schema change; at v0 they are null and not_measured.",
+         "description": "Run measurements. The energy slots hold the conductor's estimate of the run's model calls from the profile's model_footprint (estimated), or null and not_measured where it has none (docs/specs/disclosure.md).",
          "properties": {
             "trace_id": {
                "description": "OpenTelemetry trace identifier, 32 lowercase hex characters.",

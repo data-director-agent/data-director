@@ -1,7 +1,7 @@
 /**
  * The conversation endpoints, behind one interface so tests can stand in for the server.
  *
- * A turn sends only the agent, the message, the turn it follows, any inventory attached to it and
+ * A turn (sent through its stream, `run/transport.ts`, with `turnBody`) sends only the agent, the message, the turn it follows, any inventory attached to it and
  * any answer to the latest turn's choice question, which the harness checks, and any supporting
  * document attached to it:
  * the server builds the history from what it stored (docs/specs/app.md) and refuses one the page
@@ -15,7 +15,8 @@
 import type { FileInventory } from "@data-director/inventory";
 import { createContext, useContext } from "react";
 
-import { json } from "../http";
+import { json, RunRefused } from "../http";
+import { SIGNED_OUT, SignedOut } from "../session/api";
 import type { Problem } from "../run/types";
 import type { AttachedDocument } from "./documentation";
 import type { ReplyAnswers } from "./question";
@@ -30,16 +31,6 @@ export interface Started {
 export interface ConversationApi {
   /** Starts a conversation in `projectId`, or in a new project when it is null. */
   create(projectId: string | null, signal?: AbortSignal): Promise<Started>;
-  sendTurn(
-    conversationId: string,
-    agentId: string,
-    messageText: string,
-    follows: string | null,
-    inventory?: FileInventory | null,
-    signal?: AbortSignal,
-    answer?: ReplyAnswers | null,
-    document?: AttachedDocument | null,
-  ): Promise<void>;
   list(signal?: AbortSignal): Promise<ConversationSummary[]>;
   get(conversationId: string, signal?: AbortSignal): Promise<Conversation>;
 }
@@ -86,6 +77,57 @@ export class NoAnswer extends Unreachable {
   }
 }
 
+/** What a turn sends, the same to `POST …/turns` and, as `forwardedProps`, to its stream: the
+ * answer, the inventory and the document only when there is one. */
+export function turnBody(
+  agentId: string,
+  messageText: string,
+  follows: string | null,
+  inventory: FileInventory | null,
+  answer: ReplyAnswers | null,
+  document: AttachedDocument | null,
+): Record<string, unknown> {
+  return {
+    agent_id: agentId,
+    message_text: messageText,
+    follows,
+    ...(inventory ? { inventory } : {}),
+    ...(answer ? { reply_answers: answer } : {}),
+    ...(document
+      ? {
+          documentation: {
+            name: document.name,
+            media_type: document.media_type,
+            text: document.text,
+          },
+        }
+      : {}),
+  };
+}
+
+/**
+ * Why a turn's stream could not be opened, as the JSON route's errors say it: the AG-UI client
+ * gives a refused request's status and Problem Details (`status`, `payload`), and a request that
+ * got no response as a `TypeError`.
+ */
+export function streamFailure(error: unknown): Error {
+  if (error instanceof TypeError) return new Unreachable();
+  const { status, payload } = (error ?? {}) as { status?: unknown; payload?: unknown };
+  if (typeof status !== "number") return error instanceof Error ? error : new Error(String(error));
+  const problem =
+    typeof payload === "object" && payload !== null && "title" in payload
+      ? (payload as Problem)
+      : null;
+  if (status === 401) {
+    window.dispatchEvent(new Event(SIGNED_OUT));
+    return new SignedOut();
+  }
+  if (status === 409 && problem) return new TurnConflict(problem);
+  if (GATEWAY_ERRORS.includes(status)) return new NoAnswer(status);
+  if (status === 400 && problem) return new RunRefused(problem);
+  return new Error(problem?.detail ?? `the server answered ${status}`);
+}
+
 /** `fetch`, with a request that got no response raised as `Unreachable`, whichever endpoint. */
 async function request(url: string, init: RequestInit): Promise<Response> {
   try {
@@ -107,31 +149,6 @@ export const httpConversationApi: ConversationApi = {
       }),
     );
     return { conversation_id: created.conversation_id, project_id: created.project_id ?? null };
-  },
-  async sendTurn(conversationId, agentId, messageText, follows, inventory, signal, answer, document) {
-    await parse(
-      await request(`/api/conversations/${encodeURIComponent(conversationId)}/turns`, {
-        ...init(signal),
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          agent_id: agentId,
-          message_text: messageText,
-          follows,
-          ...(inventory ? { inventory } : {}),
-          ...(answer ? { reply_answers: answer } : {}),
-          ...(document
-            ? {
-                documentation: {
-                  name: document.name,
-                  media_type: document.media_type,
-                  text: document.text,
-                },
-              }
-            : {}),
-        }),
-      }),
-    );
   },
   async list(signal) {
     return parse(await request("/api/conversations", init(signal)));

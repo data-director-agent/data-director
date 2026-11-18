@@ -49,9 +49,10 @@ import { AskedQuestions, QuestionSeries } from "./QuestionSeries";
 import { DocumentChip } from "./DocumentChip";
 import { InventoryChip } from "./InventoryChip";
 import { Pending } from "./Pending";
+import type { LiveRun } from "./useConversationTurns";
 import { RepositoryShortlist } from "./RepositoryShortlist";
 import { RunDetail } from "./RunDetail";
-import { nameOf, Speaker } from "./Speaker";
+import { iconOf, nameOf, Speaker } from "./Speaker";
 
 function replyText(conversation: Conversation, turn: ConversationTurn): string {
   // A Reply's own text: the history adds the question after it, which is shown as choices.
@@ -210,6 +211,8 @@ export function Transcript({
     message: string;
     inventory?: AttachedInventory | null;
     document?: AttachedDocument | null;
+    /** The message's run, drawn live from its stream. */
+    live?: LiveRun | null;
   } | null;
   /** Sends the answers to the latest turn's questions; without it, none can be answered. */
   onAnswer?: (answers: ReplyAnswers, text: string) => void;
@@ -352,9 +355,11 @@ export function Transcript({
         <Pending
           agentId={pending.agentId}
           agentName={nameOf(agents, pending.agentId)}
+          agentIcon={iconOf(agents, pending.agentId)}
           message={pending.message}
           inventory={pending.inventory ?? null}
           document={pending.document ?? null}
+          live={pending.live ?? null}
         />
       )}
     </ol>

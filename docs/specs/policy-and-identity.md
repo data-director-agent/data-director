@@ -139,7 +139,9 @@ the classes requiring approval, the optional orchestrator, `hosted_models`, `mod
 (whether people may or must use their own model account, whether the deployment pays for someone
 who has none, and which providers and base URLs their account may use;
 [A person's own model account](model-accounts.md)) and `agent_settings` (the options each agent's
-card offers, such as whether it reads a source live; invariant 22). A setting is the agent's own
+card offers, such as whether it reads a source live; invariant 22) and `model_footprint` (the
+prices and per-token energy factors the conductor estimates each run's model footprint from, with
+their source and date; [Disclosure](disclosure.md), invariant 8). A setting is the agent's own
 option, chosen by the steward: the conductor checks it against the card and sends it, and the agent
 applies it. It is not a way to grant an agent anything the other keys withhold. A change to which orchestrator is
 named raises the profile's version. Approved repositories (R1), persistent identifier systems

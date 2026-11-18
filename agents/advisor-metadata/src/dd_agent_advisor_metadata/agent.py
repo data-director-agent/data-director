@@ -121,6 +121,7 @@ class MetadataLibrarian:
         agent_id="advisor.metadata",
         version="0.2.0a1",
         title="Metadata Librarian",
+        icon="🏷️",
         description=(
             "Alpha. Drafts a project's metadata record in DataCite's JSON form, with every "
             "property the chosen repository requires or recommends, filling only the resource "
