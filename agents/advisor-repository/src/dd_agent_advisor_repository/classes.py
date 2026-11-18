@@ -22,6 +22,7 @@ class AccessNeed(StrEnum):
 
 class CandidateBasis(StrEnum):
     MANDATED = "mandated"
+    ASKED_ABOUT = "asked_about"
     RECOMMENDED = "recommended"
 
 
@@ -47,6 +48,7 @@ class RepositoryNeeds(Frozen):
     data_kinds: list[str] = Field(default_factory=list)
     access: AccessNeed | None = None
     mandated: list[RepositoryRef] = Field(default_factory=list)
+    asked_about: list[RepositoryRef] = Field(default_factory=list)
     affiliation: Affiliation | None = None
     country: str | None = Field(default=None, pattern=r"^[A-Z]{3}$")
 

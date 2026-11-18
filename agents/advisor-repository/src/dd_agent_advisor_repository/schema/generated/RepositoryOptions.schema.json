@@ -15,6 +15,7 @@
          "description": "",
          "enum": [
             "mandated",
+            "asked_about",
             "recommended"
          ],
          "title": "CandidateBasis",
@@ -106,7 +107,7 @@
                ]
             },
             "ranked_by": {
-               "description": "Why a recommended repository is on the shortlist and in its place, one sentence per ranking signal: the themes and kinds of data it matches, whether it is a generalist, run by the researcher's institution, or lacks the access the data needs. Empty when mandated.",
+               "description": "Why a recommended repository is on the shortlist and in its place, one sentence per ranking signal: the themes and kinds of data it matches, whether it is a generalist, run by the researcher's institution, or lacks the access the data needs. Empty when mandated, and for a repository asked about that the shortlist did not rank.",
                "items": {
                   "type": "string"
                },
@@ -200,7 +201,7 @@
          ]
       },
       "not_found": {
-         "description": "Mandated repositories for which no registry record was found.",
+         "description": "Mandated repositories, and repositories the researcher asked about, for which no single registry record was found.",
          "items": {
             "type": "string"
          },

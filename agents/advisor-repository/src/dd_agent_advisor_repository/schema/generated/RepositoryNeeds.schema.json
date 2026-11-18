@@ -34,7 +34,7 @@
       },
       "RepositoryRef": {
          "additionalProperties": false,
-         "description": "A repository named by a funder, journal, institution or the researcher. The re3data identifier is used when given; otherwise the name is looked up.",
+         "description": "A repository named by a funder, journal or institutional policy, or by the researcher. The re3data identifier is used when given; otherwise the name is looked up.",
          "properties": {
             "name": {
                "type": "string"
@@ -58,7 +58,7 @@
    "$id": "https://w3id.org/data-director/agents/repository/RepositoryNeeds",
    "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
-   "description": "What a dataset needs of a repository. With mandated repositories, the agent describes them; with none, it shortlists. The mandate and the access constraint come from Phase 2 (governance), usually by way of the orchestrator.",
+   "description": "What a dataset needs of a repository. With mandated repositories, the agent describes them; with none, it shortlists. Repositories the researcher asked about are described either way, alongside the shortlist when there is one. The mandate and the access constraint come from Phase 2 (governance), usually by way of the orchestrator.",
    "properties": {
       "schema_class": {
          "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -99,7 +99,17 @@
          "description": "How the data may be accessed once deposited, as decided in Phase 2. Unset means not yet decided, and no access need is checked."
       },
       "mandated": {
-         "description": "Repositories that a funder, journal or institutional policy requires, as Phase 2 found them. Naming an institution does not make its repository mandated.",
+         "description": "Only repositories that a funder, journal or institutional policy requires: as a policy result found them in Phase 2, or as the researcher states such a policy requires them. A repository the researcher merely names, prefers or asks about belongs in asked_about. Naming an institution, or being funded by a funder, does not make its repository mandated. A mandated repository replaces the shortlist.",
+         "items": {
+            "$ref": "#/$defs/RepositoryRef"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "asked_about": {
+         "description": "Repositories the researcher named or asked about (e.g. \"what about Zenodo?\") that no policy is known to require. Each is described with the needs it meets and misses, alongside the shortlist rather than instead of it.",
          "items": {
             "$ref": "#/$defs/RepositoryRef"
          },

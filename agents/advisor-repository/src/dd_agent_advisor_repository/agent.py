@@ -5,7 +5,9 @@ persistent identifiers (R7), its access options and costs, and its certification
 repository is mandated is a policy question, answered by `advisor.policy` from policy records
 (its `PolicyChecks.mandated_repositories`); the orchestrator passes the answer in as
 `RepositoryNeeds.mandated`. With mandated repositories the agent describes them, flagging the
-needs they do not meet; with none it shortlists. The researcher chooses (TODO(#199)).
+needs they do not meet; with none it shortlists. A repository the researcher only names or asks
+about (`RepositoryNeeds.asked_about`) is not a mandate: it is described alongside the shortlist,
+never instead of it, and never marked mandated (#1167). The researcher chooses (TODO(#199)).
 
 Grounding invariant: retrieval precedes any model call, and the model never determines which
 repositories are offered or any judgement about them. A candidate names its records once, in
@@ -17,12 +19,12 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from dd_agent_advisor_repository import assess, rank
+from dd_agent_advisor_repository import assess, choose, rank
 from dd_agent_advisor_repository.classes import (
-    CandidateBasis,
     RepositoryCandidate,
     RepositoryNeeds,
     RepositoryOptions,
+    RepositoryRef,
     SearchedSummary,
 )
 from dd_agent_advisor_repository.explain import Explainer, Item, Rationale, TemplateExplainer
@@ -45,18 +47,6 @@ from dd_sdk.registry import RegistryUnavailable, SnapshotRef
 from dd_sdk.tracing import retrieval_span
 
 
-def _ambiguous(got: _Retrieved) -> str:
-    """A sentence for each mandated name that several re3data records bear, or nothing."""
-    return "".join(
-        f" {name!r} names several re3data records ({', '.join(ids)}); give the identifier."
-        for name, ids in got.ambiguous.items()
-    )
-
-
-# A candidate chosen: its record, why it is offered, its score and the reasons it was ranked by.
-_Chosen = tuple[Re3dataRecord, CandidateBasis, float | None, tuple[str, ...]]
-
-
 class _Retrieved:
     """The records one run retrieved, and which copy of each registry answered."""
 
@@ -67,7 +57,8 @@ class _Retrieved:
         # part-way through a run, after which the snapshot answers.
         self.databases: dict[str, tuple[DatabaseRecord, SnapshotRef]] = {}
         self.databases_down = False
-        # Each mandated name that several records bear, with their identifiers.
+        # Each name given (mandated or asked about) that several records bear, with their
+        # identifiers.
         self.ambiguous: dict[str, list[str]] = {}
 
     def summary(self) -> str:
@@ -76,26 +67,26 @@ class _Retrieved:
         return "; ".join(refs)
 
 
-def _mandated(
-    needs: RepositoryNeeds, source: Repositories, got: _Retrieved
-) -> tuple[list[Re3dataRecord], list[str]]:
-    """The mandated repositories' records, and the names not found (`_from_re3data`)."""
-    mandated: list[Re3dataRecord] = []
-    not_found: list[str] = []
-    for ref in needs.mandated:
+def _lookup(
+    refs: list[RepositoryRef], source: Repositories, got: _Retrieved, named: choose.Named
+) -> list[Re3dataRecord]:
+    """The records of the repositories `refs` names, each once; the names not found go to
+    `named.not_found` (`_from_re3data`)."""
+    records: list[Re3dataRecord] = []
+    for ref in refs:
         if ref.re3data_id:
             by_id = source.fetch(ref.re3data_id)
-            named = [by_id] if by_id is not None else []
+            found = [by_id] if by_id is not None else []
         else:
-            named = source.find(ref.name)
-        if len(named) != 1:
-            not_found.append(ref.name)
-            if named:
-                got.ambiguous[ref.name] = [n.re3data_id for n in named]
+            found = source.find(ref.name)
+        if len(found) != 1:
+            named.not_found.append(ref.name)
+            if found:
+                got.ambiguous[ref.name] = [n.re3data_id for n in found]
             continue
-        if named[0].re3data_id not in {m.re3data_id for m in mandated}:
-            mandated.append(named[0])
-    return mandated, not_found
+        if found[0].re3data_id not in {r.re3data_id for r in records}:
+            records.append(found[0])
+    return records
 
 
 def _shortlist(
@@ -124,7 +115,7 @@ def _shortlist(
     return matches, hits
 
 
-def _items(chosen: list[_Chosen], got: _Retrieved, needs: RepositoryNeeds) -> list[Item]:
+def _items(chosen: list[choose.Chosen], got: _Retrieved, needs: RepositoryNeeds) -> list[Item]:
     """What the explainer is told about each candidate chosen."""
     items: list[Item] = []
     for record, basis, _, reasons in chosen:
@@ -180,7 +171,8 @@ class RepositoryAgent:
         description=(
             "Recommends data repositories from re3data, or describes the ones mandated, with "
             "their persistent identifiers, access, costs and certification as the registries "
-            "record them. The researcher chooses."
+            "record them. Repositories the researcher asks about are described alongside the "
+            "shortlist; only a policy's requirement is mandated. The researcher chooses."
         ),
         action_class="advise",
         accepts=(ClassSchema.of(RepositoryNeeds),),
@@ -220,16 +212,26 @@ class RepositoryAgent:
 
     def _from_re3data(
         self, needs: RepositoryNeeds, source: Repositories, got: _Retrieved
-    ) -> tuple[list[Re3dataRecord], list[str], rank.Matches, dict[str, Re3dataRecord]]:
-        """Mandated records and the names not found, or the shortlist's hits (by text and by the
-        themes' DFG subjects) and the generalist repositories. A name that several records bear
-        is not found, and noted in `got`: the researcher is asked for the identifier rather than
-        given a guess."""
-        mandated, not_found = _mandated(needs, source, got)
-        if needs.mandated:
-            return mandated, not_found, rank.Matches(), {}
+    ) -> tuple[choose.Named, rank.Matches, dict[str, Re3dataRecord]]:
+        """The records of the repositories named, mandated or asked about, and the shortlist's
+        hits (by text and by the themes' DFG subjects) with the generalist repositories. A
+        mandated repository replaces the shortlist; one the researcher asked about does not, and
+        a repository both mandated and asked about is mandated. With no theme, kind of data or
+        affiliation there is nothing to shortlist on. A name that several records bear is not
+        found, and noted in `got`: the researcher is asked for the identifier rather than given
+        a guess."""
+        named = choose.Named()
+        named.mandated = _lookup(needs.mandated, source, got, named)
+        mandated_ids = {r.re3data_id for r in named.mandated}
+        named.asked_about = [
+            r
+            for r in _lookup(needs.asked_about, source, got, named)
+            if r.re3data_id not in mandated_ids
+        ]
+        if needs.mandated or not rank.queries(needs):
+            return named, rank.Matches(), {}
         matches, hits = _shortlist(needs, source)
-        return mandated, not_found, matches, hits
+        return named, matches, hits
 
     def _collect(self, records: list[Re3dataRecord], got: _Retrieved, ctx: RunContext) -> None:
         """Keep the records retrieved, fetch the FAIRsharing records they cross-reference, and
@@ -274,63 +276,38 @@ class RepositoryAgent:
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
         needs = request.input
         assert isinstance(needs, RepositoryNeeds)  # the conductor checked spec.accepts
-        if not (needs.mandated or rank.queries(needs)):
+        if not (needs.mandated or needs.asked_about or rank.queries(needs)):
             return abstain(
                 ReasonCode.INSUFFICIENT_INPUT,
-                "The needs name no mandated repository, no theme or kind of data, and no "
-                "affiliation, so there was nothing to look up.",
+                "The needs name no repository, no theme or kind of data, and no affiliation, so "
+                "there was nothing to look up.",
             )
 
         source = self.repositories
         try:
             got = _Retrieved(source.snapshot_ref())
-            mandated, not_found, matches, hits = self._from_re3data(needs, source, got)
+            named, matches, hits = self._from_re3data(needs, source, got)
         except RegistryUnavailable as exc:
             return abstain(
                 ReasonCode.REGISTRY_UNAVAILABLE,
                 f"re3data could not be read: {exc}. This is not an empty result.",
             )
-        self._collect([*mandated, *hits.values()], got, ctx)
+        self._collect([*named.mandated, *named.asked_about, *hits.values()], got, ctx)
 
-        queries = [f"mandated: {r.name!r}" for r in needs.mandated] or [
-            q.describe() for q in rank.queries(needs)
-        ]
+        # The shortlist's queries; none when a mandate replaces the shortlist.
+        shortlisted = [] if needs.mandated else [q.describe() for q in rank.queries(needs)]
         searched = SearchedSummary(
-            queries=queries,
+            queries=[f"mandated: {r.name!r}" for r in needs.mandated]
+            + [f"asked about: {r.name!r}" for r in needs.asked_about]
+            + shortlisted,
             snapshot_ref=got.summary(),
             candidates_retrieved=len(got.repositories),
         )
 
-        chosen: list[_Chosen]
-        on_theme = False  # whether a recommended repository matches a theme
-        if needs.mandated:
-            if not mandated:
-                return abstain(
-                    ReasonCode.NO_CANDIDATES_RETRIEVED,
-                    f"No re3data record was found for {', '.join(not_found)} "
-                    f"({got.summary()}).{_ambiguous(got)} Check the names, or give the re3data "
-                    "identifiers. " + source.credit(),
-                )
-            chosen = [(r, CandidateBasis.MANDATED, None, ()) for r in mandated]
-        else:
-            if not hits:
-                return abstain(
-                    ReasonCode.NO_CANDIDATES_RETRIEVED,
-                    f"re3data ({got.summary()}) returned nothing for: "
-                    + "; ".join(queries)
-                    + ". "
-                    + source.credit(),
-                )
-            ranked = rank.rank(matches, hits, needs)
-            if not ranked:
-                return abstain(
-                    ReasonCode.NO_QUALIFYING_RESOURCE,
-                    f"{len(hits)} repositories were retrieved ({got.summary()}) but none "
-                    f"reached the floor of {rank.config()['confidence_floor']} or accepts "
-                    "deposits. Searched: " + "; ".join(queries) + ". " + source.credit(),
-                )
-            chosen = [(r.record, CandidateBasis.RECOMMENDED, r.score, r.reasons) for r in ranked]
-            on_theme = any(r.on_theme and r.fit == rank.DISCIPLINE for r in ranked)
+        ranked = rank.rank(matches, hits, needs) if hits else []
+        chosen = choose.choose(named, ranked)
+        if not chosen:
+            return choose.abstention(named, got, len(hits), shortlisted, source)
         searched = searched.model_copy(update={"candidates_qualifying": len(chosen)})
 
         items = _items(chosen, got, needs)
@@ -348,39 +325,15 @@ class RepositoryAgent:
         grounded_on = [
             GroundingRef(source_id=e.source_id, content_hash=e.content_hash) for e in evidence
         ]
-        done = "mandated, described" if needs.mandated else "recommended"
-        statement = (
-            f"Repositories {done}: {len(candidates)}, grounded in {len(evidence)} registry "
-            f"record(s) ({got.summary()})."
+        statement = choose.statement(
+            needs, candidates, len(evidence), got, named, ranked, shortlisted
         )
-        short = [c for c in candidates if c.basis == CandidateBasis.MANDATED and c.misses]
-        if short:
-            statement += (
-                f" Mandated repositories that do not meet, or do not state, every need: "
-                f"{len(short)}; see each candidate's misses."
-            )
-        if not_found:
-            statement += f" No record found for: {', '.join(not_found)}.{_ambiguous(got)}"
-        themes = [q.text for q in rank.queries(needs) if q.label == rank.THEME]
-        if not needs.mandated and themes and not on_theme:
-            statement += (
-                " No discipline-specific repository matched the themes ("
-                + "; ".join(themes)
-                + "), so only generalist and institutional repositories are offered. The broad "
-                "field of study, such as environmental science, may find repositories of the "
-                "discipline that a narrow topic does not."
-            )
-        if not needs.mandated:
-            statement += (
-                " No mandated repository was given; a funder, journal or institution may still "
-                "require one, so check their policies before choosing from this shortlist."
-            )
         statement += " The researcher chooses; human review is required. " + source.credit()
         return AgentResult(
             outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement=statement),
             payload=RepositoryOptions(
                 candidates=candidates,
-                not_found=not_found,
+                not_found=named.not_found,
                 searched=searched,
                 grounded_on=grounded_on,
             ),
