@@ -4,6 +4,9 @@
       "Affiliation": {
          "@id": "https://w3id.org/data-director/Affiliation"
       },
+      "ChosenRepository": {
+         "@id": "https://w3id.org/data-director/ChosenRepository"
+      },
       "ConversationTurn": {
          "@id": "https://w3id.org/data-director/ConversationTurn"
       },
@@ -67,6 +70,12 @@
       },
       "biography": {
          "@id": "https://w3id.org/data-director/biography"
+      },
+      "chosen_re3data_id": {
+         "@id": "https://w3id.org/data-director/chosen_re3data_id"
+      },
+      "chosen_repository_name": {
+         "@id": "https://w3id.org/data-director/chosen_repository_name"
       },
       "commitment_access": {
          "@id": "https://w3id.org/data-director/commitment_access"
@@ -268,6 +277,10 @@
       },
       "project_progress": {
          "@id": "https://w3id.org/data-director/project_progress",
+         "@type": "@id"
+      },
+      "project_repository": {
+         "@id": "https://w3id.org/data-director/project_repository",
          "@type": "@id"
       },
       "project_researchers": {
