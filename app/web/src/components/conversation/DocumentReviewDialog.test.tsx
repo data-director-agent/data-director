@@ -84,6 +84,29 @@ describe("DocumentReviewDialog", () => {
     expect(within(dialog()).getByRole("button", { name: "Attach this document" })).toBeEnabled();
   });
 
+  it("says before attaching that the document replaces the one attached (#1170)", async () => {
+    const { rerender } = render(
+      <DocumentReviewDialog
+        pending={NOTES}
+        onAttach={vi.fn()}
+        onDiscard={vi.fn()}
+        check={() => Promise.resolve(NOTHING)}
+      />,
+    );
+    expect(within(dialog()).queryByText(/replaces/)).toBeNull();
+    rerender(
+      <DocumentReviewDialog
+        pending={NOTES}
+        replaces="protocol.md"
+        onAttach={vi.fn()}
+        onDiscard={vi.fn()}
+        check={() => Promise.resolve(NOTHING)}
+      />,
+    );
+    expect(within(dialog()).getByText("Attaching it replaces protocol.md")).toBeInTheDocument();
+    expect(await axe(dialog())).toHaveNoViolations();
+  });
+
   it("asks again for a document chosen after one that was confirmed", async () => {
     const check = () => Promise.resolve(FOUND);
     const { rerender } = render(

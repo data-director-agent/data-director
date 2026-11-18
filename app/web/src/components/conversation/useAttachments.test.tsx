@@ -208,6 +208,65 @@ describe("useAttachments", () => {
     expect(result.current.pendingDocument?.name).toBe("protocol.md");
   });
 
+  it("opens the first of several files chosen, and names those not attached (#1170)", async () => {
+    const { result, announce } = render();
+    await act(() =>
+      result.current.attachFiles([
+        new File([PROTOCOL], "protocol.md"),
+        new File([PROTOCOL], "codebook.md"),
+        new File([INVENTORY], "inventory.json"),
+      ]),
+    );
+    expect(result.current.pendingDocument?.name).toBe("protocol.md");
+    expect(result.current.pendingInventory).toBeNull();
+    const said =
+      "Only protocol.md was opened. codebook.md and inventory.json were not attached: files are " +
+      "attached one at a time, and a message carries one inventory and one document. Attach " +
+      "each on its own.";
+    expect(result.current.notice).toBe(said);
+    expect(announce).toHaveBeenCalledWith(said);
+    act(() => result.current.clearError());
+    expect(result.current.notice).toBeNull();
+  });
+
+  it("says nothing more when one file is chosen, and forgets an earlier notice", async () => {
+    const { result, announce } = render();
+    const two = [new File([PROTOCOL], "a.md"), new File([PROTOCOL], "b.md")];
+    await act(() => result.current.attachFiles(two));
+    expect(result.current.notice).toContain("b.md was not attached");
+    await act(() => result.current.attachFiles([new File([PROTOCOL], "b.md")]));
+    expect(result.current.notice).toBeNull();
+    expect(announce).toHaveBeenCalledTimes(1);
+    await act(() => result.current.attachFiles(null));
+    expect(result.current.notice).toBeNull();
+  });
+
+  it("opens the first of several files dropped, and names those not attached (#1170)", async () => {
+    const { result, announce } = render();
+    await act(async () => {
+      result.current.onDrop(
+        drag([new File([PROTOCOL], "protocol.md"), new File([PROTOCOL], "codebook.md")]),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(result.current.pendingDocument?.name).toBe("protocol.md");
+    expect(result.current.notice).toContain("codebook.md was not attached");
+    expect(announce).toHaveBeenCalledWith(expect.stringContaining("Attach it on its own."));
+  });
+
+  it("says that a document or inventory replaced the one attached before (#1170)", () => {
+    const { result, announce } = render();
+    act(() => result.current.confirmDocument(readDocument(PROTOCOL, "protocol.md")));
+    act(() => result.current.confirmDocument(readDocument(PROTOCOL, "codebook.md")));
+    expect(result.current.document?.name).toBe("codebook.md");
+    expect(announce).toHaveBeenLastCalledWith("codebook.md attached in place of protocol.md.");
+    act(() => result.current.confirmInventory(readInventory(INVENTORY, null)));
+    act(() => result.current.confirmInventory(readInventory(INVENTORY, null)));
+    expect(announce).toHaveBeenLastCalledWith(
+      "Inventory attached in place of the one attached before.",
+    );
+  });
+
   it("puts back what a failed send carried", () => {
     const { result } = render();
     const inventory = readInventory(INVENTORY, null);
