@@ -30,6 +30,9 @@ anthropic = ["anthropic>=1.15.0,<2.9"]
 # The adapter for OpenAI-compatible Chat Completions endpoints behind the model seam: OpenAI,
 # Gemini, local servers and gateways (dd_sdk.model_openai, docs/specs/dependencies.md).
 openai = ["openai>=3.40,<4"]
+# The client an agent calls the harness's tool gateway with (dd_sdk.tools_client,
+# docs/specs/dependencies.md). httpx2 and mcp-types come with mcp; the client imports them itself.
+tools = ["mcp>=2.3,<3", "mcp-types>=2.3,<3", "httpx2>=2.13"]
 
 [project.scripts]
 # Regenerates JSON Schema from LinkML; needs the workspace's development dependencies (docs/specs/contract.md).

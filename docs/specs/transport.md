@@ -199,8 +199,9 @@ whom an invocation acts for, and how that is established, is in
   outcomes, including `referred`, and need a long-running task state. This is about how the
   harness invokes an agent. The tool gateway, by which an agent reaches an MCP server through
   the harness ([Agents](agents.md#tools-mcp-servers-and-agent-skills)), is MCP in the other
-  direction, for sources, and the conductor records each call as an `execute_tool` span carrying
-  `dd.source_id` and `dd.content_hash` (TODO(#875)).
+  direction, for sources. The conductor records each call as an `execute_tool` span under the
+  invocation's root, and each record the call returned in the envelope's `tool_retrievals`,
+  which is what the linter reads ([Evidence and grounding](grounding.md), invariant 15).
 - **A different protocol from harness to agent than from caller to harness.** It would double the
   transport surface.
 - **Running agents in the conductor's process, or keeping that as an alternative mode.** Two ways

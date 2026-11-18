@@ -67,6 +67,7 @@ from dd_app.routes import (
 )
 from dd_app.routes.common import Deps, Feedback
 from dd_app.worker_policy import BundleCaching, WorkerPolicy
+from dd_harness import gateway
 from dd_harness.identity import IdentityError
 from dd_harness.model_grants import jwks_routes
 from dd_harness.policy import PolicyError
@@ -171,11 +172,14 @@ def build_app(
     # No authenticator: delegation callbacks only, so the app is no other way in
     # (docs/specs/orchestration.md).
     delegation = a2a_routes(governance.conductor, None, callback)[1] if callback else []
+    # The tool gateway answers agents' calls under the grant each was sent (docs/specs/agents.md).
+    tools = gateway.routes(governance.conductor.gateway) if callback else []
     routes: list[BaseRoute] = [route for area in AREAS for route in area.routes(deps)]
     return Starlette(
         routes=[
             *routes,
             *delegation,
+            *tools,
             # The harness's public keys for model grants, when it mints them
             # (docs/specs/model-accounts.md).
             *jwks_routes(governance.conductor.model_grants),
