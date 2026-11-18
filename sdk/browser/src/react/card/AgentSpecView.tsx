@@ -38,6 +38,24 @@ export function AgentSpecView({ spec, withIdentity = false }: { spec: AgentSpec;
         ],
         ["serves", spec.serves.length ? <Chips key="serves" items={spec.serves} /> : null],
         [
+          "skills",
+          spec.skills.length ? (
+            <Items
+              key="skills"
+              list={spec.skills}
+              itemKey={(s) => s.name}
+              render={(s) => (
+                <>
+                  <Code>{s.name}</Code> {s.version}{" "}
+                  <span className="dd-digest" title={s.sha256}>
+                    sha256 {s.sha256.slice(0, 12)}…
+                  </span>
+                </>
+              )}
+            />
+          ) : null,
+        ],
+        [
           "derivations",
           spec.derivations.length ? (
             <Items

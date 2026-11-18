@@ -36,6 +36,8 @@ openai = ["openai>=3.40,<4"]
 dd-gen-schema = "dd_sdk.schema.gen:main"
 # Prepares every source an agent builds outside git (dd_sdk.sources, docs/specs/grounding.md).
 dd-sources = "dd_sdk.sources:main"
+# Vendors an Agent Skill from a release into an agent package and pins it (dd_sdk.skills_vendor).
+dd-vendor-skill = "dd_sdk.skills_vendor:main"
 
 [tool.deptry.per_rule_ignores]
 # uvicorn imports watchfiles itself when asked to reload (`serve --reload`); nothing here does.

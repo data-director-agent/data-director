@@ -23,6 +23,13 @@ export interface RawModelUse {
   tools?: boolean;
 }
 
+/** An Agent Skill the agent may load into its system prompt, pinned by release and digest (docs/specs/agents.md). */
+export interface RawSkillUse {
+  name: string;
+  version: string;
+  sha256: string;
+}
+
 export interface RawSchemaEntry {
   digest: string;
   json_schema: unknown;
@@ -54,6 +61,8 @@ export interface RawAgentSpec {
    * Absent on an older card, which offers none.
    */
   settings?: Record<string, RawSetting>;
+  /** The Agent Skills it may load (docs/specs/agents.md). Absent on an older card, which loads none. */
+  skills?: RawSkillUse[];
 }
 
 export interface RawSetting {
