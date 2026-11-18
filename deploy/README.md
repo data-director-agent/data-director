@@ -34,7 +34,7 @@ on loopback alone and is reached through an SSH tunnel.
 | `secret.sh` | As root, gives an agent a secret such as its model key (`set`), takes it away (`remove`) or lists them (`list`); see "Secrets" below. |
 | `broker-credentials.sh` | As root, gives each agent named a model broker credential (through `secret.sh`) and writes the broker's `agent-credentials` list of their digests; see [The model broker](../docs/guide/operations/model-broker.md#on-a-vm). |
 | `credentials.sh` | Turns the files in `/etc/data-director/credentials/<agent>/` into that agent's credentials drop-in. `install.sh` and `secret.sh` use it. |
-| `install.sh` | Run once as root: packages, Node 22, uv, the `datadirector` user, directories, units, NGINX site (in place of the packaged default site), first deployment. Run again to install changed units or NGINX config. |
+| `install.sh` | Run once as root: packages, Node 22, uv, the `datadirector` user, directories, units, NGINX site (in place of the packaged default site), first deployment. Run again to install changed units or NGINX config. With `--gateway`, also runs the [LiteLLM gateway](#the-litellm-gateway). |
 | `deploy.sh` | One pass of the deployment (fetch, check CI, build, switch, check health, roll back). |
 | `deploy.env.example` | `deploy.sh`'s settings: repository, branch, check name, releases kept. |
 | `systemd/data-director.target` | The app and the agents, started and restarted together. It names no agent: `apply` writes which agents it starts. |
@@ -42,6 +42,8 @@ on loopback alone and is reached through an SSH tunnel.
 | `systemd/data-director-workbench.service` | The workbench (`workbench serve`), on 127.0.0.1:8000, for admins only. Part of the target once `install.sh` enables it. |
 | `systemd/data-director-admin.service` | The admin service (`dd-admin serve`), on 127.0.0.1:8200 only, read-only. Part of the target; `install.sh` enables it. |
 | `systemd/data-director-model-broker.service` | The model broker (`dd-model-broker serve`), on 127.0.0.1:8300, as its own user `data-director-broker`. Installed but not enabled ([The model broker](#the-model-broker)). |
+| `systemd/data-director-llm-gateway.service` | The [LiteLLM gateway](#the-litellm-gateway) and its database, in Docker, on 127.0.0.1:4000. Installed by `install.sh`, enabled only with `--gateway`; not part of the target. |
+| `llm-gateway/` | The LiteLLM gateway: its compose file, models, admin script and tests ([its README](llm-gateway/README.md)). |
 | `systemd/data-director-agent@.service` | One agent per instance, named as in `app/config/agents.yaml` (`@example-hello`, `@advisor-quality`, …): each agent `deployment.yaml` runs. |
 | `systemd/data-director-deploy.{service,timer}` | Runs `deploy.sh` every five minutes. |
 | `systemd/data-director-restart.{path,service}` | Restart `data-director.target`, as root, when `deploy.sh` writes `/opt/data-director/restart-requested`. The deploy user has no sudo rule. |
@@ -81,13 +83,17 @@ process ([The app](../docs/specs/app.md)).
 | `/etc/data-director/agents/<name>.env` | One agent service's own settings (`DD_STANDARDS_*`, a model id). |
 | `/etc/data-director/credentials/` | Agents' secrets (`<agent>/<secret>`, put there by `secret.sh`) and the app's (`app/`), readable by root alone. Never put a key or secret in an `.env` file. |
 | `/etc/data-director/credentials/model-broker/` | The model broker's secrets, readable by root alone; systemd hands them to the broker's unit only. |
+| `/etc/data-director/credentials/llm-gateway/` | The LiteLLM gateway's secrets, readable by root alone: its own three, which `install.sh --gateway` makes once, and the provider keys, which `secret.sh` puts there. |
+| `/etc/data-director/llm-gateway.env` | The LiteLLM gateway's settings (`config/examples/llm-gateway.env`). |
+| `/etc/data-director/llm-gateway.yaml` | The gateway's models, if the operator has written one; otherwise `config.yaml` as `install.sh` copied it. |
 | `/etc/data-director/model-broker.env` | The model broker's settings (`config/examples/model-broker.env`). |
 | `/var/lib/data-director-model-broker/` | The model broker's store of sealed keys and token counts, readable by its user alone. |
 | `/etc/data-director/admin.env` | The admin service's overrides, if any (optional; [docs/guide/operations/admin.md](../docs/guide/operations/admin.md)). |
 | `/etc/data-director/deploy.env` | `deploy.sh`'s settings. |
 | `/etc/data-director/backup.env` | `backup.sh`'s settings (`deploy/backup.env.example`). |
 | `/var/backups/data-director/<time>/` | One backup each, root's alone ([Backups](#backups)). |
-| `/usr/local/lib/data-director/` | `backup.sh` and `stores.sh` as `install.sh` installed them from the clone; the backup unit runs these. |
+| `/usr/local/lib/data-director/` | `backup.sh` and `stores.sh` as `install.sh` installed them from the clone; the backup unit runs these. With `--gateway`, also `llm-gateway/`: the gateway's compose file, models and start script, which its unit runs. |
+| Docker volume `data-director-llm-gateway_pgdata` | The gateway's database: its keys, budgets and spend. |
 | `/var/lib/data-director/.sign-in` | Marks that the run store has started afresh for sign-in (see the upgrade below). |
 
 ## Set up the VM
@@ -224,6 +230,47 @@ it in `/opt/data-director/python/`. A VM installed before that kept it in
 `status=203/EXEC`. Run `install.sh` again: it rebuilds the live release's `.venv` against
 `/opt/data-director/python/` and restarts the services. `sudo data-director doctor` reports an
 enabled broker that cannot reach its Python.
+
+## The LiteLLM gateway
+
+The [LiteLLM gateway](llm-gateway/README.md) puts one endpoint in front of the model providers,
+records the tokens and cost of every call, and enforces budgets. It is optional. To run it on the
+VM, run `install.sh` with `--gateway`:
+
+```bash
+sudo deploy/install.sh --domain data-director.example.ac.uk --gateway
+```
+
+It installs Docker and runs the gateway and its PostgreSQL database under
+`data-director-llm-gateway.service`, on 127.0.0.1:4000 only. It makes the gateway's master key,
+salt key and database password once, in `/etc/data-director/credentials/llm-gateway/`. Then it
+makes a gateway key for the model broker, tagged `service:model-broker`, and sends the broker's
+deployment-paid calls through the gateway: it sets `DD_BROKER_DEPLOYMENT_BASE_URL` in
+`model-broker.env` and writes the broker's drop-in `llm-gateway.conf`. A person's own account
+never goes through the gateway.
+
+Give the gateway a provider key, which restarts it:
+
+```bash
+sudo data-director secret set llm-gateway anthropic-api-key
+```
+
+`openai-api-key` and `gemini-api-key` work the same way.
+
+Docker runs what the compose file says as root, so the unit runs root's copy of it from the
+clone, in `/usr/local/lib/data-director/llm-gateway/`, never one from a release. A deployment does
+not change or restart the gateway. Running `install.sh` again does both, with or without
+`--gateway` once the unit is enabled. To choose the models, copy `deploy/llm-gateway/config.yaml`
+to `/etc/data-director/llm-gateway.yaml`, edit it, and restart the gateway:
+
+```bash
+sudo systemctl restart data-director-llm-gateway
+```
+
+`sudo data-director doctor` reports a broker or agent sent to a gateway on the VM that does not
+answer. The gateway's settings and secrets are in the nightly backup with the rest of
+`/etc/data-director`. Its database, with the keys it issued and its spend, is not: back it up as
+the gateway's README says.
 
 ## Day to day
 

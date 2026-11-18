@@ -251,7 +251,8 @@ Other providers take the same two lines, with `openai-api-key` and `OPENAI_API_K
 
 If the deployment runs the [LiteLLM gateway](../../../deploy/llm-gateway/README.md), use a gateway
 key in place of each provider key. Then set `DD_BROKER_DEPLOYMENT_BASE_URL=http://127.0.0.1:4000` in
-`model-broker.env`. The deployment's calls then go through the gateway, whose budgets and spend
+`model-broker.env`. On a VM, `sudo deploy/install.sh --domain … --gateway` does both, and runs the
+gateway too ([deploy/README.md](../../../deploy/README.md#the-litellm-gateway)). The deployment's calls then go through the gateway, whose budgets and spend
 reports still apply: Anthropic's to its `/v1/messages`, and every other provider's to its
 `/v1/chat/completions`. The deployment pays for an `openai-compatible` call only through the
 gateway, with the gateway key in `DD_MODEL_API_KEY`. A call on a person's own key goes straight to

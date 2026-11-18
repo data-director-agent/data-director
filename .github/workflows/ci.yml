@@ -11,8 +11,9 @@ name: CI
 #     pytest with CONFORMANCE.md, packages, the agents as real services, the workbench viewer in a browser (#9)
 #   app/web (docs/specs/app.md): ESLint, tsc and the Vite build; Vitest with coverage; Playwright,
 #     as three jobs side by side so that the slowest, not their sum, sets how long the run takes
-#   Deployment: the NGINX reverse proxy in deploy/nginx, set up as install.sh does, and the
-#     systemd units in deploy/systemd
+#   Deployment: the NGINX reverse proxy in deploy/nginx, set up as install.sh does, the
+#     systemd units in deploy/systemd, and the LiteLLM gateway in deploy/llm-gateway with the
+#     model broker calling it
 #   Repository: pre-commit hooks, links, citation file, workflows, sign-off, dependency review
 #
 # The jobs that test the Python workspace do not wait for one another: each restores the built
@@ -57,6 +58,7 @@ jobs:
       web: ${{ steps.paths.outputs.web }}
       inventory: ${{ steps.paths.outputs.inventory }}
       deploy: ${{ steps.paths.outputs.deploy }}
+      gateway: ${{ steps.paths.outputs.gateway }}
     steps:
       # A pull request is checked out as GitHub's merge commit, whose first parent is the base
       # branch, so HEAD^1..HEAD is exactly what the pull request changes.
@@ -566,6 +568,40 @@ jobs:
       # and executables. Then systemdlint, whose findings must be in deploy/systemd-lint-baseline.txt.
       - run: bash scripts/check_systemd.sh
 
+  llm-gateway:
+    name: LiteLLM gateway and model broker
+    needs: changes
+    if: needs.changes.outputs.gateway == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          cache-dependency-glob: uv.lock
+      - run: uv sync --all-packages --all-extras
+      # The test stack: the gateway and its database with a fake provider in place of Anthropic and
+      # OpenAI, so no secret is used and nothing is billed. The .env holds throwaway secrets.
+      - working-directory: deploy/llm-gateway
+        run: |
+          scripts/testing/ci_env.sh
+          ../../scripts/retry.sh docker compose -f compose.yaml -f compose.test.yaml pull --quiet
+          docker compose -f compose.yaml -f compose.test.yaml up -d --wait --wait-timeout 300
+      # Spend tracking, tags, budgets, reports and metrics (deploy/llm-gateway/README.md).
+      - working-directory: deploy/llm-gateway
+        run: scripts/smoke_test.sh
+      # The broker's deployment-paid calls, in both formats, through the gateway and costed there.
+      - working-directory: deploy/llm-gateway
+        run: scripts/testing/broker_e2e.sh
+      - if: failure()
+        working-directory: deploy/llm-gateway
+        run: docker compose -f compose.yaml -f compose.test.yaml logs --no-color --tail 200
+      - if: always()
+        working-directory: deploy/llm-gateway
+        run: docker compose -f compose.yaml -f compose.test.yaml down -v
+
   # --- Repository ------------------------------------------------------------------------------
 
   hooks:
@@ -675,6 +711,7 @@ jobs:
       - inventory-bundle
       - nginx
       - systemd
+      - llm-gateway
       - hooks
       - docs
       - workflows

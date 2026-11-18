@@ -22,3 +22,4 @@ data-director-deploy.service Security.UMaskOW # UMask=0022 so that what it deplo
 data-director-deploy.service Security.ProtectSystemNStrict # ProtectSystem=full: deploy.sh writes under /opt and /etc.
 data-director-backup.service Security.NoUser # Runs as root: it reads root's secrets and stops and starts the app around a copy.
 data-director-backup.service Security.ProtectSystemNStrict # ProtectSystem=full: it writes to DD_BACKUP_DIR, which the deployment chooses.
+data-director-llm-gateway.service Security.NoUser # Runs as root: it starts containers with docker compose, which needs root, and reads root's secrets.

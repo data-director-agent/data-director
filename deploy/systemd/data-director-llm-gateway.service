@@ -1,0 +1,32 @@
+# The LiteLLM gateway (deploy/llm-gateway/README.md): one endpoint in front of the model providers
+# that records the tokens and cost of every call and enforces budgets. It is optional. install.sh
+# installs this unit, and enables it only with --gateway.
+#
+# It runs the gateway and its PostgreSQL database in Docker, listening on 127.0.0.1:4000 alone. The
+# script and compose file it runs are root's copies in /usr/local/lib/data-director/llm-gateway/,
+# installed from the clone, because Docker runs what they say as root. Its secrets are root's files
+# in /etc/data-director/credentials/llm-gateway/.
+#
+# It is not part of data-director.target, so a deployment, which restarts the target, does not
+# restart it: the gateway changes only when install.sh is run again.
+[Unit]
+Description=Data Director LiteLLM gateway
+Documentation=https://github.com/data-director-agent/data-director/blob/main/deploy/llm-gateway/README.md
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+# The broker sends the deployment's calls here, so it starts after the gateway answers.
+Before=data-director-model-broker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/lib/data-director/llm-gateway/systemd.sh up
+ExecStop=/usr/local/lib/data-director/llm-gateway/systemd.sh down
+# Pulling the images on the first start, and the gateway's own start, take minutes.
+TimeoutStartSec=600
+TimeoutStopSec=120
+SyslogIdentifier=data-director-llm-gateway
+
+[Install]
+WantedBy=multi-user.target
