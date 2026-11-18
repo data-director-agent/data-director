@@ -105,12 +105,13 @@ export function useAttachments(
   async function attachFile(file: File | undefined) {
     if (!file) return;
     try {
+      const source = sourceMediaType(file.name);
       if (!isDocumentName(file.name)) attachInventory(await file.text(), file.name);
       else if (!documents) setError(DOCUMENTS_REFUSED);
-      else if (sourceMediaType(file.name) === null) attachDocument(await file.text(), file.name);
+      else if (source === null) attachDocument(await file.text(), file.name);
       else {
         // A Word document or PDF is read on the server, inside the deployment (#961).
-        setPendingDocument(await readSource(file));
+        setPendingDocument(await readSource(file, source));
         setError(null);
       }
     } catch (e) {

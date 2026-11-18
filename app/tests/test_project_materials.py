@@ -261,6 +261,9 @@ def test_an_attached_document_is_kept_and_the_orchestrator_is_told_of_it_without
     assert text.status_code == 200
     assert text.headers["content-type"].startswith("text/plain")
     assert text.text == PROTOCOL
+    # A document attached as text was read from no file.
+    no_file = client.get(f"/api/projects/{project_id}/documentation/{added['digest']}?original")
+    assert no_file.status_code == 404
 
 
 def test_a_turn_may_attach_an_inventory_and_a_document_together(
@@ -412,6 +415,9 @@ def test_a_file_is_read_for_checking_and_nothing_is_kept(in_projects: tuple[Gove
         "/api/documentation/extract", json=a_pdf(pdf_file(None)), headers=JSON_HEADERS
     )
     assert unread.status_code == 400
+    not_base64 = {**a_pdf(), "data": "not base64!"}
+    garbled = client.post("/api/documentation/extract", json=not_base64, headers=JSON_HEADERS)
+    assert garbled.status_code == 400
     profile = governance.conductor.profile
     governance.conductor.profile = replace(profile, attached_documents="refused")
     refused = client.post("/api/documentation/extract", json=a_pdf(), headers=JSON_HEADERS)

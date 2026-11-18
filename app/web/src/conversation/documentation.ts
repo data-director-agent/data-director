@@ -112,14 +112,12 @@ export function readDocument(text: string, name: string): AttachedDocument {
 }
 
 /**
- * The Word or PDF `file` with the text the server reads from it, to be checked before it is
+ * The Word or PDF `file`, of `mediaType`, with the text the server reads from it, to be checked before it is
  * attached, or `NotADocument` saying why it is not one the project would keep. The file is
  * refused here if it is over `SOURCE_MAX_BYTES`, and the server refuses one it cannot read, such
  * as a scanned PDF with no text layer; it keeps nothing until the turn attaches it.
  */
-export async function readSource(file: File): Promise<AttachedDocument> {
-  const mediaType = sourceMediaType(file.name);
-  if (mediaType === null) return readDocument(await file.text(), file.name);
+export async function readSource(file: File, mediaType: string): Promise<AttachedDocument> {
   if (file.size > SOURCE_MAX_BYTES) {
     throw new NotADocument(
       `${file.name} is ${describeSize(file.size)}; a Word document or PDF may be at most ` +
