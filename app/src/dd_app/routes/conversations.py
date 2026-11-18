@@ -25,6 +25,7 @@ from starlette.responses import Response
 from starlette.routing import Route
 
 from dd_app import contract_shapes as contract
+from dd_app.documentation_check import DocumentationHeldError
 from dd_app.governance import Governance, TurnConflictError, UnknownConversationError
 from dd_app.routes.common import (
     RUN_REFUSED,
@@ -43,7 +44,7 @@ from dd_app.routes.common import (
 )
 from dd_app.routes.progress import ProjectProgress
 from dd_app.routes.runs import REFUSED_BEFORE_RUN, OutcomeStatus, RunResult
-from dd_app.turn_body import AttachedDocument, Turn
+from dd_app.turn_body import DOCUMENTATION_REFUSAL, AttachedDocument, Turn, decoded
 from dd_app.turn_stream import TurnStreams
 from dd_harness.projects import ProjectDeletedError, UnknownProjectError
 from dd_harness.transport.paging import PagingError, page_params
@@ -69,13 +70,24 @@ class StartConversation(RequestBody):
 
 
 class AttachedDocumentBody(RequestBody):
-    """A supporting document a turn attaches, its text with it."""
+    """A supporting document a turn attaches: its text, or for a Word document or PDF the file
+    as base64 `data`, whose text the server reads."""
 
     model_config = _FORBIDS_EXTRA
 
     name: str
     media_type: str
-    text: str
+    text: str | None = None
+    data: str | None = None
+    # The kinds of possible personal data or secrets the researcher confirmed it holds (#473).
+    confirmed: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _text_or_file(self) -> Self:
+        unreadable = self.data is not None and decoded(self.data) is None
+        if (self.text is None) == (self.data is None) or unreadable:
+            raise ValueError(DOCUMENTATION_REFUSAL)
+        return self
 
 
 class SendTurn(RequestBody):
@@ -94,8 +106,7 @@ class SendTurn(RequestBody):
         "follows": "The body must give `follows`: the `invocation_id` of the turn this one "
         "follows, or null for the first turn.",
         "inventory": "`inventory` must be the object `dd-inventory` wrote.",
-        "documentation": "`documentation` must be an object giving the document's `name`, "
-        "`media_type` and `text`, as strings.",
+        "documentation": DOCUMENTATION_REFUSAL,
         "reply_answers": "`reply_answers` must name the turn it answers (`answer_to`) and give "
         "`given_answers`: for each question answered, its `answered_key`, the `answer_values` "
         "chosen and optionally `answer_words`.",
@@ -130,7 +141,10 @@ class SendTurn(RequestBody):
 
     def attached(self) -> AttachedDocument | None:
         d = self.documentation
-        return None if d is None else AttachedDocument(d.name, d.media_type, d.text)
+        if d is None:
+            return None
+        data = None if d.data is None else decoded(d.data)
+        return AttachedDocument(d.name, d.media_type, d.text or "", data, tuple(d.confirmed))
 
     def turn(self) -> Turn:
         return Turn(
@@ -326,6 +340,9 @@ async def _take_turn(
     except ProjectDeletedError as exc:
         deleted = problem(409, "project-deleted", "This project is deleted", str(exc))
         return deleted, "project deleted"
+    except DocumentationHeldError as exc:
+        title = "This document needs your confirmation"
+        return problem(409, "documentation-held", title, str(exc), kinds=exc.kinds), "held"
     # A `ProjectError` (an inventory or document the project refuses) is a `ValueError`.
     except REFUSED_BEFORE_RUN as exc:
         return refused(str(exc)), "refused"

@@ -595,6 +595,10 @@ jobs:
       # The broker's deployment-paid calls, in both formats, through the gateway and costed there.
       - working-directory: deploy/llm-gateway
         run: scripts/testing/broker_e2e.sh
+      # The gateway's database through backup.sh and restore.sh, in its container (deploy/gateway-store.sh).
+      - env:
+          DD_TEST_GATEWAY_PROJECT: llm-gateway
+        run: uv run pytest -n0 -m gateway scripts/tests/test_backup.py
       - if: failure()
         working-directory: deploy/llm-gateway
         run: docker compose -f compose.yaml -f compose.test.yaml logs --no-color --tail 200

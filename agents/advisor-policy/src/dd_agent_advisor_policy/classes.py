@@ -165,3 +165,4 @@ class PolicyChecks(Grounded):
     journals: list[ResolvedJournal] = Field(default_factory=list)
     ambiguous: list[AmbiguousActor] = Field(default_factory=list)
     searched: SearchedSummary | None = None
+    limitations: list[str] = Field(default_factory=list)

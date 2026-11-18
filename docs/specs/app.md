@@ -205,14 +205,34 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     may be blank and the server supplies a sentence saying a document was attached; a turn may
     carry an inventory and a document together, and if the project refuses either, the turn is
     refused, nothing runs and neither is kept. The shell's one **Attach a file** button, and a
-    drop on the message form, take a `.json` file as an inventory and a `.txt` or `.md` file as a
-    document. A document is read in the browser, refused there if it is empty or over 256 KB,
+    drop on the message form, take a `.json` file as an inventory and a `.txt`, `.md`, `.docx`
+    or `.pdf` file as a document, unless the agent directory says the profile refuses attached documents
+    (`attached_documents`, [Projects](projects.md)): then they take only an inventory, say why a
+    document is not taken, and the server refuses a turn that carries one. A Word document or PDF
+    is refused in the browser if it is over 1 MB, and otherwise sent to
+    `POST /api/documentation/extract`, which reads its text inside the deployment and keeps
+    nothing; the dialog then shows that text and says where it was read from, and the turn sends
+    the file, not the text, which the server reads again ([Projects](projects.md)).
+    `GET /api/projects/{id}/documentation/{digest}?original` serves the file a document was read
+    from. A text or Markdown document is read in the browser, refused there if it is empty or over 256 KB,
     and first opened to be checked: a dialog shows its name, size and text, says that it will be
     stored in the project, that the Documentation Editor reads its text to suggest answers and
     other agents are told only its name, type and size ([Projects](projects.md)), and
     that it must be about the data, never the data themselves nor anything that identifies a
-    person. Nothing is attached until the researcher presses **Attach this document**; closing
-    the dialog any other way discards it. The checked document shows as a chip with its name and
+    person. The dialog also shows what `POST /api/documentation/check` finds in the text:
+    possible personal data, by the inventory command's detector, and secrets, by detect-secrets'
+    named plugins, each by kind and never by value, in or out of a project, keeping nothing.
+    Where something is found, the button reads **Attach anyway** and is enabled only once the
+    researcher ticks that they have checked the document; the turn's `documentation` then names
+    the kinds in `confirmed`. The server checks the text again: a document whose findings are
+    not all confirmed is refused with `409` `documentation-held`, listing the kinds, nothing runs
+    and nothing is kept, and the log names the document and the kinds only. A Word document's or
+    PDF's text is checked as plain text, in the dialog and again by the server on the text it
+    reads from the file, never on text the client sends (#473,
+    `app/tests/test_documentation_hold.py`,
+    `app/web/src/components/conversation/DocumentReviewDialog.test.tsx`). Nothing is attached
+    until the researcher presses **Attach this document** or **Attach anyway**; closing the
+    dialog any other way discards it. The checked document shows as a chip with its name and
     size and a button to remove it, never as its text, and so does each document a turn's
     `project_documentation` gained on the transcript. `GET /api/projects/{id}/documentation`
     lists a project's documents and `GET /api/projects/{id}/documentation/{digest}` serves one's
@@ -398,11 +418,12 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     [Projects](projects.md), invariant 28).
 30. **A person's own settings are on the Settings page.** `/settings`, reached from the cog
     labelled **Settings** in the banner on every page and from the profile page, holds what a
-    person sets for themselves; what the deployment allows for everyone stays on the Policy page.
-    Where the deployment offers it, it holds the person's own AI account, which it reads from and
+    person sets for themselves, in tabs (**AI account**, **Appearance**, **Dates and times** and
+    **Starting up**); what the deployment allows for everyone stays on the Policy page.
+    Where the deployment offers it, the first tab holds the person's own AI account, which it reads from and
     sends to the model broker alone ([A person's own model account](model-accounts.md),
     `app/web/src/components/settings/ModelAccount.test.tsx`, `app/web/e2e/settings.spec.ts`).
-    Then comes **Preferences**: the colour scheme (light, dark, or matching the device), text
+    The other tabs are the **Preferences**: the colour scheme (light, dark, or matching the device), text
     size, spacing, animation (matching the device, reduced or shown), the style dates and numbers
     are written in and the 12- or 24-hour clock, and whether a visit returns to the project used
     last or starts with none chosen. Each applies at once and is kept in that browser only, one
@@ -430,11 +451,24 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
 
 - **Depends on** the harness (`dd_harness`) and the SDK only. Workspace-level dependency rules
   are in [System and boundaries](system.md).
+- **Turn locks.** A conversation's turn holds the conversation's lock from reading its history
+  until the turn is stored, and a turn that finds it held is refused with `TurnConflictError`
+  before anything runs (orchestration invariant 4). The lock is the run store's
+  (`Governance.turn_locks`, opened by `dd_harness.settings.conversation_locks` beside
+  `DD_RUNS_DIR`: a file lock on files, an advisory lock on PostgreSQL;
+  [Storage](storage.md), "Turn locks"), not the app process's, so several app processes or
+  replicas over one store, as #520 allows, run one turn of a conversation at a time
+  (`app/tests/test_concurrent_turns.py`). This is option (b) of #983. A conversation started in an app
+  that keeps no projects is remembered by that process alone (`Governance._started`) until its
+  first turn is stored; a deployment keeps projects, where a conversation is recorded in its
+  project as it starts.
 - **API types.** The shell's types for the server's responses are written by hand in the
   domain folders' `api.ts` and `types.ts`. The golden fixtures in `app/web/fixtures`, which
   `check_fixture` rewrites from real responses, are checked against them by
   `app/web/src/fixtures.typecheck.ts`, which `npm run typecheck` compiles: a field the server
-  renames or drops, or whose type changes, fails there until the interface is updated. The check
+  renames or drops, or whose type changes, fails there until the interface is updated. Every
+  fixture `check_fixture` writes is checked, the Problem Details of a refusal as well as an
+  answer; `inventory-left-out.json`, written by hand as a request, is not. The check
   reports a missing or mistyped field, not an extra one, and not a renamed optional field. To
   see it work, rename a required field in a fixture and run `npm run typecheck`. TODO(#1130):
   give the routes response models and generate the types from them.
@@ -727,6 +761,11 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   repository with Issues: write, which can do nothing a model key can.
 
 ## Rejected alternatives
+
+- **Turn locks in the app's memory, with one app process the only supported deployment** (option
+  (a) of #983). It is the smallest change, but it fails silently: a second process over the same
+  store, started by hand or by scaling a Compose service, lets two turns of one conversation
+  interleave and fork it, and the app cannot reliably tell that another process shares its store.
 
 - **Gradio, or a chat around a model of the app's own.** The page was built around one agent and
   its tools; the app now has no model of its own and converses with the orchestrator.

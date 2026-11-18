@@ -7,7 +7,9 @@ archive always builds the same bytes and a deployment's `sources.yaml` can pin t
 
 This module holds the steps every such agent repeats: reading and writing the pin, hashing,
 downloading an archive at most once per pin (Blueprint P14), writing the registry atomically and
-saying why a built registry does not match its pin. What the archive holds and how it is parsed
+saying why a built registry does not match its pin. A download the server fails (a 5xx or 429,
+or no answer) is tried again after a pause, so that a publisher's brief outage does not fail a
+build; any other status fails at once. What the archive holds and how it is parsed
 stays with the agent. Each function raises the agent's own error class, a `PinError`, whose
 message says what to do.
 """
@@ -17,9 +19,10 @@ from __future__ import annotations
 import hashlib
 import json
 import sys
+import time
 import zipfile
 from collections.abc import Callable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any, Protocol
@@ -105,11 +108,14 @@ def user_agent(distribution: str, product: str) -> str:
 class Downloader:
     """How an agent downloads from its registry: its `User-Agent`, its timeout, and the error it
     raises. A client passed to a method is used as it is and left open; otherwise one is made
-    and closed."""
+    and closed. `pauses` are the seconds waited before each further attempt after the server
+    fails, so there are `len(pauses) + 1` attempts in all."""
 
     user_agent: str
     timeout: float
     error: type[Exception]
+    pauses: tuple[float, ...] = (2.0, 8.0, 30.0)
+    sleep: Callable[[float], None] = field(default=time.sleep, repr=False, compare=False)
 
     def client(self, client: httpx.Client | None) -> tuple[httpx.Client, bool]:
         """`client`, or a new one; and whether the caller owns it and must close it."""
@@ -120,23 +126,42 @@ class Downloader:
         ), True
 
     def download(self, url: str, dest: Path, client: httpx.Client | None = None) -> None:
-        """Stream `url` to `dest`, renamed into place only when complete."""
+        """Stream `url` to `dest`, renamed into place only when complete. A failure of the
+        server's is tried again after each of `pauses`; the last one raises."""
         dest.parent.mkdir(parents=True, exist_ok=True)
         partial = dest.with_suffix(".part")
         http, own = self.client(client)
         try:
+            for pause in (*self.pauses, None):
+                failed = self._attempt(http, url, partial)
+                if failed is None:
+                    break
+                partial.unlink(missing_ok=True)
+                if pause is None:
+                    raise self.error(failed)
+                self.sleep(pause)
+        finally:
+            if own:
+                http.close()
+        partial.replace(dest)
+
+    def _attempt(self, http: httpx.Client, url: str, partial: Path) -> str | None:
+        """Stream `url` to `partial`: None when done, or why the server failed, worth another
+        attempt. Any other status raises at once."""
+        try:
             with http.stream("GET", url) as resp:
+                if resp.status_code >= 500 or resp.status_code == 429:
+                    return f"{url}: HTTP {resp.status_code}"
                 if resp.status_code != 200:
                     raise self.error(f"{url}: HTTP {resp.status_code}")
                 with partial.open("wb") as fh:
                     for chunk in resp.iter_bytes():
                         fh.write(chunk)
+        except httpx.TransportError as exc:
+            return f"{url}: {exc}"
         except httpx.HTTPError as exc:
             raise self.error(f"{url}: {exc}") from None
-        finally:
-            if own:
-                http.close()
-        partial.replace(dest)
+        return None
 
     def archive(
         self, url: str, sha256: str | None, path: Path, client: httpx.Client | None = None

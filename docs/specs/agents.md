@@ -180,7 +180,7 @@ roster for #353 found:
 | `advisor.rights`, `advisor.metadata` | Model-backed alpha, choosing from a closed set (rights) or suggesting beside a value (metadata). |
 | `advisor.fairness` | Model-backed alpha for its recommendations only; little gain until it retrieves. |
 | `advisor.quality` | Stays rule-based; it overlaps the FAIR Assessor (#18). |
-| `advisor.linking`, `advisor.files` | Stay deterministic: identifier syntax, checksums and format lookup are exact. Their next step is retrieval (#360, #354). |
+| `advisor.linking`, `advisor.files` | Stay deterministic: identifier syntax, checksums and format lookup are exact. Their next step is retrieval (#360, #354). `advisor.linking` has taken it for DOIs, through the tool gateway; it declares `retrieval` and left the mock row, so invariant 13 no longer describes it. |
 | `orchestrator.stub`, `example.hello` | Stay deterministic by design. |
 
 Each in-tree agent's state now. This table is the one place a state is written down:
@@ -188,10 +188,10 @@ Each in-tree agent's state now. This table is the one place a state is written d
 
 | State | Agents |
 |---|---|
-| Mock (invariant 13) | `advisor.files`, `advisor.linking` |
+| Mock (invariant 13) | `advisor.files` |
 | Model-backed alpha (invariant 14) | `advisor.dmp`, `advisor.documentation`, `advisor.ethics`, `advisor.fairness`, `advisor.metadata`, `advisor.policy`, `advisor.rights` |
 | Persona | `advisor.quality`, `advisor.repository`, `advisor.standards` |
-| Deterministic by design, or not an advisor | `example.hello`, `orchestrator.model`, `orchestrator.stub` |
+| Deterministic by design, or not an advisor | `advisor.linking`, `example.hello`, `orchestrator.model`, `orchestrator.stub` |
 
 What a persona that drafts project documents may infer, ask and write is in
 [Drafting documents](drafting.md).
@@ -220,8 +220,9 @@ adds is a record retrieved in the run that code checks against the dataset profi
 3. **Safety by construction.** Where a miss is harmful, the model may add to the rules' output
    but not remove from it; merging two flags into one, or moving a flag to a list shown beside
    the others with the model's reason, is not removing it (`advisor-dmp/`). Where invention is
-   harmful, it chooses from a closed set the code supplies, or states a claim only with a quote that code finds, word for word, in the record
-   it cites (`advisor-policy/`, `verify.py`). Where the researcher must write a value, it suggests beside that value and never
+   harmful, it chooses from a closed set the code supplies, or states a claim only with a quote that code finds, word for word, in the record it cites (`advisor-policy/`, `verify.py`), or in the attached document it
+   cites (`advisor-dmp/`, `read_plan.py`, which proposes a plan's sharing commitments as project
+   facts for the researcher to decide, [Projects](projects.md), invariant 28). Where the researcher must write a value, it suggests beside that value and never
    writes it ([Drafting documents](drafting.md)).
 4. **Provenance per value.** Each field a model may write names a `Derivation` recorder in
    `recorded_in` (invariant 8), so a template fallback is shown as what it was. Each call is

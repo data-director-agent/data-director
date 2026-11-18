@@ -24,6 +24,7 @@ from typing import Literal
 
 from dd_agent_advisor_dmp.agent import DmpChecker
 from dd_agent_advisor_dmp.match import DEFAULT_MODEL, Matcher, ModelMatcher, TemplateMatcher
+from dd_agent_advisor_dmp.read_plan import ModelReader
 from dd_sdk import serve
 from dd_sdk.model import declared
 from dd_sdk.model_provider import optional_model
@@ -38,11 +39,15 @@ def build_matcher(env: Mapping[str, str]) -> Matcher:
 
 
 def build(env: Mapping[str, str] | None = None) -> DmpChecker:
-    """The factory `main` serves. `env` defaults to the process environment."""
+    """The factory `main` serves. `env` defaults to the process environment. The matcher's model
+    also reads an attached plan's commitments for the researcher to confirm (`read_plan.py`); on
+    the template path an attached plan is not read."""
     env = os.environ if env is None else env
-    agent = DmpChecker(build_matcher(env))
-    if isinstance(agent.matcher, ModelMatcher):
-        agent.spec = replace(agent.spec, models=(declared(agent.matcher.model),))
+    matcher = build_matcher(env)
+    if not isinstance(matcher, ModelMatcher):
+        return DmpChecker(matcher)
+    agent = DmpChecker(matcher, ModelReader(matcher.model))
+    agent.spec = replace(agent.spec, models=(declared(matcher.model),))
     return agent
 
 

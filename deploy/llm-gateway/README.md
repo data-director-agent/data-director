@@ -340,7 +340,9 @@ LiteLLM's built-in `mock_response` option records **$0 cost** on the Anthropic r
 
 - **Exposure:** ports are bound to `127.0.0.1`. To share the gateway with colleagues, put it behind an HTTPS reverse proxy (e.g. Caddy or nginx) on a campus network or VPN. Don't expose port 4000 directly.
 - **Secrets:** keep `LITELLM_SALT_KEY` stable and backed up. Changing it makes the provider keys stored in the database unreadable.
-- **Back-ups:** back up the `pgdata` volume, which holds keys, budgets and spend history. For example:
+- **Back-ups:** on a Data Director VM, the nightly backup dumps the gateway's database and
+  `restore` puts it back ([deploy/README.md](../README.md#backups)). Run by hand, back up the
+  `pgdata` volume, which holds keys, budgets and spend history. For example:
   ```bash
   docker compose exec db pg_dump -U litellm litellm > backup.sql
   ```

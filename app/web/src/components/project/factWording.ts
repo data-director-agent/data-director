@@ -17,6 +17,7 @@ export const KIND_LABELS: Record<FactKind, string> = {
   funder: "Funder",
   required_repository: "Required repository",
   licence: "Licence",
+  sharing_commitment: "Sharing commitment in the plan",
 };
 
 export const FILE_DECISION_LABELS: Record<FileDecision, string> = {
@@ -72,6 +73,13 @@ function sensitivitySentence(fact: ProjectFact): string {
   }
 }
 
+function commitmentSentence(fact: ProjectFact): string {
+  const where = fact.commitment_repository ? ` in ${fact.commitment_repository}` : "";
+  const access = fact.commitment_access ? ` with ${fact.commitment_access} access` : "";
+  const licence = fact.commitment_licence ? ` under ${fact.commitment_licence}` : "";
+  return `The plan commits to share ${fact.fact_subject}${where}${access}${licence}.`;
+}
+
 /** One sentence that says what `fact` decides. */
 export function describeFact(fact: ProjectFact): string {
   switch (fact.fact_kind) {
@@ -87,5 +95,7 @@ export function describeFact(fact: ProjectFact): string {
     }
     case "licence":
       return `Deposit the data under ${fact.licence_id ?? fact.fact_subject}.`;
+    case "sharing_commitment":
+      return commitmentSentence(fact);
   }
 }

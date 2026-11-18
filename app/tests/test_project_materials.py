@@ -3,9 +3,11 @@ or added outside one."""
 
 from __future__ import annotations
 
+import base64
 import json
 import uuid
 from collections.abc import Iterator
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -33,9 +35,12 @@ from dd_app.governance import (
 )
 from dd_harness.project_access import Role
 from dd_harness.projects import ProjectStore
+from dd_harness.projects.extract import PDF
 from dd_harness.testing import (
     TEST_PRINCIPAL,
 )
+from dd_harness.testing.documents import PROTOCOL as DOCUMENT_TEXT
+from dd_harness.testing.documents import pdf_file
 
 
 @pytest.fixture
@@ -256,6 +261,9 @@ def test_an_attached_document_is_kept_and_the_orchestrator_is_told_of_it_without
     assert text.status_code == 200
     assert text.headers["content-type"].startswith("text/plain")
     assert text.text == PROTOCOL
+    # A document attached as text was read from no file.
+    no_file = client.get(f"/api/projects/{project_id}/documentation/{added['digest']}?original")
+    assert no_file.status_code == 404
 
 
 def test_a_turn_may_attach_an_inventory_and_a_document_together(
@@ -312,6 +320,108 @@ def test_a_document_that_is_refused_leaves_no_trace_and_nothing_runs(
     assert governance.projects is not None
     assert governance.projects.summary(started["project_id"])["inventory"] is None
     assert governance.projects.documentation(started["project_id"]) == []
+
+
+@pytest.mark.requirement("DD-POLICY")
+def test_a_profile_that_refuses_documents_refuses_a_turn_that_attaches_one(
+    in_projects: tuple[Governance, Any],
+):
+    """Under `attached_documents: refused` the turn is refused before anything is kept or run,
+    and the agent directory says so, so the shell does not offer it (docs/specs/projects.md)."""
+    governance, app = in_projects
+    profile = governance.conductor.profile
+    governance.conductor.profile = replace(profile, attached_documents="refused")
+    client = TestClient(app)
+    started = client.post("/api/conversations", headers=JSON_HEADERS).json()
+
+    response = turn(client, started["conversation_id"], "hello", documentation=a_document())
+
+    assert response.status_code == 400
+    assert list(governance.conductor.store.iter_envelopes()) == []
+    assert governance.projects is not None
+    assert governance.projects.documentation(started["project_id"]) == []
+    listing = client.get("/api/agents", headers=JSON_HEADERS).json()
+    assert listing["profile"]["attached_documents"] == "refused"
+
+
+def a_pdf(data: bytes | None = None) -> dict[str, str]:
+    """A PDF a turn attaches as the file, base64."""
+    raw = pdf_file() if data is None else data
+    return {"name": "plan.pdf", "media_type": PDF, "data": base64.b64encode(raw).decode()}
+
+
+def test_a_pdf_is_kept_as_the_file_and_its_text_and_the_agent_is_told_of_it(
+    in_projects: tuple[Governance, Any],
+):
+    """A Word document or PDF is read inside the deployment; the project keeps the file beside
+    the text, and an agent is told of it as of any document (#961, docs/specs/projects.md)."""
+    governance, app = in_projects
+    client = TestClient(app)
+    conversation_id = start(client)
+
+    response = turn(client, conversation_id, " ", documentation=a_pdf())
+
+    assert response.status_code == 200, response.json()
+    envelope = response.json()["envelope"]
+    project_id = envelope["project_id"]
+    shown = (governance.conductor.store.get_request(envelope["invocation_id"]) or {})["input"]
+    [listed] = shown["project_documentation"]
+    assert listed["documentation_source_media_type"] == PDF
+    digest = listed["documentation_digest"]
+    text = client.get(f"/api/projects/{project_id}/documentation/{digest}")
+    assert DOCUMENT_TEXT in text.text
+    original = client.get(f"/api/projects/{project_id}/documentation/{digest}?original")
+    assert original.status_code == 200
+    assert original.headers["content-type"].startswith(PDF)
+    assert original.content == pdf_file()
+
+
+@pytest.mark.parametrize(
+    "documentation",
+    [
+        {**a_pdf(), "data": "not base64!"},
+        {**a_pdf(), "media_type": "application/msword"},
+        a_pdf(pdf_file(None)),  # a scan, with no text layer
+    ],
+    ids=["not-base64", "other-type", "no-text"],
+)
+def test_a_file_that_cannot_be_read_is_refused_and_nothing_is_kept(
+    in_projects: tuple[Governance, Any], documentation: dict[str, str]
+):
+    governance, app = in_projects
+    client = TestClient(app)
+    started = client.post("/api/conversations", headers=JSON_HEADERS).json()
+
+    response = turn(client, started["conversation_id"], "hello", documentation=documentation)
+
+    assert response.status_code == 400
+    assert list(governance.conductor.store.iter_envelopes()) == []
+    assert governance.projects is not None
+    assert governance.projects.documentation(started["project_id"]) == []
+
+
+def test_a_file_is_read_for_checking_and_nothing_is_kept(in_projects: tuple[Governance, Any]):
+    governance, app = in_projects
+    client = TestClient(app)
+    started = client.post("/api/conversations", headers=JSON_HEADERS).json()
+
+    response = client.post("/api/documentation/extract", json=a_pdf(), headers=JSON_HEADERS)
+
+    assert response.status_code == 200, response.json()
+    assert DOCUMENT_TEXT in response.json()["text"]
+    assert governance.projects is not None
+    assert governance.projects.documentation(started["project_id"]) == []
+    unread = client.post(
+        "/api/documentation/extract", json=a_pdf(pdf_file(None)), headers=JSON_HEADERS
+    )
+    assert unread.status_code == 400
+    not_base64 = {**a_pdf(), "data": "not base64!"}
+    garbled = client.post("/api/documentation/extract", json=not_base64, headers=JSON_HEADERS)
+    assert garbled.status_code == 400
+    profile = governance.conductor.profile
+    governance.conductor.profile = replace(profile, attached_documents="refused")
+    refused = client.post("/api/documentation/extract", json=a_pdf(), headers=JSON_HEADERS)
+    assert refused.status_code == 400
 
 
 def test_a_document_needs_a_project_to_keep_it(delegating: tuple[Governance, Any]):

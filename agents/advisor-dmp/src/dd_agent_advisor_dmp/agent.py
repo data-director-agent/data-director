@@ -13,9 +13,14 @@ aspect to name the same thing, which moves that flag to the payload's `reconcile
 with its reason. It never removes a flag from what the person sees. Each discrepancy records how
 it was found in `discrepancy_derivation`: `lexical` by rule, `model` for a pairing.
 
-It reads only its input, so its grounding mode is `input_only` and it cites only its input. It
-reads no plan itself: reading machine-actionable plans (the RDA DMP Common Standard, #284) is
-TODO(#701).
+In a project it is also given the documents the researcher attached and the facts people decided
+(`GivenProjectDocuments`, `GivenProjectDecisions`). The commitments a person confirmed
+(`sharing_commitment` facts) are compared with the planned outputs as typed ones are. Where none
+is confirmed or typed but a plan is attached, a model reads the plan (`read_plan.py`) and the
+checker proposes each commitment it finds, with the quoted passage, as a project fact for the
+researcher to confirm or correct; it compares nothing until they have (#962). It reads only its
+input, so its grounding mode is `input_only` and it cites only its input. Reading a
+machine-actionable plan (the RDA DMP Common Standard, #284) is TODO(#701).
 """
 
 from __future__ import annotations
@@ -33,8 +38,10 @@ from dd_agent_advisor_dmp.match import (
     TemplateMatcher,
     differences_between,
     key,
+    model_use,
     residue_of,
 )
+from dd_agent_advisor_dmp.read_plan import PlanReader, Reading, TemplateReader, confirmed
 from dd_sdk.agent import (
     AgentResult,
     AgentSpec,
@@ -55,8 +62,9 @@ from dd_sdk.contract.models import (
 )
 
 LIMITATIONS = (
-    "It reads no data management plan: it compares the commitments it is given. Reading a "
-    "machine-actionable plan is planned (#701).",
+    "It reads a plan the researcher attached only to propose its commitments, which count once "
+    "the researcher confirms them; it does not read a machine-actionable plan by its identifier "
+    "yet (#701).",
     "Without a matcher model (DD_DMP_MATCHER=template), it matches outputs by exact name, case "
     "ignored, so an output renamed since the plan is reported as both missing and unplanned, and "
     "it compares repository, access and licence as text, so two names for the same thing differ.",
@@ -114,30 +122,32 @@ class DmpChecker:
         serves=("governance.dmp",),
     )
 
-    def __init__(self, matcher: Matcher | None = None) -> None:
+    def __init__(self, matcher: Matcher | None = None, reader: PlanReader | None = None) -> None:
         self.matcher: Matcher = TemplateMatcher() if matcher is None else matcher
+        self.reader: PlanReader = TemplateReader() if reader is None else reader
 
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
         commitments = request.input
         assert isinstance(commitments, DmpCommitments)  # the conductor checked spec.accepts
-        if not commitments.committed_outputs:
+        committed = [*commitments.committed_outputs, *confirmed(commitments)]
+        if not committed and commitments.project_documents:
+            return self._read(commitments, ctx)
+        if not committed:
             return abstain(
                 ReasonCode.INSUFFICIENT_INPUT,
-                "Give the outputs the data management plan committed to share.",
+                "Attach the data management plan, or give the outputs it committed to share.",
             )
 
-        residue = residue_of(commitments.committed_outputs, commitments.planned_outputs)
+        residue = residue_of(committed, commitments.planned_outputs)
         matches = self.matcher.match(residue, ctx)
-        discrepancies, reconciled = compare(
-            commitments.committed_outputs, commitments.planned_outputs, matches
-        )
+        discrepancies, reconciled = compare(committed, commitments.planned_outputs, matches)
         count = f"{len(discrepancies)} difference{'' if len(discrepancies) == 1 else 's'}"
         statement = (
             f"{count} between the plan's commitments and the planned sharing, each for a person "
             f"to review. {_how_matched(matches, reconciled)}"
         )
         ref = input_ref(ctx)
-        calls = matches.calls
+        model_id = matches.model_id if matches.called else None
         return AgentResult(
             outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement=statement),
             payload=DmpDiscrepancies(
@@ -148,12 +158,64 @@ class DmpChecker:
                 grounded_on=[ref],
             ),
             evidence=[input_evidence(ctx)],
-            model_id=matches.model_id if matches.called else None,
-            input_tokens=matches.usage.input_tokens,
-            output_tokens=matches.usage.output_tokens,
-            model_calls=tuple(calls.calls) if calls is not None else (),
-            prompts=dict(calls.prompts) if calls is not None else {},
+            **model_use(model_id, matches.usage, matches.calls),
         )
+
+    def _read(self, commitments: DmpCommitments, ctx: RunContext) -> AgentResult:
+        """A plan's commitments, proposed as facts for the researcher to confirm; nothing is
+        compared until they have."""
+        reading = self.reader.read(commitments.project_documents, ctx)
+        if reading.model_id is None:
+            return abstain(
+                ReasonCode.CAPABILITY_NOT_IMPLEMENTED,
+                "A plan is attached, but reading one needs a model, and none is configured "
+                "(DD_DMP_MATCHER=template). Give the outputs it committed to share instead.",
+            )
+        return AgentResult(
+            outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement=_how_read(reading)),
+            payload=DmpDiscrepancies(
+                dropped=list(reading.dropped),
+                limitations=list(LIMITATIONS),
+                proposed_facts=list(reading.proposals),
+                grounded_on=[input_ref(ctx)],
+            ),
+            evidence=[input_evidence(ctx)],
+            **model_use(reading.model_id, reading.usage, reading.calls),
+        )
+
+
+def _how_read(reading: Reading) -> str:
+    """What the statement says about reading a plan: what was proposed, and what to do next."""
+    read = ", ".join(reading.read) or "the attached documents"
+    if reading.unused:
+        return (
+            f"It could not read {read}, because {reading.unused} ({reading.model_id}). Try again, "
+            "or give the outputs the plan committed to share."
+        )
+    if reading.proposals:
+        said = (
+            f"A model ({reading.model_id}) read {read} and found "
+            f"{_count(len(reading.proposals), 'sharing commitment')}, each with the passage it "
+            "rests on. Confirm, correct or reject each on the project page; the check compares "
+            "only the commitments you confirm, and runs once you have."
+        )
+    elif reading.vague:
+        said = (
+            f"A model ({reading.model_id}) read {read}: it speaks of sharing only in terms too "
+            "general to name an output. Give the outputs it committed to share, if any."
+        )
+    else:
+        said = (
+            f"A model ({reading.model_id}) read {read} and found no commitment to share an "
+            "output. That is a valid result; give the outputs if you know of any."
+        )
+    if reading.cut:
+        said += f" Only the start of {', '.join(reading.cut)} was read, for room."
+    if reading.dropped:
+        said += f" {_count(len(reading.dropped), 'reading')} was not used: " + "; ".join(
+            reading.dropped
+        )
+    return said
 
 
 def compare(

@@ -45,7 +45,9 @@ async function serve(
       },
     }),
   );
-  await page.route("/api/model-account/ticket", (route) => route.fulfill({ json: ticket }));
+  await page.route("/api/model-account/ticket", (route) =>
+    route.fulfill({ json: ticket }),
+  );
   await page.route("/broker/enrolment/account", async (route) => {
     const request = route.request();
     expect(request.headers()["authorization"]).toBe(`Bearer ${ticket.ticket}`);
@@ -64,7 +66,10 @@ async function serve(
 }
 
 async function useScheme(page: Page, scheme: "light" | "dark") {
-  await page.addInitScript((value) => localStorage.setItem("dd-theme", value), scheme);
+  await page.addInitScript(
+    (value) => localStorage.setItem("dd-theme", value),
+    scheme,
+  );
 }
 
 async function axeViolations(page: Page) {
@@ -75,11 +80,15 @@ async function axeViolations(page: Page) {
 }
 
 for (const scheme of ["light", "dark"] as const) {
-  test(`settings with a choice of providers, ${scheme}: no axe violations`, async ({ page }) => {
+  test(`settings with a choice of providers, ${scheme}: no axe violations`, async ({
+    page,
+  }) => {
     await useScheme(page, scheme);
     await serve(page, none, { status: 200, json: held }, OFFERED);
     await page.goto("/settings");
-    await page.getByRole("radio", { name: "A model service your institution runs" }).check();
+    await page
+      .getByRole("radio", { name: "A model service your institution runs" })
+      .check();
     await expect(page.getByLabel("Address of the service")).toBeVisible();
     expect(await axeViolations(page)).toEqual([]);
   });
@@ -94,8 +103,12 @@ for (const scheme of ["light", "dark"] as const) {
       await useScheme(page, scheme);
       await serve(page, start, { status: 200, json: held });
       await page.goto("/settings");
-      await expect(page.getByRole("heading", { name: "Your AI account" })).toBeVisible();
-      await expect(page.getByRole("heading", { name: "Your token use" })).toBeVisible();
+      await expect(
+        page.getByRole("heading", { name: "Your AI account" }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("heading", { name: "Your token use" }),
+      ).toBeVisible();
       expect(await axeViolations(page)).toEqual([]);
     });
   }
@@ -109,7 +122,9 @@ test("an account is added and removed by keyboard alone", async ({ page }) => {
   await page.keyboard.type(KEY);
   await page.keyboard.press("Enter");
 
-  await expect(page.getByRole("status").filter({ hasText: "checked and saved" })).toBeVisible();
+  await expect(
+    page.getByRole("status").filter({ hasText: "checked and saved" }),
+  ).toBeVisible();
   await expect(page.getByText(held.account.label)).toBeVisible();
   await expect(page.getByText(KEY)).toHaveCount(0);
 
@@ -122,21 +137,29 @@ test("an account is added and removed by keyboard alone", async ({ page }) => {
   await dialog.getByRole("button", { name: "Remove account" }).focus();
   await page.keyboard.press("Enter");
 
-  await expect(page.getByRole("status").filter({ hasText: "removed" })).toBeVisible();
+  await expect(
+    page.getByRole("status").filter({ hasText: "removed" }),
+  ).toBeVisible();
   await expect(page.getByLabel("Anthropic API key")).toBeVisible();
 });
 
-test("a key the provider refuses is explained and not kept on the page", async ({ page }) => {
+test("a key the provider refuses is explained and not kept on the page", async ({
+  page,
+}) => {
   await serve(page, none, { status: 422, json: rejected });
   await page.goto("/settings");
   const field = page.getByLabel("Anthropic API key");
   await field.fill(KEY);
   await page.getByRole("button", { name: "Check and add" }).click();
-  await expect(page.getByRole("alert")).toContainText("did not accept this key");
+  await expect(page.getByRole("alert")).toContainText(
+    "did not accept this key",
+  );
   await expect(field).toHaveValue("");
 });
 
-test("an OpenAI-compatible account is chosen and added by keyboard alone", async ({ page }) => {
+test("an OpenAI-compatible account is chosen and added by keyboard alone", async ({
+  page,
+}) => {
   const sent: unknown[] = [];
   await serve(page, none, { status: 200, json: held }, OFFERED, sent);
   await page.goto("/settings");
@@ -158,26 +181,35 @@ test("an OpenAI-compatible account is chosen and added by keyboard alone", async
   await page.keyboard.type(KEY);
   await page.keyboard.press("Enter");
 
-  await expect(page.getByRole("status").filter({ hasText: "checked and saved" })).toBeVisible();
-  expect(sent).toEqual([{ provider: "openai-compatible", key: KEY, base_url: `${ORIGIN}/v1` }]);
+  await expect(
+    page.getByRole("status").filter({ hasText: "checked and saved" }),
+  ).toBeVisible();
+  expect(sent).toEqual([
+    { provider: "openai-compatible", key: KEY, base_url: `${ORIGIN}/v1` },
+  ]);
 });
 
-test("preferences apply at once, survive a reload and can match the device", async ({ page }) => {
-  await page.emulateMedia({ colorScheme: "dark", reducedMotion: "no-preference" });
+test("preferences apply at once, survive a reload and can match the device", async ({
+  page,
+}) => {
+  await page.emulateMedia({
+    colorScheme: "dark",
+    reducedMotion: "no-preference",
+  });
   await serve(page, none, { status: 200, json: held });
   await page.goto("/settings");
+  await page.getByRole("tab", { name: "Appearance" }).click();
   const html = page.locator("html");
   const rootStyle = (property: string) =>
-    page.evaluate((p) => getComputedStyle(document.documentElement).getPropertyValue(p), property);
+    page.evaluate(
+      (p) => getComputedStyle(document.documentElement).getPropertyValue(p),
+      property,
+    );
 
   // Light by default, whatever the device prefers.
   await expect(html).toHaveAttribute("data-theme", "light");
   await page.getByRole("radio", { name: "Match my device" }).first().check();
   await expect(html).toHaveAttribute("data-theme", "dark");
-  await expect(page.getByRole("button", { name: "Dark mode" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
   await page.emulateMedia({ colorScheme: "light" });
   await expect(html).toHaveAttribute("data-theme", "light");
 
@@ -187,19 +219,25 @@ test("preferences apply at once, survive a reload and can match the device", asy
   expect((await rootStyle("--duration-fast")).trim()).toMatch(/^0m?s$/);
 
   await page.reload();
+  // The page opens on its first tab again, so go back to the preferences.
+  await page.getByRole("tab", { name: "Appearance" }).click();
   await expect(page.getByRole("radio", { name: "Larger" })).toBeChecked();
   await expect(html).toHaveAttribute("data-text-size", "larger");
   await expect(html).toHaveAttribute("data-motion", "reduce");
   expect(await axeViolations(page)).toEqual([]);
 });
 
-test("the cog in the banner and the Profile page both lead to the settings", async ({ page }) => {
+test("the cog in the banner and the Profile page both lead to the settings", async ({
+  page,
+}) => {
   await serve(page, none, { status: 200, json: held });
   await page.goto("/profile");
   expect(await axeViolations(page)).toEqual([]);
   await page.getByRole("main").getByRole("link", { name: "Settings" }).click();
   await expect(page).toHaveURL(/\/settings$/);
-  await expect(page.getByRole("heading", { level: 1, name: "Settings" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Settings" }),
+  ).toBeVisible();
   const cog = page.getByRole("banner").getByRole("link", { name: "Settings" });
   await expect(cog).toHaveAttribute("aria-current", "page");
 });

@@ -26,7 +26,6 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, TypeAdapter
 from pydantic.json_schema import GenerateJsonSchema, JsonSchemaValue, models_json_schema
-from pydantic_core import CoreSchema
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
@@ -109,7 +108,7 @@ def response_models() -> list[type[ResponseBody]]:
 class _Untitled(GenerateJsonSchema):
     """No title on each field: json-schema-to-typescript would make each a named type."""
 
-    def field_title_should_be_set(self, schema: CoreSchema) -> bool:
+    def field_title_should_be_set(self, schema: Any) -> bool:
         return False
 
 

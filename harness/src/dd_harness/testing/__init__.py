@@ -22,6 +22,8 @@ Import everything from here; the modules are an internal arrangement:
   project rules (docs/specs/storage.md); each check is also named in `RUN_STORAGE_CHECKS`,
   `PROJECT_LOG_CHECKS` and `PROJECT_STORAGE_CHECKS`. `check_shared_record` (`SHARED_RECORD_CHECKS`)
   holds two logs over one record to one another, which a backend serving several instances passes.
+- `turn_locks`: `check_conversation_locks` (`CONVERSATION_LOCK_CHECKS`), the conformance checks
+  a backend of each conversation's turn lock must pass (docs/specs/storage.md, "Turn locks").
 - `replay`: `check_a_log_replays_as_it_folds`, which holds a backend's project log to folding the
   same whether its events are appended together or one at a time, for any sequence of changes.
 
@@ -34,6 +36,7 @@ from dd_harness.testing.classes import (
     ProbeDocumentRequest,
     ProbeFindings,
     ProbeProfile,
+    ProbeReading,
     ProbeRecord,
     ProbeReview,
 )
@@ -92,9 +95,11 @@ from dd_harness.testing.storage import (
     file_inventory,
     file_inventory_of_parts,
 )
+from dd_harness.testing.turn_locks import CONVERSATION_LOCK_CHECKS, check_conversation_locks
 from dd_sdk.agent import input_evidence, input_ref
 
 __all__ = [
+    "CONVERSATION_LOCK_CHECKS",
     "HARNESS_URL",
     "PERMISSIVE",
     "PROFILES_DIR",
@@ -123,12 +128,14 @@ __all__ = [
     "ProbeDocumentRequest",
     "ProbeFindings",
     "ProbeProfile",
+    "ProbeReading",
     "ProbeRecord",
     "ProbeReview",
     "Retrieve",
     "ScriptedAgent",
     "asgi_client_factory",
     "check_a_log_replays_as_it_folds",
+    "check_conversation_locks",
     "check_project_log",
     "check_project_rules",
     "check_project_storage",
