@@ -223,6 +223,8 @@ test("preferences apply at once, survive a reload and can match the device", asy
   expect((await rootStyle("--duration-fast")).trim()).toMatch(/^0m?s$/);
 
   await page.reload();
+  // The page opens on its first tab again, so go back to the preferences.
+  await page.getByRole("tab", { name: "Appearance" }).click();
   await expect(page.getByRole("radio", { name: "Larger" })).toBeChecked();
   await expect(html).toHaveAttribute("data-text-size", "larger");
   await expect(html).toHaveAttribute("data-motion", "reduce");
