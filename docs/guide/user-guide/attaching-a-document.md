@@ -22,8 +22,14 @@ so it relies on you to keep to this rule. To describe your data files, make an i
 
 On the conversation page, select **Attach a file** under the message box and choose the
 document, or drop it onto the message box. The app shows you the document's name, size and text
-before anything is kept. When you are content, select **Attach this document**. If you select
-**Cancel**, nothing is attached.
+before anything is kept, and what a check of its text found under **Possible personal data or
+secrets**: e-mail addresses, telephone numbers, NHS or National Insurance numbers, postcodes,
+keys, tokens or passwords. It says what kind of thing it found and how sure it is, never what
+it found. Remove what it lists from the file and choose the file again, or, if it should be kept,
+such as a public contact address, tick that you have checked the document and select **Attach
+anyway**. Finding nothing does not mean there is nothing: names and places are not looked for.
+When you are content, select **Attach this document**. If you select **Cancel**, nothing is
+attached.
 
 The document then shows as a chip under the message box. Select its **Remove** button if you
 change your mind. You can type a message as well, or send it on its own. A message can carry one

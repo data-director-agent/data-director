@@ -1,23 +1,13 @@
-"""A document a turn attaches, checked and kept in the conversation's project
-(docs/specs/projects.md, Documentation). A document attached as text is kept as it is; a Word
-document or PDF is kept as the file and the text the harness reads from it inside the deployment
-(`dd_harness.projects.read_document_file`)."""
+"""A document a turn attaches, kept in the conversation's project once
+`dd_app.documentation_check.accept` has checked it (docs/specs/projects.md, Documentation). A
+document attached as text is kept as it is; a Word document or PDF is kept as the file and the text
+the harness reads from it inside the deployment (`dd_harness.projects.read_document_file`)."""
 
 from __future__ import annotations
 
 from dd_app.turn_body import AttachedDocument
-from dd_harness.projects import check_documentation, read_document_file
 from dd_harness.storage import ProjectHoldings
 from dd_sdk.contract.models import Principal
-
-
-def check_attached(document: AttachedDocument) -> None:
-    """Raise `ProjectError` for a document the project would not keep, before anything is kept,
-    so that a turn attaching an inventory too keeps neither."""
-    if document.data is None:
-        check_documentation(document.name, document.media_type, document.text)
-    else:
-        read_document_file(document.name, document.media_type, document.data)
 
 
 def keep_attached(

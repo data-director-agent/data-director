@@ -18,12 +18,13 @@ import logging
 import time
 from typing import Any, ClassVar, Self
 
-from pydantic import ConfigDict, model_validator
+from pydantic import ConfigDict, Field, model_validator
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
+from dd_app.documentation_check import DocumentationHeldError
 from dd_app.governance import Governance, TurnConflictError, UnknownConversationError
 from dd_app.routes.common import (
     RUN_REFUSED,
@@ -73,6 +74,8 @@ class AttachedDocumentBody(RequestBody):
     media_type: str
     text: str | None = None
     data: str | None = None
+    # The kinds of possible personal data or secrets the researcher confirmed it holds (#473).
+    confirmed: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _text_or_file(self) -> Self:
@@ -136,7 +139,7 @@ class SendTurn(RequestBody):
         if d is None:
             return None
         data = None if d.data is None else decoded(d.data)
-        return AttachedDocument(d.name, d.media_type, d.text or "", data)
+        return AttachedDocument(d.name, d.media_type, d.text or "", data, tuple(d.confirmed))
 
     def turn(self) -> Turn:
         return Turn(
@@ -237,6 +240,9 @@ async def _take_turn(
     except ProjectDeletedError as exc:
         deleted = problem(409, "project-deleted", "This project is deleted", str(exc))
         return deleted, "project deleted"
+    except DocumentationHeldError as exc:
+        title = "This document needs your confirmation"
+        return problem(409, "documentation-held", title, str(exc), kinds=exc.kinds), "held"
     # A `ProjectError` (an inventory or document the project refuses) is a `ValueError`.
     except REFUSED_BEFORE_RUN as exc:
         return refused(str(exc)), "refused"

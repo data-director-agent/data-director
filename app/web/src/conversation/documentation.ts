@@ -6,6 +6,10 @@
  * document or PDF is sent to the server to be read inside the deployment (`readSource`), and its
  * text is shown the same way; once attached, the project keeps the file beside the text (#961).
  * Its text never goes into the message.
+ *
+ * Before it is attached, the server checks its text for possible personal data and secrets
+ * (`checkDocument`, #473). What is found is named by kind, never quoted, and the turn must say the
+ * researcher confirmed each kind, or the server holds the document back.
  */
 
 import { RunRefused, json } from "../http";
@@ -50,6 +54,54 @@ export interface AttachedDocument {
   size: number;
   /** For a Word document or PDF, the file as base64: the turn sends it, not the text. */
   data?: string;
+  /** The kinds of possible personal data or secrets the researcher confirmed it holds. */
+  confirmed?: string[];
+}
+
+/** One kind of thing the check found: never a value, a line or where in the text. */
+export interface DocumentFinding {
+  /** A kind of personal data, such as `email address`, or `secret`. */
+  kind: string;
+  /** For a secret, its type, such as `AWS Access Key`. */
+  detail?: string;
+  /** How many places, as a band: `1`, `2 to 4` or `5 or more`. */
+  places: string;
+  confidence: "low" | "medium" | "high";
+}
+
+/** What `POST /api/documentation/check` answers. */
+export interface DocumentCheck {
+  findings: DocumentFinding[];
+  /** The kinds to confirm: a secret's type stands for itself. */
+  kinds: string[];
+  /** What the check ran, to say alongside what it found. */
+  checked_with: string;
+}
+
+/** What the server finds in `document`'s text; nothing is kept. */
+export async function checkDocument(
+  document: AttachedDocument,
+  signal?: AbortSignal,
+): Promise<DocumentCheck> {
+  const response = await fetch("/api/documentation/check", {
+    method: "POST",
+    headers: { "content-type": "application/json", accept: "application/json" },
+    body: JSON.stringify({
+      name: document.name,
+      // The text read from a Word document or PDF is plain text, as the project keeps it.
+      media_type: document.data ? "text/plain" : document.media_type,
+      text: document.text,
+    }),
+    ...(signal ? { signal } : {}),
+  });
+  return json<DocumentCheck>(response);
+}
+
+/** One finding in words, never repeating what was found. */
+export function findingWords(finding: DocumentFinding): string {
+  const what = finding.kind === "secret" ? `A secret: ${finding.detail ?? "of some kind"}` : finding.kind;
+  const where = finding.places === "1" ? "in 1 place" : `in ${finding.places} places`;
+  return `${what[0]?.toUpperCase() ?? ""}${what.slice(1)}, ${where} (${finding.confidence} confidence)`;
 }
 
 /** What the conductor told a turn's agent of a document (`Message.project_documentation`). */

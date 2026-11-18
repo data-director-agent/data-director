@@ -107,6 +107,7 @@ export function turnBody(
             media_type: document.media_type,
             // A Word document or PDF is sent as the file, whose text the server reads again.
             ...(document.data ? { data: document.data } : { text: document.text }),
+            ...(document.confirmed?.length ? { confirmed: document.confirmed } : {}),
           },
         }
       : {}),
