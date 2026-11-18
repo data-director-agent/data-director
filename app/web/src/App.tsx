@@ -9,6 +9,7 @@ import { JourneyLanding } from "./components/journey/JourneyLanding";
 import { JourneyPage } from "./components/journey/JourneyPage";
 import { PolicyPage } from "./components/policy/PolicyPage";
 import { ProfilePage } from "./components/profile/ProfilePage";
+import { ProjectLanding } from "./components/project/ProjectLanding";
 import { ProjectPage } from "./components/project/ProjectPage";
 import { ProjectsPage } from "./components/project/ProjectsPage";
 import { SettingsPage } from "./components/settings/SettingsPage";
@@ -30,8 +31,9 @@ import {
 } from "./session/api";
 
 // The person's projects: `/projects`; a project's documents: `/projects/{project_id}`
-// (docs/specs/projects.md); its journey map: `/projects/{project_id}/journey`. `/journey`, in the
-// main navigation, opens the current project's journey map, or asks which project's.
+// (docs/specs/projects.md); its journey map: `/projects/{project_id}/journey`. `/project` and
+// `/journey`, in the main navigation, open the current project's page or journey map, or the list
+// of projects (asking which project's, for the map) when none is current.
 const PROJECT_PREFIX = "/projects/";
 const JOURNEY_SUFFIX = "/journey";
 
@@ -57,11 +59,11 @@ function projectRoute(path: string): { projectId: string | null; onJourney: bool
 }
 
 /** The main navigation's entry that `path` is under. A project's journey map is under Journey
- * map; its other pages are under Projects. */
+ * map; its other pages, the list of projects and `/project` are under Projects (`/project`). */
 function navCurrent(path: string): string {
   const { projectId, onJourney } = projectRoute(path);
   if (path === "/journey" || (projectId && onJourney)) return "/journey";
-  if (path === "/projects" || projectId) return "/projects";
+  if (path === "/project" || path === "/projects" || projectId) return "/project";
   const pages = [
     "/activity",
     "/agents",
@@ -81,6 +83,7 @@ const SESSION_PAGES: Record<string, (session: Session, query: string) => ReactNo
   "/profile": (session) => <ProfilePage session={session} />,
   "/settings": (session) => <SettingsPage session={session} />,
   "/activity": () => <ActivityLog />,
+  "/project": () => <ProjectLanding />,
   "/projects": () => <ProjectsPage />,
   "/journey": () => <JourneyLanding />,
 };
