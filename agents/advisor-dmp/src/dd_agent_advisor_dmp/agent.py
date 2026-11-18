@@ -25,8 +25,6 @@ machine-actionable plan (the RDA DMP Common Standard, #284) is TODO(#701).
 
 from __future__ import annotations
 
-from typing import Any
-
 from dd_agent_advisor_dmp.classes import (
     Discrepancy,
     DmpCommitments,
@@ -40,6 +38,7 @@ from dd_agent_advisor_dmp.match import (
     TemplateMatcher,
     differences_between,
     key,
+    model_use,
     residue_of,
 )
 from dd_agent_advisor_dmp.read_plan import PlanReader, Reading, TemplateReader, confirmed
@@ -61,8 +60,6 @@ from dd_sdk.contract.models import (
     OutcomeStatus,
     ReasonCode,
 )
-from dd_sdk.model import Usage
-from dd_sdk.prompts import ModelCallLog
 
 LIMITATIONS = (
     "It reads a plan the researcher attached only to propose its commitments, which count once "
@@ -161,7 +158,7 @@ class DmpChecker:
                 grounded_on=[ref],
             ),
             evidence=[input_evidence(ctx)],
-            **_model_use(model_id, matches.usage, matches.calls),
+            **model_use(model_id, matches.usage, matches.calls),
         )
 
     def _read(self, commitments: DmpCommitments, ctx: RunContext) -> AgentResult:
@@ -183,19 +180,8 @@ class DmpChecker:
                 grounded_on=[input_ref(ctx)],
             ),
             evidence=[input_evidence(ctx)],
-            **_model_use(reading.model_id, reading.usage, reading.calls),
+            **model_use(reading.model_id, reading.usage, reading.calls),
         )
-
-
-def _model_use(model_id: str | None, usage: Usage, calls: ModelCallLog | None) -> dict[str, Any]:
-    """What a result records of the model calls a matcher or reader made."""
-    return {
-        "model_id": model_id,
-        "input_tokens": usage.input_tokens,
-        "output_tokens": usage.output_tokens,
-        "model_calls": tuple(calls.calls) if calls is not None else (),
-        "prompts": dict(calls.prompts) if calls is not None else {},
-    }
 
 
 def _how_read(reading: Reading) -> str:
