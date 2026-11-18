@@ -141,6 +141,15 @@ async def test_github_refusing_the_app_is_a_named_failure(status: int) -> None:
 
 
 @sync
+async def test_a_refusal_names_the_repository_it_was_about() -> None:
+    client = httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(404)))
+    with pytest.raises(GitHubAuthError, match=REPO):
+        await app().token(client)
+    with pytest.raises(GitHubAuthError, match=REPO):
+        await app(installation="99").token(client)
+
+
+@sync
 async def test_an_unreachable_github_is_a_named_failure() -> None:
     def down(request: httpx.Request) -> httpx.Response:
         raise httpx.ConnectError("no route")
