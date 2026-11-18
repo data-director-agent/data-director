@@ -291,3 +291,101 @@ def test_a_plural_and_its_singular_tokenise_alike(plural: str, singular: str) ->
 @pytest.mark.parametrize("word", ["analysis", "glass", "status", "census", "gas"])
 def test_a_word_that_is_not_a_plural_is_left_alone(word: str) -> None:
     assert fold(word) == word
+
+
+# --- the generalist place and the tie-break (#1169) -------------------------------------------
+
+ZENODO, FIGSHARE, HARVARD, DRYAD, OSF, MENDELEY = (
+    "r3d100010468",
+    "r3d100010066",
+    "r3d100010051",
+    "r3d100000044",
+    "r3d100011137",
+    "r3d100011868",
+)
+
+
+def generalist(rid: str, *, commercial: bool = False, fee: bool = False) -> rank.Ranked:
+    record = repository(rid).model_copy(
+        update={
+            "name": f"A {rid}",  # every name sorts alike, so only the stated rules order them
+            "institutions": [
+                Institution(name="Operator", type="commercial" if commercial else "non-profit")
+            ],
+            "pid_systems": ["DOI"],
+            "data_upload_restrictions": ["feeRequired"] if fee else [],
+        }
+    )
+    return rank.Ranked(record, 0.4, ("A generalist repository.",), rank.GENERALIST)
+
+
+def discipline(rid: str, score: float) -> rank.Ranked:
+    return rank.Ranked(repository(rid), score, ("Matches the theme.",), rank.DISCIPLINE)
+
+
+def test_generalists_of_equal_score_are_ordered_by_the_stated_rule_not_by_name() -> None:
+    """re3data does not tell Zenodo, Harvard Dataverse and OSF apart, so `generalists`' order
+    settles them; a deposit fee and a commercial operator go last."""
+    shuffled = [
+        generalist(MENDELEY, commercial=True),
+        generalist(HARVARD),
+        generalist(FIGSHARE, commercial=True, fee=True),
+        generalist(DRYAD, fee=True),
+        generalist(OSF),
+        generalist(ZENODO),
+    ]
+    ordered = [r.record.re3data_id for r in sorted(shuffled, key=rank._order)]
+    assert ordered == [ZENODO, HARVARD, OSF, DRYAD, MENDELEY, FIGSHARE]
+
+
+def test_a_tie_between_generalists_is_said_to_follow_the_stated_preference() -> None:
+    out = rank._say_ties([generalist(ZENODO), generalist(HARVARD)])
+    assert all("stated order of preference" in r.reasons[-1] for r in out)
+
+
+def crowded() -> list[rank.Ranked]:
+    """More repositories of the discipline than the cap, then the generalists."""
+    cap = rank.config()["max_candidates"]
+    matches = [discipline(f"r3d1000003{n:02d}", 0.9 - n / 100) for n in range(cap + 1)]
+    return [*matches, generalist(ZENODO), generalist(HARVARD)]
+
+
+def test_a_generalist_keeps_its_place_however_many_repositories_match_the_discipline() -> None:
+    cap = rank.config()["max_candidates"]
+    kept = rank._cap(crowded())
+    assert len(kept) == cap
+    assert [r.fit for r in kept].count(rank.GENERALIST) == 1
+    assert kept[-1].record.re3data_id == ZENODO
+    assert "keeps for a generalist repository" in kept[-1].reasons[-1]
+    # The discipline's own matches gave up only their weakest place, and say nothing of it.
+    assert all(len(r.reasons) == 1 for r in kept[:-1])
+
+
+def test_without_the_reserve_the_discipline_crowds_out_every_generalist(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The reserved place, not the scores, is what keeps the generalist."""
+    unreserved = {**rank.config(), "reserve": {}}
+    monkeypatch.setattr(rank, "config", lambda: unreserved)
+    assert all(r.fit == rank.DISCIPLINE for r in rank._cap(crowded()))
+
+
+def test_a_generalist_already_within_the_cap_is_not_said_to_be_kept() -> None:
+    kept = rank._cap([discipline("r3d100000301", 0.9), generalist(ZENODO)])
+    assert [len(r.reasons) for r in kept] == [1, 1]
+
+
+@pytest.mark.parametrize(
+    ("change", "fault"),
+    [
+        ({"reserve": {"specialist": 1}}, "not in order"),
+        ({"reserve": {"generalist": 6}}, "more places"),
+        ({"tie_break": {"popularity": "yes"}}, "unknown question"),
+        ({"tie_break": {"commercial": "unstated"}}, "prefer yes or no"),
+    ],
+)
+def test_a_ranking_that_cannot_be_applied_as_written_is_refused(
+    change: dict[str, object], fault: str
+) -> None:
+    with pytest.raises(ValueError, match=fault):
+        rank.check({**rank.config(), **change})

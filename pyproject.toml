@@ -316,6 +316,7 @@ markers = [
   "requirement(*ids): the requirement identifiers this test substantiates (see docs/requirements.yaml)",
   "postgres: needs the PostgreSQL database DD_TEST_POSTGRES names; skipped when it is unset",
   "gateway: needs the LiteLLM gateway DD_TEST_GATEWAY names and a key in DD_TEST_GATEWAY_KEY; skipped when either is unset",
+  "re3data: needs the full re3data registry that `uv run dd-re3data fetch` builds; skipped when it is absent",
 ]
 
 # Coverage of the packages under test, measured over the one workspace test session. The tests
