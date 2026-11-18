@@ -31,6 +31,10 @@ dependencies = [
   "rdflib>=7.1",
   # AG-UI events for a browser, behind dd_harness.transport.agui (docs/specs/transport.md).
   "ag-ui-protocol>=1.0.0,<1.1",
+  # The text of an attached Word or PDF document, behind dd_harness.projects.extract
+  # (docs/specs/projects.md, docs/specs/dependencies.md).
+  "pypdf>=6.21.4,<8",
+  "python-docx>=1.2,<2",
 ]
 
 [project.scripts]

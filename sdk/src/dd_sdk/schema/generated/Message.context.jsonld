@@ -68,6 +68,21 @@
       "biography": {
          "@id": "https://w3id.org/data-director/biography"
       },
+      "commitment_access": {
+         "@id": "https://w3id.org/data-director/commitment_access"
+      },
+      "commitment_document": {
+         "@id": "https://w3id.org/data-director/commitment_document"
+      },
+      "commitment_licence": {
+         "@id": "https://w3id.org/data-director/commitment_licence"
+      },
+      "commitment_quote": {
+         "@id": "https://w3id.org/data-director/commitment_quote"
+      },
+      "commitment_repository": {
+         "@id": "https://w3id.org/data-director/commitment_repository"
+      },
       "country": {
          "@id": "https://w3id.org/data-director/country"
       },
@@ -92,6 +107,9 @@
       },
       "documentation_size": {
          "@id": "https://w3id.org/data-director/documentation_size"
+      },
+      "documentation_source_media_type": {
+         "@id": "https://w3id.org/data-director/documentation_source_media_type"
       },
       "end_year": {
          "@id": "https://w3id.org/data-director/end_year"

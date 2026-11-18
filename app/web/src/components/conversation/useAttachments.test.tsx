@@ -48,7 +48,9 @@ function drag(files: File[]) {
 describe("useAttachments", () => {
   it("opens a chosen document to be checked, by its name", async () => {
     const { result } = render();
-    await act(() => result.current.attachFile(new File([PROTOCOL], "protocol.md")));
+    await act(() =>
+      result.current.attachFile(new File([PROTOCOL], "protocol.md")),
+    );
     expect(result.current.pendingDocument?.name).toBe("protocol.md");
     expect(result.current.pendingInventory).toBeNull();
     expect(result.current.carries).toBe(false);
@@ -57,25 +59,96 @@ describe("useAttachments", () => {
   it("takes no document where the profile refuses them, but still an inventory", async () => {
     const { result } = render(false);
     expect(result.current.documents).toBe(false);
-    await act(() => result.current.attachFile(new File([PROTOCOL], "protocol.md")));
+    await act(() =>
+      result.current.attachFile(new File([PROTOCOL], "protocol.md")),
+    );
     expect(result.current.pendingDocument).toBeNull();
     expect(result.current.error).toBeTruthy();
-    await act(() => result.current.attachFile(new File([INVENTORY], "inventory.json")));
+    await act(() =>
+      result.current.attachFile(new File([INVENTORY], "inventory.json")),
+    );
     expect(result.current.pendingInventory?.fileCount).toBe(2);
+  });
+
+  it("sends a PDF to be read on the server and opens its text to be checked", async () => {
+    const fetched = vi.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({ name: "plan.pdf", text: PROTOCOL, size: 50 }),
+        ),
+      ),
+    );
+    vi.stubGlobal("fetch", fetched);
+    onTestFinished(() => {
+      vi.unstubAllGlobals();
+    });
+    const { result } = render();
+    await act(() =>
+      result.current.attachFile(new File(["%PDF-1.4"], "plan.pdf")),
+    );
+    expect(fetched).toHaveBeenCalledWith(
+      "/api/documentation/extract",
+      expect.anything(),
+    );
+    expect(result.current.pendingDocument?.text).toBe(PROTOCOL);
+    expect(result.current.pendingDocument?.data).toBeTruthy();
+  });
+
+  it("says why the server would not read a PDF, and opens nothing", async () => {
+    const problem = {
+      title: "Data Director could not read this document",
+      status: 400,
+      detail: "no text",
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(new Response(JSON.stringify(problem), { status: 400 })),
+      ),
+    );
+    onTestFinished(() => {
+      vi.unstubAllGlobals();
+    });
+    const { result } = render();
+    await act(() =>
+      result.current.attachFile(new File(["%PDF-1.4"], "scan.pdf")),
+    );
+    expect(result.current.pendingDocument).toBeNull();
+    expect(result.current.error).toContain("scan.pdf");
+  });
+
+  it("refuses a PDF over the size a project keeps without sending it", async () => {
+    const fetched = vi.fn();
+    vi.stubGlobal("fetch", fetched);
+    onTestFinished(() => {
+      vi.unstubAllGlobals();
+    });
+    const { result } = render();
+    const big = new File([new Uint8Array(1024 * 1024 + 1)], "plan.pdf");
+    await act(() => result.current.attachFile(big));
+    expect(fetched).not.toHaveBeenCalled();
+    expect(result.current.pendingDocument).toBeNull();
+    expect(result.current.error).toContain("MB");
   });
 
   it("opens any other file as an inventory to be checked", async () => {
     const { result } = render();
-    await act(() => result.current.attachFile(new File([INVENTORY], "inventory.json")));
+    await act(() =>
+      result.current.attachFile(new File([INVENTORY], "inventory.json")),
+    );
     expect(result.current.pendingInventory?.fileCount).toBe(2);
     expect(result.current.pendingDocument).toBeNull();
   });
 
   it("says why a file cannot be attached, and attaches nothing", async () => {
     const { result } = render();
-    await act(() => result.current.attachFile(new File(["  \n"], "protocol.md")));
+    await act(() =>
+      result.current.attachFile(new File(["  \n"], "protocol.md")),
+    );
     expect(result.current.error).toBeTruthy();
-    await act(() => result.current.attachFile(new File(["not json"], "inventory.json")));
+    await act(() =>
+      result.current.attachFile(new File(["not json"], "inventory.json")),
+    );
     expect(result.current.error).toBeTruthy();
     expect(result.current.pendingDocument).toBeNull();
     expect(result.current.pendingInventory).toBeNull();
@@ -86,7 +159,9 @@ describe("useAttachments", () => {
   it("attaches a checked inventory and document, and removes them", () => {
     const { result, announce, box } = render();
     act(() => result.current.confirmInventory(readInventory(INVENTORY, null)));
-    act(() => result.current.confirmDocument(readDocument(PROTOCOL, "protocol.md")));
+    act(() =>
+      result.current.confirmDocument(readDocument(PROTOCOL, "protocol.md")),
+    );
     expect(result.current.inventory?.fileCount).toBe(2);
     expect(result.current.document?.name).toBe("protocol.md");
     expect(result.current.carries).toBe(true);
@@ -120,7 +195,9 @@ describe("useAttachments", () => {
     const { result } = render();
     act(() => result.current.onDragOver(drag([])));
     expect(result.current.dropping).toBe(false);
-    act(() => result.current.onDragOver(drag([new File([PROTOCOL], "protocol.md")])));
+    act(() =>
+      result.current.onDragOver(drag([new File([PROTOCOL], "protocol.md")])),
+    );
     expect(result.current.dropping).toBe(true);
     act(() => result.current.onDragLeave());
     expect(result.current.dropping).toBe(false);

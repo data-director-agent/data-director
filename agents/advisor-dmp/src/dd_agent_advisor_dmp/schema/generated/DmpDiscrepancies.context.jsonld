@@ -10,11 +10,29 @@
       "GroundingRef": {
          "@id": "https://w3id.org/data-director/GroundingRef"
       },
+      "ProjectFact": {
+         "@id": "https://w3id.org/data-director/ProjectFact"
+      },
       "Reconciliation": {
          "@id": "https://w3id.org/data-director/agents/dmp/Reconciliation"
       },
       "aspect": {
          "@id": "https://w3id.org/data-director/agents/dmp/aspect"
+      },
+      "commitment_access": {
+         "@id": "https://w3id.org/data-director/commitment_access"
+      },
+      "commitment_document": {
+         "@id": "https://w3id.org/data-director/commitment_document"
+      },
+      "commitment_licence": {
+         "@id": "https://w3id.org/data-director/commitment_licence"
+      },
+      "commitment_quote": {
+         "@id": "https://w3id.org/data-director/commitment_quote"
+      },
+      "commitment_repository": {
+         "@id": "https://w3id.org/data-director/commitment_repository"
       },
       "committed": {
          "@id": "https://w3id.org/data-director/agents/dmp/committed"
@@ -36,14 +54,55 @@
       "dropped": {
          "@id": "https://w3id.org/data-director/agents/dmp/dropped"
       },
+      "fact_check_kind": {
+         "@id": "https://w3id.org/data-director/fact_check_kind"
+      },
+      "fact_crossref_funder_id": {
+         "@id": "https://w3id.org/data-director/fact_crossref_funder_id",
+         "@type": "@id"
+      },
+      "fact_file_path": {
+         "@id": "https://w3id.org/data-director/fact_file_path"
+      },
+      "fact_funder_name": {
+         "@id": "https://w3id.org/data-director/fact_funder_name"
+      },
+      "fact_funder_ror": {
+         "@id": "https://w3id.org/data-director/fact_funder_ror",
+         "@type": "@id"
+      },
+      "fact_kind": {
+         "@id": "https://w3id.org/data-director/fact_kind"
+      },
+      "fact_re3data_id": {
+         "@id": "https://w3id.org/data-director/fact_re3data_id"
+      },
+      "fact_repository_name": {
+         "@id": "https://w3id.org/data-director/fact_repository_name"
+      },
+      "fact_required_by": {
+         "@id": "https://w3id.org/data-director/fact_required_by"
+      },
+      "fact_subject": {
+         "@id": "https://w3id.org/data-director/fact_subject"
+      },
+      "file_decision": {
+         "@id": "https://w3id.org/data-director/file_decision"
+      },
       "grounded_on": {
          "@id": "https://w3id.org/data-director/grounded_on",
          "@type": "@id"
+      },
+      "licence_id": {
+         "@id": "https://w3id.org/data-director/licence_id"
       },
       "limitations": {
          "@id": "https://w3id.org/data-director/agents/dmp/limitations"
       },
       "linkml": "https://w3id.org/linkml/",
+      "location_precision": {
+         "@id": "https://w3id.org/data-director/location_precision"
+      },
       "message": {
          "@id": "https://w3id.org/data-director/agents/dmp/message"
       },
@@ -52,6 +111,13 @@
       },
       "planned": {
          "@id": "https://w3id.org/data-director/agents/dmp/planned"
+      },
+      "proposed_because": {
+         "@id": "https://w3id.org/data-director/proposed_because"
+      },
+      "proposed_facts": {
+         "@id": "https://w3id.org/data-director/proposed_facts",
+         "@type": "@id"
       },
       "prov": "http://www.w3.org/ns/prov#",
       "reason": {
@@ -64,6 +130,12 @@
       "schema": "http://schema.org/",
       "schema_class": {
          "@id": "https://w3id.org/data-director/schema_class"
+      },
+      "sensitive_subject": {
+         "@id": "https://w3id.org/data-director/sensitive_subject"
+      },
+      "sensitivity_decision": {
+         "@id": "https://w3id.org/data-director/sensitivity_decision"
       },
       "shex": "http://www.w3.org/ns/shex#",
       "source_id": {

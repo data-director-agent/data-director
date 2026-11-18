@@ -13,6 +13,8 @@ import {
   NotADocument,
   isDocumentName,
   readDocument,
+  readSource,
+  sourceMediaType,
 } from "../../conversation/documentation";
 import {
   type AttachedInventory,
@@ -103,12 +105,21 @@ export function useAttachments(
   async function attachFile(file: File | undefined) {
     if (!file) return;
     try {
-      const content = await file.text();
-      if (!isDocumentName(file.name)) attachInventory(content, file.name);
-      else if (documents) attachDocument(content, file.name);
-      else setError(DOCUMENTS_REFUSED);
+      const source = sourceMediaType(file.name);
+      if (!isDocumentName(file.name)) attachInventory(await file.text(), file.name);
+      else if (!documents) setError(DOCUMENTS_REFUSED);
+      else if (source === null) attachDocument(await file.text(), file.name);
+      else {
+        // A Word document or PDF is read on the server, inside the deployment (#961).
+        setPendingDocument(await readSource(file, source));
+        setError(null);
+      }
     } catch (e) {
-      setError(`Data Director could not read ${file.name}: ${errorMessage(e)}`);
+      setError(
+        e instanceof NotADocument
+          ? e.message
+          : `Data Director could not read ${file.name}: ${errorMessage(e)}`,
+      );
     }
   }
 

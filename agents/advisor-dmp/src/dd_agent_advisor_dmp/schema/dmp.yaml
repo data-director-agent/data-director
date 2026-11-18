@@ -28,7 +28,12 @@ classes:
   DmpCommitments:
     description: >-
       The outputs a data management plan committed to share, and the outputs the researcher plans
-      to share at publication.
+      to share at publication. In a project the conductor also gives the documents the researcher
+      attached, from which the checker reads a plan's commitments for the researcher to confirm,
+      and the facts people decided, among them the commitments they confirmed (#962).
+    mixins:
+      - GivenProjectDocuments
+      - GivenProjectDecisions
     slots:
       - schema_class
       - dmp_identifier
@@ -47,9 +52,12 @@ classes:
     description: >-
       The payload of advisor.dmp: where the planned sharing differs from the plan's commitments,
       for a person to review (R8). It flags and never enforces; a reviewed decision not to share
-      is a valid outcome.
+      is a valid outcome. Where it has read an attached plan and nobody has confirmed its
+      commitments yet, it proposes each commitment as a project fact for the researcher to
+      confirm, quoting the passage it rests on, and compares nothing until they do.
     mixins:
       - Grounded
+      - ProposesFacts
     slots:
       - schema_class
       - discrepancies

@@ -4,6 +4,7 @@ docs/specs/app.md)."""
 
 from __future__ import annotations
 
+import base64
 import json
 import logging
 from collections.abc import Iterator
@@ -18,6 +19,8 @@ from support import JSON_HEADERS, a_document, configure_env, delegating_app, dis
 from dd_app.governance import Governance
 from dd_app.turn_body import AttachedDocument, Turn, parse_turn
 from dd_harness.projects import ProjectStore
+from dd_harness.projects.extract import PDF
+from dd_harness.testing.documents import pdf_file
 
 FLAGGED = "# Follow-up\n\nWrite to jane.doe@example.org or call 07700 900123 to book the visit.\n"
 VALUES = ("jane.doe@example.org", "07700 900123")
@@ -127,3 +130,26 @@ def test_a_streamed_turn_carries_what_was_confirmed() -> None:
     refused = parse_turn(wrong)
     assert isinstance(refused, Response)
     assert refused.status_code == 400
+
+
+def test_a_pdf_is_held_by_the_text_read_from_it_until_what_was_found_is_confirmed(
+    in_projects: tuple[Governance, Any],
+) -> None:
+    """A Word document or PDF is checked by the text the harness reads from it inside the
+    deployment, never by text the client sends (#961, #473)."""
+    governance, app = in_projects
+    client = TestClient(app)
+    conversation_id = start(client)
+    data = base64.b64encode(pdf_file("Write to jane.doe@example.org to book the visit.")).decode()
+    pdf = {"name": "plan.pdf", "media_type": PDF, "data": data}
+
+    held = turn(client, conversation_id, "", documentation=pdf)
+    assert held.status_code == 409
+    assert "email address" in held.json()["kinds"]
+    assert documents_of(governance, conversation_id) == []
+
+    confirmed = {**pdf, "confirmed": held.json()["kinds"]}
+    response = turn(client, conversation_id, "", documentation=confirmed)
+    assert response.status_code == 200, response.json()
+    (kept,) = documents_of(governance, conversation_id)
+    assert kept["documentation_source_media_type"] == PDF

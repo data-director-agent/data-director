@@ -85,6 +85,14 @@ export function DocumentReviewDialog({
       {pending && (
         <>
           <div className="callout">
+            {pending.data && (
+              <p>
+                Data Director read this text from the{" "}
+                {pending.media_type === "application/pdf" ? "PDF" : "Word document"} inside this
+                deployment. The project keeps the file beside the text, and agents are given the
+                text.
+              </p>
+            )}
             <p>
               <strong>{pending.name}</strong> ({describeSize(pending.size)}) will be stored in the
               project, where anyone working on the project can read it. The Documentation Editor

@@ -7,6 +7,10 @@ Data Director keeps it in your project.
 ## What to attach
 
 - Plain text (`.txt`) or Markdown (`.md`) files, of at most 256 KB.
+- Word documents (`.docx`) and PDFs, of at most 1 MB, such as a data management plan exported
+  from DMPonline, DMPTool or DSW. Data Director reads their text inside your institution's
+  deployment and keeps the file beside it. A scanned PDF that holds only images of pages cannot
+  be read: export the document again with its text, or save it as a Word or text file.
 - Documents that describe how the data were made, what the variables mean or how the files are
   organised.
 

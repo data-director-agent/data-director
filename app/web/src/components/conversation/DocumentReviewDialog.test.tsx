@@ -101,4 +101,48 @@ describe("DocumentReviewDialog", () => {
     expect(await within(checkSection()).findByRole("checkbox")).not.toBeChecked();
     expect(within(dialog()).getByRole("button", { name: "Attach anyway" })).toBeDisabled();
   });
+
+  describe("names the file a document's text was read from", () => {
+    const TEXT = "Sediment cores were taken monthly.";
+    const source = (pending: AttachedDocument) => {
+      render(
+        <DocumentReviewDialog
+          pending={pending}
+          onAttach={vi.fn()}
+          onDiscard={vi.fn()}
+          check={() => Promise.resolve(NOTHING)}
+        />,
+      );
+      return dialog();
+    };
+
+    it("a PDF", () => {
+      const shown = source({
+        name: "plan.pdf",
+        media_type: "application/pdf",
+        text: TEXT,
+        size: TEXT.length,
+        data: "JVBERi0=",
+      });
+      expect(shown).toHaveTextContent("PDF");
+      expect(shown).toHaveTextContent(TEXT);
+    });
+
+    it("a Word document", () => {
+      const shown = source({
+        name: "plan.docx",
+        media_type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        text: TEXT,
+        size: TEXT.length,
+        data: "UEsDBA==",
+      });
+      expect(shown).toHaveTextContent("Word document");
+    });
+
+    it("but none for a document attached as text", () => {
+      const shown = source(NOTES);
+      expect(shown).not.toHaveTextContent("Word document");
+      expect(shown).not.toHaveTextContent("PDF");
+    });
+  });
 });

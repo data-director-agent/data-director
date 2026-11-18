@@ -53,6 +53,11 @@ export interface Ticket {
   expires_at: string;
 }
 
+/** What the broker answers when it refuses: a reason code that `reasonText` puts in words. */
+export interface RawRefusal {
+  reason: string;
+}
+
 /** The broker refused or failed, with its reason code. */
 export class AccountRefused extends Error {
   constructor(readonly reason: string) {
@@ -131,7 +136,7 @@ async function broker(method: string, body?: unknown, signal?: AbortSignal): Pro
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   if (!response.ok) {
-    const refused = (await response.json().catch(() => null)) as { reason?: string } | null;
+    const refused = (await response.json().catch(() => null)) as Partial<RawRefusal> | null;
     throw new AccountRefused(refused?.reason ?? "broker-error");
   }
   return response;
