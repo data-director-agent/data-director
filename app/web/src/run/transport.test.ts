@@ -3,10 +3,12 @@ import { renderHook } from "@testing-library/react";
 
 import { CassetteAgent, parseCassette } from "./cassette";
 import { READ_BY_NAME } from "./events";
+import { reduceAll } from "./reduce";
 import {
   cassetteTransport,
   httpTransport,
   streamRun,
+  turnCancelUrl,
   turnStreamUrl,
   useRunTransport,
 } from "./transport";
@@ -102,7 +104,54 @@ describe("CassetteAgent", () => {
   });
 });
 
+describe("cancelling a replay", () => {
+  it("ends it as the harness ends a cancelled run, with the running step left open", async () => {
+    vi.useFakeTimers();
+    try {
+      const events = parseCassette(CASSETTES["succeeded.jsonl"] ?? "");
+      const transport = cassetteTransport(events, { paceMs: 100 });
+      const seen: BaseEvent[] = [];
+      const { done } = streamRun(transport.agentFor("c1"), TURN, (event) => seen.push(event));
+      await vi.advanceTimersByTimeAsync(300);
+      await transport.cancel("c1", "run");
+      await done;
+      const last = seen[seen.length - 1] as BaseEvent & { outcome?: { type: string } };
+      expect(last.type).toBe(EventType.RUN_FINISHED);
+      expect(last.outcome).toEqual({ type: "cancelled" });
+      expect(seen.length).toBeLessThan(events.length);
+      expect(reduceAll(seen).phase).toBe("cancelled");
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does nothing once the replay has ended", async () => {
+    const events = parseCassette(CASSETTES["succeeded.jsonl"] ?? "");
+    const transport = cassetteTransport(events);
+    const seen: BaseEvent[] = [];
+    await streamRun(transport.agentFor("c1"), TURN, (event) => seen.push(event)).done;
+    await transport.cancel("c1", "run");
+    expect(seen).toHaveLength(events.length);
+  });
+});
+
 describe("the transport", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("cancels a live turn at its cancel route, and takes a turn already ended as done", async () => {
+    const fetch = vi.fn(() => Promise.resolve(new Response(null, { status: 404 })));
+    vi.stubGlobal("fetch", fetch);
+    await expect(httpTransport.cancel("conv/1", "r 1")).resolves.toBeUndefined();
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/conversations/conv%2F1/turns/r%201/cancel",
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(turnCancelUrl("c", "r")).toBe("/api/conversations/c/turns/r/cancel");
+    fetch.mockResolvedValueOnce(new Response(null, { status: 500 }));
+    await expect(httpTransport.cancel("c", "r")).rejects.toThrow();
+  });
+
   it("sends the turn in the conversation's thread", async () => {
     const agent = new CassetteAgent({ events: [], threadId: "c1" });
     const run = vi.spyOn(agent, "run");

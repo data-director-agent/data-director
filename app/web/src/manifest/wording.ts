@@ -7,7 +7,7 @@
  * agent retrieved anything (docs/specs/grounding.md).
  */
 
-import type { StageState } from "../run/stages";
+import type { StepState } from "../run/reduce";
 import type { OutcomeStatus } from "../run/types";
 
 export { className, fieldName } from "@data-director/agent-view";
@@ -96,6 +96,10 @@ export const MODEL_ACCOUNT: Record<"own" | "deployment", string> = {
   deployment: "this deployment's AI account",
 };
 
+/** A stage's state as the run view draws it: the reducer's, with a check's finish told as passed
+ * or failed by its report. */
+export type StageState = StepState | "passed" | "failed";
+
 export const STAGE_STATE: Record<
   StageState,
   { label: string; tone: "ok" | "warn" | "danger" | "undeclared" | "plain" }
@@ -107,6 +111,4 @@ export const STAGE_STATE: Record<
   stopped: { label: "Stopped", tone: "warn" },
   finished: { label: "Done", tone: "ok" },
   "not-reached": { label: "Not reached", tone: "plain" },
-  "nothing-to-check": { label: "Nothing to check", tone: "plain" },
-  "not-built": { label: "Not built yet", tone: "undeclared" },
 };

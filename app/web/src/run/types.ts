@@ -6,8 +6,7 @@
  * know is ignored, not refused.
  *
  * TODO(#69): generate these from the contract's JSON Schema. The run's AG-UI event stream is
- * read by `reduce.ts` (#947); the one-shot turn goes when the run view draws from that stream
- * (#949).
+ * read by `reduce.ts`.
  */
 
 import type { Envelope, OutcomeStatus } from "@data-director/agent-view";

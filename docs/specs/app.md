@@ -432,15 +432,36 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   stream is open (`202`), and answers `404` for any other; the stream ends with a cancelled
   `RUN_FINISHED` and the run is stored as `run-cancelled` ([Transport and tracing](transport.md),
   Cancelling). `POST /api/conversations/{id}/turns`, which answers when the turn has ended, is
-  kept beside it, and the shell still calls it until the run view is drawn from the stream, with
-  Cancel and the activity log, TODO(#949).
+  kept beside it for scripting and tests; the browser does not call it.
 - **The shell reads a run's stream through `@ag-ui/client`**, one way for a live run and a recorded
   one: an `HttpAgent` posts the turn to its stream route, and a `CassetteAgent` replays a cassette
   from `app/web/cassettes`, all at once or paced (`run/transport.ts`, `run/cassette.ts`). Tests and
   fixtures provide their own through a React context, as they do for the API. The shell reads the
   raw events and the run reducer checks them, keeping an unrecognised or malformed event as such:
   `runAgent`'s own checks would fail a cancelled run, whose stopped stage the harness leaves open,
-  TODO(#1007).
+  TODO(#1007). A refusal before the stream opens is raised as the JSON route's would be (a
+  conflict, a gateway error, no response), so the page says why in the same words; a turn the
+  stream refuses with `RUN_ERROR` before `RUN_STARTED` ran nothing, and its message goes back to
+  the message box as any refused turn's does.
+- **A turn's run is drawn live** in the transcript, below the message sent, from the reducer's
+  state and nothing else (`components/run/LiveRun.tsx`): the plan's stages, each with a word for
+  its state, a finished check told as passed or failed by its report, and **Cancel the run**
+  while it runs. Cancel asks the server to cancel the run and reads on until the stream says it
+  was cancelled. A run that finished is then shown as a turn, read back from the server, and
+  focus returns to the message box. One that was cancelled, failed after it started, or was
+  interrupted (the stream closed before the run ended, so no finish is invented) keeps its place
+  with a screen of its own until the next message, and focus moves to that screen's heading; the
+  conversation is read back beside it, and once the server has stored the turn the message is not
+  shown twice. Events of a type or `CUSTOM` name the shell does not know are counted in one
+  collapsed "Unrecognised events (n)" group; a malformed event is shown as an error, and the run
+  carries on. A stored run (a delegated child's card, or `?run=`) shows its outcome only: a
+  child has no stages of its own.
+- **The activity log** (`components/workspace/ActivityLog.tsx`) lists each step of each run this
+  tab has streamed, as it happens, newest run first, from the same reducer state
+  (`run/activity.tsx`): steps, checks' reports, tool calls and delegated children, each child
+  linked to its record. The server keeps a run's record, not its events, so the log holds only
+  what this tab has seen since it was opened, and says so. It is not a live region: the run view
+  says the run's progress once, through the announcer.
 - **Outcomes, evidence and the checks' reports** are rendered as the [Contract](contract.md) and
   [Evidence and grounding](grounding.md) define them. A drafted document in a run's result is
   shown as a document: rendered when its media type is `text/markdown`, tables included, and
@@ -731,8 +752,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   answers `/api` from fixtures.
 - TODO(#244): whether the shell's tests feed `CONFORMANCE.md`; until then they carry no
   requirement marker and C6 rests on review.
-- TODO(#69): the client transport (#946), and the run view and activity log drawn from the
-  stream (#949), which says its progress through the announcer (`useRunAnnouncements`).
+- TODO(#69): keyboard, axe and reflow journeys for the live run view, with Cancel (#950).
   Streaming a reply's text is TODO(#159).
 - TODO(#72, #73): the review gate, and how the conversation docks once there is a working
   surface. A suspended child's card says it is waiting for review.

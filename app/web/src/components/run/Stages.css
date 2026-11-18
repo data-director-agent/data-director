@@ -37,15 +37,7 @@
     justify-self: start;
   }
 
-  .stage-detail {
-    grid-column: 2 / -1;
-    color: var(--color-text-muted);
-    font-size: var(--font-size-small);
-  }
-
-  .stage-not-built .stage-name,
   .stage-not-reached .stage-name,
-  .stage-nothing-to-check .stage-name,
   .stage-waiting .stage-name {
     color: var(--color-text-muted);
     font-weight: var(--font-weight-normal);
@@ -57,8 +49,7 @@
     }
 
     .stage .status,
-    .stage .stage-state,
-    .stage-detail {
+    .stage .stage-state {
       grid-column: 2;
     }
   }
