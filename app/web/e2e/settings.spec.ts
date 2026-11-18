@@ -210,10 +210,6 @@ test("preferences apply at once, survive a reload and can match the device", asy
   await expect(html).toHaveAttribute("data-theme", "light");
   await page.getByRole("radio", { name: "Match my device" }).first().check();
   await expect(html).toHaveAttribute("data-theme", "dark");
-  await expect(page.getByRole("button", { name: "Dark mode" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
   await page.emulateMedia({ colorScheme: "light" });
   await expect(html).toHaveAttribute("data-theme", "light");
 

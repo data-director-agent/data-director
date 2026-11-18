@@ -44,7 +44,7 @@ async function gotoDirectory(page: Page) {
   await page.goto("/agents");
 }
 
-/** Choose the scheme as the banner's switch would, before the page loads. */
+/** Choose the scheme as the Settings page would, before the page loads. */
 async function useScheme(page: Page, scheme: "light" | "dark") {
   await page.addInitScript((value) => localStorage.setItem("dd-theme", value), scheme);
 }
@@ -660,7 +660,7 @@ for (const width of [1280, 320]) {
     await page.setViewportSize({ width, height: 800 });
     await serveConversation(page);
     const nav = page.getByRole("navigation", { name: "Main" });
-    const parts = [nav, page.getByRole("button", { name: "Dark mode" })];
+    const parts = [nav, page.getByRole("link", { name: "Settings" })];
     // Where each part is on the page, not in the viewport: selecting a tab below the fold
     // scrolls the page, which moves nothing in it.
     const boxes = async () => {
@@ -833,12 +833,10 @@ test("light by default whatever the system prefers; the dark choice survives a r
   const background = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
   expect(await background()).toBe("rgb(255, 255, 255)");
 
-  await page.getByRole("button", { name: "Dark mode" }).click();
+  await expect(page.getByRole("button", { name: "Dark mode" })).toHaveCount(0);
+  await page.getByRole("link", { name: "Settings" }).click();
+  await page.getByRole("radio", { name: "Dark", exact: true }).check();
   await expect(html).toHaveAttribute("data-theme", "dark");
-  await expect(page.getByRole("button", { name: "Dark mode" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
   await page.reload();
   await expect(html).toHaveAttribute("data-theme", "dark");
   expect(await background()).not.toBe("rgb(255, 255, 255)");

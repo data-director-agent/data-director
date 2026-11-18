@@ -299,7 +299,7 @@ so and links to the agent directory; it does not fall back to another agent.
 ## Layout and styles
 
 Every page is the same frame (`web/src/components/frame/Frame.tsx`): a banner holding the name,
-the main navigation, who is signed in and the dark mode switch, identical on every page so that
+the main navigation, who is signed in and the settings link, identical on every page so that
 nothing in it moves, and one `main`. Each page opens with a `PageHeader` (its `h1` and what the reader needs
 before the content). What a page acts for is said in the page, not in the banner.
 
