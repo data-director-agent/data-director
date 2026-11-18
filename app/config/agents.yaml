@@ -10,8 +10,10 @@ agents:
     url: http://127.0.0.1:8102
   - name: advisor-standards
     url: http://127.0.0.1:8105
+    model_broker: true
   - name: advisor-policy
     url: http://127.0.0.1:8108
+    model_broker: true
   - name: advisor-repository
     url: http://127.0.0.1:8109
   - name: advisor-ethics
@@ -24,6 +26,7 @@ agents:
     url: http://127.0.0.1:8113
   - name: advisor-documentation
     url: http://127.0.0.1:8114
+    model_broker: true
   - name: advisor-rights
     url: http://127.0.0.1:8115
   - name: advisor-linking
@@ -41,3 +44,4 @@ agents:
   - name: orchestrator-model
     url: http://127.0.0.1:8107
     timeout_s: 300
+    model_broker: true
