@@ -18,6 +18,7 @@
 #   DD_DEPLOY_BRANCH      main
 #   DD_DEPLOY_CHECK       CI passed       the check run that must have succeeded on the commit
 #   DD_DEPLOY_ROOT        /opt/data-director
+#   UV_PYTHON_INSTALL_DIR DD_DEPLOY_ROOT/python   where uv installs Python, for every service's user
 #   DD_DEPLOY_KEEP        3               release directories kept, the live one included
 #   DD_DEPLOY_ABOUT_URL   http://127.0.0.1:7860/api/about   where the app names its commit
 #   GITHUB_TOKEN          (unset)         only for a private repository or the API rate limit
@@ -38,6 +39,9 @@ BRANCH="${DD_DEPLOY_BRANCH:-main}"
 CHECK="${DD_DEPLOY_CHECK:-CI passed}"
 ROOT="${DD_DEPLOY_ROOT:-/opt/data-director}"
 KEEP="${DD_DEPLOY_KEEP:-3}"
+# Where uv installs Python, which each release's .venv links to: readable by every service's user,
+# the model broker's among them, unlike the deploy user's home (deploy/install.sh).
+export UV_PYTHON_INSTALL_DIR="${UV_PYTHON_INSTALL_DIR:-$ROOT/python}"
 # /api/about answers without a session, so the check works with sign-in on (app/README.md).
 ABOUT_URL="${DD_DEPLOY_ABOUT_URL:-http://127.0.0.1:7860/api/about}"
 # Seconds the app has to report the new commit after a restart: the agents get 60 (wait-for-ports.sh) and the

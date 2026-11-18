@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import re
+import stat
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -36,6 +37,7 @@ DEPLOY_UNIT = "data-director-deploy.service"
 ADMIN_UNIT = "data-director-admin.service"
 BACKUP_UNIT = "data-director-backup.service"
 BACKUP_TIMER = "data-director-backup.timer"
+BROKER_UNIT = "data-director-model-broker.service"
 # A backup older than this means the nightly one has stopped (deploy/README.md, "Backups").
 BACKUP_MAX_AGE = timedelta(days=2)
 BACKUP_NAME = re.compile(r"^\d{8}T\d{6}Z$")
@@ -172,6 +174,32 @@ class Doctor(SettingsChecks):
                     f"{unit} is not an agent in agents.yaml",
                     f"sudo systemctl disable --now '{unit}'; sudo systemctl reset-failed '{unit}'",
                 )
+
+    # --- The model broker ----------------------------------------------------------------------
+
+    def broker(self) -> None:
+        """The broker runs as a user of its own, so every directory on the way to the release's
+        interpreter must let others through (docs/guide/operations/model-broker.md)."""
+        state = systemctl_show(self.system, [BROKER_UNIT], ["UnitFileState"])
+        release = self.vm.live_release()
+        if state.get(BROKER_UNIT, {}).get("UnitFileState") != "enabled" or release is None:
+            return
+        python = release / ".venv" / "bin" / "python"
+        if not python.exists():
+            return
+        interpreter = python.resolve()
+        # The directories above the deployment's own, such as /opt and /var/lib, are the system's.
+        system_dirs = set(self.vm.root.parents)
+        for directory in reversed(interpreter.parents):
+            if directory in system_dirs:
+                continue
+            if not directory.stat().st_mode & stat.S_IXOTH:
+                self.report.problem(
+                    f"{BROKER_UNIT} cannot run the release's Python, {interpreter}: "
+                    f"{directory} lets no other user through",
+                    self.install,
+                )
+                return
 
     # --- What the app reports ------------------------------------------------------------------
 
@@ -351,6 +379,7 @@ class Doctor(SettingsChecks):
             agents = []
         self.config()
         self.agents(agents)
+        self.broker()
         self.secrets(agents)
         self.settings(release)
         self.live(live)
