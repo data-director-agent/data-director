@@ -130,9 +130,13 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     `app/web/fixtures/inventory-left-out.json`, `app/tests/test_app.py`). The checked inventory
     shows as a chip, never as its text. Beside the attach button, **Make an inventory** opens a
     dialog for a researcher who has none: one sentence on what an inventory is and that the data
-    stay on their computer, then two routes. The first, where the deployment serves the browser
-    scanner's bundle at `inventory-bundle/`, is **Describe a folder in this browser**
-    (`components/inventory/DescribeFolder.tsx`, `src/scan/`): the researcher chooses a folder
+    stay on their computer, then two routes as tabs, **In this browser** and **With the command**.
+    Where the deployment serves the browser scanner's bundle at `inventory-bundle/`, the dialog
+    opens on the first, **Describe a folder in this browser**
+    (`components/inventory/DescribeFolder.tsx`, `src/scan/`), under which a **Use the command
+    instead** button selects the second; where it does not, the command is the only route and
+    shows without tabs, and while the dialog is finding out it shows neither. The browser tab
+    stays mounted (inert) while the other is shown, so a scan goes on. On it, the researcher chooses a folder
     (`showDirectoryPicker` where the browser has it, else `<input webkitdirectory>`; dropping one
     is a shortcut), and `dd-inventory` describes it under Pyodide in a Web Worker with no network
     (`@data-director/inventory`, Browser scanner). Each stage is announced once and the files are
@@ -142,7 +146,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     when it runs short (`LargeFileNotice.tsx`; measurements in `inventory/browser/README.md`). The inventory
     it makes is handed on as `<folder>-inventory.json`, so it goes through the check above
     unchanged. The section credits the PRONOM signatures as their licence asks and links to the
-    bundle's `NOTICES.md`. The second route is the command, for data on a server or a cluster or
+    bundle's `NOTICES.md`. The second route, the backup, is the command, for data on a server or a cluster or
     a very large dataset: a tab per operating system (the browser's own selected) with the
     commands that install uv and run `dd-inventory`, each with a copy button, and at the end the
     file picker, whose file is attached as if chosen with the button. The command's text is
@@ -377,6 +381,17 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     while there is nothing in it ([Projects](projects.md), invariants 22 to 25;
     `app/web/src/components/project/DeleteProject.tsx`, `ProjectsPage.test.tsx`,
     `app/tests/test_project_deletion.py`).
+29. **A proposed fact becomes a fact only when a person decides it on the project's page.** The
+    project's page lists **Project facts** beside the researchers. It shows what check agents
+    proposed, each with what it would decide in one sentence, why it was proposed and which agent
+    proposed it, and offers **Confirm it as proposed**, **Change it, then record my version** and
+    **Reject it**, with an optional reason that no agent is given. Under **Decided** each fact that
+    stands can be changed or removed, and **State a fact nobody proposed** records one of the
+    person's own, named by the value that names it. After each decision the panel shows what the
+    server read back. A proposal that has moved on is read again with a warning, and a member
+    deciding whether sensitive data is published, or the licence, is told only an owner may
+    (`app/web/src/components/project/FactsPanel.test.tsx`, `app/tests/test_project_facts.py`,
+    [Projects](projects.md), invariant 28).
 
 ## Boundaries and contracts
 

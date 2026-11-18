@@ -1,4 +1,4 @@
-"""What every Pydantic mirror of the core contract shares (docs/specs/contract.md)."""
+"""The base of every Pydantic mirror of a contract class (`dd_sdk.contract.models`)."""
 
 from __future__ import annotations
 
@@ -8,4 +8,6 @@ SHA256_PATTERN = r"^[0-9a-f]{64}$"
 
 
 class Frozen(BaseModel):
+    """A contract document: immutable, and refusing any member its class does not have."""
+
     model_config = ConfigDict(frozen=True, extra="forbid")

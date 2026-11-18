@@ -103,10 +103,10 @@ def secret(target: str, args: list[str], vm: Vm | None = None) -> int:
     match args:
         case ["set", agent, name]:
             dev_set(agent, name)
-        case ["remove", agent, name]:
+        case ["remove" | "rm", agent, name]:
             dev_remove(agent, name)
         case ["list"]:
             dev_list()
         case _:
-            raise DevError("usage: secret set AGENT SECRET | remove AGENT SECRET | list")
+            raise DevError("usage: secret set AGENT SECRET | remove (or rm) AGENT SECRET | list")
     return 0

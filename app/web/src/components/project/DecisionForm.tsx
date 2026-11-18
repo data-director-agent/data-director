@@ -9,7 +9,7 @@
  */
 
 import { Check, Pencil, X } from "lucide-react";
-import { type FormEvent, useEffect, useId, useRef, useState } from "react";
+import { type FormEvent, useEffect, useId, useState } from "react";
 
 import {
   DecisionConflict,
@@ -22,6 +22,7 @@ import {
 } from "../../project/api";
 import { RunRefused } from "../../run/api";
 import { Button } from "../ui/Button";
+import { ReasonField, useDecisionError } from "./DecisionParts";
 
 type Choice = "approve" | "edit" | "reject";
 
@@ -51,12 +52,7 @@ export function DecisionForm({
   const [reason, setReason] = useState("");
   const [edited, setEdited] = useState(version.text);
   const [sending, setSending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const errorRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (error) errorRef.current?.focus();
-  }, [error]);
+  const { setError, alert } = useDecisionError();
 
   useEffect(() => {
     onEditing(choice === "edit" ? edited : null);
@@ -100,7 +96,9 @@ export function DecisionForm({
         ...(reason.trim() ? { reason } : {}),
         ...(choice === "edit"
           ? {
-              edited_text: lineEnding ? edited.replace(/\r?\n/g, lineEnding) : edited,
+              edited_text: lineEnding
+                ? edited.replace(/\r?\n/g, lineEnding)
+                : edited,
             }
           : {}),
       };
@@ -120,7 +118,11 @@ export function DecisionForm({
   }
 
   return (
-    <form className="decision-form" onSubmit={submit} aria-labelledby={`${id}-legend`}>
+    <form
+      className="decision-form"
+      onSubmit={submit}
+      aria-labelledby={`${id}-legend`}
+    >
       <fieldset className="field">
         <legend id={`${id}-legend`}>Your decision on version {n}</legend>
         {choices.map(({ value, label }) => (
@@ -141,8 +143,8 @@ export function DecisionForm({
         <div className="field">
           <label htmlFor={`${id}-edited`}>Your version of the text</label>
           <p className="hint" id={`${id}-edited-hint`}>
-            This becomes version {n + 1}, and is approved as you write it here. Version {n} stays as
-            it was.
+            This becomes version {n + 1}, and is approved as you write it here.
+            Version {n} stays as it was.
           </p>
           <textarea
             id={`${id}-edited`}
@@ -155,26 +157,17 @@ export function DecisionForm({
           />
         </div>
       )}
-      <div className="field">
-        <label htmlFor={`${id}-reason`}>Reason {required ? "(required)" : "(optional)"}</label>
-        <p className="hint" id={`${id}-reason-hint`}>
-          {hint} It is kept with the decision, in the project's record.
-        </p>
-        <textarea
-          id={`${id}-reason`}
-          aria-describedby={`${id}-reason-hint`}
-          required={required}
-          maxLength={rules.reason_max_length}
-          rows={3}
-          value={reason}
-          onChange={(event) => setReason(event.target.value)}
-        />
-      </div>
-      {error && (
-        <div role="alert" className="callout status-danger" ref={errorRef} tabIndex={-1}>
-          <p>The decision was not recorded: {error}</p>
-        </div>
-      )}
+      <ReasonField
+        id={id}
+        label={`Reason ${required ? "(required)" : "(optional)"}`}
+        hint={`${hint} It is kept with the decision, in the project's record.`}
+        required={required}
+        maxLength={rules.reason_max_length}
+        rows={3}
+        value={reason}
+        onChange={setReason}
+      />
+      {alert}
       {/* Not `isPending`: the form is gone once the decision is recorded, and the button's busy
           indicator would be left behind without its label (as in `Account.tsx`). Focus goes to
           the heading, or to the alert, so disabling the button does not lose it. */}
