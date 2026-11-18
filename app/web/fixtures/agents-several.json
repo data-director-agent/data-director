@@ -28,6 +28,7 @@
       },
       "description": "Scores the completeness of a metadata record against fixed criteria.",
       "grounding_mode": "input_only",
+      "icon": "🔍",
       "models": [],
       "payload": "QualityReview",
       "requires_approval": false,
@@ -335,6 +336,7 @@
         "deposit.validate"
       ],
       "settings": {},
+      "skills": [],
       "title": "Metadata Reviewer",
       "version": "0.1.0"
     },
@@ -374,6 +376,7 @@
       },
       "description": "Recommends controlled vocabularies, ontologies and data formats from FAIRsharing for a dataset profile, grounded on the registry records it retrieved. Ranking rules choose first; a model may add records it found and note doubts, never remove one.",
       "grounding_mode": "retrieval",
+      "icon": "📚",
       "models": [],
       "payload": "Recommendations",
       "requires_approval": false,
@@ -866,6 +869,7 @@
         "preparation.formats"
       ],
       "settings": {},
+      "skills": [],
       "title": "Standards Librarian",
       "version": "0.3.0"
     },
@@ -885,6 +889,7 @@
       },
       "description": "Greets whoever the input names. A template: it demonstrates the agent contract and does nothing useful.",
       "grounding_mode": "none",
+      "icon": "👋",
       "models": [],
       "payload": "Greeting",
       "requires_approval": false,
@@ -1077,6 +1082,7 @@
       },
       "serves": [],
       "settings": {},
+      "skills": [],
       "title": "Friendly Greeter",
       "version": "0.1.1a1"
     },
@@ -1091,6 +1097,7 @@
       "derivations": {},
       "description": "Abstains unconditionally; exercises the non-success path.",
       "grounding_mode": "none",
+      "icon": "",
       "models": [],
       "payload": null,
       "requires_approval": false,
@@ -2119,6 +2126,7 @@
       },
       "serves": [],
       "settings": {},
+      "skills": [],
       "title": "",
       "version": "0.3.0"
     }

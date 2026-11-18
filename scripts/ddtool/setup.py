@@ -81,7 +81,7 @@ class Prompter:
     def secret(self, question: str) -> str:
         return "" if self.accept_defaults else self.ask_secret(f"{question}: ").strip()
 
-    def yes(self, question: str, default: bool) -> bool:
+    def yes(self, question: str, *, default: bool) -> bool:
         if self.accept_defaults:
             return default
         answer = self.ask(f"{question} [{'Y/n' if default else 'y/N'}]: ").strip().lower()
@@ -158,7 +158,8 @@ def ask_model_key(prompt: Prompter, changes: Changes) -> bool:
     if key != current:
         write_key("orchestrator-model", key, changes)
     if prompt.yes(
-        "Let the standards advisor use the model to choose and explain its advice too?", True
+        "Let the standards advisor use the model to choose and explain its advice too?",
+        default=True,
     ):
         write_key("advisor-standards", key, changes, {"DD_STANDARDS_EXPLAINER": "model"})
     return True
@@ -214,7 +215,7 @@ def ask_postgres(prompt: Prompter, changes: Changes) -> None:
         "They can be kept in PostgreSQL instead, as a deployment with more than one instance does:\n"
         "Docker Compose runs it with `--profile postgres`, so nothing is installed on this machine."
     )
-    if not prompt.yes("Keep runs and projects in PostgreSQL?", uses_postgres()):
+    if not prompt.yes("Keep runs and projects in PostgreSQL?", default=uses_postgres()):
         if remove_env(paths.APP_ENV, DB_VARS):
             changes.note(paths.APP_ENV)
             print("  Runs and projects are kept in files again; the database volume is kept.")
@@ -256,7 +257,7 @@ def use_model_orchestrator(changes: Changes) -> None:
         changes.note(path)
 
 
-def setup(prompt: Prompter, install: bool = True) -> int:
+def setup(prompt: Prompter, *, install: bool = True) -> int:
     problems = tool_problems() if install else []
     for problem in problems:
         print(f"missing: {problem}")
@@ -265,7 +266,7 @@ def setup(prompt: Prompter, install: bool = True) -> int:
         changes.note(created)
     ask_principal(prompt, changes)
     if ask_model_key(prompt, changes) and prompt.yes(
-        "Make the model-backed orchestrator the one the home page talks to?", True
+        "Make the model-backed orchestrator the one the home page talks to?", default=True
     ):
         use_model_orchestrator(changes)
     ask_fairsharing(prompt, changes)

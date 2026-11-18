@@ -41,7 +41,8 @@ is in [`harness/docs/registry.md`](../../harness/docs/registry.md).
    it ([Policy and identity](policy-and-identity.md)).
 7. The manifest declares derivations and carries no presentation: no uiSchema fragment, widget
    name, layout hint or field order. `workbench/tests/test_viewer.py` checks that the viewer
-   works out a payload's presentation from its schema and the derivations.
+   works out a payload's presentation from its schema and the derivations. A persona's title and
+   icon are its identity, not presentation in this sense.
 8. A derivation names a payload field path the payload class has, and its `recorded_in`, when
    given, names a sibling field of type `Derivation`. An agent with no payload declares no
    derivations. The spec refuses anything else when it is built, both in the agent and when the
@@ -56,7 +57,10 @@ is in [`harness/docs/registry.md`](../../harness/docs/registry.md).
     its reference profile: `app/tests/test_app.py`.
 12. Every advisor is a persona: it has a title, and it serves only steps of the process flow
     (`dd_sdk.process_flow`). `AgentSpec` refuses a step id that is not in the flow. No two
-    advisors serve the same step. That last rule is not yet checked by a test.
+    advisors serve the same step. That last rule is not yet checked by a test. A persona may also
+    have an `icon`, one emoji, which the app shows beside its title; `AgentSpec` refuses an icon
+    that is not one (`sdk/tests/test_agent_spec.py`). A card without an icon gets the client's
+    default (`DEFAULT_AGENT_ICON` in `@data-director/agent-view`).
 13. A mock advisor's description begins "Mock.", its grounding mode is `none`, and its payload
     says in `limitations` what it does not yet do; a payload of the core `Document` class, which
     has no such slot, says it in the outcome statement instead. A mock declares no model and
@@ -255,8 +259,8 @@ Several personas need the same source, and some procedures (reading a machine-ac
 choosing a licence) are the same whichever agent follows them. A source is shared as an MCP
 server, and a procedure as an Agent Skill. Both are framework-neutral resources
 ([System and boundaries](system.md)), and a persona consumes them under the harness's
-governance as follows. None of this is built yet: the gateway is TODO(#875), Skill loading
-TODO(#876).
+governance as follows. Skills are loaded by `dd_sdk.skills`; the gateway is not built yet,
+TODO(#875).
 
 Until the gateway exists, `advisor.policy` offers its model read-only tools that reach
 FAIRsharing, Jisc Open Policy Finder and Crossref from the agent itself, and `advisor.standards`
@@ -297,16 +301,27 @@ onto the gateway when it is built. TODO(#875)
 
 **Agent Skills for procedures.**
 
-1. A persona loads a Skill as text in its system prompt. Code chooses which Skills a step needs;
-   the model gets no filesystem tool and does not choose Skills for itself.
+1. A persona loads a Skill as text in its system prompt. Code chooses which Skills a step needs,
+   with `dd_sdk.skills.load_skills`, and adds their text with `with_skills`; the model gets no
+   filesystem tool and does not choose Skills for itself. A Skill's references follow its
+   `SKILL.md` in the prompt, since the model cannot follow a link to a file.
 2. A Skill is vendored into the agent's package from the `skills` repository at a pinned
-   release, beside `system_prompt.md`, and reviewed as a prompt change is (item 5). The card
-   declares each Skill's name, version and SHA-256. The prompt digest already covers its text
+   release, under `skills/<name>/` beside `system_prompt.md`, and reviewed as a prompt change is
+   (item 5). `skills/pins.json` records each Skill's version, the release it came from and its
+   SHA-256, and `dd-vendor-skill` is the one way to change a vendored copy: it vendors a
+   release already on disk and writes the pin. The digest, `dd-skill-files-v1`, is SHA-256 over
+   one `<SHA-256 of the file>  <relative path>` line per file, sorted by path, as `sha256sum`
+   prints them; like the prompt digest it is not an evidence canonicalisation. A Skill whose
+   files do not hash to its pin is refused when the agent loads it. The card declares each
+   Skill's name, version and SHA-256 (`AgentSpec.skills`, the manifest's `skills`), taken from
+   the loaded Skill so that the two cannot disagree. The prompt digest already covers its text
    ([Disclosure](disclosure.md)).
-3. A Skill a persona loads carries no scripts. An exact procedure becomes code in the
-   deterministic shell, or a tool on an MCP server.
+3. A Skill a persona loads is text only: `SKILL.md` and Markdown or plain-text files under
+   `references/`. Scripts, assets, executable files and links are refused, when vendored and
+   when loaded. An exact procedure becomes code in the deterministic shell, or a tool on an MCP
+   server.
 4. A Skill cannot widen what a persona may do. Its tools, grounding mode and grants come from its
-   card and the profile, never from prompt text.
+   card and the profile, never from prompt text; the loader reads only its front matter's `name`.
 
 **Delegation versus tools.** A persona never delegates: it declares one grounding mode, and only
 a `delegation` agent delegates ([Orchestration](orchestration.md)). A persona calls a tool when
@@ -342,6 +357,9 @@ conductor recorded. The source check re-hashes each against the deployment's pin
 - **Personas.** A role a person recognises is easier for a researcher to trust and for a data
   steward to assess. A narrow role keeps each agent's sources, failure modes and evaluation
   separate. Naming steps that no agent serves makes the whole intended design visible.
+- **An emoji icon.** An icon lets a researcher tell a conversation's agents apart at a glance. An
+  emoji names no icon library, so any client shows it as text, with no sprite or dependency, and
+  a card stays meaningful wherever it is read.
 - **A model-backed alpha.** It shows a persona's model-backed design to researchers early without
   claiming it is validated. The `template` path keeps CI and deployments without a key
   working (the Documentation Editor's by being selected, the others' by default), and keeping exact work in a deterministic shell keeps it testable and lets a failed

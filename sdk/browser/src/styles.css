@@ -26,6 +26,15 @@
     --dd-font-mono: var(--font-mono, ui-monospace, monospace);
   }
 
+  /* An agent's icon, beside its name: a fixed square, so names line up under one another. */
+  .agent-icon {
+    display: inline-block;
+    inline-size: 1.25em;
+    margin-inline-end: var(--space-1, 0.25rem);
+    line-height: 1;
+    text-align: center;
+  }
+
   /* An agent card. */
   .dd-card-section {
     margin-top: var(--dd-space-4);

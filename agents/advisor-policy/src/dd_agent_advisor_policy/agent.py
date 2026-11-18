@@ -53,6 +53,7 @@ class PolicyAgent:
     spec = AgentSpec(
         agent_id="advisor.policy",
         title="Policy Adviser",
+        icon="📜",
         version="0.1.0-alpha",
         description=(
             "Checks what the data and open access policies of a project's funders, journals and "

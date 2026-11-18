@@ -250,14 +250,14 @@ class DocumentationEditor:
         agent_id="advisor.documentation",
         version="0.6.0a1",
         title="Documentation Editor",
+        icon="✍️",
         description=(
-            "Drafts a project's README or data dictionary from its file inventory and its "
-            "approved metadata record: the files, the tables' fields and the record's title, "
-            "creators, dates of collection, location, funding, abstract and licence are drafted, "
-            "with prose written by a model where one is configured, and the methods, "
-            "definitions, units and missing value codes are marked and asked of the researcher, "
-            "with a model's suggested answer offered beside a question, never written into the "
-            "document."
+            "Drafts a project's README or data dictionary from its file inventory and its approved "
+            "metadata record: the files, the tables' fields and the record's title, creators, "
+            "dates of collection, location, funding, abstract and licence are drafted, with prose "
+            "written by a model where one is configured, and the methods, definitions, units and "
+            "missing value codes are marked and asked of the researcher, with a model's suggested "
+            "answer offered beside a question, never written into the document."
         ),
         action_class="advise",
         accepts=(ClassSchema.of(DraftRequest),),

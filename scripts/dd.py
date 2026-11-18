@@ -99,7 +99,7 @@ def _parser() -> argparse.ArgumentParser:
     secret_cmd = commands.add_parser(
         "secret", help="set, remove or list an agent's secrets, such as its model key"
     )
-    secret_cmd.add_argument("args", nargs=argparse.REMAINDER, metavar="set|remove|list ...")
+    secret_cmd.add_argument("args", nargs=argparse.REMAINDER, metavar="set|remove|rm|list ...")
     commands.add_parser(
         "backup", help="VM: back up the settings, secrets and stores now (deploy/README.md)"
     )
