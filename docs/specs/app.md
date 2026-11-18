@@ -176,8 +176,10 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     A chip whose whole inventory the page can read, the one attached and the one the project holds
     now (`GET /api/projects/{id}/inventory`), has a **View inventory** button. It opens a dialog
     that says this is everything Data Director keeps and agents are shown, then what the inventory
-    amounts to and leaves out, its formats, its files as folders with a search, and the columns of
-    its tables. A chip for an inventory the project has since replaced has no button, because
+    amounts to and leaves out, where possible personal data was found (by file, with no value, and
+    saying whether nothing was found or the inventory was never checked; such files are marked and
+    counted in their closed folders, `app/web/src/components/inventory/PersonalData.test.tsx`), its
+    formats, its files as folders with a search, and the columns of its tables. A chip for an inventory the project has since replaced has no button, because
     only the latest is served. The facts come from `@data-director/inventory`
     ([System and boundaries](system.md)); the dialog only lays them out. Folders are drawn only
     while open and a search draws at most 200 matches, so an inventory of thousands of files

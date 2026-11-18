@@ -154,6 +154,12 @@ forms or a column whose name is sensitive; leaving out a folder leaves out every
 **Find files** to look for a name in a large inventory. When you are content, select **Attach
 this inventory**. If you select **Cancel**, nothing is attached.
 
+Under **Possible personal data**, the app lists each place where the inventory command found
+what may be personal data, such as a column of e-mail addresses, and marks those files in the
+list. It never shows a value, because the inventory holds none. Check each place, and leave out
+anything that should not be shared. If nothing was found, the app says what was not checked; if
+the inventory was made without the check, it says so.
+
 What you leave out is not sent or kept anywhere, not even its name. The inventory says only how
 many files and columns you left out, so that an agent does not assume they do not exist.
 
