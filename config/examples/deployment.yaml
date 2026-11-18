@@ -1,7 +1,8 @@
-# What this instance runs. Edit it, then run `sudo data-director apply` on a VM or
-# `uv run scripts/dd.py apply` in development, which write the profile and, on a VM, the systemd
-# units from it (docs/guide/operations/configuration.md). Agent settings stay in
-# agents/<name>.env and secrets in credentials/.
+# What this instance runs. Change it with `sudo data-director edit` on a VM or
+# `uv run scripts/dd.py edit` in development, which check it before saving it and then offer to
+# apply it: `apply` writes the profile and, on a VM, the systemd units from it
+# (docs/guide/operations/configuration.md). Agent settings stay in agents/<name>.env and secrets
+# in credentials/.
 
 # Names the instance and the profile generated for it: lower-case words joined by hyphens.
 name: local

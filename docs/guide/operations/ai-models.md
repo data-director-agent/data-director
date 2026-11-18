@@ -240,14 +240,13 @@ without a model to call.
    sudo data-director secret set orchestrator-model anthropic-api-key
    ```
 
-2. Set `orchestrator: model` in `/etc/data-director/deployment.yaml`.
-3. Apply it:
+2. Set `orchestrator: model` in `/etc/data-director/deployment.yaml` and apply it:
 
    ```bash
-   sudo data-director apply
+   sudo data-director edit
    ```
 
-   This:
+   It saves the file once it is valid and asks whether to apply it. Applying:
    - writes the profile with `orchestrator.model` and a raised `version`;
    - starts the agent with the rest;
    - makes the app wait for it;
@@ -259,7 +258,7 @@ In development:
 1. `uv run scripts/dd.py setup` asks for the key and offers to make this change.
 2. `uv run scripts/dd.py start` applies `config/local/deployment.yaml` each time.
 
-To go back, set `orchestrator: stub` and apply again. The model-backed orchestrator is then
+To go back, run `sudo data-director edit` again and set `orchestrator: stub`. The model-backed orchestrator is then
 stopped.
 
 ## Check it works
