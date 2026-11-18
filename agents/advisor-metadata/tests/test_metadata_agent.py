@@ -24,10 +24,10 @@ from dd_sdk.contract.models import (
     GroundingMode,
     OutcomeStatus,
     ReasonCode,
-    ResearcherRecord,
     VersionState,
     new_invocation_id,
 )
+from dd_sdk.contract.researcher import ResearcherRecord
 
 SAMPLES = Path(__file__).resolve().parents[3] / "workbench" / "samples"
 

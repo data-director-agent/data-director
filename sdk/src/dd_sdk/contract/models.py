@@ -15,6 +15,9 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, SerializeAsAny, model_validator
 
+from dd_sdk.contract.base import Frozen as Frozen  # re-exported: classes import it from here
+from dd_sdk.contract.researcher import ResearcherRecord
+
 UUID7_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
 SHA256_PATTERN = r"^[0-9a-f]{64}$"
 POLICY_BUNDLE_REF_PATTERN = r"^profile:[a-z0-9][a-z0-9.-]*@v[0-9]+$"
@@ -40,10 +43,6 @@ SHORT_TEXT_MAX = 200
 LONG_TEXT_MAX = 4000
 # A question's identifier within its reply (Question.question_key, QuestionAnswer.answered_key).
 QUESTION_KEY_PATTERN = r"^[a-z][a-z0-9-]{0,39}$"
-
-
-class Frozen(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="forbid")
 
 
 def new_invocation_id() -> str:
@@ -274,78 +273,11 @@ class DocumentationSummary(Frozen):
     documentation_added_at: datetime
 
 
-class AffiliationKind(StrEnum):
-    EMPLOYMENT = "employment"
-    EDUCATION = "education"
-    QUALIFICATION = "qualification"
-    INVITED_POSITION = "invited_position"
-    DISTINCTION = "distinction"
-    MEMBERSHIP = "membership"
-    SERVICE = "service"
+class ProjectDocument(DocumentationSummary):
+    """One document attached to a project, with its text, as a drafter is given it
+    (docs/specs/projects.md). The text is the researcher's and untrusted."""
 
-
-class ResearcherLink(Frozen):
-    link_title: str | None = None
-    link_url: str
-
-
-class ExternalIdentifier(Frozen):
-    identifier_type: str
-    identifier_value: str
-    identifier_url: str | None = None
-
-
-class Affiliation(Frozen):
-    put_code: str
-    affiliation_kind: AffiliationKind
-    organisation_name: str
-    organisation_identifier: str | None = None
-    organisation_identifier_scheme: str | None = None
-    department: str | None = None
-    role_title: str | None = None
-    start_year: int | None = None
-    end_year: int | None = None
-
-
-class ResearcherWork(Frozen):
-    put_code: str
-    work_title: str
-    work_type: str | None = None
-    publication_year: int | None = None
-    journal_title: str | None = None
-    work_identifiers: list[ExternalIdentifier] = Field(default_factory=list)
-
-
-class ResearcherFunding(Frozen):
-    put_code: str
-    funding_title: str
-    funding_type: str | None = None
-    funder_name: str
-    funder_identifier: str | None = None
-    funder_identifier_scheme: str | None = None
-    award_identifier: str | None = None
-    start_year: int | None = None
-    end_year: int | None = None
-
-
-class ResearcherRecord(Frozen):
-    """What one researcher in a project chose to keep from their public ORCID record, in ORCID's
-    own words (docs/specs/projects.md). Never an email address."""
-
-    orcid_id: str
-    researcher_name: str | None = None
-    other_names: list[str] = Field(default_factory=list)
-    biography: str | None = None
-    keywords: list[str] = Field(default_factory=list)
-    country: list[str] = Field(default_factory=list)
-    researcher_links: list[ResearcherLink] = Field(default_factory=list)
-    external_identifiers: list[ExternalIdentifier] = Field(default_factory=list)
-    affiliations: list[Affiliation] = Field(default_factory=list)
-    works: list[ResearcherWork] = Field(default_factory=list)
-    works_omitted: int | None = None
-    fundings: list[ResearcherFunding] = Field(default_factory=list)
-    record_retrieved_at: datetime
-    record_source: str
+    documentation_text: str
 
 
 class StepProgress(Frozen):
@@ -767,6 +699,8 @@ class DraftRequest(Frozen):
     redraft_document: str | None = Field(default=None, pattern=UUID7_PATTERN)
     # Filled by the conductor in a project, from the facts people kept from their ORCID records.
     researchers: list[ResearcherRecord] = Field(default_factory=list)
+    # Filled by the conductor in a project, from the documents a researcher attached.
+    project_documents: list[ProjectDocument] = Field(default_factory=list)
 
 
 # --- Evidence and telemetry -----------------------------------------------------------------

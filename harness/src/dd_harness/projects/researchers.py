@@ -21,7 +21,8 @@ from dd_harness.projects.rules import (
     ProjectError,
     ProjectRules,
 )
-from dd_sdk.contract.models import Principal, ResearcherRecord
+from dd_sdk.contract.models import Principal
+from dd_sdk.contract.researcher import ResearcherRecord
 from dd_sdk.evidence import INPUT_CANONICALISATION, canonicalise, input_hash
 
 

@@ -373,12 +373,16 @@ class Conductor:
         sent = to_document(request.input)
         filled = project_facts.give(facts, in_project, sent)
         given = project_facts.given(facts, in_project, filled)
-        # Researcher facts the profile keeps from this agent's hosted model are left out, not
-        # refused (docs/specs/projects.md, invariant 8): no agent needs them.
-        if project_facts.RESEARCHER in given:
+        # Researcher facts and attached documents' text the profile keeps from this agent's
+        # hosted model are left out, not refused (docs/specs/projects.md, invariant 8): no agent
+        # needs them. What remains is classed again, since other slots may share a class.
+        optional = given & project_facts.OPTIONAL_SLOTS.keys()
+        if optional:
             hostings = [model.hosting for model in self._models_of(request.agent_id)]
-            out = frozenset(policy.withheld(self.profile, hostings, {project_facts.RESEARCHER}))
-            filled, given = project_facts.leave_out(filled, out), given - out
+            out = frozenset(policy.withheld(self.profile, hostings, optional))
+            if out:
+                filled = project_facts.leave_out(filled, out)
+                given = project_facts.given(facts, in_project, filled)
         refused = project_facts.refusal(facts, in_project, filled)
         if in_project is not None or filled != sent:
             request = InvocationRequest.model_validate(

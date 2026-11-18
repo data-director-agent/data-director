@@ -111,8 +111,9 @@ intended design, and each part says where it is not built yet.
    fails the run with problem `revision-refused` before the agent is called, and outside a
    project it is removed (`ProjectStore.current_version`). A `Message`'s `project_researchers` and
    a `DraftRequest`'s `researchers` are the researcher facts the project holds (invariant 27); a
-   `Message`'s are removed outside a project, so a caller can never claim them. Filling any other
-   class is not built yet.
+   `Message`'s are removed outside a project, so a caller can never claim them. A
+   `DraftRequest`'s `project_documents` are the documents a researcher attached, each with its
+   text, replacing what the caller sent. Filling any other class is not built yet.
 7. **The conductor fills `project_id`.** The request and the envelope carry an optional
    `project_id`, which the conductor takes from the conversation and a caller cannot set. A
    conversation started from a project is a `conversation_started` event of its log, so the
@@ -126,15 +127,18 @@ intended design, and each part says where it is not built yet.
    else before it is sent, with a Problem Details response, and records the refusal. The key is
    `hosted_models` (`dd_harness.policy`). A `DraftRequest`'s inventory, a plain `FileInventory`
    and a `Message`'s `project_inventory` are `inventory`; a metadata record, the version a
-   drafter regenerates and a person's answers are `documentation`; a `Message`'s
+   drafter regenerates, a person's answers and a `DraftRequest`'s `project_documents` are
+   `documentation`; a `Message`'s
    `project_researchers` and a `DraftRequest`'s `researchers` are `researcher`; a repository's
    requirements are none of these (`dd_harness.project_facts.given`). The conductor checks after the input check: a
    run it refuses fails with problem `project-content-withheld` and is stored, and the agent is
-   not called (`harness/tests/test_project_runs.py`). Researcher facts are the exception: they add
-   to what an agent is given and no agent needs them, so where the profile keeps `researcher`
-   from an agent the conductor leaves them out of its input, before it is hashed, and the run goes
-   ahead, so a conversation with a hosted orchestrator does not stop because someone kept facts
-   (`dd_harness.project_facts.leave_out`). What a caller sends outside a project is not the
+   not called (`harness/tests/test_project_runs.py`). Researcher facts and attached documents'
+   text are the exception: they add to what an agent is given and no agent needs them, so where
+   the profile keeps their class from an agent the conductor leaves them out of its input, before
+   it is hashed, and the run goes ahead, so a conversation with a hosted orchestrator does not
+   stop because someone kept facts, nor a draft because someone attached notes
+   (`dd_harness.project_facts.leave_out`). What remains is classed again, so a metadata record
+   withheld still refuses the run. What a caller sends outside a project is not the
    project's, and the key does not apply to it.
 9. **Only a `Document` payload of a succeeded run becomes a project document.** When a run that
    belongs to a project succeeds with a `Document` payload, the conductor records it as a new
@@ -395,11 +399,14 @@ that attaches an inventory too adds neither when either is refused. A `Message`'
 and when it was added, without its text, so that an orchestrator knows it is there; outside a
 project, or in one that holds none, it is removed, so a caller can never claim one. The list
 holds no text, so it is neither `inventory` nor `documentation`, and a hosted orchestrator is
-given it under the default `hosted_models`
-(`harness/tests/test_project_runs.py`, `dd_harness.testing.storage`). The app cannot tell
-documentation from data, so the attach form and the user guide state the rule. Giving a
-document's text to a drafter, and a profile that refuses documentation altogether, are not built
-yet.
+given it under the default `hosted_models`. A `DraftRequest`'s `project_documents` give each
+document with its text, so that a drafter's model may suggest answers to the draft's questions
+from it ([Drafting documents](drafting.md)). The text is `documentation`; where the profile
+keeps that class from a drafter's hosted model, the documents are left out and the draft still
+runs, as researcher facts are, while a metadata record, version or answers withheld still refuse
+it (`harness/tests/test_project_runs.py`, `dd_harness.testing.storage`). The app cannot tell
+documentation from data, so the attach form and the user guide state the rule. A profile that
+refuses documentation altogether is TODO(#1119).
 
 **Agents** propose; they do not write. The only proposed change is a document version, returned as
 a `Document` payload. No agent writes anywhere or holds credentials to. A general proposed action

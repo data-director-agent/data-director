@@ -546,7 +546,7 @@
       },
       "DraftRequest": {
          "additionalProperties": false,
-         "description": "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen, the metadata record a person approved last and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory, the requirements and the metadata record in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. In a project the conductor also fills current_version, the latest version of the project's document of that kind, or of the document redraft_document names, so a redraft is that document's next version. The answers a person recorded to the current version's questions are filled in by the conductor in the same way (docs/specs/drafting.md), and so are the researcher facts people in the project chose to keep from their public ORCID records (docs/specs/projects.md).",
+         "description": "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen, the metadata record a person approved last and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory, the requirements and the metadata record in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. In a project the conductor also fills current_version, the latest version of the project's document of that kind, or of the document redraft_document names, so a redraft is that document's next version. The answers a person recorded to the current version's questions are filled in by the conductor in the same way (docs/specs/drafting.md), and so are the researcher facts people in the project chose to keep from their public ORCID records (docs/specs/projects.md), and the text of the documents a researcher attached to the project, from which a drafter's model may suggest answers but never fill a gap.",
          "properties": {
             "schema_class": {
                "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -625,6 +625,16 @@
                "description": "The researcher facts the project holds, one record for each person who kept some. In a project the conductor fills them and a caller leaves them out; outside a project, the caller sends them, as it does the other facts.",
                "items": {
                   "$ref": "#/$defs/ResearcherRecord"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "project_documents": {
+               "description": "The documents the project holds, with their text, in the order they were added. In a project the conductor fills them and a caller leaves them out; outside a project, the caller sends them, as it does the other facts.",
+               "items": {
+                  "$ref": "#/$defs/ProjectDocument"
                },
                "type": [
                   "array",
@@ -1695,6 +1705,48 @@
             "type"
          ],
          "title": "ProblemDetails",
+         "type": "object"
+      },
+      "ProjectDocument": {
+         "additionalProperties": false,
+         "description": "One document a researcher attached to a project, with its text: the conductor fills one per document into a DraftRequest so that a drafter's model may suggest answers from it (docs/specs/projects.md). Its text is the researcher's, untrusted, and given as data.",
+         "properties": {
+            "documentation_name": {
+               "description": "The file name the researcher attached the document under, without any folder.",
+               "type": "string"
+            },
+            "documentation_digest": {
+               "description": "The SHA-256 of the document's UTF-8 text, by which the project keeps it.",
+               "pattern": "^[0-9a-f]{64}$",
+               "type": "string"
+            },
+            "documentation_media_type": {
+               "description": "The document's media type, text/plain or text/markdown.",
+               "type": "string"
+            },
+            "documentation_size": {
+               "description": "The size of the document's UTF-8 text, in bytes.",
+               "type": "integer"
+            },
+            "documentation_added_at": {
+               "description": "When the document was added to the project.",
+               "format": "date-time",
+               "type": "string"
+            },
+            "documentation_text": {
+               "description": "The document's text, as the researcher attached it.",
+               "type": "string"
+            }
+         },
+         "required": [
+            "documentation_name",
+            "documentation_digest",
+            "documentation_media_type",
+            "documentation_size",
+            "documentation_added_at",
+            "documentation_text"
+         ],
+         "title": "ProjectDocument",
          "type": "object"
       },
       "Question": {

@@ -87,6 +87,13 @@ dd:Affiliation a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
+            sh:description "The organisation's name." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:organisation_name ],
+        [ sh:datatype xsd:string ;
             sh:description "The researcher's role or degree." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -134,14 +141,7 @@ dd:Affiliation a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 7 ;
-            sh:path dd:start_year ],
-        [ sh:datatype xsd:string ;
-            sh:description "The organisation's name." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path dd:organisation_name ] ;
+            sh:path dd:start_year ] ;
     sh:targetClass dd:Affiliation .
 
 dd:ConversationTurn a sh:NodeShape ;
@@ -161,11 +161,6 @@ dd:ConversationTurn a sh:NodeShape ;
             sh:order 4 ;
             sh:path dd:turn_invocation_id ;
             sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ],
-        [ sh:in ( "user" "agent" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 0 ;
-            sh:path dd:role ],
         [ sh:datatype xsd:string ;
             sh:description "What was said in the turn." ;
             sh:maxCount 1 ;
@@ -173,6 +168,11 @@ dd:ConversationTurn a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
             sh:path dd:turn_text ],
+        [ sh:in ( "user" "agent" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 0 ;
+            sh:path dd:role ],
         [ sh:datatype xsd:string ;
             sh:description "For an agent turn, the agent that produced it." ;
             sh:maxCount 1 ;

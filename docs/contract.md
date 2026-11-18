@@ -78,7 +78,10 @@ metadata record from the project, and a caller leaves them out; outside a projec
 sends them. In a project the conductor also fills `current_version`, the latest version of the
 project's document of that kind, so a redraft is that document's next version; a caller may name
 which document with `redraft_document` where the project holds more than one of the kind
-([Projects](specs/projects.md), invariant 6).
+([Projects](specs/projects.md), invariant 6). Its `project_documents` are the documents a
+researcher attached to the project, each a `ProjectDocument`: the name, digest, media type, size
+and date of a `DocumentationSummary`, with the document's text. A drafter's model may suggest
+answers from them; nothing in them is placed in a document as supplied.
 
 A `Document` may ask the researcher about what its drafter could not know: `document_questions`
 holds one `DocumentQuestion` per gap, naming the README section or the data dictionary cell it

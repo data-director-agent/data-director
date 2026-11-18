@@ -34,6 +34,9 @@
       "InventoryPart": {
          "@id": "https://w3id.org/data-director/InventoryPart"
       },
+      "ProjectDocument": {
+         "@id": "https://w3id.org/data-director/ProjectDocument"
+      },
       "RepositoryRequirements": {
          "@id": "https://w3id.org/data-director/RepositoryRequirements"
       },
@@ -108,6 +111,25 @@
       },
       "document_title": {
          "@id": "http://purl.org/dc/terms/title"
+      },
+      "documentation_added_at": {
+         "@id": "https://w3id.org/data-director/documentation_added_at",
+         "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+      },
+      "documentation_digest": {
+         "@id": "https://w3id.org/data-director/documentation_digest"
+      },
+      "documentation_media_type": {
+         "@id": "https://w3id.org/data-director/documentation_media_type"
+      },
+      "documentation_name": {
+         "@id": "https://w3id.org/data-director/documentation_name"
+      },
+      "documentation_size": {
+         "@id": "https://w3id.org/data-director/documentation_size"
+      },
+      "documentation_text": {
+         "@id": "https://w3id.org/data-director/documentation_text"
       },
       "draft_answers": {
          "@id": "https://w3id.org/data-director/draft_answers",
@@ -294,6 +316,10 @@
       },
       "part_tool_version": {
          "@id": "https://w3id.org/data-director/part_tool_version"
+      },
+      "project_documents": {
+         "@id": "https://w3id.org/data-director/project_documents",
+         "@type": "@id"
       },
       "property": {
          "@id": "https://w3id.org/data-director/property"

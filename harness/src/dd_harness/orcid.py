@@ -27,7 +27,8 @@ from typing import Any, Final
 
 import httpx
 
-from dd_sdk.contract.models import AffiliationKind, Principal, ResearcherRecord
+from dd_sdk.contract.models import Principal
+from dd_sdk.contract.researcher import AffiliationKind, ResearcherRecord
 
 FETCH_TIMEOUT_S: Final = 10.0
 # The most works offered, so that an agent's input stays bounded; the rest are counted.
