@@ -52,7 +52,10 @@ a key set for another provider stops it at start-up.
 [model broker](model-broker.md), which then holds the key: set `DD_MODEL_BROKER_URL` and the
 agent's broker credential in place of the key, and keep `DD_MODEL_PROVIDER` and `DD_MODEL_ID`. The
 broker decides where an `openai-compatible` call goes, so `DD_MODEL_BASE_URL` is not set, and the
-model is declared `openai-compatible`, `hosted`.
+model is declared `openai-compatible`, `hosted`. If the broker sends the deployment's calls through
+the [LiteLLM gateway](../../../deploy/llm-gateway/README.md#model-names), `DD_MODEL_ID` stays the
+provider's own model ID: the gateway serves Claude models by name and OpenAI (`gpt-…`) and Gemini
+(`gemini-…`) models by pattern.
 
 **The orchestrator on another provider.** The orchestrator delegates by calling tools, so its model
 must support tool calling (function calling) through the provider's API. Every provider above

@@ -264,7 +264,9 @@ gateway too ([deploy/README.md](../../../deploy/README.md#the-litellm-gateway)).
 reports still apply: Anthropic's to its `/v1/messages`, and every other provider's to its
 `/v1/chat/completions`. The deployment pays for an `openai-compatible` call only through the
 gateway, with the gateway key in `DD_MODEL_API_KEY`. A call on a person's own key goes straight to
-their provider, never through the gateway.
+their provider, never through the gateway. The broker forwards the agent's model ID unchanged, so
+the gateway must serve it: its `config.yaml` serves Claude models by name and OpenAI and Gemini
+models by pattern ([Model names](../../../deploy/llm-gateway/README.md#model-names)).
 
 ### Custom endpoints
 

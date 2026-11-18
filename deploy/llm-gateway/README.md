@@ -33,7 +33,7 @@ Requirements: Docker with Compose v2+, and Python 3.9+ for `admin.py`.
    ```
    Then edit `.env`. Generate each `sk-` secret with `echo "sk-$(openssl rand -hex 32)"` and add the provider keys you have.
 
-2. Edit `config.yaml` and replace the `REPLACE-WITH-…` model IDs for OpenAI and Gemini. Delete any providers you don't use.
+2. Look at `config.yaml`, and delete any providers you don't use. It serves Claude models by name and OpenAI and Gemini models by pattern (`gpt-*`, `gemini-*`); see [Model names](#model-names).
 
 3. Start the gateway:
    ```bash
@@ -80,6 +80,21 @@ On a VM set up with `deploy/install.sh`, run it again with `--gateway`. It insta
 gateway under systemd with its secrets in `/etc/data-director/credentials/llm-gateway/`, and gives
 the model broker a key for it ([deploy/README.md](../README.md#the-litellm-gateway)). The steps
 below are for running it by hand, or for pointing agents at it.
+
+## Model names
+
+A client's `model` must match a `model_name` in `config.yaml`, or the gateway refuses the call. The
+entries use the providers' own model IDs, so an agent keeps its `DD_MODEL_ID` when its calls go
+through the gateway, whether directly or through the model broker:
+
+- Claude: `claude-sonnet-5-5` and `claude-haiku-5-5`, by name.
+- OpenAI: any model whose ID starts `gpt-`, through the pattern `gpt-*`. A model outside that
+  family needs an entry of its own.
+- Gemini: any model whose ID starts `gemini-`, through the pattern `gemini-*`.
+
+A pattern is not listed by `/v1/models`, but serves and costs each model it matches. A key's
+`--models` may name a pattern too: `--models 'gemini-*'` allows every Gemini model and nothing
+else.
 
 ## Using it with Data Director agents
 
@@ -183,7 +198,7 @@ Create a key for one project; the tags are added to every request made with it:
 
 ```bash
 scripts/admin.py key create thesis-ch3 --team <team_id> --user <user_id> \
-    --budget 25 --period 30d --models claude-sonnet-5-5,gemini --tags project:thesis,grant:EP-X-1
+    --budget 25 --period 30d --models 'claude-sonnet-5-5,gemini-*' --tags project:thesis,grant:EP-X-1
 ```
 
 Check spend against budget for a key, a team, or all teams:
