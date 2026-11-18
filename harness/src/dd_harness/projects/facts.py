@@ -111,11 +111,11 @@ class Facts(ProjectRules):
         project_id: str,
         verdict: FactVerdict,
         *,
+        acted_for: Principal,
+        caused_by: str,
         proposal: str | None = None,
         fact: Mapping[str, Any] | None = None,
         reason: str | None = None,
-        acted_for: Principal,
-        caused_by: str,
     ) -> dict[str, Any] | None:
         """Record `acted_for`'s decision on `proposal`, or the fact they state with no proposal.
         `confirmed` needs a proposal and takes its fact; `changed` needs `fact`, of the
