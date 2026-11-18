@@ -1,5 +1,4 @@
-"""orchestrator.model: the model-backed Data Director orchestrator (docs/specs/orchestration.md,
-#21).
+"""orchestrator.model: the model-backed orchestrator (docs/specs/orchestration.md, #21).
 
 The Blueprint's Data Director is one agent a person converses with, which hands work to
 specialist agents (§9.3, "AI Model Orchestration"). `orchestrator.stub` routes by fixed rules; this
@@ -364,6 +363,7 @@ class ModelOrchestrator:
     spec = AgentSpec(
         agent_id=AGENT_ID,
         title="Data Director",
+        icon="🎬",
         version="0.1.0",
         description=(
             "The model-backed Data Director orchestrator. Talks with a researcher, and hands "

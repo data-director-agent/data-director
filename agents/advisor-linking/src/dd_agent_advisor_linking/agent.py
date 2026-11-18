@@ -101,6 +101,7 @@ class LinkingAdviser:
         agent_id="advisor.linking",
         version="0.1.0a1",
         title="Linking Adviser",
+        icon="🔗",
         description=(
             "Mock. Recognises DOIs, ORCID iDs, ROR ids and grant numbers, checks their form, gives "
             "their canonical https form and suggests how to record each link. Resolves nothing; "

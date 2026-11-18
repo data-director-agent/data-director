@@ -28,7 +28,7 @@ from opentelemetry.trace import Tracer
 from dd_sdk.agent_checks import Derived as Derived
 from dd_sdk.agent_checks import Setting as Setting
 from dd_sdk.agent_checks import SpecError as SpecError
-from dd_sdk.agent_checks import check_derivation, check_setting
+from dd_sdk.agent_checks import check_derivation, check_icon, check_setting
 from dd_sdk.agent_result import AgentResult as AgentResult
 from dd_sdk.contract.classes import ClassSchema, ClassSchemaError
 from dd_sdk.contract.models import (
@@ -92,6 +92,9 @@ class AgentSpec:
     # The persona's name as a researcher sees it ("Metadata Librarian", docs/specs/agents.md).
     # Empty: the app and the orchestrators show `agent_id` instead.
     title: str = ""
+    # The persona's icon: one emoji shown beside its title (docs/specs/agents.md). Empty: clients
+    # show their default.
+    icon: str = ""
     # The options a deployment's profile may set, by name (docs/specs/policy-and-identity.md).
     # Empty: the agent offers none, and a profile that sets one for it is refused at invocation.
     settings: Mapping[str, Setting] = field(default_factory=dict)
@@ -118,6 +121,7 @@ class AgentSpec:
             check_derivation(self.agent_id, self.payload, path, derived)
         for name, setting in self.settings.items():
             check_setting(self.agent_id, name, setting)
+        check_icon(self.agent_id, self.icon)
 
     def default_settings(self) -> dict[str, str]:
         """Each setting's default: what applies where the profile sets none."""
@@ -171,6 +175,7 @@ def describe(spec: AgentSpec) -> dict[str, Any]:
         "models": [_model_use(m) for m in spec.models],
         "serves": list(spec.serves),
         "title": spec.title,
+        "icon": spec.icon,
         "settings": {
             name: {
                 "choices": list(s.choices),
@@ -228,10 +233,7 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
     serves = entry.get("serves", ())
     if not isinstance(serves, list | tuple):
         raise SpecError(f"agent {agent_id!r}: serves is not a list")
-    # `title` may be absent: a card written before docs/specs/agents.md names no persona.
-    title = entry.get("title") or ""
-    if not isinstance(title, str):
-        raise SpecError(f"agent {agent_id!r}: title is not a string")
+    title, icon = _persona(agent_id, entry)
     # `settings` may be absent: a card written before docs/specs/policy-and-identity.md offers none.
     try:
         settings = {
@@ -257,8 +259,21 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
         models=models,
         serves=tuple(str(r) for r in serves),
         title=title,
+        icon=icon,
         settings=settings,
     )
+
+
+def _persona(agent_id: str, entry: Mapping[str, Any]) -> tuple[str, str]:
+    """The persona's title and icon. Either may be absent: a card written before
+    docs/specs/agents.md names no persona, and one written before icons has none."""
+    title = entry.get("title") or ""
+    if not isinstance(title, str):
+        raise SpecError(f"agent {agent_id!r}: title is not a string")
+    icon = entry.get("icon") or ""
+    if not isinstance(icon, str):
+        raise SpecError(f"agent {agent_id!r}: icon is not a string")
+    return title, icon
 
 
 def _contract_version(entry: Mapping[str, Any]) -> str:

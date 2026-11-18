@@ -2,7 +2,9 @@
 import { card as cardOf, fixture, spec as helloSpec } from "./fixtures";
 import {
   AGENT_SPEC_URI,
+  agentIcon,
   agentSpecOf,
+  DEFAULT_AGENT_ICON,
   findExtension,
   MANIFEST_URI,
   manifestOf,
@@ -122,5 +124,23 @@ describe("the Data Director extensions", () => {
       title: "Ada",
     });
     expect(readAgentSpec({ ...{ agent_id: "a", version: "1", description: "d", action_class: "a", grounding_mode: "none" } })?.modelsDeclared).toBe(false);
+  });
+});
+
+describe("an agent's icon", () => {
+  const bare = { agent_id: "a", version: "1", description: "d", action_class: "a", grounding_mode: "none" };
+
+  it("is the one its card declares", () => {
+    const spec = readAgentSpec({ ...bare, icon: "📚" });
+    expect(spec?.icon).toBe("📚");
+    expect(agentIcon({ icon: spec?.icon ?? "" })).toBe("📚");
+  });
+
+  it("is the default when the card declares none or one of the wrong shape", () => {
+    for (const raw of [bare, { ...bare, icon: "" }, { ...bare, icon: 7 }]) {
+      const spec = readAgentSpec(raw);
+      expect(spec?.icon).toBe("");
+      expect(agentIcon({ icon: spec?.icon ?? "" })).toBe(DEFAULT_AGENT_ICON);
+    }
   });
 });

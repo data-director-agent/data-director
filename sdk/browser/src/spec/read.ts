@@ -19,6 +19,8 @@ export interface AgentSpec {
   id: string;
   /** The persona's name as a researcher sees it (docs/specs/agents.md). Empty: the card names none. */
   title: string;
+  /** The persona's icon, one emoji (docs/specs/agents.md). Empty: the card declares none. */
+  icon: string;
   version: string;
   description: string;
   contractVersion: string;
@@ -44,11 +46,20 @@ export function agentName(agent: Pick<AgentSpec, "id" | "title">): string {
   return agent.title || agent.id;
 }
 
+/** The icon a page shows for an agent whose card declares none. */
+export const DEFAULT_AGENT_ICON = "🤖";
+
+/** The agent's icon: the one its card declares, or the default when it declares none. */
+export function agentIcon(agent: Pick<AgentSpec, "icon">): string {
+  return agent.icon || DEFAULT_AGENT_ICON;
+}
+
 export function specFromRaw(raw: RawAgentSpec): AgentSpec {
   const schemas = Object.entries(raw.schemas ?? {});
   return {
     id: raw.agent_id,
     title: raw.title ?? "",
+    icon: raw.icon ?? "",
     version: raw.version,
     description: raw.description,
     contractVersion: raw.contract_version,
@@ -94,6 +105,7 @@ export function readAgentSpec(value: unknown): AgentSpec | null {
     derivations: derivations as RawAgentSpec["derivations"],
     ...(Array.isArray(value.models) ? { models: value.models.filter(isRecord) as unknown as RawModelUse[] } : {}),
     ...(Array.isArray(value.serves) ? { serves: list(value.serves) } : {}),
-    ...(typeof value.title === "string" ? { title: value.title } : {}),
+    title: typeof value.title === "string" ? value.title : "",
+    icon: typeof value.icon === "string" ? value.icon : "",
   });
 }
