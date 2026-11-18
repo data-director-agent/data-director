@@ -48,8 +48,8 @@ SESSION_PATH = "/api/session"
 # An ORCID iD: four groups of four, the last character a digit or the checksum `X`.
 ORCID_ID = re.compile(r"\d{4}-\d{4}-\d{4}-\d{3}[\dX]")
 # Paths the gate leaves open: signing in and out, and what a browser asks for unprompted. `/a2a`
-# takes delegation callbacks only (`build_app`), each carrying a grant the conductor issued, and
-# NGINX closes it and the agent card to callers outside the VM.
+# takes delegation callbacks only (`build_app`) and `/mcp` tool calls, each carrying a grant the
+# conductor issued, and NGINX closes them and the agent card to callers outside the VM.
 OPEN_PATHS = frozenset(
     {
         SIGN_IN_PATH,
@@ -58,6 +58,7 @@ OPEN_PATHS = frozenset(
         SESSION_PATH,
         "/favicon.ico",
         "/a2a",
+        "/mcp",
         "/.well-known/agent-card.json",
     }
 )

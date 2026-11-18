@@ -91,8 +91,13 @@ mixin are in [Contract](contract.md); the `dd.*` span attributes the rules read 
     for that server, and when the gateway returned it. For such a source, G1–G3 read the
     conductor's record, not the agent's `retrieval` spans, and an agent's own span citing it
     counts for nothing. Only a structured tool result, a record in the tool's declared output
-    schema with its identifier, is recorded; free text from a tool grounds nothing. Not built
-    yet: TODO(#875).
+    schema with its identifier, is recorded; free text from a tool grounds nothing. The records
+    are the envelope's `tool_retrievals`, which only the conductor fills, and evidence naming a
+    `tool:` source must be one of them (`dd_harness.gateway`, `dd_sdk.contract.validate`). G1
+    compares the agent's `chat` spans with the time the gateway returned the first record, by the
+    harness's clock; an agent on another host whose clock runs ahead could fail G1 although it
+    waited. The source check does not look such a record up again: its hash is the conductor's
+    own, computed from what the server returned.
 
 ## Boundaries and contracts
 
@@ -149,7 +154,8 @@ A new retrieving agent with a packaged or snapshot source adds one entry to its 
 list of copies. An agent whose records need their own projection registers a canonicalisation
 in `dd_sdk.evidence`; it does not invent a name in its own package. An MCP server used as a
 source names such a canonicalisation, and its pinned copy, in the deployment's list of servers,
-so its records are hashed and checked as any other source's. A new grounding mode is an
+so its records are hashed under a registered name, and the conductor, not the agent, records the
+hash. A new grounding mode is an
 entry in the linter's rule table and a contract enum value, and is a change to this spec.
 
 ## Rationale
@@ -209,11 +215,10 @@ callback and no change to retrieving agents.
 
 ## Open questions
 
-- TODO(#246): a source read through the tool gateway is recorded by the conductor (invariant 15,
-  TODO(#875)). The sources agents read themselves today (FAIRsharing, re3data, ROR, Crossref,
-  policy pages) still report
-  their own retrievals, so G1 checks only the agent's own timeline for them until each moves
-  behind an MCP server.
+- TODO(#1143): a source read through the tool gateway is recorded by the conductor (invariant
+  15). The sources agents read themselves today (FAIRsharing, re3data, ROR, Crossref, policy
+  pages) still report their own retrievals, so G1 checks only the agent's own timeline for them
+  until each moves behind an MCP server.
 - TODO(#246): a resolver for the standards advisor's `live` route, which needs FAIRsharing
   credentials and network access. Live runs are unresolved.
 - TODO(#246): whether an unresolved item in `retrieval` mode should be a violation under some

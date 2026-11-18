@@ -89,6 +89,9 @@ function fakeApi({
       }),
     list: () => Promise.resolve([]),
     get: () => Promise.resolve(CONVERSATION),
+    remove: () => Promise.reject(new Error("nothing deleted in these tests")),
+    restore: () => Promise.resolve(),
+    deleted: () => Promise.resolve([]),
     ...overrides,
     turns: turnTransport(sendTurn),
   };

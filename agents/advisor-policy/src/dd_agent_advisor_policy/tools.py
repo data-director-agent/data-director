@@ -2,8 +2,8 @@
 
 Each tool searches a registry read-only. Every record a tool returns is retrieved by the agent,
 with its `retrieval` span, and numbered `R1`, `R2`… so that a finding can name it (`Run`). The
-tools reach registries directly from this agent until the harness's tool gateway exists.
-TODO(#875)
+tools reach registries directly from this agent, not yet through the harness's tool gateway.
+TODO(#1143)
 """
 
 from __future__ import annotations

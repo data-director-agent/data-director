@@ -421,6 +421,20 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     `app/web/src/components/settings/SettingsPage.test.tsx`, `app/web/e2e/settings.spec.ts`).
     Every date, time and number the app shows is written through `app/web/src/format.ts`, so that
     it follows them.
+31. **A person deletes a conversation from the list beside it, and restores it from the
+    project's page.** Each conversation in the workspace's list has a delete button named by its
+    title, which opens a dialog saying that the conversation leaves every list for everyone
+    working on its project, that nothing is erased, and until which day it can be restored, from
+    the project's `restore_days`; **Delete conversation** deletes it
+    (`DELETE /api/conversations/{id}`) and, if it was open, the workspace starts afresh. The
+    project's page lists the project's deleted conversations under **Recently deleted**, beneath
+    its conversations (`GET /api/conversations/deleted`), with when each was deleted, until when
+    it can be restored, and **Restore** (`POST /api/conversations/{id}/restore`); the section is
+    not shown while there is nothing in it. Only whoever started the conversation, or the
+    project's owner, may do either ([Projects](projects.md), invariants 29 to 31;
+    `app/web/src/components/conversation/DeleteConversation.tsx`,
+    `app/web/src/components/project/DeletedConversations.tsx`,
+    `app/tests/test_conversation_deletion.py`).
 
 ## Boundaries and contracts
 

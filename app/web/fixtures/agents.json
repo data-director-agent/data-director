@@ -11,7 +11,7 @@
       "action_class": "advise",
       "agent_id": "advisor.standards",
       "assigned_action_class": "advise",
-      "contract_version": "0.14.0",
+      "contract_version": "0.15.0",
       "derivations": {
         "items.concern": {
           "how": "model",
@@ -535,6 +535,7 @@
       "settings": {},
       "skills": [],
       "title": "Standards Librarian",
+      "tools": [],
       "version": "0.3.0"
     }
   ],

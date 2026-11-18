@@ -56,8 +56,8 @@ The advisor sends the provider the dataset profile's title, description, keyword
 types and field names and types, and the records' names, types, statuses, subjects and
 descriptions (`ModelAdvisor._prompt`), and FAIRsharing receives the model's search words. It never
 sends data values. Its manifest declares the model (`models`), and the app's About tab names it.
-The search tool reaches FAIRsharing from the agent until the harness's tool gateway exists
-(TODO(#875)). The app runs the advisor in its own process only with `template`. For the model, run
+The search tool reaches FAIRsharing from the agent, not yet through the harness's tool gateway
+(TODO(#1143)). The app runs the advisor in its own process only with `template`. For the model, run
 it as a service.
 
 ## Grounding

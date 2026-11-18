@@ -153,12 +153,15 @@ are left out of such an agent's input rather than refused. It covers project con
 caller or a person sends, such as a conversation's text (TODO(#40)). The rights and licensing part of a profile is to be expressed in ODRL
 when repository selection or deposit needs it.
 
-Two keys arrive with the harness's tool gateway, which is what enforces them
-([Agents](agents.md#tools-mcp-servers-and-agent-skills), TODO(#875)): a grant of MCP servers per
-agent, without which the gateway refuses the agent's calls; and the classes of project content
-that may go to an agent granted a `remote` server, mirroring `hosted_models`. Without the second,
-no `researcher` facts go to such an agent. A server is `local` or `remote` by the same rule as a
-model's endpoint.
+Two keys are enforced by the harness's tool gateway
+([Agents](agents.md#tools-mcp-servers-and-agent-skills)). `tool_servers` maps an enabled agent to
+the MCP servers it may call; an agent with no entry is sent no tools grant, and the gateway
+refuses any call outside the grant. A profile that grants a server the deployment does not list
+(`DD_TOOLS_CONFIG`) stops start-up. `remote_tool_content` lists the classes of project content
+that may go to an agent granted a `remote` server, mirroring `hosted_models`; without it every
+class but `researcher` may, so no `researcher` facts go to such an agent. A server is `local` or
+`remote` by the same rule as a model's endpoint, and an agent both granted a remote server and
+calling a hosted model is held to both lists (`dd_harness.policy.withheld`).
 
 **The authentication boundary** is one interface: from the headers of a caller's HTTP request
 (or none, for a caller with no request) to a principal. Three implementations sit behind it:

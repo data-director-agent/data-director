@@ -144,6 +144,11 @@ export function projectNamed(
   return projects.find((p) => p.project_id === projectId) ?? null;
 }
 
+/** For how many days a conversation deleted in `project` may be restored, if known. */
+export function restoreDays(project: ProjectSummary | null): number | undefined {
+  return project?.restore_days;
+}
+
 /** What the transcript does with the project's documents and repository choice; nothing outside a
  * project. */
 export function projectHandlers(

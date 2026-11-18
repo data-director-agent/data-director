@@ -426,15 +426,10 @@ def runs_query(
 def conversations_query(
     *, readable: Readable | None, limit: int, before: str | None
 ) -> tuple[str, dict[str, Any]]:
-    """The SQL `list_conversations` runs, and its parameters: one row more than a page, the most
-    recently active first."""
+    """The SQL `list_conversations` runs and its parameters, the most recently active first."""
+    columns = _CONVERSATION_COLUMNS
     return _page_query(
-        "conversation_index",
-        _CONVERSATION_COLUMNS,
-        "last_seq",
-        readable=readable,
-        limit=limit,
-        before=before,
+        "conversation_index", columns, "last_seq", readable=readable, limit=limit, before=before
     )
 
 
@@ -454,6 +449,9 @@ def _page_query(
     check_limit(limit)
     params: dict[str, Any] = {"end": position(before), "rows": limit + 1}
     page = f"{order} < %(end)s order by {order} desc limit %(rows)s"
+    if readable is not None and readable.hidden_conversations:
+        params["hidden"] = sorted(readable.hidden_conversations)
+        page = f"coalesce(conversation_id, '') <> all(%(hidden)s::text[]) and {page}"
     if readable is None:
         return f"select {columns} from {table} where {page}", params
     params["principal"] = readable.principal_id
