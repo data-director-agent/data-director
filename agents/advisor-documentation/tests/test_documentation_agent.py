@@ -442,7 +442,7 @@ def test_a_record_of_placeholders_drafts_as_no_record_does(runs_dir: Path) -> No
         ("http://datacite.org/schema/kernel-4", "[]", "not a JSON object"),
     ],
 )
-def test_a_record_the_mock_cannot_read_is_not_used_and_it_says_so(
+def test_a_record_the_editor_cannot_read_is_not_used_and_it_says_so(
     runs_dir: Path, conforms_to: str, text: str, why: str
 ) -> None:
     asked = sample(WITH_RECORD)
