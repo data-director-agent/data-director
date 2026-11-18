@@ -2,6 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import { axe } from "jest-axe";
 
 import { type FeedbackApi, FeedbackApiContext } from "../../feedback/api";
+import { about } from "../../test/api";
 import { Frame } from "./Frame";
 
 function withAbout(about: FeedbackApi["about"]) {
@@ -237,13 +238,9 @@ describe("Frame", () => {
 
   it("names the deployed commit in the footer", async () => {
     const api = withAbout(() =>
-      Promise.resolve({
-        app_version: "0.3.0",
-        harness_version: "0.1.0",
-        commit: "abcdef0123456789",
-        feedback_enabled: false,
-        privacy_notice_url: null,
-      }),
+      Promise.resolve(
+        about({ commit: "abcdef0123456789", privacy_notice_url: null }),
+      ),
     );
     const { container } = render(
       <FeedbackApiContext.Provider value={api}>
@@ -261,13 +258,9 @@ describe("Frame", () => {
 
   it("links the operator's privacy notice in the footer when there is one", async () => {
     const api = withAbout(() =>
-      Promise.resolve({
-        app_version: "0.3.0",
-        harness_version: "0.1.0",
-        commit: "abcdef0123456789",
-        feedback_enabled: false,
-        privacy_notice_url: "https://example.ac.uk/data-director/privacy",
-      }),
+      Promise.resolve(
+        about({ commit: "abcdef0123456789", privacy_notice_url: "https://example.ac.uk/data-director/privacy" }),
+      ),
     );
     const { container } = render(
       <FeedbackApiContext.Provider value={api}>
@@ -285,13 +278,9 @@ describe("Frame", () => {
 
   it("shows no privacy link when the operator has set no notice", async () => {
     const api = withAbout(() =>
-      Promise.resolve({
-        app_version: "0.3.0",
-        harness_version: "0.1.0",
-        commit: "abcdef0123456789",
-        feedback_enabled: false,
-        privacy_notice_url: null,
-      }),
+      Promise.resolve(
+        about({ commit: "abcdef0123456789", privacy_notice_url: null }),
+      ),
     );
     render(
       <FeedbackApiContext.Provider value={api}>

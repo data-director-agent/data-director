@@ -11,6 +11,7 @@
 
 import { createContext, useContext } from "react";
 
+import type { ProjectFacts } from "../api/generated/responses";
 import { json } from "../http";
 import type { Problem } from "../run/types";
 import { DecisionConflict } from "./api";
@@ -59,21 +60,7 @@ export interface ProjectFact {
   proposed_because?: string;
 }
 
-/** A proposal no decision on its kind and subject has followed yet. */
-export interface FactProposal {
-  proposal: string;
-  agent_id: string;
-  proposed_at: string;
-  fact: ProjectFact;
-}
-
-/** What the project holds: proposals to decide, and the facts that stand. */
-export interface ProjectFacts {
-  proposals: FactProposal[];
-  decisions: ProjectFact[];
-  /** After a decision, the fact that now stands, or null after a rejection. */
-  decided?: ProjectFact | null;
-}
+export type { FactProposal, ProjectFacts } from "../api/generated/responses";
 
 export interface FactDecision {
   verdict: FactVerdict;

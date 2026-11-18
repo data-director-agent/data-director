@@ -15,6 +15,7 @@
 import type { FileInventory } from "@data-director/inventory";
 import { createContext, useContext } from "react";
 
+import type { Started } from "../api/generated/responses";
 import { json, RunRefused } from "../http";
 import { SIGNED_OUT, SignedOut } from "../session/api";
 import type { Problem } from "../run/types";
@@ -22,11 +23,7 @@ import type { AttachedDocument } from "./documentation";
 import type { ReplyAnswers } from "./question";
 import type { Conversation, ConversationSummary, DeletedConversation } from "./types";
 
-/** A conversation the server started, and the project it was started in, if it keeps them. */
-export interface Started {
-  conversation_id: string;
-  project_id: string | null;
-}
+export type { Started } from "../api/generated/responses";
 
 export interface ConversationApi {
   /** Starts a conversation in `projectId`, or in a new project when it is null. */
@@ -147,7 +144,7 @@ async function request(url: string, init: RequestInit): Promise<Response> {
 
 export const httpConversationApi: ConversationApi = {
   async create(projectId, signal) {
-    const created = await parse<{ conversation_id: string; project_id?: string | null }>(
+    return parse<Started>(
       await request("/api/conversations", {
         ...init(signal),
         method: "POST",
@@ -155,7 +152,6 @@ export const httpConversationApi: ConversationApi = {
         ...(projectId === null ? {} : { body: JSON.stringify({ project_id: projectId }) }),
       }),
     );
-    return { conversation_id: created.conversation_id, project_id: created.project_id ?? null };
   },
   async list(signal) {
     return parse(await request("/api/conversations", init(signal)));

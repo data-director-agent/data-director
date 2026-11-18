@@ -22,6 +22,7 @@ import type {
 import { projectName } from "../../project/name";
 import { type RunApi, RunApiContext } from "../../run/api";
 import type { RunResult } from "../../run/types";
+import { savedInventory } from "../../test/api";
 import { Transcript } from "./Transcript";
 
 /** The fixture's README, drafted by `invocationId`, with `later` versions after it. */
@@ -102,7 +103,7 @@ describe("Transcript", () => {
 
     // Only the inventory the project holds now is served, so only its chip opens it.
     const project = { project_id: "p1", inventory: null };
-    const replaced = { digest: "b".repeat(64), file_count: 1, inventory_made_at: "x", added_at: "x" };
+    const replaced = savedInventory({ digest: "b".repeat(64), inventory_made_at: "x", added_at: "x" });
     rerender(
       <Transcript conversation={{ ...conversation, ...project, inventory: replaced }} agents={[]} onToggleRun={() => {}} />,
     );

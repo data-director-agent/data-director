@@ -11,6 +11,7 @@
 
 import { createContext, useContext } from "react";
 
+import type { Ticket } from "../api/generated/responses";
 import { checkSignedIn } from "../session/api";
 
 export interface AccountLabel {
@@ -45,12 +46,6 @@ export interface RawModelAccount {
     input_tokens: number;
     output_tokens: number;
   }[];
-}
-
-export interface Ticket {
-  ticket: string;
-  broker_url: string;
-  expires_at: string;
 }
 
 /** The broker refused or failed, with its reason code. */

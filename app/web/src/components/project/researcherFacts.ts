@@ -6,7 +6,7 @@ import {
   type RecordItems,
   type RecordSection,
   type ResearcherRecord,
-} from "../../project/api";
+} from "../../project/researcher";
 
 export const SECTION_LABELS: Record<RecordSection, string> = {
   researcher_name: "Name",

@@ -15,7 +15,8 @@ function deleted(over: Partial<DeletedConversation>): DeletedConversation {
     project_id: "p1",
     title: "Depositing a soil survey",
     at: "2026-11-18T10:00:00Z",
-    by: { principal_id: "https://orcid.org/0000-0002-1825-0097" },
+    by: { principal_id: "https://orcid.org/0000-0002-1825-0097", name: "Josiah Carberry", assurance: "asserted" },
+    started_by: "https://orcid.org/0000-0002-1825-0097",
     restorable_until: "2026-12-18T10:00:00Z",
     ...over,
   };

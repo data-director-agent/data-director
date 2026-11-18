@@ -122,7 +122,7 @@ export default tseslint.config(
         { type: "component", pattern: "src/components/*" },
         {
           type: "domain",
-          pattern: "src/{run,manifest,conversation,flow,session,project,feedback,policy,model-account,scan}/**",
+          pattern: "src/{api,run,manifest,conversation,flow,session,project,feedback,policy,model-account,scan}/**",
         },
       ],
     },

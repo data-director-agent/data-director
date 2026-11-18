@@ -30,14 +30,6 @@ export interface AttachedInventory {
   madeAt: string;
 }
 
-/** What the server says the conversation's project holds (`GET /api/conversations/{id}`). */
-export interface ProjectInventory {
-  digest: string;
-  file_count: number;
-  inventory_made_at: string;
-  added_at: string;
-}
-
 /** What the conductor told a turn's agent of the project's inventory (`Message.project_inventory`). */
 export interface InventorySummary {
   inventory_digest: string;

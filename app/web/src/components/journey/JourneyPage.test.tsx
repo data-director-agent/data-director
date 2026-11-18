@@ -6,6 +6,7 @@ import flowFixture from "../../../fixtures/process-flow.json";
 import { FlowApiContext } from "../../flow/api";
 import type { ProcessFlow, ProjectProgress, StepMark } from "../../flow/types";
 import { type ProjectApi, ProjectApiContext } from "../../project/api";
+import { projectProgress } from "../../test/api";
 import { JourneyPage } from "./JourneyPage";
 
 const FLOW = flowFixture as ProcessFlow;
@@ -33,7 +34,7 @@ function renderPage(api: ProjectApi, query = "") {
 
 describe("JourneyPage", () => {
   it("draws every phase as a list and every step as a button that says its state", async () => {
-    const progress: ProjectProgress = { entry: 1, steps: {}, suggested: STEP.id };
+    const progress: ProjectProgress = projectProgress({ entry: 1, steps: {}, suggested: STEP.id });
     const { container } = renderPage(fakeApi(progress, () => Promise.resolve(progress)));
     const phases = await screen.findByRole("list", { name: "The phases in order" });
     expect(phases.children).toHaveLength(FLOW.phases.length);
@@ -44,13 +45,13 @@ describe("JourneyPage", () => {
   });
 
   it("opens a step's details and marks it through the server, showing what it answers", async () => {
-    const before: ProjectProgress = { entry: 1, steps: {}, suggested: null };
-    const after: ProjectProgress = {
+    const before: ProjectProgress = projectProgress({ entry: 1, steps: {}, suggested: null });
+    const after: ProjectProgress = projectProgress({
       entry: 1,
       steps: { [STEP.id]: "done" },
       suggested: null,
       reasons: { [STEP.id]: { state: "done", source: "marked", event: "step_marked" } },
-    };
+    });
     const marks: [string, StepMark][] = [];
     renderPage(
       fakeApi(before, (_project, stepId, mark) => {
