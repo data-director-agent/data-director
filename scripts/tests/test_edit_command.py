@@ -108,7 +108,10 @@ def test_apply_asks_nothing(place: Place) -> None:
     assert "example.hello" not in dict(profile(place)["agents"])  # type: ignore[call-overload]
 
 
-@pytest.mark.parametrize("bad", ["name: [unclosed\n", "name: test\ncolour: blue\n"])
+@pytest.mark.parametrize(
+    "bad",
+    ["name: [unclosed\n", "name: test\ncolour: blue\n", "name: test\nmodel_accounts: [own]\n"],
+)
 def test_an_invalid_edit_is_not_saved_and_is_offered_back_with_the_edits(
     place: Place, bad: str
 ) -> None:

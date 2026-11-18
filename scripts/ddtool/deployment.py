@@ -5,12 +5,15 @@ the instance so.
     orchestrator: model      # the agent the home page converses with: model or stub
     disabled: []             # agents in app/config/agents.yaml not to run
     privacy_notice: https://example.ac.uk/data-director/privacy   # optional
+    model_accounts: {own: allowed, ...}   # optional: copied into the profile as it stands
 
 From it and the release's `app/config/agents.yaml` and `profile.yaml.example`, `apply` writes:
 
 - the profile, `profile.yaml` beside `deployment.yaml`, with `DD_PROFILE` naming it in
   `app.env`. Its `version` rises whenever its content changes, so each stored run names the
   rules it ran under (docs/guide/operations/configuration.md);
+- `model_accounts`, if the file has it, in the profile as written; the app checks it when it
+  starts (docs/specs/model-accounts.md). Without it the profile has none, so the deployment pays;
 - `DD_PRIVACY_NOTICE_URL` in `app.env`, from `privacy_notice`, which the app shows as a link in
   its footer; removed again when `privacy_notice` is unset. It is the operator's own notice for
   the instance, so it is not part of the profile and does not change the profile's digest;
@@ -58,7 +61,7 @@ from ddtool.vm import (
 )
 
 ORCHESTRATORS = ("model", "stub")
-KEYS = {"name", "orchestrator", "disabled", "privacy_notice"}
+KEYS = {"name", "orchestrator", "disabled", "privacy_notice", "model_accounts"}
 PRIVACY_NOTICE_VARIABLE = "DD_PRIVACY_NOTICE_URL"
 # An absolute https URL with a host and no spaces. The app checks the same rule when it reads
 # the setting (dd_app.privacy), as app.env can be edited by hand.
@@ -75,6 +78,7 @@ class Deployment:
     orchestrator: str
     disabled: frozenset[str] = frozenset()
     privacy_notice: str | None = None
+    model_accounts: dict[str, Any] | None = None
 
     @property
     def orchestrator_agent(self) -> str:
@@ -105,7 +109,9 @@ def parse(text: str, label: str, agents: list[Agent]) -> Deployment:
     except yaml.YAMLError as exc:
         raise DevError(f"{label} is not valid YAML: {exc}") from exc
     if not isinstance(data, dict):
-        raise DevError(f"{label}: expected name, orchestrator, disabled and privacy_notice")
+        raise DevError(
+            f"{label}: expected name, orchestrator, disabled, privacy_notice and model_accounts"
+        )
     if unknown := sorted(set(data) - KEYS):
         raise DevError(
             f"{label}: unknown key {', '.join(unknown)} (known: {', '.join(sorted(KEYS))})"
@@ -132,11 +138,15 @@ def parse(text: str, label: str, agents: list[Agent]) -> Deployment:
             f"{label}: privacy_notice is the address of the institution's privacy notice, "
             "an https URL such as https://example.ac.uk/data-director/privacy"
         )
+    model_accounts = data.get("model_accounts")
+    if model_accounts is not None and not isinstance(model_accounts, dict):
+        raise DevError(f"{label}: model_accounts is a mapping, as in the profile")
     found = Deployment(
         name,
         orchestrator,
         frozenset(map(str, disabled)),
         privacy_notice.strip() if privacy_notice else None,
+        model_accounts,
     )
     if found.orchestrator_agent not in known:
         raise DevError(f"{label}: agents.yaml lists no {found.orchestrator_agent}")
@@ -167,6 +177,8 @@ def profile(deployment: Deployment, example: Path, current: str | None) -> str:
     }
     if "hosted_models" in base:
         body["hosted_models"] = list(base["hosted_models"] or [])
+    if deployment.model_accounts is not None:
+        body["model_accounts"] = deployment.model_accounts
     have: dict[str, Any] = (yaml.safe_load(current) or {}) if current else {}
     base_version = int(base.get("version") or 1)
     have_version = int(have.get("version") or 0) if isinstance(have, dict) else 0

@@ -71,6 +71,10 @@ Invariant 14 in [Agents](../../specs/agents.md#invariants).
       the code or a file elsewhere.
 - [ ] A change to a prompt is reviewed as a change to behaviour: the pull request says what is
       meant to change, and the tests or the evaluation show it.
+- [ ] An Agent Skill the prompt loads is vendored under the package's `skills/` with
+      `dd-vendor-skill`, not edited in place, and `skills/pins.json` names the release it came
+      from. A changed Skill is a changed prompt and is reviewed as one; its card declares it
+      (`AgentSpec.skills`, from `dd_sdk.skills.load_skills`).
 
 ### 6. Tests use a fake model
 

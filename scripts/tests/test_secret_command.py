@@ -121,6 +121,20 @@ def test_removing_the_last_secret_removes_the_dropin(etc: Path, units: Path) -> 
     assert not (etc / "credentials" / "advisor-standards").exists()
 
 
+def test_rm_is_remove(etc: Path, units: Path) -> None:
+    secret(etc, units, "set", "advisor-standards", "anthropic-api-key", value=KEY)
+    result = secret(etc, units, "rm", "advisor-standards", "anthropic-api-key")
+    assert result.returncode == 0, result.stderr
+    assert not (etc / "credentials" / "advisor-standards").exists()
+
+
+def test_an_unknown_command_is_named_with_the_usage(etc: Path, units: Path) -> None:
+    result = secret(etc, units, "delete", "advisor-standards", "anthropic-api-key")
+    assert result.returncode == 2
+    assert "'delete'" in result.stderr
+    assert "usage:" in result.stderr
+
+
 def test_list_names_each_secret_and_its_variable_never_its_value(etc: Path, units: Path) -> None:
     secret(etc, units, "set", "orchestrator-model", "anthropic-api-key", value=KEY)
     (etc / "credentials" / "advisor-standards" / "anthropic-api-key").mkdir(parents=True)

@@ -80,7 +80,9 @@ describe("the Data Director extensions", () => {
         { path: "items.rationale", how: "model", recordedIn: "rationale_derivation" },
         { path: "searched.snapshot_ref", how: "registry" },
       ],
+      skills: [{ name: "licence-choice", version: "v1.0.0" }],
     });
+    expect(spec.skills[0]?.sha256).toMatch(/^[0-9a-f]{64}$/);
     expect(Object.keys(spec.schemas).sort()).toEqual(["Findings", "Survey"]);
     expect(spec.digests.Findings).toMatch(/^[0-9a-f]{64}$/);
   });
@@ -112,6 +114,7 @@ describe("the Data Director extensions", () => {
       serves: ["s", null],
       models: [{ provider: "p", model: "m", hosting: "local" }, "m"],
       title: "Ada",
+      skills: [{ name: "s", version: "v1", sha256: "d" }, { name: "t" }, "u"],
     });
     expect(spec).toMatchObject({
       accepts: ["A"],
@@ -122,6 +125,7 @@ describe("the Data Director extensions", () => {
       serves: ["s"],
       models: [{ provider: "p", model: "m", hosting: "local" }],
       title: "Ada",
+      skills: [{ name: "s", version: "v1", sha256: "d" }],
     });
     expect(readAgentSpec({ ...{ agent_id: "a", version: "1", description: "d", action_class: "a", grounding_mode: "none" } })?.modelsDeclared).toBe(false);
   });

@@ -19,3 +19,13 @@ disabled: []
 # iDs, conversations and projects for you, so you owe them a notice of your own; the project's
 # does not cover an instance (docs/guide/operations/privacy.md).
 # privacy_notice: https://example.ac.uk/data-director/privacy
+
+# Whether people may pay for model calls with their own AI provider account, copied into the
+# profile as written. Leave it out and the deployment pays. It needs the model broker and the
+# grant secrets first (docs/guide/operations/model-broker.md); the app stops at start-up without
+# them. Choices: workbench/profiles/README.md, "People's own model accounts".
+# model_accounts:
+#   own: allowed             # off, allowed or required
+#   fallback: deployment     # deployment or none
+#   providers:
+#     - provider: anthropic

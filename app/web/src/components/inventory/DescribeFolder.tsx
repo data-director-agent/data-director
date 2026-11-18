@@ -1,13 +1,13 @@
 /**
- * **Describe a folder…**, the first choice in Make an inventory (MakeInventoryDialog.tsx,
- * docs/specs/app.md). The researcher chooses a folder; the browser scanner (`src/scan/`) describes
+ * **Describe a folder…**, the first tab of Make an inventory and the one it opens on
+ * (MakeInventoryDialog.tsx, docs/specs/app.md). The researcher chooses a folder; the browser scanner (`src/scan/`) describes
  * it here, and the inventory it makes is handed on as a file, as if chosen at the end of the
  * dialog, so that it goes through the check before attaching (#472) like any other.
  *
  * The folder is chosen with `showDirectoryPicker` where the browser has it, since Chromium's
  * `<input webkitdirectory>` asks to "upload" files that are never sent; elsewhere with that input.
- * Dropping a folder on the section is a shortcut for the button. The section is shown only where
- * the deployment serves the scanner. A folder holding a very large file is described only once the
+ * Dropping a folder on the section is a shortcut for the button. The dialog shows the section only
+ * where the deployment serves the scanner (`useScannerAvailable`). A folder holding a very large file is described only once the
  * researcher has read why the command is better for it and chosen to go on (LargeFileNotice.tsx).
  */
 
@@ -39,16 +39,23 @@ interface Props {
   scanner?: Scanner;
 }
 
-export function DescribeFolder({ onDescribed, scanner = pageScanner() }: Props) {
-  const [available, setAvailable] = useState(false);
+/**
+ * Whether the deployment serves the browser scanner: null while that is being found out, so the
+ * dialog does not show one layout and then another.
+ */
+export function useScannerAvailable(scanner: Scanner = pageScanner()): boolean | null {
+  const [available, setAvailable] = useState<boolean | null>(null);
   useEffect(() => {
     let current = true;
-    void scanner.available().then((yes) => current && setAvailable(yes));
+    void scanner.available().then(
+      (yes) => current && setAvailable(yes),
+      () => current && setAvailable(false),
+    );
     return () => {
       current = false;
     };
   }, [scanner]);
-  return available ? <DescribePanel onDescribed={onDescribed} scanner={scanner} /> : null;
+  return available;
 }
 
 type Picker = { showDirectoryPicker(options?: { mode?: "read" }): Promise<DirectoryHandleLike> };
@@ -64,8 +71,7 @@ async function pickDirectory(): Promise<ChosenFolder | null> {
   }
 }
 
-function DescribePanel({ onDescribed, scanner }: Required<Props>) {
-  const heading = useId();
+export function DescribeFolder({ onDescribed, scanner = pageScanner() }: Props) {
   const { scan, start, cancel, fail } = useFolderScan(scanner, onDescribed);
   const [dropping, setDropping] = useState(false);
   const [large, setLarge] = useState<ChosenFolder | null>(null);
@@ -110,16 +116,16 @@ function DescribePanel({ onDescribed, scanner }: Required<Props>) {
     // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <section
       ref={panel}
-      aria-labelledby={heading}
+      aria-label="Describe a folder in this browser"
       className={dropping ? "describe-folder dropping" : "describe-folder"}
       onDragOver={onDragOver}
       onDragLeave={() => setDropping(false)}
       onDrop={onDrop}
     >
-      <h3 id={heading}>Describe a folder in this browser</h3>
       <p>
-        Your browser reads the files in the folder you choose and makes the inventory here. None of
-        the files is sent anywhere: only the inventory is attached, after you have checked it.
+        Choose the folder that holds your data, or drop it here. Your browser reads its files and
+        makes the inventory on this computer. None of the files is sent anywhere: only the
+        inventory is attached, after you have checked it.
       </p>
       {scan.status === "scanning" ? (
         <Scanning scan={scan} onCancel={cancel} />

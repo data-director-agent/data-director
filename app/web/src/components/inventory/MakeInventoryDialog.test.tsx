@@ -15,10 +15,20 @@ async function open(onAttach: (file: File) => void = () => undefined) {
   const user = userEvent.setup();
   render(<MakeInventoryDialog onAttach={onAttach} />);
   await user.click(screen.getByRole("button", { name: "Make an inventory" }));
-  return { user, dialog: await screen.findByRole("dialog", { name: "Make an inventory" }) };
+  const dialog = await screen.findByRole("dialog", { name: "Make an inventory" });
+  // Unit tests serve no scanner (src/test/setup.ts), so the command is the only route.
+  await within(dialog).findByRole("tablist", { name: "Operating system" });
+  return { user, dialog };
 }
 
 describe("MakeInventoryDialog", () => {
+  it("offers only the command, without route tabs, where the scanner is not served", async () => {
+    const { dialog } = await open();
+    expect(within(dialog).queryByRole("tablist", { name: "How to make it" })).toBeNull();
+    expect(within(dialog).queryByRole("region", { name: /Describe a folder/ })).toBeNull();
+    expect(within(dialog).getByRole("button", { name: "Choose inventory.json" })).toBeVisible();
+  });
+
   it("says what an inventory is, and shows the commands for this computer's system first", async () => {
     withPlatform("MacIntel");
     const { dialog } = await open();
