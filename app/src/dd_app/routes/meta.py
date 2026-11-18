@@ -1,11 +1,13 @@
 """What the shell reads about the deployment, problem reports, and the shell itself.
 
 `GET /api/about` names the build (version and commit), says whether reports can be filed and gives
-the operator's privacy notice (`DD_PRIVACY_NOTICE_URL`) if there is one; `POST /api/feedback` files
-a problem report or feature request as a GitHub issue (docs/specs/app.md). `GET /api/policy` is the
-profile the gate holds runs to, `GET /api/examples` lists example inputs and `GET /api/process-flow`
-is the Blueprint's entry points and phases (`dd_sdk.process_flow`), which the shell's phase tracker
-draws. `GET /server-status` answers a monitor. The shell's own pages serve its `index.html`.
+the operator's privacy notice (`DD_PRIVACY_NOTICE_URL`) if there is one, and whether it may
+describe folders on its own machine (`server_folders`, `dd_app.folder_scan`);
+`POST /api/feedback` files a problem report or feature request as a GitHub issue
+(docs/specs/app.md). `GET /api/policy` is the profile the gate holds runs to, `GET /api/examples`
+lists example inputs and `GET /api/process-flow` is the Blueprint's entry points and phases
+(`dd_sdk.process_flow`), which the shell's phase tracker draws. `GET /server-status` answers a
+monitor. The shell's own pages serve its `index.html`.
 """
 
 from __future__ import annotations
@@ -101,6 +103,7 @@ async def get_about(request: Request, deps: Deps) -> Response:
             **deployment,
             "feedback_enabled": deps.feedback.source is not None,
             "privacy_notice_url": deps.privacy_notice_url,
+            "server_folders": deps.folder_roots is not None,
         }
     )
 
