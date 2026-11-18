@@ -18,12 +18,13 @@ import logging
 import time
 from typing import Any, ClassVar, Self
 
-from pydantic import ConfigDict, model_validator
+from pydantic import ConfigDict, Field, model_validator
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
+from dd_app.documentation_check import DocumentationHeldError
 from dd_app.governance import Governance, TurnConflictError, UnknownConversationError
 from dd_app.routes.common import (
     RUN_REFUSED,
@@ -71,6 +72,8 @@ class AttachedDocumentBody(RequestBody):
     name: str
     media_type: str
     text: str
+    # The kinds of possible personal data or secrets the researcher confirmed it holds (#473).
+    confirmed: list[str] = Field(default_factory=list)
 
 
 class SendTurn(RequestBody):
@@ -90,7 +93,7 @@ class SendTurn(RequestBody):
         "follows, or null for the first turn.",
         "inventory": "`inventory` must be the object `dd-inventory` wrote.",
         "documentation": "`documentation` must be an object giving the document's `name`, "
-        "`media_type` and `text`, as strings.",
+        "`media_type` and `text`, as strings, and optionally `confirmed`, a list of kinds.",
         "reply_answers": "`reply_answers` must name the turn it answers (`answer_to`) and give "
         "`given_answers`: for each question answered, its `answered_key`, the `answer_values` "
         "chosen and optionally `answer_words`.",
@@ -125,7 +128,9 @@ class SendTurn(RequestBody):
 
     def attached(self) -> AttachedDocument | None:
         d = self.documentation
-        return None if d is None else AttachedDocument(d.name, d.media_type, d.text)
+        if d is None:
+            return None
+        return AttachedDocument(d.name, d.media_type, d.text, tuple(d.confirmed))
 
     def turn(self) -> Turn:
         return Turn(
@@ -226,6 +231,9 @@ async def _take_turn(
     except ProjectDeletedError as exc:
         deleted = problem(409, "project-deleted", "This project is deleted", str(exc))
         return deleted, "project deleted"
+    except DocumentationHeldError as exc:
+        title = "This document needs your confirmation"
+        return problem(409, "documentation-held", title, str(exc), kinds=exc.kinds), "held"
     # A `ProjectError` (an inventory or document the project refuses) is a `ValueError`.
     except REFUSED_BEFORE_RUN as exc:
         return refused(str(exc)), "refused"

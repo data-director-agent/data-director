@@ -6,6 +6,9 @@
  * new tab and left with Back. The project page makes its project the active one, so a
  * conversation opened or started from here is in this project.
  *
+ * Beneath them are the project's recently deleted conversations, which may be restored from here
+ * (`DeletedConversations`); restoring one reads the list again.
+ *
  * The list is a convenience: while it is read, or if it cannot be, it says so in a line and the
  * documents beside it are unaffected.
  */
@@ -17,6 +20,7 @@ import { useConversationApi } from "../../conversation/api";
 import type { ConversationSummary } from "../../conversation/types";
 import { Link, homePath } from "../../route";
 import { formatDateTime } from "../../format";
+import { DeletedConversations } from "./DeletedConversations";
 
 type Load =
   | { state: "loading" }
@@ -30,6 +34,7 @@ function started(at: string): string {
 export function ProjectConversations({ projectId }: { projectId: string }) {
   const api = useConversationApi();
   const [load, setLoad] = useState<Load>({ state: "loading" });
+  const [restored, setRestored] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -44,7 +49,7 @@ export function ProjectConversations({ projectId }: { projectId: string }) {
       },
     );
     return () => controller.abort();
-  }, [api, projectId]);
+  }, [api, projectId, restored]);
 
   const list = () => {
     if (load.state === "loading") {
@@ -100,6 +105,7 @@ export function ProjectConversations({ projectId }: { projectId: string }) {
         </li>
       </ul>
       {list()}
+      <DeletedConversations projectId={projectId} onRestored={() => setRestored((n) => n + 1)} />
     </nav>
   );
 }

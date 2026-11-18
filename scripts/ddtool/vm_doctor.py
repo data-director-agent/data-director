@@ -287,7 +287,7 @@ class Doctor(SettingsChecks):
         result = systemctl_show(system, [BACKUP_UNIT], ["Result"]).get(BACKUP_UNIT, {})
         if result.get("Result") not in (None, "", "success"):
             report.problem(f"the last backup ended with {result['Result']}", journal(BACKUP_UNIT))
-        for name in ("backup.sh", "stores.sh"):
+        for name in ("backup.sh", "stores.sh", "gateway-store.sh"):
             source, installed = vm.clone / "deploy" / name, vm.lib / name
             if system.readable(source) and (
                 not system.readable(installed) or system.read(installed) != system.read(source)

@@ -22,14 +22,17 @@ from datetime import UTC, datetime
 from typing import Any
 
 from dd_app.config import DEFAULT_PROJECTS_DIR, DEFAULT_REPOSITORIES_DIR
+from dd_app.documentation_check import accept
+from dd_app.principals import principal_summary
 from dd_app.turn_body import AttachedDocument, Turn
 from dd_harness import conversations, project_access
 from dd_harness.conductor import Conductor
 from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
 from dd_harness.listing import Page, Readable, check_limit
 from dd_harness.observe import RunObserver
+from dd_harness.policy import check_attached_document
 from dd_harness.project_access import Action, Role
-from dd_harness.projects import UnknownProjectError, check_documentation
+from dd_harness.projects import UnknownProjectError
 from dd_harness.requirements import Requirements, load_requirements
 from dd_harness.settings import (
     Settings,
@@ -324,8 +327,7 @@ class Governance:
         documentation: AttachedDocument | None,
         acting_for: Principal,
     ) -> None:
-        """Add what a turn attached to the conversation's project: all of it, or, if any is
-        refused, none."""
+        """Add all a turn attached to the conversation's project, or none if any is refused."""
         project_id = self.projects.project_of(conversation_id) if self.projects else None
         if self.projects is None or project_id is None:
             what = "an inventory" if inventory is not None else "a document"
@@ -334,7 +336,8 @@ class Governance:
             )
         caused_by = f"POST /api/conversations/{conversation_id}/turns"
         if documentation is not None:
-            check_documentation(documentation.name, documentation.media_type, documentation.text)
+            check_attached_document(self.conductor.profile)
+            accept(documentation)
         if inventory is not None:
             self.projects.add_inventory(
                 project_id, inventory, acted_for=acting_for, caused_by=caused_by
@@ -399,11 +402,12 @@ class Governance:
 
     def may_read_conversation(self, conversation_id: str, reader: Principal) -> bool:
         """Whether `reader` may read, and add a turn to, the conversation `conversation_id`: one
-        in a project follows the project; one in no project belongs to whoever started it, which
-        is whom its first turn acted for once it has one."""
+        in a project follows the project unless it is deleted; one in no project belongs to
+        whoever started it, which is whom its first turn acted for once it has one."""
         project_id = self.projects.project_of(conversation_id) if self.projects else None
-        if project_id is not None:
-            return self.may_read_project(project_id, reader)
+        if project_id is not None and self.projects is not None:
+            hidden = project_access.conversation_deleted(self.projects, project_id, conversation_id)
+            return not hidden and self.may_read_project(project_id, reader)
         if conversation_id in self._started:
             return self._started[conversation_id] == reader.principal_id
         first = next(
@@ -417,14 +421,13 @@ class Governance:
         return first is not None and self.may_read_run(first, reader)
 
     def readable(self, reader: Principal) -> Readable:
-        """What the run store lists for `reader`: runs in the projects they may read, and runs in
-        no project that acted for them."""
+        """What the run store lists for `reader`: runs in the projects they may read, but not in
+        their deleted conversations, and runs in no project that acted for them."""
         if self.projects is None:
             return Readable(reader.principal_id, None)
-        return Readable(
-            reader.principal_id,
-            frozenset(project_access.readable_projects(self.projects, reader)),
-        )
+        project_ids = frozenset(project_access.readable_projects(self.projects, reader))
+        hidden = project_access.hidden_conversations(self.projects, project_ids)
+        return Readable(reader.principal_id, project_ids, hidden)
 
     def conversations(
         self, reader: Principal, *, limit: int = PAGE_SIZE, before: str | None = None
@@ -455,13 +458,12 @@ class Governance:
                 return Page([])
             newest_first = newest_first[newest_first.index(before) + 1 :]
         found: list[dict[str, Any]] = []
+        every = self._every_conversation(self.readable(principal))
         for project_id in newest_first:
             summary = self.projects.summary(project_id)
             listed = [
                 {key: c.get(key) for key in LISTED_CONVERSATION}
-                for c in self._every_conversation(
-                    Readable(principal.principal_id, frozenset({project_id}))
-                )
+                for c in every
                 if c.get("project_id") == project_id
             ]
             if (
@@ -617,6 +619,7 @@ class Governance:
                 "ref": profile.ref,
                 "digest": profile.digest,
                 "orchestrator": profile.orchestrator,
+                "attached_documents": profile.attached_documents,
             },
             "acting_for": principal_summary(acting_for),
         }
@@ -690,11 +693,3 @@ class Governance:
             "unavailable": sorted(registry.unavailable),
             "incompatible": sorted(registry.incompatible),
         }
-
-
-def principal_summary(principal: Principal) -> dict[str, Any]:
-    """What the shell is told about a principal: whom runs act for, and who vouched for them."""
-    summary: dict[str, Any] = {"name": principal.name, "assurance": principal.assurance.value}
-    if principal.vouched_by is not None:
-        summary["vouched_by"] = str(principal.vouched_by)
-    return summary

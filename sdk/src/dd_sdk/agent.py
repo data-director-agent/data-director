@@ -46,6 +46,7 @@ from dd_sdk.contract.version import CONTRACT_VERSION, compatible
 from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 from dd_sdk.process_flow import OUT_OF_SCOPE, STEPS
 from dd_sdk.skills import SkillUse, skills_from_description
+from dd_sdk.tools import Tools, ToolUse, tools_from_description
 
 if TYPE_CHECKING:
     from dd_sdk.delegate import Delegated
@@ -102,6 +103,10 @@ class AgentSpec:
     # The Agent Skills it may load into its system prompt, each pinned by version and digest
     # (`dd_sdk.skills`, docs/specs/agents.md). Empty: it loads none.
     skills: tuple[SkillUse, ...] = ()
+    # The MCP servers and tools it calls through the harness's tool gateway (`dd_sdk.tools`,
+    # docs/specs/agents.md). The profile grants servers; a call to one not declared here is
+    # refused. Empty: it calls none.
+    tools: tuple[ToolUse, ...] = ()
 
     def __post_init__(self) -> None:
         unknown = sorted(set(self.serves) - STEPS)
@@ -128,6 +133,9 @@ class AgentSpec:
         names = [s.name for s in self.skills]
         if len(set(names)) != len(names):
             raise SpecError(f"agent {self.agent_id!r} declares a skill twice: {sorted(names)}")
+        servers = [t.server for t in self.tools]
+        if len(set(servers)) != len(servers):
+            raise SpecError(f"agent {self.agent_id!r} declares a tool server twice")
         check_icon(self.agent_id, self.icon)
 
     def default_settings(self) -> dict[str, str]:
@@ -192,6 +200,7 @@ def describe(spec: AgentSpec) -> dict[str, Any]:
             for name, s in spec.settings.items()
         },
         "skills": [s.describe() for s in spec.skills],
+        "tools": [t.describe() for t in spec.tools],
         "schemas": {c.name: c.describe() for c in spec.schemas()},
     }
 
@@ -256,6 +265,7 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
         raise SpecError(f"agent {agent_id!r}: malformed settings: {exc}") from exc
     try:
         skills = skills_from_description(agent_id, entry)
+        tools = tools_from_description(agent_id, entry)
     except ValueError as exc:
         raise SpecError(str(exc)) from exc
     return AgentSpec(
@@ -274,6 +284,7 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
         icon=icon,
         settings=settings,
         skills=skills,
+        tools=tools,
     )
 
 
@@ -396,6 +407,10 @@ class RunContext:
     declares `models` and the harness is configured to mint one (docs/specs/model-accounts.md). It
     is opaque: the agent never parses it, and the SDK's model adapters send it to the broker with
     each call (`dd_sdk.model.bind_grant`).
+
+    `tools` calls the MCP tools the profile grants the agent, through the harness's tool gateway
+    (`dd_sdk.tools`, docs/specs/agents.md). `dd_sdk.serve` binds it to the grant the harness sent;
+    it is None where the agent is granted no server or the harness has no gateway.
     """
 
     tracer: Tracer
@@ -404,6 +419,7 @@ class RunContext:
     delegate: Delegate | None = None
     model_grant: str | None = None
     settings: Mapping[str, str] = field(default_factory=dict)
+    tools: Tools | None = None
 
 
 def setting(ctx: RunContext, spec: AgentSpec, name: str) -> str:

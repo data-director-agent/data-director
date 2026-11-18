@@ -84,6 +84,9 @@
       "kind": {
          "@id": "https://w3id.org/data-director/agents/policy/kind"
       },
+      "limitations": {
+         "@id": "https://w3id.org/data-director/agents/policy/limitations"
+      },
       "linkml": "https://w3id.org/linkml/",
       "mandated_repositories": {
          "@id": "https://w3id.org/data-director/agents/policy/mandated_repositories",

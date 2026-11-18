@@ -65,6 +65,16 @@ describe("ActivityLog", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("badges each run's state and folds the older runs' steps away", () => {
+    renderLog([run("a", "c1", delegatedStream), run("b", "c2", cancelledStream)]);
+    const [newest, older] = screen.getAllByRole("article") as HTMLElement[];
+    expect(within(newest as HTMLElement).getByText("Cancelled")).toHaveClass("status-warn");
+    expect(screen.getByText("2 runs, newest first.")).toBeVisible();
+    const open = (el: HTMLElement) => el.querySelector("details")?.hasAttribute("open");
+    expect(open(newest as HTMLElement)).toBe(true);
+    expect(open(older as HTMLElement)).toBe(false);
+  });
+
   it("keeps a run's latest state, not one entry for each event", () => {
     const first = run("a", "c1", delegatedStream);
     renderLog([{ ...first, state: reduceAll([]) }, first]);

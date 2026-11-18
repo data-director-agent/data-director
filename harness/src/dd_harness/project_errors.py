@@ -33,6 +33,15 @@ class RestoreRefusedError(ProjectError):
     (docs/specs/projects.md, invariant 25)."""
 
 
+class UnknownConversationError(ProjectError):
+    """The project records no conversation with this identifier."""
+
+
+class ConversationDeletedError(ProjectError):
+    """The conversation is deleted, so it is not deleted again until it is restored
+    (docs/specs/projects.md, invariant 29)."""
+
+
 class Refusal(StrEnum):
     """Why a decision, an edit or an answer was refused as not naming what it must
     (docs/specs/projects.md, invariant 12). Each value is a Problem Details slug."""

@@ -90,6 +90,8 @@ export interface Turns {
   reopen(id: string): Promise<void>;
   /** A new conversation, with nothing in the message box. */
   reset(): void;
+  /** Drops a conversation just deleted from the list, and closes it if it is open. */
+  deleted(conversationId: string): void;
 }
 
 const NOTHING: Carried = { inventory: null, document: null };
@@ -334,6 +336,11 @@ export function useConversationTurns(options: TurnsOptions): Turns {
     box.current?.focus();
   }
 
+  function deleted(id: string) {
+    if (id === conversationId) reset();
+    reloadPast();
+  }
+
   const turnCount = conversation?.turns.length ?? 0;
   return {
     conversation,
@@ -355,5 +362,6 @@ export function useConversationTurns(options: TurnsOptions): Turns {
     deliver,
     reopen,
     reset,
+    deleted,
   };
 }

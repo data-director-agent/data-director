@@ -1,5 +1,6 @@
-"""deploy/backup.sh and deploy/restore.sh: a deployment's settings, secrets and stores are backed
-up, kept for the retention period, and restored into a clean tree (deploy/README.md, "Backups").
+"""deploy/backup.sh and deploy/restore.sh: a deployment's settings, secrets and stores, and the
+LiteLLM gateway's database, are backed up, kept for the retention period, and restored into a clean
+tree (deploy/README.md, "Backups").
 
 The scripts run against a VM laid out under tmp_path, with a stand-in for systemctl that records
 what it is asked. The database round trip runs against the database DD_TEST_POSTGRES names.
@@ -88,11 +89,16 @@ class Host:
 
 @pytest.fixture
 def systemctl(tmp_path: Path) -> Path:
-    """A systemctl that records each call; the app and the workbench are active."""
+    """A systemctl that records each call; the app and the workbench are active. The LiteLLM
+    gateway is not installed unless GATEWAY_STATE says it is `active` or `stopped`."""
     path = tmp_path / "systemctl"
     path.write_text(
         "#!/bin/sh\n"
         'echo "$*" >>"$SYSTEMCTL_LOG"\n'
+        'case "$*" in "is-active --quiet data-director-llm-gateway.service") '
+        '[ "$GATEWAY_STATE" = active ] && exit 0; exit 3;; '
+        '"is-enabled --quiet data-director-llm-gateway.service") '
+        '[ -n "$GATEWAY_STATE" ] && exit 0; exit 1;; esac\n'
         'case "$*" in "is-active --quiet data-director-app.service"|'
         '"is-active --quiet data-director-workbench.service") exit 0;; "is-active"*) exit 3;; esac\n'
         'case "$*" in "stop "*) [ -n "$SYSTEMCTL_FAIL_STOP" ] && exit 1;; esac\n'
@@ -447,3 +453,213 @@ def test_a_database_store_restores_into_an_empty_database(
     forced = run(RESTORE, clean.env(systemctl), "--force", str(made))
     assert forced.returncode == 0, forced.stderr
     assert psql(target, query) == psql(source, query)
+
+
+# --- The LiteLLM gateway's database (deploy/gateway-store.sh) --------------------------------------
+# A stand-in for docker records what it is asked. The last test runs against the gateway's test
+# stack, and is skipped unless DD_TEST_GATEWAY_PROJECT names its compose project; the "LiteLLM
+# gateway and model broker" job in CI sets it.
+
+DUMP = "PGDMP gateway"
+
+
+@pytest.fixture
+def docker(tmp_path: Path) -> Path:
+    """A docker that records each call. Its gateway runs (DOCKER_DOWN unset): `ps` finds the
+    `db` and `litellm` containers, pg_dump writes DUMP (or fails with DOCKER_FAIL_DUMP), the spend
+    query answers DOCKER_SPEND, and what pg_restore and psql read is kept in DOCKER_INPUT."""
+    path = tmp_path / "docker"
+    path.write_text(
+        "#!/bin/sh\n"
+        'echo "$*" >>"$DOCKER_LOG"\n'
+        'case "$*" in\n'
+        '  "ps "*service=db) [ -z "$DOCKER_DOWN" ] && echo db-1;;\n'
+        '  "ps "*service=litellm) [ -z "$DOCKER_DOWN" ] && echo app-1;;\n'
+        '  "exec db-1 pg_dump "*) [ -n "$DOCKER_FAIL_DUMP" ] && exit 1; printf "PGDMP gateway";;\n'
+        '  "exec db-1 psql "*) echo "${DOCKER_SPEND:-0}";;\n'
+        '  "exec -i db-1 "*) echo "== $4" >>"$DOCKER_INPUT"; cat >>"$DOCKER_INPUT";;\n'
+        "esac\n"
+        "exit 0\n"
+    )
+    path.chmod(0o755)
+    return path
+
+
+def env(host: Host, systemctl: Path, docker: Path, **extra: str) -> dict[str, str]:
+    return host.env(
+        systemctl,
+        DD_DOCKER=str(docker),
+        DOCKER_LOG=str(host.base / "docker.log"),
+        DOCKER_INPUT=str(host.base / "docker.input"),
+        **extra,
+    )
+
+
+def docker_calls(host: Host) -> list[str]:
+    log = host.base / "docker.log"
+    return log.read_text().splitlines() if log.exists() else []
+
+
+def manifest(made: Path) -> list[str]:
+    return (made / "MANIFEST").read_text().splitlines()
+
+
+def test_a_running_gateway_is_dumped_and_checksummed(
+    host: Host, systemctl: Path, docker: Path
+) -> None:
+    done = run(BACKUP, env(host, systemctl, docker, GATEWAY_STATE="active"))
+    assert done.returncode == 0, done.stderr
+    [made] = backups(host)
+    assert (made / "gateway.pgdump").read_text() == DUMP
+    assert "gateway database litellm gateway.pgdump" in manifest(made)
+    assert "gateway.pgdump" in (made / "SHA256SUMS").read_text()
+    assert any(call.startswith("exec db-1 pg_dump") for call in docker_calls(host))
+
+
+def test_a_stopped_gateway_is_noted_and_the_rest_is_backed_up(
+    host: Host, systemctl: Path, docker: Path
+) -> None:
+    done = run(BACKUP, env(host, systemctl, docker, GATEWAY_STATE="stopped"))
+    assert done.returncode == 0, done.stderr
+    [made] = backups(host)
+    assert "gateway none" in manifest(made)
+    assert not (made / "gateway.pgdump").exists()
+    assert (made / "config.tar.gz").exists()
+    assert not docker_calls(host)
+
+
+def test_without_a_gateway_docker_is_not_asked(host: Host, systemctl: Path, docker: Path) -> None:
+    done = run(BACKUP, env(host, systemctl, docker))
+    assert done.returncode == 0, done.stderr
+    [made] = backups(host)
+    assert not any(line.startswith("gateway") for line in manifest(made))
+    assert not docker_calls(host)
+
+
+def test_a_failed_dump_leaves_no_backup_and_restarts_what_was_stopped(
+    host: Host, systemctl: Path, docker: Path
+) -> None:
+    done = run(BACKUP, env(host, systemctl, docker, GATEWAY_STATE="active", DOCKER_FAIL_DUMP="1"))
+    assert done.returncode == 1
+    assert not backups(host)
+    assert not list(host.backups.glob(".partial-*"))
+    calls = host.calls()
+    stops = [i for i, call in enumerate(calls) if call.startswith("stop ")]
+    starts = [i for i, call in enumerate(calls) if call.startswith("start ")]
+    assert stops and starts and starts[-1] > stops[-1]
+
+
+@pytest.fixture
+def made(host: Host, systemctl: Path, docker: Path) -> Path:
+    """A backup that holds the gateway's database, and the password the gateway had."""
+    (host.etc / "credentials" / "llm-gateway").mkdir(parents=True)
+    (host.etc / "credentials" / "llm-gateway" / "postgres-password").write_text("pa'ss")
+    done = run(BACKUP, env(host, systemctl, docker, GATEWAY_STATE="active"))
+    assert done.returncode == 0, done.stderr
+    [found] = backups(host)
+    (host.base / "docker.log").unlink()
+    return found
+
+
+def test_restore_needs_the_gateway_running_and_changes_nothing_without_it(
+    clean: Host, systemctl: Path, docker: Path, made: Path
+) -> None:
+    done = run(RESTORE, env(clean, systemctl, docker, DOCKER_DOWN="1", DD_BACKUP_DIR=""), str(made))
+    assert done.returncode == 1
+    assert "--gateway" in done.stderr
+    assert not clean.etc.exists()
+    assert not any(call.startswith("stop ") for call in clean.calls())
+
+
+def test_restore_refuses_a_gateway_with_spend_unless_forced(
+    clean: Host, systemctl: Path, docker: Path, made: Path
+) -> None:
+    spent = env(clean, systemctl, docker, DOCKER_SPEND="12", DD_BACKUP_DIR="")
+    done = run(RESTORE, spent, str(made))
+    assert done.returncode == 1
+    assert "gateway" in done.stderr
+    assert not clean.etc.exists()
+
+    done = run(RESTORE, spent, "--force", str(made))
+    assert done.returncode == 0, done.stderr
+
+
+def test_restore_stops_the_gateway_restores_its_database_and_password(
+    clean: Host, systemctl: Path, docker: Path, made: Path
+) -> None:
+    done = run(RESTORE, env(clean, systemctl, docker, DD_BACKUP_DIR=""), str(made))
+    assert done.returncode == 0, done.stderr
+    calls = docker_calls(clean)
+    stop = calls.index("stop app-1")
+    restore = next(i for i, call in enumerate(calls) if " pg_restore " in call)
+    assert stop < restore
+    # The password reaches psql on its input, quoted, and never on a command line.
+    assert not any("pa'ss" in call for call in calls)
+    received = (clean.base / "docker.input").read_text()
+    assert DUMP in received
+    assert "password 'pa''ss'" in received
+    assert "data-director-llm-gateway.service" in done.stdout
+
+
+# --- Against the gateway's test stack ------------------------------------------------------------
+
+PROJECT = os.environ.get("DD_TEST_GATEWAY_PROJECT", "")
+
+
+def gateway(service: str) -> str:
+    found = subprocess.run(
+        [
+            "docker",
+            "ps",
+            "-q",
+            "--filter",
+            f"label=com.docker.compose.project={PROJECT}",
+            "--filter",
+            f"label=com.docker.compose.service={service}",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.split()
+    assert found, f"no running {service} container in {PROJECT}"
+    return found[0]
+
+
+def sql(query: str) -> str:
+    return subprocess.run(
+        ["docker", "exec", "-i", gateway("db"), "psql", "-U", "litellm", "-d", "litellm", "-qtAX"],
+        input=query,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+
+
+@pytest.fixture
+def real_gateway() -> Iterator[str]:
+    if not PROJECT or shutil.which("docker") is None:
+        pytest.skip("no gateway: DD_TEST_GATEWAY_PROJECT is unset")
+    app = gateway("litellm")
+    yield app
+    # restore.sh leaves the gateway stopped; the test stack is wanted running afterwards.
+    subprocess.run(["docker", "start", app], capture_output=True, check=False)
+
+
+@pytest.mark.gateway
+def test_the_gateways_database_round_trips_through_a_backup(
+    host: Host, clean: Host, systemctl: Path, real_gateway: str
+) -> None:
+    keys = 'select token from "LiteLLM_VerificationToken" order by token'
+    before = sql(keys)
+    assert before, "the test stack has no keys to back up"
+    real = {"DD_GATEWAY_PROJECT": PROJECT, "GATEWAY_STATE": "active"}
+    done = run(BACKUP, host.env(systemctl, **real))
+    assert done.returncode == 0, done.stderr
+    [made] = backups(host)
+    assert (made / "gateway.pgdump").stat().st_size > 0
+
+    sql('delete from "LiteLLM_VerificationToken"')
+    assert sql(keys) != before
+    done = run(RESTORE, clean.env(systemctl, DD_BACKUP_DIR="", **real), "--force", str(made))
+    assert done.returncode == 0, done.stderr
+    assert sql(keys) == before

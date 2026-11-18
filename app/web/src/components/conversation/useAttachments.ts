@@ -29,6 +29,8 @@ export interface Carried {
 }
 
 export interface Attachments extends Carried {
+  /** Whether the profile lets a document be attached; if not, only an inventory may be. */
+  documents: boolean;
   /** Whether the next message carries an inventory or a document. */
   carries: boolean;
   /** An inventory read from a file and being checked, not yet attached (#472). */
@@ -60,9 +62,15 @@ function focusLater(box: RefObject<HTMLTextAreaElement | null>) {
   requestAnimationFrame(() => box.current?.focus());
 }
 
+/** Why a document cannot be attached where the profile refuses them (docs/specs/projects.md). */
+export const DOCUMENTS_REFUSED =
+  "This deployment does not keep attached documents: its profile refuses them. Give what the " +
+  "document says in your message instead.";
+
 export function useAttachments(
   box: RefObject<HTMLTextAreaElement | null>,
   announce: (said: string) => void,
+  documents = true,
 ): Attachments {
   const [inventory, setInventory] = useState<AttachedInventory | null>(null);
   const [pendingInventory, setPendingInventory] = useState<AttachedInventory | null>(null);
@@ -96,8 +104,9 @@ export function useAttachments(
     if (!file) return;
     try {
       const content = await file.text();
-      if (isDocumentName(file.name)) attachDocument(content, file.name);
-      else attachInventory(content, file.name);
+      if (!isDocumentName(file.name)) attachInventory(content, file.name);
+      else if (documents) attachDocument(content, file.name);
+      else setError(DOCUMENTS_REFUSED);
     } catch (e) {
       setError(`Data Director could not read ${file.name}: ${errorMessage(e)}`);
     }
@@ -185,6 +194,7 @@ export function useAttachments(
   return {
     inventory,
     document,
+    documents,
     carries: Boolean(inventory || document),
     pendingInventory,
     pendingDocument,

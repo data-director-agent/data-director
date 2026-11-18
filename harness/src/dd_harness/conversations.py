@@ -11,10 +11,11 @@ without rebuilding it. `version_changes` marks where an agent's version differs 
 that agent had earlier in the same conversation, which is what a developer needs to see when an
 agent is rebuilt mid-conversation.
 
-A summary's `title` is derived like everything else: the first turn's
-`Reply.conversation_title`, which a model-backed orchestrator writes (docs/specs/contract.md),
-with `title_source` `model`; otherwise the start of the first turn's message, with `title_source`
-`message`. The harness calls no model to make one.
+A summary's `title` is derived like everything else, from the first turn that did not fail (a
+turn that failed, such as one the model provider could not answer, names nothing; if every turn
+failed, the first): that turn's `Reply.conversation_title`, which a model-backed orchestrator
+writes (docs/specs/contract.md), with `title_source` `model`; otherwise the start of its message,
+with `title_source` `message`. The harness calls no model to make one.
 
 A reply may ask a series of questions (`Reply.reply_questions`): choices, or answers in the
 researcher's own words. `history` writes the questions after the reply's text, so a conversational
@@ -36,6 +37,7 @@ from dd_harness.listing import Page, Readable
 from dd_harness.storage import RunStorage
 from dd_sdk.contract.models import (
     ConversationTurn,
+    OutcomeStatus,
     Question,
     QuestionKind,
     ReplyAnswers,
@@ -61,9 +63,23 @@ def list_conversations(
     items = []
     for summary in page.items:
         first_turn = store.get(summary["first_invocation_id"])
+        if first_turn and failed(first_turn):
+            first_turn = first_standing_turn(store, summary["conversation_id"]) or first_turn
         title = title_of(store, first_turn) if first_turn else untitled(summary)
         items.append({**summary, **title})
     return Page(items, page.next)
+
+
+def failed(envelope: dict[str, Any]) -> bool:
+    return (envelope.get("outcome") or {}).get("status") == OutcomeStatus.FAILED.value
+
+
+def first_standing_turn(store: RunStorage, conversation_id: str) -> dict[str, Any] | None:
+    """The conversation's first turn that did not fail, or None if every turn failed."""
+    for envelope in store.iter_envelopes(conversation_id=conversation_id):
+        if not envelope.get("parent_invocation_id") and not failed(envelope):
+            return envelope
+    return None
 
 
 def title_of(store: RunStorage, first_turn: dict[str, Any]) -> dict[str, str]:

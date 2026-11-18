@@ -127,10 +127,16 @@ DOCUMENTATION_SLOTS = ("metadata_record", "current_version", "draft_answers", "p
 
 
 def give(
-    store: FactSource | None, project_id: str | None, input_doc: Mapping[str, Any]
+    store: FactSource | None,
+    project_id: str | None,
+    input_doc: Mapping[str, Any],
+    *,
+    documents: bool = True,
 ) -> dict[str, Any]:
     """`input_doc` with the project's facts put in, for a class that asks for them. With no
-    store or no project, only what a caller may never set is removed."""
+    store or no project, only what a caller may never set is removed. Without `documents`, as
+    under a profile that refuses attached documents, no attached document is given: neither a
+    `Message`'s list of them nor a `DraftRequest`'s text of them."""
     filled = dict(input_doc)
     schema_class = filled.get("schema_class")
     if store is None or project_id is None:
@@ -158,7 +164,9 @@ def give(
                 # False while the project is untitled too: the model may name it.
                 "project_title_by_researcher": summary["title_source"] == TITLE_BY_RESEARCHER,
                 # Left out while the project holds none, as `project_inventory` is.
-                "project_documentation": store.documentation(project_id) or None,
+                "project_documentation": (store.documentation(project_id) or None)
+                if documents
+                else None,
                 # Absent until an entry point is recorded, as `project_entry` is.
                 "project_entry_by_researcher": (
                     where["entry_source"] == ENTRY_BY_RESEARCHER
@@ -182,7 +190,7 @@ def give(
                 # Only answers a person recorded may be placed as supplied.
                 "draft_answers": _answers(store, project_id, filled.get("document_kind")),
                 "researchers": store.researchers(project_id),
-                "project_documents": _documents(store, project_id),
+                "project_documents": _documents(store, project_id) if documents else None,
                 # Only facts a person decided, never a proposal.
                 "project_decisions": store.decisions(project_id),
             },

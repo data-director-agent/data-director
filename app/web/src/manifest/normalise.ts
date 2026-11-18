@@ -49,6 +49,8 @@ export interface Directory {
   profileRef: string;
   /** The agent the profile names for the conversation, or null when it names none. */
   orchestratorId: string | null;
+  /** Whether the profile lets people attach documents to a project (docs/specs/projects.md). */
+  documentsAllowed: boolean;
   actingFor: { name: string; assurance: string; vouchedBy?: string };
 }
 
@@ -97,6 +99,7 @@ export function normalise(response: RawAgentsResponse): Directory {
     ],
     profileRef: response.profile.ref,
     orchestratorId: response.profile.orchestrator ?? null,
+    documentsAllowed: response.profile.attached_documents !== "refused",
     actingFor: {
       name: response.acting_for.name,
       assurance: response.acting_for.assurance,

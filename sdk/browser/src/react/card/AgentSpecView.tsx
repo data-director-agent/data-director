@@ -56,6 +56,21 @@ export function AgentSpecView({ spec, withIdentity = false }: { spec: AgentSpec;
           ) : null,
         ],
         [
+          "tools",
+          spec.tools.length ? (
+            <Items
+              key="tools"
+              list={spec.tools}
+              itemKey={(t) => t.server}
+              render={(t) => (
+                <>
+                  <Code>{t.server}</Code> <Chips items={t.tools} />
+                </>
+              )}
+            />
+          ) : null,
+        ],
+        [
           "derivations",
           spec.derivations.length ? (
             <Items

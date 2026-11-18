@@ -206,13 +206,25 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     carry an inventory and a document together, and if the project refuses either, the turn is
     refused, nothing runs and neither is kept. The shell's one **Attach a file** button, and a
     drop on the message form, take a `.json` file as an inventory and a `.txt` or `.md` file as a
-    document. A document is read in the browser, refused there if it is empty or over 256 KB,
+    document, unless the agent directory says the profile refuses attached documents
+    (`attached_documents`, [Projects](projects.md)): then they take only an inventory, say why a
+    document is not taken, and the server refuses a turn that carries one. A document is read in the browser, refused there if it is empty or over 256 KB,
     and first opened to be checked: a dialog shows its name, size and text, says that it will be
     stored in the project, that the Documentation Editor reads its text to suggest answers and
     other agents are told only its name, type and size ([Projects](projects.md)), and
     that it must be about the data, never the data themselves nor anything that identifies a
-    person. Nothing is attached until the researcher presses **Attach this document**; closing
-    the dialog any other way discards it. The checked document shows as a chip with its name and
+    person. The dialog also shows what `POST /api/documentation/check` finds in the text:
+    possible personal data, by the inventory command's detector, and secrets, by detect-secrets'
+    named plugins, each by kind and never by value, in or out of a project, keeping nothing.
+    Where something is found, the button reads **Attach anyway** and is enabled only once the
+    researcher ticks that they have checked the document; the turn's `documentation` then names
+    the kinds in `confirmed`. The server checks the text again: a document whose findings are
+    not all confirmed is refused with `409` `documentation-held`, listing the kinds, nothing runs
+    and nothing is kept, and the log names the document and the kinds only (#473,
+    `app/tests/test_documentation_hold.py`,
+    `app/web/src/components/conversation/DocumentReviewDialog.test.tsx`). Nothing is attached
+    until the researcher presses **Attach this document** or **Attach anyway**; closing the
+    dialog any other way discards it. The checked document shows as a chip with its name and
     size and a button to remove it, never as its text, and so does each document a turn's
     `project_documentation` gained on the transcript. `GET /api/projects/{id}/documentation`
     lists a project's documents and `GET /api/projects/{id}/documentation/{digest}` serves one's
@@ -398,11 +410,12 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     [Projects](projects.md), invariant 28).
 30. **A person's own settings are on the Settings page.** `/settings`, reached from the cog
     labelled **Settings** in the banner on every page and from the profile page, holds what a
-    person sets for themselves; what the deployment allows for everyone stays on the Policy page.
-    Where the deployment offers it, it holds the person's own AI account, which it reads from and
+    person sets for themselves, in tabs (**AI account**, **Appearance**, **Dates and times** and
+    **Starting up**); what the deployment allows for everyone stays on the Policy page.
+    Where the deployment offers it, the first tab holds the person's own AI account, which it reads from and
     sends to the model broker alone ([A person's own model account](model-accounts.md),
     `app/web/src/components/settings/ModelAccount.test.tsx`, `app/web/e2e/settings.spec.ts`).
-    Then comes **Preferences**: the colour scheme (light, dark, or matching the device), text
+    The other tabs are the **Preferences**: the colour scheme (light, dark, or matching the device), text
     size, spacing, animation (matching the device, reduced or shown), the style dates and numbers
     are written in and the 12- or 24-hour clock, and whether a visit returns to the project used
     last or starts with none chosen. Each applies at once and is kept in that browser only, one
@@ -411,6 +424,20 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     `app/web/src/components/settings/SettingsPage.test.tsx`, `app/web/e2e/settings.spec.ts`).
     Every date, time and number the app shows is written through `app/web/src/format.ts`, so that
     it follows them.
+31. **A person deletes a conversation from the list beside it, and restores it from the
+    project's page.** Each conversation in the workspace's list has a delete button named by its
+    title, which opens a dialog saying that the conversation leaves every list for everyone
+    working on its project, that nothing is erased, and until which day it can be restored, from
+    the project's `restore_days`; **Delete conversation** deletes it
+    (`DELETE /api/conversations/{id}`) and, if it was open, the workspace starts afresh. The
+    project's page lists the project's deleted conversations under **Recently deleted**, beneath
+    its conversations (`GET /api/conversations/deleted`), with when each was deleted, until when
+    it can be restored, and **Restore** (`POST /api/conversations/{id}/restore`); the section is
+    not shown while there is nothing in it. Only whoever started the conversation, or the
+    project's owner, may do either ([Projects](projects.md), invariants 29 to 31;
+    `app/web/src/components/conversation/DeleteConversation.tsx`,
+    `app/web/src/components/project/DeletedConversations.tsx`,
+    `app/tests/test_conversation_deletion.py`).
 
 ## Boundaries and contracts
 
@@ -498,6 +525,12 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   collapsed "Unrecognised events (n)" group; a malformed event is shown as an error, and the run
   carries on. A stored run (a delegated child's card, or `?run=`) shows its outcome only: a
   child has no stages of its own.
+- **A turn that failed says so in plain words** (`components/conversation/Transcript.tsx`): that
+  Data Director could not answer, that nothing was changed and what the message attached is kept
+  in the project, and to try again or tell whoever runs Data Director. The agent's own statement,
+  which may name an exception, is kept behind a closed disclosure for operators, never shown as
+  the reply. The latest turn, if it failed, offers **Try again**, which sends its message again
+  as a new turn (`app/web/src/components/conversation/Transcript.test.tsx`).
 - **The activity log** (`components/workspace/ActivityLog.tsx`) lists each step of each run this
   tab has streamed, as it happens, newest run first, from the same reducer state
   (`run/activity.tsx`): steps, checks' reports, tool calls and delegated children, each child

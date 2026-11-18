@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { DEFAULT_AGENT_ICON } from "@data-director/agent-view";
 
@@ -44,6 +44,32 @@ function withReply(text: string): Conversation {
 }
 
 describe("Transcript", () => {
+  it("says a failed reply plainly, keeps the agent's text for operators and offers to try again", async () => {
+    const conversation = structuredClone(conversationFixture) as unknown as Conversation;
+    const last = conversation.turns[conversation.turns.length - 1];
+    if (!last) throw new Error("the fixture has no turn");
+    const error = "ModelError: the Messages API answered 502 'provider-error'";
+    last.envelope.payload = null;
+    last.envelope.outcome = { ...last.envelope.outcome, status: "failed", statement: error };
+    for (const entry of conversation.history) {
+      if (entry.turn_invocation_id === last.invocation_id) entry.turn_text = error;
+    }
+    const onRetry = vi.fn();
+    render(<Transcript conversation={conversation} agents={[]} onToggleRun={() => {}} onRetry={onRetry} />);
+
+    const disclosure = screen.getByText(/whoever runs Data Director$/).closest("details");
+    expect(disclosure).not.toBeNull();
+    expect(disclosure).not.toHaveAttribute("open");
+    expect(screen.getAllByText(error, { exact: false }).every((e) => disclosure?.contains(e))).toBe(true);
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(onRetry).toHaveBeenCalledWith(conversation.inputs[last.invocation_id]?.message_text ?? "");
+  });
+
+  it("offers to try again only on a latest turn that failed", () => {
+    render(<Transcript conversation={withReply("Fine.")} agents={[]} onToggleRun={() => {}} onRetry={() => {}} />);
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+  });
+
   it("renders Markdown in a reply as formatted text", () => {
     render(<Transcript conversation={withReply("**bold** and\n\n- one\n- two")} agents={[]} onToggleRun={() => {}} />);
     expect(screen.getAllByText("bold")[0]?.tagName).toBe("STRONG");
@@ -268,6 +294,14 @@ describe("Transcript, as a conversation", () => {
     expect(within(speaker.querySelector(".turn-speaker-details") as HTMLElement).getByText(exact)).toBeVisible();
     const personPart = turns()[0]?.querySelector(".turn-person") as HTMLElement;
     expect(personPart.querySelector(".turn-speaker-name")).toHaveTextContent("You");
+  });
+
+  it("marks the person's part with an icon hidden from assistive technology", () => {
+    render(<Transcript conversation={conversation} agents={agents} onToggleRun={() => {}} />);
+    const personPart = turns()[0]?.querySelector(".turn-person") as HTMLElement;
+    const icon = personPart.querySelector(".turn-speaker-name .person-icon");
+    expect(icon).not.toBeNull();
+    expect(icon).toHaveAttribute("aria-hidden", "true");
   });
 
   it("names an agent the directory does not list by its id and version, once", () => {

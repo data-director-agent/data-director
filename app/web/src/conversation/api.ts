@@ -20,7 +20,7 @@ import { SIGNED_OUT, SignedOut } from "../session/api";
 import type { Problem } from "../run/types";
 import type { AttachedDocument } from "./documentation";
 import type { ReplyAnswers } from "./question";
-import type { Conversation, ConversationSummary } from "./types";
+import type { Conversation, ConversationSummary, DeletedConversation } from "./types";
 
 /** A conversation the server started, and the project it was started in, if it keeps them. */
 export interface Started {
@@ -33,6 +33,13 @@ export interface ConversationApi {
   create(projectId: string | null, signal?: AbortSignal): Promise<Started>;
   list(signal?: AbortSignal): Promise<ConversationSummary[]>;
   get(conversationId: string, signal?: AbortSignal): Promise<Conversation>;
+  /** Delete the conversation, which hides it and erases nothing
+   * (`DELETE /api/conversations/{id}`). Answers with until when it may be restored. */
+  remove(conversationId: string): Promise<DeletedConversation>;
+  /** Restore a deleted conversation within its restore period. */
+  restore(conversationId: string): Promise<void>;
+  /** The deleted conversations the person may still restore, the one deleted last first. */
+  deleted(signal?: AbortSignal): Promise<DeletedConversation[]>;
 }
 
 /** The server refused a turn because the conversation has moved on since the page last read it:
@@ -99,6 +106,7 @@ export function turnBody(
             name: document.name,
             media_type: document.media_type,
             text: document.text,
+            ...(document.confirmed?.length ? { confirmed: document.confirmed } : {}),
           },
         }
       : {}),
@@ -154,11 +162,28 @@ export const httpConversationApi: ConversationApi = {
     return parse(await request("/api/conversations", init(signal)));
   },
   async get(conversationId, signal) {
-    return parse(
-      await request(`/api/conversations/${encodeURIComponent(conversationId)}`, init(signal)),
-    );
+    return parse(await request(conversationPath(conversationId), init(signal)));
+  },
+  async remove(conversationId) {
+    return json(await request(conversationPath(conversationId), changing("DELETE")));
+  },
+  async restore(conversationId) {
+    const response = await request(`${conversationPath(conversationId)}/restore`, changing("POST"));
+    if (!response.ok) await json(response);
+  },
+  async deleted(signal) {
+    return json(await request("/api/conversations/deleted", init(signal)));
   },
 };
+
+function conversationPath(conversationId: string): string {
+  return `/api/conversations/${encodeURIComponent(conversationId)}`;
+}
+
+/** A request that changes state, which the server takes only as JSON (#728). */
+function changing(method: string): RequestInit {
+  return { method, headers: { "content-type": "application/json" } };
+}
 
 export const ConversationApiContext = createContext<ConversationApi>(httpConversationApi);
 

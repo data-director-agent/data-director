@@ -178,8 +178,11 @@ in the same way as a linter violation. The verdict is written to `sources.txt` i
 folder, separately from `grounding.txt`.
 
 The source check shows that a cited record exists in the source and says what the evidence says.
-It does not show that the agent read the record during the run. Showing that would need
-retrieval to go through the harness, as delegation does (TODO(#246), [Evidence and grounding](../../docs/specs/grounding.md)).
+It does not show that the agent read the record during the run. A record read through the
+harness's tool gateway is the exception: the conductor recorded it in the envelope's
+`tool_retrievals`, the linter grounds a `tool:` source on that record alone, and the source check
+does not look it up again. The sources agents still read themselves move behind the gateway
+under TODO(#1143) ([Evidence and grounding](../../docs/specs/grounding.md), invariant 15).
 
 ## Running the checks offline
 
