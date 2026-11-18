@@ -36,6 +36,7 @@ from dd_sdk.contract.models import (
 )
 from dd_sdk.contract.version import CONTRACT_VERSION, compatible
 from dd_sdk.skills import SkillUse
+from dd_sdk.tools import ToolUse
 
 # The SDK knows no agent's classes, so this module brings its own, as an agent would
 # (docs/specs/contract.md): an input class and a payload class with nested items and an optional
@@ -120,6 +121,7 @@ SPEC = AgentSpec(
         "searched.snapshot_ref": Derived(Derivation.REGISTRY),
     },
     skills=(SkillUse("licence-choice", "v1.0.0", "0123456789abcdef" * 4),),
+    tools=(ToolUse("spdx", ("get_licence", "search_licences")),),
 )
 
 

@@ -50,7 +50,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
-from dd_broker import anthropic, chat_completions, enrolment, gateway
+from dd_broker import anthropic, chat_completions, enrolment, gateway, upstream
 from dd_broker.agents import AgentCredentials
 from dd_broker.grants import (
     GrantVerifier,
@@ -296,23 +296,6 @@ def _deployment_payment(broker: Broker, provider: str, agent: str) -> _Payment:
     return _Payment(Payer.DEPLOYMENT, provider, Target(url=endpoint), key)
 
 
-def _provider_failure(status: int, payer: Payer) -> Refused:
-    if status in (401, 403):
-        if payer is Payer.OWN:
-            return Refused(403, Reason.MODEL_ACCOUNT_REJECTED)
-        log.error("the provider refused the deployment's key (HTTP %d)", status)
-        return Refused(502, Reason.PROVIDER_ERROR)
-    if status == 429:
-        return Refused(
-            429, Reason.MODEL_ACCOUNT_LIMIT if payer is Payer.OWN else Reason.PROVIDER_ERROR
-        )
-    if status == 400:
-        return Refused(400, Reason.REQUEST_INVALID)
-    if status == 529:
-        return Refused(529, Reason.PROVIDER_ERROR)
-    return Refused(502, Reason.PROVIDER_ERROR)
-
-
 async def _call(
     broker: Broker,
     client: httpx.AsyncClient,
@@ -345,16 +328,9 @@ async def _call(
         answer = await form.forwarding.send(
             client, payment.target, payment.key, body, request.headers
         )
-    except httpx.HTTPError:
-        raise Refused(502, Reason.PROVIDER_UNREACHABLE) from None
-    if answer.status_code != 200:
-        raise _provider_failure(answer.status_code, payment.payer)
-    try:
-        document = answer.json()
-    except ValueError:
-        raise Refused(502, Reason.PROVIDER_ERROR) from None
-    if not isinstance(document, dict):
-        raise Refused(502, Reason.PROVIDER_ERROR)
+    except httpx.HTTPError as exc:
+        raise upstream.unreachable(exc, payment.payer, payment.provider) from None
+    document = upstream.answered(answer, payment.payer, payment.provider, body["model"])
     reported = document.get("model")
     served: str = reported if isinstance(reported, str) else body["model"]
     input_tokens, output_tokens = form.forwarding.usage(document)

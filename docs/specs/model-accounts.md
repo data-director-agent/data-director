@@ -259,6 +259,12 @@ Neither falls back to the deployment's key. The header names, claim names and ac
 in `dd_sdk.model_grant`; the reason codes are in `dd_broker.reasons`. The run records the three
 `model-account-*` codes as the `ReasonCode` values of the same names in snake case (invariant 10).
 
+The broker's own log keeps what the reason code hides from the agent: every provider failure is
+logged with the provider's HTTP status (or, for `provider-unreachable`, the kind of connection
+error), the payer, the provider and the model, so an operator can tell a refused deployment key
+from a wrong gateway address or an outage. The provider's text and the address called are not
+logged (`dd_broker.upstream`).
+
 The deployment pays with its key for the provider the path names, read from the variable an agent
 would use (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`); a provider without one is
 refused, `deployment-account-unavailable`. Its calls go to the provider's own endpoint, or to

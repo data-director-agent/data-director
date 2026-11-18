@@ -94,7 +94,3 @@ name = "default_settings"
 [[unused]]
 path = "sdk/src/dd_sdk/contract/classes.py"
 name = "parse_payload"
-
-[[unused]]
-path = "sdk/src/dd_sdk/tracing.py"
-name = "execute_tool_span"

@@ -399,11 +399,12 @@ class Governance:
 
     def may_read_conversation(self, conversation_id: str, reader: Principal) -> bool:
         """Whether `reader` may read, and add a turn to, the conversation `conversation_id`: one
-        in a project follows the project; one in no project belongs to whoever started it, which
-        is whom its first turn acted for once it has one."""
+        in a project follows the project unless it is deleted; one in no project belongs to
+        whoever started it, which is whom its first turn acted for once it has one."""
         project_id = self.projects.project_of(conversation_id) if self.projects else None
-        if project_id is not None:
-            return self.may_read_project(project_id, reader)
+        if project_id is not None and self.projects is not None:
+            hidden = project_access.conversation_deleted(self.projects, project_id, conversation_id)
+            return not hidden and self.may_read_project(project_id, reader)
         if conversation_id in self._started:
             return self._started[conversation_id] == reader.principal_id
         first = next(
@@ -417,14 +418,13 @@ class Governance:
         return first is not None and self.may_read_run(first, reader)
 
     def readable(self, reader: Principal) -> Readable:
-        """What the run store lists for `reader`: runs in the projects they may read, and runs in
-        no project that acted for them."""
+        """What the run store lists for `reader`: runs in the projects they may read, but not in
+        their deleted conversations, and runs in no project that acted for them."""
         if self.projects is None:
             return Readable(reader.principal_id, None)
-        return Readable(
-            reader.principal_id,
-            frozenset(project_access.readable_projects(self.projects, reader)),
-        )
+        project_ids = frozenset(project_access.readable_projects(self.projects, reader))
+        hidden = project_access.hidden_conversations(self.projects, project_ids)
+        return Readable(reader.principal_id, project_ids, hidden)
 
     def conversations(
         self, reader: Principal, *, limit: int = PAGE_SIZE, before: str | None = None
@@ -455,13 +455,12 @@ class Governance:
                 return Page([])
             newest_first = newest_first[newest_first.index(before) + 1 :]
         found: list[dict[str, Any]] = []
+        every = self._every_conversation(self.readable(principal))
         for project_id in newest_first:
             summary = self.projects.summary(project_id)
             listed = [
                 {key: c.get(key) for key in LISTED_CONVERSATION}
-                for c in self._every_conversation(
-                    Readable(principal.principal_id, frozenset({project_id}))
-                )
+                for c in every
                 if c.get("project_id") == project_id
             ]
             if (
