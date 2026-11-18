@@ -84,6 +84,7 @@ step "The backup script"
 install -d -m 0755 /usr/local/lib/data-director
 install -m 0755 "$SRC/deploy/backup.sh" /usr/local/lib/data-director/backup.sh
 install -m 0644 "$SRC/deploy/stores.sh" /usr/local/lib/data-director/stores.sh
+install -m 0644 "$SRC/deploy/gateway-store.sh" /usr/local/lib/data-director/gateway-store.sh
 
 step "User and directories"
 if ! id "$USER_NAME" &>/dev/null; then
