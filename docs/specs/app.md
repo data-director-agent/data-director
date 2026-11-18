@@ -512,6 +512,12 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   collapsed "Unrecognised events (n)" group; a malformed event is shown as an error, and the run
   carries on. A stored run (a delegated child's card, or `?run=`) shows its outcome only: a
   child has no stages of its own.
+- **A turn that failed says so in plain words** (`components/conversation/Transcript.tsx`): that
+  Data Director could not answer, that nothing was changed and what the message attached is kept
+  in the project, and to try again or tell whoever runs Data Director. The agent's own statement,
+  which may name an exception, is kept behind a closed disclosure for operators, never shown as
+  the reply. The latest turn, if it failed, offers **Try again**, which sends its message again
+  as a new turn (`app/web/src/components/conversation/Transcript.test.tsx`).
 - **The activity log** (`components/workspace/ActivityLog.tsx`) lists each step of each run this
   tab has streamed, as it happens, newest run first, from the same reducer state
   (`run/activity.tsx`): steps, checks' reports, tool calls and delegated children, each child
