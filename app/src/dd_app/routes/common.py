@@ -18,6 +18,7 @@ from starlette.responses import Response
 
 from dd_app import feedback
 from dd_app.config import EXAMPLES_DIR
+from dd_app.folder_scan import FolderRoots
 from dd_app.github_auth import TokenSource
 from dd_app.governance import Governance
 from dd_app.problems import no_conversation as no_conversation
@@ -70,6 +71,8 @@ class Deps:
     # The providers a person's own model account may use; None where they may not add one.
     model_account_providers: list[dict[str, Any]] | None = None
     privacy_notice_url: str | None = None
+    # The folders on this machine a local install may describe; None where it describes none.
+    folder_roots: FolderRoots | None = None
     examples_dir: Path = EXAMPLES_DIR
     started: float = field(default_factory=time.monotonic)
 

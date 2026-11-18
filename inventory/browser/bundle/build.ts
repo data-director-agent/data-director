@@ -44,6 +44,13 @@ const PACKAGE = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const MEMBER = resolve(PACKAGE, "..");
 const CACHE = join(PACKAGE, ".cache", "wheels");
 const DISTRIBUTION = "data-director-inventory";
+/**
+ * Left out of the bundle, with what only they need. Presidio declares spaCy, preshed and numpy,
+ * but with pattern recognisers only it imports none of them but spaCy, which does not build for
+ * Pyodide; the stand-in in `spacy-stub/` takes spaCy's place (docs/specs/personal-data.md).
+ */
+const PRUNED = ["spacy", "preshed", "numpy"];
+const STUB = { name: "dd-inventory-spacy-stub", version: "1.0.0", dir: join(PACKAGE, "bundle", "spacy-stub") };
 
 const pyodideDir = dirname(createRequire(import.meta.url).resolve("pyodide/package.json"));
 const pyodideVersion = (
@@ -88,6 +95,7 @@ function workspacePackages(): PylockPackage[] {
     DISTRIBUTION,
     "--no-dev",
     "--no-emit-workspace",
+    ...PRUNED.flatMap((name) => ["--prune", name]),
     "--frozen",
     "--quiet",
     "--output-file",
@@ -96,6 +104,15 @@ function workspacePackages(): PylockPackage[] {
   const text = readFileSync(lock, "utf8");
   rmSync(out, { recursive: true, force: true });
   return (parseToml(text) as unknown as { packages: PylockPackage[] }).packages;
+}
+
+/** The stand-in for spaCy (`spacy-stub/`), as a wheel the same each time it is built. */
+function buildStub(into: string): CommandWheel {
+  const file = run("uv", [
+    "run", "--no-project", "--quiet", "python", "-I", join(PACKAGE, "bundle", "write_wheel.py"),
+    STUB.dir, STUB.name, STUB.version, into,
+  ]).trim();
+  return { name: STUB.name, version: STUB.version, file, sha256: sha256(readFileSync(join(into, file))) };
 }
 
 /** A wheel's bytes, from the cache or downloaded, checked against its lock's digest. */
@@ -158,7 +175,8 @@ async function main(): Promise<void> {
     readFileSync(join(pyodideDir, "pyodide-lock.json"), "utf8"),
   ) as PyodideLock;
   const command = buildCommand(join(out, "wheels"));
-  const { wheels, lock } = resolveBundle(pyodideLock, workspacePackages(), command);
+  const stub = buildStub(join(out, "wheels"));
+  const { wheels, lock } = resolveBundle(pyodideLock, workspacePackages(), command, [stub]);
 
   const sizes: Record<string, { bytes: number; gzip: number }> = {};
   const record = (path: string, data: Uint8Array): void => {

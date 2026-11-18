@@ -7,6 +7,19 @@
     max-width: 40rem;
   }
 
+  /* A suggestion beside the key field: the typed key looks like another provider's. */
+  .model-account-mismatch {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin-block-start: var(--space-2);
+  }
+
+  .model-account-mismatch p {
+    margin: 0;
+  }
+
   .model-account-actions {
     display: flex;
     flex-wrap: wrap;

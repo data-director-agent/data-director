@@ -31,7 +31,20 @@ dependencies = [
   # reads the shipped versions.xml instead. Check that still holds before allowing a newer fido.
   "opf-fido==1.6.1",
   "frictionless>=5.18,<6",
+  # The personal-data detector (docs/specs/personal-data.md), pattern recognisers only. Pinned
+  # exactly: Presidio imports spaCy at module level even with its NoOpNlpEngine, so it installs
+  # spaCy (with no model, unused) here, and the browser bundle replaces spaCy with a stub
+  # (browser/bundle/spacy-stub). A release adding another spaCy import must be checked there
+  # before it is allowed.
+  "presidio-analyzer==2.2.366",
+  # The e-mail recogniser's validation, given only its bundled public-suffix list (personal.py).
+  "tldextract>=5.3.1,<6",
 ]
+
+[project.optional-dependencies]
+# Names and places in values need named-entity recognition, which the default detector does not
+# run (docs/specs/personal-data.md). This extra installs spaCy; running a model is TODO(#39).
+pii-ner = ["spacy>=3.8,<4"]
 
 [project.scripts]
 dd-inventory = "dd_inventory.cli:main"

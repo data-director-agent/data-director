@@ -11,8 +11,8 @@
  * is left out with one choice.
  *
  * Files whose names, size or digest call for a person to look before deposit (#449) are marked,
- * with what to check: a prompt, never a finding, since the inventory holds no contents
- * (`fileHints`). The same files are listed under "Files to look at".
+ * with what to check: a prompt, not a decision (`fileHints`), as are those with possible personal
+ * data (`PersonalData`); all are among "Files to look at".
  *
  * An inventory may list thousands of files, so a folder draws its contents only while it is open,
  * and a search shows at most `SHOWN` matches.
@@ -55,6 +55,7 @@ import { createContext, useContext, useId, useMemo, useState } from "react";
 import { TableScroll } from "../ui/TableScroll";
 import { FormatStatus, HintBadges, HintList } from "./FileStatus";
 import { Formats } from "./InventoryFormats";
+import { FindingBadge, FindingsContext, findingsByPlace, InventoryCallout, PersonalData } from "./PersonalData";
 
 /** The most search results drawn at once; the rest are counted. */
 export const SHOWN = 200;
@@ -101,6 +102,7 @@ export function InventoryView({
   );
   const summary = useMemo(() => summarise(shown), [shown]);
   const hints = useMemo(() => fileHints(shown), [shown]);
+  const findings = useMemo(() => findingsByPlace(shown), [shown]);
   const made = formatDate(inventory.inventory_made_at);
   const state = useMemo<EditingState | null>(
     () =>
@@ -113,71 +115,66 @@ export function InventoryView({
   return (
     <EditingContext.Provider value={state}>
       <HintsContext.Provider value={hints}>
-        <div className="inventory-view">
-          <p className="callout">
-            This is everything the inventory holds, and so everything Data Director keeps and agents
-            are shown: file names and folders, sizes, digests, formats and the column headings of
-            tables{editing ? ", and anything you describe here" : ""}. It holds nothing else from
-            inside the files, so no agent can see what they say: names, telephone numbers or access
-            codes in notes, whether locations are sensitive, or licence terms written in a file.
-            Files whose names suggest something to check are marked; that is a prompt for you, not a
-            decision, and a file not marked may still need checking.
-          </p>
+        <FindingsContext.Provider value={findings}>
+          <div className="inventory-view">
+            <InventoryCallout editing={Boolean(editing)} />
 
-          <dl className="facts">
-            <div>
-              <dt>Files</dt>
-              <dd>
-                {formatFileCount(summary.fileCount)}, {formatBytes(summary.bytes)} in all
-              </dd>
-            </div>
-            <div>
-              <dt>Made</dt>
-              <dd>
-                {made ? `${made} ` : ""}by {inventory.inventory_tool} {inventory.inventory_tool_version}
-              </dd>
-            </div>
-            {inventory.inventory_identified_with && (
+            <dl className="facts">
               <div>
-                <dt>Formats found with</dt>
-                <dd>{inventory.inventory_identified_with}</dd>
+                <dt>Files</dt>
+                <dd>
+                  {formatFileCount(summary.fileCount)}, {formatBytes(summary.bytes)} in all
+                </dd>
               </div>
-            )}
-            <div>
-              <dt>How formats were found</dt>
-              <dd>
-                <ul className="plain-list">
-                  {IDENTIFICATION_METHODS.filter((m) => summary.identification[m] > 0).map((m) => (
-                    <li key={m}>
-                      {identificationLabel(m)}: {formatFileCount(summary.identification[m])}
-                    </li>
+              <div>
+                <dt>Made</dt>
+                <dd>
+                  {made ? `${made} ` : ""}by {inventory.inventory_tool} {inventory.inventory_tool_version}
+                </dd>
+              </div>
+              {inventory.inventory_identified_with && (
+                <div>
+                  <dt>Formats found with</dt>
+                  <dd>{inventory.inventory_identified_with}</dd>
+                </div>
+              )}
+              <div>
+                <dt>How formats were found</dt>
+                <dd>
+                  <ul className="plain-list">
+                    {IDENTIFICATION_METHODS.filter((m) => summary.identification[m] > 0).map((m) => (
+                      <li key={m}>
+                        {identificationLabel(m)}: {formatFileCount(summary.identification[m])}
+                      </li>
+                    ))}
+                  </ul>
+                </dd>
+              </div>
+            </dl>
+
+            {summary.limitations.length > 0 && (
+              <section aria-labelledby="inventory-limits">
+                <h3 id="inventory-limits">What it leaves out</h3>
+                <ul>
+                  {summary.limitations.map((limit) => (
+                    <li key={limit}>{limit}</li>
                   ))}
                 </ul>
-              </dd>
-            </div>
-          </dl>
+              </section>
+            )}
 
-          {summary.limitations.length > 0 && (
-            <section aria-labelledby="inventory-limits">
-              <h3 id="inventory-limits">What it leaves out</h3>
-              <ul>
-                {summary.limitations.map((limit) => (
-                  <li key={limit}>{limit}</li>
-                ))}
-              </ul>
-            </section>
-          )}
+            <PersonalData inventory={shown} />
+            {editing && (
+              <p role="status" className="inventory-left-out">
+                {changed ? `Changes: ${changed}.` : "Nothing is left out or changed."}
+              </p>
+            )}
 
-          {editing && (
-            <p role="status" className="inventory-left-out">
-              {changed ? `Changes: ${changed}.` : "Nothing is left out or changed."}
-            </p>
-          )}
-
-          <Formats formats={summary.formats} />
-          <Files inventory={shown} />
-          <Tables tables={summary.tables} />
-        </div>
+            <Formats formats={summary.formats} />
+            <Files inventory={shown} />
+            <Tables tables={summary.tables} />
+          </div>
+        </FindingsContext.Provider>
       </HintsContext.Provider>
     </EditingContext.Provider>
   );
@@ -210,12 +207,12 @@ type Filter = "all" | "attention" | "new";
  * Whether the researcher would do well to look at `file`: its format is in doubt, it is a table no
  * one has described, or its names, size or digest call for a check (`hints`).
  */
-function needsAttention(file: InventoryFile, hints: ReadonlyMap<string, FileHint[]>): boolean {
+function needsAttention(file: InventoryFile, marked: ReadonlyMap<string, unknown>[]): boolean {
   const doubtful = file.file_identified_by === "none" || (file.file_pronom_ids?.length ?? 0) > 1;
   return (
     doubtful ||
     (Boolean(file.file_fields?.length) && !file.file_description) ||
-    hints.has(file.file_path)
+    marked.some((m) => m.has(file.file_path))
   );
 }
 
@@ -224,21 +221,23 @@ function Files({ inventory }: { inventory: FileInventory }) {
   const filterId = useId();
   const editing = useContext(EditingContext);
   const hints = useContext(HintsContext);
+  const findings = useContext(FindingsContext);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const all = filesOf(inventory);
+  const marked = all.filter((f) => hints.has(f.file_path) || findings.has(f.file_path)).length;
   const tree = useMemo(() => folderTree(all), [all]);
   const newPaths = editing?.newPaths;
   const found = useMemo(() => {
     const narrowed =
       filter === "attention"
-        ? all.filter((f) => needsAttention(f, hints))
+        ? all.filter((f) => needsAttention(f, [hints, findings]))
         : filter === "new" && newPaths
           ? all.filter((f) => newPaths.has(f.file_path))
           : null;
     if (!query.trim()) return narrowed;
     return searchFiles(narrowed ?? all, query);
-  }, [all, query, filter, newPaths, hints]);
+  }, [all, query, filter, newPaths, hints, findings]);
   if (all.length === 0) {
     return (
       <section aria-labelledby="inventory-files">
@@ -279,9 +278,9 @@ function Files({ inventory }: { inventory: FileInventory }) {
           </div>
         )}
       </div>
-      {hints.size > 0 && (
+      {marked > 0 && (
         <p className="muted">
-          {formatFileCount(hints.size)} marked to look at. {HINT_LIMITATION}
+          {formatFileCount(marked)} marked to look at. {HINT_LIMITATION}
         </p>
       )}
       {found ? <Found files={found} /> : <Folder node={tree} />}
@@ -338,10 +337,10 @@ function Folder({ node }: { node: FolderNode }) {
 
 function Node({ node, open }: { node: TreeNode; open: boolean }) {
   const [isOpen, setOpen] = useState(open);
-  const hints = useContext(HintsContext);
+  const [hints, findings] = [useContext(HintsContext), useContext(FindingsContext)];
   if (node.kind === "file") return <FileLine file={node.file} name={node.name} />;
   // A closed folder still says how many of its files are marked, so none is out of sight.
-  const marked = hints.size ? filesUnder(node).filter((p) => hints.has(p)).length : 0;
+  const marked = filesUnder(node).filter((p) => hints.has(p) || findings.has(p)).length;
   return (
     <details open={isOpen} onToggle={(e) => setOpen(e.currentTarget.open)}>
       <summary>
@@ -424,6 +423,7 @@ function FileLine({ file, name }: { file: InventoryFile; name: string }) {
         </>
       )}
       <HintBadges hints={hints} />
+      <FindingBadge path={file.file_path} />
       {file.file_description && <span className="inventory-description">{file.file_description}</span>}
       <HintList file={file} hints={hints} />
       {editing && !isOmitted(file.file_path, editing.edits.omitted.paths) && (

@@ -6,6 +6,7 @@ import {
   omit,
   type FileInventory,
   type InventoryFile,
+  type PersonalDataFinding,
 } from "../src";
 
 function file(path: string, fields: string[] = []): InventoryFile {
@@ -80,5 +81,33 @@ describe("omit", () => {
     expect(isOmitted("data/readings.csv", paths)).toBe(true);
     expect(isOmitted("data-old/readings.csv", paths)).toBe(false);
     expect(isOmitted("database.csv", paths)).toBe(false);
+  });
+
+  it("leaves out the personal-data findings of what is left out, and keeps the rest", () => {
+    const finding = (place: string, column?: string): PersonalDataFinding => ({
+      finding_kind: "direct identifier",
+      finding_file: place,
+      finding_target: place.endsWith("/") ? "file name" : "field name",
+      ...(column ? { finding_column: column } : {}),
+      finding_confidence: "medium",
+      finding_detector: "keywords",
+    });
+    const checked: FileInventory = {
+      ...sample,
+      inventory_personal_data: [
+        finding("participants/"),
+        finding("participants/alice-smith.csv", "participant_name"),
+        finding("data/readings.csv", "participant_name"),
+        finding("data/readings.csv", "site"),
+      ],
+    };
+    const omission = {
+      paths: new Set(["participants"]),
+      columns: new Map([["data/readings.csv", new Set(["participant_name"])]]),
+    };
+    const trimmed = omit(checked, omission);
+    expect(trimmed.inventory_personal_data).toEqual([finding("data/readings.csv", "site")]);
+    expect(JSON.stringify(trimmed)).not.toContain("participant");
+    expect(omit(sample, omission).inventory_personal_data).toBeUndefined();
   });
 });

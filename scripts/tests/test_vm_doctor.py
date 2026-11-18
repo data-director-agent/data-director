@@ -258,6 +258,46 @@ def test_a_broker_not_enabled_is_not_checked(vm: Vm, capsys: pytest.CaptureFixtu
     assert status == 0, out
 
 
+GATEWAY = "http://127.0.0.1:4000"
+
+
+def point_the_broker_at_the_gateway(vm: Vm) -> None:
+    (vm.etc / "model-broker.env").write_text(f"DD_BROKER_DEPLOYMENT_BASE_URL={GATEWAY}\n")
+
+
+def test_a_broker_sent_to_a_gateway_that_is_not_installed_names_install_sh_gateway(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    point_the_broker_at_the_gateway(vm)
+    status, out = check(FakeVm(), vm, capsys)
+    assert status == 1
+    assert says(out, "problem", GATEWAY, "DD_BROKER_DEPLOYMENT_BASE_URL")
+    assert says(out, "fix", "install.sh", "--gateway")
+
+
+def test_a_gateway_installed_but_not_answering_names_its_journal(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    point_the_broker_at_the_gateway(vm)
+    system = FakeVm()
+    system.units["data-director-llm-gateway.service"] = {"UnitFileState": "enabled"}
+    status, out = check(system, vm, capsys)
+    assert status == 1
+    assert says(out, "fix", "journalctl", "data-director-llm-gateway.service")
+
+
+def test_an_agent_sent_to_a_gateway_that_answers_is_all_good(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (vm.etc / "agents").mkdir(exist_ok=True)
+    (vm.etc / "agents" / "advisor-standards.env").write_text(f"ANTHROPIC_BASE_URL={GATEWAY}\n")
+    system = FakeVm()
+    system.answering.add(4000)
+    status, out = check(system, vm, capsys)
+    assert status == 0, out
+    assert not says(out, "problem", GATEWAY)
+
+
 def test_an_old_commit_still_running_names_the_bootstrap(
     vm: Vm, capsys: pytest.CaptureFixture[str]
 ) -> None:

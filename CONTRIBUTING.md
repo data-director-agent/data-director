@@ -98,6 +98,7 @@ locally from the repository root:
 | Links and citation file | `lychee --offline --include-fragments '**/*.md'`, `uvx cffconvert --validate`, `uv run scripts/check_citation.py`, `scripts/check_todos.py` and `scripts/check_boundaries.py` |
 | Workflows | `uvx zizmor .github`, [actionlint](https://github.com/rhysd/actionlint) and `python3 scripts/check_ci_gate.py`; every `uses:` is pinned to a full commit SHA with the version as a trailing comment (`# v1.2.3`) |
 | NGINX site | `sudo bash scripts/check_nginx.sh` (installs nginx; CI runs it on a clean runner) |
+| LiteLLM gateway and model broker | in `deploy/llm-gateway`, with Docker: `scripts/testing/ci_env.sh && docker compose -f compose.yaml -f compose.test.yaml up -d --wait && scripts/smoke_test.sh && scripts/testing/broker_e2e.sh`, then `docker compose -f compose.yaml -f compose.test.yaml down -v` (a fake provider: no keys, nothing billed) |
 | Developer Certificate of Origin | a person signs off, either with a `Signed-off-by` at the end of the pull request description or implicitly by opening the pull request from their own account (a notice names them), and no coding agent signs off anywhere, which may only co-author (`.github/workflows/dco.yml`, re-run when the description is edited; a problem is a warning, not a failure): `python3 scripts/check_signoff.py BASE HEAD --body-file description.md --author LOGIN` |
 | Dependency review | a new dependency with a known advisory of moderate severity or worse is refused |
 

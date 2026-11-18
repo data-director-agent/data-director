@@ -9,7 +9,14 @@ dd:Reply a sh:NodeShape ;
     rdfs:comment "The payload of a conversational agent: the text of its reply. An orchestrator's reply is grounded on its input and on the envelopes of the invocations it delegated to." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:integer ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "A name for the conversation's project, written by a model once it knows what the research or dataset is. The conductor records it as the project's title when the run succeeds, unless a person has given one; absent when the reply names nothing. Only an agent that declares it model-derived sets it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dcterms:title ;
+            sh:pattern "^.{1,80}$" ],
+        [ sh:datatype xsd:integer ;
             sh:description "The Blueprint entry point (1, 2 or 3) a model worked out from what the researcher said, such as data already collected. The conductor records it for the conversation's project when the run succeeds, unless the researcher has chosen one; absent when the reply records none. Only an agent that declares it model-derived sets it." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -52,14 +59,7 @@ dd:Reply a sh:NodeShape ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
-            sh:path dd:schema_class ],
-        [ sh:datatype xsd:string ;
-            sh:description "A name for the conversation's project, written by a model once it knows what the research or dataset is. The conductor records it as the project's title when the run succeeds, unless a person has given one; absent when the reply names nothing. Only an agent that declares it model-derived sets it." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 5 ;
-            sh:path dcterms:title ;
-            sh:pattern "^.{1,80}$" ] ;
+            sh:path dd:schema_class ] ;
     sh:targetClass dd:Reply .
 
 dd:ChoiceOption a sh:NodeShape ;
@@ -111,7 +111,14 @@ dd:Question a sh:NodeShape ;
     rdfs:comment "One question a conversational agent asks the researcher in its reply, shown as a form field and answered with the reply's other questions in the next turn. A choice question has a fixed set of options, of which one or several may be chosen, and where question_other is true the researcher may answer in their own words instead; option values are unique within the question. A short or long text question is answered in the researcher's own words and has no options. Asking never suspends the run: the researcher may skip a question, or ignore them all and type (docs/specs/orchestration.md)." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:boolean ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The question, as a short line a person reads before the options." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:question_prompt ],
+        [ sh:datatype xsd:boolean ;
             sh:description "True when the researcher may answer in their own words instead of an option. Choice questions only." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -147,13 +154,6 @@ dd:Question a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 2 ;
-            sh:path dd:question_kind ],
-        [ sh:datatype xsd:string ;
-            sh:description "The question, as a short line a person reads before the options." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path dd:question_prompt ] ;
+            sh:path dd:question_kind ] ;
     sh:targetClass dd:Question .
 

@@ -24,6 +24,7 @@ import { type ModelAccountProvider, SignedOut } from "../../session/api";
 import { Button } from "../ui/Button";
 import { DialogTrigger, ModalDialog } from "../ui/Dialog";
 import { formatDateTime } from "../../format";
+import { KeyField } from "./KeyField";
 import { ModelAccountUsage } from "./ModelAccountUsage";
 import { COMPATIBLE, DEFAULT_PROVIDERS, describe, underOrigin } from "./modelProviders";
 
@@ -57,14 +58,18 @@ export function ModelAccount({
   const [replacing, setReplacing] = useState(false);
   const [key, setKey] = useState("");
   const outcome = useRef<HTMLDivElement>(null);
-  const keyId = useId();
-  const hintId = useId();
   const baseUrlId = useId();
   const baseUrlHintId = useId();
   const baseUrlErrorId = useId();
   const providerName = useId();
   const compatible = chosen === COMPATIBLE;
   const baseUrlValid = !compatible || underOrigin(baseUrl.trim(), origins);
+
+  function choose(provider: string, baseUrls: string[] = []) {
+    setChosen(provider);
+    setBaseUrl(baseUrls[0] ?? "");
+    setBaseUrlTouched(false);
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -233,11 +238,7 @@ export function ModelAccount({
                     name={providerName}
                     value={provider}
                     checked={chosen === provider}
-                    onChange={() => {
-                      setChosen(provider);
-                      setBaseUrl(baseUrls[0] ?? "");
-                      setBaseUrlTouched(false);
-                    }}
+                    onChange={() => choose(provider, baseUrls)}
                   />
                   <label htmlFor={`${providerName}-${provider}`}>{describe(provider).name}</label>
                 </div>
@@ -277,22 +278,13 @@ export function ModelAccount({
               )}
             </div>
           )}
-          <div className="field">
-            <label htmlFor={keyId}>{describe(chosen).key}</label>
-            <p className="hint" id={hintId}>
-              {describe(chosen).hint} It is checked with one free request before it is saved.
-            </p>
-            <input
-              type="password"
-              id={keyId}
-              aria-describedby={hintId}
-              autoComplete="off"
-              spellCheck={false}
-              required
-              value={key}
-              onChange={(event) => setKey(event.target.value)}
-            />
-          </div>
+          <KeyField
+            provider={chosen}
+            offered={providers.map((p) => p.provider)}
+            value={key}
+            onChange={setKey}
+            onSwitch={choose}
+          />
           <div className="model-account-actions">
             <Button
               type="submit"

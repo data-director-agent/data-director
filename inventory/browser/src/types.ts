@@ -52,6 +52,45 @@ export interface InventoryFile {
   file_role?: FileRole;
 }
 
+/** What a personal-data finding took the data to be: from values first, then from names. */
+export type PersonalDataKind =
+  | "email address"
+  | "phone number"
+  | "NHS number"
+  | "National Insurance number"
+  | "postcode"
+  | "passport number"
+  | "driving licence number"
+  | "bank account number"
+  | "payment card number"
+  | "IP address"
+  | "person name"
+  | "direct identifier"
+  | "indirect identifier"
+  | "special category"
+  | "location";
+
+/** What part of a file a finding concerns. */
+export type FindingTarget = "column" | "field name" | "file name" | "text";
+
+/**
+ * Where the inventory command found what may be personal data (docs/specs/personal-data.md).
+ * It never holds a value: a kind, a place, bands and the detector.
+ */
+export interface PersonalDataFinding {
+  finding_kind: PersonalDataKind;
+  /** A file's path, as `file_path`; or a folder's, ending in `/`, for its name. */
+  finding_file: string;
+  finding_target: FindingTarget;
+  /** The column, for a column or a field name. */
+  finding_column?: string;
+  finding_proportion?: "under 1%" | "1 to 10%" | "10 to 50%" | "over 50%";
+  finding_confidence: "low" | "medium" | "high";
+  finding_detector: string;
+  /** The sampled values of a column, or the characters of a text file. */
+  finding_examined?: number;
+}
+
 /**
  * One scan of one folder, mounted at a folder name, in an inventory made of several. Every file
  * of the inventory lies under exactly one part's folder.
@@ -66,6 +105,8 @@ export interface InventoryPart {
   part_made_at: string;
   /** As the scan wrote them: paths in them are relative to the part's folder. */
   part_limitations?: string[];
+  /** The part's findings, with paths that begin with its folder; absent, no detector ran. */
+  part_personal_data?: PersonalDataFinding[];
 }
 
 /**
@@ -83,4 +124,9 @@ export interface FileInventory {
   inventory_made_at: string;
   inventory_limitations?: string[];
   inventory_parts?: InventoryPart[];
+  /**
+   * Where possible personal data were found. Absent, no detector ran; empty, one ran and found
+   * nothing, which does not mean there is none. With parts, all of theirs.
+   */
+  inventory_personal_data?: PersonalDataFinding[];
 }

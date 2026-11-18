@@ -108,6 +108,20 @@ describe("resolveBundle", () => {
     expect(wheels.at(-1)?.source).toBe("command");
   });
 
+  it("adds a wheel built here, such as the stand-in for spaCy, for the command to install", () => {
+    const stub = { name: "dd-spacy-stub", version: "1.0.0", file: "stub.whl", sha256: "sha-stub" };
+    const built = resolveBundle(pyodideLock, workspace, command, [stub]);
+    const names = built.wheels.map((w) => normaliseName(w.name));
+    expect(names).toContain("dd-spacy-stub");
+    expect(built.lock.packages["data-director-inventory"]?.depends).toContain("dd-spacy-stub");
+    expect(built.wheels.at(-1)?.name).toBe(command.name);
+  });
+
+  it("fails when a wheel built here is also locked elsewhere", () => {
+    const clash = { name: "opf_fido", version: "0.0.0", file: "fido.whl", sha256: "sha" };
+    expect(() => resolveBundle(pyodideLock, workspace, command, [clash])).toThrow(BundleError);
+  });
+
   it("fails when a package has no pure wheel and Pyodide does not build it", () => {
     const compiled = [pylock("lxml", "6.0.0", ["lxml-6.0.0-cp314-cp314-manylinux.whl"])];
     expect(() => resolveBundle(pyodideLock, compiled, command)).toThrow(BundleError);

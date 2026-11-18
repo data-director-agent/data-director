@@ -11,7 +11,7 @@
  * project holds (or from `asParts` of it) onto `withPart`'s result carries it by path.
  */
 
-import type { FileInventory, InventoryFile, InventoryPart } from "./types";
+import type { FileInventory, InventoryFile, InventoryPart, PersonalDataFinding } from "./types";
 
 /** A folder name that cannot be a part's folder; the message is a sentence a researcher can read. */
 export class NotAPartFolder extends Error {
@@ -83,7 +83,8 @@ function generalLimitations(inventory: FileInventory): string[] {
 
 /**
  * `files` and `parts` as one inventory: files sorted by path, the top-level tool, version and
- * date those of the latest part, and the limitations the general ones then each part's.
+ * date those of the latest part, the limitations the general ones then each part's, and the
+ * personal-data findings every part's, or absent when any part's are, as no detector ran there.
  */
 export function assemble(
   base: FileInventory,
@@ -115,7 +116,18 @@ export function assemble(
   }
   if (!limitations.length) delete document.inventory_limitations;
   if (!sorted.length) delete document.inventory_parts;
+  else if (sorted.every((p) => p.part_personal_data)) {
+    document.inventory_personal_data = sorted.flatMap((p) => p.part_personal_data ?? []);
+  } else delete document.inventory_personal_data;
   return document;
+}
+
+/** `findings` with each path under `folder`, or absent when they are. */
+function findingsUnder(
+  findings: readonly PersonalDataFinding[] | undefined,
+  folder: string,
+): PersonalDataFinding[] | undefined {
+  return findings?.map((f) => ({ ...f, finding_file: `${folder}/${f.finding_file}` }));
 }
 
 /** `scan`'s parts mounted at `folder`: one for a scan of one folder, or one for each of its own. */
@@ -123,7 +135,13 @@ function mount(scan: FileInventory, folder: string): { files: InventoryFile[]; p
   const files = (scan.inventory_files ?? []).map((f) => ({ ...f, file_path: `${folder}/${f.file_path}` }));
   const own = partsOf(scan);
   if (own) {
-    return { files, parts: own.map((p) => ({ ...p, part_folder: `${folder}/${p.part_folder}` })) };
+    const parts = own.map((p) => {
+      const part: InventoryPart = { ...p, part_folder: `${folder}/${p.part_folder}` };
+      const findings = findingsUnder(p.part_personal_data, folder);
+      if (findings) part.part_personal_data = findings;
+      return part;
+    });
+    return { files, parts };
   }
   const part: InventoryPart = {
     part_folder: folder,
@@ -133,6 +151,8 @@ function mount(scan: FileInventory, folder: string): { files: InventoryFile[]; p
   };
   if (scan.inventory_identified_with) part.part_identified_with = scan.inventory_identified_with;
   if (scan.inventory_limitations?.length) part.part_limitations = [...scan.inventory_limitations];
+  const findings = findingsUnder(scan.inventory_personal_data, folder);
+  if (findings) part.part_personal_data = findings;
   return { files, parts: [part] };
 }
 

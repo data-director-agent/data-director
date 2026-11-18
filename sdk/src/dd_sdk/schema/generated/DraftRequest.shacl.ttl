@@ -12,7 +12,12 @@ dd:DraftRequest a sh:NodeShape ;
     rdfs:comment "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen, the metadata record a person approved last and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory, the requirements and the metadata record in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. In a project the conductor also fills current_version, the latest version of the project's document of that kind, or of the document redraft_document names, so a redraft is that document's next version. The answers a person recorded to the current version's questions are filled in by the conductor in the same way (docs/specs/drafting.md), and so are the researcher facts people in the project chose to keep from their public ORCID records (docs/specs/projects.md)." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:class dd:CurrentVersion ;
+    sh:property [ sh:class dd:ProjectFact ;
+            sh:description "The facts a person in the project decided (ProjectFact), the last decision on each subject, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project decided any. A drafter treats each as supplied." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 9 ;
+            sh:path dd:project_decisions ],
+        [ sh:class dd:CurrentVersion ;
             sh:description "The document's latest version, when the drafter is to regenerate it. Absent for a new document." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:BlankNodeOrIRI ;
@@ -73,6 +78,19 @@ dd:Affiliation a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
+            sh:description "The organisation's name." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:organisation_name ],
+        [ sh:datatype xsd:string ;
+            sh:description "The scheme of organisation_identifier, in ORCID's words, such as ROR, GRID or RINGGOLD. Present exactly when organisation_identifier is." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dd:organisation_identifier_scheme ],
+        [ sh:datatype xsd:string ;
             sh:description "The researcher's role or degree." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -85,12 +103,6 @@ dd:Affiliation a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path dd:put_code ],
-        [ sh:datatype xsd:string ;
-            sh:description "The scheme of organisation_identifier, in ORCID's words, such as ROR, GRID or RINGGOLD. Present exactly when organisation_identifier is." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 4 ;
-            sh:path dd:organisation_identifier_scheme ],
         [ sh:datatype xsd:string ;
             sh:description "The department within the organisation." ;
             sh:maxCount 1 ;
@@ -120,14 +132,7 @@ dd:Affiliation a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 7 ;
-            sh:path dd:start_year ],
-        [ sh:datatype xsd:string ;
-            sh:description "The organisation's name." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path dd:organisation_name ] ;
+            sh:path dd:start_year ] ;
     sh:targetClass dd:Affiliation .
 
 dd:ApprovedMetadataRecord a sh:NodeShape ;
@@ -172,12 +177,6 @@ dd:CurrentVersion a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 5 ;
             sh:path dd:decision_reason ],
-        [ sh:description "Whether a person has approved or rejected the version, or not yet decided." ;
-            sh:in ( "proposed" "approved" "rejected" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 4 ;
-            sh:path dd:version_state ],
         [ sh:datatype xsd:string ;
             sh:description "The media type of document_text, such as text/markdown or application/json." ;
             sh:maxCount 1 ;
@@ -185,6 +184,12 @@ dd:CurrentVersion a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
             sh:path dcterms:format ],
+        [ sh:description "Whether a person has approved or rejected the version, or not yet decided." ;
+            sh:in ( "proposed" "approved" "rejected" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 4 ;
+            sh:path dd:version_state ],
         [ sh:class dd:DocumentVersionRef ;
             sh:description "The version, by its document and number." ;
             sh:maxCount 1 ;
@@ -280,7 +285,12 @@ dd:FileInventory a sh:NodeShape ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 5 ;
-            sh:path prov:generatedAtTime ] ;
+            sh:path prov:generatedAtTime ],
+        [ sh:class dd:PersonalDataFinding ;
+            sh:description "Where a personal-data detector found possible personal data (docs/specs/personal-data.md). Absent, no detector ran, or the inventory was made by a command without one; empty, a detector ran and found nothing, which does not mean the data hold none. In an inventory made of parts, it is every part's findings, and absent if any part's are absent." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 8 ;
+            sh:path dd:inventory_personal_data ] ;
     sh:targetClass dd:FileInventory .
 
 dd:InventoryFile a sh:NodeShape ;
@@ -350,6 +360,14 @@ dd:InventoryPart a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
+            sh:description "The folder name the part is mounted at, such as instrument or raw/2024: relative, with forward slashes, and no empty, . or .. segment. Every file of the part has a path that begins with it and a slash. No part's folder is another's or lies inside another's." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:part_folder ;
+            sh:pattern "^[^/]+(/[^/]+)*$" ],
+        [ sh:datatype xsd:string ;
             sh:description "The command that scanned the part's folder, such as dd-inventory." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -361,6 +379,11 @@ dd:InventoryPart a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 5 ;
             sh:path dd:part_limitations ],
+        [ sh:class dd:PersonalDataFinding ;
+            sh:description "The part's findings, as inventory_personal_data, with paths that begin with the part's folder. Absent, no detector ran on the part." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 6 ;
+            sh:path dd:part_personal_data ],
         [ sh:datatype xsd:string ;
             sh:description "The version of the command that scanned the part's folder." ;
             sh:maxCount 1 ;
@@ -380,16 +403,108 @@ dd:InventoryPart a sh:NodeShape ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 4 ;
-            sh:path prov:generatedAtTime ],
+            sh:path prov:generatedAtTime ] ;
+    sh:targetClass dd:InventoryPart .
+
+dd:ProjectFact a sh:NodeShape ;
+    rdfs:comment "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, or the licence (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The kind of check that raised the fact, in the checking agent's words, such as duplicate, system_file or third_party. Kept as it was given; the core does not enumerate it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 10 ;
+            sh:path dd:fact_check_kind ],
         [ sh:datatype xsd:string ;
-            sh:description "The folder name the part is mounted at, such as instrument or raw/2024: relative, with forward slashes, and no empty, . or .. segment. Every file of the part has a path that begins with it and a slash. No part's folder is another's or lies inside another's." ;
+            sh:description "The funders, journals or institutions that require the repository." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path dd:fact_required_by ],
+        [ sh:datatype xsd:string ;
+            sh:description "Why the agent proposes the fact, in a sentence for the person deciding. Kept with the proposal and shown to the person, never given to an agent." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 15 ;
+            sh:path dd:proposed_because ],
+        [ sh:description "The funder's ROR identifier, as a URL, where it is known." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 3 ;
+            sh:path dd:fact_funder_ror ],
+        [ sh:description "The funder's Crossref Funder ID, as a DOI URL, where it is known." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 4 ;
+            sh:path dd:fact_crossref_funder_id ],
+        [ sh:datatype xsd:string ;
+            sh:description "The required repository's re3data identifier, such as r3d100010199, where known." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path dd:fact_re3data_id ;
+            sh:pattern "^r3d[0-9]{9}$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The key a decision counts by within its kind: the funder's identifier or name, the repository's re3data identifier or name, the file's path, the field or path judged sensitive, or licence. The last decision on a kind and subject stands." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:fact_subject ;
+            sh:pattern "\\S" ],
+        [ sh:description "Whether the file is to be deposited." ;
+            sh:in ( "include" "exclude" "undecided" ) ;
+            sh:maxCount 1 ;
+            sh:order 9 ;
+            sh:path dd:file_decision ],
+        [ sh:datatype xsd:string ;
+            sh:description "The funder's name, as its policy record or the researcher gives it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:fact_funder_name ],
+        [ sh:description "Whether the sensitive field or file may be published, and how." ;
+            sh:in ( "publish" "generalise" "withhold" "undecided" ) ;
+            sh:maxCount 1 ;
+            sh:order 12 ;
+            sh:path dd:sensitivity_decision ],
+        [ sh:datatype xsd:string ;
+            sh:description "The path of the file the fact is about, relative to the dataset's root folder, as the inventory gives it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 8 ;
+            sh:path dd:fact_file_path ;
+            sh:pattern "^[^/]" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The required repository's name." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dd:fact_repository_name ],
+        [ sh:description "What the fact is about, which says which value slots apply." ;
+            sh:in ( "funder" "required_repository" "file_inclusion" "sensitivity" "licence" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
             sh:order 0 ;
-            sh:path dd:part_folder ;
-            sh:pattern "^[^/]+(/[^/]+)*$" ] ;
-    sh:targetClass dd:InventoryPart .
+            sh:path dd:fact_kind ],
+        [ sh:description "For a location that may be published or generalised, the precision agreed. Absent where the subject is not a location." ;
+            sh:in ( "exact" "site" "region" "country" ) ;
+            sh:maxCount 1 ;
+            sh:order 13 ;
+            sh:path dd:location_precision ],
+        [ sh:datatype xsd:string ;
+            sh:description "The field name, or the file path, judged sensitive, such as a lat or lon field, or a file of site coordinates." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 11 ;
+            sh:path dd:sensitive_subject ],
+        [ sh:datatype xsd:string ;
+            sh:description "The licence decided, as an SPDX identifier or a URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 14 ;
+            sh:path dd:licence_id ] ;
+    sh:targetClass dd:ProjectFact .
 
 dd:RepositoryRequirements a sh:NodeShape ;
     rdfs:comment "The requirements of the repository a researcher chose: its standard's set with the repository's override, if there is one, merged on top (ADR-0038 decision 2). The harness makes it when the choice is recorded, keeps it among the project's blobs, gives it to the drafters and checks the project against it. Not a set of the deployment's configuration, so it has no requirement_set_id of its own; requirement_sets names the sets it was merged from." ;
@@ -482,6 +597,11 @@ dd:RequirementField a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:order 1 ;
             sh:path dd:qualifier ],
+        [ sh:in ( "required" "recommended" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 3 ;
+            sh:path dd:obligation ],
         [ sh:datatype xsd:string ;
             sh:description "The schema.org term the property maps to, by which the record is read as RDF." ;
             sh:maxCount 1 ;
@@ -489,11 +609,6 @@ dd:RequirementField a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
             sh:path dd:schema_org ],
-        [ sh:in ( "required" "recommended" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 3 ;
-            sh:path dd:obligation ],
         [ sh:datatype xsd:string ;
             sh:description "An override only: the label of the repository's deposit form field the value goes in." ;
             sh:maxCount 1 ;
@@ -514,21 +629,21 @@ dd:RequirementSetUse a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
-            sh:description "A requirement set, as <requirement_set_id>@v<version>." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path dd:ref ;
-            sh:pattern "^[a-z0-9][a-z0-9-]*@v[0-9]+$" ],
-        [ sh:datatype xsd:string ;
             sh:description "The SHA-256 digest of the set's file, in lowercase hex." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
             sh:path dd:sha256 ;
-            sh:pattern "^[0-9a-f]{64}$" ] ;
+            sh:pattern "^[0-9a-f]{64}$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "A requirement set, as <requirement_set_id>@v<version>." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:ref ;
+            sh:pattern "^[a-z0-9][a-z0-9-]*@v[0-9]+$" ] ;
     sh:targetClass dd:RequirementSetUse .
 
 dd:ResearcherFunding a sh:NodeShape ;
@@ -623,6 +738,12 @@ dd:ResearcherRecord a sh:NodeShape ;
             sh:order 3 ;
             sh:path dd:biography ],
         [ sh:datatype xsd:string ;
+            sh:description "The researcher's name as their ORCID record gives it: the credit name, else the given and family names. Absent when they keep their name private or did not keep it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:researcher_name ],
+        [ sh:datatype xsd:string ;
             sh:description "A country the researcher's ORCID record names, as an ISO 3166-1 alpha-2 code." ;
             sh:nodeKind sh:Literal ;
             sh:order 5 ;
@@ -633,12 +754,6 @@ dd:ResearcherRecord a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 10 ;
             sh:path dd:works_omitted ],
-        [ sh:datatype xsd:string ;
-            sh:description "The researcher's name as their ORCID record gives it: the credit name, else the given and family names. Absent when they keep their name private or did not keep it." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path dd:researcher_name ],
         [ sh:datatype xsd:dateTime ;
             sh:description "When the record was read from ORCID's public API." ;
             sh:maxCount 1 ;
@@ -811,4 +926,60 @@ dd:ExternalIdentifier a sh:NodeShape ;
             sh:order 1 ;
             sh:path dd:identifier_value ] ;
     sh:targetClass dd:ExternalIdentifier .
+
+dd:PersonalDataFinding a sh:NodeShape ;
+    rdfs:comment "Where the inventory command found what may be personal data, and how sure it is (docs/specs/personal-data.md). It never holds a matched value, any part of one, an offset into a file, a row number or an example: a kind, a place, bands and the detector only. A finding is a prompt for a person, never a decision." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:description "The share of a column's sampled, non-empty values that matched, as a band so that it cannot be turned back into a count. Present for a column only." ;
+            sh:in ( "under 1%" "1 to 10%" "10 to 50%" "over 50%" ) ;
+            sh:maxCount 1 ;
+            sh:order 4 ;
+            sh:path dd:finding_proportion ],
+        [ sh:description "What part of the file was examined." ;
+            sh:in ( "column" "field name" "file name" "text" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 2 ;
+            sh:path dd:finding_target ],
+        [ sh:datatype xsd:string ;
+            sh:description "The path of the file the finding concerns, as file_path; or, for a folder's name, the folder's path followed by a slash." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:finding_file ;
+            sh:pattern "^[^/]" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The table column the finding concerns, for a column or a field name." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dd:finding_column ],
+        [ sh:description "How sure the detector is, as a band of its highest score." ;
+            sh:in ( "low" "medium" "high" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 5 ;
+            sh:path dd:finding_confidence ],
+        [ sh:datatype xsd:integer ;
+            sh:description "How much was examined: the sampled, non-empty values of a column, or the characters of a text file. Absent for a name." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path dd:finding_examined ],
+        [ sh:datatype xsd:string ;
+            sh:description "The detector, its version and its configuration, such as the recognisers that ran, so that a reader knows what was looked for." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path dd:finding_detector ],
+        [ sh:description "What the detector took the data to be." ;
+            sh:in ( "email address" "phone number" "NHS number" "National Insurance number" "postcode" "passport number" "driving licence number" "bank account number" "payment card number" "IP address" "person name" "direct identifier" "indirect identifier" "special category" "location" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 0 ;
+            sh:path dd:finding_kind ] ;
+    sh:targetClass dd:PersonalDataFinding .
 

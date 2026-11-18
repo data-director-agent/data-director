@@ -156,7 +156,14 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     `app/web/e2e/scan.spec.ts`, which scans a folder holding a canary and checks that no request
     carries it). The release image and the VM deploy build the bundle from the same commit and serve
     it (`docker/release.Dockerfile`, `deploy/deploy.sh`), and their smoke test checks it is served
-    (`scripts/smoke_image.py`). The
+    (`scripts/smoke_image.py`). An app on the researcher's own machine whose operator named
+    folders it may read (`DD_INVENTORY_FOLDERS`, [Projects](projects.md)) begins the dialog with
+    **Describe a folder on this computer** (`components/inventory/DescribeServerFolder.tsx`,
+    `src/scan/serverFolders.ts`), shown where `GET /api/about` says `server_folders`: the
+    researcher opens a listed folder and its subfolders by name (`GET /api/folders`), and
+    `POST /api/folders/inventory` describes the one chosen with `dd-inventory` and answers the
+    inventory, which is handed on as `<folder>-inventory.json` to the same check and stored by
+    nothing else (`DescribeServerFolder.test.tsx`, `app/tests/test_folder_scan.py`). The
     transcript shows the chip on the turn where the project's inventory changed, read from the
     `project_inventory` the conductor gave that turn (`app/tests/test_app.py`,
     `app/web/src/components/conversation/ConversationHome.test.tsx`).
@@ -169,8 +176,10 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     A chip whose whole inventory the page can read, the one attached and the one the project holds
     now (`GET /api/projects/{id}/inventory`), has a **View inventory** button. It opens a dialog
     that says this is everything Data Director keeps and agents are shown, then what the inventory
-    amounts to and leaves out, its formats, its files as folders with a search, and the columns of
-    its tables. A chip for an inventory the project has since replaced has no button, because
+    amounts to and leaves out, where possible personal data was found (by file, with no value, and
+    saying whether nothing was found or the inventory was never checked; such files are marked and
+    counted in their closed folders, `app/web/src/components/inventory/PersonalData.test.tsx`), its
+    formats, its files as folders with a search, and the columns of its tables. A chip for an inventory the project has since replaced has no button, because
     only the latest is served. The facts come from `@data-director/inventory`
     ([System and boundaries](system.md)); the dialog only lays them out. Folders are drawn only
     while open and a search draws at most 200 matches, so an inventory of thousands of files
@@ -180,7 +189,11 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     project holds. Under **Update with a new scan**, the researcher chooses which folder a new
     scan is of: the folder the inventory was made from, one of its folders, or a folder it does
     not have yet, which is added beside the others (naming, the first time, the folder it already
-    has). Only that folder is replaced (`withPart`); what the researcher stated is carried by
+    has). The scan is a folder described there in the browser, where the deployment serves the
+    scanner (**Describe a folder in this browser**, as in Make an inventory), or the file
+    `dd-inventory` wrote; while the browser describes it, which folder it is of cannot change
+    (`app/web/src/components/inventory/DescribeFolder.test.tsx`, `app/web/e2e/scan.spec.ts`).
+    Only that folder is replaced (`withPart`); what the researcher stated is carried by
     path, with what the scan added, changed and removed, and the files they had described that
     it no longer lists ([Projects](projects.md)). **Save as the project's inventory** sends
     the result to `POST /api/projects/{id}/inventory`, which adds it as the project's latest; the
@@ -210,7 +223,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     known and when the session ends, and says that nothing more is kept but the facts a person
     chooses, in a project, from their public record. It makes no request to the provider and the
     app asks for no wider scope (`app/web/src/components/profile/ProfilePage.test.tsx`). It points
-    to the Settings page (rule 29) for the person's own AI account and preferences.
+    to the Settings page (rule 30) for the person's own AI account and preferences.
 21. **A reply's questions are answered one at a time in a form, and may be ignored.** A reply's
     `reply_questions` are drawn beneath the reply. On the latest turn each question is a fieldset
     whose legend is the question and whose description is its help: a choice question as radio
@@ -371,7 +384,18 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     while there is nothing in it ([Projects](projects.md), invariants 22 to 25;
     `app/web/src/components/project/DeleteProject.tsx`, `ProjectsPage.test.tsx`,
     `app/tests/test_project_deletion.py`).
-29. **A person's own settings are on the Settings page.** `/settings`, reached from the cog
+29. **A proposed fact becomes a fact only when a person decides it on the project's page.** The
+    project's page lists **Project facts** beside the researchers. It shows what check agents
+    proposed, each with what it would decide in one sentence, why it was proposed and which agent
+    proposed it, and offers **Confirm it as proposed**, **Change it, then record my version** and
+    **Reject it**, with an optional reason that no agent is given. Under **Decided** each fact that
+    stands can be changed or removed, and **State a fact nobody proposed** records one of the
+    person's own, named by the value that names it. After each decision the panel shows what the
+    server read back. A proposal that has moved on is read again with a warning, and a member
+    deciding whether sensitive data is published, or the licence, is told only an owner may
+    (`app/web/src/components/project/FactsPanel.test.tsx`, `app/tests/test_project_facts.py`,
+    [Projects](projects.md), invariant 28).
+30. **A person's own settings are on the Settings page.** `/settings`, reached from the cog
     labelled **Settings** in the banner on every page and from the profile page, holds what a
     person sets for themselves; what the deployment allows for everyone stays on the Policy page.
     Where the deployment offers it, it holds the person's own AI account, which it reads from and

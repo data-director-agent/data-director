@@ -12,7 +12,7 @@ description: >-
   schema_class (docs/specs/contract.md); every payload mixes in Grounded so the grounding linter can check it
   without knowing its class (docs/specs/grounding.md). Formats here are fixed; see docs/specs/ for why.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.12.0
+version: 0.14.0
 license: MIT
 
 prefixes:
@@ -180,6 +180,7 @@ classes:
       - project_documentation
       - project_entry_by_researcher
       - project_researchers
+      - project_decisions
 
   ConversationTurn:
     description: >-
@@ -333,6 +334,7 @@ classes:
       - inventory_made_at
       - inventory_limitations
       - inventory_parts
+      - inventory_personal_data
 
   InventoryPart:
     description: >-
@@ -346,6 +348,23 @@ classes:
       - part_identified_with
       - part_made_at
       - part_limitations
+      - part_personal_data
+
+  PersonalDataFinding:
+    description: >-
+      Where the inventory command found what may be personal data, and how sure it is
+      (docs/specs/personal-data.md). It never holds a matched value, any part of one, an offset
+      into a file, a row number or an example: a kind, a place, bands and the detector only. A
+      finding is a prompt for a person, never a decision.
+    slots:
+      - finding_kind
+      - finding_file
+      - finding_target
+      - finding_column
+      - finding_proportion
+      - finding_confidence
+      - finding_detector
+      - finding_examined
 
   InventoryFile:
     description: One file of a dataset, as the inventory command found it.
@@ -479,6 +498,7 @@ classes:
       - draft_answers
       - redraft_document
       - researchers
+      - project_decisions
     slot_usage:
       document_kind:
         description: The kind of document to draft.
@@ -515,6 +535,93 @@ classes:
     slots:
       - answered_question
       - answer_text
+
+  ProjectFact:
+    description: >-
+      One fact about a project that a check agent proposes and a person confirms: a funder, a
+      repository a funder or institution requires, whether a file is deposited, whether a
+      sensitive field or file may be published and at what precision, or the licence
+      (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the
+      key a person's decision counts by, so the last decision on a subject stands. An agent's
+      payload carries proposals in proposed_facts; only a person's decision makes one a fact, and
+      the conductor gives the facts a person decided to every drafter and orchestrator in the
+      project as project_decisions, without proposed_because.
+    slots:
+      - fact_kind
+      - fact_subject
+      - fact_funder_name
+      - fact_funder_ror
+      - fact_crossref_funder_id
+      - fact_repository_name
+      - fact_re3data_id
+      - fact_required_by
+      - fact_file_path
+      - file_decision
+      - fact_check_kind
+      - sensitive_subject
+      - sensitivity_decision
+      - location_precision
+      - licence_id
+      - proposed_because
+    rules:
+      - description: A funder fact names the funder.
+        preconditions:
+          slot_conditions:
+            fact_kind:
+              equals_string: funder
+        postconditions:
+          slot_conditions:
+            fact_funder_name:
+              required: true
+      - description: A required repository fact names the repository.
+        preconditions:
+          slot_conditions:
+            fact_kind:
+              equals_string: required_repository
+        postconditions:
+          slot_conditions:
+            fact_repository_name:
+              required: true
+      - description: A file inclusion fact names the file and what is decided about it.
+        preconditions:
+          slot_conditions:
+            fact_kind:
+              equals_string: file_inclusion
+        postconditions:
+          slot_conditions:
+            fact_file_path:
+              required: true
+            file_decision:
+              required: true
+      - description: A sensitivity fact names the field or file and what is decided about it.
+        preconditions:
+          slot_conditions:
+            fact_kind:
+              equals_string: sensitivity
+        postconditions:
+          slot_conditions:
+            sensitive_subject:
+              required: true
+            sensitivity_decision:
+              required: true
+      - description: A licence fact names the licence.
+        preconditions:
+          slot_conditions:
+            fact_kind:
+              equals_string: licence
+        postconditions:
+          slot_conditions:
+            licence_id:
+              required: true
+
+  ProposesFacts:
+    mixin: true
+    description: >-
+      Mixed into an agent's payload class when the agent proposes project facts for a person to
+      confirm (docs/specs/projects.md). The harness reads proposed_facts by this name and never
+      needs to know the payload class.
+    slots:
+      - proposed_facts
 
   # --- Grounding ------------------------------------------------------------------------------
 
@@ -1347,6 +1454,78 @@ slots:
     description: The question_id of the question answered.
     required: true
     pattern: "^q-[0-9a-f]{16}$"
+  project_decisions:
+    description: >-
+      The facts a person in the project decided (ProjectFact), the last decision on each subject,
+      filled by the conductor and never by the caller. Absent when the run is in no project, or
+      nobody in its project decided any. A drafter treats each as supplied.
+    range: ProjectFact
+    multivalued: true
+    inlined_as_list: true
+  proposed_facts:
+    description: >-
+      Facts the agent proposes for a person to confirm. A proposal is never a fact until a person
+      decides it (docs/specs/projects.md).
+    range: ProjectFact
+    multivalued: true
+    inlined_as_list: true
+  fact_kind:
+    description: What the fact is about, which says which value slots apply.
+    range: FactKind
+    required: true
+  fact_subject:
+    description: >-
+      The key a decision counts by within its kind: the funder's identifier or name, the
+      repository's re3data identifier or name, the file's path, the field or path judged
+      sensitive, or licence. The last decision on a kind and subject stands.
+    required: true
+    pattern: "\\S"
+  fact_funder_name:
+    description: The funder's name, as its policy record or the researcher gives it.
+  fact_funder_ror:
+    description: The funder's ROR identifier, as a URL, where it is known.
+    range: uri
+  fact_crossref_funder_id:
+    description: The funder's Crossref Funder ID, as a DOI URL, where it is known.
+    range: uri
+  fact_repository_name:
+    description: The required repository's name.
+  fact_re3data_id:
+    description: The required repository's re3data identifier, such as r3d100010199, where known.
+    pattern: "^r3d[0-9]{9}$"
+  fact_required_by:
+    description: The funders, journals or institutions that require the repository.
+    multivalued: true
+  fact_file_path:
+    description: >-
+      The path of the file the fact is about, relative to the dataset's root folder, as the
+      inventory gives it.
+    pattern: "^[^/]"
+  file_decision:
+    description: Whether the file is to be deposited.
+    range: FileDecision
+  fact_check_kind:
+    description: >-
+      The kind of check that raised the fact, in the checking agent's words, such as duplicate,
+      system_file or third_party. Kept as it was given; the core does not enumerate it.
+  sensitive_subject:
+    description: >-
+      The field name, or the file path, judged sensitive, such as a lat or lon field, or a file
+      of site coordinates.
+  sensitivity_decision:
+    description: Whether the sensitive field or file may be published, and how.
+    range: SensitivityDecision
+  location_precision:
+    description: >-
+      For a location that may be published or generalised, the precision agreed. Absent where
+      the subject is not a location.
+    range: LocationPrecision
+  licence_id:
+    description: The licence decided, as an SPDX identifier or a URL.
+  proposed_because:
+    description: >-
+      Why the agent proposes the fact, in a sentence for the person deciding. Kept with the
+      proposal and shown to the person, never given to an agent.
   answer_text:
     description: The answer as the person gave it.
     required: true
@@ -1437,6 +1616,57 @@ slots:
     range: InventoryPart
     multivalued: true
     inlined_as_list: true
+  inventory_personal_data:
+    description: >-
+      Where a personal-data detector found possible personal data (docs/specs/personal-data.md).
+      Absent, no detector ran, or the inventory was made by a command without one; empty, a
+      detector ran and found nothing, which does not mean the data hold none. In an inventory
+      made of parts, it is every part's findings, and absent if any part's are absent.
+    range: PersonalDataFinding
+    multivalued: true
+    inlined_as_list: true
+  part_personal_data:
+    description: >-
+      The part's findings, as inventory_personal_data, with paths that begin with the part's
+      folder. Absent, no detector ran on the part.
+    range: PersonalDataFinding
+    multivalued: true
+    inlined_as_list: true
+  finding_kind:
+    description: What the detector took the data to be.
+    range: PersonalDataKind
+    required: true
+  finding_file:
+    description: >-
+      The path of the file the finding concerns, as file_path; or, for a folder's name, the
+      folder's path followed by a slash.
+    required: true
+    pattern: "^[^/]"
+  finding_target:
+    description: What part of the file was examined.
+    range: FindingTarget
+    required: true
+  finding_column:
+    description: The table column the finding concerns, for a column or a field name.
+  finding_proportion:
+    description: >-
+      The share of a column's sampled, non-empty values that matched, as a band so that it
+      cannot be turned back into a count. Present for a column only.
+    range: ProportionBand
+  finding_confidence:
+    description: How sure the detector is, as a band of its highest score.
+    range: ConfidenceBand
+    required: true
+  finding_detector:
+    description: >-
+      The detector, its version and its configuration, such as the recognisers that ran, so that
+      a reader knows what was looked for.
+    required: true
+  finding_examined:
+    description: >-
+      How much was examined: the sampled, non-empty values of a column, or the characters of a
+      text file. Absent for a name.
+    range: integer
   part_folder:
     description: >-
       The folder name the part is mounted at, such as instrument or raw/2024: relative, with
@@ -1689,6 +1919,62 @@ slots:
 
 enums:
 
+  PersonalDataKind:
+    description: >-
+      What a personal-data finding took the data to be (docs/specs/personal-data.md). The first
+      kinds come from matching values; the last four from matching names against a keyword
+      table, by category.
+    permissible_values:
+      email address:
+      phone number:
+      NHS number:
+      National Insurance number:
+      postcode:
+      passport number:
+      driving licence number:
+      bank account number:
+      payment card number:
+      IP address:
+      person name:
+        description: Found only by named-entity recognition, which the default detector does not run.
+      direct identifier:
+        description: A name suggests a direct identifier, such as a name, an e-mail or a postcode.
+      indirect identifier:
+        description: A name suggests an indirect identifier, such as a date of birth or an occupation.
+      special category:
+        description: A name suggests special category data, such as health or religion.
+      location:
+        description: A name suggests a precise location, such as a latitude.
+
+  FindingTarget:
+    description: What part of a file a personal-data finding concerns.
+    permissible_values:
+      column:
+        description: The sampled values of one table column.
+      field name:
+        description: The name of one table column.
+      file name:
+        description: The file's name, or a folder's name.
+      text:
+        description: The text of a small text file.
+
+  ProportionBand:
+    description: The share of sampled values that matched, as a band.
+    permissible_values:
+      under 1%:
+      1 to 10%:
+      10 to 50%:
+      over 50%:
+
+  ConfidenceBand:
+    description: >-
+      A band of the detector's highest score: low below 0.5, medium from 0.5 and below 0.85, high
+      from 0.85. A low finding is reported, not dropped.
+    permissible_values:
+      low:
+      medium:
+      high:
+
   Obligation:
     description: Whether a requirement set's field or document stops a package (docs/specs/deposit.md).
     permissible_values:
@@ -1809,6 +2095,54 @@ enums:
         description: A data management plan.
       other:
         description: Any other documentation of the dataset.
+
+  FactKind:
+    description: What a project fact is about (docs/specs/projects.md).
+    permissible_values:
+      funder:
+        description: A funder of the work the dataset comes from.
+      required_repository:
+        description: A repository a funder, journal or institution requires the data to go to.
+      file_inclusion:
+        description: Whether one file of the inventory is deposited.
+      sensitivity:
+        description: Whether a sensitive field or file may be published, and at what precision.
+      licence:
+        description: The licence the dataset is deposited under.
+
+  FileDecision:
+    description: Whether a file of the inventory is to be deposited.
+    permissible_values:
+      include:
+        description: The file is part of the dataset to be deposited.
+      exclude:
+        description: The file is left out of the dataset, for the reason its check gives.
+      undecided:
+        description: A person must decide before deposit; a drafter shows the file and asks.
+
+  SensitivityDecision:
+    description: Whether a sensitive field or file may be published.
+    permissible_values:
+      publish:
+        description: It may be published as it is, at the precision agreed.
+      generalise:
+        description: It may be published only generalised, to the precision agreed.
+      withhold:
+        description: It is not published.
+      undecided:
+        description: A person must decide before deposit; a drafter asks rather than fills it.
+
+  LocationPrecision:
+    description: The precision at which a location may be published.
+    permissible_values:
+      exact:
+        description: The coordinates or place as recorded.
+      site:
+        description: The site or nearest named place, without exact coordinates.
+      region:
+        description: A region or bounding box, such as a county or national park.
+      country:
+        description: The country alone.
 
   VersionState:
     description: >-
