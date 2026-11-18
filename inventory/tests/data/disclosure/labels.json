@@ -99,5 +99,204 @@
     "direct/clean/samples.csv",
     "summaries/cohort-control.csv",
     "quasi/survey-control.tsv"
+  ],
+  "evaluation": [
+    {
+      "file": "evaluation/registrations.csv",
+      "column": "full_name",
+      "kind": "person name",
+      "needs": "needs NER"
+    },
+    {
+      "file": "evaluation/registrations.csv",
+      "column": "email",
+      "kind": "email address"
+    },
+    {
+      "file": "evaluation/registrations.csv",
+      "column": "mobile",
+      "kind": "phone number"
+    },
+    {
+      "file": "evaluation/registrations.csv",
+      "column": "home_address",
+      "kind": "location",
+      "needs": "needs NER"
+    },
+    {
+      "file": "evaluation/followup.tsv",
+      "column": "col1",
+      "kind": "email address"
+    },
+    {
+      "file": "evaluation/followup.tsv",
+      "column": "col2",
+      "kind": "phone number"
+    },
+    {
+      "file": "evaluation/followup.tsv",
+      "column": "col3",
+      "kind": "NHS number"
+    },
+    {
+      "file": "evaluation/followup.tsv",
+      "column": "col4",
+      "kind": "National Insurance number"
+    },
+    {
+      "file": "evaluation/followup.tsv",
+      "column": "col5",
+      "kind": "postcode"
+    },
+    {
+      "file": "evaluation/followup.tsv",
+      "column": "col6",
+      "kind": "person name",
+      "needs": "needs NER"
+    },
+    {
+      "file": "evaluation/contacts.csv",
+      "column": "contact_2",
+      "kind": "phone number"
+    },
+    {
+      "file": "evaluation/contacts.csv",
+      "column": "addr",
+      "kind": "location",
+      "needs": "needs NER"
+    },
+    {
+      "file": "evaluation/contacts.csv",
+      "column": "pc",
+      "kind": "postcode"
+    },
+    {
+      "file": "evaluation/contacts.csv",
+      "column": "who",
+      "kind": "person name",
+      "needs": "needs NER"
+    },
+    {
+      "file": "evaluation/notes/visit-01.txt",
+      "target": "text",
+      "kind": "email address"
+    },
+    {
+      "file": "evaluation/notes/visit-01.txt",
+      "target": "text",
+      "kind": "phone number"
+    },
+    {
+      "file": "evaluation/notes/visit-01.txt",
+      "target": "text",
+      "kind": "person name",
+      "needs": "needs NER"
+    },
+    {
+      "file": "evaluation/notes/visit-02.txt",
+      "target": "text",
+      "kind": "email address"
+    },
+    {
+      "file": "evaluation/notes/visit-02.txt",
+      "target": "text",
+      "kind": "phone number"
+    },
+    {
+      "file": "evaluation/notes/visit-02.txt",
+      "target": "text",
+      "kind": "person name",
+      "needs": "needs NER"
+    },
+    {
+      "file": "evaluation/notes/visit-03.txt",
+      "target": "text",
+      "kind": "email address"
+    },
+    {
+      "file": "evaluation/notes/visit-03.txt",
+      "target": "text",
+      "kind": "phone number"
+    },
+    {
+      "file": "evaluation/notes/visit-03.txt",
+      "target": "text",
+      "kind": "person name",
+      "needs": "needs NER"
+    },
+    {
+      "file": "evaluation/notes/visit-04.txt",
+      "target": "text",
+      "kind": "email address"
+    },
+    {
+      "file": "evaluation/notes/visit-04.txt",
+      "target": "text",
+      "kind": "phone number"
+    },
+    {
+      "file": "evaluation/notes/visit-04.txt",
+      "target": "text",
+      "kind": "person name",
+      "needs": "needs NER"
+    },
+    {
+      "file": "evaluation/notes/visit-05.txt",
+      "target": "text",
+      "kind": "email address"
+    },
+    {
+      "file": "evaluation/notes/visit-05.txt",
+      "target": "text",
+      "kind": "phone number"
+    },
+    {
+      "file": "evaluation/notes/visit-05.txt",
+      "target": "text",
+      "kind": "person name",
+      "needs": "needs NER"
+    }
+  ],
+  "evaluation_clean": [
+    {
+      "file": "evaluation/registrations.csv",
+      "column": "ref"
+    },
+    {
+      "file": "evaluation/specimens.csv",
+      "column": "specimen_id"
+    },
+    {
+      "file": "evaluation/specimens.csv",
+      "column": "instrument_serial"
+    },
+    {
+      "file": "evaluation/specimens.csv",
+      "column": "doi"
+    },
+    {
+      "file": "evaluation/specimens.csv",
+      "column": "isbn"
+    },
+    {
+      "file": "evaluation/specimens.csv",
+      "column": "mass_g"
+    },
+    {
+      "file": "evaluation/specimens.csv",
+      "column": "collected"
+    },
+    {
+      "file": "evaluation/specimens.csv",
+      "column": "site_code"
+    },
+    {
+      "file": "evaluation/specimens.csv",
+      "column": "species"
+    },
+    {
+      "file": "evaluation/notes/methods.md",
+      "target": "text"
+    }
   ]
 }

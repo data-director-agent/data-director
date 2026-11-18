@@ -49,10 +49,11 @@ export function DocumentReviewDialog({
           <div className="callout">
             <p>
               <strong>{pending.name}</strong> ({describeSize(pending.size)}) will be stored in the
-              project, where anyone working on the project can read it. Agents are told its
-              name, type and size, not its text. Should an agent be given its text in future, it
-              will go to an AI model hosted outside your institution only if this deployment
-              allows that.
+              project, where anyone working on the project can read it. The Documentation Editor
+              reads its text to suggest answers to a README's or data dictionary's questions,
+              which you then confirm or correct; other agents are told only its name, type and
+              size. Its text goes to an AI model hosted outside your institution only if this
+              deployment allows that.
             </p>
             <p>
               Attach documents <em>about</em> your data, such as a protocol or a codebook, never

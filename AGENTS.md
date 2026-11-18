@@ -99,8 +99,9 @@ fixtures in `app/web/fixtures` and `sdk/browser/tests/fixtures`, and the AG-UI c
   who may sign off there before merge. A pull request opened from their account is signed off
   implicitly by them, so CI ("Developer Certificate of Origin") passes without that line; it
   warns on any sign-off by an agent (a warning, not a failure, but still to be fixed).
-- **Every pull request title must be a Conventional Commit**, `type(scope)!: summary`, lower case,
-  no full stop, at most 90 characters, such as `feat(app): register every in-tree agent`. There is
+- **Every pull request title must be a Conventional Commit**, `type(scope)!: summary`, with the
+  summary in sentence case, no full stop, at most 90 characters, such as
+  `feat(app): Register every in-tree agent`. There is
   no exception: a title like `Add a history tab` fails CI and blocks the merge. Run the check
   before you open the pull request and again after every edit to the title, and do not open or
   edit one until it passes:

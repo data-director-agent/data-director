@@ -104,6 +104,27 @@ describe("Frame", () => {
     expect(link).toHaveAttribute("aria-current", "page");
   });
 
+  it("links to the settings from the banner, marked current on that page", () => {
+    const { unmount } = render(
+      <Frame current="/">
+        <p>Content</p>
+      </Frame>,
+    );
+    const banner = screen.getByRole("banner");
+    const link = within(banner).getByRole("link", { name: "Settings" });
+    expect(link).toHaveAttribute("href", "/settings");
+    expect(link).not.toHaveAttribute("aria-current");
+    unmount();
+    render(
+      <Frame current="/settings">
+        <p>Content</p>
+      </Frame>,
+    );
+    expect(
+      within(screen.getByRole("banner")).getByRole("link", { name: "Settings" }),
+    ).toHaveAttribute("aria-current", "page");
+  });
+
   it("links to the user guide in a new tab", () => {
     render(
       <Frame current="/">
@@ -134,6 +155,7 @@ describe("Frame", () => {
       "Agents",
       "User guide",
       "Report a problem",
+      "Settings",
       "Dark mode",
     ]) {
       const control = within(banner).getByRole(

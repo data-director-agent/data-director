@@ -36,6 +36,26 @@ model_list:
       input_cost_per_token: 0
       output_cost_per_token: 0.004
 
+  # Patterns, as config.yaml routes gpt-* and gemini-*: any model named test-gpt-<x> or
+  # test-gemini-<x> is served, as the model broker's calls for OpenAI and Gemini ask for them.
+  - model_name: "test-gpt-*"
+    litellm_params:
+      model: "openai/test-gpt-*"
+      api_base: http://fake-upstream:8080/v1
+      api_key: not-used
+    model_info:
+      input_cost_per_token: 0
+      output_cost_per_token: 0.004
+
+  - model_name: "test-gemini-*"
+    litellm_params:
+      model: "openai/test-gemini-*"
+      api_base: http://fake-upstream:8080/v1
+      api_key: not-used
+    model_info:
+      input_cost_per_token: 0
+      output_cost_per_token: 0.004
+
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
   database_url: os.environ/DATABASE_URL

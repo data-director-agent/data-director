@@ -1,4 +1,4 @@
-"""Deleting and restoring a conversation, through the app's server (docs/specs/app.md, rule 30;
+"""Deleting and restoring a conversation, through the app's server (docs/specs/app.md, rule 31;
 docs/specs/projects.md, invariants 29 to 31): a deleted conversation leaves every list, is
 answered as missing, takes no new turn, removes nothing from the run store, and comes back as it
 was when restored."""

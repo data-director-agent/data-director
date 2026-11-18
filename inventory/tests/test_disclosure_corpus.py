@@ -53,7 +53,14 @@ def _columns(relative: str) -> list[str]:
 def test_every_label_names_a_file_and_columns_that_exist(labels: dict[str, object]) -> None:
     cases = [
         c
-        for key in ("personal_data", "suppressed", "kept", "quasi_identifier")
+        for key in (
+            "personal_data",
+            "suppressed",
+            "kept",
+            "quasi_identifier",
+            "evaluation",
+            "evaluation_clean",
+        )
         for c in labels[key]  # type: ignore[attr-defined]
     ]
     assert cases

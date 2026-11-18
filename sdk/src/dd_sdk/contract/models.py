@@ -21,7 +21,9 @@ from dd_sdk.contract.base import SHA256_PATTERN as SHA256_PATTERN
 from dd_sdk.contract.base import Frozen as Frozen
 from dd_sdk.contract.facts import Affiliation as Affiliation
 from dd_sdk.contract.facts import AffiliationKind as AffiliationKind
+from dd_sdk.contract.facts import DocumentationSummary as DocumentationSummary
 from dd_sdk.contract.facts import ExternalIdentifier as ExternalIdentifier
+from dd_sdk.contract.facts import ProjectDocument as ProjectDocument
 from dd_sdk.contract.facts import ProjectFact as ProjectFact
 from dd_sdk.contract.facts import ResearcherFunding as ResearcherFunding
 from dd_sdk.contract.facts import ResearcherLink as ResearcherLink
@@ -269,16 +271,6 @@ class InventorySummary(Frozen):
     inventory_tool_version: str
     inventory_made_at: datetime
     inventory_limitations: list[str] = Field(default_factory=list)
-
-
-class DocumentationSummary(Frozen):
-    """What one document attached to a project is, without its text (docs/specs/projects.md)."""
-
-    documentation_name: str
-    documentation_digest: str = Field(pattern=SHA256_PATTERN)
-    documentation_media_type: str
-    documentation_size: int
-    documentation_added_at: datetime
 
 
 class StepProgress(Frozen):
@@ -616,6 +608,8 @@ class DraftRequest(Frozen):
     redraft_document: str | None = Field(default=None, pattern=UUID7_PATTERN)
     # Filled by the conductor in a project, from the facts people kept from their ORCID records.
     researchers: list[ResearcherRecord] = Field(default_factory=list)
+    # Filled by the conductor in a project, from the documents a researcher attached.
+    project_documents: list[ProjectDocument] = Field(default_factory=list)
     # Filled by the conductor in a project, from the facts people decided.
     project_decisions: list[ProjectFact] = Field(default_factory=list)
 

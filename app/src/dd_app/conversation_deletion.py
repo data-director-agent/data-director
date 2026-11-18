@@ -1,4 +1,4 @@
-"""Deleting and restoring a conversation (docs/specs/app.md, rule 30; docs/specs/projects.md,
+"""Deleting and restoring a conversation (docs/specs/app.md, rule 31; docs/specs/projects.md,
 invariants 29 to 31): what the routes `DELETE /api/conversations/{id}`,
 `POST /api/conversations/{id}/restore` and `GET /api/conversations/deleted` do.
 

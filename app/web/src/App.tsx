@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 
 import { AgentDirectory } from "./components/capabilities/AgentDirectory";
 import { ActivityLog } from "./components/workspace/ActivityLog";
@@ -11,6 +11,7 @@ import { PolicyPage } from "./components/policy/PolicyPage";
 import { ProfilePage } from "./components/profile/ProfilePage";
 import { ProjectPage } from "./components/project/ProjectPage";
 import { ProjectsPage } from "./components/project/ProjectsPage";
+import { SettingsPage } from "./components/settings/SettingsPage";
 import { PageHeader } from "./components/frame/PageHeader";
 import { Account } from "./components/session/Account";
 import { SessionTimeout } from "./components/session/SessionTimeout";
@@ -61,9 +62,28 @@ function navCurrent(path: string): string {
   const { projectId, onJourney } = projectRoute(path);
   if (path === "/journey" || (projectId && onJourney)) return "/journey";
   if (path === "/projects" || projectId) return "/projects";
-  const pages = ["/activity", "/agents", "/feedback", "/policy", "/profile", "/sign-in", "/signed-out"];
+  const pages = [
+    "/activity",
+    "/agents",
+    "/feedback",
+    "/policy",
+    "/profile",
+    "/settings",
+    "/sign-in",
+    "/signed-out",
+  ];
   return pages.includes(path) ? path : "/";
 }
+
+/** The pages that need only the session and the query, by path. */
+const SESSION_PAGES: Record<string, (session: Session, query: string) => ReactNode> = {
+  "/feedback": (_, query) => <FeedbackPage query={query} />,
+  "/profile": (session) => <ProfilePage session={session} />,
+  "/settings": (session) => <SettingsPage session={session} />,
+  "/activity": () => <ActivityLog />,
+  "/projects": () => <ProjectsPage />,
+  "/journey": () => <JourneyLanding />,
+};
 
 /**
  * The shell. It asks the server who is signed in before anything else (docs/specs/policy-and-identity.md): where the
@@ -79,11 +99,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
   const [path = "/", query] = location.split("?");
   const onAgents = path === "/agents";
   const onFeedback = path === "/feedback";
-  const onProfile = path === "/profile";
-  const onActivity = path === "/activity";
   const onPolicy = path === "/policy";
-  const onProjects = path === "/projects";
-  const onJourneyLanding = path === "/journey";
   const { projectId, onJourney } = projectRoute(path);
   const current = navCurrent(path);
 
@@ -150,11 +166,8 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
         />
       );
     }
-    if (onFeedback) return <FeedbackPage query={query ?? ""} />;
-    if (onProfile) return <ProfilePage session={session.value} />;
-    if (onActivity) return <ActivityLog />;
-    if (onProjects) return <ProjectsPage />;
-    if (onJourneyLanding) return <JourneyLanding />;
+    const sessionPage = SESSION_PAGES[path];
+    if (sessionPage) return sessionPage(session.value, query ?? "");
     if (projectId && onJourney) return <JourneyPage projectId={projectId} query={query ?? ""} />;
     if (projectId) return <ProjectPage projectId={projectId} query={query ?? ""} />;
     if (state.state === "loading") return <p role="status">Loading the agents…</p>;

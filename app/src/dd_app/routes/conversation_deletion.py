@@ -1,4 +1,4 @@
-"""Deleting and restoring a conversation (docs/specs/app.md, rule 30).
+"""Deleting and restoring a conversation (docs/specs/app.md, rule 31).
 
 `DELETE /api/conversations/{id}` deletes a conversation, which hides it from every list and
 removes nothing, and answers with until when it may be restored. `POST

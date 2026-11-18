@@ -7,11 +7,11 @@ and changelog entry. The title therefore takes the form
     type(scope)!: summary
 
 where `type` is one of `TYPES`, `(scope)` and `!` (a breaking change) are optional, and the
-summary is lower case, has no closing full stop and fits in `MAX_TITLE` characters. A branch name
+summary has no closing full stop and fits in `MAX_TITLE` characters. A branch name
 is lower-case words joined by hyphens, optionally grouped with slashes (`ci-faster`,
 `harness/run-store`), in at most `MAX_BRANCH` characters.
 
-    uv run python scripts/check_names.py --title "feat(app): history tab" --branch app-history
+    uv run python scripts/check_names.py --title "feat(app): Add a history tab" --branch app-history
 
     uv run python scripts/check_names.py --message-file .git/COMMIT_EDITMSG
 
@@ -60,8 +60,6 @@ EXEMPT_BRANCHES = ("dependabot/", "release-please--")
 TITLE = re.compile(r"(?P<type>[a-z]+)(?:\((?P<scope>[^)]*)\))?(?P<breaking>!)?: (?P<summary>.*)")
 SCOPE = re.compile(r"[a-z0-9]+(?:[-.][a-z0-9]+)*")
 BRANCH = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*(?:/[a-z0-9]+(?:-[a-z0-9]+)*)*")
-# A capitalised ordinary word ("Add", "Fix"); acronyms and names such as "CI" or "GitHub" pass.
-CAPITALISED = re.compile(r"[A-Z][a-z]+")
 
 
 def title_problems(title: str) -> list[str]:
@@ -81,8 +79,6 @@ def title_problems(title: str) -> list[str]:
     else:
         if summary != summary.strip():
             problems.append("the summary starts or ends with white space")
-        if CAPITALISED.fullmatch(summary.split()[0]):
-            problems.append(f"the summary starts with a capital ({summary.split()[0]!r})")
         if summary.endswith("."):
             problems.append("the summary ends with a full stop")
     if len(title) > MAX_TITLE:

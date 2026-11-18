@@ -4,7 +4,7 @@
  * Components use these custom properties and no literal colour, size or font. A theme is a
  * file like this one that redefines them; nothing else changes. The scheme is light unless
  * `data-theme="dark"` is set on <html>, which the person's preferences do (`preferences.ts`): the
- * banner's dark mode switch, or the profile page, where the scheme may also match the system's.
+ * banner's dark mode switch, or the Settings page, where the scheme may also match the system's.
  * The preferences also set `data-text-size`, `data-density` and `data-motion` on <html>; the
  * rules for them are at the end of this file.
  *

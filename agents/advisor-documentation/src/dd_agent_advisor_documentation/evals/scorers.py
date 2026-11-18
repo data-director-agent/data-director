@@ -27,12 +27,10 @@ from dd_agent_advisor_documentation.agent import (
     _drafted,
     _facts,
     _record,
-    load_sections,
-)
-from dd_agent_advisor_documentation.agent import (
-    SOURCES as FACT_SOURCES,
 )
 from dd_agent_advisor_documentation.prose import _NAMED, _NOT_PROSE
+from dd_agent_advisor_documentation.sections import SOURCES as FACT_SOURCES
+from dd_agent_advisor_documentation.sections import load_sections
 from dd_sdk.contract.models import DraftRequest
 from workbench.evaluation import envelope_of, expectation_of, mean_applicable
 

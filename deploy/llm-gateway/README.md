@@ -16,7 +16,11 @@ deploy/llm-gateway/
 └── scripts/
     ├── admin.py              teams, users, keys, spend reports, CSV export (stdlib only)
     ├── smoke_test.sh         end-to-end test of tracking, tags, budgets and metrics
-    └── testing/fake_upstream.py
+    ├── systemd.sh            starts and stops it on a VM (data-director-llm-gateway.service)
+    └── testing/
+        ├── fake_upstream.py  the fake provider the test stack uses
+        ├── ci_env.sh         a throwaway .env for the test stack
+        └── broker_e2e.sh     the model broker's calls through the test stack
 ```
 
 ## Quick start
@@ -29,7 +33,7 @@ Requirements: Docker with Compose v2+, and Python 3.9+ for `admin.py`.
    ```
    Then edit `.env`. Generate each `sk-` secret with `echo "sk-$(openssl rand -hex 32)"` and add the provider keys you have.
 
-2. Edit `config.yaml` and replace the `REPLACE-WITH-…` model IDs for OpenAI and Gemini. Delete any providers you don't use.
+2. Look at `config.yaml`, and delete any providers you don't use. It serves Claude models by name and OpenAI and Gemini models by pattern (`gpt-*`, `gemini-*`); see [Model names](#model-names).
 
 3. Start the gateway:
    ```bash
@@ -69,6 +73,28 @@ client.messages.create(
 ```
 
 For existing code, setting `OPENAI_BASE_URL` / `ANTHROPIC_BASE_URL` and the API key environment variables is often enough.
+
+## On a Data Director VM
+
+On a VM set up with `deploy/install.sh`, run it again with `--gateway`. It installs Docker, runs this
+gateway under systemd with its secrets in `/etc/data-director/credentials/llm-gateway/`, and gives
+the model broker a key for it ([deploy/README.md](../README.md#the-litellm-gateway)). The steps
+below are for running it by hand, or for pointing agents at it.
+
+## Model names
+
+A client's `model` must match a `model_name` in `config.yaml`, or the gateway refuses the call. The
+entries use the providers' own model IDs, so an agent keeps its `DD_MODEL_ID` when its calls go
+through the gateway, whether directly or through the model broker:
+
+- Claude: `claude-sonnet-5-5` and `claude-haiku-5-5`, by name.
+- OpenAI: any model whose ID starts `gpt-`, through the pattern `gpt-*`. A model outside that
+  family needs an entry of its own.
+- Gemini: any model whose ID starts `gemini-`, through the pattern `gemini-*`.
+
+A pattern is not listed by `/v1/models`, but serves and costs each model it matches. A key's
+`--models` may name a pattern too: `--models 'gemini-*'` allows every Gemini model and nothing
+else.
 
 ## Using it with Data Director agents
 
@@ -172,7 +198,7 @@ Create a key for one project; the tags are added to every request made with it:
 
 ```bash
 scripts/admin.py key create thesis-ch3 --team <team_id> --user <user_id> \
-    --budget 25 --period 30d --models claude-sonnet-5-5,gemini --tags project:thesis,grant:EP-X-1
+    --budget 25 --period 30d --models 'claude-sonnet-5-5,gemini-*' --tags project:thesis,grant:EP-X-1
 ```
 
 Check spend against budget for a key, a team, or all teams:
@@ -248,6 +274,16 @@ docker compose up -d
 
 ## Testing without provider keys
 
+CI runs these steps on every change to the gateway, the model broker or the workflows (the
+"LiteLLM gateway and model broker" job in `.github/workflows/ci.yml`), so a gateway or broker that
+no longer works together never reaches a deployment.
+
+Without a `.env`, write one with throwaway secrets and no provider keys:
+
+```bash
+scripts/testing/ci_env.sh
+```
+
 Start the test stack. It uses `config.test.yaml` and a fake provider, so nothing is billed:
 
 ```bash
@@ -258,6 +294,14 @@ Run the test:
 
 ```bash
 scripts/smoke_test.sh
+```
+
+Send the model broker's deployment-paid calls, in the Anthropic and OpenAI formats, through the
+gateway, and check that the gateway costs them to the broker's key. This needs `uv` and a clone of
+the whole repository:
+
+```bash
+scripts/testing/broker_e2e.sh
 ```
 
 Tear it down; `-v` deletes the test database:

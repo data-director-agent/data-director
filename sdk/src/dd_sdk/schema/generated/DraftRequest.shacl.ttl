@@ -9,14 +9,14 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 dd:DraftRequest a sh:NodeShape ;
-    rdfs:comment "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen, the metadata record a person approved last and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory, the requirements and the metadata record in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. In a project the conductor also fills current_version, the latest version of the project's document of that kind, or of the document redraft_document names, so a redraft is that document's next version. The answers a person recorded to the current version's questions are filled in by the conductor in the same way (docs/specs/drafting.md), and so are the researcher facts people in the project chose to keep from their public ORCID records (docs/specs/projects.md)." ;
+    rdfs:comment "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen, the metadata record a person approved last and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory, the requirements and the metadata record in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. In a project the conductor also fills current_version, the latest version of the project's document of that kind, or of the document redraft_document names, so a redraft is that document's next version. The answers a person recorded to the current version's questions are filled in by the conductor in the same way (docs/specs/drafting.md), and so are the researcher facts people in the project chose to keep from their public ORCID records (docs/specs/projects.md), and the text of the documents a researcher attached to the project, from which a drafter's model may suggest answers but never fill a gap." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:class dd:ProjectFact ;
-            sh:description "The facts a person in the project decided (ProjectFact), the last decision on each subject, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project decided any. A drafter treats each as supplied." ;
+    sh:property [ sh:class dd:ProjectDocument ;
+            sh:description "The documents the project holds, with their text, in the order they were added. In a project the conductor fills them and a caller leaves them out; outside a project, the caller sends them, as it does the other facts." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 9 ;
-            sh:path dd:project_decisions ],
+            sh:path dd:project_documents ],
         [ sh:class dd:CurrentVersion ;
             sh:description "The document's latest version, when the drafter is to regenerate it. Absent for a new document." ;
             sh:maxCount 1 ;
@@ -70,7 +70,12 @@ dd:DraftRequest a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 2 ;
-            sh:path dd:inventory ] ;
+            sh:path dd:inventory ],
+        [ sh:class dd:ProjectFact ;
+            sh:description "The facts a person in the project decided (ProjectFact), the last decision on each subject, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project decided any. A drafter treats each as supplied." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 10 ;
+            sh:path dd:project_decisions ] ;
     sh:targetClass dd:DraftRequest .
 
 dd:Affiliation a sh:NodeShape ;
@@ -172,18 +177,18 @@ dd:CurrentVersion a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
-            sh:description "The reason the person gave for their decision, in their words. Present for a rejection, and for an approval only if they gave one." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 5 ;
-            sh:path dd:decision_reason ],
-        [ sh:datatype xsd:string ;
             sh:description "The media type of document_text, such as text/markdown or application/json." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
             sh:path dcterms:format ],
+        [ sh:datatype xsd:string ;
+            sh:description "The reason the person gave for their decision, in their words. Present for a rejection, and for an approval only if they gave one." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dd:decision_reason ],
         [ sh:description "Whether a person has approved or rejected the version, or not yet decided." ;
             sh:in ( "proposed" "approved" "rejected" ) ;
             sh:maxCount 1 ;
@@ -359,7 +364,14 @@ dd:InventoryPart a sh:NodeShape ;
     rdfs:comment "One scan of one folder, mounted at a folder name in an inventory made of several (docs/specs/projects.md). Every file of the inventory lies under exactly one part's folder, and a part is replaced whole when its folder is scanned again." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
+    sh:property [ sh:datatype xsd:dateTime ;
+            sh:description "When the part's folder was scanned." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path prov:generatedAtTime ],
+        [ sh:datatype xsd:string ;
             sh:description "The folder name the part is mounted at, such as instrument or raw/2024: relative, with forward slashes, and no empty, . or .. segment. Every file of the part has a path that begins with it and a slash. No part's folder is another's or lies inside another's." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -396,15 +408,57 @@ dd:InventoryPart a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
-            sh:path dd:part_identified_with ],
+            sh:path dd:part_identified_with ] ;
+    sh:targetClass dd:InventoryPart .
+
+dd:ProjectDocument a sh:NodeShape ;
+    rdfs:comment "One document a researcher attached to a project, with its text: the conductor fills one per document into a DraftRequest so that a drafter's model may suggest answers from it (docs/specs/projects.md). Its text is the researcher's, untrusted, and given as data." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:integer ;
+            sh:description "The size of the document's UTF-8 text, in bytes." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dd:documentation_size ],
+        [ sh:datatype xsd:string ;
+            sh:description "The document's media type, text/plain or text/markdown." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:documentation_media_type ],
         [ sh:datatype xsd:dateTime ;
-            sh:description "When the part's folder was scanned." ;
+            sh:description "When the document was added to the project." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 4 ;
-            sh:path prov:generatedAtTime ] ;
-    sh:targetClass dd:InventoryPart .
+            sh:path dd:documentation_added_at ],
+        [ sh:datatype xsd:string ;
+            sh:description "The document's text, as the researcher attached it." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dd:documentation_text ],
+        [ sh:datatype xsd:string ;
+            sh:description "The SHA-256 of the document's UTF-8 text, by which the project keeps it." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:documentation_digest ;
+            sh:pattern "^[0-9a-f]{64}$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The file name the researcher attached the document under, without any folder." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:documentation_name ] ;
+    sh:targetClass dd:ProjectDocument .
 
 dd:ProjectFact a sh:NodeShape ;
     rdfs:comment "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, or the licence (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because." ;
@@ -931,7 +985,13 @@ dd:PersonalDataFinding a sh:NodeShape ;
     rdfs:comment "Where the inventory command found what may be personal data, and how sure it is (docs/specs/personal-data.md). It never holds a matched value, any part of one, an offset into a file, a row number or an example: a kind, a place, bands and the detector only. A finding is a prompt for a person, never a decision." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:description "The share of a column's sampled, non-empty values that matched, as a band so that it cannot be turned back into a count. Present for a column only." ;
+    sh:property [ sh:description "What the detector took the data to be." ;
+            sh:in ( "email address" "phone number" "NHS number" "National Insurance number" "postcode" "passport number" "driving licence number" "bank account number" "payment card number" "IP address" "person name" "direct identifier" "indirect identifier" "special category" "location" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 0 ;
+            sh:path dd:finding_kind ],
+        [ sh:description "The share of a column's sampled, non-empty values that matched, as a band so that it cannot be turned back into a count. Present for a column only." ;
             sh:in ( "under 1%" "1 to 10%" "10 to 50%" "over 50%" ) ;
             sh:maxCount 1 ;
             sh:order 4 ;
@@ -974,12 +1034,6 @@ dd:PersonalDataFinding a sh:NodeShape ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 6 ;
-            sh:path dd:finding_detector ],
-        [ sh:description "What the detector took the data to be." ;
-            sh:in ( "email address" "phone number" "NHS number" "National Insurance number" "postcode" "passport number" "driving licence number" "bank account number" "payment card number" "IP address" "person name" "direct identifier" "indirect identifier" "special category" "location" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 0 ;
-            sh:path dd:finding_kind ] ;
+            sh:path dd:finding_detector ] ;
     sh:targetClass dd:PersonalDataFinding .
 

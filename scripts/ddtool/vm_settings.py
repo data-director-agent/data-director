@@ -56,8 +56,8 @@ class SettingsChecks(Checks):
                 report.problem(*problem)
         if system.is_root():
             for directory in sorted(p for p in vm.credentials.glob("*") if p.is_dir()):
-                # The app's and the model broker's secrets are not agents'.
-                if directory.name in {"app", "model-broker"}:
+                # The app's, the model broker's and the LiteLLM gateway's secrets are not agents'.
+                if directory.name in {"app", "model-broker", "llm-gateway"}:
                     continue
                 if directory.name not in {a.name for a in agents}:
                     report.note(f"{directory} belongs to no agent in agents.yaml")

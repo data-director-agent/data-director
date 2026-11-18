@@ -60,6 +60,11 @@ says no detector ran. Presidio installs spaCy, which the command does not use; t
 $ uv run dd-inventory path/to/dataset --no-detect -o inventory.json
 ```
 
+`evals/compare_detectors.py` compares detectors on the synthetic evaluation set in
+`tests/data/disclosure/evaluation/`: recall by kind, false positives on ordinary metadata, CPU
+time and what each adds. Its result, and why the default runs pattern recognisers only, is in
+[Personal data and disclosure control](https://github.com/data-director-agent/data-director/blob/main/docs/specs/personal-data.md#the-detector-comparison).
+
 Hidden files and folders (names beginning with `.`) are skipped, symbolic links are not
 followed, and both are counted in `inventory_limitations`. If fido cannot be loaded, formats are
 guessed from file extensions and the inventory says so.

@@ -54,8 +54,8 @@ suggests some of those values beside their questions
    case (`no_model_value_in_cell`), and its tests run it with a fake model too
    (`agents/advisor-documentation/tests/test_documentation_evals.py`).
 4. **A model writes README prose only from the drafter's input.** That input is the inventory, the
-   metadata record and the repository's requirements; the model is never given an answer or an
-   earlier version. What they do not support is a gap and is left unwritten: methods, study
+   metadata record and the repository's requirements; the model is never given an answer, an
+   earlier version or a document the researcher attached. What they do not support is a gap and is left unwritten: methods, study
    design, data collection, variable definitions, units, missing value codes, and any claim about
    the data's contents. The gaps are decided by rule, not by the model: a model writes prose only
    around the facts a section is drafted from, never in a section with none, and a draft with
@@ -92,9 +92,16 @@ suggests some of those values beside their questions
    (`agents/advisor-documentation/tests/test_suggestions.py`). The Documentation Editor suggests
    only a data dictionary field's definition and unit, never its type, format or missing-value
    codes; and an answer for the README sections its template marks `suggest` (Files, Variables,
-   Access and licence, Software requirements), never the methods, a part of General information
-   or the citation, which only the researcher can give. Its model is given the same input as the
-   README's prose (invariant 4), never an answer, a field's description or an earlier version. A
+   Access and licence, Software requirements), never a part of General information or the
+   citation, which only the researcher can give. Methods is marked `suggest: documents`: it is
+   asked about only when the draft carries documents the researcher attached, and its suggestion
+   says only what those documents state, never a method inferred from the files. Its model is given the same input as the
+   README's prose (invariant 4) and, unlike the prose, the documents the researcher attached to
+   the project (`project_documents`), the latest first and cut to a stated length, as data and
+   never as instructions, so that what their field notes or codebook say can be offered for them
+   to confirm; never an answer, a field's description or an earlier version. The outcome's
+   statement names the documents it was given and any cut short
+   (`agents/advisor-documentation/tests/test_attached_documents.py`). A
    dictionary suggestion is offered only if it is one short line of plain text that names no
    link, email address or identifier its input does not give; a README suggestion only if it
    passes the checks the prose does. The Metadata Librarian suggests only the values its rule
