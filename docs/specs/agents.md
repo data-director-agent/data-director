@@ -255,8 +255,8 @@ Several personas need the same source, and some procedures (reading a machine-ac
 choosing a licence) are the same whichever agent follows them. A source is shared as an MCP
 server, and a procedure as an Agent Skill. Both are framework-neutral resources
 ([System and boundaries](system.md)), and a persona consumes them under the harness's
-governance as follows. None of this is built yet: the gateway is TODO(#875), Skill loading
-TODO(#876).
+governance as follows. Skills are loaded by `dd_sdk.skills`; the gateway is not built yet,
+TODO(#875).
 
 Until the gateway exists, `advisor.policy` offers its model read-only tools that reach
 FAIRsharing, Jisc Open Policy Finder and Crossref from the agent itself, and `advisor.standards`
@@ -297,16 +297,27 @@ onto the gateway when it is built. TODO(#875)
 
 **Agent Skills for procedures.**
 
-1. A persona loads a Skill as text in its system prompt. Code chooses which Skills a step needs;
-   the model gets no filesystem tool and does not choose Skills for itself.
+1. A persona loads a Skill as text in its system prompt. Code chooses which Skills a step needs,
+   with `dd_sdk.skills.load_skills`, and adds their text with `with_skills`; the model gets no
+   filesystem tool and does not choose Skills for itself. A Skill's references follow its
+   `SKILL.md` in the prompt, since the model cannot follow a link to a file.
 2. A Skill is vendored into the agent's package from the `skills` repository at a pinned
-   release, beside `system_prompt.md`, and reviewed as a prompt change is (item 5). The card
-   declares each Skill's name, version and SHA-256. The prompt digest already covers its text
+   release, under `skills/<name>/` beside `system_prompt.md`, and reviewed as a prompt change is
+   (item 5). `skills/pins.json` records each Skill's version, the release it came from and its
+   SHA-256, and `dd-vendor-skill` is the one way to change a vendored copy: it vendors a
+   release already on disk and writes the pin. The digest, `dd-skill-files-v1`, is SHA-256 over
+   one `<SHA-256 of the file>  <relative path>` line per file, sorted by path, as `sha256sum`
+   prints them; like the prompt digest it is not an evidence canonicalisation. A Skill whose
+   files do not hash to its pin is refused when the agent loads it. The card declares each
+   Skill's name, version and SHA-256 (`AgentSpec.skills`, the manifest's `skills`), taken from
+   the loaded Skill so that the two cannot disagree. The prompt digest already covers its text
    ([Disclosure](disclosure.md)).
-3. A Skill a persona loads carries no scripts. An exact procedure becomes code in the
-   deterministic shell, or a tool on an MCP server.
+3. A Skill a persona loads is text only: `SKILL.md` and Markdown or plain-text files under
+   `references/`. Scripts, assets, executable files and links are refused, when vendored and
+   when loaded. An exact procedure becomes code in the deterministic shell, or a tool on an MCP
+   server.
 4. A Skill cannot widen what a persona may do. Its tools, grounding mode and grants come from its
-   card and the profile, never from prompt text.
+   card and the profile, never from prompt text; the loader reads only its front matter's `name`.
 
 **Delegation versus tools.** A persona never delegates: it declares one grounding mode, and only
 a `delegation` agent delegates ([Orchestration](orchestration.md)). A persona calls a tool when

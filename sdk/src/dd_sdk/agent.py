@@ -45,6 +45,7 @@ from dd_sdk.contract.models import (
 from dd_sdk.contract.version import CONTRACT_VERSION, compatible
 from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 from dd_sdk.process_flow import OUT_OF_SCOPE, STEPS
+from dd_sdk.skills import SkillUse, skills_from_description
 
 if TYPE_CHECKING:
     from dd_sdk.delegate import Delegated
@@ -95,6 +96,9 @@ class AgentSpec:
     # The options a deployment's profile may set, by name (docs/specs/policy-and-identity.md).
     # Empty: the agent offers none, and a profile that sets one for it is refused at invocation.
     settings: Mapping[str, Setting] = field(default_factory=dict)
+    # The Agent Skills it may load into its system prompt, each pinned by version and digest
+    # (`dd_sdk.skills`, docs/specs/agents.md). Empty: it loads none.
+    skills: tuple[SkillUse, ...] = ()
 
     def __post_init__(self) -> None:
         unknown = sorted(set(self.serves) - STEPS)
@@ -118,6 +122,9 @@ class AgentSpec:
             check_derivation(self.agent_id, self.payload, path, derived)
         for name, setting in self.settings.items():
             check_setting(self.agent_id, name, setting)
+        names = [s.name for s in self.skills]
+        if len(set(names)) != len(names):
+            raise SpecError(f"agent {self.agent_id!r} declares a skill twice: {sorted(names)}")
 
     def default_settings(self) -> dict[str, str]:
         """Each setting's default: what applies where the profile sets none."""
@@ -179,6 +186,7 @@ def describe(spec: AgentSpec) -> dict[str, Any]:
             }
             for name, s in spec.settings.items()
         },
+        "skills": [s.describe() for s in spec.skills],
         "schemas": {c.name: c.describe() for c in spec.schemas()},
     }
 
@@ -244,6 +252,10 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
         }
     except (AttributeError, KeyError, TypeError) as exc:
         raise SpecError(f"agent {agent_id!r}: malformed settings: {exc}") from exc
+    try:
+        skills = skills_from_description(agent_id, entry)
+    except ValueError as exc:
+        raise SpecError(str(exc)) from exc
     return AgentSpec(
         agent_id=agent_id,
         version=str(entry["version"]),
@@ -258,6 +270,7 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
         serves=tuple(str(r) for r in serves),
         title=title,
         settings=settings,
+        skills=skills,
     )
 
 
