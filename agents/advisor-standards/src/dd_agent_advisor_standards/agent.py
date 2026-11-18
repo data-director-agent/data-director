@@ -49,7 +49,8 @@ FOUND_NOTE = (
     "Check that it suits the dataset."
 )
 
-# What the payload says it does not yet do: the curated subtype is TODO(#4), the gateway TODO(#875).
+# What the payload says it does not yet do: the curated subtype is TODO(#4), the gateway
+# TODO(#1143).
 LIMITATIONS = [
     "Whether a terminology is a vocabulary or an ontology is read from its name and description, "
     "not from FAIRsharing's curated subtype.",

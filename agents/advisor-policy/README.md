@@ -173,7 +173,7 @@ its label is `ror:dump:<version>`. `uv run dd-ror fetch --update-pin` pins the n
 - A quote shows that the record says it; it does not show that the model read it rightly. Each
   model-read obligation is marked as such, and a person should check it against the quote.
 - The model's tools reach the registries from this agent, not through the harness's tool
-  gateway. TODO(#875)
+  gateway. TODO(#1143)
 - The FAIRsharing API returns no relations from a policy to the databases and standards it
   names, even for policies that list repositories on the website. So the repository and standard
   obligations are `unstated`, and `mandated_repositories` is empty, until a route provides them.

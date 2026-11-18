@@ -126,7 +126,8 @@ class AppInstallation:
                 found = await client.get(
                     f"{GITHUB_API}/repos/{self.repo}/installation", headers=bearer
                 )
-                self.installation_id = str(_json(found, 200, "the App's installation")["id"])
+                what = f"the App's installation on {self.repo}"
+                self.installation_id = str(_json(found, 200, what)["id"])
             response = await client.post(
                 f"{GITHUB_API}/app/installations/{self.installation_id}/access_tokens",
                 headers=bearer,
@@ -139,7 +140,7 @@ class AppInstallation:
             raise GitHubAuthError(
                 f"GitHub could not be reached for a token ({type(exc).__name__})."
             ) from exc
-        granted = _json(response, 201, "an installation token")
+        granted = _json(response, 201, f"an installation token for {self.repo}")
         try:
             expires = datetime.fromisoformat(granted["expires_at"]).timestamp()
             return granted["token"], expires

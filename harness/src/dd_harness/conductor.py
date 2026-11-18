@@ -60,7 +60,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from opentelemetry.trace import SpanContext
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
@@ -86,7 +86,7 @@ from dd_harness.registry import Registry
 from dd_harness.run_state import Grant as Grant
 from dd_harness.run_state import RunState
 from dd_harness.storage import SPANS, RunStorage
-from dd_sdk.agent import ModelUse
+from dd_sdk.agent import AgentSpec
 from dd_sdk.contract import validate
 from dd_sdk.contract.models import (
     Delegation,
@@ -102,6 +102,9 @@ from dd_sdk.tracing import (
     invoke_agent_span,
     make_tracing,
 )
+
+if TYPE_CHECKING:
+    from dd_harness.gateway.core import Gateway
 
 log = logging.getLogger(__name__)
 
@@ -164,6 +167,9 @@ class Conductor:
     # Mints the model grant each invocation of a model-backed agent is sent
     # (docs/specs/model-accounts.md). None (the default) mints none.
     model_grants: GrantMinter | None = None
+    # The tool gateway over the deployment's MCP servers (docs/specs/agents.md, Tools). None (no
+    # DD_TOOLS_CONFIG) means no agent is granted a tool.
+    gateway: Gateway | None = None
     _grants: dict[str, Grant] = field(default_factory=dict, repr=False)
     _grants_lock: threading.Condition = field(default_factory=threading.Condition, repr=False)
     _running: set[str] = field(default_factory=set, repr=False)
@@ -184,6 +190,13 @@ class Conductor:
                 f"{self.profile.model_accounts.own}, but the harness mints no model grants; set "
                 "DD_MODEL_GRANT_SIGNING_KEY, DD_MODEL_BROKER_SUBJECT_KEY and DD_PSEUDONYM_SECRET "
                 "(docs/specs/model-accounts.md)"
+            )
+        # A grant of a server the deployment does not list would be in force nowhere.
+        listed = {s.name for s in self.gateway.servers} if self.gateway is not None else set()
+        if unlisted := sorted({s for g in self.profile.tool_servers.values() for s in g} - listed):
+            raise policy.PolicyError(
+                f"profile {self.profile.profile_id!r} grants MCP servers the deployment does not "
+                f"list: {', '.join(unlisted)} (DD_TOOLS_CONFIG, docs/specs/agents.md)"
             )
         # Each run of these is refused; say so once at start-up, where the operator looks.
         for agent in self.registry:
@@ -378,8 +391,12 @@ class Conductor:
         # (docs/specs/projects.md, invariant 8): the agent does not need them. What remains is
         # classed again, since a draft's other documentation shares a class with its documents.
         if optional := given & project_facts.left_out(filled):
-            hostings = [model.hosting for model in self._models_of(request.agent_id)]
-            if out := frozenset(policy.withheld(self.profile, hostings, optional)):
+            spec = self._spec_of(request.agent_id)
+            hostings = [model.hosting for model in spec.models] if spec else []
+            remote = spec is not None and pipeline.remote_tools(self, spec)
+            if out := frozenset(
+                policy.withheld(self.profile, hostings, optional, remote_tools=remote)
+            ):
                 filled = project_facts.leave_out(filled, out)
                 given = project_facts.given(facts, in_project, filled)
         refused = project_facts.refusal(facts, in_project, filled)
@@ -405,14 +422,13 @@ class Conductor:
             with self._running_lock:
                 self._running.discard(invocation_id)
 
-    def _models_of(self, agent_id: str) -> tuple[ModelUse, ...]:
-        """The models the agent's card declares; none for an agent not registered, which `_run`
-        refuses."""
+    def _spec_of(self, agent_id: str) -> AgentSpec | None:
+        """The agent's card; None for an agent not registered, which `_run` refuses."""
         agent = self.registry.get(agent_id)
         if agent is None:
             self.registry.refresh()
             agent = self.registry.get(agent_id)
-        return tuple(agent.spec.models) if agent is not None else ()
+        return agent.spec if agent is not None else None
 
     def _run(
         self,

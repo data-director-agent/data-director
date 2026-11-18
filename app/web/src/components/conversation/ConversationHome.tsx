@@ -73,6 +73,7 @@ import {
   offeredPrompts,
   projectHandlers,
   projectNamed,
+  restoreDays,
   trackedProgress,
 } from "./ConversationHomeParts";
 import { whyUnusable } from "./orchestrator";
@@ -290,6 +291,11 @@ export function ConversationHome({ directory }: { directory: Directory }) {
           currentId={turns.conversationId}
           onOpen={(id) => void turns.reopen(id)}
           onNew={turns.reset}
+          onDeleted={(id) => {
+            turns.deleted(id);
+            void reloadProjects();
+          }}
+          restoreDays={restoreDays(project)}
         />
       }
       context={

@@ -7,6 +7,7 @@ area, each a `ProjectRules` (`rules`) over that log:
 
 - `lifecycle`: creating, naming, deleting and restoring a project, its conversations, and its
   summary;
+- `conversations`: deleting and restoring a conversation started in it;
 - `holdings`: its file inventory and supporting documentation;
 - `researchers`: facts from researchers' own ORCID records;
 - `repository`: the repository chosen and the requirements it resolved to;
@@ -31,6 +32,7 @@ from pathlib import Path
 
 from dd_harness.project_effects import RunEffects
 from dd_harness.project_files import FileProjectLog
+from dd_harness.projects.conversations import Conversations, conversation_deletions
 from dd_harness.projects.decisions import (
     ANSWER_MAX_LENGTH,
     QUESTION_ID,
@@ -63,6 +65,8 @@ from dd_harness.projects.lifecycle import (
 from dd_harness.projects.repository import RepositoryChoice
 from dd_harness.projects.researchers import Researchers
 from dd_harness.projects.rules import (
+    CONVERSATION_DELETED,
+    CONVERSATION_RESTORED,
     CONVERSATION_STARTED,
     DEFAULT_RESTORE_PERIOD,
     DIGEST,
@@ -85,12 +89,14 @@ from dd_harness.projects.rules import (
     RESEARCHER_ADDED,
     RESEARCHER_WITHDRAWN,
     ChangeRefusedError,
+    ConversationDeletedError,
     ProjectDeletedError,
     ProjectError,
     ProjectRules,
     Refusal,
     Refused,
     RestoreRefusedError,
+    UnknownConversationError,
     UnknownProjectError,
     deletion,
 )
@@ -99,6 +105,8 @@ from dd_harness.projects.snapshot import SnapshotLog
 __all__ = [
     "ANSWER_MAX_LENGTH",
     "APPROVED",
+    "CONVERSATION_DELETED",
+    "CONVERSATION_RESTORED",
     "CONVERSATION_STARTED",
     "DEFAULT_RESTORE_PERIOD",
     "DIGEST",
@@ -132,6 +140,8 @@ __all__ = [
     "TITLE_BY_RESEARCHER",
     "TITLE_MAX_LENGTH",
     "ChangeRefusedError",
+    "ConversationDeletedError",
+    "Conversations",
     "Decision",
     "DepositRecords",
     "Documents",
@@ -152,10 +162,12 @@ __all__ = [
     "RestoreRefusedError",
     "SnapshotLog",
     "TitleSource",
+    "UnknownConversationError",
     "UnknownProjectError",
     "Verdict",
     "check_answers",
     "check_documentation",
+    "conversation_deletions",
     "deletion",
     "reason_required",
     "review_rules",
@@ -165,6 +177,7 @@ __all__ = [
 
 class Projects(
     Lifecycle,
+    Conversations,
     Holdings,
     Researchers,
     RepositoryChoice,
