@@ -47,7 +47,9 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
    is running, is refused before anything runs. So a message resent after a dropped connection
    never runs twice, two windows cannot fork a conversation, and each turn's history is exactly
    the conversation as it stood. The app enforces this at its turn endpoint, where it also builds
-   the history from the stored turns rather than taking one from the caller. Not yet on `main`:
+   the history from the stored turns rather than taking one from the caller, under a lock kept in
+   the run store, so app processes over one store refuse alike ([Storage](storage.md), "Turn
+   locks"). Not yet on `main`:
    TODO(#337, #390).
 5. **An orchestrator reaches other agents only through the harness, under a grant.** The grant is
    live only while the orchestrator's own invocation runs; the harness refuses a callback with an

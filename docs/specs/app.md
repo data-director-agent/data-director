@@ -416,6 +416,17 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
 
 - **Depends on** the harness (`dd_harness`) and the SDK only. Workspace-level dependency rules
   are in [System and boundaries](system.md).
+- **Turn locks.** A conversation's turn holds the conversation's lock from reading its history
+  until the turn is stored, and a turn that finds it held is refused with `TurnConflictError`
+  before anything runs (orchestration invariant 4). The lock is the run store's
+  (`Governance.turn_locks`, opened by `dd_harness.settings.conversation_locks` beside
+  `DD_RUNS_DIR`: a file lock on files, an advisory lock on PostgreSQL;
+  [Storage](storage.md), "Turn locks"), not the app process's, so several app processes or
+  replicas over one store, as #520 allows, run one turn of a conversation at a time
+  (`app/tests/test_concurrent_turns.py`). This is option (b) of #983. A conversation started in an app
+  that keeps no projects is remembered by that process alone (`Governance._started`) until its
+  first turn is stored; a deployment keeps projects, where a conversation is recorded in its
+  project as it starts.
 - **API types.** The shell's types for the server's responses are written by hand in the
   domain folders' `api.ts` and `types.ts`. The golden fixtures in `app/web/fixtures`, which
   `check_fixture` rewrites from real responses, are checked against them by
@@ -707,6 +718,11 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   repository with Issues: write, which can do nothing a model key can.
 
 ## Rejected alternatives
+
+- **Turn locks in the app's memory, with one app process the only supported deployment** (option
+  (a) of #983). It is the smallest change, but it fails silently: a second process over the same
+  store, started by hand or by scaling a Compose service, lets two turns of one conversation
+  interleave and fork it, and the app cannot reliably tell that another process shares its store.
 
 - **Gradio, or a chat around a model of the app's own.** The page was built around one agent and
   its tools; the app now has no model of its own and converses with the orchestrator.

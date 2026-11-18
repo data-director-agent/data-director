@@ -45,6 +45,7 @@ from dd_harness.registry import Registered, Registry
 from dd_harness.sources import Sources
 from dd_harness.storage import ProjectStorage, RunStorage
 from dd_harness.store import RunStore
+from dd_harness.turn_locks import ConversationLocks, FileConversationLocks
 from dd_sdk.contract.models import Principal, PrincipalKind
 from dd_sdk.credentials import ConfigError, api_key
 
@@ -221,6 +222,25 @@ def run_storage(location: StorageLocation, variable: str = "DD_RUNS_DIR") -> Run
     except SettingsError as exc:
         raise SettingsError(f"{variable} {exc}") from exc
     return store
+
+
+def conversation_locks(
+    location: StorageLocation, variable: str = "DD_RUNS_DIR"
+) -> ConversationLocks:
+    """The turn locks beside the run storage at `location` (`DD_RUNS_DIR`): files under the runs'
+    directory, or advisory locks on the runs' PostgreSQL database (docs/specs/storage.md, "Turn
+    locks"). A location that cannot be used stops start-up with `SettingsError`."""
+    where = storage_location(location, variable)
+    if isinstance(where, Path):
+        return _on_files(variable, where, FileConversationLocks)
+    _postgres(variable)  # names the missing driver, if it is
+    from dd_harness.postgres.locks import PostgresConversationLocks
+
+    try:
+        locks: ConversationLocks = PostgresConversationLocks(where)
+    except SettingsError as exc:
+        raise SettingsError(f"{variable} {exc}") from exc
+    return locks
 
 
 RESTORE_DAYS_VARIABLE = "DD_PROJECT_RESTORE_DAYS"

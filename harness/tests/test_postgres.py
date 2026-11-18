@@ -23,9 +23,15 @@ from project_changes import document_changes
 from dd_harness.listing import Readable, scan_conversations, scan_runs
 from dd_harness.project_log import ProjectLog
 from dd_harness.projects import Projects
-from dd_harness.settings import SettingsError, project_storage, run_storage
+from dd_harness.settings import (
+    SettingsError,
+    conversation_locks,
+    project_storage,
+    run_storage,
+)
 from dd_harness.storage import ProjectStorage, RunStorage
 from dd_harness.testing import (
+    CONVERSATION_LOCK_CHECKS,
     PROJECT_LOG_CHECKS,
     PROJECT_STORAGE_CHECKS,
     RUN_STORAGE_CHECKS,
@@ -34,6 +40,7 @@ from dd_harness.testing import (
     check_a_log_replays_as_it_folds,
 )
 from dd_harness.testing.storage import stored_envelope
+from dd_harness.turn_locks import ConversationLocks
 
 DATABASE = os.environ.get("DD_TEST_POSTGRES", "")
 
@@ -142,6 +149,33 @@ def test_logs_over_one_database_contend_for_one_project(
     locate: Locate, check: Callable[[Callable[[str], ProjectLog]], None]
 ) -> None:
     check(lambda name: postgres.PostgresProjectLog(locate(name)))
+
+
+@pytest.mark.parametrize("check", CONVERSATION_LOCK_CHECKS.values(), ids=CONVERSATION_LOCK_CHECKS)
+def test_turn_locks_over_one_database_keep_each_guarantee(
+    locate: Locate, check: Callable[[Callable[[str], ConversationLocks]], None]
+) -> None:
+    locks = pytest.importorskip("dd_harness.postgres.locks")
+    check(lambda name: locks.PostgresConversationLocks(locate(name)))
+
+
+def test_a_turn_lock_ends_with_the_connection_that_held_it(locate: Locate) -> None:
+    """A holder whose connection the server ends (a crashed app) leaves the lock free."""
+    location = named(locate("locks"), "dd-turn-lock-holder")
+    locks = conversation_locks(location)
+    conversation_id = f"conversation-{uuid.uuid4()}"
+    crashed = locks.try_hold(conversation_id)
+    assert crashed is not None
+    with psycopg.connect(DATABASE, autocommit=True) as conn:
+        conn.execute(
+            "select pg_terminate_backend(pid, 10000) from pg_stat_activity"
+            " where application_name = %s",
+            ("dd-turn-lock-holder",),
+        )
+    release = conversation_locks(locate("locks")).try_hold(conversation_id)
+    assert release is not None, "a lock outlived the connection that held it"
+    release()
+    crashed()  # closes what is left of the ended connection
 
 
 def _decide_in_another_process(
