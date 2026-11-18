@@ -118,10 +118,10 @@ class PresidioDetector:
 
         logging.getLogger("presidio-analyzer").setLevel(logging.ERROR)
         registry = RecognizerRegistry(supported_languages=["en"])
-        recognisers = _recognisers()
-        for recogniser in recognisers:
+        chosen = recognisers()
+        for recogniser in chosen:
             registry.add_recognizer(recogniser)
-        self._names = sorted({str(getattr(r, "name", type(r).__name__)) for r in recognisers})
+        self._names = sorted({str(getattr(r, "name", type(r).__name__)) for r in chosen})
         self._engine = AnalyzerEngine(
             registry=registry,
             nlp_engine=NoOpNlpEngine(models=[{"lang_code": "en", "model_name": "none"}]),
@@ -144,7 +144,8 @@ class PresidioDetector:
         ]
 
 
-def _recognisers() -> list[Any]:
+def recognisers() -> list[Any]:
+    """The recognisers the detector runs: Presidio's own, configured, and the command's shapes."""
     import tldextract
     from presidio_analyzer import Pattern, PatternRecognizer
     from presidio_analyzer import predefined_recognizers as pr

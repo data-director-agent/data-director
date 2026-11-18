@@ -132,9 +132,10 @@ browser scanner, below). It is configured, not taken with its defaults:
   if it is missing. The command uses Presidio's own `NoOpNlpEngine` instead, which loads no
   language model, so only Presidio's pattern, checksum and context recognisers run. Names and
   places in values need named-entity recognition (NER), which this default does not have.
-- **NER is an opt-in extra of the command.** `dd-inventory[pii-ner]` adds spaCy and a model (or
-  GLiNER-PII, if #39's comparison chooses it); the extra declares spaCy, and running a model is
-  TODO(#39). The base command's default matches the browser's. It is not as light as it could
+- **NER is an opt-in extra of the command.** `dd-inventory[pii-ner]` adds spaCy and its
+  `en_core_web_sm` model; the extra declares spaCy, and running the model is TODO(#1141). The
+  comparison below chose this, and chose not to make it the default. The base command's default
+  matches the browser's. It is not as light as it could
   be: Presidio declares spaCy, so `uvx` installs spaCy, without a model, until Presidio makes the
   import optional. An inventory made without NER says in its limitations that names and places
   were checked from column headers only.
@@ -295,13 +296,42 @@ to a person, are #471's and #987's.
   for now summaries and the quasi-identifier check, run natively only. See the browser scanner
   above.
 
+## The detector comparison
+
+`inventory/evals/compare_detectors.py` runs each candidate detector through the command's own
+check on `inventory/tests/data/disclosure/evaluation/`. That evaluation set has 30 labelled
+places and 10 places of ordinary research metadata. Some of its columns have headers that say
+nothing (`col3`, `contact_2`), so a header cannot stand in for the values. Scores are reported side
+by side, never blended ([Evaluation and conformance](evaluation.md)). Results for #39, with
+presidio-analyzer 2.2.366, spaCy 3.8 and `en_core_web_sm` 3.8.0:
+
+| | Pattern recognisers only (the default) | With spaCy `en_core_web_sm` |
+|---|---|---|
+| E-mail, phone, NHS number, NI number, postcode, in values | 19 of 19 places | 19 of 19 |
+| Person names in values | 0 of 8 | 6 of 8 |
+| Addresses in values (as locations) | 0 of 2 | 2 of 2 |
+| Columns of ordinary metadata flagged | 0 of 10 | 3 of 10 (record references, species, specimen IDs) |
+| CPU per 1,000 values | about 33 ms | about 310 ms |
+| Adds to the command | nothing | 15 MB |
+| Runs in the browser | yes | no |
+| Licences | MIT | MIT (Presidio, spaCy, the model) |
+
+The comparison confirms Presidio's pattern recognisers as the default, in the command and the
+browser alike. They find every direct identifier with a pattern or checksum, and no ordinary
+metadata. Names and places in values need NER. spaCy finds most of them, at ten times the CPU, a
+model to install, false positives on ordinary metadata and no browser route. So it is an opt-in
+extra of the command (TODO(#1141)), whose findings are reported at their confidence for a
+person to judge, not a default that would flag ordinary metadata for everyone. GLiNER-PII and
+the OpenAI Privacy Filter, which need PyTorch, were not compared. Nor was column typing. These
+are synthetic cases: recall on real data will be lower.
+
 ## Open questions
 
-- Which detector #39's comparison confirms or replaces behind the same interface, TODO(#39).
 - Whether a deployment's profile may require a higher *k* for the inventories its project store
   accepts, and whether the harness re-checks a received inventory's disclosure record against
   it, TODO(#471).
 - Differencing between two scans of the same data (a revised inventory, or parts), which ACRO's
   linked-table check warns of and the command does not yet guard against, TODO(#611).
 - Whether names from values are ever detected in the browser, through an optional NER model
-  fetched only when the researcher asks, decided on #39's numbers, TODO(#39).
+  fetched only when the researcher asks. spaCy has no Pyodide build, so it would be another model
+  (GLiNER-PII through ONNX Runtime Web, say), compared as above first, TODO(#1141).

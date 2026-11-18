@@ -43,7 +43,7 @@ dependencies = [
 
 [project.optional-dependencies]
 # Names and places in values need named-entity recognition, which the default detector does not
-# run (docs/specs/personal-data.md). This extra installs spaCy; running a model is TODO(#39).
+# run (docs/specs/personal-data.md). This extra installs spaCy; running a model is TODO(#1141).
 pii-ner = ["spacy>=3.8,<4"]
 
 [project.scripts]
