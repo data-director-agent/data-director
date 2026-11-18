@@ -238,3 +238,6 @@ app/config/profile.yaml
 
 # Coding agents
 .claude/worktrees/
+
+# mutmut working copies (.github/workflows/mutation.yml)
+mutants/

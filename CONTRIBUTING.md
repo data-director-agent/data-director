@@ -123,10 +123,29 @@ Python, JavaScript and TypeScript code and the workflows (in a pull request, onl
 changes), and `audit.yml` checks every locked
 dependency against the advisory databases each day. Dependabot proposes updates weekly.
 
+### Mutation testing
+
+Coverage shows which code the tests run, not which code they check. Once a week
+`.github/workflows/mutation.yml` runs [mutmut](https://mutmut.readthedocs.io) over the governance
+code the project owns: evidence hashing (`sdk/src/dd_sdk/evidence.py`), the policy gate
+(`harness/src/dd_harness/policy.py`) and the grounding linter
+(`harness/src/dd_harness/grounding.py`). The report is the job summary of the latest
+[Mutation testing run](https://github.com/data-director-agent/data-director/actions/workflows/mutation.yml):
+for each package, the counts, each surviving mutant (a change to the code that no test notices)
+with its diff, and the functions no selected test reaches. It is information only: it does not
+run on pull requests and never blocks a merge. To close a surviving mutant, add or tighten a test
+that the change would fail. Which modules and which tests are set under `[tool.mutmut]` in
+`sdk/pyproject.toml` and `harness/pyproject.toml`. To run it locally, from `sdk/` or `harness/`:
+
+```bash
+uv run --group mutation mutmut run
+uv run --group mutation mutmut results
+```
+
 ### Keeping the code in shape
 
 The package boundaries are checked by Import Linter and `scripts/check_boundaries.py`. Inside a
-package, three ratchets keep code from growing past what a reviewer can follow
+package, four ratchets keep code from growing past what a reviewer can follow
 ([Architecture review](docs/architecture-review.md)):
 
 - **Function complexity.** Ruff applies mccabe complexity 12 and the pylint limits on branches
@@ -137,6 +156,25 @@ package, three ratchets keep code from growing past what a reviewer can follow
   TypeScript one to 400. A file already over the limit is recorded in `scripts/size_baseline.toml`
   at its present size and may not grow. The pre-commit hook lowers an entry when its file shrinks;
   commit the change.
+- **Copied code.** Agents may not import one another, so copying a block between them is the easy
+  route. `scripts/check_duplication.py` runs [jscpd](https://github.com/kucherenko/jscpd) over the
+  Python and TypeScript sources of every member (not tests or generated code) and fails on a block
+  of 5 lines and 50 tokens or more that appears twice. The copies already there are recorded in
+  `scripts/duplication_baseline.toml`, by pair of files, with the number of blocks and lines they
+  share; a pair may not gain a block or a line, and a new pair fails. Move shared code to the
+  package whose job it is, above all `dd_sdk` for what agents share, and import it. The check is a
+  pre-commit hook, as it takes about a second; the first run installs the jscpd pinned in
+  `scripts/jscpd/package-lock.json` with `npm ci`, so it needs Node.js. The hook lowers an entry
+  when a copy is removed; commit the change. Its canary, `scripts/tests/test_check_duplication.py`,
+  plants a block in two agents and expects the check to fail; it is skipped where jscpd is not
+  installed, and CI's "Architecture" job installs it.
+- **Unused code.** `uv run python scripts/check_unused.py` runs vulture over the Python, counting
+  a use in a test or script, and fails a function, method, class or import in a member's `src/`
+  that nothing calls. Code reached by a name vulture cannot see (a template, a base class that
+  calls an override) is listed under `[[reached]]` in `scripts/unused_code.toml` with how it is
+  reached; the unused code found when the check was added is listed under `[[unused]]` and may
+  only shrink. `npm run lint` in `app/web`, `sdk/browser` and `inventory/browser` runs knip, which
+  fails an unused file, export or dependency. A stale entry in either fails.
 - **Member registration.** `scripts/check_members.py` checks that each workspace member, and above
   all each agent, appears in every list that names members by hand: the root `pyproject.toml`
   and the files that deploy every agent.
@@ -168,6 +206,10 @@ should fail when behaviour breaks, not when a sentence is reworded or an agent i
   ID from `docs/requirements.yaml` that it actually exercises. These tests feed `CONFORMANCE.md`:
   loosen what they assert, but keep them. An evaluation test carries no requirement marker
   ([Evaluation and conformance](docs/specs/evaluation.md)).
+* Property tests use Hypothesis, for code the project owns outright (evidence canonicalisation,
+  the contract validators, project event replay). The root `conftest.py` bounds every property
+  test to 50 examples with no deadline; a slower one, such as one against a database, sets fewer
+  with its own `@settings`.
 * Test module basenames are unique across the workspace. Test directories are not packages;
   shared doubles live in `dd_harness.testing` and in an agent's own `testing` module.
 * Cassettes must not contain credentials. The root `conftest.py` filters the auth headers and the
@@ -266,7 +308,9 @@ uv tool install pre-commit && pre-commit install
 Before each commit they fix trailing whitespace, final newlines and line endings; check YAML, TOML
 and JSON parse, and that no merge marker, private key or file over 1 MB is committed; check file
 modes against shebangs; run Ruff (lint with fixes, then format, at the version in `uv.lock`);
-check each to-do marker names an issue (`scripts/check_todos.py`); re-lock `uv.lock` (below);
+check each to-do marker names an issue (`scripts/check_todos.py`); hold source files to their
+size and copied code to its baseline (`scripts/check_size.py`, `scripts/check_duplication.py`);
+check every member is registered (`scripts/check_members.py`); re-lock `uv.lock` (below);
 lint the workflows with actionlint and zizmor (offline); and refuse a commit made directly on
 `main`. A `commit-msg` hook holds each commit subject to the pull request title rule
 (`scripts/check_names.py`): a Conventional Commit, `type(scope): summary`. The title itself is

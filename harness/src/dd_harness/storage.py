@@ -24,11 +24,11 @@ from typing import Any, Protocol
 from dd_harness.fact_storage import ProjectFacts as ProjectFacts
 from dd_harness.listing import Page, Readable
 from dd_harness.progress import ENTRY_BY_RESEARCHER, EntrySource
+from dd_harness.project_decision import Decision
 from dd_harness.project_effects import ProjectEffects
 from dd_harness.project_errors import TitleSource
 from dd_harness.project_log import ProjectLog as ProjectLog
 from dd_harness.project_log import ProjectSection as ProjectSection
-from dd_harness.projects.decisions import Decision
 from dd_harness.requirements import Requirements
 from dd_harness.sources import Sources
 from dd_sdk.contract.classes import ClassSchema

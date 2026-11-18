@@ -49,3 +49,23 @@ packages = ["src/dd_sdk"]
 # The TypeScript library beside the SDK (sdk/browser) is not part of the Python package.
 [tool.hatch.build.targets.sdist]
 exclude = ["browser"]
+
+# Weekly mutation testing of evidence hashing (.github/workflows/mutation.yml, CONTRIBUTING.md).
+# Run from this directory: `uv run --group mutation mutmut run`. The harness's tests are selected
+# too, because that is where evidence is hashed, checked and read in a run. The selection names
+# test files rather than tests/, since some SDK tests rewrite fixtures and read the register by
+# their path in the repository, which mutmut's copy under mutants/ does not have.
+[tool.mutmut]
+source_paths = ["src"]
+only_mutate = ["src/dd_sdk/evidence.py"]
+# One process: the root addopts spread tests over workers, which mutmut cannot follow.
+pytest_add_cli_args = ["-n0"]
+pytest_add_cli_args_test_selection = [
+  "tests/test_contract.py",
+  "tests/test_agent_kit.py",
+  "../../harness/tests/test_harness.py",
+  "../../harness/tests/test_delegation.py",
+  "../../harness/tests/test_disclosure.py",
+  "../../harness/tests/test_grounding.py",
+  "../../harness/tests/test_sources.py",
+]

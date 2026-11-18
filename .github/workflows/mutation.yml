@@ -1,0 +1,55 @@
+name: Mutation testing
+
+# Coverage shows which code the tests run, not which code they check. Once a week mutmut changes
+# the governance code the project owns (the policy gate, the grounding linter and evidence
+# hashing) one small edit at a time and runs the tests that reach it; a change no test notices is
+# a surviving mutant, listed with its diff in the job summary (docs/architecture-review.md).
+#
+# Information only: this does not run on pull requests, a surviving mutant does not fail the run,
+# and no ruleset requires it. The settings, which modules and which tests, are under
+# [tool.mutmut] in sdk/pyproject.toml and harness/pyproject.toml; CONTRIBUTING.md says how to run
+# it locally.
+on:
+  schedule:
+    - cron: "41 3 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FORCE_COLOR: "1"
+  UV_LOCKED: "1"
+
+jobs:
+  mutmut:
+    name: mutmut (${{ matrix.title }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - member: sdk
+            title: evidence hashing
+          - member: harness
+            title: policy gate and grounding linter
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          cache-dependency-glob: uv.lock
+      - run: uv sync --all-packages --all-extras --group mutation
+      - name: Run mutmut
+        working-directory: ${{ matrix.member }}
+        run: uv run --no-sync mutmut run
+      - name: Write the surviving mutants to the job summary
+        if: ${{ !cancelled() }}
+        working-directory: ${{ matrix.member }}
+        env:
+          TITLE: ${{ matrix.title }}
+        run: |
+          source ../.venv/bin/activate
+          bash ../scripts/mutation_summary.sh "Mutation testing: $TITLE" >> "$GITHUB_STEP_SUMMARY"

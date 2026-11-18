@@ -22,6 +22,8 @@ Import everything from here; the modules are an internal arrangement:
   project rules (docs/specs/storage.md); each check is also named in `RUN_STORAGE_CHECKS`,
   `PROJECT_LOG_CHECKS` and `PROJECT_STORAGE_CHECKS`. `check_shared_record` (`SHARED_RECORD_CHECKS`)
   holds two logs over one record to one another, which a backend serving several instances passes.
+- `replay`: `check_a_log_replays_as_it_folds`, which holds a backend's project log to folding the
+  same whether its events are appended together or one at a time, for any sequence of changes.
 
 Nothing here needs the workbench (docs/specs/system.md) or knows about any real agent.
 """
@@ -61,6 +63,7 @@ from dd_harness.testing.fixtures import (
 from dd_harness.testing.identity import FakeIdentityProvider
 from dd_harness.testing.model_grants import GrantKeys, OpenedGrant
 from dd_harness.testing.orcid import SAMPLE_ID, FakeOrcidRegistry, sample_record
+from dd_harness.testing.replay import check_a_log_replays_as_it_folds
 from dd_harness.testing.results import (
     SOURCE_A,
     SOURCE_B,
@@ -125,6 +128,7 @@ __all__ = [
     "Retrieve",
     "ScriptedAgent",
     "asgi_client_factory",
+    "check_a_log_replays_as_it_folds",
     "check_project_log",
     "check_project_rules",
     "check_project_storage",
