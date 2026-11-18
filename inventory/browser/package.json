@@ -17,7 +17,8 @@
     "src"
   ],
   "scripts": {
-    "lint": "eslint .",
+    "lint": "eslint . && npm run knip",
+    "knip": "knip --no-progress --treat-config-hints-as-errors",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "bundle": "node bundle/build.ts",
@@ -30,6 +31,7 @@
     "@types/node": "26.6.6",
     "@vitest/coverage-v8": "5.1.0",
     "eslint": "10.14.0",
+    "knip": "6.44.1",
     "pyodide": "314.0.8",
     "smol-toml": "1.9.1",
     "typescript": "6.0.3",

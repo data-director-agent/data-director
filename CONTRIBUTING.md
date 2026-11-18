@@ -123,6 +123,25 @@ Python, JavaScript and TypeScript code and the workflows (in a pull request, onl
 changes), and `audit.yml` checks every locked
 dependency against the advisory databases each day. Dependabot proposes updates weekly.
 
+### Mutation testing
+
+Coverage shows which code the tests run, not which code they check. Once a week
+`.github/workflows/mutation.yml` runs [mutmut](https://mutmut.readthedocs.io) over the governance
+code the project owns: evidence hashing (`sdk/src/dd_sdk/evidence.py`), the policy gate
+(`harness/src/dd_harness/policy.py`) and the grounding linter
+(`harness/src/dd_harness/grounding.py`). The report is the job summary of the latest
+[Mutation testing run](https://github.com/data-director-agent/data-director/actions/workflows/mutation.yml):
+for each package, the counts, each surviving mutant (a change to the code that no test notices)
+with its diff, and the functions no selected test reaches. It is information only: it does not
+run on pull requests and never blocks a merge. To close a surviving mutant, add or tighten a test
+that the change would fail. Which modules and which tests are set under `[tool.mutmut]` in
+`sdk/pyproject.toml` and `harness/pyproject.toml`. To run it locally, from `sdk/` or `harness/`:
+
+```bash
+uv run --group mutation mutmut run
+uv run --group mutation mutmut results
+```
+
 ### Keeping the code in shape
 
 The package boundaries are checked by Import Linter and `scripts/check_boundaries.py`. Inside a
@@ -149,6 +168,13 @@ package, four ratchets keep code from growing past what a reviewer can follow
   when a copy is removed; commit the change. Its canary, `scripts/tests/test_check_duplication.py`,
   plants a block in two agents and expects the check to fail; it is skipped where jscpd is not
   installed, and CI's "Architecture" job installs it.
+- **Unused code.** `uv run python scripts/check_unused.py` runs vulture over the Python, counting
+  a use in a test or script, and fails a function, method, class or import in a member's `src/`
+  that nothing calls. Code reached by a name vulture cannot see (a template, a base class that
+  calls an override) is listed under `[[reached]]` in `scripts/unused_code.toml` with how it is
+  reached; the unused code found when the check was added is listed under `[[unused]]` and may
+  only shrink. `npm run lint` in `app/web`, `sdk/browser` and `inventory/browser` runs knip, which
+  fails an unused file, export or dependency. A stale entry in either fails.
 - **Member registration.** `scripts/check_members.py` checks that each workspace member, and above
   all each agent, appears in every list that names members by hand: the root `pyproject.toml`
   and the files that deploy every agent.

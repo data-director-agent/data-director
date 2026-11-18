@@ -140,6 +140,10 @@ jobs:
       # Each workspace member imports only what it declares and reads only its own files
       # (docs/specs/system.md). Known exceptions only shrink: a stale one fails.
       - run: uv run --no-project --python 3.14 scripts/check_boundaries.py
+      # No function, method, class or import in a member's src/ that nothing calls (vulture).
+      # Code reached dynamically, and the unused code recorded with the check, are listed in
+      # scripts/unused_code.toml; a stale entry fails.
+      - run: uv run python scripts/check_unused.py
       # The recorded debt (complexity markers, size baseline, boundary and Import Linter
       # exceptions), counted into the job summary so that it can be seen to fall
       # (docs/architecture-review.md). Information only: it never fails the run.
@@ -161,7 +165,7 @@ jobs:
           DD_REQUIRE_JSCPD: "1"
         run: >-
           uv run pytest scripts/tests/test_architecture_canary.py scripts/tests/test_check_boundaries.py
-          scripts/tests/test_check_duplication.py
+          scripts/tests/test_check_duplication.py scripts/tests/test_check_unused.py
 
   # Sources that agents build outside git, such as the repository advisor's re3data registry
   # (dd-sources, sdk/src/dd_sdk/sources.py). This job builds them and saves what they are built
@@ -434,6 +438,7 @@ jobs:
 
   # The shell's browser tests, among them Describe a folder… with the real browser scanner
   # (e2e/scan.spec.ts), so the scanner's bundle is built first for the preview server to serve.
+  # That test runs in Firefox and WebKit too; the rest in Chromium.
   web-e2e:
     name: App shell in a browser (Playwright)
     needs: changes
@@ -470,6 +475,7 @@ jobs:
         with:
           playwright: npx playwright
           working-directory: app/web
+          other-browsers: "true"
       # playwright.config.ts builds the shell before it serves it, so there is no build step here.
       - run: npm run e2e
       - if: failure()
@@ -485,8 +491,8 @@ jobs:
   # dependencies), then runs the command natively and under Pyodide on inventory/tests/data/mixed.
   # Fails on any difference but when each inventory was made and the runtime's label, and on any
   # network request under Pyodide. The bundle's size and versions go to the job summary. Then the
-  # browser scanner runs the same bundle in a worker in Chromium, with no network, over a copy of
-  # that folder holding a canary that must appear in no request.
+  # browser scanner runs the same bundle in a worker in Chromium, Firefox and WebKit, with no
+  # network, over a copy of that folder holding a canary that must appear in no request.
   inventory-bundle:
     name: Inventory browser bundle (parity)
     needs: changes
@@ -515,6 +521,7 @@ jobs:
         with:
           playwright: npx playwright
           working-directory: inventory/browser
+          other-browsers: "true"
       # playwright.config.ts builds the test page before it serves it with the bundle.
       - run: npm run e2e
       - if: failure()

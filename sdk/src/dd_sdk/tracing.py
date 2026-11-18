@@ -19,7 +19,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import IO, Any
 
-from opentelemetry import trace
 from opentelemetry.context import Context
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
@@ -341,8 +340,3 @@ def execute_tool_span(tracer: Tracer, tool_name: str) -> Iterator[Span]:
         span.set_attribute(ATTR_OPERATION, EXECUTE_TOOL)
         span.set_attribute("dd.tool_name", tool_name)
         yield span
-
-
-def current_trace_id() -> str | None:
-    ctx = trace.get_current_span().get_span_context()
-    return format(ctx.trace_id, "032x") if ctx.is_valid else None
