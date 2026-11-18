@@ -189,6 +189,7 @@ def build_app(
             Mount("/", StaticFiles(directory=web_dist, html=True)),
         ],
         middleware=[Middleware(WorkerPolicy), Middleware(BundleCaching)],
+        exception_handlers={404: meta.not_found(deps)},
     )
 
 
