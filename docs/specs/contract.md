@@ -161,6 +161,15 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
     `project_decisions`, the facts a person decided, which only the conductor fills in a project
     ([Projects](projects.md), invariants 6 and 28; `sdk/tests/test_contract.py`). Adding them
     raised the contract version to 0.13.0.
+26. A `FileInventory` may carry `inventory_personal_data`, and each `InventoryPart`
+    `part_personal_data`: a list of `PersonalDataFinding`s, each a kind, the file (or a folder,
+    ending in a slash), what was examined (a column, a field name, a file name or text), the
+    column if any, the share of sampled values that matched and the confidence as bands, the
+    detector with its version and configuration, and how much was examined. A finding never
+    holds a value. Absent means no detector ran; empty means one ran and found nothing, so an
+    inventory made before the change still validates and reads as "no detector ran". Adding
+    them raised the contract version to 0.14.0
+    ([Personal data and disclosure control](personal-data.md), `inventory/tests/test_personal_data.py`).
 
 ## Boundaries and contracts
 

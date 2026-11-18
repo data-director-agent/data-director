@@ -1,0 +1,45 @@
+{
+  "_comment": "A copy of advisor.ethics's keyword table (agents/advisor-ethics/src/dd_agent_advisor_ethics/keywords.yaml), which this command may not import (docs/specs/personal-data.md). Keep the two in step. A name matches a keyword when the keyword is one of its words, split on non-letters, case ignored.",
+  "direct identifier": [
+    "name",
+    "surname",
+    "email",
+    "phone",
+    "address",
+    "postcode",
+    "zip",
+    "nhs",
+    "passport",
+    "ip"
+  ],
+  "indirect identifier": [
+    "dob",
+    "birth",
+    "age",
+    "gender",
+    "sex",
+    "ethnicity",
+    "occupation",
+    "employer",
+    "school"
+  ],
+  "special category": [
+    "health",
+    "diagnosis",
+    "religion",
+    "sexuality",
+    "disability",
+    "genetic",
+    "biometric",
+    "criminal",
+    "political"
+  ],
+  "location": [
+    "latitude",
+    "longitude",
+    "lat",
+    "lon",
+    "gps",
+    "location"
+  ]
+}

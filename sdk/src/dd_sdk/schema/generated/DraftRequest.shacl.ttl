@@ -85,17 +85,17 @@ dd:Affiliation a sh:NodeShape ;
             sh:order 2 ;
             sh:path dd:organisation_name ],
         [ sh:datatype xsd:string ;
-            sh:description "The researcher's role or degree." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 6 ;
-            sh:path dd:role_title ],
-        [ sh:datatype xsd:string ;
             sh:description "The scheme of organisation_identifier, in ORCID's words, such as ROR, GRID or RINGGOLD. Present exactly when organisation_identifier is." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 4 ;
             sh:path dd:organisation_identifier_scheme ],
+        [ sh:datatype xsd:string ;
+            sh:description "The researcher's role or degree." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path dd:role_title ],
         [ sh:datatype xsd:string ;
             sh:description "ORCID's identifier for the item within the record, by which a researcher chose to keep it." ;
             sh:maxCount 1 ;
@@ -285,7 +285,12 @@ dd:FileInventory a sh:NodeShape ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 5 ;
-            sh:path prov:generatedAtTime ] ;
+            sh:path prov:generatedAtTime ],
+        [ sh:class dd:PersonalDataFinding ;
+            sh:description "Where a personal-data detector found possible personal data (docs/specs/personal-data.md). Absent, no detector ran, or the inventory was made by a command without one; empty, a detector ran and found nothing, which does not mean the data hold none. In an inventory made of parts, it is every part's findings, and absent if any part's are absent." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 8 ;
+            sh:path dd:inventory_personal_data ] ;
     sh:targetClass dd:FileInventory .
 
 dd:InventoryFile a sh:NodeShape ;
@@ -355,6 +360,14 @@ dd:InventoryPart a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
+            sh:description "The folder name the part is mounted at, such as instrument or raw/2024: relative, with forward slashes, and no empty, . or .. segment. Every file of the part has a path that begins with it and a slash. No part's folder is another's or lies inside another's." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:part_folder ;
+            sh:pattern "^[^/]+(/[^/]+)*$" ],
+        [ sh:datatype xsd:string ;
             sh:description "The command that scanned the part's folder, such as dd-inventory." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -366,6 +379,11 @@ dd:InventoryPart a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 5 ;
             sh:path dd:part_limitations ],
+        [ sh:class dd:PersonalDataFinding ;
+            sh:description "The part's findings, as inventory_personal_data, with paths that begin with the part's folder. Absent, no detector ran on the part." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 6 ;
+            sh:path dd:part_personal_data ],
         [ sh:datatype xsd:string ;
             sh:description "The version of the command that scanned the part's folder." ;
             sh:maxCount 1 ;
@@ -385,15 +403,7 @@ dd:InventoryPart a sh:NodeShape ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 4 ;
-            sh:path prov:generatedAtTime ],
-        [ sh:datatype xsd:string ;
-            sh:description "The folder name the part is mounted at, such as instrument or raw/2024: relative, with forward slashes, and no empty, . or .. segment. Every file of the part has a path that begins with it and a slash. No part's folder is another's or lies inside another's." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path dd:part_folder ;
-            sh:pattern "^[^/]+(/[^/]+)*$" ] ;
+            sh:path prov:generatedAtTime ] ;
     sh:targetClass dd:InventoryPart .
 
 dd:ProjectFact a sh:NodeShape ;
@@ -401,6 +411,12 @@ dd:ProjectFact a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
+            sh:description "The kind of check that raised the fact, in the checking agent's words, such as duplicate, system_file or third_party. Kept as it was given; the core does not enumerate it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 10 ;
+            sh:path dd:fact_check_kind ],
+        [ sh:datatype xsd:string ;
             sh:description "The funders, journals or institutions that require the repository." ;
             sh:nodeKind sh:Literal ;
             sh:order 7 ;
@@ -487,13 +503,7 @@ dd:ProjectFact a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 14 ;
-            sh:path dd:licence_id ],
-        [ sh:datatype xsd:string ;
-            sh:description "The kind of check that raised the fact, in the checking agent's words, such as duplicate, system_file or third_party. Kept as it was given; the core does not enumerate it." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 10 ;
-            sh:path dd:fact_check_kind ] ;
+            sh:path dd:licence_id ] ;
     sh:targetClass dd:ProjectFact .
 
 dd:RepositoryRequirements a sh:NodeShape ;
@@ -619,21 +629,21 @@ dd:RequirementSetUse a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
-            sh:description "A requirement set, as <requirement_set_id>@v<version>." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path dd:ref ;
-            sh:pattern "^[a-z0-9][a-z0-9-]*@v[0-9]+$" ],
-        [ sh:datatype xsd:string ;
             sh:description "The SHA-256 digest of the set's file, in lowercase hex." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
             sh:path dd:sha256 ;
-            sh:pattern "^[0-9a-f]{64}$" ] ;
+            sh:pattern "^[0-9a-f]{64}$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "A requirement set, as <requirement_set_id>@v<version>." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:ref ;
+            sh:pattern "^[a-z0-9][a-z0-9-]*@v[0-9]+$" ] ;
     sh:targetClass dd:RequirementSetUse .
 
 dd:ResearcherFunding a sh:NodeShape ;
@@ -728,16 +738,16 @@ dd:ResearcherRecord a sh:NodeShape ;
             sh:order 3 ;
             sh:path dd:biography ],
         [ sh:datatype xsd:string ;
-            sh:description "A country the researcher's ORCID record names, as an ISO 3166-1 alpha-2 code." ;
-            sh:nodeKind sh:Literal ;
-            sh:order 5 ;
-            sh:path dd:country ],
-        [ sh:datatype xsd:string ;
             sh:description "The researcher's name as their ORCID record gives it: the credit name, else the given and family names. Absent when they keep their name private or did not keep it." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
             sh:path dd:researcher_name ],
+        [ sh:datatype xsd:string ;
+            sh:description "A country the researcher's ORCID record names, as an ISO 3166-1 alpha-2 code." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dd:country ],
         [ sh:datatype xsd:integer ;
             sh:description "How many works the record held beyond the 50 offered. Absent when none were left out." ;
             sh:maxCount 1 ;
@@ -916,4 +926,60 @@ dd:ExternalIdentifier a sh:NodeShape ;
             sh:order 1 ;
             sh:path dd:identifier_value ] ;
     sh:targetClass dd:ExternalIdentifier .
+
+dd:PersonalDataFinding a sh:NodeShape ;
+    rdfs:comment "Where the inventory command found what may be personal data, and how sure it is (docs/specs/personal-data.md). It never holds a matched value, any part of one, an offset into a file, a row number or an example: a kind, a place, bands and the detector only. A finding is a prompt for a person, never a decision." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:description "The share of a column's sampled, non-empty values that matched, as a band so that it cannot be turned back into a count. Present for a column only." ;
+            sh:in ( "under 1%" "1 to 10%" "10 to 50%" "over 50%" ) ;
+            sh:maxCount 1 ;
+            sh:order 4 ;
+            sh:path dd:finding_proportion ],
+        [ sh:description "What part of the file was examined." ;
+            sh:in ( "column" "field name" "file name" "text" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 2 ;
+            sh:path dd:finding_target ],
+        [ sh:datatype xsd:string ;
+            sh:description "The path of the file the finding concerns, as file_path; or, for a folder's name, the folder's path followed by a slash." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:finding_file ;
+            sh:pattern "^[^/]" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The table column the finding concerns, for a column or a field name." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dd:finding_column ],
+        [ sh:description "How sure the detector is, as a band of its highest score." ;
+            sh:in ( "low" "medium" "high" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 5 ;
+            sh:path dd:finding_confidence ],
+        [ sh:datatype xsd:integer ;
+            sh:description "How much was examined: the sampled, non-empty values of a column, or the characters of a text file. Absent for a name." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path dd:finding_examined ],
+        [ sh:datatype xsd:string ;
+            sh:description "The detector, its version and its configuration, such as the recognisers that ran, so that a reader knows what was looked for." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path dd:finding_detector ],
+        [ sh:description "What the detector took the data to be." ;
+            sh:in ( "email address" "phone number" "NHS number" "National Insurance number" "postcode" "passport number" "driving licence number" "bank account number" "payment card number" "IP address" "person name" "direct identifier" "indirect identifier" "special category" "location" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 0 ;
+            sh:path dd:finding_kind ] ;
+    sh:targetClass dd:PersonalDataFinding .
 

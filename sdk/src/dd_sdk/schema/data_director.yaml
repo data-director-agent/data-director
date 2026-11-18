@@ -12,7 +12,7 @@ description: >-
   schema_class (docs/specs/contract.md); every payload mixes in Grounded so the grounding linter can check it
   without knowing its class (docs/specs/grounding.md). Formats here are fixed; see docs/specs/ for why.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.13.0
+version: 0.14.0
 license: MIT
 
 prefixes:
@@ -334,6 +334,7 @@ classes:
       - inventory_made_at
       - inventory_limitations
       - inventory_parts
+      - inventory_personal_data
 
   InventoryPart:
     description: >-
@@ -347,6 +348,23 @@ classes:
       - part_identified_with
       - part_made_at
       - part_limitations
+      - part_personal_data
+
+  PersonalDataFinding:
+    description: >-
+      Where the inventory command found what may be personal data, and how sure it is
+      (docs/specs/personal-data.md). It never holds a matched value, any part of one, an offset
+      into a file, a row number or an example: a kind, a place, bands and the detector only. A
+      finding is a prompt for a person, never a decision.
+    slots:
+      - finding_kind
+      - finding_file
+      - finding_target
+      - finding_column
+      - finding_proportion
+      - finding_confidence
+      - finding_detector
+      - finding_examined
 
   InventoryFile:
     description: One file of a dataset, as the inventory command found it.
@@ -1598,6 +1616,57 @@ slots:
     range: InventoryPart
     multivalued: true
     inlined_as_list: true
+  inventory_personal_data:
+    description: >-
+      Where a personal-data detector found possible personal data (docs/specs/personal-data.md).
+      Absent, no detector ran, or the inventory was made by a command without one; empty, a
+      detector ran and found nothing, which does not mean the data hold none. In an inventory
+      made of parts, it is every part's findings, and absent if any part's are absent.
+    range: PersonalDataFinding
+    multivalued: true
+    inlined_as_list: true
+  part_personal_data:
+    description: >-
+      The part's findings, as inventory_personal_data, with paths that begin with the part's
+      folder. Absent, no detector ran on the part.
+    range: PersonalDataFinding
+    multivalued: true
+    inlined_as_list: true
+  finding_kind:
+    description: What the detector took the data to be.
+    range: PersonalDataKind
+    required: true
+  finding_file:
+    description: >-
+      The path of the file the finding concerns, as file_path; or, for a folder's name, the
+      folder's path followed by a slash.
+    required: true
+    pattern: "^[^/]"
+  finding_target:
+    description: What part of the file was examined.
+    range: FindingTarget
+    required: true
+  finding_column:
+    description: The table column the finding concerns, for a column or a field name.
+  finding_proportion:
+    description: >-
+      The share of a column's sampled, non-empty values that matched, as a band so that it
+      cannot be turned back into a count. Present for a column only.
+    range: ProportionBand
+  finding_confidence:
+    description: How sure the detector is, as a band of its highest score.
+    range: ConfidenceBand
+    required: true
+  finding_detector:
+    description: >-
+      The detector, its version and its configuration, such as the recognisers that ran, so that
+      a reader knows what was looked for.
+    required: true
+  finding_examined:
+    description: >-
+      How much was examined: the sampled, non-empty values of a column, or the characters of a
+      text file. Absent for a name.
+    range: integer
   part_folder:
     description: >-
       The folder name the part is mounted at, such as instrument or raw/2024: relative, with
@@ -1849,6 +1918,62 @@ slots:
     required: true
 
 enums:
+
+  PersonalDataKind:
+    description: >-
+      What a personal-data finding took the data to be (docs/specs/personal-data.md). The first
+      kinds come from matching values; the last four from matching names against a keyword
+      table, by category.
+    permissible_values:
+      email address:
+      phone number:
+      NHS number:
+      National Insurance number:
+      postcode:
+      passport number:
+      driving licence number:
+      bank account number:
+      payment card number:
+      IP address:
+      person name:
+        description: Found only by named-entity recognition, which the default detector does not run.
+      direct identifier:
+        description: A name suggests a direct identifier, such as a name, an e-mail or a postcode.
+      indirect identifier:
+        description: A name suggests an indirect identifier, such as a date of birth or an occupation.
+      special category:
+        description: A name suggests special category data, such as health or religion.
+      location:
+        description: A name suggests a precise location, such as a latitude.
+
+  FindingTarget:
+    description: What part of a file a personal-data finding concerns.
+    permissible_values:
+      column:
+        description: The sampled values of one table column.
+      field name:
+        description: The name of one table column.
+      file name:
+        description: The file's name, or a folder's name.
+      text:
+        description: The text of a small text file.
+
+  ProportionBand:
+    description: The share of sampled values that matched, as a band.
+    permissible_values:
+      under 1%:
+      1 to 10%:
+      10 to 50%:
+      over 50%:
+
+  ConfidenceBand:
+    description: >-
+      A band of the detector's highest score: low below 0.5, medium from 0.5 and below 0.85, high
+      from 0.85. A low finding is reported, not dropped.
+    permissible_values:
+      low:
+      medium:
+      high:
 
   Obligation:
     description: Whether a requirement set's field or document stops a package (docs/specs/deposit.md).

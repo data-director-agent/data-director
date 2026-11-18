@@ -276,11 +276,6 @@ clones = 1
 lines = 18
 
 [[pair]]
-files = ["inventory/src/dd_inventory/scan.py", "inventory/src/dd_inventory/scan.py"]
-clones = 1
-lines = 8
-
-[[pair]]
 files = ["sdk/src/dd_sdk/contract/models.py", "sdk/src/dd_sdk/contract/models.py"]
 clones = 1
 lines = 7
