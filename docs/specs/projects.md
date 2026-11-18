@@ -448,8 +448,10 @@ from it ([Drafting documents](drafting.md)). The text is `documentation`; where 
 keeps that class from a drafter's hosted model, the documents are left out and the draft still
 runs, as researcher facts are, while a metadata record, version or answers withheld still refuse
 it (`harness/tests/test_project_runs.py`, `dd_harness.testing.storage`). The app cannot tell
-documentation from data, so the attach form and the user guide state the rule. A profile that
-refuses documentation altogether is TODO(#1119).
+documentation from data, so the attach form and the user guide state the rule, and the app
+checks the text for possible personal data and secrets first, holding a document until the
+researcher confirms what was found ([Personal data and disclosure control](personal-data.md),
+#473). A profile that refuses documentation altogether is TODO(#1119).
 
 **Agents** propose; they do not write. The only proposed change is a document version, returned as
 a `Document` payload; a check agent's proposed facts (invariant 28) are about the project, not a

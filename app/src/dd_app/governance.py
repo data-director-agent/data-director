@@ -22,6 +22,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from dd_app.config import DEFAULT_PROJECTS_DIR, DEFAULT_REPOSITORIES_DIR
+from dd_app.documentation_check import accept
 from dd_app.turn_body import AttachedDocument, Turn
 from dd_harness import conversations, project_access
 from dd_harness.conductor import Conductor
@@ -29,7 +30,7 @@ from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
 from dd_harness.listing import Page, Readable, check_limit
 from dd_harness.observe import RunObserver
 from dd_harness.project_access import Action, Role
-from dd_harness.projects import UnknownProjectError, check_documentation
+from dd_harness.projects import UnknownProjectError
 from dd_harness.requirements import Requirements, load_requirements
 from dd_harness.settings import (
     Settings,
@@ -324,8 +325,7 @@ class Governance:
         documentation: AttachedDocument | None,
         acting_for: Principal,
     ) -> None:
-        """Add what a turn attached to the conversation's project: all of it, or, if any is
-        refused, none."""
+        """Add all a turn attached to the conversation's project, or none if any is refused."""
         project_id = self.projects.project_of(conversation_id) if self.projects else None
         if self.projects is None or project_id is None:
             what = "an inventory" if inventory is not None else "a document"
@@ -334,7 +334,7 @@ class Governance:
             )
         caused_by = f"POST /api/conversations/{conversation_id}/turns"
         if documentation is not None:
-            check_documentation(documentation.name, documentation.media_type, documentation.text)
+            accept(documentation)
         if inventory is not None:
             self.projects.add_inventory(
                 project_id, inventory, acted_for=acting_for, caused_by=caused_by

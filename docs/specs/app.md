@@ -211,8 +211,18 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     stored in the project, that the Documentation Editor reads its text to suggest answers and
     other agents are told only its name, type and size ([Projects](projects.md)), and
     that it must be about the data, never the data themselves nor anything that identifies a
-    person. Nothing is attached until the researcher presses **Attach this document**; closing
-    the dialog any other way discards it. The checked document shows as a chip with its name and
+    person. The dialog also shows what `POST /api/documentation/check` finds in the text:
+    possible personal data, by the inventory command's detector, and secrets, by detect-secrets'
+    named plugins, each by kind and never by value, in or out of a project, keeping nothing.
+    Where something is found, the button reads **Attach anyway** and is enabled only once the
+    researcher ticks that they have checked the document; the turn's `documentation` then names
+    the kinds in `confirmed`. The server checks the text again: a document whose findings are
+    not all confirmed is refused with `409` `documentation-held`, listing the kinds, nothing runs
+    and nothing is kept, and the log names the document and the kinds only (#473,
+    `app/tests/test_documentation_hold.py`,
+    `app/web/src/components/conversation/DocumentReviewDialog.test.tsx`). Nothing is attached
+    until the researcher presses **Attach this document** or **Attach anyway**; closing the
+    dialog any other way discards it. The checked document shows as a chip with its name and
     size and a button to remove it, never as its text, and so does each document a turn's
     `project_documentation` gained on the transcript. `GET /api/projects/{id}/documentation`
     lists a project's documents and `GET /api/projects/{id}/documentation/{digest}` serves one's
