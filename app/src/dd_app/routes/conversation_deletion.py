@@ -13,17 +13,21 @@ from __future__ import annotations
 
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
+from starlette.responses import Response
 from starlette.routing import Route
 
+from dd_app import contract_shapes as contract
 from dd_app.conversation_deletion import ConversationDeletion, MayNotDeleteError
 from dd_app.governance import UnknownConversationError
 from dd_app.routes.common import (
     Deps,
+    ResponseBody,
     caused_by,
     no_conversation,
     problem,
     refused,
+    respond,
+    respond_page,
     signed_in,
 )
 from dd_harness.projects import (
@@ -32,10 +36,33 @@ from dd_harness.projects import (
     ProjectError,
     RestoreRefusedError,
 )
-from dd_harness.transport.paging import PagingError, page_params, page_response
+from dd_harness.transport.paging import PagingError, page_params
 from dd_sdk.contract.models import Principal
 
 RESTORE_REFUSED = "Data Director could not restore this conversation"
+
+
+class ConversationDeleted(ResponseBody):
+    """A conversation deleted, and until when it may be restored
+    (`DELETE /api/conversations/{id}`)."""
+
+    conversation_id: str
+    project_id: str
+    at: str
+    """When it was deleted."""
+    by: contract.Principal
+    """Who deleted it."""
+    restorable_until: str
+
+
+class DeletedConversation(ConversationDeleted):
+    """A deleted conversation the person may still restore
+    (`GET /api/conversations/deleted`)."""
+
+    started_by: str | None
+    """The `principal_id` of whoever started it, or null if the project does not record it."""
+    title: str | None
+    """Its title as the harness derives it, or null if it had no turn."""
 
 
 def routes(deps: Deps) -> list[Route]:
@@ -62,7 +89,7 @@ async def list_deleted(request: Request, person: Principal, deps: Deps) -> Respo
         return refused(str(exc), "Data Director could not list the deleted conversations")
     deletion = ConversationDeletion(deps.governance)
     page = await run_in_threadpool(lambda: deletion.deleted_for(person, **paging))
-    return page_response(request, page)
+    return respond_page(request, page, DeletedConversation)
 
 
 async def delete_conversation(request: Request, person: Principal, deps: Deps) -> Response:
@@ -76,7 +103,7 @@ async def delete_conversation(request: Request, person: Principal, deps: Deps) -
         return problem(409, "conversation-deleted", "This conversation is deleted", str(exc))
     except (UnknownConversationError, MayNotDeleteError, ProjectError) as exc:
         return _refusal(exc, conversation_id)
-    return JSONResponse(deleted)
+    return respond(ConversationDeleted, deleted)
 
 
 async def restore_conversation(request: Request, person: Principal, deps: Deps) -> Response:

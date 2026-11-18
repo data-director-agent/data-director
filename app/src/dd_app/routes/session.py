@@ -14,15 +14,25 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import urlencode
 
+from pydantic import MISSING
 from starlette.requests import Request
-from starlette.responses import JSONResponse, RedirectResponse, Response
+from starlette.responses import RedirectResponse, Response
 from starlette.routing import Route
 
 from dd_app.governance import principal_summary
-from dd_app.routes.common import SERVICE, Deps, bind, problem, requires_json, signed_in
+from dd_app.routes.common import (
+    SERVICE,
+    Deps,
+    ResponseBody,
+    bind,
+    problem,
+    requires_json,
+    respond,
+    signed_in,
+)
 from dd_harness.identity import RefusalReason, Unauthenticated
 from dd_harness.sessions import PENDING_S, SESSION_COOKIE, SIGN_IN_COOKIE, cookie
 from dd_harness.signin import CALLBACK_PATH, NotAdmitted, SignIn
@@ -40,6 +50,56 @@ SIGN_IN_FAILED = "failed"
 # `127.0.0.1` and `localhost` as secure, so a development sign-in over plain HTTP still works.
 _SESSION: dict[str, Any] = {"path": "/", "secure": True, "httponly": True, "samesite": "lax"}
 _SIGN_IN_COOKIE: dict[str, Any] = {**_SESSION, "path": "/api/sign-in"}
+
+
+class PrincipalSummary(ResponseBody):
+    """What the shell is told about a person (`dd_app.governance.principal_summary`): whom runs
+    act for, and who vouched for them."""
+
+    name: str
+    assurance: Literal["asserted", "authenticated"]
+    vouched_by: str | MISSING = MISSING
+    """The issuer that vouched for an authenticated person; absent for an asserted one."""
+
+
+class RawSessionPrincipal(PrincipalSummary):
+    """The person a session is open for."""
+
+    principal_id: str
+
+
+class RawModelAccountProvider(ResponseBody):
+    """A provider a person's own model account may be with."""
+
+    provider: str
+    base_urls: list[str]
+    """The origins (`https://host[:port]`) the account may name as its base URL."""
+
+
+class RawSession(ResponseBody):
+    """Who is signed in, until when, and whether this server signs anyone in
+    (`GET`/`POST /api/session`)."""
+
+    signs_in: bool
+    """False on a development server, where every run acts for the operator."""
+    issuer: str | None
+    """The identity provider people sign in with (its issuer IRI), or null."""
+    principal: RawSessionPrincipal | None
+    expires_at: str | None
+    """When the session ends if nothing more is done in it (ISO 8601), or null."""
+    model_accounts: bool
+    """Whether a person may add their own model account (docs/specs/model-accounts.md)."""
+    model_account_providers: list[RawModelAccountProvider]
+    """The providers a person's own account may be with; empty unless `model_accounts`."""
+
+
+class Ticket(ResponseBody):
+    """A single-use enrolment ticket, and where the browser takes it with the person's key
+    (`POST /api/model-account/ticket`)."""
+
+    ticket: str
+    broker_url: str
+    expires_at: str
 
 
 def routes(deps: Deps) -> list[Route]:
@@ -76,25 +136,27 @@ async def get_session(request: Request, deps: Deps) -> Response:
     sign_in = deps.sign_in
     if sign_in is None:
         operator = deps.governance.authenticator.principal_for(None)
-        return JSONResponse(
+        return respond(
+            RawSession,
             {
                 "signs_in": False,
                 "issuer": None,
                 "principal": _principal(operator),
                 "expires_at": None,
                 **accounts,
-            }
+            },
         )
     session = sign_in.authenticator.session(request.headers, touch=request.method == "POST")
     body: dict[str, Any] = {"signs_in": True, "issuer": sign_in.issuer, **accounts}
     if session is None:
-        return JSONResponse({**body, "principal": None, "expires_at": None})
-    return JSONResponse(
+        return respond(RawSession, {**body, "principal": None, "expires_at": None})
+    return respond(
+        RawSession,
         {
             **body,
             "principal": _principal(session.principal),
             "expires_at": _timestamp(sign_in.store.expires_at(session)),
-        }
+        },
     )
 
 
@@ -110,7 +172,8 @@ async def model_account_ticket(request: Request, acting_for: Principal, deps: De
             "This deployment does not let people add their own model account.",
         )
     ticket, expires = minter.enrolment_ticket(acting_for=acting_for)
-    return JSONResponse(
+    return respond(
+        Ticket,
         {"ticket": ticket, "broker_url": deps.model_broker_path, "expires_at": _timestamp(expires)},
         headers={"Cache-Control": "no-store"},
     )

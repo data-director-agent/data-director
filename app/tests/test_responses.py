@@ -4,6 +4,8 @@ and every model the app declares is gathered into one JSON Schema."""
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from typing import Any, Literal
 
 import pytest
@@ -18,12 +20,12 @@ from support import conforms
 from dd_app.problems import ProblemDetails, problem
 from dd_app.responses import (
     ResponseBody,
-    main,
     respond,
     respond_page,
     response_models,
     response_schema,
 )
+from dd_app.routes.conversations import VersionChange
 from dd_harness.listing import Page
 
 
@@ -114,14 +116,25 @@ def test_the_schema_holds_every_model_and_only_models() -> None:
     defined = schema["$defs"]
     names = {m.__name__ for m in response_models()}
     assert names <= defined.keys()
-    # A nested model is a `ResponseBody` too, so it is named and closed alike; a closed set of
-    # values is a `Literal`, not an `Enum`, which a strict model would not read from JSON.
-    assert defined.keys() <= names
-    for definition in defined.values():
+    # A nested model is a `ResponseBody` too, so it is named and closed alike. A named closed set
+    # of values is a `type` statement over a `Literal` (an `Enum` a strict model would not read
+    # from JSON), and its name must not clash with another, or Pydantic would qualify it.
+    for name, definition in defined.items():
+        assert name in names or ("enum" in definition and name.isidentifier()), name
+        assert "__" not in name, name
         for field in definition.get("properties", {}).values():
             assert "title" not in field
 
 
-def test_the_schema_can_be_printed(capsys: pytest.CaptureFixture[str]) -> None:
-    main()
-    assert json.loads(capsys.readouterr().out) == response_schema()
+def test_the_schema_can_be_printed() -> None:
+    """As the TypeScript generation runs it: `python -m`, which runs a second copy of the module."""
+    printed = subprocess.run(
+        [sys.executable, "-m", "dd_app.responses"], capture_output=True, check=True, text=True
+    )
+    assert json.loads(printed.stdout) == response_schema()
+
+
+def test_a_key_that_is_no_python_name_is_read_and_sent_by_its_alias() -> None:
+    change = {"turn_index": 1, "agent_id": "orchestrator.stub", "from": "0.1.0", "to": "0.2.0"}
+    conforms(change, VersionChange)
+    assert "from" in response_schema()["$defs"]["VersionChange"]["required"]

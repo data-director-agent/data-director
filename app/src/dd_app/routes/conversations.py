@@ -16,32 +16,37 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, ClassVar, Self
+from typing import Any, ClassVar, Literal, Self
 
-from pydantic import ConfigDict, model_validator
+from pydantic import MISSING, ConfigDict, Field, model_validator
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
+from starlette.responses import Response
 from starlette.routing import Route
 
+from dd_app import contract_shapes as contract
 from dd_app.governance import Governance, TurnConflictError, UnknownConversationError
 from dd_app.routes.common import (
     RUN_REFUSED,
     Deps,
     RequestBody,
+    ResponseBody,
     no_conversation,
     no_project,
     parse_body,
     problem,
     project_deleted,
     refused,
+    respond,
+    respond_page,
     signed_in,
 )
-from dd_app.routes.runs import REFUSED_BEFORE_RUN
+from dd_app.routes.progress import ProjectProgress
+from dd_app.routes.runs import REFUSED_BEFORE_RUN, OutcomeStatus, RunResult
 from dd_app.turn_body import AttachedDocument, Turn
 from dd_app.turn_stream import TurnStreams
 from dd_harness.projects import ProjectDeletedError, UnknownProjectError
-from dd_harness.transport.paging import PagingError, page_params, page_response
+from dd_harness.transport.paging import PagingError, page_params
 from dd_sdk.contract.models import Principal, ReplyAnswers
 
 log = logging.getLogger(__name__)
@@ -138,6 +143,99 @@ class SendTurn(RequestBody):
         )
 
 
+class Started(ResponseBody):
+    """A conversation the server started, and the project it was started in
+    (`POST /api/conversations`)."""
+
+    conversation_id: str
+    project_id: str | None
+    """Null where the server keeps no projects."""
+
+
+class ConversationSummary(ResponseBody):
+    """What a list of conversations shows of one (`GET /api/conversations`)."""
+
+    conversation_id: str
+    project_id: str | None
+    """The project it was started in; null where the server keeps no projects."""
+    agent_id: str
+    first_invocation_id: str
+    title: str
+    """A model's title from the first turn, or else the start of the first message."""
+    title_source: Literal["model", "message"]
+    turns: int
+    started_at: str
+    last_completed_at: str
+    last_status: OutcomeStatus
+
+
+class SavedInventory(ResponseBody):
+    """What a project holds of the inventory added last."""
+
+    digest: str
+    file_count: int
+    inventory_made_at: str
+    added_at: str
+    revises: str | None
+    """The digest of the inventory it replaced, or null."""
+    part_count: int | None
+    """How many folders it is made of, when it is made of parts, or null."""
+
+
+class ConversationTurn(ResponseBody):
+    turn_index: int
+    invocation_id: str
+    agent_id: str
+    agent_version: str
+    status: OutcomeStatus
+    completed_at: str
+    input: dict[str, Any] | None
+    """The turn's input as stored; null if its request was not stored."""
+    envelope: contract.Envelope
+    children: list[contract.Envelope]
+    """The runs it delegated to, in the order stored."""
+
+
+class VersionChange(ResponseBody):
+    """Where an agent's version differs from its version earlier in the conversation."""
+
+    turn_index: int
+    agent_id: str
+    from_: str = Field(alias="from")
+    """The version it had before."""
+    to: str
+
+
+class HistoryEntry(ResponseBody):
+    """One entry of the conversation so far, as a turn's `Message.history` gives it."""
+
+    role: Literal["user", "agent"]
+    turn_text: str
+    turn_agent_id: str | MISSING = MISSING
+    turn_agent_version: str | MISSING = MISSING
+    turn_invocation_id: str | MISSING = MISSING
+
+
+class Conversation(ResponseBody):
+    """A conversation as the harness derives it from the run store
+    (`GET /api/conversations/{id}`)."""
+
+    conversation_id: str
+    project_id: str | MISSING | None = MISSING
+    """The project it was started in; absent for one started, with no turn, where the server
+    keeps no projects."""
+    inventory: SavedInventory | MISSING | None = MISSING
+    """The inventory the project holds now; absent where the server keeps no projects."""
+    progress: ProjectProgress | MISSING = MISSING
+    """Where the project is in the process flow now; absent where the server keeps no
+    projects."""
+    turns: list[ConversationTurn]
+    inputs: dict[str, dict[str, Any] | None]
+    """Every stored input, the delegated runs' too, by `invocation_id`."""
+    version_changes: list[VersionChange]
+    history: list[HistoryEntry]
+
+
 def routes(deps: Deps) -> list[Route]:
     streams = TurnStreams(deps.governance)
     return [
@@ -180,7 +278,8 @@ async def start_conversation(request: Request, acting_for: Principal, deps: Deps
     except ProjectDeletedError:
         return project_deleted(str(project_id))
     found = governance.conversation(conversation_id, acting_for) or {}
-    return JSONResponse(
+    return respond(
+        Started,
         {"conversation_id": conversation_id, "project_id": found.get("project_id")},
         status_code=201,
         headers={"Location": f"/api/conversations/{conversation_id}"},
@@ -217,7 +316,8 @@ async def _take_turn(
     try:
         envelope = await governance.turn(conversation_id, body.turn(), acting_for)
         checks = governance.checks(envelope.invocation_id)
-        return JSONResponse({"envelope": envelope.to_document(), "checks": checks}), "answered"
+        answer = {"envelope": envelope.to_document(), "checks": checks}
+        return respond(RunResult, answer), "answered"
     except UnknownConversationError:
         return no_conversation(conversation_id), "unknown conversation"
     except TurnConflictError as exc:
@@ -237,7 +337,7 @@ async def list_conversations(request: Request, reader: Principal, deps: Deps) ->
     except PagingError as exc:
         return refused(str(exc), "Data Director could not list the conversations")
     page = await run_in_threadpool(lambda: deps.governance.conversations(reader, **paging))
-    return page_response(request, page)
+    return respond_page(request, page, ConversationSummary)
 
 
 async def get_conversation(request: Request, reader: Principal, deps: Deps) -> Response:
@@ -245,4 +345,4 @@ async def get_conversation(request: Request, reader: Principal, deps: Deps) -> R
     found = await run_in_threadpool(deps.governance.conversation, conversation_id, reader)
     if found is None:
         return no_conversation(conversation_id)
-    return JSONResponse(found)
+    return respond(Conversation, found)

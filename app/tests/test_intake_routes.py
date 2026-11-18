@@ -13,6 +13,7 @@ from support import check_fixture, configure_env, dist_dir, new_governance
 
 from dd_app.app import build_app
 from dd_app.governance import Governance
+from dd_app.routes.progress import ProjectIntake
 from dd_harness.progress import ENTRY_CHOSEN, INTAKE_ANSWERED, INTAKE_DISMISSED
 from dd_harness.storage import ProjectStorage
 from dd_harness.testing import TEST_PRINCIPAL
@@ -56,7 +57,7 @@ def test_a_new_project_reads_the_entry_question_next(client: TestClient, project
     assert body["next"] == ENTRY
     assert body["questions"][0]["question_id"] == ENTRY
     assert body["questions"][0]["answer_values"] is None
-    check_fixture("intake-pending.json", body)
+    check_fixture("intake-pending.json", body, model=ProjectIntake)
 
 
 def test_answering_each_question_in_turn_completes_the_intake_with_a_suggestion(
@@ -79,7 +80,7 @@ def test_answering_each_question_in_turn_completes_the_intake_with_a_suggestion(
     assert body["state"] == "complete"
     assert body["progress"]["suggested"] is not None
     assert {q["question_id"] for q in body["questions"]} == seen
-    check_fixture("intake-complete.json", body)
+    check_fixture("intake-complete.json", body, model=ProjectIntake)
 
     events = [e for e in store.events(project) if e["event"] in INTAKE_EVENTS]
     assert len(events) == len(seen)
