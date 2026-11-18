@@ -217,6 +217,47 @@ def test_a_healthy_vm_is_all_good(vm: Vm, capsys: pytest.CaptureFixture[str]) ->
     assert says(out, "note", "orchestrator.stub")
 
 
+def link_python(vm: Vm, home: Path, mode: int) -> None:
+    """Give the live release a .venv whose python links to an interpreter in `home`, made `mode`."""
+    interpreter = home / "python" / "bin" / "python3.14"
+    interpreter.parent.mkdir(parents=True)
+    interpreter.write_text("")
+    home.chmod(mode)
+    venv = vm.releases / SHA / ".venv" / "bin"
+    venv.mkdir(parents=True)
+    (venv / "python").symlink_to(interpreter)
+
+
+def broker_enabled() -> FakeVm:
+    system = FakeVm()
+    system.units["data-director-model-broker.service"] = {"UnitFileState": "enabled"}
+    return system
+
+
+def test_an_enabled_broker_that_cannot_reach_python_names_install_sh(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    link_python(vm, vm.state, 0o750)
+    status, out = check(broker_enabled(), vm, capsys)
+    assert status == 1
+    assert says(out, "problem", "data-director-model-broker.service", str(vm.state))
+    assert says(out, "fix", "install.sh")
+
+
+def test_an_enabled_broker_with_python_beside_the_releases_is_all_good(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    link_python(vm, vm.root / "python", 0o755)
+    status, out = check(broker_enabled(), vm, capsys)
+    assert status == 0, out
+
+
+def test_a_broker_not_enabled_is_not_checked(vm: Vm, capsys: pytest.CaptureFixture[str]) -> None:
+    link_python(vm, vm.state, 0o750)
+    status, out = check(FakeVm(), vm, capsys)
+    assert status == 0, out
+
+
 def test_an_old_commit_still_running_names_the_bootstrap(
     vm: Vm, capsys: pytest.CaptureFixture[str]
 ) -> None:

@@ -89,8 +89,9 @@ agent that calls through the broker each time, and an agent left out loses its a
     itself as its `dd-model-broker-credential` secret (below). The agent holds the credential and
     the broker holds only the digest.
 
-Set `DD_BROKER_HARNESS_JWKS_URL` in `model-broker.env` to the harness's published keys (below),
-then start the broker:
+`install.sh` sets `DD_BROKER_HARNESS_JWKS_URL` in `model-broker.env` to the harness's published
+keys (below) on the app's loopback address, and leaves a value you set there alone. Start the
+broker:
 
 ```bash
 sudo systemctl enable --now data-director-model-broker.service
@@ -98,6 +99,12 @@ sudo systemctl enable --now data-director-model-broker.service
 
 The broker listens on `127.0.0.1:8300`. Like the agents' ports, it must not be reachable from
 beyond the host or a private network (TODO(#17)).
+
+If it fails with `status=203/EXEC` and `Permission denied`, the broker's user cannot reach the
+release's Python: the VM was installed before uv's Python moved to `/opt/data-director/python/`.
+Run `install.sh` again, which rebuilds the live release against it
+([deploy/README.md](../../../deploy/README.md#the-model-broker)). `sudo data-director doctor`
+reports this.
 
 ### The harness: signing grants
 
