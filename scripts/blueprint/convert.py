@@ -122,7 +122,7 @@ def walk_inline_children(node: Node, fn: InlineFn) -> Node:
     return node
 
 
-def walk_blocks(blocks: Nodes, fn: InlineFn, headers: bool = True) -> Nodes:
+def walk_blocks(blocks: Nodes, fn: InlineFn, *, headers: bool = True) -> Nodes:
     """Apply an inline-list function to every inline list in a block list."""
     out = []
     for block in blocks:

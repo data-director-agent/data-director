@@ -264,7 +264,7 @@ def fetch_logs(a: argparse.Namespace) -> list[dict]:
         page += 1
 
 
-def _keys_for(row: dict, by: str, include_ua: bool) -> list[str]:
+def _keys_for(row: dict, by: str, *, include_ua: bool) -> list[str]:
     md = row.get("metadata") or {}
     if by == "tag":
         tags = [
@@ -290,7 +290,7 @@ def spend(a: argparse.Namespace) -> None:
     rows = fetch_logs(a)
     agg = defaultdict(lambda: [0, 0, 0, 0.0])  # requests, in, out, cost
     for row in rows:
-        for k in _keys_for(row, a.by, a.include_user_agent):
+        for k in _keys_for(row, a.by, include_ua=a.include_user_agent):
             s = agg[k]
             s[0] += 1
             s[1] += row.get("prompt_tokens") or 0
