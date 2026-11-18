@@ -160,9 +160,8 @@ inventory**. The project keeps the new version, and the earlier one stays in its
 
 If your files change, update the inventory with a new scan of the folder that changed. Under
 **Update with a new scan**, say under **Scan of** which folder it is. Then select **Choose a
-folder…** under **Describe a folder in this browser** and pick the folder, as when you first made
-the inventory; or, if you made the new inventory with the command, choose its file as **New
-scan**. Only that folder is replaced, and nothing is kept until you select **Save as the project's
+folder…** and pick the folder, or drop it there, as when you first made the inventory; or, if you
+made the new inventory with the command, choose its file as **New scan**. Only that folder is replaced, and nothing is kept until you select **Save as the project's
 inventory**. What you said about each file is carried over to the
 new scan wherever the file is still there, and the app tells you which files are new, changed or
 gone. One thing cannot be carried over: anything you left out before was never kept, so it
