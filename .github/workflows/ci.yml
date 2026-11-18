@@ -243,10 +243,12 @@ jobs:
       # pytest-xdist spreads the shard over the runner's cores (pyproject addopts); the JSON
       # report and coverage are merged from the workers into the one session. Coverage is
       # measured over the same session (pyproject.toml, [tool.coverage]). --durations lists the
-      # slowest tests in the log, to show where the time goes.
+      # slowest tests in the log, to show where the time goes. A shard covers too little to meet
+      # the coverage floor, so --cov-fail-under=0 leaves the floor to the coverage job.
       - run: >-
           uv run pytest --test-shard "$SHARD" --durations=20
-          --json-report --json-report-file=.report-${{ matrix.shard }}.json --cov --cov-report=
+          --json-report --json-report-file=.report-${{ matrix.shard }}.json
+          --cov --cov-report= --cov-fail-under=0
       - name: Hand the test report to the conformance job
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -290,14 +292,18 @@ jobs:
           pattern: coverage-*
           path: shards
       - run: uv run coverage combine shards/*/.coverage
+      # `coverage report` exits non-zero under the floor ([tool.coverage.report] fail_under); the
+      # step keeps that status, so the floor fails the job after the report is written.
       - name: Coverage report
         run: |
+          status=0
           {
             echo '## Coverage'
             echo '```'
-            uv run coverage report --skip-covered
+            uv run coverage report --skip-covered || status=$?
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
       - run: uv run coverage xml -o coverage.xml
       - uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         # A fork's pull request has no secret; the report in the job summary still shows.
