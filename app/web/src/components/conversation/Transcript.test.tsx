@@ -270,6 +270,14 @@ describe("Transcript, as a conversation", () => {
     expect(personPart.querySelector(".turn-speaker-name")).toHaveTextContent("You");
   });
 
+  it("marks the person's part with an icon hidden from assistive technology", () => {
+    render(<Transcript conversation={conversation} agents={agents} onToggleRun={() => {}} />);
+    const personPart = turns()[0]?.querySelector(".turn-person") as HTMLElement;
+    const icon = personPart.querySelector(".turn-speaker-name .person-icon");
+    expect(icon).not.toBeNull();
+    expect(icon).toHaveAttribute("aria-hidden", "true");
+  });
+
   it("names an agent the directory does not list by its id and version, once", () => {
     render(<Transcript conversation={conversation} agents={[]} onToggleRun={() => {}} />);
     const agentPart = turns()[0]?.querySelector(".turn-agent") as HTMLElement;
