@@ -75,3 +75,23 @@
     color: var(--color-text-muted);
   }
 }
+
+@layer components {
+  /* Describe a folder on this computer (DescribeServerFolder.tsx): the way back up, and the
+     folders here, each a button that opens it. */
+  .describe-folder-trail,
+  .describe-folder-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .describe-folder-trail > li + li::before {
+    content: "/";
+    margin-right: var(--space-2);
+    color: var(--color-text-muted);
+  }
+}

@@ -1,7 +1,9 @@
 /**
  * The **Make an inventory** button and its dialog, beside Attach a file (#553). The dialog says
- * in one sentence what an inventory is. Its first choice, where the deployment serves the browser
- * scanner, is to describe a folder in this browser (DescribeFolder.tsx, #554). Then comes how to
+ * in one sentence what an inventory is. On an app installed on the researcher's own machine that
+ * may read folders there, its first choice is to describe one of them (DescribeServerFolder.tsx,
+ * #395). Where the deployment serves the browser scanner, the next is to describe a folder in this
+ * browser (DescribeFolder.tsx, #554). Then comes how to
  * make one with `dd-inventory`, the route for data on a server or a cluster or a very large
  * dataset: a tab for each operating system with the browser's own selected, each command with a
  * button that copies it. It ends at the file picker, so the researcher goes straight on to attach
@@ -28,12 +30,16 @@ import { Button } from "../ui/Button";
 import { DialogTrigger, ModalDialog } from "../ui/Dialog";
 import { Tab, TabList, TabPanel, Tabs } from "../ui/Tabs";
 import { DescribeFolder } from "./DescribeFolder";
+import { DescribeServerFolder } from "./DescribeServerFolder";
 import "./MakeInventoryDialog.css";
 
 /** The system this browser runs on, or null when the browser does not say or it is not covered. */
-export function browserSystem(nav: Navigator | undefined = globalThis.navigator): SystemId | null {
+export function browserSystem(
+  nav: Navigator | undefined = globalThis.navigator,
+): SystemId | null {
   if (!nav) return null;
-  const hints = (nav as Navigator & { userAgentData?: { platform?: string } }).userAgentData;
+  const hints = (nav as Navigator & { userAgentData?: { platform?: string } })
+    .userAgentData;
   return systemFromPlatform(hints?.platform || nav.platform);
 }
 
@@ -72,19 +78,23 @@ function MakeInventory({ onAttach }: { onAttach: (file: File) => void }) {
   return (
     <div className="make-inventory">
       <p>{summary}</p>
+      <DescribeServerFolder onDescribed={onAttach} />
       <DescribeFolder onDescribed={onAttach} />
       <section aria-labelledby={commandHeading}>
         <h3 id={commandHeading}>Make it with the command</h3>
         <p>
-          Use the command for data on a server or a cluster, or for a very large dataset. Make it on
-          the computer where your data are, following the steps for its system.
+          Use the command for data on a server or a cluster, or for a very large
+          dataset. Make it on the computer where your data are, following the
+          steps for its system.
         </p>
         <Tabs defaultSelectedKey={detected ?? systems[0]?.id ?? "windows"}>
           <TabList aria-label="Operating system">
             {systems.map((s) => (
               <Tab key={s.id} id={s.id}>
                 {s.name}
-                {s.id === detected && <span className="visually-hidden">, this computer</span>}
+                {s.id === detected && (
+                  <span className="visually-hidden">, this computer</span>
+                )}
               </Tab>
             ))}
           </TabList>
@@ -97,7 +107,10 @@ function MakeInventory({ onAttach }: { onAttach: (file: File) => void }) {
       </section>
       <section aria-labelledby={attachHeading}>
         <h3 id={attachHeading}>Attach it</h3>
-        <p>When the command has finished, choose the file it wrote to attach it to your message.</p>
+        <p>
+          When the command has finished, choose the file it wrote to attach it
+          to your message.
+        </p>
         <FileTrigger
           acceptedFileTypes={["application/json", ".json"]}
           onSelect={(files) => {
@@ -127,11 +140,17 @@ function Steps({ system }: { system: SystemInstructions }) {
           <p>
             {steps.install} <a href={uvGuide}>About installing uv</a>
           </p>
-          <Command command={system.install} label={`Copy the command that installs uv on ${system.name}`} />
+          <Command
+            command={system.install}
+            label={`Copy the command that installs uv on ${system.name}`}
+          />
         </li>
         <li>
           <p>{steps.run}</p>
-          <Command command={system.run} label={`Copy the command that makes the inventory on ${system.name}`} />
+          <Command
+            command={system.run}
+            label={`Copy the command that makes the inventory on ${system.name}`}
+          />
         </li>
       </ol>
       <p>{steps.after}</p>
@@ -155,7 +174,13 @@ function Command({ command, label }: { command: string; label: string }) {
       <pre>
         <code>{command}</code>
       </pre>
-      <Button variant="quiet" size="small" icon={Copy} aria-label={label} onPress={() => void copy()}>
+      <Button
+        variant="quiet"
+        size="small"
+        icon={Copy}
+        aria-label={label}
+        onPress={() => void copy()}
+      >
         Copy
       </Button>
       <span role="status">{said}</span>

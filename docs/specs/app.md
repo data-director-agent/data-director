@@ -152,7 +152,14 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     `app/web/e2e/scan.spec.ts`, which scans a folder holding a canary and checks that no request
     carries it). The release image and the VM deploy build the bundle from the same commit and serve
     it (`docker/release.Dockerfile`, `deploy/deploy.sh`), and their smoke test checks it is served
-    (`scripts/smoke_image.py`). The
+    (`scripts/smoke_image.py`). An app on the researcher's own machine whose operator named
+    folders it may read (`DD_INVENTORY_FOLDERS`, [Projects](projects.md)) begins the dialog with
+    **Describe a folder on this computer** (`components/inventory/DescribeServerFolder.tsx`,
+    `src/scan/serverFolders.ts`), shown where `GET /api/about` says `server_folders`: the
+    researcher opens a listed folder and its subfolders by name (`GET /api/folders`), and
+    `POST /api/folders/inventory` describes the one chosen with `dd-inventory` and answers the
+    inventory, which is handed on as `<folder>-inventory.json` to the same check and stored by
+    nothing else (`DescribeServerFolder.test.tsx`, `app/tests/test_folder_scan.py`). The
     transcript shows the chip on the turn where the project's inventory changed, read from the
     `project_inventory` the conductor gave that turn (`app/tests/test_app.py`,
     `app/web/src/components/conversation/ConversationHome.test.tsx`).

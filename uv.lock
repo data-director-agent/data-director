@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.14"
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform == 'win32'",
@@ -1452,6 +1452,7 @@ version = "0.3.0a8"
 source = { editable = "app" }
 dependencies = [
     { name = "data-director-harness" },
+    { name = "data-director-inventory" },
     { name = "data-director-sdk" },
     { name = "httpx" },
     { name = "joserfc" },
@@ -1470,13 +1471,13 @@ dev = [
     { name = "data-director-agent-example-hello" },
     { name = "data-director-agent-orchestrator-model" },
     { name = "data-director-agent-orchestrator-stub" },
-    { name = "data-director-inventory" },
     { name = "data-director-model-broker" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "data-director-harness", editable = "harness" },
+    { name = "data-director-inventory", editable = "inventory" },
     { name = "data-director-sdk", editable = "sdk" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "joserfc", specifier = ">=1.0" },
@@ -1495,7 +1496,6 @@ dev = [
     { name = "data-director-agent-example-hello", editable = "agents/example-hello" },
     { name = "data-director-agent-orchestrator-model", editable = "agents/orchestrator-model" },
     { name = "data-director-agent-orchestrator-stub", editable = "agents/orchestrator-stub" },
-    { name = "data-director-inventory", editable = "inventory" },
     { name = "data-director-model-broker", editable = "broker" },
 ]
 

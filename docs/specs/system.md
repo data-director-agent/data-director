@@ -50,7 +50,9 @@ The contract, transport, grounding and the app's own process boundary are specif
 1. The dependency graph between members at run time is:
    - `sdk` depends on no other member;
    - `harness` depends on `sdk` only;
-   - `workbench` and `app` depend on `harness` and `sdk`, and on nothing else in the workspace;
+   - `workbench` depends on `harness` and `sdk`, and on nothing else in the workspace;
+   - `app` depends on `harness`, `sdk` and `inventory`, the last to describe a folder on a local
+     install ([Projects](projects.md)), and on nothing else in the workspace;
    - `admin` depends on `harness` and `sdk`, and on nothing else in the workspace; no member
      depends on it;
    - `broker` depends on `sdk` only; no member depends on it;

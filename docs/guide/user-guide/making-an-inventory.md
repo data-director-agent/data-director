@@ -100,6 +100,16 @@ An inventory made in the browser says so: the version of the tool that made it e
 If your organisation's Data Director does not offer this, **Make an inventory** shows only the
 command.
 
+### Describing a folder on your own computer
+
+If Data Director is installed on your own computer, rather than reached at your organisation's
+address, whoever set it up may have named folders on that computer that it may read. Then **Make an
+inventory** begins with **Describe a folder on this computer**. Select one of the folders listed,
+and then any folder inside it, by name; select **Describe** and the folder's name, and Data Director
+makes the inventory there, with the command's own code, reading the files but changing none. As
+with the browser, the inventory is attached only after you have checked it. Your organisation's
+shared Data Director never offers this.
+
 ### With the command
 
 **Make an inventory** shows these steps for the computer you are using, with a button to copy each

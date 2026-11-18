@@ -4,6 +4,7 @@ import { toHaveNoViolations } from "jest-axe";
 import { afterEach, expect } from "vitest";
 
 import { setPageScanner } from "../scan/scanner";
+import { setPageServerFolders } from "../scan/serverFolders";
 
 expect.extend(toHaveNoViolations);
 
@@ -16,6 +17,14 @@ setPageScanner({
   },
 });
 
+// Nor does it name folders on its own machine (DescribeServerFolder.test.tsx hands its own).
+setPageServerFolders({
+  available: () => Promise.resolve(false),
+  roots: () => Promise.reject(new Error("No server folders in unit tests")),
+  list: () => Promise.reject(new Error("No server folders in unit tests")),
+  describe: () => Promise.reject(new Error("No server folders in unit tests")),
+});
+
 /**
  * Empty React Aria's live announcer, as its `clearAnnouncer` does. A pending button that has
  * focus announces its label by adding `<div role="img" aria-labelledby>` to the announcer's logs
@@ -26,7 +35,8 @@ setPageScanner({
 function clearAnnouncer() {
   // A test file that runs under Node, such as `architecture.test.ts`, has no DOM.
   if (typeof document === "undefined") return;
-  for (const log of document.querySelectorAll('[role="log"][aria-live]')) log.replaceChildren();
+  for (const log of document.querySelectorAll('[role="log"][aria-live]'))
+    log.replaceChildren();
 }
 
 afterEach(() => {

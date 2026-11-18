@@ -37,6 +37,14 @@ How long an owner may restore a project they deleted is `DD_PROJECT_RESTORE_DAYS
 environment: whole days, 30 if unset, and 0 to make deletion final to the app. Deleting a project
 never removes its record ([Projects](../../specs/projects.md), invariant 25).
 
+On an app installed on a researcher's own machine, `DD_INVENTORY_FOLDERS` names the folders there
+that the app may describe for an inventory: absolute paths, separated by `:` (`;` on Windows). The
+researcher may open any folder under them, and the app lists folders by name and runs
+`dd-inventory` on the one chosen, read only, following no link; it records nothing until the
+researcher checks the inventory and adds it ([Projects](../../specs/projects.md), The inventory
+command). Unset, the app describes no folder of its own. The app refuses to start when it is set
+and `DD_APP_HOST` is not a loopback address, so a shared deployment never sets it.
+
 Raise the profile's `version` on every change. Each stored run records the profile and version it
 was held to, with the digest of its bytes, so a later reader can tell which rules applied. A
 request cannot name a profile; only the operator chooses it

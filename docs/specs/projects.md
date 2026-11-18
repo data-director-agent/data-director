@@ -379,7 +379,13 @@ refused as stale, are TODO(#391).
 member, not even the contract ([System and boundaries](system.md)); its tests check its output
 against the `FileInventory` schema. It runs where the data live. An app installed on the
 researcher's own machine may run the same code on a folder, read only and only under folders the
-deployment lists; the shared deployment lists none. The app's **Describe a folder…** is a
+deployment lists; the shared deployment lists none. The list is `DD_INVENTORY_FOLDERS`, absolute
+paths separated by the system's path separator, and an app given it that listens beyond loopback
+does not start (`dd_app.folder_scan`). The researcher opens a listed folder and steps into its
+subfolders, which are named and never their files; a path that resolves outside the folder, through
+`..` or a link, is refused, and the command follows no link within it. Describing records nothing:
+the inventory goes through the researcher's check, as every route to one does
+(`app/tests/test_folder_scan.py`). The app's **Describe a folder…** is a
 scanner in the browser that sends only the inventory ([The app](app.md)): it is the same code run
 under Pyodide, and its inventory's `inventory_tool_version` carries a local version label naming
 the runtime, such as `0.1.0a4+pyodide.314.0.8`, while the command's has none. It is offered where
