@@ -653,15 +653,15 @@ dd:RequirementField a sh:NodeShape ;
     rdfs:comment "One metadata property a requirement set requires or recommends." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:description "Values that narrow the property, such as a subjectScheme. Part of what identifies a field when an override is merged with its standard's set." ;
-            sh:maxCount 1 ;
-            sh:order 1 ;
-            sh:path dd:qualifier ],
-        [ sh:in ( "required" "recommended" ) ;
+    sh:property [ sh:in ( "required" "recommended" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 3 ;
             sh:path dd:obligation ],
+        [ sh:description "Values that narrow the property, such as a subjectScheme. Part of what identifies a field when an override is merged with its standard's set." ;
+            sh:maxCount 1 ;
+            sh:order 1 ;
+            sh:path dd:qualifier ],
         [ sh:datatype xsd:string ;
             sh:description "The schema.org term the property maps to, by which the record is read as RDF." ;
             sh:maxCount 1 ;
@@ -991,7 +991,13 @@ dd:PersonalDataFinding a sh:NodeShape ;
     rdfs:comment "Where the inventory command found what may be personal data, and how sure it is (docs/specs/personal-data.md). It never holds a matched value, any part of one, an offset into a file, a row number or an example: a kind, a place, bands and the detector only. A finding is a prompt for a person, never a decision." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:description "The share of a column's sampled, non-empty values that matched, as a band so that it cannot be turned back into a count. Present for a column only." ;
+    sh:property [ sh:description "What the detector took the data to be." ;
+            sh:in ( "email address" "phone number" "NHS number" "National Insurance number" "postcode" "passport number" "driving licence number" "bank account number" "payment card number" "IP address" "person name" "direct identifier" "indirect identifier" "special category" "location" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 0 ;
+            sh:path dd:finding_kind ],
+        [ sh:description "The share of a column's sampled, non-empty values that matched, as a band so that it cannot be turned back into a count. Present for a column only." ;
             sh:in ( "under 1%" "1 to 10%" "10 to 50%" "over 50%" ) ;
             sh:maxCount 1 ;
             sh:order 4 ;
@@ -1034,12 +1040,6 @@ dd:PersonalDataFinding a sh:NodeShape ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 6 ;
-            sh:path dd:finding_detector ],
-        [ sh:description "What the detector took the data to be." ;
-            sh:in ( "email address" "phone number" "NHS number" "National Insurance number" "postcode" "passport number" "driving licence number" "bank account number" "payment card number" "IP address" "person name" "direct identifier" "indirect identifier" "special category" "location" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 0 ;
-            sh:path dd:finding_kind ] ;
+            sh:path dd:finding_detector ] ;
     sh:targetClass dd:PersonalDataFinding .
 

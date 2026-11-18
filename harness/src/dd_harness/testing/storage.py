@@ -3,8 +3,7 @@
 Each check holds a backend to one guarantee `RunStorage`, `ProjectLog` or `ProjectStorage`
 states, through the protocol alone, so any backend can run them: the file backends in the
 harness's own tests, and a database backend's tests. A check takes `make`, which opens a store by
-name. The same name opens the same store again, as after a restart; another name opens an empty
-one.
+name: the same name opens the same store again, as after a restart; another, an empty one.
 
     def test_my_storage(tmp_path):
         check_run_storage(lambda name: MyRunStore(f"{database}/{name}"))
@@ -14,8 +13,7 @@ one.
 A backend provides a `ProjectLog`, never the project rules: `check_project_rules` runs every
 `ProjectStorage` check against the rules (`dd_harness.projects.Projects`) over the backend's log.
 
-`RUN_STORAGE_CHECKS`, `PROJECT_LOG_CHECKS` and `PROJECT_STORAGE_CHECKS` name each check, for a
-test that reports them one by one.
+`RUN_STORAGE_CHECKS`, `PROJECT_LOG_CHECKS` and `PROJECT_STORAGE_CHECKS` name each check.
 """
 
 from __future__ import annotations
@@ -249,8 +247,7 @@ def check_a_malformed_run_name_names_nothing(make: MakeRunStorage) -> None:
 def _every_page(
     listing: Callable[..., Page], *, limit: int, before: str | None = None, **scope: Any
 ) -> tuple[list[dict[str, Any]], list[Page]]:
-    """Every item of a listing from `before` on, read a page of `limit` at a time, and the pages
-    read."""
+    """Every item of a listing from `before` on, a page of `limit` at a time, and the pages."""
     pages = [listing(limit=limit, before=before, **scope)]
     while pages[-1].next is not None:
         assert len(pages) <= 100, "a listing that never ends"
@@ -356,6 +353,11 @@ def check_a_listing_includes_what_its_reader_may_read(make: MakeRunStorage) -> N
     assert _ids(items, "conversation_id") == [started_in_mine, started_by_me]
     scanned = scan_conversations(store.iter_envelopes(), readable=by_project, limit=50, before=None)
     assert items == scanned.items
+    by_project_runs = store.list_runs(limit=50, readable=by_project).items
+    hiding = Readable(me, frozenset({mine}), frozenset({started_in_mine}))
+    items, _ = _every_page(store.list_conversations, limit=1, readable=hiding)
+    assert _ids(items, "conversation_id") == [started_by_me]
+    assert len(store.list_runs(limit=50, readable=hiding).items) == len(by_project_runs) - 1
 
 
 def check_a_malformed_cursor_names_an_empty_page(make: MakeRunStorage) -> None:
@@ -525,8 +527,7 @@ def check_projects_are_listed_in_the_order_created(make: MakeProjectStorage) -> 
 
 def check_a_person_reads_the_projects_they_have_a_role_in(make: MakeProjectStorage) -> None:
     """The projects a person may read are the ones they have a role in, the one created first
-    first, found by any store over the record and after a restart (docs/specs/storage.md,
-    "Listing")."""
+    first, found by any store over the record and after a restart (storage.md, "Listing")."""
     store = make("projects")
     someone = Principal(principal_id="https://orcid.org/0000-0002-1694-233X", name="Someone Else")
     first = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
@@ -1092,8 +1093,7 @@ def check_a_log_keeps_events_in_the_order_appended(make: MakeProjectLog) -> None
 
 def check_a_section_is_exclusive_for_its_project_alone(make: MakeProjectLog) -> None:
     """Changes that read the log and append to it in their sections lose none of one another's
-    events, and a section held on one project does not hold up another
-    (docs/specs/storage.md, invariant 10)."""
+    events, and a section held on one project does not hold up another (invariant 10)."""
     log = make("log")
     busy, idle = _new_project(log), _new_project(log)
     writers, rounds = 4, 5
@@ -1222,8 +1222,7 @@ def check_project_log(make: MakeProjectLog) -> None:
 
 def check_logs_over_one_record_share_each_section(make: MakeProjectLog) -> None:
     """Sections on one project through two logs over one record exclude one another and lose none
-    of one another's events, and neither holds up another project (docs/specs/storage.md,
-    invariant 10)."""
+    of one another's events, and neither holds up another project (storage.md, invariant 10)."""
     logs = (make("log"), make("log"))
     busy, idle = _new_project(logs[0]), _new_project(logs[1])
     writers, rounds = 4, 5

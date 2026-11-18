@@ -64,9 +64,18 @@ model_footprint:             # optional: figures to estimate each run's model en
       output_per_mtok: 12.00 # price per million output tokens
       input_j_per_token: 0.2 # joules per input token (modelled, not measured)
       output_j_per_token: 2.0
+
+tool_servers:                # optional: the MCP servers each agent may call through the
+  advisor.rights:            # harness's tool gateway, by the names the deployment's list
+    - spdx                   # (DD_TOOLS_CONFIG) gives them. Without this key no agent calls any
+
+remote_tool_content:         # optional: the classes of project content an agent granted a
+  - inventory                # `remote` server may be given. Without this key every class but
+  - documentation            # `researcher` may (docs/specs/policy-and-identity.md)
+  - decisions
 ```
 
-Those ten keys are the whole vocabulary. A profile with any other key is refused when the
+Those twelve keys are the whole vocabulary. A profile with any other key is refused when the
 workbench starts, so a misspelt or out-of-date key cannot look as if it were in force.
 
 ## How it is applied
@@ -96,6 +105,13 @@ Before an agent runs, the conductor checks:
    sent says so, and the model broker pays for its calls as the next section describes. In a
    project, an agent that may call a person's own endpoint counts as calling a `hosted` model for
    step 5, unless every endpoint the profile allows is declared `local`.
+
+7. Is the agent granted MCP servers under `tool_servers` that its card declares and that are
+   available? If so, it is sent a grant to call those servers' declared tools through the tool
+   gateway, and nothing else; the conductor records each record a tool returns. In a project, an
+   agent granted a `remote` server is given only the classes of project content listed under
+   `remote_tool_content`, as step 5 does for `hosted_models`. A profile that grants a server the
+   deployment does not list stops the workbench at start-up.
 
 That is all the gate does. It cannot express conditions ("allow deposit if the dataset is under
 1 GB"). If such a rule is ever needed, the profile format will be extended and compiled to a

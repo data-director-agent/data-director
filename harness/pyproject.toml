@@ -44,6 +44,11 @@ dd-harness = "dd_harness.server:main"
 # `dd-harness serve` (#55). An extra, so a way in that serves itself (the workbench) or embeds
 # the conductor as a library (the app) does not need it.
 serve = ["uvicorn>=0.30"]
+# The tool gateway (dd_harness.gateway, docs/specs/agents.md), set up only when DD_TOOLS_CONFIG
+# names the deployment's MCP servers. The endpoint uses a per-request entry the MCP SDK keeps in a
+# private module, so it is pinned to a minor version (docs/specs/dependencies.md). The test kit
+# serves it to agents over httpx2, the MCP client's HTTP library.
+gateway = ["mcp>=2.3,<2.4", "mcp-types>=2.3,<2.4", "jsonschema>=4.23", "httpx2>=2.13"]
 # The PostgreSQL backend of the run and project storage (docs/specs/storage.md). An extra, so a
 # deployment on files does not install the driver; `binary` bundles libpq.
 # `psycopg-pool` keeps a pool of connections per store, sized by DD_POSTGRES_POOL_SIZE.

@@ -112,15 +112,15 @@ dd:RequirementField a sh:NodeShape ;
     rdfs:comment "One metadata property a requirement set requires or recommends." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:description "Values that narrow the property, such as a subjectScheme. Part of what identifies a field when an override is merged with its standard's set." ;
-            sh:maxCount 1 ;
-            sh:order 1 ;
-            sh:path dd:qualifier ],
-        [ sh:in ( "required" "recommended" ) ;
+    sh:property [ sh:in ( "required" "recommended" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 3 ;
             sh:path dd:obligation ],
+        [ sh:description "Values that narrow the property, such as a subjectScheme. Part of what identifies a field when an override is merged with its standard's set." ;
+            sh:maxCount 1 ;
+            sh:order 1 ;
+            sh:path dd:qualifier ],
         [ sh:datatype xsd:string ;
             sh:description "The schema.org term the property maps to, by which the record is read as RDF." ;
             sh:maxCount 1 ;

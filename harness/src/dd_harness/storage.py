@@ -1,14 +1,12 @@
 """What the harness asks of the stores it keeps runs and projects in (docs/specs/storage.md).
 
 `RunStorage` and `ProjectStorage` are the interfaces callers use; `ProjectStorage` is composed of
-one Protocol per area of the project rules (`ProjectLifecycle`, `ProjectHoldings`,
-`ProjectResearchers`, `ProjectRepository`, `ProjectProgress`, `ProjectDocuments`, `ProjectFacts`,
-`ProjectDeposits`), so that a caller depends only on the areas it uses. `dd_harness.store.RunStore`
+one Protocol per area of the project rules (`ProjectLifecycle`, `ProjectConversations` and the
+rest), so that a caller depends only on the areas it uses. `dd_harness.store.RunStore`
 implements `RunStorage` over files. `ProjectStorage` is implemented once, by the project rules
 (`dd_harness.projects.Projects`), over a `ProjectLog` that a backend provides, such as the file one
 (`dd_harness.project_files.FileProjectLog`). Everything else reaches a store through these
-protocols, so another backend, such as a database, can replace a file one without changing its
-callers.
+protocols, so another backend, such as a database, can replace a file one unseen by callers.
 
 Each protocol's docstring states the guarantees a backend must keep. `dd_harness.testing`'s
 `check_run_storage`, `check_project_log` and `check_project_rules` check them against any
@@ -21,6 +19,7 @@ from collections.abc import Iterable, Iterator, Mapping, Sequence
 from datetime import timedelta
 from typing import Any, Protocol
 
+from dd_harness.conversation_storage import ProjectConversations as ProjectConversations
 from dd_harness.fact_storage import ProjectFacts as ProjectFacts
 from dd_harness.holding_storage import ProjectHoldings as ProjectHoldings
 from dd_harness.listing import Page, Readable
@@ -412,6 +411,7 @@ class ProjectDeposits(ProjectRecord, Protocol):
 
 class ProjectStorage(
     ProjectLifecycle,
+    ProjectConversations,
     ProjectHoldings,
     ProjectResearchers,
     ProjectRepository,

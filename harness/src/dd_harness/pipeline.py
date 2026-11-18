@@ -19,6 +19,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
+from opentelemetry import trace
+
 from dd_harness import footprint, grounding, model_accounts, policy, shacl
 from dd_harness import observe as steps
 from dd_harness import sources as source_check
@@ -46,7 +48,9 @@ from dd_sdk.contract.version import CONTRACT_VERSION
 from dd_sdk.delegate import DelegationGrant
 from dd_sdk.model_account import accounted
 from dd_sdk.prompts import prompt_digest
+from dd_sdk.tools import ToolsGrant
 from dd_sdk.tracing import policy_gate_span
+from dd_sdk.wire import GATEWAY_PATH
 
 
 # 1. Policy gate, against the deployment's profile.
@@ -78,8 +82,34 @@ def check_input(conductor: RunHost, run: RunState) -> None:
     run.refused = input_refusal(run.spec, run.request_doc["input"])
     if run.refused is None and run.unfillable is None:
         hostings = (model.hosting for model in run.spec.models)
-        run.kept_back = policy.withheld(conductor.profile, hostings, run.given)
+        remote = remote_tools(conductor, run.spec)
+        run.kept_back = policy.withheld(conductor.profile, hostings, run.given, remote_tools=remote)
     run.watch.finished(steps.INPUT)
+
+
+def remote_tools(conductor: RunHost, spec: AgentSpec) -> bool:
+    """Whether the profile grants the agent a `remote` MCP server its card declares
+    (docs/specs/policy-and-identity.md)."""
+    gateway = conductor.gateway
+    granted = conductor.profile.tool_servers.get(spec.agent_id, ())
+    return gateway is not None and gateway.remote(spec, granted)
+
+
+def _tools_grant(conductor: RunHost, run: RunState) -> ToolsGrant | None:
+    """A grant to call, through the gateway, the servers the profile grants the agent and its
+    card declares; only a remote agent can be sent one, and only by a harness with an address."""
+    gateway, spec = conductor.gateway, run.spec
+    if gateway is None or conductor.harness_url is None or not isinstance(run.agent, RemoteAgent):
+        return None
+    servers = gateway.granted(spec, conductor.profile.tool_servers.get(spec.agent_id, ()))
+    if not servers:
+        return None
+    # The gateway's spans are children of this run's `invoke_agent` span, the current one.
+    root = trace.get_current_span().get_span_context()
+    run.tool_grant = gateway.issue(spec.agent_id, servers, conductor.tracing.tracer, root)
+    return ToolsGrant(
+        url=conductor.harness_url.rstrip("/") + GATEWAY_PATH, token=run.tool_grant.token
+    )
 
 
 # 5. Run the agent. An exception becomes a failed outcome; never a crash.
@@ -100,6 +130,7 @@ def invoke_agent(conductor: RunHost, run: RunState) -> None:
     ):
         run.grant = conductor._issue_grant(request, run.acting_for, run.watch)
         sent_grant = DelegationGrant(url=conductor.harness_url, token=run.grant.token)
+    tools_grant = _tools_grant(conductor, run)
     model_grant = model_accounts.model_grant(
         conductor.profile, conductor.model_grants, agent, request, run.acting_for
     )
@@ -116,7 +147,7 @@ def invoke_agent(conductor: RunHost, run: RunState) -> None:
         # An in-process agent records its spans in this trace already. Like a served one, it
         # ends abstained if a person's own model account is refused.
         received = (
-            agent.call(sent, ctx, sent_grant, model_grant=model_grant)
+            agent.call(sent, ctx, sent_grant, model_grant=model_grant, tools_grant=tools_grant)
             if isinstance(agent, RemoteAgent)
             else Received(accounted(lambda: agent.run(typed_request(spec, sent), ctx)))
         )
@@ -156,10 +187,13 @@ def _received(conductor: RunHost, run: RunState, received: Received) -> None:
         run.prob = problems.agent_error(spec.agent_id, mismatch)
 
 
-def collect_delegations(conductor: RunHost, run: RunState) -> None:
-    """Recorded whatever the agent did afterwards: the children ran and are stored."""
+def collect_grants(conductor: RunHost, run: RunState) -> None:
+    """Recorded whatever the agent did afterwards: the children ran and are stored, and the tools
+    returned what the gateway recorded."""
     if run.grant is not None:
         run.delegations = conductor._revoke_grant(run.grant)
+    if run.tool_grant is not None and conductor.gateway is not None:
+        run.tool_retrievals = conductor.gateway.revoke(run.tool_grant)
 
 
 def build_envelope(conductor: RunHost, run: RunState) -> None:
@@ -190,6 +224,7 @@ def build_envelope(conductor: RunHost, run: RunState) -> None:
         project_id=request.project_id,
         parent_invocation_id=request.parent_invocation_id,
         delegations=run.delegations,
+        tool_retrievals=run.tool_retrievals,
     )
 
 
@@ -199,7 +234,7 @@ INSIDE_SPAN: tuple[Step, ...] = (
     check_input,
     refuse,
     invoke_agent,
-    collect_delegations,
+    collect_grants,
     build_envelope,
 )
 

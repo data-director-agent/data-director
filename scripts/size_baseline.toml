@@ -14,7 +14,7 @@ lines = 591
 
 [[file]]
 path = "app/src/dd_app/governance.py"
-lines = 690
+lines = 689
 
 [[file]]
 path = "app/web/src/components/inventory/InventoryView.tsx"
@@ -30,11 +30,11 @@ lines = 666
 
 [[file]]
 path = "harness/src/dd_harness/postgres/__init__.py"
-lines = 638
+lines = 636
 
 [[file]]
 path = "harness/src/dd_harness/testing/storage.py"
-lines = 1305
+lines = 1304
 
 [[file]]
 path = "scripts/blueprint/convert.py"
@@ -42,4 +42,4 @@ lines = 584
 
 [[file]]
 path = "sdk/src/dd_sdk/contract/models.py"
-lines = 760
+lines = 756

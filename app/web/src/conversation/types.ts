@@ -22,6 +22,19 @@ export interface ConversationSummary {
   last_status?: string;
 }
 
+/** A deleted conversation its starter or the project's owner may still restore
+ * (`GET /api/conversations/deleted`, docs/specs/projects.md, invariants 29 to 31). */
+export interface DeletedConversation {
+  conversation_id: string;
+  project_id: string;
+  /** Its title as the harness derives it, or null if it had no turn. */
+  title: string | null;
+  /** When it was deleted, and by whom. */
+  at: string;
+  by: { principal_id: string; name?: string };
+  restorable_until: string;
+}
+
 export interface ConversationTurn {
   turn_index: number;
   invocation_id: string;

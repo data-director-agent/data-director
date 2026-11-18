@@ -7,6 +7,9 @@
 import { AgentIcon, type AgentView, agentName } from "../../manifest/normalise";
 import { ModelTag } from "../capabilities/ModelDisclosure";
 
+/** The icon beside "You", in the place an agent's card icon takes. */
+const PERSON_ICON = "👤";
+
 /** The agent's name as a researcher sees it: its card's title, or its id when the directory does
  * not list it or its card names none. */
 export function nameOf(agents: AgentView[], agentId: string): string {
@@ -36,7 +39,12 @@ export function Speaker({
   if (agentId === undefined) {
     return (
       <p className="turn-speaker">
-        <strong className="turn-speaker-name">You</strong>
+        <strong className="turn-speaker-name">
+          <span className="person-icon" aria-hidden="true">
+            {PERSON_ICON}
+          </span>
+          You
+        </strong>
       </p>
     );
   }

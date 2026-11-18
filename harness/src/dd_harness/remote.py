@@ -33,6 +33,7 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from dd_sdk.agent import AgentResult, AgentSpec, RunContext, SpecError, spec_from_description
 from dd_sdk.contract.models import InvocationRequest, new_invocation_id, to_document
 from dd_sdk.delegate import DelegationGrant, a2a_client, parse_card
+from dd_sdk.tools import ToolsGrant
 from dd_sdk.tracing import records_from_jsonl
 from dd_sdk.wire import (
     ARTIFACT_NAME,
@@ -134,10 +135,11 @@ class RemoteAgent:
         grant: DelegationGrant | None = None,
         *,
         model_grant: str | None = None,
+        tools_grant: ToolsGrant | None = None,
     ) -> Received:
         """Send `request` to the agent. `grant` is a delegation agent's callback; `model_grant` the
-        grant for its model calls (docs/specs/model-accounts.md). Both travel only in the A2A
-        message's metadata."""
+        grant for its model calls (docs/specs/model-accounts.md); `tools_grant` its way to the
+        tool gateway (docs/specs/agents.md). Each travels only in the A2A message's metadata."""
         carrier: dict[str, str] = {}
         TraceContextTextMapPropagator().inject(carrier)  # the conductor's current span
         metadata: dict[str, Any] = {
@@ -147,6 +149,8 @@ class RemoteAgent:
         }
         if grant is not None:  # a delegation agent's callback (docs/specs/orchestration.md)
             metadata |= grant.metadata()
+        if tools_grant is not None:
+            metadata |= tools_grant.metadata()
         if model_grant is not None:
             metadata[META_MODEL_GRANT] = model_grant
         # The agent's settings under the profile (docs/specs/policy-and-identity.md).
