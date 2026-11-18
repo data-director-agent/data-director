@@ -24,7 +24,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import Route
 
-from dd_app import contract_shapes as contract
+from dd_app.contract_shapes import ProjectFact
 from dd_app.routes.common import (
     Deps,
     RequestBody,
@@ -69,7 +69,7 @@ class FactProposal(ResponseBody):
     agent_id: str
     """The check agent that proposed it."""
     proposed_at: str
-    fact: contract.ProjectFact
+    fact: ProjectFact
     """The fact as proposed, with why (`proposed_because`), for the person deciding."""
 
 
@@ -77,9 +77,9 @@ class ProjectFacts(ResponseBody):
     """What a project holds: proposals to decide, and the facts that stand."""
 
     proposals: list[FactProposal]
-    decisions: list[contract.ProjectFact]
+    decisions: list[ProjectFact]
     """The facts that stand: the last decision on each kind and subject."""
-    decided: contract.ProjectFact | MISSING | None = MISSING
+    decided: ProjectFact | MISSING | None = MISSING
     """After a decision, the fact that now stands, or null after a rejection."""
 
 

@@ -5,8 +5,12 @@ answers through `respond` (or `respond_page` for a listing), so what goes out is
 says. The models describe exactly what the server sends: a field that is always there has no
 default (`T`, or `T | None` when it may be null); a field that is sometimes left out defaults to
 `MISSING` (`T | MISSING = MISSING`) and is then omitted, never sent as null. No other default is
-allowed, as one would add a key the handler did not send. The tests check each golden fixture
-against its model (`check_fixture(..., model=...)` in `app/tests/support.py`).
+allowed, as one would add a key the handler did not send. A closed set of values is a `Literal`
+(an `Enum` is not read from JSON by a strict model), named with a `type` statement where the
+shell names it; an object whose shape another package defines and the shell already types (an
+envelope, a contract `Question`) is named in `dd_app.contract_shapes`. The tests
+check each golden fixture against its model (`check_fixture(..., model=...)` in
+`app/tests/support.py`).
 
 `response_schema` gathers every `ResponseBody` the app defines into one JSON Schema, from which
 the shell's TypeScript types are to be generated; `python -m dd_app.responses` prints it.
@@ -35,11 +39,16 @@ class ResponseBody(BaseModel):
     docstring and field docstrings the interface's comments.
 
     Strict, so a value of the wrong type is an error rather than coerced into another, and closed,
-    so a key the model does not name is an error rather than sent undescribed.
+    so a key the model does not name is an error rather than sent undescribed. A key that is not
+    a Python name (`from`) is a field with that alias, which is what is read and sent.
     """
 
     model_config = ConfigDict(
-        strict=True, extra="forbid", frozen=True, use_attribute_docstrings=True
+        strict=True,
+        extra="forbid",
+        frozen=True,
+        use_attribute_docstrings=True,
+        serialize_by_alias=True,
     )
 
 
@@ -119,4 +128,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    # Run as `python -m`, this file is `__main__`, whose `ResponseBody` no route subclasses.
+    from dd_app.responses import main as main_of_the_module
+
+    main_of_the_module()

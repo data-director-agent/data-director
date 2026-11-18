@@ -31,6 +31,8 @@ from dd_app.governance import (
     TurnConflictError,
     UnknownConversationError,
 )
+from dd_app.routes.conversations import Conversation
+from dd_app.routes.runs import RunResult
 from dd_app.turn_body import Turn
 from dd_harness.projects import ProjectStore
 from dd_harness.testing import (
@@ -144,8 +146,8 @@ def test_each_turn_is_shown_the_turns_before_it(in_projects: tuple[Governance, A
     one = client.get("/api/conversations?limit=1")
     assert one.json() == [listed] and "next" not in one.links
     assert client.get("/api/conversations?limit=many").status_code == 400
-    check_fixture("conversation-turn.json", normalised_conversation(second.json()))
-    check_fixture("conversation.json", normalised_conversation(found))
+    check_fixture("conversation-turn.json", normalised_conversation(second.json()), model=RunResult)
+    check_fixture("conversation.json", normalised_conversation(found), model=Conversation)
 
 
 @pytest.mark.requirement("DD-CONVERSATION")
@@ -161,6 +163,7 @@ def test_a_question_is_answered_in_the_form(in_projects: tuple[Governance, Any])
     check_fixture(
         "conversation-question.json",
         normalised_conversation(client.get(f"/api/conversations/{conversation_id}").json()),
+        model=Conversation,
     )
 
     def answer(values: list[str], to: str = asked["invocation_id"], **kw: Any) -> Any:
@@ -198,7 +201,7 @@ def test_a_question_is_answered_in_the_form(in_projects: tuple[Governance, Any])
     _, agent, again, _ = found["history"]
     assert agent["turn_text"].endswith("(The researcher was offered these to choose one.)")
     assert again["turn_text"] == "Data already collected, being prepared for sharing"
-    check_fixture("conversation-answered.json", normalised_conversation(found))
+    check_fixture("conversation-answered.json", normalised_conversation(found), model=Conversation)
 
 
 def test_a_conversation_is_started_in_a_project_of_its_own(governance: Governance, dist: Path):

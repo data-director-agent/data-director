@@ -18,6 +18,16 @@ def _named(contract_class: str) -> WithJsonSchema:
 
 Principal = Annotated[dict[str, Any], _named("Principal")]
 """Whom a change acted for, as the project log records it."""
+Envelope = Annotated[dict[str, Any], _named("Envelope")]
+"""A run's envelope (`dd_sdk.contract.models.Envelope`)."""
+InvocationRequest = Annotated[dict[str, Any], _named("InvocationRequest")]
+"""The request a run was started with, as the run store keeps it."""
+Question = Annotated[dict[str, Any], _named("Question")]
+# An agent's manifest entry (`dd_sdk.agent.describe`), typed in `@data-director/agent-view`.
+RawModelUse = Annotated[dict[str, Any], _named("RawModelUse")]
+RawSkillUse = Annotated[dict[str, Any], _named("RawSkillUse")]
+RawToolUse = Annotated[dict[str, Any], _named("RawToolUse")]
+RawSchemaEntry = Annotated[dict[str, Any], _named("RawSchemaEntry")]
 DocumentVersionRef = Annotated[dict[str, Any], _named("DocumentVersionRef")]
 DocumentQuestion = Annotated[dict[str, Any], _named("DocumentQuestion")]
 DocumentationSummary = Annotated[dict[str, Any], _named("DocumentationSummary")]
