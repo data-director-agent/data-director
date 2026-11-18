@@ -23,7 +23,13 @@ export interface RawAgentsResponse {
   unavailable: Record<string, string>;
   incompatible: Record<string, string>;
   /** `orchestrator` is the agent the profile names for the conversation (docs/specs/app.md). Absent
-   * from a server older than the key; null when the profile names none. */
-  profile: { ref: string; digest: string; orchestrator?: string | null };
+   * from a server older than the key; null when the profile names none. `attached_documents` says
+   * whether the profile lets people attach documents; absent from a server older than the key. */
+  profile: {
+    ref: string;
+    digest: string;
+    orchestrator?: string | null;
+    attached_documents?: "allowed" | "refused";
+  };
   acting_for: { name: string; assurance: string; vouched_by?: string };
 }

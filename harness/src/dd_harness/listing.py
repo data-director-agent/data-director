@@ -32,13 +32,17 @@ _BIGINT_MAX = 2**63 - 1
 class Readable:
     """Which runs a listing includes: a run in one of `project_ids`, or a run in no project that
     acted for `principal_id`. With `project_ids` None, projects are not consulted and a run is
-    included by its principal alone, as an app that keeps no projects decides."""
+    included by its principal alone, as an app that keeps no projects decides. A run of one of
+    `hidden_conversations`, the deleted ones (docs/specs/projects.md, invariant 29), is not."""
 
     principal_id: str
     project_ids: frozenset[str] | None = frozenset()
+    hidden_conversations: frozenset[str] = frozenset()
 
     def includes(self, envelope: dict[str, Any]) -> bool:
         """Whether the run whose envelope is `envelope` is included."""
+        if envelope.get("conversation_id") in self.hidden_conversations:
+            return False
         project_id = envelope.get("project_id")
         if project_id and self.project_ids is not None:
             return project_id in self.project_ids

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "data-director-agent-advisor-files"
-version = "0.1.0a1"
+version = "0.2.0a1"
 description = "advisor.files: the File Archivist persona (mock)"
 requires-python = ">=3.14"
 license = "MIT"

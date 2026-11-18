@@ -17,6 +17,9 @@ from typing import Any
 
 import yaml
 
+from dd_harness.content_classes import CONTENT_CLASSES as CONTENT_CLASSES
+from dd_harness.content_classes import DEFAULT_HOSTED_MODELS, DEFAULT_REMOTE_TOOL_CONTENT, classes
+from dd_harness.content_classes import tool_servers as granted_servers
 from dd_harness.footprint import FootprintTable
 from dd_sdk.agent import ModelUse, Setting
 from dd_sdk.model_grant import Account, origin
@@ -35,21 +38,22 @@ PROFILE_KEYS = frozenset(
         "model_accounts",
         "agent_settings",
         "model_footprint",
+        "tool_servers",
+        "remote_tool_content",
+        "attached_documents",
     }
 )
-
-# The classes of project content (docs/specs/projects.md, invariant 8): the inventory of the data
-# files, documentation (a document's text, or what a person wrote about one), the facts
-# researchers kept from their public ORCID records, and the facts people decided about the project
-# (its funders, required repositories, which files go in, sensitivity and licence), which hold
-# structured values only, never a person's words.
-CONTENT_CLASSES = ("inventory", "documentation", "researcher", "decisions")
-# What may be given to an agent whose card declares a hosted model, where the profile does not say.
-DEFAULT_HOSTED_MODELS = frozenset({"inventory", "decisions"})
+# Whether people may attach documents to a project (docs/specs/projects.md, Documentation).
+ATTACHED_DOCUMENTS = ("allowed", "refused")
 
 
 class PolicyError(Exception):
     """A profile could not be loaded or is malformed. Configuration error, so it raises."""
+
+
+class DocumentsRefusedError(ValueError):
+    """The profile refuses attached documents, and a document was attached: a refusal of the
+    request, made before anything is kept (`check_attached_document`)."""
 
 
 # `model_accounts` (docs/specs/model-accounts.md, The profile). `own`: whether people may, or must,
@@ -290,6 +294,18 @@ class Profile:
     # The figures the conductor estimates each run's model energy and cost from (P14, C17;
     # docs/specs/disclosure.md, Footprint). None: nothing is estimated.
     model_footprint: FootprintTable | None = None
+    # agent_id -> the MCP servers the tool gateway lets it call (docs/specs/agents.md, Tools).
+    # An agent with no entry calls none.
+    tool_servers: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    # The classes of project content that may be given to an agent granted a `remote` server.
+    remote_tool_content: frozenset[str] = DEFAULT_REMOTE_TOOL_CONTENT
+    # Whether people may attach documents to a project, one of ATTACHED_DOCUMENTS.
+    attached_documents: str = "allowed"
+
+    @property
+    def refuses_documents(self) -> bool:
+        """Whether the profile refuses attached documents altogether."""
+        return self.attached_documents == "refused"
 
     @property
     def ref(self) -> str:
@@ -313,13 +329,11 @@ class Profile:
                 raise ValueError(
                     f"orchestrator {orchestrator!r} is not one of the agents the profile enables"
                 )
-            hosted = data.get("hosted_models", sorted(DEFAULT_HOSTED_MODELS))
-            if not isinstance(hosted, list):
-                raise TypeError("hosted_models must list classes of project content")
-            if wrong := sorted({str(c) for c in hosted} - set(CONTENT_CLASSES)):
+            documents = data.get("attached_documents", "allowed")
+            if documents not in ATTACHED_DOCUMENTS:
                 raise ValueError(
-                    f"hosted_models names {', '.join(map(repr, wrong))}; "
-                    f"the classes of project content are {', '.join(CONTENT_CLASSES)}"
+                    f"attached_documents is {documents!r}; it is one of "
+                    f"{', '.join(ATTACHED_DOCUMENTS)}"
                 )
             return cls(
                 profile_id=str(data["profile_id"]),
@@ -330,10 +344,15 @@ class Profile:
                 source=source,
                 orchestrator=None if orchestrator is None else str(orchestrator),
                 description=str(data.get("description") or "").strip(),
-                hosted_models=frozenset(str(c) for c in hosted),
+                hosted_models=classes(data, "hosted_models", DEFAULT_HOSTED_MODELS),
                 model_accounts=ModelAccounts.from_value(data.get("model_accounts")),
                 agent_settings=_agent_settings(data.get("agent_settings"), agents),
                 model_footprint=FootprintTable.from_value(data.get("model_footprint")),
+                tool_servers=granted_servers(data.get("tool_servers"), agents),
+                remote_tool_content=classes(
+                    data, "remote_tool_content", DEFAULT_REMOTE_TOOL_CONTENT
+                ),
+                attached_documents=str(documents),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise PolicyError(f"profile {source!r} is malformed: {exc}") from exc
@@ -365,6 +384,16 @@ def _agent_settings(value: Any, agents: dict[Any, Any]) -> dict[str, dict[str, s
                 )
         out[str(agent_id)] = {str(k): v for k, v in settings.items()}
     return out
+
+
+def check_attached_document(profile: Profile) -> None:
+    """Raise `DocumentsRefusedError` where the profile refuses attached documents. A way in calls
+    it before it keeps anything a request attached (docs/specs/projects.md, Documentation)."""
+    if profile.refuses_documents:
+        raise DocumentsRefusedError(
+            "This deployment does not keep attached documents: its profile refuses them. Give "
+            "what the document says in your message instead."
+        )
 
 
 def load_profile(path: Path) -> Profile:
@@ -451,10 +480,13 @@ def gate(
     )
 
 
-def withheld(profile: Profile, hostings: Iterable[str], given: Iterable[str]) -> list[str]:
+def withheld(
+    profile: Profile, hostings: Iterable[str], given: Iterable[str], *, remote_tools: bool = False
+) -> list[str]:
     """The classes of project content in `given` that may not go to an agent whose models are
-    hosted as `hostings`, sorted; empty if the agent calls no hosted model
-    (docs/specs/projects.md, invariant 8).
+    hosted as `hostings`, or that is granted a `remote` MCP server (`remote_tools`), sorted; empty
+    if the agent calls neither (docs/specs/projects.md, invariant 8;
+    docs/specs/policy-and-identity.md).
 
     Where the profile lets a person's own account pay, a model-backed agent's call may go to that
     account's endpoint, which counts as `hosted` unless the profile declares it local
@@ -462,6 +494,7 @@ def withheld(profile: Profile, hostings: Iterable[str], given: Iterable[str]) ->
     declared = set(hostings)
     if declared and profile.model_accounts.hosted:
         declared.add("hosted")
-    if "hosted" not in declared:
-        return []
-    return sorted(set(given) - profile.hosted_models)
+    out = set(given) - profile.hosted_models if "hosted" in declared else set()
+    if remote_tools:
+        out |= set(given) - profile.remote_tool_content
+    return sorted(out)

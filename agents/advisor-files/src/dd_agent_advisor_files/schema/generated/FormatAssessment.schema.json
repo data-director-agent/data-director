@@ -10,7 +10,8 @@
             "governance",
             "system_file",
             "empty",
-            "duplicate"
+            "duplicate",
+            "extension_mismatch"
          ],
          "title": "CheckKind",
          "type": "string"
@@ -45,6 +46,13 @@
             "judged_by": {
                "$ref": "#/$defs/JudgedBy",
                "description": "What the judgement rests on."
+            },
+            "pronom_id": {
+               "description": "The PRONOM identifier (PUID) the judgement rests on, or, when judged_by is pronom_unlisted, the first identifier the inventory gave. Absent when the inventory gave none that was used.",
+               "type": [
+                  "string",
+                  "null"
+               ]
             }
          },
          "required": [
@@ -121,6 +129,8 @@
       "JudgedBy": {
          "description": "",
          "enum": [
+            "pronom",
+            "pronom_unlisted",
             "media_type",
             "extension",
             "nothing"
@@ -161,7 +171,7 @@
          ]
       },
       "limitations": {
-         "description": "What this mock does not yet do.",
+         "description": "What this agent does not yet do.",
          "items": {
             "type": "string"
          },

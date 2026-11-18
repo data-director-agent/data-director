@@ -58,6 +58,7 @@ from dd_sdk.contract.models import (
     RequirementSetUse,
     TableField,
     Telemetry,
+    ToolRetrieval,
     TurnRole,
     VersionState,
     input_source_id,
@@ -65,6 +66,7 @@ from dd_sdk.contract.models import (
     invocation_source_id,
     new_invocation_id,
     to_document,
+    tool_source_id,
 )
 from dd_sdk.contract.version import CONTRACT_VERSION
 from dd_sdk.evidence import (
@@ -745,6 +747,55 @@ def test_delegation_evidence_must_be_the_input_or_a_recorded_delegation() -> Non
                 delegations=[_delegation(child)],
             ).to_document()
         )
+
+
+def _tool_retrieval(content_hash: str = "e" * 64) -> ToolRetrieval:
+    return ToolRetrieval(
+        tool_server="spdx",
+        tool_name="get_licence",
+        source_id=tool_source_id("spdx", "CC-BY-4.0"),
+        canonicalisation=DOCUMENT_CANONICALISATION,
+        content_hash=content_hash,
+        retrieved_at=datetime.now(UTC),
+    )
+
+
+def _tool_evidence(content_hash: str = "e" * 64) -> EvidenceItem:
+    return EvidenceItem(
+        source_id=tool_source_id("spdx", "CC-BY-4.0"),
+        canonicalisation=DOCUMENT_CANONICALISATION,
+        content_hash=content_hash,
+    )
+
+
+def _tool_ref(content_hash: str = "e" * 64) -> GroundingRef:
+    return GroundingRef(source_id=tool_source_id("spdx", "CC-BY-4.0"), content_hash=content_hash)
+
+
+def test_envelope_without_tool_retrievals_omits_the_key() -> None:
+    assert "tool_retrievals" not in _envelope().to_document()
+
+
+@pytest.mark.requirement("DD-TOOL-GATEWAY")
+def test_tool_evidence_must_be_a_record_the_gateway_returned() -> None:
+    def citing(evidence_hash: str, recorded: list[ToolRetrieval]) -> dict[str, object]:
+        return _succeeded(
+            grounding_mode=GroundingMode.RETRIEVAL,
+            payload=_reply(_tool_ref(evidence_hash)),
+            evidence=[_tool_evidence(evidence_hash)],
+            tool_retrievals=recorded,
+        ).to_document()
+
+    validate.validate_envelope(citing("e" * 64, [_tool_retrieval()]))
+    with pytest.raises(validate.ContractViolation, match="tool source"):
+        validate.validate_envelope(citing("f" * 64, [_tool_retrieval()]))
+    with pytest.raises(validate.ContractViolation, match="tool source"):
+        validate.validate_envelope(citing("e" * 64, []))
+
+
+def test_a_tool_retrieval_names_a_tool_source() -> None:
+    with pytest.raises(ValueError, match="source_id"):
+        ToolRetrieval.model_validate({**to_document(_tool_retrieval()), "source_id": "CC-BY-4.0"})
 
 
 @pytest.mark.requirement("DD-EVIDENCE")

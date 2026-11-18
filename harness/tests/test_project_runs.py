@@ -1348,3 +1348,57 @@ def test_a_profile_may_let_a_hosted_model_be_given_attached_documents(
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     [given] = stored_input(tmp_path / "runs", env.invocation_id)["project_documents"]
     assert given["documentation_text"] == text
+
+
+def refusing_documents(conductor: Conductor) -> Conductor:
+    conductor.profile = replace(conductor.profile, attached_documents="refused")
+    return conductor
+
+
+def test_a_profile_that_refuses_documents_gives_a_draft_none(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """Under `attached_documents: refused`, a document a project already holds reaches no
+    agent, and what a caller sends in its place is removed (docs/specs/projects.md)."""
+    conductor = refusing_documents(conductor_over(tmp_path / "runs", projects, DocumentStub()))
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    text, _ = attach(projects, project)
+    sent = draft_request(
+        project_documents=[
+            {
+                "documentation_name": "sent.md",
+                "documentation_digest": "0" * 64,
+                "documentation_media_type": "text/markdown",
+                "documentation_size": 1,
+                "documentation_added_at": "2026-01-01T00:00:00Z",
+                "documentation_text": "x",
+            }
+        ]
+    )
+
+    env = conductor.invoke(
+        in_conversation(request("stub.document", sent), conversation), acting_for=TEST_PRINCIPAL
+    )
+
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    stored = stored_input(tmp_path / "runs", env.invocation_id)
+    assert "project_documents" not in stored
+    assert text not in json.dumps(stored)
+
+
+def test_a_profile_that_refuses_documents_tells_a_message_of_none(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    seen: list[dict[str, Any]] = []
+    orchestrator = naming("Soil", seen)
+    conductor = refusing_documents(conductor_over(tmp_path / "runs", projects, orchestrator))
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    attach(projects, project)
+
+    env = conductor.invoke(
+        in_conversation(request("fake.delegation", message()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert "project_documentation" not in seen[0]

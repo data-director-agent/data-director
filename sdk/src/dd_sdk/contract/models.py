@@ -29,6 +29,10 @@ from dd_sdk.contract.facts import ResearcherFunding as ResearcherFunding
 from dd_sdk.contract.facts import ResearcherLink as ResearcherLink
 from dd_sdk.contract.facts import ResearcherRecord as ResearcherRecord
 from dd_sdk.contract.facts import ResearcherWork as ResearcherWork
+from dd_sdk.contract.retrieval import TOOL_SOURCE_PREFIX as TOOL_SOURCE_PREFIX
+from dd_sdk.contract.retrieval import EvidenceItem as EvidenceItem
+from dd_sdk.contract.retrieval import ToolRetrieval as ToolRetrieval
+from dd_sdk.contract.retrieval import tool_source_id as tool_source_id
 
 PART_FOLDER_PATTERN = inventory.PART_FOLDER_PATTERN
 ConfidenceBand = inventory.ConfidenceBand
@@ -617,19 +621,6 @@ class DraftRequest(Frozen):
 # --- Evidence and telemetry -----------------------------------------------------------------
 
 
-class EvidenceItem(Frozen):
-    source_id: str
-    source_uri: str | None = None
-    retrieved_at: datetime | None = None
-    snapshot_ref: str | None = None
-    hash_algorithm: str = "sha256"
-    canonicalisation: str
-    content_hash: str = Field(pattern=SHA256_PATTERN)
-    # What the hash covers, already projected; the linter re-hashes it (E1,
-    # docs/specs/grounding.md).
-    content: dict[str, Any] | None = None
-
-
 class ModelCall(Frozen):
     """One call an agent made to a language model, as it reports it (docs/specs/disclosure.md).
     `prompt_digest` names the messages sent; the harness keeps them beside the run.
@@ -721,6 +712,8 @@ class Envelope(Frozen):
     project_id: str | None = Field(default=None, pattern=UUID7_PATTERN)
     parent_invocation_id: str | None = Field(default=None, pattern=UUID7_PATTERN)
     delegations: list[Delegation] = Field(default_factory=list)
+    # Filled only by the conductor, from the tool gateway (docs/specs/grounding.md).
+    tool_retrievals: list[ToolRetrieval] = Field(default_factory=list)
 
     def payload_as[P: Grounded](self, model: type[P]) -> P:
         """The payload as `model`, the reader's own model of its class (docs/specs/contract.md).
@@ -742,8 +735,8 @@ class Envelope(Frozen):
         nullable in the generated schema). The one exception is `energy_estimate_j`, which is
         written as an explicit null: P14 asks for the footprint to be captured, and an explicit
         null says "slot exists, not measured" where an absent key says nothing. An empty
-        `delegations` or `model_calls` list is omitted, so envelopes of agents that neither
-        delegate nor call a model are unchanged.
+        `delegations`, `tool_retrievals` or `model_calls` list is omitted, so envelopes of
+        agents that neither delegate, call a tool nor call a model are unchanged.
         """
         doc = to_document(self)
         doc["telemetry"].setdefault("energy_estimate_j", None)
@@ -753,6 +746,9 @@ class Envelope(Frozen):
         if not doc["delegations"]:
             # Only a delegation agent's envelope lists them (docs/specs/orchestration.md).
             del doc["delegations"]
+        if not doc["tool_retrievals"]:
+            # Only a run that read a record through the tool gateway lists them.
+            del doc["tool_retrievals"]
         return doc
 
 

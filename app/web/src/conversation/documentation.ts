@@ -4,7 +4,13 @@
  * one the project keeps and to show it before it is attached; the server checks it again and the
  * conversation's project keeps it (docs/specs/projects.md). Its text never goes into the message,
  * and agents are told only its name, size and type.
+ *
+ * Before it is attached, the server checks its text for possible personal data and secrets
+ * (`checkDocument`, #473). What is found is named by kind, never quoted, and the turn must say the
+ * researcher confirmed each kind, or the server holds the document back.
  */
+
+import { json } from "../http";
 
 /** The media types a project keeps as documentation, by the file extensions that name them. */
 const MEDIA_TYPES: Record<string, string> = {
@@ -30,6 +36,53 @@ export interface AttachedDocument {
   text: string;
   /** The size of its text in bytes of UTF-8. */
   size: number;
+  /** The kinds of possible personal data or secrets the researcher confirmed it holds. */
+  confirmed?: string[];
+}
+
+/** One kind of thing the check found: never a value, a line or where in the text. */
+export interface DocumentFinding {
+  /** A kind of personal data, such as `email address`, or `secret`. */
+  kind: string;
+  /** For a secret, its type, such as `AWS Access Key`. */
+  detail?: string;
+  /** How many places, as a band: `1`, `2 to 4` or `5 or more`. */
+  places: string;
+  confidence: "low" | "medium" | "high";
+}
+
+/** What `POST /api/documentation/check` answers. */
+export interface DocumentCheck {
+  findings: DocumentFinding[];
+  /** The kinds to confirm: a secret's type stands for itself. */
+  kinds: string[];
+  /** What the check ran, to say alongside what it found. */
+  checked_with: string;
+}
+
+/** What the server finds in `document`'s text; nothing is kept. */
+export async function checkDocument(
+  document: AttachedDocument,
+  signal?: AbortSignal,
+): Promise<DocumentCheck> {
+  const response = await fetch("/api/documentation/check", {
+    method: "POST",
+    headers: { "content-type": "application/json", accept: "application/json" },
+    body: JSON.stringify({
+      name: document.name,
+      media_type: document.media_type,
+      text: document.text,
+    }),
+    ...(signal ? { signal } : {}),
+  });
+  return json<DocumentCheck>(response);
+}
+
+/** One finding in words, never repeating what was found. */
+export function findingWords(finding: DocumentFinding): string {
+  const what = finding.kind === "secret" ? `A secret: ${finding.detail ?? "of some kind"}` : finding.kind;
+  const where = finding.places === "1" ? "in 1 place" : `in ${finding.places} places`;
+  return `${what[0]?.toUpperCase() ?? ""}${what.slice(1)}, ${where} (${finding.confidence} confidence)`;
 }
 
 /** What the conductor told a turn's agent of a document (`Message.project_documentation`). */

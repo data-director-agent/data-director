@@ -50,11 +50,11 @@ on loopback alone and is reached through an SSH tunnel.
 | `agents/<name>.env` | Each agent's port, which must match `app/config/agents.yaml`. |
 | `../scripts/check_systemd.sh` | Lints the units with `systemd-analyze verify` and systemdlint; run it before changing one. CI runs it. |
 | `systemd-lint-baseline.txt` | The systemdlint findings accepted, each with its reason. A new finding fails the check; so does a line that no longer matches one. |
-| `backup.sh`, `restore.sh`, `stores.sh` | Back up the settings, secrets and stores, and put them back on a clean VM; `stores.sh` finds where each store is kept. See [Backups](#backups). |
+| `backup.sh`, `restore.sh`, `stores.sh`, `gateway-store.sh` | Back up the settings, secrets and stores, and put them back on a clean VM; `stores.sh` finds where each store is kept, and `gateway-store.sh` dumps and restores the LiteLLM gateway's database. See [Backups](#backups). |
 | `backup.env.example` | `backup.sh`'s settings: where backups go and how many days they are kept. |
 | `systemd/data-director-backup.{service,timer}` | Runs `backup.sh`, as root, every night. |
 | `wait-for-ports.sh` | Holds the app back until the agents answer, since it reads their cards once at start-up. |
-| `nginx/data-director.conf` | The reverse proxy: HTTPS only, long timeouts for runs, `/a2a` and `/server-status` closed from outside; the app on 443, the workbench on 8443. |
+| `nginx/data-director.conf` | The reverse proxy: HTTPS only, long timeouts for runs, `/a2a`, `/mcp` and `/server-status` closed from outside; the app on 443, the workbench on 8443. |
 
 Every agent, the standards advisor included, is a service of its own; the app runs none in its
 process ([The app](../docs/specs/app.md)).
@@ -92,7 +92,7 @@ process ([The app](../docs/specs/app.md)).
 | `/etc/data-director/deploy.env` | `deploy.sh`'s settings. |
 | `/etc/data-director/backup.env` | `backup.sh`'s settings (`deploy/backup.env.example`). |
 | `/var/backups/data-director/<time>/` | One backup each, root's alone ([Backups](#backups)). |
-| `/usr/local/lib/data-director/` | `backup.sh` and `stores.sh` as `install.sh` installed them from the clone; the backup unit runs these. With `--gateway`, also `llm-gateway/`: the gateway's compose file, models and start script, which its unit runs. |
+| `/usr/local/lib/data-director/` | `backup.sh`, `stores.sh` and `gateway-store.sh` as `install.sh` installed them from the clone; the backup unit runs these. With `--gateway`, also `llm-gateway/`: the gateway's compose file, models and start script, which its unit runs. |
 | Docker volume `data-director-llm-gateway_pgdata` | The gateway's database: its keys, budgets and spend. |
 | `/var/lib/data-director/.sign-in` | Marks that the run store has started afresh for sign-in (see the upgrade below). |
 
@@ -268,9 +268,9 @@ sudo systemctl restart data-director-llm-gateway
 ```
 
 `sudo data-director doctor` reports a broker or agent sent to a gateway on the VM that does not
-answer. The gateway's settings and secrets are in the nightly backup with the rest of
-`/etc/data-director`. Its database, with the keys it issued and its spend, is not: back it up as
-the gateway's README says. TODO(#1128): add it to the nightly backup.
+answer. The nightly backup holds the gateway's settings and secrets, with the rest of
+`/etc/data-director`, and, while the gateway runs, its database: the keys it issued, their
+budgets and its spend ([Backups](#backups)).
 
 ## Day to day
 
@@ -527,6 +527,7 @@ on another VM:
 | `store-<name>.tar.gz` | Each store kept in a directory: `runs`, `projects`, `workbench-runs` |
 | `db-<name>.pgdump` | Each database a store names (`pg_dump --format=custom`), once per database |
 | `broker.sqlite3` | The [model broker](#the-model-broker)'s store, people's sealed keys and token counts, once the broker has run |
+| `gateway.pgdump` | The [LiteLLM gateway](#the-litellm-gateway)'s database, its keys, budgets and spend, dumped inside its own container while it runs |
 | `MANIFEST`, `SHA256SUMS` | Where each store was, the release that ran, and a checksum of each file |
 
 Each store is backed up from where the services keep it: the directory the unit sets, or the
@@ -615,6 +616,12 @@ To move a deployment, or to rebuild it after losing the VM, on a new Ubuntu VM:
    a store that already holds something; `--force` moves such a directory aside to
    `<store>.before-restore-<time>`, and drops and replaces a database's tables; it moves the
    broker's store aside in the same way.
+
+   A backup that holds the LiteLLM gateway's database (`gateway.pgdump`) needs the gateway
+   running to restore into: in step 1, run `install.sh` with `--gateway` as well. `restore`
+   then stops the gateway, replaces its database with the backup's (the new gateway's own
+   key and tables go; only one that has spend counts as holding something), gives it the
+   restored database password, and leaves it stopped; `install.sh`, run next, starts it.
 
    For a store in PostgreSQL, the database must exist and be reachable with the restored
    settings before `restore` runs, with the same name and owner as before; for a server on the VM:

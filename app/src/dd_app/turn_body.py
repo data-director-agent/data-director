@@ -15,11 +15,13 @@ from dd_sdk.contract.models import ReplyAnswers
 
 @dataclass(frozen=True)
 class AttachedDocument:
-    """A supporting document a turn attaches: its file name, media type and text."""
+    """A supporting document a turn attaches: its file name, media type and text, and the kinds
+    of possible personal data or secrets the researcher confirmed it holds (#473)."""
 
     name: str
     media_type: str
     text: str
+    confirmed: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -40,16 +42,20 @@ def _documentation(attached: Any) -> AttachedDocument | Response | None:
     if attached is None:
         return None
     fields = ("name", "media_type", "text")
+    confirmed = attached.get("confirmed", []) if isinstance(attached, dict) else None
     if not (
         isinstance(attached, dict)
-        and set(attached) == set(fields)
+        and set(attached) - {"confirmed"} == set(fields)
         and all(isinstance(attached[key], str) for key in fields)
+        and isinstance(confirmed, list)
+        and all(isinstance(kind, str) for kind in confirmed)
     ):
         return refused(
             "`documentation` must be an object giving the document's `name`, "
-            "`media_type` and `text`, as strings."
+            "`media_type` and `text`, as strings, and optionally `confirmed`, a list of kinds."
         )
-    return AttachedDocument(**attached)
+    name, media_type, text = (attached[key] for key in fields)
+    return AttachedDocument(name, media_type, text, tuple(confirmed))
 
 
 def _reply_answers(given: Any) -> ReplyAnswers | Response | None:

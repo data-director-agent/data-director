@@ -131,7 +131,10 @@ gateway key. The broker then pays for the deployment's calls as well. Give the g
 key to the broker instead of to each agent, and point it at the gateway with
 `DD_BROKER_DEPLOYMENT_BASE_URL=http://127.0.0.1:4000`. Make that one key with a tag such as
 `--tags service:model-broker`. The gateway's budgets and spend reports keep covering the
-deployment's calls. It no longer breaks them down by agent, because every call arrives on one key.
+deployment's calls. Every call arrives on that one key, so the broker tags each with the agent
+that made it (`agent:<name>`, in the `x-litellm-tags` header), and `scripts/admin.py spend --by
+tag` shows the deployment's spend by agent. A tag names the agent, never the person: who made a
+call is in the broker's own usage store, by pseudonym.
 
 A call paid for by a person's own account goes from the broker straight to their provider. It
 never passes through the gateway, which would otherwise see their key. The gateway's spend reports
@@ -337,7 +340,9 @@ LiteLLM's built-in `mock_response` option records **$0 cost** on the Anthropic r
 
 - **Exposure:** ports are bound to `127.0.0.1`. To share the gateway with colleagues, put it behind an HTTPS reverse proxy (e.g. Caddy or nginx) on a campus network or VPN. Don't expose port 4000 directly.
 - **Secrets:** keep `LITELLM_SALT_KEY` stable and backed up. Changing it makes the provider keys stored in the database unreadable.
-- **Back-ups:** back up the `pgdata` volume, which holds keys, budgets and spend history. For example:
+- **Back-ups:** on a Data Director VM, the nightly backup dumps the gateway's database and
+  `restore` puts it back ([deploy/README.md](../README.md#backups)). Run by hand, back up the
+  `pgdata` volume, which holds keys, budgets and spend history. For example:
   ```bash
   docker compose exec db pg_dump -U litellm litellm > backup.sql
   ```

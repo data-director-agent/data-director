@@ -40,15 +40,36 @@
                ]
             },
             "relation": {
-               "description": "A suggested DataCite relationType, such as IsSupplementTo, for the researcher to confirm. Absent where the mock cannot tell.",
+               "description": "A suggested DataCite relationType, such as IsSupplementTo, for the researcher to confirm. Absent where the adviser cannot tell.",
                "type": [
                   "string",
                   "null"
                ]
             },
             "valid": {
-               "description": "Whether the identifier is well formed for its scheme. True does not mean it exists: nothing was resolved.",
+               "description": "Whether the identifier is well formed for its scheme. True does not mean it exists: only a link with resolved true was looked up.",
                "type": "boolean"
+            },
+            "resolved": {
+               "description": "Whether a DOI was found through the tool gateway. Absent when no lookup was made; false when it was made and found nothing or failed, with the reason in message.",
+               "type": [
+                  "boolean",
+                  "null"
+               ]
+            },
+            "title": {
+               "description": "The title of the record a resolved DOI names, as the source gives it.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "resource_type": {
+               "description": "The type of the record a resolved DOI names, as the source gives it.",
+               "type": [
+                  "string",
+                  "null"
+               ]
             },
             "message": {
                "description": "What the researcher should check or do with the identifier.",
@@ -68,7 +89,7 @@
    "$id": "https://w3id.org/data-director/agents/linking/RelatedIdentifiers",
    "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
-   "description": "The payload of advisor.linking: each identifier recognised, checked for form and put in canonical form, with a suggested way to record it. It suggests linking metadata for the researcher to review; registering the links stays with the researcher and the repository (R11).",
+   "description": "The payload of advisor.linking: each identifier recognised, checked for form and put in canonical form, with a suggested way to record it, and a DOI's title and type where it was resolved. It suggests linking metadata for the researcher to review; registering the links stays with the researcher and the repository (R11).",
    "properties": {
       "schema_class": {
          "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -87,7 +108,7 @@
          ]
       },
       "limitations": {
-         "description": "What this mock does not yet do.",
+         "description": "What the adviser did not do, such as the identifiers it did not resolve.",
          "items": {
             "type": "string"
          },

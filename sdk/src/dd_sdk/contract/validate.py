@@ -16,7 +16,7 @@ from typing import Any
 from jsonschema import Draft7Validator
 from jsonschema.exceptions import ValidationError
 
-from dd_sdk.contract.models import GroundingMode, OutcomeStatus
+from dd_sdk.contract.models import TOOL_SOURCE_PREFIX, GroundingMode, OutcomeStatus
 from dd_sdk.evidence import (
     CANONICALISATIONS,
     ENVELOPE_CANONICALISATION,
@@ -117,6 +117,7 @@ def grounding_errors(envelope: dict[str, Any]) -> list[str]:
         name = ev.get("canonicalisation")
         if not isinstance(name, str) or name not in CANONICALISATIONS:
             errors.append(f"evidence {ev.get('source_id')!r}: unknown canonicalisation {name!r}")
+    errors.extend(_tool_errors(envelope, evidence))
 
     if status != OutcomeStatus.SUCCEEDED:
         return errors
@@ -126,6 +127,23 @@ def grounding_errors(envelope: dict[str, Any]) -> list[str]:
     elif mode in (GroundingMode.INPUT_ONLY, GroundingMode.NONE, GroundingMode.DELEGATION):
         errors.extend(_input_grounding_errors(envelope, mode, evidence))
     return errors
+
+
+def _tool_errors(envelope: dict[str, Any], evidence: list[dict[str, Any]]) -> list[str]:
+    """Each item of evidence naming a `tool:` source that is not a record the conductor kept from
+    the tool gateway under the same canonicalisation (docs/specs/grounding.md, invariant 15)."""
+    # A list, not a set: a hash of the wrong type may not be hashable.
+    recorded = [
+        (r.get("source_id"), r.get("content_hash"), r.get("canonicalisation"))
+        for r in _objects(envelope.get("tool_retrievals"))
+    ]
+    return [
+        f"evidence {ev.get('source_id')!r} names a tool source the gateway did not return"
+        for ev in evidence
+        if str(ev.get("source_id", "")).startswith(TOOL_SOURCE_PREFIX)
+        and (ev.get("source_id"), ev.get("content_hash"), ev.get("canonicalisation"))
+        not in recorded
+    ]
 
 
 def _input_grounding_errors(

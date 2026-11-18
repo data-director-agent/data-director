@@ -1,7 +1,26 @@
-/* Earlier conversations (EarlierConversations.tsx): a title, with the date and turns beneath. */
+/* Earlier conversations (EarlierConversations.tsx): a title, with the date and turns beneath,
+   and a button that deletes it (DeleteConversation.tsx). */
 
 @layer components {
+  .earlier-conversation-row {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-1);
+  }
+
+  .button.conversation-delete {
+    flex: none;
+  }
+
+  .conversation-delete-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+
   .button.earlier-conversation {
+    flex: 1 1 auto;
+    min-width: 0;
     justify-content: flex-start;
     max-width: 100%;
     text-align: start;

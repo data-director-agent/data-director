@@ -36,6 +36,10 @@ hosted_models:
   - documentation
   - decisions
 
+# Whether people may attach documents about their data to a project (docs/specs/projects.md).
+# `refused` keeps none and gives no agent any document a project already holds.
+attached_documents: allowed
+
 # Whether people may use their own model account to pay for model calls
 # (docs/specs/model-accounts.md). Off: the deployment pays for every call, as before.
 model_accounts:

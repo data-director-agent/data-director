@@ -35,7 +35,22 @@ def _zip() -> bytes:
 
 ARCHIVE = _zip()
 URL = "https://example.org/export.zip"
-DOWNLOADER = pinned.Downloader("test/0", 5.0, FixtureError)
+PAUSED: list[float] = []
+DOWNLOADER = pinned.Downloader("test/0", 5.0, FixtureError, sleep=PAUSED.append)
+
+
+def _answering(*answers: int | Exception) -> tuple[httpx.Client, list[httpx.Request]]:
+    """A client whose server gives each answer in turn: a status, or a transport error raised."""
+    seen: list[httpx.Request] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        answer = answers[len(seen)]
+        seen.append(request)
+        if isinstance(answer, Exception):
+            raise answer
+        return httpx.Response(answer, content=ARCHIVE if answer == 200 else b"")
+
+    return httpx.Client(transport=httpx.MockTransport(handle)), seen
 
 
 def _serving(body: bytes, status: int = 200) -> tuple[httpx.Client, list[httpx.Request]]:
@@ -110,6 +125,42 @@ def test_a_failed_download_raises_the_agents_error(tmp_path: Path) -> None:
     with pytest.raises(FixtureError):
         DOWNLOADER.download(URL, tmp_path / "export.zip", client)
     assert not (tmp_path / "export.zip").exists()
+
+
+@pytest.mark.parametrize(
+    "failure", [502, 503, 429, httpx.ConnectError("refused"), httpx.ReadTimeout("slow")]
+)
+def test_a_download_the_server_fails_is_tried_again(
+    tmp_path: Path, failure: int | Exception
+) -> None:
+    PAUSED.clear()
+    client, seen = _answering(failure, 200)
+    DOWNLOADER.download(URL, tmp_path / "export.zip", client)
+    assert (tmp_path / "export.zip").read_bytes() == ARCHIVE
+    assert len(seen) == 2
+    assert [DOWNLOADER.pauses[0]] == PAUSED
+    assert not (tmp_path / "export.part").exists()
+
+
+def test_a_server_that_keeps_failing_raises_after_every_pause(tmp_path: Path) -> None:
+    PAUSED.clear()
+    attempts = len(DOWNLOADER.pauses) + 1
+    client, seen = _answering(*[503] * attempts)
+    with pytest.raises(FixtureError, match="503"):
+        DOWNLOADER.download(URL, tmp_path / "export.zip", client)
+    assert len(seen) == attempts
+    assert list(DOWNLOADER.pauses) == PAUSED
+    assert not (tmp_path / "export.zip").exists()
+    assert not (tmp_path / "export.part").exists()
+
+
+def test_a_status_the_server_did_not_fail_is_not_tried_again(tmp_path: Path) -> None:
+    PAUSED.clear()
+    client, seen = _answering(404, 200)
+    with pytest.raises(FixtureError, match="404"):
+        DOWNLOADER.download(URL, tmp_path / "export.zip", client)
+    assert len(seen) == 1
+    assert PAUSED == []
 
 
 def test_a_made_client_names_the_project(tmp_path: Path) -> None:

@@ -169,6 +169,13 @@ def test_obligations_are_read_from_the_curated_fields() -> None:
     assert [o.kind for o in assess.obligations(FUNDER)] == list(ObligationKind)
 
 
+def test_the_payload_states_its_limitations(runs_dir: Path) -> None:
+    env = invoke(runs_dir, CONTEXT)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    limitations = env.payload_as(PolicyChecks).limitations
+    assert limitations and all(line.strip() for line in limitations)
+
+
 def test_a_name_is_matched_only_for_its_role(runs_dir: Path) -> None:
     checks = invoke(runs_dir, PolicyContext(actors=[TESTING])).payload_as(PolicyChecks)
     assert [p.grounded_on[0].source_id for p in checks.policies] == ["FAIRsharing.test-university"]

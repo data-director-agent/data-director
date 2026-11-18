@@ -6,8 +6,11 @@ researcher to read; it answers `404` when there is none. `POST /api/projects/{id
 revision of the one it holds, or a new scan. It answers `201` with what the project then holds of
 it. `GET /api/projects/{id}/documentation` lists the documents attached to the project, without
 their text, and `GET /api/projects/{id}/documentation/{digest}` is one document's text, `404` when
-the project holds none with that digest. `GET /api/researcher/orcid` is the signed-in person's
-public ORCID record, and `…/researchers` what of it they kept in a project.
+the project holds none with that digest. `POST /api/documentation/check` checks a document's text
+for possible personal data and secrets before it is attached, in or out of a project, keeping
+nothing: it answers with what was found, by kind, never a value (#473).
+`GET /api/researcher/orcid` is the signed-in person's public ORCID record, and `…/researchers`
+what of it they kept in a project.
 """
 
 from __future__ import annotations
@@ -19,6 +22,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, PlainTextResponse, Response
 from starlette.routing import Route
 
+from dd_app.documentation_check import checked_with, kinds, screen
 from dd_app.routes.common import (
     Deps,
     Endpoint,
@@ -33,10 +37,11 @@ from dd_app.routes.common import (
 )
 from dd_harness import orcid
 from dd_harness.project_access import Action
-from dd_harness.projects import ProjectError, UnknownProjectError
+from dd_harness.projects import ProjectError, UnknownProjectError, check_documentation
 from dd_sdk.contract.models import Principal, now
 
 INVENTORY_REFUSED = "Data Director could not add this inventory"
+CHECK_REFUSED = "Data Director could not check this document"
 RESEARCHER_REFUSED = "Data Director could not keep these ORCID facts"
 
 
@@ -46,6 +51,16 @@ class AddInventory(RequestBody):
     refusal: ClassVar[str] = "`inventory` must be the object `dd-inventory` wrote."
 
     inventory: dict[str, Any]
+
+
+class CheckDocument(RequestBody):
+    """A document to check before it is attached: its file name, media type and text."""
+
+    refusal: ClassVar[str] = "Give the document's `name`, `media_type` and `text`, as strings."
+
+    name: str
+    media_type: str
+    text: str
 
 
 class KeepResearcher(RequestBody):
@@ -74,7 +89,28 @@ def routes(deps: Deps) -> list[Route]:
         Route(f"{project}/researchers/me", contribute(keep_researcher), methods=["PUT"]),
         Route(f"{project}/researchers/me", contribute(withdraw_researcher), methods=["DELETE"]),
         Route("/api/researcher/orcid", signed_in(deps, get_orcid_record), methods=["GET"]),
+        Route("/api/documentation/check", signed_in(deps, check_document), methods=["POST"]),
     ]
+
+
+async def check_document(request: Request, _: Principal, __: Deps) -> Response:
+    """What may be in a document before it is attached; nothing is kept and its text is not
+    logged. A document the project would refuse anyway is refused here first."""
+    body = await parse_body(request, CheckDocument, CHECK_REFUSED)
+    if isinstance(body, Response):
+        return body
+    try:
+        check_documentation(body.name, body.media_type, body.text)
+    except ProjectError as exc:
+        return problem(400, "request-refused", CHECK_REFUSED, str(exc))
+    found = await run_in_threadpool(screen, body.text)
+    return JSONResponse(
+        {
+            "findings": [f.as_json() for f in found],
+            "kinds": kinds(found),
+            "checked_with": await run_in_threadpool(checked_with),
+        }
+    )
 
 
 async def get_inventory(request: Request, _: Principal, deps: Deps) -> Response:

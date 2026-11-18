@@ -115,6 +115,7 @@ describe("the Data Director extensions", () => {
       models: [{ provider: "p", model: "m", hosting: "local" }, "m"],
       title: "Ada",
       skills: [{ name: "s", version: "v1", sha256: "d" }, { name: "t" }, "u"],
+      tools: [{ server: "spdx", tools: ["get"] }, { server: "x", tools: [1] }, "y"],
     });
     expect(spec).toMatchObject({
       accepts: ["A"],
@@ -126,6 +127,7 @@ describe("the Data Director extensions", () => {
       models: [{ provider: "p", model: "m", hosting: "local" }],
       title: "Ada",
       skills: [{ name: "s", version: "v1", sha256: "d" }],
+      tools: [{ server: "spdx", tools: ["get"] }],
     });
     expect(readAgentSpec({ ...{ agent_id: "a", version: "1", description: "d", action_class: "a", grounding_mode: "none" } })?.modelsDeclared).toBe(false);
   });

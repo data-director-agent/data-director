@@ -58,6 +58,15 @@
     display: block;
   }
 
+  /* The person's icon sits as an agent's does, before the name. */
+  .person-icon {
+    display: inline-block;
+    inline-size: 1.25em;
+    margin-inline-end: var(--space-1, 0.25rem);
+    line-height: 1;
+    text-align: center;
+  }
+
   /* What identifies the agent exactly, under its name, quieter than it. */
   .turn-speaker-details {
     display: block;
