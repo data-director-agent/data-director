@@ -641,6 +641,7 @@ def test_doctor_reports_a_deployment_not_yet_applied(
         ("name: x\nprivacy_notice: http://example.ac.uk/p\n", "privacy_notice is the address"),
         ("name: x\nprivacy_notice: javascript:alert(1)\n", "privacy_notice is the address"),
         ("name: x\nprivacy_notice: [https://example.ac.uk/p]\n", "privacy_notice is the address"),
+        ("name: x\nmodel_accounts: required\n", "model_accounts is a mapping"),
         ("name: x\ncolour: blue\n", "unknown key colour"),
         ("name: Not A Name\n", "lower-case words"),
         ("name: x\ndisabled: [advisor-nobody]\n", "advisor-nobody, not in agents.yaml"),
@@ -651,6 +652,21 @@ def test_a_deployment_that_cannot_be_is_refused_with_why(vm: Vm, text: str, mess
     (vm.etc / "deployment.yaml").write_text(text)
     with pytest.raises(DevError, match=message):
         plan(FakeVm(), Place.vm(vm), vm)
+
+
+def test_model_accounts_in_the_deployment_reach_the_profile_and_raise_its_version(vm: Vm) -> None:
+    import yaml
+
+    before = yaml.safe_load((vm.etc / "profile.yaml").read_text())
+    assert "model_accounts" not in before  # unset: the deployment pays
+    (vm.etc / "deployment.yaml").write_text(
+        "name: test\norchestrator: stub\nmodel_accounts:\n  own: allowed\n"
+        "  fallback: deployment\n  providers:\n    - provider: anthropic\n"
+    )
+    assert apply(FakeVm(), Place.vm(vm), vm) == 0
+    after = yaml.safe_load((vm.etc / "profile.yaml").read_text())
+    assert after["model_accounts"]["own"] == "allowed"
+    assert after["version"] > before["version"]
 
 
 def test_no_backup_timer_and_a_failed_backup_are_problems(
