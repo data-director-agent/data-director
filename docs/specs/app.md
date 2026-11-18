@@ -410,6 +410,14 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
 
 - **Depends on** the harness (`dd_harness`) and the SDK only. Workspace-level dependency rules
   are in [System and boundaries](system.md).
+- **API types.** The shell's types for the server's responses are written by hand in the
+  domain folders' `api.ts` and `types.ts`. The golden fixtures in `app/web/fixtures`, which
+  `check_fixture` rewrites from real responses, are checked against them by
+  `app/web/src/fixtures.typecheck.ts`, which `npm run typecheck` compiles: a field the server
+  renames or drops, or whose type changes, fails there until the interface is updated. The check
+  reports a missing or mistyped field, not an extra one, and not a renamed optional field. To
+  see it work, rename a required field in a fixture and run `npm run typecheck`. TODO(#1130):
+  give the routes response models and generate the types from them.
 - **Web source layout and import rules.** In `app/web/src`, the domain folders (`run`,
   `manifest`, `conversation`, `flow`, `session`, `project`, `feedback`, `policy`,
   `model-account`, `scan`) hold types and API clients, `scan` the browser scanner's client, and
