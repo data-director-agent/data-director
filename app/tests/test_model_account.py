@@ -19,7 +19,14 @@ from typing import Any
 import httpx
 import pytest
 from starlette.testclient import TestClient
-from support import JSON_HEADERS, check_fixture, configure_env, dist_dir, with_standards
+from support import (
+    JSON_HEADERS,
+    NotAnAppResponse,
+    check_fixture,
+    configure_env,
+    dist_dir,
+    with_standards,
+)
 
 from dd_app.app import Links, build_app
 from dd_app.config import EXAMPLE_PROFILE, settings_from_env
@@ -47,6 +54,8 @@ EXAMPLE = Path(__file__).resolve().parents[1] / "config/examples/soil-chemistry.
 # Distinctive enough that finding it anywhere means it leaked.
 SENTINEL = "sk-ant-api03-sentinel-807-e4b19d2a7c"
 MODEL = "claude-sonnet-5-5"
+# The model broker's own responses, which the shell reads; the broker declares no response models.
+BROKER = NotAnAppResponse("the model broker's")
 
 Scope = MutableMapping[str, Any]
 Message = MutableMapping[str, Any]
@@ -391,7 +400,11 @@ def test_the_broker_answers_the_page_draws(deployment: Deployment) -> None:
         return {"authorization": f"Bearer {ticket(browser)['ticket']}"}
 
     with deployment.broker(provider(200)) as broker:
-        check_fixture("model-account-none.json", broker.get(ACCOUNT_PATH, headers=bearer()).json())
+        check_fixture(
+            "model-account-none.json",
+            broker.get(ACCOUNT_PATH, headers=bearer()).json(),
+            model=BROKER,
+        )
         broker.put(
             ACCOUNT_PATH,
             json={"provider": "anthropic", "key": "sk-ant-api03-fixture-key-7f3a"},
@@ -413,7 +426,7 @@ def test_the_broker_answers_the_page_draws(deployment: Deployment) -> None:
     held["account"]["created"] = "2026-11-13T12:00:00+00:00"
     for row in held["usage"]:
         row["day"] = "2026-11-13"
-    check_fixture("model-account.json", held)
+    check_fixture("model-account.json", held, model=BROKER)
 
     with deployment.broker(provider(401)) as broker:
         rejected = broker.put(
@@ -422,4 +435,4 @@ def test_the_broker_answers_the_page_draws(deployment: Deployment) -> None:
             headers=bearer(),
         )
     assert rejected.status_code == 422
-    check_fixture("model-account-rejected.json", rejected.json())
+    check_fixture("model-account-rejected.json", rejected.json(), model=BROKER)

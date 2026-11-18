@@ -33,7 +33,7 @@ from dd_app.routes.common import (
     respond,
     signed_in,
 )
-from dd_app.routes.projects import SavedInventory
+from dd_app.routes.conversations import SavedInventory
 from dd_harness import orcid
 from dd_harness.project_access import Action
 from dd_harness.projects import ProjectError, UnknownProjectError

@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from typing import ClassVar, Literal
 
-from pydantic import MISSING, ConfigDict
+from pydantic import ConfigDict
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 from starlette.responses import Response
@@ -40,6 +40,8 @@ from dd_app.routes.common import (
     respond_page,
     signed_in,
 )
+from dd_app.routes.conversations import SavedInventory
+from dd_app.routes.progress import ProjectProgress
 from dd_harness.project_access import Action
 from dd_harness.projects import ProjectDeletedError, ProjectError, RestoreRefusedError
 from dd_harness.transport.paging import PagingError, page_params
@@ -72,65 +74,6 @@ class DeleteProject(RequestBody):
     refusal: ClassVar[str] = "`title` is the project's name, as the person typed it."
 
     title: str
-
-
-# TEMP until rebased on PR1: `ProjectProgress`, `StepReason` and `Decision` are
-# `dd_app.routes.progress`'s, and `SavedInventory` is `dd_app.routes.conversations`'s; these
-# copies give way to imports of them.
-
-
-class StepReason(ResponseBody):
-    """Why a step is in its state: the log's work, the researcher's mark, or an intake answer."""
-
-    state: Literal["started", "done", "skipped"]
-    source: Literal["produced", "marked", "intake"]
-    event: str
-    """The event that decided the state."""
-    at: str | MISSING = MISSING
-    """When that event was recorded, where the log says."""
-    document_id: str | MISSING = MISSING
-    document_kind: str | MISSING = MISSING
-    question_id: str | MISSING = MISSING
-
-
-class Decision(ResponseBody):
-    """One of the intake's decision points with its current answer."""
-
-    question_id: str
-    prompt: str
-    before: str
-    """The step the decision sits before."""
-    asked: bool
-    """Whether it is asked from the project's entry point."""
-    answer_values: list[str] | None
-    answer_labels: list[str] | None
-
-
-class ProjectProgress(ResponseBody):
-    """Where a project is in the process flow, derived from the project log on every read."""
-
-    entry: int | None
-    entry_source: Literal["researcher", "model"] | None
-    steps: dict[str, Literal["started", "done", "skipped"]]
-    suggested: str | None
-    reasons: dict[str, StepReason]
-    decisions: list[Decision]
-
-
-class SavedInventory(ResponseBody):
-    """What a project holds of the inventory added last."""
-
-    digest: str
-    file_count: int
-    inventory_made_at: str
-    added_at: str
-    revises: str | None
-    """The digest of the inventory it replaced."""
-    part_count: int | None
-    """How many folders it is made of, when it is made of parts."""
-
-
-# End of TEMP.
 
 
 class ChosenRepository(ResponseBody):
