@@ -475,7 +475,13 @@ it (`harness/tests/test_project_runs.py`, `dd_harness.testing.storage`). The app
 documentation from data, so the attach form and the user guide state the rule, and the app
 checks the text for possible personal data and secrets first, holding a document until the
 researcher confirms what was found ([Personal data and disclosure control](personal-data.md),
-#473). A profile that refuses documentation altogether is TODO(#1119).
+#473). A profile may refuse attached documents altogether with `attached_documents: refused` (the
+default is `allowed`; [Policy and identity](policy-and-identity.md)). Then a way in refuses a
+request that attaches one before keeping anything (`dd_harness.policy.check_attached_document`),
+the app's agent directory says so and the shell takes only an inventory, and the conductor gives no
+agent any document the project already holds: neither a `Message`'s `project_documentation` nor a
+`DraftRequest`'s `project_documents` (`harness/tests/test_project_runs.py`,
+`app/tests/test_project_materials.py`).
 
 **Agents** propose; they do not write. The only proposed change is a document version, returned as
 a `Document` payload; a check agent's proposed facts (invariant 28) are about the project, not a

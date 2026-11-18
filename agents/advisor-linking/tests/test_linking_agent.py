@@ -1,4 +1,4 @@
-"""advisor.linking through the conductor: the Linking Adviser mock (docs/specs/agents.md)."""
+"""advisor.linking through the conductor: the Linking Adviser (docs/specs/agents.md)."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ import pytest
 import dd_agent_advisor_linking
 from dd_agent_advisor_linking.agent import LinkingAdviser, orcid_checksum_ok
 from dd_agent_advisor_linking.classes import LinkCandidates, RelatedIdentifiers
+from dd_agent_advisor_linking.resolve import SERVERS
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import describe
 from dd_sdk.contract.models import GroundingMode, OutcomeStatus, ReasonCode
@@ -30,7 +31,7 @@ def test_recognises_checks_and_normalises_identifiers(runs_dir: Path) -> None:
     conductor = make_conductor(runs_dir, LinkingAdviser())
     env = conductor.invoke(request("advisor.linking", sample()), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
-    assert env.grounding_mode == GroundingMode.NONE
+    assert env.grounding_mode == GroundingMode.RETRIEVAL
     payload = env.payload_as(RelatedIdentifiers)
     assert [
         (link.scheme, link.normalised, link.relation, link.valid) for link in payload.links
@@ -76,7 +77,8 @@ def test_the_orcid_checksum_follows_iso_7064() -> None:
 def test_the_card_names_the_persona_and_its_steps() -> None:
     entry = describe(LinkingAdviser.spec)
     assert entry["title"] == "Linking Adviser"
-    assert entry["description"].startswith("Mock.")
+    assert not entry["description"].startswith("Mock.")
+    assert {t["server"] for t in entry["tools"]} == set(SERVERS)
     assert entry["serves"] == ["deposit.links", "post.links"]
     json.dumps(entry)
 

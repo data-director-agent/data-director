@@ -168,6 +168,47 @@ def test_without_a_model_title_a_conversation_is_named_by_its_first_message(
     assert found[long]["title_source"] == "message"
 
 
+@pytest.mark.requirement("DD-CONVERSATION")
+def test_a_turn_that_failed_does_not_name_its_conversation(tmp_path: Path) -> None:
+    """A first message the model could not answer, sent again, names nothing."""
+    answers = iter([False, True])
+
+    def flaky(req: InvocationRequest, ctx: RunContext) -> AgentResult:
+        if not next(answers):
+            raise RuntimeError("the provider did not answer")
+        return relay(req, ctx)
+
+    conductor = make_conductor(
+        tmp_path,
+        ScriptedAgent(GroundingMode.DELEGATION, flaky),
+        ScriptedAgent(GroundingMode.NONE, review_of_input),
+    )
+    conv = new_invocation_id()
+    for text in ("Hello, are you working?", "Which licence should I use?"):
+        conductor.invoke(turn("fake.delegation", conv, message(text)), acting_for=TEST_PRINCIPAL)
+
+    [summary] = conversations.list_conversations(conductor.store, limit=50).items
+    assert summary["title"] == "Which licence should I use?"
+
+
+@pytest.mark.requirement("DD-CONVERSATION")
+def test_a_conversation_whose_every_turn_failed_is_named_by_its_first_message(
+    tmp_path: Path,
+) -> None:
+    def broken(req: InvocationRequest, ctx: RunContext) -> AgentResult:
+        raise RuntimeError("the provider did not answer")
+
+    conductor = make_conductor(tmp_path, ScriptedAgent(GroundingMode.DELEGATION, broken))
+    conv = new_invocation_id()
+    conductor.invoke(
+        turn("fake.delegation", conv, message("Hello, are you working?")),
+        acting_for=TEST_PRINCIPAL,
+    )
+
+    [summary] = conversations.list_conversations(conductor.store, limit=50).items
+    assert summary["title"] == "Hello, are you working?"
+
+
 QUESTION = Question(
     question_key="repository",
     question_prompt="Which repository will you deposit in?",

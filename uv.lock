@@ -1234,7 +1234,7 @@ dev = [{ name = "data-director-harness", editable = "harness" }]
 
 [[package]]
 name = "data-director-agent-advisor-files"
-version = "0.1.0a1"
+version = "0.2.0a1"
 source = { editable = "agents/advisor-files" }
 dependencies = [
     { name = "data-director-sdk" },
@@ -1259,7 +1259,7 @@ dev = [{ name = "data-director-harness", editable = "harness" }]
 
 [[package]]
 name = "data-director-agent-advisor-linking"
-version = "0.1.0a1"
+version = "0.2.0a1"
 source = { editable = "agents/advisor-linking" }
 dependencies = [
     { name = "data-director-sdk" },

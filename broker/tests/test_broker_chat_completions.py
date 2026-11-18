@@ -594,3 +594,21 @@ def test_the_openai_client_works_through_the_broker(
     assert reply.model == MODEL
     assert reply.choices[0].message.content
     assert raised.value.response.headers[HEADER_REASON] == "grant-missing"
+
+
+@pytest.mark.parametrize("status", [404, 500, 503])
+def test_a_failing_provider_is_logged_with_its_status_not_its_text(
+    harness: FakeHarness, tmp_path: Path, status: int, caplog: pytest.LogCaptureFixture
+) -> None:
+    provider = Provider(status)
+    broker = broker_with(harness, tmp_path, provider)
+    caplog.set_level("WARNING", logger="dd_broker")
+    with client(broker) as http:
+        response = http.post(
+            completions(), json=body(), headers=headers(grant(harness, Account.DEPLOYMENT))
+        )
+
+    assert response.status_code == 502
+    assert reason(response) == "provider-error"
+    assert any(str(status) in r.getMessage() for r in caplog.records)
+    assert OWN_KEY not in caplog.text

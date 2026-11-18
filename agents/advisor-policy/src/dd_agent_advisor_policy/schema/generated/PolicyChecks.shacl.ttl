@@ -9,17 +9,16 @@ policy:PolicyChecks a sh:NodeShape ;
     rdfs:comment "The policy advisor payload. The policies matched to each actor, what each asks, where they differ, and the actors with no policy record. Conflicts are flagged for human review; the agent does not resolve them." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:class policy:ResolvedFunder ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "What this alpha does not yet do." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 10 ;
+            sh:path policy:limitations ],
+        [ sh:class policy:ResolvedFunder ;
             sh:description "The funders identified in ROR, each grounded on its ROR record, so that the identifier can be passed on." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 6 ;
             sh:path policy:funders ],
-        [ sh:class <https://w3id.org/data-director/GroundingRef> ;
-            sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 10 ;
-            sh:path <https://w3id.org/data-director/grounded_on> ],
         [ sh:datatype xsd:string ;
             sh:description "Actors for which no FAIRsharing policy record was found." ;
             sh:nodeKind sh:Literal ;
@@ -55,6 +54,12 @@ policy:PolicyChecks a sh:NodeShape ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 5 ;
             sh:path policy:readings ],
+        [ sh:class <https://w3id.org/data-director/GroundingRef> ;
+            sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 11 ;
+            sh:path <https://w3id.org/data-director/grounded_on> ],
         [ sh:class policy:AmbiguousActor ;
             sh:description "Funders or journals whose name could mean more than one. The researcher should say which; their policies were not looked up." ;
             sh:nodeKind sh:BlankNodeOrIRI ;

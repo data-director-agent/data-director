@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import uuid
 from collections.abc import Iterator
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -312,6 +313,28 @@ def test_a_document_that_is_refused_leaves_no_trace_and_nothing_runs(
     assert governance.projects is not None
     assert governance.projects.summary(started["project_id"])["inventory"] is None
     assert governance.projects.documentation(started["project_id"]) == []
+
+
+@pytest.mark.requirement("DD-POLICY")
+def test_a_profile_that_refuses_documents_refuses_a_turn_that_attaches_one(
+    in_projects: tuple[Governance, Any],
+):
+    """Under `attached_documents: refused` the turn is refused before anything is kept or run,
+    and the agent directory says so, so the shell does not offer it (docs/specs/projects.md)."""
+    governance, app = in_projects
+    profile = governance.conductor.profile
+    governance.conductor.profile = replace(profile, attached_documents="refused")
+    client = TestClient(app)
+    started = client.post("/api/conversations", headers=JSON_HEADERS).json()
+
+    response = turn(client, started["conversation_id"], "hello", documentation=a_document())
+
+    assert response.status_code == 400
+    assert list(governance.conductor.store.iter_envelopes()) == []
+    assert governance.projects is not None
+    assert governance.projects.documentation(started["project_id"]) == []
+    listing = client.get("/api/agents", headers=JSON_HEADERS).json()
+    assert listing["profile"]["attached_documents"] == "refused"
 
 
 def test_a_document_needs_a_project_to_keep_it(delegating: tuple[Governance, Any]):

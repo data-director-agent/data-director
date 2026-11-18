@@ -24,6 +24,9 @@ class RelatedLink(Frozen):
     normalised: str | None = None
     relation: str | None = None
     valid: bool
+    resolved: bool | None = None
+    title: str | None = None
+    resource_type: str | None = None
     message: str
 
 

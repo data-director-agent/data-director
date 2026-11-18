@@ -20,12 +20,12 @@ const INVENTORY = JSON.stringify({
 });
 const PROTOCOL = "# Sampling protocol\n\nSediment cores were taken monthly.\n";
 
-function render() {
+function render(documents = true) {
   const box = { current: document.createElement("textarea") };
   document.body.append(box.current);
   onTestFinished(() => box.current.remove());
   const announce = vi.fn<(said: string) => void>();
-  const view = renderHook(() => useAttachments(box, announce));
+  const view = renderHook(() => useAttachments(box, announce, documents));
   return { ...view, announce, box };
 }
 
@@ -52,6 +52,16 @@ describe("useAttachments", () => {
     expect(result.current.pendingDocument?.name).toBe("protocol.md");
     expect(result.current.pendingInventory).toBeNull();
     expect(result.current.carries).toBe(false);
+  });
+
+  it("takes no document where the profile refuses them, but still an inventory", async () => {
+    const { result } = render(false);
+    expect(result.current.documents).toBe(false);
+    await act(() => result.current.attachFile(new File([PROTOCOL], "protocol.md")));
+    expect(result.current.pendingDocument).toBeNull();
+    expect(result.current.error).toBeTruthy();
+    await act(() => result.current.attachFile(new File([INVENTORY], "inventory.json")));
+    expect(result.current.pendingInventory?.fileCount).toBe(2);
   });
 
   it("opens any other file as an inventory to be checked", async () => {

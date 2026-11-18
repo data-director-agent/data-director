@@ -206,7 +206,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     carry an inventory and a document together, and if the project refuses either, the turn is
     refused, nothing runs and neither is kept. The shell's one **Attach a file** button, and a
     drop on the message form, take a `.json` file as an inventory and a `.txt` or `.md` file as a
-    document. A document is read in the browser, refused there if it is empty or over 256 KB,
+    document, unless the agent directory says the profile refuses attached documents
+    (`attached_documents`, [Projects](projects.md)): then they take only an inventory, say why a
+    document is not taken, and the server refuses a turn that carries one. A document is read in the browser, refused there if it is empty or over 256 KB,
     and first opened to be checked: a dialog shows its name, size and text, says that it will be
     stored in the project, that the Documentation Editor reads its text to suggest answers and
     other agents are told only its name, type and size ([Projects](projects.md)), and
@@ -522,6 +524,12 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   collapsed "Unrecognised events (n)" group; a malformed event is shown as an error, and the run
   carries on. A stored run (a delegated child's card, or `?run=`) shows its outcome only: a
   child has no stages of its own.
+- **A turn that failed says so in plain words** (`components/conversation/Transcript.tsx`): that
+  Data Director could not answer, that nothing was changed and what the message attached is kept
+  in the project, and to try again or tell whoever runs Data Director. The agent's own statement,
+  which may name an exception, is kept behind a closed disclosure for operators, never shown as
+  the reply. The latest turn, if it failed, offers **Try again**, which sends its message again
+  as a new turn (`app/web/src/components/conversation/Transcript.test.tsx`).
 - **The activity log** (`components/workspace/ActivityLog.tsx`) lists each step of each run this
   tab has streamed, as it happens, newest run first, from the same reducer state
   (`run/activity.tsx`): steps, checks' reports, tool calls and delegated children, each child
