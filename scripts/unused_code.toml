@@ -82,6 +82,11 @@ path = "workbench/src/workbench/evaluation.py"
 name = "completed"
 how = "Inspect reads it from the TaskState the solver returns"
 
+[[reached]]
+path = "inventory/src/dd_inventory/personal.py"
+name = "validate_result"
+how = "Presidio's pattern recogniser calls it on each match of the e-mail pattern"
+
 [[unused]]
 path = "sdk/src/dd_sdk/agent.py"
 name = "default_settings"
@@ -89,7 +94,3 @@ name = "default_settings"
 [[unused]]
 path = "sdk/src/dd_sdk/contract/classes.py"
 name = "parse_payload"
-
-[[unused]]
-path = "sdk/src/dd_sdk/tracing.py"
-name = "execute_tool_span"

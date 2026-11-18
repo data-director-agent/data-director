@@ -190,7 +190,14 @@ dd:DocumentationSummary a sh:NodeShape ;
     rdfs:comment "What one document a researcher attached to a project is, without its text: the conductor fills one per document into a Message so that the agent knows the project holds it (docs/specs/projects.md)." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:integer ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The file name the researcher attached the document under, without any folder." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:documentation_name ],
+        [ sh:datatype xsd:integer ;
             sh:description "The size of the document's UTF-8 text, in bytes." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -218,14 +225,7 @@ dd:DocumentationSummary a sh:NodeShape ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 4 ;
-            sh:path dd:documentation_added_at ],
-        [ sh:datatype xsd:string ;
-            sh:description "The file name the researcher attached the document under, without any folder." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path dd:documentation_name ] ;
+            sh:path dd:documentation_added_at ] ;
     sh:targetClass dd:DocumentationSummary .
 
 dd:InventorySummary a sh:NodeShape ;
@@ -280,6 +280,12 @@ dd:ProjectFact a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
+            sh:description "The kind of check that raised the fact, in the checking agent's words, such as duplicate, system_file or third_party. Kept as it was given; the core does not enumerate it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 10 ;
+            sh:path dd:fact_check_kind ],
+        [ sh:datatype xsd:string ;
             sh:description "The funders, journals or institutions that require the repository." ;
             sh:nodeKind sh:Literal ;
             sh:order 7 ;
@@ -366,13 +372,7 @@ dd:ProjectFact a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 14 ;
-            sh:path dd:licence_id ],
-        [ sh:datatype xsd:string ;
-            sh:description "The kind of check that raised the fact, in the checking agent's words, such as duplicate, system_file or third_party. Kept as it was given; the core does not enumerate it." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 10 ;
-            sh:path dd:fact_check_kind ] ;
+            sh:path dd:licence_id ] ;
     sh:targetClass dd:ProjectFact .
 
 dd:QuestionAnswer a sh:NodeShape ;
@@ -512,16 +512,16 @@ dd:ResearcherRecord a sh:NodeShape ;
             sh:order 3 ;
             sh:path dd:biography ],
         [ sh:datatype xsd:string ;
-            sh:description "A country the researcher's ORCID record names, as an ISO 3166-1 alpha-2 code." ;
-            sh:nodeKind sh:Literal ;
-            sh:order 5 ;
-            sh:path dd:country ],
-        [ sh:datatype xsd:string ;
             sh:description "The researcher's name as their ORCID record gives it: the credit name, else the given and family names. Absent when they keep their name private or did not keep it." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
             sh:path dd:researcher_name ],
+        [ sh:datatype xsd:string ;
+            sh:description "A country the researcher's ORCID record names, as an ISO 3166-1 alpha-2 code." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dd:country ],
         [ sh:datatype xsd:integer ;
             sh:description "How many works the record held beyond the 50 offered. Absent when none were left out." ;
             sh:maxCount 1 ;

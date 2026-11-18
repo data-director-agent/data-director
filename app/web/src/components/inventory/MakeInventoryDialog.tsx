@@ -1,7 +1,8 @@
 /**
  * The **Make an inventory** button and its dialog, beside Attach a file (#553). The dialog says
- * in one sentence what an inventory is, then offers two routes as tabs. Where the deployment
- * serves the browser scanner it opens on **In this browser**, which describes a folder here
+ * in one sentence what an inventory is. On an app installed on the researcher's own machine that
+ * may read folders there, it first offers to describe one of them (DescribeServerFolder.tsx,
+ * #395). It then offers two routes as tabs. Where the deployment serves the browser scanner it opens on **In this browser**, which describes a folder here
  * (DescribeFolder.tsx, #554); a line under it points to the other tab for data the browser cannot
  * reach. **With the command** says how to make one with `dd-inventory`, the route for data on a
  * server or a cluster or a very large dataset: a tab for each operating system with the
@@ -32,6 +33,7 @@ import { Button } from "../ui/Button";
 import { DialogTrigger, ModalDialog } from "../ui/Dialog";
 import { Tab, TabList, TabPanel, Tabs } from "../ui/Tabs";
 import { DescribeFolder, useScannerAvailable } from "./DescribeFolder";
+import { DescribeServerFolder } from "./DescribeServerFolder";
 import "./MakeInventoryDialog.css";
 
 /** The system this browser runs on, or null when the browser does not say or it is not covered. */
@@ -76,6 +78,7 @@ function MakeInventory({ onAttach }: { onAttach: (file: File) => void }) {
   return (
     <div className="make-inventory">
       <p>{MAKING_AN_INVENTORY.summary}</p>
+      <DescribeServerFolder onDescribed={onAttach} />
       {available === null ? (
         <p className="make-inventory-checking" role="status">
           Checking what this browser can do…

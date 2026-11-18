@@ -315,6 +315,7 @@ filterwarnings = [
 markers = [
   "requirement(*ids): the requirement identifiers this test substantiates (see docs/requirements.yaml)",
   "postgres: needs the PostgreSQL database DD_TEST_POSTGRES names; skipped when it is unset",
+  "gateway: needs the LiteLLM gateway DD_TEST_GATEWAY names and a key in DD_TEST_GATEWAY_KEY; skipped when either is unset",
 ]
 
 # Coverage of the packages under test, measured over the one workspace test session. The tests
@@ -349,7 +350,7 @@ mypy_path = [
   "agents/advisor-ethics/src", "agents/advisor-dmp/src", "agents/advisor-documentation/src", "agents/advisor-fairness/src",
   "agents/advisor-files/src", "agents/advisor-linking/src", "agents/advisor-metadata/src", "agents/advisor-rights/src",
   "agents/orchestrator-stub/src", "agents/orchestrator-model/src", "app/src", "app/tests", "admin/src", "broker/src", "inventory/src",
-  "harness/tests", "sdk/tests", "broker/tests",
+  "harness/tests", "sdk/tests", "broker/tests", "scripts/tests",
 ]
 strict = true
 warn_unreachable = true

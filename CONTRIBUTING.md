@@ -98,6 +98,7 @@ locally from the repository root:
 | Links and citation file | `lychee --offline --include-fragments '**/*.md'`, `uvx cffconvert --validate`, `uv run scripts/check_citation.py`, `scripts/check_todos.py` and `scripts/check_boundaries.py` |
 | Workflows | `uvx zizmor .github`, [actionlint](https://github.com/rhysd/actionlint) and `python3 scripts/check_ci_gate.py`; every `uses:` is pinned to a full commit SHA with the version as a trailing comment (`# v1.2.3`) |
 | NGINX site | `sudo bash scripts/check_nginx.sh` (installs nginx; CI runs it on a clean runner) |
+| LiteLLM gateway and model broker | in `deploy/llm-gateway`, with Docker: `scripts/testing/ci_env.sh && docker compose -f compose.yaml -f compose.test.yaml up -d --wait && scripts/smoke_test.sh && scripts/testing/broker_e2e.sh`, then `docker compose -f compose.yaml -f compose.test.yaml down -v` (a fake provider: no keys, nothing billed) |
 | Developer Certificate of Origin | a person signs off, either with a `Signed-off-by` at the end of the pull request description or implicitly by opening the pull request from their own account (a notice names them), and no coding agent signs off anywhere, which may only co-author (`.github/workflows/dco.yml`, re-run when the description is edited; a problem is a warning, not a failure): `python3 scripts/check_signoff.py BASE HEAD --body-file description.md --author LOGIN` |
 | Dependency review | a new dependency with a known advisory of moderate severity or worse is refused |
 
@@ -285,9 +286,10 @@ and runs again when the title is edited:
 
 * the title is `type(scope)!: summary`. `type` is one of `build`, `chore`, `ci`, `docs`, `feat`,
   `fix`, `perf`, `refactor`, `revert`, `style` or `test`; `(scope)`, usually the package
-  (`app`, `harness`, `sdk`), and `!`, for a breaking change, are optional. The summary starts in
-  lower case unless its first word is a name or acronym, has no closing full stop, and the whole
-  title is at most 90 characters: `feat(app): register every in-tree agent`
+  (`app`, `harness`, `sdk`), and `!`, for a breaking change, are optional. The summary is a
+  sentence that starts with a capital letter, has no closing full stop, and the whole title is at
+  most 90 characters: `feat(app): Register every in-tree agent`. Lower case is also accepted, for
+  a summary that opens with a command or package name such as `uv`
 * the branch is lower-case words joined by hyphens, optionally grouped with slashes, in at most
   60 characters: `ci-faster`, `harness/run-store`
 

@@ -156,7 +156,14 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     `app/web/e2e/scan.spec.ts`, which scans a folder holding a canary and checks that no request
     carries it). The release image and the VM deploy build the bundle from the same commit and serve
     it (`docker/release.Dockerfile`, `deploy/deploy.sh`), and their smoke test checks it is served
-    (`scripts/smoke_image.py`). The
+    (`scripts/smoke_image.py`). An app on the researcher's own machine whose operator named
+    folders it may read (`DD_INVENTORY_FOLDERS`, [Projects](projects.md)) begins the dialog with
+    **Describe a folder on this computer** (`components/inventory/DescribeServerFolder.tsx`,
+    `src/scan/serverFolders.ts`), shown where `GET /api/about` says `server_folders`: the
+    researcher opens a listed folder and its subfolders by name (`GET /api/folders`), and
+    `POST /api/folders/inventory` describes the one chosen with `dd-inventory` and answers the
+    inventory, which is handed on as `<folder>-inventory.json` to the same check and stored by
+    nothing else (`DescribeServerFolder.test.tsx`, `app/tests/test_folder_scan.py`). The
     transcript shows the chip on the turn where the project's inventory changed, read from the
     `project_inventory` the conductor gave that turn (`app/tests/test_app.py`,
     `app/web/src/components/conversation/ConversationHome.test.tsx`).
@@ -169,8 +176,10 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     A chip whose whole inventory the page can read, the one attached and the one the project holds
     now (`GET /api/projects/{id}/inventory`), has a **View inventory** button. It opens a dialog
     that says this is everything Data Director keeps and agents are shown, then what the inventory
-    amounts to and leaves out, its formats, its files as folders with a search, and the columns of
-    its tables. A chip for an inventory the project has since replaced has no button, because
+    amounts to and leaves out, where possible personal data was found (by file, with no value, and
+    saying whether nothing was found or the inventory was never checked; such files are marked and
+    counted in their closed folders, `app/web/src/components/inventory/PersonalData.test.tsx`), its
+    formats, its files as folders with a search, and the columns of its tables. A chip for an inventory the project has since replaced has no button, because
     only the latest is served. The facts come from `@data-director/inventory`
     ([System and boundaries](system.md)); the dialog only lays them out. Folders are drawn only
     while open and a search draws at most 200 matches, so an inventory of thousands of files
@@ -199,7 +208,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     drop on the message form, take a `.json` file as an inventory and a `.txt` or `.md` file as a
     document. A document is read in the browser, refused there if it is empty or over 256 KB,
     and first opened to be checked: a dialog shows its name, size and text, says that it will be
-    stored in the project, that agents are told its name, type and size but not its text, and
+    stored in the project, that the Documentation Editor reads its text to suggest answers and
+    other agents are told only its name, type and size ([Projects](projects.md)), and
     that it must be about the data, never the data themselves nor anything that identifies a
     person. Nothing is attached until the researcher presses **Attach this document**; closing
     the dialog any other way discards it. The checked document shows as a chip with its name and
@@ -213,18 +223,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     the banner, shows the name and iD the identity provider gave at sign-in, how the person is
     known and when the session ends, and says that nothing more is kept but the facts a person
     chooses, in a project, from their public record. It makes no request to the provider and the
-    app asks for no wider scope (`app/web/src/components/profile/ProfilePage.test.tsx`). Where the
-    deployment offers it, the page also holds the person's own AI account, which it reads from and
-    sends to the model broker alone ([A person's own model account](model-accounts.md),
-    `app/web/src/components/profile/ModelAccount.test.tsx`, `app/web/e2e/profile.spec.ts`).
-    Last comes **Preferences**: the colour scheme (light, dark, or matching the device), text
-    size, spacing, animation (matching the device, reduced or shown), the style dates and numbers
-    are written in and the 12- or 24-hour clock, and whether a visit returns to the project used
-    last or starts with none chosen. Each applies at once and is kept in that browser only, one
-    `localStorage` key each, and none reaches the server (`app/web/src/preferences.ts`,
-    `app/web/src/components/profile/Preferences.test.tsx`, `app/web/e2e/profile.spec.ts`). Every
-    date, time and number the app shows is written through `app/web/src/format.ts`, so that it
-    follows them.
+    app asks for no wider scope (`app/web/src/components/profile/ProfilePage.test.tsx`). It points
+    to the Settings page (rule 30) for the person's own AI account and preferences.
 21. **A reply's questions are answered one at a time in a form, and may be ignored.** A reply's
     `reply_questions` are drawn beneath the reply. On the latest turn each question is a fieldset
     whose legend is the question and whose description is its help: a choice question as radio
@@ -396,11 +396,34 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     deciding whether sensitive data is published, or the licence, is told only an owner may
     (`app/web/src/components/project/FactsPanel.test.tsx`, `app/tests/test_project_facts.py`,
     [Projects](projects.md), invariant 28).
+30. **A person's own settings are on the Settings page.** `/settings`, reached from the cog
+    labelled **Settings** in the banner on every page and from the profile page, holds what a
+    person sets for themselves; what the deployment allows for everyone stays on the Policy page.
+    Where the deployment offers it, it holds the person's own AI account, which it reads from and
+    sends to the model broker alone ([A person's own model account](model-accounts.md),
+    `app/web/src/components/settings/ModelAccount.test.tsx`, `app/web/e2e/settings.spec.ts`).
+    Then comes **Preferences**: the colour scheme (light, dark, or matching the device), text
+    size, spacing, animation (matching the device, reduced or shown), the style dates and numbers
+    are written in and the 12- or 24-hour clock, and whether a visit returns to the project used
+    last or starts with none chosen. Each applies at once and is kept in that browser only, one
+    `localStorage` key each, and none reaches the server (`app/web/src/preferences.ts`,
+    `app/web/src/components/settings/Preferences.test.tsx`,
+    `app/web/src/components/settings/SettingsPage.test.tsx`, `app/web/e2e/settings.spec.ts`).
+    Every date, time and number the app shows is written through `app/web/src/format.ts`, so that
+    it follows them.
 
 ## Boundaries and contracts
 
 - **Depends on** the harness (`dd_harness`) and the SDK only. Workspace-level dependency rules
   are in [System and boundaries](system.md).
+- **API types.** The shell's types for the server's responses are written by hand in the
+  domain folders' `api.ts` and `types.ts`. The golden fixtures in `app/web/fixtures`, which
+  `check_fixture` rewrites from real responses, are checked against them by
+  `app/web/src/fixtures.typecheck.ts`, which `npm run typecheck` compiles: a field the server
+  renames or drops, or whose type changes, fails there until the interface is updated. The check
+  reports a missing or mistyped field, not an extra one, and not a renamed optional field. To
+  see it work, rename a required field in a fixture and run `npm run typecheck`. TODO(#1130):
+  give the routes response models and generate the types from them.
 - **Web source layout and import rules.** In `app/web/src`, the domain folders (`run`,
   `manifest`, `conversation`, `flow`, `session`, `project`, `feedback`, `policy`,
   `model-account`, `scan`) hold types and API clients, `scan` the browser scanner's client, and
@@ -741,7 +764,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   (`run/announce.ts`): each step is said once when it starts, a failed check when its report
   arrives, and the end; `RUN_ERROR`, a malformed event and an interrupted stream are assertive.
 - **Colour scheme.** Light by default whatever the system prefers; the person's choice of dark,
-  or of matching the device, is remembered in that browser (`shell.spec.ts`, `profile.spec.ts`).
+  or of matching the device, is remembered in that browser (`shell.spec.ts`, `settings.spec.ts`).
   Reduced motion follows the device unless the person's preferences say otherwise.
 - **Privacy.** No font or other asset is fetched from a third party; the typeface is self-hosted.
   The browser scanner reads a chosen folder in the browser and sends only the inventory, after

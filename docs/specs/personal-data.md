@@ -132,10 +132,13 @@ browser scanner, below). It is configured, not taken with its defaults:
   if it is missing. The command uses Presidio's own `NoOpNlpEngine` instead, which loads no
   language model, so only Presidio's pattern, checksum and context recognisers run. Names and
   places in values need named-entity recognition (NER), which this default does not have.
-- **NER is an opt-in extra of the command.** `dd-inventory[pii-ner]` adds spaCy and a model (or
-  GLiNER-PII, if #39's comparison chooses it). The base command stays light for `uvx`, and its
-  default matches the browser's. An inventory made without NER says in its limitations that names
-  and places were checked from column headers only.
+- **NER is an opt-in extra of the command.** `dd-inventory[pii-ner]` adds spaCy and its
+  `en_core_web_sm` model; the extra declares spaCy, and running the model is TODO(#1141). The
+  comparison below chose this, and chose not to make it the default. The base command's default
+  matches the browser's. It is not as light as it could
+  be: Presidio declares spaCy, so `uvx` installs spaCy, without a model, until Presidio makes the
+  import optional. An inventory made without NER says in its limitations that names and places
+  were checked from column headers only.
 - **No public-suffix download.** Presidio's e-mail recogniser calls `tldextract`, which fetches
   the public-suffix list on first use. The command passes it a `TLDExtract(suffix_list_urls=())`,
   so that only the snapshot bundled with `tldextract` is used.
@@ -143,8 +146,14 @@ browser scanner, below). It is configured, not taken with its defaults:
   postcode, the UK passport and the UK driving licence, but disables them by default. The
   command's own recogniser configuration enables them, alongside the NHS number, and leaves out
   recognisers for United States identifiers, which misread UK postcodes and National Insurance
-  numbers as US driving licences. Which recognisers run is listed in the finding's detector
-  string, so a reader knows what was looked for.
+  numbers as US driving licences. Phone numbers are read as UK numbers only: with Presidio's
+  default eight regions, values such as incomes matched as numbers of other countries. Presidio's
+  UK checks reject the ranges kept for fiction and testing (`QQ` National Insurance numbers, the
+  `ZZ99` postcode area, Ofcom's drama numbers) as they reject any unallocated value, so three
+  recognisers of the command's own match the shape alone of a National Insurance number, a
+  postcode and a UK phone number, at a low score that a column header naming what the column
+  holds raises (Presidio's context words). Which recognisers run is listed in the finding's
+  detector string, so a reader knows what was looked for.
 - **Column headers, field names and file names.** A Presidio recogniser of the command's own
   matches column headers (`name`, `surname`, `dob`, `address`, …), since names and places in
   values need NER. Field names and file names are matched by a keyword table, by category
@@ -152,19 +161,25 @@ browser scanner, below). It is configured, not taken with its defaults:
   in step with the ethics adviser's table, which the command may not import.
 - **Pinned exactly.** Presidio imports spaCy at module level, even with the `NoOpNlpEngine`.
   Until that import is optional upstream (raised with Presidio from #470), the browser bundle
-  (#555) carries a small import shim for spaCy, kept in the bundle's build and not in
-  `dd_inventory`, and Presidio is pinned to one version so that a release adding another spaCy
-  import cannot reach the bundle unnoticed.
+  (#555) leaves spaCy out and carries a stand-in for it, kept in the bundle's build
+  (`inventory/browser/bundle/spacy-stub/`) and not in `dd_inventory`, and Presidio is pinned to
+  one version so that a release adding another spaCy import cannot reach the bundle unnoticed.
+  `inventory/tests/test_spacy_stub.py` checks that the command makes the same inventory with the
+  stand-in as with spaCy.
 
 **What is scanned.** For a CSV or TSV table, the rows Frictionless samples to infer its fields
 (1,000), column by column, and its field names; every file and folder name; and free-text files
-of a few known suffixes (`.txt`, `.md`) under a size cap. Other formats are not
-read, and the limitations say so.
+of a few known suffixes (`.txt`, `.md`) of at most 256 KB. Other formats are not read, and the
+limitations say so, and how many text files were over the cap.
 
 **Thresholds for a finding.** A column is flagged when at least one sampled value matches a
 recogniser at or above Presidio's score of 0.5, and the proportion and the highest score are
 reported as bands. A lower score is not dropped: it is reported with a low confidence band, so a
-person sees it (#39: below a threshold, refer rather than pass).
+person sees it (#39: below a threshold, refer rather than pass). The confidence bands are `low`
+below 0.5, `medium` from 0.5 and below 0.85, and `high` from 0.85. A name that matches the
+keyword table is a finding of its category (`direct identifier`, `indirect identifier`,
+`special category`, `location`) with `medium` confidence; a folder's name is checked once, and
+its finding names the folder with a trailing slash.
 
 **Disclosure control.** [ACRO](https://github.com/AI-SDC/ACRO) (`acro`, the SACRO project's output
 checker, MIT) is a required dependency, behind one module, `dd_inventory.summaries`, with its
@@ -218,7 +233,10 @@ What the command and the app say about a result, in substance:
 - **Suppressed summaries:** "Some summary values were left out because fewer than *k* records
   shared them. They are not stored anywhere."
 
-The app's wording, and the next steps C2 asks for, are #471's; this is the substance they keep.
+The app says these (`PERSONAL_DATA_TEXT` in `@data-director/inventory`), with a third for an
+inventory made without the check, under **Possible personal data** in the inventory's view,
+before the inventory is added and after. The next steps C2 asks for, the pause and the referral
+to a person, are #471's and #987's.
 
 ## Rationale
 
@@ -278,13 +296,42 @@ The app's wording, and the next steps C2 asks for, are #471's; this is the subst
   for now summaries and the quasi-identifier check, run natively only. See the browser scanner
   above.
 
+## The detector comparison
+
+`inventory/evals/compare_detectors.py` runs each candidate detector through the command's own
+check on `inventory/tests/data/disclosure/evaluation/`. That evaluation set has 30 labelled
+places and 10 places of ordinary research metadata. Some of its columns have headers that say
+nothing (`col3`, `contact_2`), so a header cannot stand in for the values. Scores are reported side
+by side, never blended ([Evaluation and conformance](evaluation.md)). Results for #39, with
+presidio-analyzer 2.2.366, spaCy 3.8 and `en_core_web_sm` 3.8.0:
+
+| | Pattern recognisers only (the default) | With spaCy `en_core_web_sm` |
+|---|---|---|
+| E-mail, phone, NHS number, NI number, postcode, in values | 19 of 19 places | 19 of 19 |
+| Person names in values | 0 of 8 | 6 of 8 |
+| Addresses in values (as locations) | 0 of 2 | 2 of 2 |
+| Columns of ordinary metadata flagged | 0 of 10 | 3 of 10 (record references, species, specimen IDs) |
+| CPU per 1,000 values | about 33 ms | about 310 ms |
+| Adds to the command | nothing | 15 MB |
+| Runs in the browser | yes | no |
+| Licences | MIT | MIT (Presidio, spaCy, the model) |
+
+The comparison confirms Presidio's pattern recognisers as the default, in the command and the
+browser alike. They find every direct identifier with a pattern or checksum, and no ordinary
+metadata. Names and places in values need NER. spaCy finds most of them, at ten times the CPU, a
+model to install, false positives on ordinary metadata and no browser route. So it is an opt-in
+extra of the command (TODO(#1141)), whose findings are reported at their confidence for a
+person to judge, not a default that would flag ordinary metadata for everyone. GLiNER-PII and
+the OpenAI Privacy Filter, which need PyTorch, were not compared. Nor was column typing. These
+are synthetic cases: recall on real data will be lower.
+
 ## Open questions
 
-- Which detector #39's comparison confirms or replaces behind the same interface, TODO(#39).
 - Whether a deployment's profile may require a higher *k* for the inventories its project store
   accepts, and whether the harness re-checks a received inventory's disclosure record against
   it, TODO(#471).
 - Differencing between two scans of the same data (a revised inventory, or parts), which ACRO's
   linked-table check warns of and the command does not yet guard against, TODO(#611).
 - Whether names from values are ever detected in the browser, through an optional NER model
-  fetched only when the researcher asks, decided on #39's numbers, TODO(#39).
+  fetched only when the researcher asks. spaCy has no Pyodide build, so it would be another model
+  (GLiNER-PII through ONNX Runtime Web, say), compared as above first, TODO(#1141).

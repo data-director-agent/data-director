@@ -23,6 +23,8 @@
 # the three secrets the harness signs model grants with (docs/guide/operations/model-broker.md) go
 # in data-director-app.service.d/model-grants.conf, written by sync_app_model_grants for those of
 # them that exist, so an app without them still starts.
+# credentials/llm-gateway/ is the LiteLLM gateway's, which deploy/llm-gateway/scripts/systemd.sh
+# reads itself; it has no drop-in.
 
 # A secret's name: lower-case words joined by hyphens.
 SECRET_NAME='^[a-z0-9]+(-[a-z0-9]+)*$'
@@ -34,7 +36,7 @@ credential_variable() { # credential_variable SECRET
 }
 
 is_agent() { # is_agent NAME
-  [[ "$1" != app && "$1" != model-broker && "$1" =~ ^[a-z0-9-]+$ && -f "$AGENTS_DIR/$1.env" ]]
+  [[ "$1" != app && "$1" != model-broker && "$1" != llm-gateway && "$1" =~ ^[a-z0-9-]+$ && -f "$AGENTS_DIR/$1.env" ]]
 }
 
 # Why FILE cannot be used as a secret, or nothing if it can.
@@ -144,7 +146,7 @@ sync_all_credentials() {
   for dir in "$CREDENTIALS"/*/; do
     [[ -d "$dir" ]] || continue
     agent="$(basename "$dir")"
-    [[ "$agent" == app || "$agent" == model-broker ]] && continue
+    [[ "$agent" == app || "$agent" == model-broker || "$agent" == llm-gateway ]] && continue
     seen[$agent]=1
     if ! is_agent "$agent"; then
       echo "$CREDENTIALS/$agent: no deployed agent of that name (deploy/agents/$agent.env); its secrets are not loaded" >&2

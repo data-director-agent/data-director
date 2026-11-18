@@ -1,0 +1,49 @@
+@layer components {
+  .model-account {
+    margin-block: var(--space-6);
+  }
+
+  .model-account-form {
+    max-width: 40rem;
+  }
+
+  /* A suggestion beside the key field: the typed key looks like another provider's. */
+  .model-account-mismatch {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin-block-start: var(--space-2);
+  }
+
+  .model-account-mismatch p {
+    margin: 0;
+  }
+
+  .model-account-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-block: var(--space-4);
+  }
+
+  .preferences {
+    margin-block: var(--space-6);
+  }
+
+  .preference {
+    border: 0;
+    padding: 0;
+    margin-inline: 0;
+  }
+
+  .preference legend {
+    font-weight: var(--font-weight-strong);
+    padding: 0;
+    margin-bottom: var(--space-1);
+  }
+
+  .preference .field-check {
+    margin-block: var(--space-1);
+  }
+}

@@ -165,4 +165,50 @@ describe("ModelAccount", () => {
     await userEvent.click(within(group).getAllByRole("radio")[2] as HTMLElement);
     expect(await axe(container)).toHaveNoViolations();
   });
+
+  it("links to the provider's own page for creating a key, in a new tab", async () => {
+    renderWith(fakeApi());
+    await screen.findByLabelText("Anthropic API key");
+    const link = screen.getByRole("link", { name: /Anthropic/ });
+    expect(link).toHaveAttribute("href", expect.stringMatching(/^https:\/\//));
+    expect(link).toHaveAttribute("target", "_blank");
+  });
+
+  it("offers to switch to the provider a key's prefix belongs to, keeping the key", async () => {
+    const enrol = vi.fn(() => Promise.resolve(HELD));
+    renderWith(fakeApi({ enrol }), OFFERED);
+    const group = await screen.findByRole("group", { name: "Provider" });
+    await userEvent.click(within(group).getByRole("radio", { name: "OpenAI" }));
+    await userEvent.type(screen.getByLabelText("OpenAI API key"), KEY);
+
+    const field = screen.getByLabelText("OpenAI API key");
+    expect(field).toHaveAccessibleDescription(expect.stringContaining("Anthropic"));
+    await userEvent.click(screen.getByRole("button", { name: /Anthropic/ }));
+
+    expect(within(group).getByRole("radio", { name: "Anthropic" })).toBeChecked();
+    expect(screen.getByLabelText("Anthropic API key")).toHaveValue(KEY);
+    expect(screen.queryByRole("button", { name: /Anthropic/ })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Check and add" }));
+    expect(enrol).toHaveBeenCalledWith("anthropic", KEY);
+  });
+
+  it("suggests no provider the profile does not allow, nor one for an institution's service", async () => {
+    renderWith(fakeApi(), OFFERED);
+    const group = await screen.findByRole("group", { name: "Provider" });
+    await userEvent.type(screen.getByLabelText("Anthropic API key"), "AIza-not-offered-here");
+    expect(screen.queryByRole("button", { name: /instead/ })).toBeNull();
+
+    await userEvent.click(within(group).getAllByRole("radio")[2] as HTMLElement);
+    await userEvent.type(screen.getByLabelText("API key for the service"), KEY);
+    expect(screen.queryByRole("button", { name: /instead/ })).toBeNull();
+  });
+
+  it("has no accessibility violations while it suggests another provider", async () => {
+    const { container } = renderWith(fakeApi(), OFFERED);
+    const group = await screen.findByRole("group", { name: "Provider" });
+    await userEvent.click(within(group).getByRole("radio", { name: "OpenAI" }));
+    await userEvent.type(screen.getByLabelText("OpenAI API key"), KEY);
+    await screen.findByRole("button", { name: /Anthropic/ });
+    expect(await axe(container)).toHaveNoViolations();
+  });
 });

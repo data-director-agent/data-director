@@ -14,6 +14,10 @@ From it and the release's `app/config/agents.yaml` and `profile.yaml.example`, `
   rules it ran under (docs/guide/operations/configuration.md);
 - `model_accounts`, if the file has it, in the profile as written; the app checks it when it
   starts (docs/specs/model-accounts.md). Without it the profile has none, so the deployment pays;
+- the app's agent list, `agents.yaml` beside `deployment.yaml`, with `DD_AGENTS_CONFIG` naming it
+  in `app.env`: the release's list, with `model_broker: true` on each agent whose settings set
+  `DD_MODEL_BROKER_URL` (ddtool.agent_list). A release that changes the list reaches the app at
+  the next `apply`;
 - `DD_PRIVACY_NOTICE_URL` in `app.env`, from `privacy_notice`, which the app shows as a link in
   its footer; removed again when `privacy_notice` is unset. It is the operator's own notice for
   the instance, so it is not part of the profile and does not change the profile's digest;
@@ -24,7 +28,9 @@ From it and the release's `app/config/agents.yaml` and `profile.yaml.example`, `
 Agent settings stay in `agents/<name>.env` and secrets in `credentials/`: this file says only
 what runs. A model-backed agent runs only as the orchestrator, and `apply` refuses to turn one on
 without its key or, if it calls through the model broker, without its broker credential or with a
-provider key beside it (ddtool.model_access).
+provider key beside it (ddtool.model_access). While `model_accounts` lets people's own accounts
+pay, it refuses to turn on an agent that calls a model without the broker, as the app would refuse
+every run of it.
 """
 
 from __future__ import annotations
@@ -39,6 +45,14 @@ from typing import Any
 import yaml
 
 from ddtool import paths
+from ddtool.agent_list import (
+    AGENTS_CONFIG_VARIABLE,
+    FILE_NAME,
+    agent_list,
+    broker_refusals,
+    brokered_locally,
+    brokered_on_vm,
+)
 from ddtool.common import (
     MODEL_BACKED,
     MODEL_BY_DEFAULT,
@@ -51,7 +65,7 @@ from ddtool.common import (
     shown,
     update_env,
 )
-from ddtool.model_access import vm_model_access
+from ddtool.model_access import app_model_grants_pending, vm_model_access
 from ddtool.vm import (
     System,
     Vm,
@@ -321,27 +335,6 @@ def key_refusal(system: System, place: Place, vm: Vm | None, agent: Agent) -> st
     )
 
 
-# The secrets in credentials/app/ that the harness signs model grants with, which
-# deploy/credentials.sh loads into the app's model-grants.conf (docs/guide/operations/model-broker.md).
-APP_MODEL_GRANT_SECRETS = (
-    "model-grant-signing-key",
-    "model-broker-subject-key",
-    "pseudonym-secret",
-)
-
-
-def app_model_grants_pending(system: System, vm: Vm) -> str | None:
-    """The app's model-grant drop-in, if it does not load exactly the secrets in place. Only root
-    can see the secrets, so for anyone else this is None."""
-    if not system.is_root():
-        return None
-    dropin = vm.unit_dir / "data-director-app.service.d" / "model-grants.conf"
-    present = {n for n in APP_MODEL_GRANT_SECRETS if system.exists(vm.credentials / "app" / n)}
-    text = system.read(dropin) if system.readable(dropin) else ""
-    loaded = {n for n in APP_MODEL_GRANT_SECRETS if f"LoadCredential={n}:" in text}
-    return shown(dropin) if present != loaded else None
-
-
 def plan(system: System, place: Place, vm: Vm | None = None) -> tuple[Deployment, Plan]:
     agents = load_agents(place.source / "app" / "config" / "agents.yaml")
     if not place.deployment.is_file():
@@ -356,13 +349,29 @@ def plan(system: System, place: Place, vm: Vm | None = None) -> tuple[Deployment
     on_vm = place.unit_dir is not None
     group = SERVICE_GROUP if on_vm else None
     result.writes.append(Write(place.profile, profile(deployment, example, current), 0o640, group))
+    listed_names = [agent.name for agent in agents]
+    brokered = (
+        brokered_on_vm(system, vm, listed_names)
+        if vm is not None and on_vm
+        else brokered_locally(listed_names)
+    )
+    listed = place.etc / FILE_NAME
+    release_list = place.source / "app" / "config" / FILE_NAME
+    result.writes.append(Write(listed, agent_list(release_list, brokered, GENERATED), 0o640, group))
     result.app_env = (
         place.app_env,
-        {"DD_PROFILE": str(place.profile), PRIVACY_NOTICE_VARIABLE: deployment.privacy_notice},
+        {
+            "DD_PROFILE": str(place.profile),
+            AGENTS_CONFIG_VARIABLE: str(listed),
+            PRIVACY_NOTICE_VARIABLE: deployment.privacy_notice,
+        },
     )
     for agent in running:
         if refusal := key_refusal(system, place, vm, agent):
             result.refusals.append(refusal)
+    result.refusals += broker_refusals(
+        system, vm if on_vm else None, deployment.model_accounts, running, brokered
+    )
     if on_vm:
         assert place.unit_dir is not None
         result.writes.append(

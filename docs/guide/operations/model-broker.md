@@ -170,9 +170,9 @@ the broker asks it, once per run, which provider and model serve each model it d
 person whose account is with the mapped provider is served by the mapped model. The run records
 both the model that served each call and the one the agent declared.
 
-### The Profile page: adding one's own key
+### The Settings page: adding one's own key
 
-A person adds, replaces or removes their key on the Profile page. The browser sends the key to the
+A person adds, replaces or removes their key on the Settings page. The browser sends the key to the
 broker, not to the app, on the app's own site: NGINX passes `/broker/enrolment/` on to the broker
 on `127.0.0.1:8300`, and nothing else of the broker's
 ([`deploy/nginx/data-director.conf`](../../../deploy/nginx/data-director.conf)). To turn the page's
@@ -207,8 +207,11 @@ The secret's name becomes the variable, so only that name gives `DD_MODEL_BROKER
 A secret named `model-broker-credential` would give `MODEL_BROKER_CREDENTIAL_FILE`, which no agent
 reads, and the agent would refuse to start without its credential.
 
-Then mark it in `app/config/agents.yaml` (or the file `DD_AGENTS_CONFIG` names), which the
-harness reads and the agent cannot write:
+Then run `sudo data-director apply` (`dd.py start` applies it in development). It writes the
+app's agent list, `agents.yaml` beside `deployment.yaml`, and names it with `DD_AGENTS_CONFIG` in
+`app.env`: the release's `app/config/agents.yaml`, with `model_broker: true` on each agent whose
+settings set `DD_MODEL_BROKER_URL`. The harness reads that statement from the list alone, which the
+agent cannot write:
 
 ```yaml
   - name: orchestrator-model
@@ -217,11 +220,17 @@ harness reads and the agent cannot write:
     model_broker: true
 ```
 
+Do not edit the generated list: `apply` rewrites it. `deploy.sh` does not run `apply`, so a release
+that adds an agent or moves one to another port reaches the app at the next
+`sudo data-director apply`; `sudo data-director doctor` reports a list that no longer matches the
+live release.
+
 While own accounts are on, the harness runs no model-backed agent without `model_broker: true`:
 its runs fail with problem `model-broker-bypassed` and the agent is not called, since an agent
 holding its own provider key would ignore the grant and the deployment would pay without the run
-saying so. The harness logs each such agent when it starts. Mark an agent only once its
-environment is set as below.
+saying so. The harness logs each such agent when it starts. `apply` refuses to turn on an agent
+that calls a model without the broker while `model_accounts` lets people's own accounts pay, and
+`doctor` reports one.
 
 Remove its provider key (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` or
 `DD_MODEL_API_KEY`, and their `_FILE` forms): an agent that calls through the broker holds no
@@ -259,16 +268,19 @@ Other providers take the same two lines, with `openai-api-key` and `OPENAI_API_K
 
 If the deployment runs the [LiteLLM gateway](../../../deploy/llm-gateway/README.md), use a gateway
 key in place of each provider key. Then set `DD_BROKER_DEPLOYMENT_BASE_URL=http://127.0.0.1:4000` in
-`model-broker.env`. The deployment's calls then go through the gateway, whose budgets and spend
+`model-broker.env`. On a VM, `sudo deploy/install.sh --domain … --gateway` does both, and runs the
+gateway too ([deploy/README.md](../../../deploy/README.md#the-litellm-gateway)). The deployment's calls then go through the gateway, whose budgets and spend
 reports still apply: Anthropic's to its `/v1/messages`, and every other provider's to its
 `/v1/chat/completions`. The deployment pays for an `openai-compatible` call only through the
 gateway, with the gateway key in `DD_MODEL_API_KEY`. A call on a person's own key goes straight to
-their provider, never through the gateway.
+their provider, never through the gateway. The broker forwards the agent's model ID unchanged, so
+the gateway must serve it: its `config.yaml` serves Claude models by name and OpenAI and Gemini
+models by pattern ([Model names](../../../deploy/llm-gateway/README.md#model-names)).
 
 ### Custom endpoints
 
 A person's own `openai-compatible` account names its endpoint's base URL when they add it, under
-one of the origins the profile's `providers` lists for it; the Profile page offers no other. The
+one of the origins the profile's `providers` lists for it; the Settings page offers no other. The
 broker checks
 the key there, and later sends calls there, only if the origin is `https` and on
 `DD_BROKER_ALLOWED_BASE_URLS`; for a call, the profile's `model_accounts` (carried in the grant)
@@ -300,5 +312,5 @@ uv run dd-model-broker serve
 It reads the settings listed in `dd_broker.settings`. Docker Compose runs it with the
 `model-broker` profile. Its secrets are files in `config/local/credentials/model-broker/`, and its
 settings are in `config/local/model-broker.env`. The Vite dev server passes `/broker/enrolment/`
-on to it (`DD_BROKER_URL`, by default `http://127.0.0.1:8300`), so the Profile page works there
+on to it (`DD_BROKER_URL`, by default `http://127.0.0.1:8300`), so the Settings page works there
 once `config/local/app.env` sets `DD_APP_MODEL_BROKER_URL=/broker`.

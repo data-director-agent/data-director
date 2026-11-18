@@ -3,18 +3,19 @@
 
 Three core classes are filled. Within a project:
 
-- a `DraftRequest`'s `inventory`, `requirements`, `metadata_record`, `draft_answers` and
-  `researchers` are the project's own: whatever the caller sent is replaced, and a slot the
-  project has no value for is removed, so that an agent is never given facts a caller, or a
-  model, made up. The metadata
-  record is the version a person approved last, since a drafter treats it as supplied. The
-  answers are the latest a person recorded to each question of the project's documents of the
-  kind asked for (docs/specs/drafting.md, invariant 6): a drafter marks an answer
-  `supplied`, so no caller may send one. The `current_version` is the latest version of the
-  project's document of that kind drafted or revised last, or of the one `redraft_document`
-  names, so a drafter that revises it makes that document's next version. A `redraft_document`
-  that is not the project's, or is of another kind, is refused (`refusal`); outside a project it
-  is removed, since it names a project document;
+- a `DraftRequest`'s `inventory`, `requirements`, `metadata_record`, `draft_answers`,
+  `researchers` and `project_documents` are the project's own: whatever the caller sent is
+  replaced, and a slot the project has no value for is removed, so that an agent is never given
+  facts a caller, or a model, made up. The metadata record is the version a person approved last,
+  since a drafter treats it as supplied. The answers are the latest a person recorded to each
+  question of the project's documents of the kind asked for (docs/specs/drafting.md, invariant 6):
+  a drafter marks an answer `supplied`, so no caller may send one. The `project_documents` are the
+  documents a researcher attached, each with its text, from which a drafter's model may suggest
+  answers. The `current_version` is the latest version of the project's document of that kind
+  drafted or revised last, or of the one `redraft_document` names, so a drafter that revises it
+  makes that document's next version. A `redraft_document` that is not the project's, or is of
+  another kind, is refused (`refusal`); outside a project it is removed, since it names a project
+  document;
 - a plain `FileInventory` is the project's inventory, when it holds one;
 - a `Message`'s `project_inventory` says what the project's inventory is, so that an orchestrator
   knows the project holds one without being given its files; its `project_entry` and
@@ -45,15 +46,18 @@ hash covers what the agent was shown.
 `given` says which classes of project content (invariant 8) a filled input holds, so that the
 conductor can refuse to send `documentation` to an agent that calls a hosted model unless the
 profile's `hosted_models` allows it. An inventory, and what it is, are `inventory`. A metadata
-record, a version to regenerate and a person's answers are `documentation`. A repository's
+record, a version to regenerate, a person's answers and attached documents' text are
+`documentation`. A repository's
 requirements are the repository's, not the project's, and a `Message`'s entry point and progress
 say only which steps of the process flow have gone how far; they are neither. Nor is a project's
 title: a name a researcher typed, or a model wrote from what was said in the conversation, which
 the model is sent anyway. Nor is a `Message`'s `project_documentation`: it holds a document's
 file name, as a researcher gave it in the conversation, and never its text. Researcher facts
 are `researcher`: public, but personal, so they go to a hosted model only where the profile says.
-They add to what an agent is given and no agent needs them, so where the profile keeps them from
-an agent the conductor leaves them out (`leave_out`) rather than refusing the run. Decided facts
+They, and the text of attached documents, add to what an agent is given and no agent needs them,
+so where the profile keeps their class from an agent the conductor leaves them out (`leave_out`)
+rather than refusing the run; a metadata record, a version or answers withheld still refuse it,
+since the conductor classes what is left again. Decided facts
 are `decisions`: structured values about the project, which go to a hosted model unless the
 profile says otherwise. Without them a drafter would draft as if nothing had been decided, so
 where the profile keeps them from a drafter the run is refused; a `Message`'s are left out
@@ -119,7 +123,7 @@ class FactSource(
     conductor reads them from one snapshot of the project per invocation (`Projects.snapshot`)."""
 
 
-DOCUMENTATION_SLOTS = ("metadata_record", "current_version", "draft_answers")
+DOCUMENTATION_SLOTS = ("metadata_record", "current_version", "draft_answers", "project_documents")
 
 
 def give(
@@ -178,6 +182,7 @@ def give(
                 # Only answers a person recorded may be placed as supplied.
                 "draft_answers": _answers(store, project_id, filled.get("document_kind")),
                 "researchers": store.researchers(project_id),
+                "project_documents": _documents(store, project_id),
                 # Only facts a person decided, never a proposal.
                 "project_decisions": store.decisions(project_id),
             },
@@ -237,16 +242,18 @@ def given(
 
 def left_out(filled: Mapping[str, Any]) -> frozenset[str]:
     """The classes of project content in `filled` left out, rather than refused, where the
-    profile keeps them from an agent: researcher facts always, and a `Message`'s decided facts,
-    which an orchestrator does not need to draft anything."""
+    profile keeps them from an agent: researcher facts always, a `Message`'s decided facts,
+    which an orchestrator does not need to draft anything, and a `DraftRequest`'s attached
+    documents, from which a drafter only suggests answers."""
     if filled.get("schema_class") == MESSAGE:
         return frozenset({RESEARCHER, DECISIONS})
-    return frozenset({RESEARCHER})
+    return frozenset({RESEARCHER, DOCUMENTATION})
 
 
 def leave_out(filled: Mapping[str, Any], classes: frozenset[str]) -> dict[str, Any]:
     """`filled` without the content of `classes` that `left_out` says may be left out: its
-    researcher facts, and a `Message`'s decided facts."""
+    researcher facts, a `Message`'s decided facts, and a `DraftRequest`'s attached documents but
+    none of its other documentation."""
     kept = dict(filled)
     out = classes & left_out(filled)
     if RESEARCHER in out:
@@ -254,7 +261,19 @@ def leave_out(filled: Mapping[str, Any], classes: frozenset[str]) -> dict[str, A
             kept.pop(slot, None)
     if DECISIONS in out:
         kept.pop("project_decisions", None)
+    if DOCUMENTATION in out:
+        kept.pop("project_documents", None)
     return kept
+
+
+def _documents(store: FactSource, project_id: str) -> list[dict[str, Any]]:
+    """Each document the project holds, with its text, as a `ProjectDocument`."""
+    found = []
+    for summary in store.documentation(project_id):
+        text = store.documentation_text(project_id, summary["documentation_digest"])
+        if text is not None:
+            found.append({**summary, "documentation_text": text})
+    return found
 
 
 def summarise(

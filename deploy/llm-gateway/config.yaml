@@ -1,7 +1,10 @@
 # LiteLLM gateway configuration.
 # `model_name` is what clients ask for; `litellm_params.model` is the real provider model.
-# The Claude entries use the model IDs themselves, so Data Director agents (DD_MODEL_ID,
-# default claude-sonnet-5-5) can switch to the gateway without a configuration change.
+# A client's `model` must match a `model_name` here, or the gateway refuses the call. The entries
+# for the providers use the providers' own model IDs, so a Data Director agent keeps its
+# DD_MODEL_ID (default claude-sonnet-5-5) when its calls, or the model broker's, go through the
+# gateway: Claude by name, and OpenAI and Gemini by pattern (`gpt-*`, `gemini-*`), which serves
+# whichever model of that family the agent names. Patterns do not appear in /v1/models.
 # Costs for known models come from LiteLLM's built-in price map. Override with
 # input_cost_per_token / output_cost_per_token under model_info (USD per token).
 
@@ -17,16 +20,17 @@ model_list:
       model: anthropic/claude-haiku-5-5
       api_key: os.environ/ANTHROPIC_API_KEY
 
-  # --- OpenAI: replace the placeholder with a current model ID --------------
-  - model_name: gpt
+  # --- OpenAI: every gpt- model. A model outside that family, such as one of the o-series,
+  # needs an entry of its own, named by its ID.
+  - model_name: "gpt-*"
     litellm_params:
-      model: openai/REPLACE-WITH-OPENAI-MODEL-ID
+      model: "openai/gpt-*"
       api_key: os.environ/OPENAI_API_KEY
 
-  # --- Google Gemini (AI Studio key). For Vertex AI use vertex_ai/<model> ---
-  - model_name: gemini
+  # --- Google Gemini (AI Studio key): every gemini- model. For Vertex AI use vertex_ai/gemini-*.
+  - model_name: "gemini-*"
     litellm_params:
-      model: gemini/REPLACE-WITH-GEMINI-MODEL-ID
+      model: "gemini/gemini-*"
       api_key: os.environ/GEMINI_API_KEY
 
   # --- Local Ollama: tokens metered, cost zero ------------------------------

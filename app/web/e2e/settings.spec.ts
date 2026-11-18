@@ -1,6 +1,7 @@
 /**
- * The Profile page's own AI account in a browser (docs/specs/model-accounts.md, Enrolment): axe in
- * both schemes, and adding and removing an account by keyboard alone.
+ * The Settings page in a browser: the own AI account (docs/specs/model-accounts.md, Enrolment)
+ * with axe in both schemes and added and removed by keyboard alone, the preferences, and the way
+ * there from the banner and the Profile page.
  *
  * `/api/session` and `/api/model-account/ticket` are answered from the fixtures
  * app/tests/test_sign_in.py and app/tests/test_model_account.py keep current, and so is the model
@@ -74,10 +75,10 @@ async function axeViolations(page: Page) {
 }
 
 for (const scheme of ["light", "dark"] as const) {
-  test(`profile with a choice of providers, ${scheme}: no axe violations`, async ({ page }) => {
+  test(`settings with a choice of providers, ${scheme}: no axe violations`, async ({ page }) => {
     await useScheme(page, scheme);
     await serve(page, none, { status: 200, json: held }, OFFERED);
-    await page.goto("/profile");
+    await page.goto("/settings");
     await page.getByRole("radio", { name: "A model service your institution runs" }).check();
     await expect(page.getByLabel("Address of the service")).toBeVisible();
     expect(await axeViolations(page)).toEqual([]);
@@ -87,12 +88,12 @@ for (const scheme of ["light", "dark"] as const) {
     ["no account", none],
     ["an account", held],
   ] as const) {
-    test(`profile with ${name}, ${scheme}: no axe violations against WCAG 2.2 AA`, async ({
+    test(`settings with ${name}, ${scheme}: no axe violations against WCAG 2.2 AA`, async ({
       page,
     }) => {
       await useScheme(page, scheme);
       await serve(page, start, { status: 200, json: held });
-      await page.goto("/profile");
+      await page.goto("/settings");
       await expect(page.getByRole("heading", { name: "Your AI account" })).toBeVisible();
       await expect(page.getByRole("heading", { name: "Your token use" })).toBeVisible();
       expect(await axeViolations(page)).toEqual([]);
@@ -102,7 +103,7 @@ for (const scheme of ["light", "dark"] as const) {
 
 test("an account is added and removed by keyboard alone", async ({ page }) => {
   await serve(page, none, { status: 200, json: held });
-  await page.goto("/profile");
+  await page.goto("/settings");
   const field = page.getByLabel("Anthropic API key");
   await field.focus();
   await page.keyboard.type(KEY);
@@ -127,7 +128,7 @@ test("an account is added and removed by keyboard alone", async ({ page }) => {
 
 test("a key the provider refuses is explained and not kept on the page", async ({ page }) => {
   await serve(page, none, { status: 422, json: rejected });
-  await page.goto("/profile");
+  await page.goto("/settings");
   const field = page.getByLabel("Anthropic API key");
   await field.fill(KEY);
   await page.getByRole("button", { name: "Check and add" }).click();
@@ -138,7 +139,7 @@ test("a key the provider refuses is explained and not kept on the page", async (
 test("an OpenAI-compatible account is chosen and added by keyboard alone", async ({ page }) => {
   const sent: unknown[] = [];
   await serve(page, none, { status: 200, json: held }, OFFERED, sent);
-  await page.goto("/profile");
+  await page.goto("/settings");
   const first = page.getByRole("radio", { name: "Anthropic" });
   await first.focus();
   // Arrow keys move through a radio group and choose as they go.
@@ -164,7 +165,7 @@ test("an OpenAI-compatible account is chosen and added by keyboard alone", async
 test("preferences apply at once, survive a reload and can match the device", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "dark", reducedMotion: "no-preference" });
   await serve(page, none, { status: 200, json: held });
-  await page.goto("/profile");
+  await page.goto("/settings");
   const html = page.locator("html");
   const rootStyle = (property: string) =>
     page.evaluate((p) => getComputedStyle(document.documentElement).getPropertyValue(p), property);
@@ -190,4 +191,15 @@ test("preferences apply at once, survive a reload and can match the device", asy
   await expect(html).toHaveAttribute("data-text-size", "larger");
   await expect(html).toHaveAttribute("data-motion", "reduce");
   expect(await axeViolations(page)).toEqual([]);
+});
+
+test("the cog in the banner and the Profile page both lead to the settings", async ({ page }) => {
+  await serve(page, none, { status: 200, json: held });
+  await page.goto("/profile");
+  expect(await axeViolations(page)).toEqual([]);
+  await page.getByRole("main").getByRole("link", { name: "Settings" }).click();
+  await expect(page).toHaveURL(/\/settings$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Settings" })).toBeVisible();
+  const cog = page.getByRole("banner").getByRole("link", { name: "Settings" });
+  await expect(cog).toHaveAttribute("aria-current", "page");
 });

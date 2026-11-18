@@ -1,5 +1,5 @@
 /**
- * The person's preferences, on the profile page (docs/specs/app.md, "Preferences"): how the app
+ * The person's preferences, on the Settings page (docs/specs/app.md, "Preferences"): how the app
  * looks, how it writes dates and times, and which project it opens in. Each choice applies at
  * once and is kept in this browser only (`preferences.ts`); nothing here reaches the server.
  */

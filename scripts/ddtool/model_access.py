@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ddtool.common import PROVIDER_KEYS
+from ddtool.common import PROVIDER_KEYS, shown
 from ddtool.vm import System, Vm, loaded_secrets, read_settings
 
 BROKER_URL = "DD_MODEL_BROKER_URL"
@@ -78,3 +78,24 @@ def vm_model_access(system: System, vm: Vm, name: str) -> ModelAccess:
         or _stored(system, vm, name, BROKER_FILE)
     )
     return ModelAccess(bool((env.get(BROKER_URL) or "").strip()), credential, key, label)
+
+
+# The secrets in credentials/app/ that the harness signs model grants with, which
+# deploy/credentials.sh loads into the app's model-grants.conf (docs/guide/operations/model-broker.md).
+APP_MODEL_GRANT_SECRETS = (
+    "model-grant-signing-key",
+    "model-broker-subject-key",
+    "pseudonym-secret",
+)
+
+
+def app_model_grants_pending(system: System, vm: Vm) -> str | None:
+    """The app's model-grant drop-in, if it does not load exactly the secrets in place. Only root
+    can see the secrets, so for anyone else this is None."""
+    if not system.is_root():
+        return None
+    dropin = vm.unit_dir / "data-director-app.service.d" / "model-grants.conf"
+    present = {n for n in APP_MODEL_GRANT_SECRETS if system.exists(vm.credentials / "app" / n)}
+    text = system.read(dropin) if system.readable(dropin) else ""
+    loaded = {n for n in APP_MODEL_GRANT_SECRETS if f"LoadCredential={n}:" in text}
+    return shown(dropin) if present != loaded else None

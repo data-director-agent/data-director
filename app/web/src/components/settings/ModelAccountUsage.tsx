@@ -1,4 +1,4 @@
-/** The tokens used for a person in the last 30 days, in the Profile page's AI account section. */
+/** The tokens used for a person in the last 30 days, in the Settings page's AI account section. */
 
 import type { ModelAccount as Account } from "../../model-account/api";
 import { formatNumber } from "../../format";

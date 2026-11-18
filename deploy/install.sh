@@ -2,7 +2,11 @@
 # Set up an Ubuntu VM to run the Data Director and keep it deployed (deploy/README.md). Run as
 # root from a clone of the repository:
 #
-#   sudo deploy/install.sh --domain data-director.example.ac.uk
+#   sudo deploy/install.sh --domain data-director.example.ac.uk [--gateway]
+#
+# --gateway also runs the LiteLLM gateway on the VM, in Docker, and sends the model broker's
+# deployment-paid calls through it (deploy/README.md, "The LiteLLM gateway"). Once given, it stays
+# on: later runs keep the gateway up to date without it.
 #
 # It is safe to run again, and running it again is how a change to the systemd units or the
 # NGINX site reaches the VM. It never overwrites the files in /etc/data-director.
@@ -25,14 +29,18 @@ PYTHONS="$ROOT/python"
 STATE=/var/lib/data-director
 ETC=/etc/data-director
 
+GATEWAY_UNIT=data-director-llm-gateway.service
+
 domain=""
+gateway=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --domain) domain="$2"; shift 2 ;;
-    *) echo "usage: $0 --domain NAME" >&2; exit 2 ;;
+    --gateway) gateway=true; shift ;;
+    *) echo "usage: $0 --domain NAME [--gateway]" >&2; exit 2 ;;
   esac
 done
-[[ -n "$domain" ]] || { echo "usage: $0 --domain NAME" >&2; exit 2; }
+[[ -n "$domain" ]] || { echo "usage: $0 --domain NAME [--gateway]" >&2; exit 2; }
 [[ $EUID -eq 0 ]] || { echo "run as root (sudo)" >&2; exit 1; }
 
 step() { echo; echo "==> $*"; }
@@ -172,6 +180,75 @@ systemctl daemon-reload
 # $ROOT/restart-requested instead, and root's path unit restarts them: it may ask for that
 # restart and for nothing else, as the sudo rule it replaces did.
 systemctl enable --now data-director-restart.path
+
+# A VM that runs the gateway keeps running it, and gets this clone's copy of it on every run.
+if systemctl is-enabled --quiet "$GATEWAY_UNIT" 2>/dev/null; then
+  gateway=true
+fi
+if [[ "$gateway" == true ]]; then
+  step "LiteLLM gateway, on the VM's loopback only, port 4000"
+  # deploy/llm-gateway/scripts/systemd.sh says how it runs and where its settings are.
+  apt-get install -y -q docker.io docker-compose-v2
+  systemctl enable --now docker.service
+  # Docker runs what compose.yaml says as root, so the unit runs root's copy from this clone.
+  lib_gateway=/usr/local/lib/data-director/llm-gateway
+  install -d -m 0755 "$lib_gateway"
+  install -m 0644 "$SRC/deploy/llm-gateway/compose.yaml" "$SRC/deploy/llm-gateway/config.yaml" "$lib_gateway/"
+  install -m 0755 "$SRC/deploy/llm-gateway/scripts/systemd.sh" "$lib_gateway/systemd.sh"
+  new_file "$ETC/llm-gateway.env" "$SRC/config/examples/llm-gateway.env"
+  # The gateway's own secrets, made once. The salt key encrypts what the gateway stores, so it
+  # must never change: one that exists is kept.
+  gateway_credentials="$ETC/credentials/llm-gateway"
+  install -d -o root -g root -m 0700 "$gateway_credentials"
+  for secret in litellm-master-key litellm-salt-key postgres-password; do
+    if [[ ! -s "$gateway_credentials/$secret" ]]; then
+      (umask 077 && printf 'sk-%s' "$(openssl rand -hex 32)" >"$gateway_credentials/$secret")
+      echo "created $gateway_credentials/$secret"
+    fi
+  done
+  systemctl daemon-reload
+  systemctl enable "$GATEWAY_UNIT"
+  # restart, not start: a run of install.sh is how a new compose.yaml or config.yaml takes effect.
+  systemctl restart "$GATEWAY_UNIT"
+
+  # The model broker's key for the gateway, made once and tagged so that the gateway's spend
+  # reports show the broker's calls (deploy/llm-gateway/README.md, "With the model broker").
+  broker_key="$ETC/credentials/model-broker/gateway-api-key"
+  if [[ ! -s "$broker_key" ]]; then
+    made="$(LITELLM_URL=http://127.0.0.1:4000 \
+      LITELLM_MASTER_KEY="$(<"$gateway_credentials/litellm-master-key")" \
+      python3 "$SRC/deploy/llm-gateway/scripts/admin.py" key create model-broker \
+      --tags service:model-broker | sed -n 's/^key: //p')"
+    [[ "$made" == sk-* ]] || { echo "could not make the model broker's gateway key" >&2; exit 1; }
+    (umask 077 && printf '%s' "$made" >"$broker_key")
+    echo "created $broker_key"
+  fi
+  # The broker uses that key for every provider the deployment pays for. A key an operator has
+  # set in an override of the unit (systemctl edit) still comes after this and wins.
+  install -d -m 0755 /etc/systemd/system/data-director-model-broker.service.d
+  install -m 0644 /dev/stdin /etc/systemd/system/data-director-model-broker.service.d/llm-gateway.conf <<DROPIN
+# Written by deploy/install.sh --gateway: the deployment's calls go through the LiteLLM gateway,
+# with the broker's own gateway key ($broker_key).
+[Unit]
+Wants=$GATEWAY_UNIT
+After=$GATEWAY_UNIT
+
+[Service]
+LoadCredential=gateway-api-key:$broker_key
+Environment=ANTHROPIC_API_KEY_FILE=gateway-api-key
+Environment=OPENAI_API_KEY_FILE=gateway-api-key
+Environment=GEMINI_API_KEY_FILE=gateway-api-key
+Environment=DD_MODEL_API_KEY_FILE=gateway-api-key
+DROPIN
+  fill "$ETC/model-broker.env" DD_BROKER_DEPLOYMENT_BASE_URL http://127.0.0.1:4000
+  systemctl daemon-reload
+  systemctl try-restart data-director-model-broker.service
+  provider_keys=("$gateway_credentials"/*-api-key)
+  if [[ ! -e "${provider_keys[0]}" ]]; then
+    echo "The gateway has no provider key yet. Give it one, which restarts it:"
+    echo "  sudo data-director secret set llm-gateway anthropic-api-key"
+  fi
+fi
 
 step "Certificate for $domain"
 # The site names certbot's certificate, so it must exist before the site is installed. certbot

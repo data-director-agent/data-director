@@ -6,8 +6,9 @@
  * The rule: a package Pyodide builds is taken from Pyodide's lock, with Pyodide's own
  * dependencies for it, because Pyodide tested those versions together and compiles some of them
  * (pydantic-core, PyYAML, MarkupSafe, rpds-py); any other package is the workspace lock's pure
- * Python wheel. The command's own wheel depends on every other package, so installing it installs
- * the bundle.
+ * Python wheel. A package built here besides the command, such as the stand-in for spaCy
+ * (`spacy-stub/`), is added as it is. The command's own wheel depends on every other package, so
+ * installing it installs the bundle.
  */
 
 /** Pyodide's `pyodide-lock.json`, as much of it as the bundle reads and writes. */
@@ -36,7 +37,7 @@ export interface PylockPackage {
   wheels?: { url: string; size?: number; hashes: { sha256: string } }[];
 }
 
-/** The command's wheel, built from this commit. */
+/** The command's wheel, or another wheel built here, from this commit. */
 export interface CommandWheel {
   name: string;
   version: string;
@@ -142,14 +143,26 @@ function addFromPyodide(
   for (const dep of entry.depends) addFromPyodide(lock, normaliseName(dep), chosen, depends);
 }
 
-/** The bundle's wheels, the command's last, and the lock file Pyodide installs them from. */
+/**
+ * The bundle's wheels, the command's last, and the lock file Pyodide installs them from. `built`
+ * are other wheels built here, which the command's installation installs too.
+ */
 export function resolveBundle(
   pyodide: PyodideLock,
   workspace: PylockPackage[],
   command: CommandWheel,
+  built: CommandWheel[] = [],
 ): { wheels: BundleWheel[]; lock: PyodideLock } {
   const chosen = new Map<string, BundleWheel>();
   const depends = new Map<string, string[]>();
+  for (const wheel of built) {
+    const key = normaliseName(wheel.name);
+    if (key in pyodide.packages || workspace.some((p) => normaliseName(p.name) === key)) {
+      throw new BundleError(`${wheel.name} is built here and also locked elsewhere`);
+    }
+    chosen.set(key, { ...wheel, source: "command", from: null });
+    depends.set(key, []);
+  }
   for (const pkg of workspace) {
     if (!markerHolds(pkg.marker)) continue;
     const key = normaliseName(pkg.name);

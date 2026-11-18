@@ -1225,3 +1225,126 @@ def test_a_run_going_when_its_project_is_deleted_is_recorded_and_a_new_one_refus
         )
     assert projects.events(project) == before
     assert len(list(conductor.store.iter_envelopes())) == 1
+
+
+def attach(projects: ProjectStore, project: str) -> tuple[str, str]:
+    """The test principal attaches field notes to the project: their text and digest."""
+    text = "# Field notes\n\nSoil cores were taken at 10 cm, weekly from March.\n"
+    digest = projects.add_documentation(
+        project, "fieldnotes.md", "text/markdown", text, acted_for=TEST_PRINCIPAL, caused_by="t"
+    )
+    return text, digest
+
+
+@pytest.mark.requirement("R5")
+def test_a_draft_is_given_the_text_of_the_documents_a_researcher_attached(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """A `DraftRequest` in a project is given each attached document with its text, replacing
+    whatever the caller sent (docs/specs/projects.md, invariant 6)."""
+    conductor = conductor_over(tmp_path / "runs", projects, DocumentStub())
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    text, digest = attach(projects, project)
+    forged = draft_request(
+        project_documents=[
+            {
+                "documentation_name": "forged.md",
+                "documentation_digest": "0" * 64,
+                "documentation_media_type": "text/markdown",
+                "documentation_size": 1,
+                "documentation_added_at": "2026-01-01T00:00:00Z",
+                "documentation_text": "x",
+            }
+        ]
+    )
+
+    env = conductor.invoke(
+        in_conversation(request("stub.document", forged), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    [given] = stored_input(tmp_path / "runs", env.invocation_id)["project_documents"]
+    assert given["documentation_digest"] == digest
+    assert given["documentation_text"] == text
+
+
+def test_a_draft_in_a_project_with_no_documents_is_given_none(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    conductor = conductor_over(tmp_path / "runs", projects, DocumentStub())
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+
+    env = conductor.invoke(
+        in_conversation(request("stub.document", draft_request()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert not stored_input(tmp_path / "runs", env.invocation_id).get("project_documents")
+
+
+@pytest.mark.requirement("C13.5")
+def test_attached_documents_are_left_out_for_a_hosted_model_by_default(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """Attached documents' text is `documentation`, which the default `hosted_models` keeps from
+    a hosted model; it is left out and the draft still runs (invariant 8)."""
+    hosted = DocumentStub("hosted-model", hosting="hosted")
+    conductor = conductor_over(tmp_path / "runs", projects, hosted)
+    assert "documentation" not in conductor.profile.hosted_models
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    text, _ = attach(projects, project)
+
+    env = conductor.invoke(
+        in_conversation(request("stub.document", draft_request()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    stored = stored_input(tmp_path / "runs", env.invocation_id)
+    assert "project_documents" not in stored
+    assert text not in json.dumps(stored)
+
+
+@pytest.mark.requirement("C13.5")
+def test_a_metadata_record_withheld_still_refuses_when_documents_are_left_out(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """Leaving out attached documents does not let other withheld documentation through."""
+    hosted = DocumentStub("hosted-model", hosting="hosted")
+    conductor = conductor_over(tmp_path / "runs", projects, hosted)
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    attach(projects, project)
+    record_in(projects, project, approve=True)
+
+    env = conductor.invoke(
+        in_conversation(request("stub.document", draft_request()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+
+    assert env.outcome.status == OutcomeStatus.FAILED
+    assert env.problem is not None
+    assert env.problem.type == PROBLEM_BASE + "project-content-withheld"
+
+
+@pytest.mark.requirement("C13.5")
+def test_a_profile_may_let_a_hosted_model_be_given_attached_documents(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    hosted = DocumentStub("hosted-model", hosting="hosted")
+    conductor = withholding(
+        conductor_over(tmp_path / "runs", projects, hosted),
+        frozenset({"inventory", "documentation"}),
+    )
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    text, _ = attach(projects, project)
+
+    env = conductor.invoke(
+        in_conversation(request("stub.document", draft_request()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    [given] = stored_input(tmp_path / "runs", env.invocation_id)["project_documents"]
+    assert given["documentation_text"] == text
