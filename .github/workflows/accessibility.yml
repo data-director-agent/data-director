@@ -29,8 +29,10 @@ on:
 permissions:
   contents: read
 
+# Each commit to main has a group of its own, as in ci.yml: a shared one dropped the run of a
+# commit merged while another's was still going.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.sha || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
