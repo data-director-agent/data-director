@@ -24,6 +24,8 @@ disabled: []
 # profile as written. Leave it out and the deployment pays. It needs the model broker and the
 # grant secrets first (docs/guide/operations/model-broker.md); the app stops at start-up without
 # them. Choices: workbench/profiles/README.md, "People's own model accounts".
+# Every agent that calls a model must then call through the broker (DD_MODEL_BROKER_URL in its
+# settings); apply marks each in the app's agent list, and refuses an agent that does not.
 # model_accounts:
 #   own: allowed             # off, allowed or required
 #   fallback: deployment     # deployment or none

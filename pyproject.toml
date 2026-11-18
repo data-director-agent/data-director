@@ -350,7 +350,7 @@ mypy_path = [
   "agents/advisor-ethics/src", "agents/advisor-dmp/src", "agents/advisor-documentation/src", "agents/advisor-fairness/src",
   "agents/advisor-files/src", "agents/advisor-linking/src", "agents/advisor-metadata/src", "agents/advisor-rights/src",
   "agents/orchestrator-stub/src", "agents/orchestrator-model/src", "app/src", "app/tests", "admin/src", "broker/src", "inventory/src",
-  "harness/tests", "sdk/tests", "broker/tests",
+  "harness/tests", "sdk/tests", "broker/tests", "scripts/tests",
 ]
 strict = true
 warn_unreachable = true
