@@ -297,7 +297,10 @@ def _deployment_payment(broker: Broker, provider: str) -> _Payment:
     return _Payment(Payer.DEPLOYMENT, provider, Target(url=endpoint), key)
 
 
-def _provider_failure(status: int, payer: Payer) -> Refused:
+def _provider_failure(status: int, payment: _Payment) -> Refused:
+    # The status is logged, never the provider's text: it tells a rejected key from an outage.
+    payer = payment.payer
+    log.warning("provider=%s answered HTTP %d payer=%s", payment.provider, status, payer.value)
     if status in (401, 403):
         if payer is Payer.OWN:
             return Refused(403, Reason.MODEL_ACCOUNT_REJECTED)
@@ -346,10 +349,11 @@ async def _call(
         answer = await form.forwarding.send(
             client, payment.target, payment.key, body, request.headers
         )
-    except httpx.HTTPError:
+    except httpx.HTTPError as exc:
+        log.warning("provider=%s unreachable: %s", payment.provider, type(exc).__name__)
         raise Refused(502, Reason.PROVIDER_UNREACHABLE) from None
     if answer.status_code != 200:
-        raise _provider_failure(answer.status_code, payment.payer)
+        raise _provider_failure(answer.status_code, payment)
     try:
         document = answer.json()
     except ValueError:

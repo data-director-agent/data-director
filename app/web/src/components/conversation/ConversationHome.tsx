@@ -248,6 +248,9 @@ export function ConversationHome({ directory }: { directory: Directory }) {
               }
               chosenRepository={chosenRepository(project)}
               project={project}
+              onRetry={(message) =>
+                void turns.deliver(message, { inventory: null, document: null }, null)
+              }
               {...projectHandlers(projectId, answered, reloadProjects)}
             />
           )}
