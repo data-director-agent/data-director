@@ -196,11 +196,6 @@ clones = 1
 lines = 10
 
 [[pair]]
-files = ["app/src/dd_app/routes/materials.py", "app/src/dd_app/routes/progress.py"]
-clones = 1
-lines = 13
-
-[[pair]]
 files = ["app/web/src/App.tsx", "app/web/src/components/project/ResearcherPanel.tsx"]
 clones = 1
 lines = 7

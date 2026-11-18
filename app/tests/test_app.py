@@ -40,6 +40,8 @@ from dd_app.config import DEFAULT_AGENTS_CONFIG, DEFAULT_PROFILE, settings_from_
 from dd_app.governance import (
     Governance,
 )
+from dd_app.routes.meta import Policy, ProcessFlow
+from dd_app.routes.runs import RawAgentsResponse
 from dd_harness.identity import IdentityError, OperatorAssertion
 from dd_harness.policy import load_profile
 from dd_harness.registry import load_config
@@ -209,7 +211,7 @@ def test_api_policy_gives_the_profile_the_gate_holds_runs_to(governance: Governa
         assert agent["requires_approval"] is (
             agent["action_class"] in profile.actions_requiring_approval
         )
-    check_fixture("policy.json", body)
+    check_fixture("policy.json", body, model=Policy)
 
 
 def test_an_unbuilt_shell_stops_start_up(governance: Governance, tmp_path: Path):
@@ -252,7 +254,7 @@ def test_a_listed_agent_that_is_not_running_is_shown_unavailable(
 
 
 def test_the_reference_fixture_is_what_the_server_says(governance: Governance, dist: Path):
-    check_fixture("agents.json", agents_response(governance, dist))
+    check_fixture("agents.json", agents_response(governance, dist), model=RawAgentsResponse)
 
 
 def test_the_process_flow_is_the_blueprints(governance: Governance, dist: Path):
@@ -270,7 +272,7 @@ def test_the_process_flow_is_the_blueprints(governance: Governance, dist: Path):
         "optional": False,
         "out_of_scope": False,
     }
-    check_fixture("process-flow.json", body)
+    check_fixture("process-flow.json", body, model=ProcessFlow)
 
 
 def test_the_several_agents_fixture_is_what_the_server_says(env: Path, dist: Path):
@@ -284,7 +286,7 @@ def test_the_several_agents_fixture_is_what_the_server_says(env: Path, dist: Pat
         make_conductor(env, *agents, remote=False, profile=PERMISSIVE),
         OperatorAssertion(TEST_PRINCIPAL),
     )
-    check_fixture("agents-several.json", agents_response(governance, dist))
+    check_fixture("agents-several.json", agents_response(governance, dist), model=RawAgentsResponse)
 
 
 # Delegation (#129): the app is the conductor's callback, and its A2A routes take delegation

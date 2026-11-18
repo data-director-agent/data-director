@@ -13,24 +13,26 @@ body.
 
 from __future__ import annotations
 
-from typing import ClassVar
+from functools import partial
+from typing import ClassVar, Literal
 
-from pydantic import StrictInt
+from pydantic import MISSING, StrictInt
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
+from starlette.responses import Response
 from starlette.routing import Route
 
+from dd_app import contract_shapes as contract
 from dd_app.routes.common import (
     Deps,
-    Endpoint,
-    Handler,
     RequestBody,
+    ResponseBody,
     caused_by,
     in_project,
     parse_body,
     problem,
     project_refused,
+    respond,
 )
 from dd_harness.project_access import Action
 from dd_harness.projects import ProjectError, UnknownProjectError
@@ -64,12 +66,83 @@ class IntakeAnswer(RequestBody):
     answer_values: list[str]
 
 
-def routes(deps: Deps) -> list[Route]:
-    def read(handler: Handler) -> Endpoint:
-        return in_project(deps, Action.READ, handler)
+# How far a step has gone, as the project log shows it; a step left out is open.
+type StepState = Literal["started", "done", "skipped"]
+# Whether the intake still has a question to ask, has none left, or was dismissed.
+type IntakeState = Literal["pending", "complete", "dismissed"]
 
-    def contribute(handler: Handler) -> Endpoint:
-        return in_project(deps, Action.CONTRIBUTE, handler)
+
+class StepReason(ResponseBody):
+    """What decided a step's state: the log's work (`produced`), the researcher's mark
+    (`marked`), or an intake answer that skipped it (`intake`)."""
+
+    state: StepState
+    source: Literal["produced", "marked", "intake"]
+    event: str
+    """The kind of the deciding event."""
+    at: str | MISSING = MISSING
+    """When the deciding event was recorded, where the log says."""
+    document_id: str | MISSING = MISSING
+    """The document whose work decided a document step."""
+    document_kind: str | MISSING = MISSING
+    question_id: str | MISSING = MISSING
+    """The intake question whose answer skipped the step."""
+
+
+class Decision(ResponseBody):
+    """One of the intake's decision points (Blueprint §8's diamonds) with its current answer."""
+
+    question_id: str
+    prompt: str
+    before: str
+    """The step the decision sits before."""
+    asked: bool
+    """Whether it is asked from the project's entry point."""
+    answer_values: list[str] | None
+    answer_labels: list[str] | None
+
+
+class ProjectProgress(ResponseBody):
+    """Where a project is in the process flow, derived from its log on every read
+    (`dd_harness.progress.describe`): the entry point, each step started, done or skipped, and
+    the step to suggest next, which is never a gate."""
+
+    entry: int | None
+    entry_source: Literal["researcher", "model"] | None
+    """Who recorded the entry point: the researcher, or Data Director from what they said."""
+    steps: dict[str, StepState]
+    suggested: str | None
+    reasons: dict[str, StepReason]
+    """Why each step in `steps` is in its state, keyed the same."""
+    decisions: list[Decision]
+
+
+class IntakeQuestion(ResponseBody):
+    """One intake question asked from the project's entry point, with its current answer."""
+
+    question_id: str
+    """The intake's stable id, `intake.<name>`, which an answer is posted to."""
+    question: contract.Question
+    """The question as the contract's `Question` has it."""
+    answer_values: list[str] | None
+    """The values of the latest answer, or null while it has none."""
+    notices: dict[str, str] | MISSING = MISSING
+    """What an answer says to the researcher at once, by answer value; only for those that do."""
+
+
+class ProjectIntake(ResponseBody):
+    """Where a project's intake stands (`dd_harness.intake.describe`): the next question, every
+    question asked from the entry point with its answer, and the project's progress."""
+
+    state: IntakeState
+    next: str | None
+    questions: list[IntakeQuestion]
+    progress: ProjectProgress
+
+
+def routes(deps: Deps) -> list[Route]:
+    read = partial(in_project, deps, Action.READ)
+    contribute = partial(in_project, deps, Action.CONTRIBUTE)
 
     project = "/api/projects/{project_id}"
     return [
@@ -85,7 +158,7 @@ def routes(deps: Deps) -> list[Route]:
 
 async def get_progress(request: Request, _: Principal, deps: Deps) -> Response:
     project_id = request.path_params["project_id"]
-    return JSONResponse(await run_in_threadpool(deps.projects.progress, project_id))
+    return respond(ProjectProgress, await run_in_threadpool(deps.projects.progress, project_id))
 
 
 async def choose_entry(request: Request, person: Principal, deps: Deps) -> Response:
@@ -102,7 +175,7 @@ async def choose_entry(request: Request, person: Principal, deps: Deps) -> Respo
         )
     except ProjectError as exc:
         return project_refused(exc, project_id, PROGRESS_REFUSED)
-    return JSONResponse(progress, status_code=201)
+    return respond(ProjectProgress, progress, status_code=201)
 
 
 async def mark_step(request: Request, person: Principal, deps: Deps) -> Response:
@@ -120,12 +193,12 @@ async def mark_step(request: Request, person: Principal, deps: Deps) -> Response
         )
     except ProjectError as exc:
         return project_refused(exc, project_id, PROGRESS_REFUSED)
-    return JSONResponse(progress, status_code=201)
+    return respond(ProjectProgress, progress, status_code=201)
 
 
 async def get_intake(request: Request, _: Principal, deps: Deps) -> Response:
     project_id = request.path_params["project_id"]
-    return JSONResponse(await run_in_threadpool(deps.projects.intake, project_id))
+    return respond(ProjectIntake, await run_in_threadpool(deps.projects.intake, project_id))
 
 
 async def answer_intake(request: Request, person: Principal, deps: Deps) -> Response:
@@ -151,7 +224,7 @@ async def answer_intake(request: Request, person: Principal, deps: Deps) -> Resp
         raise
     except ProjectError as exc:
         return problem(409, "intake-answer-refused", INTAKE_REFUSED, str(exc))
-    return JSONResponse(intake, status_code=201)
+    return respond(ProjectIntake, intake, status_code=201)
 
 
 async def dismiss_intake(request: Request, person: Principal, deps: Deps) -> Response:
@@ -163,4 +236,4 @@ async def dismiss_intake(request: Request, person: Principal, deps: Deps) -> Res
             project_id, acted_for=person, caused_by=caused_by(request)
         )
     )
-    return JSONResponse(intake, status_code=201)
+    return respond(ProjectIntake, intake, status_code=201)

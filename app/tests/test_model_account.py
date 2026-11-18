@@ -25,6 +25,7 @@ from dd_app.app import Links, build_app
 from dd_app.config import EXAMPLE_PROFILE, settings_from_env
 from dd_app.governance import Governance
 from dd_app.model_accounts import BROKER_URL_VARIABLE, broker_path
+from dd_app.routes.session import Ticket
 from dd_broker.agents import AgentCredentials
 from dd_broker.app import Broker
 from dd_broker.app import build_app as build_broker
@@ -250,6 +251,7 @@ def test_a_signed_in_person_is_issued_a_ticket_naming_only_their_pseudonym(
     check_fixture(
         "model-account-ticket.json",
         body | {"ticket": "eyJ.ticket", "expires_at": "2026-11-13T12:02:00Z"},
+        model=Ticket,
     )
 
 

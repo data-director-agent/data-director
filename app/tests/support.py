@@ -13,6 +13,7 @@ from typing import Any
 import httpx
 import pytest
 import yaml
+from pydantic import ValidationError
 from starlette.testclient import TestClient
 
 from dd_agent_advisor_standards import factory as standards
@@ -23,6 +24,7 @@ from dd_app.config import DEFAULT_PROFILE, settings_from_env
 from dd_app.governance import (
     Governance,
 )
+from dd_app.responses import dump
 from dd_harness.conductor import Conductor
 from dd_harness.identity import OperatorAssertion
 from dd_harness.policy import load_profile
@@ -106,8 +108,25 @@ def _changed_keys(old: Any, new: Any, where: str = "") -> list[str]:
     return [] if old == new else [where or "."]
 
 
-def check_fixture(name: str, body: Any) -> None:
-    """`body` is what the fixture `name` holds; compared as JSON, so layout does not matter."""
+def conforms(body: Any, model: Any) -> None:
+    """`body` is what `model` (a `ResponseBody`, or a type built of them such as `list[...]`)
+    describes: it validates, and turns back into the same JSON, so the model neither drops,
+    adds nor converts anything."""
+    try:
+        again = dump(model, body)
+    except ValidationError as exc:
+        raise AssertionError(f"The body does not fit {model}:\n{exc}") from exc
+    if json.dumps(again, sort_keys=True) != json.dumps(body, sort_keys=True):
+        changed = ", ".join(_changed_keys(body, again)[:10]) or "a number's type"
+        raise AssertionError(f"{model} does not give back the body it read (changed: {changed}).")
+
+
+def check_fixture(name: str, body: Any, *, model: Any = None) -> None:
+    """`body` is what the fixture `name` holds; compared as JSON, so layout does not matter.
+    With `model`, the response model the route answers through, `body` must also be what it
+    describes (`conforms`); TODO(#1130): required once every route has one."""
+    if model is not None:
+        conforms(body, model)
     path = FIXTURES / name
     text = json.dumps(body, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
     fresh = json.loads(text)

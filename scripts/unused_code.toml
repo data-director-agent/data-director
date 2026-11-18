@@ -13,6 +13,11 @@ name = "projects_since"
 how = "the overview page calls it (admin/src/dd_admin/templates/overview.html)"
 
 [[reached]]
+path = "app/src/dd_app/responses.py"
+name = "field_title_should_be_set"
+how = "pydantic's GenerateJsonSchema calls it for each field as it builds the response schema"
+
+[[reached]]
 path = "agents/advisor-policy/src/dd_agent_advisor_policy/policy_text.py"
 name = "handle_data"
 how = "html.parser.HTMLParser calls it as it reads the page"
