@@ -56,18 +56,18 @@ linking:RelatedLink a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
-            sh:description "A suggested DataCite relationType, such as IsSupplementTo, for the researcher to confirm. Absent where the mock cannot tell." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 3 ;
-            sh:path linking:relation ],
-        [ sh:datatype xsd:string ;
             sh:description "The scheme it was recognised as, from schemes.yaml (doi, orcid, ror, grant), or unknown." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
             sh:path linking:scheme ],
+        [ sh:datatype xsd:string ;
+            sh:description "A suggested DataCite relationType, such as IsSupplementTo, for the researcher to confirm. Absent where the mock cannot tell." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path linking:relation ],
         [ sh:datatype xsd:boolean ;
             sh:description "Whether the identifier is well formed for its scheme. True does not mean it exists: nothing was resolved." ;
             sh:maxCount 1 ;

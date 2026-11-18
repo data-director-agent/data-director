@@ -224,12 +224,12 @@ def test_the_orchestrator_a_profile_names_must_be_an_agent_it_enables(tmp_path: 
 @pytest.mark.parametrize(
     ("written", "expected"),
     [
-        ("", {"inventory"}),
+        ("", {"inventory", "decisions"}),
         ("hosted_models: []\n", set()),
         ("hosted_models: [inventory, documentation]\n", {"inventory", "documentation"}),
     ],
 )
-def test_hosted_models_defaults_to_the_inventory_alone(
+def test_hosted_models_defaults_to_the_inventory_and_decided_facts(
     tmp_path: Path, written: str, expected: set[str]
 ) -> None:
     """docs/specs/projects.md, invariant 8."""

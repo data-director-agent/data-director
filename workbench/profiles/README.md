@@ -37,8 +37,9 @@ orchestrator: orchestrator.stub  # optional: the agent a person converses with i
                              # listed under `agents`. Without it the app offers no conversation.
 
 hosted_models:               # optional: the classes of project content an agent that calls a
-  - inventory                # hosted model may be given; `documentation` is the other. Without
-                             # this key only `inventory` may (docs/specs/projects.md, invariant 8)
+  - inventory                # hosted model may be given; `documentation`, `researcher` and
+  - decisions                # `decisions` are the others. Without this key `inventory` and
+                             # `decisions` may (docs/specs/projects.md, invariant 8)
 
 model_accounts:              # optional: whose model account pays; see "People's own model
   own: off                   # accounts" below. Without this key, as with `own: off`, the

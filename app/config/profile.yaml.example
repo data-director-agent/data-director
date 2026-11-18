@@ -27,11 +27,14 @@ agents:
 orchestrator: orchestrator.stub
 
 # The classes of project content an agent whose card declares a hosted model may be given
-# (docs/specs/projects.md, invariant 8). Without this key only `inventory` may. `documentation`
-# lets advisor.documentation write a project's documents with its hosted model.
+# (docs/specs/projects.md, invariant 8). Without this key `inventory` and `decisions` may.
+# `documentation` lets advisor.documentation write a project's documents with its hosted model;
+# `decisions` are the facts people decided, such as which files go in, without which a drafter's
+# run is refused once the project holds any.
 hosted_models:
   - inventory
   - documentation
+  - decisions
 
 # Whether people may use their own model account to pay for model calls
 # (docs/specs/model-accounts.md). Off: the deployment pays for every call, as before.

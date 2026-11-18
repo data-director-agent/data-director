@@ -41,7 +41,13 @@ repository:RepositoryCandidate a sh:NodeShape ;
     rdfs:comment "One repository. It is named only in grounded_on; its name, PID systems, access and upload conditions, certificates and metadata standards are in the cited evidence items' content (docs/specs/grounding.md). The judgements here are read from those records or compared with the needs." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
+    sh:property [ sh:description "Whether the registry lists a persistent identifier system the repository uses. re3data does not say whether assignment is automatic." ;
+            sh:in ( "yes" "no" "unstated" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 2 ;
+            sh:path repository:assigns_pids ],
+        [ sh:datatype xsd:string ;
             sh:description "The needs this repository meets, as recorded by its registry entries." ;
             sh:nodeKind sh:Literal ;
             sh:order 5 ;
@@ -99,13 +105,7 @@ repository:RepositoryCandidate a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 10 ;
-            sh:path repository:rationale_derivation ],
-        [ sh:description "Whether the registry lists a persistent identifier system the repository uses. re3data does not say whether assignment is automatic." ;
-            sh:in ( "yes" "no" "unstated" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 2 ;
-            sh:path repository:assigns_pids ] ;
+            sh:path repository:rationale_derivation ] ;
     sh:targetClass repository:RepositoryCandidate .
 
 repository:SearchedSummary a sh:NodeShape ;
@@ -113,6 +113,12 @@ repository:SearchedSummary a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
+            sh:description "Which copies of the registries answered, e.g. re3data:export:2026-11." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path repository:snapshot_ref ],
+        [ sh:datatype xsd:string ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path repository:queries ],
@@ -125,13 +131,7 @@ repository:SearchedSummary a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
-            sh:path repository:candidates_qualifying ],
-        [ sh:datatype xsd:string ;
-            sh:description "Which copies of the registries answered, e.g. re3data:export:2026-11." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path repository:snapshot_ref ] ;
+            sh:path repository:candidates_qualifying ] ;
     sh:targetClass repository:SearchedSummary .
 
 <https://w3id.org/data-director/GroundingRef> a sh:NodeShape ;
