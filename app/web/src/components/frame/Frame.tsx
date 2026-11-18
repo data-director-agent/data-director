@@ -2,7 +2,7 @@
  * The page frame: a skip link, the banner and one main landmark, then a footer that names the build.
  *
  * The banner holds the same things on every page (the name, the main navigation, who is signed
- * in, the settings and the dark mode switch), so nothing in it moves when the page changes.
+ * in, the and the settings), so nothing in it moves when the page changes.
  * What a page is about, and for whom it acts, is said in the page itself. The page's two live regions are
  * mounted here, once, so they are present from load (`ui/Announcer`).
  */
@@ -26,7 +26,6 @@ import type { ReactNode } from "react";
 import { Link } from "../../route";
 import { AnnouncerProvider } from "../ui/Announcer";
 import { FooterBuild } from "./FooterBuild";
-import { ThemeSwitch } from "./ThemeSwitch";
 
 // Projects first: the project is the unit of work that the rest belongs to (docs/specs/app.md).
 // The journey map follows it, as the project's place in the process is the next thing a person
@@ -144,7 +143,6 @@ export function Frame({
               <BannerIcon icon={SettingsIcon} />
               Settings
             </Link>
-            <ThemeSwitch />
           </div>
         </div>
       </header>
