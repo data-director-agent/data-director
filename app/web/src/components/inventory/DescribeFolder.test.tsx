@@ -383,8 +383,9 @@ describe("InventoryEditDialog with the scanner served", () => {
     const saveInventory = vi.fn<ProjectApi["saveInventory"]>().mockResolvedValue(saved);
     const { dialog, panel } = await openDialog(saveInventory);
     await userEvent.upload(folderInput(), [withPath("a.csv", "survey/a.csv"), withPath("b.csv", "survey/b.csv")]);
-    // Which folder the scan is of cannot change while the folder is described.
-    expect(within(dialog).getByLabelText("Scan of")).toBeDisabled();
+    // Which folder the scan is of cannot change while the folder is described. The dialog hears
+    // that the scan has begun once it has (`onScanning`), which may be after the upload returns.
+    await waitFor(() => expect(within(dialog).getByLabelText("Scan of")).toBeDisabled());
     expect(within(dialog).getByLabelText("New scan")).toBeDisabled();
     const rescan = {
       ...stored,
