@@ -8,6 +8,7 @@
     uv run scripts/dd.py start     # development: the agents, the app and the shell's dev server
     uv run scripts/dd.py doctor    # check everything and name the fix for each problem; changes nothing
     uv run scripts/dd.py apply     # make the instance what deployment.yaml says (--check: only say)
+    uv run scripts/dd.py edit      # edit deployment.yaml, checked before it is saved, then apply it
     uv run scripts/dd.py secret set AGENT SECRET | remove AGENT SECRET | list
     uv run scripts/dd.py backup    # VM: back up the settings, secrets and stores now
     uv run scripts/dd.py restore [--force] BACKUP   # VM: put a backup back (deploy/README.md)
@@ -17,8 +18,7 @@ On a VM deployed with deploy/install.sh, which installs this as `data-director`:
 
     sudo data-director doctor
     sudo data-director secret set orchestrator-model anthropic-api-key
-    sudoedit /etc/data-director/deployment.yaml      # orchestrator: model
-    sudo data-director apply
+    sudo data-director edit      # orchestrator: model; checks it, then offers to apply it
 
 `deployment.yaml` says what an instance runs: its name, the orchestrator (model or stub) and any
 agents disabled (scripts/ddtool/deployment.py). `apply` writes the rest from it.
@@ -48,6 +48,7 @@ from ddtool.backup import run_script
 from ddtool.common import DevError
 from ddtool.deployment import Place, apply
 from ddtool.doctor import doctor
+from ddtool.edit import edit
 from ddtool.new_agent import new_agent
 from ddtool.secret import secret
 from ddtool.setup import Prompter, setup
@@ -96,6 +97,16 @@ def _parser() -> argparse.ArgumentParser:
     apply_cmd.add_argument(
         "--check", action="store_true", help="say what would change, change nothing"
     )
+    edit_cmd = commands.add_parser(
+        "edit", help="edit deployment.yaml, check it before saving it, then offer to apply it"
+    )
+    after_edit = edit_cmd.add_mutually_exclusive_group()
+    after_edit.add_argument(
+        "--apply", dest="apply_now", action="store_true", default=None, help="apply without asking"
+    )
+    after_edit.add_argument(
+        "--no-apply", dest="apply_now", action="store_false", help="only save the file"
+    )
     secret_cmd = commands.add_parser(
         "secret", help="set, remove or list an agent's secrets, such as its model key"
     )
@@ -125,6 +136,12 @@ def _apply(target: str, args: argparse.Namespace) -> int:
     return apply(System(), place, vm if target == "vm" else None, check=args.check)
 
 
+def _edit(target: str, args: argparse.Namespace) -> int:
+    vm = Vm()
+    place = Place.vm(vm) if target == "vm" else Place.dev()
+    return edit(System(), place, vm if target == "vm" else None, apply_now=args.apply_now)
+
+
 def _doctor(target: str, args: argparse.Namespace) -> int:
     if target == "vm":
         return vm_doctor(as_json=args.json)
@@ -148,6 +165,7 @@ COMMANDS: dict[str, Callable[[str, argparse.Namespace], int]] = {
     ),
     "secret": lambda target, args: secret(target, args.args),
     "apply": _apply,
+    "edit": _edit,
     "doctor": _doctor,
 }
 

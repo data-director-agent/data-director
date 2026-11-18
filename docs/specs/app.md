@@ -187,7 +187,11 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     project holds. Under **Update with a new scan**, the researcher chooses which folder a new
     scan is of: the folder the inventory was made from, one of its folders, or a folder it does
     not have yet, which is added beside the others (naming, the first time, the folder it already
-    has). Only that folder is replaced (`withPart`); what the researcher stated is carried by
+    has). The scan is a folder described there in the browser, where the deployment serves the
+    scanner (**Describe a folder in this browser**, as in Make an inventory), or the file
+    `dd-inventory` wrote; while the browser describes it, which folder it is of cannot change
+    (`app/web/src/components/inventory/DescribeFolder.test.tsx`, `app/web/e2e/scan.spec.ts`).
+    Only that folder is replaced (`withPart`); what the researcher stated is carried by
     path, with what the scan added, changed and removed, and the files they had described that
     it no longer lists ([Projects](projects.md)). **Save as the project's inventory** sends
     the result to `POST /api/projects/{id}/inventory`, which adds it as the project's latest; the

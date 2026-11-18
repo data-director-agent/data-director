@@ -30,7 +30,7 @@ on loopback alone and is reached through an SSH tunnel.
 
 | File | What it does |
 |---|---|
-| `/usr/local/bin/data-director` | Installed by `install.sh`: `scripts/dd.py`, run from the clone, never from a release. `sudo data-director apply` makes the instance what `/etc/data-director/deployment.yaml` says; `doctor` checks the deployment; `secret …` is `secret.sh`. See "Changing the deployment" and "Day to day", and the [command reference](../docs/guide/operations/commands.md). |
+| `/usr/local/bin/data-director` | Installed by `install.sh`: `scripts/dd.py`, run from the clone, never from a release. `sudo data-director edit` changes `/etc/data-director/deployment.yaml`, checked before it is saved, and `apply` makes the instance what it says; `doctor` checks the deployment; `secret …` is `secret.sh`. See "Changing the deployment" and "Day to day", and the [command reference](../docs/guide/operations/commands.md). |
 | `secret.sh` | As root, gives an agent a secret such as its model key (`set`), takes it away (`remove`) or lists them (`list`); see "Secrets" below. |
 | `broker-credentials.sh` | As root, gives each agent named a model broker credential (through `secret.sh`) and writes the broker's `agent-credentials` list of their digests; see [The model broker](../docs/guide/operations/model-broker.md#on-a-vm). |
 | `credentials.sh` | Turns the files in `/etc/data-director/credentials/<agent>/` into that agent's credentials drop-in. `install.sh` and `secret.sh` use it. |
@@ -137,8 +137,8 @@ certificate from IT needs renewing by hand. One from certbot renews itself, and 
 `install.sh` adds reloads NGINX when it does.
 
 `install.sh` creates `/etc/data-director/deployment.yaml`, named after the first label of
-`--domain`, with the rule-based orchestrator. To change what runs, edit it and run
-`sudo data-director apply` ("Changing the deployment").
+`--domain`, with the rule-based orchestrator. To change what runs, run
+`sudo data-director edit` ("Changing the deployment").
 
 Keep the clone from step 2: `install.sh` and the `data-director` command run from it. The VM
 deploys from its own bare clone.
@@ -611,9 +611,11 @@ Try this once on a spare VM before it is needed, and after any change to `backup
   `scripts/check_deploy.py`, run in CI, fails until the two agree. Nothing else names it: once
   the release that adds it is live, `sudo data-director apply` starts it, and `doctor` says so
   until then ("not yet what deployment.yaml says").
-- **What runs** is `/etc/data-director/deployment.yaml`. Edit it, then run
-  `sudo data-director apply`, which runs from the clone as root and never from a release, so
-  `deploy.sh` cannot run it. `apply --check` says what would change.
+- **What runs** is `/etc/data-director/deployment.yaml`. Change it with
+  `sudo data-director edit`: it opens a copy in your editor (as you, not as root), saves it only
+  once it is valid, says what would change and offers to apply it. `sudo data-director apply`
+  applies the file as it stands. Both run from the clone as root and never from a release, so
+  `deploy.sh` cannot run them. `apply --check` says what would change.
 
 ## Moving a VM from the operator and password to sign-in
 
