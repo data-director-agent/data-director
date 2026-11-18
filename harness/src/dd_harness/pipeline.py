@@ -19,7 +19,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from dd_harness import grounding, model_accounts, policy, shacl
+from dd_harness import footprint, grounding, model_accounts, policy, shacl
 from dd_harness import observe as steps
 from dd_harness import sources as source_check
 from dd_harness.observe import cancelled_result
@@ -32,6 +32,7 @@ from dd_sdk.agent import AgentResult, AgentSpec, RunContext, typed_request
 from dd_sdk.contract import problem as problems
 from dd_sdk.contract import validate
 from dd_sdk.contract.models import (
+    EnergyMethod,
     Envelope,
     GroundingMode,
     Outcome,
@@ -183,13 +184,7 @@ def build_envelope(conductor: RunHost, run: RunState) -> None:
             spec.payload.digest if result.payload is not None and spec.payload else None
         ),
         evidence=result.evidence,
-        telemetry=Telemetry(
-            trace_id=run.trace_id,
-            model_id=result.model_id,
-            input_tokens=result.input_tokens,
-            output_tokens=result.output_tokens,
-            model_calls=list(run.model_calls),
-        ),
+        telemetry=_telemetry(run, profile.model_footprint),
         problem=run.prob,
         conversation_id=request.conversation_id,
         project_id=request.project_id,
@@ -292,6 +287,26 @@ def check_shapes(conductor: RunHost, run: RunState) -> None:
     ).report_bytes()
 
 
+def _telemetry(run: RunState, table: footprint.FootprintTable | None) -> Telemetry:
+    """The run's measurements. The energy slots are filled only when the profile's footprint
+    table gives a figure for every model call the run made (docs/specs/disclosure.md,
+    Footprint); otherwise they stay null and `not_measured`."""
+    assert run.result is not None
+    result, calls = run.result, list(run.model_calls)
+    energy = footprint.total(
+        footprint.estimate_call(table, c.model_id, c.input_tokens, c.output_tokens) for c in calls
+    ).energy_j
+    return Telemetry(
+        trace_id=run.trace_id,
+        model_id=result.model_id,
+        input_tokens=result.input_tokens,
+        output_tokens=result.output_tokens,
+        energy_estimate_j=energy,
+        energy_method=EnergyMethod.NOT_MEASURED if energy is None else EnergyMethod.ESTIMATED,
+        model_calls=calls,
+    )
+
+
 # 8. Store, trace file, provenance. Everything else a run keeps is a named artifact beside it
 # (docs/specs/storage.md).
 def store_run(conductor: RunHost, run: RunState) -> None:
@@ -311,7 +326,14 @@ def store_run(conductor: RunHost, run: RunState) -> None:
     if run.shapes_report is not None:
         store.put_artifact(run_id, VALIDATION, run.shapes_report)
     if conductor.write_crate:
-        crate = process_run_crate(run.doc, run.request_doc, spans, run.started, run.shapes_report)
+        crate = process_run_crate(
+            run.doc,
+            run.request_doc,
+            spans,
+            run.started,
+            run.shapes_report,
+            conductor.profile.model_footprint,
+        )
         for name, data in crate.items():
             store.put_artifact(run_id, f"{CRATE}/{name}", data)
 
