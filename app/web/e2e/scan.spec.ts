@@ -1,9 +1,9 @@
 /**
- * Describe a folder… in the built shell, with the real browser scanner (#554): a folder whose
- * files hold a canary string is described in the browser, its inventory checked and attached to a
- * message, and the message sent. The canary must be in no request the page makes, so in no body
- * the app's API is sent. A turn's body is what the harness would store, so no stored event can
- * hold it either. The scanner's worker must be sent its own Content Security Policy.
+ * Describe a folder… in the built shell, with the real browser scanner (#554), in Chromium, Firefox
+ * and WebKit: a folder whose files hold a canary string is described in the browser, its inventory
+ * checked and attached to a message, and the message sent. The canary must be in no request the
+ * page makes, so in no body the app's API is sent. A turn's body is what the harness would store,
+ * so no stored event can hold it either. The scanner's worker must be sent its own Content Security Policy.
  *
  * Needs the scanner's bundle: `npm ci && npm run bundle` in inventory/browser, which the preview
  * server then serves at /inventory-bundle/ (vite.config.ts). Chromium's own directory picker
@@ -48,6 +48,7 @@ test.afterAll(() => rmSync(root, { recursive: true, force: true }));
 test("a folder is described in the browser and none of its content leaves it", async ({
   page,
   baseURL,
+  browserName,
 }) => {
   test.setTimeout(150_000);
   const requests: Request[] = [];
@@ -75,7 +76,9 @@ test("a folder is described in the browser and none of its content leaves it", a
   await describe.locator('input[type="file"]').setInputFiles(folder);
 
   await expect(describe.getByRole("progressbar")).toBeVisible();
-  expect(await axeViolations(page)).toEqual([]);
+  // In Playwright's Firefox, axe crashes the page once `getByRole("region")` has been queried, with
+  // or without a scan running, so the dialog's accessibility is checked in Chromium and WebKit.
+  if (browserName !== "firefox") expect(await axeViolations(page)).toEqual([]);
   expect((await worker).headers()["content-security-policy"]).toBe(WORKER_POLICY);
 
   const review = page.getByRole("dialog", { name: "Check the inventory before attaching it" });

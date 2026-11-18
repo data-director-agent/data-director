@@ -1,7 +1,7 @@
 /**
- * The browser scanner in Chromium: the command, under Pyodide in a worker that has no network,
- * describes a folder chosen with `<input webkitdirectory>` as the command does natively, and no
- * file's content leaves the browser.
+ * The browser scanner in Chromium, Firefox and WebKit: the command, under Pyodide in a worker that
+ * has no network, describes a folder chosen with `<input webkitdirectory>` as the command does
+ * natively, and no file's content leaves the browser.
  */
 
 import { expect, test, type Page, type Request } from "@playwright/test";
@@ -44,14 +44,42 @@ async function outcomeOf(page: Page): Promise<ScanOutcome> {
   return (await outcome.jsonValue()) as ScanOutcome;
 }
 
-test("describes a folder as the command does, and sends none of it", async ({ page }) => {
+/** Whether the folder's `<input>` offered any hidden file or folder to the page. */
+async function offeredHidden(page: Page): Promise<boolean> {
+  const paths = await page.evaluate(() =>
+    [...(document.querySelector<HTMLInputElement>("#folder")?.files ?? [])].map(
+      (file) => file.webkitRelativePath,
+    ),
+  );
+  return paths.some((path) => path.split("/").some((part) => part.startsWith(".")));
+}
+
+/**
+ * WebKit's `<input webkitdirectory>` offers no hidden file or folder, so the command never sees
+ * them and cannot say it skipped them. Its inventory is the command's without that sentence
+ * (README.md, Browser scanner).
+ */
+function withoutHiddenSentence(inventory: Inventory): Inventory {
+  const limitations = (inventory.inventory_limitations as string[]).filter(
+    (sentence) => !sentence.includes("hidden file(s) or folder(s)"),
+  );
+  return { ...inventory, inventory_limitations: limitations };
+}
+
+test("describes a folder as the command does, and sends none of it", async ({
+  page,
+  browserName,
+}) => {
   const requests = recordRequests(page);
   await chooseFolder(page);
+  const hidden = await offeredHidden(page);
+  expect(hidden).toBe(browserName !== "webkit");
   const outcome = await outcomeOf(page);
   expect(outcome.status, JSON.stringify(outcome)).toBe("done");
   const inventory = JSON.parse((outcome as { inventory: string }).inventory) as Inventory;
 
-  const native = nativeInventory(folder);
+  const command = nativeInventory(folder);
+  const native = hidden ? command : withoutHiddenSentence(command);
   const version = String(inventory.inventory_tool_version);
   const runtime = version.slice(version.indexOf("+") + 1);
   expect(runtime).toMatch(/^pyodide\./);

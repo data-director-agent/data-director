@@ -73,9 +73,14 @@ inventory itself, running the same `dd-inventory` code as the command. None of y
 anywhere: the app attaches only the inventory, and only after you have checked it (below). You can
 also drop the folder onto that part of the dialog.
 
-Chrome and Edge ask whether to let the site **view** the files in the folder; allow it. Some other
-browsers ask whether to **upload** the files instead. That is the browser's standard wording for
-choosing a folder: nothing is uploaded.
+This works in current versions of Chrome, Edge, Firefox and Safari. Chrome and Edge ask whether to
+let the site **view** the files in the folder; allow it. Some other browsers ask whether to
+**upload** the files instead. That is the browser's standard wording for choosing a folder:
+nothing is uploaded.
+
+Safari does not show a folder's hidden files (those whose names begin with `.`) to the page. The
+inventory is otherwise the same, but it does not mention them, as one made in another browser or
+with the command does.
 
 The first time, your browser fetches the scanner (about 16 MB), so allow a little longer; after
 that it keeps a copy. Describing a folder in the browser is slower than the command, by about

@@ -125,7 +125,7 @@ only the inventory comes back to the page.
    `<input type="file" webkitdirectory>`, and `fromEntries` a dropped folder's
    `webkitGetAsEntry()`. Each gives a `ChosenFolder`: the folder's name and every file under it,
    by its path relative to the folder. Hidden files are kept; the command skips and counts them
-   itself. Prefer the directory picker where there is one: Chromium's prompt for
+   itself. WebKit's `webkitdirectory` offers none to the page, though (below). Prefer the directory picker where there is one: Chromium's prompt for
    `webkitdirectory` asks whether to *upload* the files, which is not what happens.
 2. **The bundle.** The page fetches the whole bundle with `fetchBundle(baseUrl)` and hands it to
    the worker, which has no network: it imports Pyodide's two scripts from `blob:` URLs made of
@@ -153,12 +153,13 @@ default-src 'none'; script-src blob: 'wasm-unsafe-eval'; connect-src 'none'
 built worker, `assets/inventory-scanner-<hash>.js` (`dd_app.worker_policy`, and its preview
 server), and serves the bundle at `/inventory-bundle/` where it has been built.
 
-`npm run e2e` (after `npm run bundle`) proves this in Chromium. `e2e/vite.config.ts` builds a test
-page and serves it with the bundle from one origin, sending the worker the policy above. The test
-copies `../tests/data/mixed`, adds a file holding a canary string, chooses the copy through
-`webkitdirectory`, and checks that the inventory equals the command's on the same copy (apart from
-when it was made and the runtime's label), that progress reached the last file, and that every
-request was a `GET` of the page or the bundle with no body and no canary. CI's **Inventory
+`npm run e2e` (after `npm run bundle`) proves this in Chromium, Firefox and WebKit.
+`e2e/vite.config.ts` builds a test page and serves it with the bundle from one origin, sending the
+worker the policy above. The test copies `../tests/data/mixed`, adds a file holding a canary
+string, chooses the copy through `webkitdirectory`, and checks that the inventory equals the
+command's on the same copy (apart from when it was made and the runtime's label, and in WebKit the
+hidden-file sentence), that progress reached the last file, and that every request was a `GET` of
+the page or the bundle with no body and no canary. CI's **Inventory
 browser bundle (parity)** job runs it after the parity check.
 
 What differs from the command on disk:
@@ -184,4 +185,11 @@ What differs from the command on disk:
   **Describe a folder…** advises the command before describing a folder with a file of 4 GB or
   more, and describes it only if the researcher goes on
   (`app/web/src/components/inventory/LargeFileNotice.tsx`).
-- **Browsers.** CI runs Chromium only. Firefox and Safari need a manual check.
+- **Browsers.** CI runs the scanner, and the app's **Describe a folder…** from choosing to
+  attaching, in Playwright's Chromium, Firefox and WebKit (the engine of Safari). Firefox and
+  WebKit have no `showDirectoryPicker`, so they always take a folder through `webkitdirectory` or
+  a drop. WebKit's `webkitdirectory` offers no hidden file or folder, so the command never sees
+  them and its inventory leaves out the sentence saying they were skipped; the files it describes
+  are the same. The app's accessibility check of the dialog runs in Chromium and WebKit only: in
+  Playwright's Firefox, axe crashes the page after a `getByRole("region")` query, with or without
+  a scan.
