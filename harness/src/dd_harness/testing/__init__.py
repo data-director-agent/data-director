@@ -36,6 +36,7 @@ from dd_harness.testing.classes import (
     ProbeDocumentRequest,
     ProbeFindings,
     ProbeProfile,
+    ProbeReading,
     ProbeRecord,
     ProbeReview,
 )
@@ -127,6 +128,7 @@ __all__ = [
     "ProbeDocumentRequest",
     "ProbeFindings",
     "ProbeProfile",
+    "ProbeReading",
     "ProbeRecord",
     "ProbeReview",
     "Retrieve",

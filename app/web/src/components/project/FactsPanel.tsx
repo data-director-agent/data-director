@@ -61,6 +61,12 @@ function Proposal({
     <article className="fact-card" aria-label={`${KIND_LABELS[fact.fact_kind]}: ${describeFact(fact)}`}>
       <h4>{KIND_LABELS[fact.fact_kind]}</h4>
       <p>{describeFact(fact)}</p>
+      {fact.commitment_quote && (
+        <figure className="fact-quote">
+          <figcaption>The plan's words:</figcaption>
+          <blockquote>{fact.commitment_quote}</blockquote>
+        </figure>
+      )}
       {fact.proposed_because && (
         <p>
           <strong>Why it was proposed:</strong> {fact.proposed_because}

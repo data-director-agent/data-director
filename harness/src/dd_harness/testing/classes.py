@@ -11,7 +11,14 @@ from typing import Literal
 
 from pydantic import Field
 
-from dd_sdk.contract.models import Derivation, DocumentKind, Frozen, Grounded, ProjectFact
+from dd_sdk.contract.models import (
+    Derivation,
+    DocumentKind,
+    Frozen,
+    Grounded,
+    ProjectDocument,
+    ProjectFact,
+)
 
 
 class ProbeRecord(Frozen):
@@ -36,6 +43,13 @@ class ProbeProfile(Frozen):
 class ProbeDocumentRequest(Frozen):
     schema_class: Literal["ProbeDocumentRequest"] = "ProbeDocumentRequest"
     document_kind: DocumentKind
+
+
+class ProbeReading(Frozen):
+    schema_class: Literal["ProbeReading"] = "ProbeReading"
+    title: str | None = None
+    project_documents: list[ProjectDocument] = Field(default_factory=list)
+    project_decisions: list[ProjectFact] = Field(default_factory=list)
 
 
 class ProbeReview(Grounded):

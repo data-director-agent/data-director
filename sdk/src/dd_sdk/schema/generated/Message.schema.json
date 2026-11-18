@@ -202,7 +202,8 @@
             "required_repository",
             "file_inclusion",
             "sensitivity",
-            "licence"
+            "licence",
+            "sharing_commitment"
          ],
          "title": "FactKind",
          "type": "string"
@@ -381,9 +382,31 @@
                      "licence_id"
                   ]
                }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "sharing_commitment"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "commitment_document": {},
+                     "commitment_quote": {}
+                  },
+                  "required": [
+                     "commitment_quote",
+                     "commitment_document"
+                  ]
+               }
             }
          ],
-         "description": "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, or the licence (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because.",
+         "description": "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, the licence, or an output a data management plan committed to share (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because.",
          "properties": {
             "fact_kind": {
                "$ref": "#/$defs/FactKind",
@@ -499,6 +522,42 @@
             },
             "licence_id": {
                "description": "The licence decided, as an SPDX identifier or a URL.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "commitment_repository": {
+               "description": "For a sharing commitment, the repository the plan committed to share the output in, as the plan names it; absent where it names none.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "commitment_access": {
+               "description": "For a sharing commitment, how openly the plan committed to share the output (such as open, embargoed or on request), as the plan says it; absent where it says nothing.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "commitment_licence": {
+               "description": "For a sharing commitment, the licence the plan committed to, as the plan names it; absent where it names none.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "commitment_quote": {
+               "description": "For a sharing commitment, the plan's own words the commitment was read from, verbatim, so the person deciding can see the passage it rests on.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "commitment_document": {
+               "description": "For a sharing commitment, the digest of the attached document's text (its documentation_digest) the quote is from.",
+               "pattern": "^[0-9a-f]{64}$",
                "type": [
                   "string",
                   "null"
