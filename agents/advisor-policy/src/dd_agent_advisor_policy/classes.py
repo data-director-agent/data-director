@@ -11,7 +11,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from dd_sdk.contract.models import Derivation, Frozen, Grounded
+from dd_sdk.contract.models import Derivation, Frozen, Grounded, ProjectFact
 
 
 class ActorRole(StrEnum):
@@ -67,6 +67,8 @@ class PolicyContext(Frozen):
     disciplines: list[str] = Field(default_factory=list)
     data_kinds: list[str] = Field(default_factory=list)
     publication_date: str | None = Field(default=None, pattern=r"^\d{4}(-\d{2}(-\d{2})?)?$")
+    # Filled by the conductor in a project (`GivenProjectDecisions`).
+    project_decisions: list[ProjectFact] = Field(default_factory=list)
 
 
 class Obligation(Frozen):

@@ -11,7 +11,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from dd_sdk.contract.models import Derivation, Frozen, Grounded
+from dd_sdk.contract.models import ChosenRepository, Derivation, Frozen, Grounded, ProjectFact
 
 
 class AccessNeed(StrEnum):
@@ -23,6 +23,7 @@ class AccessNeed(StrEnum):
 class CandidateBasis(StrEnum):
     MANDATED = "mandated"
     RECOMMENDED = "recommended"
+    CHOSEN = "chosen"
 
 
 class Answer(StrEnum):
@@ -49,6 +50,9 @@ class RepositoryNeeds(Frozen):
     mandated: list[RepositoryRef] = Field(default_factory=list)
     affiliation: Affiliation | None = None
     country: str | None = Field(default=None, pattern=r"^[A-Z]{3}$")
+    # Filled by the conductor in a project (`GivenProjectDecisions`, `GivenProjectRepository`).
+    project_decisions: list[ProjectFact] = Field(default_factory=list)
+    project_repository: ChosenRepository | None = None
 
 
 class RepositoryCandidate(Grounded):

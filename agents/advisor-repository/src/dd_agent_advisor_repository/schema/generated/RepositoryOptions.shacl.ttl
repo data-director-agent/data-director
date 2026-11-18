@@ -90,7 +90,7 @@ repository:RepositoryCandidate a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 8 ;
             sh:path repository:ranked_by ],
-        [ sh:in ( "mandated" "recommended" ) ;
+        [ sh:in ( "mandated" "recommended" "chosen" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 0 ;

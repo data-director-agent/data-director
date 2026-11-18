@@ -29,7 +29,10 @@ classes:
   PolicyContext:
     description: >-
       Who funds, publishes and hosts the research, and what the data is. The agent looks up each
-      actor's data policy.
+      actor's data policy. In a project the conductor also gives the facts people decided: each
+      decided funder is an actor, whether or not the caller named it.
+    mixins:
+      - GivenProjectDecisions
     slots:
       - schema_class
       - actors

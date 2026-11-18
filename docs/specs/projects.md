@@ -124,7 +124,12 @@ intended design, and each part says where it is not built yet.
    conductor fills it as it fills a `DraftRequest`'s, by slot name and never by the class's name,
    and outside a project what the caller sent is kept, as for a `DraftRequest`
    (`dd_harness.project_facts.agent_slots`, `harness/tests/test_project_agent_inputs.py`,
-   `harness/tests/test_project_repository_given.py`).
+   `harness/tests/test_project_repository_given.py`). `advisor.dmp` reads decided facts this way;
+   `advisor.repository` mandates each decided required repository and describes the chosen one
+   when asked nothing else, `advisor.rights` takes a decided licence as the mandated licence and a
+   decision to withhold or generalise as saying the data are sensitive, and `advisor.policy` looks
+   up each decided funder's policy. Each takes a person's decision over what its caller wrote
+   (each agent's `given.py`).
    Filling any other class is not built yet.
 7. **The conductor fills `project_id`.** The request and the envelope carry an optional
    `project_id`, which the conductor takes from the conversation and a caller cannot set. A

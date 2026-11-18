@@ -25,6 +25,7 @@ from typing import Any
 
 import yaml
 
+from dd_agent_advisor_rights import given
 from dd_agent_advisor_rights.classes import (
     AccessOption,
     LicenceOption,
@@ -149,8 +150,9 @@ class RightsAdviser:
         )
 
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
-        context = request.input
-        assert isinstance(context, RightsContext)  # the conductor checked spec.accepts
+        assert isinstance(request.input, RightsContext)  # the conductor checked spec.accepts
+        # What people in the project decided takes precedence over what the caller wrote.
+        context = given.with_project(request.input)
         if (
             context.reuse_wanted is None
             and context.sensitive is None
