@@ -29,8 +29,11 @@
 #
 # A section with `suggest: true` may have a model's suggested answer offered beside its question,
 # never written into the README (docs/specs/drafting.md, invariant 7). Only a section whose answer
-# the facts can inform is marked: never the methods, people, dates, places or citation, which only
-# the researcher can give, and never a section with parts.
+# the facts can inform is marked: never the people, dates, places or citation, which only the
+# researcher can give, and never a section with parts. `suggest: documents` marks a section a
+# model may suggest only from the documents the researcher attached, and only when there are
+# some: the methods, which the researcher's own field notes or protocol can say and nothing else
+# can.
 #
 # The README names people; their identifiers, affiliations and contact details belong to the
 # metadata record, so it does not ask for them.
@@ -61,6 +64,7 @@
   suggest: true
   ask: how the files relate to one another, and any related data not included.
 - heading: Methods
+  suggest: documents
   ask: >-
     how the data were collected and processed; the software and instruments, with their versions;
     the standards, calibration and quality assurance applied.

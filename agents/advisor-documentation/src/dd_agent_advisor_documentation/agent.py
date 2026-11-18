@@ -13,7 +13,9 @@ data dictionary's questions about a field's definition or unit, and to the quest
 sections `readme.yaml` marks `suggest` (`prose.py`, `suggest`). The suggestion is offered with the
 question (`suggested_answer`) and never placed in the document: the draft is made by rule before
 the model is asked, and a suggestion becomes `supplied` only when the researcher records it, or a
-correction of it, as their answer (docs/specs/drafting.md, invariant 7).
+correction of it, as their answer (docs/specs/drafting.md, invariant 7). Only for suggestions is
+the model also given the documents the researcher attached (`project_documents`, `with_documents`),
+and only then is it asked about the README's Methods (`suggest: documents`, `sections.py`).
 
 A README also takes, as given, the title, creators, dates of data collection, geographic
 location, funding, abstract and licence of the project's approved metadata record, when the
@@ -49,10 +51,7 @@ import io
 import json
 from collections.abc import Mapping, Sequence
 from enum import StrEnum
-from pathlib import Path
-from typing import Any, NamedTuple
-
-import yaml
+from typing import Any
 
 from dd_agent_advisor_documentation.prose import (
     Ask,
@@ -60,7 +59,11 @@ from dd_agent_advisor_documentation.prose import (
     Suggestions,
     TemplateWriter,
     Writer,
+    count,
+    how_suggested,
+    with_documents,
 )
+from dd_agent_advisor_documentation.sections import RECORD_GENERAL, Section, load_sections
 from dd_sdk.agent import (
     AgentResult,
     AgentSpec,
@@ -90,20 +93,8 @@ from dd_sdk.contract.models import (
 )
 from dd_sdk.model import Usage
 
-README = Path(__file__).with_name("readme.yaml")
 # The key under which a writer is given the approved metadata record's values.
 RECORD_FACTS = "approved_metadata_record"
-# The project facts a README section may be drafted from (readme.yaml explains each).
-SOURCES = frozenset(
-    {
-        "files",
-        "licences",
-        "record_general",
-        "record_abstract",
-        "record_rights",
-        "record_citation",
-    }
-)
 # The metadata record's schema the editor reads: DataCite's, in the JSON form of its REST API's
 # attributes, as advisor.metadata drafts it.
 DATACITE = "http://datacite.org/schema/kernel-4"
@@ -158,91 +149,6 @@ LIMITATIONS = (
     "inventory records. It infers no definitions, units or missing value codes, and does not "
     "read an earlier README or the reason given for a decision on an earlier version."
 )
-
-
-# The approved metadata record's general values a README part may be given by (readme.yaml), and
-# the label each is drafted under.
-RECORD_GENERAL = {
-    "title": "Title",
-    "creators": "Creators",
-    "collected": "Dates of data collection",
-    "location": "Geographic location",
-    "funding": "Funding",
-}
-
-
-class Part(NamedTuple):
-    """One thing a section asks, asked as a question of its own and placed under its label."""
-
-    label: str
-    ask: str
-    # The record's general value that, when the record gives it, says all the part asks.
-    given_by: str | None = None
-
-
-class Section(NamedTuple):
-    heading: str
-    # What the section asks as one question; for a section with parts, all of them in one line.
-    ask: str
-    # The project facts it is drafted from, in order; empty: the researcher writes it all.
-    sources: tuple[str, ...] = ()
-    # The fact that, when it gives anything, says all the section asks, so no gap is left.
-    complete_from: str | None = None
-    # What it asks, part by part; empty: it asks `ask` as one question.
-    parts: tuple[Part, ...] = ()
-    # Whether a model may suggest an answer to its question, offered beside it.
-    suggest: bool = False
-
-
-def load_sections(path: Path = README) -> list[Section]:
-    with path.open(encoding="utf-8") as fh:
-        table = yaml.safe_load(fh)
-    sections = []
-    for entry in table:
-        given = entry.get("from")
-        sources = (given,) if isinstance(given, str) else tuple(given or ())
-        complete_from = entry.get("complete_from")
-        for source in sources:
-            if source not in SOURCES:
-                raise ValueError(
-                    f"{path}: section {entry['heading']!r} drafts from unknown {source!r}"
-                )
-        if complete_from is not None and complete_from not in sources:
-            raise ValueError(
-                f"{path}: section {entry['heading']!r} is completed from {complete_from!r}, "
-                "which it is not drafted from"
-            )
-        parts = tuple(_part(path, entry["heading"], p) for p in entry.get("parts") or ())
-        if ("ask" in entry) == bool(parts):
-            raise ValueError(f"{path}: section {entry['heading']!r} needs either ask or parts")
-        if parts and complete_from is not None:
-            raise ValueError(
-                f"{path}: section {entry['heading']!r} has parts, so it cannot be completed "
-                "from one fact"
-            )
-        suggest = entry.get("suggest", False)
-        if not isinstance(suggest, bool):
-            raise ValueError(f"{path}: section {entry['heading']!r} has a suggest that is not true")
-        if parts and suggest:
-            raise ValueError(
-                f"{path}: section {entry['heading']!r} has parts, which a model does not suggest"
-            )
-        ask = (
-            " ".join(str(entry["ask"]).split())
-            if not parts
-            else "; ".join(f"{p.label.lower()}: {p.ask.rstrip('.')}" for p in parts) + "."
-        )
-        sections.append(Section(str(entry["heading"]), ask, sources, complete_from, parts, suggest))
-    if not sections:
-        raise ValueError(f"{path}: no sections")
-    return sections
-
-
-def _part(path: Path, heading: str, entry: Mapping[str, Any]) -> Part:
-    given_by = entry.get("given_by")
-    if given_by is not None and given_by not in RECORD_GENERAL:
-        raise ValueError(f"{path}: section {heading!r} has a part given by unknown {given_by!r}")
-    return Part(str(entry["label"]), " ".join(str(entry["ask"]).split()), given_by)
 
 
 class DocumentationEditor:
@@ -304,9 +210,13 @@ class DocumentationEditor:
                 inventory, asked.requirements, record, answers, ctx
             )
             # The README is drafted first, so nothing the model suggests can reach its text.
-            suggestable = {s.heading: s.ask for s in self.sections if s.suggest}
+            suggestable = {
+                s.heading: s.ask
+                for s in self.sections
+                if s.suggestable(has_documents=bool(asked.project_documents))
+            }
             questions, suggested = self._suggest(
-                _facts(inventory, asked.requirements, record),
+                with_documents(_facts(inventory, asked.requirements, record), asked),
                 [
                     Ask(q.question_id, section=q.gap_section, asks=suggestable[q.gap_section])
                     for q in questions
@@ -315,7 +225,7 @@ class DocumentationEditor:
                 questions,
                 ctx,
             )
-            statement += f" {_how_suggested(suggested, kind)}"
+            statement += f" {how_suggested(suggested, TITLES[kind])}"
             if asked.metadata_record is None:
                 statement += (
                     " It was given no approved metadata record, so it drafts from the inventory "
@@ -341,7 +251,7 @@ class DocumentationEditor:
             text, questions, counts = _dictionary(inventory, asked.current_version, answers)
             record, _ = _record(asked.metadata_record)
             questions, suggested = self._suggest(
-                _facts(inventory, None, record),
+                with_documents(_facts(inventory, None, record), asked),
                 [
                     Ask(q.question_id, q.gap_file, q.gap_field, q.gap_column)
                     for q in questions
@@ -357,8 +267,8 @@ class DocumentationEditor:
                 f"each value marked with where it came from: {counts[Source.INFERRED]} inferred "
                 f"from the inventory, {counts[Source.SUPPLIED]} supplied by you and "
                 f"{counts[Source.UNKNOWN]} unknown. It asks "
-                f"{_count(len(questions), 'question')}, one for each unknown value. "
-                f"{_how_suggested(suggested, kind)}"
+                f"{count(len(questions), 'question')}, one for each unknown value. "
+                f"{how_suggested(suggested, TITLES[kind])}"
             )
 
         current = asked.current_version
@@ -396,8 +306,8 @@ class DocumentationEditor:
         ctx: RunContext,
     ) -> tuple[list[DocumentQuestion], Suggestions]:
         """The questions, each with the writer's suggested answer where it made one. The writer is
-        given the facts the draft is made from, never the answers, a field's description or an
-        earlier version (docs/specs/drafting.md)."""
+        given the facts the draft is made from and the documents the researcher attached, never
+        the answers, a field's description or an earlier version (docs/specs/drafting.md)."""
         suggested = self.writer.suggest(facts, asks, ctx)
         return [
             q.model_copy(
@@ -494,7 +404,7 @@ class DocumentationEditor:
         statement = (
             f"A README of {len(self.sections)} sections, {drafted} of them drafted from the "
             f"project's facts ({complete} in full), and {answered} written from your answers. "
-            f"{_how_written(prose)} It leaves {_count(len(questions), 'gap')} for you to write, "
+            f"{_how_written(prose)} It leaves {count(len(questions), 'gap')} for you to write, "
             "each marked and asked as a question."
         )
         return "\n\n".join(parts) + "\n", questions, statement, prose
@@ -510,14 +420,14 @@ def _how_written(prose: Prose) -> str:
             f"({prose.model_id})."
         )
     said = (
-        f"A model ({prose.model_id}) wrote {_count(prose.written, 'paragraph')} of prose from "
+        f"A model ({prose.model_id}) wrote {count(prose.written, 'paragraph')} of prose from "
         "those facts alone"
         if prose.written
         else f"A model ({prose.model_id}) was asked for prose but its draft added none"
     )
     if prose.dropped:
         said += (
-            f"; {_count(len(prose.dropped), 'paragraph')} it wrote "
+            f"; {count(len(prose.dropped), 'paragraph')} it wrote "
             f"{'was' if len(prose.dropped) == 1 else 'were'} not used ("
             + "; ".join(prose.dropped)
             + ")"
@@ -533,31 +443,6 @@ def _sum(*usages: Usage) -> Usage:
         return sum(known) if known else None
 
     return Usage(total([u.input_tokens for u in usages]), total([u.output_tokens for u in usages]))
-
-
-def _how_suggested(suggested: Suggestions, kind: DocumentKind) -> str:
-    """What the statement says about the suggested answers."""
-    if suggested.model_id is None:
-        return "No model is configured, so it suggests no answers."
-    if suggested.unused:
-        return f"It suggests no answers, because {suggested.unused} ({suggested.model_id})."
-    n = len(suggested.answers)
-    said = (
-        f"A model ({suggested.model_id}) suggested an answer to "
-        f"{_count(n, 'question')}, offered beside the question and not written into the "
-        f"{TITLES[kind].lower()}: a suggestion becomes yours only when you save it, or a "
-        "correction of it, as your answer"
-        if n
-        else f"A model ({suggested.model_id}) was asked to suggest answers but offered none"
-    )
-    if suggested.dropped:
-        said += (
-            f"; {_count(len(suggested.dropped), 'suggestion')} it made "
-            f"{'was' if len(suggested.dropped) == 1 else 'were'} not offered ("
-            + "; ".join(suggested.dropped)
-            + ")"
-        )
-    return said + "."
 
 
 def _facts(
@@ -869,10 +754,6 @@ def _answers(given: Sequence[DraftAnswer]) -> dict[str, str]:
     """The recorded answers by the question they answer. A blank answer leaves its gap open; of
     two answers to one question, the later in the list wins."""
     return {a.answered_question: a.answer_text for a in given if a.answer_text.strip()}
-
-
-def _count(n: int, noun: str) -> str:
-    return f"{n} {noun}" if n == 1 else f"{n} {noun}s"
 
 
 def build() -> DocumentationEditor:

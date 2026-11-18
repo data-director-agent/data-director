@@ -34,7 +34,7 @@ import yaml
 from inspect_ai import Task, task
 from inspect_ai.dataset import MemoryDataset, Sample
 
-from dd_agent_advisor_documentation.agent import README, DocumentationEditor, _question_id
+from dd_agent_advisor_documentation.agent import DocumentationEditor, _question_id
 from dd_agent_advisor_documentation.evals.defects import apply_defect
 from dd_agent_advisor_documentation.evals.scorers import (
     answers_placed_supplied,
@@ -48,6 +48,7 @@ from dd_agent_advisor_documentation.evals.scorers import (
     suggestions_match_gold,
     unknown_cells_asked,
 )
+from dd_agent_advisor_documentation.sections import README
 
 AGENT_ID = "advisor.documentation"
 HERE = Path(__file__).parent

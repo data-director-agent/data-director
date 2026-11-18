@@ -26,6 +26,12 @@ unknown definition or unit, what the field's name and the dataset's facts make l
 A suggestion is offered with the question and never placed in the document
 (docs/specs/drafting.md, invariant 7). It is given the same facts as the prose and checked as
 strictly (`check_suggestions`); `TemplateWriter` suggests nothing.
+
+Only a suggestion is also given the documents the researcher attached to the project
+(`with_documents`), the latest first and at most `MAX_DOCUMENTS` characters of them, so that what
+their field notes or protocol say can be offered as an answer for them to confirm. Their text is
+the researcher's, given as data and never as instructions, and a suggestion may name what it
+gives. The prose is never given them: a paragraph is written into the draft unasked.
 """
 
 from __future__ import annotations
@@ -40,6 +46,7 @@ from typing import Any, Protocol
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from dd_sdk.agent import RunContext
+from dd_sdk.contract.models import DraftRequest
 from dd_sdk.model import Model, ModelOutputError, call
 from dd_sdk.model import Usage as Usage
 from dd_sdk.prompts import ModelCallLog
@@ -64,6 +71,10 @@ MAX_SECTION_SUGGESTION = 600
 OVERVIEW = "overview"
 # The longest paragraph kept, in characters: a README's prose introduces its facts, briefly.
 MAX_PARAGRAPH = 1200
+# The key under which a writer is given the documents the researcher attached, for suggestions.
+DOCUMENTS = "attached_documents"
+# The most text of attached documents a writer is given, in characters: a few field notebooks.
+MAX_DOCUMENTS = 60_000
 
 
 class _Reply(BaseModel):
@@ -147,6 +158,9 @@ class Suggestions:
     model_id: str | None = None
     usage: Usage = field(default_factory=Usage)
     calls: ModelCallLog | None = None
+    # The attached documents the model was given, by name, and those cut short to fit.
+    documents: tuple[str, ...] = ()
+    cut: tuple[str, ...] = ()
 
 
 class Writer(Protocol):
@@ -215,7 +229,17 @@ class ModelWriter:
             unused = "the model declined to suggest answers" if unused is None else unused
             return Suggestions(unused=unused, model_id=model_id, usage=usage, calls=calls)
         got = check_suggestions(reply, facts, asks)
-        return Suggestions(got.answers, got.dropped, None, model_id, usage, calls)
+        given = facts.get(DOCUMENTS, ())
+        return Suggestions(
+            got.answers,
+            got.dropped,
+            None,
+            model_id,
+            usage,
+            calls,
+            tuple(d["name"] for d in given),
+            tuple(d["name"] for d in given if d.get("cut")),
+        )
 
     def _call[T: BaseModel](
         self, system: str, content: str, schema: type[T], ctx: RunContext
@@ -387,6 +411,55 @@ def _unsuggestable(
             if named not in known:
                 return f"names {named!r}, which the facts do not give"
     return None
+
+
+def with_documents(facts: Mapping[str, Any], asked: DraftRequest) -> dict[str, Any]:
+    """`facts` with the documents the researcher attached, the latest first, within
+    `MAX_DOCUMENTS` characters; a document cut short, or left out for room, is marked `cut`."""
+    given: list[dict[str, Any]] = []
+    room = MAX_DOCUMENTS
+    for document in reversed(asked.project_documents):
+        text = document.documentation_text[:room]
+        room -= len(text)
+        entry: dict[str, Any] = {"name": document.documentation_name, "text": text}
+        if len(text) < len(document.documentation_text):
+            entry["cut"] = True
+        given.append(entry)
+    return {**facts, DOCUMENTS: given} if given else dict(facts)
+
+
+def how_suggested(suggested: Suggestions, title: str) -> str:
+    """What the statement says about the suggested answers."""
+    if suggested.model_id is None:
+        return "No model is configured, so it suggests no answers."
+    if suggested.unused:
+        return f"It suggests no answers, because {suggested.unused} ({suggested.model_id})."
+    n = len(suggested.answers)
+    said = (
+        f"A model ({suggested.model_id}) suggested an answer to "
+        f"{count(n, 'question')}, offered beside the question and not written into the "
+        f"{title.lower()}: a suggestion becomes yours only when you save it, or a "
+        "correction of it, as your answer"
+        if n
+        else f"A model ({suggested.model_id}) was asked to suggest answers but offered none"
+    )
+    if suggested.dropped:
+        said += (
+            f"; {count(len(suggested.dropped), 'suggestion')} it made "
+            f"{'was' if len(suggested.dropped) == 1 else 'were'} not offered ("
+            + "; ".join(suggested.dropped)
+            + ")"
+        )
+    said += "."
+    if suggested.documents:
+        said += f" It was given {count(len(suggested.documents), 'document')} you attached"
+        cut = f" ({', '.join(suggested.cut)} only in part, for room)" if suggested.cut else ""
+        said += f"{cut}."
+    return said
+
+
+def count(n: int, noun: str) -> str:
+    return f"{n} {noun}" if n == 1 else f"{n} {noun}s"
 
 
 def _unfenced(text: str) -> str:

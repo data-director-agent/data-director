@@ -1,6 +1,7 @@
 """Pydantic mirrors of the facts a project gives agents (schema/data_director.yaml,
 docs/specs/projects.md): what researchers kept from their own public ORCID records
-(`ResearcherRecord`), and the facts people decided about the project (`ProjectFact`).
+(`ResearcherRecord`), the facts people decided about the project (`ProjectFact`), and the
+documents a researcher attached (`DocumentationSummary`, and `ProjectDocument` with its text).
 `dd_sdk.contract.models` re-exports the classes its own classes use."""
 
 from __future__ import annotations
@@ -10,7 +11,7 @@ from enum import StrEnum
 
 from pydantic import Field, model_validator
 
-from dd_sdk.contract.base import Frozen
+from dd_sdk.contract.base import SHA256_PATTERN, Frozen
 
 
 class AffiliationKind(StrEnum):
@@ -156,3 +157,20 @@ class ProjectFact(Frozen):
         if missing:
             raise ValueError(f"a {self.fact_kind} fact needs {', '.join(missing)}")
         return self
+
+
+class DocumentationSummary(Frozen):
+    """What one document attached to a project is, without its text (docs/specs/projects.md)."""
+
+    documentation_name: str
+    documentation_digest: str = Field(pattern=SHA256_PATTERN)
+    documentation_media_type: str
+    documentation_size: int
+    documentation_added_at: datetime
+
+
+class ProjectDocument(DocumentationSummary):
+    """One document attached to a project, with its text, as a drafter is given it
+    (docs/specs/projects.md). The text is the researcher's and untrusted."""
+
+    documentation_text: str

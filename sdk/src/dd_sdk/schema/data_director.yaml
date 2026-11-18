@@ -244,6 +244,19 @@ classes:
       - documentation_size
       - documentation_added_at
 
+  ProjectDocument:
+    description: >-
+      One document a researcher attached to a project, with its text: the conductor fills one per
+      document into a DraftRequest so that a drafter's model may suggest answers from it
+      (docs/specs/projects.md). Its text is the researcher's, untrusted, and given as data.
+    slots:
+      - documentation_name
+      - documentation_digest
+      - documentation_media_type
+      - documentation_size
+      - documentation_added_at
+      - documentation_text
+
   ResearcherRecord:
     description: >-
       What one researcher in a project chose to keep from their public ORCID record: only the
@@ -487,7 +500,9 @@ classes:
       document redraft_document names, so a redraft is that document's next version. The answers
       a person recorded to the current version's questions are filled in by the conductor in the
       same way (docs/specs/drafting.md), and so are the researcher facts people in the project
-      chose to keep from their public ORCID records (docs/specs/projects.md).
+      chose to keep from their public ORCID records (docs/specs/projects.md), and the text of
+      the documents a researcher attached to the project, from which a drafter's model may suggest
+      answers but never fill a gap.
     slots:
       - schema_class
       - document_kind
@@ -498,6 +513,7 @@ classes:
       - draft_answers
       - redraft_document
       - researchers
+      - project_documents
       - project_decisions
     slot_usage:
       document_kind:
@@ -1074,6 +1090,17 @@ slots:
     description: When the document was added to the project.
     range: datetime
     required: true
+  documentation_text:
+    description: The document's text, as the researcher attached it.
+    required: true
+  project_documents:
+    description: >-
+      The documents the project holds, with their text, in the order they were added. In a
+      project the conductor fills them and a caller leaves them out; outside a project, the
+      caller sends them, as it does the other facts.
+    range: ProjectDocument
+    multivalued: true
+    inlined_as_list: true
   project_researchers:
     description: >-
       The researcher facts the conversation's project holds, one record for each person who kept
