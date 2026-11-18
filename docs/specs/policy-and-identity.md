@@ -147,8 +147,8 @@ applies it. It is not a way to grant an agent anything the other keys withhold. 
 named raises the profile's version. Approved repositories (R1), persistent identifier systems
 (R7) and registry access return as keys only together with the agent or check that enforces them.
 `hosted_models` lists the classes of project content (`inventory`, `documentation`,
-`researcher`) that may go to an agent whose card declares a `hosted` model; without it only
-`inventory` may ([Projects](projects.md), invariant 8). Researcher facts the profile does not list
+`researcher`, `decisions`) that may go to an agent whose card declares a `hosted` model; without
+it `inventory` and `decisions` may ([Projects](projects.md), invariant 8). Researcher facts the profile does not list
 are left out of such an agent's input rather than refused. It covers project content the conductor gives, not what a
 caller or a person sends, such as a conversation's text (TODO(#40)). The rights and licensing part of a profile is to be expressed in ODRL
 when repository selection or deposit needs it.

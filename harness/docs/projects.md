@@ -23,7 +23,7 @@ Every event has these members:
 
 | Member | What it is |
 |---|---|
-| `event` | What happened: `project_created`, `project_renamed`, `project_deleted`, `project_restored`, `conversation_started`, `inventory_added`, `researcher_added`, `researcher_withdrawn`, `repository_chosen`, `document_version_added`, `document_version_decided`, `document_question_answered`, `document_change_refused`, `project_validated` or `package_built`. |
+| `event` | What happened: `project_created`, `project_renamed`, `project_deleted`, `project_restored`, `conversation_started`, `inventory_added`, `researcher_added`, `researcher_withdrawn`, `repository_chosen`, `document_version_added`, `document_version_decided`, `document_question_answered`, `document_change_refused`, `fact_proposed`, `fact_decided`, `project_validated` or `package_built`. |
 | `event_id` | A UUIDv7, so events sort in the order they happened. |
 | `project_id` | The project. |
 | `at` | When, in UTC. |
@@ -214,10 +214,25 @@ at most `ANSWER_MAX_LENGTH` (2,000) characters. Its `acted_for` is whoever answe
 together are appended in one write. A decided version's questions may still be answered: the
 answers go into the next draft, not into that version.
 
+`fact_proposed` records one fact a check agent proposed for a person to decide
+([Projects](../../docs/specs/projects.md), invariant 28). It gives `agent_id`, the agent that
+proposed it, and `fact`, the `ProjectFact` as proposed, with `proposed_because`; its `caused_by`
+is the run, and its `event_id` names the proposal. A run's proposals are appended in one write.
+
+`fact_decided` records a person's decision. It gives `verdict` (`confirmed`, `changed` or
+`rejected`), `fact` (the fact that now stands, without `proposed_because`; for a rejection, only
+its `fact_kind` and `fact_subject`), `proposal` if the decision names one, and `reason` if one was
+given, at most `FACT_REASON_MAX_LENGTH` (2,000) characters. Its `acted_for` is the decider.
+`decisions(project_id)` gives the fact that stands for each kind and subject, the last decision
+counting and a rejection removing it; `proposals(project_id)` gives the proposals no decision on
+their kind and subject has followed, the latest for each.
+
 `document_change_refused` records a decision, edit or answer refused because it named no document
 of the project (`document-not-found`), not the latest version (`version-not-latest`), a version
 already decided (`version-decided`), another text (`digest-mismatch`) or a question the latest
-version does not ask (`question-not-asked`). It gives `document_id` and `version` as sent, the
+version does not ask (`question-not-asked`), or a decision on a fact that named a proposal the
+project does not hold (`proposal-not-found`) or changed a proposal's kind or subject
+(`fact-not-proposed`), which gives the `proposal` named. It gives `document_id` and `version` as sent, the
 `digest` for a decision or edit, the `questions` not asked for an answer, the `refusal`, and the
 `latest_version` if there is one. A change malformed in itself, such as a rejection without a
 reason or a blank answer, is refused with `ProjectError` and records nothing.

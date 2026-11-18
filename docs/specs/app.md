@@ -385,6 +385,17 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     while there is nothing in it ([Projects](projects.md), invariants 22 to 25;
     `app/web/src/components/project/DeleteProject.tsx`, `ProjectsPage.test.tsx`,
     `app/tests/test_project_deletion.py`).
+29. **A proposed fact becomes a fact only when a person decides it on the project's page.** The
+    project's page lists **Project facts** beside the researchers. It shows what check agents
+    proposed, each with what it would decide in one sentence, why it was proposed and which agent
+    proposed it, and offers **Confirm it as proposed**, **Change it, then record my version** and
+    **Reject it**, with an optional reason that no agent is given. Under **Decided** each fact that
+    stands can be changed or removed, and **State a fact nobody proposed** records one of the
+    person's own, named by the value that names it. After each decision the panel shows what the
+    server read back. A proposal that has moved on is read again with a warning, and a member
+    deciding whether sensitive data is published, or the licence, is told only an owner may
+    (`app/web/src/components/project/FactsPanel.test.tsx`, `app/tests/test_project_facts.py`,
+    [Projects](projects.md), invariant 28).
 
 ## Boundaries and contracts
 
