@@ -3,7 +3,7 @@
 # "Secrets"). Run as root from a clone of the repository:
 #
 #   sudo deploy/secret.sh set orchestrator-model anthropic-api-key   # paste the value, then Enter
-#   sudo deploy/secret.sh remove advisor-standards anthropic-api-key
+#   sudo deploy/secret.sh remove advisor-standards anthropic-api-key   # or rm
 #   sudo deploy/secret.sh set llm-gateway anthropic-api-key          # the LiteLLM gateway's
 #   sudo deploy/secret.sh list
 #
@@ -26,7 +26,7 @@ AGENTS_DIR="$SRC/deploy/agents"
 source "$SRC/deploy/credentials.sh"
 
 usage() {
-  echo "usage: $0 set AGENT SECRET | remove AGENT SECRET | list" >&2
+  echo "usage: $0 set AGENT SECRET | remove (or rm) AGENT SECRET | list" >&2
   exit 2
 }
 die() { echo "$0: $*" >&2; exit 1; }
@@ -141,7 +141,7 @@ if [[ -z "${DD_ETC:-}" && $EUID -ne 0 ]]; then
 fi
 case "$1" in
   set) [[ $# -eq 3 ]] || usage; cmd_set "$2" "$3" ;;
-  remove) [[ $# -eq 3 ]] || usage; cmd_remove "$2" "$3" ;;
+  remove | rm) [[ $# -eq 3 ]] || usage; cmd_remove "$2" "$3" ;;
   list) [[ $# -eq 1 ]] || usage; cmd_list ;;
-  *) usage ;;
+  *) echo "$0: no command '$1'" >&2; usage ;;
 esac

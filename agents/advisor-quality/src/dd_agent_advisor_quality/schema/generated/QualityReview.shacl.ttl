@@ -36,7 +36,14 @@ quality:Finding a sh:NodeShape ;
     rdfs:comment "One observation about one criterion." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:in ( "info" "warning" "error" ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The quality criterion assessed, e.g. licence_present." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path quality:criterion ],
+        [ sh:in ( "info" "warning" "error" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 1 ;
@@ -59,14 +66,7 @@ quality:Finding a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 3 ;
-            sh:path quality:derivation ],
-        [ sh:datatype xsd:string ;
-            sh:description "The quality criterion assessed, e.g. licence_present." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path quality:criterion ] ;
+            sh:path quality:derivation ] ;
     sh:targetClass quality:Finding .
 
 <https://w3id.org/data-director/GroundingRef> a sh:NodeShape ;

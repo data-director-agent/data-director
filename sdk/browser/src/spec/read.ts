@@ -6,7 +6,7 @@
 
 import { isRecord } from "../card/read";
 import type { JsonSchema } from "../schema/shape";
-import type { DerivationHow, GroundingMode, RawAgentSpec, RawModelUse } from "./types";
+import type { DerivationHow, GroundingMode, RawAgentSpec, RawModelUse, RawSkillUse } from "./types";
 
 export interface Derivation {
   path: string;
@@ -39,6 +39,8 @@ export interface AgentSpec {
   modelsDeclared: boolean;
   /** The process flow steps it serves, which place it in the flow. Empty: none. */
   serves: string[];
+  /** The Agent Skills it may load into its system prompt, each pinned by version and digest. Empty: none. */
+  skills: RawSkillUse[];
 }
 
 /** What to call the agent in prose: its persona title, or its id when it has none. */
@@ -77,6 +79,7 @@ export function specFromRaw(raw: RawAgentSpec): AgentSpec {
     models: (raw.models ?? []).map((m) => ({ ...m })),
     modelsDeclared: raw.models !== undefined,
     serves: [...(raw.serves ?? [])],
+    skills: (raw.skills ?? []).map((s) => ({ ...s })),
   };
 }
 
@@ -107,5 +110,10 @@ export function readAgentSpec(value: unknown): AgentSpec | null {
     ...(Array.isArray(value.serves) ? { serves: list(value.serves) } : {}),
     title: typeof value.title === "string" ? value.title : "",
     icon: typeof value.icon === "string" ? value.icon : "",
+    ...(Array.isArray(value.skills) ? { skills: value.skills.filter(isSkillUse) } : {}),
   });
+}
+
+function isSkillUse(value: unknown): value is RawSkillUse {
+  return isRecord(value) && ["name", "version", "sha256"].every((k) => typeof value[k] === "string");
 }

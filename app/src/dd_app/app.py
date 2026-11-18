@@ -56,6 +56,7 @@ from dd_app.routes import (
     conversations,
     deposit,
     documents,
+    facts,
     materials,
     meta,
     progress,
@@ -88,7 +89,18 @@ UNTRUSTED_WARNING = (
     "(docs/specs/agents.md).\n"
 )
 # The areas of the API, each a module of `dd_app.routes`.
-AREAS = (session, meta, runs, conversations, projects, materials, progress, documents, deposit)
+AREAS = (
+    session,
+    meta,
+    runs,
+    conversations,
+    projects,
+    materials,
+    progress,
+    documents,
+    facts,
+    deposit,
+)
 
 
 class ShellNotBuiltError(FileNotFoundError):

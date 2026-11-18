@@ -63,6 +63,16 @@ classes:
       - schema_class
       - document_kind
 
+  ProbeFindings:
+    description: >-
+      What a checking double returns: facts it proposes about the project for a person to decide
+      (docs/specs/projects.md), in a payload class the harness knows only from its card.
+    mixins:
+      - Grounded
+      - ProposesFacts
+    slots:
+      - schema_class
+
   ProbeCheck:
     description: What a retrieval double returns.
     mixins:

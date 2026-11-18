@@ -77,6 +77,12 @@ dd:DocumentQuestion a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
+            sh:description "The data dictionary column the question would fill, such as unit." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path dd:gap_column ],
+        [ sh:datatype xsd:string ;
             sh:description "An answer the drafter suggests, offered to the person with the question and never placed in the document. It becomes supplied only when a person records it, or a correction of it, as their answer." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -131,13 +137,7 @@ dd:DocumentQuestion a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
-            sh:path dd:gap_section ],
-        [ sh:datatype xsd:string ;
-            sh:description "The data dictionary column the question would fill, such as unit." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 6 ;
-            sh:path dd:gap_column ] ;
+            sh:path dd:gap_section ] ;
     sh:targetClass dd:DocumentQuestion .
 
 dd:DocumentVersionRef a sh:NodeShape ;

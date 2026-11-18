@@ -1,11 +1,13 @@
-import type { ChosenFolder, ScanEvent, ScanOutcome } from "@data-director/inventory";
+import type { ChosenFolder, FileInventory, ScanEvent, ScanOutcome } from "@data-director/inventory";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 
+import { httpProjectApi, ProjectApiContext, type ProjectApi, type SavedInventory } from "../../project/api";
 import { pageScanner, setPageScanner, type Scanner } from "../../scan/scanner";
 import { AnnouncerProvider } from "../ui/Announcer";
 import { DescribeFolder } from "./DescribeFolder";
+import { InventoryEditDialog } from "./InventoryEditDialog";
 import { MakeInventoryDialog } from "./MakeInventoryDialog";
 
 /** A scanner whose one scan the test drives: its events and its end. */
@@ -54,10 +56,12 @@ function sized(file: File, size: number): File {
   return file;
 }
 
-function renderPanel(scanner: Scanner, onDescribed: (file: File) => void = () => undefined) {
+type PanelProps = Partial<Parameters<typeof DescribeFolder>[0]>;
+
+function renderPanel(scanner: Scanner, onDescribed: (file: File) => void = () => undefined, props: PanelProps = {}) {
   return render(
     <AnnouncerProvider>
-      <DescribeFolder scanner={scanner} onDescribed={onDescribed} />
+      <DescribeFolder scanner={scanner} onDescribed={onDescribed} {...props} />
     </AnnouncerProvider>,
   );
 }
@@ -80,14 +84,6 @@ afterEach(() => {
 });
 
 describe("DescribeFolder", () => {
-  it("is not offered where the deployment does not serve the scanner", async () => {
-    const { scanner } = drivenScanner(false);
-    const available = vi.spyOn(scanner, "available");
-    renderPanel(scanner);
-    await waitFor(() => expect(available).toHaveBeenCalled());
-    expect(screen.queryByRole("region", { name: /Describe a folder/ })).toBeNull();
-  });
-
   it("says no file is sent, credits the signatures and links to the notices", async () => {
     renderPanel(drivenScanner().scanner);
     const panel = await section();
@@ -98,6 +94,23 @@ describe("DescribeFolder", () => {
       "inventory-bundle/NOTICES.md",
     );
     expect(await axe(document.body)).toHaveNoViolations();
+  });
+
+  it("offers no folder while it is disabled, by button or by drop", async () => {
+    const { scanner, scans } = drivenScanner();
+    renderPanel(scanner, undefined, { isDisabled: true });
+    const panel = await section();
+    expect(within(panel).getByRole("button", { name: "Choose a folder…" })).toBeDisabled();
+    const drop = new Event("drop", { bubbles: true, cancelable: true });
+    Object.defineProperty(drop, "dataTransfer", { value: { types: ["Files"], items: [] } });
+    act(() => panel.dispatchEvent(drop));
+    expect(drop.defaultPrevented).toBe(false);
+    expect(scans).toEqual([]);
+  });
+
+  it("says, when it updates an inventory, that nothing is kept before saving", async () => {
+    renderPanel(drivenScanner().scanner, undefined, { purpose: "update" });
+    expect(within(await section()).getByText(/nothing is kept until you save/)).toBeVisible();
   });
 
   it("describes a folder chosen with the folder input and hands on the inventory as a file", async () => {
@@ -256,10 +269,14 @@ describe("DescribeFolder", () => {
 
 describe("MakeInventoryDialog with the scanner served", () => {
   const unserved = pageScanner();
-  beforeEach(() => setPageScanner(drivenScanner().scanner));
+  let driven: ReturnType<typeof drivenScanner>;
+  beforeEach(() => {
+    driven = drivenScanner();
+    setPageScanner(driven.scanner);
+  });
   afterEach(() => setPageScanner(unserved));
 
-  it("offers to describe a folder first, then the command", async () => {
+  async function openDialog() {
     const user = userEvent.setup();
     render(
       <AnnouncerProvider>
@@ -268,14 +285,130 @@ describe("MakeInventoryDialog with the scanner served", () => {
     );
     await user.click(screen.getByRole("button", { name: "Make an inventory" }));
     const dialog = await screen.findByRole("dialog", { name: "Make an inventory" });
-    await within(dialog).findByRole("region", { name: "Describe a folder in this browser" });
-    const headings = within(dialog)
-      .getAllByRole("heading", { level: 3 })
-      .map((h) => h.textContent);
-    expect(headings).toEqual([
-      "Describe a folder in this browser",
-      "Make it with the command",
-      "Attach it",
-    ]);
+    await within(dialog).findByRole("tablist", { name: "How to make it" });
+    return { user, dialog };
+  }
+
+  it("opens on describing a folder in this browser, with the command a tab away", async () => {
+    const { dialog } = await openDialog();
+    expect(within(dialog).getByRole("tab", { name: "In this browser" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(within(dialog).getByRole("tab", { name: "With the command" })).toHaveAttribute(
+      "aria-selected",
+      "false",
+    );
+    expect(
+      within(dialog).getByRole("region", { name: "Describe a folder in this browser" }),
+    ).toBeVisible();
+    expect(within(dialog).queryByRole("tablist", { name: "Operating system" })).toBeNull();
+    expect(await axe(document.body)).toHaveNoViolations();
+  });
+
+  it("goes to the command from the browser route's pointer", async () => {
+    const { user, dialog } = await openDialog();
+    await user.click(within(dialog).getByRole("button", { name: "Use the command instead" }));
+    expect(within(dialog).getByRole("tab", { name: "With the command" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(within(dialog).getByRole("tablist", { name: "Operating system" })).toBeVisible();
+    expect(within(dialog).getByRole("button", { name: "Choose inventory.json" })).toBeVisible();
+    // Kept, so that a scan goes on, but out of reach.
+    const kept = within(dialog).getByRole("region", { hidden: true, name: /Describe a folder/ });
+    expect(kept.closest("[inert]")).not.toBeNull();
+  });
+
+  it("keeps a scan running while the command is shown", async () => {
+    const { user, dialog } = await openDialog();
+    await userEvent.upload(folderInput(), [withPath("a.csv", "survey/a.csv")]);
+    await user.click(within(dialog).getByRole("tab", { name: "With the command" }));
+    await user.click(within(dialog).getByRole("tab", { name: "In this browser" }));
+    expect(first(driven.scans).cancelled).toBe(false);
+    expect(within(dialog).getByRole("progressbar")).toBeVisible();
+  });
+});
+
+describe("InventoryEditDialog with the scanner served", () => {
+  const unserved = pageScanner();
+  let driven: ReturnType<typeof drivenScanner>;
+  beforeEach(() => {
+    driven = drivenScanner();
+    setPageScanner(driven.scanner);
+  });
+  afterEach(() => setPageScanner(unserved));
+
+  const entry = (path: string, description?: string) => ({
+    file_path: path,
+    file_size: 8,
+    file_sha256: "0".repeat(64),
+    file_media_type: "text/csv",
+    file_pronom_ids: ["x-fmt/18"],
+    file_identified_by: "extension" as const,
+    ...(description ? { file_description: description } : {}),
+  });
+  const stored: FileInventory = {
+    schema_class: "FileInventory",
+    inventory_tool: "dd-inventory",
+    inventory_tool_version: "0.1.0",
+    inventory_made_at: "2026-11-01T09:00:00+00:00",
+    inventory_files: [entry("a.csv", "Readings by site")],
+  };
+  const saved: SavedInventory = {
+    digest: "d2",
+    file_count: 2,
+    inventory_made_at: stored.inventory_made_at,
+    added_at: "2026-11-10T10:00:00+00:00",
+    revises: "d1",
+    part_count: null,
+  };
+
+  async function openDialog(saveInventory: ProjectApi["saveInventory"]) {
+    const api = { ...httpProjectApi, inventory: () => Promise.resolve(stored), saveInventory };
+    render(
+      <AnnouncerProvider>
+        <ProjectApiContext.Provider value={api}>
+          <InventoryEditDialog projectId="p1" />
+        </ProjectApiContext.Provider>
+      </AnnouncerProvider>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Edit inventory" }));
+    const dialog = await screen.findByRole("dialog", { name: "Edit the project's inventory" });
+    const panel = await within(dialog).findByRole("region", { name: "Describe a folder in this browser" });
+    return { dialog, panel };
+  }
+
+  it("takes a folder described here as the new scan, carrying over what was said", async () => {
+    const saveInventory = vi.fn<ProjectApi["saveInventory"]>().mockResolvedValue(saved);
+    const { dialog, panel } = await openDialog(saveInventory);
+    await userEvent.upload(folderInput(), [withPath("a.csv", "survey/a.csv"), withPath("b.csv", "survey/b.csv")]);
+    // Which folder the scan is of cannot change while the folder is described.
+    expect(within(dialog).getByLabelText("Scan of")).toBeDisabled();
+    expect(within(dialog).getByLabelText("New scan")).toBeDisabled();
+    const rescan = {
+      ...stored,
+      inventory_made_at: "2026-11-09T09:00:00+00:00",
+      inventory_files: [entry("a.csv"), entry("b.csv")],
+    };
+    act(() => first(driven.scans).end({ status: "done", inventory: JSON.stringify(rescan) }));
+    await within(dialog).findByRole("region", { name: "What the new scan changed" });
+    expect(within(panel).getByRole("button", { name: "Choose a folder…" })).toBeEnabled();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save as the project's inventory" }));
+    await waitFor(() => expect(saveInventory).toHaveBeenCalled());
+    const sent = saveInventory.mock.calls[0]?.[1] as FileInventory;
+    expect(sent.inventory_made_at).toBe(rescan.inventory_made_at);
+    expect(sent.inventory_files?.map((f) => f.file_path)).toEqual(["a.csv", "b.csv"]);
+    expect(sent.inventory_files?.[0]?.file_description).toBe("Readings by site");
+  });
+
+  it("offers no folder until a new folder and the one the inventory has are named", async () => {
+    const { dialog, panel } = await openDialog(vi.fn());
+    await userEvent.selectOptions(within(dialog).getByLabelText("Scan of"), "A folder the inventory does not have yet");
+    const choose = within(panel).getByRole("button", { name: "Choose a folder…" });
+    expect(choose).toBeDisabled();
+    await userEvent.type(within(dialog).getByLabelText("Name of the new folder"), "instrument");
+    await userEvent.type(within(dialog).getByLabelText("Name for the folder the inventory already has"), "lab");
+    expect(choose).toBeEnabled();
   });
 });

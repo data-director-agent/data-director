@@ -135,7 +135,8 @@ only the inventory comes back to the page.
 3. **The scan.** `startScan(worker, assets, folder, onEvent)` posts the request to a fresh worker.
    The package exports the worker's module as `@data-director/inventory/scanner/worker`, which a
    Vite app starts with `import ScanWorker from "@data-director/inventory/scanner/worker?worker"`
-   and `new ScanWorker()`, as `app/web/src/scan/scanner.ts` does. The
+   and `new ScanWorker()`, as `app/web/src/scan/scanner.ts` does. The app offers it both where
+   an inventory is first made and where the project's inventory is updated with a new scan. The
    worker mounts the files read-only at `/data` with Emscripten's WORKERFS, which reads slices of
    each file on demand and copies none of them, and runs the command's `make_inventory` there.
    `onEvent` hears each stage (`starting`, `installing`, `reading`) and each file

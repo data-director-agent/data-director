@@ -154,7 +154,12 @@ The steward decides, in the profile's `model_accounts`, whether people may or mu
 account and whether the deployment pays for someone who has none
 ([Institutional profiles](../../../workbench/profiles/README.md)). A profile that turns own
 accounts on stops the app at start-up unless the three secrets above are set, since without grants
-nothing would carry that decision to the broker. Raise the profile's `version` with the change.
+nothing would carry that decision to the broker.
+
+On a VM, write `model_accounts` in `/etc/data-director/deployment.yaml` (see
+[`config/examples/deployment.yaml`](../../../config/examples/deployment.yaml)) and run
+`sudo data-director apply`, which copies it into the generated profile and raises the profile's
+`version`. Do not edit the generated `profile.yaml`: `apply` rewrites it.
 
 Every model-backed agent must then call through the broker (below).
 
@@ -221,6 +226,9 @@ environment is set as below.
 Remove its provider key (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` or
 `DD_MODEL_API_KEY`, and their `_FILE` forms): an agent that calls through the broker holds no
 provider key, and refuses to start with one. It also refuses to start without its credential.
+`sudo data-director doctor` and `sudo data-director apply` check both on a VM: they report an
+agent with `DD_MODEL_BROKER_URL`, in its own settings or in `agents.env`, that still holds a
+provider key or lacks its broker credential, and do not ask such an agent for a provider key.
 Keep its `DD_MODEL_PROVIDER` and `DD_MODEL_ID`; for `openai-compatible`, remove
 `DD_MODEL_BASE_URL`, since the broker decides where the call goes. The broker serves each provider
 in its own format, below its own path (`/anthropic`, `/openai`, `/gemini`,

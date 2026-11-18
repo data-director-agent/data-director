@@ -218,7 +218,13 @@ policy:PolicyReading a sh:NodeShape ;
     rdfs:comment "What a model read in one policy's own text, fetched from the address its policy record names or the researcher gave. Grounded on the text, and on the policy record it was reached from, if any. Each obligation kept quotes the text word for word, and the code has found the quote in it; what was dropped, and why, is in dropped. A person confirms each against the policy." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
+    sh:property [ sh:class <https://w3id.org/data-director/GroundingRef> ;
+            sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 6 ;
+            sh:path <https://w3id.org/data-director/grounded_on> ],
+        [ sh:datatype xsd:string ;
             sh:description "The name of the actor, as given in the input." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -249,13 +255,7 @@ policy:PolicyReading a sh:NodeShape ;
             sh:description "What the model said that was not kept, and why, such as a quote not found in the text." ;
             sh:nodeKind sh:Literal ;
             sh:order 4 ;
-            sh:path policy:dropped ],
-        [ sh:class <https://w3id.org/data-director/GroundingRef> ;
-            sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 6 ;
-            sh:path <https://w3id.org/data-director/grounded_on> ] ;
+            sh:path policy:dropped ] ;
     sh:targetClass policy:PolicyReading .
 
 policy:RepositoryRef a sh:NodeShape ;
@@ -366,6 +366,11 @@ policy:StatedObligation a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
             sh:path policy:quote ],
+        [ sh:in ( "deposit" "data_availability_statement" "repository" "standard" "embargo" "licence" "timing" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 0 ;
+            sh:path policy:kind ],
         [ sh:datatype xsd:string ;
             sh:description "What the policy asks, in brief, e.g. \"within two years of the end of the grant\" or \"CC BY 4.0\"." ;
             sh:maxCount 1 ;
@@ -377,12 +382,7 @@ policy:StatedObligation a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 1 ;
-            sh:path policy:strength ],
-        [ sh:in ( "deposit" "data_availability_statement" "repository" "standard" "embargo" "licence" "timing" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 0 ;
-            sh:path policy:kind ] ;
+            sh:path policy:strength ] ;
     sh:targetClass policy:StatedObligation .
 
 <https://w3id.org/data-director/GroundingRef> a sh:NodeShape ;

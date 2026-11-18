@@ -151,6 +151,16 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
     both or neither). Adding `gap_property` raised the contract version to 0.12.0. A
     `DraftRequest` may carry `draft_answers`, each a `DraftAnswer` naming the question it answers
     and the text, which the drafter places as given ([Drafting documents](drafting.md), `sdk/tests/test_contract.py`).
+25. A `ProjectFact` is one fact about a project: a funder, a repository a funder, journal or
+    institution requires, whether one file of the inventory is deposited, whether a sensitive
+    field or file may be published and at what precision, or the licence. Its `fact_kind`
+    (`FactKind`) says which value slots it must hold, and its `fact_subject` is the key the last
+    decision counts by; `proposed_because` says, for the person deciding, why it was proposed.
+    An agent's payload class proposes facts by mixing in `ProposesFacts` (`proposed_facts`), so
+    the harness reads them without knowing the class. A `DraftRequest` and a `Message` may carry
+    `project_decisions`, the facts a person decided, which only the conductor fills in a project
+    ([Projects](projects.md), invariants 6 and 28; `sdk/tests/test_contract.py`). Adding them
+    raised the contract version to 0.13.0.
 
 ## Boundaries and contracts
 
