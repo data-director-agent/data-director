@@ -1,6 +1,6 @@
 /**
  * The person's preferences, on the Settings page (docs/specs/app.md, "Preferences"): how the app
- * looks, how it writes dates and times, and which project it opens in. Each choice applies at
+ * looks, how it writes dates and times, and which project it opens in, a section to a tab. Each choice applies at
  * once and is kept in this browser only (`preferences.ts`); nothing here reaches the server.
  */
 
@@ -90,7 +90,13 @@ const STARTING: AnySetting[] = [
   },
 ];
 
-function Choice({ setting, current }: { setting: AnySetting; current: PreferenceValues }) {
+function Choice({
+  setting,
+  current,
+}: {
+  setting: AnySetting;
+  current: PreferenceValues;
+}) {
   const group = `preference-${setting.name}`;
   return (
     <fieldset className="field preference">
@@ -115,33 +121,45 @@ function Choice({ setting, current }: { setting: AnySetting; current: Preference
 /** A fixed moment, so that the example shows the clock's afternoon hours. */
 const EXAMPLE = new Date(2026, 10, 16, 14, 5);
 
-export function Preferences() {
+/** The preference sections, one tab each on the Settings page. */
+export type PreferenceSection = "appearance" | "dates" | "starting";
+
+export const PREFERENCE_SECTIONS: { id: PreferenceSection; title: string }[] = [
+  { id: "appearance", title: "Appearance" },
+  { id: "dates", title: "Dates and times" },
+  { id: "starting", title: "Starting up" },
+];
+
+export function Preferences({ section }: { section: PreferenceSection }) {
   const current = usePreferences();
+  const title = PREFERENCE_SECTIONS.find(({ id }) => id === section)?.title;
+  const settings = { appearance: APPEARANCE, dates: DATES, starting: STARTING }[
+    section
+  ];
   return (
-    <section className="preferences" aria-labelledby="preferences-heading">
-      <h2 id="preferences-heading">Your preferences</h2>
+    <section
+      className="preferences"
+      aria-labelledby={`preferences-${section}-heading`}
+    >
+      <h2 id={`preferences-${section}-heading`}>{title}</h2>
       <p>
-        These apply straight away and are kept in this browser only, so another browser or device
-        starts with the defaults.
+        These apply straight away and are kept in this browser only, so another
+        browser or device starts with the defaults.
       </p>
-      <h3>Appearance</h3>
-      {APPEARANCE.map((setting) => (
+      {settings.map((setting) => (
         <Choice key={setting.name} setting={setting} current={current} />
       ))}
-      <h3>Dates and times</h3>
-      {DATES.map((setting) => (
-        <Choice key={setting.name} setting={setting} current={current} />
-      ))}
-      <p className="hint">
-        For example:{" "}
-        <time dateTime={EXAMPLE.toISOString()}>
-          {formatDateTime(EXAMPLE, { dateStyle: "medium", timeStyle: "short" })}
-        </time>
-      </p>
-      <h3>Starting up</h3>
-      {STARTING.map((setting) => (
-        <Choice key={setting.name} setting={setting} current={current} />
-      ))}
+      {section === "dates" && (
+        <p className="hint">
+          For example:{" "}
+          <time dateTime={EXAMPLE.toISOString()}>
+            {formatDateTime(EXAMPLE, {
+              dateStyle: "medium",
+              timeStyle: "short",
+            })}
+          </time>
+        </p>
+      )}
     </section>
   );
 }

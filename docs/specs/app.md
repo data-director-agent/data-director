@@ -398,11 +398,12 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     [Projects](projects.md), invariant 28).
 30. **A person's own settings are on the Settings page.** `/settings`, reached from the cog
     labelled **Settings** in the banner on every page and from the profile page, holds what a
-    person sets for themselves; what the deployment allows for everyone stays on the Policy page.
-    Where the deployment offers it, it holds the person's own AI account, which it reads from and
+    person sets for themselves, in tabs (**AI account**, **Appearance**, **Dates and times** and
+    **Starting up**); what the deployment allows for everyone stays on the Policy page.
+    Where the deployment offers it, the first tab holds the person's own AI account, which it reads from and
     sends to the model broker alone ([A person's own model account](model-accounts.md),
     `app/web/src/components/settings/ModelAccount.test.tsx`, `app/web/e2e/settings.spec.ts`).
-    Then comes **Preferences**: the colour scheme (light, dark, or matching the device), text
+    The other tabs are the **Preferences**: the colour scheme (light, dark, or matching the device), text
     size, spacing, animation (matching the device, reduced or shown), the style dates and numbers
     are written in and the 12- or 24-hour clock, and whether a visit returns to the project used
     last or starts with none chosen. Each applies at once and is kept in that browser only, one
