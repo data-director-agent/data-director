@@ -83,8 +83,8 @@ def _secrets(text: str) -> list[TextFinding]:
     from detect_secrets.core.scan import scan_line
     from detect_secrets.settings import transient_settings
 
-    named = get_mapping_from_secret_type_to_class().items()
-    plugins = [{"name": cls.__name__} for kind, cls in named if kind not in ENTROPY_TYPES]
+    named: dict[str, type] = get_mapping_from_secret_type_to_class()
+    plugins = [{"name": cls.__name__} for kind, cls in named.items() if kind not in ENTROPY_TYPES]
     counts: dict[str, int] = defaultdict(int)
     with _SECRETS_LOCK, transient_settings({"plugins_used": plugins}):
         for line in text.splitlines():
