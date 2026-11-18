@@ -51,7 +51,7 @@ def run(runs_dir: Path, agent: RightsAdviser, asked: RightsContext) -> Envelope:
     conductor = make_conductor(runs_dir, agent)
     env = conductor.invoke(request("advisor.rights", asked), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
-    assert env.grounding_mode == GroundingMode.INPUT_ONLY
+    assert env.grounding_mode == GroundingMode.RETRIEVAL
     assert conductor.grounding_reports[env.invocation_id].passed
     return env
 

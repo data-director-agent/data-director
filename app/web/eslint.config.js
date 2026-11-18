@@ -24,7 +24,7 @@ const LIVE_REGION = {
 // reason is marked TODO(#494) is debt to remove, not a pattern to copy. Remove an entry when its import goes.
 const FEATURE_IMPORTS = [
   // The frame's page header is the top of every page, so that each page names itself the same way.
-  ...["feedback", "journey", "policy", "profile", "project", "session", "settings", "workspace"].map((from) => ({
+  ...["errors", "feedback", "journey", "policy", "profile", "project", "session", "settings", "workspace"].map((from) => ({
     from,
     to: "frame",
     reason: "PageHeader is the top of every page.",

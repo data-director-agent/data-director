@@ -2,7 +2,8 @@
  * What the message box offers for attaching: the chip of what is attached, the buttons to attach
  * a file or make an inventory, and the note on what may be attached. An inventory and a document
  * may each be attached once (docs/specs/app.md); a document only where the profile allows it
- * (`documents`, docs/specs/projects.md).
+ * (`documents`, docs/specs/projects.md). The picker passes on every file chosen, so that those
+ * not attached can be named (#1170).
  */
 
 import { Paperclip } from "lucide-react";
@@ -24,7 +25,7 @@ export function ComposerAttach({
   attachedDocument,
   documents,
   busy,
-  onAttachFile,
+  onAttachFiles,
   onAttachMade,
   onRemoveInventory,
   onRemoveDocument,
@@ -33,7 +34,7 @@ export function ComposerAttach({
   attachedDocument: AttachedDocument | null;
   documents: boolean;
   busy: boolean;
-  onAttachFile: (file: File | undefined) => void;
+  onAttachFiles: (files: FileList | null) => void;
   onAttachMade: (file: File) => void;
   onRemoveInventory: () => void;
   onRemoveDocument: () => void;
@@ -64,7 +65,7 @@ export function ComposerAttach({
               ".json",
               ...(documents ? [...DOCUMENT_MEDIA_TYPES, ...DOCUMENT_EXTENSIONS] : []),
             ]}
-            onSelect={(files) => onAttachFile(files?.[0])}
+            onSelect={onAttachFiles}
           >
             <Button icon={Paperclip} isDisabled={busy} aria-describedby="attach-hint">
               Attach a file
