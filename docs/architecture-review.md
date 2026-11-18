@@ -143,9 +143,14 @@ the `json<T>()` response helper is copied four times: in `feedback/api.ts`, `pro
 
 ### 6. The TypeScript API types are written by hand
 
-`app/web/src/project/api.ts` declares about 40 interfaces copied from the Python models. The golden
-fixtures catch a change in what the server sends, but nothing checks the fixtures against those
-interfaces. A field renamed in Pydantic updates the fixture while `api.ts` still compiles.
+Resolved by #1130. `app/web/src/project/api.ts` declared about 40 interfaces copied from the Python
+models. The golden fixtures caught a change in what the server sent, but nothing checked the
+fixtures against those interfaces, so a field renamed in Pydantic updated the fixture while
+`api.ts` still compiled. Each route now answers through a Pydantic response model
+(`app/src/dd_app/responses.py`), the tests check each fixture against its model, and the shell's
+types are generated from the models' JSON Schema into `app/web/src/api/generated/responses.ts`,
+which CI checks is current. A field renamed in a model fails `npm run typecheck` until the shell is
+updated.
 
 ### 7. Lists of members kept by hand
 
@@ -205,9 +210,9 @@ written or moved first, so that behaviour is pinned before the code moves.
 5. **Split `ConversationHome` into hooks**: `useProjectDocuments`, `useProjectProgress`,
    `useIntake`, `useAttachments` and `useConversationTurns`. Add one shared `useResource` hook that
    handles aborting and the loading/loaded/failed state, and one shared `json<T>()`.
-6. **Type the API boundary.** Generate the TypeScript types from the JSON Schema of the app's
-   Pydantic models. As a smaller first step, add a type-level test that each fixture in
-   `app/web/fixtures` satisfies its interface.
+6. **Type the API boundary** (done in #981 and #1130). Generate the TypeScript types from the JSON
+   Schema of the app's Pydantic models. As a smaller first step, add a type-level test that each
+   fixture in `app/web/fixtures` satisfies its interface.
 7. **Split the policy adviser's `run`** into one step per source.
 8. **State the single-process limit** of conversation locks in `docs/specs/app.md`, or move the
    locks to the database before running more than one app process.

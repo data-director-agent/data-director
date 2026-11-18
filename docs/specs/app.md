@@ -430,17 +430,31 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
 
 - **Depends on** the harness (`dd_harness`) and the SDK only. Workspace-level dependency rules
   are in [System and boundaries](system.md).
-- **API types.** The shell's types for the server's responses are written by hand in the
-  domain folders' `api.ts` and `types.ts`. The golden fixtures in `app/web/fixtures`, which
-  `check_fixture` rewrites from real responses, are checked against them by
-  `app/web/src/fixtures.typecheck.ts`, which `npm run typecheck` compiles: a field the server
-  renames or drops, or whose type changes, fails there until the interface is updated. The check
-  reports a missing or mistyped field, not an extra one, and not a renamed optional field. To
-  see it work, rename a required field in a fixture and run `npm run typecheck`. TODO(#1130):
-  give the routes response models and generate the types from them.
-- **Web source layout and import rules.** In `app/web/src`, the domain folders (`run`,
+- **API types.** The shell's types for the server's responses are generated. Each route answers
+  through a Pydantic `ResponseBody` model declared beside it (`app/src/dd_app/responses.py`), and
+  `python -m dd_app.responses` prints the JSON Schema of every such model. In `app/web`,
+  `npm run gen:api` turns that schema into `src/api/generated/responses.ts` with
+  json-schema-to-typescript (`scripts/gen-api-types.mjs`); run it after changing a response model,
+  and commit the result. The file is checked in, and the "mypy and generated schemas" CI job fails
+  when it is not what the models generate. A key the server sometimes leaves out is optional
+  (`x?: T`); one it always sends, perhaps as null, is required. An object whose shape the core
+  contract defines (an envelope, a `Question`, a `Principal`) is named in
+  `dd_app.contract_shapes` by its TypeScript type, which the generated file imports from where the
+  shell already defines it: `@data-director/agent-view`, `src/api/contract.ts` or the domain
+  folder that reads it. The domain folders' `api.ts` and `types.ts` re-export the generated types,
+  and keep by hand only request bodies, the forms the shell converts a response into, and what the
+  app's models do not describe. The tests check each golden fixture in `app/web/fixtures`, which
+  `check_fixture` rewrites from real responses, against its route's model; and
+  `src/fixtures.typecheck.ts`, which `npm run typecheck` compiles, checks the fixtures against
+  what the generated types leave to hand-written ones (the contract shapes, the contract classes
+  the app sends as they are, and the model broker's account). A field renamed in a response model
+  therefore fails `npm run typecheck`, once the types are regenerated, until the shell is updated.
+  The generated file is left out of the size and duplication checks, as other generated code is,
+  and knip takes it as an entry, so a type the shell does not read yet is not reported unused.
+- **Web source layout and import rules.** In `app/web/src`, the domain folders (`api`, `run`,
   `manifest`, `conversation`, `flow`, `session`, `project`, `feedback`, `policy`,
-  `model-account`, `scan`) hold types and API clients, `scan` the browser scanner's client, and
+  `model-account`, `scan`) hold types and API clients, `api` the generated API types and the
+  contract shapes they name, `scan` the browser scanner's client, and
   reading an inventory is `@data-director/inventory`'s (`inventory/browser/`);
   `components/` holds the interface, one folder per feature, with the shared kit in
   `components/ui/`. Four rules are checked: no file depends on itself through other files
