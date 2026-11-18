@@ -130,10 +130,6 @@ class FakeModelExplainer:
         return Explanation(out, usage)
 
 
-class ChatBeforeRetrievalExplainer(FakeModelExplainer):
-    """Used with a retrieval adapter that emits no spans, to violate G1 deliberately."""
-
-
 # --- Harness helpers --------------------------------------------------------------------------
 
 

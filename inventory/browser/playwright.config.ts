@@ -12,7 +12,11 @@ export default defineConfig({
   timeout: 120_000,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: { baseURL: `http://127.0.0.1:${PORT}`, trace: "retain-on-failure" },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    { name: "firefox", use: { ...devices["Desktop Firefox"] } },
+    { name: "webkit", use: { ...devices["Desktop Safari"] } },
+  ],
   webServer: {
     command: `vite build --config e2e/vite.config.ts && vite preview --config e2e/vite.config.ts --host 127.0.0.1 --port ${PORT} --strictPort`,
     timeout: 120_000,
