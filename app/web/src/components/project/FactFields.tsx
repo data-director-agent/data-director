@@ -1,7 +1,7 @@
 /**
  * The values of one project fact, as a person sets them: whether a file goes in, whether a
- * sensitive field or file may be published and how precisely, a funder, a required repository or
- * the licence (docs/specs/projects.md, invariant 28).
+ * sensitive field or file may be published and how precisely, a funder, a required repository,
+ * the licence, or what the plan commits to share (docs/specs/projects.md, invariant 28).
  *
  * When a person changes a proposal, its kind and subject stay as proposed, since a decision is on
  * that fact; when they state a fact of their own, they choose the kind, and the subject is taken
@@ -223,6 +223,21 @@ function KindValues({ fact, set, isNew }: { fact: ProjectFact; set: Setter; isNe
           set={set}
           required
         />
+      );
+    case "sharing_commitment":
+      // The quote and the document stay as read: a person corrects what the plan was read to say.
+      return (
+        <>
+          <TextValue label="Where it is shared" slot="commitment_repository" fact={fact} set={set} />
+          <TextValue
+            label="How openly"
+            hint="Such as open, safeguarded or controlled."
+            slot="commitment_access"
+            fact={fact}
+            set={set}
+          />
+          <TextValue label="Under what licence" slot="commitment_licence" fact={fact} set={set} />
+        </>
       );
   }
 }

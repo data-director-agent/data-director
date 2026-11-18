@@ -96,6 +96,7 @@ class FactKind(StrEnum):
     FILE_INCLUSION = "file_inclusion"
     SENSITIVITY = "sensitivity"
     LICENCE = "licence"
+    SHARING_COMMITMENT = "sharing_commitment"
 
 
 class FileDecision(StrEnum):
@@ -125,6 +126,7 @@ FACT_NEEDS: dict[FactKind, tuple[str, ...]] = {
     FactKind.FILE_INCLUSION: ("fact_file_path", "file_decision"),
     FactKind.SENSITIVITY: ("sensitive_subject", "sensitivity_decision"),
     FactKind.LICENCE: ("licence_id",),
+    FactKind.SHARING_COMMITMENT: ("commitment_quote", "commitment_document"),
 }
 
 
@@ -148,6 +150,12 @@ class ProjectFact(Frozen):
     sensitivity_decision: SensitivityDecision | None = None
     location_precision: LocationPrecision | None = None
     licence_id: str | None = None
+    # A sharing commitment: as the plan states it, quoted from the attached document it names.
+    commitment_repository: str | None = None
+    commitment_access: str | None = None
+    commitment_licence: str | None = None
+    commitment_quote: str | None = None
+    commitment_document: str | None = Field(default=None, pattern=SHA256_PATTERN)
     # Shown to the person deciding; never given to an agent.
     proposed_because: str | None = None
 
