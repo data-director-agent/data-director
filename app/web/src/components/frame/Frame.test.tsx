@@ -56,7 +56,7 @@ describe("Frame", () => {
 
   it("puts Projects first in the main navigation, before the conversation", () => {
     render(
-      <Frame current="/projects">
+      <Frame current="/project">
         <p>Content</p>
       </Frame>,
     );
@@ -68,8 +68,9 @@ describe("Frame", () => {
     // follows it.
     expect(names[0]).toBe("Projects");
     expect(names.indexOf("Conversation")).toBeGreaterThan(0);
+    // `/project` opens the current project's page (`ProjectLanding`), not the list of projects.
     const projects = within(nav).getByRole("link", { name: "Projects" });
-    expect(projects).toHaveAttribute("href", "/projects");
+    expect(projects).toHaveAttribute("href", "/project");
     expect(projects).toHaveAttribute("aria-current", "page");
   });
 
