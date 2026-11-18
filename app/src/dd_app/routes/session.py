@@ -22,7 +22,7 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
 from starlette.routing import Route
 
-from dd_app.governance import principal_summary
+from dd_app.principals import principal_summary
 from dd_app.routes.common import (
     SERVICE,
     Deps,

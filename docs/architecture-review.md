@@ -170,11 +170,14 @@ drifted: `[tool.mypy].mypy_path` was missing seven agents. This change adds them
 - The PostgreSQL conformance tests are skipped silently unless `DD_TEST_POSTGRES` is set. CI sets
   it; a local run does not.
 
-### 9. State that holds only in one process
+### 9. State that holds only in one process (resolved by #983)
 
-`Governance` keeps `_turn_locks` and `_started` in memory (`app/src/dd_app/governance.py`, around
-lines 131–137). Conversation turns are therefore serialised only within one app process. That is
-correct for today's single-process deployment, but no specification states the limit.
+`Governance` kept `_turn_locks` and `_started` in memory, so conversation turns were serialised
+only within one app process, and no specification stated the limit. The turn lock is now the run
+store's (`dd_harness.turn_locks`: a file lock on files, an advisory lock on PostgreSQL), so app
+processes over one store run one turn of a conversation at a time; `docs/specs/app.md` ("Turn
+locks") records the decision. `_started` stays in memory: only an app that keeps no projects
+fills it.
 
 ## Proposed refactors
 

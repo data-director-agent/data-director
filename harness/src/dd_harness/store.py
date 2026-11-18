@@ -7,6 +7,7 @@ JSONL index of envelopes, plus a directory per invocation.
     <invocation_id>/prompts.json        the prompts its model calls sent
     <invocation_id>/<artifact>          spans.jsonl, grounding.txt, sources.txt, crate/...
     schemas/<digest>.json               each class schema, once
+    locks/<sha256>.lock                 each conversation's turn lock (`dd_harness.turn_locks`)
 
 UUIDv7 identifiers mean the file is chronologically ordered as written. A run
 is written once: `append` refuses an `invocation_id` whose envelope is already stored, and the

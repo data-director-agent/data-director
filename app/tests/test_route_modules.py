@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 from starlette.applications import Starlette
+from starlette.responses import Response
 from starlette.testclient import TestClient
 from support import JSON_HEADERS, configure_env, dist_dir, new_governance
 
@@ -19,6 +20,7 @@ from dd_app.routes.common import RUN_REFUSED, Deps, RequestBody
 from dd_app.routes.conversations import SendTurn, StartConversation
 from dd_app.routes.progress import ChooseEntry, IntakeAnswer
 from dd_app.routes.projects import CreateProject
+from dd_app.turn_body import Turn, parse_turn
 from dd_harness.testing import TEST_PRINCIPAL
 
 TURN = {"agent_id": "orchestrator.stub", "message_text": "Hello", "follows": None}
@@ -105,6 +107,22 @@ def test_progress_refuses_a_boolean_for_an_entry_point(deps: Deps) -> None:
 )
 def test_a_turn_names_the_field_it_refuses(body: dict[str, Any], field: str) -> None:
     assert refusal(SendTurn, body) == SendTurn.field_refusals[field]
+
+
+def test_a_turn_stream_takes_a_document_as_text_or_as_a_file() -> None:
+    """The stream's `forwardedProps` take a document as the route does (`parse_turn`): its text,
+    or a Word document's or PDF's bytes as base64, which the server reads (#961)."""
+    text = {"name": "a.md", "media_type": "text/markdown", "text": "t"}
+    as_text = parse_turn({**TURN, "documentation": text})
+    assert isinstance(as_text, Turn) and as_text.documentation is not None
+    assert (as_text.documentation.text, as_text.documentation.data) == ("t", None)
+    pdf = {"name": "a.pdf", "media_type": "application/pdf", "data": "JVBERg=="}
+    as_file = parse_turn({**TURN, "documentation": pdf})
+    assert isinstance(as_file, Turn) and as_file.documentation is not None
+    assert as_file.documentation.data == b"%PDF"
+    for wrong in ({**pdf, "data": "not base64!"}, {**pdf, "text": "t"}, {"name": "a.pdf"}):
+        refused = parse_turn({**TURN, "documentation": wrong})
+        assert isinstance(refused, Response) and refused.status_code == 400
 
 
 def test_a_turn_with_a_field_it_does_not_take_names_it() -> None:

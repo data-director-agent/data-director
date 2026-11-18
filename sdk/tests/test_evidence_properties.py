@@ -51,11 +51,31 @@ def _reference_fairsharing(record: dict[str, Any]) -> bytes:
     return _reference_dumps(projection)
 
 
+_SPDX_FIELDS = (
+    "licenseId",
+    "name",
+    "isOsiApproved",
+    "isFsfLibre",
+    "isDeprecatedLicenseId",
+    "seeAlso",
+)
+
+
+def _reference_spdx(record: dict[str, Any]) -> bytes:
+    """Each projected field, null when absent; `seeAlso` as sorted strings."""
+    projection = {}
+    for key in _SPDX_FIELDS:
+        value = record.get(key)
+        projection[key] = sorted(str(v) for v in value) if isinstance(value, list) else value
+    return _reference_dumps(projection)
+
+
 REFERENCE: dict[str, Callable[[dict[str, Any]], bytes]] = {
     "json-sorted-utf8-v1": _reference_fairsharing,
     "dd-input-json-v1": _reference_dumps,
     "dd-json-document-v1": _reference_dumps,
     "dd-envelope-json-v1": _reference_dumps,
+    "dd-spdx-licence-v1": _reference_spdx,
 }
 
 # A fixed record and the digest each name gives it, as first registered. Never edit a digest:
@@ -84,6 +104,17 @@ PINNED_DIGEST = {
     "dd-input-json-v1": WHOLE_DIGEST,
     "dd-json-document-v1": WHOLE_DIGEST,
     "dd-envelope-json-v1": WHOLE_DIGEST,
+    "dd-spdx-licence-v1": "e4f537e0181c581ba783a133667fb727bcf595beeba7346839efc636def51121",
+}
+# A name registered later is pinned on a record of its own, so no earlier digest moves.
+PINNED_RECORDS: dict[str, dict[str, Any]] = {
+    "dd-spdx-licence-v1": {
+        "licenseId": "CC-BY-4.0",
+        "name": "Creative Commons Attribution 4.0 International",
+        "isOsiApproved": False,
+        "seeAlso": ["https://creativecommons.org/licenses/by/4.0/legalcode", "https://a.example/"],
+        "licenseText": "Not projected.",
+    }
 }
 
 # --- Generated documents --------------------------------------------------------------------------
@@ -101,7 +132,7 @@ json_values = st.recursive(
 # Documents that mix the FAIRsharing projection's fields with others, so that every name sees
 # lists to sort, fields to drop and fields to fill with null.
 documents = st.dictionaries(
-    st.sampled_from(_FAIRSHARING_FIELDS) | st.text(max_size=8),
+    st.sampled_from(_FAIRSHARING_FIELDS + _SPDX_FIELDS) | st.text(max_size=8),
     json_values | st.lists(st.text() | st.integers(), max_size=4),
     max_size=8,
 )
@@ -115,8 +146,9 @@ def test_every_registered_canonicalisation_has_a_reference_and_a_pin() -> None:
 
 @pytest.mark.parametrize("name", sorted(PINNED_DIGEST))
 def test_a_registered_canonicalisation_gives_its_pinned_digest(name: str) -> None:
-    assert content_hash(PINNED_RECORD, name) == PINNED_DIGEST[name]
-    assert hashlib.sha256(REFERENCE[name](PINNED_RECORD)).hexdigest() == PINNED_DIGEST[name]
+    record = PINNED_RECORDS.get(name, PINNED_RECORD)
+    assert content_hash(record, name) == PINNED_DIGEST[name]
+    assert hashlib.sha256(REFERENCE[name](record)).hexdigest() == PINNED_DIGEST[name]
 
 
 @given(document=documents, name=names)
@@ -143,3 +175,16 @@ def test_a_projection_verifies_against_the_hash_of_its_document(
 ) -> None:
     """E1 recomputes the hash from the evidence `content`, the projection, alone."""
     assert verify(project(document, name), name, content_hash(document, name))
+
+
+def test_the_spdx_projection_ignores_the_text_and_the_order_of_references() -> None:
+    record = PINNED_RECORDS["dd-spdx-licence-v1"]
+    reshaped = {
+        **record,
+        "licenseText": "Other text.",
+        "seeAlso": list(reversed(record["seeAlso"])),
+    }
+    assert content_hash(reshaped, "dd-spdx-licence-v1") == content_hash(
+        record, "dd-spdx-licence-v1"
+    )
+    assert "licenseText" not in project(record, "dd-spdx-licence-v1")

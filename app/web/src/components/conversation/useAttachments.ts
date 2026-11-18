@@ -13,6 +13,8 @@ import {
   NotADocument,
   isDocumentName,
   readDocument,
+  readSource,
+  sourceMediaType,
 } from "../../conversation/documentation";
 import {
   type AttachedInventory,
@@ -29,6 +31,8 @@ export interface Carried {
 }
 
 export interface Attachments extends Carried {
+  /** Whether the profile lets a document be attached; if not, only an inventory may be. */
+  documents: boolean;
   /** Whether the next message carries an inventory or a document. */
   carries: boolean;
   /** An inventory read from a file and being checked, not yet attached (#472). */
@@ -60,9 +64,15 @@ function focusLater(box: RefObject<HTMLTextAreaElement | null>) {
   requestAnimationFrame(() => box.current?.focus());
 }
 
+/** Why a document cannot be attached where the profile refuses them (docs/specs/projects.md). */
+export const DOCUMENTS_REFUSED =
+  "This deployment does not keep attached documents: its profile refuses them. Give what the " +
+  "document says in your message instead.";
+
 export function useAttachments(
   box: RefObject<HTMLTextAreaElement | null>,
   announce: (said: string) => void,
+  documents = true,
 ): Attachments {
   const [inventory, setInventory] = useState<AttachedInventory | null>(null);
   const [pendingInventory, setPendingInventory] = useState<AttachedInventory | null>(null);
@@ -95,11 +105,21 @@ export function useAttachments(
   async function attachFile(file: File | undefined) {
     if (!file) return;
     try {
-      const content = await file.text();
-      if (isDocumentName(file.name)) attachDocument(content, file.name);
-      else attachInventory(content, file.name);
+      const source = sourceMediaType(file.name);
+      if (!isDocumentName(file.name)) attachInventory(await file.text(), file.name);
+      else if (!documents) setError(DOCUMENTS_REFUSED);
+      else if (source === null) attachDocument(await file.text(), file.name);
+      else {
+        // A Word document or PDF is read on the server, inside the deployment (#961).
+        setPendingDocument(await readSource(file, source));
+        setError(null);
+      }
     } catch (e) {
-      setError(`Data Director could not read ${file.name}: ${errorMessage(e)}`);
+      setError(
+        e instanceof NotADocument
+          ? e.message
+          : `Data Director could not read ${file.name}: ${errorMessage(e)}`,
+      );
     }
   }
 
@@ -185,6 +205,7 @@ export function useAttachments(
   return {
     inventory,
     document,
+    documents,
     carries: Boolean(inventory || document),
     pendingInventory,
     pendingDocument,

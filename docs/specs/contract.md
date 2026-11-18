@@ -153,14 +153,22 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
     and the text, which the drafter places as given ([Drafting documents](drafting.md), `sdk/tests/test_contract.py`).
 25. A `ProjectFact` is one fact about a project: a funder, a repository a funder, journal or
     institution requires, whether one file of the inventory is deposited, whether a sensitive
-    field or file may be published and at what precision, or the licence. Its `fact_kind`
+    field or file may be published and at what precision, the licence, or a commitment to share
+    an output. Its `fact_kind`
     (`FactKind`) says which value slots it must hold, and its `fact_subject` is the key the last
     decision counts by; `proposed_because` says, for the person deciding, why it was proposed.
     An agent's payload class proposes facts by mixing in `ProposesFacts` (`proposed_facts`), so
     the harness reads them without knowing the class. A `DraftRequest` and a `Message` may carry
     `project_decisions`, the facts a person decided, which only the conductor fills in a project
     ([Projects](projects.md), invariants 6 and 28; `sdk/tests/test_contract.py`). Adding them
-    raised the contract version to 0.13.0.
+    raised the contract version to 0.13.0. A `sharing_commitment` fact is what a data management plan commits
+    to share: the output as its subject, where, how openly and under what licence, with the
+    plan's own words (`commitment_quote`) and the digest of the attached document's text that
+    holds them (`commitment_document`), both required (`sdk/tests/test_fact_kinds.py`). An
+    agent's own input class asks the conductor for the project's attached documents or decided
+    facts by mixing in `GivenProjectDocuments` (`project_documents`) or `GivenProjectDecisions`
+    (`project_decisions`), so the harness fills them without knowing the class ([Projects](projects.md),
+    invariant 6). Adding them raised the contract version to 0.16.0.
 26. A `FileInventory` may carry `inventory_personal_data`, and each `InventoryPart`
     `part_personal_data`: a list of `PersonalDataFinding`s, each a kind, the file (or a folder,
     ending in a slash), what was examined (a column, a field name, a file name or text), the

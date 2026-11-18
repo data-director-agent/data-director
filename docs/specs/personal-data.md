@@ -31,10 +31,20 @@ referred, never fixed: the command never changes, coarsens or suppresses anythin
 Indirect identifiers are a Blueprint Future Consideration, and the quasi-identifier check is a
 first, bounded answer to it, not a claim to cover them.
 
-Out of scope: screening uploaded documentation (#473), embedded metadata in binary files (#787),
-personal data in conversation text bound for a hosted model (#40), and personal data the app holds
-about the people who use it (#156). The same detector and the same rules on findings are meant
-to serve #473 and #787 when they are built.
+Out of scope: embedded metadata in binary files (#787), personal data in conversation text bound
+for a hosted model (#40), and personal data the app holds about the people who use it (#156).
+The same detector and the same rules on findings are meant to serve #787 when it is built.
+
+**Uploaded documentation (#473).** A document a researcher attaches is text the project keeps
+and a drafter may read ([Projects](projects.md)). The app checks it before it is accepted with
+the same detector, over the whole text, and for secrets with detect-secrets' named plugins
+(keys and tokens of known services, private keys, passwords given to a keyword); its entropy
+plugins are left out, since they flag ordinary words (`dd_app.documentation_check`). What is
+found is named by kind, a band of how many places and a confidence, never a value, a line or an
+offset, in the response and in the log. The document is held until the researcher confirms
+each kind, and is then kept unchanged: flag, never fix (invariant 4). Finding nothing is said
+not to mean there is nothing (invariant 10), since names and places are not looked for in
+text.
 
 Today `dd-inventory` does none of this yet: detection lands with #470 and #471, summary values
 with #611, and the quasi-identifier check with #612. This spec is the design they build to.

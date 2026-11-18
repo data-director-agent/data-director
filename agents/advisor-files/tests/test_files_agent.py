@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 import dd_agent_advisor_files
-from dd_agent_advisor_files.agent import LIMITATIONS, UNKNOWN, FileArchivist
+from dd_agent_advisor_files.agent import LIMITATIONS, UNKNOWN, FileArchivist, load_formats
 from dd_agent_advisor_files.classes import CheckKind, FormatAssessment, JudgedBy
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import describe
@@ -59,13 +59,23 @@ def of_files(*files: InventoryFile) -> FileInventory:
 
 
 def file(
-    path: str, *, size: int = 10, digest: int | None = None, fields: tuple[str, ...] = ()
+    path: str,
+    *,
+    size: int = 10,
+    digest: int | None = None,
+    fields: tuple[str, ...] = (),
+    pronom: tuple[str, ...] = (),
+    media_type: str | None = None,
 ) -> InventoryFile:
     return InventoryFile(
         file_path=path,
         file_size=size,
         file_sha256=f"{digest if digest is not None else hash(path) & 0xFFFF:064x}",
-        file_identified_by=IdentificationMethod.EXTENSION,
+        file_media_type=media_type,
+        file_pronom_ids=list(pronom),
+        file_identified_by=IdentificationMethod.SIGNATURE
+        if pronom
+        else IdentificationMethod.EXTENSION,
         file_fields=[TableField(name=n, field_type="string") for n in fields],
     )
 
@@ -86,18 +96,18 @@ def moorland() -> FileInventory:
 
 
 @pytest.mark.requirement("DD-GROUNDING-MODE", "DD-GROUNDED-PAYLOAD")
-def test_judges_each_file_of_the_inventory_by_its_media_type(runs_dir: Path) -> None:
+def test_judges_each_file_of_the_inventory_by_its_identification(runs_dir: Path) -> None:
     conductor = make_conductor(runs_dir, FileArchivist())
     env = conductor.invoke(request("advisor.files", sample()), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     assert env.grounding_mode == GroundingMode.NONE
     payload = env.payload_as(FormatAssessment)
     assert [(a.path, a.format_name, a.open_format, a.judged_by) for a in payload.assessments] == [
-        ("README.md", "Markdown", True, JudgedBy.MEDIA_TYPE),
-        ("data/readings.csv", "Comma-separated values", True, JudgedBy.MEDIA_TYPE),
-        ("data/sites.tsv", "Tab-separated values", True, JudgedBy.MEDIA_TYPE),
-        ("docs/protocol.pdf", "PDF", True, JudgedBy.MEDIA_TYPE),
-        ("docs/site-map.png", "PNG", True, JudgedBy.MEDIA_TYPE),
+        ("README.md", "Markdown", True, JudgedBy.PRONOM),
+        ("data/readings.csv", "Comma-separated values", True, JudgedBy.PRONOM),
+        ("data/sites.tsv", UNKNOWN, False, JudgedBy.PRONOM_UNLISTED),
+        ("docs/protocol.pdf", "PDF", True, JudgedBy.PRONOM),
+        ("docs/site-map.png", "PNG", True, JudgedBy.PRONOM),
     ]
     assert payload.limitations
     assert conductor.grounding_reports[env.invocation_id].passed
@@ -199,3 +209,48 @@ def test_the_card_names_the_persona_and_its_step() -> None:
 
 def test_its_classes_are_generated_from_its_linkml() -> None:
     assert gen.stale(SCHEMA) == [], f"run `uv run dd-gen-schema {SCHEMA}`"
+
+
+def test_pronom_identification_is_preferred_to_media_type_and_extension() -> None:
+    files = of_files(file("data/export.dat", pronom=("x-fmt/18",), media_type="text/plain"))
+    assessment = FileArchivist()._assess(files.inventory_files[0])
+    assert (assessment.format_name, assessment.judged_by, assessment.pronom_id) == (
+        "Comma-separated values",
+        JudgedBy.PRONOM,
+        "x-fmt/18",
+    )
+
+
+def test_the_first_identifier_in_the_table_is_used() -> None:
+    assessment = FileArchivist()._assess(file("a.bin", pronom=("fmt/99999", "fmt/276")))
+    assert (assessment.format_name, assessment.pronom_id) == ("PDF", "fmt/276")
+
+
+def test_an_identifier_outside_the_table_is_reported_as_such() -> None:
+    assessment = FileArchivist()._assess(
+        file("data/readings.csv", pronom=("fmt/99999",), media_type="text/csv")
+    )
+    assert assessment.judged_by == JudgedBy.PRONOM_UNLISTED
+    assert assessment.pronom_id == "fmt/99999"
+    assert assessment.format_name == UNKNOWN
+    assert not assessment.open_format
+
+
+def test_content_that_disagrees_with_the_extension_is_a_check() -> None:
+    files = of_files(
+        file("data/readings.csv", pronom=("fmt/18",)),
+        file("data/other.csv", pronom=("x-fmt/18",)),
+        file("data/odd.dat", pronom=("x-fmt/18",)),
+    )
+    checks = FileArchivist()._checks(files.inventory_files)
+    assert [(c.path, c.kind, c.matched) for c in checks] == [
+        ("data/readings.csv", CheckKind.EXTENSION_MISMATCH, "csv")
+    ]
+    assert checks[0].question
+
+
+def test_the_formats_table_has_no_puid_twice_for_different_formats() -> None:
+    seen: dict[str, str] = {}
+    for known in load_formats().values():
+        for puid in known.pronom:
+            assert seen.setdefault(puid, known.name) == known.name

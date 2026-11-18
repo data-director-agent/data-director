@@ -142,7 +142,7 @@ describe("Frame", () => {
     );
   });
 
-  it("draws an icon beside each banner link and the dark mode switch, hidden from screen readers", () => {
+  it("draws an icon beside each banner link, hidden from screen readers", () => {
     render(
       <Frame current="/">
         <p>Content</p>
@@ -157,13 +157,9 @@ describe("Frame", () => {
       "User guide",
       "Report a problem",
       "Settings",
-      "Dark mode",
     ]) {
-      const control = within(banner).getByRole(
-        name === "Dark mode" ? "button" : "link",
-        // An external link's name goes on to say it opens in a new tab.
-        { name: new RegExp(`^${name}`) },
-      );
+      // An external link's name goes on to say it opens in a new tab.
+      const control = within(banner).getByRole("link", { name: new RegExp(`^${name}`) });
       const icon = control.querySelector("svg");
       expect(icon).not.toBeNull();
       expect(icon).toHaveAttribute("aria-hidden", "true");

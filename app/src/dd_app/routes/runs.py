@@ -107,6 +107,8 @@ class AgentsProfile(ResponseBody):
     digest: str
     orchestrator: str | None
     """The agent the profile names for the conversation; null when it names none."""
+    attached_documents: Literal["allowed", "refused"]
+    """Whether the profile lets people attach documents to a turn."""
 
 
 class RawAgentsResponse(ResponseBody):

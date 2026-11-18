@@ -38,10 +38,13 @@ export type AppResponse =
   | DisclosedDraft
   | DisclosedModel
   | Disclosure
+  | DocumentCheck
   | DocumentCounts
   | DocumentDraftedBy
+  | DocumentFinding
   | DocumentVersion
   | Example
+  | ExtractedDocument
   | FactProposal
   | FiledIssue
   | FlowEntry
@@ -137,6 +140,10 @@ export interface AgentSetting {
   description: string;
 }
 export interface AgentsProfile {
+  /**
+   * Whether the profile lets people attach documents to a turn.
+   */
+  attached_documents: "allowed" | "refused";
   digest: string;
   /**
    * The agent the profile names for the conversation; null when it names none.
@@ -552,6 +559,36 @@ export interface Disclosure {
   statement: string;
 }
 /**
+ * What the check found in a document before it is attached (`POST /api/documentation/check`)
+ */
+export interface DocumentCheck {
+  /**
+   * What the check ran.
+   */
+  checked_with: string;
+  findings: DocumentFinding[];
+  /**
+   * The kinds a researcher confirms: a secret's type stands for itself.
+   */
+  kinds: string[];
+}
+/**
+ * What may be in a document: a kind of personal data, or `secret` with the type of secret as
+ * its detail.
+ */
+export interface DocumentFinding {
+  confidence: string;
+  /**
+   * The type of secret; left out for personal data.
+   */
+  detail?: string;
+  kind: string;
+  /**
+   * How many places, as a band, so that a finding cannot be turned into a count.
+   */
+  places: string;
+}
+/**
  * The run that drafted a version.
  */
 export interface DocumentDraftedBy {
@@ -612,6 +649,17 @@ export interface Example {
    * The class the example names, or null if it names none.
    */
   schema_class: string | null;
+}
+/**
+ * The text read from a Word document or PDF (`POST /api/documentation/extract`).
+ */
+export interface ExtractedDocument {
+  name: string;
+  /**
+   * The text's length in bytes, as UTF-8.
+   */
+  size: number;
+  text: string;
 }
 /**
  * A proposal no decision on its kind and subject has followed yet.

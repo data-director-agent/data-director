@@ -15,6 +15,8 @@ from dd_sdk.contract.models import Frozen, Grounded
 
 
 class JudgedBy(StrEnum):
+    PRONOM = "pronom"
+    PRONOM_UNLISTED = "pronom_unlisted"
     MEDIA_TYPE = "media_type"
     EXTENSION = "extension"
     NOTHING = "nothing"
@@ -28,6 +30,7 @@ class CheckKind(StrEnum):
     SYSTEM_FILE = "system_file"
     EMPTY = "empty"
     DUPLICATE = "duplicate"
+    EXTENSION_MISMATCH = "extension_mismatch"
 
 
 class FileCheck(Frozen):
@@ -45,6 +48,7 @@ class FileAssessment(Frozen):
     media_type: str | None = None
     open_format: bool
     judged_by: JudgedBy
+    pronom_id: str | None = None
 
 
 class FormatAssessment(Grounded):

@@ -80,4 +80,10 @@ describe("a turn's body", () => {
       documentation: { name: "a.md", media_type: "text/markdown", text: "# A" },
     });
   });
+
+  it("carries a Word document or PDF as the file, never its text", () => {
+    const pdf = { name: "p.pdf", media_type: "application/pdf", text: "Read", size: 4, data: "JVBE" };
+    const sent = turnBody("o", "", null, null, null, pdf).documentation;
+    expect(sent).toEqual({ name: "p.pdf", media_type: "application/pdf", data: "JVBE" });
+  });
 });

@@ -16,12 +16,15 @@
  * JSON widens a string-literal union to `string`, so each type is compared as `Wide<T>`.
  * `satisfies` reports a missing or mistyped field; it does not report an extra one, and a renamed
  * optional field passes. Nothing here runs, and nothing imports the file.
+ *
+ * Every fixture `check_fixture` writes is here, refusals as well as answers. `inventory-left-out`
+ * is not: it is written by hand, as what a test sends the server, not what the server says.
  */
 
 import type { RunResult } from "./api/generated/responses";
 import type { Conversation } from "./conversation/types";
 import type { RawAgentsResponse } from "./manifest/types";
-import type { RawModelAccount } from "./model-account/api";
+import type { RawModelAccount, RawRefusal } from "./model-account/api";
 import type {
   DeletedProject,
   ProjectDocuments,
@@ -31,6 +34,7 @@ import type {
 } from "./project/api";
 import type { ResearcherRecord } from "./project/researcher";
 import type { ProjectFacts } from "./project/facts";
+import type { Problem } from "./run/types";
 
 import agents from "../fixtures/agents.json";
 import agentsSeveral from "../fixtures/agents-several.json";
@@ -41,6 +45,7 @@ import conversationTurn from "../fixtures/conversation-turn.json";
 import intakeComplete from "../fixtures/intake-complete.json";
 import intakePending from "../fixtures/intake-pending.json";
 import modelAccount from "../fixtures/model-account.json";
+import modelAccountRejected from "../fixtures/model-account-rejected.json";
 import modelAccountNone from "../fixtures/model-account-none.json";
 import orcidRecord from "../fixtures/orcid-record.json";
 import projectAnswers from "../fixtures/project-answers.json";
@@ -48,6 +53,7 @@ import projectCreated from "../fixtures/project-created.json";
 import projectDocuments from "../fixtures/project-documents.json";
 import projectFacts from "../fixtures/project-facts.json";
 import projectFactsDecided from "../fixtures/project-facts-decided.json";
+import projectFactsForbidden from "../fixtures/project-facts-forbidden.json";
 import projectResearchers from "../fixtures/project-researchers.json";
 import projects from "../fixtures/projects.json";
 import projectsDeleted from "../fixtures/projects-deleted.json";
@@ -73,6 +79,7 @@ void (agents satisfies Wide<RawAgentsResponse>);
 void (agentsSeveral satisfies Wide<RawAgentsResponse>);
 void (modelAccount satisfies Wide<RawModelAccount>);
 void (modelAccountNone satisfies Wide<RawModelAccount>);
+void (modelAccountRejected satisfies Wide<RawRefusal>);
 
 // Conversations and runs (envelopes; the turns' inputs).
 void (conversation satisfies Wide<Conversation>);
@@ -91,6 +98,7 @@ void (projectDocuments satisfies Wide<ProjectDocuments>);
 void (projectAnswers satisfies Wide<ProjectDocuments>);
 void (projectFacts satisfies Wide<ProjectFacts>);
 void (projectFactsDecided satisfies Wide<ProjectFacts>);
+void (projectFactsForbidden satisfies Wide<Problem>);
 void (projectResearchers satisfies Wide<ResearcherRecord>[]);
 void (orcidRecord satisfies Wide<ResearcherRecord>);
 void (intakePending satisfies Wide<ProjectIntake>);

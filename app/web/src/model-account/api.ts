@@ -48,6 +48,11 @@ export interface RawModelAccount {
   }[];
 }
 
+/** What the broker answers when it refuses: a reason code that `reasonText` puts in words. */
+export interface RawRefusal {
+  reason: string;
+}
+
 /** The broker refused or failed, with its reason code. */
 export class AccountRefused extends Error {
   constructor(readonly reason: string) {
@@ -114,7 +119,11 @@ async function ticket(signal?: AbortSignal): Promise<Ticket> {
   return (await response.json()) as Ticket;
 }
 
-async function broker(method: string, body?: unknown, signal?: AbortSignal): Promise<Response> {
+async function broker(
+  method: string,
+  body?: unknown,
+  signal?: AbortSignal,
+): Promise<Response> {
   const issued = await ticket(signal);
   const response = await fetch(`${issued.broker_url}/enrolment/account`, {
     ...(signal ? { signal } : {}),
@@ -126,7 +135,9 @@ async function broker(method: string, body?: unknown, signal?: AbortSignal): Pro
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   if (!response.ok) {
-    const refused = (await response.json().catch(() => null)) as { reason?: string } | null;
+    const refused = (await response
+      .json()
+      .catch(() => null)) as Partial<RawRefusal> | null;
     throw new AccountRefused(refused?.reason ?? "broker-error");
   }
   return response;
@@ -134,18 +145,28 @@ async function broker(method: string, body?: unknown, signal?: AbortSignal): Pro
 
 export const httpModelAccountApi: ModelAccountApi = {
   async read(signal) {
-    return fromRaw((await (await broker("GET", undefined, signal)).json()) as RawModelAccount);
+    return fromRaw(
+      (await (
+        await broker("GET", undefined, signal)
+      ).json()) as RawModelAccount,
+    );
   },
   async enrol(provider, key, baseUrl) {
-    const body = baseUrl === undefined ? { provider, key } : { provider, key, base_url: baseUrl };
-    return fromRaw((await (await broker("PUT", body)).json()) as RawModelAccount);
+    const body =
+      baseUrl === undefined
+        ? { provider, key }
+        : { provider, key, base_url: baseUrl };
+    return fromRaw(
+      (await (await broker("PUT", body)).json()) as RawModelAccount,
+    );
   },
   async remove() {
     await broker("DELETE");
   },
 };
 
-export const ModelAccountApiContext = createContext<ModelAccountApi>(httpModelAccountApi);
+export const ModelAccountApiContext =
+  createContext<ModelAccountApi>(httpModelAccountApi);
 
 export function useModelAccountApi(): ModelAccountApi {
   return useContext(ModelAccountApiContext);
