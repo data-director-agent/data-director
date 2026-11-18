@@ -15,12 +15,22 @@ import { json } from "../http";
 import type { Problem } from "../run/types";
 import { DecisionConflict } from "./api";
 
-export type FactKind = "funder" | "required_repository" | "file_inclusion" | "sensitivity" | "licence";
+export type FactKind =
+  | "funder"
+  | "required_repository"
+  | "file_inclusion"
+  | "sensitivity"
+  | "licence"
+  | "sharing_commitment";
 export type FileDecision = "include" | "exclude" | "undecided";
 export type SensitivityDecision = "publish" | "generalise" | "withhold" | "undecided";
 export type LocationPrecision = "exact" | "site" | "region" | "country";
 export type FactVerdict = "confirmed" | "changed" | "rejected";
 
+/**
+ * The kinds a person may state with no proposal. A sharing commitment is not one: it quotes the
+ * attached plan it was read from, so only the DMP check proposes it (#962).
+ */
 export const FACT_KINDS: readonly FactKind[] = [
   "file_inclusion",
   "sensitivity",
@@ -55,6 +65,13 @@ export interface ProjectFact {
   sensitivity_decision?: SensitivityDecision;
   location_precision?: LocationPrecision;
   licence_id?: string;
+  /** A sharing commitment, as the plan states it. */
+  commitment_repository?: string;
+  commitment_access?: string;
+  commitment_licence?: string;
+  /** The plan's own words, and the SHA-256 of the attached document's text they are in. */
+  commitment_quote?: string;
+  commitment_document?: string;
   /** Why an agent proposed it, for the person deciding; never given to an agent. */
   proposed_because?: string;
 }
@@ -100,6 +117,7 @@ export const FACT_NEEDS: Record<FactKind, readonly (keyof ProjectFact)[]> = {
   file_inclusion: ["fact_file_path", "file_decision"],
   sensitivity: ["sensitive_subject", "sensitivity_decision"],
   licence: ["licence_id"],
+  sharing_commitment: ["commitment_quote", "commitment_document"],
 };
 
 /** The slot a fact's subject is copied from, so a person names the subject once. */
@@ -109,6 +127,7 @@ export const SUBJECT_OF: Record<FactKind, keyof ProjectFact | null> = {
   file_inclusion: "fact_file_path",
   sensitivity: "sensitive_subject",
   licence: null,
+  sharing_commitment: null,
 };
 
 /** The slots `fact` is missing for its kind; empty when it may be sent. */

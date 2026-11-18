@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
@@ -12,15 +14,24 @@ from starlette.responses import Response
 from dd_app.problems import refused
 from dd_sdk.contract.models import ReplyAnswers
 
+# Why a turn's `documentation` is refused for its shape.
+DOCUMENTATION_REFUSAL = (
+    "`documentation` must be an object giving the document's `name`, `media_type` and `text`, "
+    "or for a Word document or PDF its `name`, `media_type` and the file as base64 `data`, "
+    "as strings, and optionally `confirmed`, a list of kinds."
+)
+
 
 @dataclass(frozen=True)
 class AttachedDocument:
-    """A supporting document a turn attaches: its file name, media type and text, and the kinds
-    of possible personal data or secrets the researcher confirmed it holds (#473)."""
+    """A supporting document a turn attaches: its file name, media type and text, or, for a Word
+    document or PDF, the file itself, whose text the server reads (`read_document_file`); and the
+    kinds of possible personal data or secrets the researcher confirmed it holds (#473)."""
 
     name: str
     media_type: str
-    text: str
+    text: str = ""
+    data: bytes | None = None
     confirmed: tuple[str, ...] = ()
 
 
@@ -41,21 +52,31 @@ def _documentation(attached: Any) -> AttachedDocument | Response | None:
     """A turn's `documentation`, checked, or the `400` problem that refuses it."""
     if attached is None:
         return None
-    fields = ("name", "media_type", "text")
     confirmed = attached.get("confirmed", []) if isinstance(attached, dict) else None
+    shapes = ({"name", "media_type", "text"}, {"name", "media_type", "data"})
     if not (
         isinstance(attached, dict)
-        and set(attached) - {"confirmed"} == set(fields)
-        and all(isinstance(attached[key], str) for key in fields)
+        and set(attached) - {"confirmed"} in shapes
+        and all(isinstance(value, str) for key, value in attached.items() if key != "confirmed")
         and isinstance(confirmed, list)
         and all(isinstance(kind, str) for kind in confirmed)
     ):
-        return refused(
-            "`documentation` must be an object giving the document's `name`, "
-            "`media_type` and `text`, as strings, and optionally `confirmed`, a list of kinds."
-        )
-    name, media_type, text = (attached[key] for key in fields)
-    return AttachedDocument(name, media_type, text, tuple(confirmed))
+        return refused(DOCUMENTATION_REFUSAL)
+    name, media_type = attached["name"], attached["media_type"]
+    if "data" not in attached:
+        return AttachedDocument(name, media_type, attached["text"], confirmed=tuple(confirmed))
+    data = decoded(attached["data"])
+    if data is None:
+        return refused("`documentation.data` must be the file, encoded as base64.")
+    return AttachedDocument(name, media_type, data=data, confirmed=tuple(confirmed))
+
+
+def decoded(data: str) -> bytes | None:
+    """The bytes `data` encodes as base64, or None if it is not base64."""
+    try:
+        return base64.b64decode(data, validate=True)
+    except binascii.Error:
+        return None
 
 
 def _reply_answers(given: Any) -> ReplyAnswers | Response | None:

@@ -6,7 +6,13 @@ import decidedFixture from "../../../fixtures/project-facts-decided.json";
 import forbiddenFixture from "../../../fixtures/project-facts-forbidden.json";
 import offeredFixture from "../../../fixtures/project-facts.json";
 import { DecisionConflict } from "../../project/api";
-import { FactForbidden, type FactsApi, FactsApiContext, type ProjectFacts } from "../../project/facts";
+import {
+  FactForbidden,
+  type FactsApi,
+  FactsApiContext,
+  type ProjectFact,
+  type ProjectFacts,
+} from "../../project/facts";
 import type { Problem } from "../../run/types";
 import { FactsPanel } from "./FactsPanel";
 
@@ -152,5 +158,49 @@ describe("FactsPanel", () => {
       fact: { fact_kind: fact?.fact_kind, fact_subject: fact?.fact_subject },
     });
     expect(await screen.findByRole("status")).toHaveTextContent(/Removed:/);
+  });
+
+  it("shows the plan's words for a sharing commitment and keeps them in a correction", async () => {
+    const commitment: ProjectFact = {
+      fact_kind: "sharing_commitment",
+      fact_subject: "Survey responses",
+      commitment_repository: "ORDA",
+      commitment_quote: "Survey responses will be shared openly in ORDA under CC BY 4.0.",
+      commitment_document: "a".repeat(64),
+      proposed_because: "Read from dmp.docx; check it against the quoted passage.",
+    };
+    const offered: ProjectFacts = {
+      proposals: [
+        {
+          proposal: "01900000-0000-7000-8000-0000000000c1",
+          agent_id: "advisor.dmp",
+          proposed_at: "2026-11-18T10:00:00Z",
+          fact: commitment,
+        },
+      ],
+      decisions: [],
+    };
+    const decideFact = vi.fn<FactsApi["decideFact"]>(() => Promise.resolve(DECIDED));
+    const { container } = renderPanel({ facts: () => Promise.resolve(offered), decideFact });
+    const user = userEvent.setup();
+
+    const card = await proposalCard(/commits to share Survey responses in ORDA/);
+    expect(within(card).getByRole("blockquote")).toHaveTextContent(commitment.commitment_quote ?? "");
+    expect(await axe(container)).toHaveNoViolations();
+
+    await user.click(within(card).getByRole("radio", { name: /Change it/ }));
+    await user.clear(within(card).getByLabelText(/Where it is shared/));
+    await user.type(within(card).getByLabelText(/Where it is shared/), "Zenodo");
+    await user.type(within(card).getByLabelText(/Reason/), "We moved to Zenodo.");
+    await user.click(within(card).getByRole("button", { name: "Record my version" }));
+
+    const kept: ProjectFact = { ...commitment };
+    delete kept.proposed_because;
+    expect(decideFact).toHaveBeenCalledWith(PROJECT, {
+      verdict: "changed",
+      proposal: "01900000-0000-7000-8000-0000000000c1",
+      fact: { ...kept, commitment_repository: "Zenodo" },
+      reason: "We moved to Zenodo.",
+    });
   });
 });

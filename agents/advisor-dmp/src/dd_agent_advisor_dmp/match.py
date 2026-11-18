@@ -378,3 +378,14 @@ def differences_between(c: SharingCommitment, p: SharingCommitment) -> list[Diff
         if was is not None and now is not None and key(was) != key(now):
             found.append(Difference(c.output, aspect, was, now))
     return found
+
+
+def model_use(model_id: str | None, usage: Usage, calls: ModelCallLog | None) -> dict[str, Any]:
+    """What a result records of the model calls a matcher or reader made."""
+    return {
+        "model_id": model_id,
+        "input_tokens": usage.input_tokens,
+        "output_tokens": usage.output_tokens,
+        "model_calls": tuple(calls.calls) if calls is not None else (),
+        "prompts": dict(calls.prompts) if calls is not None else {},
+    }

@@ -386,7 +386,8 @@ class Conductor:
         sent = to_document(request.input)
         # A profile that refuses attached documents has no agent given any (projects.md).
         documents = not self.profile.refuses_documents
-        filled = project_facts.give(facts, in_project, sent, documents=documents)
+        spec = self._spec_of(request.agent_id)  # an agent's own class may ask for facts by slot
+        filled = project_facts.give(facts, in_project, sent, documents=documents, spec=spec)
         given = project_facts.given(facts, in_project, filled)
         # Researcher facts, a `Message`'s decided facts and a draft's attached documents that the
         # profile keeps from this agent's hosted model are left out, not refused

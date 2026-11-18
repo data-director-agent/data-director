@@ -12,7 +12,7 @@ description: >-
   schema_class (docs/specs/contract.md); every payload mixes in Grounded so the grounding linter can check it
   without knowing its class (docs/specs/grounding.md). Formats here are fixed; see docs/specs/ for why.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.15.0
+version: 0.16.0
 license: MIT
 
 prefixes:
@@ -264,6 +264,7 @@ classes:
       - documentation_media_type
       - documentation_size
       - documentation_added_at
+      - documentation_source_media_type
 
   ProjectDocument:
     description: >-
@@ -276,6 +277,7 @@ classes:
       - documentation_media_type
       - documentation_size
       - documentation_added_at
+      - documentation_source_media_type
       - documentation_text
 
   ResearcherRecord:
@@ -577,8 +579,8 @@ classes:
     description: >-
       One fact about a project that a check agent proposes and a person confirms: a funder, a
       repository a funder or institution requires, whether a file is deposited, whether a
-      sensitive field or file may be published and at what precision, or the licence
-      (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the
+      sensitive field or file may be published and at what precision, the licence, or an output a
+      data management plan committed to share (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the
       key a person's decision counts by, so the last decision on a subject stands. An agent's
       payload carries proposals in proposed_facts; only a person's decision makes one a fact, and
       the conductor gives the facts a person decided to every drafter and orchestrator in the
@@ -599,6 +601,11 @@ classes:
       - sensitivity_decision
       - location_precision
       - licence_id
+      - commitment_repository
+      - commitment_access
+      - commitment_licence
+      - commitment_quote
+      - commitment_document
       - proposed_because
     rules:
       - description: A funder fact names the funder.
@@ -650,6 +657,38 @@ classes:
           slot_conditions:
             licence_id:
               required: true
+      - description: >-
+          A sharing commitment quotes the plan it was read from and names that document.
+        preconditions:
+          slot_conditions:
+            fact_kind:
+              equals_string: sharing_commitment
+        postconditions:
+          slot_conditions:
+            commitment_quote:
+              required: true
+            commitment_document:
+              required: true
+
+  GivenProjectDocuments:
+    mixin: true
+    description: >-
+      Mixed into an agent's own input class when the agent reads the documents a researcher
+      attached to the project. In a project the conductor fills project_documents by this name,
+      as for a DraftRequest, and never needs to know the input class (docs/specs/projects.md,
+      invariant 6); outside one, the caller sends them.
+    slots:
+      - project_documents
+
+  GivenProjectDecisions:
+    mixin: true
+    description: >-
+      Mixed into an agent's own input class when the agent reads the facts people decided about
+      the project. In a project the conductor fills project_decisions by this name, as for a
+      DraftRequest, and never needs to know the input class (docs/specs/projects.md, invariant
+      6); outside one, the caller sends them.
+    slots:
+      - project_decisions
 
   ProposesFacts:
     mixin: true
@@ -1124,8 +1163,15 @@ slots:
     description: When the document was added to the project.
     range: datetime
     required: true
+  documentation_source_media_type:
+    description: >-
+      The media type of the Word document or PDF the document's text was read from, inside the
+      deployment; absent for a document attached as text. The project keeps the file beside the
+      text.
   documentation_text:
-    description: The document's text, as the researcher attached it.
+    description: >-
+      The document's text, as the researcher attached it, or as read from the file named by
+      documentation_source_media_type.
     required: true
   project_documents:
     description: >-
@@ -1583,6 +1629,27 @@ slots:
     range: LocationPrecision
   licence_id:
     description: The licence decided, as an SPDX identifier or a URL.
+  commitment_repository:
+    description: >-
+      For a sharing commitment, the repository the plan committed to share the output in, as the
+      plan names it; absent where it names none.
+  commitment_access:
+    description: >-
+      For a sharing commitment, how openly the plan committed to share the output (such as open,
+      embargoed or on request), as the plan says it; absent where it says nothing.
+  commitment_licence:
+    description: >-
+      For a sharing commitment, the licence the plan committed to, as the plan names it; absent
+      where it names none.
+  commitment_quote:
+    description: >-
+      For a sharing commitment, the plan's own words the commitment was read from, verbatim, so
+      the person deciding can see the passage it rests on.
+  commitment_document:
+    description: >-
+      For a sharing commitment, the digest of the attached document's text (its
+      documentation_digest) the quote is from.
+    pattern: "^[0-9a-f]{64}$"
   proposed_because:
     description: >-
       Why the agent proposes the fact, in a sentence for the person deciding. Kept with the
@@ -2170,6 +2237,11 @@ enums:
         description: Whether a sensitive field or file may be published, and at what precision.
       licence:
         description: The licence the dataset is deposited under.
+      sharing_commitment:
+        description: >-
+          An output the project's data management plan committed to share, with where, how
+          openly and under what licence, as read from the plan the researcher attached
+          (docs/specs/projects.md, #962).
 
   FileDecision:
     description: Whether a file of the inventory is to be deposited.

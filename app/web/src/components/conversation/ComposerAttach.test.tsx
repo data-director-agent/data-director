@@ -24,12 +24,15 @@ describe("ComposerAttach", () => {
     const types = accepted(true);
     expect(types).toContain(".json");
     expect(types).toContain(".md");
+    expect(types).toContain(".pdf");
+    expect(types).toContain(".docx");
   });
 
   it("takes only an inventory where the profile refuses documents", () => {
     const types = accepted(false);
     expect(types).toContain(".json");
     expect(types).not.toContain(".md");
+    expect(types).not.toContain(".pdf");
     expect(types).not.toContain("text/markdown");
   });
 });

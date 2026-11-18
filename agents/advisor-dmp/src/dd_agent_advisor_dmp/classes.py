@@ -10,6 +10,7 @@ from typing import Literal
 
 from pydantic import Field
 
+from dd_sdk.contract.facts import ProjectDocument, ProjectFact
 from dd_sdk.contract.models import Derivation, Frozen, Grounded
 
 
@@ -25,6 +26,9 @@ class DmpCommitments(Frozen):
     dmp_identifier: str | None = None
     committed_outputs: list[SharingCommitment] = Field(default_factory=list)
     planned_outputs: list[SharingCommitment] = Field(default_factory=list)
+    # Filled by the conductor in a project (`GivenProjectDocuments`, `GivenProjectDecisions`).
+    project_documents: list[ProjectDocument] = Field(default_factory=list)
+    project_decisions: list[ProjectFact] = Field(default_factory=list)
 
 
 class Discrepancy(Frozen):
@@ -51,3 +55,5 @@ class DmpDiscrepancies(Grounded):
     reconciled: list[Reconciliation] = Field(default_factory=list)
     dropped: list[str] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
+    # A plan's commitments read from an attached document, for a person to confirm.
+    proposed_facts: list[ProjectFact] = Field(default_factory=list)

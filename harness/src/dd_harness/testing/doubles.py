@@ -22,6 +22,7 @@ from dd_harness.testing.classes import (
     ProbeDocumentRequest,
     ProbeFindings,
     ProbeProfile,
+    ProbeReading,
     ProbeRecord,
     ProbeReview,
 )
@@ -308,16 +309,17 @@ class DocumentStub:
 
 
 class FactStub:
-    """Checks a `FileInventory` and proposes `facts` about its project for a person to decide, in
-    a `ProbeFindings` payload, grounded on its input (docs/specs/projects.md). It declares
-    grounding mode `none`."""
+    """Checks a `FileInventory`, or a `ProbeReading` the conductor fills with the project's
+    documents and decisions, and proposes `facts` about its project for a person to decide, in a
+    `ProbeFindings` payload, grounded on its input (docs/specs/projects.md). It declares grounding
+    mode `none`."""
 
     spec = AgentSpec(
         agent_id="stub.facts",
         version="0.1.0",
         description="Proposes fixed facts about a project for a person to decide.",
         action_class="advise",
-        accepts=(ClassSchema.of(FileInventory),),
+        accepts=(ClassSchema.of(FileInventory), ClassSchema.of(ProbeReading)),
         grounding_mode=GroundingMode.NONE,
         payload=ClassSchema.of(ProbeFindings),
     )

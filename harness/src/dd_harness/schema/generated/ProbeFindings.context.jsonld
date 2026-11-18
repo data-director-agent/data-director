@@ -10,6 +10,21 @@
       "ProjectFact": {
          "@id": "https://w3id.org/data-director/ProjectFact"
       },
+      "commitment_access": {
+         "@id": "https://w3id.org/data-director/commitment_access"
+      },
+      "commitment_document": {
+         "@id": "https://w3id.org/data-director/commitment_document"
+      },
+      "commitment_licence": {
+         "@id": "https://w3id.org/data-director/commitment_licence"
+      },
+      "commitment_quote": {
+         "@id": "https://w3id.org/data-director/commitment_quote"
+      },
+      "commitment_repository": {
+         "@id": "https://w3id.org/data-director/commitment_repository"
+      },
       "content_hash": {
          "@id": "https://w3id.org/data-director/content_hash"
       },

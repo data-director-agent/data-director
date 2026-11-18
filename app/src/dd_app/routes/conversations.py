@@ -39,7 +39,7 @@ from dd_app.routes.common import (
     signed_in,
 )
 from dd_app.routes.runs import REFUSED_BEFORE_RUN
-from dd_app.turn_body import AttachedDocument, Turn
+from dd_app.turn_body import DOCUMENTATION_REFUSAL, AttachedDocument, Turn, decoded
 from dd_app.turn_stream import TurnStreams
 from dd_harness.projects import ProjectDeletedError, UnknownProjectError
 from dd_harness.transport.paging import PagingError, page_params, page_response
@@ -65,15 +65,24 @@ class StartConversation(RequestBody):
 
 
 class AttachedDocumentBody(RequestBody):
-    """A supporting document a turn attaches, its text with it."""
+    """A supporting document a turn attaches: its text, or for a Word document or PDF the file
+    as base64 `data`, whose text the server reads."""
 
     model_config = _FORBIDS_EXTRA
 
     name: str
     media_type: str
-    text: str
+    text: str | None = None
+    data: str | None = None
     # The kinds of possible personal data or secrets the researcher confirmed it holds (#473).
     confirmed: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _text_or_file(self) -> Self:
+        unreadable = self.data is not None and decoded(self.data) is None
+        if (self.text is None) == (self.data is None) or unreadable:
+            raise ValueError(DOCUMENTATION_REFUSAL)
+        return self
 
 
 class SendTurn(RequestBody):
@@ -92,8 +101,7 @@ class SendTurn(RequestBody):
         "follows": "The body must give `follows`: the `invocation_id` of the turn this one "
         "follows, or null for the first turn.",
         "inventory": "`inventory` must be the object `dd-inventory` wrote.",
-        "documentation": "`documentation` must be an object giving the document's `name`, "
-        "`media_type` and `text`, as strings, and optionally `confirmed`, a list of kinds.",
+        "documentation": DOCUMENTATION_REFUSAL,
         "reply_answers": "`reply_answers` must name the turn it answers (`answer_to`) and give "
         "`given_answers`: for each question answered, its `answered_key`, the `answer_values` "
         "chosen and optionally `answer_words`.",
@@ -130,7 +138,8 @@ class SendTurn(RequestBody):
         d = self.documentation
         if d is None:
             return None
-        return AttachedDocument(d.name, d.media_type, d.text, tuple(d.confirmed))
+        data = None if d.data is None else decoded(d.data)
+        return AttachedDocument(d.name, d.media_type, d.text or "", data, tuple(d.confirmed))
 
     def turn(self) -> Turn:
         return Turn(
