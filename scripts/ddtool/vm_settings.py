@@ -179,7 +179,7 @@ class SettingsChecks(Checks):
         try:
             deployment, planned = plan(system, place, vm)
         except DevError as exc:
-            report.problem(str(exc), f"edit {place.deployment}")
+            report.problem(str(exc), f"{self.tool} edit")
             return
         report.note(
             f"{place.deployment} says: {deployment.name}, orchestrator {deployment.orchestrator}"

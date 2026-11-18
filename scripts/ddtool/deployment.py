@@ -94,40 +94,42 @@ class Deployment:
 
 def load(path: Path, agents: list[Agent]) -> Deployment:
     """`path`'s deployment, checked against the agents the release lists."""
+    return parse(path.read_text(encoding="utf-8"), shown(path), agents)
+
+
+def parse(text: str, label: str, agents: list[Agent]) -> Deployment:
+    """The deployment `text` says, checked against the agents the release lists. Each problem is
+    reported against `label`, the file as the operator knows it."""
     try:
-        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        data = yaml.safe_load(text) or {}
     except yaml.YAMLError as exc:
-        raise DevError(f"{shown(path)} is not valid YAML: {exc}") from exc
+        raise DevError(f"{label} is not valid YAML: {exc}") from exc
     if not isinstance(data, dict):
-        raise DevError(f"{shown(path)}: expected name, orchestrator, disabled and privacy_notice")
+        raise DevError(f"{label}: expected name, orchestrator, disabled and privacy_notice")
     if unknown := sorted(set(data) - KEYS):
         raise DevError(
-            f"{shown(path)}: unknown key {', '.join(unknown)} (known: {', '.join(sorted(KEYS))})"
+            f"{label}: unknown key {', '.join(unknown)} (known: {', '.join(sorted(KEYS))})"
         )
     name = str(data.get("name") or "")
     if not NAME.match(name):
-        raise DevError(
-            f"{shown(path)}: name is lower-case words joined by hyphens, such as datadir-dev"
-        )
+        raise DevError(f"{label}: name is lower-case words joined by hyphens, such as datadir-dev")
     orchestrator = str(data.get("orchestrator") or "stub")
     if orchestrator not in ORCHESTRATORS:
         raise DevError(
-            f"{shown(path)}: orchestrator is {' or '.join(ORCHESTRATORS)}, not {orchestrator!r}"
+            f"{label}: orchestrator is {' or '.join(ORCHESTRATORS)}, not {orchestrator!r}"
         )
     disabled = data.get("disabled") or []
     if not isinstance(disabled, list):
-        raise DevError(f"{shown(path)}: disabled is a list of agent names")
+        raise DevError(f"{label}: disabled is a list of agent names")
     known = {agent.name for agent in agents}
     if unknown_agents := sorted(set(map(str, disabled)) - known):
-        raise DevError(
-            f"{shown(path)}: disabled names {', '.join(unknown_agents)}, not in agents.yaml"
-        )
+        raise DevError(f"{label}: disabled names {', '.join(unknown_agents)}, not in agents.yaml")
     privacy_notice = data.get("privacy_notice")
     if privacy_notice is not None and not (
         isinstance(privacy_notice, str) and PRIVACY_NOTICE.fullmatch(privacy_notice.strip())
     ):
         raise DevError(
-            f"{shown(path)}: privacy_notice is the address of the institution's privacy notice, "
+            f"{label}: privacy_notice is the address of the institution's privacy notice, "
             "an https URL such as https://example.ac.uk/data-director/privacy"
         )
     found = Deployment(
@@ -137,9 +139,9 @@ def load(path: Path, agents: list[Agent]) -> Deployment:
         privacy_notice.strip() if privacy_notice else None,
     )
     if found.orchestrator_agent not in known:
-        raise DevError(f"{shown(path)}: agents.yaml lists no {found.orchestrator_agent}")
+        raise DevError(f"{label}: agents.yaml lists no {found.orchestrator_agent}")
     if found.orchestrator_agent in found.disabled:
-        raise DevError(f"{shown(path)}: the orchestrator, {found.orchestrator_agent}, is disabled")
+        raise DevError(f"{label}: the orchestrator, {found.orchestrator_agent}, is disabled")
     return found
 
 

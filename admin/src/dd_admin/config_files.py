@@ -23,7 +23,7 @@ FILES: tuple[tuple[str, str, str], ...] = (
     (
         "deployment.yaml",
         "What this instance runs: its name, the orchestrator and any agents turned off",
-        f"sudoedit /etc/data-director/deployment.yaml && {APPLY}",
+        "sudo data-director edit (checks it, then offers to apply it)",
     ),
     (
         "profile.yaml",
