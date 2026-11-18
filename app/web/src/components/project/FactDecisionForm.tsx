@@ -9,7 +9,7 @@
  */
 
 import { Check, Pencil, X } from "lucide-react";
-import { type FormEvent, useEffect, useId, useRef, useState } from "react";
+import { type FormEvent, useId, useState } from "react";
 
 import { DecisionConflict } from "../../project/api";
 import {
@@ -24,6 +24,7 @@ import {
   useFactsApi,
 } from "../../project/facts";
 import { Button } from "../ui/Button";
+import { ReasonField, useDecisionError } from "./DecisionParts";
 import { FactFields } from "./FactFields";
 import { KIND_LABELS, describeFact } from "./factWording";
 
@@ -32,14 +33,20 @@ const OWNERS_ONLY =
   "Only an owner of this project may decide whether sensitive data is published, or the licence.";
 
 function said(verdict: FactVerdict, fact: ProjectFact): string {
-  if (verdict === "rejected") return `${KIND_LABELS[fact.fact_kind]}: proposal rejected.`;
+  if (verdict === "rejected")
+    return `${KIND_LABELS[fact.fact_kind]}: proposal rejected.`;
   return `Recorded: ${describeFact(fact)}`;
 }
 
 /** A name for the form that differs between the forms on one panel. */
-function legend(proposal: FactProposal | undefined, fact: ProjectFact, isNew: boolean): string {
+function legend(
+  proposal: FactProposal | undefined,
+  fact: ProjectFact,
+  isNew: boolean,
+): string {
   const kind = KIND_LABELS[fact.fact_kind].toLowerCase();
-  const what = fact.fact_kind === "licence" ? kind : `${kind} ${fact.fact_subject}`;
+  const what =
+    fact.fact_kind === "licence" ? kind : `${kind} ${fact.fact_subject}`;
   if (proposal) return `Your decision on the ${what}`;
   return isNew ? "A fact nobody proposed" : `Change the ${what}`;
 }
@@ -65,16 +72,13 @@ export function FactDecisionForm({
 }) {
   const api = useFactsApi();
   const id = useId();
-  const [verdict, setVerdict] = useState<FactVerdict>(proposal ? "confirmed" : "changed");
+  const [verdict, setVerdict] = useState<FactVerdict>(
+    proposal ? "confirmed" : "changed",
+  );
   const [fact, setFact] = useState<ProjectFact>(initial);
   const [reason, setReason] = useState("");
   const [sending, setSending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const errorRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (error) errorRef.current?.focus();
-  }, [error]);
+  const { setError, alert } = useDecisionError();
 
   const choices: { value: FactVerdict; label: string }[] = [
     { value: "confirmed", label: "Confirm it as proposed" },
@@ -119,11 +123,13 @@ export function FactDecisionForm({
   }[verdict];
 
   return (
-    <form className="decision-form" onSubmit={submit} aria-labelledby={`${id}-legend`}>
+    <form
+      className="decision-form"
+      onSubmit={submit}
+      aria-labelledby={`${id}-legend`}
+    >
       <fieldset className="field">
-        <legend id={`${id}-legend`}>
-          {legend(proposal, initial, isNew)}
-        </legend>
+        <legend id={`${id}-legend`}>{legend(proposal, initial, isNew)}</legend>
         {proposal &&
           choices.map(({ value, label }) => (
             <div className="field-check" key={value}>
@@ -139,26 +145,19 @@ export function FactDecisionForm({
             </div>
           ))}
       </fieldset>
-      {verdict === "changed" && <FactFields fact={fact} isNew={isNew} onChange={setFact} />}
-      <div className="field">
-        <label htmlFor={`${id}-reason`}>Reason (optional)</label>
-        <p className="hint" id={`${id}-reason-hint`}>
-          Kept with the decision, in the project's record, for your colleagues. No agent is given it.
-        </p>
-        <textarea
-          id={`${id}-reason`}
-          aria-describedby={`${id}-reason-hint`}
-          maxLength={REASON_MAX_LENGTH}
-          rows={2}
-          value={reason}
-          onChange={(event) => setReason(event.target.value)}
-        />
-      </div>
-      {error && (
-        <div role="alert" className="callout status-danger" ref={errorRef} tabIndex={-1}>
-          <p>The decision was not recorded: {error}</p>
-        </div>
+      {verdict === "changed" && (
+        <FactFields fact={fact} isNew={isNew} onChange={setFact} />
       )}
+      <ReasonField
+        id={id}
+        label="Reason (optional)"
+        hint="Kept with the decision, in the project's record, for your colleagues. No agent is given it."
+        maxLength={REASON_MAX_LENGTH}
+        rows={2}
+        value={reason}
+        onChange={setReason}
+      />
+      {alert}
       <p className="actions">
         <Button
           type="submit"
