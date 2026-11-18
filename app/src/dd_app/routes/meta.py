@@ -16,13 +16,15 @@ import dataclasses
 import json
 import logging
 import time
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
 import httpx
 from starlette.concurrency import run_in_threadpool
+from starlette.exceptions import HTTPException
 from starlette.requests import Request
-from starlette.responses import FileResponse, Response
+from starlette.responses import FileResponse, PlainTextResponse, Response
 from starlette.routing import Route
 
 from dd_app import feedback
@@ -304,3 +306,22 @@ def _context(report: feedback.Report, reporter: Principal, deps: Deps) -> list[s
 async def shell(request: Request, deps: Deps) -> Response:
     # A page of the shell's own, so a reload or a link lands on it rather than a 404.
     return FileResponse(deps.web_dist / "index.html")
+
+
+def not_found(deps: Deps) -> Callable[[Request, Exception], Awaitable[Response]]:
+    """The answer to a path nothing serves. A person following a link or typing an address is sent
+    the shell with `404`, so it shows its not-found page; everything else, such as a script
+    calling a path that is not there, keeps the plain answer."""
+
+    async def handler(request: Request, exc: Exception) -> Response:
+        wants_page = (
+            request.method == "GET"
+            and not request.url.path.startswith("/api/")
+            and "text/html" in request.headers.get("accept", "")
+        )
+        if wants_page:
+            return FileResponse(deps.web_dist / "index.html", status_code=404)
+        detail = exc.detail if isinstance(exc, HTTPException) else "Not Found"
+        return PlainTextResponse(detail, status_code=404)
+
+    return handler

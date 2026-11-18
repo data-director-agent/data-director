@@ -4,6 +4,10 @@
  * box. Each is first opened to be checked and is attached, as a chip, only when the researcher
  * confirms (#443, #472, docs/specs/app.md). Focus goes back to the message box once a dialog
  * closes or a chip goes.
+ *
+ * Files are attached one at a time: of several chosen or dropped together, the first is opened
+ * and the rest are named, on the form and in the live region, as not attached. Attaching a
+ * document or an inventory where one is already attached replaces it, and says so (#1170).
  */
 
 import { type ClipboardEvent, type DragEvent, type RefObject, useState } from "react";
@@ -41,9 +45,13 @@ export interface Attachments extends Carried {
   pendingDocument: AttachedDocument | null;
   /** Why the last file could not be attached. */
   error: string | null;
+  /** Which files chosen or dropped with the one opened were not attached (#1170). */
+  notice: string | null;
   /** Whether a file is being dragged over the form. */
   dropping: boolean;
   attachFile(file: File | undefined): Promise<void>;
+  /** Opens the first of `files` to be checked and says which of the others were not attached. */
+  attachFiles(files: FileList | readonly File[] | null): Promise<void>;
   attachFromDialog(file: File): Promise<void>;
   confirmInventory(checked: AttachedInventory): void;
   discardInventory(): void;
@@ -69,6 +77,22 @@ export const DOCUMENTS_REFUSED =
   "This deployment does not keep attached documents: its profile refuses them. Give what the " +
   "document says in your message instead.";
 
+/** Names in a sentence: "a", "a and b", "a, b and c". */
+function listed(names: readonly string[]): string {
+  if (names.length < 2) return names.join("");
+  return `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+}
+
+/** What is said when files beyond the first are chosen or dropped together (#1170). */
+export function notAttached(opened: string, left: readonly string[]): string {
+  const one = left.length === 1;
+  return (
+    `Only ${opened} was opened. ${listed(left)} ${one ? "was" : "were"} not attached: files ` +
+    "are attached one at a time, and a message carries one inventory and one document. " +
+    `Attach ${one ? "it" : "each"} on its own.`
+  );
+}
+
 export function useAttachments(
   box: RefObject<HTMLTextAreaElement | null>,
   announce: (said: string) => void,
@@ -79,6 +103,7 @@ export function useAttachments(
   const [document, setDocument] = useState<AttachedDocument | null>(null);
   const [pendingDocument, setPendingDocument] = useState<AttachedDocument | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [dropping, setDropping] = useState(false);
 
   /** Reads `content` as an inventory and opens it to be checked, or says why it cannot. */
@@ -123,12 +148,22 @@ export function useAttachments(
     }
   }
 
+  /** Files chosen or dropped together: only the first is opened, and the rest are named. */
+  async function attachFiles(files: FileList | readonly File[] | null) {
+    const [first, ...rest] = Array.from(files ?? []);
+    const left = first && rest.length ? notAttached(first.name, rest.map((file) => file.name)) : null;
+    setNotice(left);
+    if (left) announce(left);
+    await attachFile(first);
+  }
+
   /**
    * A file chosen at the end of the Make an inventory dialog. Once it is attached the dialog's
    * button gives way to the chip, so focus goes to the message box rather than nowhere; if it is
    * not an inventory, the dialog's button stays and takes the focus back.
    */
   async function attachFromDialog(file: File) {
+    setNotice(null);
     await attachFile(file);
     requestAnimationFrame(() => {
       const active = globalThis.document.activeElement;
@@ -140,7 +175,7 @@ export function useAttachments(
   function confirmInventory(checked: AttachedInventory) {
     setPendingInventory(null);
     setInventory(checked);
-    announce("Inventory attached.");
+    announce(inventory ? "Inventory attached in place of the one attached before." : "Inventory attached.");
     focusLater(box);
   }
 
@@ -153,7 +188,9 @@ export function useAttachments(
   function confirmDocument(checked: AttachedDocument) {
     setPendingDocument(null);
     setDocument(checked);
-    announce(`${checked.name} attached.`);
+    announce(
+      document ? `${checked.name} attached in place of ${document.name}.` : `${checked.name} attached.`,
+    );
     focusLater(box);
   }
 
@@ -194,7 +231,7 @@ export function useAttachments(
     if (!event.dataTransfer.types.includes("Files")) return;
     event.preventDefault();
     setDropping(false);
-    void attachFile(event.dataTransfer.files[0]);
+    void attachFiles(event.dataTransfer.files);
   }
 
   function restore(carried: Carried) {
@@ -210,8 +247,10 @@ export function useAttachments(
     pendingInventory,
     pendingDocument,
     error,
+    notice,
     dropping,
     attachFile,
+    attachFiles,
     attachFromDialog,
     confirmInventory,
     discardInventory,
@@ -224,6 +263,9 @@ export function useAttachments(
     onDragLeave: () => setDropping(false),
     onDrop,
     restore,
-    clearError: () => setError(null),
+    clearError: () => {
+      setError(null);
+      setNotice(null);
+    },
   };
 }

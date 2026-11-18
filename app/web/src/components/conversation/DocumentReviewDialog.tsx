@@ -11,6 +11,9 @@
  * named by kind, never quoted; to attach the document anyway, the researcher ticks that they have
  * checked it, the button reads **Attach anyway**, and the turn says which kinds they confirmed.
  * The server holds back a document sent without that, so this dialog is not the only guard.
+ *
+ * A message carries one document, so where one is already attached the dialog says, before the
+ * researcher decides, that attaching this one replaces it (#1170).
  */
 
 import "./DocumentReviewDialog.css";
@@ -52,12 +55,15 @@ function useCheck(pending: AttachedDocument | null, check: typeof checkDocument)
 
 export function DocumentReviewDialog({
   pending,
+  replaces,
   onAttach,
   onDiscard,
   check = checkDocument,
 }: {
   /** The document read from the file, not yet attached; null when there is none to check. */
   pending: AttachedDocument | null;
+  /** The name of the document already on the message, which attaching this one replaces. */
+  replaces?: string | undefined;
   onAttach: (attached: AttachedDocument) => void;
   onDiscard: () => void;
   /** How the text is checked; the server's check unless a test gives another. */
@@ -85,6 +91,12 @@ export function DocumentReviewDialog({
       {pending && (
         <>
           <div className="callout">
+            {replaces && (
+              <p>
+                <strong>Attaching it replaces {replaces}</strong>, which is attached now: a message
+                carries one document. Cancel to keep {replaces}.
+              </p>
+            )}
             {pending.data && (
               <p>
                 Data Director read this text from the{" "}

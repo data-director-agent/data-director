@@ -208,7 +208,12 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     drop on the message form, take a `.json` file as an inventory and a `.txt`, `.md`, `.docx`
     or `.pdf` file as a document, unless the agent directory says the profile refuses attached documents
     (`attached_documents`, [Projects](projects.md)): then they take only an inventory, say why a
-    document is not taken, and the server refuses a turn that carries one. A Word document or PDF
+    document is not taken, and the server refuses a turn that carries one. They take one file at
+    a time: of several chosen or dropped together, the first is opened and the others are named
+    as not attached, on the form and in the polite live region; a document checked while another
+    is attached replaces it, which its dialog says before the researcher attaches it and the live
+    region says after, and so does an inventory (#1170,
+    `app/web/src/components/conversation/useAttachments.test.tsx`). A Word document or PDF
     is refused in the browser if it is over 1 MB, and otherwise sent to
     `POST /api/documentation/extract`, which reads its text inside the deployment and keeps
     nothing; the dialog then shows that text and says where it was read from, and the turn sends

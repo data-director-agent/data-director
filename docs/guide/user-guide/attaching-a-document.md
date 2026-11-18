@@ -35,6 +35,11 @@ The document then shows as a chip under the message box. Select its **Remove** b
 change your mind. You can type a message as well, or send it on its own. A message can carry one
 inventory and one document.
 
+Attach files one at a time. If you choose or drop several together, the app opens the first and
+tells you, under the message box, which of the others were not attached; attach each of those on
+its own. If you attach a document while another is already attached, the new one replaces it:
+the app says so before you attach it, so you can select **Cancel** to keep the first.
+
 ## Where it goes
 
 The document is stored in your project, and anyone working on the project can read it.

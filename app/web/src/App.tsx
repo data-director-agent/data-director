@@ -4,11 +4,14 @@ import { AgentDirectory } from "./components/capabilities/AgentDirectory";
 import { ActivityLog } from "./components/workspace/ActivityLog";
 import { FeedbackPage } from "./components/feedback/FeedbackPage";
 import { ConversationHome } from "./components/conversation/ConversationHome";
+import { ErrorBoundary } from "./components/errors/ErrorBoundary";
+import { NotFoundPage } from "./components/errors/ErrorPage";
 import { Frame } from "./components/frame/Frame";
 import { JourneyLanding } from "./components/journey/JourneyLanding";
 import { JourneyPage } from "./components/journey/JourneyPage";
 import { PolicyPage } from "./components/policy/PolicyPage";
 import { ProfilePage } from "./components/profile/ProfilePage";
+import { ProjectLanding } from "./components/project/ProjectLanding";
 import { ProjectPage } from "./components/project/ProjectPage";
 import { ProjectsPage } from "./components/project/ProjectsPage";
 import { SettingsPage } from "./components/settings/SettingsPage";
@@ -30,8 +33,9 @@ import {
 } from "./session/api";
 
 // The person's projects: `/projects`; a project's documents: `/projects/{project_id}`
-// (docs/specs/projects.md); its journey map: `/projects/{project_id}/journey`. `/journey`, in the
-// main navigation, opens the current project's journey map, or asks which project's.
+// (docs/specs/projects.md); its journey map: `/projects/{project_id}/journey`. `/project` and
+// `/journey`, in the main navigation, open the current project's page or journey map, or the list
+// of projects (asking which project's, for the map) when none is current.
 const PROJECT_PREFIX = "/projects/";
 const JOURNEY_SUFFIX = "/journey";
 
@@ -57,11 +61,11 @@ function projectRoute(path: string): { projectId: string | null; onJourney: bool
 }
 
 /** The main navigation's entry that `path` is under. A project's journey map is under Journey
- * map; its other pages are under Projects. */
+ * map; its other pages, the list of projects and `/project` are under Projects (`/project`). */
 function navCurrent(path: string): string {
   const { projectId, onJourney } = projectRoute(path);
   if (path === "/journey" || (projectId && onJourney)) return "/journey";
-  if (path === "/projects" || projectId) return "/projects";
+  if (path === "/project" || path === "/projects" || projectId) return "/project";
   const pages = [
     "/activity",
     "/agents",
@@ -75,12 +79,20 @@ function navCurrent(path: string): string {
   return pages.includes(path) ? path : "/";
 }
 
+/** Whether the shell has a page at `path`; anything else is answered with the not-found page. */
+function hasPage(path: string): boolean {
+  const { projectId } = projectRoute(path);
+  if (projectId !== null) return projectId !== "" && !projectId.includes("/");
+  return path === "/" || path === "/agents" || path === "/policy" || path in SESSION_PAGES;
+}
+
 /** The pages that need only the session and the query, by path. */
 const SESSION_PAGES: Record<string, (session: Session, query: string) => ReactNode> = {
   "/feedback": (_, query) => <FeedbackPage query={query} />,
   "/profile": (session) => <ProfilePage session={session} />,
   "/settings": (session) => <SettingsPage session={session} />,
   "/activity": () => <ActivityLog />,
+  "/project": () => <ProjectLanding />,
   "/projects": () => <ProjectsPage />,
   "/journey": () => <JourneyLanding />,
 };
@@ -166,6 +178,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
         />
       );
     }
+    if (!hasPage(path)) return <NotFoundPage path={path} />;
     const sessionPage = SESSION_PAGES[path];
     if (sessionPage) return sessionPage(session.value, query ?? "");
     if (projectId && onJourney) return <JourneyPage projectId={projectId} query={query ?? ""} />;
@@ -206,10 +219,12 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
       {/* The runs this tab streams, for the activity log: kept per person signed in. */}
       {signedIn ? (
         <ActiveProjectProvider key={principalId}>
-          <RunActivityProvider>{content()}</RunActivityProvider>
+          <RunActivityProvider>
+            <ErrorBoundary resetKey={location}>{content()}</ErrorBoundary>
+          </RunActivityProvider>
         </ActiveProjectProvider>
       ) : (
-        content()
+        <ErrorBoundary resetKey={location}>{content()}</ErrorBoundary>
       )}
     </Frame>
   );
