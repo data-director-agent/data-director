@@ -155,7 +155,11 @@ list of copies. An agent whose records need their own projection registers a can
 in `dd_sdk.evidence`; it does not invent a name in its own package. An MCP server used as a
 source names such a canonicalisation, and its pinned copy, in the deployment's list of servers,
 so its records are hashed under a registered name, and the conductor, not the agent, records the
-hash. A new grounding mode is an
+hash. The registered names are `json-sorted-utf8-v1` (the FAIRsharing projection),
+`dd-input-json-v1`, `dd-json-document-v1`, `dd-envelope-json-v1` and `dd-spdx-licence-v1`, an SPDX
+licence record projected to `licenseId`, `name`, `isOsiApproved`, `isFsfLibre`,
+`isDeprecatedLicenseId` and `seeAlso` (sorted), each null when absent and the licence text left
+out; a server serving SPDX records names it in the deployment's list of servers. A new grounding mode is an
 entry in the linter's rule table and a contract enum value, and is a change to this spec.
 
 ## Rationale
