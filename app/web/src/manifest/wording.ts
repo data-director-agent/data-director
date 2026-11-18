@@ -78,11 +78,11 @@ export const REASON: Record<string, { meaning: string; next: string }> = {
   },
   model_account_missing: {
     meaning: "This deployment needs your own AI account for this agent, and none is added.",
-    next: "Add your AI account on your Profile page, then run it again.",
+    next: "Add your AI account on your Settings page, then run it again.",
   },
   model_account_rejected: {
     meaning: "Your AI provider refused your account's key.",
-    next: "Check the key with your provider, replace it on your Profile page, then run it again.",
+    next: "Check the key with your provider, replace it on your Settings page, then run it again.",
   },
   model_account_limit: {
     meaning: "Your AI provider reported a usage or rate limit on your account.",

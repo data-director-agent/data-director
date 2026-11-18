@@ -1,5 +1,5 @@
 /**
- * The key field of the Profile page's AI account form (docs/specs/model-accounts.md, Enrolment).
+ * The key field of the Settings page's AI account form (docs/specs/model-accounts.md, Enrolment).
  *
  * It links to the provider's own page for creating a key, and, if the typed key's prefix belongs
  * to another provider the profile allows, offers to switch to it. Neither decides anything: the

@@ -190,7 +190,7 @@ def _model_account_providers(
     governance: Governance, model_broker_path: str | None
 ) -> list[dict[str, Any]] | None:
     """The providers, and the base URL origins, a person's own model account may use, so the
-    Profile page offers only those; None where a person may not add one. A person may add their
+    Settings page offers only those; None where a person may not add one. A person may add their
     own only where the profile lets one pay (docs/specs/model-accounts.md, The profile) and the
     deployment can carry that to the broker. Origins are the profile's, not secrets; the broker
     checks them again."""

@@ -37,13 +37,13 @@ harness mints grants and publishes its keys (`dd_harness.model_grants`), and eve
 agent can call through the broker (`dd_sdk.credentials.model_endpoint`,
 `dd_sdk.model_anthropic.anthropic_client`). Enrolment is built: the harness signs the ticket
 (`GrantMinter.enrolment_ticket`), the app issues it, the broker serves the browser
-(`dd_broker.enrolment`), and the Profile page holds the form. The profile key is built: the
+(`dd_broker.enrolment`), and the Settings page holds the form. The profile key is built: the
 conductor reads `model_accounts` when it mints a grant (`dd_harness.policy.ModelAccounts`), and the
 broker enforces what the grant says. Recording whose account paid and the reason codes are built:
 the SDK reads the broker's answer (`dd_sdk.model_account`), and a refused account ends the run as an
 outcome. The broker serves both formats, and enrols and serves OpenAI, Gemini and OpenAI-compatible
 accounts as well as Anthropic ones (`dd_broker.chat_completions`); the profile's `providers` and the
-Profile page offer each of them, and a run records the provider the broker reports. Mapping a declared
+Settings page offer each of them, and a run records the provider the broker reports. Mapping a declared
 model to one a person's provider serves is specified here (invariants 12 and 15, The model map). The
 profile's model map, the card's `ModelUse.tools`, the grant's `dd_model_map` and the broker's check
 of a mapped model, the route and recording the declared model are built. The shipped profiles turn
@@ -270,7 +270,7 @@ only through the gateway, with the key in `DD_MODEL_API_KEY`. The gateway's budg
 reports then cover the deployment's calls as before. A call on a person's own key never passes through the gateway,
 which would otherwise see the key.
 
-**Enrolment.** A signed-in person adds, replaces or removes their account on the Profile page.
+**Enrolment.** A signed-in person adds, replaces or removes their account on the Settings page.
 The steps are:
 
 1. The app asks the harness for an enrolment ticket (`POST /api/model-account/ticket`, for the
@@ -415,7 +415,7 @@ model_accounts:
           local: true
 ```
 
-The app's `/api/session` gives the Profile page these providers and origins
+The app's `/api/session` gives the Settings page these providers and origins
 (`model_account_providers`), so it offers only those; the broker checks them again.
 
 The conductor turns the first two into the grant's account setting:
@@ -460,7 +460,7 @@ broker sends a key there.
 **What the person sees.** The agent page for a model-backed agent shows the models its card
 declares, as before. Where the profile lets people use their own accounts, it also shows the
 signed-in person the label of their own account, read from the broker with their own ticket, or
-points them to the Profile page if they have none. A stored run's "About this run" shows each
+points them to the Settings page if they have none. A stored run's "About this run" shows each
 model call and whether the person's own account or the deployment's paid for it
 ([Disclosure](disclosure.md)). Only the person whose account it is sees the label.
 
@@ -544,7 +544,7 @@ model call and whether the person's own account or the deployment's paid for it
   TODO(#156). The broker's records name only pseudonyms.
 - **Availability.** If the broker is unreachable, a call that needs it ends the run as an agent
   error. The broker does not fall back to the deployment's key unless the grant allows it.
-- **Accessibility.** The Profile page's account section follows the app's accessibility
+- **Accessibility.** The Settings page's account section follows the app's accessibility
   requirements ([The app](app.md)).
 - **Portability.** The broker runs on the VM under systemd like every other service, and in Compose
   for development. It needs no cloud service (Blueprint P11).

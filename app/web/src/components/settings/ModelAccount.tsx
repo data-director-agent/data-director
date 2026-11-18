@@ -1,5 +1,5 @@
 /**
- * The person's own AI account on the Profile page (docs/specs/model-accounts.md, Enrolment).
+ * The person's own AI account on the Settings page (docs/specs/model-accounts.md, Enrolment).
  *
  * The key typed here goes to the model broker alone (`model-account/api.ts`); the page keeps it
  * only until it is sent, and shows nothing of it afterwards but the label the broker returns. A key

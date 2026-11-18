@@ -32,7 +32,7 @@ export interface Session {
   principal: SessionPrincipal | null;
   /** When the session ends if nothing more is done in it (ISO 8601), or null. */
   expiresAt: string | null;
-  /** Whether a person may add their own model account on the Profile page (docs/specs/model-accounts.md). */
+  /** Whether a person may add their own model account on the Settings page (docs/specs/model-accounts.md). */
   modelAccounts: boolean;
   /** The providers the profile lets a person's own account be with; empty unless `modelAccounts`. */
   modelAccountProviders: ModelAccountProvider[];

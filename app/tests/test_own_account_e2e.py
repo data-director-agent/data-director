@@ -100,7 +100,7 @@ class Deployment:
     keys: GrantKeys
 
     def enrol(self, provider: str = "anthropic") -> None:
-        """The person signed in adds their own key with `provider`, as the Profile page would."""
+        """The person signed in adds their own key with `provider`, as the Settings page would."""
         minter = self.conductor.model_grants
         assert minter is not None
         self.store.put(minter.pseudonym(TEST_PRINCIPAL), provider, OWN_KEY, label="…3f9a")
