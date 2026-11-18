@@ -420,7 +420,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   domain folders' `api.ts` and `types.ts`. The golden fixtures in `app/web/fixtures`, which
   `check_fixture` rewrites from real responses, are checked against them by
   `app/web/src/fixtures.typecheck.ts`, which `npm run typecheck` compiles: a field the server
-  renames or drops, or whose type changes, fails there until the interface is updated. The check
+  renames or drops, or whose type changes, fails there until the interface is updated. Every
+  fixture `check_fixture` writes is checked, the Problem Details of a refusal as well as an
+  answer; `inventory-left-out.json`, written by hand as a request, is not. The check
   reports a missing or mistyped field, not an extra one, and not a renamed optional field. To
   see it work, rename a required field in a fixture and run `npm run typecheck`. TODO(#1130):
   give the routes response models and generate the types from them.
