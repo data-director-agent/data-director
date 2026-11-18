@@ -21,7 +21,8 @@ from support import (
 
 from dd_app.app import build_app
 from dd_app.governance import Governance
-from dd_app.routes.facts import FACT_REFUSED
+from dd_app.problems import ProblemDetails
+from dd_app.routes.facts import FACT_REFUSED, ProjectFacts
 from dd_harness.project_access import Role
 from dd_harness.projects import DOCUMENT_CHANGE_REFUSED, FACT_DECIDED
 from dd_harness.storage import ProjectStorage
@@ -194,6 +195,6 @@ def test_the_shells_fixtures_are_what_the_server_answers(
     assert response.status_code == 403
     # Normalised together, so a proposal keeps its identifier from one fixture to the next.
     offered, decided, refused = normalised_conversation([offered, decided, response.json()])
-    check_fixture("project-facts.json", offered)
-    check_fixture("project-facts-decided.json", decided)
-    check_fixture("project-facts-forbidden.json", refused)
+    check_fixture("project-facts.json", offered, model=ProjectFacts)
+    check_fixture("project-facts-decided.json", decided, model=ProjectFacts)
+    check_fixture("project-facts-forbidden.json", refused, model=ProblemDetails)

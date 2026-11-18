@@ -27,6 +27,7 @@ from support import (
 
 from dd_app.app import build_app
 from dd_app.governance import Governance
+from dd_app.routes.deposit import BuiltPackage, PackageRefusedProblem
 from dd_harness.projects import PACKAGE_BUILT, PROJECT_VALIDATED, text_digest
 from dd_harness.storage import ProjectStorage
 from dd_harness.testing import (
@@ -182,7 +183,7 @@ def test_a_project_with_a_violation_builds_no_package_and_says_why(
     (kept,) = events(store, chosen, PROJECT_VALIDATED)
     assert kept["digest"] == validation["report_digest"]
     assert events(store, chosen, PACKAGE_BUILT) == []
-    check_fixture("project-package-refused.json", normalised(problem))
+    check_fixture("project-package-refused.json", normalised(problem), model=PackageRefusedProblem)
 
 
 def test_a_valid_project_builds_a_package_to_download_by_its_digest(
@@ -206,7 +207,7 @@ def test_a_valid_project_builds_a_package_to_download_by_its_digest(
     assert len(download.content) == package["size"]
     with zipfile.ZipFile(io.BytesIO(download.content)) as zipped:
         assert "ro-crate-metadata.json" in zipped.namelist()
-    check_fixture("project-package.json", normalised(body))
+    check_fixture("project-package.json", normalised(body), model=BuiltPackage)
 
 
 @pytest.mark.parametrize("digest", ["0" * 64, "not-a-digest", "A" * 64])

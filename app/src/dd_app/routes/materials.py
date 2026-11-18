@@ -16,9 +16,10 @@ from typing import Any, ClassVar
 
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
-from starlette.responses import JSONResponse, PlainTextResponse, Response
+from starlette.responses import PlainTextResponse, Response
 from starlette.routing import Route
 
+from dd_app import contract_shapes as contract
 from dd_app.routes.common import (
     Deps,
     Endpoint,
@@ -29,8 +30,10 @@ from dd_app.routes.common import (
     parse_body,
     problem,
     project_refused,
+    respond,
     signed_in,
 )
+from dd_app.routes.projects import SavedInventory
 from dd_harness import orcid
 from dd_harness.project_access import Action
 from dd_harness.projects import ProjectError, UnknownProjectError
@@ -84,7 +87,7 @@ async def get_inventory(request: Request, _: Principal, deps: Deps) -> Response:
         return problem(
             404, "inventory-not-found", "No inventory", f"Project {project_id!r} has none."
         )
-    return JSONResponse(found)
+    return respond(contract.FileInventory, found)
 
 
 async def add_inventory(request: Request, person: Principal, deps: Deps) -> Response:
@@ -100,12 +103,15 @@ async def add_inventory(request: Request, person: Principal, deps: Deps) -> Resp
         )
     except ProjectError as exc:
         return project_refused(exc, project_id, INVENTORY_REFUSED)
-    return JSONResponse(held, status_code=201)
+    return respond(SavedInventory, held, status_code=201)
 
 
 async def list_documentation(request: Request, _: Principal, deps: Deps) -> Response:
     project_id = request.path_params["project_id"]
-    return JSONResponse(await run_in_threadpool(deps.projects.documentation, project_id))
+    return respond(
+        list[contract.DocumentationSummary],
+        await run_in_threadpool(deps.projects.documentation, project_id),
+    )
 
 
 async def get_documentation(request: Request, _: Principal, deps: Deps) -> Response:
@@ -138,7 +144,7 @@ async def get_orcid_record(request: Request, person: Principal, deps: Deps) -> R
     """What the signed-in person's public ORCID record offers, to choose from. Nothing is
     kept: keeping is `keep_researcher`, which reads the record again."""
     try:
-        return JSONResponse(await run_in_threadpool(read_orcid, person, deps))
+        return respond(contract.ResearcherRecord, await run_in_threadpool(read_orcid, person, deps))
     except orcid.OrcidError as exc:
         return problem(409, "no-orcid-record", "No ORCID record to read", str(exc))
     except orcid.OrcidUnavailableError as exc:
@@ -147,7 +153,10 @@ async def get_orcid_record(request: Request, person: Principal, deps: Deps) -> R
 
 async def list_researchers(request: Request, _: Principal, deps: Deps) -> Response:
     project_id = request.path_params["project_id"]
-    return JSONResponse(await run_in_threadpool(deps.projects.researchers, project_id))
+    return respond(
+        list[contract.ResearcherRecord],
+        await run_in_threadpool(deps.projects.researchers, project_id),
+    )
 
 
 async def keep_researcher(request: Request, person: Principal, deps: Deps) -> Response:
@@ -165,7 +174,9 @@ async def keep_researcher(request: Request, person: Principal, deps: Deps) -> Re
         return deps.projects.keep_researcher(project_id, chosen, acted_for=person, caused_by=cause)
 
     try:
-        return JSONResponse(await run_in_threadpool(keep), status_code=201)
+        return respond(
+            list[contract.ResearcherRecord], await run_in_threadpool(keep), status_code=201
+        )
     except UnknownProjectError:
         raise
     except orcid.OrcidUnavailableError as exc:
@@ -188,7 +199,7 @@ async def withdraw_researcher(request: Request, person: Principal, deps: Deps) -
         raise
     except ProjectError as exc:
         return problem(404, "researcher-not-found", "Nothing of yours to withdraw", str(exc))
-    return JSONResponse(standing)
+    return respond(list[contract.ResearcherRecord], standing)
 
 
 def _orcid_unavailable(detail: str) -> Response:

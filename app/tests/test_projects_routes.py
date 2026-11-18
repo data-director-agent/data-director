@@ -27,6 +27,7 @@ from dd_app.app import build_app
 from dd_app.governance import (
     Governance,
 )
+from dd_app.routes.projects import DeletedProject, ProjectSummary
 from dd_harness.project_access import Role
 from dd_harness.projects import PROJECT_CREATED, TITLE_MAX_LENGTH, ProjectStore
 from dd_harness.testing import (
@@ -95,7 +96,11 @@ def test_a_person_sees_the_projects_they_started_with_what_each_holds(
         conversation_id,
         "My logger data",
     )
-    check_fixture("projects.json", normalised_conversation(response.json()))
+    check_fixture(
+        "projects.json",
+        normalised_conversation(response.json()),
+        model=list[ProjectSummary],
+    )
 
 
 def test_a_person_creates_a_project_with_no_conversation(in_projects: tuple[Governance, Any]):
@@ -116,7 +121,7 @@ def test_a_person_creates_a_project_with_no_conversation(in_projects: tuple[Gove
     (created,) = store.events(body["project_id"])
     assert created["event"] == PROJECT_CREATED
     assert created["caused_by"] == "POST /api/projects"
-    check_fixture("project-created.json", normalised_conversation(body))
+    check_fixture("project-created.json", normalised_conversation(body), model=ProjectSummary)
 
     for unnamed in ({}, {"title": "   "}, {"title": None}):
         response = client.post("/api/projects", json=unnamed)
@@ -283,7 +288,11 @@ def test_the_projects_an_owner_deleted_are_listed_for_restoring(governance: Gove
     (listed,) = response.json()
     assert listed["project_id"] == project_id
     assert listed["deleted"]["by"]["principal_id"] == TEST_PRINCIPAL.principal_id
-    check_fixture("projects-deleted.json", normalised_conversation(response.json()))
+    check_fixture(
+        "projects-deleted.json",
+        normalised_conversation(response.json()),
+        model=list[DeletedProject],
+    )
 
 
 def test_a_member_asking_for_an_owners_action_is_forbidden_and_may_still_read(
