@@ -8,6 +8,11 @@ and sent back over A2A (docs/specs/agents.md). So G1-G3 show that the agent's de
 agree with what it cites, not that it retrieved anything; `dd_harness.sources` re-hashes what it
 cites against the source. R2 and D1-D2 check citations against hashes the conductor computed.
 
+A record read through the harness's tool gateway is the exception (docs/specs/grounding.md,
+invariant 15): the conductor recorded it, in the envelope's `tool_retrievals`, and G1-G3 read that
+record for a `tool:` source. An agent's own `retrieval` span naming a `tool:` source counts for
+nothing.
+
 The linter reads the span tree of one `invoke_agent` and the envelope it produced, and applies
 the rule set for the grounding mode the envelope declares. It never needs to know the payload
 class: it walks the payload document for `grounded_on` lists (the `Grounded` mixin), and a
@@ -29,8 +34,10 @@ Evidence, every mode (E1, docs/specs/grounding.md):
      E1 knows no payload class; a payload names a record only in `grounded_on`, and the reader
      joins that reference to the evidence item with the same `source_id` and `content_hash`.
 
-`retrieval` — the agent retrieves before it reasons:
-  G1 every `chat` span starts after at least one `retrieval` span has ended.
+`retrieval` — the agent retrieves before it reasons. A retrieval is a `retrieval` span whose source
+is not a `tool:` one, or a record the conductor kept in `tool_retrievals` (ending when the gateway
+returned it, by the harness's clock):
+  G1 every `chat` span starts after at least one retrieval has ended.
   G2 every `grounded_on` entry, at any depth, matches a `retrieval` span on both `dd.source_id`
      and `dd.content_hash`. Nothing is asserted that was not retrieved. A succeeded payload with
      no grounding reference at all is a G2 violation.
@@ -64,9 +71,15 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
-from dd_sdk.contract.models import GroundingMode, input_source_id, invocation_source_id
+from dd_sdk.contract.models import (
+    TOOL_SOURCE_PREFIX,
+    GroundingMode,
+    input_source_id,
+    invocation_source_id,
+)
 from dd_sdk.evidence import verify
 from dd_sdk.tracing import (
     ATTR_CONTENT_HASH,
@@ -106,13 +119,18 @@ class Tree:
     root: SpanRecord
     retrievals: list[SpanRecord]
     chats: list[SpanRecord]
+    # (source_id, content_hash, when in ns) of each record the gateway returned, from the envelope.
+    tool_records: list[tuple[str, str, int]] = field(default_factory=list)
 
     @property
     def retrieved(self) -> set[tuple[str, str]]:
-        return {
+        # The agent's spans for its own sources, the conductor's record for the gateway's.
+        spans = {
             (str(r.attributes.get(ATTR_SOURCE_ID)), str(r.attributes.get(ATTR_CONTENT_HASH)))
             for r in self.retrievals
         }
+        own = {pair for pair in spans if not pair[0].startswith(TOOL_SOURCE_PREFIX)}
+        return own | {(source, digest) for source, digest, _ in self.tool_records}
 
     @property
     def retrieved_hashes(self) -> set[str]:
@@ -185,7 +203,8 @@ def _collect_refs(envelope: dict[str, Any]) -> tuple[Refs, list[str]]:
 
 def g1_retrieval_before_chat(tree: Tree, envelope: dict[str, Any], refs: Refs) -> list[str]:
     out: list[str] = []
-    first_retrieval_end = min((r.end_ns for r in tree.retrievals), default=None)
+    ends = [r.end_ns for r in tree.retrievals] + [when for _, _, when in tree.tool_records]
+    first_retrieval_end = min(ends, default=None)
     for chat in tree.chats:
         if first_retrieval_end is None:
             out.append("G1: a chat span exists but no retrieval span does")
@@ -230,8 +249,8 @@ def g4_evidence_is_complete(tree: Tree, envelope: dict[str, Any], refs: Refs) ->
 
 
 def r1_no_retrieval(tree: Tree, envelope: dict[str, Any], refs: Refs) -> list[str]:
-    if tree.retrievals:
-        return [f"R1: {len(tree.retrievals)} retrieval span(s) in an agent that declared none"]
+    if count := len(tree.retrievals) + len(tree.tool_records):
+        return [f"R1: {count} retrieval(s) in an agent that declared none"]
     return []
 
 
@@ -400,6 +419,19 @@ def _tree_violations(
     return violations
 
 
+def _tool_records(envelope: dict[str, Any]) -> tuple[list[tuple[str, str, int]], list[str]]:
+    """The records the conductor kept from the tool gateway, with when each was returned in ns."""
+    out: list[tuple[str, str, int]] = []
+    for r in envelope.get("tool_retrievals") or []:
+        try:
+            when = datetime.fromisoformat(str(r["retrieved_at"]))
+            ns = int(when.timestamp()) * 1_000_000_000 + when.microsecond * 1000
+            out.append((str(r["source_id"]), str(r["content_hash"]), ns))
+        except KeyError, TypeError, ValueError:
+            return [], [f"G0: malformed tool retrieval {r!r}"]
+    return out, []
+
+
 def lint(records: list[SpanRecord], envelope: dict[str, Any]) -> GroundingReport:
     declared = envelope.get("grounding_mode")
     roots = [r for r in records if r.name == INVOKE_AGENT]
@@ -411,12 +443,14 @@ def lint(records: list[SpanRecord], envelope: dict[str, Any]) -> GroundingReport
         )
     root = roots[0]
     descendants = _descendants(root, records)
+    tool_records, violations = _tool_records(envelope)
     tree = Tree(
         root=root,
         retrievals=[r for r in descendants if r.name == RETRIEVAL],
         chats=[r for r in descendants if r.name == CHAT],
+        tool_records=tool_records,
     )
-    violations: list[str] = _tree_violations(root, descendants, records)
+    violations.extend(_tree_violations(root, descendants, records))
 
     # G0: mode.
     try:
@@ -460,6 +494,6 @@ def lint(records: list[SpanRecord], envelope: dict[str, Any]) -> GroundingReport
         passed=not violations,
         mode=mode.value,
         violations=violations,
-        retrieval_count=len(tree.retrievals),
+        retrieval_count=len(tree.retrievals) + len(tree.tool_records),
         chat_count=len(tree.chats),
     )

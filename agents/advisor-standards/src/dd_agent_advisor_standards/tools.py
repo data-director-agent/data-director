@@ -2,7 +2,7 @@
 
 The search is read-only. Every record it returns is retrieved by the agent, with its `retrieval`
 span, and numbered `S1`, `S2`… so that a reply can name it (`Run`). The search reaches FAIRsharing
-from this agent until the harness's tool gateway exists. TODO(#875)
+from this agent, not yet through the harness's tool gateway. TODO(#1143)
 """
 
 from __future__ import annotations

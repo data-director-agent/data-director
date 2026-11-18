@@ -20,16 +20,21 @@ so (docs/specs/projects.md, invariant 17).
 A deleted project is hidden from everyone but its owners (invariant 23): `role_of` gives no other
 principal a role in it, and `readable_projects` leaves it out for everyone. An owner keeps their
 role, so that they may restore it, and finds it in `deleted_projects`.
+
+A conversation in a project may be deleted and restored by whoever started it, while they may
+still contribute to the project, and by an owner (invariant 30): `may_delete_conversation`.
+`hidden_conversations` gives the deleted conversations of the projects a principal may read, which
+every listing leaves out (`dd_harness.listing.Readable`).
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from enum import StrEnum
-from typing import Any
+from typing import Any, Protocol
 
-from dd_harness.projects import PROJECT_CREATED, deletion
-from dd_harness.storage import ProjectLifecycle
+from dd_harness.projects import PROJECT_CREATED, conversation_deletions, deletion
+from dd_harness.storage import ProjectConversations, ProjectLifecycle
 from dd_sdk.contract.models import Principal
 
 
@@ -51,7 +56,8 @@ class Action(StrEnum):
     CONTRIBUTE = "contribute"
     # Approve or reject a document version.
     DECIDE = "decide"
-    # Add or remove a member, or change a role; delete the project, or restore a deleted one.
+    # Add or remove a member, or change a role; delete the project, or restore a deleted one;
+    # delete or restore any of its conversations.
     MANAGE = "manage"
 
 
@@ -119,3 +125,33 @@ def deleted_projects(store: ProjectLifecycle, principal: Principal) -> list[str]
         if deletion(events) is not None and allowed(_role(events, principal), Action.MANAGE):
             found.append(project_id)
     return found
+
+
+class ConversationAccess(ProjectLifecycle, ProjectConversations, Protocol):
+    """What deciding who may delete a project's conversations reads."""
+
+
+def may_delete_conversation(
+    store: ConversationAccess, project_id: str, conversation_id: str, principal: Principal
+) -> bool:
+    """Whether `principal` may delete or restore the conversation `conversation_id` in the
+    project `project_id`: an owner may, and whoever started it may while they may contribute."""
+    role = role_of(store, project_id, principal)
+    if allowed(role, Action.MANAGE):
+        return True
+    starter = store.started_by(project_id, conversation_id)
+    return starter == principal.principal_id and allowed(role, Action.CONTRIBUTE)
+
+
+def hidden_conversations(store: ProjectLifecycle, project_ids: Iterable[str]) -> frozenset[str]:
+    """The deleted conversations of the projects `project_ids`, which a listing leaves out."""
+    return frozenset(
+        conversation_id
+        for project_id in project_ids
+        for conversation_id in conversation_deletions(store.events(project_id))
+    )
+
+
+def conversation_deleted(store: ProjectLifecycle, project_id: str, conversation_id: str) -> bool:
+    """Whether the conversation `conversation_id` in the project `project_id` is deleted."""
+    return conversation_id in conversation_deletions(store.events(project_id))

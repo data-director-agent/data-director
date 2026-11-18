@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from opentelemetry.trace import SpanContext
 
@@ -31,9 +31,13 @@ from dd_sdk.contract.models import (
     ModelCall,
     Principal,
     ProblemDetails,
+    ToolRetrieval,
 )
 from dd_sdk.evidence import input_hash as compute_input_hash
 from dd_sdk.tracing import Tracing
+
+if TYPE_CHECKING:
+    from dd_harness.gateway.core import Gateway, ToolGrant
 
 
 @dataclass
@@ -80,6 +84,9 @@ class RunHost(Protocol):
     @property
     def model_grants(self) -> GrantMinter | None: ...
 
+    @property
+    def gateway(self) -> Gateway | None: ...
+
     def _issue_grant(
         self, request: InvocationRequest, acting_for: Principal, watch: Watch
     ) -> Grant: ...
@@ -121,6 +128,9 @@ class RunState:
     prompts: dict[str, dict[str, Any]] = field(default_factory=dict)
     grant: Grant | None = None
     delegations: list[Delegation] = field(default_factory=list)
+    # The invocation's tool grant, and the records the gateway kept under it (docs/specs/agents.md).
+    tool_grant: ToolGrant | None = None
+    tool_retrievals: list[ToolRetrieval] = field(default_factory=list)
     envelope: Envelope | None = None
     doc: dict[str, Any] = field(default_factory=dict)
     report: grounding.GroundingReport | None = None

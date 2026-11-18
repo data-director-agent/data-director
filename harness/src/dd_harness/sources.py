@@ -60,7 +60,12 @@ from typing import Any, Protocol
 
 import yaml
 
-from dd_sdk.contract.models import GroundingMode, input_source_id, invocation_source_id
+from dd_sdk.contract.models import (
+    TOOL_SOURCE_PREFIX,
+    GroundingMode,
+    input_source_id,
+    invocation_source_id,
+)
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, content_hash
 from dd_sdk.sources import PREPARE_COMMAND
 
@@ -353,14 +358,25 @@ class Sources:
 
 
 def check(envelope: dict[str, Any], sources: Sources) -> SourceReport:
-    """Re-hash every externally sourced evidence item against the harness's copy."""
+    """Re-hash every externally sourced evidence item against the harness's copy. A record the
+    conductor kept from the tool gateway is its own observation (docs/specs/grounding.md,
+    invariant 15), and is not looked up again."""
     verified = 0
     unresolved: list[str] = []
     violations: list[str] = []
     attested = envelope.get("grounding_mode") in {m.value for m in ATTESTED_MODES}
+    from_gateway = {
+        (str(r.get("source_id")), str(r.get("content_hash")))
+        for r in envelope.get("tool_retrievals") or []
+        if isinstance(r, dict)
+    }
     for ev in envelope.get("evidence") or []:
         source_id = str(ev.get("source_id"))
         if attested and source_id.startswith(ATTESTED_PREFIXES):
+            continue
+        if source_id.startswith(TOOL_SOURCE_PREFIX) and (
+            (source_id, str(ev.get("content_hash"))) in from_gateway
+        ):
             continue
         snapshot_ref = ev.get("snapshot_ref")
         resolver = sources.by_snapshot_ref.get(str(snapshot_ref))

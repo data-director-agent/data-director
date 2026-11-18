@@ -337,6 +337,30 @@ intended design, and each part says where it is not built yet.
     `DECIDE` for `sensitivity` and `licence`) (`dd_harness.testing.storage`,
     `harness/tests/test_project_decisions.py`, `app/tests/test_project_facts.py`,
     `app/web/src/components/project/FactsPanel.test.tsx`).
+29. **Deleting a conversation is an event in its project's log, not a removal.** A conversation
+    started in a project is deleted by appending `conversation_deleted` and restored by appending
+    `conversation_restored`, each naming the conversation, the principal and the cause
+    (invariant 4); it is deleted when the last of these two for it is a deletion. A deleted
+    conversation leaves every list, its runs with it, and its project's conversation count; it is
+    answered as missing (status 404) and takes no new turn. Deleting one already deleted is
+    refused with status 409, and a conversation in a deleted project is not changed (invariant
+    24). Its turns and runs stay in the run store, which is written once ([Storage](storage.md),
+    invariant 2), so deleting does not meet a request for erasure, TODO(#156)
+    (`dd_harness.projects.conversations`, `ProjectStore.delete_conversation`,
+    `restore_conversation`, `deleted_conversations`; `dd_harness.listing.Readable`,
+    `hidden_conversations`; `DELETE /api/conversations/{id}`,
+    `POST /api/conversations/{id}/restore`, `GET /api/conversations/deleted`;
+    `harness/tests/test_project_conversations.py`, `dd_harness.testing.storage`,
+    `app/tests/test_conversation_deletion.py`).
+30. **Whoever started a conversation may delete it, and so may an owner.** The person who started
+    it may delete and restore it while they may contribute to the project, and an owner may
+    delete or restore any of the project's conversations (`MANAGE`). Someone who may read it but
+    neither is refused with status 403; someone who may not read it, or may not restore a deleted
+    one, with 404, so that a refusal does not reveal it (`project_access.may_delete_conversation`).
+31. **A conversation can be restored for the period a project can.** The period is the
+    deployment's restore period (invariant 25), from the conversation's deletion. Within it,
+    restoring appends one event and changes nothing else, so the conversation is as it was; after
+    it, the app neither restores nor removes it, TODO(#156).
 
 ## Boundaries and contracts
 
@@ -534,6 +558,12 @@ store, and writes to neither ([Disclosure](disclosure.md)).
   deletion is recoverable, and no second store holds what a deletion hid. Hiding is what the app
   can promise today; erasing is a different promise that waits on the rules for provenance and
   personal data (TODO(#156)).
+- **A conversation deleted in its project's log** (invariants 29 to 31), because a conversation
+  has no store of its own and its runs are written once: the project's log is where a change
+  about a conversation can be recorded, and in a deployment that keeps projects every
+  conversation is in one. Its starter may delete it, since it is their work, and an owner may,
+  since an owner may already hide the whole project; it is restorable for the same period, so
+  the dialog asks only for a confirmation, not for its name to be typed.
 - **Researcher facts from ORCID, chosen item by item** (invariant 27), because creators,
   affiliations, subjects and funding are what a researcher is asked for most and has often
   recorded already (`docs/ui/best-practices.md`: reduce metadata burden visibly). A person
@@ -625,7 +655,5 @@ store, and writes to neither ([Disclosure](disclosure.md)).
 - What erasing a project, a conversation or a version removes, and how provenance survives it,
   TODO(#156).
 - What a former member may have erased from a project, TODO(#156).
-- Whether a member may delete a conversation. Every member sees a project's conversations, so today
-  only an owner could, by deleting the project, TODO(#156).
 - What a data steward may do in a researcher's project, and whether a deployment role may decide
   on a version, TODO(#372, #154).

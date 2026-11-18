@@ -27,6 +27,7 @@ from dd_harness import progress as flow
 from dd_harness.project_errors import TITLE_BY_MODEL as TITLE_BY_MODEL
 from dd_harness.project_errors import TITLE_BY_RESEARCHER as TITLE_BY_RESEARCHER
 from dd_harness.project_errors import TitleSource as TitleSource
+from dd_harness.projects.conversations import conversation_deletions
 from dd_harness.projects.fold import APPROVED, PROPOSED, REJECTED, fold
 from dd_harness.projects.rules import (
     CONVERSATION_STARTED,
@@ -60,6 +61,12 @@ def _title(events: list[dict[str, Any]]) -> tuple[str | None, TitleSource | None
         if event["event"] == PROJECT_CREATED and event.get("title"):
             return event["title"], TITLE_BY_RESEARCHER
     return None, None
+
+
+def _conversation_count(events: list[dict[str, Any]]) -> int:
+    """How many conversations were started in the project and are not deleted."""
+    begun = sum(1 for e in events if e["event"] == CONVERSATION_STARTED)
+    return begun - len(conversation_deletions(events))
 
 
 class Lifecycle(ProjectRules):
@@ -189,7 +196,7 @@ class Lifecycle(ProjectRules):
             "created_by": created["acted_for"],
             "inventory": _inventory_summary(events),
             "repository": _repository_summary(events),
-            "conversation_count": sum(1 for e in events if e["event"] == CONVERSATION_STARTED),
+            "conversation_count": _conversation_count(events),
             "documents": states,
             "progress": flow.describe(events),
             "intake": intake.state(events),
