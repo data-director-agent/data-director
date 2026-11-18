@@ -65,14 +65,6 @@ KNOWN_EXCEPTIONS: Mapping[str, frozenset[str]] = {
     "advisor.documentation": frozenset({"R5"}),
 }
 
-# Mocks and alphas whose payload does not yet say what they do not do. The list only shrinks too.
-NO_LIMITATIONS: frozenset[str] = frozenset(
-    {
-        # TODO(#968): the Policy Adviser's `PolicyChecks` has no `limitations` slot.
-        "advisor.policy",
-    }
-)
-
 
 def _module(package: Path) -> str:
     """The one import package under the agent's `src/`."""
@@ -106,12 +98,11 @@ def _in(state: str) -> list[str]:
 
 def _assert_states_limitations(spec: AgentSpec) -> None:
     """The payload has a `limitations` slot, or is the core `Document`, whose outcome statement
-    says them instead; unless the agent is a known gap."""
+    says them instead."""
     assert spec.payload is not None, f"{spec.agent_id}: an advisor with no payload"
-    states = spec.payload.name == "Document" or "limitations" in spec.payload.json_schema.get(
+    assert spec.payload.name == "Document" or "limitations" in spec.payload.json_schema.get(
         "properties", {}
-    )
-    assert states == (spec.agent_id not in NO_LIMITATIONS)
+    ), f"{spec.agent_id}: its payload does not state its limitations"
 
 
 @functools.cache
@@ -214,4 +205,4 @@ def test_a_mock_or_an_alpha_substantiates_no_blueprint_requirement(agent_id: str
 
 
 def test_every_known_exception_is_a_mock_or_an_alpha() -> None:
-    assert set(KNOWN_EXCEPTIONS) | NO_LIMITATIONS <= set(_in(MOCK) + _in(ALPHA))
+    assert set(KNOWN_EXCEPTIONS) <= set(_in(MOCK) + _in(ALPHA))
