@@ -125,6 +125,24 @@ def test_a_decision_not_on_a_proposal_of_the_project_is_refused_and_recorded(
     assert store.events(project_id)[-1]["event"] == DOCUMENT_CHANGE_REFUSED
 
 
+def test_a_decision_on_a_superseded_proposal_is_refused(
+    client: TestClient, store: ProjectStorage
+) -> None:
+    """A person deciding from a page loaded before someone else decided is refused, so the later
+    decision stands."""
+    project_id, (duplicate,) = proposed(store, DUPLICATE)
+    included = {**DUPLICATE, "file_decision": "include"}
+    first = decide(
+        client, project_id, {"verdict": "changed", "proposal": duplicate, "fact": included}
+    )
+    assert first.status_code == 201, first.text
+    stale = decide(client, project_id, {"verdict": "confirmed", "proposal": duplicate})
+    assert stale.status_code == 409
+    assert stale.json()["type"].endswith("proposal-superseded")
+    (fact,) = client.get(f"/api/projects/{project_id}/facts").json()["decisions"]
+    assert fact["file_decision"] == "include"
+
+
 def test_only_an_owner_decides_sensitivity_and_licence(
     client: TestClient,
     store: ProjectStorage,

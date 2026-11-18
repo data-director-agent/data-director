@@ -44,13 +44,14 @@ class Refusal(StrEnum):
     NOT_ASKED = "question-not-asked"
     NO_PROPOSAL = "proposal-not-found"
     NOT_PROPOSED = "fact-not-proposed"
+    SUPERSEDED = "proposal-superseded"
 
 
 class ChangeRefusedError(ProjectError):
     """A decision or edit that does not name the document's latest text, a decision on a
     version already decided, an answer to a question the latest version does not ask, or a
-    decision on a fact the project was not proposed. The refusal is recorded, and nothing else
-    is."""
+    decision on a fact the project was not proposed or on a proposal since superseded. The
+    refusal is recorded, and nothing else is."""
 
     def __init__(self, refusal: Refusal, detail: str) -> None:
         super().__init__(detail)

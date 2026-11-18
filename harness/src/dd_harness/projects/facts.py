@@ -7,8 +7,9 @@ identifier (`propose_facts`). A proposal is never a fact. A person's decision is
 `fact_decided` event (`decide_fact`): `confirmed` takes the proposal as it is, `changed` takes
 the person's own value for the same kind and subject, and `rejected` takes neither. A person may
 also state a fact nobody proposed, as a `changed` decision that names no proposal. A decision on
-a proposal the project does not hold, or a changed value of another kind or subject than the
-proposal's, is refused, and the refusal is a `document_change_refused` event.
+a proposal the project does not hold, on one a later proposal or decision on its kind and subject
+has followed, or a changed value of another kind or subject than the proposal's, is refused, and
+the refusal is a `document_change_refused` event.
 
 `decisions` gives the facts that stand, the last decision on each kind and subject: a rejection
 removes the fact. The conductor puts them into a `DraftRequest` and a `Message` as
@@ -77,6 +78,12 @@ def for_agents(fact: Mapping[str, Any]) -> dict[str, Any]:
 class Facts(ProjectRules):
     """The rules of the facts a project holds."""
 
+    def checked_facts(self, facts: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
+        """`facts` as `ProjectFact` documents, recording nothing. Raises `ProjectError` for one
+        that is not a `ProjectFact`, so a run's proposals can be checked before any of its
+        effects is written."""
+        return [checked_fact(f) for f in facts]
+
     def propose_facts(
         self,
         project_id: str,
@@ -89,7 +96,7 @@ class Facts(ProjectRules):
         """Record what a run of `agent_id` proposed, one `fact_proposed` event each, written
         together. Returns the proposals' identifiers. Raises `ProjectError` for an unknown
         project or a fact that is not a `ProjectFact`, which records nothing."""
-        documents = [checked_fact(f) for f in facts]
+        documents = self.checked_facts(facts)
         if not documents:
             return []
         events = [
@@ -124,8 +131,9 @@ class Facts(ProjectRules):
         rejection.
 
         Raises `ProjectError` for a decision malformed in itself, which records nothing, and
-        `ChangeRefusedError` for a proposal the project does not hold, or a changed fact of
-        another kind or subject, which records the refusal."""
+        `ChangeRefusedError` for a proposal the project does not hold, one a later proposal or
+        decision on its kind and subject has followed, or a changed fact of another kind or
+        subject, which records the refusal."""
         verdict = FactVerdict(verdict)
         given = _given(verdict, proposal, fact, reason)
 
@@ -137,6 +145,8 @@ class Facts(ProjectRules):
                     f"This project holds no proposal {proposal}.",
                     {"proposal": proposal},
                 )
+            if proposed is not None and (stale := _superseded(section.events(), proposed)):
+                return stale
             decided = _decided(verdict, proposed, given)
             if isinstance(decided, Refused):
                 return decided
@@ -167,20 +177,7 @@ class Facts(ProjectRules):
         """The proposals no decision on their kind and subject has followed, the latest for
         each, in the order proposed: each with its `proposal` identifier, the `agent_id` that
         proposed it, when, and the `fact` as proposed."""
-        open_: dict[tuple[str, str], dict[str, Any]] = {}
-        for event in self.events(project_id):
-            if event["event"] == FACT_PROPOSED:
-                key = fact_key(event["fact"])
-                open_.pop(key, None)
-                open_[key] = {
-                    "proposal": event["event_id"],
-                    "agent_id": event["agent_id"],
-                    "proposed_at": event["at"],
-                    "fact": event["fact"],
-                }
-            elif event["event"] == FACT_DECIDED:
-                open_.pop(fact_key(event["fact"]), None)
-        return list(open_.values())
+        return list(_open(self.events(project_id)).values())
 
 
 def _given(
@@ -235,6 +232,40 @@ def _decided(
 def _proposal(events: Sequence[Mapping[str, Any]], proposal: str) -> Mapping[str, Any] | None:
     return next(
         (e for e in events if e["event"] == FACT_PROPOSED and e["event_id"] == proposal), None
+    )
+
+
+def _open(events: Iterable[Mapping[str, Any]]) -> dict[tuple[str, str], dict[str, Any]]:
+    """The open proposals by kind and subject: the latest for each that no decision followed."""
+    open_: dict[tuple[str, str], dict[str, Any]] = {}
+    for event in events:
+        if event["event"] == FACT_PROPOSED:
+            key = fact_key(event["fact"])
+            open_.pop(key, None)
+            open_[key] = {
+                "proposal": event["event_id"],
+                "agent_id": event["agent_id"],
+                "proposed_at": event["at"],
+                "fact": event["fact"],
+            }
+        elif event["event"] == FACT_DECIDED:
+            open_.pop(fact_key(event["fact"]), None)
+    return open_
+
+
+def _superseded(events: Sequence[Mapping[str, Any]], proposed: Mapping[str, Any]) -> Refused | None:
+    """A refusal of a decision on `proposed` if a later proposal or decision on its kind and
+    subject has followed it, so that a person deciding from what they saw earlier never
+    overwrites what someone decided since."""
+    key = fact_key(proposed["fact"])
+    if _open(events).get(key, {}).get("proposal") == proposed["event_id"]:
+        return None
+    kind, subject = key
+    return Refused(
+        Refusal.SUPERSEDED,
+        f"A later proposal or decision on the {kind} {subject!r} has followed this one; "
+        "decide on what stands now.",
+        {"proposal": proposed["event_id"]},
     )
 
 

@@ -139,9 +139,10 @@ intended design, and each part says where it is not built yet.
    to what an agent is given and no agent needs them, so where the profile keeps `researcher`
    from an agent the conductor leaves them out of its input, before it is hashed, and the run goes
    ahead, so a conversation with a hosted orchestrator does not stop because someone kept facts
-   (`dd_harness.project_facts.leave_out`). Decided facts are not: a drafter given none would draft
-   as if nothing had been decided, listing a file a person excluded, so a profile that keeps
-   `decisions` from an agent refuses its runs once the project holds any. What a caller sends
+   (`dd_harness.project_facts.leave_out`). A `Message`'s decided facts are left out the same way,
+   since an orchestrator drafts nothing. A `DraftRequest`'s are not: a drafter given none would
+   draft as if nothing had been decided, listing a file a person excluded, so a profile that keeps
+   `decisions` from a drafter refuses its runs once the project holds any. What a caller sends
    outside a project is not the project's, and the key does not apply to it.
 9. **Only a `Document` payload of a succeeded run becomes a project document.** When a run that
    belongs to a project succeeds with a `Document` payload, the conductor records it as a new
@@ -310,11 +311,14 @@ intended design, and each part says where it is not built yet.
     whether a sensitive field or file may be published (`publish` or `generalise`, at a
     precision, `withhold`, or `undecided`), or the licence. A succeeded run's proposals are
     `fact_proposed` events, one each, caused by the run and naming its agent, from a payload of
-    any class (`dd_harness.project_effects`). A person decides each as a `fact_decided` event:
+    any class (`dd_harness.project_effects`); they are checked before anything is written and
+    recorded only once the run's draft is kept, so a run that fails leaves none. A person decides each as a `fact_decided` event:
     `confirmed` takes the proposal as it is, `changed` takes the person's own value for its kind
     and subject, and `rejected` removes it; a person may also state a fact nobody proposed. A
-    decision on a proposal the project does not hold (`proposal-not-found`), or a changed fact of
-    another kind or subject (`fact-not-proposed`), is refused and the refusal recorded
+    decision on a proposal the project does not hold (`proposal-not-found`), on one that a later
+    proposal or decision on its kind and subject has followed (`proposal-superseded`), so that
+    nobody overwrites what someone decided since they looked, or a changed fact of another kind or
+    subject (`fact-not-proposed`), is refused and the refusal recorded
     (invariant 12). The fact that stands is the last decision on its kind and subject
     (`ProjectStore.propose_facts`, `decide_fact`, `decisions`, `proposals`), and the conductor
     gives it to every drafter and orchestrator in the project (invariant 6). A member decides

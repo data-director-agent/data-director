@@ -56,7 +56,8 @@ They add to what an agent is given and no agent needs them, so where the profile
 an agent the conductor leaves them out (`leave_out`) rather than refusing the run. Decided facts
 are `decisions`: structured values about the project, which go to a hosted model unless the
 profile says otherwise. Without them a drafter would draft as if nothing had been decided, so
-where the profile keeps them from an agent the run is refused.
+where the profile keeps them from a drafter the run is refused; a `Message`'s are left out
+instead, so a conversation with a hosted orchestrator does not stop once a fact is decided.
 """
 
 from __future__ import annotations
@@ -234,13 +235,25 @@ def given(
     return frozenset(found)
 
 
+def left_out(filled: Mapping[str, Any]) -> frozenset[str]:
+    """The classes of project content in `filled` left out, rather than refused, where the
+    profile keeps them from an agent: researcher facts always, and a `Message`'s decided facts,
+    which an orchestrator does not need to draft anything."""
+    if filled.get("schema_class") == MESSAGE:
+        return frozenset({RESEARCHER, DECISIONS})
+    return frozenset({RESEARCHER})
+
+
 def leave_out(filled: Mapping[str, Any], classes: frozenset[str]) -> dict[str, Any]:
-    """`filled` without the researcher facts, if `classes` names `researcher`: the one class of
-    project content left out, rather than refused, where the profile keeps it from an agent."""
+    """`filled` without the content of `classes` that `left_out` says may be left out: its
+    researcher facts, and a `Message`'s decided facts."""
     kept = dict(filled)
-    if RESEARCHER in classes:
+    out = classes & left_out(filled)
+    if RESEARCHER in out:
         for slot in RESEARCHER_SLOTS:
             kept.pop(slot, None)
+    if DECISIONS in out:
+        kept.pop("project_decisions", None)
     return kept
 
 

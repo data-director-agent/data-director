@@ -11,8 +11,10 @@ no new title or entry point (invariant 24), and its draft is still recorded.
 
 A succeeded payload of any class that carries `proposed_facts` (`ProposesFacts`) has each
 proposal recorded in the project for a person to decide, caused by the run
-(`dd_harness.projects.facts`); the payload's class is never read. Proposals the project refuses
-fail the run, as a refused draft does, and a project deleted while the run went takes none.
+(`dd_harness.projects.facts`); the payload's class is never read. The proposals are checked before
+anything is written and recorded only after the run's draft is kept, so a run that fails, whether
+its proposals or its draft is refused, leaves none. A project deleted while the run went takes
+none.
 
 `Projects` implements `ProjectEffects` through `RunEffects`, from its own `record_draft`, `rename`,
 `choose_entry` and `propose_facts`.
@@ -83,6 +85,8 @@ class _ProjectRules(Protocol):
         source: EntrySource = ...,
     ) -> bool: ...
 
+    def checked_facts(self, facts: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]: ...
+
     def propose_facts(
         self,
         project_id: str,
@@ -102,19 +106,12 @@ class RunEffects:
         if project_id is None or envelope.outcome.status != OutcomeStatus.SUCCEEDED:
             return None
         payload: dict[str, Any] = envelope.to_document().get("payload") or {}
-        if proposed := payload.get(PROPOSED_FACTS):
-            try:
-                self.propose_facts(
-                    project_id,
-                    proposed,
-                    agent_id=envelope.agent_id,
-                    acted_for=acted_for,
-                    caused_by=envelope.invocation_id,
-                )
-            except ProjectDeletedError:
-                pass
-            except ProjectError as exc:
-                return f"its proposed facts were refused: {exc}"
+        # Checked before anything is written, and recorded after the draft is kept, so a run
+        # that fails here leaves no proposal behind.
+        try:
+            proposed = self.checked_facts(payload.get(PROPOSED_FACTS) or [])
+        except ProjectError as exc:
+            return f"its proposed facts were refused: {exc}"
         schema_class = payload.get("schema_class")
         if schema_class == DOCUMENT:
             try:
@@ -142,4 +139,13 @@ class RunEffects:
                         acted_for=acted_for,
                         caused_by=caused_by,
                     )
+        if proposed:
+            with contextlib.suppress(ProjectDeletedError):
+                self.propose_facts(
+                    project_id,
+                    proposed,
+                    agent_id=envelope.agent_id,
+                    acted_for=acted_for,
+                    caused_by=envelope.invocation_id,
+                )
         return None

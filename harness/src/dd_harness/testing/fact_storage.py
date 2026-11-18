@@ -185,6 +185,30 @@ def check_a_decision_not_on_the_proposal_is_refused(make: MakeProjectStorage) ->
         raise AssertionError("a deleted project took a decision")
 
 
+def check_a_decision_on_a_superseded_proposal_is_refused(make: MakeProjectStorage) -> None:
+    """A decision on a proposal that a later decision, or a later proposal, on its kind and
+    subject has followed is refused and recorded, and what stands is unchanged: a person deciding
+    from what they saw earlier never overwrites what someone decided since."""
+    store = make("projects")
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
+    (first,) = _propose(store, project_id, DUPLICATE)
+    included = {**DUPLICATE, "file_decision": "include"}
+    _decide(store, project_id, FactVerdict.CHANGED, proposal=first, fact=included)
+    (older,) = _propose(store, project_id, SITES)
+    (newer,) = _propose(store, project_id, {**SITES, "sensitivity_decision": "withhold"})
+    for stale in (first, older):
+        try:
+            _decide(store, project_id, FactVerdict.CONFIRMED, proposal=stale)
+        except ChangeRefusedError as refused:
+            assert refused.refusal == Refusal.SUPERSEDED
+        else:
+            raise AssertionError("a decision on a superseded proposal was recorded")
+        assert store.events(project_id)[-1]["event"] == DOCUMENT_CHANGE_REFUSED
+    (fact,) = store.decisions(project_id) or []
+    assert fact["file_decision"] == "include"
+    assert [p["proposal"] for p in store.proposals(project_id)] == [newer]
+
+
 def _researcher_record(orcid_id: str, **sections: Any) -> dict[str, Any]:
     return {
         "orcid_id": orcid_id,
@@ -245,4 +269,7 @@ FACT_STORAGE_CHECKS: dict[str, Callable[[MakeProjectStorage], None]] = {
     "a proposal is not a fact": check_a_proposal_is_not_a_fact,
     "the last decision on a subject counts": check_the_last_decision_on_a_subject_counts,
     "a decision not on the proposal is refused": check_a_decision_not_on_the_proposal_is_refused,
+    "a decision on a superseded proposal is refused": (
+        check_a_decision_on_a_superseded_proposal_is_refused
+    ),
 }

@@ -23,6 +23,7 @@ from dd_harness.testing import (
     message,
     request,
 )
+from dd_sdk.agent import ModelUse
 from dd_sdk.contract.models import (
     DocumentKind,
     DraftRequest,
@@ -226,3 +227,30 @@ def test_decisions_go_to_a_hosted_model_unless_the_profile_keeps_them(
     if status == OutcomeStatus.FAILED:
         assert env.problem is not None
         assert str(env.problem.type).endswith("project-content-withheld")
+
+
+@pytest.mark.requirement("C13.5")
+def test_a_hosted_orchestrator_goes_on_without_the_decisions_the_profile_keeps(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """A `Message`'s decided facts that the profile keeps from a hosted model are left out, not
+    refused: an orchestrator drafts nothing, so a conversation does not stop once a fact is
+    decided (docs/specs/projects.md, invariant 8)."""
+    runs = tmp_path / "runs"
+    hosted = AbstainingStub()
+    hosted.spec = replace(hosted.spec, models=(ModelUse("test", "orchestrator", "hosted"),))
+    conductor = conductor_over(runs, projects, hosted)
+    conductor.profile = replace(conductor.profile, hosted_models=frozenset({"inventory"}))
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    projects.decide_fact(
+        project, FactVerdict.CHANGED, fact=THUMBS, acted_for=TEST_PRINCIPAL, caused_by="t"
+    )
+
+    env = conductor.invoke(
+        in_conversation(request("stub.abstain", message()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+
+    assert env.problem is None or not str(env.problem.type).endswith("project-content-withheld")
+    assert env.outcome.status == OutcomeStatus.ABSTAINED, env.outcome.statement
+    assert "project_decisions" not in stored_input(runs, env.invocation_id)
