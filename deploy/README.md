@@ -32,6 +32,7 @@ on loopback alone and is reached through an SSH tunnel.
 |---|---|
 | `/usr/local/bin/data-director` | Installed by `install.sh`: `scripts/dd.py`, run from the clone, never from a release. `sudo data-director apply` makes the instance what `/etc/data-director/deployment.yaml` says; `doctor` checks the deployment; `secret …` is `secret.sh`. See "Changing the deployment" and "Day to day", and the [command reference](../docs/guide/operations/commands.md). |
 | `secret.sh` | As root, gives an agent a secret such as its model key (`set`), takes it away (`remove`) or lists them (`list`); see "Secrets" below. |
+| `broker-credentials.sh` | As root, gives each agent named a model broker credential (through `secret.sh`) and writes the broker's `agent-credentials` list of their digests; see [The model broker](../docs/guide/operations/model-broker.md#on-a-vm). |
 | `credentials.sh` | Turns the files in `/etc/data-director/credentials/<agent>/` into that agent's credentials drop-in. `install.sh` and `secret.sh` use it. |
 | `install.sh` | Run once as root: packages, Node 22, uv, the `datadirector` user, directories, units, NGINX site (in place of the packaged default site), first deployment. Run again to install changed units or NGINX config. |
 | `deploy.sh` | One pass of the deployment (fetch, check CI, build, switch, check health, roll back). |
