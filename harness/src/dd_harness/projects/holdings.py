@@ -11,14 +11,21 @@ text, under which the text is kept as a blob (`add_documentation`). Only plain t
 within `DOCUMENTATION_MAX_BYTES` are kept, and a name is a file name, never a path. Attaching the
 same text again under the same name records nothing new in `documentation`, which lists each
 document once, the one added first first.
+
+A Word document or a PDF with a text layer is kept as the file and the text read from it inside
+the deployment (`add_document_file`, `dd_harness.projects.extract`): the text is the document an
+agent is given, as plain text, and the event names the file's media type, size and digest too, so
+the file can be served beside it (`documentation_source`).
 """
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Mapping
 from functools import cache
 from typing import Any, Final
 
+from dd_harness.projects.extract import extract_text
 from dd_harness.projects.fold import text_digest
 from dd_harness.projects.rules import (
     DOCUMENTATION_ADDED,
@@ -130,15 +137,46 @@ class Holdings(ProjectRules):
         that is blank, too long, or holds a folder. What is refused leaves no trace."""
         self._require(project_id)
         check_documentation(name, media_type, text)
+        return self._keep_documentation(project_id, name, media_type, text, acted_for, caused_by)
+
+    def add_document_file(
+        self,
+        project_id: str,
+        name: str,
+        media_type: str,
+        data: bytes,
+        *,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> str:
+        """Add a Word document or PDF: the text read from it, as plain text, and the file itself.
+        Returns the SHA-256 of the text, as `add_documentation` does. Raises `ProjectError` for
+        what `read_document_file` refuses. What is refused leaves no trace."""
+        self._require(project_id)
+        text = read_document_file(name, media_type, data)
+        source = {"source_media_type": media_type, "source_size": len(data)}
+        source["source_digest"] = digest = hashlib.sha256(data).hexdigest()
+        self._keep_blob(project_id, digest, data)
+        return self._keep_documentation(
+            project_id, name, "text/plain", text, acted_for, caused_by, source
+        )
+
+    def _keep_documentation(
+        self,
+        project_id: str,
+        name: str,
+        media_type: str,
+        text: str,
+        acted_for: Principal,
+        caused_by: str,
+        source: Mapping[str, Any] | None = None,
+    ) -> str:
         content = text.encode("utf-8")
         digest = text_digest(text)
         self._keep_blob(project_id, digest, content)
+        detail = {"name": name, "media_type": media_type, "size": len(content), "digest": digest}
         self._append(
-            project_id,
-            DOCUMENTATION_ADDED,
-            acted_for,
-            caused_by,
-            {"name": name, "media_type": media_type, "size": len(content), "digest": digest},
+            project_id, DOCUMENTATION_ADDED, acted_for, caused_by, {**detail, **(source or {})}
         )
         return digest
 
@@ -158,6 +196,11 @@ class Holdings(ProjectRules):
                     "documentation_media_type": event["media_type"],
                     "documentation_size": event["size"],
                     "documentation_added_at": event["at"],
+                    **(
+                        {"documentation_source_media_type": event["source_media_type"]}
+                        if "source_media_type" in event
+                        else {}
+                    ),
                 },
             )
         return list(found.values())
@@ -169,3 +212,25 @@ class Holdings(ProjectRules):
         if digest not in held:
             return None
         return self._blob(project_id, digest).decode("utf-8")
+
+    def documentation_source(self, project_id: str, digest: str) -> tuple[bytes, str] | None:
+        """The file the project's document with this digest was read from, and its media type,
+        or None if it was attached as text or the project holds none. Raises
+        `UnknownProjectError` for an unknown project."""
+        for event in self.events(project_id):
+            kept = event["event"] == DOCUMENTATION_ADDED and event["digest"] == digest
+            if kept and "source_digest" in event:
+                source = self._blob(project_id, event["source_digest"])
+                return source, event["source_media_type"]
+        return None
+
+
+def read_document_file(name: str, media_type: str, data: bytes) -> str:
+    """The text of a Word or PDF file the project would keep under `name`, read inside the
+    deployment, so that a caller adding more than one thing can refuse all of it before adding
+    any. Raises `ProjectError` for a file `extract_text` refuses, or a name or text
+    `check_documentation` refuses."""
+    _check_documentation_name(name)
+    text = extract_text(media_type, data)
+    check_documentation(name, "text/plain", text)
+    return text

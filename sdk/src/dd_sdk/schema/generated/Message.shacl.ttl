@@ -225,7 +225,13 @@ dd:DocumentationSummary a sh:NodeShape ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 4 ;
-            sh:path dd:documentation_added_at ] ;
+            sh:path dd:documentation_added_at ],
+        [ sh:datatype xsd:string ;
+            sh:description "The media type of the Word document or PDF the document's text was read from, inside the deployment; absent for a document attached as text. The project keeps the file beside the text." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dd:documentation_source_media_type ] ;
     sh:targetClass dd:DocumentationSummary .
 
 dd:InventorySummary a sh:NodeShape ;

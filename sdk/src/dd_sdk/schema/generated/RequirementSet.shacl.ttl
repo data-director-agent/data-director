@@ -64,12 +64,6 @@ dd:RequirementSet a sh:NodeShape ;
             sh:in ( "metadata_record" "readme" "data_dictionary" "dmp" "other" ) ;
             sh:order 10 ;
             sh:path dd:recommended_documents ],
-        [ sh:datatype xsd:integer ;
-            sh:description "An override only: the largest deposit the repository accepts, in bytes." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 13 ;
-            sh:path dd:max_item_size ],
         [ sh:datatype xsd:string ;
             sh:description "Identifies the requirement set, such as datacite-4 or orda." ;
             sh:maxCount 1 ;
@@ -78,6 +72,12 @@ dd:RequirementSet a sh:NodeShape ;
             sh:order 1 ;
             sh:path dd:requirement_set_id ;
             sh:pattern "^[a-z0-9][a-z0-9-]*$" ],
+        [ sh:datatype xsd:integer ;
+            sh:description "An override only: the largest deposit the repository accepts, in bytes." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 13 ;
+            sh:path dd:max_item_size ],
         [ sh:datatype xsd:string ;
             sh:description "An override only: the licences the repository offers, each an SPDX identifier or the URL of the repository's own terms." ;
             sh:nodeKind sh:Literal ;

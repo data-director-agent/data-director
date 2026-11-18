@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from importlib.metadata import version
 
 from dd_app.turn_body import AttachedDocument
-from dd_harness.projects import check_documentation
+from dd_harness.projects import check_documentation, read_document_file
 from dd_inventory.personal import confidence_band, default_detector
 
 log = logging.getLogger(__name__)
@@ -133,6 +133,12 @@ def hold(name: str, text: str, confirmed: Iterable[str]) -> list[TextFinding]:
 
 def accept(document: AttachedDocument) -> list[TextFinding]:
     """A document a turn attaches, checked as the project would check it and then held unless
-    every kind found is confirmed (`hold`). Raises `ProjectError` or `DocumentationHeldError`."""
-    check_documentation(document.name, document.media_type, document.text)
-    return hold(document.name, document.text, document.confirmed)
+    every kind found is confirmed (`hold`). A Word document or PDF is checked by the text the
+    harness reads from it (`read_document_file`). Raises `ProjectError` or
+    `DocumentationHeldError`, before anything is kept."""
+    if document.data is None:
+        check_documentation(document.name, document.media_type, document.text)
+        text = document.text
+    else:
+        text = read_document_file(document.name, document.media_type, document.data)
+    return hold(document.name, text, document.confirmed)

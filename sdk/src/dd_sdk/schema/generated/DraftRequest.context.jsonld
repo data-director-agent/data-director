@@ -134,6 +134,9 @@
       "documentation_size": {
          "@id": "https://w3id.org/data-director/documentation_size"
       },
+      "documentation_source_media_type": {
+         "@id": "https://w3id.org/data-director/documentation_source_media_type"
+      },
       "documentation_text": {
          "@id": "https://w3id.org/data-director/documentation_text"
       },

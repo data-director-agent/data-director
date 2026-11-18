@@ -134,6 +134,10 @@ class ProjectService:
         store: ProjectHoldings = self._store
         return store.documentation_text(project_id, digest)
 
+    def documentation_source(self, project_id: str, digest: str) -> tuple[bytes, str] | None:
+        store: ProjectHoldings = self._store
+        return store.documentation_source(project_id, digest)
+
     def researchers(self, project_id: str) -> list[dict[str, Any]]:
         store: ProjectResearchers = self._store
         return store.researchers(project_id) or []

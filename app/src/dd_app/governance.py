@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
+from dd_app.attached import keep_attached
 from dd_app.config import DEFAULT_PROJECTS_DIR, DEFAULT_REPOSITORIES_DIR
 from dd_app.documentation_check import accept
 from dd_app.principals import principal_summary
@@ -347,14 +348,7 @@ class Governance:
                 project_id, inventory, acted_for=acting_for, caused_by=caused_by
             )
         if documentation is not None:
-            self.projects.add_documentation(
-                project_id,
-                documentation.name,
-                documentation.media_type,
-                documentation.text,
-                acted_for=acting_for,
-                caused_by=caused_by,
-            )
+            keep_attached(self.projects, project_id, documentation, acting_for, caused_by)
 
     # Who may read what (#153, docs/specs/app.md). Each person sees their own work: a run or
     # conversation in a project is readable by whoever may read the project, and one in no project

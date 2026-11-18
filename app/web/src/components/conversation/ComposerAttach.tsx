@@ -8,7 +8,11 @@
 import { Paperclip } from "lucide-react";
 import { FileTrigger } from "react-aria-components";
 
-import { type AttachedDocument, DOCUMENT_EXTENSIONS } from "../../conversation/documentation";
+import {
+  type AttachedDocument,
+  DOCUMENT_EXTENSIONS,
+  DOCUMENT_MEDIA_TYPES,
+} from "../../conversation/documentation";
 import type { AttachedInventory } from "../../conversation/inventory";
 import { MakeInventoryDialog } from "../inventory/MakeInventoryDialog";
 import { Button } from "../ui/Button";
@@ -58,7 +62,7 @@ export function ComposerAttach({
             acceptedFileTypes={[
               "application/json",
               ".json",
-              ...(documents ? ["text/plain", "text/markdown", ...DOCUMENT_EXTENSIONS] : []),
+              ...(documents ? [...DOCUMENT_MEDIA_TYPES, ...DOCUMENT_EXTENSIONS] : []),
             ]}
             onSelect={(files) => onAttachFile(files?.[0])}
           >
@@ -73,7 +77,8 @@ export function ComposerAttach({
         Attach an inventory of your data files (.json), which holds their names, sizes, formats
         and table column headings but not the data themselves
         {documents
-          ? ", or a document about your data, such as a protocol or codebook (.txt or .md)"
+          ? ", or a document about your data, such as a protocol, codebook or data management " +
+            "plan (.txt, .md, .docx or a PDF with text, up to 1 MB)"
           : ". This deployment does not keep documents about your data"}
         . Never attach the data themselves: your data are not uploaded.
       </p>
