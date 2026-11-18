@@ -217,6 +217,47 @@ def test_a_healthy_vm_is_all_good(vm: Vm, capsys: pytest.CaptureFixture[str]) ->
     assert says(out, "note", "orchestrator.stub")
 
 
+def link_python(vm: Vm, home: Path, mode: int) -> None:
+    """Give the live release a .venv whose python links to an interpreter in `home`, made `mode`."""
+    interpreter = home / "python" / "bin" / "python3.14"
+    interpreter.parent.mkdir(parents=True)
+    interpreter.write_text("")
+    home.chmod(mode)
+    venv = vm.releases / SHA / ".venv" / "bin"
+    venv.mkdir(parents=True)
+    (venv / "python").symlink_to(interpreter)
+
+
+def broker_enabled() -> FakeVm:
+    system = FakeVm()
+    system.units["data-director-model-broker.service"] = {"UnitFileState": "enabled"}
+    return system
+
+
+def test_an_enabled_broker_that_cannot_reach_python_names_install_sh(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    link_python(vm, vm.state, 0o750)
+    status, out = check(broker_enabled(), vm, capsys)
+    assert status == 1
+    assert says(out, "problem", "data-director-model-broker.service", str(vm.state))
+    assert says(out, "fix", "install.sh")
+
+
+def test_an_enabled_broker_with_python_beside_the_releases_is_all_good(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    link_python(vm, vm.root / "python", 0o755)
+    status, out = check(broker_enabled(), vm, capsys)
+    assert status == 0, out
+
+
+def test_a_broker_not_enabled_is_not_checked(vm: Vm, capsys: pytest.CaptureFixture[str]) -> None:
+    link_python(vm, vm.state, 0o750)
+    status, out = check(FakeVm(), vm, capsys)
+    assert status == 0, out
+
+
 def test_an_old_commit_still_running_names_the_bootstrap(
     vm: Vm, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -600,6 +641,7 @@ def test_doctor_reports_a_deployment_not_yet_applied(
         ("name: x\nprivacy_notice: http://example.ac.uk/p\n", "privacy_notice is the address"),
         ("name: x\nprivacy_notice: javascript:alert(1)\n", "privacy_notice is the address"),
         ("name: x\nprivacy_notice: [https://example.ac.uk/p]\n", "privacy_notice is the address"),
+        ("name: x\nmodel_accounts: required\n", "model_accounts is a mapping"),
         ("name: x\ncolour: blue\n", "unknown key colour"),
         ("name: Not A Name\n", "lower-case words"),
         ("name: x\ndisabled: [advisor-nobody]\n", "advisor-nobody, not in agents.yaml"),
@@ -610,6 +652,21 @@ def test_a_deployment_that_cannot_be_is_refused_with_why(vm: Vm, text: str, mess
     (vm.etc / "deployment.yaml").write_text(text)
     with pytest.raises(DevError, match=message):
         plan(FakeVm(), Place.vm(vm), vm)
+
+
+def test_model_accounts_in_the_deployment_reach_the_profile_and_raise_its_version(vm: Vm) -> None:
+    import yaml
+
+    before = yaml.safe_load((vm.etc / "profile.yaml").read_text())
+    assert "model_accounts" not in before  # unset: the deployment pays
+    (vm.etc / "deployment.yaml").write_text(
+        "name: test\norchestrator: stub\nmodel_accounts:\n  own: allowed\n"
+        "  fallback: deployment\n  providers:\n    - provider: anthropic\n"
+    )
+    assert apply(FakeVm(), Place.vm(vm), vm) == 0
+    after = yaml.safe_load((vm.etc / "profile.yaml").read_text())
+    assert after["model_accounts"]["own"] == "allowed"
+    assert after["version"] > before["version"]
 
 
 def test_no_backup_timer_and_a_failed_backup_are_problems(

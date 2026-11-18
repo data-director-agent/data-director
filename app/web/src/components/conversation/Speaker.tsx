@@ -4,7 +4,7 @@
  * `Transcript` so `Pending` heads the part it shows the same way.
  */
 
-import { type AgentView, agentName } from "../../manifest/normalise";
+import { AgentIcon, type AgentView, agentName } from "../../manifest/normalise";
 import { ModelTag } from "../capabilities/ModelDisclosure";
 
 /** The agent's name as a researcher sees it: its card's title, or its id when the directory does
@@ -12,6 +12,11 @@ import { ModelTag } from "../capabilities/ModelDisclosure";
 export function nameOf(agents: AgentView[], agentId: string): string {
   const agent = agents.find((a) => a.id === agentId);
   return agent ? agentName(agent) : agentId;
+}
+
+/** The icon the agent's card declares, or "" (the default) when the directory does not list it. */
+export function iconOf(agents: AgentView[], agentId: string): string {
+  return agents.find((a) => a.id === agentId)?.icon ?? "";
 }
 
 /**
@@ -41,7 +46,10 @@ export function Speaker({
   const named = name !== agentId;
   return (
     <p className="turn-speaker">
-      <strong className="turn-speaker-name">{named ? name : <code>{exact}</code>}</strong>
+      <strong className="turn-speaker-name">
+        <AgentIcon agent={{ icon: agent?.icon ?? "" }} />
+        {named ? name : <code>{exact}</code>}
+      </strong>
       {(named || agent) && (
         <span className="turn-speaker-details">
           {named && <code>{exact}</code>}

@@ -54,6 +54,8 @@ export interface RawAgentSpec {
   serves?: string[];
   /** The persona's name as a researcher sees it (docs/specs/agents.md). Absent or empty: none. */
   title?: string;
+  /** The persona's icon, one emoji (docs/specs/agents.md). Absent or empty: none. */
+  icon?: string;
   /**
    * The options a deployment's profile may set, by name (docs/specs/policy-and-identity.md).
    * Absent on an older card, which offers none.

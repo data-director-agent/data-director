@@ -9,6 +9,7 @@ export {
   type Slots,
   useAgentView,
 } from "./Provider";
+export { AgentIcon } from "./agent/AgentIcon";
 export { AgentCardView } from "./card/AgentCardView";
 export { AgentSpecView } from "./card/AgentSpecView";
 export { BUILT_IN_EXTENSIONS, ExtensionView } from "./card/ExtensionView";

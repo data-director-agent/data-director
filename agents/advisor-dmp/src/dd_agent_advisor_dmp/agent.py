@@ -90,6 +90,7 @@ class DmpChecker:
         agent_id="advisor.dmp",
         version="0.2.0a1",
         title="Data Management Plan Checker",
+        icon="📋",
         description=(
             "Alpha. Compares what a data management plan committed to share with what is planned "
             "at publication, and lists each difference in output, repository, access or licence "

@@ -202,6 +202,31 @@ def test_the_persona_title_round_trips_through_the_manifest() -> None:
     assert spec_from_description(entry).title == "Metadata Librarian"
 
 
+@pytest.mark.parametrize("icon", ["📚", "🧑🏽‍🔬", "⚖️"])
+def test_the_persona_icon_round_trips_through_the_manifest(icon: str) -> None:
+    entry = json.loads(json.dumps(describe(dataclasses.replace(SPEC, icon=icon))))
+    assert entry["icon"] == icon
+    assert spec_from_description(entry).icon == icon
+
+
+def test_a_description_without_an_icon_has_none() -> None:
+    entry = describe(SPEC)
+    del entry["icon"]
+    assert spec_from_description(entry).icon == ""
+
+
+@pytest.mark.parametrize("icon", ["book", "📚 📚", "📚📚📚📚📚📚📚📚📚", "1"])
+def test_an_icon_that_is_not_one_emoji_is_refused(icon: str) -> None:
+    with pytest.raises(SpecError, match="icon"):
+        dataclasses.replace(SPEC, icon=icon)
+
+
+def test_a_description_whose_icon_is_not_a_string_is_refused() -> None:
+    entry = {**describe(SPEC), "icon": 7}
+    with pytest.raises(SpecError, match="icon"):
+        spec_from_description(entry)
+
+
 def test_the_settings_an_agent_offers_round_trip_through_the_manifest() -> None:
     offered = {"depth": Setting(("shallow", "deep"), "deep", "How far it looks.")}
     entry = json.loads(json.dumps(describe(dataclasses.replace(SPEC, settings=offered))))

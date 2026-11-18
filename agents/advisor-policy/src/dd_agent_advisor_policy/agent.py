@@ -40,7 +40,6 @@ from dd_agent_advisor_policy.classes import (
     ActorRole,
     AmbiguousActor,
     MatchedPolicy,
-    Obligation,
     ObligationKind,
     PolicyChecks,
     PolicyConflict,
@@ -150,14 +149,11 @@ def _plural(n: int, word: str) -> str:
     return f"{n} {word}{'' if n == 1 else 's'}"
 
 
-def _stated(obligations: tuple[Obligation, ...]) -> list[Obligation]:
-    return list(obligations)
-
-
 class PolicyAgent:
     spec = AgentSpec(
         agent_id="advisor.policy",
         title="Policy Adviser",
+        icon="📜",
         version="0.1.0-alpha",
         description=(
             "Checks what the data and open access policies of a project's funders, journals and "
@@ -575,7 +571,7 @@ class PolicyAgent:
                 role=item.actor.role,
                 registry=_registry(item.record),
                 match_derivation=item.matched_by,
-                obligations=_stated(item.obligations),
+                obligations=list(item.obligations),
                 notes=list(item.notes),
                 rationale=rationale.text,
                 rationale_derivation=rationale.derivation,

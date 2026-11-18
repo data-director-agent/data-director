@@ -49,9 +49,14 @@ def test_each_kind_of_debt_is_counted(repo: Path) -> None:
         "pkg/src/m.py",
         f"def f():  {noqa}: C901, PLR0912\n    pass\n"
         f"def g(a, b):  {noqa}: PLR0913\n    pass\n"
-        f"x = 1  {noqa}: E501\n",
+        f"x = 1  {noqa}: E501\n"
+        f"def h(flag: bool):  {noqa}: FBT001\n    pass\n",
     )
-    _write(repo, "pkg/tests/test_m.py", f"def t():  {noqa}: C901\n    pass\n")
+    _write(
+        repo,
+        "pkg/tests/test_m.py",
+        f"def t():  {noqa}: C901\n    pass\ndef u(flag: bool):  {noqa}: FBT001\n    pass\n",
+    )
     disable = "eslint-disable-next-line"
     _write(repo, "web/src/A.tsx", f"// {disable} complexity -- debt\nexport function A() {{}}\n")
     _write(repo, "web/src/A.test.tsx", f"// {disable} complexity\n")
@@ -69,6 +74,7 @@ def test_each_kind_of_debt_is_counted(repo: Path) -> None:
     found = _by_what(repo)
 
     assert found["Ruff complexity markers"] == 2
+    assert found["Ruff boolean-parameter markers"] == 1
     assert found["ESLint complexity markers"] == 1
     assert found["Files over the size limit"] == 1
     assert found["Boundary exceptions"] == 2

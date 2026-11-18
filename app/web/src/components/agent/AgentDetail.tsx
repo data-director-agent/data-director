@@ -18,7 +18,7 @@ import "@data-director/agent-view/styles.css";
 
 import { AgentSpecView } from "@data-director/agent-view/react";
 
-import { type AgentView, agentName } from "../../manifest/normalise";
+import { AgentIcon, type AgentView, agentName } from "../../manifest/normalise";
 import { CapabilitiesPanel } from "../capabilities/CapabilitiesPanel";
 
 export function AgentDetail({
@@ -38,7 +38,10 @@ export function AgentDetail({
   const headingId = `agent-${agent.id}-heading`;
   return (
     <section className="agent-detail" aria-labelledby={headingId}>
-      <h2 id={headingId}>{agent.title ?? <code>{agent.id}</code>}</h2>
+      <h2 id={headingId}>
+        <AgentIcon agent={agent} />
+        {agent.title || <code>{agent.id}</code>}
+      </h2>
       <p>{agent.description}</p>
       {orchestrator && (
         <p className="agent-role-note">

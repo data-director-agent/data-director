@@ -5,6 +5,7 @@ limit when a check arrived carries a marker, and each marker should go when its 
 script counts what is recorded, so that the count can be seen to fall:
 
 - Ruff complexity markers, a `noqa` naming `C901` or a `PLR09…` code, in Python outside tests;
+- Ruff boolean-parameter markers, a `noqa` naming an `FBT00…` code, in Python outside tests;
 - ESLint complexity markers, `eslint-disable-next-line complexity`, in TypeScript and JavaScript
   outside tests;
 - the entries in `scripts/size_baseline.toml`;
@@ -32,6 +33,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 # A marker suppresses a function's complexity. One per marked line, however many codes it names.
 RUFF_MARKER = re.compile(r"#\s*noqa:[^#\n]*\b(?:C901|PLR09\d\d)\b")
+# A marker lets a boolean stay a positional parameter or argument (Ruff's FBT rules).
+RUFF_FBT_MARKER = re.compile(r"#\s*noqa:[^#\n]*\bFBT00\d\b")
 # A directive opens its comment; a comment that only mentions one is not a marker.
 ESLINT_MARKER = re.compile(r"(?://|/\*)\s*eslint-disable-next-line\s+complexity\b")
 
@@ -104,6 +107,11 @@ def counts(root: Path) -> list[Count]:
             "Ruff complexity markers",
             "`# noqa: C901`, `PLR09…`",
             markers(root, files, PYTHON, RUFF_MARKER),
+        ),
+        Count(
+            "Ruff boolean-parameter markers",
+            "`# noqa: FBT00…`",
+            markers(root, files, PYTHON, RUFF_FBT_MARKER),
         ),
         Count(
             "ESLint complexity markers",
