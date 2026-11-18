@@ -170,6 +170,9 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
+
+    /* A target is at least 24px tall (WCAG 2.2 2.5.8), whatever the font size. */
+    min-block-size: var(--space-5);
     white-space: nowrap;
   }
 
