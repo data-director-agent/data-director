@@ -2,10 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 
-import {
-  makeServerFolders,
-  type ServerFolders,
-} from "../../scan/serverFolders";
+import { makeServerFolders, type ServerFolders } from "../../scan/serverFolders";
 import { AnnouncerProvider } from "../ui/Announcer";
 import { DescribeServerFolder } from "./DescribeServerFolder";
 
@@ -22,8 +19,7 @@ function standIn(available = true): ServerFolders & { described: string[] } {
     described,
     available: () => Promise.resolve(available),
     roots: () => Promise.resolve(["data"]),
-    list: (root, path) =>
-      Promise.resolve({ root, path, folders: TREE[path] ?? [] }),
+    list: (root, path) => Promise.resolve({ root, path, folders: TREE[path] ?? [] }),
     describe: (_root, path) => {
       described.push(path);
       return Promise.resolve(JSON.stringify(INVENTORY));
@@ -31,10 +27,7 @@ function standIn(available = true): ServerFolders & { described: string[] } {
   };
 }
 
-function renderPanel(
-  folders: ServerFolders,
-  onDescribed: (file: File) => void = () => undefined,
-) {
+function renderPanel(folders: ServerFolders, onDescribed: (file: File) => void = () => undefined) {
   return render(
     <AnnouncerProvider>
       <DescribeServerFolder folders={folders} onDescribed={onDescribed} />
@@ -57,16 +50,10 @@ describe("DescribeServerFolder", () => {
     const onDescribed = vi.fn();
     renderPanel(folders, onDescribed);
     const region = await screen.findByRole("region");
-    await user.click(
-      await within(region).findByRole("button", { name: "data" }),
-    );
-    await user.click(
-      await within(region).findByRole("button", { name: "cores" }),
-    );
+    await user.click(await within(region).findByRole("button", { name: "data" }));
+    await user.click(await within(region).findByRole("button", { name: "cores" }));
     const list = await within(region).findByRole("list", { name: "Folders" });
-    expect(within(list).getAllByRole("button")).toHaveLength(
-      TREE.cores?.length ?? 0,
-    );
+    expect(within(list).getAllByRole("button")).toHaveLength(TREE.cores?.length ?? 0);
     expect(within(region).getByRole("navigation")).toBeInTheDocument();
     expect(await axe(document.body)).toHaveNoViolations();
 
@@ -82,26 +69,18 @@ describe("DescribeServerFolder", () => {
     const user = userEvent.setup();
     renderPanel(standIn());
     const region = await screen.findByRole("region");
-    await user.click(
-      await within(region).findByRole("button", { name: "data" }),
-    );
-    await user.click(
-      await within(region).findByRole("button", { name: "cores" }),
-    );
+    await user.click(await within(region).findByRole("button", { name: "data" }));
+    await user.click(await within(region).findByRole("button", { name: "cores" }));
     const trail = within(region).getByRole("navigation");
     await user.click(within(trail).getByRole("button", { name: "data" }));
     const list = await within(region).findByRole("list", { name: "Folders" });
-    expect(within(list).getAllByRole("button")).toHaveLength(
-      TREE[""]?.length ?? 0,
-    );
+    expect(within(list).getAllByRole("button")).toHaveLength(TREE[""]?.length ?? 0);
   });
 });
 
 describe("makeServerFolders", () => {
   it("asks the about endpoint once whether folders are offered", async () => {
-    const fetcher = vi.fn(() =>
-      Promise.resolve(Response.json({ server_folders: true })),
-    );
+    const fetcher = vi.fn(() => Promise.resolve(Response.json({ server_folders: true })));
     const folders = makeServerFolders(fetcher as unknown as typeof fetch);
     expect(await folders.available()).toBe(true);
     expect(await folders.available()).toBe(true);
@@ -109,13 +88,11 @@ describe("makeServerFolders", () => {
   });
 
   it("sends the folder chosen and gives back the inventory as text", async () => {
-    const fetcher = vi.fn<
-      (url: string, init?: RequestInit) => Promise<Response>
-    >(() => Promise.resolve(Response.json(INVENTORY)));
-    const folders = makeServerFolders(fetcher as unknown as typeof fetch);
-    expect(JSON.parse(await folders.describe("data", "cores"))).toEqual(
-      INVENTORY,
+    const fetcher = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(() =>
+      Promise.resolve(Response.json(INVENTORY)),
     );
+    const folders = makeServerFolders(fetcher as unknown as typeof fetch);
+    expect(JSON.parse(await folders.describe("data", "cores"))).toEqual(INVENTORY);
     const [url, init] = fetcher.mock.calls[0] ?? [];
     expect(url).toBe("/api/folders/inventory");
     expect(JSON.parse(String(init?.body))).toEqual({

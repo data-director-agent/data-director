@@ -373,11 +373,12 @@ class Conductor:
         sent = to_document(request.input)
         filled = project_facts.give(facts, in_project, sent)
         given = project_facts.given(facts, in_project, filled)
-        # Researcher facts the profile keeps from this agent's hosted model are left out, not
-        # refused (docs/specs/projects.md, invariant 8): no agent needs them.
-        if project_facts.RESEARCHER in given:
+        # Researcher facts, and a `Message`'s decided facts, that the profile keeps from this
+        # agent's hosted model are left out, not refused (docs/specs/projects.md, invariant 8):
+        # the agent does not need them.
+        if optional := given & project_facts.left_out(filled):
             hostings = [model.hosting for model in self._models_of(request.agent_id)]
-            out = frozenset(policy.withheld(self.profile, hostings, {project_facts.RESEARCHER}))
+            out = frozenset(policy.withheld(self.profile, hostings, optional))
             filled, given = project_facts.leave_out(filled, out), given - out
         refused = project_facts.refusal(facts, in_project, filled)
         if in_project is not None or filled != sent:

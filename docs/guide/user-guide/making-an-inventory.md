@@ -61,17 +61,17 @@ contact about anything you are unsure of.
 <!-- making-an-inventory:summary -->
 
 In the app, select **Make an inventory** under the message box on the conversation page. It offers
-two ways: describing a folder in your browser, which needs nothing installed, and a command you
-run in a terminal. Use the browser unless your data are somewhere it cannot reach, or the dataset
+two ways, each on its own tab: **In this browser**, which describes a folder and needs nothing
+installed, and **With the command**, which you run in a terminal. It opens on the browser. Use the browser unless your data are somewhere it cannot reach, or the dataset
 is very large (below).
 
 ### Describing a folder in your browser
 
-**Make an inventory** begins with **Describe a folder in this browser**. Select **Choose a
-folder…** and pick the folder that holds your dataset. Your browser reads the files and makes the
+**Make an inventory** opens on the **In this browser** tab. Select **Choose a folder…** and pick the folder that holds your dataset. Your browser reads the files and makes the
 inventory itself, running the same `dd-inventory` code as the command. None of your files is sent
 anywhere: the app attaches only the inventory, and only after you have checked it (below). You can
-also drop the folder onto that part of the dialog.
+also drop the folder onto the dashed box. If you look at the other tab while it works, it carries
+on.
 
 This works in current versions of Chrome, Edge, Firefox and Safari. Chrome and Edge ask whether to
 let the site **view** the files in the folder; allow it. Some other browsers ask whether to
@@ -84,7 +84,8 @@ with the command does.
 
 The first time, your browser fetches the scanner (about 16 MB), so allow a little longer; after
 that it keeps a copy. Describing a folder in the browser is slower than the command, by about
-three times, and a browser uses a lot of memory on very large files. Use the command instead when:
+three times, and a browser uses a lot of memory on very large files. Use the command instead, from the **With the command** tab or the **Use the command instead**
+button, when:
 
 - your data are on a server, a cluster or network storage that your browser cannot reach;
 - the dataset is very large, with files of several gigabytes or more.
@@ -98,7 +99,7 @@ An inventory made in the browser says so: the version of the tool that made it e
 `+pyodide`, followed by a version number.
 
 If your organisation's Data Director does not offer this, **Make an inventory** shows only the
-command.
+command, without tabs.
 
 ### Describing a folder on your own computer
 
@@ -112,7 +113,7 @@ shared Data Director never offers this.
 
 ### With the command
 
-**Make an inventory** shows these steps for the computer you are using, with a button to copy each
+The **With the command** tab of **Make an inventory** shows these steps for the computer you are using, with a button to copy each
 command, and ends with a button to attach the file you made. The steps are the same here:
 
 <!-- making-an-inventory:steps -->
@@ -127,7 +128,8 @@ you are in, to make the inventory for you.
 ## Attaching it in the app
 
 On the conversation page, select **Attach a file** under the message box and choose
-`inventory.json`, or select **Choose inventory.json** at the end of **Make an inventory**. You can
+`inventory.json`, or select **Choose inventory.json** at the end of the **With the command** tab of **Make an
+inventory**. You can
 also drop the file onto the message box.
 
 The app then shows you everything the inventory holds, before anything is kept: the folders and

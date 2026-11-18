@@ -3,6 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 import { describe, expect, it } from "vitest";
 
+import { DEFAULT_AGENT_ICON } from "@data-director/agent-view";
+
 import several from "../../../fixtures/agents-several.json";
 import conversationFixture from "../../../fixtures/conversation.json";
 import projectFixture from "../../../fixtures/project-documents.json";
@@ -236,7 +238,7 @@ describe("Transcript, as a conversation", () => {
   const greeter = directory.find((a) => a.id === "example.hello");
   if (!greeter) throw new Error("the fixture has no example.hello");
   // The conversation's orchestrator, named as its card would name it.
-  const agents = [...directory, { ...greeter, id: "orchestrator.stub", title: "Data Director" }];
+  const agents = [...directory, { ...greeter, id: "orchestrator.stub", title: "Data Director", icon: "🎬" }];
   const conversation = structuredClone(conversationFixture) as unknown as Conversation;
   const [first] = conversation.turns;
   if (!first) throw new Error("the fixture has no turns");
@@ -294,6 +296,26 @@ describe("Transcript, as a conversation", () => {
     const waiting = turns().at(-1) as HTMLElement;
     expect([...waiting.children].map((c) => c.className)).toEqual(["turn-person", "turn-agent"]);
     expect(within(waiting.querySelector(".turn-person") as HTMLElement).getByText("hello again")).toBeVisible();
-    expect(waiting.querySelector(".turn-agent")).toHaveTextContent(/^Data Director is working on a reply/);
+    expect(waiting.querySelector(".turn-agent")).toHaveTextContent(/Data Director is working on a reply/);
+    const icon = waiting.querySelector(".turn-agent .agent-icon");
+    expect(icon).toHaveTextContent("🎬");
+    expect(icon).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("puts the agent's icon before its name, hidden from assistive technology", () => {
+    render(<Transcript conversation={conversation} agents={agents} onToggleRun={() => {}} />);
+    const name = turns()[0]?.querySelector(".turn-agent .turn-speaker-name") as HTMLElement;
+    const icon = name.firstElementChild;
+    expect(icon).toHaveClass("agent-icon");
+    expect(icon).toHaveTextContent("🎬");
+    expect(icon).toHaveAttribute("aria-hidden", "true");
+    const personPart = turns()[0]?.querySelector(".turn-person") as HTMLElement;
+    expect(personPart.querySelector(".agent-icon")).toBeNull();
+  });
+
+  it("gives an agent the directory does not list the default icon", () => {
+    render(<Transcript conversation={conversation} agents={[]} onToggleRun={() => {}} />);
+    const name = turns()[0]?.querySelector(".turn-agent .turn-speaker-name") as HTMLElement;
+    expect(name.querySelector(".agent-icon")).toHaveTextContent(DEFAULT_AGENT_ICON);
   });
 });

@@ -175,6 +175,7 @@ class RepositoryAgent:
     spec = AgentSpec(
         agent_id="advisor.repository",
         title="Repository Librarian",
+        icon="🏛️",
         version="0.1.0-alpha",
         description=(
             "Recommends data repositories from re3data, or describes the ones mandated, with "

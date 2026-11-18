@@ -18,7 +18,7 @@ import {
   type Selection,
 } from "react-aria-components";
 
-import { type AgentView, agentName, type Directory } from "../../manifest/normalise";
+import { AgentIcon, type AgentView, agentName, type Directory } from "../../manifest/normalise";
 import { AgentDetail } from "../agent/AgentDetail";
 import { ModelTag } from "./ModelDisclosure";
 
@@ -34,7 +34,10 @@ function AgentOption({ agent, orchestrator }: { agent: AgentView; orchestrator?:
       textValue={agentName(agent)}
       className={orchestrator ? "agent-option agent-option-orchestrator" : "agent-option"}
     >
-      <span className="agent-option-title">{agentName(agent)}</span>
+      <span className="agent-option-title">
+        <AgentIcon agent={agent} />
+        {agentName(agent)}
+      </span>
       {orchestrator && <span className="status agent-role">Orchestrator</span>}
       {orchestrator && " "}
       <ModelTag agent={agent} />

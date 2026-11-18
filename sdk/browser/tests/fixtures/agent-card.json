@@ -9,7 +9,7 @@
           ],
           "action_class": "advise",
           "agent_id": "test.spec",
-          "contract_version": "0.12.0",
+          "contract_version": "0.13.0",
           "derivations": {
             "items.kind": {
               "how": "lexical",
@@ -26,6 +26,7 @@
           },
           "description": "A spec for testing derivations.",
           "grounding_mode": "retrieval",
+          "icon": "",
           "models": [],
           "payload": "Findings",
           "schemas": {
@@ -179,6 +180,13 @@
           },
           "serves": [],
           "settings": {},
+          "skills": [
+            {
+              "name": "licence-choice",
+              "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+              "version": "v1.0.0"
+            }
+          ],
           "title": "",
           "version": "0.0.0"
         },

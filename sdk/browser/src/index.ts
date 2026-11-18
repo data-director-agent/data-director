@@ -33,7 +33,9 @@ export type {
 } from "./spec/types";
 export {
   type AgentSpec,
+  agentIcon,
   agentName,
+  DEFAULT_AGENT_ICON,
   type Derivation,
   readAgentSpec,
   specFromRaw,

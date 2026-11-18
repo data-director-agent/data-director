@@ -117,45 +117,52 @@ def _titles(journal: OpfRecord | CrossrefJournal) -> list[str]:
     return journal.names if isinstance(journal, OpfRecord) else [journal.title]
 
 
-def journal(  # noqa: C901, PLR0912
-    actor: Actor, opf: OpenPolicyFinder | None, crossref: CrossrefJournals | None
-) -> Journal:
-    """The journal's record, its publishers, or the candidates when the title is ambiguous.
-    Never raises: a registry that cannot be asked is in `problems`."""
-    out = Journal()
-    issn = normal_issn(actor.issn) if actor.issn else None
-    if opf is not None:
-        try:
-            if issn:
-                out.queries.append(f"open policy finder journal: ISSN {issn}")
-                out.record = opf.journal_by_issn(issn)
-            else:
-                out.queries.append(f"open policy finder journal: {actor.name!r}")
-                same = _same_title(opf.search("publication", actor.name), actor.name)
-                if len(same) > 1:
-                    out.candidates = list(same)
-                    return out
-                out.record = same[0] if same else None
-            for link in (out.record.publishers if out.record else [])[:PER_ACTOR]:
-                publisher = opf.fetch("publisher", link.id)
-                if publisher is not None:
-                    out.publishers.append(publisher)
-        except RegistryUnavailable as exc:
-            out.problems.append(str(exc))
-    if crossref is not None and not out.publishers:
-        try:
-            if issn:
-                out.queries.append(f"crossref journal: ISSN {issn}")
-                out.crossref = crossref.by_issn(issn)
-            else:
-                out.queries.append(f"crossref journal: {actor.name!r}")
-                titled = _same_title(crossref.search(actor.name), actor.name)
-                if len({j.publisher for j in titled}) > 1 and out.record is None:
-                    out.candidates = list(titled)
-                    return out
-                out.crossref = titled[0] if titled else None
-        except RegistryUnavailable as exc:
-            out.problems.append(str(exc))
+def _from_opf(out: Journal, actor: Actor, issn: str | None, opf: OpenPolicyFinder) -> bool:
+    """The journal's Open Policy Finder record and its publishers'. True when the title is
+    ambiguous, and the search stops for the researcher to say which."""
+    try:
+        if issn:
+            out.queries.append(f"open policy finder journal: ISSN {issn}")
+            out.record = opf.journal_by_issn(issn)
+        else:
+            out.queries.append(f"open policy finder journal: {actor.name!r}")
+            same = _same_title(opf.search("publication", actor.name), actor.name)
+            if len(same) > 1:
+                out.candidates = list(same)
+                return True
+            out.record = same[0] if same else None
+        for link in (out.record.publishers if out.record else [])[:PER_ACTOR]:
+            publisher = opf.fetch("publisher", link.id)
+            if publisher is not None:
+                out.publishers.append(publisher)
+    except RegistryUnavailable as exc:
+        out.problems.append(str(exc))
+    return False
+
+
+def _from_crossref(
+    out: Journal, actor: Actor, issn: str | None, crossref: CrossrefJournals
+) -> bool:
+    """The journal's Crossref record, which names its publisher. True when journals of the title
+    have different publishers and Open Policy Finder did not say which: the search stops."""
+    try:
+        if issn:
+            out.queries.append(f"crossref journal: ISSN {issn}")
+            out.crossref = crossref.by_issn(issn)
+        else:
+            out.queries.append(f"crossref journal: {actor.name!r}")
+            titled = _same_title(crossref.search(actor.name), actor.name)
+            if len({j.publisher for j in titled}) > 1 and out.record is None:
+                out.candidates = list(titled)
+                return True
+            out.crossref = titled[0] if titled else None
+    except RegistryUnavailable as exc:
+        out.problems.append(str(exc))
+    return False
+
+
+def _collect_publisher_names(out: Journal) -> None:
+    """Every name the registries give the journal's publishers, with and without legal form."""
     names: list[str] = []
     for publisher in out.publishers:
         names += publisher.names
@@ -165,13 +172,32 @@ def journal(  # noqa: C901, PLR0912
         if link.name:
             names.append(link.name)
     out.publisher_names = list(dict.fromkeys(n for name in names for n in publisher_names(name)))
+
+
+def _opf_publisher(out: Journal, opf: OpenPolicyFinder) -> None:
+    """The publisher's Open Policy Finder record, searched by the name another registry gave."""
+    try:
+        plain = out.publisher_names[-1]
+        out.queries.append(f"open policy finder publisher: {plain!r}")
+        found = [p for p in opf.search("publisher", plain) if names_one_of(p, [plain])]
+        out.publishers = sorted(found, key=lambda r: (len(r.name), r.id))[:1]
+    except RegistryUnavailable as exc:
+        out.problems.append(str(exc))
+
+
+def journal(
+    actor: Actor, opf: OpenPolicyFinder | None, crossref: CrossrefJournals | None
+) -> Journal:
+    """The journal's record, its publishers, or the candidates when the title is ambiguous.
+    Never raises: a registry that cannot be asked is in `problems`."""
+    out = Journal()
+    issn = normal_issn(actor.issn) if actor.issn else None
+    if opf is not None and _from_opf(out, actor, issn, opf):
+        return out
+    if crossref is not None and not out.publishers and _from_crossref(out, actor, issn, crossref):
+        return out
+    _collect_publisher_names(out)
     # Crossref named the publisher but Open Policy Finder's journal record did not link it.
     if opf is not None and not out.publishers and out.publisher_names:
-        try:
-            plain = out.publisher_names[-1]
-            out.queries.append(f"open policy finder publisher: {plain!r}")
-            found = [p for p in opf.search("publisher", plain) if names_one_of(p, [plain])]
-            out.publishers = sorted(found, key=lambda r: (len(r.name), r.id))[:1]
-        except RegistryUnavailable as exc:
-            out.problems.append(str(exc))
+        _opf_publisher(out, opf)
     return out

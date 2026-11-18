@@ -11,10 +11,7 @@
 import { Folder, FolderSearch, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
-import {
-  pageServerFolders,
-  type ServerFolders,
-} from "../../scan/serverFolders";
+import { pageServerFolders, type ServerFolders } from "../../scan/serverFolders";
 import { Button } from "../ui/Button";
 import { useAnnounce } from "../ui/Announcer";
 
@@ -24,10 +21,7 @@ interface Props {
   folders?: ServerFolders;
 }
 
-export function DescribeServerFolder({
-  onDescribed,
-  folders = pageServerFolders(),
-}: Props) {
+export function DescribeServerFolder({ onDescribed, folders = pageServerFolders() }: Props) {
   const [available, setAvailable] = useState(false);
   useEffect(() => {
     let current = true;
@@ -36,9 +30,7 @@ export function DescribeServerFolder({
       current = false;
     };
   }, [folders]);
-  return available ? (
-    <Browser onDescribed={onDescribed} folders={folders} />
-  ) : null;
+  return available ? <Browser onDescribed={onDescribed} folders={folders} /> : null;
 }
 
 /** Where the researcher is: a listed folder and the path under it, or none chosen yet. */
@@ -54,9 +46,7 @@ function useListing(folders: ServerFolders, place: Place): Listed | null {
   const { root } = place;
   const path = place.path.join("/");
   const key = `${root ?? ""}\u0000${path}`;
-  const [listed, setListed] = useState<{ key: string; listed: Listed } | null>(
-    null,
-  );
+  const [listed, setListed] = useState<{ key: string; listed: Listed } | null>(null);
   useEffect(() => {
     const controller = new AbortController();
     const found =
@@ -67,8 +57,7 @@ function useListing(folders: ServerFolders, place: Place): Listed | null {
       (names) => setListed({ key, listed: { folders: names } }),
       (error: unknown) => {
         if (controller.signal.aborted) return;
-        const message =
-          error instanceof Error ? error.message : "It could not be listed.";
+        const message = error instanceof Error ? error.message : "It could not be listed.";
         setListed({ key, listed: { error: message } });
       },
     );
@@ -90,9 +79,7 @@ function Browser({ onDescribed, folders }: Required<Props>) {
   const here = place.root === null ? null : (place.path.at(-1) ?? place.root);
   const open = (name: string) =>
     setPlace((p) =>
-      p.root === null
-        ? { root: name, path: [] }
-        : { ...p, path: [...p.path, name] },
+      p.root === null ? { root: name, path: [] } : { ...p, path: [...p.path, name] },
     );
 
   const describe = async () => {
@@ -103,11 +90,7 @@ function Browser({ onDescribed, folders }: Required<Props>) {
     setDescribing(true);
     announce(`Describing ${here}.`);
     try {
-      const text = await folders.describe(
-        place.root,
-        place.path.join("/"),
-        controller.signal,
-      );
+      const text = await folders.describe(place.root, place.path.join("/"), controller.signal);
       announce(`Described ${here}.`);
       onDescribed(
         new File([text], `${here}-inventory.json`, {
@@ -118,10 +101,7 @@ function Browser({ onDescribed, folders }: Required<Props>) {
       if (controller.signal.aborted) {
         announce("Stopped describing the folder.");
       } else {
-        const message =
-          failure instanceof Error
-            ? failure.message
-            : "It could not be described.";
+        const message = failure instanceof Error ? failure.message : "It could not be described.";
         setError(message);
         announce(message, { assertive: true });
       }
@@ -135,9 +115,8 @@ function Browser({ onDescribed, folders }: Required<Props>) {
     <section aria-labelledby={heading} className="describe-folder">
       <h3 id={heading}>Describe a folder on this computer</h3>
       <p>
-        Data Director runs here, on your own computer, and may read the folders
-        listed below. It makes the inventory here, reading the files but
-        changing none of them.
+        Data Director runs here, on your own computer, and may read the folders listed below. It
+        makes the inventory here, reading the files but changing none of them.
       </p>
       <Trail place={place} onGo={setPlace} />
       {describing ? (
@@ -152,11 +131,7 @@ function Browser({ onDescribed, folders }: Required<Props>) {
         <>
           <Listing shown={shown} onOpen={open} />
           {here !== null && (
-            <Button
-              variant="primary"
-              icon={FolderSearch}
-              onPress={() => void describe()}
-            >
+            <Button variant="primary" icon={FolderSearch} onPress={() => void describe()}>
               Describe {here}
             </Button>
           )}
@@ -168,13 +143,7 @@ function Browser({ onDescribed, folders }: Required<Props>) {
 }
 
 /** The way back up: the listed folders, then each folder opened on the way here. */
-function Trail({
-  place,
-  onGo,
-}: {
-  place: Place;
-  onGo: (place: Place) => void;
-}) {
+function Trail({ place, onGo }: { place: Place; onGo: (place: Place) => void }) {
   if (place.root === null) return null;
   const { root } = place;
   const steps: { label: string; place: Place }[] = [
@@ -206,16 +175,9 @@ function Trail({
   );
 }
 
-function Listing({
-  shown,
-  onOpen,
-}: {
-  shown: Listed | null;
-  onOpen: (name: string) => void;
-}) {
+function Listing({ shown, onOpen }: { shown: Listed | null; onOpen: (name: string) => void }) {
   if (shown === null) return <p>Listing folders…</p>;
-  if ("error" in shown)
-    return <p className="describe-folder-error">{shown.error}</p>;
+  if ("error" in shown) return <p className="describe-folder-error">{shown.error}</p>;
   if (shown.folders.length === 0) return <p>It holds no other folders.</p>;
   return (
     <ul className="describe-folder-list" aria-label="Folders">

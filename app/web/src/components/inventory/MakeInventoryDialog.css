@@ -5,6 +5,27 @@
     margin-top: var(--space-4);
   }
 
+  .make-inventory-route > * + * {
+    margin-top: var(--space-4);
+  }
+
+  /* A hidden tab kept mounted (the browser route, so a scan goes on) takes no room. */
+  .tab-panel[inert] {
+    display: none;
+  }
+
+  .make-inventory-checking,
+  .make-inventory-alternative {
+    color: var(--color-text-muted);
+  }
+
+  .make-inventory-alternative {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
   .make-inventory-steps > li + li {
     margin-top: var(--space-3);
   }

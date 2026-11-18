@@ -52,7 +52,7 @@ import { Pending } from "./Pending";
 import type { LiveRun } from "./useConversationTurns";
 import { RepositoryShortlist } from "./RepositoryShortlist";
 import { RunDetail } from "./RunDetail";
-import { nameOf, Speaker } from "./Speaker";
+import { iconOf, nameOf, Speaker } from "./Speaker";
 
 function replyText(conversation: Conversation, turn: ConversationTurn): string {
   // A Reply's own text: the history adds the question after it, which is shown as choices.
@@ -355,6 +355,7 @@ export function Transcript({
         <Pending
           agentId={pending.agentId}
           agentName={nameOf(agents, pending.agentId)}
+          agentIcon={iconOf(agents, pending.agentId)}
           message={pending.message}
           inventory={pending.inventory ?? null}
           document={pending.document ?? null}

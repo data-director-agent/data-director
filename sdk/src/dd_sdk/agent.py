@@ -28,7 +28,7 @@ from opentelemetry.trace import Tracer
 from dd_sdk.agent_checks import Derived as Derived
 from dd_sdk.agent_checks import Setting as Setting
 from dd_sdk.agent_checks import SpecError as SpecError
-from dd_sdk.agent_checks import check_derivation, check_setting
+from dd_sdk.agent_checks import check_derivation, check_icon, check_setting
 from dd_sdk.agent_result import AgentResult as AgentResult
 from dd_sdk.contract.classes import ClassSchema, ClassSchemaError
 from dd_sdk.contract.models import (
@@ -45,6 +45,7 @@ from dd_sdk.contract.models import (
 from dd_sdk.contract.version import CONTRACT_VERSION, compatible
 from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 from dd_sdk.process_flow import OUT_OF_SCOPE, STEPS
+from dd_sdk.skills import SkillUse, skills_from_description
 
 if TYPE_CHECKING:
     from dd_sdk.delegate import Delegated
@@ -92,9 +93,15 @@ class AgentSpec:
     # The persona's name as a researcher sees it ("Metadata Librarian", docs/specs/agents.md).
     # Empty: the app and the orchestrators show `agent_id` instead.
     title: str = ""
+    # The persona's icon: one emoji shown beside its title (docs/specs/agents.md). Empty: clients
+    # show their default.
+    icon: str = ""
     # The options a deployment's profile may set, by name (docs/specs/policy-and-identity.md).
     # Empty: the agent offers none, and a profile that sets one for it is refused at invocation.
     settings: Mapping[str, Setting] = field(default_factory=dict)
+    # The Agent Skills it may load into its system prompt, each pinned by version and digest
+    # (`dd_sdk.skills`, docs/specs/agents.md). Empty: it loads none.
+    skills: tuple[SkillUse, ...] = ()
 
     def __post_init__(self) -> None:
         unknown = sorted(set(self.serves) - STEPS)
@@ -118,6 +125,10 @@ class AgentSpec:
             check_derivation(self.agent_id, self.payload, path, derived)
         for name, setting in self.settings.items():
             check_setting(self.agent_id, name, setting)
+        names = [s.name for s in self.skills]
+        if len(set(names)) != len(names):
+            raise SpecError(f"agent {self.agent_id!r} declares a skill twice: {sorted(names)}")
+        check_icon(self.agent_id, self.icon)
 
     def default_settings(self) -> dict[str, str]:
         """Each setting's default: what applies where the profile sets none."""
@@ -171,6 +182,7 @@ def describe(spec: AgentSpec) -> dict[str, Any]:
         "models": [_model_use(m) for m in spec.models],
         "serves": list(spec.serves),
         "title": spec.title,
+        "icon": spec.icon,
         "settings": {
             name: {
                 "choices": list(s.choices),
@@ -179,6 +191,7 @@ def describe(spec: AgentSpec) -> dict[str, Any]:
             }
             for name, s in spec.settings.items()
         },
+        "skills": [s.describe() for s in spec.skills],
         "schemas": {c.name: c.describe() for c in spec.schemas()},
     }
 
@@ -228,10 +241,7 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
     serves = entry.get("serves", ())
     if not isinstance(serves, list | tuple):
         raise SpecError(f"agent {agent_id!r}: serves is not a list")
-    # `title` may be absent: a card written before docs/specs/agents.md names no persona.
-    title = entry.get("title") or ""
-    if not isinstance(title, str):
-        raise SpecError(f"agent {agent_id!r}: title is not a string")
+    title, icon = _persona(agent_id, entry)
     # `settings` may be absent: a card written before docs/specs/policy-and-identity.md offers none.
     try:
         settings = {
@@ -244,6 +254,10 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
         }
     except (AttributeError, KeyError, TypeError) as exc:
         raise SpecError(f"agent {agent_id!r}: malformed settings: {exc}") from exc
+    try:
+        skills = skills_from_description(agent_id, entry)
+    except ValueError as exc:
+        raise SpecError(str(exc)) from exc
     return AgentSpec(
         agent_id=agent_id,
         version=str(entry["version"]),
@@ -257,8 +271,22 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
         models=models,
         serves=tuple(str(r) for r in serves),
         title=title,
+        icon=icon,
         settings=settings,
+        skills=skills,
     )
+
+
+def _persona(agent_id: str, entry: Mapping[str, Any]) -> tuple[str, str]:
+    """The persona's title and icon. Either may be absent: a card written before
+    docs/specs/agents.md names no persona, and one written before icons has none."""
+    title = entry.get("title") or ""
+    if not isinstance(title, str):
+        raise SpecError(f"agent {agent_id!r}: title is not a string")
+    icon = entry.get("icon") or ""
+    if not isinstance(icon, str):
+        raise SpecError(f"agent {agent_id!r}: icon is not a string")
+    return title, icon
 
 
 def _contract_version(entry: Mapping[str, Any]) -> str:

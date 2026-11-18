@@ -47,6 +47,7 @@ import {
   DEPOSIT,
   DISCLOSURE,
   DocumentList,
+  FACTS,
   PANELS,
   REPOSITORY,
   RESEARCHERS,
@@ -54,6 +55,7 @@ import {
 } from "./DocumentList";
 import { DeleteProject } from "./DeleteProject";
 import { DocumentReader } from "./DocumentReader";
+import { FactsPanel } from "./FactsPanel";
 import { ProjectConversations } from "./ProjectConversations";
 import { ProjectNav } from "./ProjectNav";
 import { ProjectRename } from "./ProjectRename";
@@ -176,6 +178,7 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
 
     const reader = () => {
       if (chosen === RESEARCHERS) return <ResearcherPanel projectId={projectId} />;
+      if (chosen === FACTS) return <FactsPanel projectId={projectId} revision={revision} />;
       if (chosen === DISCLOSURE)
         return <DisclosurePanel projectId={projectId} revision={revision} />;
       if (chosen === REPOSITORY)

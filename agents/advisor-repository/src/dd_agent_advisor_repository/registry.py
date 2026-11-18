@@ -188,12 +188,13 @@ class Report:
 
 def fetch(
     month: str | None = None,
-    update_pin: bool = False,
+    *,
     cache_dir: Path = ARCHIVES,
     registry: Path = REGISTRY,
     manifest: Path = MANIFEST,
     client: httpx.Client | None = None,
     now: datetime | None = None,
+    update_pin: bool = False,
 ) -> Report:
     """Build the registry from the pinned export, or, with `update_pin`, pin `month`'s export
     (the current month by default) and build from that."""
@@ -267,7 +268,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "check":
         return pinned.check(problem(), "re3data registry matches its pin")
     try:
-        report = fetch(args.month, args.update_pin, args.cache_dir)
+        report = fetch(args.month, update_pin=args.update_pin, cache_dir=args.cache_dir)
     except RegistryError as exc:
         sys.stderr.write(f"dd-re3data: {exc}\n")
         return 1

@@ -90,6 +90,7 @@ class EthicsAdviser:
         agent_id="advisor.ethics",
         version="0.1.0a1",
         title="Research Ethics Adviser",
+        icon="🧭",
         description=(
             "Flags fields whose names suggest personal or otherwise sensitive data, by keyword "
             "and, where one is configured, with a model that may add flags but never remove one. "
@@ -142,7 +143,7 @@ class EthicsAdviser:
         ]
         questions = [
             SensitivityQuestion(text=text, derivation=Derivation.TEMPLATE)
-            for text in self._questions(context, bool(flags))
+            for text in self._questions(context, flagged=bool(flags))
         ] + [
             SensitivityQuestion(text=text, derivation=Derivation.MODEL)
             for text in reading.questions
@@ -178,7 +179,7 @@ class EthicsAdviser:
             prompts=calls.prompts if calls is not None else {},
         )
 
-    def _questions(self, context: SensitivityContext, flagged: bool) -> list[str]:
+    def _questions(self, context: SensitivityContext, *, flagged: bool) -> list[str]:
         questions = []
         if context.involves_people or flagged:
             questions.append(PEOPLE_QUESTION)

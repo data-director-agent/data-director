@@ -35,8 +35,7 @@ setPageServerFolders({
 function clearAnnouncer() {
   // A test file that runs under Node, such as `architecture.test.ts`, has no DOM.
   if (typeof document === "undefined") return;
-  for (const log of document.querySelectorAll('[role="log"][aria-live]'))
-    log.replaceChildren();
+  for (const log of document.querySelectorAll('[role="log"][aria-live]')) log.replaceChildren();
 }
 
 afterEach(() => {

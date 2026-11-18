@@ -63,6 +63,7 @@ class StandardsAgent:
     spec = AgentSpec(
         agent_id="advisor.standards",
         title="Standards Librarian",
+        icon="📚",
         version="0.3.0",
         description=(
             "Recommends controlled vocabularies, ontologies and data formats from FAIRsharing "

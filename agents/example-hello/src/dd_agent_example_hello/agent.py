@@ -57,6 +57,7 @@ class HelloWorld:
         # The name people see (docs/specs/agents.md). Advisors name a role; a template names what
         # it does, in plain words.
         title="Friendly Greeter",
+        icon="👋",
         description=(
             "Greets whoever the input names. A template: it demonstrates the agent contract and "
             "does nothing useful."

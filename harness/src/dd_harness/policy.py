@@ -39,11 +39,13 @@ PROFILE_KEYS = frozenset(
 )
 
 # The classes of project content (docs/specs/projects.md, invariant 8): the inventory of the data
-# files, documentation (a document's text, or what a person wrote about one), and the facts
-# researchers kept from their public ORCID records.
-CONTENT_CLASSES = ("inventory", "documentation", "researcher")
+# files, documentation (a document's text, or what a person wrote about one), the facts
+# researchers kept from their public ORCID records, and the facts people decided about the project
+# (its funders, required repositories, which files go in, sensitivity and licence), which hold
+# structured values only, never a person's words.
+CONTENT_CLASSES = ("inventory", "documentation", "researcher", "decisions")
 # What may be given to an agent whose card declares a hosted model, where the profile does not say.
-DEFAULT_HOSTED_MODELS = frozenset({"inventory"})
+DEFAULT_HOSTED_MODELS = frozenset({"inventory", "decisions"})
 
 
 class PolicyError(Exception):
@@ -401,14 +403,19 @@ def gate(
     were in force."""
     assigned = profile.agents.get(agent_id)
     if assigned is None:
-        return GateDecision(False, False, f"agent {agent_id!r} not enabled", "not-enabled")
+        return GateDecision(
+            allowed=False,
+            requires_approval=False,
+            reason=f"agent {agent_id!r} not enabled",
+            refusal="not-enabled",
+        )
     if declared_action_class != assigned:
         return GateDecision(
-            False,
-            False,
-            f"agent {agent_id!r} declares action class {declared_action_class!r}; "
+            allowed=False,
+            requires_approval=False,
+            reason=f"agent {agent_id!r} declares action class {declared_action_class!r}; "
             f"profile {profile.profile_id!r} assigns it {assigned!r}",
-            "action-class-mismatch",
+            refusal="action-class-mismatch",
         )
     declared = declared_settings or {}
     settings = {name: s.default for name, s in declared.items()}
@@ -425,21 +432,23 @@ def gate(
                 )
             )
             return GateDecision(
-                False,
-                False,
-                f"profile {profile.profile_id!r} sets {agent_id}'s {name!r} to {value!r}; "
+                allowed=False,
+                requires_approval=False,
+                reason=f"profile {profile.profile_id!r} sets {agent_id}'s {name!r} to {value!r}; "
                 f"{accepts}",
-                "setting-not-declared",
+                refusal="setting-not-declared",
             )
         settings[name] = value
     if assigned in profile.actions_requiring_approval:
         return GateDecision(
-            True,
-            True,
-            f"action class {assigned!r} requires approval under {profile.profile_id!r}",
+            allowed=True,
+            requires_approval=True,
+            reason=f"action class {assigned!r} requires approval under {profile.profile_id!r}",
             settings=settings,
         )
-    return GateDecision(True, False, "permitted", settings=settings)
+    return GateDecision(
+        allowed=True, requires_approval=False, reason="permitted", settings=settings
+    )
 
 
 def withheld(profile: Profile, hostings: Iterable[str], given: Iterable[str]) -> list[str]:

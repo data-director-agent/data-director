@@ -20,11 +20,7 @@ export interface ServerFolders {
   /** The folders the deployment names. */
   roots(signal?: AbortSignal): Promise<string[]>;
   /** The subfolders of `path` under `root`, by name. */
-  list(
-    root: string,
-    path: string,
-    signal?: AbortSignal,
-  ): Promise<FolderListing>;
+  list(root: string, path: string, signal?: AbortSignal): Promise<FolderListing>;
   /** The inventory of `path` under `root`, as JSON text. */
   describe(root: string, path: string, signal?: AbortSignal): Promise<string>;
 }
@@ -43,24 +39,18 @@ async function offersFolders(fetcher: Fetch): Promise<boolean> {
   }
 }
 
-export function makeServerFolders(
-  fetcher: Fetch = (...args) => fetch(...args),
-): ServerFolders {
+export function makeServerFolders(fetcher: Fetch = (...args) => fetch(...args)): ServerFolders {
   let available: Promise<boolean> | undefined;
   const init = (signal?: AbortSignal) => (signal ? { signal } : {});
   return {
     available: () => (available ??= offersFolders(fetcher)),
     async roots(signal) {
-      const found = await json<{ roots: string[] }>(
-        await fetcher("/api/folders", init(signal)),
-      );
+      const found = await json<{ roots: string[] }>(await fetcher("/api/folders", init(signal)));
       return found.roots;
     },
     async list(root, path, signal) {
       const query = new URLSearchParams({ root, path });
-      return json(
-        await fetcher(`/api/folders?${query.toString()}`, init(signal)),
-      );
+      return json(await fetcher(`/api/folders?${query.toString()}`, init(signal)));
     },
     async describe(root, path, signal) {
       const inventory = await json<unknown>(

@@ -31,6 +31,13 @@ Three core classes are filled. Within a project:
   from what a researcher chose to supply rather than ask for them. They are the project's
   researchers, not whom the run acts for: every run in the project is given the same.
 
+A `DraftRequest`'s and a `Message`'s `project_decisions` are the facts people in the project
+decided about it (`dd_harness.projects.facts`): its funders, the repositories a funder or
+institution requires, which files go in, whether sensitive fields or files may be published and
+how, and its licence. They are the last decision on each, never what an agent only proposed, and
+never the agent's or person's words about why. Outside a project, a `Message`'s are removed; a
+`DraftRequest`'s, like its other facts, are the caller's.
+
 A `Message`'s project slots are the conductor's alone: outside a project they are removed. Any
 other input is left as it was sent. The conductor fills the input before hashing it, so the input
 hash covers what the agent was shown.
@@ -46,7 +53,11 @@ the model is sent anyway. Nor is a `Message`'s `project_documentation`: it holds
 file name, as a researcher gave it in the conversation, and never its text. Researcher facts
 are `researcher`: public, but personal, so they go to a hosted model only where the profile says.
 They add to what an agent is given and no agent needs them, so where the profile keeps them from
-an agent the conductor leaves them out (`leave_out`) rather than refusing the run.
+an agent the conductor leaves them out (`leave_out`) rather than refusing the run. Decided facts
+are `decisions`: structured values about the project, which go to a hosted model unless the
+profile says otherwise. Without them a drafter would draft as if nothing had been decided, so
+where the profile keeps them from a drafter the run is refused; a `Message`'s are left out
+instead, so a conversation with a hosted orchestrator does not stop once a fact is decided.
 """
 
 from __future__ import annotations
@@ -58,6 +69,7 @@ from dd_harness.progress import ENTRY_BY_RESEARCHER
 from dd_harness.projects import TITLE_BY_RESEARCHER
 from dd_harness.storage import (
     ProjectDocuments,
+    ProjectFacts,
     ProjectHoldings,
     ProjectLifecycle,
     ProjectProgress,
@@ -80,12 +92,14 @@ MESSAGE_PROJECT_SLOTS = (
     "project_documentation",
     "project_entry_by_researcher",
     "project_researchers",
+    "project_decisions",
 )
 
 # The classes of project content (docs/specs/projects.md, invariant 8).
 INVENTORY = "inventory"
 DOCUMENTATION = "documentation"
 RESEARCHER = "researcher"
+DECISIONS = "decisions"
 # The slots that hold researcher facts, of a `Message` and of a `DraftRequest`.
 RESEARCHER_SLOTS = ("project_researchers", "researchers")
 
@@ -98,6 +112,7 @@ class FactSource(
     ProjectRepository,
     ProjectProgress,
     ProjectDocuments,
+    ProjectFacts,
     Protocol,
 ):
     """The areas of a project its facts are read from: every area but its deposits. The
@@ -148,6 +163,8 @@ def give(
                 ),
                 # Left out while nobody in the project kept any.
                 "project_researchers": store.researchers(project_id),
+                # Left out while nobody in the project decided any.
+                "project_decisions": store.decisions(project_id),
             },
         )
     elif schema_class == DRAFT_REQUEST:
@@ -161,6 +178,8 @@ def give(
                 # Only answers a person recorded may be placed as supplied.
                 "draft_answers": _answers(store, project_id, filled.get("document_kind")),
                 "researchers": store.researchers(project_id),
+                # Only facts a person decided, never a proposal.
+                "project_decisions": store.decisions(project_id),
             },
         )
     elif schema_class == FILE_INVENTORY:
@@ -200,6 +219,8 @@ def given(
             found.add(INVENTORY)
         if filled.get("project_researchers"):
             found.add(RESEARCHER)
+        if filled.get("project_decisions"):
+            found.add(DECISIONS)
     elif schema_class == DRAFT_REQUEST:
         if filled.get("inventory"):
             found.add(INVENTORY)
@@ -207,18 +228,32 @@ def given(
             found.add(DOCUMENTATION)
         if filled.get("researchers"):
             found.add(RESEARCHER)
+        if filled.get("project_decisions"):
+            found.add(DECISIONS)
     elif schema_class == FILE_INVENTORY and store.inventory(project_id) is not None:
         found.add(INVENTORY)
     return frozenset(found)
 
 
+def left_out(filled: Mapping[str, Any]) -> frozenset[str]:
+    """The classes of project content in `filled` left out, rather than refused, where the
+    profile keeps them from an agent: researcher facts always, and a `Message`'s decided facts,
+    which an orchestrator does not need to draft anything."""
+    if filled.get("schema_class") == MESSAGE:
+        return frozenset({RESEARCHER, DECISIONS})
+    return frozenset({RESEARCHER})
+
+
 def leave_out(filled: Mapping[str, Any], classes: frozenset[str]) -> dict[str, Any]:
-    """`filled` without the researcher facts, if `classes` names `researcher`: the one class of
-    project content left out, rather than refused, where the profile keeps it from an agent."""
+    """`filled` without the content of `classes` that `left_out` says may be left out: its
+    researcher facts, and a `Message`'s decided facts."""
     kept = dict(filled)
-    if RESEARCHER in classes:
+    out = classes & left_out(filled)
+    if RESEARCHER in out:
         for slot in RESEARCHER_SLOTS:
             kept.pop(slot, None)
+    if DECISIONS in out:
+        kept.pop("project_decisions", None)
     return kept
 
 
