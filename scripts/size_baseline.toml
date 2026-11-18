@@ -14,7 +14,7 @@ lines = 591
 
 [[file]]
 path = "app/src/dd_app/governance.py"
-lines = 699
+lines = 689
 
 [[file]]
 path = "app/web/src/components/inventory/InventoryView.tsx"
