@@ -38,8 +38,12 @@ on:
 permissions:
   contents: read
 
+# A pull request's new push cancels the run it supersedes. Each commit to main has a group of its
+# own: GitHub keeps one pending run per group and cancels the one it replaces, so a shared group
+# dropped the run of any commit merged while another's was still going, and that commit was never
+# tested nor deployable (deploy/deploy.sh reads its "CI passed" result).
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.sha || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
