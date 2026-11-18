@@ -4,6 +4,8 @@ import { AgentDirectory } from "./components/capabilities/AgentDirectory";
 import { ActivityLog } from "./components/workspace/ActivityLog";
 import { FeedbackPage } from "./components/feedback/FeedbackPage";
 import { ConversationHome } from "./components/conversation/ConversationHome";
+import { ErrorBoundary } from "./components/errors/ErrorBoundary";
+import { NotFoundPage } from "./components/errors/ErrorPage";
 import { Frame } from "./components/frame/Frame";
 import { JourneyLanding } from "./components/journey/JourneyLanding";
 import { JourneyPage } from "./components/journey/JourneyPage";
@@ -73,6 +75,13 @@ function navCurrent(path: string): string {
     "/signed-out",
   ];
   return pages.includes(path) ? path : "/";
+}
+
+/** Whether the shell has a page at `path`; anything else is answered with the not-found page. */
+function hasPage(path: string): boolean {
+  const { projectId } = projectRoute(path);
+  if (projectId !== null) return projectId !== "" && !projectId.includes("/");
+  return path === "/" || path === "/agents" || path === "/policy" || path in SESSION_PAGES;
 }
 
 /** The pages that need only the session and the query, by path. */
@@ -166,6 +175,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
         />
       );
     }
+    if (!hasPage(path)) return <NotFoundPage path={path} />;
     const sessionPage = SESSION_PAGES[path];
     if (sessionPage) return sessionPage(session.value, query ?? "");
     if (projectId && onJourney) return <JourneyPage projectId={projectId} query={query ?? ""} />;
@@ -206,10 +216,12 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
       {/* The runs this tab streams, for the activity log: kept per person signed in. */}
       {signedIn ? (
         <ActiveProjectProvider key={principalId}>
-          <RunActivityProvider>{content()}</RunActivityProvider>
+          <RunActivityProvider>
+            <ErrorBoundary resetKey={location}>{content()}</ErrorBoundary>
+          </RunActivityProvider>
         </ActiveProjectProvider>
       ) : (
-        content()
+        <ErrorBoundary resetKey={location}>{content()}</ErrorBoundary>
       )}
     </Frame>
   );
