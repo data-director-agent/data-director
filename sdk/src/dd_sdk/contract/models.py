@@ -15,6 +15,8 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, SerializeAsAny, model_validator
 
+# `base` and `inventory` hold the rest of the core's mirrors; their names are this module's too.
+from dd_sdk.contract import inventory
 from dd_sdk.contract.base import SHA256_PATTERN as SHA256_PATTERN
 from dd_sdk.contract.base import Frozen as Frozen
 from dd_sdk.contract.facts import Affiliation as Affiliation
@@ -27,6 +29,20 @@ from dd_sdk.contract.facts import ResearcherFunding as ResearcherFunding
 from dd_sdk.contract.facts import ResearcherLink as ResearcherLink
 from dd_sdk.contract.facts import ResearcherRecord as ResearcherRecord
 from dd_sdk.contract.facts import ResearcherWork as ResearcherWork
+
+PART_FOLDER_PATTERN = inventory.PART_FOLDER_PATTERN
+ConfidenceBand = inventory.ConfidenceBand
+FileInventory = inventory.FileInventory
+FileRole = inventory.FileRole
+FindingTarget = inventory.FindingTarget
+IdentificationMethod = inventory.IdentificationMethod
+InventoryFile = inventory.InventoryFile
+InventoryPart = inventory.InventoryPart
+PersonalDataFinding = inventory.PersonalDataFinding
+PersonalDataKind = inventory.PersonalDataKind
+ProportionBand = inventory.ProportionBand
+TableField = inventory.TableField
+inventory_part_problems = inventory.inventory_part_problems
 
 UUID7_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
 POLICY_BUNDLE_REF_PATTERN = r"^profile:[a-z0-9][a-z0-9.-]*@v[0-9]+$"
@@ -163,21 +179,6 @@ class QuestionKind(StrEnum):
 class TurnRole(StrEnum):
     USER = "user"
     AGENT = "agent"
-
-
-class IdentificationMethod(StrEnum):
-    SIGNATURE = "signature"
-    CONTAINER = "container"
-    EXTENSION = "extension"
-    NONE = "none"
-    RESEARCHER = "researcher"
-
-
-class FileRole(StrEnum):
-    DATA = "data"
-    DOCUMENTATION = "documentation"
-    CODE = "code"
-    OTHER = "other"
 
 
 class Obligation(StrEnum):
@@ -326,92 +327,6 @@ class Message(Frozen):
     project_entry_by_researcher: bool | None = None
     project_researchers: list[ResearcherRecord] | None = None
     project_decisions: list[ProjectFact] | None = None
-
-
-class TableField(Frozen):
-    """One field of a table, as a Frictionless Table Schema field descriptor."""
-
-    name: str
-    field_type: str | None = None
-    field_format: str | None = None
-    field_description: str | None = None
-
-
-class InventoryFile(Frozen):
-    file_path: str = Field(pattern=r"^[^/]")
-    file_size: int
-    file_sha256: str = Field(pattern=SHA256_PATTERN)
-    file_media_type: str | None = None
-    file_pronom_ids: list[str] = Field(default_factory=list)
-    file_identified_by: IdentificationMethod
-    file_fields: list[TableField] = Field(default_factory=list)
-    file_description: str | None = None
-    file_role: FileRole | None = None
-
-
-PART_FOLDER_PATTERN = r"^[^/]+(/[^/]+)*$"
-
-
-class InventoryPart(Frozen):
-    """One scan of one folder in an inventory made of several (docs/specs/projects.md)."""
-
-    part_folder: str = Field(pattern=PART_FOLDER_PATTERN)
-    part_tool: str
-    part_tool_version: str
-    part_identified_with: str | None = None
-    part_made_at: datetime
-    part_limitations: list[str] = Field(default_factory=list)
-
-
-def _within(path: str, folder: str) -> bool:
-    return path == folder or path.startswith(folder + "/")
-
-
-def inventory_part_problems(inventory: Any) -> list[str]:
-    """What is wrong with a `FileInventory` document's parts, which its schema cannot say: a
-    folder with a `.` or `..` segment, a folder that is another's or lies inside another's, and a
-    file under no part's folder. Empty for a document without parts, or with nothing wrong.
-
-    Reads the document as JSON, so the store can call it on a document its schema accepted."""
-    parts = inventory.get("inventory_parts") if isinstance(inventory, dict) else None
-    if not parts:
-        return []
-    folders = [str(p.get("part_folder", "")) for p in parts if isinstance(p, dict)]
-    problems = [
-        f"part folder {f!r} has a . or .. segment"
-        for f in folders
-        if any(segment in {".", ".."} for segment in f.split("/"))
-    ]
-    for i, a in enumerate(folders):
-        for b in folders[i + 1 :]:
-            if _within(a, b) or _within(b, a):
-                problems.append(f"part folders {a!r} and {b!r} overlap")
-    for file in inventory.get("inventory_files") or []:
-        path = str(file.get("file_path", "")) if isinstance(file, dict) else ""
-        if not any(path.startswith(f + "/") for f in folders):
-            problems.append(f"{path!r} is under no part's folder")
-    return problems
-
-
-class FileInventory(Frozen):
-    """The facts about a dataset's files a project holds in place of the files
-    (docs/specs/projects.md). Made of `inventory_parts` when it covers more than one folder."""
-
-    schema_class: Literal["FileInventory"] = "FileInventory"
-    inventory_files: list[InventoryFile] = Field(default_factory=list)
-    inventory_tool: str
-    inventory_tool_version: str
-    inventory_identified_with: str | None = None
-    inventory_made_at: datetime
-    inventory_limitations: list[str] = Field(default_factory=list)
-    inventory_parts: list[InventoryPart] | None = None
-
-    @model_validator(mode="after")
-    def _parts_cover_the_files(self) -> FileInventory:
-        problems = inventory_part_problems(self.model_dump(mode="json"))
-        if problems:
-            raise ValueError("; ".join(problems))
-        return self
 
 
 class OpenInput(Frozen):

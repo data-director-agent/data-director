@@ -43,9 +43,9 @@ them. A Blueprint row whose sub-IDs are substantiated is not thereby substantiat
 
 | Verdict | By test | By review |
 |---|---|---|
-| substantiated | 36 | 0 |
+| substantiated | 37 | 0 |
 | contradicted | 0 | 0 |
-| unsubstantiated | 24 | 8 |
+| unsubstantiated | 23 | 8 |
 
 | ID | Source | Title | Test verdict | Tests | Review verdict | Review |
 |---|---|---|---|---|---|---|
@@ -72,7 +72,7 @@ them. A Blueprint row whose sub-IDs are substantiated is not thereby substantiat
 | R11 | blueprint | Link datasets to related research outputs including publications, people, grants and software | ⬜ **unsubstantiated** | — | not assessed | — |
 | R12 | blueprint | Discover related datasets relevant to a research project | ⬜ **unsubstantiated** | — | not assessed | — |
 | C1 | blueprint | Security | not assessed | — | ⬜ **unsubstantiated** | — |
-| C2 | blueprint | Privacy | ⬜ **unsubstantiated** | — | ⬜ **unsubstantiated** | — |
+| C2 | blueprint | Privacy | ✅ **substantiated** | `test_personal_data::test_every_string_a_finding_holds_comes_from_a_closed_set`, `test_personal_data::test_no_sampled_value_nor_any_part_of_one_is_written` | ⬜ **unsubstantiated** | — |
 | C3 | blueprint | Compliance | not assessed | — | ⬜ **unsubstantiated** | — |
 | C4 | blueprint | Sovereignty | not assessed | — | ⬜ **unsubstantiated** | — |
 | C5 | blueprint | Interoperability — open APIs and established metadata standards | ⬜ **unsubstantiated** | — | not assessed | — |

@@ -7,7 +7,7 @@
  */
 
 import { assemble } from "./parts";
-import type { FileInventory, InventoryFile, InventoryPart } from "./types";
+import type { FileInventory, InventoryFile, InventoryPart, PersonalDataFinding } from "./types";
 
 /** What a researcher chose to leave out of an inventory. */
 export interface Omission {
@@ -92,7 +92,34 @@ export function omit(inventory: FileInventory, omission: Omission): FileInventor
     (sentence) => !named.some((name) => name && sentence.includes(name)),
   );
   limitations.push(leftOutSentence(described));
-  return { ...inventory, inventory_files: kept, inventory_limitations: limitations };
+  const result: FileInventory = { ...inventory, inventory_files: kept, inventory_limitations: limitations };
+  const findings = keptFindings(inventory.inventory_personal_data, kept, omission);
+  if (findings) result.inventory_personal_data = findings;
+  return result;
+}
+
+/**
+ * The personal-data findings that concern nothing left out: a file's only if the file is kept, a
+ * column's only if the column is too, and a folder's name only if a kept file lies in the folder.
+ * A finding names its place, so keeping one would send what the researcher kept back. Absent
+ * findings stay absent.
+ */
+export function keptFindings(
+  findings: readonly PersonalDataFinding[] | undefined,
+  kept: readonly InventoryFile[],
+  omission: Omission,
+): PersonalDataFinding[] | undefined {
+  if (!findings) return undefined;
+  const paths = new Set(kept.map((f) => f.file_path));
+  return findings.filter((f) => {
+    if (f.finding_file.endsWith("/")) {
+      const folder = f.finding_file.slice(0, -1);
+      return kept.some((k) => within(k.file_path, folder));
+    }
+    if (!paths.has(f.finding_file)) return false;
+    const column = f.finding_column;
+    return column === undefined || !omission.columns.get(f.finding_file)?.has(column);
+  });
 }
 
 function leftOutSentence(described: string): string {
@@ -119,6 +146,13 @@ function omitFromParts(inventory: FileInventory, omission: Omission): FileInvent
   const general = (inventory.inventory_limitations ?? []).filter(
     (sentence) => !leads.some((l) => sentence.startsWith(l)),
   );
+  const files = (inventory.inventory_files ?? [])
+    .filter((f) => !isOmitted(f.file_path, omission.paths))
+    .map((f) => {
+      const columns = omission.columns.get(f.file_path);
+      if (!columns || !f.file_fields?.some((c) => columns.has(c.name))) return f;
+      return { ...f, file_fields: f.file_fields.filter((c) => !columns.has(c.name)) };
+    });
   const kept: InventoryPart[] = [];
   let dropped = { files: 0, columns: 0 };
   for (const part of parts) {
@@ -144,16 +178,12 @@ function omitFromParts(inventory: FileInventory, omission: Omission): FileInvent
       (sentence) => !named.some((name) => name && sentence.includes(name)),
     );
     limitations.push(leftOutSentence(described));
-    kept.push({ ...part, part_limitations: limitations });
+    const cleaned: InventoryPart = { ...part, part_limitations: limitations };
+    const findings = keptFindings(part.part_personal_data, files, omission);
+    if (findings) cleaned.part_personal_data = findings;
+    kept.push(cleaned);
   }
   const droppedDescribed = describeOmitted(dropped);
   if (droppedDescribed) general.push(leftOutSentence(droppedDescribed));
-  const files = (inventory.inventory_files ?? [])
-    .filter((f) => !isOmitted(f.file_path, omission.paths))
-    .map((f) => {
-      const columns = omission.columns.get(f.file_path);
-      if (!columns || !f.file_fields?.some((c) => columns.has(c.name))) return f;
-      return { ...f, file_fields: f.file_fields.filter((c) => !columns.has(c.name)) };
-    });
   return assemble(inventory, files, kept, general);
 }

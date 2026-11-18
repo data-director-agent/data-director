@@ -34,6 +34,9 @@
       "InventoryPart": {
          "@id": "https://w3id.org/data-director/InventoryPart"
       },
+      "PersonalDataFinding": {
+         "@id": "https://w3id.org/data-director/PersonalDataFinding"
+      },
       "ProjectDocument": {
          "@id": "https://w3id.org/data-director/ProjectDocument"
       },
@@ -221,6 +224,30 @@
       "file_size": {
          "@id": "http://www.w3.org/ns/dcat#byteSize"
       },
+      "finding_column": {
+         "@id": "https://w3id.org/data-director/finding_column"
+      },
+      "finding_confidence": {
+         "@id": "https://w3id.org/data-director/finding_confidence"
+      },
+      "finding_detector": {
+         "@id": "https://w3id.org/data-director/finding_detector"
+      },
+      "finding_examined": {
+         "@id": "https://w3id.org/data-director/finding_examined"
+      },
+      "finding_file": {
+         "@id": "https://w3id.org/data-director/finding_file"
+      },
+      "finding_kind": {
+         "@id": "https://w3id.org/data-director/finding_kind"
+      },
+      "finding_proportion": {
+         "@id": "https://w3id.org/data-director/finding_proportion"
+      },
+      "finding_target": {
+         "@id": "https://w3id.org/data-director/finding_target"
+      },
       "form_label": {
          "@id": "https://w3id.org/data-director/form_label"
       },
@@ -273,6 +300,10 @@
       },
       "inventory_parts": {
          "@id": "https://w3id.org/data-director/inventory_parts",
+         "@type": "@id"
+      },
+      "inventory_personal_data": {
+         "@id": "https://w3id.org/data-director/inventory_personal_data",
          "@type": "@id"
       },
       "inventory_tool": {
@@ -354,6 +385,10 @@
       "part_made_at": {
          "@id": "http://www.w3.org/ns/prov#generatedAtTime",
          "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+      },
+      "part_personal_data": {
+         "@id": "https://w3id.org/data-director/part_personal_data",
+         "@type": "@id"
       },
       "part_tool": {
          "@id": "http://www.w3.org/ns/prov#wasGeneratedBy"

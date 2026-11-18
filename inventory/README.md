@@ -11,7 +11,8 @@ and writes a `FileInventory`, a JSON document of the core contract, that gives f
   matched, found with [fido](https://github.com/openpreserve/fido), and whether the match was by
   byte signature, container signature or extension only;
 - for a CSV or TSV table, its fields as a [Frictionless](https://framework.frictionlessdata.io/)
-  Table Schema inferred from a sample of rows.
+  Table Schema inferred from a sample of rows;
+- where it found possible personal data, and never what (below).
 
 The inventory holds facts about the files and never their content. Research data are not
 uploaded to Data Director: the researcher adds the inventory to their project instead
@@ -40,6 +41,25 @@ A researcher without a checkout runs it with `uvx` and attaches the file to a co
 app; the user guide's [Making an inventory](https://data-director-agent.github.io/data-director/user-guide/making-an-inventory/)
 says how.
 
+It looks for possible personal data in what it already reads: the values of each table's sampled
+rows, column by column; field, file and folder names; and `.txt` and `.md` files of at most
+256 KB ([Personal data and disclosure control](https://github.com/data-director-agent/data-director/blob/main/docs/specs/personal-data.md)).
+The detector is [Presidio](https://github.com/microsoft/presidio) with its pattern recognisers
+only, with the UK ones on (National Insurance number, NHS number, postcode, passport, driving
+licence) and phone numbers read as UK numbers, plus a keyword table for names. It runs offline
+and loads no language model, so names and places are looked for in column headers and names, not
+in values. `inventory_personal_data` lists each finding: a kind, the file and column, the share
+of sampled values that matched and a confidence, both as bands, and the detector. A finding never
+holds a value, part of one, a row number or an example. An empty list means the detector found
+nothing, which does not mean the data hold no personal data; the limitations say what was not
+checked. `--no-detect` (or `detector=None`) skips the check, and the list is then absent, which
+says no detector ran. Presidio installs spaCy, which the command does not use; the
+`pii-ner` extra is for named-entity recognition later (#39).
+
+```console
+$ uv run dd-inventory path/to/dataset --no-detect -o inventory.json
+```
+
 Hidden files and folders (names beginning with `.`) are skipped, symbolic links are not
 followed, and both are counted in `inventory_limitations`. If fido cannot be loaded, formats are
 guessed from file extensions and the inventory says so.
@@ -51,8 +71,9 @@ runtime, such as `0.1.0a3+pyodide.314.0.7`; `inventory_tool` is `dd-inventory` i
 inventory whose version has no `+` label was made by the command. `make_inventory` detects the
 runtime, and a caller may pass it in as `runtime=`. A caller may also pass `on_file=`, which is
 called once per file with a `FileProgress` (its relative path and size, and how many of the
-files are done), to show progress. `browser/bundle/` builds the browser bundle (Pyodide, this
-package's wheel and its dependencies), and CI checks that it writes the same inventory as the
+files are done), to show progress. The personal-data check runs there too, so the two find the
+same. `browser/bundle/` builds the browser bundle (Pyodide, this package's wheel and its
+dependencies, with a stand-in for spaCy), and CI checks that it writes the same inventory as the
 command on `tests/data/mixed` ([browser bundle](https://github.com/data-director-agent/data-director/blob/main/inventory/browser/README.md#browser-bundle)).
 
 To read an inventory in TypeScript, as the app does to show one to the researcher, use
@@ -67,5 +88,6 @@ what it writes against the contract's `FileInventory` schema.
 |---|---|
 | `scan.py` | Walks the folder, digests each file and assembles the inventory. |
 | `identify.py` | The one module that calls fido, with the extension fallback. |
-| `tables.py` | Infers a table's fields with Frictionless. |
+| `tables.py` | Infers a table's fields with Frictionless, keeping the sampled values for the check. |
+| `personal.py` | Looks for possible personal data with Presidio and the keyword table (`keywords.json`, a copy of advisor.ethics's). |
 | `cli.py` | The `dd-inventory` command. |

@@ -18,6 +18,7 @@ import {
   withPart,
   type FileInventory,
   type InventoryFile,
+  type PersonalDataFinding,
 } from "../src";
 
 function file(path: string, overrides: Partial<InventoryFile> = {}): InventoryFile {
@@ -116,6 +117,46 @@ describe("parts", () => {
     const stray = { ...both, inventory_files: [...(both.inventory_files ?? []), file("elsewhere.csv")] };
     expect(partProblems(stray)).toHaveLength(1);
     expect(() => asInventory(stray)).toThrow(NotAnInventory);
+  });
+});
+
+describe("personal-data findings in an inventory of folders", () => {
+  const finding = (place: string): PersonalDataFinding => ({
+    finding_kind: "email address",
+    finding_file: place,
+    finding_target: "text",
+    finding_confidence: "high",
+    finding_detector: "presidio",
+  });
+  const checked = (inventory: FileInventory, places: string[]): FileInventory => ({
+    ...inventory,
+    inventory_personal_data: places.map(finding),
+  });
+
+  it("moves each scan's findings under its folder, and lists every part's", () => {
+    const named = asParts(checked(lab, ["notes/b.txt"]), "lab");
+    expect(named.inventory_parts?.[0]?.part_personal_data).toEqual([finding("lab/notes/b.txt")]);
+    const both = withPart(named, checked(instrument, []), "instrument");
+    expect(both.inventory_parts?.map((p) => p.part_personal_data?.length)).toEqual([0, 1]);
+    expect(both.inventory_personal_data).toEqual([finding("lab/notes/b.txt")]);
+  });
+
+  it("replaces a folder's findings when it is scanned again", () => {
+    const named = asParts(checked(lab, ["notes/b.txt"]), "lab");
+    const again = withPart(named, checked(lab, []), "lab");
+    expect(again.inventory_personal_data).toEqual([]);
+  });
+
+  it("says no detector ran when any folder was scanned without one", () => {
+    const named = asParts(checked(lab, ["notes/b.txt"]), "lab");
+    const mixed = withPart(named, instrument, "instrument");
+    expect(mixed.inventory_personal_data).toBeUndefined();
+    expect(asInventory(JSON.parse(JSON.stringify(mixed)))).toEqual(mixed);
+  });
+
+  it("is refused when its findings are not a list of places", () => {
+    const broken = { ...lab, inventory_personal_data: [{ finding_kind: "email address" }] };
+    expect(() => asInventory(broken)).toThrow(NotAnInventory);
   });
 });
 
