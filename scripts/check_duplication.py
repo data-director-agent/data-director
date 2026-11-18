@@ -116,7 +116,7 @@ def _installed_version() -> str | None:
     return str(json.loads(manifest.read_text(encoding="utf-8"))["version"])
 
 
-def jscpd(install: bool = True) -> Path:
+def jscpd(*, install: bool = True) -> Path:
     """The pinned jscpd, installed from the lock file first if it is missing or out of date."""
     binary = TOOLING / "node_modules" / ".bin" / "jscpd"
     if _installed_version() == _pinned_version():
@@ -187,8 +187,8 @@ def by_pair(root: Path, duplicates: Iterable[dict[str, object]]) -> dict[Pair, S
     return found
 
 
-def duplication(root: Path, install: bool = True) -> dict[Pair, Shared]:
-    return by_pair(root, report(root, tracked(root), jscpd(install)))
+def duplication(root: Path, *, install: bool = True) -> dict[Pair, Shared]:
+    return by_pair(root, report(root, tracked(root), jscpd(install=install)))
 
 
 def load_baseline(path: Path) -> dict[Pair, Shared]:
@@ -267,6 +267,7 @@ def main(
     argv: list[str] | None = None,
     root: Path = ROOT,
     baseline_path: Path = BASELINE,
+    *,
     install: bool = True,
 ) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
@@ -275,7 +276,7 @@ def main(
     )
     args = parser.parse_args(argv)
     try:
-        found = duplication(root, install)
+        found = duplication(root, install=install)
     except (JscpdUnavailableError, subprocess.CalledProcessError) as error:
         detail = getattr(error, "stderr", None) or ""
         print(f"cannot run jscpd: {error} {detail}".strip(), file=sys.stderr)

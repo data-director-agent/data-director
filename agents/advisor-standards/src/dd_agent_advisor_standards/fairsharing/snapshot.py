@@ -31,7 +31,11 @@ class SnapshotBackend:
     name = "snapshot"
 
     def __init__(
-        self, path: Path = DEFAULT_SNAPSHOT, manifest: Path = DEFAULT_MANIFEST, stale: bool = False
+        self,
+        path: Path = DEFAULT_SNAPSHOT,
+        manifest: Path = DEFAULT_MANIFEST,
+        *,
+        stale: bool = False,
     ) -> None:
         self.path = path
         self.manifest_path = manifest

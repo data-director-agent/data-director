@@ -276,6 +276,20 @@ for it.
 
 The table under "Checks added with this review" records the limits as this review first set them.
 
+## Boolean parameters and silenced exceptions, November 2026
+
+Two kinds of code that make an interface or a failure hard to follow were not checked (#1095).
+
+| Check | What fails | How the existing findings are recorded |
+|---|---|---|
+| Ruff `FBT001`, `FBT002`, `FBT003` (Python outside tests) | a boolean positional parameter in a definition, or a boolean literal passed positionally in a call | the 62 findings were fixed by making the parameter keyword-only or naming the argument, except `check` in `scripts/smoke_agents.py`, an assertion-shaped helper whose predicate comes first, which carries `# noqa: FBT001`; RUF100 fails a marker that no longer suppresses anything |
+| Ruff `S110` (Python outside tests) | `try`/`except Exception`/`pass`, or a bare `except` with `pass`; `SIM105`, already on, fails a narrower `except`/`pass` | none: there were no findings |
+
+A broad `except Exception` that returns a default is already failed by `BLE`, unless it re-raises
+or logs. `contextlib.suppress(Exception)` has no Ruff rule; there is none in the code, and
+CONTRIBUTING.md asks contributors not to add one. `scripts/architecture_debt.py` counts the `FBT`
+markers in its own row.
+
 ## Unused code, November 2026
 
 Refactors such as #975 to #980 left behind code that nothing called any more, and nothing found it

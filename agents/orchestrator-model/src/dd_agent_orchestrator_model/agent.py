@@ -338,7 +338,7 @@ class _Turns:
         for unread in (c for c in made if c.problem is not None):
             self.attempts += 1
             answered[unread.id] = tool_result(
-                unread, f"Not run: {unread.problem}. Call the tool again.", True
+                unread, f"Not run: {unread.problem}. Call the tool again.", is_error=True
             )
         readable = [c for c in made if c.id not in answered]
         # A name is taken whatever else the turn calls; it never ends the turn.
@@ -408,8 +408,7 @@ class ModelOrchestrator:
             )
         state = self._start(message, ctx.delegate.manifest())
         while True:
-            use_tools = bool(state.definitions) and state.attempts < self.max_delegations
-            turn = self._turn(state.messages, state.definitions, use_tools, ctx, state.calls)
+            turn = self._turn(state, ctx)
             state.input_tokens += turn.usage.input_tokens or 0
             state.output_tokens += turn.usage.output_tokens or 0
             state.messages.append(turn.message)
@@ -460,32 +459,26 @@ class ModelOrchestrator:
                 results.append(answered[made.id])
                 continue
             if made.name == QUESTIONS_TOOL:
-                results.append(tool_result(made, problem or "", True))
+                results.append(tool_result(made, problem or "", is_error=True))
                 continue
             state.attempts += 1
             results.append(self._call(made, state.tools, state.attempts, ctx, state.delegated))
         return results
 
-    def _turn(
-        self,
-        messages: list[ModelMessage],
-        definitions: list[ToolSpec],
-        use_tools: bool,
-        ctx: RunContext,
-        calls: ModelCallLog,
-    ) -> ModelReply:
-        """One call to the model, recorded in `calls`; a provider failure or a refusal is a
-        `ModelError`."""
+    def _turn(self, state: _Turns, ctx: RunContext) -> ModelReply:
+        """One call to the model, recorded in `state.calls`, offering the tools while delegations
+        remain; a provider failure or a refusal is a `ModelError`."""
+        use_tools = bool(state.definitions) and state.attempts < self.max_delegations
         try:
             turn = call(
                 self.model,
                 ctx,
                 system=SYSTEM_PROMPT,
-                messages=messages,
-                tools=definitions,
+                messages=state.messages,
+                tools=state.definitions,
                 tool_choice="auto" if use_tools else "none",
                 max_tokens=MAX_TOKENS,
-                calls=calls,
+                calls=state.calls,
             )
         except ModelCallError as exc:
             raise ModelError(str(exc)) from exc
@@ -505,20 +498,24 @@ class ModelOrchestrator:
     ) -> ToolResult:
         tool = tools.get(call.name)
         if tool is None:
-            return tool_result(call, f"There is no agent behind the tool {call.name!r}.", True)
+            return tool_result(
+                call, f"There is no agent behind the tool {call.name!r}.", is_error=True
+            )
         if attempt > self.max_delegations:
             return tool_result(
                 call,
                 f"Not run: this turn has reached its limit of {self.max_delegations} "
                 "delegations. Reply with what you have.",
-                True,
+                is_error=True,
             )
         assert ctx.delegate is not None
         document = {**call.input, "schema_class": tool.schema_class}
         try:
             child = ctx.delegate(tool.agent_id, OpenInput.model_validate(document))
         except DelegationRefused as exc:
-            return tool_result(call, f"The harness did not run {tool.agent_id}: {exc}", True)
+            return tool_result(
+                call, f"The harness did not run {tool.agent_id}: {exc}", is_error=True
+            )
         delegated.append(child)
         envelope = child.envelope
         result = {
@@ -534,7 +531,7 @@ class ModelOrchestrator:
             ),
         }
         failed = envelope.outcome.status == OutcomeStatus.FAILED
-        return tool_result(call, json.dumps(result, default=str), failed)
+        return tool_result(call, json.dumps(result, default=str), is_error=failed)
 
     def _reply(
         self, message: Message, turn: ModelReply, state: _Turns, ctx: RunContext

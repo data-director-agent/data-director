@@ -206,12 +206,16 @@ def name_of(call: ToolCall, *, offered: bool) -> tuple[str | None, ToolResult]:
     """The name a `name_project` call gives, tidied as a title is, and the tool result to send
     back: None and an error when the tool was not offered or the name is empty."""
     if not offered:
-        return None, tool_result(call, "Not named: a person has named this project.", True)
+        return None, tool_result(call, "Not named: a person has named this project.", is_error=True)
     given = call.input.get("name")
     name = clean(given) if isinstance(given, str) else None
     if name is None:
-        return None, tool_result(call, "Not named: give the name as one line of text.", True)
-    return name, tool_result(call, f"Named {json.dumps(name)}. Carry on with your reply.", False)
+        return None, tool_result(
+            call, "Not named: give the name as one line of text.", is_error=True
+        )
+    return name, tool_result(
+        call, f"Named {json.dumps(name)}. Carry on with your reply.", is_error=False
+    )
 
 
 def entry_of(call: ToolCall, *, offered: bool) -> tuple[int | None, ToolResult]:
@@ -219,23 +223,23 @@ def entry_of(call: ToolCall, *, offered: bool) -> tuple[int | None, ToolResult]:
     and an error when the tool was not offered or the entry point is not one of the flow's."""
     if not offered:
         return None, tool_result(
-            call, "Not recorded: the researcher chose the entry point themselves.", True
+            call, "Not recorded: the researcher chose the entry point themselves.", is_error=True
         )
     given = call.input.get("entry")
     numbers = {e.number: e for e in ENTRIES}
     if isinstance(given, bool) or not isinstance(given, int) or given not in numbers:
         return None, tool_result(
-            call, f"Not recorded: give one of the entry points {sorted(numbers)}.", True
+            call, f"Not recorded: give one of the entry points {sorted(numbers)}.", is_error=True
         )
     found = numbers[given]
     return given, tool_result(
         call,
         f"Recorded entry point {given} ({found.text}), starting at Phase {found.starts_at}. "
         "Carry on with your reply; tell the researcher they can change it on their journey.",
-        False,
+        is_error=False,
     )
 
 
-def tool_result(call: ToolCall, content: str, is_error: bool) -> ToolResult:
+def tool_result(call: ToolCall, content: str, *, is_error: bool) -> ToolResult:
     """The result sent back for one tool call."""
-    return ToolResult(call.id, content, is_error)
+    return ToolResult(call.id, content, is_error=is_error)

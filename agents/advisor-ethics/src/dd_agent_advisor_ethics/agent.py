@@ -142,7 +142,7 @@ class EthicsAdviser:
         ]
         questions = [
             SensitivityQuestion(text=text, derivation=Derivation.TEMPLATE)
-            for text in self._questions(context, bool(flags))
+            for text in self._questions(context, flagged=bool(flags))
         ] + [
             SensitivityQuestion(text=text, derivation=Derivation.MODEL)
             for text in reading.questions
@@ -178,7 +178,7 @@ class EthicsAdviser:
             prompts=calls.prompts if calls is not None else {},
         )
 
-    def _questions(self, context: SensitivityContext, flagged: bool) -> list[str]:
+    def _questions(self, context: SensitivityContext, *, flagged: bool) -> list[str]:
         questions = []
         if context.involves_people or flagged:
             questions.append(PEOPLE_QUESTION)

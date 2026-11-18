@@ -54,7 +54,7 @@ def fold(token: str) -> str:
 
 
 def tokenise(
-    text: str, stop: Collection[str] = STOP_WORDS, fold_plurals: bool = False
+    text: str, stop: Collection[str] = STOP_WORDS, *, fold_plurals: bool = False
 ) -> list[str]:
     """The words of `text` a lexical search compares, in order."""
     words = [t for t in _TOKEN.findall(text.lower()) if t not in stop and len(t) > 1]

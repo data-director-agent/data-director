@@ -273,6 +273,7 @@ class Report:
 
 
 def fetch(
+    *,
     update_pin: bool = False,
     cache_dir: Path = ARCHIVES,
     registry: Path = REGISTRY,
@@ -336,7 +337,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "check":
         return pinned.check(problem(), "ROR registry matches its pin")
     try:
-        report = fetch(args.update_pin, args.cache_dir)
+        report = fetch(update_pin=args.update_pin, cache_dir=args.cache_dir)
     except RorError as exc:
         sys.stderr.write(f"dd-ror: {exc}\n")
         return 1

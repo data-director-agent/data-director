@@ -146,13 +146,21 @@ uv run --group mutation mutmut results
 ### Keeping the code in shape
 
 The package boundaries are checked by Import Linter and `scripts/check_boundaries.py`. Inside a
-package, four ratchets keep code from growing past what a reviewer can follow
+package, these ratchets keep code from growing past what a reviewer can follow
 ([Architecture review](docs/architecture-review.md)):
 
 - **Function complexity.** Ruff applies mccabe complexity 12 and the pylint limits on branches
   (12), statements (50), arguments (7) and returns (6) to Python outside tests. ESLint applies
   complexity 18 and nesting depth 4 to `app/web`, `sdk/browser` and `inventory/browser` outside
   tests.
+- **Boolean parameters and silenced exceptions.** Ruff's `FBT` rules fail a boolean positional
+  parameter in a definition and a `True` or `False` passed positionally in a call, in Python
+  outside tests: a call such as `run(x, True, False)` cannot be read without the definition. Make
+  the parameter keyword-only with `*` and name the argument. Ruff's `S110` fails
+  `try`/`except Exception`/`pass` (`SIM105` already fails a narrower `except`/`pass`, asking for
+  `contextlib.suppress`), and `BLE` fails a broad `except Exception` that neither re-raises nor
+  logs: a content problem is an outcome, not a swallowed exception. No rule catches
+  `contextlib.suppress(Exception)`; do not use it either.
 - **File size.** `scripts/check_size.py` holds each Python source file to 500 lines and each
   TypeScript one to 400. A file already over the limit is recorded in `scripts/size_baseline.toml`
   at its present size and may not grow. The pre-commit hook lowers an entry when its file shrinks;
@@ -181,7 +189,7 @@ package, four ratchets keep code from growing past what a reviewer can follow
   and the files that deploy every agent.
 
 The code that exceeded a limit when it was introduced carries a marker: `# noqa: C901` (and the
-like) in Python, `// eslint-disable-next-line complexity` in TypeScript, or an entry in the size
+like, `# noqa: FBT001` among them) in Python, `// eslint-disable-next-line complexity` in TypeScript, or an entry in the size
 baseline. These record debt. Remove the marker when you split the function or file; a marker that
 no longer suppresses anything is itself an error (Ruff's RUF100, ESLint's unused-directive
 report). Never add one to get new code past these checks: split the code by responsibility
