@@ -21,7 +21,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, RedirectResponse, Response
 from starlette.routing import Route
 
-from dd_app.governance import principal_summary
+from dd_app.principals import principal_summary
 from dd_app.routes.common import SERVICE, Deps, bind, problem, requires_json, signed_in
 from dd_harness.identity import RefusalReason, Unauthenticated
 from dd_harness.sessions import PENDING_S, SESSION_COOKIE, SIGN_IN_COOKIE, cookie

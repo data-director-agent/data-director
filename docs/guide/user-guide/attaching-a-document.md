@@ -41,3 +41,7 @@ documents the model was given, and says if one was too long to give in full.
 The agent you are talking to, and every other agent, is told only each document's name, type and
 size. The text goes to an AI model hosted outside your institution only if your institution's
 deployment allows that; where it does not, drafts are made without it.
+
+Your institution may choose not to keep attached documents at all. Then **Attach a file** takes
+only an inventory, the note beneath it says that documents are not kept, and no agent is given a
+document your project already holds. Give what the document says in your message instead.
