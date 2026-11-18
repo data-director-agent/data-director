@@ -7,6 +7,7 @@ import json
 import os
 import re
 from collections.abc import Iterator
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -121,11 +122,19 @@ def conforms(body: Any, model: Any) -> None:
         raise AssertionError(f"{model} does not give back the body it read (changed: {changed}).")
 
 
-def check_fixture(name: str, body: Any, *, model: Any = None) -> None:
+@dataclass(frozen=True)
+class NotAnAppResponse:
+    """What a fixture's `model` is when the body is not one the app sends, so no app response
+    model describes it; `whose` says whose it is."""
+
+    whose: str
+
+
+def check_fixture(name: str, body: Any, *, model: Any) -> None:
     """`body` is what the fixture `name` holds; compared as JSON, so layout does not matter.
-    With `model`, the response model the route answers through, `body` must also be what it
-    describes (`conforms`); TODO(#1130): required once every route has one."""
-    if model is not None:
+    `body` must also be what `model`, the response model the route answers through, describes
+    (`conforms`), unless `model` is a `NotAnAppResponse`."""
+    if not isinstance(model, NotAnAppResponse):
         conforms(body, model)
     path = FIXTURES / name
     text = json.dumps(body, indent=2, ensure_ascii=False, sort_keys=True) + "\n"

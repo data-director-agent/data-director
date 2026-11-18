@@ -20,6 +20,7 @@ from support import (
     pin_export,
 )
 
+from dd_app import contract_shapes as contract
 from dd_app.app import build_app
 from dd_app.governance import Governance
 from dd_harness.projects import REPOSITORY_CHOSEN
@@ -67,7 +68,7 @@ def test_a_choice_resolves_from_re3data_and_the_last_one_counts(
     assert [s["ref"] for s in chosen["requirement_sets"]] == ["datacite-4@v1", "orda@v3"]
     assert chosen["warnings"] == []
     assert client.get(path).json() == chosen
-    check_fixture("repository-chosen.json", chosen)
+    check_fixture("repository-chosen.json", chosen, model=contract.RepositoryRequirements)
 
     events = [e for e in store.events(project) if e["event"] == REPOSITORY_CHOSEN]
     assert [e["re3data_id"] for e in events] == [ZENODO, ORDA]
