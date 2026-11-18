@@ -57,8 +57,9 @@ agent that calls it. The gateway is served at `/mcp` beside the delegation callb
 it is for agents on loopback, and NGINX closes it to everyone else.
 
 How long an owner may restore a project they deleted is `DD_PROJECT_RESTORE_DAYS`, in the app's
-environment: whole days, 30 if unset, and 0 to make deletion final to the app. Deleting a project
-never removes its record ([Projects](../../specs/projects.md), invariant 25).
+environment: whole days, 30 if unset, and 0 to make deletion final to the app. The same period
+applies to a deleted conversation. Deleting a project or a conversation never removes its record
+([Projects](../../specs/projects.md), invariants 25 and 31).
 
 On an app installed on a researcher's own machine, `DD_INVENTORY_FOLDERS` names the folders there
 that the app may describe for an inventory: absolute paths, separated by `:` (`;` on Windows). The

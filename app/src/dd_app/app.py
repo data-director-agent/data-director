@@ -53,6 +53,7 @@ from dd_app.model_accounts import broker_path
 from dd_app.privacy import notice_url
 from dd_app.project_service import ProjectService
 from dd_app.routes import (
+    conversation_deletion,
     conversations,
     deposit,
     documents,
@@ -95,6 +96,7 @@ AREAS = (
     session,
     meta,
     runs,
+    conversation_deletion,
     conversations,
     projects,
     materials,

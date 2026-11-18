@@ -49,6 +49,9 @@ function fakeApi({
     create: () => Promise.resolve({ conversation_id: "c1", project_id: null }),
     list: () => Promise.resolve([]),
     get: () => Promise.resolve(CONVERSATION),
+    remove: () => Promise.reject(new Error("nothing deleted in these tests")),
+    restore: () => Promise.resolve(),
+    deleted: () => Promise.resolve([]),
     ...overrides,
     turns: turnTransport(sendTurn),
   };
