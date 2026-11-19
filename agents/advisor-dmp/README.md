@@ -64,7 +64,7 @@ It reads only its input, so its grounding mode is `input_only` and it cites only
 
 | Setting | Values |
 |---|---|
-| `DD_DMP_MATCHER` | `template` (default): rules only, no model, no key. `model`: a model reads what the rules leave over (`anthropic` names the same with the Anthropic provider). The model and its key are set as for every agent ([AI models](../../docs/guide/operations/ai-models.md)). |
+| `DD_DMP_MATCHER` | `model` (default): a model reads what the rules leave over (`anthropic` names the same with the Anthropic provider). `template`: rules only, no model, no key. The model and its key are set as for every agent ([AI models](../../docs/guide/operations/ai-models.md)). |
 
 ## What it does not do
 

@@ -192,10 +192,15 @@ def test_a_record_that_meets_every_check_calls_no_model(runs_dir: Path) -> None:
     assert model.sent == []
 
 
-def test_the_default_build_needs_no_model_and_no_key() -> None:
-    agent = build({})
+def test_the_template_build_needs_no_model_and_no_key() -> None:
+    agent = build({"DD_FAIRNESS_WRITER": "template"})
     assert isinstance(agent.writer, TemplateWriter)
     assert agent.spec.models == ()
+
+
+def test_the_model_is_on_by_default_and_says_how_to_turn_it_off() -> None:
+    with pytest.raises(ConfigError, match="DD_FAIRNESS_WRITER=template"):
+        build({})
 
 
 def test_the_model_writer_is_declared_on_the_card() -> None:

@@ -56,6 +56,7 @@ def _roster(spec: str) -> dict[str, str]:
 
 
 ROSTER: Mapping[str, str] = _roster(SPEC.read_text(encoding="utf-8"))
+ROW_LABELS = [label for label, _ in ROW.findall(SPEC.read_text(encoding="utf-8"))]
 
 # Blueprint requirements a mock's or an alpha's tests still name, by agent. The list only shrinks:
 # an entry that no longer occurs fails too.
@@ -134,7 +135,9 @@ def _blueprint_marks(package: Path) -> set[str]:
 
 
 def test_the_roster_table_gives_every_state() -> None:
-    assert set(ROSTER.values()) == set(STATES.values())
+    # Every row is in the table, though one may name no agent: no in-tree agent is a mock now.
+    assert set(ROW_LABELS) == set(STATES)
+    assert set(ROSTER.values()) <= set(STATES.values())
 
 
 @pytest.mark.requirement("DD-REGISTRY")
@@ -171,8 +174,8 @@ def test_a_model_backed_alpha_is_pre_release_grounded_and_states_its_limitations
 
 def _factory(agent_id: str) -> tuple[Callable[[Mapping[str, str]], Any], str, str]:
     """The alpha's `build`, the setting that chooses its `template` path, and that setting's
-    default, as the package's `factory` module declares them. Only the Documentation Editor's and
-    the Policy Adviser's models are on by default (Model-backed personas)."""
+    default, as the package's `factory` module declares them. Every advisor's model is on by
+    default (Model-backed personas)."""
     package, _ = SPECS[agent_id]
     factory = importlib.import_module(f"{_module(package)}.factory")
     return factory.build, factory.SWITCH, factory.DEFAULT
@@ -188,14 +191,12 @@ def test_an_alphas_template_path_runs_with_no_key_and_declares_no_model(agent_id
 
 
 @pytest.mark.parametrize("agent_id", _in(ALPHA))
-def test_an_alphas_default_is_template_unless_its_model_is_on_by_default(agent_id: str) -> None:
+def test_an_alphas_model_is_on_by_default(agent_id: str) -> None:
     build, _, default = _factory(agent_id)
-    if default == "template":
-        assert build({}).spec.models == ()
-    else:
-        # On by default, it needs a model configured, and says how to run without one.
-        with pytest.raises(ConfigError, match="template"):
-            build({})
+    assert default == "model"
+    # On by default, it needs a model configured, and says how to run without one.
+    with pytest.raises(ConfigError, match="template"):
+        build({})
 
 
 @pytest.mark.parametrize("agent_id", _in(MOCK) + _in(ALPHA))

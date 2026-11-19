@@ -105,12 +105,12 @@ def test_the_key_goes_only_to_the_agents_that_use_it(repo: Path) -> None:
     assert common.read_env(agents / "orchestrator-model.env") == {
         "ANTHROPIC_API_KEY_FILE": "orchestrator-model-anthropic-api-key"
     }
-    assert common.read_env(agents / "advisor-standards.env") == {
-        "DD_STANDARDS_EXPLAINER": "model",
-        "ANTHROPIC_API_KEY_FILE": "advisor-standards-anthropic-api-key",
-    }
+    for advisor in common.MODEL_BY_DEFAULT:
+        assert common.read_env(agents / f"{advisor}.env") == {
+            "ANTHROPIC_API_KEY_FILE": f"{advisor}-anthropic-api-key"
+        }
+        assert (credentials / f"{advisor}-anthropic-api-key").read_text().strip() == KEY
     assert (credentials / "orchestrator-model-anthropic-api-key").read_text().strip() == KEY
-    assert (credentials / "advisor-standards-anthropic-api-key").read_text().strip() == KEY
     for path in (local / "app.env", local / "agents.env", agents / "orchestrator-model.env"):
         assert KEY not in path.read_text()
     for path in (*credentials.iterdir(), agents / "orchestrator-model.env", local / "app.env"):

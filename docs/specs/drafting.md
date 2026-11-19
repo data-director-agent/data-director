@@ -28,7 +28,7 @@ answers to some of a README's questions, offered with the questions.
 The Metadata Librarian (`advisor.metadata`) drafts the metadata record by the same rules. It
 serves `preparation.metadata` and drafts a DataCite record in its JSON form from a `DraftRequest`
 with the chosen repository's requirements, asks about every value it leaves null, and places the
-answers recorded to them. Where a model is configured, which it is not by default, the model
+answers recorded to them. Its model, on unless the operator turns it off,
 suggests some of those values beside their questions
 ([`agents/advisor-metadata/README.md`](../../agents/advisor-metadata/README.md)).
 

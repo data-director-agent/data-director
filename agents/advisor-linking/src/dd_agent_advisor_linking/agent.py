@@ -5,10 +5,12 @@ numbers a researcher wants to link a dataset to, checks their form, gives each i
 form (R7) and suggests how to record it in DataCite metadata (R11). It produces linking metadata
 for the researcher to review; registering the links stays with the researcher and the repository.
 
-The adviser matches each identifier against `schemes.yaml` and checks an ORCID iD's checksum, and
-calls no model. Where the harness grants it a DOI-lookup tool, it also looks each well-formed DOI up
-through the tool gateway (`resolve.py`) and cites the record it found. ORCID iDs, ROR ids and grant
-numbers are checked by form only; resolving them is TODO(#360).
+The adviser matches each identifier against `schemes.yaml` and checks an ORCID iD's checksum. Where
+the harness grants it a DOI-lookup tool, it also looks each well-formed DOI up through the tool
+gateway (`resolve.py`) and cites the record it found. ORCID iDs, ROR ids and grant numbers are
+checked by form only; resolving them is TODO(#360). Each link is decided by rule; a summariser
+(`dd_sdk.summary`) then writes a short summary beside them: a model's by default, the rules' own
+with `DD_LINKING_SUMMARISER=template` (`factory.py`).
 """
 
 from __future__ import annotations
@@ -21,7 +23,7 @@ import yaml
 
 from dd_agent_advisor_linking import resolve
 from dd_agent_advisor_linking.classes import LinkCandidates, RelatedIdentifiers, RelatedLink
-from dd_sdk import serve
+from dd_sdk import summary
 from dd_sdk.agent import (
     AgentResult,
     AgentSpec,
@@ -53,6 +55,8 @@ LIMITATIONS = (
     "Its relation suggestions are defaults by scheme, not read from what the identifier names.",
     "It recognises DOIs, ORCID iDs, ROR ids and grant numbers only; other identifiers, such as "
     "arXiv ids, software heritage ids or accession numbers, are reported as unknown.",
+    "Its summary is written by a model from the findings alone unless the template is chosen; "
+    "the links above it are the adviser's findings, not the summary.",
 )
 DOIS_NOT_RESOLVED = (
     "DOIs were checked by form only and not resolved: no DOI-lookup tool was available, so a "
@@ -116,7 +120,8 @@ class LinkingAdviser:
             "Recognises DOIs, ORCID iDs, ROR ids and grant numbers, checks their form, gives "
             "their canonical https form and suggests how to record each link. Looks DOIs up "
             "through the tool gateway where one is granted; the other identifiers are checked by "
-            "form only. The researcher and the repository register the links."
+            "form only, and summarises what to do. The researcher and the repository register "
+            "the links."
         ),
         action_class="advise",
         accepts=(ClassSchema.of(LinkCandidates),),
@@ -131,14 +136,18 @@ class LinkingAdviser:
             "links.title": Derived(Derivation.REGISTRY),
             "links.resource_type": Derived(Derivation.REGISTRY),
             "links.message": Derived(Derivation.TEMPLATE),
+            "summary": Derived(Derivation.MODEL, recorded_in="summary_derivation"),
             "limitations": Derived(Derivation.TEMPLATE),
         },
         serves=("deposit.links", "post.links"),
         tools=resolve.TOOLS,
     )
 
-    def __init__(self, schemes: list[Scheme] | None = None) -> None:
+    def __init__(
+        self, schemes: list[Scheme] | None = None, summariser: summary.Summariser | None = None
+    ) -> None:
         self.schemes = schemes if schemes is not None else load_schemes()
+        self.summariser = summariser or summary.TemplateSummariser()
 
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
         candidates = request.input
@@ -169,22 +178,28 @@ class LinkingAdviser:
                 pass
         recognised = sum(link.scheme != UNKNOWN for link in links)
         found = sum(link.resolved is True for link in links)
-        return AgentResult(
-            outcome=Outcome(
-                status=OutcomeStatus.SUCCEEDED,
-                statement=(
-                    f"Recognised {recognised} of {len(links)} identifiers by form; resolved "
-                    f"{found} through the tool gateway. The researcher reviews each link before "
-                    "it is registered."
-                ),
-            ),
+        statement = (
+            f"Recognised {recognised} of {len(links)} identifiers by form; resolved "
+            f"{found} through the tool gateway. The researcher reviews each link before "
+            "it is registered."
+        )
+        told = summary.Findings(
+            {"links": [link.model_dump(mode="json", exclude_none=True) for link in links]},
+            statement,
+        )
+        summarised, explanation = summary.summarise(self.summariser, told, ctx)
+        result = AgentResult(
+            outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement=statement),
             payload=RelatedIdentifiers(
                 links=links,
+                summary=summarised.text,
+                summary_derivation=summarised.derivation,
                 limitations=[DOIS_RESOLVED if server else DOIS_NOT_RESOLVED, *LIMITATIONS],
                 grounded_on=[r.ref() for r in records] or [input_ref(ctx)],
             ),
             evidence=[r.evidence() for r in records] or [input_evidence(ctx)],
         )
+        return summary.with_calls(result, self.summariser.model_id, explanation)
 
     def _link(self, given: str) -> RelatedLink:
         for scheme in self.schemes:
@@ -209,12 +224,3 @@ class LinkingAdviser:
                 message=f"{resolve.FORM_ONLY} {scheme.advice}",
             )
         return RelatedLink(given=given, scheme=UNKNOWN, valid=False, message=UNKNOWN_MESSAGE)
-
-
-def build() -> LinkingAdviser:
-    return LinkingAdviser()
-
-
-def main() -> int:
-    """The `dd-advisor-linking` console script: serve over A2A with `dd_sdk.serve`."""
-    return serve.main(build)

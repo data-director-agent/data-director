@@ -36,8 +36,8 @@ identifier (R1.2). Whether a check is met is always decided by these rules.
 
 The recommendation for each unmet check comes from a writer (`write.py`):
 
-- `template` (the default): the rule table's own text, the same for every record.
-- `model`: a model is sent the record as given and the unmet checks with their template text, and
+- `template`: the rule table's own text, the same for every record.
+- `model` (the default): a model is sent the record as given and the unmet checks with their template text, and
   writes a recommendation tailored to the record, such as naming the creator who has no
   identifier or saying what the description leaves out. Each is checked before it is used: one
   for a check not sent, an empty or overlong one, or one naming a DOI, ORCID iD or web address the
@@ -51,7 +51,7 @@ Its grounding mode is `input_only`, and it cites only its input.
 
 | Variable | Values |
 |---|---|
-| `DD_FAIRNESS_WRITER` | `template` (default; no model, no key) or `model`. `anthropic` is the older name for `model` with `DD_MODEL_PROVIDER=anthropic`. |
+| `DD_FAIRNESS_WRITER` | `model` (default) or `template` (no model, no key). `anthropic` is the older name for `model` with `DD_MODEL_PROVIDER=anthropic`. |
 | `DD_MODEL_PROVIDER`, `DD_MODEL_ID`, `DD_MODEL_BASE_URL` and the provider's key | With `model` only (`dd_sdk.model_provider`). The default model for Anthropic is `claude-sonnet-5-5`. |
 
 With `model`, the record's metadata as the researcher gave them are sent to the configured model

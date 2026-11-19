@@ -26,7 +26,7 @@ from starlette.testclient import TestClient
 from support import APP_URL, JSON_HEADERS, ORDA, configure_env, dist_dir, pin_export
 
 from dd_agent_advisor_documentation.agent import build as build_documentation
-from dd_agent_advisor_files.agent import build as build_files
+from dd_agent_advisor_files.agent import FileArchivist
 from dd_agent_advisor_metadata.agent import build as build_metadata
 from dd_agent_orchestrator_stub.agent import build as build_orchestrator
 from dd_app.app import build_app
@@ -47,7 +47,7 @@ from dd_inventory.scan import make_inventory
 # sprint replaces an entry here, and nothing else in this module.
 AGENTS: tuple[Callable[[], Any], ...] = (
     build_orchestrator,
-    build_files,
+    FileArchivist,
     build_metadata,
     build_documentation,
 )

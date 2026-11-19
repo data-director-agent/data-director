@@ -324,16 +324,24 @@ def test_downloads_name_the_project_not_a_person() -> None:
 
 # --- the factory ------------------------------------------------------------------------------
 
+# The explainer's model is on by default; these tests run the factory without one.
+TEMPLATE = {"DD_REPOSITORY_EXPLAINER": "template"}
 
-def test_the_factory_reads_the_pinned_registry_and_defaults_to_a_template() -> None:
-    agent = factory.build({})
+
+def test_the_factory_reads_the_pinned_registry_with_the_template_explainer() -> None:
+    agent = factory.build(TEMPLATE)
     assert isinstance(agent.repositories, Re3dataRegistry)
     assert isinstance(agent.explainer, TemplateExplainer)
     assert agent.spec.models == ()
 
 
+def test_the_model_is_on_by_default_and_says_how_to_turn_it_off() -> None:
+    with pytest.raises(ConfigError, match="DD_REPOSITORY_EXPLAINER=template"):
+        factory.build({})
+
+
 def test_live_retrieval_asks_fairsharing_and_keeps_its_snapshot_as_fallback() -> None:
-    agent = factory.build({"DD_REPOSITORY_RETRIEVAL": "live"})
+    agent = factory.build({**TEMPLATE, "DD_REPOSITORY_RETRIEVAL": "live"})
     assert isinstance(agent.repositories, Re3dataRegistry)
     assert isinstance(agent.databases, FairsharingLive)
     assert isinstance(agent.databases_fallback, FairsharingSnapshot)
@@ -347,7 +355,7 @@ def test_the_model_explainer_is_declared_on_the_spec() -> None:
 
 @pytest.mark.parametrize(
     "env",
-    [{"DD_REPOSITORY_RETRIEVAL": "web"}, {"DD_REPOSITORY_EXPLAINER": "oracle"}],
+    [{**TEMPLATE, "DD_REPOSITORY_RETRIEVAL": "web"}, {"DD_REPOSITORY_EXPLAINER": "oracle"}],
 )
 def test_an_unknown_setting_is_a_configuration_error(env: dict[str, str]) -> None:
     with pytest.raises(ConfigError):

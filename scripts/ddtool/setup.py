@@ -13,6 +13,7 @@ from urllib.parse import urlsplit
 from ddtool import paths
 from ddtool.common import (
     EXAMPLE_PRINCIPAL,
+    MODEL_BY_DEFAULT,
     DevError,
     ensure_local_tree,
     prepare_sources,
@@ -158,10 +159,12 @@ def ask_model_key(prompt: Prompter, changes: Changes) -> bool:
     if key != current:
         write_key("orchestrator-model", key, changes)
     if prompt.yes(
-        "Let the standards advisor use the model to choose and explain its advice too?",
+        "Let the advisors use the model too? Each runs with its template without a key.",
         default=True,
     ):
-        write_key("advisor-standards", key, changes, {"DD_STANDARDS_EXPLAINER": "model"})
+        # Every advisor's model is on by default, so the key alone turns it on.
+        for advisor in MODEL_BY_DEFAULT:
+            write_key(advisor, key, changes)
     return True
 
 

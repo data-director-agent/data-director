@@ -513,9 +513,8 @@ credentials directory, so no other agent can read it although all run as one use
 
 systemd does not start a unit whose credential file is missing (`status=243/CREDENTIALS`, "Failed
 to set up credentials"), so the drop-in names only the files present and goes with the last of
-them; an advisor with no key runs with its template explainer, except the documentation and
-policy advisors, whose models are on by default: `apply` refuses them until they have a key or
-their own file sets them to `template`. Anything else in the directory (a
+them. Every advisor's model is on by default, so `apply` refuses an advisor until it has a key or
+its own file sets it to `template`. Anything else in the directory (a
 directory, an empty file, a name that is not lower-case words joined by hyphens) is left out and
 reported. `secret.sh` rewrites the one agent's drop-in and restarts it if it is running;
 `install.sh` rewrites every agent's, so a secret put in place by hand takes effect when it runs.
@@ -729,11 +728,10 @@ DD_PRINCIPAL_ID=https://orcid.org/0000-0002-1825-0097 DD_PRINCIPAL_NAME="A. Rese
 The app reads the settings in [`config/examples/app.env`](../config/examples/app.env) and the
 agents those in [`config/examples/agents.env`](../config/examples/agents.env); give them in files
 named by `DD_APP_ENV_FILE` and `DD_AGENTS_ENV_FILE` (relative to `docker/`). The model-backed
-orchestrator starts only with `--profile llm` and a model key. The documentation, policy and
-standards advisors, whose models are otherwise on by default, run here with
-`DD_DOCUMENTATION_WRITER=template`, `DD_POLICY_ADVISOR=template` and
-`DD_STANDARDS_EXPLAINER=template`; to turn a model on, export its setting as `model` in the shell
-and give the agent a key.
+orchestrator starts only with `--profile llm` and a model key. The advisors, whose models are
+otherwise on by default, run here with their switches set to `template` (such as
+`DD_DOCUMENTATION_WRITER=template`; the file lists each); to turn a model on, export its setting
+as `model` in the shell and give the agent a key.
 Runs and projects are written to `/runs` and `/projects`, which should be volumes. Without ORCID
 sign-in every run acts for the operator and the app authenticates nobody, so publish its port on
 loopback only, as the Compose file does, and put NGINX in front as on the VM.

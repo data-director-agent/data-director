@@ -3,9 +3,9 @@
 `build` assembles the Data Management Plan Checker from its own environment variables (documented
 in `config/examples/agents.env`):
 
-- `DD_DMP_MATCHER`: `template` (default) matches by rule alone, calls no model and needs no key.
-  `model` has a model read what the rules leave over (`match.py`); `anthropic` names the same
-  while `DD_MODEL_PROVIDER` is `anthropic`.
+- `DD_DMP_MATCHER`: `template` matches by rule alone, calls no model and needs no key. `model` (the
+  default) has a model read what the rules leave over (`match.py`); `anthropic` names the same while
+  `DD_MODEL_PROVIDER` is `anthropic`.
 - With `model`: `DD_MODEL_PROVIDER` (`anthropic` by default), `DD_MODEL_ID` (Claude Sonnet 5.5
   by default for Anthropic), `DD_MODEL_BASE_URL` and the provider's key, read at start-up
   (`dd_sdk.model_provider`, docs/specs/policy-and-identity.md).
@@ -30,7 +30,7 @@ from dd_sdk.model import declared
 from dd_sdk.model_provider import optional_model
 
 SWITCH = "DD_DMP_MATCHER"
-DEFAULT: Literal["template", "model"] = "template"
+DEFAULT: Literal["template", "model"] = "model"
 
 
 def build_matcher(env: Mapping[str, str]) -> Matcher:

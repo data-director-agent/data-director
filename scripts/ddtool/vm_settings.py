@@ -24,16 +24,6 @@ from ddtool.vm_report import Checks
 SIGN_IN_SETTINGS = ("DD_OIDC_ISSUER", "DD_OIDC_CLIENT_ID", "DD_APP_PUBLIC_URL")
 OPERATOR_SETTINGS = ("DD_PRINCIPAL_ID", "DD_PRINCIPAL_NAME")
 MODEL_KEY = "anthropic-api-key"
-# The agents a model only helps, by the setting that turns their model on.
-MODEL_SWITCHES = {
-    "advisor-standards": "DD_STANDARDS_EXPLAINER",
-    "advisor-policy": "DD_POLICY_ADVISOR",
-    "advisor-repository": "DD_REPOSITORY_EXPLAINER",
-    "advisor-documentation": "DD_DOCUMENTATION_WRITER",
-    "advisor-dmp": "DD_DMP_MATCHER",
-    "advisor-rights": "DD_RIGHTS_INTERPRETER",
-    "advisor-fairness": "DD_FAIRNESS_WRITER",
-}
 
 
 class SettingsChecks(Checks):
@@ -75,7 +65,7 @@ class SettingsChecks(Checks):
         it starts with, and the fix; None if it calls no model or has them."""
         provider = own.get("DD_MODEL_PROVIDER") or "anthropic"
         uses_model = name in MODEL_BACKED or own.get(
-            MODEL_SWITCHES.get(name, ""), "model" if name in MODEL_BY_DEFAULT else "template"
+            MODEL_BY_DEFAULT.get(name, ""), "model" if name in MODEL_BY_DEFAULT else "template"
         ) in ("model", "anthropic")
         if not uses_model:
             return None

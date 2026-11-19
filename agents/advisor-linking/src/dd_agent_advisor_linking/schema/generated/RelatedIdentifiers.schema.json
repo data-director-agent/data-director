@@ -1,6 +1,17 @@
 {
    "$comment": "Generated from linking.yaml by `uv run dd-gen-schema <path to linking.yaml>`. Do not edit.",
    "$defs": {
+      "Derivation": {
+         "description": "",
+         "enum": [
+            "template",
+            "model",
+            "lexical",
+            "registry"
+         ],
+         "title": "Derivation",
+         "type": "string"
+      },
       "GroundingRef": {
          "additionalProperties": false,
          "description": "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (docs/specs/grounding.md). The linter matches every GroundingRef against a retrieval span on both fields.",
@@ -106,6 +117,24 @@
             "array",
             "null"
          ]
+      },
+      "summary": {
+         "description": "A short summary of the findings in plain language, for the researcher. It restates the findings and changes none of them.",
+         "type": [
+            "string",
+            "null"
+         ]
+      },
+      "summary_derivation": {
+         "anyOf": [
+            {
+               "$ref": "#/$defs/Derivation"
+            },
+            {
+               "type": "null"
+            }
+         ],
+         "description": "How the summary came about: template, the rules' own summary, or model, where a model wrote it from the findings."
       },
       "limitations": {
          "description": "What the adviser did not do, such as the identifiers it did not resolve.",

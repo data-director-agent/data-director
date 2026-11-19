@@ -1,8 +1,8 @@
 # advisor.ethics
 
 **Alpha** (`0.1.0a1`): a model-backed alpha ([Agents](../../docs/specs/agents.md), invariant 14).
-By default it matches field names against a keyword table; an operator can add a model that reads
-the names as well. It has no evaluation set yet, so nothing here claims it is validated.
+It matches field names against a keyword table, and by default a model reads the names as well;
+an operator can turn the model off. It has no evaluation set yet, so nothing here claims it is validated.
 
 The Research Ethics Adviser is one of the personas of the agent roster ([Agents](../../docs/specs/agents.md)). It serves two
 steps of the Blueprint's process flow:
@@ -37,8 +37,8 @@ names), and whether it `involves_people` and whether an embargo is intended
 
 1. Each field name is split into words and matched against `keywords.yaml`. A field that matches
    is flagged `lexical`.
-2. The reader then reads the names. With the default `template` reader it adds nothing. With the
-   `model` reader a model is given the field names, the two context flags, the categories and the
+2. The reader then reads the names. With the `template` reader it adds nothing. With the
+   `model` reader (the default) a model is given the field names, the two context flags, the categories and the
    fields already flagged, and replies against a schema with further flags and at most three
    questions (`reader.py`, `system_prompt.md`).
 3. A checker drops a model flag that names a field not in the input or a category not in the
@@ -57,15 +57,16 @@ declares the model (`AgentSpec.models`).
 
 `DD_ETHICS_READER` (`factory.py`, `config/examples/agents.env`):
 
-- `template` (default): keyword table only; needs no key, calls no model.
-- `model`: a model reads the names as well; `anthropic` is its older name. The model and its
+- `model` (default): a model reads the names as well; `anthropic` is its older name. Left unset with no key, `dd.py start` runs it with `template`.
+- `template`: keyword table only; needs no key, calls no model. The model and its
   provider come from `DD_MODEL_PROVIDER`, `DD_MODEL_ID` and `DD_MODEL_BASE_URL`, with the key in
   the agent's own file ([AI models](../../docs/guide/operations/ai-models.md)). Install the
   package's `model` extra.
 
 ## Where field names go
 
-With the `model` reader, the field names a caller sends go to the configured model. A hosted model
+With the `model` reader, which is the default, the field names a caller sends go to the configured
+model. A hosted model
 is outside the institution, and field names of a sensitive dataset can themselves say something
 about the people in it.
 

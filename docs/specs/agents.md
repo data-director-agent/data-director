@@ -65,12 +65,12 @@ is in [`harness/docs/registry.md`](../../harness/docs/registry.md).
     says in `limitations` what it does not yet do; a payload of the core `Document` class, which
     has no such slot, says it in the outcome statement instead. A mock declares no model and
     substantiates no Blueprint requirement; its tests may be marked only with the project's own
-    contract requirements (`DD-*`) that the harness enforces on every agent.
+    contract requirements (`DD-*`) that the harness enforces on every agent. No in-tree agent is
+    a mock now: `advisor.files`, the last, is a model-backed alpha.
 14. A model-backed alpha advisor sits between a mock and a persona. It has a pre-release version,
     its grounding mode is `input_only`, or `retrieval` where it reads outside records (the Policy
     Adviser), and its description does not begin "Mock.". It has a `template` writer, which
-    calls no model, so it runs and its tests pass with no key; that writer is its default, except
-    for the Documentation Editor and the Policy Adviser, whose models are on by default
+    calls no model, so it runs and its tests pass with no key, but its model is on by default
     (Model-backed personas). Its `factory` module names the setting that chooses the writer
     (`SWITCH`) and that setting's default (`DEFAULT`). It declares a model in `AgentSpec.models`
     only when one is configured. Its payload says what it still does not do, as a mock's does.
@@ -179,8 +179,8 @@ roster for #353 found:
 | `advisor.ethics`, `advisor.dmp` | Model-backed alpha first: the rules are the weak point and the task is reading language. |
 | `advisor.rights`, `advisor.metadata` | Model-backed alpha, choosing from a closed set (rights) or suggesting beside a value (metadata). |
 | `advisor.fairness` | Model-backed alpha for its recommendations only; little gain until it retrieves. |
-| `advisor.quality` | Stays rule-based; it overlaps the FAIR Assessor (#18). |
-| `advisor.linking`, `advisor.files` | Stay deterministic: identifier syntax, checksums and format lookup are exact. Their next step is retrieval (#360, #354). `advisor.linking` has taken it for DOIs, through the tool gateway; it declares `retrieval` and left the mock row, so invariant 13 no longer describes it. |
+| `advisor.quality` | Stays rule-based in its findings; it overlaps the FAIR Assessor (#18). Since every advisor became model-backed by default, a model writes a summary beside them (`dd_sdk.summary`). |
+| `advisor.linking`, `advisor.files` | Identifier syntax, checksums and format lookup are exact and stay in rules. Their next step is retrieval (#360, #354); `advisor.linking` has taken it for DOIs, through the tool gateway. Since every advisor became model-backed by default, each is a model-backed alpha whose model only writes a summary beside the rules' findings (`dd_sdk.summary`). |
 | `orchestrator.stub`, `example.hello` | Stay deterministic by design. |
 
 Each in-tree agent's state now. This table is the one place a state is written down:
@@ -188,10 +188,10 @@ Each in-tree agent's state now. This table is the one place a state is written d
 
 | State | Agents |
 |---|---|
-| Mock (invariant 13) | `advisor.files` |
-| Model-backed alpha (invariant 14) | `advisor.dmp`, `advisor.documentation`, `advisor.ethics`, `advisor.fairness`, `advisor.metadata`, `advisor.policy`, `advisor.rights` |
+| Mock (invariant 13) | none |
+| Model-backed alpha (invariant 14) | `advisor.dmp`, `advisor.documentation`, `advisor.ethics`, `advisor.fairness`, `advisor.files`, `advisor.linking`, `advisor.metadata`, `advisor.policy`, `advisor.rights` |
 | Persona | `advisor.quality`, `advisor.repository`, `advisor.standards` |
-| Deterministic by design, or not an advisor | `advisor.linking`, `example.hello`, `orchestrator.model`, `orchestrator.stub` |
+| Deterministic by design, or not an advisor | `example.hello`, `orchestrator.model`, `orchestrator.stub` |
 
 What a persona that drafts project documents may infer, ask and write is in
 [Drafting documents](drafting.md).
@@ -200,16 +200,22 @@ What a persona that drafts project documents may infer, ask and write is in
 
 Every advisor that calls a model, from its alpha onwards, is built the same way, so that adding
 tools or an evaluation later changes the agent without rewriting it. `advisor-standards/` is the
-worked example of the `template` default (`factory.py`, `explain.py`), and
+worked example of a model with a `template` path (`factory.py`, `explain.py`), and
 `advisor-documentation/` of the declared model and of structured output (`factory.py`,
 `prose.py`), and `advisor-policy/` and `advisor-standards/` of a model that calls tools
-(`advise.py`). Every model-backed advisor has a `template` path an operator can select. Three
-advisors' models are on by default (`dd_sdk.model_provider.optional_model(..., default="model")`):
-the Documentation Editor's, because its model only adds prose and suggestions beside a draft made
-by rule; the Policy Adviser's, because its model only adds to what its rules found, and each
-obligation it adds stands only on a quote that code finds in the cited record; and the Standards
-Librarian's, because its model never removes a pick its ranking rules made, and each standard it
-adds is a record retrieved in the run that code checks against the dataset profile.
+(`advise.py`). `dd_sdk.summary` is the barebones model path of an advisor whose work is otherwise
+exact (`advisor-files/`, `advisor-linking/`, `advisor-quality/`): its model writes one summary
+beside the rules' findings and cannot change them. Every model-backed advisor has a `template`
+path an operator can select, and every advisor's model is on by default
+(`dd_sdk.model_provider.optional_model(..., default="model")`; `scripts/tests/test_roster.py`).
+That is safe because, by item 3, no model removes what a rule found: the Documentation Editor's
+only adds prose and suggestions beside a draft made by rule; the Policy Adviser's only adds to what
+its rules found, each obligation standing only on a quote that code finds in the cited record; the
+Standards Librarian's never removes a pick its ranking rules made, and each standard it adds is a
+record retrieved in the run that code checks; the others add flags, questions, rationale,
+suggestions or a summary beside rule output, or choose from a closed set. What each sends to its
+model is listed in [AI models](../guide/operations/ai-models.md); the profile's `hosted_models`
+still decides whether a hosted model may receive project content.
 
 1. **Deterministic shell, model core.** Input checks, abstentions, scores and anything exact
    (checksums, licence ids, the shape of a schema) stay in code; the model does judgement and
@@ -381,7 +387,7 @@ loaded into the model's prompt, and a served local MCP server for a pinned SPDX 
   a card stays meaningful wherever it is read.
 - **A model-backed alpha.** It shows a persona's model-backed design to researchers early without
   claiming it is validated. The `template` path keeps CI and deployments without a key
-  working (the Documentation Editor's by being selected, the others' by default), and keeping exact work in a deterministic shell keeps it testable and lets a failed
+  working when it is selected, and keeping exact work in a deterministic shell keeps it testable and lets a failed
   or rejected model reply fall back to rule output.
 - **Tools through the harness.** A retrieval an agent makes itself is only its own account of
   what it read, so the linter can check only that the account agrees with itself

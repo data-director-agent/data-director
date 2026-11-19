@@ -7,7 +7,7 @@
   reads the committed copy; `live` asks FAIRsharing's public route, which needs no account, and
   falls back to the snapshot, marked stale, when it fails. re3data is always read from the
   registry built from its pinned export (`registry.py`, `dd-sources prepare`).
-- `DD_REPOSITORY_EXPLAINER`: `template` (default) or `model`, which has a model write the rationale
+- `DD_REPOSITORY_EXPLAINER`: `template` or `model` (default), which has a model write the rationale
   (`anthropic`, its older name, still works).
 - With `model`: `DD_MODEL_PROVIDER` (`anthropic` by default), `DD_MODEL_ID` (Claude Sonnet 5.5
   by default for Anthropic), `DD_MODEL_BASE_URL` and the provider's key, read at start-up
@@ -23,6 +23,7 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping
 from dataclasses import replace
+from typing import Literal
 
 from dd_agent_advisor_repository.agent import RepositoryAgent
 from dd_agent_advisor_repository.explain import (
@@ -38,9 +39,12 @@ from dd_sdk.credentials import ConfigError
 from dd_sdk.model import declared
 from dd_sdk.model_provider import optional_model
 
+SWITCH = "DD_REPOSITORY_EXPLAINER"
+DEFAULT: Literal["template", "model"] = "model"
+
 
 def build_explainer(env: Mapping[str, str]) -> Explainer:
-    model = optional_model(env, "DD_REPOSITORY_EXPLAINER", default_model=DEFAULT_MODEL)
+    model = optional_model(env, SWITCH, default_model=DEFAULT_MODEL, default=DEFAULT)
     return TemplateExplainer() if model is None else ModelExplainer(model)
 
 

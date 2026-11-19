@@ -3,10 +3,10 @@
 `build` assembles the Metadata Librarian from its own environment variables (documented in
 `config/examples/agents.env`):
 
-- `DD_METADATA_SUGGESTER`: `template` (default) drafts the record and its questions by rule,
-  suggests nothing, calls no model and needs no key. `model` also has a model suggest values for
-  some of the questions, beside the question and never in the record (`suggest.py`); `anthropic`
-  names the same while `DD_MODEL_PROVIDER` is `anthropic`.
+- `DD_METADATA_SUGGESTER`: `template` drafts the record and its questions by rule, suggests nothing,
+  calls no model and needs no key. `model` (the default) also has a model suggest values for some of
+  the questions, beside the question and never in the record (`suggest.py`); `anthropic` names the
+  same while `DD_MODEL_PROVIDER` is `anthropic`.
 - With `model`: `DD_MODEL_PROVIDER` (`anthropic` by default), `DD_MODEL_ID` (Claude Sonnet 5.5
   by default for Anthropic), `DD_MODEL_BASE_URL` and the provider's key, read at start-up
   (`dd_sdk.model_provider`, docs/specs/policy-and-identity.md).
@@ -37,7 +37,7 @@ from dd_sdk.model import declared
 from dd_sdk.model_provider import optional_model
 
 SWITCH = "DD_METADATA_SUGGESTER"
-DEFAULT: Literal["template", "model"] = "template"
+DEFAULT: Literal["template", "model"] = "model"
 
 
 def build_suggester(env: Mapping[str, str]) -> Suggester:

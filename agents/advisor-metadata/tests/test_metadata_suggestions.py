@@ -197,10 +197,15 @@ def test_an_invented_identifier_or_an_unasked_question_is_dropped() -> None:
     assert not long.answers and long.dropped
 
 
-def test_the_default_build_suggests_nothing_and_needs_no_key() -> None:
-    agent = build({})
+def test_the_template_build_suggests_nothing_and_needs_no_key() -> None:
+    agent = build({"DD_METADATA_SUGGESTER": "template"})
     assert isinstance(agent.suggester, TemplateSuggester)
     assert agent.spec.models == ()
+
+
+def test_the_model_is_on_by_default_and_says_how_to_turn_it_off() -> None:
+    with pytest.raises(ConfigError, match="DD_METADATA_SUGGESTER=template"):
+        build({})
 
 
 def test_the_model_suggester_is_declared_on_the_card() -> None:

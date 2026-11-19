@@ -44,6 +44,9 @@ services:
     command: dd-advisor-quality serve --host 0.0.0.0 --port 8102 --public-url http://advisor-quality:8102
     environment:
       PORT: "8102"
+      # As for the documentation advisor: its model is on by default and this stack gives it no
+      # key, so it runs with `template` unless the shell exports DD_QUALITY_SUMMARISER=model.
+      DD_QUALITY_SUMMARISER: ${DD_QUALITY_SUMMARISER:-template}
 
   advisor-standards:
     <<: *agent
@@ -68,30 +71,45 @@ services:
     command: dd-advisor-repository serve --host 0.0.0.0 --port 8109 --public-url http://advisor-repository:8109
     environment:
       PORT: "8109"
+      # As for the documentation advisor: its model is on by default and this stack gives it no
+      # key, so it runs with `template` unless the shell exports DD_REPOSITORY_EXPLAINER=model.
+      DD_REPOSITORY_EXPLAINER: ${DD_REPOSITORY_EXPLAINER:-template}
 
   advisor-ethics:
     <<: *agent
     command: dd-advisor-ethics serve --host 0.0.0.0 --port 8111 --public-url http://advisor-ethics:8111
     environment:
       PORT: "8111"
+      # As for the documentation advisor: its model is on by default and this stack gives it no
+      # key, so it runs with `template` unless the shell exports DD_ETHICS_READER=model.
+      DD_ETHICS_READER: ${DD_ETHICS_READER:-template}
 
   advisor-files:
     <<: *agent
     command: dd-advisor-files serve --host 0.0.0.0 --port 8110 --public-url http://advisor-files:8110
     environment:
       PORT: "8110"
+      # As for the documentation advisor: its model is on by default and this stack gives it no
+      # key, so it runs with `template` unless the shell exports DD_FILES_SUMMARISER=model.
+      DD_FILES_SUMMARISER: ${DD_FILES_SUMMARISER:-template}
 
   advisor-dmp:
     <<: *agent
     command: dd-advisor-dmp serve --host 0.0.0.0 --port 8112 --public-url http://advisor-dmp:8112
     environment:
       PORT: "8112"
+      # As for the documentation advisor: its model is on by default and this stack gives it no
+      # key, so it runs with `template` unless the shell exports DD_DMP_MATCHER=model.
+      DD_DMP_MATCHER: ${DD_DMP_MATCHER:-template}
 
   advisor-metadata:
     <<: *agent
     command: dd-advisor-metadata serve --host 0.0.0.0 --port 8113 --public-url http://advisor-metadata:8113
     environment:
       PORT: "8113"
+      # As for the documentation advisor: its model is on by default and this stack gives it no
+      # key, so it runs with `template` unless the shell exports DD_METADATA_SUGGESTER=model.
+      DD_METADATA_SUGGESTER: ${DD_METADATA_SUGGESTER:-template}
 
   advisor-documentation:
     <<: *agent
@@ -108,18 +126,27 @@ services:
     command: dd-advisor-rights serve --host 0.0.0.0 --port 8115 --public-url http://advisor-rights:8115
     environment:
       PORT: "8115"
+      # As for the documentation advisor: its model is on by default and this stack gives it no
+      # key, so it runs with `template` unless the shell exports DD_RIGHTS_INTERPRETER=model.
+      DD_RIGHTS_INTERPRETER: ${DD_RIGHTS_INTERPRETER:-template}
 
   advisor-linking:
     <<: *agent
     command: dd-advisor-linking serve --host 0.0.0.0 --port 8116 --public-url http://advisor-linking:8116
     environment:
       PORT: "8116"
+      # As for the documentation advisor: its model is on by default and this stack gives it no
+      # key, so it runs with `template` unless the shell exports DD_LINKING_SUMMARISER=model.
+      DD_LINKING_SUMMARISER: ${DD_LINKING_SUMMARISER:-template}
 
   advisor-fairness:
     <<: *agent
     command: dd-advisor-fairness serve --host 0.0.0.0 --port 8117 --public-url http://advisor-fairness:8117
     environment:
       PORT: "8117"
+      # As for the documentation advisor: its model is on by default and this stack gives it no
+      # key, so it runs with `template` unless the shell exports DD_FAIRNESS_WRITER=model.
+      DD_FAIRNESS_WRITER: ${DD_FAIRNESS_WRITER:-template}
 
   orchestrator-stub:
     <<: *agent

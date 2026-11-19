@@ -35,12 +35,21 @@ PROVIDER_KEYS = {
 KEY_VARS = tuple(v for key in PROVIDER_KEYS.values() for v in (key, f"{key}_FILE"))
 # Agents that stop at start-up without a model key, so `start` skips them when they have none.
 MODEL_BACKED = {"orchestrator-model"}
-# Agents whose model is on unless their own setting says `template`, by that setting
-# (agents/advisor-documentation/README.md). Left unset with no key, `start` runs them with
-# `template`; a deployment on a VM is refused until they have a key or are set to `template`.
+# Agents whose model is on unless their own setting says `template`, by that setting: every
+# advisor (docs/specs/agents.md, Model-backed personas). Left unset with no key, `start` runs them
+# with `template`; a deployment on a VM is refused until they have a key or are set to `template`.
 MODEL_BY_DEFAULT = {
+    "advisor-dmp": "DD_DMP_MATCHER",
     "advisor-documentation": "DD_DOCUMENTATION_WRITER",
+    "advisor-ethics": "DD_ETHICS_READER",
+    "advisor-fairness": "DD_FAIRNESS_WRITER",
+    "advisor-files": "DD_FILES_SUMMARISER",
+    "advisor-linking": "DD_LINKING_SUMMARISER",
+    "advisor-metadata": "DD_METADATA_SUGGESTER",
     "advisor-policy": "DD_POLICY_ADVISOR",
+    "advisor-quality": "DD_QUALITY_SUMMARISER",
+    "advisor-repository": "DD_REPOSITORY_EXPLAINER",
+    "advisor-rights": "DD_RIGHTS_INTERPRETER",
     "advisor-standards": "DD_STANDARDS_EXPLAINER",
 }
 NODE_MAJOR = 22  # the oldest Node the shell's toolchain supports (README, "Quick start")

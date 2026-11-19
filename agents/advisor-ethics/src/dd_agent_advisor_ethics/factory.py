@@ -3,8 +3,8 @@
 `build` assembles the Research Ethics Adviser from its own environment variables (documented in
 `config/examples/agents.env`):
 
-- `DD_ETHICS_READER`: `template` (default) matches field names by keyword only. `model` has a model
-  read the names as well; it may add flags and questions but never remove a keyword flag
+- `DD_ETHICS_READER`: `template` matches field names by keyword only. `model` (the default) has a
+  model read the names as well; it may add flags and questions but never remove a keyword flag
   (`anthropic`, its older name, still works).
 - With `model`: `DD_MODEL_PROVIDER` (`anthropic` by default), `DD_MODEL_ID` (Claude Sonnet 5.5
   by default for Anthropic), `DD_MODEL_BASE_URL` and the provider's key, read at start-up
@@ -30,7 +30,7 @@ from dd_sdk.model import declared
 from dd_sdk.model_provider import optional_model
 
 SWITCH = "DD_ETHICS_READER"
-DEFAULT: Literal["template", "model"] = "template"
+DEFAULT: Literal["template", "model"] = "model"
 
 
 def build_reader(env: Mapping[str, str]) -> Reader:

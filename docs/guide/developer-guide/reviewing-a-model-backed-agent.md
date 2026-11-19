@@ -8,7 +8,7 @@ The rules themselves are in the [Agents](../../specs/agents.md) specification: i
 model-backed alpha state, and [Model-backed personas](../../specs/agents.md#model-backed-personas)
 for how every such advisor is built. Each item below is a check against one of those rules, not a
 restatement of it; where the two disagree, the specification wins and this page should be fixed.
-`agents/advisor-standards/` is the worked example of the `template` default (`factory.py`,
+`agents/advisor-standards/` is the worked example of a model with a `template` path (`factory.py`,
 `explain.py`), and `agents/advisor-documentation/` of the declared model and structured output
 (`factory.py`, `prose.py`).
 
@@ -20,9 +20,9 @@ Invariant 14 in [Agents](../../specs/agents.md#invariants).
       row in the table in [`agents/README.md`](../../../agents/README.md) say it is alpha.
 - [ ] Its grounding mode is `input_only`.
 - [ ] Its description does not begin "Mock.", and the agent's own tests check that.
-- [ ] It has a `template` writer, which calls no model, and it is the default unless the
-      specification says otherwise (only `advisor-documentation` defaults to `model`). With the
-      `template` writer and no key set, the agent runs, and its whole suite passes with no key.
+- [ ] It has a `template` writer, which calls no model, that an operator can select; its model
+      is on by default (`DEFAULT = "model"` in its `factory.py`). With the `template` writer and
+      no key set, the agent runs, and its whole suite passes with no key.
 - [ ] `AgentSpec.models` declares a `dd_sdk.agent.ModelUse` only when a model is configured, as
       `advisor-documentation`'s `factory.py` does; the template path declares none.
 - [ ] The payload's `limitations` says what the advisor still does not do.

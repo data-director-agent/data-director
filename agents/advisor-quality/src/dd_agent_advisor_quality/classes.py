@@ -41,3 +41,5 @@ class QualityReview(Grounded):
     schema_class: Literal["QualityReview"] = "QualityReview"
     score: float | None = None
     findings: list[Finding] = Field(default_factory=list)
+    summary: str | None = None
+    summary_derivation: Derivation | None = None

@@ -3,7 +3,7 @@
 # proprietary software) and, where we are sure of them, the format's PRONOM identifiers (`pronom`,
 # PUIDs such as fmt/18). A row with no `pronom` has none we are sure of; leave it so rather than
 # guess. The inventory's PRONOM identifiers, read from content, are looked up first (by PUID), then
-# its media type, then a file's last extension. A mock's table (docs/specs/agents.md): the
+# its media type, then a file's last extension. An alpha's table (docs/specs/agents.md): the
 # extension alone says nothing certain about a file's content, and the real archivist is TODO(#354).
 csv: {format: Comma-separated values, media_type: text/csv, open: true, pronom: [x-fmt/18]}
 tsv: {format: Tab-separated values, media_type: text/tab-separated-values, open: true}

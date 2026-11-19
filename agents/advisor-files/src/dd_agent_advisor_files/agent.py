@@ -1,4 +1,4 @@
-"""advisor.files: the File Archivist persona (docs/specs/agents.md). A mock.
+"""advisor.files: the File Archivist persona (docs/specs/agents.md). A model-backed alpha.
 
 Serves `preparation.files`. It takes a project's file inventory (docs/specs/projects.md) and reports
 the format each file is judged to be, and whether that format is open, so that a person can see
@@ -10,13 +10,16 @@ files, empty files and byte-for-byte copies, by the rules in `hints.yaml`. The i
 contents, so each is a prompt for a person, never a finding, and a file it does not list may still
 hold personal data (docs/specs/personal-data.md).
 
-The mock looks up the PRONOM identifiers the inventory gives, which `dd-inventory` read from the
+It looks up the PRONOM identifiers the inventory gives, which `dd-inventory` read from the
 file's content with fido, in `formats.yaml`; failing that, the media type the inventory gives;
 failing that, the file's last extension. An identifier the table does not know is reported as
 identified but not in the table, and an identification that disagrees with the extension is a check
 for a person.
-It reads no file, consults no source and calls no model, so its grounding mode is `none` and it
-cites only its input. The real archivist, which also weighs table fields, is TODO(#354).
+It reads no file and consults no source, so it cites only its input (grounding mode
+`input_only`). Each format and check is decided by rule; a summariser (`dd_sdk.summary`) then
+writes a short summary beside them: a model's by default, the rules' own with
+`DD_FILES_SUMMARISER=template` (`factory.py`). The real archivist, which also weighs table fields,
+is TODO(#354).
 """
 
 from __future__ import annotations
@@ -36,7 +39,7 @@ from dd_agent_advisor_files.classes import (
     FormatAssessment,
     JudgedBy,
 )
-from dd_sdk import serve
+from dd_sdk import summary
 from dd_sdk.agent import (
     AgentResult,
     AgentSpec,
@@ -70,13 +73,15 @@ MISMATCH_QUESTION = (
 )
 
 LIMITATIONS = (
-    "This is a mock: it judges each format by the inventory's PRONOM identifiers, its media type "
+    "It judges each format by the inventory's PRONOM identifiers, its media type "
     "or the file name's extension, using a short table of formats.",
     "A format outside that table is reported as such, not described.",
     "It does not weigh the inventory's table fields.",
     "It does not check that files open or suggest conversions.",
     "It reads folder, file and field names, never contents: a file it does not list for a person "
     "to look at may still hold personal data, sensitive locations or someone else's material.",
+    "Its summary is written by a model from the findings alone unless the template is chosen; "
+    "the findings above it are the agent's judgement, not the summary.",
 )
 
 
@@ -142,14 +147,14 @@ class FileArchivist:
         title="File Archivist",
         icon="🗄️",
         description=(
-            "Mock. Lists each file of a project's inventory with the format its PRONOM "
+            "Lists each file of a project's inventory with the format its PRONOM "
             "identification, media type or extension suggests, and whether that format is open, "
             "and the files whose names, size or digest call for a person to look at them "
-            "before deposit. Reads no file."
+            "before deposit, with a short summary. Reads no file."
         ),
         action_class="advise",
         accepts=(ClassSchema.of(FileInventory),),
-        grounding_mode=GroundingMode.NONE,
+        grounding_mode=GroundingMode.INPUT_ONLY,
         payload=ClassSchema.of(FormatAssessment),
         derivations={
             "assessments.extension": Derived(Derivation.LEXICAL),
@@ -163,16 +168,21 @@ class FileArchivist:
             "checks.matched": Derived(Derivation.LEXICAL),
             "checks.question": Derived(Derivation.TEMPLATE),
             "checks.related_paths": Derived(Derivation.LEXICAL),
+            "summary": Derived(Derivation.MODEL, recorded_in="summary_derivation"),
             "limitations": Derived(Derivation.TEMPLATE),
         },
         serves=("preparation.files",),
     )
 
     def __init__(
-        self, formats: dict[str, Format] | None = None, hints: tuple[Hint, ...] | None = None
+        self,
+        formats: dict[str, Format] | None = None,
+        hints: tuple[Hint, ...] | None = None,
+        summariser: summary.Summariser | None = None,
     ) -> None:
         self.formats = formats if formats is not None else load_formats()
         self.hints = hints if hints is not None else load_hints()
+        self.summariser = summariser or summary.TemplateSummariser()
         self.by_media_type: dict[str, Format] = {}
         self.by_puid: dict[str, Format] = {}
         for known in self.formats.values():
@@ -196,20 +206,28 @@ class FileArchivist:
         assessments = [self._assess(file) for file in inventory.inventory_files]
         checks = self._checks(inventory.inventory_files)
         closed = sum(not a.open_format for a in assessments)
-        ref = input_ref(ctx)
-        return AgentResult(
-            outcome=Outcome(
-                status=OutcomeStatus.SUCCEEDED,
-                statement=_statement(checks, closed, len(assessments)),
-            ),
+        statement = _statement(checks, closed, len(assessments))
+        told = summary.Findings(
+            {
+                "assessments": [a.model_dump(mode="json", exclude_none=True) for a in assessments],
+                "checks": [c.model_dump(mode="json", exclude_none=True) for c in checks],
+            },
+            statement,
+        )
+        summarised, explanation = summary.summarise(self.summariser, told, ctx)
+        result = AgentResult(
+            outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement=statement),
             payload=FormatAssessment(
                 assessments=assessments,
                 checks=checks,
+                summary=summarised.text,
+                summary_derivation=summarised.derivation,
                 limitations=list(LIMITATIONS),
-                grounded_on=[ref],
+                grounded_on=[input_ref(ctx)],
             ),
             evidence=[input_evidence(ctx)],
         )
+        return summary.with_calls(result, self.summariser.model_id, explanation)
 
     def _checks(self, files: list[InventoryFile]) -> list[FileCheck]:
         copies: dict[str, list[str]] = defaultdict(list)
@@ -330,7 +348,7 @@ def _named(hint: Hint, file: InventoryFile) -> FileCheck | None:
 
 def _statement(checks: list[FileCheck], closed: int, total: int) -> str:
     formats = (
-        f"Mock: {closed} of {total} files are in a format that is not open, or that is unknown. "
+        f"{closed} of {total} files are in a format that is not open, or that is unknown. "
         "A person must check each file."
     )
     if not checks:
@@ -346,12 +364,3 @@ def _statement(checks: list[FileCheck], closed: int, total: int) -> str:
         f"is a prompt, judged from names alone, not a finding. {formats} Contents were not read, "
         "so a file not listed may still need checking."
     )
-
-
-def build() -> FileArchivist:
-    return FileArchivist()
-
-
-def main() -> int:
-    """The `dd-advisor-files` console script: serve over A2A with `dd_sdk.serve`."""
-    return serve.main(build)

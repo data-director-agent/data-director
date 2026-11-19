@@ -3,8 +3,8 @@
 `build` assembles the Rights and Licensing Adviser from its own environment variables (documented
 in `config/examples/agents.env`):
 
-- `DD_RIGHTS_INTERPRETER`: `template` (default) reads the reuse wanted only as one of the table's
-  values, calls no model and needs no key. `model` has a model read what the rules cannot: a
+- `DD_RIGHTS_INTERPRETER`: `template` reads the reuse wanted only as one of the table's values,
+  calls no model and needs no key. `model` (the default) has a model read what the rules cannot: a
   reuse wish in the researcher's own words, and questions tailored to third-party content or a
   mandate (`interpret.py`); `anthropic` names the same while `DD_MODEL_PROVIDER` is `anthropic`.
 - With `model`: `DD_MODEL_PROVIDER` (`anthropic` by default), `DD_MODEL_ID` (Claude Sonnet 5.5
@@ -35,7 +35,7 @@ from dd_sdk.model import declared
 from dd_sdk.model_provider import optional_model
 
 SWITCH = "DD_RIGHTS_INTERPRETER"
-DEFAULT: Literal["template", "model"] = "template"
+DEFAULT: Literal["template", "model"] = "model"
 
 
 def build_interpreter(env: Mapping[str, str]) -> Interpreter:
