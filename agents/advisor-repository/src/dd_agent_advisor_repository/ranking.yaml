@@ -3,7 +3,7 @@
 # Certification carries no weight. Figure 3 says the agent should not weight paid certification
 # above free evaluation, and re3data lists few certificates, so the fair weight is none.
 # A commercial operator is never dropped; at an equal score it is listed after the others, and
-# then one that lists a deposit fee after those that do not.
+# then one that lists a deposit fee after those that do not (`tie_break`).
 #
 # Left out whatever their score: a repository closed to deposits, and one that takes deposits
 # only from its own institution's members (re3data's "institutional membership" restriction,
@@ -22,6 +22,11 @@ order: [discipline, institutional, generalist]
 # At most this many repositories are recommended, besides those the researcher's own institution
 # operates.
 max_candidates: 5
+# At least this many places within `max_candidates` are kept for each kind of fit, when that many
+# of the kind qualify. One generalist place means a researcher who does not already know where to
+# deposit always has a usable option, however many repositories match the discipline (#1169).
+reserve:
+  generalist: 1
 # Records retrieved per query from the registry: per theme, this many found by its text and this
 # many filed under the DFG subjects it names.
 search_limit: 10
@@ -31,16 +36,29 @@ text_hits: 50
 # The score a repository needs to be recommended.
 confidence_floor: 0.3
 
+# At an equal kind of fit and score, a repository whose re3data record gives the answer stated here
+# is listed first, one that leaves it unstated next, and one that gives the other answer last; in
+# this order of questions (`assess`). A commercial operator is never dropped, only listed later.
+tie_break:
+  commercial: "no"
+  fee_required: "no"
+  assigns_pids: "yes"
+
 # Generalist repositories, which take data from any discipline: Figure 3's "domain-specific or
 # generalist". They are taken by identifier for every shortlist, and rank below any repository
 # that matches the dataset's discipline.
+#
+# The list is in order of preference, which settles what `tie_break` leaves equal (re3data does
+# not tell Zenodo, Harvard Dataverse and the Open Science Framework apart): free to deposit,
+# not-for-profit, DOIs, open to any researcher, and publicly funded for the long term first.
+# Zenodo is operated by CERN and was launched with OpenAIRE, under the European Commission.
 generalists:
   - r3d100010468  # Zenodo
-  - r3d100010066  # figshare
   - r3d100010051  # Harvard Dataverse
-  - r3d100000044  # Dryad
   - r3d100011137  # Open Science Framework
-  - r3d100011868  # Mendeley Data
+  - r3d100000044  # Dryad: lists a deposit fee
+  - r3d100010066  # figshare: commercial, lists a deposit fee
+  - r3d100011868  # Mendeley Data: commercial
 
 # How well a repository matches one theme, from 0 to 1.
 theme_match:

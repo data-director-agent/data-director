@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from functools import cache
 from pathlib import Path
@@ -28,13 +29,37 @@ INSTITUTIONAL = "institutional"
 GENERALIST = "generalist"
 
 
+# The questions `ranking.yaml`'s `tie_break` may ask of a record.
+TIE_BREAKS: dict[str, Callable[[Re3dataRecord], Answer]] = {
+    "commercial": assess.commercial,
+    "fee_required": assess.fee_required,
+    "assigns_pids": assess.assigns_pids,
+}
+
+
 @cache
 def config() -> dict[str, Any]:
     loaded: dict[str, Any] = yaml.safe_load(RANKING.read_text(encoding="utf-8"))
+    check(loaded)
     return loaded
 
 
+def check(cfg: dict[str, Any]) -> None:
+    """Raise ValueError if the reserved places or the tie-break cannot be applied as written."""
+    reserve = cfg.get("reserve") or {}
+    if unknown := set(reserve) - set(cfg["order"]):
+        raise ValueError(f"reserve names kinds of fit not in order: {sorted(unknown)}")
+    if sum(int(n) for n in reserve.values()) > int(cfg["max_candidates"]):
+        raise ValueError("reserve keeps more places than max_candidates allows")
+    for question, preferred in (cfg.get("tie_break") or {}).items():
+        if question not in TIE_BREAKS:
+            raise ValueError(f"tie_break asks an unknown question: {question}")
+        if Answer(preferred) == Answer.UNSTATED:
+            raise ValueError(f"tie_break must prefer yes or no for {question}")
+
+
 def generalists() -> list[str]:
+    """The generalist repositories, in `ranking.yaml`'s order of preference."""
     return [str(rid) for rid in config()["generalists"]]
 
 
@@ -293,7 +318,6 @@ def rank(
     that already matches, so that one operated there ranks above an equal or slightly closer
     match elsewhere (#741).
     """
-    cfg = config()
     # The researcher's country as given, else as re3data records their institution's.
     country, whose, inferred = needs.country, "the researcher's country", False
     if country is None:
@@ -314,13 +338,42 @@ def rank(
     ]
     # The cap applies only to repositories the researcher's institution does not operate, so
     # naming an institution adds its repositories and never displaces another (#441).
-    cap = int(cfg["max_candidates"])
     ours = [r for r in ranked if assess.affiliated(r.record, needs.affiliation) is not None]
-    others = sorted(
-        (r for r in ranked if r not in ours),
-        key=lambda r: _order(replace(r, score=r.score - r.nudge)),
-    )[:cap]
+    others = _cap(
+        sorted(
+            (r for r in ranked if r not in ours),
+            key=lambda r: _order(replace(r, score=r.score - r.nudge)),
+        )
+    )
     return _say_ties(sorted(others + ours, key=_order))
+
+
+def _cap(ranked: list[Ranked]) -> list[Ranked]:
+    """The first `max_candidates` of `ranked`, in its order, except that `reserve`'s places for
+    each kind of fit are kept for that kind when it has repositories to fill them, so that
+    matches of one kind never crowd out every match of another (#1169). A repository that is
+    listed only because of its reserved place says so."""
+    cfg = config()
+    cap = int(cfg["max_candidates"])
+    reserve = {str(k): int(n) for k, n in (cfg.get("reserve") or {}).items()}
+    kept: set[int] = set()
+    for fit, places in reserve.items():
+        kept.update([i for i, r in enumerate(ranked) if r.fit == fit][:places])
+    kept.update([i for i in range(len(ranked)) if i not in kept][: cap - len(kept)])
+    out: list[Ranked] = []
+    for i in sorted(kept):
+        r = ranked[i]
+        if i >= cap:  # listed only because of its kind's reserved place
+            places = reserve[r.fit]
+            kept_for = "a place" if places == 1 else f"{places} places"
+            why = (
+                f"Listed in {kept_for} of {cap} that the shortlist keeps for a {r.fit} "
+                "repository, so that there is an option however many repositories match the "
+                "discipline."
+            )
+            r = replace(r, reasons=(*r.reasons, why))
+        out.append(r)
+    return out
 
 
 def _say_ties(ranked: list[Ranked]) -> list[Ranked]:
@@ -334,25 +387,39 @@ def _say_ties(ranked: list[Ranked]) -> list[Ranked]:
         others = groups[(r.fit, r.score)] - 1
         if others:
             noun = "other" if others == 1 else "others"
-            r = replace(
-                r,
-                reasons=(
-                    *r.reasons,
-                    f"Ranked equal with {others} {noun} on this shortlist; their order is not a "
-                    "preference.",
-                ),
+            why = (
+                "they are listed by the stated order of preference among generalists: free to "
+                "deposit, not-for-profit, assigning DOIs and publicly funded first."
+                if r.fit == GENERALIST
+                else "their order is not a preference."
             )
+            tied = f"Ranked equal with {others} {noun} on this shortlist; {why}"
+            r = replace(r, reasons=(*r.reasons, tied))
         out.append(r)
     return out
 
 
-def _order(r: Ranked) -> tuple[int, float, bool, bool, str]:
-    """By kind of fit, then best score; at an equal score, commercial operators and then
-    deposit fees last."""
+def _order(r: Ranked) -> tuple[int, float, tuple[int, ...], int, str]:
+    """By kind of fit, then best score; at an equal score, by `tie_break` (the preferred answer
+    first, unstated next, the other last), then by the generalists' order of preference, and
+    last by name, so that the order is the same on every run."""
+    cfg = config()
+    tie = tuple(
+        _preference(TIE_BREAKS[question](r.record), Answer(preferred))
+        for question, preferred in (cfg.get("tie_break") or {}).items()
+    )
+    general = generalists()
+    rid = r.record.re3data_id
     return (
-        [str(f) for f in config()["order"]].index(r.fit),
+        [str(f) for f in cfg["order"]].index(r.fit),
         -r.score,
-        assess.commercial(r.record) == Answer.YES,
-        assess.fee_required(r.record) == Answer.YES,
+        tie,
+        general.index(rid) if rid in general else len(general),
         r.record.name.casefold(),
     )
+
+
+def _preference(answer: Answer, preferred: Answer) -> int:
+    if answer == Answer.UNSTATED:
+        return 1
+    return 0 if answer == preferred else 2
