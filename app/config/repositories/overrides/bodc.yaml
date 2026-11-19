@@ -1,0 +1,119 @@
+# What the NERC EDS British Oceanographic Data Centre (BODC) asks beyond DataCite's requirement set
+# (docs/specs/deposit.md). The harness merges it with standards/datacite-4.yaml when a researcher
+# chooses BODC, so that it can check a project against both and a drafter knows what to write.
+# Keys are as in README.md one folder up. Checked against BODC's public pages, its metadata
+# submission template and its DataCite records (listed under `guidance`) on 2026-11-19; what they
+# leave open is TODO(#1250).
+#
+# BODC does not take deposits through a self-service form. A depositor sends the data, with BODC's
+# metadata submission template filled in, to the project's BODC data manager or to the BODC Data
+# Officer, and so agrees to its Data Deposit Conditions. The template marks with "*" the fields
+# that must be completed, so its labels are the form labels here.
+schema_class: RequirementSet
+requirement_set_id: bodc
+version: 1
+title: NERC EDS British Oceanographic Data Centre
+url: https://www.bodc.ac.uk/submit_data/
+re3data_id: r3d100010192
+
+# re3data lists DIF, Dublin Core and FGDC for BODC, but BODC registers every DOI it assigns with
+# DataCite (client bl.nerc, prefix 10.5285) and follows the DataCite schema. The drafter writes
+# DataCite records only, so DataCite is the standard here. BODC publishes no crosswalk from its
+# template to DataCite; each field below is the DataCite property the template's answer would go
+# in.
+conforms_to: http://datacite.org/schema/kernel-4
+
+fields:
+  - property: titles
+    schema_org: name
+    obligation: required
+    form_label: "Dataset title:"
+  - property: creators
+    schema_org: creator
+    obligation: required
+    form_label: "Author(s):"
+  # "Contact email(s):" and "Project PI:" are both mandatory, as a contact person and a project
+  # leader.
+  - property: contributors
+    schema_org: contributor
+    obligation: required
+    form_label: "Contact email(s):"
+  - property: fundingReferences
+    schema_org: funding
+    obligation: required
+    form_label: "Funded by:"
+  - property: descriptions
+    qualifier: {descriptionType: Abstract}
+    schema_org: description
+    obligation: required
+    form_label: "Dataset abstract:"
+  # "Sampling protocol:" and "Analytical protocol:" are mandatory. A DataCite record carries them
+  # as a Methods description; its schema.org term must differ from the abstract's (README.md), so
+  # it is measurementTechnique, as for the EIDC.
+  - property: descriptions
+    qualifier: {descriptionType: Methods}
+    schema_org: measurementTechnique
+    obligation: required
+    form_label: "Sampling protocol: and Analytical protocol:"
+  - property: dates
+    qualifier: {dateType: Collected}
+    schema_org: temporalCoverage
+    obligation: required
+    form_label: Temporal coverage
+  - property: geoLocations
+    schema_org: spatialCoverage
+    obligation: required
+    form_label: Geographic coverage
+  - property: relatedIdentifiers
+    schema_org: citation
+    obligation: recommended
+    form_label: References that describe the data within this dataset
+
+# BODC asks for the template, which the metadata record stands for; an explanation of how the
+# format has been used, the sampling and analytical protocols and data quality comments, for which
+# the README stands; and every parameter's heading, units and, for a derived one, its formula, for
+# which the data dictionary stands. A NERC-funded project agrees a data management plan with BODC
+# early in the grant.
+required_documents:
+  - metadata_record
+  - readme
+  - data_dictionary
+recommended_documents:
+  - dmp
+
+# BODC grades formats as recommended, acceptable or conditional (Excel and Access) but "can handle
+# data in virtually any format" that is readable or described, so no media type is refused here.
+media_types: []
+
+# max_file_size and max_item_size are left out: BODC states no maximum. It may decline a
+# large-volume deposit for its Published Data Library, and sends high-volume data to the CEDA
+# Archive.
+
+# BODC prefers open data under the Open Government Licence, or its "Open Data supplied by NERC"
+# form, which adds NERC's attribution statement. Other licences are agreed by email; which it
+# agrees to is TODO(#1250).
+licences:
+  - OGL-UK-3.0
+  - https://www.bodc.ac.uk/data/documents/nodb/599476/
+
+guidance:
+  - https://www.bodc.ac.uk/submit_data/submission_guidelines/
+  - https://www.bodc.ac.uk/submit_data/submission_guidelines/general_guide/
+  - https://www.bodc.ac.uk/submit_data/submission_guidelines/preferred_file_formats/
+  - https://www.bodc.ac.uk/submit_data/submission_templates/
+  - https://www.bodc.ac.uk/submit_data/submission_templates/documents/metadata_submission_templates.xlsx
+  - https://www.bodc.ac.uk/submit_data/data_planning/deposit_conditions/
+  - https://www.bodc.ac.uk/submit_data/data_planning/early_in_your_project/
+  - https://www.bodc.ac.uk/submit_data/data_planning/later_in_your_project/
+  - https://www.bodc.ac.uk/submit_data/data_citations/
+  - https://www.bodc.ac.uk/submit_data/data_citations/selection_procedures/
+  - https://api.datacite.org/dois?client-id=bl.nerc&query=publisher:*Oceanographic*
+  - https://www.re3data.org/repository/r3d100010192
+
+# What the public pages leave open, as the researcher depositing by hand is told. Each names the
+# issue that will settle it.
+unconfirmed:
+  - Which licences BODC agrees to besides the Open Government Licence; some of its records carry CC BY 4.0 or CC BY-NC 4.0 (#1250).
+  - Which DataCite properties BODC fills from its template; it publishes no crosswalk (#1250).
+  - Whether a deposit is given a DOI, which BODC decides case by case (#1250).
+  - The template's mandatory fields with no DataCite property, such as the time zone, the absent data value and the quality flag system (#1250).

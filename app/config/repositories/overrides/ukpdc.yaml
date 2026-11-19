@@ -1,0 +1,120 @@
+# What the NERC EDS UK Polar Data Centre (UK PDC), run by the British Antarctic Survey, asks beyond
+# DataCite's requirement set (docs/specs/deposit.md). The harness merges it with
+# standards/datacite-4.yaml when a researcher chooses the UK PDC, so that it can check a project
+# against both and a drafter knows what to write. Keys are as in README.md one folder up. Checked
+# against the UK PDC's public pages and its DataCite records (listed under `guidance`) on
+# 2026-11-19; what they leave open is TODO(#1250).
+#
+# The UK PDC does not take deposits through a self-service form. A depositor emails its service
+# desk a signed Data Transfer Agreement, a completed metadata guidance document (a Word template)
+# and the data; a data manager checks them with the depositor and mints the DOI. The template's
+# headings are the form labels here. It marks no field mandatory, so a field is required here when
+# both the template and the UK PDC's list of "essential metadata elements" ask for it.
+schema_class: RequirementSet
+requirement_set_id: ukpdc
+version: 1
+title: NERC EDS UK Polar Data Centre
+url: https://www.bas.ac.uk/data/polar-data-centre/data-deposit/
+re3data_id: r3d100010120
+
+# The UK PDC's catalogue record is ISO 19115 (ISO 19139 XML), but it issues its DOIs with DataCite
+# (client bl.nerc, prefix 10.5285). The drafter writes DataCite records only, so DataCite is the
+# standard here until a GEMINI/ISO 19115 set exists (#401). Each field below is the DataCite
+# property the UK PDC's own DataCite records carry the template's answer in.
+conforms_to: http://datacite.org/schema/kernel-4
+
+fields:
+  - property: titles
+    schema_org: name
+    obligation: required
+    form_label: Title
+  # "As a minimum, you must include the roles of the dataset creator(s) and a contact person."
+  - property: creators
+    schema_org: creator
+    obligation: required
+    form_label: Personnel
+  - property: contributors
+    schema_org: contributor
+    obligation: required
+    form_label: Personnel
+  - property: descriptions
+    qualifier: {descriptionType: Abstract}
+    schema_org: description
+    obligation: required
+    form_label: Abstract
+  # The UK PDC's DataCite records carry the lineage as a Methods description. Its schema.org term
+  # must differ from the abstract's (README.md); measurementTechnique is the nearest, as for the
+  # EIDC.
+  - property: descriptions
+    qualifier: {descriptionType: Methods}
+    schema_org: measurementTechnique
+    obligation: required
+    form_label: Lineage/methodology
+  - property: subjects
+    schema_org: keywords
+    obligation: required
+    form_label: Keywords
+  - property: fundingReferences
+    schema_org: funding
+    obligation: required
+    form_label: Funding source
+  - property: dates
+    qualifier: {dateType: Collected}
+    schema_org: temporalCoverage
+    obligation: required
+    form_label: Temporal coverage
+  - property: geoLocations
+    schema_org: spatialCoverage
+    obligation: required
+    form_label: Spatial coverage
+  - property: rightsList
+    schema_org: license
+    obligation: required
+    form_label: Use constraints
+  - property: relatedIdentifiers
+    schema_org: citation
+    obligation: recommended
+    form_label: Related datasets
+
+# The UK PDC asks for README notes that let a reader assess the dataset without opening the files
+# (collection, instruments, calibration, methods, software and quality control), and for every
+# variable's units, but not for a separate data dictionary. The signed Data Transfer Agreement is
+# the depositor's, not a document a drafter writes, so it is not listed.
+required_documents:
+  - metadata_record
+  - readme
+recommended_documents:
+  - data_dictionary
+
+# The UK PDC asks for open formats (CSV rather than Excel, CF-compliant NetCDF, GeoTIFF and others)
+# and takes proprietary ones case by case, so no media type is refused here.
+media_types: []
+
+# max_file_size and max_item_size are left out: the UK PDC states no maximum, and arranges the
+# transfer of a large deposit with the depositor.
+
+# Data are published under the Open Government Licence "unless agreed otherwise". Some of its
+# DataCite records carry CC BY 4.0, which no public page offers; which other licences it agrees to
+# is TODO(#1250).
+licences:
+  - OGL-UK-3.0
+  - CC-BY-4.0
+
+guidance:
+  - https://www.bas.ac.uk/data/polar-data-centre/data-deposit/
+  - https://www.bas.ac.uk/data/polar-data-centre/metadata-guidance/
+  - https://www.bas.ac.uk/wp-content/uploads/2022/03/PDC_Metadata_Guidance_v10.docx
+  - https://www.bas.ac.uk/wp-content/uploads/2019/06/PDC_Data-Transfer-Agreement.docx
+  - https://www.bas.ac.uk/wp-content/uploads/2020/06/PDC_Data_Format_Guidance.pdf
+  - https://www.bas.ac.uk/wp-content/uploads/2022/03/PDC_Data_Quality_Checklist_v3.0.pdf
+  - https://www.bas.ac.uk/wp-content/uploads/2023/12/PDC_Data_Acceptance_Procedure_v2.pdf
+  - https://www.bas.ac.uk/data/polar-data-centre/data-citation-and-publishing/obtaining-a-data-doi/
+  - https://api.datacite.org/dois?client-id=bl.nerc&query=publisher:%22NERC%20EDS%20UK%20Polar%20Data%20Centre%22
+  - https://www.re3data.org/repository/r3d100010120
+
+# What the public pages leave open, as the researcher depositing by hand is told. Each names the
+# issue that will settle it.
+unconfirmed:
+  - Which of the metadata template's fields the UK PDC requires; the template marks none mandatory (#1250).
+  - Which licences the UK PDC agrees to besides the Open Government Licence; some of its records carry CC BY 4.0 (#1250).
+  - The ISO 19115 fields its catalogue record carries and a DataCite record does not, such as resolution, altitude and depth (#401, #1250).
