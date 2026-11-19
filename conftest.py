@@ -7,10 +7,14 @@ Two things happen here that the conformance report depends on:
   register assesses by human review only (docs/specs/evaluation.md);
 - `pytest_json_runtest_metadata` copies the marker's identifiers into the pytest-json-report
   record, which is what scripts/conformance_report.py reads.
+
+With `--test-shard 2/3` the session runs one part of the suite (`_keep_shard`). It is an option,
+not an environment variable, so a test that starts pytest itself does not pass it on.
 """
 
 from __future__ import annotations
 
+import zlib
 from pathlib import Path
 from typing import Any
 
@@ -34,7 +38,48 @@ def _registered_requirements() -> dict[str, list[str]]:
     return {e["id"]: e.get("assessed_by", ["test"]) for e in register["requirements"]}
 
 
+def pytest_addoption(parser: pytest.Parser) -> None:
+    parser.addoption(
+        "--test-shard",
+        default="",
+        metavar="INDEX/COUNT",
+        help="run one part of the suite, such as 2/3, as CI's parallel pytest jobs do",
+    )
+
+
+def _shard(config: pytest.Config) -> tuple[int, int] | None:
+    """(index, count) from --test-shard, such as `2/3`; None runs the whole suite."""
+    value: str = config.getoption("--test-shard")
+    if not value:
+        return None
+    index, _, count = value.partition("/")
+    if not (index.isdigit() and count.isdigit() and 1 <= int(index) <= int(count)):
+        raise pytest.UsageError(f"--test-shard {value!r}: expected `index/count`, such as 2/3")
+    return int(index), int(count)
+
+
+def _keep_shard(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Keep the test files that fall in this shard, so CI can run the suite as parallel jobs.
+
+    A file's shard is a stable hash of its path, so every file is in exactly one shard, a new
+    file joins one without a list to update, and each xdist worker selects the same tests.
+    """
+    shard = _shard(config)
+    if shard is None:
+        return
+    index, count = shard
+    keep: list[pytest.Item] = []
+    drop: list[pytest.Item] = []
+    for item in items:
+        path = item.nodeid.partition("::")[0]
+        (keep if zlib.crc32(path.encode()) % count == index - 1 else drop).append(item)
+    if drop:
+        config.hook.pytest_deselected(items=drop)
+        items[:] = keep
+
+
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    _keep_shard(config, items)
     known = _registered_requirements()
     for item in items:
         for marker in item.iter_markers("requirement"):
