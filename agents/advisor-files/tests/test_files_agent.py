@@ -13,6 +13,7 @@ from dd_agent_advisor_files.agent import LIMITATIONS, UNKNOWN, FileArchivist, lo
 from dd_agent_advisor_files.classes import CheckKind, FormatAssessment, JudgedBy
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import describe
+from dd_sdk.contract.facts import FactKind, FileDecision, SensitivityDecision
 from dd_sdk.contract.models import (
     FileInventory,
     GroundingMode,
@@ -152,6 +153,35 @@ def test_asks_a_person_to_look_at_files_whose_names_call_for_it(runs_dir: Path) 
         ("reference/WeatherNest_Stn442_hourly.csv", CheckKind.THIRD_PARTY),
     }
     assert all(c.question for c in checks)
+
+
+def test_proposes_a_decision_for_a_person_on_each_file_it_lists(runs_dir: Path) -> None:
+    """The deposit check pauses on each proposal until a person decides it (#987)."""
+    env = make_conductor(runs_dir, FileArchivist()).invoke(
+        request("advisor.files", moorland()), acting_for=TEST_PRINCIPAL
+    )
+    payload = env.payload_as(FormatAssessment)
+    proposed = {
+        (f.fact_kind, f.fact_subject): f.file_decision or f.sensitivity_decision
+        for f in payload.proposed_facts
+    }
+    assert len(proposed) == len(payload.proposed_facts)  # one per kind and subject
+    assert proposed == {
+        (FactKind.SENSITIVITY, "calibration/sites.csv"): SensitivityDecision.UNDECIDED,
+        (FactKind.FILE_INCLUSION, "data/Thumbs.db"): FileDecision.EXCLUDE,
+        (FactKind.FILE_INCLUSION, "data/logger_export.csv"): FileDecision.UNDECIDED,
+        (FactKind.FILE_INCLUSION, "data/old/logger_export (copy).csv"): FileDecision.UNDECIDED,
+        (FactKind.FILE_INCLUSION, "fieldnotes/fieldnotes_2024.txt"): FileDecision.UNDECIDED,
+        (
+            FactKind.FILE_INCLUSION,
+            "governance/landowner-access-agreement.md",
+        ): FileDecision.UNDECIDED,
+        (
+            FactKind.FILE_INCLUSION,
+            "reference/WeatherNest_Stn442_hourly.csv",
+        ): FileDecision.UNDECIDED,
+    }
+    assert all(f.proposed_because and f.fact_check_kind for f in payload.proposed_facts)
 
 
 def test_a_duplicate_names_its_copies() -> None:

@@ -1,7 +1,7 @@
 """A project's validation and deposit package as the shell draws them (docs/specs/deposit.md).
 
 The harness validates and builds (`dd_harness.deposit`). The app passes on what it found,
-unchanged except for its shape: each violation and warning with the message the harness wrote,
+unchanged except for its shape: each violation, warning and note with the message the harness wrote,
 the SHACL Validation Report itself, and the digest each is kept by in the project log.
 """
 
@@ -37,6 +37,7 @@ def validation_view(validation: Validation, report_digest: str | None) -> dict[s
         "requirements_digest": validation.requirements_digest,
         "violations": [_result(r) for r in validation.violations],
         "warnings": [_result(r) for r in validation.warnings],
+        "notes": [_result(r) for r in validation.notes],
         "report": validation.report_jsonld(),
     }
 
@@ -45,3 +46,13 @@ def last_report_digest(projects: ProjectRecord, project_id: str) -> str | None:
     """The digest of the validation report the project log kept last, or None."""
     found = [e for e in projects.events(project_id) if e["event"] == PROJECT_VALIDATED]
     return found[-1]["digest"] if found else None
+
+
+def confirmation_view(event: dict[str, Any]) -> dict[str, Any]:
+    """A `deposit_checks_confirmed` event as the shell draws it."""
+    return {
+        "inventory_digest": event["inventory_digest"],
+        "statements": list(event["statements"]),
+        "confirmed_by": event["acted_for"].get("name") or event["acted_for"]["principal_id"],
+        "confirmed_at": event["at"],
+    }

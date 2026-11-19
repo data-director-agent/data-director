@@ -100,6 +100,32 @@ def add_approval(
     approval["object"] = entity
 
 
+def add_confirmation(
+    files: CrateFiles, confirmed: Mapping[str, Any] | None, inventory: str
+) -> None:
+    """A person's confirmation of the checks before deposit for the inventory, the crate's file
+    `inventory`: who made it, when, and what they confirmed (docs/specs/deposit.md, invariant 21).
+    A valid validation always has one; without one, nothing is added."""
+    if confirmed is None:
+        return
+    crate = files.crate
+    confirmation = crate.add(
+        ContextEntity(
+            crate,
+            f"#deposit-checks-{confirmed['event_id']}",
+            properties={
+                "@type": "AssessAction",
+                "name": "Confirmation of the checks before deposit",
+                "actionStatus": {"@id": "http://schema.org/CompletedActionStatus"},
+                "endTime": confirmed["at"],
+                "description": " ".join(confirmed["statements"]),
+            },
+        )
+    )
+    confirmation["agent"] = files.person(confirmed["acted_for"])
+    confirmation["object"] = crate.dereference(inventory)
+
+
 def produced_action(
     crate: ROCrate,
     made: Any,

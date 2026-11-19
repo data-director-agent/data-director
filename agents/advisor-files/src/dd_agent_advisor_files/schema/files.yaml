@@ -9,7 +9,7 @@ title: advisor.files classes
 description: >-
   The File Archivist's assessment, in reply to a project's file inventory, of whether each file's
   format is open.
-version: 0.5.0
+version: 0.6.0
 license: MIT
 
 prefixes:
@@ -28,8 +28,12 @@ classes:
     description: >-
       The payload of advisor.files: each file of the inventory with the format it is judged to
       be, and whether that format is open. It judges from the inventory alone and reads no file.
+      In a project it proposes, for each file it lists for a person to look at, a fact for a
+      person to decide before deposit: whether the file goes in, or whether a file with
+      coordinates may be published (#987).
     mixins:
       - Grounded
+      - ProposesFacts
     slots:
       - schema_class
       - assessments

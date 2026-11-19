@@ -231,7 +231,10 @@ schema.org, PROV) says so with `slot_uri` or `class_uri`. A slot without an exte
 
 **Validation reports.** Structured validation output (C15) uses the W3C SHACL Validation Report
 vocabulary (`sh:ValidationReport`, `sh:ValidationResult`), with a Frictionless validation report
-for tabular data. No bespoke report type is defined. The harness writes a report in two places.
+for tabular data. No bespoke report type is defined. A result's severity is one of SHACL's own:
+`sh:Violation`, `sh:Warning` or `sh:Info`, the last for a note that asks nothing, such as what a
+deposit check did not look at ([Deposit](deposit.md), invariant 22). The harness writes a report in
+two places.
 When it validates a project for deposit, the shapes are generated from the chosen repository's
 requirements ([Deposit](deposit.md)). When an agent returns a payload, the shapes are its class's
 own: `dd-gen-schema` writes, beside each class's JSON Schema, the class's SHACL shapes

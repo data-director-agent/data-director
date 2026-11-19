@@ -1,6 +1,7 @@
 """Validating a project and building its deposit package, through the app's server
 (docs/specs/deposit.md): the server calls the harness for the person signed in and answers with
-what the harness found, each violation and warning in the harness's own words."""
+what the harness found, each violation, warning and note in the harness's own words; and a person
+confirms the checks before deposit (invariant 21)."""
 
 from __future__ import annotations
 
@@ -27,8 +28,19 @@ from support import (
 
 from dd_app.app import build_app
 from dd_app.governance import Governance
-from dd_app.routes.deposit import BuiltPackage, PackageRefusedProblem
-from dd_harness.projects import PACKAGE_BUILT, PROJECT_VALIDATED, text_digest
+from dd_app.routes.deposit import (
+    BuiltPackage,
+    DepositChecks,
+    DepositConfirmation,
+    PackageRefusedProblem,
+)
+from dd_harness.deposit_pause import CONFIRMATION_CHECK
+from dd_harness.projects import (
+    DEPOSIT_CHECKS_CONFIRMED,
+    PACKAGE_BUILT,
+    PROJECT_VALIDATED,
+    text_digest,
+)
 from dd_harness.storage import ProjectStorage
 from dd_harness.testing import (
     TEST_PRINCIPAL,
@@ -103,8 +115,9 @@ def valid(
     chosen: str,
     tmp_path: Path,
 ) -> str:
-    """`chosen` with a metadata record drafted and approved, edited to `RECORD`, through the
-    server; its run is in the store the server reads, as the conductor's own would be."""
+    """`chosen` with a metadata record drafted and approved, edited to `RECORD`, and the checks
+    before deposit confirmed, through the server; its run is in the store the server reads, as
+    the conductor's own would be."""
     conductor = make_conductor(tmp_path / "drafts", DocumentStub(), crate=True)
     conductor.store = governance.conductor.store
     envelope = conductor.invoke(
@@ -125,6 +138,8 @@ def valid(
         },
     )
     assert decided.status_code == 201
+    confirmed = client.post(f"/api/projects/{chosen}/deposit-confirmation", headers=JSON_HEADERS)
+    assert confirmed.status_code == 201, confirmed.text
     return chosen
 
 
@@ -210,6 +225,41 @@ def test_a_valid_project_builds_a_package_to_download_by_its_digest(
     check_fixture("project-package.json", normalised(body), model=BuiltPackage)
 
 
+@pytest.mark.requirement("C2")
+def test_the_checks_before_deposit_are_confirmed_for_the_inventory_held_now(
+    client: TestClient, store: ProjectStorage, chosen: str
+) -> None:
+    def confirmation_violations() -> list[dict[str, Any]]:
+        found = client.post(f"/api/projects/{chosen}/validation", headers=JSON_HEADERS).json()
+        return [v for v in found["violations"] if v["component"].endswith(CONFIRMATION_CHECK)]
+
+    assert confirmation_violations() != []
+    before = client.get(f"/api/projects/{chosen}/deposit-confirmation").json()
+    assert before["statements"] and before["confirmed"] is None
+    response = client.post(f"/api/projects/{chosen}/deposit-confirmation", headers=JSON_HEADERS)
+    assert response.status_code == 201, response.text
+    body = response.json()
+    (event,) = events(store, chosen, DEPOSIT_CHECKS_CONFIRMED)
+    assert body["inventory_digest"] == event["inventory_digest"]
+    assert body["statements"] == event["statements"]
+    assert event["acted_for"]["principal_id"] == TEST_PRINCIPAL.principal_id
+    assert event["caused_by"] == f"POST /api/projects/{chosen}/deposit-confirmation"
+    assert confirmation_violations() == []
+    check_fixture("deposit-confirmation.json", normalised(body), model=DepositConfirmation)
+    after = client.get(f"/api/projects/{chosen}/deposit-confirmation").json()
+    assert after == {"statements": body["statements"], "confirmed": body}
+    check_fixture("deposit-checks.json", normalised(after), model=DepositChecks)
+
+
+def test_the_checks_cannot_be_confirmed_without_an_inventory(
+    client: TestClient, store: ProjectStorage
+) -> None:
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test", title="Empty")
+    response = client.post(f"/api/projects/{project_id}/deposit-confirmation", headers=JSON_HEADERS)
+    assert response.status_code == 400
+    assert events(store, project_id, DEPOSIT_CHECKS_CONFIRMED) == []
+
+
 @pytest.mark.parametrize("digest", ["0" * 64, "not-a-digest", "A" * 64])
 def test_a_package_the_log_does_not_record_is_not_found(
     client: TestClient, chosen: str, digest: str
@@ -221,7 +271,13 @@ def test_a_package_the_log_does_not_record_is_not_found(
 
 @pytest.mark.parametrize(
     ("method", "path"),
-    [("POST", "validation"), ("POST", "package"), ("GET", f"packages/{'0' * 64}")],
+    [
+        ("POST", "validation"),
+        ("POST", "package"),
+        ("POST", "deposit-confirmation"),
+        ("GET", "deposit-confirmation"),
+        ("GET", f"packages/{'0' * 64}"),
+    ],
 )
 def test_an_unknown_project_is_not_found(client: TestClient, method: str, path: str) -> None:
     response = client.request(method, f"/api/projects/{UNKNOWN}/{path}", headers=JSON_HEADERS)

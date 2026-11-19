@@ -57,7 +57,9 @@ inventory as it stands, by one rule table kept in two copies
 (`agents/advisor-files/src/dd_agent_advisor_files/hints.yaml` and
 `inventory/browser/src/hints.ts`), so nothing is added to `FileInventory` and the contract does not
 change. A hint is not a finding: it reads no value, it is stored nowhere but in the adviser's
-payload, and it keeps invariants 4 and 10 (a prompt for a person, and no hint is never clearance).
+payload and, in a project, as a fact the adviser proposes for a person to decide before deposit
+([Deposit](deposit.md), *The pause before deposit*), and it keeps invariants 4 and 10 (a prompt for
+a person, and no hint is never clearance).
 Third-party material, operating-system files and copies are not personal data; they are listed
 here because the same pause before deposit covers them. Whether the hints become findings of the
 `file name` and `field name` kinds when findings land, or stay beside them, TODO(#471).
@@ -128,8 +130,9 @@ here because the same pause before deposit covers them. Whether the hints become
 member ([System and boundaries](system.md)). The findings list, the per-field summaries and their
 check are slots of the core `FileInventory` and `TableField`, a fixed format, so adding them
 changes the [Contract](contract.md) and bumps the contract version as an additive change (#471,
-#611). What the harness, agents and the app do with findings (the pause and the referral to a
-data steward that C2 asks for, and hints to the ethics adviser) is #471's.
+#611). The pause and the referral to a person that C2 asks for are the deposit check's: it names
+each file the findings name until a person decides it ([Deposit](deposit.md), *The pause before
+deposit*). Hints to the ethics adviser are #471's.
 
 **The detector.** Microsoft [Presidio](https://github.com/microsoft/presidio) (`presidio-analyzer`)
 is a required dependency of the command, behind one module, `dd_inventory.personal`, and a
@@ -246,7 +249,7 @@ What the command and the app say about a result, in substance:
 The app says these (`PERSONAL_DATA_TEXT` in `@data-director/inventory`), with a third for an
 inventory made without the check, under **Possible personal data** in the inventory's view,
 before the inventory is added and after. The next steps C2 asks for, the pause and the referral
-to a person, are #471's and #987's.
+to a person, are the deposit check's ([Deposit](deposit.md), *The pause before deposit*).
 
 ## Rationale
 

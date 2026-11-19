@@ -14,8 +14,7 @@ No `.env` file is read.
 `choose-repository` by re3data identifier, reading the repository's name and declared standards
 from the re3data export `DD_SOURCES_CONFIG` pins and its requirement sets from `DD_REPOSITORIES_DIR`
 (docs/specs/deposit.md),
-`validate` against the requirements recorded for the repository chosen, `package` to build the
-deposit package from a valid project and the runs under `DD_RUNS_DIR`, `delete` and `restore`
+`confirm-checks`, `validate` and `package` (`dd_harness.deposit_commands`), `delete` and `restore`
 (which hide a project and bring it back within `DD_PROJECT_RESTORE_DAYS`, removing nothing), and
 `events`.
 
@@ -38,7 +37,7 @@ from starlette.applications import Starlette
 
 from dd_harness import gateway
 from dd_harness.conductor import Conductor
-from dd_harness.deposit import PackageRefusedError, Validation, build_package, check
+from dd_harness.deposit_commands import CAUSED_BY_COMMAND, add_deposit_commands
 from dd_harness.gateway.config import ToolConfigError
 from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
 from dd_harness.model_grants import jwks_routes
@@ -58,7 +57,6 @@ from dd_harness.settings import (
     projects_dir,
     redact_location,
     repositories_dir,
-    run_storage,
     runs_dir,
     sources_config,
     storage_location,
@@ -118,7 +116,6 @@ def cmd_serve(args: argparse.Namespace) -> int:
 
 
 # What a project event names as its cause when a person ran a command (docs/specs/projects.md).
-CAUSED_BY_COMMAND = "dd-harness project {command}"
 
 
 def cmd_project_create(args: argparse.Namespace) -> int:
@@ -190,49 +187,6 @@ def cmd_project_choose_repository(args: argparse.Namespace) -> int:
     for warning in (store.requirements(args.project_id) or {}).get("warnings", []):
         sys.stderr.write(f"dd-harness: warning: {warning}\n")
     sys.stdout.write(digest + "\n")
-    return 0
-
-
-def _write_results(validation: Validation) -> None:
-    """Each result of a validation on stderr, violations first."""
-    for result in validation.violations:
-        sys.stderr.write(f"dd-harness: violation: {result.message}\n")
-    for result in validation.warnings:
-        sys.stderr.write(f"dd-harness: warning: {result.message}\n")
-
-
-def cmd_project_validate(args: argparse.Namespace) -> int:
-    validation, digest = check(
-        project_storage(projects_dir()),
-        args.project_id,
-        acted_for=principal_from_env(),
-        caused_by=CAUSED_BY_COMMAND.format(command="validate"),
-    )
-    _write_results(validation)
-    sys.stdout.write(digest + "\n")
-    return 0 if validation.conforms else 1
-
-
-def cmd_project_package(args: argparse.Namespace) -> int:
-    try:
-        package = build_package(
-            project_storage(projects_dir()),
-            run_storage(runs_dir()),
-            args.project_id,
-            acted_for=principal_from_env(),
-            caused_by=CAUSED_BY_COMMAND.format(command="package"),
-        )
-    except PackageRefusedError as exc:
-        _write_results(exc.validation)
-        sys.stderr.write("dd-harness: no package was built: the project is not valid for deposit\n")
-        return 1
-    _write_results(package.validation)
-    if args.output:
-        try:
-            Path(args.output).write_bytes(package.content)
-        except OSError as exc:
-            raise ProjectError(f"{args.output}: {exc}") from exc
-    sys.stdout.write(package.digest + "\n")
     return 0
 
 
@@ -420,21 +374,7 @@ def _add_project_commands(sub: Any) -> None:
         "read from the re3data export DD_SOURCES_CONFIG pins",
     )
     p.set_defaults(func=cmd_project_choose_repository)
-    p = project.add_parser(
-        "validate",
-        help="check the project against its repository's requirements, keep the report, and "
-        "print its digest; exits 1 on a violation",
-    )
-    p.add_argument("project_id")
-    p.set_defaults(func=cmd_project_validate)
-    p = project.add_parser(
-        "package",
-        help="validate the project and, if it is valid, build its deposit package and print its "
-        "digest; exits 1 on a violation",
-    )
-    p.add_argument("project_id")
-    p.add_argument("-o", "--output", help="also write the package's zip to this file")
-    p.set_defaults(func=cmd_project_package)
+    add_deposit_commands(project)
     p = project.add_parser(
         "choose-entry", help="record the Blueprint entry point the researcher is at (1, 2 or 3)"
     )

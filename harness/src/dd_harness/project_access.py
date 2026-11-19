@@ -54,7 +54,7 @@ class Action(StrEnum):
     # version, answer a draft's questions, mark progress, choose a repository, validate, build a
     # package.
     CONTRIBUTE = "contribute"
-    # Approve or reject a document version.
+    # Approve or reject a document version; confirm the checks before deposit.
     DECIDE = "decide"
     # Add or remove a member, or change a role; delete the project, or restore a deleted one;
     # delete or restore any of its conversations.

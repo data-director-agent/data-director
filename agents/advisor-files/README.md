@@ -21,8 +21,13 @@ media type, PRONOM identifiers and, for a table, its fields. The files themselve
 `extension`, `format_name`, `media_type`, `open_format`, what the judgement rests on
 (`judged_by`) and the PRONOM identifier it used (`pronom_id`); a `checks` list of the files a person should look at before deposit (a
 `FileCheck` each, with its `path`, `kind`, the word or name that `matched`, the `question` for a
-person and, for a copy, its `related_paths`); a `summary` (below); and a `limitations` list stating what it does
-not do. A file whose PRONOM
+person and, for a copy, its `related_paths`); a `summary` (below); a `limitations` list stating what it does
+not do; and `proposed_facts`, for each file it lists, the project fact a person decides about it
+before deposit: whether a file with coordinates may be published (`sensitivity`, `undecided`), and
+whether any other goes in (`file_inclusion`: `exclude` for an operating-system or empty file,
+`undecided` for the rest), each with the checks' questions as `proposed_because`. In a project the
+harness records them for a person to decide, and the deposit check pauses on each until one does
+([Deposit](../../docs/specs/deposit.md)). A misnamed file proposes nothing. A file whose PRONOM
 identifiers, media type and extension are all missing from the rule table gives the format
 `unknown` and `open_format` false. A file the inventory identified by PRONOM, but only as formats
 the table does not list, is `judged_by` `pronom_unlisted`: also `unknown`, with `pronom_id` giving

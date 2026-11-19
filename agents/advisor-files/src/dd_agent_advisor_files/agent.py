@@ -8,7 +8,11 @@ It also lists the files a person should look at before deposit (#449): those who
 field names suggest free text, coordinates, someone else's material or terms, operating-system
 files, empty files and byte-for-byte copies, by the rules in `hints.yaml`. The inventory holds no
 contents, so each is a prompt for a person, never a finding, and a file it does not list may still
-hold personal data (docs/specs/personal-data.md).
+hold personal data (docs/specs/personal-data.md). In a project, each file it lists is also
+proposed as a project fact for a person to decide before deposit (#987): whether a file with
+coordinates may be published (`sensitivity`), and whether any other goes in (`file_inclusion`),
+`exclude` for an operating-system or empty file and `undecided` for the rest. A proposal is never a
+decision: the deposit check pauses on it until a person decides it (docs/specs/deposit.md).
 
 It looks up the PRONOM identifiers the inventory gives, which `dd-inventory` read from the
 file's content with fido, in `formats.yaml`; failing that, the media type the inventory gives;
@@ -50,6 +54,7 @@ from dd_sdk.agent import (
     input_ref,
 )
 from dd_sdk.contract.classes import ClassSchema
+from dd_sdk.contract.facts import FactKind, FileDecision, SensitivityDecision
 from dd_sdk.contract.models import (
     Derivation,
     FileInventory,
@@ -58,6 +63,7 @@ from dd_sdk.contract.models import (
     InvocationRequest,
     Outcome,
     OutcomeStatus,
+    ProjectFact,
     ReasonCode,
 )
 
@@ -65,6 +71,11 @@ FORMATS = Path(__file__).with_name("formats.yaml")
 HINTS = Path(__file__).with_name("hints.yaml")
 WORD = re.compile(r"[a-z]+")
 UNKNOWN = "unknown"
+# The checks that ask whether a file may be published rather than whether it goes in, those whose
+# file a person is proposed to leave out, and those that propose nothing (a misnamed file goes in).
+SENSITIVE = frozenset({CheckKind.COORDINATES})
+LEAVE_OUT = frozenset({CheckKind.SYSTEM_FILE, CheckKind.EMPTY})
+NO_PROPOSAL = frozenset({CheckKind.EXTENSION_MISMATCH})
 # Says nothing about a format, so it is never looked up.
 OCTET_STREAM = "application/octet-stream"
 MISMATCH_QUESTION = (
@@ -223,6 +234,7 @@ class FileArchivist:
                 summary=summarised.text,
                 summary_derivation=summarised.derivation,
                 limitations=list(LIMITATIONS),
+                proposed_facts=proposals(checks),
                 grounded_on=[input_ref(ctx)],
             ),
             evidence=[input_evidence(ctx)],
@@ -303,6 +315,44 @@ class FileArchivist:
             judged_by=judged_by,
             pronom_id=puid,
         )
+
+
+def proposals(checks: list[FileCheck]) -> list[ProjectFact]:
+    """For each file a check lists, the facts a person decides about it before deposit: one for
+    each kind of fact, since the last decision on a kind and subject stands, giving each check's
+    question as why."""
+    found: dict[tuple[FactKind, str], list[FileCheck]] = defaultdict(list)
+    for check in checks:
+        if check.kind not in NO_PROPOSAL:
+            kind = FactKind.SENSITIVITY if check.kind in SENSITIVE else FactKind.FILE_INCLUSION
+            found[kind, check.path].append(check)
+    facts = []
+    for (kind, path), listed in found.items():
+        because = " ".join(dict.fromkeys(c.question for c in listed))
+        if kind == FactKind.SENSITIVITY:
+            facts.append(
+                ProjectFact(
+                    fact_kind=kind,
+                    fact_subject=path,
+                    sensitive_subject=path,
+                    sensitivity_decision=SensitivityDecision.UNDECIDED,
+                    fact_check_kind=listed[0].kind.value,
+                    proposed_because=because,
+                )
+            )
+            continue
+        leave_out = all(c.kind in LEAVE_OUT for c in listed)
+        facts.append(
+            ProjectFact(
+                fact_kind=kind,
+                fact_subject=path,
+                fact_file_path=path,
+                file_decision=FileDecision.EXCLUDE if leave_out else FileDecision.UNDECIDED,
+                fact_check_kind=listed[0].kind.value,
+                proposed_because=because,
+            )
+        )
+    return facts
 
 
 def _empty(hint: Hint, file: InventoryFile) -> FileCheck | None:

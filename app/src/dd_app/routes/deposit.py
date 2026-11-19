@@ -11,9 +11,13 @@ overrides, then `suggested.yaml`), so a researcher can choose one on the project
 for the repository chosen last and keeps the report; `POST /api/projects/{id}/package` does the
 same and, only if the project is valid, builds the deposit package, answering `409` with the
 validation when it is not; `GET /api/projects/{id}/packages/{digest}` is a package the project
-log records as built, as a zip. `GET /api/projects/{id}/disclosure` says how each approved
-document came about and what generative AI was used, as a statement and as a PROV-O graph
-(docs/specs/disclosure.md).
+log records as built, as a zip. `GET /api/projects/{id}/deposit-confirmation` is what a person
+confirms before deposit and the confirmation that stands for the inventory held now, if any;
+`POST` on it records that a person who may decide in the project confirmed that ethics approval,
+data-protection advice and third-party rights were checked, for the inventory the project holds
+now (docs/specs/deposit.md, invariant 21). `GET /api/projects/{id}/disclosure` says how each
+approved document came about and what generative AI was used, as a statement and as a PROV-O
+graph (docs/specs/disclosure.md).
 """
 
 from __future__ import annotations
@@ -86,7 +90,8 @@ class ValidationResult(ResponseBody):
 
 class Validation(ResponseBody):
     """A project's validation against its chosen repository's requirements, as the harness made
-    it and kept it in the project log. A violation stops the package; a warning does not."""
+    it and kept it in the project log. A violation stops the package; a warning does not, nor
+    does a note, which says what was not checked or who confirmed the checks before deposit."""
 
     project_id: str
     conforms: bool
@@ -95,8 +100,28 @@ class Validation(ResponseBody):
     requirements_digest: str | None
     violations: list[ValidationResult]
     warnings: list[ValidationResult]
+    notes: list[ValidationResult]
     report: dict[str, Any]
     """The W3C SHACL Validation Report, in JSON-LD."""
+
+
+class DepositConfirmation(ResponseBody):
+    """A person's confirmation of the checks before deposit, as the project log keeps it."""
+
+    inventory_digest: str
+    """The inventory it was made for; a new inventory needs a new confirmation."""
+    statements: list[str]
+    """What was confirmed, in the words shown to the person."""
+    confirmed_by: str
+    confirmed_at: str
+
+
+class DepositChecks(ResponseBody):
+    """What a person confirms before deposit, in the words recorded when they do, and the
+    confirmation that stands for the inventory the project holds now."""
+
+    statements: list[str]
+    confirmed: DepositConfirmation | None
 
 
 class PackageLink(ResponseBody):
@@ -188,6 +213,9 @@ def routes(deps: Deps) -> list[Route]:
     def contribute(handler: Handler) -> Endpoint:
         return in_project(deps, Action.CONTRIBUTE, handler)
 
+    def decide(handler: Handler) -> Endpoint:
+        return in_project(deps, Action.DECIDE, handler)
+
     project = "/api/projects/{project_id}"
     return [
         Route(f"{project}/disclosure", read(get_disclosure), methods=["GET"]),
@@ -196,6 +224,8 @@ def routes(deps: Deps) -> list[Route]:
         Route(f"{project}/validation", contribute(validate_project), methods=["POST"]),
         Route(f"{project}/package", contribute(package_project), methods=["POST"]),
         Route(f"{project}/packages/{{digest}}", read(get_package), methods=["GET"]),
+        Route(f"{project}/deposit-confirmation", read(get_checks), methods=["GET"]),
+        Route(f"{project}/deposit-confirmation", decide(confirm_checks), methods=["POST"]),
         Route("/api/repositories", signed_in(deps, search_repositories), methods=["GET"]),
     ]
 
@@ -312,6 +342,27 @@ async def package_project(request: Request, acting_for: Principal, deps: Deps) -
         },
         status_code=201,
     )
+
+
+async def get_checks(request: Request, _: Principal, deps: Deps) -> Response:
+    project_id = request.path_params["project_id"]
+    found = await run_in_threadpool(deps.projects.deposit_checks, project_id)
+    return respond(DepositChecks, found)
+
+
+async def confirm_checks(request: Request, person: Principal, deps: Deps) -> Response:
+    """The confirmation of the checks before deposit, for the inventory the project holds now;
+    `400` when it holds none."""
+    project_id = request.path_params["project_id"]
+    try:
+        confirmed = await run_in_threadpool(
+            lambda: deps.projects.confirm_deposit_checks(
+                project_id, acted_for=person, caused_by=f"POST {request.url.path}"
+            )
+        )
+    except ProjectError as exc:
+        return project_refused(exc, project_id, "Data Director could not record the confirmation")
+    return respond(DepositConfirmation, confirmed, status_code=201)
 
 
 async def get_package(request: Request, _: Principal, deps: Deps) -> Response:

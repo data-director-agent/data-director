@@ -33,6 +33,8 @@ export type AppResponse =
   | DeletedConversation
   | DeletedProject
   | DeployedProfile
+  | DepositChecks
+  | DepositConfirmation
   | Derivation
   | DisclosedDocument
   | DisclosedDraft
@@ -157,6 +159,7 @@ export interface AgentsProfile {
  */
 export interface BuiltPackage {
   conforms: boolean;
+  notes: ValidationResult[];
   package: PackageLink;
   project_id: string;
   /**
@@ -172,20 +175,6 @@ export interface BuiltPackage {
   warnings: ValidationResult[];
 }
 /**
- * A deposit package the harness built, kept by the SHA-256 of its bytes.
- */
-export interface PackageLink {
-  digest: string;
-  /**
-   * Where to download it, as a zip.
-   */
-  href: string;
-  /**
-   * In bytes.
-   */
-  size: number;
-}
-/**
  * One result of a validation: what is missing, in the harness's words.
  */
 export interface ValidationResult {
@@ -199,6 +188,20 @@ export interface ValidationResult {
   focus: string;
   message: string;
   path: string | null;
+}
+/**
+ * A deposit package the harness built, kept by the SHA-256 of its bytes.
+ */
+export interface PackageLink {
+  digest: string;
+  /**
+   * Where to download it, as a zip.
+   */
+  href: string;
+  /**
+   * In bytes.
+   */
+  size: number;
 }
 /**
  * A check's stored summary.
@@ -497,6 +500,29 @@ export interface DocumentCounts {
   rejected: number;
 }
 /**
+ * What a person confirms before deposit, in the words recorded when they do, and the
+ * confirmation that stands for the inventory the project holds now.
+ */
+export interface DepositChecks {
+  confirmed: DepositConfirmation | null;
+  statements: string[];
+}
+/**
+ * A person's confirmation of the checks before deposit, as the project log keeps it.
+ */
+export interface DepositConfirmation {
+  confirmed_at: string;
+  confirmed_by: string;
+  /**
+   * The inventory it was made for; a new inventory needs a new confirmation.
+   */
+  inventory_digest: string;
+  /**
+   * What was confirmed, in the words shown to the person.
+   */
+  statements: string[];
+}
+/**
  * How an agent derives one field of its payload.
  */
 export interface Derivation {
@@ -788,10 +814,12 @@ export interface PackageRefusedProblem {
 }
 /**
  * A project's validation against its chosen repository's requirements, as the harness made
- * it and kept it in the project log. A violation stops the package; a warning does not.
+ * it and kept it in the project log. A violation stops the package; a warning does not, nor
+ * does a note, which says what was not checked or who confirmed the checks before deposit.
  */
 export interface Validation {
   conforms: boolean;
+  notes: ValidationResult[];
   project_id: string;
   /**
    * The W3C SHACL Validation Report, in JSON-LD.

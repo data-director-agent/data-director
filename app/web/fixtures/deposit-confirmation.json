@@ -1,0 +1,10 @@
+{
+  "confirmed_at": "2026-01-01T00:00:00Z",
+  "confirmed_by": "Josiah Carberry",
+  "inventory_digest": "0000000000000000000000000000000000000000000000000000000000000001",
+  "statements": [
+    "Ethics approval for collecting and sharing these data is in place, or none is needed.",
+    "Advice on data protection has been taken where the data may hold personal data.",
+    "The rights to share material from others, and the terms of any agreement, have been checked."
+  ]
+}

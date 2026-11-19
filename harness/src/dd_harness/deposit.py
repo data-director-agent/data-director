@@ -11,11 +11,15 @@ requirement set recorded for the repository chosen last:
   SHACL shapes generated from the fields and run by pySHACL;
 - that the record's licence is one the set lists, when it lists any;
 - that every inventory entry has an accepted media type and is within the size limits, and the
-  inventory as a whole within the item size, when the set states them.
+  inventory as a whole within the item size, when the set states them;
+- the pause before deposit (`dd_harness.deposit_pause`): each file a person must decide on first,
+  what was not checked for personal data, and a person's confirmation that ethics approval,
+  data-protection advice and third-party rights were checked.
 
 Every result, whichever check made it, is written in the W3C SHACL Validation Report vocabulary,
 as one report (docs/specs/contract.md). The project is valid when the report has no
-`sh:Violation`; warnings, including those from resolving the repository choice, do not block.
+`sh:Violation`; warnings, including those from resolving the repository choice, and notes
+(`sh:Info`) do not block.
 
 `check` validates and keeps the report in the project log. `build_package` does the same, and,
 only from a valid report, writes the package: one zip whose root `ro-crate-metadata.json`
@@ -36,7 +40,7 @@ from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Final
+from typing import Any
 from urllib.parse import quote
 
 from rdflib import BNode, Graph, Namespace, URIRef
@@ -45,12 +49,15 @@ from rdflib.namespace import RDF
 from rocrate.model import Person
 from rocrate.rocrate import ROCrate
 
+from dd_harness.datacite_record import datacite_attributes, field_values
+from dd_harness.deposit_pause import pause
 from dd_harness.disclosure import disclose, ni, version_chain, version_id
 from dd_harness.package_crate import (
     INCLUDED,
     INCLUDED_IRI,
     CrateFiles,
     add_approval,
+    add_confirmation,
     add_data_file,
     add_run,
     creative_work,
@@ -59,14 +66,14 @@ from dd_harness.package_crate import (
     zip_folder,
 )
 from dd_harness.projects import APPROVED, ProjectError
-from dd_harness.shacl import DD, SH, VIOLATION, WARNING, Result, Severity
+from dd_harness.shacl import DD, INFO, SH, VIOLATION, WARNING, Result, Severity
 from dd_harness.shacl import report_jsonld as shacl_report
 from dd_harness.shacl import run as run_shacl
 from dd_harness.storage import DepositSource, RunStorage
 from dd_sdk.contract.models import DocumentKind, Principal, now
 
 SCHEMA = Namespace("http://schema.org/")
-__all__ = ["VIOLATION", "WARNING", "Result", "Severity"]  # kept here for deposit's callers
+__all__ = ["INFO", "VIOLATION", "WARNING", "Result", "Severity"]  # kept here for deposit's callers
 
 # The constraint component a result that pySHACL did not make names: the check that made it.
 DOCUMENT_CHECK = DD + "RequiredDocumentConstraintComponent"
@@ -77,22 +84,6 @@ MEDIA_TYPE_CHECK = DD + "MediaTypeConstraintComponent"
 FILE_SIZE_CHECK = DD + "FileSizeConstraintComponent"
 ITEM_SIZE_CHECK = DD + "ItemSizeConstraintComponent"
 REPOSITORY_CHECK = DD + "RepositoryChoiceConstraintComponent"
-
-# How each DataCite property holds its value, in DataCite's JSON form: the key of the value in
-# each entry of a property whose value is a list of objects. It mirrors advisor.metadata's rule
-# table; the harness keeps its own, since it imports no agent (docs/specs/system.md).
-VALUE_KEYS: Final = {
-    "titles": "title",
-    "creators": "name",
-    "contributors": "name",
-    "subjects": "subject",
-    "descriptions": "description",
-    "dates": "date",
-    "rightsList": "rights",
-    "fundingReferences": "funderName",
-    "relatedIdentifiers": "relatedIdentifier",
-    "geoLocations": "geoLocationPlace",
-}
 
 # The files of the package beside its documents and runs (docs/specs/deposit.md).
 INVENTORY_NAME = "inventory.json"
@@ -141,6 +132,11 @@ class Validation:
     @property
     def warnings(self) -> tuple[Result, ...]:
         return tuple(r for r in self.results if r.severity == WARNING)
+
+    @property
+    def notes(self) -> tuple[Result, ...]:
+        """What was not checked, and who confirmed the checks before deposit; they ask nothing."""
+        return tuple(r for r in self.results if r.severity == INFO)
 
     def report_jsonld(self) -> dict[str, Any]:
         """The SHACL Validation Report, in JSON-LD."""
@@ -201,6 +197,7 @@ def validate(projects: DepositSource, project_id: str) -> Validation:
         )
     else:
         results += _check_inventory(project_id, inventory, requirements)
+        results += pause(projects, project_id, inventory)
     return Validation(project_id, made_at, digest, tuple(results))
 
 
@@ -300,47 +297,6 @@ def _check_record(record: Mapping[str, Any], requirements: Mapping[str, Any]) ->
         return
     yield from _check_fields(focus, attributes, requirements)
     yield from _check_licence(focus, attributes, requirements)
-
-
-def datacite_attributes(text: str) -> dict[str, Any]:
-    """The attributes of a DataCite record in its JSON form, as `advisor.metadata` writes it or
-    as the DataCite REST API returns it (`{"data": {"attributes": ...}}`). Raises `ValueError` if
-    the text is not one."""
-    try:
-        document = json.loads(text)
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"it is not JSON ({exc.msg} at line {exc.lineno})") from None
-    if not isinstance(document, dict):
-        raise ValueError("it is not a JSON object")
-    data = document.get("data")
-    if isinstance(data, dict) and isinstance(data.get("attributes"), dict):
-        attributes: dict[str, Any] = data["attributes"]
-        return attributes
-    return document
-
-
-def field_values(attributes: Mapping[str, Any], field: Mapping[str, Any]) -> list[str]:
-    """The values of one requirement field in a DataCite record: each entry of the property that
-    matches the field's qualifier, as text. An absent, empty or null value is no value."""
-    head, _, rest = field["property"].partition(".")
-    value = attributes.get(head)
-    if rest:
-        value = value.get(rest) if isinstance(value, dict) else None
-        entries = [value]
-    else:
-        entries = value if isinstance(value, list) else [value]
-    qualifier = field.get("qualifier") or {}
-    found = []
-    for entry in entries:
-        if isinstance(entry, dict):
-            if any(entry.get(key) != wanted for key, wanted in qualifier.items()):
-                continue
-            entry = entry.get(VALUE_KEYS.get(head, ""))
-        elif qualifier:
-            continue
-        if isinstance(entry, str | int | float) and str(entry).strip():
-            found.append(str(entry).strip())
-    return found
 
 
 def _check_fields(
@@ -566,6 +522,7 @@ def _package(
             "Inventory of the data files",
             "The FileInventory the data files are described from (docs/specs/projects.md).",
         )
+        add_confirmation(files, projects.checks_confirmation(project_id), INVENTORY_NAME)
         put(
             REQUIREMENTS_NAME,
             json_bytes(requirements),
@@ -590,7 +547,7 @@ def _package(
             "application/jsonl",
             "Project log",
             "The project's audit trail: every inventory, repository choice, proposed version, "
-            "decision and validation, in order.",
+            "decision, confirmation and validation, in order.",
         )
         put(
             STATEMENT_NAME,

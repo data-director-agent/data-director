@@ -8,8 +8,10 @@
  * project log. What a check or a build did is said once, in a live region that is in the panel
  * from the start, so that a screen reader announces it; focus stays on the button pressed.
  *
- * A decision changes the project (`revision`), so a check made before it no longer stands: the
- * panel says so and offers no build until the project is checked again.
+ * A decision changes the project (`revision`), and so does confirming the checks before deposit
+ * (`DepositChecks`), so a check made before either no longer stands: the panel says so and offers
+ * no build until the project is checked again. Notes say what was not checked, and who confirmed
+ * the checks; they ask nothing (docs/specs/deposit.md, invariants 20 to 22).
  *
  * Once a package is built, the panel says what the researcher does next to deposit by hand, since
  * Data Director does not deposit (TODO(#383)). The field labels, the repository's address and what
@@ -29,6 +31,7 @@ import {
 } from "../../project/api";
 import { Button } from "../ui/Button";
 import { formatNumber } from "../../format";
+import { DepositChecks } from "./DepositChecks";
 
 const HEADING_ID = "deposit-heading";
 const NEXT_ID = "deposit-next";
@@ -194,8 +197,17 @@ export function NextSteps({ choice }: { choice: RepositoryRequirements | null })
 }
 
 // eslint-disable-next-line complexity -- recorded debt: split it, do not add to it (docs/architecture-review.md)
-export function DepositPanel({ projectId, revision }: { projectId: string; revision: number }) {
+export function DepositPanel({
+  projectId,
+  revision: given,
+}: {
+  projectId: string;
+  revision: number;
+}) {
   const api = useProjectApi();
+  // Confirming the checks changes the project as a decision does.
+  const [confirmations, setConfirmations] = useState(0);
+  const revision = given + confirmations;
   const [busy, setBusy] = useState<"checking" | "building" | null>(null);
   const [result, setResult] = useState<(Result & { revision: number }) | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
@@ -295,12 +307,18 @@ export function DepositPanel({ projectId, revision }: { projectId: string; revis
         <>
           <Results
             id="deposit-violations"
-            heading="Must be fixed before packaging"
+            heading="Must be fixed or decided before packaging"
             results={validation.violations}
           />
           <Results id="deposit-warnings" heading="Worth fixing" results={validation.warnings} />
+          <Results id="deposit-notes" heading="Notes" results={validation.notes} />
         </>
       )}
+      <DepositChecks
+        projectId={projectId}
+        revision={given}
+        onConfirmed={() => setConfirmations((n) => n + 1)}
+      />
       {shown?.state === "checked" && shown.validation.conforms && (
         <p className="document-actions">
           <Button

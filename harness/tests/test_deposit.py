@@ -30,6 +30,7 @@ from dd_harness.deposit import (
 )
 from dd_harness.projects import (
     APPROVED,
+    DEPOSIT_CHECKS_CONFIRMED,
     PACKAGE_BUILT,
     PROJECT_VALIDATED,
     Decision,
@@ -98,11 +99,12 @@ def runs(tmp_path: Path) -> RunStore:
 
 @pytest.fixture
 def chosen(projects: ProjectStore, tmp_path: Path) -> str:
-    """A project with an inventory of two files and ORDA chosen, and no document."""
+    """A project with an inventory of two files in which the personal-data check flagged
+    nothing, ORDA chosen, the checks before deposit confirmed, and no document."""
     project_id = projects.create(acted_for=TEST_PRINCIPAL, caused_by="test", title="Soil")
-    projects.add_inventory(
-        project_id, file_inventory(*FILES), acted_for=TEST_PRINCIPAL, caused_by="test"
-    )
+    checked = {**file_inventory(*FILES), "inventory_personal_data": []}
+    projects.add_inventory(project_id, checked, acted_for=TEST_PRINCIPAL, caused_by="test")
+    projects.confirm_checks(project_id, acted_for=TEST_PRINCIPAL, caused_by="test")
     choose(projects, project_id, tmp_path)
     return project_id
 
@@ -296,7 +298,7 @@ def test_the_validation_report_is_a_shacl_validation_report(
     results = list(graph.objects(report, SH.result))
     assert len(results) == len(validation.results)
     severities = {graph.value(r, SH.resultSeverity) for r in results}
-    assert severities == {SH.Violation, SH.Warning}
+    assert severities == {SH.Violation, SH.Warning, SH.Info}
     for result in results:
         assert (result, RDF.type, SH.ValidationResult) in graph
         assert graph.value(result, SH.focusNode) is not None
@@ -376,6 +378,14 @@ def test_a_valid_project_writes_a_package_with_its_audit_trail(
     )
     assert approval["description"] == "Checked against the field notebook."
     assert graph[approval["agent"]["@id"]]["name"] == TEST_PRINCIPAL.name
+    # The confirmation of the checks before deposit, for the inventory it was made for.
+    confirmed = next(
+        e
+        for e in graph.values()
+        if e.get("@type") == "AssessAction" and e["object"] == {"@id": "inventory.json"}
+    )
+    assert graph[confirmed["agent"]["@id"]]["name"] == TEST_PRINCIPAL.name
+    assert {"@id": confirmed["@id"]} in root["mentions"]
     readme = next(e for k, e in graph.items() if k.startswith("documents/readme-"))
     drafted = next(
         e
@@ -492,3 +502,20 @@ def test_the_package_command_writes_the_package_or_says_why_not(
     assert built["caused_by"] == "dd-harness project package"
     assert out.strip() == built["digest"]
     assert out_file.read_bytes() == projects.package(chosen, built["digest"])
+
+
+@pytest.mark.usefixtures("operator")
+def test_the_confirm_checks_command_records_the_confirmation_for_the_inventory(
+    projects: ProjectStore, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    project_id = projects.create(acted_for=TEST_PRINCIPAL, caused_by="test", title="Soil")
+    projects.add_inventory(
+        project_id, file_inventory(*FILES), acted_for=TEST_PRINCIPAL, caused_by="test"
+    )
+    assert server.main(["project", "confirm-checks", project_id]) == 0
+    out, err = capsys.readouterr()
+    confirmed = projects.events(project_id)[-1]
+    assert confirmed["event"] == DEPOSIT_CHECKS_CONFIRMED
+    assert confirmed["caused_by"] == "dd-harness project confirm-checks"
+    assert out.strip() == confirmed["inventory_digest"]
+    assert all(statement in err for statement in confirmed["statements"])

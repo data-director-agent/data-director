@@ -23,7 +23,7 @@ Every event has these members:
 
 | Member | What it is |
 |---|---|
-| `event` | What happened: `project_created`, `project_renamed`, `project_deleted`, `project_restored`, `conversation_started`, `conversation_deleted`, `conversation_restored`, `inventory_added`, `researcher_added`, `researcher_withdrawn`, `repository_chosen`, `document_version_added`, `document_version_decided`, `document_question_answered`, `document_change_refused`, `fact_proposed`, `fact_decided`, `project_validated` or `package_built`. |
+| `event` | What happened: `project_created`, `project_renamed`, `project_deleted`, `project_restored`, `conversation_started`, `conversation_deleted`, `conversation_restored`, `inventory_added`, `researcher_added`, `researcher_withdrawn`, `repository_chosen`, `document_version_added`, `document_version_decided`, `document_question_answered`, `document_change_refused`, `fact_proposed`, `fact_decided`, `deposit_checks_confirmed`, `project_validated` or `package_built`. |
 | `event_id` | A UUIDv7, so events sort in the order they happened. |
 | `project_id` | The project. |
 | `at` | When, in UTC. |
@@ -117,6 +117,15 @@ validate` or before a package is built. It also gives:
 | `canonicalisation` | `dd-input-json-v1`. |
 | `conforms` | Whether the report has no violation. |
 | `requirements_digest` | The digest of the merged requirements checked against, or null if no repository was chosen. |
+
+`deposit_checks_confirmed` records that a person confirmed the checks before deposit C2 asks for
+([Deposit](../../docs/specs/deposit.md), invariant 21), made by `dd-harness project
+confirm-checks` or `POST /api/projects/{id}/deposit-confirmation`. It also gives:
+
+| Member | What it is |
+|---|---|
+| `inventory_digest` | The digest of the inventory the project held, which the confirmation is for. |
+| `statements` | What was confirmed, in the words shown to the person. |
 
 `package_built` records a deposit package, built only after a `project_validated` event that
 conforms. It also gives:

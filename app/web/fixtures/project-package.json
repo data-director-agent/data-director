@@ -1,5 +1,13 @@
 {
   "conforms": true,
+  "notes": [
+    {
+      "component": "https://w3id.org/data-director/DepositChecksConfirmationConstraintComponent",
+      "focus": "urn:uuid:01900000-0000-7000-8000-000000000001",
+      "message": "Josiah Carberry confirmed the checks before deposit for this inventory at 2026-01-01T00:00:00Z.",
+      "path": null
+    }
+  ],
   "package": {
     "digest": "0000000000000000000000000000000000000000000000000000000000000003",
     "href": "/api/projects/01900000-0000-7000-8000-000000000001/packages/0000000000000000000000000000000000000000000000000000000000000003",
@@ -102,6 +110,32 @@
         "sh:sourceConstraintComponent": {
           "@id": "http://www.w3.org/ns/shacl#MinCountConstraintComponent"
         }
+      },
+      {
+        "@type": "sh:ValidationResult",
+        "sh:focusNode": {
+          "@id": "urn:uuid:01900000-0000-7000-8000-000000000001"
+        },
+        "sh:resultMessage": "The inventory was made without the check for personal data, so nothing in it was looked at for personal data. Make the inventory again with the current dd-inventory to check it.",
+        "sh:resultSeverity": {
+          "@id": "sh:Warning"
+        },
+        "sh:sourceConstraintComponent": {
+          "@id": "https://w3id.org/data-director/PersonalDataCheckConstraintComponent"
+        }
+      },
+      {
+        "@type": "sh:ValidationResult",
+        "sh:focusNode": {
+          "@id": "urn:uuid:01900000-0000-7000-8000-000000000001"
+        },
+        "sh:resultMessage": "Josiah Carberry confirmed the checks before deposit for this inventory at 2026-01-01T00:00:00Z.",
+        "sh:resultSeverity": {
+          "@id": "sh:Info"
+        },
+        "sh:sourceConstraintComponent": {
+          "@id": "https://w3id.org/data-director/DepositChecksConfirmationConstraintComponent"
+        }
       }
     ]
   },
@@ -139,6 +173,12 @@
       "focus": "urn:uuid:01900000-0000-7000-8000-000000000002#v2",
       "message": "The metadata record has no geoLocations, which Zenodo recommends.",
       "path": "http://schema.org/spatialCoverage"
+    },
+    {
+      "component": "https://w3id.org/data-director/PersonalDataCheckConstraintComponent",
+      "focus": "urn:uuid:01900000-0000-7000-8000-000000000001",
+      "message": "The inventory was made without the check for personal data, so nothing in it was looked at for personal data. Make the inventory again with the current dd-inventory to check it.",
+      "path": null
     }
   ]
 }

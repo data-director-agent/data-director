@@ -26,6 +26,7 @@ from dd_harness.projects import (
     ProjectError,
     UnknownProjectError,
 )
+from dd_harness.projects.deposits import DEPOSIT_CHECKS
 from dd_harness.requirements import Requirements
 from dd_harness.storage import (
     DepositSource,
@@ -333,6 +334,28 @@ class ProjectService:
             caused_by=caused_by,
         )
         return built, self.validation_view(project_id, built.validation)
+
+    def deposit_checks(self, project_id: str) -> dict[str, Any]:
+        """What a person confirms before deposit, and the confirmation that stands for the
+        inventory the project holds now, or None."""
+        store: ProjectDeposits = self._store
+        confirmed = store.checks_confirmation(project_id)
+        return {
+            "statements": list(DEPOSIT_CHECKS),
+            "confirmed": None if confirmed is None else deposit.confirmation_view(confirmed),
+        }
+
+    def confirm_deposit_checks(
+        self, project_id: str, *, acted_for: Principal, caused_by: str
+    ) -> dict[str, Any]:
+        """Record `acted_for`'s confirmation of the checks before deposit for the inventory the
+        project holds now (docs/specs/deposit.md, invariant 21). Raises `ProjectError` when the
+        project holds no inventory."""
+        store: ProjectDeposits = self._store
+        store.confirm_checks(project_id, acted_for=acted_for, caused_by=caused_by)
+        confirmed = store.checks_confirmation(project_id)
+        assert confirmed is not None  # just recorded, for the inventory held now
+        return deposit.confirmation_view(confirmed)
 
     def validation_view(self, project_id: str, validation: Validation) -> dict[str, Any]:
         store: ProjectRecord = self._store

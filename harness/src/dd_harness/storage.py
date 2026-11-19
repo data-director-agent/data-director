@@ -408,6 +408,16 @@ class ProjectDeposits(ProjectRecord, Protocol):
         """The bytes of a package the log records as built, or None."""
         ...
 
+    def confirm_checks(self, project_id: str, *, acted_for: Principal, caused_by: str) -> str:
+        """Record a person's confirmation of the checks before deposit for the inventory held
+        now; returns the inventory's digest."""
+        ...
+
+    def checks_confirmation(self, project_id: str) -> dict[str, Any] | None:
+        """The confirmation of the checks before deposit that stands for the inventory held now,
+        or None."""
+        ...
+
 
 class ProjectStorage(
     ProjectLifecycle,
@@ -455,7 +465,7 @@ class ProjectStorage(
 
 
 class DepositSource(
-    ProjectHoldings, ProjectRepository, ProjectDocuments, ProjectDeposits, Protocol
+    ProjectHoldings, ProjectRepository, ProjectDocuments, ProjectFacts, ProjectDeposits, Protocol
 ):
     """The areas of a project that validating and packaging it read and record
-    (`dd_harness.deposit`)."""
+    (`dd_harness.deposit`): the facts people decided are read for the pause before deposit."""

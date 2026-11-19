@@ -1,10 +1,11 @@
 {
-  "detail": "the project is not valid for deposit: Zenodo requires a metadata record, and none has been approved.",
+  "detail": "the project is not valid for deposit: Zenodo requires a metadata record, and none has been approved.; Nobody has confirmed, for the inventory the project holds now, that ethics approval for collecting and sharing these data is in place, or none is needed; that advice on data protection has been taken where the data may hold personal data; that the rights to share material from others, and the terms of any agreement, have been checked. An owner of the project confirms it before the package is built.",
   "status": 409,
   "title": "No package was built",
   "type": "https://w3id.org/data-director/problems/package-refused",
   "validation": {
     "conforms": false,
+    "notes": [],
     "project_id": "01900000-0000-7000-8000-000000000001",
     "report": {
       "@context": {
@@ -51,6 +52,32 @@
           "sh:sourceConstraintComponent": {
             "@id": "https://w3id.org/data-director/RequiredDocumentConstraintComponent"
           }
+        },
+        {
+          "@type": "sh:ValidationResult",
+          "sh:focusNode": {
+            "@id": "urn:uuid:01900000-0000-7000-8000-000000000001"
+          },
+          "sh:resultMessage": "The inventory was made without the check for personal data, so nothing in it was looked at for personal data. Make the inventory again with the current dd-inventory to check it.",
+          "sh:resultSeverity": {
+            "@id": "sh:Warning"
+          },
+          "sh:sourceConstraintComponent": {
+            "@id": "https://w3id.org/data-director/PersonalDataCheckConstraintComponent"
+          }
+        },
+        {
+          "@type": "sh:ValidationResult",
+          "sh:focusNode": {
+            "@id": "urn:uuid:01900000-0000-7000-8000-000000000001"
+          },
+          "sh:resultMessage": "Nobody has confirmed, for the inventory the project holds now, that ethics approval for collecting and sharing these data is in place, or none is needed; that advice on data protection has been taken where the data may hold personal data; that the rights to share material from others, and the terms of any agreement, have been checked. An owner of the project confirms it before the package is built.",
+          "sh:resultSeverity": {
+            "@id": "sh:Violation"
+          },
+          "sh:sourceConstraintComponent": {
+            "@id": "https://w3id.org/data-director/DepositChecksConfirmationConstraintComponent"
+          }
         }
       ]
     },
@@ -63,6 +90,12 @@
         "focus": "urn:uuid:01900000-0000-7000-8000-000000000001",
         "message": "Zenodo requires a metadata record, and none has been approved.",
         "path": null
+      },
+      {
+        "component": "https://w3id.org/data-director/DepositChecksConfirmationConstraintComponent",
+        "focus": "urn:uuid:01900000-0000-7000-8000-000000000001",
+        "message": "Nobody has confirmed, for the inventory the project holds now, that ethics approval for collecting and sharing these data is in place, or none is needed; that advice on data protection has been taken where the data may hold personal data; that the rights to share material from others, and the terms of any agreement, have been checked. An owner of the project confirms it before the package is built.",
+        "path": null
       }
     ],
     "warnings": [
@@ -70,6 +103,12 @@
         "component": "https://w3id.org/data-director/RepositoryChoiceConstraintComponent",
         "focus": "urn:uuid:01900000-0000-7000-8000-000000000001",
         "message": "the deployment has no override for Zenodo: only DataCite Metadata Schema 4 is checked, not the repository's own form, formats, sizes or licences",
+        "path": null
+      },
+      {
+        "component": "https://w3id.org/data-director/PersonalDataCheckConstraintComponent",
+        "focus": "urn:uuid:01900000-0000-7000-8000-000000000001",
+        "message": "The inventory was made without the check for personal data, so nothing in it was looked at for personal data. Make the inventory again with the current dd-inventory to check it.",
         "path": null
       }
     ]

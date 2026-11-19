@@ -11,7 +11,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from dd_sdk.contract.models import Derivation, Frozen, Grounded
+from dd_sdk.contract.models import Derivation, Frozen, Grounded, ProjectFact
 
 
 class JudgedBy(StrEnum):
@@ -58,3 +58,5 @@ class FormatAssessment(Grounded):
     summary: str | None = None
     summary_derivation: Derivation | None = None
     limitations: list[str] = Field(default_factory=list)
+    # For each file listed for a person to look at, what a person decides before deposit (#987).
+    proposed_facts: list[ProjectFact] = Field(default_factory=list)

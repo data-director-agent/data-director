@@ -193,6 +193,8 @@ def test_the_model_leads_from_the_files_to_a_package(
     # A table with a field, so that a data dictionary has something to describe.
     inventory["inventory_files"][0]["file_fields"] = [{"name": "depth", "field_type": "number"}]
     projects.add_inventory(project, inventory, acted_for=TEST_PRINCIPAL, caused_by="test")
+    # The researcher confirms the checks before deposit C2 asks for (docs/specs/deposit.md).
+    projects.confirm_checks(project, acted_for=TEST_PRINCIPAL, caused_by="test")
     conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
     researcher = Researcher(conductor, model, conversation)
 

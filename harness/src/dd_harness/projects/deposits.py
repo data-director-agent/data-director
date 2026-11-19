@@ -1,21 +1,32 @@
 """What a project keeps of getting its data deposited: each validation of it against its
-repository's requirements, and each deposit package built (docs/specs/deposit.md, invariants 8
-and 9)."""
+repository's requirements, each deposit package built, and each person's confirmation that the
+checks before deposit were made (docs/specs/deposit.md, invariants 8, 9 and 21)."""
 
 from __future__ import annotations
 
 import hashlib
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, Final
 
 from dd_harness.projects.rules import (
+    DEPOSIT_CHECKS_CONFIRMED,
     ENVELOPE_KEYS,
+    INVENTORY_ADDED,
     PACKAGE_BUILT,
     PROJECT_VALIDATED,
+    ProjectError,
     ProjectRules,
 )
 from dd_sdk.contract.models import Principal
 from dd_sdk.evidence import INPUT_CANONICALISATION, canonicalise, input_hash
+
+# What a person confirms before deposit, as C2 asks (docs/specs/deposit.md, invariant 21). The
+# words are kept in the event, so the log says what was confirmed even if they change here.
+DEPOSIT_CHECKS: Final = (
+    "Ethics approval for collecting and sharing these data is in place, or none is needed.",
+    "Advice on data protection has been taken where the data may hold personal data.",
+    "The rights to share material from others, and the terms of any agreement, have been checked.",
+)
 
 
 class DepositRecords(ProjectRules):
@@ -80,3 +91,31 @@ class DepositRecords(ProjectRules):
         if not built:
             return None
         return self._blob(project_id, digest)
+
+    def confirm_checks(self, project_id: str, *, acted_for: Principal, caused_by: str) -> str:
+        """Record `acted_for`'s confirmation of `DEPOSIT_CHECKS` for the inventory the project
+        holds now, as a `deposit_checks_confirmed` event naming its digest
+        (docs/specs/deposit.md, invariant 21). Returns the inventory's digest. Raises
+        `ProjectError` for an unknown or deleted project, or one that holds no inventory yet,
+        which records nothing."""
+        with self._section(project_id) as section:
+            added = [e for e in section.events() if e["event"] == INVENTORY_ADDED]
+            if not added:
+                raise ProjectError("the project holds no inventory to confirm the checks for")
+            digest = str(added[-1]["digest"])
+            detail = {"inventory_digest": digest, "statements": list(DEPOSIT_CHECKS)}
+            section.append(
+                [self._event(project_id, DEPOSIT_CHECKS_CONFIRMED, acted_for, caused_by, detail)]
+            )
+        return digest
+
+    def checks_confirmation(self, project_id: str) -> dict[str, Any] | None:
+        """The last `deposit_checks_confirmed` event, if it names the inventory the project holds
+        now; None otherwise, since a confirmation is for the inventory it was made against.
+        Raises `ProjectError` for an unknown project."""
+        events = self.events(project_id)
+        added = [e for e in events if e["event"] == INVENTORY_ADDED]
+        confirmed = [e for e in events if e["event"] == DEPOSIT_CHECKS_CONFIRMED]
+        if not added or not confirmed or confirmed[-1]["inventory_digest"] != added[-1]["digest"]:
+            return None
+        return dict(confirmed[-1])

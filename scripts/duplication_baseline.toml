@@ -153,7 +153,7 @@ lines = 6
 [[pair]]
 files = ["app/src/dd_app/routes/deposit.py", "app/src/dd_app/routes/materials.py"]
 clones = 1
-lines = 10
+lines = 6
 
 [[pair]]
 files = ["app/web/src/App.tsx", "app/web/src/components/project/ResearcherPanel.tsx"]

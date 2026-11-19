@@ -16,6 +16,8 @@ import type { DocumentQuestion } from "../api/contract";
 import type {
   BuiltPackage,
   DeletedProject,
+  DepositChecks,
+  DepositConfirmation,
   Disclosure,
   DocumentVersion,
   ProjectDetails,
@@ -36,6 +38,8 @@ export type { DocumentQuestion } from "../api/contract";
 export type {
   BuiltPackage,
   DeletedProject,
+  DepositChecks,
+  DepositConfirmation,
   Disclosure,
   DocumentVersion,
   IntakeQuestion,
@@ -179,6 +183,11 @@ export interface ProjectApi {
   validate(projectId: string): Promise<Validation>;
   /** Validates the project and, if it is valid, builds its deposit package; else `PackageRefused`. */
   buildPackage(projectId: string): Promise<BuiltPackage>;
+  /** What a person confirms before deposit, and the confirmation that stands, if any. */
+  depositChecks(projectId: string, signal?: AbortSignal): Promise<DepositChecks>;
+  /** Confirms, for the person signed in, that ethics approval, data-protection advice and
+   * third-party rights were checked, for the inventory the project holds now. */
+  confirmDepositChecks(projectId: string): Promise<DepositConfirmation>;
   /** What the signed-in person's own public ORCID record offers; nothing is kept. */
   orcidRecord(signal?: AbortSignal): Promise<ResearcherRecord>;
   /** The ORCID facts the project's researchers kept, which agents in the project are given. */
@@ -332,6 +341,13 @@ export const httpProjectApi: ProjectApi = {
   },
   async buildPackage(projectId) {
     return parse(await fetch(`${projectPath(projectId)}/package`, bodiless("POST")));
+  },
+  async depositChecks(projectId, signal) {
+    const path = `${projectPath(projectId)}/deposit-confirmation`;
+    return parse(await fetch(path, signal ? { signal } : {}));
+  },
+  async confirmDepositChecks(projectId) {
+    return parse(await fetch(`${projectPath(projectId)}/deposit-confirmation`, bodiless("POST")));
   },
   async orcidRecord(signal) {
     return parse(await fetch("/api/researcher/orcid", signal ? { signal } : {}));

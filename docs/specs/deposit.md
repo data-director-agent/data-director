@@ -47,6 +47,11 @@ What is built:
 - the DataCite and ORDA sets;
 - validation and the package (`dd_harness.deposit`, `dd-harness project validate` and
   `dd-harness project package`);
+- the pause before deposit C2 asks for: each file a person must decide on, what was not checked
+  for personal data, and a person's confirmation that ethics approval, data-protection advice and
+  third-party rights were checked (`dd_harness.deposit_pause`, `dd-harness project
+  confirm-checks`, `GET` and `POST /api/projects/{id}/deposit-confirmation`, and the Deposit
+  panel's *Before deposit*); *The pause before deposit* below says what it reads and records;
 - validating and building the package in the app, which calls `dd_harness.deposit` in process
   and draws its results ([The app](app.md)): `POST /api/projects/{id}/validation` checks the
   project and keeps the report; `POST /api/projects/{id}/package` builds the package, or answers
@@ -153,6 +158,37 @@ transport exist; each invariant names the issue that will build and test the res
     package's format and digest and the transport, so any package or deposit reads alike in the
     log. TODO(#870, #647).
 
+Invariants 20 to 22 hold for the pause before deposit (C2; *The pause before deposit* below).
+
+20. **A file a person must decide on stops the package until a person decides it.** The check
+    names, as a violation, each file or folder that the stored inventory's personal-data findings
+    name, that an open proposal of a `file_inclusion` or `sensitivity` fact names, or whose
+    standing fact of either kind is `undecided`. A person clears it by deciding a fact of either
+    kind on it that is not `undecided`, a `fact_decided` event naming who and when
+    ([Projects](projects.md), invariant 28); a decision either way clears it, so the pause never
+    blocks for ever. No agent decides: a proposal pauses, and only a person's decision clears
+    (`test_each_file_a_person_must_decide_pauses_the_deposit_until_one_does`,
+    `test_a_fact_that_stands_undecided_still_pauses_the_deposit`).
+21. **No package without a person's confirmation of the checks before deposit, for the inventory
+    it was made for.** A `deposit_checks_confirmed` event records who confirmed, when, the digest of
+    the inventory the project held, and the statements confirmed, in the words shown to them
+    (`DEPOSIT_CHECKS`): that ethics approval is in place or not needed, that data-protection advice
+    has been taken where the data may hold personal data, and that the rights to share others'
+    material and the terms of any agreement have been checked. Until one names the inventory held
+    now, the check has a violation saying so; a new inventory needs a new confirmation. Only
+    someone who may decide in the project confirms (`DECIDE`). The package holds the confirmation
+    as an `AssessAction` on `inventory.json`, beside the log that records it
+    (`test_the_checks_before_deposit_are_confirmed_for_the_inventory_held_now`,
+    `test_the_checks_cannot_be_confirmed_before_there_is_an_inventory`,
+    `test_a_valid_project_writes_a_package_with_its_audit_trail`).
+22. **Nothing flagged is never clearance.** An inventory, or a part of one, made without the
+    personal-data check is a warning that nothing in it was looked at for personal data; absent and
+    empty findings stay apart ([Personal data](personal-data.md), invariant 2). When nothing waits
+    for a decision, a note (`sh:Info`) says what was not checked, in the words of
+    [Personal data](personal-data.md)'s *Wording for researchers*, and never says the data are safe
+    (`test_a_project_with_no_marks_still_says_what_was_not_checked`,
+    `test_an_inventory_made_before_findings_existed_is_a_warning_not_clearance`).
+
 ## Boundaries and contracts
 
 **The class.** `RequirementSet` is a core contract class ([Contract](contract.md)) so that the
@@ -181,9 +217,12 @@ TODO(#401).
 - the record's licence is one the set lists, when it lists any;
 - every inventory entry has an accepted media type and is within the file size limit, and the
   inventory's files together within the item size, when they are stated. A limit on the number of
-  files in an item is not in the class, TODO(#385).
+  files in an item is not in the class, TODO(#385);
+- the pause before deposit (below).
 
-A project with no repository chosen, or no inventory, has a violation that says so.
+A project with no repository chosen, or no inventory, has a violation that says so. A report's
+results are violations, which stop the package, warnings, which do not, and notes (`sh:Info`),
+which say what was not checked or who confirmed the checks and ask nothing.
 
 The record is read as RDF through the set's own field table, the same DataCite to schema.org
 mapping the package uses. A field's property, and its qualifier when it has one, select the
@@ -221,6 +260,53 @@ The whole provenance graph of the project is to replace the disclosure graph as 
 with the root crate's actions named by the same IRIs ([Provenance](provenance.md), TODO(#803)). The harness keeps the package by the SHA-256 of its bytes and records it in
 the project log with a `package_built` event, which names the report, the merged set, each
 document version and each run it holds.
+
+### The pause before deposit
+
+C2 asks that where potential identifiers are flagged the sharing workflow pause, a person be
+alerted and given guidance, and that users confirm ethics approvals are in place before any
+deposit proceeds. **Check the project** is where the workflow pauses
+(`dd_harness.deposit_pause`, invariants 20 to 22).
+
+**What it reads.** Only what the project holds, through the project rules, so the harness names no
+agent class and reads no agent's payload ([Contract](contract.md)):
+
+- the stored inventory's personal-data findings, `inventory_personal_data` and each part's
+  `part_personal_data` ([Personal data](personal-data.md)), grouped by the file or folder they
+  name. The message names each finding's kind and place (a column, field names, the file name or
+  its text), never a value, and refers the person to their data steward or ethics contact;
+- the project's open proposals and standing facts of the kinds `file_inclusion` and
+  `sensitivity` ([Projects](projects.md), invariant 28), each with its `proposed_because`.
+  `advisor.files` proposes one for each file it lists from names alone: free text, someone
+  else's material, terms or an agreement, operating-system and empty files and copies whether
+  they go in, and coordinates whether they may be published. Any agent that proposes such a fact
+  pauses the deposit the same way;
+- the `deposit_checks_confirmed` event that names the inventory held now.
+
+Of the three ways #987 weighed to get the File Archivist's name-level hints to the harness, this
+takes the one that needs neither: the archivist turns its hints into proposals, which the
+harness already records and reads by kind and subject. The harness keeps no third copy of the
+hint rules, and does not read runs by process-flow step. Whether the hints become findings of the
+`file name` and `field name` kinds in `FileInventory` stays TODO(#471); if they do, the pause reads
+them as it reads every finding, with no change here.
+
+**How a person clears an item.** On the project's **Project facts** panel, by confirming,
+changing or rejecting the proposal, or by stating a fact nobody proposed: whether the file goes in
+(`include` or `exclude`), or whether it may be published (`publish`, `generalise` at a precision,
+or `withhold`). Whether sensitive data may be published is an owner's decision; whether a file goes
+in, a member's ([Projects](projects.md), invariant 28). The decision is a `fact_decided` event, and
+the conductor gives the fact that stands to every drafter in the project. Rejecting a proposal
+answers the proposal, since a person decided it; a file the findings name still waits for a fact
+about it. A later proposal on the same kind and subject asks again.
+
+**The confirmation.** On the Deposit panel's *Before deposit*, an owner ticks that they confirm
+each statement, as the server words them, and confirms; or `dd-harness project confirm-checks`,
+for the operator. The project log keeps it, the package holds it (invariant 21), and
+[Provenance](provenance.md) maps it.
+
+**Wording.** A finding is "possible personal data", never personal data; nothing flagged is said
+not to mean the data hold none, as [Personal data](personal-data.md) words it. Data Director
+never says the data are safe, anonymous or cleared.
 
 ### Packagers and transports
 
@@ -398,6 +484,14 @@ DataCite; moving it is TODO(#22).
 - **The person's own token**, because the item is the researcher's, the repository's own rules
   about who may deposit where then apply unchanged, and no one token opens every researcher's
   items.
+- **The pause as violations a decision clears**, because C2 asks that the workflow pause until a
+  person acts, and warnings would let a package be built with nobody having looked. A decision
+  either way clears an item, so the pause asks for a decision, not a particular one.
+- **Signals as project facts, not agent payloads**, because the harness already records proposals
+  and decisions by kind and subject, with who and when, and reads them without knowing which agent
+  proposed them; a reviewer of the log sees each decision where every other one is.
+- **One confirmation per inventory**, because what was confirmed is about the data, and a new
+  inventory may hold data the person has not checked.
 - **A draft, not a published item**, because a draft can be corrected or deleted, the data files
   still have to be added by someone who holds them, and publishing mints an identifier that cannot
   be withdrawn.
@@ -434,6 +528,15 @@ DataCite; moving it is TODO(#22).
   there, may follow; it is not part of this design.
 - **An agent that deposits.** It would need the write credential, and the policy gate cannot stop
   an agent's service doing what it did not declare (Blueprint P4).
+- **Open items as warnings that do not block** (#987's first proposal). A package could then be
+  built with nothing decided, which C2 rules out.
+- **Reading the latest run of each step** (`preparation.files`, `governance.*`). The harness would
+  depend on each agent's payload class, against the rule that it names none, and a run nobody
+  looked at would count as the project's state.
+- **The harness working the hints out from the inventory itself.** A third copy of
+  `hints.yaml`, kept in step by hand, and a second judge of the same names.
+- **A confirmation per statement, or free text.** One statement unticked would leave the package
+  in a state no reviewer could read, and free text cannot be checked to say what C2 asks.
 - **SHACL shapes written by hand.** A steward cannot read or review them; generated shapes say only
   what the sets say.
 - **A JSON Schema per standard or repository.** Its errors would have to be translated into the

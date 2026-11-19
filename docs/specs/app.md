@@ -598,8 +598,12 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   the harness resolved them. It also offers a way to choose one there (below); with none chosen
   it says so, and that a shortlist can be asked for in the project's conversations. Whether a package meets them is the deposit check's to say. The
   deposit package entry checks the project against its chosen repository's
-  requirements ([Deposit](deposit.md)) when the person asks, and lists what must be fixed and
-  what is worth fixing, each in the harness's words. It offers to build the package only after
+  requirements ([Deposit](deposit.md)) when the person asks, and lists what must be fixed or
+  decided, what is worth fixing and notes of what was not checked, each in the harness's words.
+  Under *Before deposit* it lists, in the server's words, what an owner confirms before deposit
+  (`GET /api/projects/{id}/deposit-confirmation`), and, once they tick that they confirm each and
+  confirm (`POST`), who confirmed and when; a confirmation withdraws a check made before it, as a
+  decision does ([Deposit](deposit.md), *The pause before deposit*). It offers to build the package only after
   a check the project passed, and then a link to download the zip by its digest. A decision made
   since the check withdraws that offer until the project is checked again. What a check or a
   build did is said once in a live region that is in the panel from the start; focus stays on

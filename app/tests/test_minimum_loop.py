@@ -257,12 +257,34 @@ def test_a_researcher_goes_from_their_files_to_a_deposit_package(
     assert len(record["versions"]) == 2
     assert json.loads(record["versions"][-1]["text"]) == json.loads(edited)
 
-    # 5. Validate against ORDA.
+    # 5. The pause before deposit (#987): the check names each file the inventory flagged, and
+    # waits until a person decides it and confirms the checks C2 asks for.
+    paused = researcher.post("/validation")
+    assert not paused["conforms"]
+    flagged = {f["finding_file"] for f in inventory["inventory_personal_data"]}
+    assert flagged
+    for path in sorted(flagged):
+        researcher.post(
+            "/facts/decisions",
+            {
+                "verdict": "changed",
+                "fact": {
+                    "fact_kind": "sensitivity",
+                    "fact_subject": path,
+                    "sensitive_subject": path,
+                    "sensitivity_decision": "generalise",
+                },
+            },
+        )
+    confirmed = researcher.post("/deposit-confirmation")
+    assert confirmed["confirmed_by"] == TEST_PRINCIPAL.name
+
+    # 6. Validate against ORDA.
     validation = researcher.post("/validation")
     assert validation["conforms"], validation["violations"]
     assert validation["violations"] == []
 
-    # 6. Package, and download it by its digest.
+    # 7. Package, and download it by its digest.
     built = researcher.post("/package")
     assert built["conforms"]
     download = client.get(built["package"]["href"])
@@ -295,9 +317,10 @@ def test_a_researcher_goes_from_their_files_to_a_deposit_package(
         assert action["@type"] == "CreateAction"
         assert crate[action["instrument"]["@id"]]["name"] == agent_id
 
-    # Every decision is in the crate, made by the researcher; the edit's reason goes with it.
+    # Every decision is in the crate, made by the researcher, and the confirmation of the checks
+    # before deposit; the edit's reason goes with it.
     assessments = [e for e in crate.values() if e["@type"] == "AssessAction"]
-    assert len(assessments) == len(documents)
+    assert len(assessments) == len(documents) + 1
     assert {crate[a["agent"]["@id"]]["name"] for a in assessments} == {TEST_PRINCIPAL.name}
     assert REASON in {a.get("description") for a in assessments}
 
@@ -310,6 +333,7 @@ def test_a_researcher_goes_from_their_files_to_a_deposit_package(
         ("repository_chosen", "document_version_added"),
         ("document_version_added", "document_version_decided"),
         ("document_version_decided", "project_validated"),
+        ("fact_decided", "deposit_checks_confirmed"),
     ):
         assert order.index(earlier) < order.index(later)
     drafts = [e for e in log if e["event"] == "document_version_added" and e.get("drafted_by")]

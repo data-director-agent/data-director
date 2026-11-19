@@ -2,11 +2,15 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 
+import checksFixture from "../../../fixtures/deposit-checks.json";
+import confirmedFixture from "../../../fixtures/deposit-confirmation.json";
 import builtFixture from "../../../fixtures/project-package.json";
 import refusedFixture from "../../../fixtures/project-package-refused.json";
 import chosenFixture from "../../../fixtures/repository-chosen.json";
 import {
   type BuiltPackage,
+  type DepositChecks,
+  type DepositConfirmation,
   PackageRefused,
   type ProjectApi,
   ProjectApiContext,
@@ -30,9 +34,18 @@ const PROJECT_ID = BUILT.project_id;
 // ORDA as the server resolves it (app/tests/test_repository_choice.py): form labels, its address
 // and what its profile leaves unconfirmed.
 const ORDA = chosenFixture as RepositoryRequirements;
+// What a person confirms before deposit (app/tests/test_deposit_package.py): confirmed, as the
+// server answers once someone has, and unconfirmed.
+const CONFIRMED = confirmedFixture as DepositConfirmation;
+const CHECKS = checksFixture as DepositChecks;
+const UNCONFIRMED: DepositChecks = { ...CHECKS, confirmed: null };
 
 function renderPanel(api: Partial<ProjectApi>, revision = 0) {
-  const full = { repository: () => Promise.resolve(null), ...api } as ProjectApi;
+  const full = {
+    repository: () => Promise.resolve(null),
+    depositChecks: () => Promise.resolve(UNCONFIRMED),
+    ...api,
+  } as ProjectApi;
   const panel = (n: number) => (
     <ProjectApiContext.Provider value={full}>
       <DepositPanel projectId={PROJECT_ID} revision={n} />
@@ -57,7 +70,7 @@ describe("sizeInWords", () => {
 
 describe("outcome", () => {
   it("says whether the project is ready, and how many problems or warnings it has", () => {
-    expect(outcome(INVALID)).toMatch(/^1 problem must be fixed/);
+    expect(outcome(INVALID)).toMatch(/^\d+ problems? must be fixed/);
     expect(outcome(VALID)).toMatch(/ready to package, with \d+ warnings/);
     expect(outcome({ ...VALID, warnings: [] })).toBe("The project is ready to package.");
   });
@@ -93,7 +106,12 @@ describe("DepositPanel", () => {
   it("builds the package of a valid project and offers it to download, by keyboard", async () => {
     const buildPackage = vi.fn(() => Promise.resolve(BUILT));
     const user = userEvent.setup();
-    const { container } = renderPanel({ validate: () => Promise.resolve(VALID), buildPackage });
+    // A valid project has had its checks confirmed, so nothing waits between check and build.
+    const { container } = renderPanel({
+      validate: () => Promise.resolve(VALID),
+      buildPackage,
+      depositChecks: () => Promise.resolve(CHECKS),
+    });
 
     await user.tab();
     expect(within(region()).getByRole("button", { name: "Check the project" })).toHaveFocus();
@@ -207,6 +225,56 @@ describe("DepositPanel", () => {
     setRevision(1);
     expect(within(region()).getByText(/changed since it was checked/)).toBeVisible();
     expect(within(region()).queryByRole("button", { name: /Build/ })).not.toBeInTheDocument();
+  });
+
+  it("shows notes, which ask nothing, apart from problems and warnings", async () => {
+    const user = userEvent.setup();
+    renderPanel({ validate: () => Promise.resolve(VALID) });
+    await user.click(within(region()).getByRole("button", { name: "Check the project" }));
+    expect(VALID.notes.length).toBeGreaterThan(0);
+    const notes = await within(region()).findByRole("region", { name: /Notes/ });
+    for (const result of VALID.notes) {
+      expect(within(notes).getByText(result.message)).toBeVisible();
+    }
+  });
+
+  it("asks a person to confirm the checks before deposit, in the server's words", async () => {
+    const confirmDepositChecks = vi.fn(() => Promise.resolve(CONFIRMED));
+    const user = userEvent.setup();
+    const { container } = renderPanel({ validate: () => Promise.resolve(VALID), confirmDepositChecks });
+    const checks = await within(region()).findByRole("region", { name: "Before deposit" });
+    for (const statement of UNCONFIRMED.statements) {
+      expect(within(checks).getByText(statement)).toBeVisible();
+    }
+    const confirm = within(checks).getByRole("button", { name: "Confirm the checks" });
+    expect(confirm).toBeDisabled();
+    expect(await axe(container)).toHaveNoViolations();
+
+    // A check made before the confirmation no longer stands once it is made.
+    await user.click(within(region()).getByRole("button", { name: "Check the project" }));
+    await within(region()).findByRole("button", { name: "Build the package" });
+    await user.click(within(checks).getByRole("checkbox"));
+    await user.click(confirm);
+    expect(confirmDepositChecks).toHaveBeenCalledWith(PROJECT_ID);
+    expect(await within(checks).findByText(new RegExp(CONFIRMED.confirmed_by))).toBeVisible();
+    expect(within(checks).queryByRole("button", { name: /Confirm/ })).not.toBeInTheDocument();
+    expect(within(region()).getByText(/changed since it was checked/)).toBeVisible();
+  });
+
+  it("shows a confirmation that stands", async () => {
+    renderPanel({ depositChecks: () => Promise.resolve(CHECKS) });
+    const checks = await within(region()).findByRole("region", { name: "Before deposit" });
+    expect(within(checks).getByText(new RegExp(CONFIRMED.confirmed_by))).toBeVisible();
+    expect(within(checks).queryByRole("button", { name: /Confirm/ })).not.toBeInTheDocument();
+  });
+
+  it("says what the server said when it refuses a confirmation", async () => {
+    const user = userEvent.setup();
+    renderPanel({ confirmDepositChecks: () => Promise.reject(new Error("only an owner may")) });
+    const checks = await within(region()).findByRole("region", { name: "Before deposit" });
+    await user.click(within(checks).getByRole("checkbox"));
+    await user.click(within(checks).getByRole("button", { name: "Confirm the checks" }));
+    expect(await within(checks).findByRole("alert")).toHaveTextContent("only an owner may");
   });
 
   it("says when the project cannot be checked", async () => {

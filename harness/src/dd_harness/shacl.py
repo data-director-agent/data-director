@@ -32,9 +32,16 @@ from dd_sdk.contract.rdf import payload_jsonld
 SH = Namespace("http://www.w3.org/ns/shacl#")
 DD = "https://w3id.org/data-director/"
 
-type Severity = Literal["violation", "warning"]
+type Severity = Literal["violation", "warning", "info"]
 VIOLATION: Final = "violation"
 WARNING: Final = "warning"
+# Says what a check did not look at, or what a person decided; it neither blocks nor warns.
+INFO: Final = "info"
+SEVERITIES: Final[dict[Any, Severity]] = {
+    SH.Violation: VIOLATION,
+    SH.Warning: WARNING,
+    SH.Info: INFO,
+}
 
 # The constraint component of a result that pySHACL did not make because it could not run: the
 # payload could not be read as RDF, or the shapes could not be parsed.
@@ -66,7 +73,8 @@ class Result:
 
 
 def conforms(results: Iterable[Result]) -> bool:
-    """A validation conforms when none of its results is a violation; warnings do not block."""
+    """A validation conforms when none of its results is a violation; warnings and notes do not
+    block."""
     return all(r.severity != VIOLATION for r in results)
 
 
@@ -93,14 +101,18 @@ def run(data: Graph, shapes: Graph) -> list[Result]:
         message = report.value(node, SH.resultMessage)
         found.append(
             Result(
-                VIOLATION if report.value(node, SH.resultSeverity) == SH.Violation else WARNING,
+                SEVERITIES.get(report.value(node, SH.resultSeverity), WARNING),
                 str(message) if message is not None else "",
                 str(report.value(node, SH.focusNode)),
                 str(report.value(node, SH.sourceConstraintComponent)),
                 str(path) if path is not None else None,
             )
         )
-    return sorted(found, key=lambda r: (r.severity != VIOLATION, r.path or "", r.message))
+    return sorted(found, key=lambda r: (_rank(r.severity), r.path or "", r.message))
+
+
+def _rank(severity: Severity) -> int:
+    return (VIOLATION, WARNING, INFO).index(severity)
 
 
 @dataclass(frozen=True)

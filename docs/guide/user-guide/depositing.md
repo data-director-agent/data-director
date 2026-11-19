@@ -13,9 +13,22 @@ approve it, is planned (TODO(#383)).
 In the project's **Deposit** tab:
 
 1. Choose **Check the project**. The project is checked against what the repository you chose
-   asks for. Anything listed under *Must be fixed before packaging* stops the package; fix it and
-   check again.
-2. Choose **Build the package**, then **Download the package**.
+   asks for. Anything listed under *Must be fixed or decided before packaging* stops the package;
+   fix it and check again.
+2. Decide each file the check names. A file is named when the inventory flagged possible personal
+   data in it, or when an adviser asked a person to look at it: free text, coordinates, someone
+   else's material, an agreement, or a file that may not belong. Decide it on the **Project facts**
+   tab: whether it goes in the deposit, or whether it may be published, generalised or withheld.
+   Talk to your data steward or ethics contact if you are not sure. Data Director does not decide
+   for you and does not change your files.
+3. Under *Before deposit*, an owner of the project confirms that ethics approval is in place,
+   that advice on data protection has been taken, and that the rights to share others' material
+   have been checked. The confirmation is kept in the project's record and in the package. If you
+   add a new inventory, confirm again.
+4. Choose **Check the project** again, then **Build the package**, then **Download the package**.
+
+A check that names nothing to decide does not mean your data hold no personal data: it says what
+was not checked.
 
 The **Repository** tab shows the repository you chose and the fields its form asks for.
 

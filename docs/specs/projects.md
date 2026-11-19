@@ -329,7 +329,8 @@ intended design, and each part says where it is not built yet.
 28. **A fact about a project is what a person decided, never what an agent proposed.** A check
     agent may propose facts in its payload (`ProjectFact`, [Contract](contract.md), invariant
     25): a funder, a repository a funder, journal or institution requires, whether a file is
-    deposited (`include`, `exclude`, or `undecided`, which a person must decide before deposit),
+    deposited (`include`, `exclude`, or `undecided`, which a person must decide before deposit:
+    the deposit check pauses on it, [Deposit](deposit.md), invariant 20),
     whether a sensitive field or file may be published (`publish` or `generalise`, at a
     precision, `withhold`, or `undecided`), the licence, or a sharing commitment a data
     management plan makes (`sharing_commitment`: the output, where, how openly and under what
@@ -540,6 +541,7 @@ TODO(#16, #72).
 | add an inventory or documentation; edit a document as a new proposed version | yes | yes |
 | leave the project | yes | unless the last owner |
 | approve or reject a document version | no | yes |
+| confirm the checks before deposit ([Deposit](deposit.md), invariant 21) | no | yes |
 | add or remove a member, or change a role | no | yes |
 | delete the project, or restore a deleted one | no | yes |
 
