@@ -51,6 +51,16 @@ describe("RepositoryShortlist", () => {
     expect(zenodo).not.toHaveTextContent("Mandated");
   });
 
+  it("marks a repository the researcher's plan names as such, never as mandated (#1233)", () => {
+    const shortlist = shortlistOf(shortlistRun()).map((r) =>
+      r.re3dataId === "r3d100010468" ? { ...r, basis: "in_plan" } : r,
+    );
+    renderShortlist(vi.fn<ProjectApi["chooseRepository"]>(), null, shortlist);
+    const [, zenodo] = screen.getAllByRole("listitem");
+    expect(zenodo).toHaveTextContent("In your plan");
+    expect(zenodo).not.toHaveTextContent("Mandated");
+  });
+
   it("sends only the re3data identifier and shows what the choice resolved to", async () => {
     const choose = vi
       .fn<ProjectApi["chooseRepository"]>()

@@ -14,6 +14,7 @@ from dd_agent_advisor_repository.classes import (
     CandidateBasis,
     RepositoryNeeds,
     RepositoryOptions,
+    RepositoryRef,
 )
 from dd_sdk.contract.facts import ChosenRepository, ProjectFact
 from dd_sdk.contract.models import OutcomeStatus
@@ -54,3 +55,77 @@ def test_a_caller_may_still_ask_for_a_shortlist_after_a_choice(runs_dir: Path) -
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     bases = {basis for _, basis in cited(env.payload_as(RepositoryOptions))}
     assert bases == {CandidateBasis.RECOMMENDED}
+
+
+def commitment(repository: str | None) -> ProjectFact:
+    """A sharing commitment of the data management plan, as the researcher confirmed it."""
+    return ProjectFact(
+        fact_kind="sharing_commitment",
+        fact_subject="survey responses",
+        commitment_repository=repository,
+        commitment_quote="We will deposit the survey responses in the repository named.",
+        commitment_document="0" * 64,
+    )
+
+
+def test_a_confirmed_plan_names_a_repository_described_beside_the_shortlist(
+    runs_dir: Path,
+) -> None:
+    """#1233: the plan's repository is described, never mandated, and the shortlist stays."""
+    needs = NEEDS.model_copy(update={"project_decisions": [commitment("Acme Data Cloud")]})
+    env = invoke(runs_dir, needs)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    found = cited(env.payload_as(RepositoryOptions))
+    assert found[0] == ("r3d100000003", CandidateBasis.IN_PLAN)
+    assert {basis for _, basis in found[1:]} == {CandidateBasis.RECOMMENDED}
+    assert "a plan's choice is not a mandate" in env.outcome.statement
+    assert "data management plan" in env.payload_as(RepositoryOptions).candidates[0].rationale
+
+
+def test_a_plan_repository_alone_is_described_without_a_shortlist(runs_dir: Path) -> None:
+    env = invoke(runs_dir, RepositoryNeeds(project_decisions=[commitment("Acme Data Cloud")]))
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert cited(env.payload_as(RepositoryOptions)) == [("r3d100000003", CandidateBasis.IN_PLAN)]
+
+
+def test_a_plan_repository_that_is_also_required_is_mandated(runs_dir: Path) -> None:
+    needs = RepositoryNeeds(project_decisions=[REQUIRED, commitment("Acme Data Cloud")])
+    env = invoke(runs_dir, needs)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert cited(env.payload_as(RepositoryOptions)) == [("r3d100000003", CandidateBasis.MANDATED)]
+
+
+def test_a_plan_repository_asked_about_too_is_described_once_as_the_plans(
+    runs_dir: Path,
+) -> None:
+    needs = RepositoryNeeds(
+        asked_about=[RepositoryRef(name="Acme Data Cloud")],
+        project_decisions=[commitment("Acme Data Cloud")],
+    )
+    env = invoke(runs_dir, needs)
+    assert cited(env.payload_as(RepositoryOptions)) == [("r3d100000003", CandidateBasis.IN_PLAN)]
+
+
+def test_a_commitment_naming_no_repository_adds_nothing(runs_dir: Path) -> None:
+    env = invoke(runs_dir, RepositoryNeeds(project_decisions=[commitment(None)]))
+    assert env.outcome.status == OutcomeStatus.ABSTAINED
+
+
+def test_the_chosen_repository_is_not_described_alone_beside_a_plan_repository(
+    runs_dir: Path,
+) -> None:
+    needs = RepositoryNeeds(
+        project_repository=CHOSEN.model_copy(
+            update={"chosen_repository_name": "y", "chosen_re3data_id": "r3d100000001"}
+        ),
+        project_decisions=[commitment("Acme Data Cloud")],
+    )
+    env = invoke(runs_dir, needs)
+    assert cited(env.payload_as(RepositoryOptions)) == [("r3d100000003", CandidateBasis.IN_PLAN)]
+
+
+def test_an_unknown_plan_repository_is_not_found(runs_dir: Path) -> None:
+    env = invoke(runs_dir, NEEDS.model_copy(update={"project_decisions": [commitment("Nowhere")]}))
+    options = env.payload_as(RepositoryOptions)
+    assert options.not_found == ["Nowhere"]
+    assert CandidateBasis.IN_PLAN not in {c.basis for c in options.candidates}

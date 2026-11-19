@@ -35,6 +35,12 @@ funder, journal or institution imposes. A repository the researcher merely names
 it. If the shortlist also ranks it, it keeps its score and `ranked_by`. The app shows it as
 "You asked about this", never as "Mandated".
 
+In a project, a repository that a sharing commitment of the data management plan names, once the
+researcher has confirmed the commitment, is described the same way with the basis `in_plan`: a
+plan's choice is not a mandate (#1233). The app shows it as "In your plan". A name re3data does
+not list, such as "ReShare" for the UK Data Service's self-deposit repository, is read through the
+short, sourced list in `aliases.yaml`, and the statement says so.
+
 `RepositoryOptions` holds one candidate per repository. A candidate names its records only in
 `grounded_on`: its re3data record, cited by the record's own DOI, and the FAIRsharing database
 record that re3data cross-references, when there is one. What the reader is shown about the repository is the
@@ -50,7 +56,7 @@ evidence `content` of those records ([Evidence and grounding](../../docs/specs/g
   sentence per ranking signal, such as `Matches the theme "hydrology" (1 of 2 given).` Empty
   for a mandated one, and for one asked about that the shortlist did not rank.
 
-Mandated names, and names asked about, with no single re3data record are listed in `not_found`.
+Mandated names, and names in the plan or asked about, with no single re3data record are listed in `not_found`.
 
 ## How it decides
 
