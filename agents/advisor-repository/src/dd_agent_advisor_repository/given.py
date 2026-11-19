@@ -4,8 +4,9 @@ In a project the conductor gives `RepositoryNeeds` the facts people decided
 (`project_decisions`) and the repository the researcher chose (`project_repository`). A
 person's decision takes precedence over what the caller wrote: each decided required repository
 is mandated, whether or not the caller named it. The chosen repository is described only when
-nothing else is asked (no mandate and nothing to search for), where the agent would otherwise
-abstain; a caller that asks for a shortlist still gets one, so a researcher can reconsider.
+nothing else is asked (no mandate, nothing asked about, nothing to search for), where the agent
+would otherwise abstain; a caller that asks for a shortlist still gets one, so a researcher can
+reconsider.
 Outside a project the caller's needs stand as sent.
 """
 
@@ -29,7 +30,7 @@ def with_project(needs: RepositoryNeeds) -> tuple[RepositoryNeeds, str | None]:
                 mandated.append(decided)
     only_chosen = None
     chosen = needs.project_repository
-    if chosen is not None and not mandated and not rank.queries(needs):
+    if chosen is not None and not (mandated or needs.asked_about or rank.queries(needs)):
         mandated.append(
             RepositoryRef(name=chosen.chosen_repository_name, re3data_id=chosen.chosen_re3data_id)
         )

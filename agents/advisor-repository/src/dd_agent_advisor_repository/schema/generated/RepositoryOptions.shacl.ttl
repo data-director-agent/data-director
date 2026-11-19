@@ -8,12 +8,7 @@ repository:RepositoryOptions a sh:NodeShape ;
     rdfs:comment "The repository advisor payload. Repositories recommended or described, each grounded on its registry records. The researcher selects; the agent does not." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
-            sh:description "Mandated repositories for which no registry record was found." ;
-            sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path repository:not_found ],
-        [ sh:class <https://w3id.org/data-director/GroundingRef> ;
+    sh:property [ sh:class <https://w3id.org/data-director/GroundingRef> ;
             sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
             sh:minCount 1 ;
             sh:nodeKind sh:BlankNodeOrIRI ;
@@ -31,6 +26,11 @@ repository:RepositoryOptions a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path <https://w3id.org/data-director/schema_class> ],
+        [ sh:datatype xsd:string ;
+            sh:description "Mandated repositories, and repositories the researcher asked about, for which no single registry record was found." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path repository:not_found ],
         [ sh:class repository:RepositoryCandidate ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 1 ;
@@ -63,17 +63,22 @@ repository:RepositoryCandidate a sh:NodeShape ;
             sh:minCount 1 ;
             sh:order 3 ;
             sh:path repository:commercial ],
-        [ sh:datatype xsd:float ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path repository:score ],
         [ sh:datatype xsd:string ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 9 ;
             sh:path repository:rationale ],
+        [ sh:datatype xsd:float ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path repository:score ],
+        [ sh:datatype xsd:string ;
+            sh:description "Why a recommended repository is on the shortlist and in its place, one sentence per ranking signal: the themes and kinds of data it matches, whether it is a generalist, run by the researcher's institution, or lacks the access the data needs. Empty when mandated, and for a repository asked about that the shortlist did not rank." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 8 ;
+            sh:path repository:ranked_by ],
         [ sh:datatype xsd:string ;
             sh:description "The needs this repository does not meet, or that its records leave open. Flagged for the researcher; never resolved by the agent." ;
             sh:nodeKind sh:Literal ;
@@ -85,12 +90,7 @@ repository:RepositoryCandidate a sh:NodeShape ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 11 ;
             sh:path <https://w3id.org/data-director/grounded_on> ],
-        [ sh:datatype xsd:string ;
-            sh:description "Why a recommended repository is on the shortlist and in its place, one sentence per ranking signal: the themes and kinds of data it matches, whether it is a generalist, run by the researcher's institution, or lacks the access the data needs. Empty when mandated." ;
-            sh:nodeKind sh:Literal ;
-            sh:order 8 ;
-            sh:path repository:ranked_by ],
-        [ sh:in ( "mandated" "recommended" "chosen" ) ;
+        [ sh:in ( "mandated" "asked_about" "recommended" "chosen" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 0 ;
