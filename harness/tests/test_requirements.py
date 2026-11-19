@@ -135,6 +135,45 @@ def test_a_choice_needs_a_re3data_identifier_and_a_name(sets: Path) -> None:
         (
             (
                 ("standards", standard()),
+                (
+                    "overrides",
+                    override(
+                        fields=[
+                            {
+                                "property": "descriptions",
+                                "qualifier": {"descriptionType": "Methods"},
+                                "schema_org": "description",
+                                "obligation": "required",
+                                "form_label": "Lineage",
+                            }
+                        ]
+                    ),
+                ),
+            ),
+            "maps both descriptions .*Abstract.* and descriptions .*Methods.* to "
+            "schema:description",
+        ),
+        (
+            (
+                (
+                    "standards",
+                    standard(
+                        fields=[
+                            {"property": "titles", "schema_org": "name", "obligation": "required"},
+                            {
+                                "property": "creators",
+                                "schema_org": "name",
+                                "obligation": "required",
+                            },
+                        ]
+                    ),
+                ),
+            ),
+            "maps both titles and creators to schema:name",
+        ),
+        (
+            (
+                ("standards", standard()),
                 ("overrides", override(conforms_to="https://ddialliance.org")),
             ),
             "no standard's set",

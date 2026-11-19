@@ -83,3 +83,32 @@ def test_the_rule_table_marks_only_what_a_model_may_suggest() -> None:
     for prop in ("creators", "contributors", "dates", "rightsList", "fundingReferences"):
         assert prop not in suggestable
     assert all(form[prop].ask for prop in suggestable)
+
+
+def test_the_licence_question_names_the_licences_the_repository_accepts(runs_dir: Path) -> None:
+    """#1074: a researcher whose journal asks for another licence learns of the clash when asked,
+    not when validation refuses the record."""
+    asked = sample()
+    assert asked.requirements is not None
+    eidc = asked.requirements.model_copy(
+        update={"repository_name": "EIDC", "licences": ["OGL-UK-3.0", "CC-BY-4.0"]}
+    )
+    env, _ = draft(runs_dir, asked.model_copy(update={"requirements": eidc}))
+    document = env.payload_as(Document)
+    (licence,) = [
+        q for q in document.document_questions if (q.gap_property or "").startswith("rightsList")
+    ]
+    assert licence.question_prompt.endswith("EIDC accepts: OGL-UK-3.0, CC-BY-4.0.")
+
+
+def test_without_licences_the_licence_question_names_none(runs_dir: Path) -> None:
+    asked = sample()
+    assert asked.requirements is not None
+    open_ = asked.requirements.model_copy(update={"licences": None})
+    env, _ = draft(runs_dir, asked.model_copy(update={"requirements": open_}))
+    (licence,) = [
+        q
+        for q in env.payload_as(Document).document_questions
+        if (q.gap_property or "").startswith("rightsList")
+    ]
+    assert "accepts" not in licence.question_prompt

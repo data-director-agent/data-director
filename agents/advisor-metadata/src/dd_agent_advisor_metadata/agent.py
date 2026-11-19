@@ -12,7 +12,8 @@ researcher as a creator, with their iD and current employers, their keywords as 
 their grants as funding references, wherever the repository asks for those properties.
 
 Each value it leaves null is a gap with a question (`questions.py`), and an answer the researcher
-recorded to it is placed as given (docs/specs/drafting.md). Where a model is configured
+recorded to it is placed as given (docs/specs/drafting.md). The question about the licence names
+the licences the repository accepts, when its requirements list them. Where a model is configured
 (`factory.py`), it suggests values for some questions, beside the question and never in the
 record (`suggest.py`); the record's text is the rule's either way. Where the data were collected
 is asked in two steps: whether the location may be published, and at what precision, and only
@@ -77,6 +78,9 @@ DATACITE_FORM = Path(__file__).with_name("datacite.yaml")
 # The schema every record follows in the MVP (docs/specs/deposit.md).
 DATACITE = "http://datacite.org/schema/kernel-4"
 MEDIA_TYPE = "application/json"
+# The DataCite property that holds the licence; its question names the licences the repository
+# accepts.
+LICENCE_PROPERTY = "rightsList"
 
 # What the librarian does not do, said in every outcome: its payload is the core Document, which
 # has no room for a list of limitations (docs/specs/agents.md).
@@ -226,6 +230,14 @@ class MetadataLibrarian:
         `publish` about is asked for only once a person decided it may be published
         (`location.py`)."""
         prompts = {prop: form.ask for prop, form in self.form.items()}
+        requirements = asked.requirements
+        if requirements is not None and requirements.licences:
+            # The researcher chooses among the licences the repository accepts, and learns of a
+            # clash with a journal's or funder's licence before validation refuses the record.
+            prompts[LICENCE_PROPERTY] = (
+                f"{prompts.get(LICENCE_PROPERTY) or 'Under what licence is the dataset shared?'} "
+                f"{requirements.repository_name} accepts: {', '.join(requirements.licences)}."
+            )
         answers = answers_by_question(asked.draft_answers)
         located = location.located_fields(asked.inventory)
         by_project = location.decided(asked.project_decisions, located)

@@ -1,0 +1,117 @@
+# What the NERC EDS Environmental Information Data Centre (EIDC) asks beyond DataCite's requirement
+# set (docs/specs/deposit.md). The harness merges it with standards/datacite-4.yaml when a researcher
+# chooses the EIDC, so that it can check a project against both and a drafter knows what to write.
+# Keys are as in README.md one folder up. Checked against the EIDC's public pages and its DataCite
+# records (listed under `guidance`) on 2026-11-19; what they leave open is TODO(#1250).
+#
+# The EIDC does not take deposits through a self-service form. A depositor sends a deposit request,
+# the EIDC replies, and the two agree the terms in a Service Agreement (SA). The SA's questions
+# marked "*" are mandatory, so its labels are the form labels here.
+schema_class: RequirementSet
+requirement_set_id: eidc
+version: 1
+title: NERC EDS Environmental Information Data Centre
+url: https://eidc.ac.uk/deposit
+re3data_id: r3d100010199
+
+# The EIDC's catalogue record is UK GEMINI 2.3 (ISO 19115), but every DOI it assigns is registered
+# with DataCite (client bl.nerc, prefix 10.5285). The drafter writes DataCite records only, so
+# DataCite is the standard here as an interim measure, until a GEMINI/ISO 19115 set exists
+# (#401). Each field below is the DataCite property the EIDC's own DataCite records carry the SA
+# answer in.
+conforms_to: http://datacite.org/schema/kernel-4
+
+fields:
+  - property: titles
+    schema_org: name
+    obligation: required
+    form_label: Title
+  - property: creators
+    schema_org: creator
+    obligation: required
+    form_label: Authors
+  # "* Description (min 100 characters)": an executive summary of what, where, when, how and why.
+  - property: descriptions
+    qualifier: {descriptionType: Abstract}
+    schema_org: description
+    obligation: required
+    form_label: Description
+  # "* Lineage": how the data came into existence, and the stages, quality control among them,
+  # they passed through. The EIDC's DataCite records carry it as a Methods description. Its
+  # schema.org term must differ from the abstract's, or the abstract would satisfy it (README.md);
+  # measurementTechnique, the technique used to produce the data, is the nearest.
+  - property: descriptions
+    qualifier: {descriptionType: Methods}
+    schema_org: measurementTechnique
+    obligation: required
+    form_label: Lineage
+  # "* Science topic" and the keywords both become DataCite subjects. Whether the keywords alone
+  # are mandatory is TODO(#1250).
+  - property: subjects
+    schema_org: keywords
+    obligation: required
+    form_label: Science topic and Keywords
+  - property: rightsList
+    schema_org: license
+    obligation: required
+    form_label: End user licence
+  # Not marked mandatory, although NERC-funded data must name its award.
+  - property: fundingReferences
+    schema_org: funding
+    obligation: recommended
+    form_label: Grants/awards used to generate this resource
+  - property: geoLocations
+    schema_org: spatialCoverage
+    obligation: recommended
+    form_label: Area of Study
+  - property: relatedIdentifiers
+    schema_org: citation
+    obligation: recommended
+    form_label: Related data holdings
+
+# The supporting documentation the EIDC requires, which must be supplied with the data and apart
+# from it: collection or generation methods and quality control, for which the README stands, and
+# the nature and units of the recorded values and the structure of the data, for which the data
+# dictionary stands.
+required_documents:
+  - metadata_record
+  - readme
+  - data_dictionary
+recommended_documents: []
+
+# The EIDC prefers open formats (CSV, NetCDF, GeoTIFF, GeoPackage, PNG, JPEG and others) and asks
+# for Excel, Access, SAS and MATLAB files to be converted to CSV, but says its list is not
+# exhaustive and takes proprietary formats case by case, so no media type is refused here.
+media_types: []
+
+# max_file_size and max_item_size are left out: the EIDC states no maximum. A file over 2 GB or a
+# deposit over 5 GB is handed over another way, not refused.
+
+# "By default data are licensed under the Open Government Licence (OGL)"; CC BY 4.0 is used when
+# the depositor asks for it. The EIDC's DataCite records give OGL by its SPDX identifier, or by the
+# EIDC's own page for it. Which other licences it agrees to is TODO(#1250).
+licences:
+  - OGL-UK-3.0
+  - CC-BY-4.0
+  - https://eidc.ac.uk/licences/ogl/plain
+
+guidance:
+  - https://eidc.ac.uk/deposit
+  - https://eidc.ac.uk/deposit/agreement
+  - https://eidc.ac.uk/sites/default/files/2026-10/EIDC_Service_Agreement_questions.pdf
+  - https://eidc.ac.uk/deposit/metadata/guidance
+  - https://eidc.ac.uk/deposit/supportingDocumentation
+  - https://eidc.ac.uk/deposit/suitableFormats
+  - https://eidc.ac.uk/licences
+  - https://eidc.ac.uk/policies/doipolicy
+  - https://api.datacite.org/dois?client-id=bl.nerc&query=publisher:%22NERC%20EDS%20Environmental%20Information%20Data%20Centre%22
+  - https://www.re3data.org/repository/r3d100010199
+  - https://www.ukri.org/wp-content/uploads/2022/03/NERC-080322-policy-data-021219.pdf
+
+# What the public pages leave open, as the researcher depositing by hand is told. Each names the
+# issue that will settle it.
+unconfirmed:
+  - Which licences the EIDC agrees to besides the Open Government Licence and CC BY 4.0 (#1250).
+  - Whether the EIDC requires keywords beyond a science topic (#1250).
+  - Which fields the EIDC's deposit request form requires; it is behind a login (#1250).
+  - The ISO 19115 topic categories the Service Agreement asks for, which a DataCite record does not carry (#401, #1250).
