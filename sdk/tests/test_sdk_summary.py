@@ -78,14 +78,3 @@ def test_the_calls_made_are_put_on_the_result() -> None:
     made = with_calls(result, model.model_id, explanation)
     assert made.model_id == "fake-model"
     assert made.model_calls and made.input_tokens == explanation.usage.input_tokens
-
-
-def test_a_factorys_build_can_be_reimported_by_name_for_reload() -> None:
-    """`serve --reload` re-imports `build` as `module:qualname`; a closure would not resolve."""
-    import importlib
-
-    from dd_agent_advisor_linking import factory
-
-    named = f"{factory.build.__module__}:{factory.build.__qualname__}"
-    module, _, name = named.partition(":")
-    assert getattr(importlib.import_module(module), name) is factory.build

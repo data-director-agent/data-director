@@ -3,6 +3,7 @@ docs/specs/agents.md, Model-backed personas). Every model is a `FakeModel`; no t
 
 from __future__ import annotations
 
+import importlib
 from pathlib import Path
 
 import pytest
@@ -70,3 +71,9 @@ def test_the_card_declares_the_model_only_when_one_is_configured() -> None:
     assert build({SWITCH: "template"}).spec.models == ()
     agent = build({"ANTHROPIC_API_KEY": "unused", "DD_MODEL_ID": "m-test"})
     assert [(m.provider, m.model) for m in agent.spec.models] == [("anthropic", "m-test")]
+
+
+def test_build_can_be_reimported_by_name_for_reload() -> None:
+    """`serve --reload` re-imports `build` as `module:qualname`; a closure would not resolve."""
+    module, _, name = f"{build.__module__}:{build.__qualname__}".partition(":")
+    assert getattr(importlib.import_module(module), name) is build
