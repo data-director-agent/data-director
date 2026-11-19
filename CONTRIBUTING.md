@@ -150,14 +150,19 @@ uv run --group mutation mutmut results
 
 ### Keeping the code in shape
 
-The package boundaries are checked by Import Linter and `scripts/check_boundaries.py`. Inside a
-package, these ratchets keep code from growing past what a reviewer can follow
-([Architecture review](docs/architecture-review.md)):
+The package boundaries are checked by Import Linter and `scripts/check_boundaries.py`. Import
+Linter also checks inside a package: no package's modules import one another in a cycle (the
+cycles that existed when the check was added are listed in its `ignore_imports`, and may only be
+removed), and `dd_harness` and `dd_app` keep their layers, from the way in down to the checks the
+project owns. Inside a package, these ratchets keep code from growing past what a reviewer can
+follow ([Architecture review](docs/architecture-review.md)):
 
 - **Function complexity.** Ruff applies mccabe complexity 12 and the pylint limits on branches
   (12), statements (50), arguments (7) and returns (6) to Python outside tests. ESLint applies
   complexity 18 and nesting depth 4 to `app/web`, `sdk/browser` and `inventory/browser` outside
   tests.
+- **Class size.** Ruff's PLR0904 holds a Python class outside tests to 20 public methods, so that
+  a class cannot grow by adding small ones.
 - **Boolean parameters and silenced exceptions.** Ruff's `FBT` rules fail a boolean positional
   parameter in a definition and a `True` or `False` passed positionally in a call, in Python
   outside tests: a call such as `run(x, True, False)` cannot be read without the definition. Make
@@ -194,7 +199,7 @@ package, these ratchets keep code from growing past what a reviewer can follow
   and the files that deploy every agent.
 
 The code that exceeded a limit when it was introduced carries a marker: `# noqa: C901` (and the
-like, `# noqa: FBT001` among them) in Python, `// eslint-disable-next-line complexity` in TypeScript, or an entry in the size
+like, `# noqa: FBT001` and `# noqa: PLR0904` among them) in Python, `// eslint-disable-next-line complexity` in TypeScript, or an entry in the size
 baseline. These record debt. Remove the marker when you split the function or file; a marker that
 no longer suppresses anything is itself an error (Ruff's RUF100, ESLint's unused-directive
 report). Never add one to get new code past these checks: split the code by responsibility
@@ -226,6 +231,15 @@ should fail when behaviour breaks, not when a sentence is reworded or an agent i
   with its own `@settings`.
 * Test module basenames are unique across the workspace. Test directories are not packages;
   shared doubles live in `dd_harness.testing` and in an agent's own `testing` module.
+* The PostgreSQL storage tests (`harness/tests/test_postgres.py`, marked `postgres`) run only when
+  `DD_TEST_POSTGRES` names a database. CI sets it; a local run skips them and says so at the end.
+  Run them before changing storage:
+
+  ```bash
+  docker run -d --rm -p 5432:5432 -e POSTGRES_PASSWORD=dd-test postgres:17
+  DD_TEST_POSTGRES=postgresql://postgres@localhost:5432/postgres PGPASSWORD=dd-test uv run pytest -m postgres
+  ```
+
 * Cassettes must not contain credentials. The root `conftest.py` filters the auth headers and the
   sign-in password; check a new cassette before committing it.
 

@@ -20,8 +20,9 @@
     "src"
   ],
   "scripts": {
-    "lint": "eslint . && npm run knip",
+    "lint": "eslint . && npm run knip && npm run depcruise",
     "knip": "knip --no-progress --treat-config-hints-as-errors",
+    "depcruise": "depcruise src --config .dependency-cruiser.cjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
@@ -37,6 +38,7 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitest/coverage-v8": "5.1.0",
+    "dependency-cruiser": "18.7.2",
     "eslint": "10.14.0",
     "eslint-plugin-jsx-a11y": "6.10.2",
     "eslint-plugin-react-hooks": "7.1.1",
