@@ -41,9 +41,15 @@ def outputs(repo: Path, files: dict[str, tuple[str, str]], *flags: str) -> dict[
 
 
 BUMP = {
-    "sdk/pyproject.toml": ('[project]\nname = "x"\nversion = "0.1.0"\n', '[project]\nname = "x"\nversion = "0.2.0"\n'),
+    "sdk/pyproject.toml": (
+        '[project]\nname = "x"\nversion = "0.1.0"\n',
+        '[project]\nname = "x"\nversion = "0.2.0"\n',
+    ),
     "sdk/CHANGELOG.md": ("# Changelog\n", "# Changelog\n\n## 0.2.0\n"),
-    "uv.lock": ('[[package]]\nname = "x"\nversion = "0.1.0"\n', '[[package]]\nname = "x"\nversion = "0.2.0"\n'),
+    "uv.lock": (
+        '[[package]]\nname = "x"\nversion = "0.1.0"\n',
+        '[[package]]\nname = "x"\nversion = "0.2.0"\n',
+    ),
 }
 
 
@@ -61,12 +67,14 @@ def test_source_change_on_the_branch_runs_jobs(tmp_path: Path) -> None:
 
 
 def test_non_version_pyproject_change_runs_jobs(tmp_path: Path) -> None:
-    files = {"sdk/pyproject.toml": ('dependencies = []\n', 'dependencies = ["y"]\n')}
+    files = {"sdk/pyproject.toml": ("dependencies = []\n", 'dependencies = ["y"]\n')}
     assert outputs(tmp_path, files, "--release")["python"] == "true"
 
 
 @pytest.mark.parametrize("flags", [(), ("--all",)])
-def test_without_release_a_lock_change_runs_everything(tmp_path: Path, flags: tuple[str, ...]) -> None:
+def test_without_release_a_lock_change_runs_everything(
+    tmp_path: Path, flags: tuple[str, ...]
+) -> None:
     out = outputs(tmp_path, BUMP, *flags)
     assert out["python"] == "true"
     assert out["gateway"] == "true"
