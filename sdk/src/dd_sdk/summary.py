@@ -158,6 +158,7 @@ def factory[A: Summarised](
     setting: str,
     system_prompt: Path,
     *,
+    module: str,
     default_model: str = DEFAULT_MODEL,
     default: Literal["template", "model"] = "model",
 ) -> tuple[Callable[[Mapping[str, str] | None], A], Callable[[], int]]:
@@ -167,7 +168,10 @@ def factory[A: Summarised](
     says otherwise, and the model settings `dd_sdk.model_provider` reads; gives the agent the
     summariser they choose, with the system prompt read from `system_prompt`; and declares on its
     card the model it sends data to. A setting that cannot be used is a `ConfigError`, so `main`
-    stops at start-up instead of serving something other than what was configured."""
+    stops at start-up instead of serving something other than what was configured.
+
+    `module` is the caller's `__name__`: the `factory` module binds the returned `build` under that
+    name, and `--reload` re-imports it there (`dd_sdk.serve.reloadable_app`), so it must resolve."""
 
     def build(env: Mapping[str, str] | None = None) -> A:
         env = os.environ if env is None else env
@@ -177,7 +181,10 @@ def factory[A: Summarised](
         made.spec = replace(made.spec, models=declared_models(summariser))
         return made
 
+    build.__module__ = module
+    build.__qualname__ = "build"
+
     def main() -> int:
-        return serve.main(lambda: build(None))
+        return serve.main(build)
 
     return build, main

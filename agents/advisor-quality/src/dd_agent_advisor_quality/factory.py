@@ -18,5 +18,9 @@ SWITCH = "DD_QUALITY_SUMMARISER"
 DEFAULT: Literal["template", "model"] = "model"
 
 build, main = summary.factory(
-    QualityReviewer, SWITCH, Path(__file__).with_name("system_prompt.md"), default=DEFAULT
+    QualityReviewer,
+    SWITCH,
+    Path(__file__).with_name("system_prompt.md"),
+    default=DEFAULT,
+    module=__name__,
 )

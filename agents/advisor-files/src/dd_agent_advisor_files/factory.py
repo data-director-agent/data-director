@@ -18,5 +18,9 @@ SWITCH = "DD_FILES_SUMMARISER"
 DEFAULT: Literal["template", "model"] = "model"
 
 build, main = summary.factory(
-    FileArchivist, SWITCH, Path(__file__).with_name("system_prompt.md"), default=DEFAULT
+    FileArchivist,
+    SWITCH,
+    Path(__file__).with_name("system_prompt.md"),
+    default=DEFAULT,
+    module=__name__,
 )

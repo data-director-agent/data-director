@@ -18,5 +18,9 @@ SWITCH = "DD_LINKING_SUMMARISER"
 DEFAULT: Literal["template", "model"] = "model"
 
 build, main = summary.factory(
-    LinkingAdviser, SWITCH, Path(__file__).with_name("system_prompt.md"), default=DEFAULT
+    LinkingAdviser,
+    SWITCH,
+    Path(__file__).with_name("system_prompt.md"),
+    default=DEFAULT,
+    module=__name__,
 )
