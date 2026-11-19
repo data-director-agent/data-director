@@ -23,18 +23,13 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 
 from dd_agent_advisor_metadata.questions import Gap, question_id
+from dd_inventory.hints import HintKind, load_rules
 from dd_sdk.contract.facts import FactKind, LocationPrecision, ProjectFact, SensitivityDecision
 from dd_sdk.contract.models import FileInventory
 
-# Whole lower-case words of a field name that suggest a location. Kept in step with the File
-# Archivist's `coordinates` hint (agents/advisor-files/.../hints.yaml); an agent imports no other.
-LOCATION_WORDS = frozenset(
-    {
-        "lat", "lon", "lng", "latitude", "longitude", "easting", "northing", "eastings",
-        "northings", "gridref", "coord", "coords", "coordinates", "gps", "geom", "geometry",
-        "location",
-    }
-)  # fmt: skip
+# Whole lower-case words of a field name that suggest a location: the File Archivist's
+# `coordinates` rule (`dd_inventory.hints`), so that both name the same fields.
+LOCATION_WORDS = next(r.words for r in load_rules() if r.kind == HintKind.COORDINATES)
 _WORD = re.compile(r"[a-z]+")
 # An answer to the first question that withholds the location begins with "withhold", as the
 # question asks.
