@@ -22,9 +22,10 @@ import hashlib
 import tempfile
 import threading
 import time
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -821,12 +822,22 @@ def check_concurrent_decisions_on_one_version_admit_one(make: MakeProjectStorage
     (document,) = store.documents(project_id)
     digest = document["versions"][-1]["digest"]
     decision = Decision(ref.document_id, ref.version, digest, APPROVED)
+    admit_one_decision([store], store, project_id, decision)
+    (document,) = store.documents(project_id)
+    assert document["versions"][-1]["state"] == APPROVED
+
+
+def admit_one_decision(
+    stores: Sequence[ProjectStorage], reader: ProjectStorage, project_id: str, decision: Decision
+) -> None:
+    """Eight people decide on one version at once, through `stores` in turn: one decision is
+    recorded, as `reader` reads the log, and every other refused and recorded."""
     deciders = 8
     start = threading.Barrier(deciders)
     outcomes: list[str] = []
     guard = threading.Lock()
 
-    def decide() -> None:
+    def decide(store: ProjectStorage) -> None:
         start.wait()
         try:
             store.decide(project_id, decision, acted_for=TEST_PRINCIPAL, caused_by="check")
@@ -836,17 +847,19 @@ def check_concurrent_decisions_on_one_version_admit_one(make: MakeProjectStorage
         with guard:
             outcomes.append(outcome)
 
-    threads = [threading.Thread(target=decide) for _ in range(deciders)]
+    _run_together([partial(decide, stores[n % len(stores)]) for n in range(deciders)])
+    assert sorted(outcomes) == ["decided"] + ["refused"] * (deciders - 1), outcomes
+    kinds = [e["event"] for e in reader.events(project_id)]
+    assert kinds.count(DOCUMENT_VERSION_DECIDED) == 1
+    assert kinds.count(DOCUMENT_CHANGE_REFUSED) == deciders - 1
+
+
+def _run_together(work: Sequence[Callable[[], None]]) -> None:
+    threads = [threading.Thread(target=each) for each in work]
     for thread in threads:
         thread.start()
     for thread in threads:
         thread.join(timeout=30)
-    assert sorted(outcomes) == ["decided"] + ["refused"] * (deciders - 1), outcomes
-    kinds = [e["event"] for e in store.events(project_id)]
-    assert kinds.count(DOCUMENT_VERSION_DECIDED) == 1
-    assert kinds.count(DOCUMENT_CHANGE_REFUSED) == deciders - 1
-    (document,) = store.documents(project_id)
-    assert document["versions"][-1]["state"] == APPROVED
 
 
 def check_the_metadata_record_is_the_one_approved_last(make: MakeProjectStorage) -> None:
@@ -1097,24 +1110,7 @@ def check_a_section_is_exclusive_for_its_project_alone(make: MakeProjectLog) -> 
     events, and a section held on one project does not hold up another (invariant 10)."""
     log = make("log")
     busy, idle = _new_project(log), _new_project(log)
-    writers, rounds = 4, 5
-    start = threading.Barrier(writers)
-
-    def count() -> None:
-        start.wait()
-        for _ in range(rounds):
-            with log.section(busy) as section:
-                seen = len(section.events())
-                time.sleep(0.001)
-                section.append([_log_event(busy, "check_event", seen=seen)])
-
-    threads = [threading.Thread(target=count) for _ in range(writers)]
-    for thread in threads:
-        thread.start()
-    for thread in threads:
-        thread.join(timeout=30)
-    seen = [e["seen"] for e in log.events(busy)[1:]]
-    assert seen == list(range(1, writers * rounds + 1)), "a section saw another's partial work"
+    count_in_sections([log], busy)
 
     entered = threading.Event()
     with log.section(busy):
@@ -1122,6 +1118,25 @@ def check_a_section_is_exclusive_for_its_project_alone(make: MakeProjectLog) -> 
         other.start()
         assert entered.wait(timeout=10), "a section on one project held up another"
         other.join(timeout=10)
+
+
+def count_in_sections(logs: Sequence[ProjectLog], busy: str) -> None:
+    """Four writers, through `logs` in turn, each append five events in sections of the project
+    `busy`, each counting the events it saw: none sees another's partial work or loses it."""
+    writers, rounds = 4, 5
+    start = threading.Barrier(writers)
+
+    def count(log: ProjectLog) -> None:
+        start.wait()
+        for _ in range(rounds):
+            with log.section(busy) as section:
+                seen = len(section.events())
+                time.sleep(0.001)
+                section.append([_log_event(busy, "check_event", seen=seen)])
+
+    _run_together([partial(count, logs[n % len(logs)]) for n in range(writers)])
+    seen = [e["seen"] for e in logs[-1].events(busy)[1:]]
+    assert seen == list(range(1, writers * rounds + 1)), "a section saw another's partial work"
 
 
 def _enter(log: ProjectLog, project_id: str, entered: threading.Event) -> None:

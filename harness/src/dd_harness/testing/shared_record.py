@@ -6,25 +6,21 @@ so these are not among `PROJECT_LOG_CHECKS` (`dd_harness.testing.storage`)."""
 from __future__ import annotations
 
 import threading
-import time
 from collections.abc import Callable
 
 from dd_harness.projects import (
     APPROVED,
-    DOCUMENT_CHANGE_REFUSED,
-    DOCUMENT_VERSION_DECIDED,
-    ChangeRefusedError,
     Decision,
     Projects,
 )
-from dd_harness.storage import ProjectLog
 from dd_harness.testing.fixtures import TEST_PRINCIPAL
 from dd_harness.testing.storage import (
     MakeProjectLog,
     _enter,
-    _log_event,
     _named,
     _new_project,
+    admit_one_decision,
+    count_in_sections,
     drafted_readme,
 )
 
@@ -34,24 +30,7 @@ def check_logs_over_one_record_share_each_section(make: MakeProjectLog) -> None:
     of one another's events, and neither holds up another project (storage.md, invariant 10)."""
     logs = (make("log"), make("log"))
     busy, idle = _new_project(logs[0]), _new_project(logs[1])
-    writers, rounds = 4, 5
-    start = threading.Barrier(writers)
-
-    def count(log: ProjectLog) -> None:
-        start.wait()
-        for _ in range(rounds):
-            with log.section(busy) as section:
-                seen = len(section.events())
-                time.sleep(0.001)
-                section.append([_log_event(busy, "check_event", seen=seen)])
-
-    threads = [threading.Thread(target=count, args=(logs[n % 2],)) for n in range(writers)]
-    for thread in threads:
-        thread.start()
-    for thread in threads:
-        thread.join(timeout=30)
-    seen = [e["seen"] for e in logs[1].events(busy)[1:]]
-    assert seen == list(range(1, writers * rounds + 1)), "a section saw another log's partial work"
+    count_in_sections(logs, busy)
 
     waiting, entered = threading.Event(), threading.Event()
     with logs[0].section(busy):
@@ -74,30 +53,7 @@ def check_stores_over_one_record_admit_one_decision(make: MakeProjectLog) -> Non
     ref = stores[1].record_draft(project_id, drafted_readme())
     (document,) = stores[0].documents(project_id)
     decision = Decision(ref.document_id, ref.version, document["versions"][-1]["digest"], APPROVED)
-    deciders = 8
-    start = threading.Barrier(deciders)
-    outcomes: list[str] = []
-    guard = threading.Lock()
-
-    def decide(store: Projects) -> None:
-        start.wait()
-        try:
-            store.decide(project_id, decision, acted_for=TEST_PRINCIPAL, caused_by="check")
-            outcome = "decided"
-        except ChangeRefusedError:
-            outcome = "refused"
-        with guard:
-            outcomes.append(outcome)
-
-    threads = [threading.Thread(target=decide, args=(stores[n % 2],)) for n in range(deciders)]
-    for thread in threads:
-        thread.start()
-    for thread in threads:
-        thread.join(timeout=30)
-    assert sorted(outcomes) == ["decided"] + ["refused"] * (deciders - 1), outcomes
-    kinds = [e["event"] for e in Projects(make("projects")).events(project_id)]
-    assert kinds.count(DOCUMENT_VERSION_DECIDED) == 1
-    assert kinds.count(DOCUMENT_CHANGE_REFUSED) == deciders - 1
+    admit_one_decision(stores, Projects(make("projects")), project_id, decision)
 
 
 SHARED_RECORD_CHECKS: dict[str, Callable[[MakeProjectLog], None]] = {
