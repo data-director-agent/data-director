@@ -110,11 +110,11 @@ def test_import_linter_fails_on_a_direction_violation(copy: Path, relative: str,
 def test_import_linter_fails_on_a_stale_cycle_exception(copy: Path) -> None:
     """A recorded cycle that no longer occurs is reported, so the list of exceptions only shrinks."""
     pyproject = copy / "pyproject.toml"
-    recorded = '"dd_sdk.wire -> dd_sdk.agent",'
+    recorded = '"dd_harness.postgres -> dd_harness.settings",'
     text = pyproject.read_text(encoding="utf-8")
     assert recorded in text
     pyproject.write_text(
-        text.replace(recorded, f'{recorded}\n  "dd_sdk.wire -> dd_sdk.evidence",', 1),
+        text.replace(recorded, f'{recorded}\n  "dd_harness.postgres -> dd_harness.provenance",', 1),
         encoding="utf-8",
     )
     result = _lint_imports(copy)

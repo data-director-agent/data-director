@@ -76,9 +76,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     (`test_the_app_takes_no_a2a_call_but_a_delegation_callback`).
 13. **The shell's fixtures are what the server says.** The shell's tests draw from
     `app/web/fixtures/`, which `app/tests/test_app.py` regenerates from the real server and fails
-    on drift. The shell's API types are written by hand; `app/web/src/fixtures.test.ts` checks each
-    fixture against the interface the shell reads it as, so a field the server renames fails
-    `npm run typecheck`. TODO(#981): generate those types from the server's models.
+    on drift.
 14. **The app stops at start-up, with one line,** when a setting, a file or the built shell is
     missing or wrong. A stopped agent, the orchestrator included, does not stop it.
 15. **A problem report never carries a person's work.** It holds what the person typed, the
