@@ -163,6 +163,27 @@
          "title": "ChoiceOption",
          "type": "object"
       },
+      "ChosenRepository": {
+         "additionalProperties": false,
+         "description": "The repository a researcher chose to deposit the project's data in, from the shortlist, by its re3data identifier: the conductor fills it into a Message, and into the input of an agent that mixes in GivenProjectRepository, so that the agent knows a repository is chosen and which (docs/specs/projects.md). The last choice stands until a researcher chooses again.",
+         "properties": {
+            "chosen_repository_name": {
+               "description": "The chosen repository's name, as the pinned re3data export gives it.",
+               "type": "string"
+            },
+            "chosen_re3data_id": {
+               "description": "The chosen repository's re3data identifier, such as r3d100010468.",
+               "pattern": "^r3d[0-9]{9}$",
+               "type": "string"
+            }
+         },
+         "required": [
+            "chosen_repository_name",
+            "chosen_re3data_id"
+         ],
+         "title": "ChosenRepository",
+         "type": "object"
+      },
       "ConfidenceBand": {
          "description": "A band of the detector's highest score: low below 0.5, medium from 0.5 and below 0.85, high from 0.85. A low finding is reported, not dropped.",
          "enum": [
@@ -1097,6 +1118,25 @@
          "title": "GivenProjectDocuments",
          "type": "object"
       },
+      "GivenProjectRepository": {
+         "additionalProperties": false,
+         "description": "Mixed into an agent's own input class when the agent reads the repository a researcher chose for the project. In a project the conductor fills project_repository by this name and never needs to know the input class (docs/specs/projects.md, invariant 6); outside one, the caller sends it.",
+         "properties": {
+            "project_repository": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/ChosenRepository"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "The repository a researcher in the project chose last, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project has chosen one."
+            }
+         },
+         "title": "GivenProjectRepository",
+         "type": "object"
+      },
       "Grounded": {
          "additionalProperties": false,
          "description": "Mixed into every payload class and every item class that asserts an identity. The linter walks a payload document for grounded_on lists and never needs to know the payload class; a payload that lacks grounded_on at its root is a violation, not a pass.",
@@ -1433,7 +1473,7 @@
       },
       "Message": {
          "additionalProperties": false,
-         "description": "One conversational turn addressed to an agent: the text of the turn and the conversation so far. The history is part of the input, so the input hash covers everything the agent saw. In a project that holds an inventory, the conductor adds what it is (docs/specs/projects.md); in any project, it adds the entry point chosen, the progress the project log shows and the project's title, if it has one (docs/specs/orchestration.md). It adds the researcher facts people in the project chose to keep from their public ORCID records (docs/specs/projects.md).",
+         "description": "One conversational turn addressed to an agent: the text of the turn and the conversation so far. The history is part of the input, so the input hash covers everything the agent saw. In a project that holds an inventory, the conductor adds what it is (docs/specs/projects.md); in any project, it adds the entry point chosen, the progress the project log shows and the project's title, if it has one (docs/specs/orchestration.md). It adds the researcher facts people in the project chose to keep from their public ORCID records, the facts they decided and the repository they chose (docs/specs/projects.md).",
          "properties": {
             "schema_class": {
                "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -1546,6 +1586,17 @@
                   "array",
                   "null"
                ]
+            },
+            "project_repository": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/ChosenRepository"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "The repository a researcher in the project chose last, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project has chosen one."
             }
          },
          "required": [
@@ -3396,5 +3447,5 @@
    ],
    "title": "data_director_core",
    "type": "object",
-   "version": "0.16.0"
+   "version": "0.17.0"
 }

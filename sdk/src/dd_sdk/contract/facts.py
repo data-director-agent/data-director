@@ -1,6 +1,7 @@
 """Pydantic mirrors of the facts a project gives agents (schema/data_director.yaml,
 docs/specs/projects.md): what researchers kept from their own public ORCID records
-(`ResearcherRecord`), the facts people decided about the project (`ProjectFact`), and the
+(`ResearcherRecord`), the facts people decided about the project (`ProjectFact`), the repository
+a researcher chose (`ChosenRepository`), what its inventory is (`InventorySummary`), and the
 documents a researcher attached (`DocumentationSummary`, and `ProjectDocument` with its text).
 `dd_sdk.contract.models` re-exports the classes its own classes use."""
 
@@ -165,6 +166,25 @@ class ProjectFact(Frozen):
         if missing:
             raise ValueError(f"a {self.fact_kind} fact needs {', '.join(missing)}")
         return self
+
+
+class InventorySummary(Frozen):
+    """What the inventory a project holds is, without its files (docs/specs/projects.md)."""
+
+    inventory_digest: str = Field(pattern=SHA256_PATTERN)
+    inventory_file_count: int
+    inventory_tool: str
+    inventory_tool_version: str
+    inventory_made_at: datetime
+    inventory_limitations: list[str] = Field(default_factory=list)
+
+
+class ChosenRepository(Frozen):
+    """The repository a researcher chose for the project, as the conductor gives it
+    (docs/specs/projects.md). The last choice stands."""
+
+    chosen_repository_name: str
+    chosen_re3data_id: str = Field(pattern=r"^r3d[0-9]{9}$")
 
 
 class DocumentationSummary(Frozen):

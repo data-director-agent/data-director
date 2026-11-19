@@ -10,7 +10,7 @@ lines = 761
 
 [[file]]
 path = "agents/orchestrator-model/src/dd_agent_orchestrator_model/agent.py"
-lines = 591
+lines = 586
 
 [[file]]
 path = "app/src/dd_app/governance.py"
@@ -42,4 +42,4 @@ lines = 584
 
 [[file]]
 path = "sdk/src/dd_sdk/contract/models.py"
-lines = 756
+lines = 748

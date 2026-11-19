@@ -286,7 +286,13 @@ policy:ResolvedFunder a sh:NodeShape ;
     rdfs:comment "A funder identified in ROR. Its ROR identifier is stated only in grounded_on; what ROR records about it is in the cited evidence item's content (docs/specs/grounding.md)." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:class <https://w3id.org/data-director/GroundingRef> ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The Crossref Funder ID ROR prefers for the funder, where it names one, e.g. 501100000270." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path policy:crossref_funder_id ],
+        [ sh:class <https://w3id.org/data-director/GroundingRef> ;
             sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
             sh:minCount 1 ;
             sh:nodeKind sh:BlankNodeOrIRI ;
@@ -298,13 +304,7 @@ policy:ResolvedFunder a sh:NodeShape ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
-            sh:path policy:actor ],
-        [ sh:datatype xsd:string ;
-            sh:description "The Crossref Funder ID ROR prefers for the funder, where it names one, e.g. 501100000270." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path policy:crossref_funder_id ] ;
+            sh:path policy:actor ] ;
     sh:targetClass policy:ResolvedFunder .
 
 policy:ResolvedJournal a sh:NodeShape ;

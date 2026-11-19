@@ -31,7 +31,13 @@ classes:
     description: >-
       What a dataset needs of a repository. With mandated repositories, the agent describes
       them; with none, it shortlists. The mandate and the access constraint come from Phase 2
-      (governance), usually by way of the orchestrator.
+      (governance), usually by way of the orchestrator. In a project the conductor also gives the
+      facts people decided and the repository the researcher chose: a decided required
+      repository is described as mandated, and the chosen one is described when nothing else is
+      asked.
+    mixins:
+      - GivenProjectDecisions
+      - GivenProjectRepository
     slots:
       - schema_class
       - themes
@@ -231,6 +237,10 @@ enums:
         description: Named in the input as mandated by a funder, journal or institution.
       recommended:
         description: Shortlisted by the agent from the registries.
+      chosen:
+        description: >-
+          The repository the researcher chose for the project, described when nothing else was
+          asked.
 
   Answer:
     permissible_values:
