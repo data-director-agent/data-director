@@ -13,18 +13,22 @@ them. It cannot add, remove or change a finding, so the summary is the only valu
 
 `summarise` runs either and falls back on the template when the model cannot be reached;
 `with_calls` puts the model calls it made on the agent's result. `configured` builds the
-summariser an agent's settings choose, and `declared_models` what its card declares.
+summariser an agent's settings choose, and `declared_models` what its card declares; `factory`
+makes an agent package's `build` and `main` from both.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import re
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
+from pathlib import Path
 from typing import Any, Literal, Protocol
 
-from dd_sdk.agent import ModelUse, RunContext
+from dd_sdk import serve
+from dd_sdk.agent import Agent, ModelUse, RunContext
 from dd_sdk.agent_result import AgentResult
 from dd_sdk.contract.models import Derivation
 from dd_sdk.explain import Explanation, ModelExplainer, Rationale, TemplateExplainer
@@ -39,6 +43,8 @@ KINDS = (
     r"\b\d{4}-\d{4}-\d{4}-\d{3}[\dX]\b",
 )
 IDENTIFIER = re.compile("|".join(KINDS), re.IGNORECASE)
+# The model a summariser calls when the agent's settings name none, for Anthropic.
+DEFAULT_MODEL = "claude-sonnet-5-5"
 UNREACHABLE = " (The model could not be reached; template used.)"
 REPLY_FORMAT = (
     "Reply with exactly one line: `1. ` followed by the summary, in at most three sentences."
@@ -139,3 +145,39 @@ def configured(
 def declared_models(summariser: Summariser) -> tuple[ModelUse, ...]:
     """The model a summariser sends data to, for `AgentSpec.models`; none for the template."""
     return (declared(summariser.model),) if isinstance(summariser, ModelSummariser) else ()
+
+
+class Summarised(Agent, Protocol):
+    """An agent whose rules decide its findings and whose summariser is given to it."""
+
+    def __init__(self, *, summariser: Summariser) -> None: ...
+
+
+def factory[A: Summarised](
+    agent: type[A],
+    setting: str,
+    system_prompt: Path,
+    *,
+    default_model: str = DEFAULT_MODEL,
+    default: Literal["template", "model"] = "model",
+) -> tuple[Callable[[Mapping[str, str] | None], A], Callable[[], int]]:
+    """An agent package's `build` and console-script `main`, for its `factory` module.
+
+    `build(env)` reads `env` (the process environment by default) for `setting`, `default` unless it
+    says otherwise, and the model settings `dd_sdk.model_provider` reads; gives the agent the
+    summariser they choose, with the system prompt read from `system_prompt`; and declares on its
+    card the model it sends data to. A setting that cannot be used is a `ConfigError`, so `main`
+    stops at start-up instead of serving something other than what was configured."""
+
+    def build(env: Mapping[str, str] | None = None) -> A:
+        env = os.environ if env is None else env
+        prompt = system_prompt.read_text(encoding="utf-8").strip()
+        summariser = configured(env, setting, prompt, default_model=default_model, default=default)
+        made = agent(summariser=summariser)
+        made.spec = replace(made.spec, models=declared_models(summariser))
+        return made
+
+    def main() -> int:
+        return serve.main(lambda: build(None))
+
+    return build, main

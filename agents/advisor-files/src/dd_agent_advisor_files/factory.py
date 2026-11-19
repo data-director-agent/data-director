@@ -1,49 +1,22 @@
-"""Factory and console script for advisor.files.
+"""Factory and console script (`dd-advisor-files`) for the File Archivist.
 
-`build` assembles the File Archivist from its own environment variables (documented in
-`config/examples/agents.env`):
-
-- `DD_FILES_SUMMARISER`: `model` (the default) has a model write a short summary beside the rules'
-  findings (`dd_sdk.summary`); `template` gives the rules' own summary, calls no model and needs
-  no key. Each format and each check is decided by rule either way.
-- With `model`: `DD_MODEL_PROVIDER` (`anthropic` by default), `DD_MODEL_ID` (Claude Sonnet 5.5
-  by default for Anthropic), `DD_MODEL_BASE_URL` and the provider's key, read at start-up
-  (`dd_sdk.model_provider`, docs/specs/policy-and-identity.md).
-
-An unknown value, or an unusable model setting, is a configuration error (`ConfigError`).
-`dd-advisor-files serve` then stops at start-up instead of serving something other than what
-was configured. With a model the spec declares the model it sends data to (`AgentSpec.models`).
+`DD_FILES_SUMMARISER` chooses its summary (`config/examples/agents.env`): `model`, the default, or
+`template`, the rules' own. The summariser, its model settings and its fallbacks are
+`dd_sdk.summary`'s; the system prompt is `system_prompt.md` beside this module. Each format and each
+check is decided by rule whichever summariser runs.
 """
 
 from __future__ import annotations
 
-import os
-from collections.abc import Mapping
-from dataclasses import replace
 from pathlib import Path
 from typing import Literal
 
 from dd_agent_advisor_files.agent import FileArchivist
-from dd_sdk import serve, summary
+from dd_sdk import summary
 
 SWITCH = "DD_FILES_SUMMARISER"
 DEFAULT: Literal["template", "model"] = "model"
-DEFAULT_MODEL = "claude-sonnet-5-5"
-# What the model is told it may and may not do; the prose is a Markdown file beside this module.
-SYSTEM_PROMPT = Path(__file__).with_name("system_prompt.md").read_text(encoding="utf-8").strip()
 
-
-def build(env: Mapping[str, str] | None = None) -> FileArchivist:
-    """The factory `main` serves. `env` defaults to the process environment."""
-    env = os.environ if env is None else env
-    summariser = summary.configured(
-        env, SWITCH, SYSTEM_PROMPT, default_model=DEFAULT_MODEL, default=DEFAULT
-    )
-    agent = FileArchivist(summariser=summariser)
-    agent.spec = replace(agent.spec, models=summary.declared_models(summariser))
-    return agent
-
-
-def main() -> int:
-    """The `dd-advisor-files` console script: serve over A2A with `dd_sdk.serve`."""
-    return serve.main(build)
+build, main = summary.factory(
+    FileArchivist, SWITCH, Path(__file__).with_name("system_prompt.md"), default=DEFAULT
+)
