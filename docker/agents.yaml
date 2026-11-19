@@ -8,8 +8,10 @@ agents:
     url: http://advisor-quality:8102
   - name: advisor-standards
     url: http://advisor-standards:8105
+    model_broker: true
   - name: advisor-policy
     url: http://advisor-policy:8108
+    model_broker: true
   - name: advisor-repository
     url: http://advisor-repository:8109
   - name: advisor-ethics
@@ -22,6 +24,7 @@ agents:
     url: http://advisor-metadata:8113
   - name: advisor-documentation
     url: http://advisor-documentation:8114
+    model_broker: true
   - name: advisor-rights
     url: http://advisor-rights:8115
   - name: advisor-linking
@@ -38,3 +41,4 @@ agents:
   - name: orchestrator-model
     url: http://orchestrator-model:8107
     timeout_s: 300
+    model_broker: true
