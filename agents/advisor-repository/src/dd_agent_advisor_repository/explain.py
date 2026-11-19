@@ -54,6 +54,12 @@ def template_rationale(item: Item) -> str:
     r = item.record
     if item.basis == CandidateBasis.MANDATED:
         lead = f"{r.name} ({r.re3data_id}) was named as mandated, so it is described, not ranked."
+    elif item.basis == CandidateBasis.ASKED_ABOUT:
+        why = f" {' '.join(item.reasons)}" if item.reasons else ""
+        lead = (
+            f"{r.name} ({r.re3data_id}) is described because the researcher asked about it; "
+            f"no policy given requires it.{why}"
+        )
     elif item.basis == CandidateBasis.CHOSEN:
         lead = (
             f"{r.name} ({r.re3data_id}) is the repository the researcher chose, so it is described."

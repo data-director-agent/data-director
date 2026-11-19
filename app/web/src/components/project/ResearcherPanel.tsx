@@ -13,7 +13,8 @@
 import { ExternalLink } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { RECORD_ITEMS, RECORD_SECTIONS, type ResearcherRecord, useProjectApi } from "../../project/api";
+import { useProjectApi } from "../../project/api";
+import { RECORD_ITEMS, RECORD_SECTIONS, type ResearcherRecord } from "../../project/researcher";
 import { useSessionApi } from "../../session/api";
 import { OrcidIcon } from "../ui/BrandIcon";
 import { Button } from "../ui/Button";

@@ -7,21 +7,14 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 repository:RepositoryNeeds a sh:NodeShape ;
-    rdfs:comment "What a dataset needs of a repository. With mandated repositories, the agent describes them; with none, it shortlists. The mandate and the access constraint come from Phase 2 (governance), usually by way of the orchestrator. In a project the conductor also gives the facts people decided and the repository the researcher chose: a decided required repository is described as mandated, and the chosen one is described when nothing else is asked." ;
+    rdfs:comment "What a dataset needs of a repository. With mandated repositories, the agent describes them; with none, it shortlists. Repositories the researcher asked about are described either way, alongside the shortlist when there is one. The mandate and the access constraint come from Phase 2 (governance), usually by way of the orchestrator. In a project the conductor also gives the facts people decided and the repository the researcher chose: a decided required repository is described as mandated, and the chosen one is described when nothing else is asked." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:class <https://w3id.org/data-director/ProjectFact> ;
-            sh:description "The facts a person in the project decided (ProjectFact), the last decision on each subject, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project decided any. A drafter treats each as supplied." ;
+    sh:property [ sh:class repository:RepositoryRef ;
+            sh:description "Only repositories that a funder, journal or institutional policy requires: as a policy result found them in Phase 2, or as the researcher states such a policy requires them. A repository the researcher merely names, prefers or asks about belongs in asked_about. Naming an institution, or being funded by a funder, does not make its repository mandated. A mandated repository replaces the shortlist." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 7 ;
-            sh:path <https://w3id.org/data-director/project_decisions> ],
-        [ sh:datatype xsd:string ;
-            sh:description "The country of the researcher's institution, as an ISO 3166-1 alpha-3 code (e.g. GBR), as re3data writes it. A repository that already matches ranks a little higher when operated in this country; it adds no repository to the shortlist on its own. Unset, it is the country re3data records for the affiliation's institution, where re3data lists one." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 6 ;
-            sh:path repository:country ;
-            sh:pattern "^[A-Z]{3}$" ],
+            sh:order 4 ;
+            sh:path repository:mandated ],
         [ sh:datatype xsd:string ;
             sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
             sh:maxCount 1 ;
@@ -39,23 +32,35 @@ repository:RepositoryNeeds a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
             sh:path dcat:theme ],
-        [ sh:class <https://w3id.org/data-director/ChosenRepository> ;
-            sh:description "The repository a researcher in the project chose last, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project has chosen one." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 8 ;
-            sh:path <https://w3id.org/data-director/project_repository> ],
         [ sh:class schema1:Organization ;
             sh:description "The researcher's institution. Its repositories are offered as a fallback, after those of the dataset's discipline and before generalist ones, and none is removed, so give the themes as if it were not set." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 5 ;
+            sh:order 6 ;
             sh:path repository:affiliation ],
-        [ sh:class repository:RepositoryRef ;
-            sh:description "Repositories that a funder, journal or institutional policy requires, as Phase 2 found them. Naming an institution does not make its repository mandated." ;
+        [ sh:class <https://w3id.org/data-director/ChosenRepository> ;
+            sh:description "The repository a researcher in the project chose last, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project has chosen one." ;
+            sh:maxCount 1 ;
             sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 4 ;
-            sh:path repository:mandated ],
+            sh:order 9 ;
+            sh:path <https://w3id.org/data-director/project_repository> ],
+        [ sh:class repository:RepositoryRef ;
+            sh:description "Repositories the researcher named or asked about (e.g. \"what about Zenodo?\") that no policy is known to require. Each is described with the needs it meets and misses, alongside the shortlist rather than instead of it." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 5 ;
+            sh:path repository:asked_about ],
+        [ sh:class <https://w3id.org/data-director/ProjectFact> ;
+            sh:description "The facts a person in the project decided (ProjectFact), the last decision on each subject, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project decided any. A drafter treats each as supplied." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 8 ;
+            sh:path <https://w3id.org/data-director/project_decisions> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The country of the researcher's institution, as an ISO 3166-1 alpha-3 code (e.g. GBR), as re3data writes it. A repository that already matches ranks a little higher when operated in this country; it adds no repository to the shortlist on its own. Unset, it is the country re3data records for the affiliation's institution, where re3data lists one." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path repository:country ;
+            sh:pattern "^[A-Z]{3}$" ],
         [ sh:datatype xsd:string ;
             sh:description "What the data is, each in one to three words, e.g. interview transcripts, survey microdata or time series. A repository matches a kind only if its record has every word, so a long description (e.g. environmental data logger time series) matches none." ;
             sh:nodeKind sh:Literal ;
@@ -68,17 +73,17 @@ schema1:Organization a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path schema1:name ],
-        [ sh:datatype xsd:string ;
             sh:description "The organisation's ROR identifier." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
-            sh:path repository:ror ] ;
+            sh:path repository:ror ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path schema1:name ] ;
     sh:targetClass schema1:Organization .
 
 <https://w3id.org/data-director/ChosenRepository> a sh:NodeShape ;
@@ -234,7 +239,7 @@ schema1:Organization a sh:NodeShape ;
     sh:targetClass <https://w3id.org/data-director/ProjectFact> .
 
 repository:RepositoryRef a sh:NodeShape ;
-    rdfs:comment "A repository named by a funder, journal, institution or the researcher. The re3data identifier is used when given; otherwise the name is looked up." ;
+    rdfs:comment "A repository named by a funder, journal or institutional policy, or by the researcher. The re3data identifier is used when given; otherwise the name is looked up." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;

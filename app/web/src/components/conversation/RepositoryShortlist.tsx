@@ -25,12 +25,20 @@ const DOCUMENT_NAMES: Record<string, string> = {
 
 function documents(kinds: string[]): string {
   const named = kinds.map((k) => DOCUMENT_NAMES[k] ?? k);
-  return named.length < 2 ? (named[0] ?? "") : `${named.slice(0, -1).join(", ")} and ${named.at(-1)}`;
+  return named.length < 2
+    ? (named[0] ?? "")
+    : `${named.slice(0, -1).join(", ")} and ${named.at(-1)}`;
 }
 
 /** What a choice resolved to, in words. */
-export function RepositoryRequirementsView({ requirements }: { requirements: RepositoryRequirements }) {
-  const required = requirements.fields.filter((f) => f.obligation === "required");
+export function RepositoryRequirementsView({
+  requirements,
+}: {
+  requirements: RepositoryRequirements;
+}) {
+  const required = requirements.fields.filter(
+    (f) => f.obligation === "required",
+  );
   return (
     <>
       <p>
@@ -47,15 +55,21 @@ export function RepositoryRequirementsView({ requirements }: { requirements: Rep
         <p>A deposit needs {documents(requirements.required_documents)}.</p>
       )}
       {requirements.recommended_documents.length > 0 && (
-        <p>It should also have {documents(requirements.recommended_documents)}.</p>
+        <p>
+          It should also have {documents(requirements.recommended_documents)}.
+        </p>
       )}
       {required.length > 0 && (
         <p>
-          Its metadata must give: {required.map((f) => f.form_label ?? f.property).join(", ")}.
+          Its metadata must give:{" "}
+          {required.map((f) => f.form_label ?? f.property).join(", ")}.
         </p>
       )}
       {requirements.warnings.length > 0 && (
-        <ul className="plain-list repository-warnings" aria-label="What this choice does not check">
+        <ul
+          className="plain-list repository-warnings"
+          aria-label="What this choice does not check"
+        >
           {requirements.warnings.map((w) => (
             <li key={w}>
               <span className="status status-warn">Warning</span> {w}
@@ -92,11 +106,16 @@ export function RepositoryShortlist({
     setPending(repository.re3dataId);
     setError(null);
     try {
-      const requirements = await projectApi.chooseRepository(projectId, repository.re3dataId);
+      const requirements = await projectApi.chooseRepository(
+        projectId,
+        repository.re3dataId,
+      );
       setResolved(requirements);
       onChosen(requirements);
     } catch (e) {
-      setError(`Data Director could not record ${repository.name} as your repository: ${errorMessage(e)}`);
+      setError(
+        `Data Director could not record ${repository.name} as your repository: ${errorMessage(e)}`,
+      );
     } finally {
       setPending(null);
     }
@@ -104,17 +123,33 @@ export function RepositoryShortlist({
 
   const current = resolved?.re3data_id ?? chosenId;
   return (
-    <section className="callout repository-shortlist" aria-labelledby={headingId}>
+    <section
+      className="callout repository-shortlist"
+      aria-labelledby={headingId}
+    >
       <h3 id={headingId}>Repositories shortlisted</h3>
-      <p className="hint">Choose the one to deposit in. You can change it later.</p>
-      <ul className="plain-list repository-candidates" aria-labelledby={headingId}>
+      <p className="hint">
+        Choose the one to deposit in. You can change it later.
+      </p>
+      <ul
+        className="plain-list repository-candidates"
+        aria-labelledby={headingId}
+      >
         {shortlist.map((repository) => {
           const chosen = repository.re3dataId === current;
           return (
-            <li key={repository.re3dataId} {...(chosen ? { "aria-current": "true" as const } : {})}>
+            <li
+              key={repository.re3dataId}
+              {...(chosen ? { "aria-current": "true" as const } : {})}
+            >
               <p>
                 <strong>{repository.name}</strong>{" "}
-                {repository.basis === "mandated" && <span className="status status-warn">Mandated</span>}{" "}
+                {repository.basis === "mandated" && (
+                  <span className="status status-warn">Mandated</span>
+                )}
+                {repository.basis === "asked_about" && (
+                  <span className="status">You asked about this</span>
+                )}{" "}
                 {chosen && <span className="status status-ok">Chosen</span>}
                 <br />
                 <span className="hint">
@@ -151,7 +186,8 @@ export function RepositoryShortlist({
         {resolved && (
           <div className="repository-resolved">
             <p>
-              <strong>{resolved.repository_name}</strong> is the project&apos;s repository.
+              <strong>{resolved.repository_name}</strong> is the project&apos;s
+              repository.
             </p>
             <RepositoryRequirementsView requirements={resolved} />
           </div>

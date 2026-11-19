@@ -6,31 +6,10 @@
 
 import { createContext, useContext } from "react";
 
+import type { Policy } from "../api/generated/responses";
 import { checkSignedIn } from "../session/api";
 
-export interface PolicyAgent {
-  agent_id: string;
-  /** The action class the profile assigns the agent. */
-  action_class: string;
-  requires_approval: boolean;
-}
-
-export interface Policy {
-  profile: {
-    id: string;
-    version: number;
-    /** What every stored run records as the rules it was held to. */
-    ref: string;
-    /** SHA-256 of the profile file's bytes. */
-    digest: string;
-    /** Empty: the profile says nothing about itself. */
-    description: string;
-    /** The agent a conversation goes to; null when the profile names none. */
-    orchestrator: string | null;
-  };
-  agents: PolicyAgent[];
-  actions_requiring_approval: string[];
-}
+export type { Policy, PolicyAgent } from "../api/generated/responses";
 
 export interface PolicyApi {
   get(signal?: AbortSignal): Promise<Policy>;

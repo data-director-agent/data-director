@@ -23,6 +23,10 @@
          "@id": "https://w3id.org/data-director/agents/repository/affiliation",
          "@type": "@id"
       },
+      "asked_about": {
+         "@id": "https://w3id.org/data-director/agents/repository/asked_about",
+         "@type": "@id"
+      },
       "chosen_re3data_id": {
          "@id": "https://w3id.org/data-director/chosen_re3data_id"
       },
