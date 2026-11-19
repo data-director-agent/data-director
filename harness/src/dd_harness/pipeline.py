@@ -106,7 +106,9 @@ def _tools_grant(conductor: RunHost, run: RunState) -> ToolsGrant | None:
         return None
     # The gateway's spans are children of this run's `invoke_agent` span, the current one.
     root = trace.get_current_span().get_span_context()
-    run.tool_grant = gateway.issue(spec.agent_id, servers, conductor.tracing.tracer, root)
+    run.tool_grant = gateway.issue(
+        spec.agent_id, servers, conductor.tracing.tracer, root, watch=run.watch
+    )
     return ToolsGrant(
         url=conductor.harness_url.rstrip("/") + GATEWAY_PATH, token=run.tool_grant.token
     )

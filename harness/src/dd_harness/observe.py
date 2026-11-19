@@ -56,7 +56,11 @@ class RunObserver(Protocol):
     While the agent stage runs, a delegation agent's children are told too, from the threads they
     run on: `child_started` when the conductor admits one, then `child_finished` with its outcome
     status once it is stored, or `child_failed` if the conductor could not make a run of it. A
-    child's own stages are not told (docs/specs/app.md, "Run events to the browser")."""
+    child's own stages are not told (docs/specs/app.md, "Run events to the browser").
+
+    Each call the agent makes through the tool gateway is told too, from the gateway's thread:
+    `tool_started` with the call's id and the tool's gateway name, then `tool_finished` once it has
+    answered. Only the name travels: never the call's arguments or what it returned."""
 
     def plan(self, steps: tuple[Step, ...]) -> None: ...
 
@@ -73,6 +77,10 @@ class RunObserver(Protocol):
     def child_finished(self, invocation_id: str, agent_id: str, status: str) -> None: ...
 
     def child_failed(self, invocation_id: str, agent_id: str, message: str) -> None: ...
+
+    def tool_started(self, call_id: str, name: str) -> None: ...
+
+    def tool_finished(self, call_id: str, name: str, *, ok: bool) -> None: ...
 
 
 class NullObserver:
@@ -102,6 +110,12 @@ class NullObserver:
     def child_failed(self, invocation_id: str, agent_id: str, message: str) -> None:
         pass
 
+    def tool_started(self, call_id: str, name: str) -> None:
+        pass
+
+    def tool_finished(self, call_id: str, name: str, *, ok: bool) -> None:
+        pass
+
 
 class Watch:
     """The conductor's side of one run's observer and cancel flag. It calls the observer so that
@@ -115,9 +129,9 @@ class Watch:
         """A method, not a property: the answer changes while the run goes on."""
         return self._cancel is not None and self._cancel.is_set()
 
-    def _tell(self, method: str, *args: object) -> None:
+    def _tell(self, method: str, *args: object, **kwargs: object) -> None:
         try:
-            getattr(self._observer, method)(*args)
+            getattr(self._observer, method)(*args, **kwargs)
         except Exception:  # a watcher never changes a run
             log.exception("run observer %s failed; the run goes on", method)
 
@@ -156,6 +170,12 @@ class Watch:
 
     def child_failed(self, invocation_id: str, agent_id: str, message: str) -> None:
         self._tell("child_failed", invocation_id, agent_id, message)
+
+    def tool_started(self, call_id: str, name: str) -> None:
+        self._tell("tool_started", call_id, name)
+
+    def tool_finished(self, call_id: str, name: str, *, ok: bool) -> None:
+        self._tell("tool_finished", call_id, name, ok=ok)
 
 
 def cancelled_result(agent_id: str, *, ran: bool) -> tuple[AgentResult, ProblemDetails]:

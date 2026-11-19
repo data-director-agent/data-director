@@ -3,7 +3,8 @@
  * state and nothing else.
  *
  * Each announcement has a key, and a key is said once: a step is announced when it starts, a
- * failed check when its report arrives, and the run's end when it ends. An event that repeats
+ * failed check when its report arrives, each delegated child and tool call when it starts, and the
+ * run's end when it ends. An event that repeats
  * (a second `STEP_STARTED` for the same step) or a state drawn again says nothing new. Errors
  * (`RUN_ERROR`, a malformed event, a stream that closed before the run ended) are assertive;
  * the rest is polite.
@@ -69,6 +70,14 @@ export function runAnnouncements(state: RunState): Announcement[] {
         message: `${CHECK_NAME[entry.check]} did not pass.`,
         assertive: false,
       });
+    } else if (entry.kind === "subagent" && entry.event === "SUBAGENT_STARTED" && entry.runId) {
+      said.push({
+        key: `subagent:${entry.runId}`,
+        message: `Asking ${entry.name ?? "another agent"}.`,
+        assertive: false,
+      });
+    } else if (entry.kind === "tool-call") {
+      said.push({ key: `tool:${entry.id}`, message: `Using ${entry.name}.`, assertive: false });
     } else if (entry.kind === "malformed") {
       malformed += 1;
       said.push({

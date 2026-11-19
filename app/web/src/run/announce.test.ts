@@ -35,6 +35,7 @@ describe("the announcements for a run, replayed through the reducer", () => {
       ["step:gate", false],
       ["step:input", false],
       ["step:agent", false],
+      ["subagent:01900000-0000-7000-8000-000000000002", false],
       ["step:grounding", false],
       ["step:sources", false],
       ["end", false],

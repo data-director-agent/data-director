@@ -569,6 +569,14 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   collapsed "Unrecognised events (n)" group; a malformed event is shown as an error, and the run
   carries on. A stored run (a delegated child's card, or `?run=`) shows its outcome only: a
   child has no stages of its own.
+  While the agent stage runs, the shell shows what the stream says it is doing, so a long turn
+  never looks stalled (`components/run/AgentActivity.tsx`). The running stage counts its time
+  by the page's clock, since the stream carries none; the count is hidden from screen readers,
+  which hear the stage start once. Under the Agent stage, each delegated child and each tool call
+  is listed as it starts and as it ends, the latest five shown and earlier ones counted, and each
+  start is announced once. After 20 seconds with no new event, a line says the agent is still
+  working; it claims nothing the stream has not said. The orchestrator's own model calls are not
+  streamed, TODO(#159).
 - **A turn that failed says so in plain words** (`components/conversation/Transcript.tsx`): that
   Data Director could not answer, that nothing was changed and what the message attached is kept
   in the project, and to try again or tell whoever runs Data Director. The agent's own statement,

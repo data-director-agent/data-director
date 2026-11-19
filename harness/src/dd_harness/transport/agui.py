@@ -43,6 +43,8 @@ from ag_ui.core import (
     SubagentErrorEvent,
     SubagentFinishedEvent,
     SubagentStartedEvent,
+    ToolCallEndEvent,
+    ToolCallStartEvent,
 )
 from ag_ui.encoder import EventEncoder
 from starlette.requests import Request
@@ -137,6 +139,17 @@ class _Events:
                 type=EventType.SUBAGENT_ERROR, subagent_run_id=invocation_id, message=message
             )
         )
+
+    def tool_started(self, call_id: str, name: str) -> None:
+        # The tool's name only: its arguments and what it returned stay out of the stream.
+        self._put(
+            ToolCallStartEvent(
+                type=EventType.TOOL_CALL_START, tool_call_id=call_id, tool_call_name=name
+            )
+        )
+
+    def tool_finished(self, call_id: str, name: str, *, ok: bool) -> None:
+        self._put(ToolCallEndEvent(type=EventType.TOOL_CALL_END, tool_call_id=call_id))
 
 
 class Cancellation:
