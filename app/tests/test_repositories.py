@@ -1,9 +1,11 @@
-"""The app's repository requirements load, and a choice of ORDA or the EIDC resolves as its
-steward meant (docs/specs/deposit.md)."""
+"""The app's repository requirements load, and a choice of ORDA or a NERC EDS centre resolves as
+its steward meant (docs/specs/deposit.md)."""
 
 from __future__ import annotations
 
 from pathlib import Path
+
+import pytest
 
 from dd_harness.requirements import DATACITE, load_requirements
 from dd_sdk.contract.models import RepositoryRequirements
@@ -54,6 +56,36 @@ def test_eidc_is_checked_against_datacite_and_its_service_agreement() -> None:
     assert "CC0-1.0" not in merged["licences"]
     assert merged["required_documents"] == ["metadata_record", "readme", "data_dictionary"]
     assert merged["repository_url"] == "https://eidc.ac.uk/deposit"
+
+
+@pytest.mark.parametrize(
+    ("re3data_id", "name", "standards", "set_id"),
+    [
+        ("r3d100010192", "British Oceanographic Data Centre", ["Dublin Core"], "bodc"),
+        ("r3d100012305", "Centre for Environmental Data Analysis", ["Dublin Core"], "ceda"),
+        ("r3d100010189", "National Geoscience Data Centre", ["ISO 19115"], "ngdc"),
+        ("r3d100010120", "UK Polar Data Centre", ["ISO 19115"], "ukpdc"),
+    ],
+)
+def test_the_other_nerc_eds_centres_build_on_datacite(
+    re3data_id: str, name: str, standards: list[str], set_id: str
+) -> None:
+    """#1250: each centre registers its DOIs with DataCite, whatever re3data lists for it, and
+    requires a lineage or methods beyond DataCite's abstract, under OGL by default."""
+    resolved = load_requirements(REPOSITORIES).resolve(re3data_id, name, standards)
+    assert [s.ref.split("@")[0] for s in resolved.sets] == ["datacite-4", set_id]
+    assert resolved.warnings == ()
+    merged = resolved.requirements()
+    RepositoryRequirements.model_validate(merged)
+    assert merged["conforms_to"] == DATACITE
+    abstract = next(
+        f for f in merged["fields"] if f.get("qualifier") == {"descriptionType": "Abstract"}
+    )
+    assert abstract["obligation"] == "required"
+    assert any(f.get("qualifier") == {"descriptionType": "Methods"} for f in merged["fields"])
+    assert merged["licences"][0] == "OGL-UK-3.0"
+    assert {"metadata_record", "readme"} <= set(merged["required_documents"])
+    assert merged["unconfirmed"]
 
 
 def test_any_other_repository_is_checked_against_its_standard_with_a_warning() -> None:
