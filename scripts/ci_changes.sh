@@ -52,6 +52,9 @@ while IFS= read -r f; do
       python=true deploy=true ;;
     # app/tests writes app/web/fixtures and checks that they are current.
     app/web/fixtures/*) python=true web=true ;;
+    # The shell's API types are generated from the app's response models; the "mypy and
+    # generated schemas" job checks that they are current.
+    app/web/src/api/generated/*) python=true web=true ;;
     # The inventory library's readme is also on the documentation site.
     inventory/browser/README.md) web=true docs=true ;;
     # How to make an inventory, which the user guide renders too (docs/hooks_inventory.py).

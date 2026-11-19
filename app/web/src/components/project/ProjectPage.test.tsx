@@ -20,6 +20,7 @@ import {
 } from "../../project/api";
 import { type ConversationApi, ConversationApiContext } from "../../conversation/api";
 import type { ConversationSummary } from "../../conversation/types";
+import { conversationSummary, projectDetails, projectProgress, projectSummary } from "../../test/api";
 import { ProjectPage } from "./ProjectPage";
 
 // What the server says (app/tests/test_document_decisions.py): a README proposed, and a data
@@ -57,7 +58,7 @@ function fakeApi(overrides: Partial<ProjectApi> = {}): ProjectApi {
   return {
     projects: () => Promise.resolve([]),
     create: () => Promise.reject(new Error("no project created in these tests")),
-    rename: () => Promise.resolve({}),
+    rename: () => Promise.resolve(projectDetails()),
     remove: () => Promise.reject(new Error("no project deleted in these tests")),
     restore: () => Promise.reject(new Error("no project restored in these tests")),
     deletedProjects: () => Promise.resolve([]),
@@ -68,9 +69,9 @@ function fakeApi(overrides: Partial<ProjectApi> = {}): ProjectApi {
     inventory: () => Promise.resolve(null),
     saveInventory: () => Promise.reject(new Error("not saved in this test")),
     repository: () => Promise.resolve(REPOSITORY),
-    progress: () => Promise.resolve({ entry: null, steps: {}, suggested: null }),
-    chooseEntry: () => Promise.resolve({ entry: null, steps: {}, suggested: null }),
-    markStep: () => Promise.resolve({ entry: null, steps: {}, suggested: null }),
+    progress: () => Promise.resolve(projectProgress()),
+    chooseEntry: () => Promise.resolve(projectProgress()),
+    markStep: () => Promise.resolve(projectProgress()),
     intake: () => Promise.reject(new Error("no intake in these tests")),
     answerIntake: () => Promise.reject(new Error("no intake in these tests")),
     dismissIntake: () => Promise.reject(new Error("no intake in these tests")),
@@ -111,15 +112,14 @@ function renderPage(api: ProjectApi, query = "", conversations = fakeConversatio
 
 /** A conversation summary as `GET /api/conversations` lists one. */
 function summary(conversation_id: string, project_id: string | null, title: string): ConversationSummary {
-  return {
+  return conversationSummary({
     conversation_id,
     project_id,
     agent_id: "orchestrator",
     title,
-    title_source: "model",
     turns: 2,
     started_at: "2026-11-01T10:00:00Z",
-  };
+  });
 }
 
 /** `PROJECT` with the README's text and media type replaced, as the given kind of document. */
@@ -292,7 +292,7 @@ describe("ProjectPage", () => {
   });
 
   it("names the page after the project", async () => {
-    const summary = {
+    const summary = projectSummary({
       project_id: PROJECT.project_id,
       title: "River loggers",
       created_at: DRAFT.added_at,
@@ -301,14 +301,14 @@ describe("ProjectPage", () => {
       repository: null,
       documents: { proposed: 1, approved: 1, rejected: 0 },
       conversations: [],
-    };
+    });
     renderPage(fakeApi({ projects: () => Promise.resolve([summary]) }));
     expect(await screen.findByRole("heading", { level: 1, name: "River loggers" })).toBeVisible();
   });
 
   it("renames the project and shows the name the server reads back", async () => {
     const user = userEvent.setup();
-    const summary: ProjectSummary = {
+    const summary: ProjectSummary = projectSummary({
       project_id: PROJECT.project_id,
       title: "Sediment cores",
       title_source: "model",
@@ -318,7 +318,7 @@ describe("ProjectPage", () => {
       repository: null,
       documents: { proposed: 1, approved: 1, rejected: 0 },
       conversations: [],
-    };
+    });
     let current = summary;
     const rename = vi.fn((_: string, title: string) => {
       current = { ...summary, title, title_source: "researcher" };
@@ -345,7 +345,7 @@ describe("ProjectPage", () => {
 
   it("says why a rename was refused and keeps the dialog open", async () => {
     const user = userEvent.setup();
-    const summary = {
+    const summary = projectSummary({
       project_id: PROJECT.project_id,
       title: null,
       created_at: DRAFT.added_at,
@@ -354,7 +354,7 @@ describe("ProjectPage", () => {
       repository: null,
       documents: { proposed: 1, approved: 1, rejected: 0 },
       conversations: [],
-    };
+    });
     renderPage(
       fakeApi({
         projects: () => Promise.resolve([summary]),
@@ -375,7 +375,7 @@ describe("ProjectPage", () => {
   it("deletes the project only once its name is typed, and says what stays", async () => {
     const user = userEvent.setup();
     history.pushState(null, "", `/projects/${PROJECT.project_id}`);
-    const summary: ProjectSummary = {
+    const summary: ProjectSummary = projectSummary({
       project_id: PROJECT.project_id,
       title: "Sediment cores",
       title_source: "researcher",
@@ -386,7 +386,7 @@ describe("ProjectPage", () => {
       documents: { proposed: 1, approved: 1, rejected: 0 },
       conversations: [],
       restore_days: 30,
-    };
+    });
     const remove = vi.fn<ProjectApi["remove"]>(() =>
       Promise.resolve({
         ...summary,
@@ -417,7 +417,7 @@ describe("ProjectPage", () => {
 
   it("says why a deletion was refused and keeps the dialog open", async () => {
     const user = userEvent.setup();
-    const summary: ProjectSummary = {
+    const summary: ProjectSummary = projectSummary({
       project_id: PROJECT.project_id,
       title: "Sediment cores",
       created_at: DRAFT.added_at,
@@ -427,7 +427,7 @@ describe("ProjectPage", () => {
       documents: { proposed: 1, approved: 1, rejected: 0 },
       conversations: [],
       restore_days: 0,
-    };
+    });
     renderPage(
       fakeApi({
         projects: () => Promise.resolve([summary]),

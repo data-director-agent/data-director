@@ -1,20 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
-import type { ConversationSummary } from "../../conversation/types";
+import { conversationSummary } from "../../test/api";
 import { EarlierConversations } from "./EarlierConversations";
-
-function summary(over: Partial<ConversationSummary>): ConversationSummary {
-  return {
-    conversation_id: "c1",
-    agent_id: "orchestrator.model",
-    title: "Depositing a soil survey",
-    title_source: "model",
-    turns: 1,
-    started_at: "2026-01-01T09:30:00Z",
-    ...over,
-  };
-}
 
 describe("EarlierConversations", () => {
   it("names each conversation by its title, with the date and turns kept in its name", async () => {
@@ -22,8 +10,8 @@ describe("EarlierConversations", () => {
     const { container } = render(
       <EarlierConversations
         conversations={[
-          summary({ conversation_id: "c1", turns: 1 }),
-          summary({ conversation_id: "c2", started_at: "2026-02-03T14:00:00Z", turns: 3 }),
+          conversationSummary({ conversation_id: "c1", turns: 1 }),
+          conversationSummary({ conversation_id: "c2", started_at: "2026-02-03T14:00:00Z", turns: 3 }),
         ]}
         onOpen={onOpen}
       />,
@@ -44,7 +32,7 @@ describe("EarlierConversations", () => {
   it("shows a title taken from the first message like any other", () => {
     render(
       <EarlierConversations
-        conversations={[summary({ title: "Which licence should I use?", title_source: "message" })]}
+        conversations={[conversationSummary({ title: "Which licence should I use?", title_source: "message" })]}
         onOpen={() => undefined}
       />,
     );
@@ -62,7 +50,7 @@ describe("EarlierConversations", () => {
   it("marks the open conversation as current", () => {
     render(
       <EarlierConversations
-        conversations={[summary({ conversation_id: "c1" }), summary({ conversation_id: "c2", turns: 3 })]}
+        conversations={[conversationSummary({ conversation_id: "c1" }), conversationSummary({ conversation_id: "c2", turns: 3 })]}
         currentId="c2"
         onOpen={() => undefined}
       />,

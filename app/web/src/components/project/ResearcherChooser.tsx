@@ -9,7 +9,7 @@ import {
   type RecordItems,
   type RecordSection,
   type ResearcherRecord,
-} from "../../project/api";
+} from "../../project/researcher";
 import { Button } from "../ui/Button";
 import { ITEM_LABELS, SECTION_LABELS, itemsOf, sectionText } from "./researcherFacts";
 

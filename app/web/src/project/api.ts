@@ -12,103 +12,54 @@ import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils.js";
 import { createContext, useContext } from "react";
 
-import type { Question } from "../conversation/question";
+import type { DocumentQuestion } from "../api/contract";
+import type {
+  BuiltPackage,
+  DeletedProject,
+  Disclosure,
+  DocumentVersion,
+  ProjectDetails,
+  ProjectDocument,
+  ProjectDocuments,
+  ProjectIntake,
+  ProjectSummary,
+  RepositorySearch,
+  SavedInventory,
+  Validation,
+} from "../api/generated/responses";
 import type { ProjectProgress, StepMark } from "../flow/types";
 import { json } from "../http";
 import type { Problem } from "../run/types";
+import type { KeepChoice, ResearcherRecord } from "./researcher";
 
-export type VersionState = "proposed" | "approved" | "rejected";
+export type { DocumentQuestion } from "../api/contract";
+export type {
+  BuiltPackage,
+  DeletedProject,
+  Disclosure,
+  DocumentVersion,
+  IntakeQuestion,
+  ProjectDetails,
+  ProjectDocument,
+  ProjectDocuments,
+  ProjectIntake,
+  ProjectSummary,
+  RepositoryMatch,
+  RepositorySearch,
+  ReviewRules,
+  SavedInventory,
+  Validation,
+  ValidationResult,
+} from "../api/generated/responses";
+
+/** The state of a document's version, as the harness records it. */
+export type VersionState = DocumentVersion["state"];
 export type Verdict = "approved" | "rejected";
-
-export interface RecordedPrincipal {
-  principal_id: string;
-  name: string;
-  assurance: string;
-  vouched_by?: string;
-}
-
-/** A drafter's question about one gap: a README section, a data dictionary cell, or a metadata record value. */
-export interface DocumentQuestion {
-  question_id: string;
-  question_prompt: string;
-  gap_section?: string;
-  gap_part?: string;
-  gap_file?: string;
-  gap_field?: string;
-  gap_column?: string;
-  gap_property?: string;
-  /** A drafter's suggested answer, offered beside the question and never put into the draft. */
-  suggested_answer?: string;
-  /** How the suggestion came about, such as `model`. */
-  suggestion_derivation?: string;
-}
-
-export interface DocumentVersion {
-  document_id: string;
-  document_kind: string;
-  version: number;
-  digest: string;
-  media_type: string;
-  document_title: string | null;
-  conforms_to: string | null;
-  revises: { document_id: string; version: number } | null;
-  /** The run that drafted it; null for a person's edit. */
-  drafted_by: {
-    agent_id: string;
-    agent_version: string;
-    invocation_id: string;
-    document_derivation: string;
-  } | null;
-  /** What the version asks the researcher, one question per gap (docs/specs/drafting.md). */
-  questions: DocumentQuestion[];
-  added_by: RecordedPrincipal;
-  added_at: string;
-  state: VersionState;
-  decision: { reason: string | null; decided_by: RecordedPrincipal; decided_at: string } | null;
-  text: string;
-}
-
-/** A person's answer to one question, as the project log records it: the latest stands. */
-export interface RecordedAnswer {
-  question_id: string;
-  answer_text: string;
-  /** The version whose question it answered. */
-  version: number;
-  answered_by: RecordedPrincipal;
-  answered_at: string;
-}
-
-export interface ProjectDocument {
-  document_id: string;
-  document_kind: string;
-  document_title: string | null;
-  versions: DocumentVersion[];
-  /** The answers given to its questions, which the next draft places as supplied. */
-  answers?: RecordedAnswer[];
-}
 
 /** One answer as the shell sends it, to a question the latest version asks. */
 export interface GivenAnswer {
   answered_question: string;
   answer_text: string;
-}
-
-/** The harness's rule for when a decision needs a reason, which the form states. */
-export interface ReviewRules {
-  reason_required: { approved: boolean; edited_and_approved: boolean; rejected: boolean };
-  reason_max_length: number;
-}
-
-export interface ProjectDocuments {
-  project_id: string;
-  documents: ProjectDocument[];
-  review: ReviewRules;
-  /** The longest answer the harness keeps, in characters. */
-  answer_max_length?: number;
-  /** After a decision: the version it decided. */
-  decided?: { document_id: string; version: number };
-  /** After answers: the version whose questions they answered. */
-  answered?: { document_id: string; version: number };
 }
 
 export interface DecisionRequest {
@@ -131,72 +82,6 @@ export class DecisionConflict extends Error {
   }
 }
 
-/** One approved version, as the harness's disclosure describes it (docs/specs/disclosure.md). */
-export interface DisclosedDocument {
-  document_id: string;
-  document_kind: string;
-  document_title: string | null;
-  version: number;
-  digest: string;
-  origin: "model" | "model_revised" | "template" | "template_revised" | "person";
-  draft: {
-    agent_id: string;
-    agent_version: string;
-    invocation_id: string;
-    derivation: string;
-    completed_at: string | null;
-    models: { provider: string; model_id: string; called_at: string; prompt_digest: string | null }[];
-  } | null;
-  edited_by: string[];
-  approved_by: string;
-  approved_at: string;
-  reason: string | null;
-}
-
-/**
- * What a project's approved documents owe to generative AI: the harness's statement, in Markdown,
- * and the same account as a PROV-O graph in JSON-LD. The shell shows and offers them as they are.
- */
-export interface Disclosure {
-  project_id: string;
-  made_at: string;
-  pending: number;
-  statement: string;
-  documents: DisclosedDocument[];
-  prov: Record<string, unknown>;
-}
-
-/** One result of a validation: what is missing, in the harness's words (docs/specs/deposit.md). */
-export interface ValidationResult {
-  message: string;
-  /** The node the result is about, such as the project or the metadata record. */
-  focus: string;
-  /** The check that made it. */
-  component: string;
-  path: string | null;
-}
-
-/**
- * A project's validation against its chosen repository's requirements, as the harness made it
- * and kept it in the project log. A violation stops the package; a warning does not.
- */
-export interface Validation {
-  project_id: string;
-  conforms: boolean;
-  validated_at: string;
-  report_digest: string | null;
-  requirements_digest: string | null;
-  violations: ValidationResult[];
-  warnings: ValidationResult[];
-  /** The W3C SHACL Validation Report, in JSON-LD. */
-  report: Record<string, unknown>;
-}
-
-/** A deposit package the harness built and keeps by the SHA-256 of its bytes. */
-export interface BuiltPackage extends Validation {
-  package: { digest: string; size: number; href: string };
-}
-
 /** The harness built no package because the project is not valid: `validation` says why. */
 export class PackageRefused extends Error {
   readonly validation: Validation;
@@ -206,45 +91,6 @@ export class PackageRefused extends Error {
     this.name = "PackageRefused";
     this.validation = problem.validation;
   }
-}
-
-/** A conversation started in a project, as the projects list names it. */
-export interface ProjectConversation {
-  conversation_id: string;
-  title: string;
-  started_at: string;
-  last_completed_at?: string | null;
-  turns: number;
-}
-
-/** The repository a project chose last, as its summary names it. */
-export interface ChosenRepository {
-  re3data_id: string;
-  repository_name: string;
-  /** What the choice does not check, for example that re3data does not list DataCite for it. */
-  warnings: string[];
-  chosen_at: string;
-}
-
-/** What a search of the pinned re3data export shows of one repository. */
-export interface RepositoryMatch {
-  re3data_id: string;
-  name: string;
-  additional_names: string[];
-  url: string | null;
-  doi: string | null;
-}
-
-/**
- * Repositories a researcher may choose on a project's page (docs/specs/deposit.md): those the
- * pinned re3data export holds that `query` names, or, when `suggested`, those the deployment
- * offers before a search.
- */
-export interface RepositorySearch {
-  snapshot_ref: string;
-  query: string;
-  suggested: boolean;
-  repositories: RepositoryMatch[];
 }
 
 /** One field a repository's requirements name, and how much the deposit needs it. */
@@ -281,144 +127,18 @@ export interface RepositoryRequirements {
   repository_url?: string;
 }
 
-/**
- * One project the person may read, as `GET /api/projects` lists it, the one created last first
- * and a page at a time (the shell reads the first page): what it holds, how many of its documents
- * are in each state, and the conversations started in it, most recent first.
- */
-export interface ProjectSummary {
-  project_id: string;
-  /** The project's latest name; null until a person or the Data Director names it. */
-  title: string | null;
-  /** Who gave the name: a person, or the Data Director's model. A person's name is never
-   * replaced by the model's. */
-  title_source?: "researcher" | "model" | null;
-  created_at: string;
-  created_by: RecordedPrincipal;
-  inventory: { digest: string; file_count: number; inventory_made_at: string; added_at: string } | null;
-  repository: ChosenRepository | null;
-  documents: Record<VersionState, number>;
-  conversations: ProjectConversation[];
-  /** Whether the project's intake still has a question to ask, has none left, or was dismissed;
-   * derived from the project log (docs/specs/projects.md, rule 20). */
-  intake?: "pending" | "complete" | "dismissed";
-  /** When the project was deleted, by whom, and until when an owner may restore it; null while
-   * it is not deleted (docs/specs/projects.md, invariants 22 to 25). */
-  deleted?: ProjectDeletion | null;
-  /** For how many days after a deletion an owner may restore the project; 0 makes deletion
-   * final. The deployment sets it. */
-  restore_days?: number;
-}
-
-/** A deletion that stands: nothing is removed, and an owner may restore the project until
- * `restorable_until`. */
-export interface ProjectDeletion {
-  at: string;
-  by: RecordedPrincipal;
-  restorable_until: string;
-}
-
-/** A deleted project as `GET /api/projects/deleted` lists it: its summary, without the
- * conversations a list of projects gives. */
-export type DeletedProject = Omit<ProjectSummary, "conversations" | "deleted"> & {
-  deleted: ProjectDeletion;
-};
-
-/** An identifier from another scheme, as an ORCID record gives it, such as a DOI. */
-export interface ExternalIdentifier {
-  identifier_type: string;
-  identifier_value: string;
-  identifier_url?: string;
-}
-
-export interface Affiliation {
-  put_code: string;
-  affiliation_kind: string;
-  organisation_name: string;
-  organisation_identifier?: string;
-  organisation_identifier_scheme?: string;
-  department?: string;
-  role_title?: string;
-  start_year?: number;
-  end_year?: number;
-}
-
-export interface ResearcherWork {
-  put_code: string;
-  work_title: string;
-  work_type?: string;
-  publication_year?: number;
-  journal_title?: string;
-  work_identifiers?: ExternalIdentifier[];
-}
-
-export interface ResearcherFunding {
-  put_code: string;
-  funding_title: string;
-  funding_type?: string;
-  funder_name: string;
-  funder_identifier?: string;
-  funder_identifier_scheme?: string;
-  award_identifier?: string;
-  start_year?: number;
-  end_year?: number;
-}
-
-/**
- * What a researcher's public ORCID record offers, or what they kept of it in a project
- * (docs/specs/projects.md). Never an email address.
- */
-export interface ResearcherRecord {
-  orcid_id: string;
-  researcher_name?: string;
-  other_names?: string[];
-  biography?: string;
-  keywords?: string[];
-  country?: string[];
-  researcher_links?: { link_title?: string; link_url: string }[];
-  external_identifiers?: ExternalIdentifier[];
-  affiliations?: Affiliation[];
-  works?: ResearcherWork[];
-  works_omitted?: number;
-  fundings?: ResearcherFunding[];
-  record_retrieved_at: string;
-  record_source: string;
-}
-
-/** The sections of a record kept whole, and those chosen item by item, by put-code. */
-export const RECORD_SECTIONS = [
-  "researcher_name",
-  "other_names",
-  "biography",
-  "keywords",
-  "country",
-  "researcher_links",
-  "external_identifiers",
-] as const;
-export type RecordSection = (typeof RECORD_SECTIONS)[number];
-export const RECORD_ITEMS = ["affiliations", "works", "fundings"] as const;
-export type RecordItems = (typeof RECORD_ITEMS)[number];
-
-/** What a person ticked: never the facts, which the server reads from ORCID again. */
-export interface KeepChoice {
-  sections: RecordSection[];
-  affiliations: string[];
-  works: string[];
-  fundings: string[];
-}
-
 export interface ProjectApi {
   projects(signal?: AbortSignal): Promise<ProjectSummary[]>;
   /** Start a project of the person's own, with no conversation yet, named by `title` if given
    * (`POST /api/projects`, docs/specs/app.md rule 27). */
   create(title?: string): Promise<ProjectSummary>;
   /** Give the project a person's name; a model's name never replaces it. */
-  rename(projectId: string, title: string): Promise<unknown>;
+  rename(projectId: string, title: string): Promise<ProjectDetails>;
   /** Delete the project, which removes nothing, sending the name the owner typed: its title, or
    * its identifier while it has none (`DELETE /api/projects/{id}`). Answers with its summary. */
   remove(projectId: string, typedName: string): Promise<DeletedProject>;
   /** Restore a deleted project within its restore period (`POST /api/projects/{id}/restore`). */
-  restore(projectId: string): Promise<unknown>;
+  restore(projectId: string): Promise<ProjectDetails>;
   /** The deleted projects the person may still restore, the one deleted last first. */
   deletedProjects(signal?: AbortSignal): Promise<DeletedProject[]>;
   documents(projectId: string, signal?: AbortSignal): Promise<ProjectDocuments>;
@@ -469,46 +189,6 @@ export interface ProjectApi {
   withdrawResearcher(projectId: string): Promise<ResearcherRecord[]>;
 }
 
-/** Whether the project's intake still has a question to ask, has none left, or was dismissed. */
-export type IntakeState = "pending" | "complete" | "dismissed";
-
-/** One intake question asked from the project's entry point, with its current answer. */
-export interface IntakeQuestion {
-  /** The intake's stable id, `intake.<name>`, which an answer is posted to. */
-  question_id: string;
-  question: Question;
-  /** The values of the latest answer, or null while it has none. */
-  answer_values: string[] | null;
-  /** What an answer says to the researcher at once, by answer value; only for those that do. */
-  notices?: Record<string, string>;
-}
-
-/**
- * Where a project's intake stands, derived by the harness from the project log on every read
- * (docs/specs/app.md, rule 25): the next question, every question asked from the entry point
- * with its answer, and the project's progress, whose entry point and suggested step the card
- * names once the intake is complete.
- */
-export interface ProjectIntake {
-  state: IntakeState;
-  next: string | null;
-  questions: IntakeQuestion[];
-  progress: ProjectProgress;
-}
-
-/**
- * What a project holds of its inventory once one is saved: `revises` names the one it replaced,
- * and `part_count` how many folders it is made of, when it is made of parts.
- */
-export interface SavedInventory {
-  digest: string;
-  file_count: number;
-  inventory_made_at: string;
-  added_at: string;
-  revises: string | null;
-  part_count: number | null;
-}
-
 /**
  * The SHA-256 of `text` as UTF-8, in hex: how a decision names the text that was shown. It is
  * computed in JavaScript rather than with Web Crypto, which a browser offers only in a secure
@@ -545,11 +225,12 @@ function post(body: unknown): RequestInit {
 }
 
 function put(body: unknown): RequestInit {
-  return {
-    method: "PUT",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  };
+  return { ...bodiless("PUT"), body: JSON.stringify(body) };
+}
+
+/** A request that changes state with no body, which the server still takes only as JSON (#728). */
+function bodiless(method: string): RequestInit {
+  return { method, headers: { "content-type": "application/json" } };
 }
 
 function documentsPath(projectId: string): string {
@@ -597,13 +278,7 @@ export const httpProjectApi: ProjectApi = {
     );
   },
   async saveInventory(projectId, inventory) {
-    return parse(
-      await fetch(`${projectPath(projectId)}/inventory`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ inventory }),
-      }),
-    );
+    return parse(await fetch(`${projectPath(projectId)}/inventory`, post({ inventory })));
   },
   async repository(projectId, signal) {
     const response = await fetch(`${projectPath(projectId)}/repository`, signal ? { signal } : {});
@@ -653,16 +328,10 @@ export const httpProjectApi: ProjectApi = {
     return parse(await fetch(`/api/repositories${search}`, signal ? { signal } : {}));
   },
   async validate(projectId) {
-    return parse(await fetch(`${projectPath(projectId)}/validation`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-      }));
+    return parse(await fetch(`${projectPath(projectId)}/validation`, bodiless("POST")));
   },
   async buildPackage(projectId) {
-    return parse(await fetch(`${projectPath(projectId)}/package`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-      }));
+    return parse(await fetch(`${projectPath(projectId)}/package`, bodiless("POST")));
   },
   async orcidRecord(signal) {
     return parse(await fetch("/api/researcher/orcid", signal ? { signal } : {}));
@@ -674,36 +343,29 @@ export const httpProjectApi: ProjectApi = {
     return parse(await fetch(`${projectPath(projectId)}/researchers/me`, put({ keep })));
   },
   async withdrawResearcher(projectId) {
-    return parse(
-      await fetch(`${projectPath(projectId)}/researchers/me`, {
-        method: "DELETE",
-        headers: { "content-type": "application/json" },
-      }),
-    );
+    return parse(await fetch(`${projectPath(projectId)}/researchers/me`, bodiless("DELETE")));
   },
   async decide(projectId, documentId, request) {
     return parse(
-      await fetch(`${documentsPath(projectId)}/${encodeURIComponent(documentId)}/decisions`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(request),
-      }),
+      await fetch(
+        `${documentsPath(projectId)}/${encodeURIComponent(documentId)}/decisions`,
+        post(request),
+      ),
     );
   },
   async answer(projectId, documentId, version, answers) {
     return parse(
-      await fetch(`${documentsPath(projectId)}/${encodeURIComponent(documentId)}/answers`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ version, answers }),
-      }),
+      await fetch(
+        `${documentsPath(projectId)}/${encodeURIComponent(documentId)}/answers`,
+        post({ version, answers }),
+      ),
     );
   },
 };
 
 /** The questions of `version` that no answer recorded for `document` has answered yet. */
 export function openQuestions(document: ProjectDocument, version: DocumentVersion): DocumentQuestion[] {
-  const answered = new Set((document.answers ?? []).map((a) => a.question_id));
+  const answered = new Set(document.answers.map((a) => a.question_id));
   return version.questions.filter((q) => !answered.has(q.question_id));
 }
 

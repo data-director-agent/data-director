@@ -89,6 +89,7 @@ locally from the repository root:
 | pytest | `uv run pytest --json-report --json-report-file=.report.json` (runs on every core; `-n0` for one process, to debug) |
 | CONFORMANCE.md is current | `uv run python scripts/conformance_report.py --check` (after pytest, which writes `.report.json`) |
 | Generated schemas up to date | `uv run dd-gen-schema && git diff --exit-code -- sdk/src/dd_sdk/schema/generated/` |
+| Generated API types up to date | in `app/web`: `npm run gen:api && git diff --exit-code -- src/api/generated/` |
 | Packages build and install alone | `uv build --all-packages -o dist && uv run python scripts/check_wheels.py dist` |
 | Agents as services (smoke) | `uv run python scripts/smoke_agents.py` |
 | PostgreSQL benchmark (`.github/workflows/bench.yml`, its own workflow, weekly and on demand; reports, never gates) | `DD_TEST_POSTGRES=postgresql://postgres@localhost/postgres uv run python harness/scripts/bench_postgres.py` (`--quick` to check it runs) |
@@ -119,7 +120,10 @@ The pytest suite blocks the network and needs no credentials. It also keeps the 
 that no longer matches what the server says, so commit what changed. In CI a stale fixture fails
 the test instead. The AG-UI cassettes in `app/web/cassettes`, the event streams the harness sends
 for each kind of run, are kept the same way by `app/tests/test_ui_cassettes.py`;
-`uv run python scripts/record_ui_cassettes.py` rewrites them all. [Writing tests](#writing-tests) says what a test should and should not pin down. `CONFORMANCE.md` is generated;
+`uv run python scripts/record_ui_cassettes.py` rewrites them all. The shell's types for what the
+server sends are generated from the app's response models: after changing one, run
+`npm run gen:api` in `app/web` and commit `app/web/src/api/generated/` ([The app](docs/specs/app.md),
+"API types"). [Writing tests](#writing-tests) says what a test should and should not pin down. `CONFORMANCE.md` is generated;
 regenerate it with the same two commands without `--check`. CodeQL (`codeql.yml`) analyses the
 Python, JavaScript and TypeScript code and the workflows (in a pull request, only the languages it
 changes), and `audit.yml` checks every locked
@@ -163,7 +167,7 @@ package, these ratchets keep code from growing past what a reviewer can follow
   logs: a content problem is an outcome, not a swallowed exception. No rule catches
   `contextlib.suppress(Exception)`; do not use it either.
 - **File size.** `scripts/check_size.py` holds each Python source file to 500 lines and each
-  TypeScript one to 400. A file already over the limit is recorded in `scripts/size_baseline.toml`
+  TypeScript one to 400 (not tests or generated code). A file already over the limit is recorded in `scripts/size_baseline.toml`
   at its present size and may not grow. The pre-commit hook lowers an entry when its file shrinks;
   commit the change.
 - **Copied code.** Agents may not import one another, so copying a block between them is the easy

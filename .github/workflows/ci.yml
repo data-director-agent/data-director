@@ -126,6 +126,18 @@ jobs:
       # The SHACL file is excluded: rdflib does not order blank nodes stably, so it is compared as
       # a graph by sdk/tests/test_contract.py instead.
       - run: git diff --exit-code -- 'sdk/src/dd_sdk/schema/generated/*.json'
+      # The shell's API types, generated from the app's response models with the
+      # json-schema-to-typescript that app/web locks (docs/specs/app.md, "API types").
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/web/package-lock.json
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: app/web
+      - run: npm run gen:api
+        working-directory: app/web
+      - run: git diff --exit-code -- app/web/src/api/generated/
 
   architecture:
     name: Architecture (import direction, boundaries)

@@ -41,6 +41,7 @@ uv run pytest                                   # parallel, network blocked, no 
 uv run ruff check . && uv run ruff format .
 uv run mypy
 uv run dd-gen-schema [path/to/schema.yaml]      # after editing a LinkML schema (core by default)
+(cd app/web && npm run gen:api)                 # after changing an app response model
 uv run python scripts/check_boundaries.py
 uv run --no-project --python 3.14 scripts/check_size.py --update   # files over the limit only shrink
 uv run --no-project --python 3.14 scripts/check_duplication.py --update  # copied code only shrinks
