@@ -30,6 +30,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from typing import Literal
 from urllib.parse import urlsplit
 
 from axe_playwright_python.sync_playwright import Axe
@@ -41,7 +42,7 @@ WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]
 # WCAG 1.4.10 Reflow: 320 CSS pixels is 1280 at 400% zoom.
 REFLOW_WIDTH = 320
 # Each of the theme's schemes (mkdocs.yml palette), with the browser preference that selects it.
-SCHEMES = {"default": "light", "slate": "dark"}
+SCHEMES: dict[str, Literal["light", "dark"]] = {"default": "light", "slate": "dark"}
 DESKTOP: ViewportSize = {"width": 1280, "height": 800}
 # How long a page's resources from outside the site are waited for, in milliseconds.
 OUTSIDE_WAIT_MS = 10_000
