@@ -31,6 +31,30 @@ Put code in the package whose job it is, not the one you have open; the full tab
 - Each member imports only what it declares and reads no path outside itself
   (`scripts/check_boundaries.py`).
 
+## Build for reuse
+
+The work here is meant to outlast this repository: each capability should be publishable on its
+own, as part of an open ecosystem of research data management agentic tools. So, when you build or
+change anything, ask first whether the useful part needs the Data Director contract at all
+([System and boundaries](docs/specs/system.md)).
+
+- Put contract-free work in a framework-neutral, separately publishable asset: a library, an MCP
+  server (`mcp-<name>`), or an Agent Skill for know-how and procedure that a model follows. An
+  agent then wraps it and adds only what the contract needs (classes, grounding, evidence). A
+  lookup in a public registry is an MCP server or library first and an agent second.
+- Prefer open, standard interfaces over private ones: A2A for agents, MCP for tools and data,
+  Agent Skills for instructions, JSON Schema, LinkML and SHACL for formats. Do not invent a
+  Data Director-specific mechanism where one exists.
+- Keep `sdk/` small and contract-only. A helper that does not speak the contract belongs in a
+  neutral library, not in `dd_sdk`. An agent imports nothing from another agent, the harness, the
+  workbench or the app, so that it can be lifted out whole.
+- Keep a unit single-purpose, with its own tests, README, licence and version, and no dependency
+  on a path outside its directory, so that moving it to its own repository is a copy.
+- The orchestrator is the exception: it has no MCP servers, web search or Skills of its own
+  ([Orchestration](docs/specs/orchestration.md)). An agent it delegates to may use all of them.
+- Credit what you reuse, and record in the unit's README what it depends on and what is open
+  about it. If you cannot say why a unit could not be reused elsewhere, make it so.
+
 ## Commands
 
 Run from the root; config for pytest, ruff and mypy is in the root `pyproject.toml`.
@@ -41,8 +65,10 @@ uv run pytest                                   # parallel, network blocked, no 
 uv run ruff check . && uv run ruff format .
 uv run mypy
 uv run dd-gen-schema [path/to/schema.yaml]      # after editing a LinkML schema (core by default)
+(cd app/web && npm run gen:api)                 # after changing an app response model
 uv run python scripts/check_boundaries.py
 uv run --no-project --python 3.14 scripts/check_size.py --update   # files over the limit only shrink
+uv run --no-project --python 3.14 scripts/check_duplication.py --update  # copied code only shrinks
 uv run --no-project --python 3.14 scripts/check_members.py         # after adding a member or an agent
 ```
 
@@ -71,8 +97,8 @@ fixtures in `app/web/fixtures` and `sdk/browser/tests/fixtures`, and the AG-UI c
   something enforces ([Policy and identity](docs/specs/policy-and-identity.md),
   [Configuration](docs/guide/operations/configuration.md)).
 - Never add a `# noqa: C901`/`PLR09…`, an `eslint-disable … complexity` or a
-  `scripts/size_baseline.toml` entry to get code past the size and complexity checks: split the
-  code instead, and remove such a marker when you do ([Architecture review](docs/architecture-review.md)).
+  `scripts/size_baseline.toml` or `scripts/duplication_baseline.toml` entry to get code past the
+  size, complexity and duplication checks: split the code, or move what is copied to one place, instead, and remove such a marker when you do ([Architecture review](docs/architecture-review.md)).
 - A content problem is an outcome, not an exception; exceptions are for programmer and
   configuration errors.
 - A canonicalisation is registered in `dd_sdk.evidence.CANONICALISATIONS`; an existing name's bytes
@@ -98,8 +124,9 @@ fixtures in `app/web/fixtures` and `sdk/browser/tests/fixtures`, and the AG-UI c
   who may sign off there before merge. A pull request opened from their account is signed off
   implicitly by them, so CI ("Developer Certificate of Origin") passes without that line; it
   warns on any sign-off by an agent (a warning, not a failure, but still to be fixed).
-- **Every pull request title must be a Conventional Commit**, `type(scope)!: summary`, lower case,
-  no full stop, at most 90 characters, such as `feat(app): register every in-tree agent`. There is
+- **Every pull request title must be a Conventional Commit**, `type(scope)!: summary`, with the
+  summary in sentence case, no full stop, at most 90 characters, such as
+  `feat(app): Register every in-tree agent`. There is
   no exception: a title like `Add a history tab` fails CI and blocks the merge. Run the check
   before you open the pull request and again after every edit to the title, and do not open or
   edit one until it passes:

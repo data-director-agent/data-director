@@ -1,6 +1,8 @@
 import react from "@vitejs/plugin-react";
+import { createReadStream, existsSync, statSync } from "node:fs";
+import { join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
-import { searchForWorkspaceRoot } from "vite";
+import { searchForWorkspaceRoot, type Connect } from "vite";
 import { defineConfig } from "vitest/config";
 
 // @data-director/inventory and @data-director/agent-view are linked from inventory/browser and
@@ -14,8 +16,50 @@ const API = process.env.DD_APP_URL ?? "http://127.0.0.1:7860";
 // serves it (docs/specs/model-accounts.md, Enrolment). Only that path is passed on.
 const BROKER = process.env.DD_BROKER_URL ?? "http://127.0.0.1:8300";
 
+// The browser scanner (`@data-director/inventory`, README.md, Browser scanner). Its bundle is built
+// apart (`npm run bundle` in inventory/browser) and served, when built, at /inventory-bundle/ by
+// the dev and preview servers; `vite build` leaves it out of dist. The built worker is sent the
+// policy it runs under in production (dd_app.worker_policy), so the end-to-end test runs under it
+// too. The dev server serves the worker as separate modules from this origin, which that policy
+// would refuse, so there it runs without one.
+const BUNDLE = fileURLToPath(
+  new URL("../../inventory/browser/dist/inventory-bundle", import.meta.url),
+);
+const BUNDLE_PATH = "/inventory-bundle/";
+const WORKER = /^\/assets\/inventory-scanner-[^/]*\.js$/;
+const WORKER_POLICY = "default-src 'none'; script-src blob: 'wasm-unsafe-eval'; connect-src 'none'";
+
+function serveScanner(withPolicy: boolean): Connect.NextHandleFunction {
+  return (request, response, next) => {
+    const path = new URL(request.url ?? "/", "http://localhost").pathname;
+    if (withPolicy && WORKER.test(path))
+      response.setHeader("Content-Security-Policy", WORKER_POLICY);
+    if (!path.startsWith(BUNDLE_PATH)) return next();
+    const file = join(BUNDLE, normalize(decodeURIComponent(path.slice(BUNDLE_PATH.length))));
+    if (!file.startsWith(BUNDLE + "/") || !existsSync(file) || !statSync(file).isFile()) {
+      response.statusCode = 404;
+      return response.end();
+    }
+    response.setHeader("Content-Length", statSync(file).size);
+    createReadStream(file).pipe(response);
+  };
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: "inventory-scanner",
+      configureServer: (server) => void server.middlewares.use(serveScanner(false)),
+      configurePreviewServer: (server) => void server.middlewares.use(serveScanner(true)),
+    },
+  ],
+  worker: {
+    format: "es",
+    rolldownOptions: {
+      output: { entryFileNames: "assets/inventory-scanner-[hash].js" },
+    },
+  },
   // agent-view's components import React from its own folder, where its tests install a copy; one
   // React for the whole page, the app's.
   resolve: { dedupe: ["react", "react-dom"] },

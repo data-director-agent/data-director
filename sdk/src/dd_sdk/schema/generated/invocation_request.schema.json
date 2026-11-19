@@ -163,6 +163,37 @@
          "title": "ChoiceOption",
          "type": "object"
       },
+      "ChosenRepository": {
+         "additionalProperties": false,
+         "description": "The repository a researcher chose to deposit the project's data in, from the shortlist, by its re3data identifier: the conductor fills it into a Message, and into the input of an agent that mixes in GivenProjectRepository, so that the agent knows a repository is chosen and which (docs/specs/projects.md). The last choice stands until a researcher chooses again.",
+         "properties": {
+            "chosen_repository_name": {
+               "description": "The chosen repository's name, as the pinned re3data export gives it.",
+               "type": "string"
+            },
+            "chosen_re3data_id": {
+               "description": "The chosen repository's re3data identifier, such as r3d100010468.",
+               "pattern": "^r3d[0-9]{9}$",
+               "type": "string"
+            }
+         },
+         "required": [
+            "chosen_repository_name",
+            "chosen_re3data_id"
+         ],
+         "title": "ChosenRepository",
+         "type": "object"
+      },
+      "ConfidenceBand": {
+         "description": "A band of the detector's highest score: low below 0.5, medium from 0.5 and below 0.85, high from 0.85. A low finding is reported, not dropped.",
+         "enum": [
+            "low",
+            "medium",
+            "high"
+         ],
+         "title": "ConfidenceBand",
+         "type": "string"
+      },
       "ConversationTurn": {
          "additionalProperties": false,
          "description": "One earlier turn of a conversation, as the caller presents it to the agent. An agent turn names the agent and version that produced it and the invocation it came from.",
@@ -511,6 +542,13 @@
                "description": "When the document was added to the project.",
                "format": "date-time",
                "type": "string"
+            },
+            "documentation_source_media_type": {
+               "description": "The media type of the Word document or PDF the document's text was read from, inside the deployment; absent for a document attached as text. The project keeps the file beside the text.",
+               "type": [
+                  "string",
+                  "null"
+               ]
             }
          },
          "required": [
@@ -546,7 +584,7 @@
       },
       "DraftRequest": {
          "additionalProperties": false,
-         "description": "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen, the metadata record a person approved last and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory, the requirements and the metadata record in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. In a project the conductor also fills current_version, the latest version of the project's document of that kind, or of the document redraft_document names, so a redraft is that document's next version. The answers a person recorded to the current version's questions are filled in by the conductor in the same way (docs/specs/drafting.md), and so are the researcher facts people in the project chose to keep from their public ORCID records (docs/specs/projects.md).",
+         "description": "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen, the metadata record a person approved last and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory, the requirements and the metadata record in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. In a project the conductor also fills current_version, the latest version of the project's document of that kind, or of the document redraft_document names, so a redraft is that document's next version. The answers a person recorded to the current version's questions are filled in by the conductor in the same way (docs/specs/drafting.md), and so are the researcher facts people in the project chose to keep from their public ORCID records (docs/specs/projects.md), and the text of the documents a researcher attached to the project, from which a drafter's model may suggest answers but never fill a gap.",
          "properties": {
             "schema_class": {
                "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -625,6 +663,26 @@
                "description": "The researcher facts the project holds, one record for each person who kept some. In a project the conductor fills them and a caller leaves them out; outside a project, the caller sends them, as it does the other facts.",
                "items": {
                   "$ref": "#/$defs/ResearcherRecord"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "project_documents": {
+               "description": "The documents the project holds, with their text, in the order they were added. In a project the conductor fills them and a caller leaves them out; outside a project, the caller sends them, as it does the other facts.",
+               "items": {
+                  "$ref": "#/$defs/ProjectDocument"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "project_decisions": {
+               "description": "The facts a person in the project decided (ProjectFact), the last decision on each subject, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project decided any. A drafter treats each as supplied.",
+               "items": {
+                  "$ref": "#/$defs/ProjectFact"
                },
                "type": [
                   "array",
@@ -782,6 +840,16 @@
                   "array",
                   "null"
                ]
+            },
+            "tool_retrievals": {
+               "description": "The records tools returned through the harness's tool gateway during this invocation, in the order the gateway returned them; filled only by the conductor.",
+               "items": {
+                  "$ref": "#/$defs/ToolRetrieval"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
             }
          },
          "required": [
@@ -888,6 +956,29 @@
          "title": "ExternalIdentifier",
          "type": "object"
       },
+      "FactKind": {
+         "description": "What a project fact is about (docs/specs/projects.md).",
+         "enum": [
+            "funder",
+            "required_repository",
+            "file_inclusion",
+            "sensitivity",
+            "licence",
+            "sharing_commitment"
+         ],
+         "title": "FactKind",
+         "type": "string"
+      },
+      "FileDecision": {
+         "description": "Whether a file of the inventory is to be deposited.",
+         "enum": [
+            "include",
+            "exclude",
+            "undecided"
+         ],
+         "title": "FileDecision",
+         "type": "string"
+      },
       "FileInventory": {
          "additionalProperties": false,
          "description": "The facts about a dataset's files that the project holds in place of the files (docs/specs/projects.md): for each file its path, size, digest and format, and for a table its fields. Made by a command run where the data live; it never contains a file's content. advisor.files reads it.",
@@ -948,6 +1039,16 @@
                   "array",
                   "null"
                ]
+            },
+            "inventory_personal_data": {
+               "description": "Where a personal-data detector found possible personal data (docs/specs/personal-data.md). Absent, no detector ran, or the inventory was made by a command without one; empty, a detector ran and found nothing, which does not mean the data hold none. In an inventory made of parts, it is every part's findings, and absent if any part's are absent.",
+               "items": {
+                  "$ref": "#/$defs/PersonalDataFinding"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
             }
          },
          "required": [
@@ -969,6 +1070,72 @@
          ],
          "title": "FileRole",
          "type": "string"
+      },
+      "FindingTarget": {
+         "description": "What part of a file a personal-data finding concerns.",
+         "enum": [
+            "column",
+            "field name",
+            "file name",
+            "text"
+         ],
+         "title": "FindingTarget",
+         "type": "string"
+      },
+      "GivenProjectDecisions": {
+         "additionalProperties": false,
+         "description": "Mixed into an agent's own input class when the agent reads the facts people decided about the project. In a project the conductor fills project_decisions by this name, as for a DraftRequest, and never needs to know the input class (docs/specs/projects.md, invariant 6); outside one, the caller sends them.",
+         "properties": {
+            "project_decisions": {
+               "description": "The facts a person in the project decided (ProjectFact), the last decision on each subject, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project decided any. A drafter treats each as supplied.",
+               "items": {
+                  "$ref": "#/$defs/ProjectFact"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            }
+         },
+         "title": "GivenProjectDecisions",
+         "type": "object"
+      },
+      "GivenProjectDocuments": {
+         "additionalProperties": false,
+         "description": "Mixed into an agent's own input class when the agent reads the documents a researcher attached to the project. In a project the conductor fills project_documents by this name, as for a DraftRequest, and never needs to know the input class (docs/specs/projects.md, invariant 6); outside one, the caller sends them.",
+         "properties": {
+            "project_documents": {
+               "description": "The documents the project holds, with their text, in the order they were added. In a project the conductor fills them and a caller leaves them out; outside a project, the caller sends them, as it does the other facts.",
+               "items": {
+                  "$ref": "#/$defs/ProjectDocument"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            }
+         },
+         "title": "GivenProjectDocuments",
+         "type": "object"
+      },
+      "GivenProjectRepository": {
+         "additionalProperties": false,
+         "description": "Mixed into an agent's own input class when the agent reads the repository a researcher chose for the project. In a project the conductor fills project_repository by this name and never needs to know the input class (docs/specs/projects.md, invariant 6); outside one, the caller sends it.",
+         "properties": {
+            "project_repository": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/ChosenRepository"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "The repository a researcher in the project chose last, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project has chosen one."
+            }
+         },
+         "title": "GivenProjectRepository",
+         "type": "object"
       },
       "Grounded": {
          "additionalProperties": false,
@@ -1160,6 +1327,16 @@
                   "array",
                   "null"
                ]
+            },
+            "part_personal_data": {
+               "description": "The part's findings, as inventory_personal_data, with paths that begin with the part's folder. Absent, no detector ran on the part.",
+               "items": {
+                  "$ref": "#/$defs/PersonalDataFinding"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
             }
          },
          "required": [
@@ -1283,9 +1460,20 @@
          "title": "InvocationRequest",
          "type": "object"
       },
+      "LocationPrecision": {
+         "description": "The precision at which a location may be published.",
+         "enum": [
+            "exact",
+            "site",
+            "region",
+            "country"
+         ],
+         "title": "LocationPrecision",
+         "type": "string"
+      },
       "Message": {
          "additionalProperties": false,
-         "description": "One conversational turn addressed to an agent: the text of the turn and the conversation so far. The history is part of the input, so the input hash covers everything the agent saw. In a project that holds an inventory, the conductor adds what it is (docs/specs/projects.md); in any project, it adds the entry point chosen, the progress the project log shows and the project's title, if it has one (docs/specs/orchestration.md). It adds the researcher facts people in the project chose to keep from their public ORCID records (docs/specs/projects.md).",
+         "description": "One conversational turn addressed to an agent: the text of the turn and the conversation so far. The history is part of the input, so the input hash covers everything the agent saw. In a project that holds an inventory, the conductor adds what it is (docs/specs/projects.md); in any project, it adds the entry point chosen, the progress the project log shows and the project's title, if it has one (docs/specs/orchestration.md). It adds the researcher facts people in the project chose to keep from their public ORCID records, the facts they decided and the repository they chose (docs/specs/projects.md).",
          "properties": {
             "schema_class": {
                "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -1388,6 +1576,27 @@
                   "array",
                   "null"
                ]
+            },
+            "project_decisions": {
+               "description": "The facts a person in the project decided (ProjectFact), the last decision on each subject, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project decided any. A drafter treats each as supplied.",
+               "items": {
+                  "$ref": "#/$defs/ProjectFact"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "project_repository": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/ChosenRepository"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "The repository a researcher in the project chose last, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project has chosen one."
             }
          },
          "required": [
@@ -1547,6 +1756,89 @@
          "title": "Payload",
          "type": "object"
       },
+      "PersonalDataFinding": {
+         "additionalProperties": false,
+         "description": "Where the inventory command found what may be personal data, and how sure it is (docs/specs/personal-data.md). It never holds a matched value, any part of one, an offset into a file, a row number or an example: a kind, a place, bands and the detector only. A finding is a prompt for a person, never a decision.",
+         "properties": {
+            "finding_kind": {
+               "$ref": "#/$defs/PersonalDataKind",
+               "description": "What the detector took the data to be."
+            },
+            "finding_file": {
+               "description": "The path of the file the finding concerns, as file_path; or, for a folder's name, the folder's path followed by a slash.",
+               "pattern": "^[^/]",
+               "type": "string"
+            },
+            "finding_target": {
+               "$ref": "#/$defs/FindingTarget",
+               "description": "What part of the file was examined."
+            },
+            "finding_column": {
+               "description": "The table column the finding concerns, for a column or a field name.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "finding_proportion": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/ProportionBand"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "The share of a column's sampled, non-empty values that matched, as a band so that it cannot be turned back into a count. Present for a column only."
+            },
+            "finding_confidence": {
+               "$ref": "#/$defs/ConfidenceBand",
+               "description": "How sure the detector is, as a band of its highest score."
+            },
+            "finding_detector": {
+               "description": "The detector, its version and its configuration, such as the recognisers that ran, so that a reader knows what was looked for.",
+               "type": "string"
+            },
+            "finding_examined": {
+               "description": "How much was examined: the sampled, non-empty values of a column, or the characters of a text file. Absent for a name.",
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "finding_kind",
+            "finding_file",
+            "finding_target",
+            "finding_confidence",
+            "finding_detector"
+         ],
+         "title": "PersonalDataFinding",
+         "type": "object"
+      },
+      "PersonalDataKind": {
+         "description": "What a personal-data finding took the data to be (docs/specs/personal-data.md). The first kinds come from matching values; the last four from matching names against a keyword table, by category.",
+         "enum": [
+            "email address",
+            "phone number",
+            "NHS number",
+            "National Insurance number",
+            "postcode",
+            "passport number",
+            "driving licence number",
+            "bank account number",
+            "payment card number",
+            "IP address",
+            "person name",
+            "direct identifier",
+            "indirect identifier",
+            "special category",
+            "location"
+         ],
+         "title": "PersonalDataKind",
+         "type": "string"
+      },
       "Principal": {
          "additionalProperties": false,
          "allOf": [
@@ -1695,6 +1987,386 @@
             "type"
          ],
          "title": "ProblemDetails",
+         "type": "object"
+      },
+      "ProjectDocument": {
+         "additionalProperties": false,
+         "description": "One document a researcher attached to a project, with its text: the conductor fills one per document into a DraftRequest so that a drafter's model may suggest answers from it (docs/specs/projects.md). Its text is the researcher's, untrusted, and given as data.",
+         "properties": {
+            "documentation_name": {
+               "description": "The file name the researcher attached the document under, without any folder.",
+               "type": "string"
+            },
+            "documentation_digest": {
+               "description": "The SHA-256 of the document's UTF-8 text, by which the project keeps it.",
+               "pattern": "^[0-9a-f]{64}$",
+               "type": "string"
+            },
+            "documentation_media_type": {
+               "description": "The document's media type, text/plain or text/markdown.",
+               "type": "string"
+            },
+            "documentation_size": {
+               "description": "The size of the document's UTF-8 text, in bytes.",
+               "type": "integer"
+            },
+            "documentation_added_at": {
+               "description": "When the document was added to the project.",
+               "format": "date-time",
+               "type": "string"
+            },
+            "documentation_source_media_type": {
+               "description": "The media type of the Word document or PDF the document's text was read from, inside the deployment; absent for a document attached as text. The project keeps the file beside the text.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "documentation_text": {
+               "description": "The document's text, as the researcher attached it, or as read from the file named by documentation_source_media_type.",
+               "type": "string"
+            }
+         },
+         "required": [
+            "documentation_name",
+            "documentation_digest",
+            "documentation_media_type",
+            "documentation_size",
+            "documentation_added_at",
+            "documentation_text"
+         ],
+         "title": "ProjectDocument",
+         "type": "object"
+      },
+      "ProjectFact": {
+         "additionalProperties": false,
+         "allOf": [
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "funder"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "fact_funder_name": {}
+                  },
+                  "required": [
+                     "fact_funder_name"
+                  ]
+               }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "required_repository"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "fact_repository_name": {}
+                  },
+                  "required": [
+                     "fact_repository_name"
+                  ]
+               }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "file_inclusion"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "fact_file_path": {},
+                     "file_decision": {}
+                  },
+                  "required": [
+                     "fact_file_path",
+                     "file_decision"
+                  ]
+               }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "sensitivity"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "sensitive_subject": {},
+                     "sensitivity_decision": {}
+                  },
+                  "required": [
+                     "sensitive_subject",
+                     "sensitivity_decision"
+                  ]
+               }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "licence"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "licence_id": {}
+                  },
+                  "required": [
+                     "licence_id"
+                  ]
+               }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "sharing_commitment"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "commitment_document": {},
+                     "commitment_quote": {}
+                  },
+                  "required": [
+                     "commitment_quote",
+                     "commitment_document"
+                  ]
+               }
+            }
+         ],
+         "description": "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, the licence, or an output a data management plan committed to share (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because.",
+         "properties": {
+            "fact_kind": {
+               "$ref": "#/$defs/FactKind",
+               "description": "What the fact is about, which says which value slots apply."
+            },
+            "fact_subject": {
+               "description": "The key a decision counts by within its kind: the funder's identifier or name, the repository's re3data identifier or name, the file's path, the field or path judged sensitive, or licence. The last decision on a kind and subject stands.",
+               "pattern": "\\S",
+               "type": "string"
+            },
+            "fact_funder_name": {
+               "description": "The funder's name, as its policy record or the researcher gives it.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "fact_funder_ror": {
+               "description": "The funder's ROR identifier, as a URL, where it is known.",
+               "format": "uri",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "fact_crossref_funder_id": {
+               "description": "The funder's Crossref Funder ID, as a DOI URL, where it is known.",
+               "format": "uri",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "fact_repository_name": {
+               "description": "The required repository's name.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "fact_re3data_id": {
+               "description": "The required repository's re3data identifier, such as r3d100010199, where known.",
+               "pattern": "^r3d[0-9]{9}$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "fact_required_by": {
+               "description": "The funders, journals or institutions that require the repository.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "fact_file_path": {
+               "description": "The path of the file the fact is about, relative to the dataset's root folder, as the inventory gives it.",
+               "pattern": "^[^/]",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "file_decision": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/FileDecision"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "Whether the file is to be deposited."
+            },
+            "fact_check_kind": {
+               "description": "The kind of check that raised the fact, in the checking agent's words, such as duplicate, system_file or third_party. Kept as it was given; the core does not enumerate it.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "sensitive_subject": {
+               "description": "The field name, or the file path, judged sensitive, such as a lat or lon field, or a file of site coordinates.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "sensitivity_decision": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/SensitivityDecision"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "Whether the sensitive field or file may be published, and how."
+            },
+            "location_precision": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/LocationPrecision"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "For a location that may be published or generalised, the precision agreed. Absent where the subject is not a location."
+            },
+            "licence_id": {
+               "description": "The licence decided, as an SPDX identifier or a URL.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "commitment_repository": {
+               "description": "For a sharing commitment, the repository the plan committed to share the output in, as the plan names it; absent where it names none.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "commitment_access": {
+               "description": "For a sharing commitment, how openly the plan committed to share the output (such as open, embargoed or on request), as the plan says it; absent where it says nothing.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "commitment_licence": {
+               "description": "For a sharing commitment, the licence the plan committed to, as the plan names it; absent where it names none.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "commitment_quote": {
+               "description": "For a sharing commitment, the plan's own words the commitment was read from, verbatim, so the person deciding can see the passage it rests on.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "commitment_document": {
+               "description": "For a sharing commitment, the digest of the attached document's text (its documentation_digest) the quote is from.",
+               "pattern": "^[0-9a-f]{64}$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "proposed_because": {
+               "description": "Why the agent proposes the fact, in a sentence for the person deciding. Kept with the proposal and shown to the person, never given to an agent.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "fact_kind",
+            "fact_subject"
+         ],
+         "title": "ProjectFact",
+         "type": "object"
+      },
+      "ProportionBand": {
+         "description": "The share of sampled values that matched, as a band.",
+         "enum": [
+            "under 1%",
+            "1 to 10%",
+            "10 to 50%",
+            "over 50%"
+         ],
+         "title": "ProportionBand",
+         "type": "string"
+      },
+      "ProposesFacts": {
+         "additionalProperties": false,
+         "description": "Mixed into an agent's payload class when the agent proposes project facts for a person to confirm (docs/specs/projects.md). The harness reads proposed_facts by this name and never needs to know the payload class.",
+         "properties": {
+            "proposed_facts": {
+               "description": "Facts the agent proposes for a person to confirm. A proposal is never a fact until a person decides it (docs/specs/projects.md).",
+               "items": {
+                  "$ref": "#/$defs/ProjectFact"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            }
+         },
+         "title": "ProposesFacts",
          "type": "object"
       },
       "Question": {
@@ -2521,6 +3193,17 @@
          "title": "ResearcherWork",
          "type": "object"
       },
+      "SensitivityDecision": {
+         "description": "Whether a sensitive field or file may be published.",
+         "enum": [
+            "publish",
+            "generalise",
+            "withhold",
+            "undecided"
+         ],
+         "title": "SensitivityDecision",
+         "type": "string"
+      },
       "StepProgress": {
          "additionalProperties": false,
          "description": "How far one step of the Blueprint's process flow has gone, as the project log shows it: started, done or skipped. A step the list leaves out is open (docs/specs/orchestration.md).",
@@ -2586,7 +3269,7 @@
       },
       "Telemetry": {
          "additionalProperties": false,
-         "description": "Run measurements. The energy slots exist so P14 can be populated later without a schema change; at v0 they are null and not_measured.",
+         "description": "Run measurements. The energy slots hold the conductor's estimate of the run's model calls from the profile's model_footprint (estimated), or null and not_measured where it has none (docs/specs/disclosure.md).",
          "properties": {
             "trace_id": {
                "description": "OpenTelemetry trace identifier, 32 lowercase hex characters.",
@@ -2637,6 +3320,45 @@
             "energy_method"
          ],
          "title": "Telemetry",
+         "type": "object"
+      },
+      "ToolRetrieval": {
+         "additionalProperties": false,
+         "description": "One record a tool returned through the harness's tool gateway during the invocation (docs/specs/agents.md, docs/specs/grounding.md invariant 15). Recorded by the conductor from the tool's structured result, never reported by the agent. source_id is tool:<server>/<record id>, and content_hash is the record's hash under the canonicalisation the deployment names for the server, which is what a payload citing the record cites.",
+         "properties": {
+            "tool_server": {
+               "description": "The name the deployment's list of MCP servers gives the server.",
+               "type": "string"
+            },
+            "tool_name": {
+               "description": "The tool on that server that returned the record.",
+               "type": "string"
+            },
+            "source_id": {
+               "pattern": "^tool:[^/]+/.+$",
+               "type": "string"
+            },
+            "canonicalisation": {
+               "type": "string"
+            },
+            "content_hash": {
+               "pattern": "^[0-9a-f]{64}$",
+               "type": "string"
+            },
+            "retrieved_at": {
+               "format": "date-time",
+               "type": "string"
+            }
+         },
+         "required": [
+            "tool_server",
+            "tool_name",
+            "source_id",
+            "canonicalisation",
+            "content_hash",
+            "retrieved_at"
+         ],
+         "title": "ToolRetrieval",
          "type": "object"
       },
       "TurnRole": {
@@ -2725,5 +3447,5 @@
    ],
    "title": "data_director_core",
    "type": "object",
-   "version": "0.12.0"
+   "version": "0.17.0"
 }

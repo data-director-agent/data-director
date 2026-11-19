@@ -97,7 +97,7 @@ export function OwnAccount() {
     return (
       <p>
         Your own AI account could not be read. It is on your{" "}
-        <Link to="/profile">Profile page</Link>.
+        <Link to="/settings">Settings page</Link>.
       </p>
     );
   }
@@ -105,7 +105,7 @@ export function OwnAccount() {
     return (
       <p>
         This deployment lets you use your own AI account for these calls, and you have not added
-        one. You can add it on your <Link to="/profile">Profile page</Link>.
+        one. You can add it on your <Link to="/settings">Settings page</Link>.
       </p>
     );
   }

@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
 from types import ModuleType
+from typing import TYPE_CHECKING
 from urllib.parse import parse_qsl, urlsplit
 from urllib.request import url2pathname
 
@@ -45,6 +46,7 @@ from dd_harness.registry import Registered, Registry
 from dd_harness.sources import Sources
 from dd_harness.storage import ProjectStorage, RunStorage
 from dd_harness.store import RunStore
+from dd_harness.turn_locks import ConversationLocks, FileConversationLocks
 from dd_sdk.contract.models import Principal, PrincipalKind
 from dd_sdk.credentials import ConfigError, api_key
 
@@ -55,6 +57,9 @@ MODEL_GRANT_SETTINGS = (
     "DD_MODEL_BROKER_SUBJECT_KEY",
     "DD_PSEUDONYM_SECRET",
 )
+
+if TYPE_CHECKING:
+    from dd_harness.gateway.core import Gateway
 
 
 class SettingsError(ValueError):
@@ -223,6 +228,25 @@ def run_storage(location: StorageLocation, variable: str = "DD_RUNS_DIR") -> Run
     return store
 
 
+def conversation_locks(
+    location: StorageLocation, variable: str = "DD_RUNS_DIR"
+) -> ConversationLocks:
+    """The turn locks beside the run storage at `location` (`DD_RUNS_DIR`): files under the runs'
+    directory, or advisory locks on the runs' PostgreSQL database (docs/specs/storage.md, "Turn
+    locks"). A location that cannot be used stops start-up with `SettingsError`."""
+    where = storage_location(location, variable)
+    if isinstance(where, Path):
+        return _on_files(variable, where, FileConversationLocks)
+    _postgres(variable)  # names the missing driver, if it is
+    from dd_harness.postgres.locks import PostgresConversationLocks
+
+    try:
+        locks: ConversationLocks = PostgresConversationLocks(where)
+    except SettingsError as exc:
+        raise SettingsError(f"{variable} {exc}") from exc
+    return locks
+
+
 RESTORE_DAYS_VARIABLE = "DD_PROJECT_RESTORE_DAYS"
 
 
@@ -352,6 +376,9 @@ class Settings:
     # Mints a model grant for each invocation of a model-backed agent
     # (docs/specs/model-accounts.md). None mints none, and agents' calls are paid as before.
     model_grants: GrantMinter | None = None
+    # The deployment's list of MCP servers, which the tool gateway calls (docs/specs/agents.md,
+    # Tools). None: no gateway, and no agent is granted a tool.
+    tools_config: Path | None = None
 
     def principal(self) -> Principal:
         """The configured principal. Raises `IdentityError` if it is unset or malformed."""
@@ -365,6 +392,7 @@ class Settings:
         profile: Path | None = None,
         agents_config: Path | None = None,
         sources_config: Path | None = None,
+        tools_config: Path | None = None,
     ) -> Settings:
         """The settings the environment names. A `DD_*` variable wins over the caller's default
         for that path; a path with neither raises `SettingsError`."""
@@ -381,6 +409,9 @@ class Settings:
             oidc_issuer=os.environ.get("DD_OIDC_ISSUER") or None,
             oidc_client_id=os.environ.get("DD_OIDC_CLIENT_ID") or None,
             model_grants=grant_minter(os.environ),
+            tools_config=Path(os.environ["DD_TOOLS_CONFIG"])
+            if os.environ.get("DD_TOOLS_CONFIG")
+            else tools_config,
         )
 
 
@@ -401,7 +432,26 @@ def build_conductor(settings: Settings, *, agents: Iterable[Registered] = ()) ->
         write_crate=settings.write_crate,
         sources=Sources.from_config(settings.sources_config),
         model_grants=settings.model_grants,
+        gateway=_gateway(settings.tools_config),
     )
+
+
+def _gateway(path: Path | None) -> Gateway | None:
+    """The tool gateway over the servers `path` lists, connected and pinned; None without a list.
+    It needs the `gateway` extra, imported only when a list is named."""
+    if path is None:
+        return None
+    try:
+        from dd_harness.gateway.config import load_servers
+        from dd_harness.gateway.core import Gateway
+    except ImportError as exc:
+        raise SettingsError(
+            "DD_TOOLS_CONFIG: the tool gateway needs the MCP SDK; install "
+            "data-director-harness[gateway] (docs/specs/agents.md)"
+        ) from exc
+    gateway = Gateway(load_servers(path))
+    gateway.connect()
+    return gateway
 
 
 def build_authenticator(settings: Settings) -> Authenticator:

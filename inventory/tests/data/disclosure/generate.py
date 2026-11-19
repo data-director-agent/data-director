@@ -11,11 +11,15 @@ personal data:
 - National Insurance numbers with the prefix `QQ`, which is never allocated;
 - full postcodes in `ZZ99`, the NHS pseudo-postcode area, and postcode districts with no
   address attached;
-- names put together from short lists of common given names and surnames.
+- names put together from short lists of common given names and surnames, and addresses on
+  invented streets in invented places;
+- DOIs under `10.5555`, the prefix kept for examples, and ISBNs under `979-8-0000`.
 
 The tables and files are written below this folder, and `labels.json` says what each case
 should produce: a personal-data finding, a suppressed summary value or a quasi-identifier
-referral. Clean controls of the same shape say what should produce nothing.
+referral. Clean controls of the same shape say what should produce nothing. `evaluation/` is a
+larger set for comparing personal-data detectors (#39): several columns and texts of each kind,
+some under headers that say nothing, and ordinary research metadata that should produce nothing.
 
 Run it from the repository root to rewrite the corpus, and commit what it writes:
 
@@ -31,7 +35,7 @@ import io
 import json
 import random
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -43,6 +47,9 @@ FAMILY = ["Smith", "Jones", "Patel", "Khan", "Taylor", "Brown", "Wilson", "Evans
 DOMAINS = ["example.org", "example.com", "example.net"]
 SITES = ["north", "south", "east", "west"]
 DIAGNOSES = ["asthma", "eczema", "hay fever"]
+STREETS = ["Larchwood", "Rowan Hey", "Fellside", "Mossbank", "Quarry Brow", "Tenterfield"]
+PLACES = ["Easterby", "Westholme", "Low Fennick", "Ashby Parva", "Kettlewick"]
+SPECIES = ["Numenius arquata", "Vanellus vanellus", "Calluna vulgaris", "Sphagnum capillifolium"]
 
 
 def nhs_number(rng: random.Random) -> str:
@@ -79,6 +86,30 @@ def pseudo_postcode(rng: random.Random) -> str:
 
 def name(rng: random.Random) -> tuple[str, str]:
     return rng.choice(GIVEN), rng.choice(FAMILY)
+
+
+def full_name(rng: random.Random) -> str:
+    return " ".join(name(rng))
+
+
+def email(rng: random.Random) -> str:
+    given, family = name(rng)
+    return f"{given.lower()}.{family.lower()}{rng.randrange(100)}@{rng.choice(DOMAINS)}"
+
+
+def phone(rng: random.Random) -> str:
+    """A number from Ofcom's ranges for drama, written as people write them."""
+    number = mobile(rng) if rng.random() < 0.6 else landline(rng)
+    return "+44 " + number[1:] if rng.random() < 0.3 else number
+
+
+def serial(rng: random.Random) -> str:
+    """An instrument serial number: two groups of four digits and a check digit."""
+    return f"SN {rng.randrange(1000, 10_000)}-{rng.randrange(1000, 10_000)}-{rng.randrange(10)}"
+
+
+def address(rng: random.Random) -> str:
+    return f"{rng.randrange(1, 120)} {rng.choice(STREETS)}, {rng.choice(PLACES)}"
 
 
 def table(header: list[str], rows: Sequence[Sequence[object]], delimiter: str = ",") -> str:
@@ -203,6 +234,109 @@ def quasi(rng: random.Random) -> dict[str, str]:
     return {"quasi/survey.tsv": survey, "quasi/survey-control.tsv": control}
 
 
+# The evaluation set's tables: file, then each column as (header, kind, value). A kind of None is
+# ordinary metadata. Names and places ("needs NER") only named-entity recognition finds in values.
+NER = "needs NER"
+EVALUATION_TABLES: dict[str, list[tuple[str, str | None, str]]] = {
+    "evaluation/registrations.csv": [
+        ("ref", None, "ref"),
+        ("full_name", "person name", "full_name"),
+        ("email", "email address", "email"),
+        ("mobile", "phone number", "phone"),
+        ("home_address", "location", "address"),
+    ],
+    "evaluation/followup.tsv": [
+        ("col1", "email address", "email"),
+        ("col2", "phone number", "phone"),
+        ("col3", "NHS number", "nhs_number"),
+        ("col4", "National Insurance number", "ni_number"),
+        ("col5", "postcode", "pseudo_postcode"),
+        ("col6", "person name", "full_name"),
+    ],
+    "evaluation/contacts.csv": [
+        ("contact_2", "phone number", "phone"),
+        ("addr", "location", "address"),
+        ("pc", "postcode", "pseudo_postcode"),
+        ("who", "person name", "full_name"),
+    ],
+    "evaluation/specimens.csv": [
+        ("specimen_id", None, "specimen"),
+        ("instrument_serial", None, "serial"),
+        ("doi", None, "doi"),
+        ("isbn", None, "isbn"),
+        ("mass_g", None, "mass"),
+        ("collected", None, "collected"),
+        ("site_code", None, "site_code"),
+        ("species", None, "species"),
+    ],
+}
+NEEDS_NER = {"person name", "location"}
+
+
+def _values(rng: random.Random) -> dict[str, Callable[[], str]]:
+    """How each column's values are made, by the name the tables give."""
+    return {
+        "ref": lambda: f"R{rng.randrange(10_000):04d}",
+        "full_name": lambda: full_name(rng),
+        "email": lambda: email(rng),
+        "phone": lambda: phone(rng),
+        "address": lambda: address(rng),
+        "nhs_number": lambda: nhs_number(rng),
+        "ni_number": lambda: ni_number(rng),
+        "pseudo_postcode": lambda: pseudo_postcode(rng),
+        "specimen": lambda: f"SPC-{rng.randrange(2019, 2026)}-{rng.randrange(10_000):04d}",
+        "serial": lambda: serial(rng),
+        "doi": lambda: f"10.5555/moor.{rng.randrange(10_000)}",
+        "isbn": lambda: f"979-8-0000-{rng.randrange(1000, 9999)}-{rng.randrange(10)}",
+        "mass": lambda: f"{rng.uniform(0.1, 250):.2f}",
+        "collected": lambda: (date(2024, 3, 1) + timedelta(days=rng.randrange(200))).isoformat(),
+        "site_code": lambda: f"NX-{rng.randrange(1, 40):02d}",
+        "species": lambda: rng.choice(SPECIES),
+    }
+
+
+def evaluation(rng: random.Random) -> dict[str, str]:
+    """Tables and texts for comparing detectors: each kind in several columns, and negatives."""
+    make = _values(rng)
+    files = {}
+    for path, columns in EVALUATION_TABLES.items():
+        rows = [[make[value]() for _, _, value in columns] for _ in range(ROWS)]
+        delimiter = "\t" if path.endswith(".tsv") else ","
+        files[path] = table([header for header, _, _ in columns], rows, delimiter)
+    for i in range(1, 6):
+        files[f"evaluation/notes/visit-{i:02d}.txt"] = (
+            f"Visit {i}. Met {full_name(rng)} at the field station to go over the consent form. "
+            f"Reminders go to {email(rng)}; on the day, call {phone(rng)}.\n"
+        )
+    files["evaluation/notes/methods.md"] = (
+        "# Methods\n\nCores were taken at 10 cm intervals and weighed wet, then dried at 105 C "
+        "for 24 hours. Species were recorded on a 2 m quadrat at each site code.\n"
+    )
+    return files
+
+
+def evaluation_labels() -> tuple[list[dict[str, str]], list[dict[str, str]]]:
+    """Each place a detector should flag, with its kind, and each place it should not."""
+    found: list[dict[str, str]] = []
+    clean: list[dict[str, str]] = []
+    for path, columns in EVALUATION_TABLES.items():
+        for header, kind, _ in columns:
+            if kind is None:
+                clean.append({"file": path, "column": header})
+                continue
+            case = {"file": path, "column": header, "kind": kind}
+            found.append({**case, "needs": NER} if kind in NEEDS_NER else case)
+    for i in range(1, 6):
+        text = {"file": f"evaluation/notes/visit-{i:02d}.txt", "target": "text"}
+        found += [
+            {**text, "kind": "email address"},
+            {**text, "kind": "phone number"},
+            {**text, "kind": "person name", "needs": NER},
+        ]
+    clean.append({"file": "evaluation/notes/methods.md", "target": "text"})
+    return found, clean
+
+
 def labels(files: dict[str, str]) -> dict[str, object]:
     """What each case should produce. A file or column not listed should produce nothing."""
     consent = next(p for p in files if p.startswith("direct/consent/"))
@@ -258,13 +392,15 @@ def labels(files: dict[str, str]) -> dict[str, object]:
             "summaries/cohort-control.csv",
             "quasi/survey-control.tsv",
         ],
+        "evaluation": evaluation_labels()[0],
+        "evaluation_clean": evaluation_labels()[1],
     }
 
 
 def corpus() -> dict[str, str]:
     """Every file of the corpus, by path relative to this folder, with `labels.json`."""
     rng = random.Random(SEED)
-    files = {**direct(rng), **summaries(rng), **quasi(rng)}
+    files = {**direct(rng), **summaries(rng), **quasi(rng), **evaluation(rng)}
     files["labels.json"] = json.dumps(labels(files), indent=2) + "\n"
     return files
 

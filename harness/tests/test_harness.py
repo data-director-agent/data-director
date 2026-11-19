@@ -224,12 +224,12 @@ def test_the_orchestrator_a_profile_names_must_be_an_agent_it_enables(tmp_path: 
 @pytest.mark.parametrize(
     ("written", "expected"),
     [
-        ("", {"inventory"}),
+        ("", {"inventory", "decisions"}),
         ("hosted_models: []\n", set()),
         ("hosted_models: [inventory, documentation]\n", {"inventory", "documentation"}),
     ],
 )
-def test_hosted_models_defaults_to_the_inventory_alone(
+def test_hosted_models_defaults_to_the_inventory_and_decided_facts(
     tmp_path: Path, written: str, expected: set[str]
 ) -> None:
     """docs/specs/projects.md, invariant 8."""
@@ -280,6 +280,43 @@ def test_hosted_models_names_only_classes_of_project_content(
     path = tmp_path / "profile.yaml"
     path.write_text("profile_id: hosted\nagents: {}\n" + written, encoding="utf-8")
     with pytest.raises(PolicyError, match=match):
+        load_profile(path)
+
+
+@pytest.mark.requirement("DD-POLICY")
+@pytest.mark.parametrize(
+    ("written", "refuses"),
+    [
+        ("", False),
+        ("attached_documents: allowed\n", False),
+        ("attached_documents: refused\n", True),
+    ],
+)
+def test_attached_documents_are_allowed_unless_the_profile_refuses_them(
+    tmp_path: Path, written: str, refuses: bool
+) -> None:
+    """docs/specs/projects.md, Documentation."""
+    path = tmp_path / "profile.yaml"
+    path.write_text("profile_id: documents\nagents: {}\n" + written, encoding="utf-8")
+    profile = load_profile(path)
+    assert profile.refuses_documents is refuses
+    if refuses:
+        with pytest.raises(policy.DocumentsRefusedError):
+            policy.check_attached_document(profile)
+    else:
+        policy.check_attached_document(profile)
+
+
+@pytest.mark.requirement("DD-POLICY")
+@pytest.mark.parametrize("value", ["no", "false", "[refused]"])
+def test_attached_documents_is_allowed_or_refused_and_nothing_else(
+    tmp_path: Path, value: str
+) -> None:
+    path = tmp_path / "profile.yaml"
+    path.write_text(
+        f"profile_id: documents\nagents: {{}}\nattached_documents: {value}\n", encoding="utf-8"
+    )
+    with pytest.raises(PolicyError, match="attached_documents"):
         load_profile(path)
 
 

@@ -23,6 +23,23 @@ validation:
 theme:
   name: material
   language: en
+  # The favicon is a copy of app/web/public/favicon.svg, which follows the system scheme itself.
+  favicon: assets/favicon.svg
+  # Two schemes, each chosen by the system's preference at first. The toggle then stores the
+  # reader's choice. primary: custom takes the app's blue from stylesheets/accessibility.css.
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
   features:
     - navigation.sections
     - navigation.indexes
@@ -84,6 +101,7 @@ nav:
       - Making an inventory: user-guide/making-an-inventory.md
       - Attaching a document: user-guide/attaching-a-document.md
       - Using your ORCID record: user-guide/orcid-facts.md
+      - Deciding project facts: user-guide/project-facts.md
       - Understanding outcomes: user-guide/outcomes.md
       - What is recorded: user-guide/records.md
       - Depositing your data: user-guide/depositing.md

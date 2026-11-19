@@ -43,6 +43,19 @@ updates:
     commit-message:
       prefix: build(deps)
 
+  # jscpd, which scripts/check_duplication.py runs; the version is in scripts/jscpd/package.json.
+  - package-ecosystem: npm
+    directory: /scripts/jscpd
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      jscpd:
+        patterns: ["*"]
+    commit-message:
+      prefix: build(deps)
+
   # The shell and the libraries it links (inventory/browser, sdk/browser) share their tooling.
   - package-ecosystem: npm
     directories: [/app/web, /inventory/browser, /sdk/browser]
@@ -80,6 +93,28 @@ updates:
         update-types: [version-update:semver-major]
     groups:
       images:
+        patterns: ["*"]
+    commit-message:
+      prefix: build(deps)
+
+  # The LiteLLM gateway's images (deploy/llm-gateway), pinned by digest, in one group. The
+  # "LiteLLM gateway and model broker" CI job runs the gateway, the broker and the backup of its
+  # database against an update. LiteLLM's minor and major releases, and PostgreSQL's majors, move
+  # by hand: the README asks for LiteLLM's release notes to be read first, and a new PostgreSQL
+  # major cannot read the old one's volume.
+  - package-ecosystem: docker-compose
+    directory: /deploy/llm-gateway
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    ignore:
+      - dependency-name: ghcr.io/berriai/litellm
+        update-types: [version-update:semver-major, version-update:semver-minor]
+      - dependency-name: postgres
+        update-types: [version-update:semver-major]
+    groups:
+      gateway-images:
         patterns: ["*"]
     commit-message:
       prefix: build(deps)

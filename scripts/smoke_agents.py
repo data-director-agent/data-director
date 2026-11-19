@@ -68,6 +68,7 @@ CASES = [
     ("advisor.policy", "policy-context.json", "succeeded"),
     ("advisor.repository", "repository-needs.json", "succeeded"),
     ("advisor.repository", "repository-mandated.json", "succeeded"),
+    ("advisor.repository", "repository-asked-about.json", "succeeded"),
     ("advisor.ethics", "ethics-context.json", "succeeded"),
     ("advisor.files", "soil-survey.inventory.json", "succeeded"),
     ("advisor.dmp", "dmp-commitments.json", "succeeded"),
@@ -85,7 +86,7 @@ class SmokeError(Exception):
     """A check that did not hold."""
 
 
-def check(condition: bool, message: str, detail: object = "") -> None:
+def check(condition: bool, message: str, detail: object = "") -> None:  # noqa: FBT001
     """Print `message` if `condition` holds; otherwise fail with `detail` appended."""
     if not condition:
         raise SmokeError(f"{message}\n{detail}" if detail else message)
@@ -205,7 +206,7 @@ def smoke(tmp: Path) -> None:
     with started([str(ROOT / "scripts" / "run-agents.sh")], env, agents_log):
         for url in urls:
             wait_for(f"{url}/.well-known/agent-card.json", agents_log)
-        check(True, f"{len(urls)} agent services answer")
+        print(f"ok    {len(urls)} agent services answer")
 
         listed = workbench(env, "agents", "--json")
         check(listed.returncode == 0, "`workbench agents` exits 0", listed.stderr)

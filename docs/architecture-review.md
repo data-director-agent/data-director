@@ -143,9 +143,14 @@ the `json<T>()` response helper is copied four times: in `feedback/api.ts`, `pro
 
 ### 6. The TypeScript API types are written by hand
 
-`app/web/src/project/api.ts` declares about 40 interfaces copied from the Python models. The golden
-fixtures catch a change in what the server sends, but nothing checks the fixtures against those
-interfaces. A field renamed in Pydantic updates the fixture while `api.ts` still compiles.
+Resolved by #1130. `app/web/src/project/api.ts` declared about 40 interfaces copied from the Python
+models. The golden fixtures caught a change in what the server sent, but nothing checked the
+fixtures against those interfaces, so a field renamed in Pydantic updated the fixture while
+`api.ts` still compiled. Each route now answers through a Pydantic response model
+(`app/src/dd_app/responses.py`), the tests check each fixture against its model, and the shell's
+types are generated from the models' JSON Schema into `app/web/src/api/generated/responses.ts`,
+which CI checks is current. A field renamed in a model fails `npm run typecheck` until the shell is
+updated.
 
 ### 7. Lists of members kept by hand
 
@@ -157,19 +162,22 @@ drifted: `[tool.mypy].mypy_path` was missing seven agents. This change adds them
 
 - `app/tests/test_app.py` is a 1,597-line catch-all of 69 tests. It mirrors `build_app` and should
   be split with it.
-- There is no property-based testing. The code the project owns outright (canonicalisation, the
-  policy gate, event replay) is where it would pay most.
+- Property-based testing (Hypothesis) covers evidence canonicalisation, the contract validators
+  and project event replay. The policy gate has none yet.
 - Codecov's patch target is informational, and the per-package floors are deferred (TODO(#243)).
 - `harness/tests/test_registry.py:144` relies on a 50 ms sleep to make threads overlap, which may
   fail under load.
 - The PostgreSQL conformance tests are skipped silently unless `DD_TEST_POSTGRES` is set. CI sets
   it; a local run does not.
 
-### 9. State that holds only in one process
+### 9. State that holds only in one process (resolved by #983)
 
-`Governance` keeps `_turn_locks` and `_started` in memory (`app/src/dd_app/governance.py`, around
-lines 131–137). Conversation turns are therefore serialised only within one app process. That is
-correct for today's single-process deployment, but no specification states the limit.
+`Governance` kept `_turn_locks` and `_started` in memory, so conversation turns were serialised
+only within one app process, and no specification stated the limit. The turn lock is now the run
+store's (`dd_harness.turn_locks`: a file lock on files, an advisory lock on PostgreSQL), so app
+processes over one store run one turn of a conversation at a time; `docs/specs/app.md` ("Turn
+locks") records the decision. `_started` stays in memory: only an app that keeps no projects
+fills it.
 
 ## Proposed refactors
 
@@ -205,20 +213,18 @@ written or moved first, so that behaviour is pinned before the code moves.
 5. **Split `ConversationHome` into hooks**: `useProjectDocuments`, `useProjectProgress`,
    `useIntake`, `useAttachments` and `useConversationTurns`. Add one shared `useResource` hook that
    handles aborting and the loading/loaded/failed state, and one shared `json<T>()`.
-6. **Type the API boundary.** Generate the TypeScript types from the JSON Schema of the app's
-   Pydantic models. As a smaller first step, add a type-level test that each fixture in
-   `app/web/fixtures` satisfies its interface.
+6. **Type the API boundary** (done in #981 and #1130). Generate the TypeScript types from the JSON
+   Schema of the app's Pydantic models. As a smaller first step, add a type-level test that each
+   fixture in `app/web/fixtures` satisfies its interface.
 7. **Split the policy adviser's `run`** into one step per source.
 8. **State the single-process limit** of conversation locks in `docs/specs/app.md`, or move the
    locks to the database before running more than one app process.
 
 ## Proposed testing measures
 
-- **Hypothesis property tests** for:
-  - evidence canonicalisation (the bytes of a registered canonicalisation never change, and
-    canonicalising twice gives the same bytes);
-  - the contract validators;
-  - `Projects` event replay (folding a log gives the same state as applying its events one by one).
+- **Hypothesis property tests** for the policy gate. Evidence canonicalisation, the contract
+  validators and project event replay have them (`sdk/tests/test_evidence_properties.py`,
+  `sdk/tests/test_contract_properties.py`, `dd_harness.testing.check_a_log_replays_as_it_folds`).
 - **A loud PostgreSQL skip.** Report the skipped conformance tests in the run summary, and give
   `compose.yaml` a test database so that `DD_TEST_POSTGRES` is easy to set locally.
 - **Replace the sleep** in `harness/tests/test_registry.py:144` with an event or barrier.
@@ -233,7 +239,10 @@ written or moved first, so that behaviour is pinned before the code moves.
   through an allowed list, so that features do not tangle.
 - Record each refactor above as a short decision in `docs/specs`, so that the reason for a module's
   shape outlives the pull request.
-- Review the size baseline and the markers below each quarter. The count should fall.
+- Watch the size baseline, the markers below and the boundary exceptions fall. They are counted by
+  `scripts/architecture_debt.py`, whose table, "Recorded architecture debt", is in the summary of
+  the "Architecture" job of every CI run on `main`; compare it across runs instead of counting by
+  hand.
 
 ## Checks added with this review
 
@@ -246,13 +255,15 @@ it can shrink but not grow.
 | ESLint `complexity`, `max-depth` (`app/web`, `sdk/browser`, `inventory/browser`, outside tests) | complexity 20, depth 4 | `eslint-disable-next-line complexity` at the 11 functions over the limit; an unused marker is an error |
 | `scripts/check_size.py` | 600 lines (Python), 500 (TypeScript) | `scripts/size_baseline.toml` (18 files); an entry may not grow, and a slack or stale one fails |
 | `scripts/check_members.py` | each member in every hand-kept list | none: the drift it found (seven agents missing from `mypy_path`) is fixed |
+| `scripts/check_duplication.py` (jscpd over every member's sources, #1057) | no block of 5 lines and 50 tokens in two places | `scripts/duplication_baseline.toml` (57 pairs of files, 71 blocks, 772 lines in November 2026); a pair may not gain a block or a line, and a slack or stale entry fails |
 
 Two things are shared by the checks:
 
-- **Where they run.** The size and registration checks are pre-commit hooks, so they also run in
+- **Where they run.** The size, duplication and registration checks are pre-commit hooks, so they also run in
   CI's "Pre-commit hooks" job on every pull request, including one that changes only TypeScript.
 - **Canaries.** Their tests are in `scripts/tests/test_check_size.py`,
-  `scripts/tests/test_check_members.py` and `app/web/src/architecture.test.ts`. Each plants a
+  `scripts/tests/test_check_members.py`, `scripts/tests/test_check_duplication.py` and
+  `app/web/src/architecture.test.ts`. Each plants a
   violation and expects the check to fail.
 
 The rule for contributors is in CONTRIBUTING.md under "Keeping the code in shape": never add a
@@ -283,5 +294,32 @@ shrink.
 | Ruff `PLR0904` (Python outside tests; #1056) | 20 public methods in a class | `# noqa: PLR0904` on `Governance` and `ProjectService` in `dd_app` |
 | dependency-cruiser `no-circular` in `sdk/browser` and `inventory/browser` (#1059), as `app/web` has | no import cycle in `src/` | none: neither package has one |
 | `app/web/src/fixtures.test.ts` (#981, first step) | each fixture in `app/web/fixtures` satisfies its TypeScript interface, and a new fixture must be listed | three fixtures that are not one interface are listed with the reason |
-| Import Linter `acyclic_siblings` over every member (#1055) | no cycle between a package's modules | the 7 cycles found, as `ignore_imports` entries; a stale entry fails (TODO(#1066)) |
-| Import Linter `layers` in `dd_harness` and `dd_app` (#1055) | server, transport, conductor and pipeline, storage, then the checks; app, routes, project service, then governance | none: both already held |
+| Import Linter `acyclic_siblings` over every member (#1055) | no cycle between a package's modules | the 6 cycles that exist, as `ignore_imports` entries; a stale entry fails (TODO(#1066)) |
+| Import Linter `layers` in `dd_harness` and `dd_app` (#1055) | server, transport, conductor and pipeline, storage, then the checks; app, routes, project service, then governance | one `ignore_imports` entry in `dd_app`: `responses` imports `app` inside a function (TODO(#1066)) |
+## Boolean parameters and silenced exceptions, November 2026
+
+Two kinds of code that make an interface or a failure hard to follow were not checked (#1095).
+
+| Check | What fails | How the existing findings are recorded |
+|---|---|---|
+| Ruff `FBT001`, `FBT002`, `FBT003` (Python outside tests) | a boolean positional parameter in a definition, or a boolean literal passed positionally in a call | the 62 findings were fixed by making the parameter keyword-only or naming the argument, except `check` in `scripts/smoke_agents.py`, an assertion-shaped helper whose predicate comes first, which carries `# noqa: FBT001`; RUF100 fails a marker that no longer suppresses anything |
+| Ruff `S110` (Python outside tests) | `try`/`except Exception`/`pass`, or a bare `except` with `pass`; `SIM105`, already on, fails a narrower `except`/`pass` | none: there were no findings |
+
+A broad `except Exception` that returns a default is already failed by `BLE`, unless it re-raises
+or logs. `contextlib.suppress(Exception)` has no Ruff rule; there is none in the code, and
+CONTRIBUTING.md asks contributors not to add one. `scripts/architecture_debt.py` counts the `FBT`
+markers in its own row.
+
+## Unused code, November 2026
+
+Refactors such as #975 to #980 left behind code that nothing called any more, and nothing found it
+(#1058). Two checks now do.
+
+| Check | What fails | How the existing findings are recorded |
+|---|---|---|
+| `scripts/check_unused.py` (vulture, Python in a member's `src/`; a use anywhere in the repository counts) | an unused function, method, class, attribute or import | `scripts/unused_code.toml`: `[[reached]]` for code reached by a name vulture cannot see, with how; `[[unused]]` for three SDK helpers no member calls, which may only shrink. A stale entry fails |
+| knip (`npm run lint` in `app/web`, `sdk/browser`, `inventory/browser`) | an unused file, export (one its own file does not use either) or dependency | none: the eleven unused exports it found in `app/web` were removed, as were three unused Python functions and classes. An ignore entry that matches nothing fails |
+
+Unused variables are not checked in Python: vulture reports every Pydantic field and enum member
+as one, and Ruff already reports unused locals. The Python check runs in CI's architecture job, and
+`scripts/tests/test_check_unused.py` plants unused code and a stale entry and expects it to fail.

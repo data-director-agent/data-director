@@ -41,7 +41,8 @@ is in [`harness/docs/registry.md`](../../harness/docs/registry.md).
    it ([Policy and identity](policy-and-identity.md)).
 7. The manifest declares derivations and carries no presentation: no uiSchema fragment, widget
    name, layout hint or field order. `workbench/tests/test_viewer.py` checks that the viewer
-   works out a payload's presentation from its schema and the derivations.
+   works out a payload's presentation from its schema and the derivations. A persona's title and
+   icon are its identity, not presentation in this sense.
 8. A derivation names a payload field path the payload class has, and its `recorded_in`, when
    given, names a sibling field of type `Derivation`. An agent with no payload declares no
    derivations. The spec refuses anything else when it is built, both in the agent and when the
@@ -56,7 +57,10 @@ is in [`harness/docs/registry.md`](../../harness/docs/registry.md).
     its reference profile: `app/tests/test_app.py`.
 12. Every advisor is a persona: it has a title, and it serves only steps of the process flow
     (`dd_sdk.process_flow`). `AgentSpec` refuses a step id that is not in the flow. No two
-    advisors serve the same step. That last rule is not yet checked by a test.
+    advisors serve the same step. That last rule is not yet checked by a test. A persona may also
+    have an `icon`, one emoji, which the app shows beside its title; `AgentSpec` refuses an icon
+    that is not one (`sdk/tests/test_agent_spec.py`). A card without an icon gets the client's
+    default (`DEFAULT_AGENT_ICON` in `@data-director/agent-view`).
 13. A mock advisor's description begins "Mock.", its grounding mode is `none`, and its payload
     says in `limitations` what it does not yet do; a payload of the core `Document` class, which
     has no such slot, says it in the outcome statement instead. A mock declares no model and
@@ -65,10 +69,9 @@ is in [`harness/docs/registry.md`](../../harness/docs/registry.md).
 14. A model-backed alpha advisor sits between a mock and a persona. It has a pre-release version,
     its grounding mode is `input_only`, or `retrieval` where it reads outside records (the Policy
     Adviser), and its description does not begin "Mock.". It has a `template` writer, which
-    calls no model, so it runs and its tests pass with no key; that writer is its default, except
-    for the Documentation Editor and the Policy Adviser, whose models are on by default
-    (Model-backed personas). Its `factory` module names the setting that chooses the writer
-    (`SWITCH`) and that setting's default (`DEFAULT`). It declares a model in `AgentSpec.models`
+    calls no model, so its tests pass with no key; an operator can select it, but the model is
+    its default (Model-backed personas). Its `factory` module names the setting that chooses the writer
+    (`SWITCH`). It declares a model in `AgentSpec.models`
     only when one is configured. Its payload says what it still does not do, as a mock's does.
     Like a mock, it substantiates no Blueprint requirement until it leaves alpha.
 
@@ -105,7 +108,9 @@ load, so an agent started after the harness is found without a restart. An entry
 `model_broker: true`: the operator's statement that the agent calls its models through the model
 broker, which the conductor requires of every model-backed agent while the profile lets people's
 own model accounts pay ([A person's own model account](model-accounts.md), invariant 14). It is
-read from the configuration alone, never from the agent's card. Reloading a changed
+read from the configuration alone, never from the agent's card. On a deployment, `dd.py apply`
+writes the configuration from the release's list and marks each agent whose settings, which the
+operator writes, set `DD_MODEL_BROKER_URL` (`scripts/ddtool/agent_list.py`). Reloading a changed
 configuration and checking the health of registered agents while running are not built yet:
 TODO(#251).
 
@@ -174,7 +179,7 @@ roster for #353 found:
 | `advisor.rights`, `advisor.metadata` | Model-backed alpha, choosing from a closed set (rights) or suggesting beside a value (metadata). |
 | `advisor.fairness` | Model-backed alpha for its recommendations only; little gain until it retrieves. |
 | `advisor.quality` | Stays rule-based; it overlaps the FAIR Assessor (#18). |
-| `advisor.linking`, `advisor.files` | Stay deterministic: identifier syntax, checksums and format lookup are exact. Their next step is retrieval (#360, #354). |
+| `advisor.linking`, `advisor.files` | Stay deterministic: identifier syntax, checksums and format lookup are exact. Their next step is retrieval (#360, #354). `advisor.linking` has taken it for DOIs, through the tool gateway; it declares `retrieval` and left the mock row, so invariant 13 no longer describes it. |
 | `orchestrator.stub`, `example.hello` | Stay deterministic by design. |
 
 Each in-tree agent's state now. This table is the one place a state is written down:
@@ -182,10 +187,10 @@ Each in-tree agent's state now. This table is the one place a state is written d
 
 | State | Agents |
 |---|---|
-| Mock (invariant 13) | `advisor.files`, `advisor.linking` |
+| Mock (invariant 13) | `advisor.files` |
 | Model-backed alpha (invariant 14) | `advisor.dmp`, `advisor.documentation`, `advisor.ethics`, `advisor.fairness`, `advisor.metadata`, `advisor.policy`, `advisor.rights` |
 | Persona | `advisor.quality`, `advisor.repository`, `advisor.standards` |
-| Deterministic by design, or not an advisor | `example.hello`, `orchestrator.model`, `orchestrator.stub` |
+| Deterministic by design, or not an advisor | `advisor.linking`, `example.hello`, `orchestrator.model`, `orchestrator.stub` |
 
 What a persona that drafts project documents may infer, ask and write is in
 [Drafting documents](drafting.md).
@@ -194,16 +199,26 @@ What a persona that drafts project documents may infer, ask and write is in
 
 Every advisor that calls a model, from its alpha onwards, is built the same way, so that adding
 tools or an evaluation later changes the agent without rewriting it. `advisor-standards/` is the
-worked example of the `template` default (`factory.py`, `explain.py`), and
+worked example of the `template` path (`factory.py`, `explain.py`), and
 `advisor-documentation/` of the declared model and of structured output (`factory.py`,
 `prose.py`), and `advisor-policy/` and `advisor-standards/` of a model that calls tools
-(`advise.py`). Every model-backed advisor has a `template` path an operator can select. Three
-advisors' models are on by default (`dd_sdk.model_provider.optional_model(..., default="model")`):
-the Documentation Editor's, because its model only adds prose and suggestions beside a draft made
-by rule; the Policy Adviser's, because its model only adds to what its rules found, and each
-obligation it adds stands only on a quote that code finds in the cited record; and the Standards
-Librarian's, because its model never removes a pick its ranking rules made, and each standard it
-adds is a record retrieved in the run that code checks against the dataset profile.
+(`advise.py`). Every model-backed advisor has a `template` path an operator can select, and its
+model is on by default (`dd_sdk.model_provider.optional_model(..., default="model")`): an advisor
+without a key, a broker credential or `template` does not start, and says which setting runs it
+without a model. A model can be on by default because it is only ever added to a deterministic
+result, never trusted in place of one:
+
+- The Documentation Editor's model only adds prose and suggestions beside a draft made by rule.
+- The Policy Adviser's only adds to what its rules found, and each obligation it adds stands only
+  on a quote that code finds in the cited record.
+- The Standards Librarian's never removes a pick its ranking rules made, and each standard it adds
+  is a record retrieved in the run that code checks against the dataset profile.
+- The Repository Adviser's only writes the rationale for a ranking its rules made, and a rationale
+  that names an identifier it was not given is replaced by the template's.
+- The Ethics Adviser's only adds flags and questions to the keyword table's, never removing one.
+- The Rights Adviser's chooses only from its own licence table, and the DMP Checker's, the FAIR
+  Assessor's and the Metadata Librarian's only pair, tailor or suggest beside what their rules
+  decided, checked before use.
 
 1. **Deterministic shell, model core.** Input checks, abstentions, scores and anything exact
    (checksums, licence ids, the shape of a schema) stay in code; the model does judgement and
@@ -214,8 +229,9 @@ adds is a record retrieved in the run that code checks against the dataset profi
 3. **Safety by construction.** Where a miss is harmful, the model may add to the rules' output
    but not remove from it; merging two flags into one, or moving a flag to a list shown beside
    the others with the model's reason, is not removing it (`advisor-dmp/`). Where invention is
-   harmful, it chooses from a closed set the code supplies, or states a claim only with a quote that code finds, word for word, in the record
-   it cites (`advisor-policy/`, `verify.py`). Where the researcher must write a value, it suggests beside that value and never
+   harmful, it chooses from a closed set the code supplies, or states a claim only with a quote that code finds, word for word, in the record it cites (`advisor-policy/`, `verify.py`), or in the attached document it
+   cites (`advisor-dmp/`, `read_plan.py`, which proposes a plan's sharing commitments as project
+   facts for the researcher to decide, [Projects](projects.md), invariant 28). Where the researcher must write a value, it suggests beside that value and never
    writes it ([Drafting documents](drafting.md)).
 4. **Provenance per value.** Each field a model may write names a `Derivation` recorder in
    `recorded_in` (invariant 8), so a template fallback is shown as what it was. Each call is
@@ -225,7 +241,7 @@ adds is a record retrieved in the run that code checks against the dataset profi
    beside it. The provider is an adapter behind `dd_sdk.model.Model`
    (`dd_sdk.model_anthropic.AnthropicModel` for Claude, `dd_sdk.model_openai.OpenAIModel` for
    any OpenAI-compatible endpoint), built from the agent's settings by
-   `dd_sdk.model_provider.configured_model`, or `optional_model` where a `template` default
+   `dd_sdk.model_provider.configured_model`, or `optional_model` where a `template` path
    stands in for it; so an agent imports no provider's SDK and runs on any provider the SDK
    supports with no code change ([Policy and identity](policy-and-identity.md)). An agent whose
    model calls tools passes them to `call` as `dd_sdk.model.ToolSpec`s and keeps its
@@ -255,37 +271,51 @@ Several personas need the same source, and some procedures (reading a machine-ac
 choosing a licence) are the same whichever agent follows them. A source is shared as an MCP
 server, and a procedure as an Agent Skill. Both are framework-neutral resources
 ([System and boundaries](system.md)), and a persona consumes them under the harness's
-governance as follows. None of this is built yet: the gateway is TODO(#875), Skill loading
-TODO(#876).
+governance as follows. Skills are loaded by `dd_sdk.skills`; MCP servers are reached through the
+harness's tool gateway (`dd_harness.gateway`), which an agent calls through `ctx.tools`
+(`dd_sdk.tools`).
 
-Until the gateway exists, `advisor.policy` offers its model read-only tools that reach
+Two advisors predate the gateway. `advisor.policy` offers its model read-only tools that reach
 FAIRsharing, Jisc Open Policy Finder and Crossref from the agent itself, and `advisor.standards`
 one that searches FAIRsharing's standards. Each follows items 5 to 7
 below: its shell makes the first retrieval; the tools are limited per run
 (`DD_POLICY_MAX_LOOKUPS`, `DD_STANDARDS_MAX_LOOKUPS`); each record a tool returns is retrieved by the agent, with its
 `retrieval` span, before it may be cited; tool results reach the model as numbered, untrusted
-records in the user turn; and the model cites records only by those numbers. Its tools move
-onto the gateway when it is built. TODO(#875)
+records in the user turn; and the model cites records only by those numbers. Their tools move
+behind the gateway, TODO(#1143).
 
 **MCP servers for sources.**
 
-1. The deployment lists the MCP servers it runs, as it lists agents: names and addresses. Each
-   entry also names the source the server serves: which field identifies a record, the
-   registered canonicalisation its records are hashed under, and the pinned copy, if there is
-   one ([Evidence and grounding](grounding.md)). A server is `local` or `remote`, classified as
-   a model is ([Policy and identity](policy-and-identity.md)).
-2. The deployment pins each server's tool definitions by digest. A server whose tool list has
-   changed is unavailable until an operator pins the new list, so a changed tool description
-   cannot reach a prompt unreviewed.
+1. The deployment lists the MCP servers it runs, as it lists agents, in the file
+   `DD_TOOLS_CONFIG` names (`dd_harness.gateway.config`): each server's name and address, and
+   the source it serves: which field identifies a record, the registered canonicalisation its
+   records are hashed under, and the pinned copy, if there is one
+   ([Evidence and grounding](grounding.md)). A server is `local` or `remote`, worked out from its
+   address as a model's endpoint is ([Policy and identity](policy-and-identity.md)). Without the
+   file there is no gateway, and no agent is sent a tools grant.
+2. The deployment pins each server's tool definitions by digest (`tools_sha256`, the
+   `dd-mcp-tools-v1` digest of each tool's name, description, input schema and output schema).
+   At start-up the harness lists each server's tools; a server whose list has changed, or that
+   cannot be reached, is unavailable until an operator reviews the new list and pins it
+   (`dd-harness tools pins`), so a changed tool description cannot reach a prompt unreviewed.
 3. A persona reaches a server only through the harness's **tool gateway**, under its
    invocation's grant, as an orchestrator reaches its children. It never connects to a server
-   itself. Its card declares the servers and tools it uses, and the profile grants servers per
-   agent. The gateway refuses a call to a server the card does not declare or the profile does
-   not grant.
+   itself. Its card declares the servers and tools it uses (`AgentSpec.tools`), and the profile
+   grants servers per agent (`tool_servers`). The conductor sends a grant only for servers both
+   name that are available: the gateway's address and a token, in the A2A metadata
+   (`dd.tools_url`, `dd.tools_token`), which `dd_sdk.serve` binds to `ctx.tools`. The gateway is
+   one MCP endpoint at `/mcp` beside the delegation callback, speaking the stateless revision of
+   the streamable HTTP transport, and lists each tool as `<server>.<tool>`. It refuses a call to
+   a tool the grant does not cover, and a token whose invocation has ended.
 4. The conductor records each record a tool returns, so a retrieval through the gateway is the
-   harness's observation, not the agent's account ([Evidence and grounding](grounding.md)).
-5. Only a structured result grounds anything: records in the tool's declared output schema, each
-   with its identifier. Free text from a tool is never evidence.
+   harness's observation, not the agent's account ([Evidence and grounding](grounding.md)). The
+   envelope lists them in `tool_retrievals` ([Contract](contract.md), invariant 27), each call is
+   an `execute_tool` span under the invocation's root, and the gateway tells the agent what it
+   recorded in the result's `_meta`, so the agent cites exactly that (`dd_sdk.tools.ToolRecord`).
+5. Only a structured result grounds anything: `structuredContent` that the tool's pinned output
+   schema admits, either one record or a list of them under `records`, each with its identifier.
+   A record's source id is `tool:<server>/<record id>`. Free text from a tool is never
+   evidence.
 6. The deterministic shell makes the first retrieval, so the model is never called before a
    retrieval has ended (G1). It may then offer the model the granted, read-only tools as
    `dd_sdk.model.ToolSpec`s for follow-up lookups, with a limit per turn. Those calls also pass
@@ -297,16 +327,27 @@ onto the gateway when it is built. TODO(#875)
 
 **Agent Skills for procedures.**
 
-1. A persona loads a Skill as text in its system prompt. Code chooses which Skills a step needs;
-   the model gets no filesystem tool and does not choose Skills for itself.
+1. A persona loads a Skill as text in its system prompt. Code chooses which Skills a step needs,
+   with `dd_sdk.skills.load_skills`, and adds their text with `with_skills`; the model gets no
+   filesystem tool and does not choose Skills for itself. A Skill's references follow its
+   `SKILL.md` in the prompt, since the model cannot follow a link to a file.
 2. A Skill is vendored into the agent's package from the `skills` repository at a pinned
-   release, beside `system_prompt.md`, and reviewed as a prompt change is (item 5). The card
-   declares each Skill's name, version and SHA-256. The prompt digest already covers its text
+   release, under `skills/<name>/` beside `system_prompt.md`, and reviewed as a prompt change is
+   (item 5). `skills/pins.json` records each Skill's version, the release it came from and its
+   SHA-256, and `dd-vendor-skill` is the one way to change a vendored copy: it vendors a
+   release already on disk and writes the pin. The digest, `dd-skill-files-v1`, is SHA-256 over
+   one `<SHA-256 of the file>  <relative path>` line per file, sorted by path, as `sha256sum`
+   prints them; like the prompt digest it is not an evidence canonicalisation. A Skill whose
+   files do not hash to its pin is refused when the agent loads it. The card declares each
+   Skill's name, version and SHA-256 (`AgentSpec.skills`, the manifest's `skills`), taken from
+   the loaded Skill so that the two cannot disagree. The prompt digest already covers its text
    ([Disclosure](disclosure.md)).
-3. A Skill a persona loads carries no scripts. An exact procedure becomes code in the
-   deterministic shell, or a tool on an MCP server.
+3. A Skill a persona loads is text only: `SKILL.md` and Markdown or plain-text files under
+   `references/`. Scripts, assets, executable files and links are refused, when vendored and
+   when loaded. An exact procedure becomes code in the deterministic shell, or a tool on an MCP
+   server.
 4. A Skill cannot widen what a persona may do. Its tools, grounding mode and grants come from its
-   card and the profile, never from prompt text.
+   card and the profile, never from prompt text; the loader reads only its front matter's `name`.
 
 **Delegation versus tools.** A persona never delegates: it declares one grounding mode, and only
 a `delegation` agent delegates ([Orchestration](orchestration.md)). A persona calls a tool when
@@ -315,14 +356,16 @@ judgement, an outcome that may be `referred` or an abstention, or a different st
 orchestrator asks the persona that serves it. Two personas that need the same source each use
 its server; neither calls the other. Shared know-how is a Skill, not a persona.
 
-**Worked example: `advisor.rights`** (TODO(#877)). It builds on the model-backed alpha
-(`advisor-rights/interpret.py`, #697), whose model already chooses only from a closed set: the
-rows of `licences.yaml`. It moves from `input_only` to `retrieval`. A local
-MCP server serves a pinned SPDX licence-list release, whose records are hashed under a
-canonicalisation registered for them. The shell builds the closed set of candidate licences
-from the input and retrieves each candidate through the gateway. The model then chooses from
-that set with a `licence-choice` Skill loaded, and the payload cites `spdx:<id>` records the
-conductor recorded. The source check re-hashes each against the deployment's pinned copy.
+**Worked example: `advisor.rights`** (partly built, TODO(#877)). It builds on the model-backed
+alpha (`advisor-rights/interpret.py`, #697), whose model already chooses only from a closed set,
+and has moved from `input_only` to `retrieval`. The shell builds the candidate licences from the
+input and retrieves each through the gateway (`advisor-rights/retrieval.py`) before any model is
+called; the closed set is the licences the gateway returned, and the payload cites the records the
+conductor recorded (`tool:spdx/<id>`), hashed under the registered `dd-spdx-licence-v1` where the
+deployment names it for the server. A failed retrieval leaves the licence out and says so in
+`limitations`. Because a card declares one mode, an adviser granted no `spdx` server reads its
+packaged table under one `retrieval` span and says so. Still to build: the `licence-choice` Skill
+loaded into the model's prompt, and a served local MCP server for a pinned SPDX release.
 
 ## Rationale
 
@@ -342,9 +385,12 @@ conductor recorded. The source check re-hashes each against the deployment's pin
 - **Personas.** A role a person recognises is easier for a researcher to trust and for a data
   steward to assess. A narrow role keeps each agent's sources, failure modes and evaluation
   separate. Naming steps that no agent serves makes the whole intended design visible.
+- **An emoji icon.** An icon lets a researcher tell a conversation's agents apart at a glance. An
+  emoji names no icon library, so any client shows it as text, with no sprite or dependency, and
+  a card stays meaningful wherever it is read.
 - **A model-backed alpha.** It shows a persona's model-backed design to researchers early without
   claiming it is validated. The `template` path keeps CI and deployments without a key
-  working (the Documentation Editor's by being selected, the others' by default), and keeping exact work in a deterministic shell keeps it testable and lets a failed
+  working once an operator selects it, and keeping exact work in a deterministic shell keeps it testable and lets a failed
   or rejected model reply fall back to rule output.
 - **Tools through the harness.** A retrieval an agent makes itself is only its own account of
   what it read, so the linter can check only that the account agrees with itself

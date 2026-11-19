@@ -20,7 +20,9 @@ from dd_harness.testing.classes import (
     ProbeCheck,
     ProbeClaim,
     ProbeDocumentRequest,
+    ProbeFindings,
     ProbeProfile,
+    ProbeReading,
     ProbeRecord,
     ProbeReview,
 )
@@ -33,6 +35,7 @@ from dd_sdk.contract.models import (
     DocumentQuestion,
     DraftRequest,
     EvidenceItem,
+    FileInventory,
     GroundingMode,
     GroundingRef,
     InvocationRequest,
@@ -215,7 +218,8 @@ class DocumentStub:
     model call, as a real agent would through `dd_sdk.prompts`, without calling any model, and
     says its draft was derived by `model` (docs/specs/disclosure.md); its card says the model is
     `hosting` (docs/specs/projects.md, invariant 8). With `asks`, its draft asks
-    `STUB_QUESTION` (docs/specs/drafting.md). Given any `draft_answers`, it says how many."""
+    `STUB_QUESTION` (docs/specs/drafting.md). Given any `draft_answers` or `project_decisions`, it
+    says how many."""
 
     spec = AgentSpec(
         agent_id="stub.document",
@@ -271,6 +275,8 @@ class DocumentStub:
             text += f"\nGiven: files={files}, repository={repository}, record={record}\n"
             if asked.draft_answers:
                 text += f"Answers: {len(asked.draft_answers)}\n"
+            if asked.project_decisions:
+                text += f"Decisions: {len(asked.project_decisions)}\n"
             revises = asked.current_version.version_ref if asked.current_version else None
         return AgentResult(
             outcome=Outcome(
@@ -299,4 +305,46 @@ class DocumentStub:
             ],
             model_calls=calls.calls,
             prompts=calls.prompts,
+        )
+
+
+class FactStub:
+    """Checks a `FileInventory`, or a `ProbeReading` the conductor fills with the project's
+    documents and decisions, and proposes `facts` about its project for a person to decide, in a
+    `ProbeFindings` payload, grounded on its input (docs/specs/projects.md). It declares grounding
+    mode `none`."""
+
+    spec = AgentSpec(
+        agent_id="stub.facts",
+        version="0.1.0",
+        description="Proposes fixed facts about a project for a person to decide.",
+        action_class="advise",
+        accepts=(ClassSchema.of(FileInventory), ClassSchema.of(ProbeReading)),
+        grounding_mode=GroundingMode.NONE,
+        payload=ClassSchema.of(ProbeFindings),
+    )
+
+    def __init__(self, *facts: dict[str, Any]) -> None:
+        self.facts = list(facts)
+
+    def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
+        return AgentResult(
+            outcome=Outcome(
+                status=OutcomeStatus.SUCCEEDED,
+                statement=f"Proposed {len(self.facts)} facts for a person to decide.",
+            ),
+            payload=ProbeFindings.model_validate(
+                {
+                    "proposed_facts": self.facts,
+                    "grounded_on": [{"source_id": ctx.input_ref, "content_hash": ctx.input_hash}],
+                }
+            ),
+            evidence=[
+                EvidenceItem(
+                    source_id=ctx.input_ref,
+                    hash_algorithm=HASH_ALGORITHM,
+                    canonicalisation=INPUT_CANONICALISATION,
+                    content_hash=ctx.input_hash,
+                )
+            ],
         )

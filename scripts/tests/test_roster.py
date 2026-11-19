@@ -65,14 +65,6 @@ KNOWN_EXCEPTIONS: Mapping[str, frozenset[str]] = {
     "advisor.documentation": frozenset({"R5"}),
 }
 
-# Mocks and alphas whose payload does not yet say what they do not do. The list only shrinks too.
-NO_LIMITATIONS: frozenset[str] = frozenset(
-    {
-        # TODO(#968): the Policy Adviser's `PolicyChecks` has no `limitations` slot.
-        "advisor.policy",
-    }
-)
-
 
 def _module(package: Path) -> str:
     """The one import package under the agent's `src/`."""
@@ -106,12 +98,11 @@ def _in(state: str) -> list[str]:
 
 def _assert_states_limitations(spec: AgentSpec) -> None:
     """The payload has a `limitations` slot, or is the core `Document`, whose outcome statement
-    says them instead; unless the agent is a known gap."""
+    says them instead."""
     assert spec.payload is not None, f"{spec.agent_id}: an advisor with no payload"
-    states = spec.payload.name == "Document" or "limitations" in spec.payload.json_schema.get(
+    assert spec.payload.name == "Document" or "limitations" in spec.payload.json_schema.get(
         "properties", {}
-    )
-    assert states == (spec.agent_id not in NO_LIMITATIONS)
+    ), f"{spec.agent_id}: its payload does not state its limitations"
 
 
 @functools.cache
@@ -178,33 +169,29 @@ def test_a_model_backed_alpha_is_pre_release_grounded_and_states_its_limitations
     _assert_states_limitations(spec)
 
 
-def _factory(agent_id: str) -> tuple[Callable[[Mapping[str, str]], Any], str, str]:
-    """The alpha's `build`, the setting that chooses its `template` path, and that setting's
-    default, as the package's `factory` module declares them. Only the Documentation Editor's and
-    the Policy Adviser's models are on by default (Model-backed personas)."""
+def _factory(agent_id: str) -> tuple[Callable[[Mapping[str, str]], Any], str]:
+    """The alpha's `build` and the setting that chooses its `template` path, as the package's
+    `factory` module declares them. Every alpha's model is on by default (Model-backed
+    personas)."""
     package, _ = SPECS[agent_id]
     factory = importlib.import_module(f"{_module(package)}.factory")
-    return factory.build, factory.SWITCH, factory.DEFAULT
+    return factory.build, factory.SWITCH
 
 
 @pytest.mark.requirement("DD-REGISTRY")
 @pytest.mark.parametrize("agent_id", _in(ALPHA))
 def test_an_alphas_template_path_runs_with_no_key_and_declares_no_model(agent_id: str) -> None:
-    build, switch, _ = _factory(agent_id)
+    build, switch = _factory(agent_id)
     agent = build({switch: "template"})
     assert agent.spec.agent_id == agent_id
     assert agent.spec.models == ()
 
 
 @pytest.mark.parametrize("agent_id", _in(ALPHA))
-def test_an_alphas_default_is_template_unless_its_model_is_on_by_default(agent_id: str) -> None:
-    build, _, default = _factory(agent_id)
-    if default == "template":
-        assert build({}).spec.models == ()
-    else:
-        # On by default, it needs a model configured, and says how to run without one.
-        with pytest.raises(ConfigError, match="template"):
-            build({})
+def test_an_alphas_model_is_on_by_default_and_says_how_to_run_without_it(agent_id: str) -> None:
+    build, switch = _factory(agent_id)
+    with pytest.raises(ConfigError, match=f"{switch}=template"):
+        build({})
 
 
 @pytest.mark.parametrize("agent_id", _in(MOCK) + _in(ALPHA))
@@ -214,4 +201,4 @@ def test_a_mock_or_an_alpha_substantiates_no_blueprint_requirement(agent_id: str
 
 
 def test_every_known_exception_is_a_mock_or_an_alpha() -> None:
-    assert set(KNOWN_EXCEPTIONS) | NO_LIMITATIONS <= set(_in(MOCK) + _in(ALPHA))
+    assert set(KNOWN_EXCEPTIONS) <= set(_in(MOCK) + _in(ALPHA))

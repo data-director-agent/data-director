@@ -66,8 +66,20 @@ describe("each cassette reaches its expected state", () => {
       malformed: 0,
     });
     expect(state.log.filter((entry) => entry.kind === "subagent")).toEqual([
-      { kind: "subagent", event: "SUBAGENT_STARTED" },
-      { kind: "subagent", event: "SUBAGENT_FINISHED" },
+      {
+        kind: "subagent",
+        event: "SUBAGENT_STARTED",
+        name: "example.hello",
+        runId: expect.any(String),
+        status: null,
+      },
+      {
+        kind: "subagent",
+        event: "SUBAGENT_FINISHED",
+        name: null,
+        runId: expect.any(String),
+        status: "succeeded",
+      },
     ]);
   });
 
@@ -254,9 +266,15 @@ describe("events the run view does not draw as steps", () => {
     ]);
   });
 
-  it("logs subagent events", () => {
-    const state = reduce(started, { type: "SUBAGENT_STARTED", name: "child" });
-    expect(state.log).toEqual([{ kind: "subagent", event: "SUBAGENT_STARTED" }]);
+  it("logs subagent events, with the child's agent, run and outcome when they are given", () => {
+    let state = reduce(started, { type: "SUBAGENT_STARTED", name: "child", subagentRunId: "r1" });
+    state = reduce(state, { type: "SUBAGENT_FINISHED", subagentRunId: "r1", result: { status: "failed" } });
+    state = reduce(state, { type: "SUBAGENT_STARTED" });
+    expect(state.log).toEqual([
+      { kind: "subagent", event: "SUBAGENT_STARTED", name: "child", runId: "r1", status: null },
+      { kind: "subagent", event: "SUBAGENT_FINISHED", name: null, runId: "r1", status: "failed" },
+      { kind: "subagent", event: "SUBAGENT_STARTED", name: null, runId: null, status: null },
+    ]);
   });
 
   it("counts unknown types and CUSTOM names once each, without throwing", () => {

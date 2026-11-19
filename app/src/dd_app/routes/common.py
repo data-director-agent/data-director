@@ -1,5 +1,6 @@
 """What every route module shares: the app's dependencies, the guards that say whom a request
-acts for, RFC 9457 problems, and reading a request body into its model."""
+acts for, RFC 9457 problems, reading a request body into its model, and answering through a
+response model (`dd_app.responses`)."""
 
 from __future__ import annotations
 
@@ -18,12 +19,17 @@ from starlette.responses import Response
 
 from dd_app import feedback
 from dd_app.config import EXAMPLES_DIR
+from dd_app.folder_scan import FolderRoots
 from dd_app.github_auth import TokenSource
 from dd_app.governance import Governance
+from dd_app.problems import ProblemDetails as ProblemDetails
 from dd_app.problems import no_conversation as no_conversation
 from dd_app.problems import problem as problem
 from dd_app.problems import refused as refused
 from dd_app.project_service import ProjectService
+from dd_app.responses import ResponseBody as ResponseBody
+from dd_app.responses import respond as respond
+from dd_app.responses import respond_page as respond_page
 from dd_harness.identity import Unauthenticated
 from dd_harness.project_access import Action, allowed
 from dd_harness.projects import ProjectError, UnknownProjectError
@@ -70,6 +76,8 @@ class Deps:
     # The providers a person's own model account may use; None where they may not add one.
     model_account_providers: list[dict[str, Any]] | None = None
     privacy_notice_url: str | None = None
+    # The folders on this machine a local install may describe; None where it describes none.
+    folder_roots: FolderRoots | None = None
     examples_dir: Path = EXAMPLES_DIR
     started: float = field(default_factory=time.monotonic)
 

@@ -12,11 +12,11 @@ exactly, and proposes:
 - equivalences: two names for one repository, access level or licence ("CC-BY" and
   "CC-BY-4.0"), each with a short reason.
 
-`TemplateMatcher` is the default (`DD_DMP_MATCHER` unset or `template`, `factory.py`) and proposes
-nothing, so the rules' result stands. `ModelMatcher` calls whichever model the agent's settings
-name through the SDK's model seam (`dd_sdk.model`, `dd_sdk.model_provider`), so this package
-imports no model provider's SDK. The model replies against a schema (`MatchReply`), which the
-provider constrains it to.
+`ModelMatcher` is the default (`DD_DMP_MATCHER` unset or `model`, `factory.py`); `TemplateMatcher`
+(`DD_DMP_MATCHER=template`) proposes nothing, so the rules' result stands, and needs no key.
+`ModelMatcher` calls whichever model the agent's settings name through the SDK's model seam
+(`dd_sdk.model`, `dd_sdk.model_provider`), so this package imports no model provider's SDK. The
+model replies against a schema (`MatchReply`), which the provider constrains it to.
 
 What the model proposes is checked before it is used (`check`). A pairing must name a committed
 output the rules left missing and a planned output they left unplanned, each once; an equivalence
@@ -378,3 +378,14 @@ def differences_between(c: SharingCommitment, p: SharingCommitment) -> list[Diff
         if was is not None and now is not None and key(was) != key(now):
             found.append(Difference(c.output, aspect, was, now))
     return found
+
+
+def model_use(model_id: str | None, usage: Usage, calls: ModelCallLog | None) -> dict[str, Any]:
+    """What a result records of the model calls a matcher or reader made."""
+    return {
+        "model_id": model_id,
+        "input_tokens": usage.input_tokens,
+        "output_tokens": usage.output_tokens,
+        "model_calls": tuple(calls.calls) if calls is not None else (),
+        "prompts": dict(calls.prompts) if calls is not None else {},
+    }

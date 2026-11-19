@@ -1,7 +1,9 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+import { DEFAULT_AGENT_ICON } from "@data-director/agent-view";
 
 import several from "../../../fixtures/agents-several.json";
 import conversationFixture from "../../../fixtures/conversation.json";
@@ -20,6 +22,7 @@ import type {
 import { projectName } from "../../project/name";
 import { type RunApi, RunApiContext } from "../../run/api";
 import type { RunResult } from "../../run/types";
+import { savedInventory } from "../../test/api";
 import { Transcript } from "./Transcript";
 
 /** The fixture's README, drafted by `invocationId`, with `later` versions after it. */
@@ -42,6 +45,32 @@ function withReply(text: string): Conversation {
 }
 
 describe("Transcript", () => {
+  it("says a failed reply plainly, keeps the agent's text for operators and offers to try again", async () => {
+    const conversation = structuredClone(conversationFixture) as unknown as Conversation;
+    const last = conversation.turns[conversation.turns.length - 1];
+    if (!last) throw new Error("the fixture has no turn");
+    const error = "ModelError: the Messages API answered 502 'provider-error'";
+    last.envelope.payload = null;
+    last.envelope.outcome = { ...last.envelope.outcome, status: "failed", statement: error };
+    for (const entry of conversation.history) {
+      if (entry.turn_invocation_id === last.invocation_id) entry.turn_text = error;
+    }
+    const onRetry = vi.fn();
+    render(<Transcript conversation={conversation} agents={[]} onToggleRun={() => {}} onRetry={onRetry} />);
+
+    const disclosure = screen.getByText(/whoever runs Data Director$/).closest("details");
+    expect(disclosure).not.toBeNull();
+    expect(disclosure).not.toHaveAttribute("open");
+    expect(screen.getAllByText(error, { exact: false }).every((e) => disclosure?.contains(e))).toBe(true);
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(onRetry).toHaveBeenCalledWith(conversation.inputs[last.invocation_id]?.message_text ?? "");
+  });
+
+  it("offers to try again only on a latest turn that failed", () => {
+    render(<Transcript conversation={withReply("Fine.")} agents={[]} onToggleRun={() => {}} onRetry={() => {}} />);
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+  });
+
   it("renders Markdown in a reply as formatted text", () => {
     render(<Transcript conversation={withReply("**bold** and\n\n- one\n- two")} agents={[]} onToggleRun={() => {}} />);
     expect(screen.getAllByText("bold")[0]?.tagName).toBe("STRONG");
@@ -74,7 +103,7 @@ describe("Transcript", () => {
 
     // Only the inventory the project holds now is served, so only its chip opens it.
     const project = { project_id: "p1", inventory: null };
-    const replaced = { digest: "b".repeat(64), file_count: 1, inventory_made_at: "x", added_at: "x" };
+    const replaced = savedInventory({ digest: "b".repeat(64), inventory_made_at: "x", added_at: "x" });
     rerender(
       <Transcript conversation={{ ...conversation, ...project, inventory: replaced }} agents={[]} onToggleRun={() => {}} />,
     );
@@ -236,7 +265,7 @@ describe("Transcript, as a conversation", () => {
   const greeter = directory.find((a) => a.id === "example.hello");
   if (!greeter) throw new Error("the fixture has no example.hello");
   // The conversation's orchestrator, named as its card would name it.
-  const agents = [...directory, { ...greeter, id: "orchestrator.stub", title: "Data Director" }];
+  const agents = [...directory, { ...greeter, id: "orchestrator.stub", title: "Data Director", icon: "🎬" }];
   const conversation = structuredClone(conversationFixture) as unknown as Conversation;
   const [first] = conversation.turns;
   if (!first) throw new Error("the fixture has no turns");
@@ -268,6 +297,14 @@ describe("Transcript, as a conversation", () => {
     expect(personPart.querySelector(".turn-speaker-name")).toHaveTextContent("You");
   });
 
+  it("marks the person's part with an icon hidden from assistive technology", () => {
+    render(<Transcript conversation={conversation} agents={agents} onToggleRun={() => {}} />);
+    const personPart = turns()[0]?.querySelector(".turn-person") as HTMLElement;
+    const icon = personPart.querySelector(".turn-speaker-name .person-icon");
+    expect(icon).not.toBeNull();
+    expect(icon).toHaveAttribute("aria-hidden", "true");
+  });
+
   it("names an agent the directory does not list by its id and version, once", () => {
     render(<Transcript conversation={conversation} agents={[]} onToggleRun={() => {}} />);
     const agentPart = turns()[0]?.querySelector(".turn-agent") as HTMLElement;
@@ -294,6 +331,26 @@ describe("Transcript, as a conversation", () => {
     const waiting = turns().at(-1) as HTMLElement;
     expect([...waiting.children].map((c) => c.className)).toEqual(["turn-person", "turn-agent"]);
     expect(within(waiting.querySelector(".turn-person") as HTMLElement).getByText("hello again")).toBeVisible();
-    expect(waiting.querySelector(".turn-agent")).toHaveTextContent(/^Data Director is working on a reply/);
+    expect(waiting.querySelector(".turn-agent")).toHaveTextContent(/Data Director is working on a reply/);
+    const icon = waiting.querySelector(".turn-agent .agent-icon");
+    expect(icon).toHaveTextContent("🎬");
+    expect(icon).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("puts the agent's icon before its name, hidden from assistive technology", () => {
+    render(<Transcript conversation={conversation} agents={agents} onToggleRun={() => {}} />);
+    const name = turns()[0]?.querySelector(".turn-agent .turn-speaker-name") as HTMLElement;
+    const icon = name.firstElementChild;
+    expect(icon).toHaveClass("agent-icon");
+    expect(icon).toHaveTextContent("🎬");
+    expect(icon).toHaveAttribute("aria-hidden", "true");
+    const personPart = turns()[0]?.querySelector(".turn-person") as HTMLElement;
+    expect(personPart.querySelector(".agent-icon")).toBeNull();
+  });
+
+  it("gives an agent the directory does not list the default icon", () => {
+    render(<Transcript conversation={conversation} agents={[]} onToggleRun={() => {}} />);
+    const name = turns()[0]?.querySelector(".turn-agent .turn-speaker-name") as HTMLElement;
+    expect(name.querySelector(".agent-icon")).toHaveTextContent(DEFAULT_AGENT_ICON);
   });
 });

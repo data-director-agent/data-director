@@ -12,7 +12,10 @@ license = "MIT"
 authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
 dependencies = [
   "data-director-harness>=0.2.0a0",
+  # Describing a folder on a local install (dd_app.folder_scan).
+  "data-director-inventory>=0.1.0a4",
   "data-director-sdk>=0.2.0a0",
+  "detect-secrets==1.5.0",
   "httpx>=0.28",
   "joserfc>=1.0",
   "pydantic>=2.14.1,<3",
@@ -34,7 +37,6 @@ dev = [
   "data-director-agent-advisor-files",
   "data-director-agent-advisor-metadata",
   "data-director-agent-advisor-documentation",
-  "data-director-inventory",
   # The model broker, in process, for the enrolment flow (tests/test_model_account.py) and for
   # a run paid for by a person's own account (tests/test_own_account_e2e.py).
   "data-director-model-broker",

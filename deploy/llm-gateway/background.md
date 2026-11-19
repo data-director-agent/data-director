@@ -109,16 +109,16 @@ model_list:
       model: anthropic/claude-sonnet-5-5
       api_key: os.environ/ANTHROPIC_API_KEY
 
-  # OpenAI: substitute a current model ID
-  - model_name: gpt
+  # OpenAI: every gpt- model, under its own ID
+  - model_name: "gpt-*"
     litellm_params:
-      model: openai/<openai-model-id>
+      model: "openai/gpt-*"
       api_key: os.environ/OPENAI_API_KEY
 
-  # Google Gemini (AI Studio key); use vertex_ai/ for Vertex
-  - model_name: gemini
+  # Google Gemini (AI Studio key): every gemini- model; use vertex_ai/ for Vertex
+  - model_name: "gemini-*"
     litellm_params:
-      model: gemini/<gemini-model-id>
+      model: "gemini/gemini-*"
       api_key: os.environ/GEMINI_API_KEY
 
   # Local Ollama: free, but still metered for tokens
@@ -175,7 +175,7 @@ curl -s http://localhost:4000/key/generate \
   -d '{
         "team_id": "<team_id from above>",
         "user_id": "<user_id from above>",
-        "models": ["claude-sonnet-5-5", "gemini", "llama-local"],
+        "models": ["claude-sonnet-5-5", "gemini-*", "llama-local"],
         "max_budget": 25, "budget_duration": "30d",
         "tpm_limit": 200000, "rpm_limit": 60,
         "metadata": {"project": "thesis-ch3", "grant": "EP/XXXX/1"}

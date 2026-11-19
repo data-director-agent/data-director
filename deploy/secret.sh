@@ -3,13 +3,16 @@
 # "Secrets"). Run as root from a clone of the repository:
 #
 #   sudo deploy/secret.sh set orchestrator-model anthropic-api-key   # paste the value, then Enter
-#   sudo deploy/secret.sh remove advisor-standards anthropic-api-key
+#   sudo deploy/secret.sh remove advisor-standards anthropic-api-key   # or rm
+#   sudo deploy/secret.sh set llm-gateway anthropic-api-key          # the LiteLLM gateway's
 #   sudo deploy/secret.sh list
 #
 # `set` reads the value from the terminal without showing it, or from a pipe, and stores it in
 # /etc/data-director/credentials/<agent>/<secret>, readable by root alone. The agent receives it
 # as the file named by <SECRET>_FILE (anthropic-api-key -> ANTHROPIC_API_KEY_FILE). The script
 # rewrites the agent's drop-in and restarts the agent if it is running; it starts nothing.
+# For llm-gateway, the gateway reads it as ANTHROPIC_API_KEY when it next starts, and the script
+# restarts the gateway if it is running (deploy/llm-gateway/scripts/systemd.sh).
 #
 # DD_ETC and DD_UNIT_DIR replace /etc/data-director and /etc/systemd/system, for its tests.
 set -euo pipefail
@@ -23,19 +26,31 @@ AGENTS_DIR="$SRC/deploy/agents"
 source "$SRC/deploy/credentials.sh"
 
 usage() {
-  echo "usage: $0 set AGENT SECRET | remove AGENT SECRET | list" >&2
+  echo "usage: $0 set AGENT SECRET | remove (or rm) AGENT SECRET | list" >&2
   exit 2
 }
 die() { echo "$0: $*" >&2; exit 1; }
 
+GATEWAY=llm-gateway
+
 check_names() { # check_names AGENT SECRET
-  is_agent "$1" || die "no deployed agent '$1' (deploy/agents/$1.env); the names are those in app/config/agents.yaml with - for ."
+  [[ "$1" == "$GATEWAY" ]] || is_agent "$1" || die "no deployed agent '$1' (deploy/agents/$1.env); the names are those in app/config/agents.yaml with - for ."
   [[ "$2" =~ $SECRET_NAME ]] || die "'$2': a secret's name is lower-case words joined by hyphens, such as anthropic-api-key"
 }
 
 # Rewrite AGENT's drop-in, then restart its unit if it is running.
 apply() { # apply AGENT
   local unit="data-director-agent@$1.service" status=0
+  if [[ "$1" == "$GATEWAY" ]]; then
+    [[ -n "${DD_UNIT_DIR:-}" ]] && return 0
+    if systemctl is-active --quiet data-director-llm-gateway.service; then
+      systemctl restart data-director-llm-gateway.service
+      echo "restarted data-director-llm-gateway.service"
+    else
+      echo "data-director-llm-gateway.service is not running; sudo deploy/install.sh --gateway starts it"
+    fi
+    return 0
+  fi
   sync_agent_credentials "$1" || status=1
   if [[ -z "${DD_UNIT_DIR:-}" ]]; then
     systemctl daemon-reload
@@ -107,7 +122,7 @@ cmd_list() {
       found=1
       name="$(basename "$file")"
       problem="$(secret_problem "$file")"
-      if ! is_agent "$agent"; then
+      if [[ "$agent" != "$GATEWAY" ]] && ! is_agent "$agent"; then
         problem="no deployed agent of that name"
       fi
       if [[ -n "$problem" ]]; then
@@ -126,7 +141,7 @@ if [[ -z "${DD_ETC:-}" && $EUID -ne 0 ]]; then
 fi
 case "$1" in
   set) [[ $# -eq 3 ]] || usage; cmd_set "$2" "$3" ;;
-  remove) [[ $# -eq 3 ]] || usage; cmd_remove "$2" "$3" ;;
+  remove | rm) [[ $# -eq 3 ]] || usage; cmd_remove "$2" "$3" ;;
   list) [[ $# -eq 1 ]] || usage; cmd_list ;;
-  *) usage ;;
+  *) echo "$0: no command '$1'" >&2; usage ;;
 esac

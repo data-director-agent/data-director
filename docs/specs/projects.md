@@ -111,31 +111,61 @@ intended design, and each part says where it is not built yet.
    fails the run with problem `revision-refused` before the agent is called, and outside a
    project it is removed (`ProjectStore.current_version`). A `Message`'s `project_researchers` and
    a `DraftRequest`'s `researchers` are the researcher facts the project holds (invariant 27); a
-   `Message`'s are removed outside a project, so a caller can never claim them. Filling any other
-   class is not built yet.
+   `Message`'s are removed outside a project, so a caller can never claim them. A `Message`'s and
+   a `DraftRequest`'s `project_decisions` are the facts people in the project decided
+   (invariant 28), the last decision on each kind and subject, without anyone's words about why;
+   what an agent only proposed is never given, and a `Message`'s are removed outside a project.
+   A `Message`'s `project_repository` is the repository a researcher chose last, by its name and
+   re3data identifier, and is removed outside a project and until one is chosen, so a caller can
+   never claim one ([Orchestration](orchestration.md), invariant 21). A `DraftRequest`'s `project_documents` are the documents a researcher attached, each with its
+   text, replacing what the caller sent. An agent's own input class asks for the same by mixing
+   in `GivenProjectDocuments` (`project_documents`), `GivenProjectDecisions`
+   (`project_decisions`) or `GivenProjectRepository` (`project_repository`): where the accepted schema on the agent's card declares the slot, the
+   conductor fills it as it fills a `DraftRequest`'s, by slot name and never by the class's name,
+   and outside a project what the caller sent is kept, as for a `DraftRequest`
+   (`dd_harness.project_facts.agent_slots`, `harness/tests/test_project_agent_inputs.py`,
+   `harness/tests/test_project_repository_given.py`). `advisor.dmp` reads decided facts this way;
+   `advisor.repository` mandates each decided required repository and describes the chosen one
+   when asked nothing else, `advisor.rights` takes a decided licence as the mandated licence and a
+   decision to withhold or generalise as saying the data are sensitive, and `advisor.policy` looks
+   up each decided funder's policy. Each takes a person's decision over what its caller wrote
+   (each agent's `given.py`).
+   Filling any other class is not built yet.
 7. **The conductor fills `project_id`.** The request and the envelope carry an optional
    `project_id`, which the conductor takes from the conversation and a caller cannot set. A
    conversation started from a project is a `conversation_started` event of its log, so the
    harness can say which project a conversation is in after a restart (`ProjectStore.project_of`,
    `harness/tests/test_projects.py`). A delegated child takes its parent's project from the
    grant. The agent is never sent `project_id` (`harness/tests/test_project_runs.py`).
-8. **Only `inventory` goes to a hosted model by default.** Project content is of three classes:
-   `inventory`, `documentation` (uploaded text, and any document version given back to an
-   agent) and `researcher` (the facts researchers kept from their ORCID records, invariant 27). The profile lists the classes that may be given to an agent whose card declares a
-   `hosted` model; where it does not say, only `inventory` may. The conductor refuses anything
+8. **Only `inventory` and `decisions` go to a hosted model by default.** Project content is of
+   four classes: `inventory`, `documentation` (uploaded text, and any document version given
+   back to an agent), `researcher` (the facts researchers kept from their ORCID records,
+   invariant 27) and `decisions` (the facts people decided, invariant 28, which hold structured
+   values and never anyone's words). The profile lists the classes that may be given to an agent
+   whose card declares a `hosted` model; where it does not say, `inventory` and `decisions` may. The conductor refuses anything
    else before it is sent, with a Problem Details response, and records the refusal. The key is
    `hosted_models` (`dd_harness.policy`). A `DraftRequest`'s inventory, a plain `FileInventory`
    and a `Message`'s `project_inventory` are `inventory`; a metadata record, the version a
-   drafter regenerates and a person's answers are `documentation`; a `Message`'s
-   `project_researchers` and a `DraftRequest`'s `researchers` are `researcher`; a repository's
-   requirements are none of these (`dd_harness.project_facts.given`). The conductor checks after the input check: a
-   run it refuses fails with problem `project-content-withheld` and is stored, and the agent is
-   not called (`harness/tests/test_project_runs.py`). Researcher facts are the exception: they add
-   to what an agent is given and no agent needs them, so where the profile keeps `researcher`
-   from an agent the conductor leaves them out of its input, before it is hashed, and the run goes
-   ahead, so a conversation with a hosted orchestrator does not stop because someone kept facts
-   (`dd_harness.project_facts.leave_out`). What a caller sends outside a project is not the
-   project's, and the key does not apply to it.
+   drafter regenerates, a person's answers and the `project_documents` of a `DraftRequest` or an agent's own class are
+   `documentation`; a `Message`'s `project_researchers` and a `DraftRequest`'s `researchers` are
+   `researcher`; the `project_decisions` of any of these, and the `project_repository` of a
+   `Message` or an agent's own class, a researcher's choice, are `decisions`; a repository's
+   requirements are none of these (`dd_harness.project_facts.given`). The conductor checks after the input
+   check: a run it refuses fails with problem `project-content-withheld` and is stored, and the
+   agent is not called (`harness/tests/test_project_runs.py`). Researcher facts are the
+   exception: they add to what an agent is given and no agent needs them, so where the profile
+   keeps `researcher` from an agent the conductor leaves them out of its input, before it is
+   hashed, and the run goes ahead, so a conversation with a hosted orchestrator does not stop
+   because someone kept facts (`dd_harness.project_facts.leave_out`). A `Message`'s decided facts
+   and chosen repository are left out the same way, since an orchestrator drafts nothing, and so are a
+   `DraftRequest`'s or an agent's own class's attached documents, from which a drafter only
+   suggests answers and a checker only proposes facts, so a run does not stop because someone
+   attached notes. What remains is classed again, so a metadata
+   record withheld still refuses the run. A `DraftRequest`'s decided facts are not left out: a
+   drafter given none would draft as if nothing had been decided, listing a file a person
+   excluded, so a profile that keeps `decisions` from a drafter refuses its runs once the project
+   holds any. What a caller sends outside a project is not the project's, and the key does not
+   apply to it.
 9. **Only a `Document` payload of a succeeded run becomes a project document.** When a run that
    belongs to a project succeeds with a `Document` payload, the conductor records it as a new
    version. A run that does not succeed adds no version, whatever it returned. Another payload
@@ -296,6 +326,62 @@ intended design, and each part says where it is not built yet.
     `GET /api/projects/{project_id}/researchers`, `READ`) (`harness/tests/test_orcid.py`,
     `dd_harness.testing.storage`, `harness/tests/test_project_runs.py`,
     `app/tests/test_researcher_facts.py`).
+28. **A fact about a project is what a person decided, never what an agent proposed.** A check
+    agent may propose facts in its payload (`ProjectFact`, [Contract](contract.md), invariant
+    25): a funder, a repository a funder, journal or institution requires, whether a file is
+    deposited (`include`, `exclude`, or `undecided`, which a person must decide before deposit),
+    whether a sensitive field or file may be published (`publish` or `generalise`, at a
+    precision, `withhold`, or `undecided`), the licence, or a sharing commitment a data
+    management plan makes (`sharing_commitment`: the output, where, how openly and under what
+    licence, with the plan's own words in `commitment_quote` and the digest of the attached
+    document's text that holds them in `commitment_document`, both required). A succeeded run's proposals are
+    `fact_proposed` events, one each, caused by the run and naming its agent, from a payload of
+    any class (`dd_harness.project_effects`); they are checked before anything is written and
+    recorded only once the run's draft is kept, so a run that fails leaves none. A person decides each as a `fact_decided` event:
+    `confirmed` takes the proposal as it is, `changed` takes the person's own value for its kind
+    and subject, and `rejected` removes it; a person may also state a fact nobody proposed. A
+    decision on a proposal the project does not hold (`proposal-not-found`), on one that a later
+    proposal or decision on its kind and subject has followed (`proposal-superseded`), so that
+    nobody overwrites what someone decided since they looked, or a changed fact of another kind or
+    subject (`fact-not-proposed`), is refused and the refusal recorded
+    (invariant 12). The fact that stands is the last decision on its kind and subject
+    (`ProjectStore.propose_facts`, `decide_fact`, `decisions`, `proposals`), and the conductor
+    gives it to every drafter and orchestrator in the project (invariant 6). A member decides
+    funders, required repositories and which files go in; whether sensitive data may be
+    published, and the licence, have legal consequences, so only an owner decides them. A person
+    decides on the project page's **Project facts** panel (`FactsPanel.tsx`), which shows each
+    proposal with why it was proposed and lets them confirm, change or reject it, change or remove
+    a fact that stands, or state one nobody proposed
+    (`GET /api/projects/{project_id}/facts`, `READ`; `POST …/facts/decisions`, `CONTRIBUTE`, or
+    `DECIDE` for `sensitivity` and `licence`). A sharing commitment is shown with the plan's words
+    and is only proposed, never stated, since it quotes the plan; the DMP Checker compares only
+    those a person decided ([Agents](agents.md)) (`dd_harness.testing.storage`,
+    `harness/tests/test_project_decisions.py`, `app/tests/test_project_facts.py`,
+    `app/web/src/components/project/FactsPanel.test.tsx`).
+29. **Deleting a conversation is an event in its project's log, not a removal.** A conversation
+    started in a project is deleted by appending `conversation_deleted` and restored by appending
+    `conversation_restored`, each naming the conversation, the principal and the cause
+    (invariant 4); it is deleted when the last of these two for it is a deletion. A deleted
+    conversation leaves every list, its runs with it, and its project's conversation count; it is
+    answered as missing (status 404) and takes no new turn. Deleting one already deleted is
+    refused with status 409, and a conversation in a deleted project is not changed (invariant
+    24). Its turns and runs stay in the run store, which is written once ([Storage](storage.md),
+    invariant 2), so deleting does not meet a request for erasure, TODO(#156)
+    (`dd_harness.projects.conversations`, `ProjectStore.delete_conversation`,
+    `restore_conversation`, `deleted_conversations`; `dd_harness.listing.Readable`,
+    `hidden_conversations`; `DELETE /api/conversations/{id}`,
+    `POST /api/conversations/{id}/restore`, `GET /api/conversations/deleted`;
+    `harness/tests/test_project_conversations.py`, `dd_harness.testing.storage`,
+    `app/tests/test_conversation_deletion.py`).
+30. **Whoever started a conversation may delete it, and so may an owner.** The person who started
+    it may delete and restore it while they may contribute to the project, and an owner may
+    delete or restore any of the project's conversations (`MANAGE`). Someone who may read it but
+    neither is refused with status 403; someone who may not read it, or may not restore a deleted
+    one, with 404, so that a refusal does not reveal it (`project_access.may_delete_conversation`).
+31. **A conversation can be restored for the period a project can.** The period is the
+    deployment's restore period (invariant 25), from the conversation's deletion. Within it,
+    restoring appends one event and changes nothing else, so the conversation is as it was; after
+    it, the app neither restores nor removes it, TODO(#156).
 
 ## Boundaries and contracts
 
@@ -379,29 +465,60 @@ refused as stale, are TODO(#391).
 member, not even the contract ([System and boundaries](system.md)); its tests check its output
 against the `FileInventory` schema. It runs where the data live. An app installed on the
 researcher's own machine may run the same code on a folder, read only and only under folders the
-deployment lists; the shared deployment lists none. A scanner in the browser that sends only the
-inventory is TODO(#367): it is the same code run under Pyodide, and its inventory's
-`inventory_tool_version` carries a local version label naming the runtime, such as
-`0.1.0a3+pyodide.314.0.7`, while the command's has none.
+deployment lists; the shared deployment lists none. The list is `DD_INVENTORY_FOLDERS`, absolute
+paths separated by the system's path separator, and an app given it that listens beyond loopback
+does not start (`dd_app.folder_scan`). The researcher opens a listed folder and steps into its
+subfolders, which are named and never their files; a path that resolves outside the folder, through
+`..` or a link, is refused, and the command follows no link within it. Describing records nothing:
+the inventory goes through the researcher's check, as every route to one does
+(`app/tests/test_folder_scan.py`). The app's **Describe a folder…** is a
+scanner in the browser that sends only the inventory ([The app](app.md)): it is the same code run
+under Pyodide, and its inventory's `inventory_tool_version` carries a local version label naming
+the runtime, such as `0.1.0a4+pyodide.314.0.8`, while the command's has none. It is offered where
+the deployment serves its bundle, as the release image and the VM deploy do.
 
 **Documentation** may be added as text, within a size limit and from a list of media types. A
 turn of the app may attach one document, plain text or Markdown of at most 256 KB under a file
 name with no folder, which the store keeps as a `documentation_added` event naming its name,
 media type, size and the SHA-256 of its UTF-8 text, under which the text is kept as a blob
-(`ProjectStore.add_documentation`). A document the store refuses leaves no trace, and a turn
+(`ProjectStore.add_documentation`). A turn may instead attach a Word document (`.docx`) or a
+PDF with a text layer, of at most 1 MB (`SOURCE_MAX_BYTES`, what a request through the
+deployment's proxy carries once encoded): the store reads its text inside the deployment
+(`dd_harness.projects.extract`, with `pypdf` and `python-docx`) and keeps it as a plain-text
+document, under the same limits, with the file as a blob beside it; the event names the file's
+media type, size and SHA-256 too, the document's `DocumentationSummary` gives
+`documentation_source_media_type`, and `ProjectStore.documentation_source` returns the file
+(`ProjectStore.add_document_file`, `harness/tests/test_document_files.py`). An encrypted or
+damaged file, a scanned PDF with no text layer (no text is recognised in images) and one whose
+text is blank or too long are refused. The text read from a file is `documentation`, so
+`hosted_models` decides whether it reaches a hosted model, as for one attached as text. Citing
+an attached document as evidence of its own is TODO(#1181), and recording its reading as an agent
+action TODO(#1182). A document the store refuses leaves no trace, and a turn
 that attaches an inventory too adds neither when either is refused. A `Message`'s
 `project_documentation` lists each document the project holds by name, digest, media type, size
 and when it was added, without its text, so that an orchestrator knows it is there; outside a
 project, or in one that holds none, it is removed, so a caller can never claim one. The list
 holds no text, so it is neither `inventory` nor `documentation`, and a hosted orchestrator is
-given it under the default `hosted_models`
-(`harness/tests/test_project_runs.py`, `dd_harness.testing.storage`). The app cannot tell
-documentation from data, so the attach form and the user guide state the rule. Giving a
-document's text to a drafter, and a profile that refuses documentation altogether, are not built
-yet.
+given it under the default `hosted_models`. A `DraftRequest`'s `project_documents` give each
+document with its text, so that a drafter's model may suggest answers to the draft's questions
+from it ([Drafting documents](drafting.md)). The text is `documentation`; where the profile
+keeps that class from a drafter's hosted model, the documents are left out and the draft still
+runs, as researcher facts are, while a metadata record, version or answers withheld still refuse
+it (`harness/tests/test_project_runs.py`, `dd_harness.testing.storage`). The app cannot tell
+documentation from data, so the attach form and the user guide state the rule, and the app
+checks the text for possible personal data and secrets first, holding a document until the
+researcher confirms what was found ([Personal data and disclosure control](personal-data.md),
+#473). A profile may refuse attached documents altogether with `attached_documents: refused` (the
+default is `allowed`; [Policy and identity](policy-and-identity.md)). Then a way in refuses a
+request that attaches one before keeping anything (`dd_harness.policy.check_attached_document`),
+the app's agent directory says so and the shell takes only an inventory, and the conductor gives no
+agent any document the project already holds: neither a `Message`'s `project_documentation` nor a
+`DraftRequest`'s `project_documents` (`harness/tests/test_project_runs.py`,
+`app/tests/test_project_materials.py`).
 
 **Agents** propose; they do not write. The only proposed change is a document version, returned as
-a `Document` payload. No agent writes anywhere or holds credentials to. A general proposed action
+a `Document` payload; a check agent's proposed facts (invariant 28) are about the project, not a
+change to anything, and become facts only when a person decides them. No agent writes anywhere or holds credentials to. A general proposed action
 for a change outside the project waits for the first agent that needs one, TODO(#72). A drafted
 version may also carry questions to the researcher, which the log keeps with the version. A
 person's answers are project log events that the conductor puts into the next `DraftRequest`
@@ -482,6 +599,12 @@ store, and writes to neither ([Disclosure](disclosure.md)).
   deletion is recoverable, and no second store holds what a deletion hid. Hiding is what the app
   can promise today; erasing is a different promise that waits on the rules for provenance and
   personal data (TODO(#156)).
+- **A conversation deleted in its project's log** (invariants 29 to 31), because a conversation
+  has no store of its own and its runs are written once: the project's log is where a change
+  about a conversation can be recorded, and in a deployment that keeps projects every
+  conversation is in one. Its starter may delete it, since it is their work, and an owner may,
+  since an owner may already hide the whole project; it is restorable for the same period, so
+  the dialog asks only for a confirmation, not for its name to be typed.
 - **Researcher facts from ORCID, chosen item by item** (invariant 27), because creators,
   affiliations, subjects and funding are what a researcher is asked for most and has often
   recorded already (`docs/ui/best-practices.md`: reduce metadata burden visibly). A person
@@ -519,7 +642,12 @@ store, and writes to neither ([Disclosure](disclosure.md)).
 - **A drafting run that suspends until a person decides.** Runs would stay open for days, and the
   run's outcome would duplicate the version's state.
 - **A general proposed-action class now.** It adds a core class with one use that `Document`
-  already covers.
+  already covers. `ProjectFact` is not one: it proposes no action outside the project, only what
+  a person may confirm about it.
+- **Passing one agent's result to the next as it came.** A model, or an orchestrator's code, would
+  carry what a check found into the next agent's input, so the funder, an exclusion or a location
+  to withhold would reach a drafter only when that turn remembered it, and without a person
+  having confirmed it. A decided fact is in the log, and every later run is given it.
 - **Merging concurrent edits.** A merged text is a version nobody wrote or saw.
 - **Conversations only their starter may continue, or private conversations with a shared record.**
   A team's work would split into private threads, and what was said would be lost to colleagues.
@@ -568,7 +696,5 @@ store, and writes to neither ([Disclosure](disclosure.md)).
 - What erasing a project, a conversation or a version removes, and how provenance survives it,
   TODO(#156).
 - What a former member may have erased from a project, TODO(#156).
-- Whether a member may delete a conversation. Every member sees a project's conversations, so today
-  only an owner could, by deleting the project, TODO(#156).
 - What a data steward may do in a researcher's project, and whether a deployment role may decide
   on a version, TODO(#372, #154).

@@ -87,6 +87,23 @@ def test_a_workshop_shortlist_keeps_to_the_datasets_discipline(
         assert candidate.ranked_by, candidate
 
 
+@pytest.mark.requirement("R1")
+def test_a_repository_the_researcher_names_is_not_mandated_and_keeps_the_shortlist(
+    runs_dir: Path, re3data: Re3dataRegistry
+) -> None:
+    # #1167: in a user test of Dataset B, the researcher asked "what about Zenodo?"; Zenodo was
+    # badged Mandated and replaced the shortlist.
+    needs = load("perovskite-xrd-sem.json")
+    asked = needs.model_copy(
+        update={"asked_about": [RepositoryRef(name="Zenodo", re3data_id=ZENODO)]}
+    )
+    ids, options, _ = shortlist(runs_dir, re3data, asked)
+    assert ids[0] == ZENODO
+    assert options.candidates[0].basis == CandidateBasis.ASKED_ABOUT
+    assert all(c.basis != CandidateBasis.MANDATED for c in options.candidates)
+    assert NOMAD in ids
+
+
 def test_a_discipline_match_is_listed_before_the_generalists(
     runs_dir: Path, re3data: Re3dataRegistry
 ) -> None:

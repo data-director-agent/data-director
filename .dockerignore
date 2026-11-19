@@ -2,6 +2,9 @@
 .venv
 **/node_modules
 app/web/dist
+# Built in the image from this commit (docker/release.Dockerfile); never a local copy or cache.
+inventory/browser/dist
+inventory/browser/.cache
 **/__pycache__
 .mypy_cache
 .ruff_cache

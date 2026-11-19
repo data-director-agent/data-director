@@ -6,7 +6,7 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 dd:Message a sh:NodeShape ;
-    rdfs:comment "One conversational turn addressed to an agent: the text of the turn and the conversation so far. The history is part of the input, so the input hash covers everything the agent saw. In a project that holds an inventory, the conductor adds what it is (docs/specs/projects.md); in any project, it adds the entry point chosen, the progress the project log shows and the project's title, if it has one (docs/specs/orchestration.md). It adds the researcher facts people in the project chose to keep from their public ORCID records (docs/specs/projects.md)." ;
+    rdfs:comment "One conversational turn addressed to an agent: the text of the turn and the conversation so far. The history is part of the input, so the input hash covers everything the agent saw. In a project that holds an inventory, the conductor adds what it is (docs/specs/projects.md); in any project, it adds the entry point chosen, the progress the project log shows and the project's title, if it has one (docs/specs/orchestration.md). It adds the researcher facts people in the project chose to keep from their public ORCID records, the facts they decided and the repository they chose (docs/specs/projects.md)." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:boolean ;
@@ -31,6 +31,11 @@ dd:Message a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 10 ;
             sh:path dd:project_entry_by_researcher ],
+        [ sh:class dd:ProjectFact ;
+            sh:description "The facts a person in the project decided (ProjectFact), the last decision on each subject, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project decided any. A drafter treats each as supplied." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 12 ;
+            sh:path dd:project_decisions ],
         [ sh:datatype xsd:integer ;
             sh:description "The Blueprint entry point (1, 2 or 3) the researcher chose for the conversation's project, the latest chosen. Filled by the conductor and never by the caller; absent when the run is in no project, or none was chosen." ;
             sh:maxCount 1 ;
@@ -48,6 +53,12 @@ dd:Message a sh:NodeShape ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 4 ;
             sh:path dd:reply_answers ],
+        [ sh:class dd:ChosenRepository ;
+            sh:description "The repository a researcher in the project chose last, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project has chosen one." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 13 ;
+            sh:path dd:project_repository ],
         [ sh:class dd:InventorySummary ;
             sh:description "The inventory the conversation's project holds, filled by the conductor and never by the caller. Absent when the run is in no project, or its project holds no inventory." ;
             sh:maxCount 1 ;
@@ -86,7 +97,26 @@ dd:Affiliation a sh:NodeShape ;
     rdfs:comment "One affiliation on an ORCID record: an employment, an education or another kind, with the organisation and, where ORCID gives one, its identifier (ROR, GRID, Ringgold)." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
+    sh:property [ sh:datatype xsd:integer ;
+            sh:description "The year it started." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path dd:start_year ],
+        [ sh:datatype xsd:string ;
+            sh:description "The organisation's name." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:organisation_name ],
+        [ sh:datatype xsd:string ;
+            sh:description "The scheme of organisation_identifier, in ORCID's words, such as ROR, GRID or RINGGOLD. Present exactly when organisation_identifier is." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dd:organisation_identifier_scheme ],
+        [ sh:datatype xsd:string ;
             sh:description "The researcher's role or degree." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -99,12 +129,6 @@ dd:Affiliation a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path dd:put_code ],
-        [ sh:datatype xsd:string ;
-            sh:description "The scheme of organisation_identifier, in ORCID's words, such as ROR, GRID or RINGGOLD. Present exactly when organisation_identifier is." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 4 ;
-            sh:path dd:organisation_identifier_scheme ],
         [ sh:datatype xsd:string ;
             sh:description "The department within the organisation." ;
             sh:maxCount 1 ;
@@ -128,21 +152,29 @@ dd:Affiliation a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 8 ;
-            sh:path dd:end_year ],
-        [ sh:datatype xsd:integer ;
-            sh:description "The year it started." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 7 ;
-            sh:path dd:start_year ],
-        [ sh:datatype xsd:string ;
-            sh:description "The organisation's name." ;
+            sh:path dd:end_year ] ;
+    sh:targetClass dd:Affiliation .
+
+dd:ChosenRepository a sh:NodeShape ;
+    rdfs:comment "The repository a researcher chose to deposit the project's data in, from the shortlist, by its re3data identifier: the conductor fills it into a Message, and into the input of an agent that mixes in GivenProjectRepository, so that the agent knows a repository is chosen and which (docs/specs/projects.md). The last choice stands until a researcher chooses again." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The chosen repository's name, as the pinned re3data export gives it." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path dd:organisation_name ] ;
-    sh:targetClass dd:Affiliation .
+            sh:order 0 ;
+            sh:path dd:chosen_repository_name ],
+        [ sh:datatype xsd:string ;
+            sh:description "The chosen repository's re3data identifier, such as r3d100010468." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:chosen_re3data_id ;
+            sh:pattern "^r3d[0-9]{9}$" ] ;
+    sh:targetClass dd:ChosenRepository .
 
 dd:ConversationTurn a sh:NodeShape ;
     rdfs:comment "One earlier turn of a conversation, as the caller presents it to the agent. An agent turn names the agent and version that produced it and the invocation it came from." ;
@@ -161,11 +193,6 @@ dd:ConversationTurn a sh:NodeShape ;
             sh:order 4 ;
             sh:path dd:turn_invocation_id ;
             sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ],
-        [ sh:in ( "user" "agent" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 0 ;
-            sh:path dd:role ],
         [ sh:datatype xsd:string ;
             sh:description "What was said in the turn." ;
             sh:maxCount 1 ;
@@ -173,6 +200,11 @@ dd:ConversationTurn a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
             sh:path dd:turn_text ],
+        [ sh:in ( "user" "agent" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 0 ;
+            sh:path dd:role ],
         [ sh:datatype xsd:string ;
             sh:description "For an agent turn, the agent that produced it." ;
             sh:maxCount 1 ;
@@ -185,7 +217,14 @@ dd:DocumentationSummary a sh:NodeShape ;
     rdfs:comment "What one document a researcher attached to a project is, without its text: the conductor fills one per document into a Message so that the agent knows the project holds it (docs/specs/projects.md)." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:integer ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The file name the researcher attached the document under, without any folder." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:documentation_name ],
+        [ sh:datatype xsd:integer ;
             sh:description "The size of the document's UTF-8 text, in bytes." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -215,12 +254,11 @@ dd:DocumentationSummary a sh:NodeShape ;
             sh:order 4 ;
             sh:path dd:documentation_added_at ],
         [ sh:datatype xsd:string ;
-            sh:description "The file name the researcher attached the document under, without any folder." ;
+            sh:description "The media type of the Word document or PDF the document's text was read from, inside the deployment; absent for a document attached as text. The project keeps the file beside the text." ;
             sh:maxCount 1 ;
-            sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path dd:documentation_name ] ;
+            sh:order 5 ;
+            sh:path dd:documentation_source_media_type ] ;
     sh:targetClass dd:DocumentationSummary .
 
 dd:InventorySummary a sh:NodeShape ;
@@ -269,6 +307,137 @@ dd:InventorySummary a sh:NodeShape ;
             sh:order 4 ;
             sh:path prov:generatedAtTime ] ;
     sh:targetClass dd:InventorySummary .
+
+dd:ProjectFact a sh:NodeShape ;
+    rdfs:comment "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, the licence, or an output a data management plan committed to share (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The kind of check that raised the fact, in the checking agent's words, such as duplicate, system_file or third_party. Kept as it was given; the core does not enumerate it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 10 ;
+            sh:path dd:fact_check_kind ],
+        [ sh:datatype xsd:string ;
+            sh:description "The funders, journals or institutions that require the repository." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path dd:fact_required_by ],
+        [ sh:description "The funder's ROR identifier, as a URL, where it is known." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 3 ;
+            sh:path dd:fact_funder_ror ],
+        [ sh:description "The funder's Crossref Funder ID, as a DOI URL, where it is known." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 4 ;
+            sh:path dd:fact_crossref_funder_id ],
+        [ sh:datatype xsd:string ;
+            sh:description "The required repository's re3data identifier, such as r3d100010199, where known." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path dd:fact_re3data_id ;
+            sh:pattern "^r3d[0-9]{9}$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a sharing commitment, the licence the plan committed to, as the plan names it; absent where it names none." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 17 ;
+            sh:path dd:commitment_licence ],
+        [ sh:datatype xsd:string ;
+            sh:description "The key a decision counts by within its kind: the funder's identifier or name, the repository's re3data identifier or name, the file's path, the field or path judged sensitive, or licence. The last decision on a kind and subject stands." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:fact_subject ;
+            sh:pattern "\\S" ],
+        [ sh:datatype xsd:string ;
+            sh:description "Why the agent proposes the fact, in a sentence for the person deciding. Kept with the proposal and shown to the person, never given to an agent." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 20 ;
+            sh:path dd:proposed_because ],
+        [ sh:description "Whether the file is to be deposited." ;
+            sh:in ( "include" "exclude" "undecided" ) ;
+            sh:maxCount 1 ;
+            sh:order 9 ;
+            sh:path dd:file_decision ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a sharing commitment, the digest of the attached document's text (its documentation_digest) the quote is from." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 19 ;
+            sh:path dd:commitment_document ;
+            sh:pattern "^[0-9a-f]{64}$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The funder's name, as its policy record or the researcher gives it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:fact_funder_name ],
+        [ sh:description "Whether the sensitive field or file may be published, and how." ;
+            sh:in ( "publish" "generalise" "withhold" "undecided" ) ;
+            sh:maxCount 1 ;
+            sh:order 12 ;
+            sh:path dd:sensitivity_decision ],
+        [ sh:datatype xsd:string ;
+            sh:description "The path of the file the fact is about, relative to the dataset's root folder, as the inventory gives it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 8 ;
+            sh:path dd:fact_file_path ;
+            sh:pattern "^[^/]" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The required repository's name." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dd:fact_repository_name ],
+        [ sh:description "What the fact is about, which says which value slots apply." ;
+            sh:in ( "funder" "required_repository" "file_inclusion" "sensitivity" "licence" "sharing_commitment" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 0 ;
+            sh:path dd:fact_kind ],
+        [ sh:description "For a location that may be published or generalised, the precision agreed. Absent where the subject is not a location." ;
+            sh:in ( "exact" "site" "region" "country" ) ;
+            sh:maxCount 1 ;
+            sh:order 13 ;
+            sh:path dd:location_precision ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a sharing commitment, how openly the plan committed to share the output (such as open, embargoed or on request), as the plan says it; absent where it says nothing." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 16 ;
+            sh:path dd:commitment_access ],
+        [ sh:datatype xsd:string ;
+            sh:description "The field name, or the file path, judged sensitive, such as a lat or lon field, or a file of site coordinates." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 11 ;
+            sh:path dd:sensitive_subject ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a sharing commitment, the plan's own words the commitment was read from, verbatim, so the person deciding can see the passage it rests on." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 18 ;
+            sh:path dd:commitment_quote ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a sharing commitment, the repository the plan committed to share the output in, as the plan names it; absent where it names none." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 15 ;
+            sh:path dd:commitment_repository ],
+        [ sh:datatype xsd:string ;
+            sh:description "The licence decided, as an SPDX identifier or a URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 14 ;
+            sh:path dd:licence_id ] ;
+    sh:targetClass dd:ProjectFact .
 
 dd:QuestionAnswer a sh:NodeShape ;
     rdfs:comment "The researcher's answer to one question of a reply, named by its question_key: the values of the options chosen, for a choice question, and the answer in their own words, for a text question or where a choice question allows it." ;
@@ -407,6 +576,12 @@ dd:ResearcherRecord a sh:NodeShape ;
             sh:order 3 ;
             sh:path dd:biography ],
         [ sh:datatype xsd:string ;
+            sh:description "The researcher's name as their ORCID record gives it: the credit name, else the given and family names. Absent when they keep their name private or did not keep it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:researcher_name ],
+        [ sh:datatype xsd:string ;
             sh:description "A country the researcher's ORCID record names, as an ISO 3166-1 alpha-2 code." ;
             sh:nodeKind sh:Literal ;
             sh:order 5 ;
@@ -417,12 +592,6 @@ dd:ResearcherRecord a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 10 ;
             sh:path dd:works_omitted ],
-        [ sh:datatype xsd:string ;
-            sh:description "The researcher's name as their ORCID record gives it: the credit name, else the given and family names. Absent when they keep their name private or did not keep it." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path dd:researcher_name ],
         [ sh:datatype xsd:dateTime ;
             sh:description "When the record was read from ORCID's public API." ;
             sh:maxCount 1 ;

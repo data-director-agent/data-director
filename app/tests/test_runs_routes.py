@@ -25,6 +25,7 @@ from dd_app.app import build_app
 from dd_app.governance import (
     Governance,
 )
+from dd_app.routes.runs import RunResult
 from dd_harness.testing import (
     TEST_PRINCIPAL,
 )
@@ -57,14 +58,14 @@ def test_a_run_answers_with_its_envelope_and_the_checks(governance: Governance, 
     assert body["checks"]["grounding"]["passed"] is True
     assert body["checks"]["sources"]["passed"] is True
     assert body["checks"]["sources"]["summary"].startswith("sources: ")
-    check_fixture("run-succeeded.json", normalised(body))
+    check_fixture("run-succeeded.json", normalised(body), model=RunResult)
 
 
 def test_a_profile_with_nothing_to_search_on_abstains(governance: Governance, dist: Path):
     body = run(TestClient(build_app(governance, dist)), example("empty.profile")).json()
     assert body["envelope"]["outcome"]["status"] == "abstained"
     assert body["envelope"]["outcome"]["reason_code"] == "insufficient_input"
-    check_fixture("run-abstained.json", normalised(body))
+    check_fixture("run-abstained.json", normalised(body), model=RunResult)
 
 
 @pytest.mark.parametrize(

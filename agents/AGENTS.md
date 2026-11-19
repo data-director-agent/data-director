@@ -63,8 +63,9 @@ the workbench, stop.
   and reviewed against
   [Reviewing a model-backed agent](../docs/guide/developer-guide/reviewing-a-model-backed-agent.md).
   If you find yourself letting a model remove a rule's flag, write a value the researcher must
-  give, or build an advisor with no `template` path an operator can select, stop. The default is
-  `template`, except for `advisor-documentation` and `advisor-policy`, whose models are on by
-  default ([Model-backed personas](../docs/specs/agents.md#model-backed-personas)). A model's
+  give, or build an advisor with no `template` path an operator can select, stop. The model is the
+  default (`default="model"` in `optional_model`), so the advisor says how to run without it when it
+  has no key, and `scripts/ddtool/common.py`'s `MODEL_BY_DEFAULT` lists it
+  ([Model-backed personas](../docs/specs/agents.md#model-backed-personas)). A model's
   claim about a source stands only on something code checks, such as a quote found in the cited
   record (`advisor-policy/src/dd_agent_advisor_policy/verify.py`).

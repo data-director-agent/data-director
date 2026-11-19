@@ -3,7 +3,27 @@ import { cleanup } from "@testing-library/react";
 import { toHaveNoViolations } from "jest-axe";
 import { afterEach, expect } from "vitest";
 
+import { setPageScanner } from "../scan/scanner";
+import { setPageServerFolders } from "../scan/serverFolders";
+
 expect.extend(toHaveNoViolations);
+
+// No test reaches the network: the page's browser scanner is one this deployment does not serve.
+// A test of Describe a folder hands the component its own (DescribeFolder.test.tsx).
+setPageScanner({
+  available: () => Promise.resolve(false),
+  scan: () => {
+    throw new Error("No browser scanner in unit tests");
+  },
+});
+
+// Nor does it name folders on its own machine (DescribeServerFolder.test.tsx hands its own).
+setPageServerFolders({
+  available: () => Promise.resolve(false),
+  roots: () => Promise.reject(new Error("No server folders in unit tests")),
+  list: () => Promise.reject(new Error("No server folders in unit tests")),
+  describe: () => Promise.reject(new Error("No server folders in unit tests")),
+});
 
 /**
  * Empty React Aria's live announcer, as its `clearAnnouncer` does. A pending button that has

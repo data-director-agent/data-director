@@ -38,7 +38,7 @@ def test_lists_fitting_licences_and_puts_restricted_access_first(runs_dir: Path)
     conductor = make_conductor(runs_dir, RightsAdviser())
     env = conductor.invoke(request("advisor.rights", sample()), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
-    assert env.grounding_mode == GroundingMode.INPUT_ONLY
+    assert env.grounding_mode == GroundingMode.RETRIEVAL
     payload = env.payload_as(RightsOptions)
     assert [lic.spdx_id for lic in payload.licences] == ["CC-BY-4.0", "ODC-By-1.0"]
     assert [a.level for a in payload.access_levels] == [

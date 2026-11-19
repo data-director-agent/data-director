@@ -52,10 +52,18 @@ export type RunEvent =
   | { type: "TOOL_CALL_START"; toolCallId: string; toolCallName: string }
   | { type: "TOOL_CALL_END"; toolCallId: string }
   | { type: "TOOL_CALL_OTHER" }
-  | { type: "SUBAGENT"; original: string }
+  | { type: "SUBAGENT"; original: string; subagent: Subagent }
   | { type: "REASONING" }
   | { type: "UNRECOGNISED"; original: string }
   | { type: "MALFORMED"; reason: string };
+
+/** What a `SUBAGENT_*` event says of the delegated child: its agent, its run, and how it ended
+ * (on `SUBAGENT_FINISHED`); each null if the event does not say. */
+export interface Subagent {
+  name: string | null;
+  runId: string | null;
+  status: string | null;
+}
 
 type Fields = Record<string, unknown>;
 
@@ -110,6 +118,16 @@ function custom(event: Fields): RunEvent {
     default:
       return { type: "UNRECOGNISED", original: `CUSTOM ${name}` };
   }
+}
+
+function subagent(event: Fields, original: string): RunEvent {
+  const { result } = event;
+  const status = isObject(result) && isString(result.status) ? result.status : null;
+  return {
+    type: "SUBAGENT",
+    original,
+    subagent: { name: text(event, "name"), runId: text(event, "subagentRunId"), status },
+  };
 }
 
 function finished(event: Fields): RunEvent {
@@ -177,7 +195,7 @@ export function parseEvent(raw: unknown): RunEvent {
       return { type: "TOOL_CALL_OTHER" };
     default:
       if (type.startsWith("REASONING_")) return { type: "REASONING" };
-      if (type.startsWith("SUBAGENT_")) return { type: "SUBAGENT", original: type };
+      if (type.startsWith("SUBAGENT_")) return subagent(raw, type);
       return { type: "UNRECOGNISED", original: type };
   }
 }

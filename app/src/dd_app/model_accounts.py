@@ -1,7 +1,7 @@
 """Where the browser reaches the model broker's enrolment interface (docs/specs/model-accounts.md,
 Enrolment).
 
-A person adds their own model account on the Profile page. The browser sends the key straight to
+A person adds their own model account on the Settings page. The browser sends the key straight to
 the model broker, never to the app; the app's part is to issue an enrolment ticket for the person
 signed in and to tell the page where the broker is. `DD_APP_MODEL_BROKER_URL` is that place: a
 path on the app's own origin, such as `/broker`, under which the reverse proxy passes

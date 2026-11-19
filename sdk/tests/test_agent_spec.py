@@ -35,6 +35,8 @@ from dd_sdk.contract.models import (
     OpenInput,
 )
 from dd_sdk.contract.version import CONTRACT_VERSION, compatible
+from dd_sdk.skills import SkillUse
+from dd_sdk.tools import ToolUse
 
 # The SDK knows no agent's classes, so this module brings its own, as an agent would
 # (docs/specs/contract.md): an input class and a payload class with nested items and an optional
@@ -118,6 +120,8 @@ SPEC = AgentSpec(
         "items.rationale": Derived(Derivation.MODEL, recorded_in="rationale_derivation"),
         "searched.snapshot_ref": Derived(Derivation.REGISTRY),
     },
+    skills=(SkillUse("licence-choice", "v1.0.0", "0123456789abcdef" * 4),),
+    tools=(ToolUse("spdx", ("get_licence", "search_licences")),),
 )
 
 
@@ -198,6 +202,31 @@ def test_the_persona_title_round_trips_through_the_manifest() -> None:
     entry = describe(spec)
     assert entry["title"] == "Metadata Librarian"
     assert spec_from_description(entry).title == "Metadata Librarian"
+
+
+@pytest.mark.parametrize("icon", ["📚", "🧑🏽‍🔬", "⚖️"])
+def test_the_persona_icon_round_trips_through_the_manifest(icon: str) -> None:
+    entry = json.loads(json.dumps(describe(dataclasses.replace(SPEC, icon=icon))))
+    assert entry["icon"] == icon
+    assert spec_from_description(entry).icon == icon
+
+
+def test_a_description_without_an_icon_has_none() -> None:
+    entry = describe(SPEC)
+    del entry["icon"]
+    assert spec_from_description(entry).icon == ""
+
+
+@pytest.mark.parametrize("icon", ["book", "📚 📚", "📚📚📚📚📚📚📚📚📚", "1"])
+def test_an_icon_that_is_not_one_emoji_is_refused(icon: str) -> None:
+    with pytest.raises(SpecError, match="icon"):
+        dataclasses.replace(SPEC, icon=icon)
+
+
+def test_a_description_whose_icon_is_not_a_string_is_refused() -> None:
+    entry = {**describe(SPEC), "icon": 7}
+    with pytest.raises(SpecError, match="icon"):
+        spec_from_description(entry)
 
 
 def test_the_settings_an_agent_offers_round_trip_through_the_manifest() -> None:

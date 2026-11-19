@@ -43,9 +43,9 @@ Rules first, over `src/dd_agent_advisor_rights/licences.yaml`:
 What the rules cannot read goes to an interpreter (`interpret.py`), chosen by
 `DD_RIGHTS_INTERPRETER` (`factory.py`):
 
-- `template` (the default) proposes nothing. A reuse wish in other words falls back to listing
+- `template` proposes nothing. A reuse wish in other words falls back to listing
   every licence and asking what reuse to allow. It calls no model and needs no key.
-- `model` sends the model the researcher's words for the reuse wanted (only when the rules did not
+- `model` (the default) sends the model the researcher's words for the reuse wanted (only when the rules did not
   understand them), the mandated licence, whether there is third-party content, and the table's
   licence ids, names and reuse values. Whether the data are sensitive is not sent. The model
   replies against a schema (`RightsReply`):
@@ -63,14 +63,28 @@ rule. When the model reads the reuse wanted, a question asks the researcher to c
 A refused reply, a reply that is not the schema's JSON, or a model that cannot be reached leaves
 the rules' result. The outcome's statement says so.
 
-It reads only its input, so its grounding mode is `input_only` and it cites only its input.
+## Where the licences come from
+
+Its grounding mode is `retrieval`, and its card declares the `spdx` server's `get_licence` tool
+(`retrieval.py`). The deployment's profile grants the server (`tool_servers`):
+
+- **With the grant**, the shell builds the candidate licences (the table's five, and a mandated
+  licence the table lacks), retrieves each through the gateway with
+  `ctx.tools.call("spdx", "get_licence", {"id": ...})` before any model is called, and hands the
+  interpreter and its closed-set `check` only the licences the gateway returned. The payload cites
+  the records the conductor recorded (`tool:spdx/<id>`). A licence the gateway did not return, or
+  a call that failed, is left out and named in `limitations`; it is never an exception.
+- **Without the grant**, or when no licence came back, it reads the packaged `licences.yaml` as
+  before, records that read as one `retrieval` span, cites it, and says so in `limitations`.
+
+An agent declares one grounding mode, so both paths are `retrieval`.
 
 ## What it does not do
 
 - It offers five licences (CC0-1.0, CC-BY-4.0, ODC-By-1.0, ODbL-1.0, CC-BY-NC-4.0) and reads no
-  licence texts. Drawing them from the SPDX licence list through the harness's tool gateway, with
-  a `licence-choice` Skill, is TODO(#877). The interpreter and its closed-set check stay, and the
-  closed set becomes the records the gateway returned.
+  licence texts, and which reuse each fits is its table's judgement, not SPDX's. Not done yet
+  (TODO(#877)): the `licence-choice` Skill (#280) in the system prompt, and a served `mcp-spdx`
+  server; the tests use the harness's in-memory fake, and no deployment lists a real one.
 - It does not check what a funder, journal, institution or repository requires or offers. The
   repository's licence options and an evaluation set are TODO(#702).
 - It does not judge whether the data are sensitive or who holds rights in them.

@@ -93,4 +93,24 @@ describe("AgentCardView", () => {
     expect(screen.getByText("test.spec")).toBeInTheDocument();
     expect(screen.getByText(spec.description)).toBeInTheDocument();
   });
+
+  it("names each Skill the agent may load, with its version and digest", () => {
+    const spec = helloSpec();
+    render(<AgentSpecView spec={spec} />);
+    for (const skill of spec.skills) {
+      expect(screen.getByText(skill.name)).toBeInTheDocument();
+      expect(screen.getByTitle(skill.sha256)).toBeInTheDocument();
+    }
+    expect(spec.skills).not.toHaveLength(0);
+  });
+
+  it("names each MCP server the agent calls through the gateway, with its tools", () => {
+    const spec = helloSpec();
+    render(<AgentSpecView spec={spec} />);
+    for (const use of spec.tools) {
+      expect(screen.getByText(use.server)).toBeInTheDocument();
+      for (const tool of use.tools) expect(screen.getByText(tool)).toBeInTheDocument();
+    }
+    expect(spec.tools).not.toHaveLength(0);
+  });
 });

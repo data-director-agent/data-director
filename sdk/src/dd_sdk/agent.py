@@ -25,18 +25,19 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
 
 from opentelemetry.trace import Tracer
 
+from dd_sdk.agent_checks import Derived as Derived
+from dd_sdk.agent_checks import Setting as Setting
 from dd_sdk.agent_checks import SpecError as SpecError
-from dd_sdk.agent_checks import check_derivation, check_setting
+from dd_sdk.agent_checks import check_derivation, check_icon, check_setting
+from dd_sdk.agent_result import AgentResult as AgentResult
 from dd_sdk.contract.classes import ClassSchema, ClassSchemaError
 from dd_sdk.contract.models import (
     Derivation,
     EvidenceItem,
     Frozen,
-    Grounded,
     GroundingMode,
     GroundingRef,
     InvocationRequest,
-    ModelCall,
     Outcome,
     OutcomeStatus,
     ReasonCode,
@@ -44,6 +45,8 @@ from dd_sdk.contract.models import (
 from dd_sdk.contract.version import CONTRACT_VERSION, compatible
 from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 from dd_sdk.process_flow import OUT_OF_SCOPE, STEPS
+from dd_sdk.skills import SkillUse, skills_from_description
+from dd_sdk.tools import Tools, ToolUse, tools_from_description
 
 if TYPE_CHECKING:
     from dd_sdk.delegate import Delegated
@@ -51,19 +54,6 @@ if TYPE_CHECKING:
 
 class ContractVersionError(SpecError):
     """A description declares a contract version this one cannot govern (docs/specs/contract.md)."""
-
-
-@dataclass(frozen=True)
-class Derived:
-    """How an agent produces one payload field that it does not copy from input or evidence.
-
-    `recorded_in` names a sibling field of type `Derivation` in which each value records how it
-    actually came about, so a template fallback where a model would normally write is shown as
-    template. Without it, `how` holds for every value.
-    """
-
-    how: Derivation
-    recorded_in: str | None = None
 
 
 @dataclass(frozen=True)
@@ -78,18 +68,6 @@ class ModelUse:
     model: str
     hosting: Literal["hosted", "local"]
     tools: bool = False
-
-
-@dataclass(frozen=True)
-class Setting:
-    """An option the agent offers, which a deployment's profile may set (`agent_settings`,
-    docs/specs/policy-and-identity.md). `choices` are the values it accepts; `default` applies
-    where the profile does not set it. The conductor refuses a profile value outside `choices`
-    before the agent runs, and sends the agent the value that applies (`RunContext.settings`)."""
-
-    choices: tuple[str, ...]
-    default: str
-    description: str = ""
 
 
 @dataclass(frozen=True)
@@ -116,9 +94,19 @@ class AgentSpec:
     # The persona's name as a researcher sees it ("Metadata Librarian", docs/specs/agents.md).
     # Empty: the app and the orchestrators show `agent_id` instead.
     title: str = ""
+    # The persona's icon: one emoji shown beside its title (docs/specs/agents.md). Empty: clients
+    # show their default.
+    icon: str = ""
     # The options a deployment's profile may set, by name (docs/specs/policy-and-identity.md).
     # Empty: the agent offers none, and a profile that sets one for it is refused at invocation.
     settings: Mapping[str, Setting] = field(default_factory=dict)
+    # The Agent Skills it may load into its system prompt, each pinned by version and digest
+    # (`dd_sdk.skills`, docs/specs/agents.md). Empty: it loads none.
+    skills: tuple[SkillUse, ...] = ()
+    # The MCP servers and tools it calls through the harness's tool gateway (`dd_sdk.tools`,
+    # docs/specs/agents.md). The profile grants servers; a call to one not declared here is
+    # refused. Empty: it calls none.
+    tools: tuple[ToolUse, ...] = ()
 
     def __post_init__(self) -> None:
         unknown = sorted(set(self.serves) - STEPS)
@@ -139,9 +127,16 @@ class AgentSpec:
                 "Grounded (its schema does not require grounded_on)"
             )
         for path, derived in self.derivations.items():
-            check_derivation(self, path, derived)
+            check_derivation(self.agent_id, self.payload, path, derived)
         for name, setting in self.settings.items():
             check_setting(self.agent_id, name, setting)
+        names = [s.name for s in self.skills]
+        if len(set(names)) != len(names):
+            raise SpecError(f"agent {self.agent_id!r} declares a skill twice: {sorted(names)}")
+        servers = [t.server for t in self.tools]
+        if len(set(servers)) != len(servers):
+            raise SpecError(f"agent {self.agent_id!r} declares a tool server twice")
+        check_icon(self.agent_id, self.icon)
 
     def default_settings(self) -> dict[str, str]:
         """Each setting's default: what applies where the profile sets none."""
@@ -195,6 +190,7 @@ def describe(spec: AgentSpec) -> dict[str, Any]:
         "models": [_model_use(m) for m in spec.models],
         "serves": list(spec.serves),
         "title": spec.title,
+        "icon": spec.icon,
         "settings": {
             name: {
                 "choices": list(s.choices),
@@ -203,6 +199,8 @@ def describe(spec: AgentSpec) -> dict[str, Any]:
             }
             for name, s in spec.settings.items()
         },
+        "skills": [s.describe() for s in spec.skills],
+        "tools": [t.describe() for t in spec.tools],
         "schemas": {c.name: c.describe() for c in spec.schemas()},
     }
 
@@ -252,10 +250,7 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
     serves = entry.get("serves", ())
     if not isinstance(serves, list | tuple):
         raise SpecError(f"agent {agent_id!r}: serves is not a list")
-    # `title` may be absent: a card written before docs/specs/agents.md names no persona.
-    title = entry.get("title") or ""
-    if not isinstance(title, str):
-        raise SpecError(f"agent {agent_id!r}: title is not a string")
+    title, icon = _persona(agent_id, entry)
     # `settings` may be absent: a card written before docs/specs/policy-and-identity.md offers none.
     try:
         settings = {
@@ -268,6 +263,11 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
         }
     except (AttributeError, KeyError, TypeError) as exc:
         raise SpecError(f"agent {agent_id!r}: malformed settings: {exc}") from exc
+    try:
+        skills = skills_from_description(agent_id, entry)
+        tools = tools_from_description(agent_id, entry)
+    except ValueError as exc:
+        raise SpecError(str(exc)) from exc
     return AgentSpec(
         agent_id=agent_id,
         version=str(entry["version"]),
@@ -281,8 +281,23 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
         models=models,
         serves=tuple(str(r) for r in serves),
         title=title,
+        icon=icon,
         settings=settings,
+        skills=skills,
+        tools=tools,
     )
+
+
+def _persona(agent_id: str, entry: Mapping[str, Any]) -> tuple[str, str]:
+    """The persona's title and icon. Either may be absent: a card written before
+    docs/specs/agents.md names no persona, and one written before icons has none."""
+    title = entry.get("title") or ""
+    if not isinstance(title, str):
+        raise SpecError(f"agent {agent_id!r}: title is not a string")
+    icon = entry.get("icon") or ""
+    if not isinstance(icon, str):
+        raise SpecError(f"agent {agent_id!r}: icon is not a string")
+    return title, icon
 
 
 def _contract_version(entry: Mapping[str, Any]) -> str:
@@ -358,21 +373,6 @@ def typed_request(spec: AgentSpec, request: InvocationRequest) -> InvocationRequ
     return request.model_copy(update={"input": accepted.parse_input(document)})
 
 
-@dataclass(frozen=True)
-class AgentResult:
-    outcome: Outcome
-    payload: Grounded | None = None
-    evidence: list[EvidenceItem] = field(default_factory=list)
-    model_id: str | None = None
-    input_tokens: int | None = None
-    output_tokens: int | None = None
-    # Each model call, and the prompts they name by digest (`dd_sdk.prompts`,
-    # docs/specs/disclosure.md). The conductor puts the calls in the envelope's telemetry and keeps
-    # the prompts beside the run, never in the envelope.
-    model_calls: tuple[ModelCall, ...] = ()
-    prompts: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
-
-
 class Delegate(Protocol):
     """Invoke another agent through the harness and return its envelope (`dd_sdk.delegate`).
 
@@ -407,6 +407,10 @@ class RunContext:
     declares `models` and the harness is configured to mint one (docs/specs/model-accounts.md). It
     is opaque: the agent never parses it, and the SDK's model adapters send it to the broker with
     each call (`dd_sdk.model.bind_grant`).
+
+    `tools` calls the MCP tools the profile grants the agent, through the harness's tool gateway
+    (`dd_sdk.tools`, docs/specs/agents.md). `dd_sdk.serve` binds it to the grant the harness sent;
+    it is None where the agent is granted no server or the harness has no gateway.
     """
 
     tracer: Tracer
@@ -415,6 +419,7 @@ class RunContext:
     delegate: Delegate | None = None
     model_grant: str | None = None
     settings: Mapping[str, str] = field(default_factory=dict)
+    tools: Tools | None = None
 
 
 def setting(ctx: RunContext, spec: AgentSpec, name: str) -> str:

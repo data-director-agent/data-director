@@ -55,6 +55,9 @@ export function asInventory(value: unknown): FileInventory {
   if (value.inventory_limitations !== undefined && !isStringList(value.inventory_limitations)) {
     throw new NotAnInventory("This inventory's limitations are not a list of sentences.");
   }
+  if (!isFindingList(value.inventory_personal_data)) {
+    throw new NotAnInventory("This inventory's personal-data findings are not a list of places.");
+  }
   (files ?? []).forEach((file: unknown, index: number) => checkFile(file, index + 1));
   const parts = value.inventory_parts;
   if (parts !== undefined) {
@@ -76,7 +79,24 @@ function isPart(part: unknown): boolean {
     typeof part.part_tool === "string" &&
     typeof part.part_tool_version === "string" &&
     typeof part.part_made_at === "string" &&
-    (part.part_limitations === undefined || isStringList(part.part_limitations))
+    (part.part_limitations === undefined || isStringList(part.part_limitations)) &&
+    isFindingList(part.part_personal_data)
+  );
+}
+
+/** Whether a findings list, which may be absent, holds findings that each name a kind and a place. */
+function isFindingList(value: unknown): boolean {
+  if (value === undefined) return true;
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (f) =>
+        isRecord(f) &&
+        typeof f.finding_kind === "string" &&
+        typeof f.finding_file === "string" &&
+        typeof f.finding_target === "string" &&
+        (f.finding_column === undefined || typeof f.finding_column === "string"),
+    )
   );
 }
 

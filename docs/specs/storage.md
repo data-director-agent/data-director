@@ -88,7 +88,7 @@ It does not cover what a run or a project contains ([Contract](contract.md), [Pr
     directory that cannot be made, a database that cannot be reached or whose schema is not this
     build's) stops start-up with `SettingsError` too, naming the variable.
 15. **The file backends keep their layout.** A run is `<invocation_id>/` beside
-    `invocations.jsonl` and `schemas/`; a project is `<project_id>/events.jsonl` beside its
+    `invocations.jsonl`, `schemas/` and `locks/` (the turn locks, below); a project is `<project_id>/events.jsonl` beside its
     blobs. The layout is in the docstrings of `store.py` and `project_files.py`, and
     `harness/tests/test_harness.py` and `test_projects.py` read it.
 
@@ -100,7 +100,10 @@ one store. `check_shared_record` checks two logs opened over one record contendi
 project, as two harness instances over one database do; only a backend whose section holds across
 instances passes it, so the file backend does not run it. `harness/tests/test_storage.py` runs the
 kit against the file backends, and `harness/tests/test_postgres.py` against the PostgreSQL
-backend, with every check above and a contention between processes.
+backend, with every check above and a contention between processes. Both also run
+`check_a_log_replays_as_it_folds` on change sequences that Hypothesis generates: a log appended
+whole and one appended an event at a time fold to the same documents, after every event and once
+opened again.
 
 ## Boundaries and contracts
 
@@ -135,6 +138,11 @@ conversations a page at a time, for the reader allowed to see them (`dd_harness.
   may give the person a role (`ProjectLog.projects_naming`, from the principal each event names in
   `dd_harness.role_events`), and the access check reads only those logs to confirm it
   (`dd_harness.project_access.readable_projects`).
+- **Deleted conversations.** A `Readable` may also name conversations to leave out, the deleted
+  ones in the projects the reader may read ([Projects](projects.md), invariant 29;
+  `dd_harness.project_access.hidden_conversations`). A run or a conversation in one of them is
+  not listed; a run in no conversation is. The leaving out is part of the query, so a page still
+  holds as many as it asks for.
 - **Projects.** `GET /api/projects` lists the projects a person may read, the one created last
   first, a page at a time. Its cursor is the last listed project; one that names no project the
   person may read names an empty page. A project with nothing in it yet is not listed.
@@ -195,6 +203,43 @@ each blob it reads. The conductor's access check, deletion check and the facts i
 change made meanwhile is seen by the next invocation. A snapshot refuses every change with
 `TypeError`.
 
+## Turn locks
+
+A conversation runs one turn at a time ([Orchestration](orchestration.md), invariant 4): the app
+holds the conversation's lock from reading its history until the turn is stored, and refuses a
+turn whose lock is held ([App](app.md), "Turn locks"). The lock is kept where the turns are, so
+every app process over one store is held to it, not only the process that holds it.
+
+`dd_harness.turn_locks.ConversationLocks` has one method, `try_hold(conversation_id)`, which
+returns what releases the lock, or None at once if it is held; nothing waits. Its docstring states
+the guarantees: one holder per conversation across every instance over one location, in any
+process; conversations independent; a released lock free to be held again, through any instance;
+a holder that ends without releasing (its process exits, its connection drops) releasing its
+locks; and no conversation id reaching anything outside the store as a name.
+
+`dd_harness.settings.conversation_locks` opens the locks beside the runs that `DD_RUNS_DIR` names,
+so no other setting says where they are:
+
+- **On files**, `FileConversationLocks` holds `flock` on `locks/<sha256 of the id>.lock` under
+  the runs' directory. `flock` belongs to the open file, not the process, so it holds between
+  processes on one host and between two instances in one process alike. A lock file is never
+  removed: removing one while another holder opens it would let two hold it. The directory must
+  be on a file system where `flock` holds for every app that shares it, which a local disk is.
+- **On PostgreSQL**, `dd_harness.postgres.locks.PostgresConversationLocks` takes a session-level
+  advisory lock, `pg_try_advisory_lock(TURN_LOCKS, hashtext(conversation_id))`, on a connection
+  of its own for the turn, closed when the lock is released. A turn may run for minutes, so the
+  lock does not borrow from a store's pool. The two-key form keeps it apart from the store's own
+  one-key locks. Advisory locks belong to the database, so deployments in separate schemas of one
+  database share them; `hashtext` is 32 bits, so two conversations may share a lock, and a turn
+  refused for that reason may be sent again.
+
+`dd_harness.testing.check_conversation_locks` (`CONVERSATION_LOCK_CHECKS`) holds a backend to the
+guarantees, through two instances over one location. `harness/tests/test_turn_locks.py` runs it
+on files, with a lock held from another process and one whose process ended without releasing it;
+`harness/tests/test_postgres.py` runs it on PostgreSQL, with a lock whose connection the server
+ended. `LocalConversationLocks` holds within one process, for an app built without a store
+location, as in a test, and is never opened by the settings.
+
 ## Adding a backend
 
 A backend:
@@ -203,9 +248,9 @@ A backend:
    named after it, as `serve` is for `uvicorn` ([System and boundaries](system.md)). The settings
    factory imports the module only when its scheme is named, so a deployment on files does not
    install the driver;
-2. implements `RunStorage` and `ProjectLog`, keeping every guarantee above;
-3. passes the conformance kit (`check_run_storage`, `check_project_log` and
-   `check_project_rules`), run from the harness's tests against a real database. Those tests
+2. implements `RunStorage`, `ProjectLog` and `ConversationLocks`, keeping every guarantee above;
+3. passes the conformance kit (`check_run_storage`, `check_project_log`,
+   `check_project_rules`, `check_a_log_replays_as_it_folds` and `check_conversation_locks`), run from the harness's tests against a real database. Those tests
    are skipped when no database is named for them, and CI names one;
 4. changes its schema only through numbered SQL files, applied by an explicit command. Start-up
    refuses a database whose schema is older or newer than the build expects, naming the command.

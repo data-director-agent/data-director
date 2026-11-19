@@ -23,6 +23,19 @@ export interface RawModelUse {
   tools?: boolean;
 }
 
+/** An Agent Skill the agent may load into its system prompt, pinned by release and digest (docs/specs/agents.md). */
+export interface RawSkillUse {
+  name: string;
+  version: string;
+  sha256: string;
+}
+
+/** The tools of one MCP server the agent calls through the harness's tool gateway (docs/specs/agents.md). */
+export interface RawToolUse {
+  server: string;
+  tools: string[];
+}
+
 export interface RawSchemaEntry {
   digest: string;
   json_schema: unknown;
@@ -47,11 +60,17 @@ export interface RawAgentSpec {
   serves?: string[];
   /** The persona's name as a researcher sees it (docs/specs/agents.md). Absent or empty: none. */
   title?: string;
+  /** The persona's icon, one emoji (docs/specs/agents.md). Absent or empty: none. */
+  icon?: string;
   /**
    * The options a deployment's profile may set, by name (docs/specs/policy-and-identity.md).
    * Absent on an older card, which offers none.
    */
   settings?: Record<string, RawSetting>;
+  /** The Agent Skills it may load (docs/specs/agents.md). Absent on an older card, which loads none. */
+  skills?: RawSkillUse[];
+  /** The MCP servers and tools it calls through the tool gateway (docs/specs/agents.md). Absent on an older card, which calls none. */
+  tools?: RawToolUse[];
 }
 
 export interface RawSetting {

@@ -2,7 +2,9 @@
 import { card as cardOf, fixture, spec as helloSpec } from "./fixtures";
 import {
   AGENT_SPEC_URI,
+  agentIcon,
   agentSpecOf,
+  DEFAULT_AGENT_ICON,
   findExtension,
   MANIFEST_URI,
   manifestOf,
@@ -78,7 +80,9 @@ describe("the Data Director extensions", () => {
         { path: "items.rationale", how: "model", recordedIn: "rationale_derivation" },
         { path: "searched.snapshot_ref", how: "registry" },
       ],
+      skills: [{ name: "licence-choice", version: "v1.0.0" }],
     });
+    expect(spec.skills[0]?.sha256).toMatch(/^[0-9a-f]{64}$/);
     expect(Object.keys(spec.schemas).sort()).toEqual(["Findings", "Survey"]);
     expect(spec.digests.Findings).toMatch(/^[0-9a-f]{64}$/);
   });
@@ -110,6 +114,8 @@ describe("the Data Director extensions", () => {
       serves: ["s", null],
       models: [{ provider: "p", model: "m", hosting: "local" }, "m"],
       title: "Ada",
+      skills: [{ name: "s", version: "v1", sha256: "d" }, { name: "t" }, "u"],
+      tools: [{ server: "spdx", tools: ["get"] }, { server: "x", tools: [1] }, "y"],
     });
     expect(spec).toMatchObject({
       accepts: ["A"],
@@ -120,7 +126,27 @@ describe("the Data Director extensions", () => {
       serves: ["s"],
       models: [{ provider: "p", model: "m", hosting: "local" }],
       title: "Ada",
+      skills: [{ name: "s", version: "v1", sha256: "d" }],
+      tools: [{ server: "spdx", tools: ["get"] }],
     });
     expect(readAgentSpec({ ...{ agent_id: "a", version: "1", description: "d", action_class: "a", grounding_mode: "none" } })?.modelsDeclared).toBe(false);
+  });
+});
+
+describe("an agent's icon", () => {
+  const bare = { agent_id: "a", version: "1", description: "d", action_class: "a", grounding_mode: "none" };
+
+  it("is the one its card declares", () => {
+    const spec = readAgentSpec({ ...bare, icon: "📚" });
+    expect(spec?.icon).toBe("📚");
+    expect(agentIcon({ icon: spec?.icon ?? "" })).toBe("📚");
+  });
+
+  it("is the default when the card declares none or one of the wrong shape", () => {
+    for (const raw of [bare, { ...bare, icon: "" }, { ...bare, icon: 7 }]) {
+      const spec = readAgentSpec(raw);
+      expect(spec?.icon).toBe("");
+      expect(agentIcon({ icon: spec?.icon ?? "" })).toBe(DEFAULT_AGENT_ICON);
+    }
   });
 });

@@ -35,6 +35,7 @@ class FairsharingClient:
         client: httpx.Client | None = None,
         login: str | None = None,
         password: str | None = None,
+        *,
         follow_redirects: bool = False,
     ) -> None:
         self._client = client or httpx.Client(

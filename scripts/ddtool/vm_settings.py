@@ -9,13 +9,14 @@ from pathlib import Path
 from ddtool.common import (
     KEY_VARS,
     MODEL_BACKED,
-    MODEL_BY_DEFAULT,
     PROVIDER_KEYS,
     Agent,
     DevError,
     compare_profile,
+    model_on_by_default,
 )
 from ddtool.deployment import Place, plan
+from ddtool.model_access import file_label, vm_model_access
 from ddtool.vm import agent_unit, loaded_secrets, read_settings, systemctl_show, wanted_agents
 from ddtool.vm_report import Checks
 
@@ -23,16 +24,6 @@ from ddtool.vm_report import Checks
 SIGN_IN_SETTINGS = ("DD_OIDC_ISSUER", "DD_OIDC_CLIENT_ID", "DD_APP_PUBLIC_URL")
 OPERATOR_SETTINGS = ("DD_PRINCIPAL_ID", "DD_PRINCIPAL_NAME")
 MODEL_KEY = "anthropic-api-key"
-# The agents a model only helps, by the setting that turns their model on.
-MODEL_SWITCHES = {
-    "advisor-standards": "DD_STANDARDS_EXPLAINER",
-    "advisor-policy": "DD_POLICY_ADVISOR",
-    "advisor-repository": "DD_REPOSITORY_EXPLAINER",
-    "advisor-documentation": "DD_DOCUMENTATION_WRITER",
-    "advisor-dmp": "DD_DMP_MATCHER",
-    "advisor-rights": "DD_RIGHTS_INTERPRETER",
-    "advisor-fairness": "DD_FAIRNESS_WRITER",
-}
 
 
 class SettingsChecks(Checks):
@@ -51,34 +42,12 @@ class SettingsChecks(Checks):
             if own is None:
                 report.skip(str(vm.agent_env(agent.name)))
                 own = {}
-            provider = own.get("DD_MODEL_PROVIDER") or "anthropic"
-            needs = (
-                agent.name in MODEL_BACKED
-                or own.get(
-                    MODEL_SWITCHES.get(agent.name, ""),
-                    "model" if agent.name in MODEL_BY_DEFAULT else "template",
-                )
-                in ("model", "anthropic")
-                # A local OpenAI-compatible endpoint may need no key; the agent says at start-up.
-            ) and provider != "openai-compatible"
-            # The secret's name gives the variable the agent reads it from (deploy/credentials.sh).
-            secret = (
-                PROVIDER_KEYS.get(provider, PROVIDER_KEYS["anthropic"]).lower().replace("_", "-")
-            )
-            if (
-                on
-                and needs
-                and secret not in loaded_secrets(system, vm, agent.name)
-                and not any(own.get(var) for var in KEY_VARS)
-            ):
-                report.problem(
-                    f"{agent.name} calls a model but has no key",
-                    f"{self.tool} secret set {agent.name} {secret}",
-                )
+            if on and (problem := self._model_problem(agent.name, own)):
+                report.problem(*problem)
         if system.is_root():
             for directory in sorted(p for p in vm.credentials.glob("*") if p.is_dir()):
-                # The app's and the model broker's secrets are not agents'.
-                if directory.name in {"app", "model-broker"}:
+                # The app's, the model broker's and the LiteLLM gateway's secrets are not agents'.
+                if directory.name in {"app", "model-broker", "llm-gateway"}:
                     continue
                 if directory.name not in {a.name for a in agents}:
                     report.note(f"{directory} belongs to no agent in agents.yaml")
@@ -90,6 +59,27 @@ class SettingsChecks(Checks):
                         )
         else:
             report.skip(str(vm.credentials))
+
+    def _model_problem(self, name: str, own: dict[str, str]) -> tuple[str, str] | None:
+        """Why agent `name`, which runs with its own settings `own`, lacks the model credentials
+        it starts with, and the fix; None if it calls no model or has them."""
+        provider = own.get("DD_MODEL_PROVIDER") or "anthropic"
+        uses_model = name in MODEL_BACKED or model_on_by_default(name, own)
+        if not uses_model:
+            return None
+        # The secret's name gives the variable the agent reads it from (deploy/credentials.sh).
+        label = file_label(PROVIDER_KEYS.get(provider, PROVIDER_KEYS["anthropic"]))
+        access = vm_model_access(self.system, self.vm, name)
+        if access.brokered:
+            return access.broker_problem(name, self.tool)
+        if (
+            # A local OpenAI-compatible endpoint may need no key; the agent says at start-up.
+            provider != "openai-compatible"
+            and label not in loaded_secrets(self.system, self.vm, name)
+            and not any(own.get(var) for var in KEY_VARS)
+        ):
+            return f"{name} calls a model but has no key", f"{self.tool} secret set {name} {label}"
+        return None
 
     def settings(self, release: Path | None) -> None:
         system, vm, report = self.system, self.vm, self.report
@@ -179,7 +169,7 @@ class SettingsChecks(Checks):
         try:
             deployment, planned = plan(system, place, vm)
         except DevError as exc:
-            report.problem(str(exc), f"edit {place.deployment}")
+            report.problem(str(exc), f"{self.tool} edit")
             return
         report.note(
             f"{place.deployment} says: {deployment.name}, orchestrator {deployment.orchestrator}"

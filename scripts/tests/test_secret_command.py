@@ -121,6 +121,20 @@ def test_removing_the_last_secret_removes_the_dropin(etc: Path, units: Path) -> 
     assert not (etc / "credentials" / "advisor-standards").exists()
 
 
+def test_rm_is_remove(etc: Path, units: Path) -> None:
+    secret(etc, units, "set", "advisor-standards", "anthropic-api-key", value=KEY)
+    result = secret(etc, units, "rm", "advisor-standards", "anthropic-api-key")
+    assert result.returncode == 0, result.stderr
+    assert not (etc / "credentials" / "advisor-standards").exists()
+
+
+def test_an_unknown_command_is_named_with_the_usage(etc: Path, units: Path) -> None:
+    result = secret(etc, units, "delete", "advisor-standards", "anthropic-api-key")
+    assert result.returncode == 2
+    assert "'delete'" in result.stderr
+    assert "usage:" in result.stderr
+
+
 def test_list_names_each_secret_and_its_variable_never_its_value(etc: Path, units: Path) -> None:
     secret(etc, units, "set", "orchestrator-model", "anthropic-api-key", value=KEY)
     (etc / "credentials" / "advisor-standards" / "anthropic-api-key").mkdir(parents=True)
@@ -220,3 +234,29 @@ def test_an_unusable_model_grant_secret_is_left_out_and_reported(etc: Path, unit
     assert result.returncode == 1
     assert "pseudonym-secret: empty" in result.stderr
     assert not app_dropin(units).exists()
+
+
+def test_the_gateways_secret_is_stored_root_only_without_an_agent_dropin(
+    etc: Path, units: Path
+) -> None:
+    # The LiteLLM gateway reads its directory itself (deploy/llm-gateway/scripts/systemd.sh).
+    result = secret(etc, units, "set", "llm-gateway", "anthropic-api-key", value=KEY)
+    assert result.returncode == 0, result.stderr
+    key = etc / "credentials" / "llm-gateway" / "anthropic-api-key"
+    assert key.read_text() == KEY
+    assert stat.S_IMODE(key.stat().st_mode) == 0o600
+    assert not list(units.iterdir())
+    assert KEY not in result.stdout + result.stderr
+
+
+def test_the_gateways_secrets_are_listed_and_left_out_of_agents_dropins(
+    etc: Path, units: Path
+) -> None:
+    secret(etc, units, "set", "llm-gateway", "anthropic-api-key", value=KEY)
+    listed = secret(etc, units, "list")
+    assert listed.returncode == 0, listed.stderr
+    assert "llm-gateway" in listed.stdout
+    assert "PROBLEM" not in listed.stdout
+    synced = sync_all(etc, units)
+    assert synced.returncode == 0, synced.stderr
+    assert not dropin(units, "llm-gateway").exists()

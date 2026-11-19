@@ -22,6 +22,7 @@ from dd_harness.disclosure import Disclosure, disclose
 from dd_harness.projects import (
     TITLE_BY_RESEARCHER,
     Decision,
+    FactVerdict,
     ProjectError,
     UnknownProjectError,
 )
@@ -30,6 +31,7 @@ from dd_harness.storage import (
     DepositSource,
     ProjectDeposits,
     ProjectDocuments,
+    ProjectFacts,
     ProjectHoldings,
     ProjectLifecycle,
     ProjectProgress,
@@ -132,6 +134,10 @@ class ProjectService:
         store: ProjectHoldings = self._store
         return store.documentation_text(project_id, digest)
 
+    def documentation_source(self, project_id: str, digest: str) -> tuple[bytes, str] | None:
+        store: ProjectHoldings = self._store
+        return store.documentation_source(project_id, digest)
+
     def researchers(self, project_id: str) -> list[dict[str, Any]]:
         store: ProjectResearchers = self._store
         return store.researchers(project_id) or []
@@ -226,6 +232,44 @@ class ProjectService:
             project_id, document_id, version, answers, acted_for=acted_for, caused_by=caused_by
         )
         return {**documents.view(store, project_id), "answered": answered.model_dump()}
+
+    # Facts agents propose and people decide (docs/specs/projects.md).
+
+    def facts(self, project_id: str) -> dict[str, Any]:
+        store: ProjectFacts = self._store
+        return {
+            "proposals": store.proposals(project_id),
+            "decisions": store.decisions(project_id) or [],
+        }
+
+    def proposed_kind(self, project_id: str, proposal: str) -> str | None:
+        """The kind of fact `proposal` proposed, or None if the project holds no such proposal."""
+        store: ProjectFacts = self._store
+        fact = store.proposal(project_id, proposal)
+        return None if fact is None else str(fact["fact_kind"])
+
+    def decide_fact(
+        self,
+        project_id: str,
+        verdict: FactVerdict,
+        *,
+        proposal: str | None,
+        fact: dict[str, Any] | None,
+        reason: str | None,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> dict[str, Any]:
+        store: ProjectFacts = self._store
+        decided = store.decide_fact(
+            project_id,
+            verdict,
+            proposal=proposal,
+            fact=fact,
+            reason=reason,
+            acted_for=acted_for,
+            caused_by=caused_by,
+        )
+        return {**self.facts(project_id), "decided": decided}
 
     # Repository choice and deposit (docs/specs/deposit.md).
 

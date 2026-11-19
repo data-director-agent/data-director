@@ -5,7 +5,10 @@
  * headed by the agent's name from its card, with `agent_id@agent_version` beneath it; a change of
  * version since an earlier turn is marked (docs/specs/orchestration.md), and each delegated child
  * is a card that opens its run, with its evidence, in place. Abstained, referred and failed
- * replies use the run view's outcome wording, not a generic error. A turn on which the project's
+ * replies use the run view's outcome wording, not a generic error. A reply that failed, as when
+ * the model provider did not answer, says so in plain words, keeps the agent's own text behind a
+ * disclosure for whoever runs the deployment, and on the latest turn offers to send the message
+ * again; what the message attached is already in the project. A turn on which the project's
  * inventory changed, as when the researcher attached one, shows it as a chip (#443), and so does
  * each document the project gained on the turn, by name and size, never its text. A document
  * version the turn or one of its children drafted, as the project log records it, is a card on
@@ -40,23 +43,26 @@ import { draftedBy } from "../../project/drafted";
 import { shortlistOf } from "../../project/shortlist";
 import type { AgentView } from "../../manifest/normalise";
 import { Link } from "../../route";
-import { OUTCOME, REASON } from "../../manifest/wording";
 import type { Envelope } from "../../run/types";
 import { Button } from "../ui/Button";
 import { Markdown } from "../ui/Markdown";
+import { OUTCOME } from "../../manifest/wording";
 import { DocumentCard } from "./DocumentCard";
+import { FAILED_REPLY, OutcomeNote, RetryTurn } from "./TurnOutcome";
 import { AskedQuestions, QuestionSeries } from "./QuestionSeries";
 import { DocumentChip } from "./DocumentChip";
 import { InventoryChip } from "./InventoryChip";
 import { Pending } from "./Pending";
+import type { LiveRun } from "./useConversationTurns";
 import { RepositoryShortlist } from "./RepositoryShortlist";
 import { RunDetail } from "./RunDetail";
-import { nameOf, Speaker } from "./Speaker";
+import { iconOf, nameOf, Speaker } from "./Speaker";
 
 function replyText(conversation: Conversation, turn: ConversationTurn): string {
   // A Reply's own text: the history adds the question after it, which is shown as choices.
   const own = replyOwnText(turn.envelope);
   if (own !== null) return own;
+  if (turn.envelope.outcome.status === "failed") return FAILED_REPLY;
   const entry = conversation.history.find(
     (h) => h.role === "agent" && h.turn_invocation_id === turn.invocation_id,
   );
@@ -80,18 +86,6 @@ function documentsGiven(conversation: Conversation, index: number): Documentatio
   const key = (d: DocumentationSummary) => `${d.documentation_name}\u0000${d.documentation_digest}`;
   const before = new Set(of(conversation.turns[index - 1]).map(key));
   return of(conversation.turns[index]).filter((d) => !before.has(key(d)));
-}
-
-function OutcomeNote({ envelope }: { envelope: Envelope }) {
-  const { status, reason_code: code } = envelope.outcome;
-  if (status === "succeeded") return null;
-  const reason = code ? REASON[code] : undefined;
-  return (
-    <p className="muted">
-      {OUTCOME[status].label}.{" "}
-      {reason ? `${reason.meaning} ${reason.next}` : envelope.outcome.statement}
-    </p>
-  );
 }
 
 /**
@@ -197,6 +191,7 @@ export function Transcript({
   chosenRepository = null,
   onRepositoryChosen,
   project,
+  onRetry,
 }: {
   conversation: Conversation | null;
   agents: AgentView[];
@@ -210,6 +205,8 @@ export function Transcript({
     message: string;
     inventory?: AttachedInventory | null;
     document?: AttachedDocument | null;
+    /** The message's run, drawn live from its stream. */
+    live?: LiveRun | null;
   } | null;
   /** Sends the answers to the latest turn's questions; without it, none can be answered. */
   onAnswer?: (answers: ReplyAnswers, text: string) => void;
@@ -223,6 +220,8 @@ export function Transcript({
   onRepositoryChosen?: (requirements: RepositoryRequirements) => void;
   /** The conversation's project as the projects list describes it, once that has been read. */
   project?: ProjectSummary | null | undefined;
+  /** Sends the latest turn's message again, if that turn failed; without it, none is offered. */
+  onRetry?: (message: string) => void;
 }) {
   // Only the inventory the project holds now is served, so only its chip opens it.
   const projectId = conversation?.project_id;
@@ -305,6 +304,13 @@ export function Transcript({
                 />
               ))}
             <OutcomeNote envelope={turn.envelope} />
+            <RetryTurn
+              conversation={conversation}
+              turn={turn}
+              latest={latest}
+              disabled={pending !== null}
+              onRetry={onRetry}
+            />
             {projectId && drafted.length > 0 && (
               <ul aria-label="Documents drafted on this turn" className="plain-list">
                 {drafted.map((d) => (
@@ -352,9 +358,11 @@ export function Transcript({
         <Pending
           agentId={pending.agentId}
           agentName={nameOf(agents, pending.agentId)}
+          agentIcon={iconOf(agents, pending.agentId)}
           message={pending.message}
           inventory={pending.inventory ?? null}
           document={pending.document ?? null}
+          live={pending.live ?? null}
         />
       )}
     </ol>

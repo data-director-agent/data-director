@@ -15,7 +15,7 @@ import { type Ref, useState } from "react";
 import { Copy, RotateCcw } from "lucide-react";
 import type { AgentView } from "../../manifest/normalise";
 import { MODEL_ACCOUNT, OUTCOME, REASON } from "../../manifest/wording";
-import { problemSlug } from "../../run/stages";
+import { problemSlug } from "../../run/problem";
 import type { ProjectSummary } from "../../project/api";
 import { projectName } from "../../project/name";
 import { Link } from "../../route";

@@ -79,6 +79,8 @@ dev = [
   "deptry>=0.25.1",
   "import-linter>=2.15",
   "packaging>=26.3",
+  "vulture>=2.14",
+  "hypothesis>=6.170",
 ]
 docs = [
   "mkdocs>=1.6",
@@ -91,6 +93,11 @@ docs = [
 accessibility = [
   "axe-playwright-python>=0.1.8",
   "playwright>=1.55",
+]
+# The weekly mutation testing of the governance modules (.github/workflows/mutation.yml); the
+# settings are under [tool.mutmut] in sdk/pyproject.toml and harness/pyproject.toml.
+mutation = [
+  "mutmut>=3.8.1",
 ]
 
 [tool.uv]
@@ -264,22 +271,28 @@ containers = ["dd_app"]
 # `app` builds the application, `routes` hold the handlers, `project_service` the project rules
 # they call, and `governance` the one way to the harness (docs/specs/app.md).
 layers = ["app", "routes", "project_service", "governance"]
+# `response_models` finds every response model by importing the app inside the function, so the
+# lower layers reach `app` through `responses` (TODO(#1066): move it out of `responses`).
+ignore_imports = [
+  "dd_app.responses -> dd_app.app",
+]
 
 [[tool.importlinter.contracts]]
 name = "no package's modules import one another in a cycle"
 type = "acyclic_siblings"
 ancestors = ["dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_inventory", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
-# The cycles that existed when this contract was added. Most are imports for type annotations
-# only (`if TYPE_CHECKING:`); two run at import time. An entry that no longer matches fails, so the
-# list only shrinks. TODO(#1066): break these cycles and delete the entries.
+# The cycles that exist now. Most were there when this contract was added (#1055); main's changes
+# since removed those and added the ones below. `responses -> app` is a function-local import (it
+# finds every response model by importing the app); the rest run at import time. An entry that no
+# longer matches fails, so the list only shrinks. TODO(#1066): break these cycles and delete the
+# entries.
 ignore_imports = [
-  "dd_admin.pages -> dd_admin.app",  # type only
-  "dd_harness.pipeline -> dd_harness.conductor",  # type only
-  "dd_harness.refusals -> dd_harness.conductor",  # type only
-  "dd_harness.refusals -> dd_harness.pipeline",  # type only
-  "dd_harness.storage -> dd_harness.projects.decisions",
-  "dd_sdk.agent_checks -> dd_sdk.agent",  # type only
-  "dd_sdk.wire -> dd_sdk.agent",
+  "dd_app.project_service -> dd_app.governance",
+  "dd_app.responses -> dd_app.app",  # function-local
+  "dd_harness.fact_storage -> dd_harness.projects.facts",
+  "dd_harness.postgres -> dd_harness.settings",
+  "dd_harness.settings -> dd_harness.conductor",
+  "dd_harness.settings -> dd_harness.projects",
 ]
 
 [tool.ruff]
@@ -292,8 +305,10 @@ target-version = "py314"
 # marker when you split one, and never add a new one to get code past these rules
 # (docs/architecture-review.md). PLR0904 does the same for classes, so that a class cannot grow
 # by adding small methods; it is a preview rule, and explicit-preview-rules keeps every other
-# preview rule off.
-select = ["E", "F", "W", "I", "N", "UP", "B", "BLE", "SIM", "ANN", "RUF", "PTH", "TID", "C4", "DTZ", "T20", "C90", "PLR0904", "PLR0911", "PLR0912", "PLR0913", "PLR0915"]
+# preview rule off. FBT keeps a boolean out of a positional parameter, so a call reads
+# without its definition (make the parameter keyword-only with `*`); a `# noqa: FBT00x` is recorded
+# debt in the same way. S110 forbids `try`/`except`/`pass`: a content problem is an outcome.
+select = ["E", "F", "W", "I", "N", "UP", "B", "BLE", "SIM", "ANN", "RUF", "PTH", "TID", "C4", "DTZ", "T20", "C90", "PLR0904", "PLR0911", "PLR0912", "PLR0913", "PLR0915", "FBT", "S110"]
 ignore = ["ANN401"]
 preview = true
 explicit-preview-rules = true
@@ -312,9 +327,9 @@ max-returns = 6
 known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_example_hello", "dd_agent_advisor_quality", "dd_agent_advisor_standards", "dd_agent_advisor_repository", "dd_agent_advisor_policy", "dd_agent_advisor_ethics", "dd_agent_advisor_files", "dd_agent_advisor_dmp", "dd_agent_advisor_metadata", "dd_agent_advisor_documentation", "dd_agent_advisor_rights", "dd_agent_advisor_linking", "dd_agent_advisor_fairness", "dd_agent_orchestrator_stub", "dd_agent_orchestrator_model", "dd_app", "dd_admin", "dd_broker", "dd_inventory"]
 
 [tool.ruff.lint.per-file-ignores]
-"**/tests/*" = ["ANN", "C90", "PLR09"]
-"**/browser_tests/*" = ["ANN", "C90", "PLR09"]
-"conftest.py" = ["ANN", "C90", "PLR09"]
+"**/tests/*" = ["ANN", "C90", "PLR09", "FBT", "S110"]
+"**/browser_tests/*" = ["ANN", "C90", "PLR09", "FBT", "S110"]
+"conftest.py" = ["ANN", "C90", "PLR09", "FBT", "S110"]
 "**/scripts/*" = ["T20", "E501"]  # report scripts embed Markdown prose
 "workbench/src/workbench/cli.py" = ["T20"]
 # The domain reads better without an Error suffix; these names appear in messages people read.
@@ -351,6 +366,8 @@ filterwarnings = [
 markers = [
   "requirement(*ids): the requirement identifiers this test substantiates (see docs/requirements.yaml)",
   "postgres: needs the PostgreSQL database DD_TEST_POSTGRES names; skipped when it is unset",
+  "gateway: needs the LiteLLM gateway DD_TEST_GATEWAY names and a key in DD_TEST_GATEWAY_KEY; skipped when either is unset",
+  "re3data: needs the full re3data registry that `uv run dd-re3data fetch` builds; skipped when it is absent",
 ]
 
 # Coverage of the packages under test, measured over the one workspace test session. The tests
@@ -374,7 +391,7 @@ output = "coverage.xml"
 [tool.mypy]
 python_version = "3.14"
 files = [
-  "conftest.py", "sdk/src", "sdk/tests", "harness/src", "harness/tests", "workbench/src", "workbench/tests",
+  "conftest.py", "sdk/src", "sdk/tests", "harness/src", "harness/tests", "harness/scripts", "workbench/src", "workbench/tests",
   "workbench/browser_tests", "workbench/scripts", "agents/*/src", "agents/*/tests", "agents/advisor-standards/scripts", "agents/advisor-repository/scripts", "agents/advisor-policy/scripts",
   "app/src", "app/tests", "admin/src", "admin/tests", "broker/src", "broker/tests", "inventory/src", "inventory/tests", "scripts",
 ]
@@ -385,14 +402,14 @@ mypy_path = [
   "agents/advisor-ethics/src", "agents/advisor-dmp/src", "agents/advisor-documentation/src", "agents/advisor-fairness/src",
   "agents/advisor-files/src", "agents/advisor-linking/src", "agents/advisor-metadata/src", "agents/advisor-rights/src",
   "agents/orchestrator-stub/src", "agents/orchestrator-model/src", "app/src", "app/tests", "admin/src", "broker/src", "inventory/src",
-  "harness/tests", "sdk/tests", "broker/tests",
+  "harness/tests", "sdk/tests", "broker/tests", "scripts/tests",
 ]
 strict = true
 warn_unreachable = true
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["fido.*", "frictionless.*", "a2a.*", "ag_ui.*", "rank_bm25.*", "rocrate.*", "rocrate_validator.*", "opentelemetry.*", "google.protobuf.*", "anthropic.*", "sse_starlette.*", "linkml_runtime.*", "axe_playwright_python.*"]
+module = ["fido.*", "frictionless.*", "a2a.*", "ag_ui.*", "rank_bm25.*", "rocrate.*", "rocrate_validator.*", "opentelemetry.*", "google.protobuf.*", "anthropic.*", "sse_starlette.*", "linkml_runtime.*", "axe_playwright_python.*", "vulture.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

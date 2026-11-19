@@ -15,31 +15,37 @@ import asyncio
 import re
 import threading
 import time
-from collections.abc import AsyncIterator, Callable, Mapping
-from contextlib import asynccontextmanager
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
+from dd_app.attached import keep_attached
 from dd_app.config import DEFAULT_PROJECTS_DIR, DEFAULT_REPOSITORIES_DIR
+from dd_app.documentation_check import accept
+from dd_app.principals import principal_summary
 from dd_app.turn_body import AttachedDocument, Turn
+from dd_app.turn_lock import hold_turn
 from dd_harness import conversations, project_access
 from dd_harness.conductor import Conductor
 from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
 from dd_harness.listing import Page, Readable, check_limit
 from dd_harness.observe import RunObserver
+from dd_harness.policy import check_attached_document
 from dd_harness.project_access import Action, Role
-from dd_harness.projects import UnknownProjectError, check_documentation
+from dd_harness.projects import UnknownProjectError
 from dd_harness.requirements import Requirements, load_requirements
 from dd_harness.settings import (
     Settings,
     build_conductor,
+    conversation_locks,
     project_storage,
     projects_dir,
     repositories_dir,
 )
 from dd_harness.storage import GROUNDING, SOURCES, ProjectStorage
 from dd_harness.transport.paging import PAGE_SIZE, PAGE_SIZE_MAX
+from dd_harness.turn_locks import ConversationLocks, LocalConversationLocks
 from dd_sdk.contract.models import (
     UUID7_PATTERN,
     Envelope,
@@ -118,14 +124,14 @@ class Governance:
     # The requirement sets a chosen repository resolves to (docs/specs/deposit.md), from
     # `DD_REPOSITORIES_DIR`. None where the app lets nobody choose, as in a test that needs none.
     requirements: Requirements | None = None
+    # Each conversation's turn lock: the run store's, shared by app processes over one store, or,
+    # built without one (a test), this process's alone (docs/specs/app.md, "Turn locks").
+    turn_locks: ConversationLocks = field(default_factory=LocalConversationLocks, repr=False)
     # Conversations started in this process that have no turn yet, in no project, each with the
-    # `principal_id` of whoever started it. There is no conversation store
-    # (docs/specs/orchestration.md): once a turn is stored the store holds the conversation, and an
-    # id never used is forgotten when the app stops.
+    # `principal_id` of whoever started it. Only an app that keeps no projects (a test) fills it,
+    # so it is this process's alone. There is no conversation store (docs/specs/orchestration.md):
+    # once a turn is stored the store holds the conversation, and an id never used is forgotten.
     _started: dict[str, str] = field(default_factory=dict, repr=False)
-    # One lock per conversation, held from reading its history until its turn is stored, with
-    # the number of turns holding or waiting for it; the entry goes when that reaches nought.
-    _turn_locks: dict[str, tuple[asyncio.Lock, int]] = field(default_factory=dict, repr=False)
     # How often `deployment` may retry the missing agents, and the clock it reads (a test's own).
     about_refresh_interval_s: float = ABOUT_REFRESH_INTERVAL_S
     clock: Callable[[], float] = field(default=time.monotonic, repr=False)
@@ -155,7 +161,8 @@ class Governance:
         # cannot be reached or is not migrated) stops start-up with `SettingsError`.
         projects = project_storage(projects_dir(DEFAULT_PROJECTS_DIR), "DD_PROJECTS_DIR")
         requirements = load_requirements(repositories_dir(DEFAULT_REPOSITORIES_DIR))
-        return cls(conductor, authenticator, projects, requirements)
+        locks = conversation_locks(settings.runs_dir, "DD_RUNS_DIR")
+        return cls(conductor, authenticator, projects, requirements, turn_locks=locks)
 
     def __post_init__(self) -> None:
         # The conductor takes each run's project from the same logs the app reads.
@@ -263,15 +270,14 @@ class Governance:
                 f"not {agent_id!r}."
             )
 
-        # No await between this check and taking the lock, so no other turn can come between.
-        held = self._turn_locks.get(conversation_id)
-        if held is not None and held[0].locked():
+        release = await hold_turn(self.turn_locks, conversation_id)
+        if release is None:
             raise TurnConflictError(
                 "Another turn of this conversation is still running. Nothing was run: read the "
                 "conversation once it has been answered, then send the message again if it is "
                 "still needed."
             )
-        async with self._turn_lock(conversation_id):
+        try:
             found = await asyncio.to_thread(self._conversation, conversation_id)
             # Someone else's conversation is answered as one that does not exist (#153).
             if found is None or not await asyncio.to_thread(
@@ -314,6 +320,8 @@ class Governance:
                 # lock is kept until it is stored: the next turn must be shown this one.
                 await asyncio.wait({run})
                 raise
+        finally:
+            await asyncio.shield(asyncio.to_thread(release))
         self._started.pop(conversation_id, None)
         return envelope
 
@@ -324,8 +332,7 @@ class Governance:
         documentation: AttachedDocument | None,
         acting_for: Principal,
     ) -> None:
-        """Add what a turn attached to the conversation's project: all of it, or, if any is
-        refused, none."""
+        """Add all a turn attached to the conversation's project, or none if any is refused."""
         project_id = self.projects.project_of(conversation_id) if self.projects else None
         if self.projects is None or project_id is None:
             what = "an inventory" if inventory is not None else "a document"
@@ -334,34 +341,14 @@ class Governance:
             )
         caused_by = f"POST /api/conversations/{conversation_id}/turns"
         if documentation is not None:
-            check_documentation(documentation.name, documentation.media_type, documentation.text)
+            check_attached_document(self.conductor.profile)
+            accept(documentation)
         if inventory is not None:
             self.projects.add_inventory(
                 project_id, inventory, acted_for=acting_for, caused_by=caused_by
             )
         if documentation is not None:
-            self.projects.add_documentation(
-                project_id,
-                documentation.name,
-                documentation.media_type,
-                documentation.text,
-                acted_for=acting_for,
-                caused_by=caused_by,
-            )
-
-    @asynccontextmanager
-    async def _turn_lock(self, conversation_id: str) -> AsyncIterator[None]:
-        lock, count = self._turn_locks.get(conversation_id, (asyncio.Lock(), 0))
-        self._turn_locks[conversation_id] = (lock, count + 1)
-        try:
-            async with lock:
-                yield
-        finally:
-            lock, count = self._turn_locks[conversation_id]
-            if count == 1:
-                del self._turn_locks[conversation_id]
-            else:
-                self._turn_locks[conversation_id] = (lock, count - 1)
+            keep_attached(self.projects, project_id, documentation, acting_for, caused_by)
 
     # Who may read what (#153, docs/specs/app.md). Each person sees their own work: a run or
     # conversation in a project is readable by whoever may read the project, and one in no project
@@ -399,11 +386,12 @@ class Governance:
 
     def may_read_conversation(self, conversation_id: str, reader: Principal) -> bool:
         """Whether `reader` may read, and add a turn to, the conversation `conversation_id`: one
-        in a project follows the project; one in no project belongs to whoever started it, which
-        is whom its first turn acted for once it has one."""
+        in a project follows the project unless it is deleted; one in no project belongs to
+        whoever started it, which is whom its first turn acted for once it has one."""
         project_id = self.projects.project_of(conversation_id) if self.projects else None
-        if project_id is not None:
-            return self.may_read_project(project_id, reader)
+        if project_id is not None and self.projects is not None:
+            hidden = project_access.conversation_deleted(self.projects, project_id, conversation_id)
+            return not hidden and self.may_read_project(project_id, reader)
         if conversation_id in self._started:
             return self._started[conversation_id] == reader.principal_id
         first = next(
@@ -417,14 +405,13 @@ class Governance:
         return first is not None and self.may_read_run(first, reader)
 
     def readable(self, reader: Principal) -> Readable:
-        """What the run store lists for `reader`: runs in the projects they may read, and runs in
-        no project that acted for them."""
+        """What the run store lists for `reader`: runs in the projects they may read, but not in
+        their deleted conversations, and runs in no project that acted for them."""
         if self.projects is None:
             return Readable(reader.principal_id, None)
-        return Readable(
-            reader.principal_id,
-            frozenset(project_access.readable_projects(self.projects, reader)),
-        )
+        project_ids = frozenset(project_access.readable_projects(self.projects, reader))
+        hidden = project_access.hidden_conversations(self.projects, project_ids)
+        return Readable(reader.principal_id, project_ids, hidden)
 
     def conversations(
         self, reader: Principal, *, limit: int = PAGE_SIZE, before: str | None = None
@@ -455,13 +442,12 @@ class Governance:
                 return Page([])
             newest_first = newest_first[newest_first.index(before) + 1 :]
         found: list[dict[str, Any]] = []
+        every = self._every_conversation(self.readable(principal))
         for project_id in newest_first:
             summary = self.projects.summary(project_id)
             listed = [
                 {key: c.get(key) for key in LISTED_CONVERSATION}
-                for c in self._every_conversation(
-                    Readable(principal.principal_id, frozenset({project_id}))
-                )
+                for c in every
                 if c.get("project_id") == project_id
             ]
             if (
@@ -617,6 +603,7 @@ class Governance:
                 "ref": profile.ref,
                 "digest": profile.digest,
                 "orchestrator": profile.orchestrator,
+                "attached_documents": profile.attached_documents,
             },
             "acting_for": principal_summary(acting_for),
         }
@@ -690,11 +677,3 @@ class Governance:
             "unavailable": sorted(registry.unavailable),
             "incompatible": sorted(registry.incompatible),
         }
-
-
-def principal_summary(principal: Principal) -> dict[str, Any]:
-    """What the shell is told about a principal: whom runs act for, and who vouched for them."""
-    summary: dict[str, Any] = {"name": principal.name, "assurance": principal.assurance.value}
-    if principal.vouched_by is not None:
-        summary["vouched_by"] = str(principal.vouched_by)
-    return summary

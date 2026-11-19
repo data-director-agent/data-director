@@ -1,16 +1,12 @@
 """What the harness asks of the stores it keeps runs and projects in (docs/specs/storage.md).
 
-`RunStorage` and `ProjectStorage` are the interfaces callers use; `ProjectStorage` is composed
-of one Protocol per area of the project rules (`ProjectLifecycle`, `ProjectHoldings`,
-`ProjectResearchers`, `ProjectRepository`, `ProjectProgress`, `ProjectDocuments`,
-`ProjectDeposits`), so that a caller depends only on the areas it uses. `dd_harness.store.RunStore`
+`RunStorage` and `ProjectStorage` are the interfaces callers use; `ProjectStorage` is composed of
+one Protocol per area of the project rules (`ProjectLifecycle`, `ProjectConversations` and the
+rest), so that a caller depends only on the areas it uses. `dd_harness.store.RunStore`
 implements `RunStorage` over files. `ProjectStorage` is implemented once, by the project rules
-(`dd_harness.projects.Projects`), over a `ProjectLog` (`dd_harness.project_log`) that a backend
-provides;
-`dd_harness.project_files.FileProjectLog` is the file one, and `dd_harness.projects.ProjectStore`
-the rules over it. Everything else in the harness, the app and the workbench reaches a store
-through these protocols, so another backend, such as a database, can replace a file one without
-changing its callers.
+(`dd_harness.projects.Projects`), over a `ProjectLog` that a backend provides, such as the file one
+(`dd_harness.project_files.FileProjectLog`). Everything else reaches a store through these
+protocols, so another backend, such as a database, can replace a file one unseen by callers.
 
 Each protocol's docstring states the guarantees a backend must keep. `dd_harness.testing`'s
 `check_run_storage`, `check_project_log` and `check_project_rules` check them against any
@@ -23,13 +19,16 @@ from collections.abc import Iterable, Iterator, Mapping, Sequence
 from datetime import timedelta
 from typing import Any, Protocol
 
+from dd_harness.conversation_storage import ProjectConversations as ProjectConversations
+from dd_harness.fact_storage import ProjectFacts as ProjectFacts
+from dd_harness.holding_storage import ProjectHoldings as ProjectHoldings
 from dd_harness.listing import Page, Readable
 from dd_harness.progress import ENTRY_BY_RESEARCHER, EntrySource
+from dd_harness.project_decision import Decision
 from dd_harness.project_effects import ProjectEffects
 from dd_harness.project_errors import TitleSource
 from dd_harness.project_log import ProjectLog as ProjectLog
 from dd_harness.project_log import ProjectSection as ProjectSection
-from dd_harness.projects.decisions import Decision
 from dd_harness.requirements import Requirements
 from dd_harness.sources import Sources
 from dd_sdk.contract.classes import ClassSchema
@@ -213,46 +212,6 @@ class ProjectLifecycle(ProjectRecord, Protocol):
 
     def summary(self, project_id: str) -> dict[str, Any]:
         """What a list of projects shows of one."""
-        ...
-
-
-class ProjectHoldings(ProjectRecord, Protocol):
-    """A project's file inventory and supporting documentation (`dd_harness.projects.holdings`)."""
-
-    def add_inventory(
-        self,
-        project_id: str,
-        inventory: Mapping[str, Any],
-        *,
-        acted_for: Principal,
-        caused_by: str,
-    ) -> str:
-        """Add a `FileInventory`; returns its digest."""
-        ...
-
-    def inventory(self, project_id: str) -> dict[str, Any] | None:
-        """The inventory added last, or None."""
-        ...
-
-    def add_documentation(
-        self,
-        project_id: str,
-        name: str,
-        media_type: str,
-        text: str,
-        *,
-        acted_for: Principal,
-        caused_by: str,
-    ) -> str:
-        """Add a supporting document's text; returns the SHA-256 of its UTF-8 text."""
-        ...
-
-    def documentation(self, project_id: str) -> list[dict[str, Any]]:
-        """Each document the project holds, without its text, as a `DocumentationSummary`."""
-        ...
-
-    def documentation_text(self, project_id: str, digest: str) -> str | None:
-        """The text of the project's document with this digest, or None."""
         ...
 
 
@@ -452,11 +411,13 @@ class ProjectDeposits(ProjectRecord, Protocol):
 
 class ProjectStorage(
     ProjectLifecycle,
+    ProjectConversations,
     ProjectHoldings,
     ProjectResearchers,
     ProjectRepository,
     ProjectProgress,
     ProjectDocuments,
+    ProjectFacts,
     ProjectDeposits,
     ProjectEffects,
     Protocol,
@@ -471,7 +432,7 @@ class ProjectStorage(
     1. A project's log is append-only: an event is never changed or removed, and events come
        back in the order they were appended.
     2. A change checked against the log (`edit`, `decide`, `answer`, `record_draft`, `rename`,
-       `restore`, and every change to a deleted project, which is refused)
+       `restore`, `decide_fact`, and every change to a deleted project, which is refused)
        reads the log, applies the project rules and appends its events in an exclusive section
        for that project: no other change to the project enters it. The file backend holds a
        lock per project; a database holds a lock on the project's row for one transaction.

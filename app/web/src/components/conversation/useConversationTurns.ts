@@ -3,6 +3,11 @@
  * (`?conversation=`) so that a reload or a link reopens it; the project's earlier conversations;
  * and sending a turn to the orchestrator (docs/specs/app.md, docs/specs/orchestration.md).
  *
+ * A turn is streamed (`useTurnStream`): its run is drawn live while the reply is awaited, and can
+ * be cancelled. A run that finished is shown as a turn, read back once the stream has closed; one
+ * that was cancelled, failed or was cut short stays in place with its own screen until the next
+ * message, beside whatever the server stored of it.
+ *
  * While a reply is awaited the message sits in the transcript; it comes back to the message box if
  * the send fails, so nothing typed or attached is lost, but not once the turn is stored, so that it
  * is never sent twice (#337). Each turn names the latest turn the page shows, and the server
@@ -13,20 +18,39 @@
 
 import { type RefObject, useEffect, useRef, useState } from "react";
 
-import { NoAnswer, TurnConflict, Unreachable, useConversationApi, type ConversationApi } from "../../conversation/api";
-import { type ReplyAnswers, replyQuestions } from "../../conversation/question";
-import type { Conversation, ConversationSummary, ConversationTurn } from "../../conversation/types";
-import { OUTCOME } from "../../manifest/wording";
+import {
+  TurnConflict,
+  Unreachable,
+  useConversationApi,
+  type ConversationApi,
+} from "../../conversation/api";
+import type { ReplyAnswers } from "../../conversation/question";
+import type { Conversation, ConversationSummary } from "../../conversation/types";
 import { useActiveProject } from "../../project/active";
 import { homePath, navigate } from "../../route";
-import { RunRefused, errorMessage } from "../../run/api";
+import { errorMessage } from "../../run/api";
+import type { RunState } from "../../run/reduce";
 import { useResource } from "../../useResource";
 import type { Carried } from "./useAttachments";
 import type { AwaitedDrafts } from "./useProjectDocuments";
+import { body, refusedInStream, replyAnnouncement, sendFailure } from "./turnMessages";
+import { useTurnStream } from "./useTurnStream";
+
+export { replyAnnouncement, sendFailure } from "./turnMessages";
 
 /** A message on its way, shown in the transcript until the reply arrives. */
 export interface Sent extends Carried {
   message: string;
+}
+
+/** The run of the turn being sent, or of the last one if it did not finish. */
+export interface LiveRun {
+  state: RunState;
+  cancelling: boolean;
+  /** Cancels the run while it is streaming. */
+  cancel(): void;
+  /** The server has stored the turn, so the transcript shows the message already. */
+  stored: boolean;
 }
 
 export interface TurnsOptions {
@@ -55,6 +79,8 @@ export interface Turns {
   past: ConversationSummary[];
   busy: boolean;
   sent: Sent | null;
+  /** The run of the message sent, while it is drawn; null once it is shown as a turn. */
+  live: LiveRun | null;
   /** The newest reply's announcement and the runs it made, to say what they drafted too. */
   awaitedDrafts: AwaitedDrafts | null;
   error: string | null;
@@ -64,65 +90,20 @@ export interface Turns {
   reopen(id: string): Promise<void>;
   /** A new conversation, with nothing in the message box. */
   reset(): void;
+  /** Drops a conversation just deleted from the list, and closes it if it is open. */
+  deleted(conversationId: string): void;
 }
 
 const NOTHING: Carried = { inventory: null, document: null };
 
-/** What the newest turn's reply says, as announced. */
-export function replyAnnouncement(last: ConversationTurn | undefined): string {
-  if (!last) return "";
-  const asks = replyQuestions(last.envelope);
-  const said = `New reply from ${last.agent_id}: ${OUTCOME[last.envelope.outcome.status].label}.`;
-  if (asks.length === 1) return `${said} It asks: ${asks[0]?.question_prompt}`;
-  if (asks.length > 1) return `${said} It asks you ${asks.length} questions, one at a time.`;
-  return said;
+/** A message with nothing typed and nothing attached. */
+function isEmpty(message: string, carried: Carried): boolean {
+  return !message && !carried.inventory && !carried.document;
 }
 
-/** Why a turn could not be sent, for one that was not stored. */
-export function sendFailure(e: unknown): string {
-  if (e instanceof NoAnswer) {
-    return (
-      `Data Director's server did not answer in time (it answered ${e.status}), so this ` +
-      "message may not have been sent, or may still be being answered. Your message is " +
-      "kept: check the conversation above, and send it again if no reply appears. " +
-      "Sending it again is safe, because a message that was received is not run twice."
-    );
-  }
-  if (e instanceof Unreachable) {
-    return (
-      "Data Director could not reach the server, so this message may not have been sent. " +
-      "Your message is kept: sending it again is safe, because a message that was " +
-      "received is not run twice."
-    );
-  }
-  if (e instanceof TurnConflict) {
-    return (
-      "This conversation has changed since you wrote this: another message was answered or " +
-      "is still being answered. Your message is kept. Check the conversation above, then " +
-      "send it again if it is still needed."
-    );
-  }
-  return e instanceof RunRefused
-    ? `${e.problem.title}: ${e.message}`
-    : `Data Director could not send this: ${errorMessage(e)}`;
-}
-
-/** Sends one turn, with the answer or the document only when there is one. */
-function sendTurn(
-  api: ConversationApi,
-  id: string,
-  agentId: string,
-  message: string,
-  follows: string | null,
-  carried: Carried,
-  answer: ReplyAnswers | null,
-): Promise<void> {
-  const inventory = carried.inventory?.document ?? null;
-  if (answer) return api.sendTurn(id, agentId, message, follows, inventory, undefined, answer);
-  if (carried.document) {
-    return api.sendTurn(id, agentId, message, follows, inventory, undefined, null, carried.document);
-  }
-  return api.sendTurn(id, agentId, message, follows, inventory);
+/** The latest turn the page shows, by its run's id; null before the first. */
+function latestTurn(conversation: Conversation | null): string | null {
+  return conversation?.turns[conversation.turns.length - 1]?.invocation_id ?? null;
 }
 
 /** Reads the conversation after a turn, once more if the first read gets no response. */
@@ -145,6 +126,9 @@ export function useConversationTurns(options: TurnsOptions): Turns {
   const [sent, setSent] = useState<Sent | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [awaitedDrafts, setAwaitedDrafts] = useState<AwaitedDrafts | null>(null);
+  const turn = useTurnStream();
+  // How many turns the conversation held when the message was sent.
+  const [sentAfter, setSentAfter] = useState(0);
   const pastRead = useResource("conversations", (_, signal) => api.list(signal));
   const past = pastRead.latest ?? [];
   const reloadPast = pastRead.reload;
@@ -201,6 +185,7 @@ export function useConversationTurns(options: TurnsOptions): Turns {
   // Switching project closes the conversation open in another.
   if (openProject !== undefined && openProject !== projectId) {
     if (urlConversation) setClosed({ id: urlConversation });
+    if (!busy) dropLive();
     setConversationId(null);
     setConversation(null);
     setOpenProject(undefined);
@@ -248,52 +233,86 @@ export function useConversationTurns(options: TurnsOptions): Turns {
     setError(sendFailure(e));
   }
 
-  async function deliver(message: string, carried: Carried, answer: ReplyAnswers | null) {
-    if (!orchestratorId || (!message && !carried.inventory && !carried.document) || busy) return;
-    // A typed message comes from the box, and goes back to it if the send fails.
-    const fromBox = answer === null;
+  /** The message moves into the transcript while the reply is awaited, and out of the box. */
+  function begin(sending: Sent, fromBox: boolean) {
     setBusy(true);
     setError(null);
     options.clearAttachError();
-    announce("Waiting for a reply.");
-    // The message and what it carries move into the transcript while the reply is awaited.
-    setSent({ message, ...carried });
+    turn.clear();
+    setSent(sending);
+    setSentAfter(conversation?.turns.length ?? 0);
     if (fromBox) {
       setText("");
       options.restore(NOTHING);
     }
+  }
+
+  /** The run has ended and the conversation has been read again. A finished run is shown as a
+   * turn; any other keeps its own screen, beside what the server stored. */
+  function shown(ended: RunState, updated: Conversation) {
+    if (ended.phase === "finished") {
+      turn.clear();
+      replied(updated);
+      return;
+    }
+    setConversation(updated);
+    reloadPast();
+    reloadProjects();
+  }
+
+  /** The turn ran, but the conversation could not be read again to show it. */
+  function notShown(e: unknown) {
+    reloadPast();
+    reloadProjects();
+    setError(
+      "Your message was sent and answered, but Data Director could not show the reply " +
+        `(${errorMessage(e)}). Open this conversation from Conversations to see it.`,
+    );
+  }
+
+  async function deliver(message: string, carried: Carried, answer: ReplyAnswers | null) {
+    if (!orchestratorId || isEmpty(message, carried) || busy) return;
+    // A typed message comes from the box, and goes back to it if the send fails.
+    const fromBox = answer === null;
+    begin({ message, ...carried }, fromBox);
     let id = conversationId;
-    let stored = false;
+    let ended: RunState | null = null;
     // The latest turn this page shows: the server refuses the turn if the conversation has
     // moved on since, so a message sent again after a dropped connection never runs twice.
-    const follows = conversation?.turns[conversation.turns.length - 1]?.invocation_id ?? null;
+    const follows = latestTurn(conversation);
     try {
       id ??= await start();
       setConversationId(id);
-      await sendTurn(api, id, orchestratorId, message, follows, carried, answer);
-      // The turn is stored: from here a failure is in showing the reply, not in sending it, so
-      // the message must not come back to the box to be sent twice (#337).
-      stored = true;
-      replied(await readReply(api, id));
+      const run = await turn.stream(id, body(orchestratorId, message, follows, carried, answer));
+      if (refusedInStream(run)) throw new Error(run.error ?? "the turn was refused");
+      // The turn has run: from here a failure is in showing the reply, not in sending it, so the
+      // message must not come back to the box to be sent twice (#337).
+      ended = run;
+      shown(run, await readReply(api, id));
     } catch (e) {
-      if (stored) {
-        reloadPast();
-        reloadProjects();
-        setError(
-          "Your message was sent and answered, but Data Director could not show the reply " +
-            `(${errorMessage(e)}). Open this conversation from Conversations to see it.`,
-        );
-      } else {
+      if (ended) notShown(e);
+      else {
+        turn.clear();
         notSent(e, id, fromBox ? { message, ...carried } : null);
       }
     } finally {
-      setSent(null);
+      // A run that did not finish keeps its screen, whose heading has the focus.
+      if (ended?.phase === "finished" || ended === null) {
+        setSent(null);
+        box.current?.focus();
+      }
       setBusy(false);
-      box.current?.focus();
     }
   }
 
+  /** Lets the last message's run go, as when another conversation is shown. */
+  function dropLive() {
+    setSent(null);
+    turn.clear();
+  }
+
   async function reopen(id: string) {
+    dropLive();
     try {
       open(id, await api.get(id));
       navigate(homePath({ conversation: id }));
@@ -304,6 +323,7 @@ export function useConversationTurns(options: TurnsOptions): Turns {
   }
 
   function reset() {
+    dropLive();
     setConversationId(null);
     setConversation(null);
     setOpenProject(undefined);
@@ -316,6 +336,11 @@ export function useConversationTurns(options: TurnsOptions): Turns {
     box.current?.focus();
   }
 
+  function deleted(id: string) {
+    if (id === conversationId) reset();
+    reloadPast();
+  }
+
   const turnCount = conversation?.turns.length ?? 0;
   return {
     conversation,
@@ -325,11 +350,18 @@ export function useConversationTurns(options: TurnsOptions): Turns {
     past,
     busy,
     sent,
+    live: turn.run && {
+      state: turn.run,
+      cancelling: turn.cancelling,
+      cancel: turn.cancel,
+      stored: turnCount > sentAfter,
+    },
     awaitedDrafts,
     error,
     setError,
     deliver,
     reopen,
     reset,
+    deleted,
   };
 }

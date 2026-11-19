@@ -8,15 +8,15 @@ import {
   FeedbackApiContext,
   describeBuild,
 } from "../../feedback/api";
+import { about } from "../../test/api";
 import { FeedbackPage } from "./FeedbackPage";
 
-const ABOUT: About = {
+const ABOUT: About = about({
   app_version: "0.3.0-alpha.1",
   harness_version: "0.1.0",
   commit: "abcdef0123456789",
   feedback_enabled: true,
-  privacy_notice_url: null,
-};
+});
 
 function fakeApi(overrides: Partial<FeedbackApi> = {}): FeedbackApi {
   return {

@@ -2,9 +2,10 @@
  * Revising the inventory a project holds (docs/specs/projects.md): a button that opens the
  * inventory editor on it, and saves the result as the project's new inventory. The researcher may
  * also update it with a new scan: of the folder it was made from, of one of its folders, or of a
- * folder it does not have yet, which is added beside the others. Only the folder scanned is
- * replaced (`withPart`); what they said before is carried by path (`carryOver`), and they see what
- * the scan changed. Saving adds a whole new inventory; the earlier one stays in the project's log,
+ * folder it does not have yet, which is added beside the others. The scan is made here, where the
+ * deployment serves the browser scanner (DescribeFolder.tsx), or is the file `dd-inventory` wrote.
+ * Only the folder scanned is replaced (`withPart`); what they said before is carried by path
+ * (`carryOver`), and they see what the scan changed. Saving adds a whole new inventory; the earlier one stays in the project's log,
  * and the store records which one it revises.
  */
 
@@ -29,6 +30,7 @@ import { useProjectApi, type SavedInventory } from "../../project/api";
 import { Button } from "../ui/Button";
 import { ModalDialog } from "../ui/Dialog";
 import { startHistory, type EditHistory } from "./history";
+import { DescribeFolder, useScannerAvailable } from "./DescribeFolder";
 import { InventoryEditor, type Rescan } from "./InventoryEditor";
 
 /**
@@ -228,8 +230,9 @@ const NEW = "\u0000new";
 const WHOLE = "\u0000whole";
 
 /**
- * Choosing which folder a new scan is of, then the scan. The file can be chosen once the names
- * a new folder needs are given.
+ * Choosing which folder a new scan is of, then the scan: a folder described in this browser, or
+ * the file `dd-inventory` wrote. Either can be chosen once the names a new folder needs are given.
+ * While the browser describes a folder, which folder it is a scan of cannot change.
  */
 function ScanChooser({
   stored,
@@ -251,15 +254,23 @@ function ScanChooser({
         : { kind: "folder", folder: choice };
   const problem = choice === NEW && (folder || existing) ? targetProblem(stored, target) : null;
   const ready = targetProblem(stored, target) === null;
+  const [scanning, setScanning] = useState(false);
+  const browserScan = useScannerAvailable();
   return (
     <fieldset className="field">
       <legend>Update with a new scan</legend>
       <p className="hint muted" id={`${id}-hint`}>
-        The file <code>dd-inventory</code> wrote. Only the folder you choose is replaced; what you
-        said about its files is carried over, and the other folders stay as they are.
+        Describe the folder in this browser, or choose the file <code>dd-inventory</code> wrote.
+        Only the folder you choose is replaced; what you said about its files is carried over, and
+        the other folders stay as they are.
       </p>
       <label htmlFor={`${id}-folder`}>Scan of</label>
-      <select id={`${id}-folder`} value={choice} onChange={(e) => setChoice(e.target.value)}>
+      <select
+        id={`${id}-folder`}
+        value={choice}
+        disabled={scanning}
+        onChange={(e) => setChoice(e.target.value)}
+      >
         {folders.length === 0 && <option value={WHOLE}>The folder the inventory was made from</option>}
         {folders.map((f) => (
           <option key={f} value={f}>
@@ -271,7 +282,13 @@ function ScanChooser({
       {choice === NEW && (
         <>
           <label htmlFor={`${id}-new`}>Name of the new folder</label>
-          <input id={`${id}-new`} type="text" value={folder} onChange={(e) => setFolder(e.target.value)} />
+          <input
+            id={`${id}-new`}
+            type="text"
+            value={folder}
+            disabled={scanning}
+            onChange={(e) => setFolder(e.target.value)}
+          />
           {folders.length === 0 && (
             <>
               <label htmlFor={`${id}-existing`}>Name for the folder the inventory already has</label>
@@ -283,6 +300,7 @@ function ScanChooser({
                 type="text"
                 aria-describedby={`${id}-existing-hint`}
                 value={existing}
+                disabled={scanning}
                 onChange={(e) => setExisting(e.target.value)}
               />
             </>
@@ -290,13 +308,21 @@ function ScanChooser({
           {problem && <p className="hint">{problem}</p>}
         </>
       )}
+      {browserScan && (
+        <DescribeFolder
+          purpose="update"
+          isDisabled={!ready}
+          onScanning={setScanning}
+          onDescribed={(file) => onScan(file, target)}
+        />
+      )}
       <label htmlFor={`${id}-file`}>New scan</label>
       <input
         id={`${id}-file`}
         type="file"
         accept=".json,application/json"
         aria-describedby={`${id}-hint`}
-        disabled={!ready}
+        disabled={!ready || scanning}
         onChange={(e) => {
           const file = e.currentTarget.files?.[0];
           if (file) onScan(file, target);

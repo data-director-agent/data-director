@@ -132,13 +132,40 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     `app/web/fixtures/inventory-left-out.json`, `app/tests/test_app.py`). The checked inventory
     shows as a chip, never as its text. Beside the attach button, **Make an inventory** opens a
     dialog for a researcher who has none: one sentence on what an inventory is and that the data
-    stay on their computer, a tab per operating system (the browser's own selected) with the
+    stay on their computer, then two routes as tabs, **In this browser** and **With the command**.
+    Where the deployment serves the browser scanner's bundle at `inventory-bundle/`, the dialog
+    opens on the first, **Describe a folder in this browser**
+    (`components/inventory/DescribeFolder.tsx`, `src/scan/`), under which a **Use the command
+    instead** button selects the second; where it does not, the command is the only route and
+    shows without tabs, and while the dialog is finding out it shows neither. The browser tab
+    stays mounted (inert) while the other is shown, so a scan goes on. On it, the researcher chooses a folder
+    (`showDirectoryPicker` where the browser has it, else `<input webkitdirectory>`; dropping one
+    is a shortcut), and `dd-inventory` describes it under Pyodide in a Web Worker with no network
+    (`@data-director/inventory`, Browser scanner). Each stage is announced once and the files are
+    counted on a progress bar; Cancel ends the worker, as does closing the dialog. A folder
+    holding a file of 4 GB or more is described only after advice that the command suits it
+    better, since the browser's memory grows on files that large and the page can be killed
+    when it runs short (`LargeFileNotice.tsx`; measurements in `inventory/browser/README.md`). The inventory
+    it makes is handed on as `<folder>-inventory.json`, so it goes through the check above
+    unchanged. The section credits the PRONOM signatures as their licence asks and links to the
+    bundle's `NOTICES.md`. The second route, the backup, is the command, for data on a server or a cluster or
+    a very large dataset: a tab per operating system (the browser's own selected) with the
     commands that install uv and run `dd-inventory`, each with a copy button, and at the end the
-    file picker, whose file is attached as if chosen with the button. Its text is
+    file picker, whose file is attached as if chosen with the button. The command's text is
     `@data-director/inventory`'s `making.json`, which the user guide's *Making an inventory* page
     renders too (`docs/hooks_inventory.py`), so the two cannot drift; the dialog names no agent and
-    holds no policy. A browser scanner will be its first choice (TODO(#367))
-    (`app/web/src/components/inventory/MakeInventoryDialog.test.tsx`). The
+    holds no policy (`MakeInventoryDialog.test.tsx`, `DescribeFolder.test.tsx`, and
+    `app/web/e2e/scan.spec.ts`, which scans a folder holding a canary and checks that no request
+    carries it). The release image and the VM deploy build the bundle from the same commit and serve
+    it (`docker/release.Dockerfile`, `deploy/deploy.sh`), and their smoke test checks it is served
+    (`scripts/smoke_image.py`). An app on the researcher's own machine whose operator named
+    folders it may read (`DD_INVENTORY_FOLDERS`, [Projects](projects.md)) begins the dialog with
+    **Describe a folder on this computer** (`components/inventory/DescribeServerFolder.tsx`,
+    `src/scan/serverFolders.ts`), shown where `GET /api/about` says `server_folders`: the
+    researcher opens a listed folder and its subfolders by name (`GET /api/folders`), and
+    `POST /api/folders/inventory` describes the one chosen with `dd-inventory` and answers the
+    inventory, which is handed on as `<folder>-inventory.json` to the same check and stored by
+    nothing else (`DescribeServerFolder.test.tsx`, `app/tests/test_folder_scan.py`). The
     transcript shows the chip on the turn where the project's inventory changed, read from the
     `project_inventory` the conductor gave that turn (`app/tests/test_app.py`,
     `app/web/src/components/conversation/ConversationHome.test.tsx`).
@@ -151,8 +178,10 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     A chip whose whole inventory the page can read, the one attached and the one the project holds
     now (`GET /api/projects/{id}/inventory`), has a **View inventory** button. It opens a dialog
     that says this is everything Data Director keeps and agents are shown, then what the inventory
-    amounts to and leaves out, its formats, its files as folders with a search, and the columns of
-    its tables. A chip for an inventory the project has since replaced has no button, because
+    amounts to and leaves out, where possible personal data was found (by file, with no value, and
+    saying whether nothing was found or the inventory was never checked; such files are marked and
+    counted in their closed folders, `app/web/src/components/inventory/PersonalData.test.tsx`), its
+    formats, its files as folders with a search, and the columns of its tables. A chip for an inventory the project has since replaced has no button, because
     only the latest is served. The facts come from `@data-director/inventory`
     ([System and boundaries](system.md)); the dialog only lays them out. Folders are drawn only
     while open and a search draws at most 200 matches, so an inventory of thousands of files
@@ -162,7 +191,11 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     project holds. Under **Update with a new scan**, the researcher chooses which folder a new
     scan is of: the folder the inventory was made from, one of its folders, or a folder it does
     not have yet, which is added beside the others (naming, the first time, the folder it already
-    has). Only that folder is replaced (`withPart`); what the researcher stated is carried by
+    has). The scan is a folder described there in the browser, where the deployment serves the
+    scanner (**Describe a folder in this browser**, as in Make an inventory), or the file
+    `dd-inventory` wrote; while the browser describes it, which folder it is of cannot change
+    (`app/web/src/components/inventory/DescribeFolder.test.tsx`, `app/web/e2e/scan.spec.ts`).
+    Only that folder is replaced (`withPart`); what the researcher stated is carried by
     path, with what the scan added, changed and removed, and the files they had described that
     it no longer lists ([Projects](projects.md)). **Save as the project's inventory** sends
     the result to `POST /api/projects/{id}/inventory`, which adds it as the project's latest; the
@@ -174,13 +207,39 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     may be blank and the server supplies a sentence saying a document was attached; a turn may
     carry an inventory and a document together, and if the project refuses either, the turn is
     refused, nothing runs and neither is kept. The shell's one **Attach a file** button, and a
-    drop on the message form, take a `.json` file as an inventory and a `.txt` or `.md` file as a
-    document. A document is read in the browser, refused there if it is empty or over 256 KB,
+    drop on the message form, take a `.json` file as an inventory and a `.txt`, `.md`, `.docx`
+    or `.pdf` file as a document, unless the agent directory says the profile refuses attached documents
+    (`attached_documents`, [Projects](projects.md)): then they take only an inventory, say why a
+    document is not taken, and the server refuses a turn that carries one. They take one file at
+    a time: of several chosen or dropped together, the first is opened and the others are named
+    as not attached, on the form and in the polite live region; a document checked while another
+    is attached replaces it, which its dialog says before the researcher attaches it and the live
+    region says after, and so does an inventory (#1170,
+    `app/web/src/components/conversation/useAttachments.test.tsx`). A Word document or PDF
+    is refused in the browser if it is over 1 MB, and otherwise sent to
+    `POST /api/documentation/extract`, which reads its text inside the deployment and keeps
+    nothing; the dialog then shows that text and says where it was read from, and the turn sends
+    the file, not the text, which the server reads again ([Projects](projects.md)).
+    `GET /api/projects/{id}/documentation/{digest}?original` serves the file a document was read
+    from. A text or Markdown document is read in the browser, refused there if it is empty or over 256 KB,
     and first opened to be checked: a dialog shows its name, size and text, says that it will be
-    stored in the project, that agents are told its name, type and size but not its text, and
+    stored in the project, that the Documentation Editor reads its text to suggest answers and
+    other agents are told only its name, type and size ([Projects](projects.md)), and
     that it must be about the data, never the data themselves nor anything that identifies a
-    person. Nothing is attached until the researcher presses **Attach this document**; closing
-    the dialog any other way discards it. The checked document shows as a chip with its name and
+    person. The dialog also shows what `POST /api/documentation/check` finds in the text:
+    possible personal data, by the inventory command's detector, and secrets, by detect-secrets'
+    named plugins, each by kind and never by value, in or out of a project, keeping nothing.
+    Where something is found, the button reads **Attach anyway** and is enabled only once the
+    researcher ticks that they have checked the document; the turn's `documentation` then names
+    the kinds in `confirmed`. The server checks the text again: a document whose findings are
+    not all confirmed is refused with `409` `documentation-held`, listing the kinds, nothing runs
+    and nothing is kept, and the log names the document and the kinds only. A Word document's or
+    PDF's text is checked as plain text, in the dialog and again by the server on the text it
+    reads from the file, never on text the client sends (#473,
+    `app/tests/test_documentation_hold.py`,
+    `app/web/src/components/conversation/DocumentReviewDialog.test.tsx`). Nothing is attached
+    until the researcher presses **Attach this document** or **Attach anyway**; closing the
+    dialog any other way discards it. The checked document shows as a chip with its name and
     size and a button to remove it, never as its text, and so does each document a turn's
     `project_documentation` gained on the transcript. `GET /api/projects/{id}/documentation`
     lists a project's documents and `GET /api/projects/{id}/documentation/{digest}` serves one's
@@ -191,18 +250,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     the banner, shows the name and iD the identity provider gave at sign-in, how the person is
     known and when the session ends, and says that nothing more is kept but the facts a person
     chooses, in a project, from their public record. It makes no request to the provider and the
-    app asks for no wider scope (`app/web/src/components/profile/ProfilePage.test.tsx`). Where the
-    deployment offers it, the page also holds the person's own AI account, which it reads from and
-    sends to the model broker alone ([A person's own model account](model-accounts.md),
-    `app/web/src/components/profile/ModelAccount.test.tsx`, `app/web/e2e/profile.spec.ts`).
-    Last comes **Preferences**: the colour scheme (light, dark, or matching the device), text
-    size, spacing, animation (matching the device, reduced or shown), the style dates and numbers
-    are written in and the 12- or 24-hour clock, and whether a visit returns to the project used
-    last or starts with none chosen. Each applies at once and is kept in that browser only, one
-    `localStorage` key each, and none reaches the server (`app/web/src/preferences.ts`,
-    `app/web/src/components/profile/Preferences.test.tsx`, `app/web/e2e/profile.spec.ts`). Every
-    date, time and number the app shows is written through `app/web/src/format.ts`, so that it
-    follows them.
+    app asks for no wider scope (`app/web/src/components/profile/ProfilePage.test.tsx`). It points
+    to the Settings page (rule 30) for the person's own AI account and preferences.
 21. **A reply's questions are answered one at a time in a form, and may be ignored.** A reply's
     `reply_questions` are drawn beneath the reply. On the latest turn each question is a fieldset
     whose legend is the question and whose description is its help: a choice question as radio
@@ -363,22 +412,99 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     while there is nothing in it ([Projects](projects.md), invariants 22 to 25;
     `app/web/src/components/project/DeleteProject.tsx`, `ProjectsPage.test.tsx`,
     `app/tests/test_project_deletion.py`).
+29. **A proposed fact becomes a fact only when a person decides it on the project's page.** The
+    project's page lists **Project facts** beside the researchers. It shows what check agents
+    proposed, each with what it would decide in one sentence, why it was proposed and which agent
+    proposed it, and offers **Confirm it as proposed**, **Change it, then record my version** and
+    **Reject it**, with an optional reason that no agent is given. Under **Decided** each fact that
+    stands can be changed or removed, and **State a fact nobody proposed** records one of the
+    person's own, named by the value that names it. After each decision the panel shows what the
+    server read back. A proposal that has moved on is read again with a warning, and a member
+    deciding whether sensitive data is published, or the licence, is told only an owner may
+    (`app/web/src/components/project/FactsPanel.test.tsx`, `app/tests/test_project_facts.py`,
+    [Projects](projects.md), invariant 28).
+30. **A person's own settings are on the Settings page.** `/settings`, reached from the cog
+    labelled **Settings** in the banner on every page and from the profile page, holds what a
+    person sets for themselves, in tabs (**AI account**, **Appearance**, **Dates and times** and
+    **Starting up**); what the deployment allows for everyone stays on the Policy page.
+    Where the deployment offers it, the first tab holds the person's own AI account, which it reads from and
+    sends to the model broker alone ([A person's own model account](model-accounts.md),
+    `app/web/src/components/settings/ModelAccount.test.tsx`, `app/web/e2e/settings.spec.ts`).
+    The other tabs are the **Preferences**: the colour scheme (light, dark, or matching the device), text
+    size, spacing, animation (matching the device, reduced or shown), the style dates and numbers
+    are written in and the 12- or 24-hour clock, and whether a visit returns to the project used
+    last or starts with none chosen. Each applies at once and is kept in that browser only, one
+    `localStorage` key each, and none reaches the server (`app/web/src/preferences.ts`,
+    `app/web/src/components/settings/Preferences.test.tsx`,
+    `app/web/src/components/settings/SettingsPage.test.tsx`, `app/web/e2e/settings.spec.ts`).
+    Every date, time and number the app shows is written through `app/web/src/format.ts`, so that
+    it follows them.
+31. **A person deletes a conversation from the list beside it, and restores it from the
+    project's page.** Each conversation in the workspace's list has a delete button named by its
+    title, which opens a dialog saying that the conversation leaves every list for everyone
+    working on its project, that nothing is erased, and until which day it can be restored, from
+    the project's `restore_days`; **Delete conversation** deletes it
+    (`DELETE /api/conversations/{id}`) and, if it was open, the workspace starts afresh. The
+    project's page lists the project's deleted conversations under **Recently deleted**, beneath
+    its conversations (`GET /api/conversations/deleted`), with when each was deleted, until when
+    it can be restored, and **Restore** (`POST /api/conversations/{id}/restore`); the section is
+    not shown while there is nothing in it. Only whoever started the conversation, or the
+    project's owner, may do either ([Projects](projects.md), invariants 29 to 31;
+    `app/web/src/components/conversation/DeleteConversation.tsx`,
+    `app/web/src/components/project/DeletedConversations.tsx`,
+    `app/tests/test_conversation_deletion.py`).
 
 ## Boundaries and contracts
 
 - **Depends on** the harness (`dd_harness`) and the SDK only. Workspace-level dependency rules
   are in [System and boundaries](system.md).
-- **Web source layout and import rules.** In `app/web/src`, the domain folders (`run`,
-  `manifest`, `conversation`, `flow`, `session`, `project`, `feedback`, `policy`) hold types and API
-  clients, and reading an inventory is `@data-director/inventory`'s (`inventory/browser/`);
+- **Turn locks.** A conversation's turn holds the conversation's lock from reading its history
+  until the turn is stored, and a turn that finds it held is refused with `TurnConflictError`
+  before anything runs (orchestration invariant 4). The lock is the run store's
+  (`Governance.turn_locks`, opened by `dd_harness.settings.conversation_locks` beside
+  `DD_RUNS_DIR`: a file lock on files, an advisory lock on PostgreSQL;
+  [Storage](storage.md), "Turn locks"), not the app process's, so several app processes or
+  replicas over one store, as #520 allows, run one turn of a conversation at a time
+  (`app/tests/test_concurrent_turns.py`). This is option (b) of #983. A conversation started in an app
+  that keeps no projects is remembered by that process alone (`Governance._started`) until its
+  first turn is stored; a deployment keeps projects, where a conversation is recorded in its
+  project as it starts.
+- **API types.** The shell's types for the server's responses are generated. Each route answers
+  through a Pydantic `ResponseBody` model declared beside it (`app/src/dd_app/responses.py`), and
+  `python -m dd_app.responses` prints the JSON Schema of every such model. In `app/web`,
+  `npm run gen:api` turns that schema into `src/api/generated/responses.ts` with
+  json-schema-to-typescript (`scripts/gen-api-types.mjs`); run it after changing a response model,
+  and commit the result. The file is checked in, and the "mypy and generated schemas" CI job fails
+  when it is not what the models generate. A key the server sometimes leaves out is optional
+  (`x?: T`); one it always sends, perhaps as null, is required. An object whose shape the core
+  contract defines (an envelope, a `Question`, a `Principal`) is named in
+  `dd_app.contract_shapes` by its TypeScript type, which the generated file imports from where the
+  shell already defines it: `@data-director/agent-view`, `src/api/contract.ts` or the domain
+  folder that reads it. The domain folders' `api.ts` and `types.ts` re-export the generated types,
+  and keep by hand only request bodies, the forms the shell converts a response into, and what the
+  app's models do not describe. The tests check each golden fixture in `app/web/fixtures`, which
+  `check_fixture` rewrites from real responses, against its route's model; and
+  `src/fixtures.typecheck.ts`, which `npm run typecheck` compiles, checks the fixtures against
+  what the generated types leave to hand-written ones (the contract shapes, the contract classes
+  the app sends as they are, and the model broker's account). A field renamed in a response model
+  therefore fails `npm run typecheck`, once the types are regenerated, until the shell is updated.
+  The generated file is left out of the size and duplication checks, as other generated code is,
+  and knip takes it as an entry, so a type the shell does not read yet is not reported unused.
+- **Web source layout and import rules.** In `app/web/src`, the domain folders (`api`, `run`,
+  `manifest`, `conversation`, `flow`, `session`, `project`, `feedback`, `policy`,
+  `model-account`, `scan`) hold types and API clients, `api` the generated API types and the
+  contract shapes they name, `scan` the browser scanner's client, and
+  reading an inventory is `@data-director/inventory`'s (`inventory/browser/`);
   `components/` holds the interface, one folder per feature, with the shared kit in
-  `components/ui/`. Three rules are checked: no file depends on itself through other files
+  `components/ui/`. Four rules are checked: no file depends on itself through other files
   (dependency-cruiser, `.dependency-cruiser.cjs`, in `npm run lint`); the kit imports no feature
-  component; and a domain folder imports no component (eslint-plugin-boundaries, in
-  `eslint.config.js`, with a test in `src/architecture.test.ts` that planted violations are
-  reported, because the plugin does nothing without its TypeScript resolver). Rules between
-  feature folders are not yet set, as several features import each other today;
-  TODO(#497) decide them and add them to the dependency-cruiser config.
+  component; a domain folder imports no component; and a feature folder imports another only
+  through an allow-list, `FEATURE_IMPORTS`, each entry with its reason (eslint-plugin-boundaries,
+  in `eslint.config.js`, with a test in `src/architecture.test.ts` that planted violations are
+  reported, because the plugin does nothing without its TypeScript resolver). The allow-list
+  started as the imports between features in November 2026. Three pairs import each other
+  (`conversation` and `workspace`, `agent` and `capabilities`, `journey` and `project`);
+  TODO(#494) untangle the first two.
 - **Conversations and delegation** are specified in [Orchestration](orchestration.md); the app
   supplies the conductor's callback and the conversation API over it. Which agent is the
   orchestrator is a profile key ([Policy and identity](policy-and-identity.md)). A person's
@@ -415,15 +541,42 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   stream is open (`202`), and answers `404` for any other; the stream ends with a cancelled
   `RUN_FINISHED` and the run is stored as `run-cancelled` ([Transport and tracing](transport.md),
   Cancelling). `POST /api/conversations/{id}/turns`, which answers when the turn has ended, is
-  kept beside it, and the shell still calls it until the run view is drawn from the stream, with
-  Cancel and the activity log, TODO(#949).
+  kept beside it for scripting and tests; the browser does not call it.
 - **The shell reads a run's stream through `@ag-ui/client`**, one way for a live run and a recorded
   one: an `HttpAgent` posts the turn to its stream route, and a `CassetteAgent` replays a cassette
   from `app/web/cassettes`, all at once or paced (`run/transport.ts`, `run/cassette.ts`). Tests and
   fixtures provide their own through a React context, as they do for the API. The shell reads the
   raw events and the run reducer checks them, keeping an unrecognised or malformed event as such:
   `runAgent`'s own checks would fail a cancelled run, whose stopped stage the harness leaves open,
-  TODO(#1007).
+  TODO(#1007). A refusal before the stream opens is raised as the JSON route's would be (a
+  conflict, a gateway error, no response), so the page says why in the same words; a turn the
+  stream refuses with `RUN_ERROR` before `RUN_STARTED` ran nothing, and its message goes back to
+  the message box as any refused turn's does.
+- **A turn's run is drawn live** in the transcript, below the message sent, from the reducer's
+  state and nothing else (`components/run/LiveRun.tsx`): the plan's stages, each with a word for
+  its state, a finished check told as passed or failed by its report, and **Cancel the run**
+  while it runs. Cancel asks the server to cancel the run and reads on until the stream says it
+  was cancelled. A run that finished is then shown as a turn, read back from the server, and
+  focus returns to the message box. One that was cancelled, failed after it started, or was
+  interrupted (the stream closed before the run ended, so no finish is invented) keeps its place
+  with a screen of its own until the next message, and focus moves to that screen's heading; the
+  conversation is read back beside it, and once the server has stored the turn the message is not
+  shown twice. Events of a type or `CUSTOM` name the shell does not know are counted in one
+  collapsed "Unrecognised events (n)" group; a malformed event is shown as an error, and the run
+  carries on. A stored run (a delegated child's card, or `?run=`) shows its outcome only: a
+  child has no stages of its own.
+- **A turn that failed says so in plain words** (`components/conversation/Transcript.tsx`): that
+  Data Director could not answer, that nothing was changed and what the message attached is kept
+  in the project, and to try again or tell whoever runs Data Director. The agent's own statement,
+  which may name an exception, is kept behind a closed disclosure for operators, never shown as
+  the reply. The latest turn, if it failed, offers **Try again**, which sends its message again
+  as a new turn (`app/web/src/components/conversation/Transcript.test.tsx`).
+- **The activity log** (`components/workspace/ActivityLog.tsx`) lists each step of each run this
+  tab has streamed, as it happens, newest run first, from the same reducer state
+  (`run/activity.tsx`): steps, checks' reports, tool calls and delegated children, each child
+  linked to its record. The server keeps a run's record, not its events, so the log holds only
+  what this tab has seen since it was opened, and says so. It is not a live region: the run view
+  says the run's progress once, through the announcer.
 - **Outcomes, evidence and the checks' reports** are rendered as the [Contract](contract.md) and
   [Evidence and grounding](grounding.md) define them. A drafted document in a run's result is
   shown as a document: rendered when its media type is `text/markdown`, tables included, and
@@ -628,6 +781,11 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
 
 ## Rejected alternatives
 
+- **Turn locks in the app's memory, with one app process the only supported deployment** (option
+  (a) of #983). It is the smallest change, but it fails silently: a second process over the same
+  store, started by hand or by scaling a Compose service, lets two turns of one conversation
+  interleave and fork it, and the app cannot reliably tell that another process shares its store.
+
 - **Gradio, or a chat around a model of the app's own.** The page was built around one agent and
   its tools; the app now has no model of its own and converses with the orchestrator.
 - **A UI schema or presentation hints from agents.** It would couple every agent to one shell's
@@ -684,9 +842,11 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   (`run/announce.ts`): each step is said once when it starts, a failed check when its report
   arrives, and the end; `RUN_ERROR`, a malformed event and an interrupted stream are assertive.
 - **Colour scheme.** Light by default whatever the system prefers; the person's choice of dark,
-  or of matching the device, is remembered in that browser (`shell.spec.ts`, `profile.spec.ts`).
+  or of matching the device, is remembered in that browser (`shell.spec.ts`, `settings.spec.ts`).
   Reduced motion follows the device unless the person's preferences say otherwise.
 - **Privacy.** No font or other asset is fetched from a third party; the typeface is self-hosted.
+  The browser scanner reads a chosen folder in the browser and sends only the inventory, after
+  the researcher has checked it; its bundle comes from the app's own origin.
   A problem report is public, and the page says so and shows what will be sent beside the form.
 - **Security.** The credential for filing reports is a secret the app holds, read from a
   credential file or, for a token, the environment. It is one of two, and configuring both stops
@@ -697,7 +857,12 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   The App itself should be granted Issues: read and write and nothing else, so even its key cannot
   do more. A **fine-grained personal access token** is the alternative; give it no scope beyond
   Issues on the one repository, and note that it belongs to a person and expires. Anyone who can
-  reach the app can file a public issue as the project's bot. A delegation grant is a bearer token, so the
+  reach the app can file a public issue as the project's bot. The browser scanner's worker script
+  is sent `default-src 'none'; script-src blob: 'wasm-unsafe-eval'; connect-src 'none'`
+  (`dd_app.worker_policy`, and the preview server in `app/web/vite.config.ts`), so it can neither
+  fetch nor send anything: the page hands it the bundle's bytes. Every file under
+  `/inventory-bundle/` is sent `Cache-Control: no-cache` (`dd_app.worker_policy`), so a browser
+  revalidates its copy and never pairs one release's lock with another's wheel. A delegation grant is a bearer token, so the
   app warns at start-up when it is not bound to a loopback address. TODO(#17): authenticate
   callers.
 
@@ -707,8 +872,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   answers `/api` from fixtures.
 - TODO(#244): whether the shell's tests feed `CONFORMANCE.md`; until then they carry no
   requirement marker and C6 rests on review.
-- TODO(#69): the client transport (#946), and the run view and activity log drawn from the
-  stream (#949), which says its progress through the announcer (`useRunAnnouncements`).
+- TODO(#69): keyboard, axe and reflow journeys for the live run view, with Cancel (#950).
   Streaming a reply's text is TODO(#159).
 - TODO(#72, #73): the review gate, and how the conversation docks once there is a working
   surface. A suspended child's card says it is waiting for review.

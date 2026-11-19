@@ -6,8 +6,8 @@ decides how sensitive data is treated and never suggests anonymisation (C2):
 `governance.sensitive-data-handle` is left to people.
 
 The keyword table (`keywords.yaml`) flags each field whose name contains one of its words. A
-reader (`reader.py`) may then add flags and questions: by default it adds none, and with
-`DD_ETHICS_READER=model` a model reads the names (`factory.py`). The merge is union only: every
+reader (`reader.py`) may then add flags and questions: by default a model reads the names, and
+with `DD_ETHICS_READER=template` it adds none (`factory.py`). The merge is union only: every
 keyword flag is kept, and a model may add a flag but never remove or re-categorise one, because a
 missed field is the costlier mistake. Each flag and question records how it came about
 (`derivation`). The adviser reads no data values and cites only its input, so its grounding mode
@@ -90,6 +90,7 @@ class EthicsAdviser:
         agent_id="advisor.ethics",
         version="0.1.0a1",
         title="Research Ethics Adviser",
+        icon="🧭",
         description=(
             "Flags fields whose names suggest personal or otherwise sensitive data, by keyword "
             "and, where one is configured, with a model that may add flags but never remove one. "
@@ -142,7 +143,7 @@ class EthicsAdviser:
         ]
         questions = [
             SensitivityQuestion(text=text, derivation=Derivation.TEMPLATE)
-            for text in self._questions(context, bool(flags))
+            for text in self._questions(context, flagged=bool(flags))
         ] + [
             SensitivityQuestion(text=text, derivation=Derivation.MODEL)
             for text in reading.questions
@@ -178,7 +179,7 @@ class EthicsAdviser:
             prompts=calls.prompts if calls is not None else {},
         )
 
-    def _questions(self, context: SensitivityContext, flagged: bool) -> list[str]:
+    def _questions(self, context: SensitivityContext, *, flagged: bool) -> list[str]:
         questions = []
         if context.involves_people or flagged:
             questions.append(PEOPLE_QUESTION)

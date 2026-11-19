@@ -1,5 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { FileInventory } from "@data-director/inventory";
 import { axe } from "jest-axe";
 
 import several from "../../../fixtures/agents-several.json";
@@ -12,6 +13,7 @@ import {
   type ConversationApi,
   ConversationApiContext,
   NoAnswer,
+  turnBody,
   Unreachable,
 } from "../../conversation/api";
 import type { Conversation } from "../../conversation/types";
@@ -36,8 +38,11 @@ import type { ProcessFlow, ProjectProgress } from "../../flow/types";
 import { type Directory, normalise } from "../../manifest/normalise";
 import type { RawAgentsResponse, RawManifestEntry } from "../../manifest/types";
 import runFixture from "../../../fixtures/run-succeeded.json";
+import { conversationSummary, projectProgress, savedInventory } from "../../test/api";
 import { type RunApi, RunApiContext, RunRefused } from "../../run/api";
 import type { Problem, RunResult } from "../../run/types";
+import { cassetteTransport, RunTransportContext, type RunTransport } from "../../run/transport";
+import { SUCCEEDED, turnTransport, type TurnSent } from "../../test/turns";
 import { AnnouncerProvider } from "../ui/Announcer";
 import { ConversationHome } from "./ConversationHome";
 
@@ -70,23 +75,32 @@ function withOrchestrator(assigned: string | null = "advise"): Directory {
   });
 }
 
-function fakeApi(overrides: Partial<ConversationApi> = {}): ConversationApi {
+/** The conversation endpoints, and the turns' stream, whose turns go to `sendTurn`. */
+type FakeApi = ConversationApi & { turns: RunTransport };
+
+function fakeApi({
+  sendTurn,
+  ...overrides
+}: Partial<ConversationApi> & { sendTurn?: TurnSent } = {}): FakeApi {
   return {
     create: () =>
       Promise.resolve({
         conversation_id: "c1",
         project_id: CONVERSATION.project_id ?? null,
       }),
-    sendTurn: () => Promise.resolve(),
     list: () => Promise.resolve([]),
     get: () => Promise.resolve(CONVERSATION),
+    remove: () => Promise.reject(new Error("nothing deleted in these tests")),
+    restore: () => Promise.resolve(),
+    deleted: () => Promise.resolve([]),
     ...overrides,
+    turns: turnTransport(sendTurn),
   };
 }
 
 function renderHome(
   directory: Directory,
-  api: ConversationApi,
+  api: FakeApi,
   flow: FlowApi = FLOW,
   project: ProjectApi = httpProjectApi,
 ) {
@@ -96,7 +110,9 @@ function renderHome(
         <ProjectApiContext.Provider value={project}>
           <ActiveProjectProvider>
             <ConversationApiContext.Provider value={api}>
-              <ConversationHome directory={directory} />
+              <RunTransportContext.Provider value={api.turns}>
+                <ConversationHome directory={directory} />
+              </RunTransportContext.Provider>
             </ConversationApiContext.Provider>
           </ActiveProjectProvider>
         </ProjectApiContext.Provider>
@@ -149,15 +165,17 @@ describe("ConversationHome", () => {
       const asked = QUESTION.turns[0]?.invocation_id;
       expect(sendTurn).toHaveBeenLastCalledWith(
         "c1",
-        "orchestrator.stub",
-        COLLECTED,
-        asked,
-        null,
-        undefined,
-        {
-          answer_to: asked,
+        turnBody(
+          "orchestrator.stub",
+          COLLECTED,
+          asked ?? null,
+          null,
+          {
+          answer_to: asked ?? "",
           given_answers: [{ answered_key: "entry", answer_values: ["2"] }],
         },
+          null,
+        ),
       );
       // Answered, the question is read-only with the choice marked in words, and the reply leads
       // on with a question of its own: what to do next (docs/specs/orchestration.md).
@@ -224,10 +242,14 @@ describe("ConversationHome", () => {
       await userEvent.click(screen.getByRole("button", { name: "Send" }));
       expect(sendTurn).toHaveBeenLastCalledWith(
         "c1",
-        "orchestrator.stub",
-        "ready to deposit",
-        QUESTION.turns[0]?.invocation_id,
-        null,
+        turnBody(
+          "orchestrator.stub",
+          "ready to deposit",
+          QUESTION.turns[0]?.invocation_id ?? null,
+          null,
+          null,
+          null,
+        ),
       );
     });
   });
@@ -295,12 +317,16 @@ describe("ConversationHome", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
     expect(sendTurn).toHaveBeenCalledWith(
-      "c1",
-      "orchestrator.model",
-      "hi",
-      null,
-      null,
-    );
+        "c1",
+        turnBody(
+          "orchestrator.model",
+          "hi",
+          null,
+          null,
+          null,
+          null,
+        ),
+      );
   });
 
   it("says when the profile does not permit the orchestrator", () => {
@@ -318,12 +344,16 @@ describe("ConversationHome", () => {
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
 
     expect(sendTurn).toHaveBeenCalledWith(
-      "c1",
-      "orchestrator.stub",
-      "hello world",
-      null,
-      null,
-    );
+        "c1",
+        turnBody(
+          "orchestrator.stub",
+          "hello world",
+          null,
+          null,
+          null,
+          null,
+        ),
+      );
     const transcript = await screen.findByRole("list", {
       name: "Conversation",
     });
@@ -359,12 +389,16 @@ describe("ConversationHome", () => {
     await userEvent.type(box, "hello");
     await userEvent.keyboard("{Control>}{Enter}{/Control}");
     expect(sendTurn).toHaveBeenCalledWith(
-      "c1",
-      "orchestrator.stub",
-      "hello",
-      null,
-      null,
-    );
+        "c1",
+        turnBody(
+          "orchestrator.stub",
+          "hello",
+          null,
+          null,
+          null,
+          null,
+        ),
+      );
   });
 
   describe("attaching a document", () => {
@@ -399,13 +433,12 @@ describe("ConversationHome", () => {
       await userEvent.click(screen.getByRole("button", { name: "Send" }));
       expect(sendTurn).toHaveBeenCalledWith(
         "c1",
-        "orchestrator.stub",
-        "",
-        null,
-        null,
-        undefined,
-        null,
-        expect.objectContaining({ name: "protocol.md", media_type: "text/markdown", text: PROTOCOL }),
+        expect.objectContaining({
+          agent_id: "orchestrator.stub",
+          message_text: "",
+          follows: null,
+          documentation: expect.objectContaining({ name: "protocol.md", media_type: "text/markdown", text: PROTOCOL }),
+        }),
       );
       await waitFor(() => expect(screen.queryByText(/Document: protocol.md/)).toBeNull());
     });
@@ -477,10 +510,14 @@ describe("ConversationHome", () => {
       await userEvent.click(screen.getByRole("button", { name: "Send" }));
       expect(sendTurn).toHaveBeenCalledWith(
         "c1",
-        "orchestrator.stub",
-        "",
-        null,
-        INVENTORY,
+        turnBody(
+          "orchestrator.stub",
+          "",
+          null,
+          INVENTORY as FileInventory,
+          null,
+          null,
+        ),
       );
       expect(
         screen.getByRole("textbox", { name: "What would you like to do?" }),
@@ -623,7 +660,8 @@ describe("ConversationHome", () => {
       expect(await screen.findByText(/Inventory: 1 file/)).toBeVisible();
 
       await userEvent.click(screen.getByRole("button", { name: "Send" }));
-      const sent: unknown = sendTurn.mock.calls[0]?.[4];
+      const body = sendTurn.mock.calls[0]?.[1] as Record<string, unknown>;
+      const sent: unknown = body.inventory;
       expect(sent).toEqual(leftOut.sent);
       const text = JSON.stringify(sent);
       for (const name of leftOut.left_out) expect(text).not.toContain(name);
@@ -698,7 +736,7 @@ describe("ConversationHome", () => {
 
   it("shows the message and that the orchestrator is working until the reply arrives", async () => {
     let reply: () => void = () => undefined;
-    const sendTurn = () => new Promise<void>((resolve) => (reply = resolve));
+    const sendTurn = () => new Promise<void>((resolve) => (reply = () => resolve()));
     renderHome(withOrchestrator(), fakeApi({ sendTurn }));
     await userEvent.type(screen.getByRole("textbox"), "hello world");
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
@@ -720,15 +758,13 @@ describe("ConversationHome", () => {
     localStorage.setItem("dd-project", projectId);
     const list = () =>
       Promise.resolve([
-        {
+        conversationSummary({
           conversation_id: "c9",
           agent_id: "orchestrator.stub",
           title: "Depositing a soil survey",
-          title_source: "model" as const,
           turns: 2,
-          started_at: "2026-01-01T09:30:00Z",
           project_id: projectId,
-        },
+        }),
       ]);
     renderHome(withOrchestrator(), fakeApi({ list }));
     await userEvent.click(
@@ -774,15 +810,13 @@ describe("ConversationHome", () => {
       localStorage.setItem("dd-project", projectId);
       const list = () =>
         Promise.resolve([
-          {
+          conversationSummary({
             conversation_id: "c9",
             agent_id: "orchestrator.stub",
             title: "Depositing a soil survey",
-            title_source: "model" as const,
             turns: 2,
-            started_at: "2026-01-01T09:30:00Z",
             project_id: projectId,
-          },
+          }),
         ]);
       renderHome(withOrchestrator(), fakeApi({ list }));
       await userEvent.click(await screen.findByRole("button", { name: /^Depositing a soil survey / }));
@@ -817,15 +851,7 @@ describe("ConversationHome", () => {
       conversation_id: string,
       title: string,
       project_id: string,
-    ) => ({
-      conversation_id,
-      project_id,
-      agent_id: "orchestrator.stub",
-      title,
-      title_source: "model" as const,
-      turns: 1,
-      started_at: "2026-01-01T09:30:00Z",
-    });
+    ) => conversationSummary({ conversation_id, project_id, agent_id: "orchestrator.stub", title });
     const list = () =>
       Promise.resolve([
         summary("c9", "Soil survey", LOGGERS.project_id),
@@ -888,10 +914,14 @@ describe("ConversationHome", () => {
       expect(create).toHaveBeenCalledWith(null);
       expect(sendTurn).toHaveBeenCalledWith(
         "c1",
-        "orchestrator.stub",
-        "hi",
-        null,
-        null,
+        turnBody(
+          "orchestrator.stub",
+          "hi",
+          null,
+          null,
+          null,
+          null,
+        ),
       );
       // The conversation stays open in the project it started.
       expect(
@@ -1062,12 +1092,12 @@ describe("ConversationHome", () => {
     it("links to the conversation's project and says what inventory it holds", async () => {
       const held: Conversation = {
         ...CONVERSATION,
-        inventory: {
+        inventory: savedInventory({
           digest: "d",
           file_count: 42,
           inventory_made_at: "2026-11-01T09:00:00Z",
           added_at: "x",
-        },
+        }),
       };
       const get = vi
         .fn()
@@ -1371,11 +1401,11 @@ describe("ConversationHome", () => {
       if (!found) throw new Error(`no step ${id} in the fixture`);
       return found.label;
     };
-    const AT_ENTRY_TWO: ProjectProgress = {
+    const AT_ENTRY_TWO: ProjectProgress = projectProgress({
       entry: 2,
       steps: { "preparation.files": "done" },
       suggested: "governance.policies",
-    };
+    });
 
     function withProgress(overrides: Partial<ProjectApi> = {}): ProjectApi {
       return {
@@ -1419,14 +1449,16 @@ describe("ConversationHome", () => {
     it("records a step marked, or the entry point chosen, and draws what the server reads back", async () => {
       localStorage.setItem("dd-project", LOGGERS.project_id);
       const markStep = vi.fn(() =>
-        Promise.resolve<ProjectProgress>({
-          entry: 2,
-          steps: {
-            "preparation.files": "done",
-            "governance.policies": "skipped",
-          },
-          suggested: "governance.sensitive-data-identify",
-        }),
+        Promise.resolve(
+          projectProgress({
+            entry: 2,
+            steps: {
+              "preparation.files": "done",
+              "governance.policies": "skipped",
+            },
+            suggested: "governance.sensitive-data-identify",
+          }),
+        ),
       );
       const chooseEntry = vi.fn(() =>
         Promise.resolve<ProjectProgress>({ ...AT_ENTRY_TWO, entry: 3 }),
@@ -1467,12 +1499,7 @@ describe("ConversationHome", () => {
 
     it("suggests nothing for Phase 1 while no entry point is recorded", async () => {
       localStorage.setItem("dd-project", LOGGERS.project_id);
-      const unknown: ProjectProgress = {
-        entry: null,
-        entry_source: null,
-        steps: {},
-        suggested: null,
-      };
+      const unknown: ProjectProgress = projectProgress();
       renderHome(
         withOrchestrator(),
         fakeApi(),
@@ -1613,12 +1640,7 @@ describe("ConversationHome", () => {
         fakeApi(),
         FLOW,
         withProgress({
-          progress: () =>
-            Promise.resolve<ProjectProgress>({
-              entry: null,
-              steps: {},
-              suggested: null,
-            }),
+          progress: () => Promise.resolve(projectProgress()),
         }),
       );
       const phases = await screen.findByRole("navigation", {
@@ -1727,7 +1749,7 @@ describe("ConversationHome", () => {
       const create = vi.fn<ConversationApi["create"]>(() =>
         Promise.resolve({ conversation_id: "c1", project_id: LOGGERS.project_id }),
       );
-      const sendTurn = vi.fn<ConversationApi["sendTurn"]>(() => Promise.resolve());
+      const sendTurn = vi.fn<TurnSent>(() => Promise.resolve());
       renderHome(
         withOrchestrator(),
         fakeApi({ create, sendTurn }),
@@ -1752,10 +1774,14 @@ describe("ConversationHome", () => {
       expect(create).toHaveBeenCalledWith(LOGGERS.project_id);
       expect(sendTurn).toHaveBeenCalledWith(
         "c1",
-        expect.any(String),
-        expect.stringContaining(label(suggested)),
-        null,
-        null,
+        turnBody(
+          expect.any(String),
+          expect.stringContaining(label(suggested)),
+          null,
+          null,
+          null,
+          null,
+        ),
       );
       expect(screen.queryByRole("heading", { name: "Where your project starts" })).toBeNull();
     });
@@ -1777,6 +1803,80 @@ describe("ConversationHome", () => {
       expect(
         await screen.findByRole("group", { name: first.question.question_prompt }),
       ).toBeInTheDocument();
+    });
+  });
+
+  describe("the run, drawn live from its stream", () => {
+    /** Sends "hi" with turns replayed from `events`, `paceMs` apart. */
+    async function sendWith(events: readonly unknown[], paceMs = 0) {
+      const api = { ...fakeApi(), turns: cassetteTransport(events, { paceMs }) };
+      const view = renderHome(withOrchestrator(), api);
+      await userEvent.type(screen.getByRole("textbox"), "hi");
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
+      return { ...view, api };
+    }
+
+    const progress = () => screen.getByRole("region", { name: "Progress" });
+    const stage = (label: string) =>
+      within(progress()).getByText(label).closest("li") as HTMLElement;
+    const upTo = (type: string) =>
+      SUCCEEDED.slice(0, SUCCEEDED.findIndex((e) => (e as { type: string }).type === type) + 1);
+
+    it("updates each stage as the stream arrives, then shows the reply as a turn", async () => {
+      const { container } = await sendWith(SUCCEEDED, 40);
+      await waitFor(() => expect(stage("Policy gate")).toHaveTextContent("Running"));
+      expect(stage("Source check")).toHaveTextContent("Waiting");
+      expect(await axe(container)).toHaveNoViolations();
+      await waitFor(() => expect(stage("Policy gate")).toHaveTextContent("Done"));
+      // Once the run has finished, the reply is a turn of the transcript and the run goes.
+      await waitFor(() => expect(screen.queryByRole("region", { name: "Progress" })).toBeNull(), {
+        timeout: 3000,
+      });
+      const transcript = screen.getByRole("list", { name: "Conversation" });
+      expect(within(transcript).getAllByText("orchestrator.stub@0.1.0").length).toBeGreaterThan(0);
+      expect(screen.getByRole("textbox")).toHaveFocus();
+    });
+
+    it("cancels the run, and lands on the cancelled screen", async () => {
+      const { container } = await sendWith(SUCCEEDED, 100);
+      const cancel = await screen.findByRole("button", { name: "Cancel the run" });
+      await userEvent.click(cancel);
+      const heading = await screen.findByRole("heading", { name: /Outcome: Cancelled/ });
+      await waitFor(() => expect(heading).toHaveFocus());
+      expect(screen.queryByRole("button", { name: "Cancel the run" })).toBeNull();
+      // No stage is left running or waiting once the run is cancelled.
+      expect(within(progress()).queryByText("Running")).toBeNull();
+      expect(within(progress()).queryByText("Waiting")).toBeNull();
+      expect(within(announcements()).getByText("Run cancelled.")).toBeInTheDocument();
+      expect(await axe(container)).toHaveNoViolations();
+    });
+
+    it("lands on the interrupted screen when the stream closes before the run ends", async () => {
+      const { container } = await sendWith(upTo("STEP_STARTED"));
+      const heading = await screen.findByRole("heading", { name: /Outcome: Interrupted/ });
+      await waitFor(() => expect(heading).toHaveFocus());
+      expect(stage("Policy gate")).toHaveTextContent("Stopped");
+      expect(stage("Agent")).toHaveTextContent("Not reached");
+      // Nothing invents a finish: the reply is not announced.
+      expect(within(announcements()).queryByText(/Run finished/)).toBeNull();
+      expect(await axe(container)).toHaveNoViolations();
+    });
+
+    it("shows a run that failed once it had started, with the reason the stream gave", async () => {
+      const failed = [...upTo("STEP_STARTED"), { type: "RUN_ERROR", message: "The agent crashed." }];
+      const { container } = await sendWith(failed);
+      expect(await screen.findByRole("heading", { name: /Outcome: Failed/ })).toBeVisible();
+      expect(screen.getByText("The agent crashed.")).toBeVisible();
+      // It ran, so the message is not offered to be sent again.
+      expect(screen.getByRole("textbox")).toHaveValue("");
+      expect(await axe(container)).toHaveNoViolations();
+    });
+
+    it("gives the message back when the server refuses the turn once its stream is open", async () => {
+      await sendWith([{ type: "RUN_ERROR", message: "No such agent." }]);
+      expect(await screen.findByRole("alert")).toHaveTextContent("No such agent.");
+      expect(screen.getByRole("textbox")).toHaveValue("hi");
+      expect(screen.queryByRole("region", { name: "Progress" })).toBeNull();
     });
   });
 });

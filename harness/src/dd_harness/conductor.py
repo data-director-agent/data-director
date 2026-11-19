@@ -60,7 +60,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from opentelemetry.trace import SpanContext
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
@@ -83,8 +83,10 @@ from dd_harness.projects import (
     UnknownProjectError,
 )
 from dd_harness.registry import Registry
+from dd_harness.run_state import Grant as Grant
+from dd_harness.run_state import RunState
 from dd_harness.storage import SPANS, RunStorage
-from dd_sdk.agent import ModelUse
+from dd_sdk.agent import AgentSpec
 from dd_sdk.contract import validate
 from dd_sdk.contract.models import (
     Delegation,
@@ -100,6 +102,9 @@ from dd_sdk.tracing import (
     invoke_agent_span,
     make_tracing,
 )
+
+if TYPE_CHECKING:
+    from dd_harness.gateway.core import Gateway
 
 log = logging.getLogger(__name__)
 
@@ -140,22 +145,6 @@ GROUNDING_REPORTS_KEPT = 256
 
 
 @dataclass
-class Grant:
-    """One delegation grant, live while its parent invocation runs."""
-
-    token: str
-    parent_invocation_id: str
-    parent_agent_id: str
-    conversation_id: str | None
-    project_id: str | None
-    acting_for: Principal
-    delegations: list[Delegation] = field(default_factory=list)
-    # Children admitted under this grant and not yet finished; revocation waits for them.
-    in_flight: int = 0
-    watch: Watch = field(default_factory=lambda: Watch(None, None))  # told of each child
-
-
-@dataclass
 class Conductor:
     registry: Registry
     store: RunStorage
@@ -178,6 +167,9 @@ class Conductor:
     # Mints the model grant each invocation of a model-backed agent is sent
     # (docs/specs/model-accounts.md). None (the default) mints none.
     model_grants: GrantMinter | None = None
+    # The tool gateway over the deployment's MCP servers (docs/specs/agents.md, Tools). None (no
+    # DD_TOOLS_CONFIG) means no agent is granted a tool.
+    gateway: Gateway | None = None
     _grants: dict[str, Grant] = field(default_factory=dict, repr=False)
     _grants_lock: threading.Condition = field(default_factory=threading.Condition, repr=False)
     _running: set[str] = field(default_factory=set, repr=False)
@@ -198,6 +190,13 @@ class Conductor:
                 f"{self.profile.model_accounts.own}, but the harness mints no model grants; set "
                 "DD_MODEL_GRANT_SIGNING_KEY, DD_MODEL_BROKER_SUBJECT_KEY and DD_PSEUDONYM_SECRET "
                 "(docs/specs/model-accounts.md)"
+            )
+        # A grant of a server the deployment does not list would be in force nowhere.
+        listed = {s.name for s in self.gateway.servers} if self.gateway is not None else set()
+        if unlisted := sorted({s for g in self.profile.tool_servers.values() for s in g} - listed):
+            raise policy.PolicyError(
+                f"profile {self.profile.profile_id!r} grants MCP servers the deployment does not "
+                f"list: {', '.join(unlisted)} (DD_TOOLS_CONFIG, docs/specs/agents.md)"
             )
         # Each run of these is refused; say so once at start-up, where the operator looks.
         for agent in self.registry:
@@ -385,14 +384,24 @@ class Conductor:
         if facts is None and self.projects is not None and in_project is not None:
             facts = self.projects.snapshot(in_project)
         sent = to_document(request.input)
-        filled = project_facts.give(facts, in_project, sent)
+        # A profile that refuses attached documents has no agent given any (projects.md).
+        documents = not self.profile.refuses_documents
+        spec = self._spec_of(request.agent_id)  # an agent's own class may ask for facts by slot
+        filled = project_facts.give(facts, in_project, sent, documents=documents, spec=spec)
         given = project_facts.given(facts, in_project, filled)
-        # Researcher facts the profile keeps from this agent's hosted model are left out, not
-        # refused (docs/specs/projects.md, invariant 8): no agent needs them.
-        if project_facts.RESEARCHER in given:
-            hostings = [model.hosting for model in self._models_of(request.agent_id)]
-            out = frozenset(policy.withheld(self.profile, hostings, {project_facts.RESEARCHER}))
-            filled, given = project_facts.leave_out(filled, out), given - out
+        # Researcher facts, a `Message`'s decided facts and a draft's attached documents that the
+        # profile keeps from this agent's hosted model are left out, not refused
+        # (docs/specs/projects.md, invariant 8): the agent does not need them. What remains is
+        # classed again, since a draft's other documentation shares a class with its documents.
+        if optional := given & project_facts.left_out(filled):
+            spec = self._spec_of(request.agent_id)
+            hostings = [model.hosting for model in spec.models] if spec else []
+            remote = spec is not None and pipeline.remote_tools(self, spec)
+            if out := frozenset(
+                policy.withheld(self.profile, hostings, optional, remote_tools=remote)
+            ):
+                filled = project_facts.leave_out(filled, out)
+                given = project_facts.given(facts, in_project, filled)
         refused = project_facts.refusal(facts, in_project, filled)
         if in_project is not None or filled != sent:
             request = InvocationRequest.model_validate(
@@ -416,14 +425,13 @@ class Conductor:
             with self._running_lock:
                 self._running.discard(invocation_id)
 
-    def _models_of(self, agent_id: str) -> tuple[ModelUse, ...]:
-        """The models the agent's card declares; none for an agent not registered, which `_run`
-        refuses."""
+    def _spec_of(self, agent_id: str) -> AgentSpec | None:
+        """The agent's card; None for an agent not registered, which `_run` refuses."""
         agent = self.registry.get(agent_id)
         if agent is None:
             self.registry.refresh()
             agent = self.registry.get(agent_id)
-        return tuple(agent.spec.models) if agent is not None else ()
+        return agent.spec if agent is not None else None
 
     def _run(
         self,
@@ -449,9 +457,7 @@ class Conductor:
             )
         watch = watch or Watch(None, None)
         watch.plan()
-        run = pipeline.RunState(
-            request, request_doc, acting_for, agent, watch, link, given, unfillable
-        )
+        run = RunState(request, request_doc, acting_for, agent, watch, link, given, unfillable)
         spec = agent.spec
         with invoke_agent_span(
             self.tracing.tracer, spec.agent_id, spec.grounding_mode.value, run.input_hash, link=link

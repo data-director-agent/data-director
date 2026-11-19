@@ -3,8 +3,7 @@
 Each check holds a backend to one guarantee `RunStorage`, `ProjectLog` or `ProjectStorage`
 states, through the protocol alone, so any backend can run them: the file backends in the
 harness's own tests, and a database backend's tests. A check takes `make`, which opens a store by
-name. The same name opens the same store again, as after a restart; another name opens an empty
-one.
+name: the same name opens the same store again, as after a restart; another, an empty one.
 
     def test_my_storage(tmp_path):
         check_run_storage(lambda name: MyRunStore(f"{database}/{name}"))
@@ -14,8 +13,7 @@ one.
 A backend provides a `ProjectLog`, never the project rules: `check_project_rules` runs every
 `ProjectStorage` check against the rules (`dd_harness.projects.Projects`) over the backend's log.
 
-`RUN_STORAGE_CHECKS`, `PROJECT_LOG_CHECKS` and `PROJECT_STORAGE_CHECKS` name each check, for a
-test that reports them one by one.
+`RUN_STORAGE_CHECKS`, `PROJECT_LOG_CHECKS` and `PROJECT_STORAGE_CHECKS` name each check.
 """
 
 from __future__ import annotations
@@ -38,8 +36,6 @@ from dd_harness.projects import (
     DOCUMENT_CHANGE_REFUSED,
     DOCUMENT_QUESTION_ANSWERED,
     DOCUMENT_VERSION_DECIDED,
-    DOCUMENTATION_ADDED,
-    DOCUMENTATION_MAX_BYTES,
     INVENTORY_ADDED,
     PACKAGE_BUILT,
     PROJECT_CREATED,
@@ -48,8 +44,6 @@ from dd_harness.projects import (
     PROJECT_RESTORED,
     PROJECT_VALIDATED,
     REJECTED,
-    RESEARCHER_ADDED,
-    RESEARCHER_WITHDRAWN,
     ChangeRefusedError,
     Decision,
     ProjectDeletedError,
@@ -63,7 +57,9 @@ from dd_harness.projects import (
 )
 from dd_harness.storage import ProjectLog, ProjectStorage, RunStorage
 from dd_harness.testing.classes import ProbeClaim
+from dd_harness.testing.documents import DOCUMENTATION_CHECKS
 from dd_harness.testing.doubles import STUB_QUESTION, DocumentStub
+from dd_harness.testing.fact_storage import FACT_STORAGE_CHECKS
 from dd_harness.testing.fixtures import TEST_PRINCIPAL, document_request, request
 from dd_harness.testing.serving import make_conductor
 from dd_sdk.contract.classes import ClassSchema
@@ -251,8 +247,7 @@ def check_a_malformed_run_name_names_nothing(make: MakeRunStorage) -> None:
 def _every_page(
     listing: Callable[..., Page], *, limit: int, before: str | None = None, **scope: Any
 ) -> tuple[list[dict[str, Any]], list[Page]]:
-    """Every item of a listing from `before` on, read a page of `limit` at a time, and the pages
-    read."""
+    """Every item of a listing from `before` on, a page of `limit` at a time, and the pages."""
     pages = [listing(limit=limit, before=before, **scope)]
     while pages[-1].next is not None:
         assert len(pages) <= 100, "a listing that never ends"
@@ -358,6 +353,11 @@ def check_a_listing_includes_what_its_reader_may_read(make: MakeRunStorage) -> N
     assert _ids(items, "conversation_id") == [started_in_mine, started_by_me]
     scanned = scan_conversations(store.iter_envelopes(), readable=by_project, limit=50, before=None)
     assert items == scanned.items
+    by_project_runs = store.list_runs(limit=50, readable=by_project).items
+    hiding = Readable(me, frozenset({mine}), frozenset({started_in_mine}))
+    items, _ = _every_page(store.list_conversations, limit=1, readable=hiding)
+    assert _ids(items, "conversation_id") == [started_by_me]
+    assert len(store.list_runs(limit=50, readable=hiding).items) == len(by_project_runs) - 1
 
 
 def check_a_malformed_cursor_names_an_empty_page(make: MakeRunStorage) -> None:
@@ -500,113 +500,6 @@ def check_a_refused_change_records_nothing(make: MakeProjectStorage) -> None:
     assert [s["project_id"] for s in store.projects()] == [project_id]
 
 
-def check_documentation_is_kept_by_digest_and_listed_once(make: MakeProjectStorage) -> None:
-    store = make("projects")
-    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
-    assert store.documentation(project_id) == []
-
-    def add(name: str, text: str, media_type: str = "text/markdown") -> str:
-        return store.add_documentation(
-            project_id, name, media_type, text, acted_for=TEST_PRINCIPAL, caused_by="check"
-        )
-
-    protocol = "# Protocol\n\nSamples were taken weekly.\n"
-    digest = add("protocol.md", protocol)
-    assert digest == hashlib.sha256(protocol.encode("utf-8")).hexdigest()
-    add("codebook.txt", "age: years", "text/plain")
-    add("protocol.md", protocol)
-    listed = store.documentation(project_id)
-    assert [d["documentation_name"] for d in listed] == ["protocol.md", "codebook.txt"]
-    assert listed[0]["documentation_digest"] == digest
-    assert listed[0]["documentation_size"] == len(protocol.encode("utf-8"))
-    assert listed[0]["documentation_media_type"] == "text/markdown"
-    assert all("text" not in d for d in listed)
-    assert store.documentation_text(project_id, digest) == protocol
-    assert store.documentation_text(project_id, "0" * 64) is None
-    kinds = [e["event"] for e in store.events(project_id)]
-    assert kinds == [PROJECT_CREATED] + [DOCUMENTATION_ADDED] * 3
-    assert make("projects").documentation(project_id) == listed
-
-
-def check_refused_documentation_leaves_no_trace(make: MakeProjectStorage) -> None:
-    store = make("projects")
-    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
-    refused = [
-        ("data.csv", "text/csv", "a,b\n1,2"),
-        ("report.pdf", "application/pdf", "%PDF"),
-        ("notes.md", "text/markdown", "  \n"),
-        ("big.txt", "text/plain", "x" * (DOCUMENTATION_MAX_BYTES + 1)),
-        ("../notes.md", "text/markdown", "notes"),
-        ("folder/notes.md", "text/markdown", "notes"),
-        ("C:\\notes.md", "text/markdown", "notes"),
-        ("", "text/markdown", "notes"),
-        ("x" * 256, "text/markdown", "notes"),
-    ]
-    for name, media_type, text in refused:
-        with _raises(ProjectError, f"{name[:20]!r} as {media_type}"):
-            store.add_documentation(
-                project_id, name, media_type, text, acted_for=TEST_PRINCIPAL, caused_by="check"
-            )
-    with _raises(ProjectError, "a document for an unknown project"):
-        store.add_documentation(
-            NOWHERE, "notes.md", "text/markdown", "notes", acted_for=TEST_PRINCIPAL, caused_by="c"
-        )
-    assert [e["event"] for e in store.events(project_id)] == [PROJECT_CREATED]
-    assert store.documentation(project_id) == []
-
-
-def _researcher_record(orcid_id: str, **sections: Any) -> dict[str, Any]:
-    return {
-        "orcid_id": orcid_id,
-        "record_retrieved_at": "2026-11-10T12:00:00+00:00",
-        "record_source": f"https://pub.orcid.org/v3.0/{orcid_id.rsplit('/', 1)[-1]}/record",
-        **sections,
-    }
-
-
-def check_a_researchers_own_record_stands_until_withdrawn(make: MakeProjectStorage) -> None:
-    store = make("projects")
-    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
-    assert store.researchers(project_id) is None
-    me = TEST_PRINCIPAL.principal_id
-
-    def keep(**sections: Any) -> str:
-        record = _researcher_record(me, **sections)
-        return store.add_researcher(project_id, record, acted_for=TEST_PRINCIPAL, caused_by="check")
-
-    keep(researcher_name="Josiah Carberry")
-    keep(researcher_name="Josiah Carberry", keywords=["psychoceramics"])
-    held = store.researchers(project_id)
-    assert held is not None and len(held) == 1
-    assert held[0]["keywords"] == ["psychoceramics"]
-    assert make("projects").researchers(project_id) == held
-    store.withdraw_researcher(project_id, me, acted_for=TEST_PRINCIPAL, caused_by="check")
-    assert store.researchers(project_id) is None
-    kinds = [e["event"] for e in store.events(project_id)]
-    assert kinds == [PROJECT_CREATED, RESEARCHER_ADDED, RESEARCHER_ADDED, RESEARCHER_WITHDRAWN]
-
-
-def check_a_person_keeps_only_their_own_record(make: MakeProjectStorage) -> None:
-    store = make("projects")
-    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
-    someone = "https://orcid.org/0000-0002-1694-233X"
-    refused = [
-        _researcher_record(someone, researcher_name="Someone Else"),
-        {"orcid_id": TEST_PRINCIPAL.principal_id},
-        _researcher_record(TEST_PRINCIPAL.principal_id, works=[{"work_title": "No put-code"}]),
-    ]
-    for record in refused:
-        with _raises(ProjectError, f"keeping {record}"):
-            store.add_researcher(project_id, record, acted_for=TEST_PRINCIPAL, caused_by="check")
-    with _raises(ProjectError, "withdrawing another person's record"):
-        store.withdraw_researcher(project_id, someone, acted_for=TEST_PRINCIPAL, caused_by="check")
-    with _raises(ProjectError, "withdrawing a record the project does not hold"):
-        store.withdraw_researcher(
-            project_id, TEST_PRINCIPAL.principal_id, acted_for=TEST_PRINCIPAL, caused_by="check"
-        )
-    assert [e["event"] for e in store.events(project_id)] == [PROJECT_CREATED]
-
-
 def check_an_unknown_project_is_refused(make: MakeProjectStorage) -> None:
     store = make("projects")
     for project_id in (NOWHERE, "../escape", "", "a/b"):
@@ -634,8 +527,7 @@ def check_projects_are_listed_in_the_order_created(make: MakeProjectStorage) -> 
 
 def check_a_person_reads_the_projects_they_have_a_role_in(make: MakeProjectStorage) -> None:
     """The projects a person may read are the ones they have a role in, the one created first
-    first, found by any store over the record and after a restart (docs/specs/storage.md,
-    "Listing")."""
+    first, found by any store over the record and after a restart (storage.md, "Listing")."""
     store = make("projects")
     someone = Principal(principal_id="https://orcid.org/0000-0002-1694-233X", name="Someone Else")
     first = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
@@ -1143,14 +1035,8 @@ PROJECT_STORAGE_CHECKS: dict[str, Callable[[MakeProjectStorage], None]] = {
     ),
     "a report and a package are kept by digest": check_a_report_and_a_package_are_kept_by_digest,
     "answers stand until answered again": check_answers_stand_until_answered_again,
-    "documentation is kept by digest and listed once": (
-        check_documentation_is_kept_by_digest_and_listed_once
-    ),
-    "refused documentation leaves no trace": check_refused_documentation_leaves_no_trace,
-    "a researcher's own record stands until withdrawn": (
-        check_a_researchers_own_record_stands_until_withdrawn
-    ),
-    "a person keeps only their own record": check_a_person_keeps_only_their_own_record,
+    **DOCUMENTATION_CHECKS,
+    **FACT_STORAGE_CHECKS,
 }
 
 
@@ -1207,8 +1093,7 @@ def check_a_log_keeps_events_in_the_order_appended(make: MakeProjectLog) -> None
 
 def check_a_section_is_exclusive_for_its_project_alone(make: MakeProjectLog) -> None:
     """Changes that read the log and append to it in their sections lose none of one another's
-    events, and a section held on one project does not hold up another
-    (docs/specs/storage.md, invariant 10)."""
+    events, and a section held on one project does not hold up another (invariant 10)."""
     log = make("log")
     busy, idle = _new_project(log), _new_project(log)
     writers, rounds = 4, 5
@@ -1337,8 +1222,7 @@ def check_project_log(make: MakeProjectLog) -> None:
 
 def check_logs_over_one_record_share_each_section(make: MakeProjectLog) -> None:
     """Sections on one project through two logs over one record exclude one another and lose none
-    of one another's events, and neither holds up another project (docs/specs/storage.md,
-    invariant 10)."""
+    of one another's events, and neither holds up another project (storage.md, invariant 10)."""
     logs = (make("log"), make("log"))
     busy, idle = _new_project(logs[0]), _new_project(logs[1])
     writers, rounds = 4, 5

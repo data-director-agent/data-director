@@ -8,8 +8,8 @@
       "hallam-moor.metadata-record.json": "3f8c74624f9dce6f1450d7900e90e18b4526f0a6cbcc135c96cd878164c2b0f6",
       "soil-survey.readme-with-record.draft.json": "c9ba7601f5bcbef5879972fcb1f2fbeb18f71a7d687b5eb71e9d1b2093d84874"
     },
-    "git_revision": "de571b4c86cb2773fdd8220c2d14cf1cc3a55076",
-    "readme_template_sha256": "a4c35efcd61b6083863fae4e189c79af438c9772ac5820d835d85c2ff13e0811",
+    "git_revision": "bc7357351583f248d1e974846407c44d4e24da5c",
+    "readme_template_sha256": "9f67be1be7fa848f6ba4ac1d84aa9e5af987a9283b3a56ba1c5ec9a4ce736b5f",
     "spec_version": "0.6.0a1"
   },
   "scores": {

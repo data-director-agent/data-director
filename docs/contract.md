@@ -78,7 +78,12 @@ metadata record from the project, and a caller leaves them out; outside a projec
 sends them. In a project the conductor also fills `current_version`, the latest version of the
 project's document of that kind, so a redraft is that document's next version; a caller may name
 which document with `redraft_document` where the project holds more than one of the kind
-([Projects](specs/projects.md), invariant 6).
+([Projects](specs/projects.md), invariant 6). Its `project_documents` are the documents a
+researcher attached to the project, each a `ProjectDocument`: the name, digest, media type, size
+and date of a `DocumentationSummary`, with the document's text. A document whose text was read
+from a Word document or PDF names that file's media type in `documentation_source_media_type`;
+its text is plain text either way. A drafter's model may suggest answers from them; nothing in
+them is placed in a document as supplied.
 
 A `Document` may ask the researcher about what its drafter could not know: `document_questions`
 holds one `DocumentQuestion` per gap, naming the README section or the data dictionary cell it
@@ -98,7 +103,7 @@ An agent's response is wrapped in an `Envelope`. Every envelope contains:
 | `evidence` | The source records the result rests on. Each item carries a content hash and names the canonicalisation used to compute it ([Evidence and grounding](specs/grounding.md)). |
 | `grounding_mode` | The grounding mode the agent declared ([`grounding.md`](../harness/docs/grounding.md)). |
 | `policy_bundle_ref`, `policy_digest` | The institutional profile the conductor applied, as `profile:<id>@v<version>`, and the SHA-256 of its file ([Policy and identity](specs/policy-and-identity.md)). |
-| `telemetry` | The trace id, the model id, token counts, and energy fields. The energy fields are always empty for now (`not_measured`). |
+| `telemetry` | The trace id, the model id, token counts, and energy fields. The energy fields hold an estimate (`estimated`) only when the profile gives per-token energy factors for every model the run called, and are otherwise empty (`not_measured`) ([Disclosure](specs/disclosure.md), invariant 8). |
 | `requires_human_review` | Always `true`. The schema fixes it as a constant, so no envelope can claim otherwise. |
 | `problem` | Details of the problem, when the status is `failed` or `suspended`. |
 | `conversation_id`, `parent_invocation_id` | Copied from the request, when present. |

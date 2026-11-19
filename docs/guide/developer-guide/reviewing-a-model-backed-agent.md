@@ -71,6 +71,10 @@ Invariant 14 in [Agents](../../specs/agents.md#invariants).
       the code or a file elsewhere.
 - [ ] A change to a prompt is reviewed as a change to behaviour: the pull request says what is
       meant to change, and the tests or the evaluation show it.
+- [ ] An Agent Skill the prompt loads is vendored under the package's `skills/` with
+      `dd-vendor-skill`, not edited in place, and `skills/pins.json` names the release it came
+      from. A changed Skill is a changed prompt and is reviewed as one; its card declares it
+      (`AgentSpec.skills`, from `dd_sdk.skills.load_skills`).
 
 ### 6. Tests use a fake model
 
@@ -95,8 +99,10 @@ Invariant 14 in [Agents](../../specs/agents.md#invariants).
 - [ ] A model's claim about a record stands only on something code checks, such as a quote found
       in that record, and its tests include a fabricated quote and an instruction planted in a
       record.
-- [ ] Until the harness's tool gateway exists (TODO(#875)), a tool reaches its registry from the
-      agent, as `advisor.policy`'s do (`advise.py`).
+- [ ] A tool reaches its source through the harness's tool gateway: the card declares the server
+      and tools (`AgentSpec.tools`), the agent calls `ctx.tools`, and it cites only the records
+      the gateway returned (`dd_sdk.tools.ToolRecord`). `advisor.policy` and `advisor.standards`
+      still reach their registries from the agent, TODO(#1143).
 
 ## Per advisor
 

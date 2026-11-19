@@ -2,8 +2,8 @@
  * The page frame: a skip link, the banner and one main landmark, then a footer that names the build.
  *
  * The banner holds the same things on every page (the name, the main navigation, who is signed
- * in and the dark mode switch), so nothing in it moves when the page changes. What a page is
- * about, and for whom it acts, is said in the page itself. The page's two live regions are
+ * in, the and the settings), so nothing in it moves when the page changes.
+ * What a page is about, and for whom it acts, is said in the page itself. The page's two live regions are
  * mounted here, once, so they are present from load (`ui/Announcer`).
  */
 
@@ -17,6 +17,7 @@ import {
   FolderOpen,
   Map as MapIcon,
   MessagesSquare,
+  Settings as SettingsIcon,
   Shield,
   type LucideIcon,
 } from "lucide-react";
@@ -25,14 +26,14 @@ import type { ReactNode } from "react";
 import { Link } from "../../route";
 import { AnnouncerProvider } from "../ui/Announcer";
 import { FooterBuild } from "./FooterBuild";
-import { ThemeSwitch } from "./ThemeSwitch";
 
 // Projects first: the project is the unit of work that the rest belongs to (docs/specs/app.md).
+// `/project` opens the current project's page, or the list of projects when none is current.
 // The journey map follows it, as the project's place in the process is the next thing a person
 // looks for; `/journey` opens the current project's map. The conversation stays the page a
 // person lands on, so nobody must make a project first.
 const PAGES: readonly { to: string; label: string; icon: LucideIcon }[] = [
-  { to: "/projects", label: "Projects", icon: FolderOpen },
+  { to: "/project", label: "Projects", icon: FolderOpen },
   { to: "/journey", label: "Journey map", icon: MapIcon },
   { to: "/", label: "Conversation", icon: MessagesSquare },
   { to: "/activity", label: "Activity log", icon: Activity },
@@ -133,7 +134,16 @@ export function Frame({
               <BannerIcon icon={Bug} />
               Report a problem
             </Link>
-            <ThemeSwitch />
+            <Link
+              to="/settings"
+              className="app-tool-link"
+              {...(current === "/settings"
+                ? { "aria-current": "page" as const }
+                : {})}
+            >
+              <BannerIcon icon={SettingsIcon} />
+              Settings
+            </Link>
           </div>
         </div>
       </header>

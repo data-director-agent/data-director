@@ -1,7 +1,8 @@
-# What this instance runs. Edit it, then run `sudo data-director apply` on a VM or
-# `uv run scripts/dd.py apply` in development, which write the profile and, on a VM, the systemd
-# units from it (docs/guide/operations/configuration.md). Agent settings stay in
-# agents/<name>.env and secrets in credentials/.
+# What this instance runs. Change it with `sudo data-director edit` on a VM or
+# `uv run scripts/dd.py edit` in development, which check it before saving it and then offer to
+# apply it: `apply` writes the profile and, on a VM, the systemd units from it
+# (docs/guide/operations/configuration.md). Agent settings stay in agents/<name>.env and secrets
+# in credentials/.
 
 # Names the instance and the profile generated for it: lower-case words joined by hyphens.
 name: local
@@ -18,3 +19,15 @@ disabled: []
 # iDs, conversations and projects for you, so you owe them a notice of your own; the project's
 # does not cover an instance (docs/guide/operations/privacy.md).
 # privacy_notice: https://example.ac.uk/data-director/privacy
+
+# Whether people may pay for model calls with their own AI provider account, copied into the
+# profile as written. Leave it out and the deployment pays. It needs the model broker and the
+# grant secrets first (docs/guide/operations/model-broker.md); the app stops at start-up without
+# them. Choices: workbench/profiles/README.md, "People's own model accounts".
+# Every agent that calls a model must then call through the broker (DD_MODEL_BROKER_URL in its
+# settings); apply marks each in the app's agent list, and refuses an agent that does not.
+# model_accounts:
+#   own: allowed             # off, allowed or required
+#   fallback: deployment     # deployment or none
+#   providers:
+#     - provider: anthropic

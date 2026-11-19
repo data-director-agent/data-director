@@ -1,8 +1,8 @@
 # Deploying to a VM
 
 This directory sets up one Ubuntu VM to run the Data Director app (`app/`) and its agents, and to
-keep it deployed: every five minutes the VM fetches `main`, and if CI passed on its tip, builds
-and serves that commit. A commit that fails to start is rolled back. The VM pulls; GitHub never
+keep it deployed: every five minutes the VM fetches `main`, and builds and serves the newest
+commit on it that CI passed. A commit that fails to start is rolled back. The VM pulls; GitHub never
 connects to it, so it needs no inbound access but HTTP(S) and no deploy key.
 
 ```text
@@ -30,10 +30,11 @@ on loopback alone and is reached through an SSH tunnel.
 
 | File | What it does |
 |---|---|
-| `/usr/local/bin/data-director` | Installed by `install.sh`: `scripts/dd.py`, run from the clone, never from a release. `sudo data-director apply` makes the instance what `/etc/data-director/deployment.yaml` says; `doctor` checks the deployment; `secret …` is `secret.sh`. See "Changing the deployment" and "Day to day", and the [command reference](../docs/guide/operations/commands.md). |
+| `/usr/local/bin/data-director` | Installed by `install.sh`: `scripts/dd.py`, run from the clone, never from a release. `sudo data-director edit` changes `/etc/data-director/deployment.yaml`, checked before it is saved, and `apply` makes the instance what it says; `doctor` checks the deployment; `secret …` is `secret.sh`. See "Changing the deployment" and "Day to day", and the [command reference](../docs/guide/operations/commands.md). |
 | `secret.sh` | As root, gives an agent a secret such as its model key (`set`), takes it away (`remove`) or lists them (`list`); see "Secrets" below. |
+| `broker-credentials.sh` | As root, gives each agent named a model broker credential (through `secret.sh`) and writes the broker's `agent-credentials` list of their digests; see [The model broker](../docs/guide/operations/model-broker.md#on-a-vm). |
 | `credentials.sh` | Turns the files in `/etc/data-director/credentials/<agent>/` into that agent's credentials drop-in. `install.sh` and `secret.sh` use it. |
-| `install.sh` | Run once as root: packages, Node 22, uv, the `datadirector` user, directories, units, NGINX site (in place of the packaged default site), first deployment. Run again to install changed units or NGINX config. |
+| `install.sh` | Run once as root: packages, Node 22, uv, the `datadirector` user, directories, units, NGINX site (in place of the packaged default site), first deployment. Run again to install changed units or NGINX config. With `--gateway`, also runs the [LiteLLM gateway](#the-litellm-gateway). |
 | `deploy.sh` | One pass of the deployment (fetch, check CI, build, switch, check health, roll back). |
 | `deploy.env.example` | `deploy.sh`'s settings: repository, branch, check name, releases kept. |
 | `systemd/data-director.target` | The app and the agents, started and restarted together. It names no agent: `apply` writes which agents it starts. |
@@ -41,17 +42,19 @@ on loopback alone and is reached through an SSH tunnel.
 | `systemd/data-director-workbench.service` | The workbench (`workbench serve`), on 127.0.0.1:8000, for admins only. Part of the target once `install.sh` enables it. |
 | `systemd/data-director-admin.service` | The admin service (`dd-admin serve`), on 127.0.0.1:8200 only, read-only. Part of the target; `install.sh` enables it. |
 | `systemd/data-director-model-broker.service` | The model broker (`dd-model-broker serve`), on 127.0.0.1:8300, as its own user `data-director-broker`. Installed but not enabled ([The model broker](#the-model-broker)). |
+| `systemd/data-director-llm-gateway.service` | The [LiteLLM gateway](#the-litellm-gateway) and its database, in Docker, on 127.0.0.1:4000. Installed by `install.sh`, enabled only with `--gateway`; not part of the target. |
+| `llm-gateway/` | The LiteLLM gateway: its compose file, models, admin script and tests ([its README](llm-gateway/README.md)). |
 | `systemd/data-director-agent@.service` | One agent per instance, named as in `app/config/agents.yaml` (`@example-hello`, `@advisor-quality`, …): each agent `deployment.yaml` runs. |
 | `systemd/data-director-deploy.{service,timer}` | Runs `deploy.sh` every five minutes. |
 | `systemd/data-director-restart.{path,service}` | Restart `data-director.target`, as root, when `deploy.sh` writes `/opt/data-director/restart-requested`. The deploy user has no sudo rule. |
 | `agents/<name>.env` | Each agent's port, which must match `app/config/agents.yaml`. |
 | `../scripts/check_systemd.sh` | Lints the units with `systemd-analyze verify` and systemdlint; run it before changing one. CI runs it. |
 | `systemd-lint-baseline.txt` | The systemdlint findings accepted, each with its reason. A new finding fails the check; so does a line that no longer matches one. |
-| `backup.sh`, `restore.sh`, `stores.sh` | Back up the settings, secrets and stores, and put them back on a clean VM; `stores.sh` finds where each store is kept. See [Backups](#backups). |
+| `backup.sh`, `restore.sh`, `stores.sh`, `gateway-store.sh` | Back up the settings, secrets and stores, and put them back on a clean VM; `stores.sh` finds where each store is kept, and `gateway-store.sh` dumps and restores the LiteLLM gateway's database. See [Backups](#backups). |
 | `backup.env.example` | `backup.sh`'s settings: where backups go and how many days they are kept. |
 | `systemd/data-director-backup.{service,timer}` | Runs `backup.sh`, as root, every night. |
 | `wait-for-ports.sh` | Holds the app back until the agents answer, since it reads their cards once at start-up. |
-| `nginx/data-director.conf` | The reverse proxy: HTTPS only, long timeouts for runs, `/a2a` and `/server-status` closed from outside; the app on 443, the workbench on 8443. |
+| `nginx/data-director.conf` | The reverse proxy: HTTPS only, long timeouts for runs, `/a2a`, `/mcp` and `/server-status` closed from outside; the app on 443, the workbench on 8443. |
 
 Every agent, the standards advisor included, is a service of its own; the app runs none in its
 process ([The app](../docs/specs/app.md)).
@@ -61,14 +64,16 @@ process ([The app](../docs/specs/app.md)).
 | Path | Holds |
 |---|---|
 | `/opt/data-director/repo.git` | A bare clone of the branch. |
-| `/opt/data-director/releases/<sha>/` | One built commit each: source, `.venv`, the re3data registry, `app/web/dist`, and `REVISION`, the full commit hash the app reports as its build. The newest three are kept. |
+| `/opt/data-director/releases/<sha>/` | One built commit each: source, `.venv`, the re3data registry, `app/web/dist` with the browser scanner's bundle in `app/web/dist/inventory-bundle/`, and `REVISION`, the full commit hash the app reports as its build. The newest three are kept. |
 | `/opt/data-director/current` | Link to the live release. The units run from it. |
 | `/opt/data-director/cache/sources/` | What agents' built sources are built from (`dd-sources prepare`), one subdirectory per source, such as the pinned re3data export: downloaded once per pin and shared by releases. |
+| `/opt/data-director/cache/inventory-wheels/` | The wheels the browser scanner's bundle holds (`npm run bundle` in `inventory/browser`): Pyodide's builds from `cdn.jsdelivr.net` and the rest from PyPI, each checked against its lock. Downloaded once per pin and shared by releases. |
 | `/opt/data-director/failed-commits` | Commits that did not start. They are not tried again. |
 | `/var/lib/data-director/runs/` | The run store (`DD_RUNS_DIR`). It outlives releases. |
 | `/var/lib/data-director/projects/` | The project store (`DD_PROJECTS_DIR`): each project's log and documents. It outlives releases. |
 | `/var/lib/data-director/workbench-runs/` | The workbench's run store, apart from the app's. |
-| `/var/lib/data-director/` | Also the service user's home: uv's Python and package cache, npm's cache. |
+| `/opt/data-director/python/` | The Python interpreters uv installs, which each release's `.venv` links to, readable by every service's user (the model broker's included). |
+| `/var/lib/data-director/` | Also the service user's home: uv's package cache, npm's cache. |
 | `/etc/data-director/deployment.yaml` | What this instance runs: its name, the orchestrator (`model` or `stub`) and any agents disabled (`config/examples/deployment.yaml`). The one file to edit for that; `apply` writes the rest. |
 | `/etc/data-director/profile.yaml` | The profile, generated by `apply` from `deployment.yaml` and the release's example, and named by `DD_PROFILE` in `app.env`. Do not edit it. |
 | `/etc/systemd/system/data-director.target.d/agents.conf`, `data-director-app.service.d/agents.conf` | Generated by `apply`: the agents the target starts, and the `After=` and `DD_WAIT_PORTS` that make the app wait for them. |
@@ -78,13 +83,17 @@ process ([The app](../docs/specs/app.md)).
 | `/etc/data-director/agents/<name>.env` | One agent service's own settings (`DD_STANDARDS_*`, a model id). |
 | `/etc/data-director/credentials/` | Agents' secrets (`<agent>/<secret>`, put there by `secret.sh`) and the app's (`app/`), readable by root alone. Never put a key or secret in an `.env` file. |
 | `/etc/data-director/credentials/model-broker/` | The model broker's secrets, readable by root alone; systemd hands them to the broker's unit only. |
+| `/etc/data-director/credentials/llm-gateway/` | The LiteLLM gateway's secrets, readable by root alone: its own three, which `install.sh --gateway` makes once, and the provider keys, which `secret.sh` puts there. |
+| `/etc/data-director/llm-gateway.env` | The LiteLLM gateway's settings (`config/examples/llm-gateway.env`). |
+| `/etc/data-director/llm-gateway.yaml` | The gateway's models, if the operator has written one; otherwise `config.yaml` as `install.sh` copied it. |
 | `/etc/data-director/model-broker.env` | The model broker's settings (`config/examples/model-broker.env`). |
 | `/var/lib/data-director-model-broker/` | The model broker's store of sealed keys and token counts, readable by its user alone. |
 | `/etc/data-director/admin.env` | The admin service's overrides, if any (optional; [docs/guide/operations/admin.md](../docs/guide/operations/admin.md)). |
 | `/etc/data-director/deploy.env` | `deploy.sh`'s settings. |
 | `/etc/data-director/backup.env` | `backup.sh`'s settings (`deploy/backup.env.example`). |
 | `/var/backups/data-director/<time>/` | One backup each, root's alone ([Backups](#backups)). |
-| `/usr/local/lib/data-director/` | `backup.sh` and `stores.sh` as `install.sh` installed them from the clone; the backup unit runs these. |
+| `/usr/local/lib/data-director/` | `backup.sh`, `stores.sh` and `gateway-store.sh` as `install.sh` installed them from the clone; the backup unit runs these. With `--gateway`, also `llm-gateway/`: the gateway's compose file, models and start script, which its unit runs. |
+| Docker volume `data-director-llm-gateway_pgdata` | The gateway's database: its keys, budgets and spend. |
 | `/var/lib/data-director/.sign-in` | Marks that the run store has started afresh for sign-in (see the upgrade below). |
 
 ## Set up the VM
@@ -134,8 +143,8 @@ certificate from IT needs renewing by hand. One from certbot renews itself, and 
 `install.sh` adds reloads NGINX when it does.
 
 `install.sh` creates `/etc/data-director/deployment.yaml`, named after the first label of
-`--domain`, with the rule-based orchestrator. To change what runs, edit it and run
-`sudo data-director apply` ("Changing the deployment").
+`--domain`, with the rule-based orchestrator. To change what runs, run
+`sudo data-director edit` ("Changing the deployment").
 
 Keep the clone from step 2: `install.sh` and the `data-director` command run from it. The VM
 deploys from its own bare clone.
@@ -210,14 +219,70 @@ it reads and how.
 
 The model broker (`broker/README.md`) lets a person's own AI account pay for model calls. It is
 alpha and nothing calls it yet, so `install.sh` creates its user, its credentials directory and its
-settings file, but does not enable it. [The model broker](../docs/guide/operations/model-broker.md)
+settings file, with `DD_BROKER_HARNESS_JWKS_URL` set to the app's published keys on its loopback
+address, but does not enable it. [The model broker](../docs/guide/operations/model-broker.md)
 in the operations guide says how to turn it on. Its store is backed up with the others
 ([Backups](#backups)).
+
+The broker runs as a user of its own, so it must be able to run the release's Python. uv installs
+it in `/opt/data-director/python/`. A VM installed before that kept it in
+`/var/lib/data-director`, which the broker's user cannot enter, and the broker fails with
+`status=203/EXEC`. Run `install.sh` again: it rebuilds the live release's `.venv` against
+`/opt/data-director/python/` and restarts the services. `sudo data-director doctor` reports an
+enabled broker that cannot reach its Python.
+
+## The LiteLLM gateway
+
+The [LiteLLM gateway](llm-gateway/README.md) puts one endpoint in front of the model providers,
+records the tokens and cost of every call, and enforces budgets. It is optional. To run it on the
+VM, run `install.sh` with `--gateway`:
+
+```bash
+sudo deploy/install.sh --domain data-director.example.ac.uk --gateway
+```
+
+It installs Docker and runs the gateway and its PostgreSQL database under
+`data-director-llm-gateway.service`, on 127.0.0.1:4000 only. It makes the gateway's master key,
+salt key and database password once, in `/etc/data-director/credentials/llm-gateway/`. Then it
+makes a gateway key for the model broker, tagged `service:model-broker`, and sends the broker's
+deployment-paid calls through the gateway: it sets `DD_BROKER_DEPLOYMENT_BASE_URL` in
+`model-broker.env` and writes the broker's drop-in `llm-gateway.conf`. A person's own account
+never goes through the gateway.
+
+Give the gateway a provider key, which restarts it:
+
+```bash
+sudo data-director secret set llm-gateway anthropic-api-key
+```
+
+`openai-api-key` and `gemini-api-key` work the same way.
+
+Docker runs what the compose file says as root, so the unit runs root's copy of it from the
+clone, in `/usr/local/lib/data-director/llm-gateway/`, never one from a release. A deployment does
+not change or restart the gateway. Running `install.sh` again does both, with or without
+`--gateway` once the unit is enabled. To choose the models, copy `deploy/llm-gateway/config.yaml`
+to `/etc/data-director/llm-gateway.yaml`, edit it, and restart the gateway:
+
+```bash
+sudo systemctl restart data-director-llm-gateway
+```
+
+`sudo data-director doctor` reports a broker or agent sent to a gateway on the VM that does not
+answer. The nightly backup holds the gateway's settings and secrets, with the rest of
+`/etc/data-director`, and, while the gateway runs, its database: the keys it issued, their
+budgets and its spend ([Backups](#backups)).
 
 ## Day to day
 
 Merging to `main` is the deployment. Within about five minutes of "CI passed" turning green on
 the merge commit, the VM runs it.
+
+Each pass walks back from the tip of `main`, newest first, to the first commit that passed CI. It
+skips commits still in CI, commits that failed CI and commits that failed to start here
+(`failed-commits`). So when merges come faster than CI finishes, the VM still moves forward. It
+never goes back past the live commit, and looks at most `DD_DEPLOY_DEPTH` (10) commits back. Each
+commit it looks at is one request to the GitHub API, which allows 60 an hour without a token; set
+`GITHUB_TOKEN` in `deploy.env` if a long run of failing commits uses them up.
 
 Start with the doctor. It changes nothing, and names the command that fixes each problem it
 finds:
@@ -329,7 +394,7 @@ sudo /opt/data-director/releases/<sha>/deploy/deploy.sh --bootstrap
 
 If the app does not report the release within two minutes, `--bootstrap` puts the previous link
 back and exits with an error. After it succeeds, the next pass of the timer runs the new
-`deploy.sh` and deploys the tip of `main` as usual.
+`deploy.sh` and deploys the newest commit on `main` that passed CI, as usual.
 
 A release built before `--bootstrap` existed has no such option. On a VM whose releases all
 predate it, do the same by hand once, as root, with a release built after the fix to the restart:
@@ -423,8 +488,8 @@ carry come from the app's package version and `releases/<sha>/REVISION`.
 ## Secrets
 
 An agent that calls a hosted model holds the key itself. The app never does, and the key never
-appears in a run, a trace or an export ([Policy and identity](../docs/specs/policy-and-identity.md)). The orchestrator and three
-advisors' optional explainers can call a model. The model-backed orchestrator runs only while
+appears in a run, a trace or an export ([Policy and identity](../docs/specs/policy-and-identity.md)). The orchestrator and nine
+advisors can call a model, and the advisors do by default. The model-backed orchestrator runs only while
 `deployment.yaml` names it, and `apply` refuses to turn it on before it has its key. The steps to
 supply a key, turn an agent on, rotate a key and read a start-up error are in the operations
 guide, [AI models](../docs/guide/operations/ai-models.md).
@@ -448,9 +513,9 @@ credentials directory, so no other agent can read it although all run as one use
 
 systemd does not start a unit whose credential file is missing (`status=243/CREDENTIALS`, "Failed
 to set up credentials"), so the drop-in names only the files present and goes with the last of
-them; an advisor with no key runs with its template explainer, except the documentation and
-policy advisors, whose models are on by default: `apply` refuses them until they have a key or
-their own file sets them to `template`. Anything else in the directory (a
+them. Every advisor that can call a model does so by default, so `apply` refuses to turn one on
+until it has a key, a model broker credential, or its own file sets its switch to `template`
+([AI models](../docs/guide/operations/ai-models.md#which-agents-call-a-model)). Anything else in the directory (a
 directory, an empty file, a name that is not lower-case words joined by hyphens) is left out and
 reported. `secret.sh` rewrites the one agent's drop-in and restarts it if it is running;
 `install.sh` rewrites every agent's, so a secret put in place by hand takes effect when it runs.
@@ -469,6 +534,7 @@ on another VM:
 | `store-<name>.tar.gz` | Each store kept in a directory: `runs`, `projects`, `workbench-runs` |
 | `db-<name>.pgdump` | Each database a store names (`pg_dump --format=custom`), once per database |
 | `broker.sqlite3` | The [model broker](#the-model-broker)'s store, people's sealed keys and token counts, once the broker has run |
+| `gateway.pgdump` | The [LiteLLM gateway](#the-litellm-gateway)'s database, its keys, budgets and spend, dumped inside its own container while it runs |
 | `MANIFEST`, `SHA256SUMS` | Where each store was, the release that ran, and a checksum of each file |
 
 Each store is backed up from where the services keep it: the directory the unit sets, or the
@@ -558,6 +624,12 @@ To move a deployment, or to rebuild it after losing the VM, on a new Ubuntu VM:
    `<store>.before-restore-<time>`, and drops and replaces a database's tables; it moves the
    broker's store aside in the same way.
 
+   A backup that holds the LiteLLM gateway's database (`gateway.pgdump`) needs the gateway
+   running to restore into: in step 1, run `install.sh` with `--gateway` as well. `restore`
+   then stops the gateway, replaces its database with the backup's (the new gateway's own
+   key and tables go; only one that has spend counts as holding something), gives it the
+   restored database password, and leaves it stopped; `install.sh`, run next, starts it.
+
    For a store in PostgreSQL, the database must exist and be reachable with the restored
    settings before `restore` runs, with the same name and owner as before; for a server on the VM:
 
@@ -600,9 +672,11 @@ Try this once on a spare VM before it is needed, and after any change to `backup
   `scripts/check_deploy.py`, run in CI, fails until the two agree. Nothing else names it: once
   the release that adds it is live, `sudo data-director apply` starts it, and `doctor` says so
   until then ("not yet what deployment.yaml says").
-- **What runs** is `/etc/data-director/deployment.yaml`. Edit it, then run
-  `sudo data-director apply`, which runs from the clone as root and never from a release, so
-  `deploy.sh` cannot run it. `apply --check` says what would change.
+- **What runs** is `/etc/data-director/deployment.yaml`. Change it with
+  `sudo data-director edit`: it opens a copy in your editor (as you, not as root), saves it only
+  once it is valid, says what would change and offers to apply it. `sudo data-director apply`
+  applies the file as it stands. Both run from the clone as root and never from a release, so
+  `deploy.sh` cannot run them. `apply --check` says what would change.
 
 ## Moving a VM from the operator and password to sign-in
 
@@ -618,7 +692,8 @@ Each push to `main`, and each release of the app, publishes one image that holds
 built shell and every in-tree agent: `ghcr.io/data-director-agent/data-director`, for
 `linux/amd64` and `linux/arm64` (`.github/workflows/images.yml`, built from
 `docker/release.Dockerfile`). It is an alternative to building on a VM as this page does, for a
-deployment elsewhere (#222). It holds no Node or uv, runs as a non-root user (uid 10001) and
+deployment elsewhere (#222). It serves the browser scanner's bundle at `/inventory-bundle/`,
+built in a stage of its own, so **Describe a folder in this browser** is offered. It holds no Node or uv, runs as a non-root user (uid 10001) and
 reports the commit it was built from at `GET /api/about`.
 
 | Tag | What it is |
@@ -654,11 +729,11 @@ DD_PRINCIPAL_ID=https://orcid.org/0000-0002-1825-0097 DD_PRINCIPAL_NAME="A. Rese
 The app reads the settings in [`config/examples/app.env`](../config/examples/app.env) and the
 agents those in [`config/examples/agents.env`](../config/examples/agents.env); give them in files
 named by `DD_APP_ENV_FILE` and `DD_AGENTS_ENV_FILE` (relative to `docker/`). The model-backed
-orchestrator starts only with `--profile llm` and a model key. The documentation, policy and
-standards advisors, whose models are otherwise on by default, run here with
-`DD_DOCUMENTATION_WRITER=template`, `DD_POLICY_ADVISOR=template` and
-`DD_STANDARDS_EXPLAINER=template`; to turn a model on, export its setting as `model` in the shell
-and give the agent a key.
+orchestrator starts only with `--profile llm` and a model key. The advisors whose models are
+otherwise on by default run here with their setting at `template` (`DD_STANDARDS_EXPLAINER`,
+`DD_POLICY_ADVISOR`, `DD_REPOSITORY_EXPLAINER`, `DD_DOCUMENTATION_WRITER`, `DD_DMP_MATCHER`,
+`DD_RIGHTS_INTERPRETER`, `DD_FAIRNESS_WRITER`, `DD_ETHICS_READER` and `DD_METADATA_SUGGESTER`); to
+turn a model on, export its setting as `model` in the shell and give the agent a key.
 Runs and projects are written to `/runs` and `/projects`, which should be volumes. Without ORCID
 sign-in every run acts for the operator and the app authenticates nobody, so publish its port on
 loopback only, as the Compose file does, and put NGINX in front as on the VM.

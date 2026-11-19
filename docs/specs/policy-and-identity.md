@@ -139,24 +139,31 @@ the classes requiring approval, the optional orchestrator, `hosted_models`, `mod
 (whether people may or must use their own model account, whether the deployment pays for someone
 who has none, and which providers and base URLs their account may use;
 [A person's own model account](model-accounts.md)) and `agent_settings` (the options each agent's
-card offers, such as whether it reads a source live; invariant 22). A setting is the agent's own
+card offers, such as whether it reads a source live; invariant 22) and `model_footprint` (the
+prices and per-token energy factors the conductor estimates each run's model footprint from, with
+their source and date; [Disclosure](disclosure.md), invariant 8) and `attached_documents`
+(`allowed`, the default, or `refused`: whether people may attach documents to a project, and
+whether any agent is given one a project already holds; [Projects](projects.md), Documentation). A setting is the agent's own
 option, chosen by the steward: the conductor checks it against the card and sends it, and the agent
 applies it. It is not a way to grant an agent anything the other keys withhold. A change to which orchestrator is
 named raises the profile's version. Approved repositories (R1), persistent identifier systems
 (R7) and registry access return as keys only together with the agent or check that enforces them.
 `hosted_models` lists the classes of project content (`inventory`, `documentation`,
-`researcher`) that may go to an agent whose card declares a `hosted` model; without it only
-`inventory` may ([Projects](projects.md), invariant 8). Researcher facts the profile does not list
+`researcher`, `decisions`) that may go to an agent whose card declares a `hosted` model; without
+it `inventory` and `decisions` may ([Projects](projects.md), invariant 8). Researcher facts the profile does not list
 are left out of such an agent's input rather than refused. It covers project content the conductor gives, not what a
 caller or a person sends, such as a conversation's text (TODO(#40)). The rights and licensing part of a profile is to be expressed in ODRL
 when repository selection or deposit needs it.
 
-Two keys arrive with the harness's tool gateway, which is what enforces them
-([Agents](agents.md#tools-mcp-servers-and-agent-skills), TODO(#875)): a grant of MCP servers per
-agent, without which the gateway refuses the agent's calls; and the classes of project content
-that may go to an agent granted a `remote` server, mirroring `hosted_models`. Without the second,
-no `researcher` facts go to such an agent. A server is `local` or `remote` by the same rule as a
-model's endpoint.
+Two keys are enforced by the harness's tool gateway
+([Agents](agents.md#tools-mcp-servers-and-agent-skills)). `tool_servers` maps an enabled agent to
+the MCP servers it may call; an agent with no entry is sent no tools grant, and the gateway
+refuses any call outside the grant. A profile that grants a server the deployment does not list
+(`DD_TOOLS_CONFIG`) stops start-up. `remote_tool_content` lists the classes of project content
+that may go to an agent granted a `remote` server, mirroring `hosted_models`; without it every
+class but `researcher` may, so no `researcher` facts go to such an agent. A server is `local` or
+`remote` by the same rule as a model's endpoint, and an agent both granted a remote server and
+calling a hosted model is held to both lists (`dd_harness.policy.withheld`).
 
 **The authentication boundary** is one interface: from the headers of a caller's HTTP request
 (or none, for a caller with no request) to a principal. Three implementations sit behind it:

@@ -28,6 +28,22 @@ package.
 | `dd_sdk.registry` | What agents that read a registry share: `Query`, `Hit`, `SnapshotRef` and `RegistryUnavailable`; the snapshot tokeniser (`registry.tokenise`); the pinned-archive pipeline (`registry.pinned`); and FAIRsharing's sign-in, search and record reads (`registry.fairsharing`). |
 | `dd_sdk.explain` | `Rationale`, `Explanation`, `TemplateExplainer` and `ModelExplainer`, and the check that a model's rationale names only identifiers it was given ([Agents](../docs/specs/agents.md)). |
 
+## What belongs here
+
+The SDK holds only what speaks the Data Director contract. It is deliberately small, so that
+agents built on it stay thin and the work worth sharing sits outside it. Before adding a helper,
+ask whether it needs the contract:
+
+- If not (an HTTP client for a registry, a parser, a format converter), it is a framework-neutral
+  library, MCP server or Agent Skill, published on its own and called by the agent
+  ([System and boundaries](../docs/specs/system.md)).
+- If so, add it here, built on open standards (A2A, MCP, JSON Schema, LinkML, OpenTelemetry), and
+  make it usable by an agent in any repository: no path outside the package, no import of the
+  harness, workbench, app or an agent.
+
+An SDK helper that wraps an MCP server or loads an Agent Skill's instructions is welcome, provided
+what it retrieves still becomes evidence ([Evidence and grounding](../docs/specs/grounding.md)).
+
 ## Contract
 
 The core contract is `src/dd_sdk/schema/data_director.yaml`

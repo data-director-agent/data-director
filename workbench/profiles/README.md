@@ -37,19 +37,45 @@ orchestrator: orchestrator.stub  # optional: the agent a person converses with i
                              # listed under `agents`. Without it the app offers no conversation.
 
 hosted_models:               # optional: the classes of project content an agent that calls a
-  - inventory                # hosted model may be given; `documentation` is the other. Without
-                             # this key only `inventory` may (docs/specs/projects.md, invariant 8)
+  - inventory                # hosted model may be given; `documentation`, `researcher` and
+  - decisions                # `decisions` are the others. Without this key `inventory` and
+                             # `decisions` may (docs/specs/projects.md, invariant 8)
 
 model_accounts:              # optional: whose model account pays; see "People's own model
   own: off                   # accounts" below. Without this key, as with `own: off`, the
                              # deployment pays for every model call
 
+attached_documents: allowed  # optional: `refused` keeps no document people attach to a project
+                             # and gives no agent any a project holds. Without this key, `allowed`
+                             # (docs/specs/projects.md, Documentation)
+
 agent_settings:              # optional: options an agent offers on its card, per agent.
   advisor.policy:            # Write each value as a quoted string. Without this key every
     journals: "off"          # agent uses its card's defaults
+
+model_footprint:             # optional: figures to estimate each run's model energy and cost.
+                             # The numbers below are illustrative, not real prices or factors.
+  source: Provider price list; energy factors from a published study  # where the figures are from
+  as_of: 2026-11-01          # when they were taken
+  currency: GBP              # ISO 4217; required if any price is given
+  models:                    # keyed by the model ID the provider's response names
+    claude-sonnet-5-5:
+      input_per_mtok: 2.40   # price per million input tokens
+      output_per_mtok: 12.00 # price per million output tokens
+      input_j_per_token: 0.2 # joules per input token (modelled, not measured)
+      output_j_per_token: 2.0
+
+tool_servers:                # optional: the MCP servers each agent may call through the
+  advisor.rights:            # harness's tool gateway, by the names the deployment's list
+    - spdx                   # (DD_TOOLS_CONFIG) gives them. Without this key no agent calls any
+
+remote_tool_content:         # optional: the classes of project content an agent granted a
+  - inventory                # `remote` server may be given. Without this key every class but
+  - documentation            # `researcher` may (docs/specs/policy-and-identity.md)
+  - decisions
 ```
 
-Those nine keys are the whole vocabulary. A profile with any other key is refused when the
+Those twelve keys are the whole vocabulary. A profile with any other key is refused when the
 workbench starts, so a misspelt or out-of-date key cannot look as if it were in force.
 
 ## How it is applied
@@ -79,6 +105,13 @@ Before an agent runs, the conductor checks:
    sent says so, and the model broker pays for its calls as the next section describes. In a
    project, an agent that may call a person's own endpoint counts as calling a `hosted` model for
    step 5, unless every endpoint the profile allows is declared `local`.
+
+7. Is the agent granted MCP servers under `tool_servers` that its card declares and that are
+   available? If so, it is sent a grant to call those servers' declared tools through the tool
+   gateway, and nothing else; the conductor records each record a tool returns. In a project, an
+   agent granted a `remote` server is given only the classes of project content listed under
+   `remote_tool_content`, as step 5 does for `hosted_models`. A profile that grants a server the
+   deployment does not list stops the workbench at start-up.
 
 That is all the gate does. It cannot express conditions ("allow deposit if the dataset is under
 1 GB"). If such a rule is ever needed, the profile format will be extended and compiled to a
@@ -148,6 +181,16 @@ workbench stops at start-up rather than appear to apply a rule it cannot.
 A person's own account calls their provider's service, which is hosted. Declare a base URL
 `local: true` only if it is a service your institution runs. While own accounts are on, an agent
 counts as calling a hosted model unless every address the profile allows is declared local.
+
+## Model footprint
+
+With `model_footprint`, the conductor estimates each model call's energy and cost from its token
+counts and the figures you give for that model, and records them in the run's Process Run Crate;
+the run's energy also goes in its envelope (`energy_method: estimated`). A run that called a model
+you did not list, or whose provider reported no token counts, gets no figure rather than a partial
+one. The figures are yours: check prices against the provider's list, and say in `source` where
+the energy factors come from, since providers of hosted models do not publish them
+([Disclosure](../../docs/specs/disclosure.md), invariant 8).
 
 ## Planned keys
 

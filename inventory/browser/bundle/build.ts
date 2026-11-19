@@ -30,6 +30,7 @@ import { gzipSync } from "node:zlib";
 import { parse as parseToml } from "smol-toml";
 
 import { BUNDLE_DIR, CORE_FILES, MANIFEST, type Manifest } from "./manifest.ts";
+import { NOTICES, renderNotices, wheelLicence } from "./notices.ts";
 import {
   BundleError,
   resolveBundle,
@@ -43,6 +44,13 @@ const PACKAGE = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const MEMBER = resolve(PACKAGE, "..");
 const CACHE = join(PACKAGE, ".cache", "wheels");
 const DISTRIBUTION = "data-director-inventory";
+/**
+ * Left out of the bundle, with what only they need. Presidio declares spaCy, preshed and numpy,
+ * but with pattern recognisers only it imports none of them but spaCy, which does not build for
+ * Pyodide; the stand-in in `spacy-stub/` takes spaCy's place (docs/specs/personal-data.md).
+ */
+const PRUNED = ["spacy", "preshed", "numpy"];
+const STUB = { name: "dd-inventory-spacy-stub", version: "1.0.0", dir: join(PACKAGE, "bundle", "spacy-stub") };
 
 const pyodideDir = dirname(createRequire(import.meta.url).resolve("pyodide/package.json"));
 const pyodideVersion = (
@@ -87,6 +95,7 @@ function workspacePackages(): PylockPackage[] {
     DISTRIBUTION,
     "--no-dev",
     "--no-emit-workspace",
+    ...PRUNED.flatMap((name) => ["--prune", name]),
     "--frozen",
     "--quiet",
     "--output-file",
@@ -95,6 +104,15 @@ function workspacePackages(): PylockPackage[] {
   const text = readFileSync(lock, "utf8");
   rmSync(out, { recursive: true, force: true });
   return (parseToml(text) as unknown as { packages: PylockPackage[] }).packages;
+}
+
+/** The stand-in for spaCy (`spacy-stub/`), as a wheel the same each time it is built. */
+function buildStub(into: string): CommandWheel {
+  const file = run("uv", [
+    "run", "--no-project", "--quiet", "python", "-I", join(PACKAGE, "bundle", "write_wheel.py"),
+    STUB.dir, STUB.name, STUB.version, into,
+  ]).trim();
+  return { name: STUB.name, version: STUB.version, file, sha256: sha256(readFileSync(join(into, file))) };
 }
 
 /** A wheel's bytes, from the cache or downloaded, checked against its lock's digest. */
@@ -115,6 +133,39 @@ async function fetchWheel(wheel: BundleWheel): Promise<Uint8Array> {
   return data;
 }
 
+/** Python that prints, for each wheel named, its `METADATA` and the paths in it, as JSON. */
+const READ_WHEELS = `
+import json, sys, zipfile
+out = {}
+for path in sys.argv[1:]:
+    with zipfile.ZipFile(path) as z:
+        names = z.namelist()
+        meta = next(n for n in names if n.endswith(".dist-info/METADATA"))
+        out[path] = {"metadata": z.read(meta).decode("utf-8"), "paths": names}
+print(json.dumps(out))
+`;
+
+/** `NOTICES.md` for the wheels the bundle in `out` holds (`notices.ts`). */
+function writeNotices(out: string, wheels: BundleWheel[], python: string): void {
+  const paths = wheels.map((w) => join(out, "wheels", w.file));
+  const read = JSON.parse(
+    run("uv", ["run", "--no-project", "--quiet", "python", "-I", "-c", READ_WHEELS, ...paths]),
+  ) as Record<string, { metadata: string; paths: string[] }>;
+  const licences = wheels.map((w, i) => {
+    const wheel = read[paths[i] as string];
+    if (!wheel) throw new BundleError(`${w.file} could not be read`);
+    return wheelLicence(w.name, w.version, wheel.metadata, wheel.paths);
+  });
+  const pronom = Object.values(read)
+    .flatMap((w) => w.paths)
+    .map((p) => /^fido\/conf\/formats-(v\d+)\.xml$/.exec(p)?.[1])
+    .find(Boolean);
+  writeFileSync(
+    join(out, NOTICES),
+    renderNotices({ pyodide: pyodideVersion, python, wheels: licences, pronom }),
+  );
+}
+
 async function main(): Promise<void> {
   const out = join(PACKAGE, BUNDLE_DIR);
   rmSync(out, { recursive: true, force: true });
@@ -124,7 +175,8 @@ async function main(): Promise<void> {
     readFileSync(join(pyodideDir, "pyodide-lock.json"), "utf8"),
   ) as PyodideLock;
   const command = buildCommand(join(out, "wheels"));
-  const { wheels, lock } = resolveBundle(pyodideLock, workspacePackages(), command);
+  const stub = buildStub(join(out, "wheels"));
+  const { wheels, lock } = resolveBundle(pyodideLock, workspacePackages(), command, [stub]);
 
   const sizes: Record<string, { bytes: number; gzip: number }> = {};
   const record = (path: string, data: Uint8Array): void => {
@@ -141,6 +193,7 @@ async function main(): Promise<void> {
     copyFileSync(join(pyodideDir, file), join(out, file));
     record(file, readFileSync(join(out, file)));
   }
+  writeNotices(out, wheels, String(pyodideLock.info.python ?? ""));
   const lockText = JSON.stringify(lock, null, 1);
   writeFileSync(join(out, "pyodide-lock.json"), lockText);
   record("pyodide-lock.json", new TextEncoder().encode(lockText));
@@ -149,6 +202,7 @@ async function main(): Promise<void> {
     pyodide: pyodideVersion,
     command: { name: command.name, version: command.version },
     entry: DISTRIBUTION,
+    notices: NOTICES,
     wheels: wheels.map(({ name, version, file, sha256, source }) => ({
       name,
       version,

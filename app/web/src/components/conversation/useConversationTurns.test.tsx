@@ -13,6 +13,9 @@ import type { Conversation } from "../../conversation/types";
 import { ActiveProjectProvider } from "../../project/active";
 import { type ProjectApi, ProjectApiContext } from "../../project/api";
 import { RunRefused } from "../../run/api";
+import { RunTransportContext, type RunTransport } from "../../run/transport";
+import { CANCELLED, SUCCEEDED, turnTransport, type TurnSent } from "../../test/turns";
+import { AnnouncerProvider } from "../ui/Announcer";
 import type { Carried } from "./useAttachments";
 import {
   replyAnnouncement,
@@ -35,17 +38,33 @@ const PROJECTS = {
   projects: () => Promise.resolve([{ project_id: CONVERSATION.project_id }]),
 } as unknown as ProjectApi;
 
-function fakeApi(overrides: Partial<ConversationApi> = {}): ConversationApi {
+/** The conversation endpoints, and the turns' stream, whose turns go to `sendTurn`. */
+type FakeApi = ConversationApi & { turns: RunTransport };
+
+function fakeApi({
+  sendTurn,
+  ...overrides
+}: Partial<ConversationApi> & { sendTurn?: TurnSent } = {}): FakeApi {
   return {
     create: () => Promise.resolve({ conversation_id: "c1", project_id: null }),
-    sendTurn: () => Promise.resolve(),
     list: () => Promise.resolve([]),
     get: () => Promise.resolve(CONVERSATION),
+    remove: () => Promise.reject(new Error("nothing deleted in these tests")),
+    restore: () => Promise.resolve(),
+    deleted: () => Promise.resolve([]),
     ...overrides,
+    turns: turnTransport(sendTurn),
   };
 }
 
-function renderTurns(api: ConversationApi, options: Partial<TurnsOptions> = {}) {
+/** What a turn to the orchestrator sends, with nothing attached. */
+const said = (message: string, follows: string | null = null) => ({
+  agent_id: "orchestrator.stub",
+  message_text: message,
+  follows,
+});
+
+function renderTurns(api: FakeApi, options: Partial<TurnsOptions> = {}) {
   const props: TurnsOptions = {
     orchestratorId: "orchestrator.stub",
     runId: null,
@@ -58,11 +77,17 @@ function renderTurns(api: ConversationApi, options: Partial<TurnsOptions> = {}) 
     ...options,
   };
   const wrapper = ({ children }: { children: ReactNode }) => (
-    <ProjectApiContext.Provider value={PROJECTS}>
-      <ActiveProjectProvider>
-        <ConversationApiContext.Provider value={api}>{children}</ConversationApiContext.Provider>
-      </ActiveProjectProvider>
-    </ProjectApiContext.Provider>
+    <AnnouncerProvider>
+      <ProjectApiContext.Provider value={PROJECTS}>
+        <ActiveProjectProvider>
+          <ConversationApiContext.Provider value={api}>
+            <RunTransportContext.Provider value={api.turns}>
+              {children}
+            </RunTransportContext.Provider>
+          </ConversationApiContext.Provider>
+        </ActiveProjectProvider>
+      </ProjectApiContext.Provider>
+    </AnnouncerProvider>
   );
   const view = renderHook(() => useConversationTurns(props), { wrapper });
   return { ...view, props };
@@ -78,7 +103,7 @@ describe("useConversationTurns", () => {
     const sendTurn = vi.fn().mockResolvedValue(undefined);
     const { result, props } = renderTurns(fakeApi({ sendTurn }));
     await act(() => result.current.deliver("hi", NOTHING, null));
-    expect(sendTurn).toHaveBeenCalledWith("c1", "orchestrator.stub", "hi", null, null);
+    expect(sendTurn).toHaveBeenCalledWith("c1", said("hi"));
     expect(result.current.conversation).toEqual(CONVERSATION);
     expect(result.current.conversationId).toBe("c1");
     expect(result.current.turnCount).toBe(CONVERSATION.turns.length);
@@ -97,7 +122,7 @@ describe("useConversationTurns", () => {
     await act(() => result.current.deliver("and again", NOTHING, null));
     const latest = CONVERSATION.turns.at(-1)?.invocation_id;
     expect(latest).toBeDefined();
-    expect(sendTurn).toHaveBeenLastCalledWith("c1", "orchestrator.stub", "and again", latest, null);
+    expect(sendTurn).toHaveBeenLastCalledWith("c1", said("and again", latest ?? null));
   });
 
   it("sends nothing without an orchestrator or anything to send", async () => {
@@ -111,7 +136,7 @@ describe("useConversationTurns", () => {
 
   it("holds the message as sent while the reply is awaited", async () => {
     let reply: () => void = () => undefined;
-    const sendTurn = () => new Promise<void>((resolve) => (reply = resolve));
+    const sendTurn = () => new Promise<void>((resolve) => (reply = () => resolve()));
     const { result } = renderTurns(fakeApi({ sendTurn }));
     let sending: Promise<void> = Promise.resolve();
     act(() => {
@@ -125,6 +150,70 @@ describe("useConversationTurns", () => {
       await sending;
     });
     expect(result.current.sent).toBeNull();
+    // A run that finished is shown as a turn, not as a run of its own.
+    expect(result.current.live).toBeNull();
+  });
+
+  it("draws the run live while the reply is awaited", async () => {
+    let reply: () => void = () => undefined;
+    const sendTurn = () => new Promise<void>((resolve) => (reply = () => resolve()));
+    const { result } = renderTurns(fakeApi({ sendTurn }));
+    let sending: Promise<void> = Promise.resolve();
+    act(() => {
+      sending = result.current.deliver("hello", NOTHING, null);
+    });
+    await waitFor(() => expect(result.current.live?.state.phase).toBe("idle"));
+    expect(result.current.live?.stored).toBe(false);
+    await act(async () => {
+      reply();
+      await sending;
+    });
+  });
+
+  it("keeps a run that did not finish in place, beside the turn the server stored", async () => {
+    const { result, props } = renderTurns(
+      fakeApi({ sendTurn: vi.fn<TurnSent>().mockResolvedValue(undefined).mockResolvedValueOnce(CANCELLED) }),
+    );
+    await act(() => result.current.deliver("hi", NOTHING, null));
+    expect(result.current.live?.state.phase).toBe("cancelled");
+    expect(result.current.sent?.message).toBe("hi");
+    expect(result.current.live?.stored).toBe(true);
+    expect(result.current.conversation).toEqual(CONVERSATION);
+    expect(result.current.busy).toBe(false);
+    // It ran, so the message is not offered to be sent again.
+    expect(props.setText).not.toHaveBeenCalledWith("hi");
+    // The next message lets it go.
+    await act(() => result.current.deliver("again", NOTHING, null));
+    expect(result.current.error).toBeNull();
+    expect(result.current.live).toBeNull();
+    expect(result.current.sent).toBeNull();
+  });
+
+  it("keeps a run whose stream closed before it ended as interrupted", async () => {
+    const cut = SUCCEEDED.filter((event) => (event as { type: string }).type !== "RUN_FINISHED");
+    const { result } = renderTurns(fakeApi({ sendTurn: () => Promise.resolve(cut) }));
+    await act(() => result.current.deliver("hi", NOTHING, null));
+    expect(result.current.live?.state.phase).toBe("interrupted");
+  });
+
+  it("gives back a message the server refused once its stream was open", async () => {
+    const refused = [{ type: "RUN_ERROR", message: "This turn does not follow the latest." }];
+    const { result, props } = renderTurns(fakeApi({ sendTurn: () => Promise.resolve(refused) }));
+    await act(() => result.current.deliver("hi", NOTHING, null));
+    expect(result.current.error).toMatch(/does not follow the latest/);
+    expect(props.setText).toHaveBeenLastCalledWith("hi");
+    expect(result.current.live).toBeNull();
+    expect(result.current.sent).toBeNull();
+  });
+
+  it("cancels the run being streamed", async () => {
+    const turns = fakeApi({ sendTurn: () => new Promise(() => undefined) });
+    const { result } = renderTurns(turns);
+    act(() => void result.current.deliver("hi", NOTHING, null));
+    await waitFor(() => expect(result.current.live).not.toBeNull());
+    act(() => result.current.live?.cancel());
+    expect(turns.turns.cancel).toHaveBeenCalledWith("c1", expect.any(String));
+    expect(result.current.live?.cancelling).toBe(true);
   });
 
   it("gives a failed message back to the box, with what it carried", async () => {

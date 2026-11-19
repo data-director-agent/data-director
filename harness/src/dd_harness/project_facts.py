@@ -3,18 +3,19 @@
 
 Three core classes are filled. Within a project:
 
-- a `DraftRequest`'s `inventory`, `requirements`, `metadata_record`, `draft_answers` and
-  `researchers` are the project's own: whatever the caller sent is replaced, and a slot the
-  project has no value for is removed, so that an agent is never given facts a caller, or a
-  model, made up. The metadata
-  record is the version a person approved last, since a drafter treats it as supplied. The
-  answers are the latest a person recorded to each question of the project's documents of the
-  kind asked for (docs/specs/drafting.md, invariant 6): a drafter marks an answer
-  `supplied`, so no caller may send one. The `current_version` is the latest version of the
-  project's document of that kind drafted or revised last, or of the one `redraft_document`
-  names, so a drafter that revises it makes that document's next version. A `redraft_document`
-  that is not the project's, or is of another kind, is refused (`refusal`); outside a project it
-  is removed, since it names a project document;
+- a `DraftRequest`'s `inventory`, `requirements`, `metadata_record`, `draft_answers`,
+  `researchers` and `project_documents` are the project's own: whatever the caller sent is
+  replaced, and a slot the project has no value for is removed, so that an agent is never given
+  facts a caller, or a model, made up. The metadata record is the version a person approved last,
+  since a drafter treats it as supplied. The answers are the latest a person recorded to each
+  question of the project's documents of the kind asked for (docs/specs/drafting.md, invariant 6):
+  a drafter marks an answer `supplied`, so no caller may send one. The `project_documents` are the
+  documents a researcher attached, each with its text, from which a drafter's model may suggest
+  answers. The `current_version` is the latest version of the project's document of that kind
+  drafted or revised last, or of the one `redraft_document` names, so a drafter that revises it
+  makes that document's next version. A `redraft_document` that is not the project's, or is of
+  another kind, is refused (`refusal`); outside a project it is removed, since it names a project
+  document;
 - a plain `FileInventory` is the project's inventory, when it holds one;
 - a `Message`'s `project_inventory` says what the project's inventory is, so that an orchestrator
   knows the project holds one without being given its files; its `project_entry` and
@@ -29,7 +30,18 @@ Three core classes are filled. Within a project:
   the facts people in the project kept from their public ORCID records, as a `DraftRequest`'s
   `researchers` are, so that an agent can draft creators, affiliations, subjects and funding
   from what a researcher chose to supply rather than ask for them. They are the project's
-  researchers, not whom the run acts for: every run in the project is given the same.
+  researchers, not whom the run acts for: every run in the project is given the same. Its
+  `project_repository` is the repository a researcher chose last (`repository_chosen`), by name
+  and re3data identifier, so that an orchestrator knows one is chosen and which (#1168).
+
+A `DraftRequest`'s and a `Message`'s `project_decisions` are the facts people in the project
+decided about it (`dd_harness.projects.facts`): its funders, the repositories a funder or
+institution requires, which files go in, whether sensitive fields or files may be published and
+how, and its licence. They are the last decision on each, never what an agent only proposed, and
+never the agent's or person's words about why. Outside a project, a `Message`'s are removed; a
+`DraftRequest`'s, like its other facts, are the caller's. An agent's own input class that mixes in
+`GivenProjectDecisions` or `GivenProjectRepository` is given the decided facts or the chosen
+repository by slot name, as one that mixes in `GivenProjectDocuments` is given attached documents.
 
 A `Message`'s project slots are the conductor's alone: outside a project they are removed. Any
 other input is left as it was sent. The conductor fills the input before hashing it, so the input
@@ -38,15 +50,23 @@ hash covers what the agent was shown.
 `given` says which classes of project content (invariant 8) a filled input holds, so that the
 conductor can refuse to send `documentation` to an agent that calls a hosted model unless the
 profile's `hosted_models` allows it. An inventory, and what it is, are `inventory`. A metadata
-record, a version to regenerate and a person's answers are `documentation`. A repository's
+record, a version to regenerate, a person's answers and attached documents' text are
+`documentation`. A repository's
 requirements are the repository's, not the project's, and a `Message`'s entry point and progress
 say only which steps of the process flow have gone how far; they are neither. Nor is a project's
 title: a name a researcher typed, or a model wrote from what was said in the conversation, which
 the model is sent anyway. Nor is a `Message`'s `project_documentation`: it holds a document's
 file name, as a researcher gave it in the conversation, and never its text. Researcher facts
 are `researcher`: public, but personal, so they go to a hosted model only where the profile says.
-They add to what an agent is given and no agent needs them, so where the profile keeps them from
-an agent the conductor leaves them out (`leave_out`) rather than refusing the run.
+They, and the text of attached documents, add to what an agent is given and no agent needs them,
+so where the profile keeps their class from an agent the conductor leaves them out (`leave_out`)
+rather than refusing the run; a metadata record, a version or answers withheld still refuse it,
+since the conductor classes what is left again. Decided facts
+are `decisions`: structured values about the project, which go to a hosted model unless the
+profile says otherwise; so is the repository a researcher chose, a decision too. Without them a
+drafter would draft as if nothing had been decided, so where the profile keeps them from a drafter
+the run is refused; a `Message`'s are left out instead, and so is its chosen repository, so that a
+conversation with a hosted orchestrator does not stop once a fact is decided.
 """
 
 from __future__ import annotations
@@ -58,18 +78,25 @@ from dd_harness.progress import ENTRY_BY_RESEARCHER
 from dd_harness.projects import TITLE_BY_RESEARCHER
 from dd_harness.storage import (
     ProjectDocuments,
+    ProjectFacts,
     ProjectHoldings,
     ProjectLifecycle,
     ProjectProgress,
     ProjectRepository,
     ProjectResearchers,
 )
+from dd_sdk.agent import AgentSpec
 from dd_sdk.contract.models import DocumentKind
 
 # The core input classes whose slots the conductor fills from a project.
 DRAFT_REQUEST = "DraftRequest"
 FILE_INVENTORY = "FileInventory"
 MESSAGE = "Message"
+CORE_CLASSES = frozenset({DRAFT_REQUEST, FILE_INVENTORY, MESSAGE})
+# The core slots an agent's own input class may mix in, which the conductor fills by name
+# (`GivenProjectDocuments`, `GivenProjectDecisions`, `GivenProjectRepository`) without the
+# harness naming the class.
+AGENT_INPUT_SLOTS = ("project_documents", "project_decisions", "project_repository")
 # A `Message`'s slots that only the conductor fills.
 MESSAGE_PROJECT_SLOTS = (
     "project_inventory",
@@ -80,17 +107,19 @@ MESSAGE_PROJECT_SLOTS = (
     "project_documentation",
     "project_entry_by_researcher",
     "project_researchers",
+    "project_decisions",
+    "project_repository",
 )
 
 # The classes of project content (docs/specs/projects.md, invariant 8).
 INVENTORY = "inventory"
 DOCUMENTATION = "documentation"
 RESEARCHER = "researcher"
+DECISIONS = "decisions"
 # The slots that hold researcher facts, of a `Message` and of a `DraftRequest`.
 RESEARCHER_SLOTS = ("project_researchers", "researchers")
 
 
-# A `DraftRequest`'s slots that hold documentation.
 class FactSource(
     ProjectLifecycle,
     ProjectHoldings,
@@ -98,20 +127,49 @@ class FactSource(
     ProjectRepository,
     ProjectProgress,
     ProjectDocuments,
+    ProjectFacts,
     Protocol,
 ):
     """The areas of a project its facts are read from: every area but its deposits. The
     conductor reads them from one snapshot of the project per invocation (`Projects.snapshot`)."""
 
 
-DOCUMENTATION_SLOTS = ("metadata_record", "current_version", "draft_answers")
+# A `DraftRequest`'s slots that hold documentation.
+DOCUMENTATION_SLOTS = ("metadata_record", "current_version", "draft_answers", "project_documents")
+# Which slot of a filled input holds which class of project content, by input class.
+CONTENT_SLOTS: dict[str, tuple[tuple[str, str], ...]] = {
+    MESSAGE: (
+        ("project_inventory", INVENTORY),
+        ("project_researchers", RESEARCHER),
+        ("project_decisions", DECISIONS),
+        ("project_repository", DECISIONS),
+    ),
+    DRAFT_REQUEST: (
+        ("inventory", INVENTORY),
+        *((slot, DOCUMENTATION) for slot in DOCUMENTATION_SLOTS),
+        ("researchers", RESEARCHER),
+        ("project_decisions", DECISIONS),
+    ),
+}
+AGENT_CONTENT_SLOTS = (
+    ("project_documents", DOCUMENTATION),
+    ("project_decisions", DECISIONS),
+    ("project_repository", DECISIONS),
+)
 
 
 def give(
-    store: FactSource | None, project_id: str | None, input_doc: Mapping[str, Any]
+    store: FactSource | None,
+    project_id: str | None,
+    input_doc: Mapping[str, Any],
+    *,
+    documents: bool = True,
+    spec: AgentSpec | None = None,
 ) -> dict[str, Any]:
     """`input_doc` with the project's facts put in, for a class that asks for them. With no
-    store or no project, only what a caller may never set is removed."""
+    store or no project, only what a caller may never set is removed. Without `documents`, as
+    under a profile that refuses attached documents, no attached document is given: neither a
+    `Message`'s list of them nor a `DraftRequest`'s text of them."""
     filled = dict(input_doc)
     schema_class = filled.get("schema_class")
     if store is None or project_id is None:
@@ -139,7 +197,9 @@ def give(
                 # False while the project is untitled too: the model may name it.
                 "project_title_by_researcher": summary["title_source"] == TITLE_BY_RESEARCHER,
                 # Left out while the project holds none, as `project_inventory` is.
-                "project_documentation": store.documentation(project_id) or None,
+                "project_documentation": (store.documentation(project_id) or None)
+                if documents
+                else None,
                 # Absent until an entry point is recorded, as `project_entry` is.
                 "project_entry_by_researcher": (
                     where["entry_source"] == ENTRY_BY_RESEARCHER
@@ -148,6 +208,10 @@ def give(
                 ),
                 # Left out while nobody in the project kept any.
                 "project_researchers": store.researchers(project_id),
+                # Left out while nobody in the project decided any.
+                "project_decisions": store.decisions(project_id),
+                # Left out until a researcher chooses one.
+                "project_repository": chosen(summary["repository"]),
             },
         )
     elif schema_class == DRAFT_REQUEST:
@@ -161,13 +225,58 @@ def give(
                 # Only answers a person recorded may be placed as supplied.
                 "draft_answers": _answers(store, project_id, filled.get("document_kind")),
                 "researchers": store.researchers(project_id),
+                "project_documents": _documents(store, project_id) if documents else None,
+                # Only facts a person decided, never a proposal.
+                "project_decisions": store.decisions(project_id),
             },
         )
     elif schema_class == FILE_INVENTORY:
         held = store.inventory(project_id)
         if held is not None:
             return dict(held)
+    elif slots := agent_slots(spec, schema_class):
+        # An agent's own class that mixes in a core slot is filled by that slot's name.
+        _put(filled, _agent_facts(store, project_id, slots, documents=documents))
     return filled
+
+
+def _agent_facts(
+    store: FactSource, project_id: str, slots: frozenset[str], *, documents: bool
+) -> dict[str, Any]:
+    """The values of the core `slots` an agent's own input class mixes in, None for one the
+    project has no value for."""
+    facts: dict[str, Any] = {}
+    if "project_documents" in slots:
+        facts["project_documents"] = _documents(store, project_id) if documents else None
+    if "project_decisions" in slots:
+        facts["project_decisions"] = store.decisions(project_id)
+    if "project_repository" in slots:
+        facts["project_repository"] = chosen(store.summary(project_id)["repository"])
+    return facts
+
+
+def chosen(recorded: Mapping[str, Any] | None) -> dict[str, Any] | None:
+    """The repository a researcher chose, as a `ChosenRepository`, from what the project's
+    summary says of the repository chosen last; None while none is chosen. Only its name and
+    identifier: its warnings and when it was chosen are for the person, not an agent."""
+    if recorded is None:
+        return None
+    return {
+        "chosen_repository_name": recorded["repository_name"],
+        "chosen_re3data_id": recorded["re3data_id"],
+    }
+
+
+def agent_slots(spec: AgentSpec | None, schema_class: Any) -> frozenset[str]:
+    """The core slots (`AGENT_INPUT_SLOTS`) the card's schema for an agent's own input class
+    declares, from the mixins `GivenProjectDocuments`, `GivenProjectDecisions` and
+    `GivenProjectRepository`; empty for a core class, which `give` fills by name, or one the agent
+    does not accept."""
+    if spec is None or schema_class in CORE_CLASSES:
+        return frozenset()
+    accepted = spec.accepted(str(schema_class))
+    declared = set(accepted.json_schema.get("properties", {})) if accepted else set()
+    return frozenset(declared & set(AGENT_INPUT_SLOTS))
 
 
 def refusal(
@@ -194,32 +303,48 @@ def given(
     if store is None or project_id is None:
         return frozenset()
     schema_class = filled.get("schema_class")
-    found: set[str] = set()
-    if schema_class == MESSAGE:
-        if filled.get("project_inventory"):
-            found.add(INVENTORY)
-        if filled.get("project_researchers"):
-            found.add(RESEARCHER)
-    elif schema_class == DRAFT_REQUEST:
-        if filled.get("inventory"):
-            found.add(INVENTORY)
-        if any(filled.get(slot) for slot in DOCUMENTATION_SLOTS):
-            found.add(DOCUMENTATION)
-        if filled.get("researchers"):
-            found.add(RESEARCHER)
-    elif schema_class == FILE_INVENTORY and store.inventory(project_id) is not None:
-        found.add(INVENTORY)
-    return frozenset(found)
+    if schema_class == FILE_INVENTORY:
+        return frozenset({INVENTORY}) if store.inventory(project_id) is not None else frozenset()
+    # An agent's own class holds what its mixins ask for (`give`).
+    slots = CONTENT_SLOTS.get(str(schema_class), AGENT_CONTENT_SLOTS)
+    return frozenset(kind for slot, kind in slots if filled.get(slot))
+
+
+def left_out(filled: Mapping[str, Any]) -> frozenset[str]:
+    """The classes of project content in `filled` left out, rather than refused, where the
+    profile keeps them from an agent: researcher facts always, a `Message`'s decided facts and
+    chosen repository, which an orchestrator does not need to draft anything, and a
+    `DraftRequest`'s attached documents, from which a drafter only suggests answers."""
+    if filled.get("schema_class") == MESSAGE:
+        return frozenset({RESEARCHER, DECISIONS})
+    return frozenset({RESEARCHER, DOCUMENTATION})
 
 
 def leave_out(filled: Mapping[str, Any], classes: frozenset[str]) -> dict[str, Any]:
-    """`filled` without the researcher facts, if `classes` names `researcher`: the one class of
-    project content left out, rather than refused, where the profile keeps it from an agent."""
+    """`filled` without the content of `classes` that `left_out` says may be left out: its
+    researcher facts, a `Message`'s decided facts and chosen repository, and a `DraftRequest`'s
+    attached documents but none of its other documentation."""
     kept = dict(filled)
-    if RESEARCHER in classes:
+    out = classes & left_out(filled)
+    if RESEARCHER in out:
         for slot in RESEARCHER_SLOTS:
             kept.pop(slot, None)
+    if DECISIONS in out:
+        kept.pop("project_decisions", None)
+        kept.pop("project_repository", None)
+    if DOCUMENTATION in out:
+        kept.pop("project_documents", None)
     return kept
+
+
+def _documents(store: FactSource, project_id: str) -> list[dict[str, Any]]:
+    """Each document the project holds, with its text, as a `ProjectDocument`."""
+    found = []
+    for summary in store.documentation(project_id):
+        text = store.documentation_text(project_id, summary["documentation_digest"])
+        if text is not None:
+            found.append({**summary, "documentation_text": text})
+    return found
 
 
 def summarise(

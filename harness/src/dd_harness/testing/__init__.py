@@ -5,8 +5,8 @@ Import everything from here; the modules are an internal arrangement:
 
 - `serving`: `in_process` and `make_conductor`, which serve agents and the conductor in memory
   over the real A2A wire, and `send_to_harness`.
-- `doubles`: `AbstainingStub`, `DocumentStub` and `ScriptedAgent`, with the spans a scripted
-  agent emits.
+- `doubles`: `AbstainingStub`, `DocumentStub`, `FactStub` and `ScriptedAgent`, with the spans a
+  scripted agent emits.
 - `results`: results a scripted agent can return, and the sources they are grounded on.
 - `input_ref` and `input_evidence` are the agent kit's own (`dd_sdk.agent`), re-exported here.
 - `classes`: the doubles' own `Probe*` classes, declared in `../schema/doubles.yaml`.
@@ -22,6 +22,10 @@ Import everything from here; the modules are an internal arrangement:
   project rules (docs/specs/storage.md); each check is also named in `RUN_STORAGE_CHECKS`,
   `PROJECT_LOG_CHECKS` and `PROJECT_STORAGE_CHECKS`. `check_shared_record` (`SHARED_RECORD_CHECKS`)
   holds two logs over one record to one another, which a backend serving several instances passes.
+- `turn_locks`: `check_conversation_locks` (`CONVERSATION_LOCK_CHECKS`), the conformance checks
+  a backend of each conversation's turn lock must pass (docs/specs/storage.md, "Turn locks").
+- `replay`: `check_a_log_replays_as_it_folds`, which holds a backend's project log to folding the
+  same whether its events are appended together or one at a time, for any sequence of changes.
 
 Nothing here needs the workbench (docs/specs/system.md) or knows about any real agent.
 """
@@ -30,7 +34,9 @@ from dd_harness.testing.classes import (
     ProbeCheck,
     ProbeClaim,
     ProbeDocumentRequest,
+    ProbeFindings,
     ProbeProfile,
+    ProbeReading,
     ProbeRecord,
     ProbeReview,
 )
@@ -41,6 +47,7 @@ from dd_harness.testing.doubles import (
     Behaviour,
     Chat,
     DocumentStub,
+    FactStub,
     Retrieve,
     ScriptedAgent,
 )
@@ -59,6 +66,7 @@ from dd_harness.testing.fixtures import (
 from dd_harness.testing.identity import FakeIdentityProvider
 from dd_harness.testing.model_grants import GrantKeys, OpenedGrant
 from dd_harness.testing.orcid import SAMPLE_ID, FakeOrcidRegistry, sample_record
+from dd_harness.testing.replay import check_a_log_replays_as_it_folds
 from dd_harness.testing.results import (
     SOURCE_A,
     SOURCE_B,
@@ -87,9 +95,11 @@ from dd_harness.testing.storage import (
     file_inventory,
     file_inventory_of_parts,
 )
+from dd_harness.testing.turn_locks import CONVERSATION_LOCK_CHECKS, check_conversation_locks
 from dd_sdk.agent import input_evidence, input_ref
 
 __all__ = [
+    "CONVERSATION_LOCK_CHECKS",
     "HARNESS_URL",
     "PERMISSIVE",
     "PROFILES_DIR",
@@ -108,6 +118,7 @@ __all__ = [
     "Behaviour",
     "Chat",
     "DocumentStub",
+    "FactStub",
     "FakeIdentityProvider",
     "FakeOrcidRegistry",
     "GrantKeys",
@@ -115,12 +126,16 @@ __all__ = [
     "ProbeCheck",
     "ProbeClaim",
     "ProbeDocumentRequest",
+    "ProbeFindings",
     "ProbeProfile",
+    "ProbeReading",
     "ProbeRecord",
     "ProbeReview",
     "Retrieve",
     "ScriptedAgent",
     "asgi_client_factory",
+    "check_a_log_replays_as_it_folds",
+    "check_conversation_locks",
     "check_project_log",
     "check_project_rules",
     "check_project_storage",

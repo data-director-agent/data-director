@@ -7,7 +7,7 @@ The repository advisor helps with Phase 3 of the Blueprint's process flow, repos
 
 | Step | What the agent does |
 |---|---|
-| `repository.recommend` (R1) | Shortlists repositories from the whole of re3data, or describes the ones mandated. |
+| `repository.recommend` (R1) | Shortlists repositories from the whole of re3data, or describes the ones mandated, and describes any the researcher asks about. |
 | `repository.pid` (R7) | Reports whether re3data lists a persistent identifier system the repository uses. |
 | `repository.access-and-costs` | Compares the access the data needs with what the repository offers, and reports listed fees. |
 | `repository.certification` | Reports the certificates re3data lists. They carry no weight in ranking. |
@@ -22,10 +22,18 @@ researcher chooses the repository (#199); the agent never does.
 ## Input and output
 
 `RepositoryNeeds` has the themes and kinds of data, the access decided in Phase 2 (`open`,
-`embargoed` or `restricted`), any mandated repositories, and the researcher's affiliation. With
-mandated repositories the agent describes them. With none, it shortlists (the two branches of
-Figure 3), and its statement says that a funder, journal or institution may still require a
-repository, since an empty list often means only that no policy source records one.
+`embargoed` or `restricted`), any mandated repositories, any repositories the researcher asked
+about, and the researcher's affiliation. With mandated repositories the agent describes them.
+With none, it shortlists (the two branches of Figure 3), and its statement says that a funder,
+journal or institution may still require a repository, since an empty list often means only
+that no policy source records one.
+
+`mandated` is only for a requirement: one a policy result found, or one the researcher says a
+funder, journal or institution imposes. A repository the researcher merely names or asks about
+("what about Zenodo?") goes in `asked_about` (#1167). It is described with the same `meets` and
+`misses`, with the basis `asked_about`, and listed before the shortlist rather than instead of
+it. If the shortlist also ranks it, it keeps its score and `ranked_by`. The app shows it as
+"You asked about this", never as "Mandated".
 
 `RepositoryOptions` holds one candidate per repository. A candidate names its records only in
 `grounded_on`: its re3data record, cited by the record's own DOI, and the FAIRsharing database
@@ -40,9 +48,9 @@ evidence `content` of those records ([Evidence and grounding](../../docs/specs/g
   certificates listed, and the deposit conditions FAIRsharing records;
 - `ranked_by`: for a recommended repository, why it is on the shortlist and in its place, one
   sentence per ranking signal, such as `Matches the theme "hydrology" (1 of 2 given).` Empty
-  for a mandated one.
+  for a mandated one, and for one asked about that the shortlist did not rank.
 
-Mandated names with no re3data record are listed in `not_found`.
+Mandated names, and names asked about, with no single re3data record are listed in `not_found`.
 
 ## How it decides
 
@@ -54,7 +62,7 @@ repository or makes a judgement:
   Each theme is also matched to the DFG subjects it names (`dfg.py`), and the repositories re3data
   files under them are retrieved too, so a repository whose record never uses the theme's word is
   still found. A further query names the researcher's institution, and the generalist
-  repositories listed in `ranking.yaml` (Zenodo, figshare, Harvard Dataverse, Dryad, OSF and
+  repositories listed in `ranking.yaml` (Zenodo, Harvard Dataverse, OSF, Dryad, figshare and
   Mendeley Data) are taken by identifier.
 - **Assessment** (`assess.py`). Fixed rules over registry fields. Where the records are silent
   the answer is `unstated`, never a guess. A commercial institution counts as an operator only
@@ -95,22 +103,29 @@ repository or makes a judgement:
   operates it. The researcher's own institutional repository is offered beyond the cap, unless
   it lacks the access the data needs, and takes no other repository's place, so naming an
   institution adds to the shortlist and removes nothing.
-- **Order at an equal score.** A commercial operator is listed after the others, and then a
-  repository that lists a deposit fee; neither is dropped. Repositories of the same kind of fit
-  and score each say in `ranked_by` that they are ranked equal, so the order among them is not
-  read as a preference. Certification carries no weight,
-  because Figure 3 says paid certification must not outweigh free evaluation.
+- **Reserved places** (`reserve`). Within the cap, a place is kept for at least one generalist
+  whenever one qualifies, so a broad theme that finds five repositories of the discipline cannot
+  crowd every generalist out, and a researcher who does not know where to deposit always has a
+  usable option (#1169). A generalist listed only because of its place says so in `ranked_by`.
+- **Order at an equal score** (`tie_break`). A commercial operator is listed after the others,
+  and then a repository that lists a deposit fee, and then one that assigns no persistent
+  identifiers; none is dropped. re3data does not tell some generalists apart (Zenodo, Harvard
+  Dataverse and OSF answer all three alike), so the order of `generalists` is a stated
+  preference that settles them, never the alphabet. Repositories of the same kind of fit and
+  score each say in `ranked_by` that they are ranked equal, and by which rule. Certification
+  carries no weight, because Figure 3 says paid certification must not outweigh free
+  evaluation.
 - **Credit.** Every statement ends by crediting re3data and naming the export it read.
-- **Explanation.** The template is the default. With `DD_REPOSITORY_EXPLAINER=model`, a model
-  writes the rationale only, from `system_prompt.md`, and is sent registry text and the needs,
-  never research data.
+- **Explanation.** By default a model writes the rationale; `DD_REPOSITORY_EXPLAINER=template`
+  writes it from a template and needs no key. The model writes the rationale only, from
+  `system_prompt.md`, and is sent registry text and the needs, never research data.
 
 ## Configuration
 
 - `DD_REPOSITORY_RETRIEVAL`: how FAIRsharing's database records are read: `snapshot` (the
   default) or `live`. The live route is public and needs no account; when it fails the agent falls
   back to the snapshot, marked stale. re3data is always read from the pinned registry.
-- `DD_REPOSITORY_EXPLAINER`: `template` (the default) or `model`, with the provider, model and
+- `DD_REPOSITORY_EXPLAINER`: `model` (the default) or `template`, which needs no key, with the provider, model and
   key as for the standards advisor ([AI models](../../docs/guide/operations/ai-models.md)) ([Policy and identity](../../docs/specs/policy-and-identity.md)).
 
 ## Sources
@@ -123,7 +138,7 @@ command that builds every agent's sources builds it:
 ```sh
 uv run dd-sources prepare         # build registry.jsonl (and any other built source) as pinned
 uv run dd-sources check           # does each built source match its pin?
-uv run dd-re3data fetch           # build registry.jsonl alone
+uv run dd-re3data fetch           # build registry.jsonl alone; also runs the `re3data` tests
 uv run dd-re3data fetch --update-pin [--month YYYY-MM]   # pin another month's export
 uv run scripts/pin_re3data.py     # then pin both sources.yaml files to it
 ```

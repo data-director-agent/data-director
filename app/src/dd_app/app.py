@@ -41,10 +41,11 @@ from typing import Any
 import httpx
 import uvicorn
 from starlette.applications import Starlette
+from starlette.middleware import Middleware
 from starlette.routing import BaseRoute, Mount
 from starlette.staticfiles import StaticFiles
 
-from dd_app import feedback
+from dd_app import feedback, folder_scan
 from dd_app.about import about
 from dd_app.config import WEB_DIST, settings_from_env
 from dd_app.governance import Governance
@@ -52,9 +53,12 @@ from dd_app.model_accounts import broker_path
 from dd_app.privacy import notice_url
 from dd_app.project_service import ProjectService
 from dd_app.routes import (
+    conversation_deletion,
     conversations,
     deposit,
     documents,
+    facts,
+    folders,
     materials,
     meta,
     progress,
@@ -63,6 +67,8 @@ from dd_app.routes import (
     session,
 )
 from dd_app.routes.common import Deps, Feedback
+from dd_app.worker_policy import BundleCaching, WorkerPolicy
+from dd_harness import gateway
 from dd_harness.identity import IdentityError
 from dd_harness.model_grants import jwks_routes
 from dd_harness.policy import PolicyError
@@ -86,7 +92,20 @@ UNTRUSTED_WARNING = (
     "(docs/specs/agents.md).\n"
 )
 # The areas of the API, each a module of `dd_app.routes`.
-AREAS = (session, meta, runs, conversations, projects, materials, progress, documents, deposit)
+AREAS = (
+    session,
+    meta,
+    runs,
+    conversation_deletion,
+    conversations,
+    projects,
+    materials,
+    folders,
+    progress,
+    documents,
+    facts,
+    deposit,
+)
 
 
 class ShellNotBuiltError(FileNotFoundError):
@@ -95,16 +114,20 @@ class ShellNotBuiltError(FileNotFoundError):
 
 @dataclass(frozen=True)
 class Links:
-    """Where the browser reaches what the app links to but does not serve itself.
+    """Where the browser reaches what the app links to but does not serve itself, and where on
+    this machine the app may read folders.
 
     `model_broker_path` is where the browser reaches the model broker (`dd_app.model_accounts`);
     with it and a harness that mints model grants, a person may add their own model account.
     `privacy_notice_url` is the operator's privacy notice (`dd_app.privacy`), which `GET /api/about`
-    gives so that the footer can link to it; without it the footer has no link.
+    gives so that the footer can link to it; without it the footer has no link. `folder_roots`
+    are the folders on this machine the app may describe for an inventory (`dd_app.folder_scan`);
+    without them, it describes none.
     """
 
     model_broker_path: str | None = None
     privacy_notice_url: str | None = None
+    folder_roots: folder_scan.FolderRoots | None = None
 
 
 def build_app(
@@ -123,8 +146,8 @@ def build_app(
     `build` let a test stand in for GitHub and for the build's identity. `sign_in` signs people in;
     its authenticator must be `governance.authenticator`. Without it, the server signs nobody in.
     `orcid_transport` lets a test stand in for ORCID's public API (`dd_harness.orcid`). `links`
-    says where the model broker and the operator's privacy notice are (`Links`); without it, there
-    is neither.
+    says where the model broker and the operator's privacy notice are, and which folders on this
+    machine it may describe (`Links`); without it, there is none of them.
     """
     if not (web_dist / "index.html").is_file():
         raise ShellNotBuiltError(
@@ -145,22 +168,28 @@ def build_app(
         model_broker_path=links.model_broker_path,
         model_account_providers=_model_account_providers(governance, links.model_broker_path),
         privacy_notice_url=links.privacy_notice_url,
+        folder_roots=links.folder_roots,
     )
     callback = governance.conductor.harness_url
     # No authenticator: delegation callbacks only, so the app is no other way in
     # (docs/specs/orchestration.md).
     delegation = a2a_routes(governance.conductor, None, callback)[1] if callback else []
+    # The tool gateway answers agents' calls under the grant each was sent (docs/specs/agents.md).
+    tools = gateway.routes(governance.conductor.gateway) if callback else []
     routes: list[BaseRoute] = [route for area in AREAS for route in area.routes(deps)]
     return Starlette(
         routes=[
             *routes,
             *delegation,
+            *tools,
             # The harness's public keys for model grants, when it mints them
             # (docs/specs/model-accounts.md).
             *jwks_routes(governance.conductor.model_grants),
             *meta.shell_routes(deps),
             Mount("/", StaticFiles(directory=web_dist, html=True)),
-        ]
+        ],
+        middleware=[Middleware(WorkerPolicy), Middleware(BundleCaching)],
+        exception_handlers={404: meta.not_found(deps)},
     )
 
 
@@ -168,7 +197,7 @@ def _model_account_providers(
     governance: Governance, model_broker_path: str | None
 ) -> list[dict[str, Any]] | None:
     """The providers, and the base URL origins, a person's own model account may use, so the
-    Profile page offers only those; None where a person may not add one. A person may add their
+    Settings page offers only those; None where a person may not add one. A person may add their
     own only where the profile lets one pay (docs/specs/model-accounts.md, The profile) and the
     deployment can carry that to the broker. Origins are the profile's, not secrets; the broker
     checks them again."""
@@ -216,7 +245,11 @@ def main() -> int:
             governance,
             feedback=Feedback(feedback.source_from_env(os.environ, feedback_repo), feedback_repo),
             sign_in=sign_in,
-            links=Links(broker_path(os.environ), notice_url(os.environ)),
+            links=Links(
+                broker_path(os.environ),
+                notice_url(os.environ),
+                folder_scan.from_env(os.environ, host, LOOPBACK),
+            ),
         )
         if host not in LOOPBACK and sign_in is None:
             sys.stderr.write(UNTRUSTED_WARNING.format(host=host))

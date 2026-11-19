@@ -24,13 +24,13 @@ searches them and puts the facts into words. It has no runtime dependencies, hol
 interface and no policy, and imports nothing else in the repository. `app/web` links it as source
 (`file:../../inventory/browser`) and never the reverse. Its `src/scanner/` is the browser
 scanner: a Web Worker, with no network, that runs the browser bundle over a folder the researcher
-chooses; the app is to offer it (#554). Its readme says how it is checked. Its `bundle/` folder
+chooses, which the app offers as **Describe a folder…** where it serves the bundle. Its readme says how it is checked. Its `bundle/` folder
 builds the browser bundle of `dd-inventory`: Pyodide, the command's wheel built from `inventory/`
-and its dependencies, for the app to serve from its own origin. It builds from the `inventory/`
+and its dependencies, with licence notices for all of them, for the app to serve from its own origin. It builds from the `inventory/`
 member's own source and lock, so it crosses no boundary, and Pyodide is a development dependency
 of the library only, which nothing under its `src/` imports: the worker is handed Pyodide's files
 with the rest of the bundle. A CI job checks that the bundle writes the command's inventory, natively and in the
-worker in Chromium.
+worker in Chromium, Firefox and WebKit.
 
 Likewise `sdk/browser/` is `@data-director/agent-view`, a TypeScript and React library for
 inspecting what an agent publishes: its A2A agent card, the Data Director extensions on it
@@ -50,7 +50,9 @@ The contract, transport, grounding and the app's own process boundary are specif
 1. The dependency graph between members at run time is:
    - `sdk` depends on no other member;
    - `harness` depends on `sdk` only;
-   - `workbench` and `app` depend on `harness` and `sdk`, and on nothing else in the workspace;
+   - `workbench` depends on `harness` and `sdk`, and on nothing else in the workspace;
+   - `app` depends on `harness`, `sdk` and `inventory`, the last to describe a folder on a local
+     install ([Projects](projects.md)), and on nothing else in the workspace;
    - `admin` depends on `harness` and `sdk`, and on nothing else in the workspace; no member
      depends on it;
    - `broker` depends on `sdk` only; no member depends on it;
@@ -152,6 +154,11 @@ vocabulary snapshots and libraries usable without the contract.
 - Where an agent's work is useful without the contract (a lookup in a public registry, say), that
   work is built as a framework-neutral library or MCP server, and the agent is a thin wrapper
   that adds the contract: classes, grounding and evidence.
+- Prefer open, standard interfaces to private ones (A2A, MCP, Agent Skills, JSON Schema, LinkML,
+  SHACL), and keep each unit single-purpose with its own tests, README, licence and version, so
+  that publishing it separately is a copy. The SDK holds only what speaks the contract. An agent
+  may use MCP servers and Agent Skills if what it retrieves through them is still hashed and
+  cited; the orchestrator may not ([Orchestration](orchestration.md)).
 - A repository that evaluates an approach without committing to it (such as `classmark`) says it
   is an experiment in its README and in the organisation profile. Its work enters the ecosystem
   as a capability under the previous rule.

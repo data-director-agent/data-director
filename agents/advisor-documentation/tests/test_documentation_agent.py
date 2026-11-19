@@ -17,8 +17,8 @@ from dd_agent_advisor_documentation.agent import (
     DocumentationEditor,
     Source,
     _question_id,
-    load_sections,
 )
+from dd_agent_advisor_documentation.sections import load_sections
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import describe
 from dd_sdk.contract.models import (
@@ -442,7 +442,7 @@ def test_a_record_of_placeholders_drafts_as_no_record_does(runs_dir: Path) -> No
         ("http://datacite.org/schema/kernel-4", "[]", "not a JSON object"),
     ],
 )
-def test_a_record_the_mock_cannot_read_is_not_used_and_it_says_so(
+def test_a_record_the_editor_cannot_read_is_not_used_and_it_says_so(
     runs_dir: Path, conforms_to: str, text: str, why: str
 ) -> None:
     asked = sample(WITH_RECORD)
@@ -558,6 +558,11 @@ def test_a_date_of_another_type_or_a_placeholder_is_not_a_date_of_collection(
         (
             {"heading": "A", "parts": [{"label": "B", "ask": "y.", "given_by": "colour"}]},
             "given by unknown",
+        ),
+        ({"heading": "A", "ask": "x.", "suggest": "always"}, "not true, false or documents"),
+        (
+            {"heading": "A", "suggest": "documents", "parts": [{"label": "B", "ask": "y."}]},
+            "which a model does not suggest",
         ),
     ],
 )

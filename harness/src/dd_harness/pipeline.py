@@ -16,35 +16,29 @@ contract fails as the agent's error, and the project takes the run's effects
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-from opentelemetry.trace import SpanContext
+from opentelemetry import trace
 
-from dd_harness import grounding, model_accounts, policy, shacl
+from dd_harness import footprint, grounding, model_accounts, policy, shacl
 from dd_harness import observe as steps
 from dd_harness import sources as source_check
-from dd_harness.observe import Watch, cancelled_result
+from dd_harness.observe import cancelled_result
 from dd_harness.provenance import process_run_crate
 from dd_harness.refusals import failed_result, input_refusal, refuse
-from dd_harness.registry import Registered
 from dd_harness.remote import Received, RemoteAgent
+from dd_harness.run_state import RunHost, RunState, Step
 from dd_harness.storage import CRATE, GROUNDING, SOURCES, SPANS, VALIDATION
 from dd_sdk.agent import AgentResult, AgentSpec, RunContext, typed_request
 from dd_sdk.contract import problem as problems
 from dd_sdk.contract import validate
-from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
-    Delegation,
+    EnergyMethod,
     Envelope,
     GroundingMode,
-    InvocationRequest,
-    ModelCall,
     Outcome,
     OutcomeStatus,
-    Principal,
     ProblemDetails,
     Telemetry,
     input_source_id,
@@ -52,79 +46,15 @@ from dd_sdk.contract.models import (
 )
 from dd_sdk.contract.version import CONTRACT_VERSION
 from dd_sdk.delegate import DelegationGrant
-from dd_sdk.evidence import input_hash as compute_input_hash
 from dd_sdk.model_account import accounted
 from dd_sdk.prompts import prompt_digest
+from dd_sdk.tools import ToolsGrant
 from dd_sdk.tracing import policy_gate_span
-
-if TYPE_CHECKING:
-    from dd_harness.conductor import Conductor, Grant
-
-
-@dataclass
-class RunState:
-    """One invocation as it goes through the steps: what it was asked, then what each step
-    found. `given` is the classes of project content the conductor put into the input, and
-    `unfillable` why it could not fill it from the project, if it could not."""
-
-    request: InvocationRequest
-    request_doc: dict[str, Any]
-    acting_for: Principal
-    agent: Registered
-    watch: Watch
-    link: SpanContext | None = None
-    given: frozenset[str] = frozenset()
-    unfillable: str | None = None
-    started: datetime = field(default_factory=lambda: datetime.now(UTC))
-    input_hash: str = field(init=False)
-    trace_id: str = ""
-    decision: policy.GateDecision | None = None
-    bypasses: bool = False
-    refused: tuple[str, list[str]] | None = None
-    kept_back: list[str] = field(default_factory=list)
-    result: AgentResult | None = None
-    prob: ProblemDetails | None = None
-    from_agent: bool = False
-    # The agent's model calls and the prompts they name, kept whatever becomes of its result
-    # (docs/specs/disclosure.md).
-    model_calls: tuple[ModelCall, ...] = ()
-    prompts: dict[str, dict[str, Any]] = field(default_factory=dict)
-    grant: Grant | None = None
-    delegations: list[Delegation] = field(default_factory=list)
-    envelope: Envelope | None = None
-    doc: dict[str, Any] = field(default_factory=dict)
-    report: grounding.GroundingReport | None = None
-    source_report: source_check.SourceReport | None = None
-    shapes_report: bytes | None = None
-
-    @property
-    def spec(self) -> AgentSpec:
-        return self.agent.spec
-
-    def __post_init__(self) -> None:
-        self.input_hash = compute_input_hash(self.request_doc["input"])
-
-    @property
-    def accepted(self) -> ClassSchema | None:
-        """The class schema the card carries for the input, if the agent accepts its class."""
-        return self.spec.accepted(str(self.request_doc["input"].get("schema_class")))
-
-    @property
-    def gate_decision(self) -> policy.GateDecision:
-        assert self.decision is not None, "the gate runs first"
-        return self.decision
-
-    @property
-    def finished(self) -> Envelope:
-        assert self.envelope is not None, "the envelope is built inside the span"
-        return self.envelope
-
-
-type Step = Callable[[Conductor, RunState], None]
+from dd_sdk.wire import GATEWAY_PATH
 
 
 # 1. Policy gate, against the deployment's profile.
-def gate(conductor: Conductor, run: RunState) -> None:
+def gate(conductor: RunHost, run: RunState) -> None:
     """The policy gate, and who pays: with own accounts on, only an agent the operator states
     calls through the model broker may call a model (docs/specs/model-accounts.md, invariant
     14)."""
@@ -141,7 +71,7 @@ def gate(conductor: Conductor, run: RunState) -> None:
 
 
 # 2-4. The input check.
-def check_input(conductor: Conductor, run: RunState) -> None:
+def check_input(conductor: RunHost, run: RunState) -> None:
     """The input against the agent's card, the project's facts and what the profile keeps from
     hosted models. Run only for an agent the gate lets run straight away, and not once the run is
     cancelled."""
@@ -152,12 +82,38 @@ def check_input(conductor: Conductor, run: RunState) -> None:
     run.refused = input_refusal(run.spec, run.request_doc["input"])
     if run.refused is None and run.unfillable is None:
         hostings = (model.hosting for model in run.spec.models)
-        run.kept_back = policy.withheld(conductor.profile, hostings, run.given)
+        remote = remote_tools(conductor, run.spec)
+        run.kept_back = policy.withheld(conductor.profile, hostings, run.given, remote_tools=remote)
     run.watch.finished(steps.INPUT)
 
 
+def remote_tools(conductor: RunHost, spec: AgentSpec) -> bool:
+    """Whether the profile grants the agent a `remote` MCP server its card declares
+    (docs/specs/policy-and-identity.md)."""
+    gateway = conductor.gateway
+    granted = conductor.profile.tool_servers.get(spec.agent_id, ())
+    return gateway is not None and gateway.remote(spec, granted)
+
+
+def _tools_grant(conductor: RunHost, run: RunState) -> ToolsGrant | None:
+    """A grant to call, through the gateway, the servers the profile grants the agent and its
+    card declares; only a remote agent can be sent one, and only by a harness with an address."""
+    gateway, spec = conductor.gateway, run.spec
+    if gateway is None or conductor.harness_url is None or not isinstance(run.agent, RemoteAgent):
+        return None
+    servers = gateway.granted(spec, conductor.profile.tool_servers.get(spec.agent_id, ()))
+    if not servers:
+        return None
+    # The gateway's spans are children of this run's `invoke_agent` span, the current one.
+    root = trace.get_current_span().get_span_context()
+    run.tool_grant = gateway.issue(spec.agent_id, servers, conductor.tracing.tracer, root)
+    return ToolsGrant(
+        url=conductor.harness_url.rstrip("/") + GATEWAY_PATH, token=run.tool_grant.token
+    )
+
+
 # 5. Run the agent. An exception becomes a failed outcome; never a crash.
-def invoke_agent(conductor: Conductor, run: RunState) -> None:
+def invoke_agent(conductor: RunHost, run: RunState) -> None:
     """Run the agent, unless a refusal decided the run. A run cancelled while its agent worked
     ends here: a blocking call cannot be stopped, so what the agent answered is discarded, and
     its model calls are kept."""
@@ -174,6 +130,7 @@ def invoke_agent(conductor: Conductor, run: RunState) -> None:
     ):
         run.grant = conductor._issue_grant(request, run.acting_for, run.watch)
         sent_grant = DelegationGrant(url=conductor.harness_url, token=run.grant.token)
+    tools_grant = _tools_grant(conductor, run)
     model_grant = model_accounts.model_grant(
         conductor.profile, conductor.model_grants, agent, request, run.acting_for
     )
@@ -190,7 +147,7 @@ def invoke_agent(conductor: Conductor, run: RunState) -> None:
         # An in-process agent records its spans in this trace already. Like a served one, it
         # ends abstained if a person's own model account is refused.
         received = (
-            agent.call(sent, ctx, sent_grant, model_grant=model_grant)
+            agent.call(sent, ctx, sent_grant, model_grant=model_grant, tools_grant=tools_grant)
             if isinstance(agent, RemoteAgent)
             else Received(accounted(lambda: agent.run(typed_request(spec, sent), ctx)))
         )
@@ -205,7 +162,7 @@ def invoke_agent(conductor: Conductor, run: RunState) -> None:
         run.from_agent = False
 
 
-def _received(conductor: Conductor, run: RunState, received: Received) -> None:
+def _received(conductor: RunHost, run: RunState, received: Received) -> None:
     """Take what the agent answered. An agent that returns a payload other than the class it
     declared, or one its own class schema does not admit, or prompts that are not those its
     calls name, is contradicting its specification: a programmer error, handled the same way as
@@ -230,13 +187,16 @@ def _received(conductor: Conductor, run: RunState, received: Received) -> None:
         run.prob = problems.agent_error(spec.agent_id, mismatch)
 
 
-def collect_delegations(conductor: Conductor, run: RunState) -> None:
-    """Recorded whatever the agent did afterwards: the children ran and are stored."""
+def collect_grants(conductor: RunHost, run: RunState) -> None:
+    """Recorded whatever the agent did afterwards: the children ran and are stored, and the tools
+    returned what the gateway recorded."""
     if run.grant is not None:
         run.delegations = conductor._revoke_grant(run.grant)
+    if run.tool_grant is not None and conductor.gateway is not None:
+        run.tool_retrievals = conductor.gateway.revoke(run.tool_grant)
 
 
-def build_envelope(conductor: Conductor, run: RunState) -> None:
+def build_envelope(conductor: RunHost, run: RunState) -> None:
     """The envelope, with everything an agent must not decide about itself."""
     spec, request, profile = run.spec, run.request, conductor.profile
     assert run.result is not None, "a refusal or the agent decided the run"
@@ -258,18 +218,13 @@ def build_envelope(conductor: Conductor, run: RunState) -> None:
             spec.payload.digest if result.payload is not None and spec.payload else None
         ),
         evidence=result.evidence,
-        telemetry=Telemetry(
-            trace_id=run.trace_id,
-            model_id=result.model_id,
-            input_tokens=result.input_tokens,
-            output_tokens=result.output_tokens,
-            model_calls=list(run.model_calls),
-        ),
+        telemetry=_telemetry(run, profile.model_footprint),
         problem=run.prob,
         conversation_id=request.conversation_id,
         project_id=request.project_id,
         parent_invocation_id=request.parent_invocation_id,
         delegations=run.delegations,
+        tool_retrievals=run.tool_retrievals,
     )
 
 
@@ -279,13 +234,13 @@ INSIDE_SPAN: tuple[Step, ...] = (
     check_input,
     refuse,
     invoke_agent,
-    collect_delegations,
+    collect_grants,
     build_envelope,
 )
 
 
 # 6. Grounding linter, over the finished tree of this trace.
-def lint_grounding(conductor: Conductor, run: RunState) -> None:
+def lint_grounding(conductor: RunHost, run: RunState) -> None:
     run.watch.started(steps.GROUNDING)
     records = conductor.tracing.finished_records(run.trace_id)
     report = run.report = grounding.lint(records, run.finished.to_document())
@@ -295,14 +250,14 @@ def lint_grounding(conductor: Conductor, run: RunState) -> None:
 
 
 # 6a. Source check, over the evidence the linter has just read (docs/specs/grounding.md).
-def check_sources(conductor: Conductor, run: RunState) -> None:
+def check_sources(conductor: RunHost, run: RunState) -> None:
     run.watch.started(steps.SOURCES)
     run.source_report = source_check.check(run.finished.to_document(), conductor.sources)
     run.watch.sources(run.source_report)
     run.watch.finished(steps.SOURCES)
 
 
-def withhold_violations(conductor: Conductor, run: RunState) -> None:
+def withhold_violations(conductor: RunHost, run: RunState) -> None:
     """A violation of the grounding linter or the source check withholds a succeeded result."""
     assert run.report is not None and run.source_report is not None
     withheld = [
@@ -329,7 +284,7 @@ def withhold_violations(conductor: Conductor, run: RunState) -> None:
 # as a payload of the wrong class is: it is stored as failed(agent-error), not raised past the
 # store. An envelope the conductor built itself that breaks the contract is a conductor bug, and
 # raises.
-def validate_contract(conductor: Conductor, run: RunState) -> None:
+def validate_contract(conductor: RunHost, run: RunState) -> None:
     run.doc = run.finished.to_document()
     try:
         validate.validate_envelope(run.doc)
@@ -345,7 +300,7 @@ def validate_contract(conductor: Conductor, run: RunState) -> None:
 
 # 7a. The run's effects on its project (`dd_harness.project_effects`). A draft the project
 # refuses fails the run, and that failed run is the record.
-def apply_project_effects(conductor: Conductor, run: RunState) -> None:
+def apply_project_effects(conductor: RunHost, run: RunState) -> None:
     if conductor.projects is None:
         return
     refusal = conductor.projects.after_run(run.finished, acted_for=run.acting_for)
@@ -358,7 +313,7 @@ def apply_project_effects(conductor: Conductor, run: RunState) -> None:
 
 
 # 7b. The payload against its class's SHACL shapes. Reported, never withheld.
-def check_shapes(conductor: Conductor, run: RunState) -> None:
+def check_shapes(conductor: RunHost, run: RunState) -> None:
     envelope, payload = run.finished, run.spec.payload
     if envelope.payload is None or payload is None or payload.shapes is None:
         return
@@ -367,9 +322,29 @@ def check_shapes(conductor: Conductor, run: RunState) -> None:
     ).report_bytes()
 
 
+def _telemetry(run: RunState, table: footprint.FootprintTable | None) -> Telemetry:
+    """The run's measurements. The energy slots are filled only when the profile's footprint
+    table gives a figure for every model call the run made (docs/specs/disclosure.md,
+    Footprint); otherwise they stay null and `not_measured`."""
+    assert run.result is not None
+    result, calls = run.result, list(run.model_calls)
+    energy = footprint.total(
+        footprint.estimate_call(table, c.model_id, c.input_tokens, c.output_tokens) for c in calls
+    ).energy_j
+    return Telemetry(
+        trace_id=run.trace_id,
+        model_id=result.model_id,
+        input_tokens=result.input_tokens,
+        output_tokens=result.output_tokens,
+        energy_estimate_j=energy,
+        energy_method=EnergyMethod.NOT_MEASURED if energy is None else EnergyMethod.ESTIMATED,
+        model_calls=calls,
+    )
+
+
 # 8. Store, trace file, provenance. Everything else a run keeps is a named artifact beside it
 # (docs/specs/storage.md).
-def store_run(conductor: Conductor, run: RunState) -> None:
+def store_run(conductor: RunHost, run: RunState) -> None:
     store, envelope, accepted = conductor.store, run.finished, run.accepted
     assert run.report is not None and run.source_report is not None
     # The schemas the run was checked against, kept by digest for the viewer
@@ -386,7 +361,14 @@ def store_run(conductor: Conductor, run: RunState) -> None:
     if run.shapes_report is not None:
         store.put_artifact(run_id, VALIDATION, run.shapes_report)
     if conductor.write_crate:
-        crate = process_run_crate(run.doc, run.request_doc, spans, run.started, run.shapes_report)
+        crate = process_run_crate(
+            run.doc,
+            run.request_doc,
+            spans,
+            run.started,
+            run.shapes_report,
+            conductor.profile.model_footprint,
+        )
         for name, data in crate.items():
             store.put_artifact(run_id, f"{CRATE}/{name}", data)
 

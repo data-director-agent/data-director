@@ -20,11 +20,13 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Final
 
 from dd_harness.project_errors import ChangeRefusedError as ChangeRefusedError
+from dd_harness.project_errors import ConversationDeletedError as ConversationDeletedError
 from dd_harness.project_errors import ProjectDeletedError as ProjectDeletedError
 from dd_harness.project_errors import ProjectError as ProjectError
 from dd_harness.project_errors import Refusal as Refusal
 from dd_harness.project_errors import Refused as Refused
 from dd_harness.project_errors import RestoreRefusedError as RestoreRefusedError
+from dd_harness.project_errors import UnknownConversationError as UnknownConversationError
 from dd_harness.project_errors import UnknownProjectError as UnknownProjectError
 from dd_sdk.contract.models import UUID7_PATTERN, Principal, new_invocation_id, now
 
@@ -36,6 +38,8 @@ PROJECT_RENAMED = "project_renamed"
 PROJECT_DELETED = "project_deleted"
 PROJECT_RESTORED = "project_restored"
 CONVERSATION_STARTED = "conversation_started"
+CONVERSATION_DELETED = "conversation_deleted"
+CONVERSATION_RESTORED = "conversation_restored"
 INVENTORY_ADDED = "inventory_added"
 DOCUMENTATION_ADDED = "documentation_added"
 RESEARCHER_ADDED = "researcher_added"
@@ -45,6 +49,8 @@ DOCUMENT_VERSION_ADDED = "document_version_added"
 DOCUMENT_VERSION_DECIDED = "document_version_decided"
 DOCUMENT_CHANGE_REFUSED = "document_change_refused"
 DOCUMENT_QUESTION_ANSWERED = "document_question_answered"
+FACT_PROPOSED = "fact_proposed"
+FACT_DECIDED = "fact_decided"
 PROJECT_VALIDATED = "project_validated"
 PACKAGE_BUILT = "package_built"
 PROJECT_ID = re.compile(UUID7_PATTERN)
@@ -115,8 +121,10 @@ class ProjectRules:
     def _deleted(self, events: Sequence[Mapping[str, Any]]) -> dict[str, Any] | None:
         """When the project was deleted, by whom, and until when it may be restored, or None."""
         event = deletion(events)
-        if event is None:
-            return None
+        return None if event is None else self._deletion_summary(event)
+
+    def _deletion_summary(self, event: Mapping[str, Any]) -> dict[str, Any]:
+        """When a deletion event was appended, by whom, and until when it may be undone."""
         until = datetime.fromisoformat(event["at"]) + self.restore_period
         return {
             "at": event["at"],

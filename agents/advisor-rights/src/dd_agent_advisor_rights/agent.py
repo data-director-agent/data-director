@@ -13,18 +13,23 @@ words as the table's values, order the licences that fit, and add questions abou
 content or a mandate. It chooses only from the table: a licence it names from outside is dropped
 and recorded. Each licence and question records how it came about in `derivation`.
 
-It reads only its input, so its grounding mode is `input_only` and it cites only its input.
-Drawing licences from the SPDX licence list through the tool gateway is TODO(#877); the
+Its grounding mode is `retrieval` (`retrieval.py`). Where the deployment grants it the `spdx`
+tool server, the shell retrieves each candidate licence through the tool gateway before any model
+is called, the closed set is the licences the gateway returned, and the payload cites the records
+the conductor recorded. With no grant it reads the packaged table, records that read, and says so
+in `limitations`. The `licence-choice` Skill and a served `mcp-spdx` server are TODO(#877); the
 repository's own licence options and an evaluation set are TODO(#702).
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
 import yaml
 
+from dd_agent_advisor_rights import given
 from dd_agent_advisor_rights.classes import (
     AccessOption,
     LicenceOption,
@@ -39,14 +44,13 @@ from dd_agent_advisor_rights.interpret import (
     TemplateInterpreter,
     key,
 )
+from dd_agent_advisor_rights.retrieval import SPDX_URL, USES, retrieve
 from dd_sdk.agent import (
     AgentResult,
     AgentSpec,
     Derived,
     RunContext,
     abstain,
-    input_evidence,
-    input_ref,
 )
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
@@ -59,13 +63,11 @@ from dd_sdk.contract.models import (
 )
 
 LICENCES = Path(__file__).with_name("licences.yaml")
-SPDX_URL = "https://spdx.org/licenses/{}.html"
 # Shown first when the data are sensitive; the rest keep the table's order.
 SENSITIVE_FIRST = ("restricted", "closed")
 
 LIMITATIONS = (
-    "It offers a short fixed list of licences and reads no licence texts. Drawing them from the "
-    "SPDX licence list is planned (#877).",
+    "It offers a short fixed list of licences and reads no licence texts.",
     "It does not check what your funder, journal, institution or repository requires or offers.",
     "It does not judge whether the data are sensitive or who holds rights in them.",
     "Without an interpreter model (DD_RIGHTS_INTERPRETER=template), it understands the reuse you "
@@ -114,6 +116,7 @@ class RightsAdviser:
         agent_id="advisor.rights",
         version="0.2.0a1",
         title="Rights and Licensing Adviser",
+        icon="⚖️",
         description=(
             "Alpha. Lists data licences that fit the reuse a researcher wants to allow, and the "
             "access levels with when each applies, for the researcher to choose from. With a "
@@ -123,7 +126,7 @@ class RightsAdviser:
         ),
         action_class="advise",
         accepts=(ClassSchema.of(RightsContext),),
-        grounding_mode=GroundingMode.INPUT_ONLY,
+        grounding_mode=GroundingMode.RETRIEVAL,
         payload=ClassSchema.of(RightsOptions),
         derivations={
             "licences.spdx_id": Derived(Derivation.MODEL, recorded_in="derivation"),
@@ -137,6 +140,7 @@ class RightsAdviser:
             "dropped": Derived(Derivation.TEMPLATE),
         },
         serves=("deposit.licence", "deposit.access"),
+        tools=USES,
     )
 
     def __init__(
@@ -148,8 +152,9 @@ class RightsAdviser:
         )
 
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
-        context = request.input
-        assert isinstance(context, RightsContext)  # the conductor checked spec.accepts
+        assert isinstance(request.input, RightsContext)  # the conductor checked spec.accepts
+        # What people in the project decided takes precedence over what the caller wrote.
+        context = given.with_project(request.input)
         if (
             context.reuse_wanted is None
             and context.sensitive is None
@@ -165,18 +170,22 @@ class RightsAdviser:
                 ),
             )
 
+        # The candidate licences, retrieved before any model is called (G1); the closed set from
+        # here on is the table of the licences the retrieval returned (`retrieval.py`).
+        found = retrieve(self.table, context.mandated_licence, ctx)
+        table = found.table
         template, model = Derivation.TEMPLATE, Derivation.MODEL
         questions: list[RightsQuestion] = [
             RightsQuestion(text=CHOOSE_QUESTION, derivation=template)
         ]
         said = (context.reuse_wanted or "").strip()
         reuse = key(said)
-        known = {fit for entry in self.table["licences"] for fit in entry["fits"]}
+        known = {fit for entry in table["licences"] for fit in entry["fits"]}
         by_rule = reuse in known
 
         # What follows by rule alone, before any model is called: the access levels and the
         # questions the rules always ask.
-        levels = list(self.table["access_levels"])
+        levels = list(table["access_levels"])
         later: list[str] = []
         if context.sensitive:
             levels = [*SENSITIVE_FIRST, *(lv for lv in levels if lv not in SENSITIVE_FIRST)]
@@ -188,7 +197,7 @@ class RightsAdviser:
 
         reading = self.interpreter.read(
             Asked(
-                table=self.table,
+                table=table,
                 reuse_wanted=said if said and not by_rule else None,
                 mandated_licence=context.mandated_licence,
                 third_party_content=context.third_party_content,
@@ -198,8 +207,8 @@ class RightsAdviser:
         )
 
         if context.mandated_licence:
-            licences = [self._mandated(context.mandated_licence)]
-            entry = self._entry(context.mandated_licence)
+            licences = [self._mandated(table, context.mandated_licence)]
+            entry = self._entry(table, context.mandated_licence)
             if entry is not None and by_rule and reuse not in entry["fits"]:
                 questions.append(RightsQuestion(text=MANDATED_REUSE_QUESTION, derivation=template))
             elif (
@@ -207,9 +216,9 @@ class RightsAdviser:
             ):
                 questions.append(RightsQuestion(text=MANDATED_REUSE_QUESTION, derivation=model))
         elif by_rule:
-            licences = [self._option(e) for e in self.table["licences"] if reuse in e["fits"]]
+            licences = [self._option(e) for e in table["licences"] if reuse in e["fits"]]
         elif reading.licences:
-            rows = {e["spdx_id"]: e for e in self.table["licences"]}
+            rows = {e["spdx_id"]: e for e in table["licences"]}
             licences = [
                 self._option(rows[i]).model_copy(update={"derivation": model})
                 for i in reading.licences
@@ -221,15 +230,15 @@ class RightsAdviser:
                 )
             )
         else:  # reuse unknown or unread: offer them all
-            licences = [self._option(e) for e in self.table["licences"]]
+            licences = [self._option(e) for e in table["licences"]]
             questions.append(RightsQuestion(text=REUSE_QUESTION, derivation=template))
 
         questions += [RightsQuestion(text=q, derivation=template) for q in later]
         questions += [RightsQuestion(text=q, derivation=model) for q in reading.questions]
-        access = [AccessOption(level=lv, when=self.table["access_levels"][lv]) for lv in levels]
+        access = [AccessOption(level=lv, when=table["access_levels"][lv]) for lv in levels]
 
         calls = reading.calls
-        ref = input_ref(ctx)
+        refs, evidence = found.cite(lic.spdx_id for lic in licences)
         return AgentResult(
             outcome=Outcome(
                 status=OutcomeStatus.SUCCEEDED,
@@ -243,11 +252,11 @@ class RightsAdviser:
                 licences=licences,
                 access_levels=access,
                 questions=questions,
-                limitations=list(LIMITATIONS),
+                limitations=[*found.limitations(), *LIMITATIONS],
                 dropped=list(reading.dropped),
-                grounded_on=[ref],
+                grounded_on=refs,
             ),
-            evidence=[input_evidence(ctx)],
+            evidence=evidence,
             model_id=reading.model_id if reading.called else None,
             input_tokens=reading.usage.input_tokens,
             output_tokens=reading.usage.output_tokens,
@@ -255,12 +264,13 @@ class RightsAdviser:
             prompts=dict(calls.prompts) if calls is not None else {},
         )
 
-    def _entry(self, spdx_id: str) -> dict[str, Any] | None:
+    @staticmethod
+    def _entry(table: Mapping[str, Any], spdx_id: str) -> dict[str, Any] | None:
         wanted = spdx_id.strip().lower()
-        return next((e for e in self.table["licences"] if e["spdx_id"].lower() == wanted), None)
+        return next((e for e in table["licences"] if e["spdx_id"].lower() == wanted), None)
 
-    def _mandated(self, spdx_id: str) -> LicenceOption:
-        entry = self._entry(spdx_id)
+    def _mandated(self, table: Mapping[str, Any], spdx_id: str) -> LicenceOption:
+        entry = self._entry(table, spdx_id)
         if entry is None:  # not in the table: name it as given, with SPDX's page for it
             spdx_id = spdx_id.strip()
             return LicenceOption(

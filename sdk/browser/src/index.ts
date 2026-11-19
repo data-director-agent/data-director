@@ -30,10 +30,14 @@ export type {
   RawDerived,
   RawModelUse,
   RawSchemaEntry,
+  RawSkillUse,
+  RawToolUse,
 } from "./spec/types";
 export {
   type AgentSpec,
+  agentIcon,
   agentName,
+  DEFAULT_AGENT_ICON,
   type Derivation,
   readAgentSpec,
   specFromRaw,

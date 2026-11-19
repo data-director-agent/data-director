@@ -20,9 +20,10 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from importlib.metadata import version
 from pathlib import Path, PurePosixPath
-from typing import Any, Final
+from typing import Any, Final, TypedDict, Unpack
 
 from dd_inventory.identify import Identifier, default_identifier
+from dd_inventory.personal import Check, Detector, default_detector
 from dd_inventory.tables import TableError, is_table, table_fields
 
 TOOL = "dd-inventory"
@@ -34,6 +35,13 @@ class _Detect:
 
 
 DETECT: Final = _Detect()
+
+
+class _Default:
+    """The default of `make_inventory`'s `detector`: Presidio, as opposed to `None`, none."""
+
+
+DEFAULT: Final = _Default()
 
 
 @dataclass(frozen=True)
@@ -100,21 +108,41 @@ def _walk(root: Path) -> tuple[list[Path], list[str]]:
     return sorted(found, key=lambda p: p.relative_to(root).as_posix()), skipped
 
 
-def make_inventory(
-    root: Path,
-    *,
-    identifier: Identifier | None = None,
-    now: datetime | None = None,
-    runtime: str | _Detect | None = DETECT,
-    on_file: Callable[[FileProgress], None] | None = None,
-) -> dict[str, Any]:
-    """The `FileInventory` of every file under `root`, as a JSON-ready dict.
+class ScanOptions(TypedDict, total=False):
+    """The options of `make_inventory` and `make_inventory_of`, each optional.
 
-    `runtime` names the runtime in the tool version; by default it is detected, and `None` means
-    native. `on_file`, if given, is called once per file, in order, after the file is handled.
+    `identifier` identifies formats; by default fido, or file extensions if fido is missing.
+    `now` is when the inventory was made; by default the current time. `runtime` names the
+    runtime in the tool version; by default it is detected, and `None` means native. `on_file`,
+    if given, is called once per file, in order, after the file is handled. `detector` looks for
+    possible personal data (docs/specs/personal-data.md); by default it is Presidio's pattern
+    recognisers, and with `None` no check runs and the inventory has no
+    `inventory_personal_data`, which says that none ran.
     """
-    if isinstance(runtime, _Detect):
-        runtime = detect_runtime()
+
+    identifier: Identifier | None
+    now: datetime | None
+    runtime: str | _Detect | None
+    on_file: Callable[[FileProgress], None] | None
+    detector: Detector | _Default | None
+
+
+def _runtime(options: ScanOptions) -> str | None:
+    runtime = options.get("runtime", DETECT)
+    return detect_runtime() if isinstance(runtime, _Detect) else runtime
+
+
+def _detector(options: ScanOptions) -> Detector | None:
+    detector = options.get("detector", DEFAULT)
+    return default_detector() if isinstance(detector, _Default) else detector
+
+
+def make_inventory(root: Path, **options: Unpack[ScanOptions]) -> dict[str, Any]:
+    """The `FileInventory` of every file under `root`, as a JSON-ready dict (`ScanOptions`)."""
+    runtime = _runtime(options)
+    detector = _detector(options)
+    identifier, now, on_file = options.get("identifier"), options.get("now"), options.get("on_file")
+    check = Check(detector) if detector is not None else None
     root = root.resolve()
     if not root.is_dir():
         raise NotADirectoryError(root)
@@ -130,7 +158,7 @@ def make_inventory(
         relative = path.relative_to(root).as_posix()
         size = 0
         try:
-            entry = _describe(root, path, identifier, limitations)
+            entry = _describe(root, path, identifier, limitations, check)
             files.append(entry)
             size = entry["file_size"]
         except OSError as exc:
@@ -140,8 +168,9 @@ def make_inventory(
     limitations.append(
         "Table fields are inferred from a sample of rows; a later row may not fit the type given."
     )
+    limitations += check.limitations() if check else ["No personal-data detector ran."]
     made_at = (now or datetime.now(UTC)).isoformat(timespec="seconds")
-    return {
+    inventory = {
         "schema_class": SCHEMA_CLASS,
         "inventory_files": files,
         "inventory_tool": TOOL,
@@ -150,6 +179,9 @@ def make_inventory(
         "inventory_made_at": made_at,
         "inventory_limitations": limitations,
     }
+    if check is not None:
+        inventory["inventory_personal_data"] = check.sorted_findings()
+    return inventory
 
 
 def part_folder_problem(folder: str) -> str | None:
@@ -173,24 +205,18 @@ def _check_part_names(names: list[str]) -> None:
                 raise ValueError(f"the folders {a!r} and {b!r} overlap")
 
 
-def make_inventory_of(
-    parts: Mapping[str, Path],
-    *,
-    identifier: Identifier | None = None,
-    now: datetime | None = None,
-    runtime: str | _Detect | None = DETECT,
-    on_file: Callable[[FileProgress], None] | None = None,
-) -> dict[str, Any]:
+def make_inventory_of(parts: Mapping[str, Path], **options: Unpack[ScanOptions]) -> dict[str, Any]:
     """The `FileInventory` of several folders, one part each (docs/specs/projects.md): `parts`
     maps the name each folder is listed under to the folder. Every path begins with its part's
     name; each part keeps its own tool, time and limitations, and the inventory's limitations
-    are theirs, each after `In <name>: `.
+    are theirs, each after `In <name>: `. Each part keeps its own personal-data findings, and the
+    inventory's are all of theirs, under each part's name.
 
     Raises `ValueError` for a name that cannot be a part's, or names of which one is inside
-    another, and `NotADirectoryError` for a folder that is not one."""
+    another, and `NotADirectoryError` for a folder that is not one. Takes `ScanOptions`."""
     _check_part_names(list(parts))
-    if isinstance(runtime, _Detect):
-        runtime = detect_runtime()
+    runtime, detector = _runtime(options), _detector(options)
+    identifier, on_file = options.get("identifier"), options.get("on_file")
     unavailable = None
     if identifier is None:
         identifier, unavailable = default_identifier()
@@ -211,25 +237,21 @@ def make_inventory_of(
                 on_file(FileProgress(path=f"{name}/{p.path}", size=p.size, done=done, total=total))
 
         scan = make_inventory(
-            roots[name], identifier=identifier, now=now, runtime=runtime, on_file=progress
+            roots[name],
+            identifier=identifier,
+            now=options.get("now"),
+            runtime=runtime,
+            on_file=progress,
+            detector=detector,
         )
         if unavailable:
             scan["inventory_limitations"].insert(
                 0, f"{unavailable}; formats were guessed from file extensions only."
             )
         files += [{**f, "file_path": f"{name}/{f['file_path']}"} for f in scan["inventory_files"]]
-        made.append(
-            {
-                "part_folder": name,
-                "part_tool": scan["inventory_tool"],
-                "part_tool_version": scan["inventory_tool_version"],
-                "part_identified_with": scan["inventory_identified_with"],
-                "part_made_at": scan["inventory_made_at"],
-                "part_limitations": scan["inventory_limitations"],
-            }
-        )
+        made.append(_part(name, scan))
     latest = max(made, key=lambda p: p["part_made_at"])
-    return {
+    inventory = {
         "schema_class": SCHEMA_CLASS,
         "inventory_files": sorted(files, key=lambda f: f["file_path"]),
         "inventory_tool": latest["part_tool"],
@@ -241,10 +263,31 @@ def make_inventory_of(
         ],
         "inventory_parts": made,
     }
+    if all("part_personal_data" in p for p in made):
+        inventory["inventory_personal_data"] = [f for p in made for f in p["part_personal_data"]]
+    return inventory
+
+
+def _part(name: str, scan: dict[str, Any]) -> dict[str, Any]:
+    """A part of an inventory from the scan of its folder, with its findings under its name."""
+    part = {
+        "part_folder": name,
+        "part_tool": scan["inventory_tool"],
+        "part_tool_version": scan["inventory_tool_version"],
+        "part_identified_with": scan["inventory_identified_with"],
+        "part_made_at": scan["inventory_made_at"],
+        "part_limitations": scan["inventory_limitations"],
+    }
+    if "inventory_personal_data" in scan:
+        part["part_personal_data"] = [
+            {**f, "finding_file": f"{name}/{f['finding_file']}"}
+            for f in scan["inventory_personal_data"]
+        ]
+    return part
 
 
 def _describe(
-    root: Path, path: Path, identifier: Identifier, limitations: list[str]
+    root: Path, path: Path, identifier: Identifier, limitations: list[str], check: Check | None
 ) -> dict[str, Any]:
     relative = PurePosixPath(path.relative_to(root).as_posix())
     found = identifier.identify(path)
@@ -257,9 +300,16 @@ def _describe(
         entry["file_media_type"] = found.media_type
     entry["file_pronom_ids"] = found.pronom_ids
     entry["file_identified_by"] = found.method
+    if check is not None:
+        check.name(relative)
+        check.text(path, str(relative))
     if is_table(path):
         try:
-            entry["file_fields"] = table_fields(path)
+            table = table_fields(path)
         except TableError as exc:
             limitations.append(f"The fields of {relative} could not be inferred: {exc}")
+        else:
+            entry["file_fields"] = table.fields
+            if check is not None:
+                check.table(str(relative), table)
     return entry

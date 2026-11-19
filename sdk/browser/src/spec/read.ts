@@ -6,7 +6,7 @@
 
 import { isRecord } from "../card/read";
 import type { JsonSchema } from "../schema/shape";
-import type { DerivationHow, GroundingMode, RawAgentSpec, RawModelUse } from "./types";
+import type { DerivationHow, GroundingMode, RawAgentSpec, RawModelUse, RawSkillUse, RawToolUse } from "./types";
 
 export interface Derivation {
   path: string;
@@ -19,6 +19,8 @@ export interface AgentSpec {
   id: string;
   /** The persona's name as a researcher sees it (docs/specs/agents.md). Empty: the card names none. */
   title: string;
+  /** The persona's icon, one emoji (docs/specs/agents.md). Empty: the card declares none. */
+  icon: string;
   version: string;
   description: string;
   contractVersion: string;
@@ -37,6 +39,10 @@ export interface AgentSpec {
   modelsDeclared: boolean;
   /** The process flow steps it serves, which place it in the flow. Empty: none. */
   serves: string[];
+  /** The Agent Skills it may load into its system prompt, each pinned by version and digest. Empty: none. */
+  skills: RawSkillUse[];
+  /** The MCP servers and tools it calls through the harness's tool gateway. Empty: none. */
+  tools: RawToolUse[];
 }
 
 /** What to call the agent in prose: its persona title, or its id when it has none. */
@@ -44,11 +50,20 @@ export function agentName(agent: Pick<AgentSpec, "id" | "title">): string {
   return agent.title || agent.id;
 }
 
+/** The icon a page shows for an agent whose card declares none. */
+export const DEFAULT_AGENT_ICON = "🤖";
+
+/** The agent's icon: the one its card declares, or the default when it declares none. */
+export function agentIcon(agent: Pick<AgentSpec, "icon">): string {
+  return agent.icon || DEFAULT_AGENT_ICON;
+}
+
 export function specFromRaw(raw: RawAgentSpec): AgentSpec {
   const schemas = Object.entries(raw.schemas ?? {});
   return {
     id: raw.agent_id,
     title: raw.title ?? "",
+    icon: raw.icon ?? "",
     version: raw.version,
     description: raw.description,
     contractVersion: raw.contract_version,
@@ -66,6 +81,8 @@ export function specFromRaw(raw: RawAgentSpec): AgentSpec {
     models: (raw.models ?? []).map((m) => ({ ...m })),
     modelsDeclared: raw.models !== undefined,
     serves: [...(raw.serves ?? [])],
+    skills: (raw.skills ?? []).map((s) => ({ ...s })),
+    tools: (raw.tools ?? []).map((t) => ({ server: t.server, tools: [...t.tools] })),
   };
 }
 
@@ -94,6 +111,22 @@ export function readAgentSpec(value: unknown): AgentSpec | null {
     derivations: derivations as RawAgentSpec["derivations"],
     ...(Array.isArray(value.models) ? { models: value.models.filter(isRecord) as unknown as RawModelUse[] } : {}),
     ...(Array.isArray(value.serves) ? { serves: list(value.serves) } : {}),
-    ...(typeof value.title === "string" ? { title: value.title } : {}),
+    title: typeof value.title === "string" ? value.title : "",
+    icon: typeof value.icon === "string" ? value.icon : "",
+    ...(Array.isArray(value.skills) ? { skills: value.skills.filter(isSkillUse) } : {}),
+    ...(Array.isArray(value.tools) ? { tools: value.tools.filter(isToolUse) } : {}),
   });
+}
+
+function isToolUse(value: unknown): value is RawToolUse {
+  return (
+    isRecord(value) &&
+    typeof value.server === "string" &&
+    Array.isArray(value.tools) &&
+    value.tools.every((t) => typeof t === "string")
+  );
+}
+
+function isSkillUse(value: unknown): value is RawSkillUse {
+  return isRecord(value) && ["name", "version", "sha256"].every((k) => typeof value[k] === "string");
 }

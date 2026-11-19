@@ -1,8 +1,8 @@
 # advisor.metadata
 
 **Alpha** (`0.2.0a1`), a model-backed alpha (docs/specs/agents.md, invariant 14), and the drafter
-of a project's metadata record (#200). Its model is off by default; on, it only suggests values
-beside the record's questions (#698).
+of a project's metadata record (#200). Its model is on by default (`DD_METADATA_SUGGESTER=template` turns it off), and it only
+suggests values beside the record's questions (#698).
 
 The Metadata Librarian drafts a metadata record for a dataset, for the researcher to review before
 submission (R2). It serves two steps of the Blueprint's process flow (§8.2):
@@ -63,8 +63,8 @@ model writes a value.
 
 `DD_METADATA_SUGGESTER` chooses the suggester (`factory.py`, `config/examples/agents.env`):
 
-- `template` (default) suggests nothing, calls no model and needs no key.
-- `model` has a model suggest values for the questions on the properties `datacite.yaml` marks
+- `template` suggests nothing, calls no model and needs no key.
+- `model` (default) has a model suggest values for the questions on the properties `datacite.yaml` marks
   `suggest`: the title, the description, a free keyword and the language. A suggestion is
   offered in the question (`suggested_answer`, `suggestion_derivation: model`), never in the
   record, whose text stays the template's byte for byte. It becomes part of the record only when

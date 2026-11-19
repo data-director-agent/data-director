@@ -10,11 +10,13 @@ files, empty files and byte-for-byte copies, by the rules in `hints.yaml`. The i
 contents, so each is a prompt for a person, never a finding, and a file it does not list may still
 hold personal data (docs/specs/personal-data.md).
 
-The mock looks up the media type the inventory gives, which `dd-inventory` may have read from the
-file's content with fido, in `formats.yaml`; failing that, the file's last extension. It reads no
-file, consults no source and calls no model, so its grounding mode is `none` and it cites only
-its input. The real archivist, which weighs the inventory's PRONOM identifiers and table fields,
-is TODO(#354).
+The mock looks up the PRONOM identifiers the inventory gives, which `dd-inventory` read from the
+file's content with fido, in `formats.yaml`; failing that, the media type the inventory gives;
+failing that, the file's last extension. An identifier the table does not know is reported as
+identified but not in the table, and an identification that disagrees with the extension is a check
+for a person.
+It reads no file, consults no source and calls no model, so its grounding mode is `none` and it
+cites only its input. The real archivist, which also weighs table fields, is TODO(#354).
 """
 
 from __future__ import annotations
@@ -62,11 +64,16 @@ WORD = re.compile(r"[a-z]+")
 UNKNOWN = "unknown"
 # Says nothing about a format, so it is never looked up.
 OCTET_STREAM = "application/octet-stream"
+MISMATCH_QUESTION = (
+    "The file's content was identified as one format but its name suggests another. Check that "
+    "it is the file it is meant to be, and rename it or replace it if not."
+)
 
 LIMITATIONS = (
-    "This is a mock: it judges each format from the inventory's media type or, failing that, the "
-    "file name's extension, using a short table.",
-    "It does not weigh the inventory's PRONOM identifiers or table fields.",
+    "This is a mock: it judges each format by the inventory's PRONOM identifiers, its media type "
+    "or the file name's extension, using a short table of formats.",
+    "A format outside that table is reported as such, not described.",
+    "It does not weigh the inventory's table fields.",
     "It does not check that files open or suggest conversions.",
     "It reads folder, file and field names, never contents: a file it does not list for a person "
     "to look at may still hold personal data, sensitive locations or someone else's material.",
@@ -78,13 +85,19 @@ class Format:
     name: str
     media_type: str
     open: bool
+    pronom: tuple[str, ...] = ()
 
 
 def load_formats(path: Path = FORMATS) -> dict[str, Format]:
     with path.open(encoding="utf-8") as fh:
         table = yaml.safe_load(fh)
     return {
-        str(ext).lower(): Format(str(row["format"]), str(row["media_type"]), bool(row["open"]))
+        str(ext).lower(): Format(
+            str(row["format"]),
+            str(row["media_type"]),
+            bool(row["open"]),
+            tuple(str(p) for p in row.get("pronom", ())),
+        )
         for ext, row in table.items()
     }
 
@@ -125,12 +138,14 @@ def _words(*names: str) -> Iterator[str]:
 class FileArchivist:
     spec = AgentSpec(
         agent_id="advisor.files",
-        version="0.1.0a1",
+        version="0.2.0a1",
         title="File Archivist",
+        icon="🗄️",
         description=(
-            "Mock. Lists each file of a project's inventory with the format its media type or "
-            "extension suggests, and whether that format is open, and the files whose names, "
-            "size or digest call for a person to look at them before deposit. Reads no file."
+            "Mock. Lists each file of a project's inventory with the format its PRONOM "
+            "identification, media type or extension suggests, and whether that format is open, "
+            "and the files whose names, size or digest call for a person to look at them "
+            "before deposit. Reads no file."
         ),
         action_class="advise",
         accepts=(ClassSchema.of(FileInventory),),
@@ -142,6 +157,7 @@ class FileArchivist:
             "assessments.media_type": Derived(Derivation.LEXICAL),
             "assessments.open_format": Derived(Derivation.LEXICAL),
             "assessments.judged_by": Derived(Derivation.LEXICAL),
+            "assessments.pronom_id": Derived(Derivation.LEXICAL),
             "checks.path": Derived(Derivation.LEXICAL),
             "checks.kind": Derived(Derivation.LEXICAL),
             "checks.matched": Derived(Derivation.LEXICAL),
@@ -158,7 +174,10 @@ class FileArchivist:
         self.formats = formats if formats is not None else load_formats()
         self.hints = hints if hints is not None else load_hints()
         self.by_media_type: dict[str, Format] = {}
+        self.by_puid: dict[str, Format] = {}
         for known in self.formats.values():
+            for puid in known.pronom:
+                self.by_puid.setdefault(puid, known)
             if known.media_type != OCTET_STREAM:
                 self.by_media_type.setdefault(known.media_type, known)
 
@@ -203,6 +222,9 @@ class FileArchivist:
                 check = self._check(hint, file, copies)
                 if check is not None:
                     checks.append(check)
+            mismatch = self._mismatch(self._assess(file))
+            if mismatch is not None:
+                checks.append(mismatch)
         return checks
 
     def _check(
@@ -214,10 +236,35 @@ class FileArchivist:
             return _duplicate(hint, file, copies)
         return _named(hint, file)
 
+    def _mismatch(self, file: FileAssessment) -> FileCheck | None:
+        """Content-based identification and the extension name different formats."""
+        by_extension = self.formats.get(file.extension)
+        if file.judged_by != JudgedBy.PRONOM or by_extension is None:
+            return None
+        if by_extension.name == file.format_name:
+            return None
+        return FileCheck(
+            path=file.path,
+            kind=CheckKind.EXTENSION_MISMATCH,
+            matched=file.extension,
+            question=MISMATCH_QUESTION,
+        )
+
     def _assess(self, file: InventoryFile) -> FileAssessment:
         extension = PurePosixPath(file.file_path).suffix.lstrip(".").lower()
-        known = self.by_media_type.get(file.file_media_type or "")
-        judged_by = JudgedBy.MEDIA_TYPE
+        puid = next((p for p in file.file_pronom_ids if p in self.by_puid), None)
+        if puid is None and file.file_pronom_ids:
+            return FileAssessment(
+                path=file.file_path,
+                extension=extension,
+                format_name=UNKNOWN,
+                media_type=file.file_media_type,
+                open_format=False,
+                judged_by=JudgedBy.PRONOM_UNLISTED,
+                pronom_id=file.file_pronom_ids[0],
+            )
+        known = self.by_puid[puid] if puid else self.by_media_type.get(file.file_media_type or "")
+        judged_by = JudgedBy.PRONOM if puid else JudgedBy.MEDIA_TYPE
         if known is None:
             known, judged_by = self.formats.get(extension), JudgedBy.EXTENSION
         if known is None:
@@ -236,6 +283,7 @@ class FileArchivist:
             media_type=file.file_media_type or known.media_type,
             open_format=known.open,
             judged_by=judged_by,
+            pronom_id=puid,
         )
 
 

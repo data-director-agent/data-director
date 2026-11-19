@@ -7,39 +7,10 @@
  * agent retrieved anything (docs/specs/grounding.md).
  */
 
-import type { StageState } from "../run/stages";
+import type { StepState } from "../run/reduce";
 import type { OutcomeStatus } from "../run/types";
-import type { GroundingMode } from "./types";
 
-export { className, DERIVATION, DERIVATION_SHORT, fieldName } from "@data-director/agent-view";
-
-export const GROUNDING: Record<GroundingMode, { label: string; explanation: string }> = {
-  retrieval: {
-    label: "Cites records it retrieved",
-    explanation:
-      "Each result names the records it relies on. Data Director checks that the citations " +
-      "are consistent with the records the agent reports retrieving, and re-checks each cited " +
-      "record against a pinned copy. This does not prove the agent retrieved them.",
-  },
-  input_only: {
-    label: "Relies only on what you give it",
-    explanation:
-      "Each result cites your input and nothing else. Data Director checks that the agent " +
-      "retrieved no records. It may use a language model.",
-  },
-  none: {
-    label: "Works from your input by fixed rules",
-    explanation:
-      "Each result cites your input and nothing else. Data Director checks that the agent " +
-      "retrieved no records and called no language model.",
-  },
-  delegation: {
-    label: "Passes work to other agents",
-    explanation:
-      "Each result cites your input or a run of another agent it asked through Data Director. " +
-      "Each of those runs is checked in its own right.",
-  },
-};
+export { className, fieldName } from "@data-director/agent-view";
 
 /** Model providers by the name a manifest gives them. One not listed is shown as given. */
 export const PROVIDER: Record<string, string> = {
@@ -107,11 +78,11 @@ export const REASON: Record<string, { meaning: string; next: string }> = {
   },
   model_account_missing: {
     meaning: "This deployment needs your own AI account for this agent, and none is added.",
-    next: "Add your AI account on your Profile page, then run it again.",
+    next: "Add your AI account on your Settings page, then run it again.",
   },
   model_account_rejected: {
     meaning: "Your AI provider refused your account's key.",
-    next: "Check the key with your provider, replace it on your Profile page, then run it again.",
+    next: "Check the key with your provider, replace it on your Settings page, then run it again.",
   },
   model_account_limit: {
     meaning: "Your AI provider reported a usage or rate limit on your account.",
@@ -125,6 +96,10 @@ export const MODEL_ACCOUNT: Record<"own" | "deployment", string> = {
   deployment: "this deployment's AI account",
 };
 
+/** A stage's state as the run view draws it: the reducer's, with a check's finish told as passed
+ * or failed by its report. */
+export type StageState = StepState | "passed" | "failed";
+
 export const STAGE_STATE: Record<
   StageState,
   { label: string; tone: "ok" | "warn" | "danger" | "undeclared" | "plain" }
@@ -136,6 +111,4 @@ export const STAGE_STATE: Record<
   stopped: { label: "Stopped", tone: "warn" },
   finished: { label: "Done", tone: "ok" },
   "not-reached": { label: "Not reached", tone: "plain" },
-  "nothing-to-check": { label: "Nothing to check", tone: "plain" },
-  "not-built": { label: "Not built yet", tone: "undeclared" },
 };

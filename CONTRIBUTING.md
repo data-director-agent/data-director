@@ -89,14 +89,17 @@ locally from the repository root:
 | pytest | `uv run pytest --json-report --json-report-file=.report.json` (runs on every core; `-n0` for one process, to debug) |
 | CONFORMANCE.md is current | `uv run python scripts/conformance_report.py --check` (after pytest, which writes `.report.json`) |
 | Generated schemas up to date | `uv run dd-gen-schema && git diff --exit-code -- sdk/src/dd_sdk/schema/generated/` |
+| Generated API types up to date | in `app/web`: `npm run gen:api && git diff --exit-code -- src/api/generated/` |
 | Packages build and install alone | `uv build --all-packages -o dist && uv run python scripts/check_wheels.py dist` |
 | Agents as services (smoke) | `uv run python scripts/smoke_agents.py` |
+| PostgreSQL benchmark (`.github/workflows/bench.yml`, its own workflow, weekly and on demand; reports, never gates) | `DD_TEST_POSTGRES=postgresql://postgres@localhost/postgres uv run python harness/scripts/bench_postgres.py` (`--quick` to check it runs) |
 | Container image (`.github/workflows/images.yml`, its own workflow) | `docker build -f docker/release.Dockerfile --build-arg REVISION="$(git rev-parse HEAD)" -t data-director:smoke . && python3 scripts/smoke_image.py --image data-director:smoke --revision "$(git rev-parse HEAD)"` |
 | Workbench viewer in a browser | `uv run playwright install chromium && uv run pytest workbench/browser_tests` |
 | App shell (three jobs: checks, Vitest, Playwright) | in `app/web`: `npm ci && npm run lint && npm run typecheck && npm run build && npm test && npm run e2e` |
 | Links and citation file | `lychee --offline --include-fragments '**/*.md'`, `uvx cffconvert --validate`, `uv run scripts/check_citation.py`, `scripts/check_todos.py` and `scripts/check_boundaries.py` |
 | Workflows | `uvx zizmor .github`, [actionlint](https://github.com/rhysd/actionlint) and `python3 scripts/check_ci_gate.py`; every `uses:` is pinned to a full commit SHA with the version as a trailing comment (`# v1.2.3`) |
 | NGINX site | `sudo bash scripts/check_nginx.sh` (installs nginx; CI runs it on a clean runner) |
+| LiteLLM gateway and model broker | in `deploy/llm-gateway`, with Docker: `scripts/testing/ci_env.sh && docker compose -f compose.yaml -f compose.test.yaml up -d --wait && scripts/smoke_test.sh && scripts/testing/broker_e2e.sh`, then `docker compose -f compose.yaml -f compose.test.yaml down -v` (a fake provider: no keys, nothing billed) |
 | Developer Certificate of Origin | a person signs off, either with a `Signed-off-by` at the end of the pull request description or implicitly by opening the pull request from their own account (a notice names them), and no coding agent signs off anywhere, which may only co-author (`.github/workflows/dco.yml`, re-run when the description is edited; a problem is a warning, not a failure): `python3 scripts/check_signoff.py BASE HEAD --body-file description.md --author LOGIN` |
 | Dependency review | a new dependency with a known advisory of moderate severity or worse is refused |
 
@@ -117,11 +120,33 @@ The pytest suite blocks the network and needs no credentials. It also keeps the 
 that no longer matches what the server says, so commit what changed. In CI a stale fixture fails
 the test instead. The AG-UI cassettes in `app/web/cassettes`, the event streams the harness sends
 for each kind of run, are kept the same way by `app/tests/test_ui_cassettes.py`;
-`uv run python scripts/record_ui_cassettes.py` rewrites them all. [Writing tests](#writing-tests) says what a test should and should not pin down. `CONFORMANCE.md` is generated;
+`uv run python scripts/record_ui_cassettes.py` rewrites them all. The shell's types for what the
+server sends are generated from the app's response models: after changing one, run
+`npm run gen:api` in `app/web` and commit `app/web/src/api/generated/` ([The app](docs/specs/app.md),
+"API types"). [Writing tests](#writing-tests) says what a test should and should not pin down. `CONFORMANCE.md` is generated;
 regenerate it with the same two commands without `--check`. CodeQL (`codeql.yml`) analyses the
 Python, JavaScript and TypeScript code and the workflows (in a pull request, only the languages it
 changes), and `audit.yml` checks every locked
 dependency against the advisory databases each day. Dependabot proposes updates weekly.
+
+### Mutation testing
+
+Coverage shows which code the tests run, not which code they check. Once a week
+`.github/workflows/mutation.yml` runs [mutmut](https://mutmut.readthedocs.io) over the governance
+code the project owns: evidence hashing (`sdk/src/dd_sdk/evidence.py`), the policy gate
+(`harness/src/dd_harness/policy.py`) and the grounding linter
+(`harness/src/dd_harness/grounding.py`). The report is the job summary of the latest
+[Mutation testing run](https://github.com/data-director-agent/data-director/actions/workflows/mutation.yml):
+for each package, the counts, each surviving mutant (a change to the code that no test notices)
+with its diff, and the functions no selected test reaches. It is information only: it does not
+run on pull requests and never blocks a merge. To close a surviving mutant, add or tighten a test
+that the change would fail. Which modules and which tests are set under `[tool.mutmut]` in
+`sdk/pyproject.toml` and `harness/pyproject.toml`. To run it locally, from `sdk/` or `harness/`:
+
+```bash
+uv run --group mutation mutmut run
+uv run --group mutation mutmut results
+```
 
 ### Keeping the code in shape
 
@@ -129,7 +154,7 @@ The package boundaries are checked by Import Linter and `scripts/check_boundarie
 Linter also checks inside a package: no package's modules import one another in a cycle (the
 cycles that existed when the check was added are listed in its `ignore_imports`, and may only be
 removed), and `dd_harness` and `dd_app` keep their layers, from the way in down to the checks the
-project owns. Inside a package, four ratchets keep code from growing past what a reviewer can
+project owns. Inside a package, these ratchets keep code from growing past what a reviewer can
 follow ([Architecture review](docs/architecture-review.md)):
 
 - **Function complexity.** Ruff applies mccabe complexity 12 and the pylint limits on branches
@@ -138,20 +163,49 @@ follow ([Architecture review](docs/architecture-review.md)):
   tests.
 - **Class size.** Ruff's PLR0904 holds a Python class outside tests to 20 public methods, so that
   a class cannot grow by adding small ones.
+- **Boolean parameters and silenced exceptions.** Ruff's `FBT` rules fail a boolean positional
+  parameter in a definition and a `True` or `False` passed positionally in a call, in Python
+  outside tests: a call such as `run(x, True, False)` cannot be read without the definition. Make
+  the parameter keyword-only with `*` and name the argument. Ruff's `S110` fails
+  `try`/`except Exception`/`pass` (`SIM105` already fails a narrower `except`/`pass`, asking for
+  `contextlib.suppress`), and `BLE` fails a broad `except Exception` that neither re-raises nor
+  logs: a content problem is an outcome, not a swallowed exception. No rule catches
+  `contextlib.suppress(Exception)`; do not use it either.
 - **File size.** `scripts/check_size.py` holds each Python source file to 500 lines and each
-  TypeScript one to 400. A file already over the limit is recorded in `scripts/size_baseline.toml`
+  TypeScript one to 400 (not tests or generated code). A file already over the limit is recorded in `scripts/size_baseline.toml`
   at its present size and may not grow. The pre-commit hook lowers an entry when its file shrinks;
   commit the change.
+- **Copied code.** Agents may not import one another, so copying a block between them is the easy
+  route. `scripts/check_duplication.py` runs [jscpd](https://github.com/kucherenko/jscpd) over the
+  Python and TypeScript sources of every member (not tests or generated code) and fails on a block
+  of 5 lines and 50 tokens or more that appears twice. The copies already there are recorded in
+  `scripts/duplication_baseline.toml`, by pair of files, with the number of blocks and lines they
+  share; a pair may not gain a block or a line, and a new pair fails. Move shared code to the
+  package whose job it is, above all `dd_sdk` for what agents share, and import it. The check is a
+  pre-commit hook, as it takes about a second; the first run installs the jscpd pinned in
+  `scripts/jscpd/package-lock.json` with `npm ci`, so it needs Node.js. The hook lowers an entry
+  when a copy is removed; commit the change. Its canary, `scripts/tests/test_check_duplication.py`,
+  plants a block in two agents and expects the check to fail; it is skipped where jscpd is not
+  installed, and CI's "Architecture" job installs it.
+- **Unused code.** `uv run python scripts/check_unused.py` runs vulture over the Python, counting
+  a use in a test or script, and fails a function, method, class or import in a member's `src/`
+  that nothing calls. Code reached by a name vulture cannot see (a template, a base class that
+  calls an override) is listed under `[[reached]]` in `scripts/unused_code.toml` with how it is
+  reached; the unused code found when the check was added is listed under `[[unused]]` and may
+  only shrink. `npm run lint` in `app/web`, `sdk/browser` and `inventory/browser` runs knip, which
+  fails an unused file, export or dependency. A stale entry in either fails.
 - **Member registration.** `scripts/check_members.py` checks that each workspace member, and above
   all each agent, appears in every list that names members by hand: the root `pyproject.toml`
   and the files that deploy every agent.
 
-The code that exceeded a limit when it was introduced carries a marker: `# noqa: C901`,
-`# noqa: PLR0904` and the like in Python, `// eslint-disable-next-line complexity` in TypeScript,
-or an entry in the size baseline. These record debt. Remove the marker when you split the function or file; a
-marker that no longer suppresses anything is itself an error (Ruff's RUF100, ESLint's
-unused-directive report). Never add one to get new code past these checks: split the code by
-responsibility instead, and if that is not possible in your pull request, open an issue and say so.
+The code that exceeded a limit when it was introduced carries a marker: `# noqa: C901` (and the
+like, `# noqa: FBT001` and `# noqa: PLR0904` among them) in Python, `// eslint-disable-next-line complexity` in TypeScript, or an entry in the size
+baseline. These record debt. Remove the marker when you split the function or file; a marker that
+no longer suppresses anything is itself an error (Ruff's RUF100, ESLint's unused-directive
+report). Never add one to get new code past these checks: split the code by responsibility
+instead, and if that is not possible in your pull request, open an issue and say so. The CI
+"Architecture" job counts these markers, the baseline entries and the boundary exceptions in its
+summary (`scripts/architecture_debt.py`), so the count can be seen to fall.
 
 ## Writing tests
 
@@ -171,6 +225,10 @@ should fail when behaviour breaks, not when a sentence is reworded or an agent i
   ID from `docs/requirements.yaml` that it actually exercises. These tests feed `CONFORMANCE.md`:
   loosen what they assert, but keep them. An evaluation test carries no requirement marker
   ([Evaluation and conformance](docs/specs/evaluation.md)).
+* Property tests use Hypothesis, for code the project owns outright (evidence canonicalisation,
+  the contract validators, project event replay). The root `conftest.py` bounds every property
+  test to 50 examples with no deadline; a slower one, such as one against a database, sets fewer
+  with its own `@settings`.
 * Test module basenames are unique across the workspace. Test directories are not packages;
   shared doubles live in `dd_harness.testing` and in an agent's own `testing` module.
 * The PostgreSQL storage tests (`harness/tests/test_postgres.py`, marked `postgres`) run only when
@@ -246,9 +304,10 @@ and runs again when the title is edited:
 
 * the title is `type(scope)!: summary`. `type` is one of `build`, `chore`, `ci`, `docs`, `feat`,
   `fix`, `perf`, `refactor`, `revert`, `style` or `test`; `(scope)`, usually the package
-  (`app`, `harness`, `sdk`), and `!`, for a breaking change, are optional. The summary starts in
-  lower case unless its first word is a name or acronym, has no closing full stop, and the whole
-  title is at most 90 characters: `feat(app): register every in-tree agent`
+  (`app`, `harness`, `sdk`), and `!`, for a breaking change, are optional. The summary is a
+  sentence that starts with a capital letter, has no closing full stop, and the whole title is at
+  most 90 characters: `feat(app): Register every in-tree agent`. Lower case is also accepted, for
+  a summary that opens with a command or package name such as `uv`
 * the branch is lower-case words joined by hyphens, optionally grouped with slashes, in at most
   60 characters: `ci-faster`, `harness/run-store`
 
@@ -278,7 +337,9 @@ uv tool install pre-commit && pre-commit install
 Before each commit they fix trailing whitespace, final newlines and line endings; check YAML, TOML
 and JSON parse, and that no merge marker, private key or file over 1 MB is committed; check file
 modes against shebangs; run Ruff (lint with fixes, then format, at the version in `uv.lock`);
-check each to-do marker names an issue (`scripts/check_todos.py`); re-lock `uv.lock` (below);
+check each to-do marker names an issue (`scripts/check_todos.py`); hold source files to their
+size and copied code to its baseline (`scripts/check_size.py`, `scripts/check_duplication.py`);
+check every member is registered (`scripts/check_members.py`); re-lock `uv.lock` (below);
 lint the workflows with actionlint and zizmor (offline); and refuse a commit made directly on
 `main`. A `commit-msg` hook holds each commit subject to the pull request title rule
 (`scripts/check_names.py`): a Conventional Commit, `type(scope): summary`. The title itself is

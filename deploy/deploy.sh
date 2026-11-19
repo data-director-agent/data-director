@@ -3,9 +3,10 @@
 # datadirector user, every five minutes:
 #
 #   1. fetch the branch into the bare clone;
-#   2. stop if its tip is already running, failed here before, or has not passed CI;
-#   3. build the tip into its own release directory (uv sync, the re3data registry, npm build of
-#      app/web);
+#   2. pick the newest commit on the branch that passed CI, did not fail here before and is newer
+#      than the live one (pick() below); stop if there is none;
+#   3. build it into its own release directory (uv sync, the re3data registry, npm build of
+#      app/web, the browser scanner's bundle);
 #   4. point /opt/data-director/current at it and ask for data-director.target to be restarted
 #      (restart() below);
 #   5. if the app does not report the new commit, point `current` back and restart again.
@@ -18,11 +19,13 @@
 #   DD_DEPLOY_BRANCH      main
 #   DD_DEPLOY_CHECK       CI passed       the check run that must have succeeded on the commit
 #   DD_DEPLOY_ROOT        /opt/data-director
+#   UV_PYTHON_INSTALL_DIR DD_DEPLOY_ROOT/python   where uv installs Python, for every service's user
 #   DD_DEPLOY_KEEP        3               release directories kept, the live one included
+#   DD_DEPLOY_DEPTH       10              commits back from the tip that a pass looks at
 #   DD_DEPLOY_ABOUT_URL   http://127.0.0.1:7860/api/about   where the app names its commit
 #   GITHUB_TOKEN          (unset)         only for a private repository or the API rate limit
 #
-# `deploy.sh --force` skips the CI check and the record of failed commits.
+# `deploy.sh --force` deploys the tip, skipping the CI check and the record of failed commits.
 #
 # `deploy.sh --bootstrap [sha]` is the way out when this script, the copy in the live release, is
 # what stops a deployment: it points `current` at a release that is already built (sha, or the
@@ -38,6 +41,10 @@ BRANCH="${DD_DEPLOY_BRANCH:-main}"
 CHECK="${DD_DEPLOY_CHECK:-CI passed}"
 ROOT="${DD_DEPLOY_ROOT:-/opt/data-director}"
 KEEP="${DD_DEPLOY_KEEP:-3}"
+DEPTH="${DD_DEPLOY_DEPTH:-10}"
+# Where uv installs Python, which each release's .venv links to: readable by every service's user,
+# the model broker's among them, unlike the deploy user's home (deploy/install.sh).
+export UV_PYTHON_INSTALL_DIR="${UV_PYTHON_INSTALL_DIR:-$ROOT/python}"
 # /api/about answers without a session, so the check works with sign-in on (app/README.md).
 ABOUT_URL="${DD_DEPLOY_ABOUT_URL:-http://127.0.0.1:7860/api/about}"
 # Seconds the app has to report the new commit after a restart: the agents get 60 (wait-for-ports.sh) and the
@@ -177,68 +184,86 @@ if [[ ! -d "$BARE" ]]; then
   git clone --quiet --bare --single-branch --branch "$BRANCH" "$REPO" "$BARE"
 fi
 git -C "$BARE" fetch --quiet --force "$REPO" "+refs/heads/$BRANCH:refs/heads/$BRANCH"
-sha="$(git -C "$BARE" rev-parse "refs/heads/$BRANCH")"
-short="${sha:0:12}"
+tip="$(git -C "$BARE" rev-parse "refs/heads/$BRANCH")"
 
 # --- 2. Decide ---------------------------------------------------------------------------------
 
 live=""
 [[ -L "$CURRENT" ]] && live="$(basename "$(readlink "$CURRENT")")"
-if [[ "$live" == "$sha" ]]; then
+
+# The conclusion of the check on a commit: success, a state still to finish, the conclusion it
+# ended with, or "missing" if CI has not run on it at all. The repository is public, so no token
+# is needed: a pass makes one request for each commit it looks at (pick() below), and 60
+# unauthenticated requests an hour allow about five a pass.
+slug="$(sed -E 's#^(https://github.com/|ssh://git@github.com/|git@github.com:)##; s#\.git$##' <<<"$REPO")"
+auth=()
+[[ -n "${GITHUB_TOKEN:-}" ]] && auth=(-H "Authorization: Bearer $GITHUB_TOKEN")
+check_of() {
+  curl --fail --silent --show-error --max-time 30 "${auth[@]}" \
+    -H "Accept: application/vnd.github+json" \
+    --get --data-urlencode "check_name=$CHECK" --data-urlencode "per_page=100" \
+    "https://api.github.com/repos/$slug/commits/$1/check-runs" |
+    jq -r '[.check_runs[] | .conclusion // .status] | if length == 0 then "missing" else (if any(. == "success") then "success" else .[0] end) end'
+}
+
+# The newest commit on the branch that passed CI and is newer than the live one, or nothing. It
+# walks back from the tip, so that a tip still in CI, or one that failed, does not hold back a
+# commit before it that passed. It stops at the live commit, so it never goes back to an older
+# one, and after DEPTH commits.
+pick() {
+  local commit short conclusion age
+  while read -r commit; do
+    [[ "$commit" == "$live" ]] && return
+    short="${commit:0:12}"
+    if [[ -f "$FAILED" ]] && grep -qx "$commit" "$FAILED"; then
+      continue
+    fi
+    conclusion="$(check_of "$commit")" || die "could not read the checks on $short from GitHub"
+    case "$conclusion" in
+      success)
+        echo "$commit"
+        return
+        ;;
+      missing)
+        # No run at all is not the same as a run in progress: a commit that CI never saw (pushed
+        # with GITHUB_TOKEN, marked [skip ci], or during an Actions outage) waits for ever. Say
+        # so once the commit is old enough that CI should have started.
+        age=$(($(date +%s) - $(git -C "$BARE" log -1 --format=%ct "$commit")))
+        if ((age > MISSING_CHECK_GRACE)); then
+          log "$short: no \"$CHECK\" run after $((age / 60)) minutes; run the CI workflow on main by hand, or deploy with --force" >&2
+        else
+          log "$short: \"$CHECK\" has not started" >&2
+        fi
+        ;;
+      queued | in_progress | pending | waiting | requested)
+        log "$short: \"$CHECK\" has not finished" >&2
+        ;;
+      *)
+        # Not recorded as failed: if CI is re-run and passes, the commit is deployed then.
+        log "$short: \"$CHECK\" ended $conclusion; not deploying it" >&2
+        ;;
+    esac
+  done < <(git -C "$BARE" rev-list --first-parent --max-count="$DEPTH" "$tip")
+}
+
+if ((FORCE == 1)); then
+  sha="$tip"
+else
+  sha="$(pick)"
+fi
+
+if [[ -z "$sha" || "$sha" == "$live" ]]; then
   # Linked but not running: an earlier pass switched the link and then could not restart.
   running="$(running_commit)"
-  if [[ -n "$running" && "$running" != "$sha" ]]; then
-    log "$short: is current but the app reports ${running:0:12}; restarting"
+  if [[ -n "$live" && -n "$running" && "$running" != "$live" ]]; then
+    log "${live:0:12}: is current but the app reports ${running:0:12}; restarting"
     restart
-    healthy "$sha" || die "$short: the app did not report $short at $ABOUT_URL after a restart"
-    log "$short: live"
+    healthy "$live" || die "${live:0:12}: the app did not report ${live:0:12} at $ABOUT_URL after a restart"
+    log "${live:0:12}: live"
   fi
   exit 0
 fi
-
-if ((FORCE == 0)); then
-  if [[ -f "$FAILED" ]] && grep -qx "$sha" "$FAILED"; then
-    exit 0
-  fi
-
-  # The check runs on the commit. The repository is public, so no token is needed; 60
-  # unauthenticated requests an hour is more than one every five minutes uses.
-  slug="$(sed -E 's#^(https://github.com/|ssh://git@github.com/|git@github.com:)##; s#\.git$##' <<<"$REPO")"
-  auth=()
-  [[ -n "${GITHUB_TOKEN:-}" ]] && auth=(-H "Authorization: Bearer $GITHUB_TOKEN")
-  conclusion="$(
-    curl --fail --silent --show-error --max-time 30 "${auth[@]}" \
-      -H "Accept: application/vnd.github+json" \
-      --get --data-urlencode "check_name=$CHECK" --data-urlencode "per_page=100" \
-      "https://api.github.com/repos/$slug/commits/$sha/check-runs" |
-      jq -r '[.check_runs[] | .conclusion // .status] | if length == 0 then "missing" else (if any(. == "success") then "success" else .[0] end) end'
-  )" || die "could not read the checks on $short from GitHub"
-
-  case "$conclusion" in
-    success) ;;
-    missing)
-      # No run at all is not the same as a run in progress: a commit that CI never saw (pushed
-      # with GITHUB_TOKEN, marked [skip ci], or during an Actions outage) waits for ever. Say so
-      # once the commit is old enough that CI should have started.
-      age=$(($(date +%s) - $(git -C "$BARE" log -1 --format=%ct "$sha")))
-      if ((age > MISSING_CHECK_GRACE)); then
-        log "$short: no \"$CHECK\" run after $((age / 60)) minutes; run the CI workflow on main by hand, or deploy with --force"
-      else
-        log "$short: \"$CHECK\" has not started; waiting"
-      fi
-      exit 0
-      ;;
-    queued | in_progress | pending | waiting | requested)
-      log "$short: \"$CHECK\" has not finished; waiting"
-      exit 0
-      ;;
-    *)
-      # Not recorded as failed: if CI is re-run and passes, the commit is deployed then.
-      log "$short: \"$CHECK\" ended $conclusion; not deploying it"
-      exit 0
-      ;;
-  esac
-fi
+short="${sha:0:12}"
 
 # --- 3. Build ----------------------------------------------------------------------------------
 
@@ -264,7 +289,17 @@ if [[ ! -f "$release/.built" ]]; then
       cd app/web &&
       npm ci --no-audit --no-fund --loglevel=error &&
       npm run build --silent &&
-      rm -rf node_modules
+      rm -rf node_modules &&
+      # The browser scanner's bundle (inventory/browser/README.md, Browser bundle), served from
+      # dist/inventory-bundle/. Its wheels are kept outside the releases, as the sources are, and
+      # each is checked against its lock whether it was downloaded or read back.
+      cd ../../inventory/browser &&
+      mkdir -p "$ROOT/cache/inventory-wheels" .cache &&
+      ln -sfn "$ROOT/cache/inventory-wheels" .cache/wheels &&
+      npm ci --no-audit --no-fund --loglevel=error &&
+      npm run bundle --silent &&
+      cp -R dist/inventory-bundle ../../app/web/dist/ &&
+      rm -rf node_modules dist .cache
   ) || die "$short: build failed"
   echo "$sha" >"$release/.built"
 fi

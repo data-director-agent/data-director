@@ -1,5 +1,4 @@
-"""orchestrator.model: the model-backed Data Director orchestrator (docs/specs/orchestration.md,
-#21).
+"""orchestrator.model: the model-backed orchestrator (docs/specs/orchestration.md, #21).
 
 The Blueprint's Data Director is one agent a person converses with, which hands work to
 specialist agents (§9.3, "AI Model Orchestration"). `orchestrator.stub` routes by fixed rules; this
@@ -39,6 +38,9 @@ also offered `name_project`, which runs nothing either: it puts a short name for
 `Reply.new_project_title`, declared model-derived, which the conductor records as the project's
 title unless a person names it first (docs/specs/projects.md). A note from the harness says what
 the project is called, if anything, and by whom. The tool is answered and the loop goes on.
+Another note says what the researcher chose and people decided (`notes.py`): the repository chosen
+for deposit and each decided fact, which the model treats as settled until the researcher changes
+it (#1168).
 
 In a project whose researcher has not chosen an entry point (`Message.project_entry_by_researcher`
 not true), the model is also offered `set_entry_point`, which runs nothing either: it puts the
@@ -65,6 +67,7 @@ from dataclasses import dataclass, field
 from datetime import UTC
 from typing import Any
 
+from dd_agent_orchestrator_model.notes import decisions_note, name_note
 from dd_agent_orchestrator_model.own_tools import ENTRY_TOOL as ENTRY_TOOL
 from dd_agent_orchestrator_model.own_tools import ENTRY_TOOL_DEFINITION as ENTRY_TOOL_DEFINITION
 from dd_agent_orchestrator_model.own_tools import NAME_TOOL as NAME_TOOL
@@ -226,7 +229,16 @@ def conversation(message: Message, history_turns: int) -> list[dict[str, Any]]:
         }
         for turn in window
     ]
-    notes = [n for n in (inventory_note(message), progress_note(message), name_note(message)) if n]
+    notes = [
+        n
+        for n in (
+            inventory_note(message),
+            progress_note(message),
+            name_note(message),
+            decisions_note(message),
+        )
+        if n
+    ]
     text = "\n\n".join([*notes, message.message_text])
     messages.append({"role": "user", "content": text})
     return messages
@@ -248,24 +260,6 @@ def inventory_note(message: Message) -> str | None:
     return (
         note + " The harness puts it into the input of any agent that takes an inventory: leave "
         "`inventory` out, and send an empty input to an agent that takes only an inventory."
-    )
-
-
-def name_note(message: Message) -> str | None:
-    """What the harness says of the project's name, or None outside a project."""
-    if message.project_title_by_researcher is None:
-        return None
-    lead = "[From the harness, not the researcher] "
-    if message.project_title is None:
-        return lead + (
-            "The project has no name yet. Once you know what the research or dataset is, name "
-            f"it with {NAME_TOOL}."
-        )
-    if message.project_title_by_researcher:
-        return lead + f"The researcher named the project {json.dumps(message.project_title)}."
-    return lead + (
-        f"You named the project {json.dumps(message.project_title)}; the researcher has not "
-        f"renamed it. Call {NAME_TOOL} again only if the name is wrong."
     )
 
 
@@ -338,7 +332,7 @@ class _Turns:
         for unread in (c for c in made if c.problem is not None):
             self.attempts += 1
             answered[unread.id] = tool_result(
-                unread, f"Not run: {unread.problem}. Call the tool again.", True
+                unread, f"Not run: {unread.problem}. Call the tool again.", is_error=True
             )
         readable = [c for c in made if c.id not in answered]
         # A name is taken whatever else the turn calls; it never ends the turn.
@@ -364,6 +358,7 @@ class ModelOrchestrator:
     spec = AgentSpec(
         agent_id=AGENT_ID,
         title="Data Director",
+        icon="🎬",
         version="0.1.0",
         description=(
             "The model-backed Data Director orchestrator. Talks with a researcher, and hands "
@@ -408,8 +403,7 @@ class ModelOrchestrator:
             )
         state = self._start(message, ctx.delegate.manifest())
         while True:
-            use_tools = bool(state.definitions) and state.attempts < self.max_delegations
-            turn = self._turn(state.messages, state.definitions, use_tools, ctx, state.calls)
+            turn = self._turn(state, ctx)
             state.input_tokens += turn.usage.input_tokens or 0
             state.output_tokens += turn.usage.output_tokens or 0
             state.messages.append(turn.message)
@@ -460,32 +454,26 @@ class ModelOrchestrator:
                 results.append(answered[made.id])
                 continue
             if made.name == QUESTIONS_TOOL:
-                results.append(tool_result(made, problem or "", True))
+                results.append(tool_result(made, problem or "", is_error=True))
                 continue
             state.attempts += 1
             results.append(self._call(made, state.tools, state.attempts, ctx, state.delegated))
         return results
 
-    def _turn(
-        self,
-        messages: list[ModelMessage],
-        definitions: list[ToolSpec],
-        use_tools: bool,
-        ctx: RunContext,
-        calls: ModelCallLog,
-    ) -> ModelReply:
-        """One call to the model, recorded in `calls`; a provider failure or a refusal is a
-        `ModelError`."""
+    def _turn(self, state: _Turns, ctx: RunContext) -> ModelReply:
+        """One call to the model, recorded in `state.calls`, offering the tools while delegations
+        remain; a provider failure or a refusal is a `ModelError`."""
+        use_tools = bool(state.definitions) and state.attempts < self.max_delegations
         try:
             turn = call(
                 self.model,
                 ctx,
                 system=SYSTEM_PROMPT,
-                messages=messages,
-                tools=definitions,
+                messages=state.messages,
+                tools=state.definitions,
                 tool_choice="auto" if use_tools else "none",
                 max_tokens=MAX_TOKENS,
-                calls=calls,
+                calls=state.calls,
             )
         except ModelCallError as exc:
             raise ModelError(str(exc)) from exc
@@ -505,20 +493,24 @@ class ModelOrchestrator:
     ) -> ToolResult:
         tool = tools.get(call.name)
         if tool is None:
-            return tool_result(call, f"There is no agent behind the tool {call.name!r}.", True)
+            return tool_result(
+                call, f"There is no agent behind the tool {call.name!r}.", is_error=True
+            )
         if attempt > self.max_delegations:
             return tool_result(
                 call,
                 f"Not run: this turn has reached its limit of {self.max_delegations} "
                 "delegations. Reply with what you have.",
-                True,
+                is_error=True,
             )
         assert ctx.delegate is not None
         document = {**call.input, "schema_class": tool.schema_class}
         try:
             child = ctx.delegate(tool.agent_id, OpenInput.model_validate(document))
         except DelegationRefused as exc:
-            return tool_result(call, f"The harness did not run {tool.agent_id}: {exc}", True)
+            return tool_result(
+                call, f"The harness did not run {tool.agent_id}: {exc}", is_error=True
+            )
         delegated.append(child)
         envelope = child.envelope
         result = {
@@ -534,7 +526,7 @@ class ModelOrchestrator:
             ),
         }
         failed = envelope.outcome.status == OutcomeStatus.FAILED
-        return tool_result(call, json.dumps(result, default=str), failed)
+        return tool_result(call, json.dumps(result, default=str), is_error=failed)
 
     def _reply(
         self, message: Message, turn: ModelReply, state: _Turns, ctx: RunContext

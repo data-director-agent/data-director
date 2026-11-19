@@ -2,6 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import { axe } from "jest-axe";
 
 import { type FeedbackApi, FeedbackApiContext } from "../../feedback/api";
+import { about } from "../../test/api";
 import { Frame } from "./Frame";
 
 function withAbout(about: FeedbackApi["about"]) {
@@ -56,7 +57,7 @@ describe("Frame", () => {
 
   it("puts Projects first in the main navigation, before the conversation", () => {
     render(
-      <Frame current="/projects">
+      <Frame current="/project">
         <p>Content</p>
       </Frame>,
     );
@@ -68,8 +69,9 @@ describe("Frame", () => {
     // follows it.
     expect(names[0]).toBe("Projects");
     expect(names.indexOf("Conversation")).toBeGreaterThan(0);
+    // `/project` opens the current project's page (`ProjectLanding`), not the list of projects.
     const projects = within(nav).getByRole("link", { name: "Projects" });
-    expect(projects).toHaveAttribute("href", "/projects");
+    expect(projects).toHaveAttribute("href", "/project");
     expect(projects).toHaveAttribute("aria-current", "page");
   });
 
@@ -104,6 +106,27 @@ describe("Frame", () => {
     expect(link).toHaveAttribute("aria-current", "page");
   });
 
+  it("links to the settings from the banner, marked current on that page", () => {
+    const { unmount } = render(
+      <Frame current="/">
+        <p>Content</p>
+      </Frame>,
+    );
+    const banner = screen.getByRole("banner");
+    const link = within(banner).getByRole("link", { name: "Settings" });
+    expect(link).toHaveAttribute("href", "/settings");
+    expect(link).not.toHaveAttribute("aria-current");
+    unmount();
+    render(
+      <Frame current="/settings">
+        <p>Content</p>
+      </Frame>,
+    );
+    expect(
+      within(screen.getByRole("banner")).getByRole("link", { name: "Settings" }),
+    ).toHaveAttribute("aria-current", "page");
+  });
+
   it("links to the user guide in a new tab", () => {
     render(
       <Frame current="/">
@@ -120,7 +143,7 @@ describe("Frame", () => {
     );
   });
 
-  it("draws an icon beside each banner link and the dark mode switch, hidden from screen readers", () => {
+  it("draws an icon beside each banner link, hidden from screen readers", () => {
     render(
       <Frame current="/">
         <p>Content</p>
@@ -134,13 +157,10 @@ describe("Frame", () => {
       "Agents",
       "User guide",
       "Report a problem",
-      "Dark mode",
+      "Settings",
     ]) {
-      const control = within(banner).getByRole(
-        name === "Dark mode" ? "button" : "link",
-        // An external link's name goes on to say it opens in a new tab.
-        { name: new RegExp(`^${name}`) },
-      );
+      // An external link's name goes on to say it opens in a new tab.
+      const control = within(banner).getByRole("link", { name: new RegExp(`^${name}`) });
       const icon = control.querySelector("svg");
       expect(icon).not.toBeNull();
       expect(icon).toHaveAttribute("aria-hidden", "true");
@@ -215,13 +235,9 @@ describe("Frame", () => {
 
   it("names the deployed commit in the footer", async () => {
     const api = withAbout(() =>
-      Promise.resolve({
-        app_version: "0.3.0",
-        harness_version: "0.1.0",
-        commit: "abcdef0123456789",
-        feedback_enabled: false,
-        privacy_notice_url: null,
-      }),
+      Promise.resolve(
+        about({ commit: "abcdef0123456789", privacy_notice_url: null }),
+      ),
     );
     const { container } = render(
       <FeedbackApiContext.Provider value={api}>
@@ -239,13 +255,9 @@ describe("Frame", () => {
 
   it("links the operator's privacy notice in the footer when there is one", async () => {
     const api = withAbout(() =>
-      Promise.resolve({
-        app_version: "0.3.0",
-        harness_version: "0.1.0",
-        commit: "abcdef0123456789",
-        feedback_enabled: false,
-        privacy_notice_url: "https://example.ac.uk/data-director/privacy",
-      }),
+      Promise.resolve(
+        about({ commit: "abcdef0123456789", privacy_notice_url: "https://example.ac.uk/data-director/privacy" }),
+      ),
     );
     const { container } = render(
       <FeedbackApiContext.Provider value={api}>
@@ -263,13 +275,9 @@ describe("Frame", () => {
 
   it("shows no privacy link when the operator has set no notice", async () => {
     const api = withAbout(() =>
-      Promise.resolve({
-        app_version: "0.3.0",
-        harness_version: "0.1.0",
-        commit: "abcdef0123456789",
-        feedback_enabled: false,
-        privacy_notice_url: null,
-      }),
+      Promise.resolve(
+        about({ commit: "abcdef0123456789", privacy_notice_url: null }),
+      ),
     );
     render(
       <FeedbackApiContext.Provider value={api}>

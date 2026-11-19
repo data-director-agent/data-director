@@ -12,9 +12,11 @@ from __future__ import annotations
 
 import json
 import re
+import stat
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from ddtool.common import MODEL_BACKED, Agent, load_agents
 from ddtool.vm import (
@@ -36,6 +38,12 @@ DEPLOY_UNIT = "data-director-deploy.service"
 ADMIN_UNIT = "data-director-admin.service"
 BACKUP_UNIT = "data-director-backup.service"
 BACKUP_TIMER = "data-director-backup.timer"
+BROKER_UNIT = "data-director-model-broker.service"
+GATEWAY_UNIT = "data-director-llm-gateway.service"
+# The settings that send model calls to a gateway, by the file that holds them
+# (deploy/llm-gateway/README.md).
+GATEWAY_SETTINGS = ("DD_BROKER_DEPLOYMENT_BASE_URL", "ANTHROPIC_BASE_URL")
+LOOPBACK = {"127.0.0.1", "localhost", "::1"}
 # A backup older than this means the nightly one has stopped (deploy/README.md, "Backups").
 BACKUP_MAX_AGE = timedelta(days=2)
 BACKUP_NAME = re.compile(r"^\d{8}T\d{6}Z$")
@@ -173,6 +181,57 @@ class Doctor(SettingsChecks):
                     f"sudo systemctl disable --now '{unit}'; sudo systemctl reset-failed '{unit}'",
                 )
 
+    # --- The model broker ----------------------------------------------------------------------
+
+    def broker(self) -> None:
+        """The broker runs as a user of its own, so every directory on the way to the release's
+        interpreter must let others through (docs/guide/operations/model-broker.md)."""
+        state = systemctl_show(self.system, [BROKER_UNIT], ["UnitFileState"])
+        release = self.vm.live_release()
+        if state.get(BROKER_UNIT, {}).get("UnitFileState") != "enabled" or release is None:
+            return
+        python = release / ".venv" / "bin" / "python"
+        if not python.exists():
+            return
+        interpreter = python.resolve()
+        # The directories above the deployment's own, such as /opt and /var/lib, are the system's.
+        system_dirs = set(self.vm.root.parents)
+        for directory in reversed(interpreter.parents):
+            if directory in system_dirs:
+                continue
+            if not directory.stat().st_mode & stat.S_IXOTH:
+                self.report.problem(
+                    f"{BROKER_UNIT} cannot run the release's Python, {interpreter}: "
+                    f"{directory} lets no other user through",
+                    self.install,
+                )
+                return
+
+    def gateway(self) -> None:
+        """A model broker or agent that sends its calls to a gateway on this VM finds it answering;
+        otherwise every such call fails (deploy/llm-gateway/README.md)."""
+        vm, system, report = self.vm, self.system, self.report
+        files = [vm.etc / "model-broker.env", vm.agents_env, *sorted(vm.etc.glob("agents/*.env"))]
+        users: dict[str, list[str]] = {}
+        for path in files:
+            settings = read_settings(system, path)
+            if settings is None:
+                report.skip(str(path))
+                continue
+            for name in GATEWAY_SETTINGS:
+                url = settings.get(name, "").rstrip("/")
+                if urlsplit(url).hostname in LOOPBACK:
+                    users.setdefault(url, []).append(f"{name} in {path}")
+        for url, where in users.items():
+            if system.get(f"{url}/health/liveliness") is not None:
+                continue
+            state = systemctl_show(system, [GATEWAY_UNIT], ["UnitFileState"])
+            enabled = state.get(GATEWAY_UNIT, {}).get("UnitFileState") == "enabled"
+            report.problem(
+                f"no gateway answers at {url}, which {'; '.join(where)} sends model calls to",
+                journal(GATEWAY_UNIT) if enabled else f"{self.install} --gateway",
+            )
+
     # --- What the app reports ------------------------------------------------------------------
 
     def live(self, live: dict[str, Any] | None) -> None:
@@ -228,7 +287,7 @@ class Doctor(SettingsChecks):
         result = systemctl_show(system, [BACKUP_UNIT], ["Result"]).get(BACKUP_UNIT, {})
         if result.get("Result") not in (None, "", "success"):
             report.problem(f"the last backup ended with {result['Result']}", journal(BACKUP_UNIT))
-        for name in ("backup.sh", "stores.sh"):
+        for name in ("backup.sh", "stores.sh", "gateway-store.sh"):
             source, installed = vm.clone / "deploy" / name, vm.lib / name
             if system.readable(source) and (
                 not system.readable(installed) or system.read(installed) != system.read(source)
@@ -351,6 +410,8 @@ class Doctor(SettingsChecks):
             agents = []
         self.config()
         self.agents(agents)
+        self.broker()
+        self.gateway()
         self.secrets(agents)
         self.settings(release)
         self.live(live)

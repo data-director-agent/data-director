@@ -56,8 +56,9 @@ export function Composer({
         <ComposerAttach
           attached={attachments.inventory}
           attachedDocument={attachments.document}
+          documents={attachments.documents}
           busy={busy}
-          onAttachFile={(file) => void attachments.attachFile(file)}
+          onAttachFiles={(files) => void attachments.attachFiles(files)}
           onAttachMade={(file) => void attachments.attachFromDialog(file)}
           onRemoveInventory={attachments.removeInventory}
           onRemoveDocument={attachments.removeDocument}
@@ -69,9 +70,12 @@ export function Composer({
         />
         <DocumentReviewDialog
           pending={attachments.pendingDocument}
+          replaces={attachments.document?.name}
           onAttach={attachments.confirmDocument}
           onDiscard={attachments.discardDocument}
         />
+        {/* Said in the live region when it is set, so not live here. */}
+        {attachments.notice && <p className="callout">{attachments.notice}</p>}
         {attachments.error && (
           <p role="alert" className="callout status-danger">
             {attachments.error}

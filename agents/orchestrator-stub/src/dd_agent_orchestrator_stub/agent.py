@@ -192,6 +192,7 @@ class DirectorStub:
     spec = AgentSpec(
         agent_id="orchestrator.stub",
         title="Data Director",
+        icon="🎬",
         version="0.1.0",
         description=(
             "A rule-based stand-in for the Data Director orchestrator. Routes each message to "

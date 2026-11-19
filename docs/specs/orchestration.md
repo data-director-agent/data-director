@@ -32,9 +32,10 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
    is held to every rule any invocation is. (`harness/tests/test_conversations.py`)
 2. **Conversations are derived from the run storage, never stored apart from it.** Turn order is
    the order in which the conductor stored the turns ([Storage](storage.md), invariant 3). So is
-   a conversation's title: the first turn's `Reply.conversation_title` if a model wrote one,
-   otherwise the start of the first message, with `title_source` saying which
-   (`harness/tests/test_conversations.py`).
+   a conversation's title, taken from the first turn that did not fail (or the first turn, if
+   every turn failed), so that a message nobody answered does not name the conversation or its
+   project: that turn's `Reply.conversation_title` if a model wrote one, otherwise the start of
+   its message, with `title_source` saying which (`harness/tests/test_conversations.py`).
 3. **The history is part of the input.** What an agent was shown of earlier turns travels inside
    `Message`, so the input hash covers it and every transport gives the agent the same document.
    (`agents/orchestrator-stub/tests/test_orchestrator_stub.py`,
@@ -47,7 +48,9 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
    is running, is refused before anything runs. So a message resent after a dropped connection
    never runs twice, two windows cannot fork a conversation, and each turn's history is exactly
    the conversation as it stood. The app enforces this at its turn endpoint, where it also builds
-   the history from the stored turns rather than taking one from the caller. Not yet on `main`:
+   the history from the stored turns rather than taking one from the caller, under a lock kept in
+   the run store, so app processes over one store refuse alike ([Storage](storage.md), "Turn
+   locks"). Not yet on `main`:
    TODO(#337, #390).
 5. **An orchestrator reaches other agents only through the harness, under a grant.** The grant is
    live only while the orchestrator's own invocation runs; the harness refuses a callback with an
@@ -263,6 +266,18 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     but does not hold pending, and the other questions are asked with nothing chosen. A
     Blueprint reading checked the wording, the entry points and the mapping
     ([The intake against §8](intake-reading.md)).
+21. **What people decided reaches the model as decided.** In a project, the model-backed
+    orchestrator opens the current message with a note from the harness naming the repository the
+    researcher chose (`Message.project_repository`, by name and re3data identifier) and each fact
+    people decided (`Message.project_decisions`), written from their structured values only,
+    never from anyone's words about why. Like the progress note it is derived from the project
+    record on every turn, so a choice made after the conversation started reaches the next turn.
+    The prompt tells the model to treat each as decided until the researcher changes it, not to
+    say it is undecided, and to put a decided value into an agent's input where the input has a
+    place for it. With nothing chosen or decided there is no note, and none says that nothing is
+    decided, since a profile may keep `decisions` from a hosted model ([Projects](projects.md),
+    invariant 8). (#1168; `agents/orchestrator-model/tests/test_orchestrator_decisions.py`;
+    `harness/tests/test_project_repository_given.py`)
 
 ## Boundaries and contracts
 

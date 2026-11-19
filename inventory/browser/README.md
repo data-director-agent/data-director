@@ -65,6 +65,7 @@ $ cd inventory/browser
 $ npm ci
 $ npm run bundle      # writes dist/inventory-bundle/; needs uv, and the network on the first run
 $ npm run parity      # the command natively and under Pyodide, on ../tests/data/mixed
+$ node bundle/parity.ts ../tests/data/disclosure/direct   # or on another folder
 ```
 
 `dist/inventory-bundle/` holds:
@@ -77,7 +78,16 @@ $ npm run parity      # the command natively and under Pyodide, on ../tests/data
   `pyodide.loadPackage("data-director-inventory")` installs the bundle (`src/scanner/runtime.ts`) and
   nothing is fetched from PyPI or a CDN;
 - `manifest.json`: the Pyodide and command versions, each wheel with its source and digest, and
-  each file's size, raw and gzipped.
+  each file's size, raw and gzipped;
+- `NOTICES.md` (`bundle/notices.ts`): the licence of Pyodide and of every wheel, with where its
+  source is, and the Open Government Licence attribution for the PRONOM signatures fido carries.
+  Each wheel's licence is read from its own metadata, and a wheel naming none fails the build.
+  Serving the bundle redistributes all of it, so the notices go with it; no scan reads them, so
+  they are not in the manifest's `files`.
+
+Deployments build it from the commit they run: the release image in a stage of its own
+(`docker/release.Dockerfile`), and the VM deploy beside the app's shell (`deploy/deploy.sh`), each
+copying it to `app/web/dist/inventory-bundle/`, where the app serves it.
 
 Which wheel is taken (`bundle/resolve.ts`): the command's dependencies are those `uv export`
 gives from the workspace lock, leaving out any whose environment marker does not hold under
@@ -87,8 +97,17 @@ depends on, since Pyodide built and tested those versions together; it compiles 
 where the workspace's newer one would not. Any other package is the workspace lock's pure Python
 wheel, and a package with neither fails the build. Each download is checked against the SHA-256
 in its lock (Pyodide's comes with the npm package) and kept in `.cache/wheels/`, so a rebuild
-needs no network. Presidio, once the command depends on it (#470), will need a small import shim
-for spaCy here ([Personal data](../../docs/specs/personal-data.md)).
+needs no network.
+
+The personal-data detector, Presidio with pattern recognisers only
+([Personal data](../../docs/specs/personal-data.md)), declares spaCy, preshed and numpy and imports
+only spaCy, which does not build for Pyodide. The export leaves the three out with what only they
+need (`--prune`), and `bundle/spacy-stub/` takes spaCy's place: the names Presidio's modules import
+from spaCy and thinc, and nothing that processes language. `bundle/write_wheel.py` makes it a
+wheel, the same bytes each time, which the command's entry in the lock depends on.
+`inventory/tests/test_spacy_stub.py` runs the command with the stub in spaCy's place and checks
+that it makes the same inventory, so a Presidio release that imports more of spaCy fails there
+first. The detector adds about 3.5 MB gzipped to the bundle.
 
 The parity check (`bundle/parity.ts`) runs `dd-inventory` natively through `uv`, then loads the
 bundle in Node, mounts the folder at `/data` and runs `make_inventory` there. It fails on any
@@ -101,8 +120,9 @@ simple field type, a format identified by its byte signature, a container format
 change, and writes the bundle's size and its Pyodide, fido and PRONOM signature versions to the
 job summary, so that a change to any of them is seen.
 
-The bundle carries Pyodide (MPL-2.0), fido (Apache-2.0) and The National Archives' PRONOM
-signatures (Open Government Licence), which the app is to credit when it serves the bundle (#554).
+The bundle carries Pyodide (MPL-2.0), fido (Apache-2.0), The National Archives' PRONOM
+signatures (Open Government Licence) and some 40 other wheels, each credited in `NOTICES.md`,
+which the app links to beside **Describe a folder…**.
 
 ## Browser scanner
 
@@ -115,15 +135,18 @@ only the inventory comes back to the page.
    `<input type="file" webkitdirectory>`, and `fromEntries` a dropped folder's
    `webkitGetAsEntry()`. Each gives a `ChosenFolder`: the folder's name and every file under it,
    by its path relative to the folder. Hidden files are kept; the command skips and counts them
-   itself. Prefer the directory picker where there is one: Chromium's prompt for
+   itself. WebKit's `webkitdirectory` offers none to the page, though (below). Prefer the directory picker where there is one: Chromium's prompt for
    `webkitdirectory` asks whether to *upload* the files, which is not what happens.
 2. **The bundle.** The page fetches the whole bundle with `fetchBundle(baseUrl)` and hands it to
    the worker, which has no network: it imports Pyodide's two scripts from `blob:` URLs made of
    those bytes, and answers Pyodide's requests for the rest from memory (`serveFrom`), checking
    each wheel against the SHA-256 in the bundle's lock as a browser would. Caching the bundle
    across scans is left to HTTP caching where the app serves it.
-3. **The scan.** `startScan(worker, assets, folder, onEvent)` posts the request to a fresh worker
-   (`new Worker(new URL(".../scanner/worker.ts", import.meta.url), { type: "module" })`). The
+3. **The scan.** `startScan(worker, assets, folder, onEvent)` posts the request to a fresh worker.
+   The package exports the worker's module as `@data-director/inventory/scanner/worker`, which a
+   Vite app starts with `import ScanWorker from "@data-director/inventory/scanner/worker?worker"`
+   and `new ScanWorker()`, as `app/web/src/scan/scanner.ts` does. The app offers it both where
+   an inventory is first made and where the project's inventory is updated with a new scan. The
    worker mounts the files read-only at `/data` with Emscripten's WORKERFS, which reads slices of
    each file on demand and copies none of them, and runs the command's `make_inventory` there.
    `onEvent` hears each stage (`starting`, `installing`, `reading`) and each file
@@ -137,14 +160,17 @@ the worker's script:
 default-src 'none'; script-src blob: 'wasm-unsafe-eval'; connect-src 'none'
 ```
 
-`'unsafe-eval'` is not needed, and neither is `'self'` in `script-src`.
+`'unsafe-eval'` is not needed, and neither is `'self'` in `script-src`. The app sends it with its
+built worker, `assets/inventory-scanner-<hash>.js` (`dd_app.worker_policy`, and its preview
+server), and serves the bundle at `/inventory-bundle/` where it has been built.
 
-`npm run e2e` (after `npm run bundle`) proves this in Chromium. `e2e/vite.config.ts` builds a test
-page and serves it with the bundle from one origin, sending the worker the policy above. The test
-copies `../tests/data/mixed`, adds a file holding a canary string, chooses the copy through
-`webkitdirectory`, and checks that the inventory equals the command's on the same copy (apart from
-when it was made and the runtime's label), that progress reached the last file, and that every
-request was a `GET` of the page or the bundle with no body and no canary. CI's **Inventory
+`npm run e2e` (after `npm run bundle`) proves this in Chromium, Firefox and WebKit.
+`e2e/vite.config.ts` builds a test page and serves it with the bundle from one origin, sending the
+worker the policy above. The test copies `../tests/data/mixed`, adds a file holding a canary
+string, chooses the copy through `webkitdirectory`, and checks that the inventory equals the
+command's on the same copy (apart from when it was made and the runtime's label, and in WebKit the
+hidden-file sentence), that progress reached the last file, and that every request was a `GET` of
+the page or the bundle with no body and no canary. CI's **Inventory
 browser bundle (parity)** job runs it after the parity check.
 
 What differs from the command on disk:
@@ -153,9 +179,28 @@ What differs from the command on disk:
   described where the command would skip it and say so.
 - **Speed and memory.** About three times slower than the command, and ten times on hashing (see
   the [spike on #367](https://github.com/data-director-agent/data-director/issues/367#issuecomment-6708613929)).
-  Memory rises while a large file is hashed, most likely from WORKERFS's per-read buffers waiting
-  to be collected: in headless Chromium the whole browser rose from about 0.4 GB to 2.4 GB on an
-  8 GB file and to 2.8 GB on a 16 GB file, almost all of it in the renderer that runs the
-  worker. The growth slows as files get larger, but is a reason to use the command for very
-  large datasets.
-- **Browsers.** CI runs Chromium only. Firefox and Safari need a manual check.
+  Memory rises while a large file is hashed, almost all of it in the renderer that runs the
+  worker. In headless Chromium on a 16 GB machine the whole browser rose from about 0.4 GB to
+  2.4 GB on an 8 GB file and to 2.8 GB on a 16 GB file. A 50 GB file was hashed correctly in
+  9.4 minutes (about 91 MB/s), with the browser peaking 2.7 GB above where it started, so the
+  growth levels off rather than following the file's size.
+
+  The memory is what WORKERFS's reads leave for the garbage collector: each read is a `Blob`
+  slice and an `ArrayBuffer` from `FileReaderSync`, and the same loop in a bare worker, with no
+  Pyodide, grows alike. Chromium collects them only as V8 sees memory pressure, which it judges
+  by the machine's memory, not by what the system will actually let it have. Detaching each
+  buffer once it is copied (`ArrayBuffer.prototype.transfer(0)`) made it worse: the browser
+  then grew by the whole file, as V8 no longer counted the memory and so never collected. With
+  the browser held to 1 GB by a cgroup (a scan of a small folder needs about 0.5 GB), a 4 GB file
+  had the renderer killed, which closes the page and the app with it, not only the scan. So
+  **Describe a folder…** advises the command before describing a folder with a file of 4 GB or
+  more, and describes it only if the researcher goes on
+  (`app/web/src/components/inventory/LargeFileNotice.tsx`).
+- **Browsers.** CI runs the scanner, and the app's **Describe a folder…** from choosing to
+  attaching, in Playwright's Chromium, Firefox and WebKit (the engine of Safari). Firefox and
+  WebKit have no `showDirectoryPicker`, so they always take a folder through `webkitdirectory` or
+  a drop. WebKit's `webkitdirectory` offers no hidden file or folder, so the command never sees
+  them and its inventory leaves out the sentence saying they were skipped; the files it describes
+  are the same. The app's accessibility check of the dialog runs in Chromium and WebKit only: in
+  Playwright's Firefox, axe crashes the page after a `getByRole("region")` query, with or without
+  a scan.

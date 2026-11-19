@@ -10,6 +10,10 @@
 
 import { createContext, useContext } from "react";
 
+import type { RawSession } from "../api/generated/responses";
+
+export type { RawSession } from "../api/generated/responses";
+
 export interface SessionPrincipal {
   principalId: string;
   name: string;
@@ -32,24 +36,10 @@ export interface Session {
   principal: SessionPrincipal | null;
   /** When the session ends if nothing more is done in it (ISO 8601), or null. */
   expiresAt: string | null;
-  /** Whether a person may add their own model account on the Profile page (docs/specs/model-accounts.md). */
+  /** Whether a person may add their own model account on the Settings page (docs/specs/model-accounts.md). */
   modelAccounts: boolean;
   /** The providers the profile lets a person's own account be with; empty unless `modelAccounts`. */
   modelAccountProviders: ModelAccountProvider[];
-}
-
-export interface RawSession {
-  signs_in: boolean;
-  issuer: string | null;
-  principal: {
-    principal_id: string;
-    name: string;
-    assurance: string;
-    vouched_by?: string;
-  } | null;
-  expires_at: string | null;
-  model_accounts?: boolean;
-  model_account_providers?: { provider: string; base_urls: string[] }[];
 }
 
 export interface SessionApi {
@@ -72,8 +62,8 @@ export function fromRaw(raw: RawSession): Session {
         }
       : null,
     expiresAt: raw.expires_at,
-    modelAccounts: raw.model_accounts ?? false,
-    modelAccountProviders: (raw.model_account_providers ?? []).map((p) => ({
+    modelAccounts: raw.model_accounts,
+    modelAccountProviders: raw.model_account_providers.map((p) => ({
       provider: p.provider,
       baseUrls: p.base_urls,
     })),

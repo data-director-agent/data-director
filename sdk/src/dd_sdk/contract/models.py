@@ -15,8 +15,42 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, SerializeAsAny, model_validator
 
+# `base` and `inventory` hold the rest of the core's mirrors; their names are this module's too.
+from dd_sdk.contract import inventory
+from dd_sdk.contract.base import SHA256_PATTERN as SHA256_PATTERN
+from dd_sdk.contract.base import Frozen as Frozen
+from dd_sdk.contract.facts import Affiliation as Affiliation
+from dd_sdk.contract.facts import AffiliationKind as AffiliationKind
+from dd_sdk.contract.facts import ChosenRepository as ChosenRepository
+from dd_sdk.contract.facts import DocumentationSummary as DocumentationSummary
+from dd_sdk.contract.facts import ExternalIdentifier as ExternalIdentifier
+from dd_sdk.contract.facts import InventorySummary as InventorySummary
+from dd_sdk.contract.facts import ProjectDocument as ProjectDocument
+from dd_sdk.contract.facts import ProjectFact as ProjectFact
+from dd_sdk.contract.facts import ResearcherFunding as ResearcherFunding
+from dd_sdk.contract.facts import ResearcherLink as ResearcherLink
+from dd_sdk.contract.facts import ResearcherRecord as ResearcherRecord
+from dd_sdk.contract.facts import ResearcherWork as ResearcherWork
+from dd_sdk.contract.retrieval import TOOL_SOURCE_PREFIX as TOOL_SOURCE_PREFIX
+from dd_sdk.contract.retrieval import EvidenceItem as EvidenceItem
+from dd_sdk.contract.retrieval import ToolRetrieval as ToolRetrieval
+from dd_sdk.contract.retrieval import tool_source_id as tool_source_id
+
+PART_FOLDER_PATTERN = inventory.PART_FOLDER_PATTERN
+ConfidenceBand = inventory.ConfidenceBand
+FileInventory = inventory.FileInventory
+FileRole = inventory.FileRole
+FindingTarget = inventory.FindingTarget
+IdentificationMethod = inventory.IdentificationMethod
+InventoryFile = inventory.InventoryFile
+InventoryPart = inventory.InventoryPart
+PersonalDataFinding = inventory.PersonalDataFinding
+PersonalDataKind = inventory.PersonalDataKind
+ProportionBand = inventory.ProportionBand
+TableField = inventory.TableField
+inventory_part_problems = inventory.inventory_part_problems
+
 UUID7_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
-SHA256_PATTERN = r"^[0-9a-f]{64}$"
 POLICY_BUNDLE_REF_PATTERN = r"^profile:[a-z0-9][a-z0-9.-]*@v[0-9]+$"
 IRI_PATTERN = r"^[a-z][a-z0-9+.-]*:\S+$"
 VERSION_PATTERN = r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$"
@@ -40,10 +74,6 @@ SHORT_TEXT_MAX = 200
 LONG_TEXT_MAX = 4000
 # A question's identifier within its reply (Question.question_key, QuestionAnswer.answered_key).
 QUESTION_KEY_PATTERN = r"^[a-z][a-z0-9-]{0,39}$"
-
-
-class Frozen(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="forbid")
 
 
 def new_invocation_id() -> str:
@@ -157,21 +187,6 @@ class TurnRole(StrEnum):
     AGENT = "agent"
 
 
-class IdentificationMethod(StrEnum):
-    SIGNATURE = "signature"
-    CONTAINER = "container"
-    EXTENSION = "extension"
-    NONE = "none"
-    RESEARCHER = "researcher"
-
-
-class FileRole(StrEnum):
-    DATA = "data"
-    DOCUMENTATION = "documentation"
-    CODE = "code"
-    OTHER = "other"
-
-
 class Obligation(StrEnum):
     REQUIRED = "required"
     RECOMMENDED = "recommended"
@@ -253,101 +268,6 @@ class ConversationTurn(Frozen):
     turn_invocation_id: str | None = Field(default=None, pattern=UUID7_PATTERN)
 
 
-class InventorySummary(Frozen):
-    """What the inventory a project holds is, without its files (docs/specs/projects.md)."""
-
-    inventory_digest: str = Field(pattern=SHA256_PATTERN)
-    inventory_file_count: int
-    inventory_tool: str
-    inventory_tool_version: str
-    inventory_made_at: datetime
-    inventory_limitations: list[str] = Field(default_factory=list)
-
-
-class DocumentationSummary(Frozen):
-    """What one document attached to a project is, without its text (docs/specs/projects.md)."""
-
-    documentation_name: str
-    documentation_digest: str = Field(pattern=SHA256_PATTERN)
-    documentation_media_type: str
-    documentation_size: int
-    documentation_added_at: datetime
-
-
-class AffiliationKind(StrEnum):
-    EMPLOYMENT = "employment"
-    EDUCATION = "education"
-    QUALIFICATION = "qualification"
-    INVITED_POSITION = "invited_position"
-    DISTINCTION = "distinction"
-    MEMBERSHIP = "membership"
-    SERVICE = "service"
-
-
-class ResearcherLink(Frozen):
-    link_title: str | None = None
-    link_url: str
-
-
-class ExternalIdentifier(Frozen):
-    identifier_type: str
-    identifier_value: str
-    identifier_url: str | None = None
-
-
-class Affiliation(Frozen):
-    put_code: str
-    affiliation_kind: AffiliationKind
-    organisation_name: str
-    organisation_identifier: str | None = None
-    organisation_identifier_scheme: str | None = None
-    department: str | None = None
-    role_title: str | None = None
-    start_year: int | None = None
-    end_year: int | None = None
-
-
-class ResearcherWork(Frozen):
-    put_code: str
-    work_title: str
-    work_type: str | None = None
-    publication_year: int | None = None
-    journal_title: str | None = None
-    work_identifiers: list[ExternalIdentifier] = Field(default_factory=list)
-
-
-class ResearcherFunding(Frozen):
-    put_code: str
-    funding_title: str
-    funding_type: str | None = None
-    funder_name: str
-    funder_identifier: str | None = None
-    funder_identifier_scheme: str | None = None
-    award_identifier: str | None = None
-    start_year: int | None = None
-    end_year: int | None = None
-
-
-class ResearcherRecord(Frozen):
-    """What one researcher in a project chose to keep from their public ORCID record, in ORCID's
-    own words (docs/specs/projects.md). Never an email address."""
-
-    orcid_id: str
-    researcher_name: str | None = None
-    other_names: list[str] = Field(default_factory=list)
-    biography: str | None = None
-    keywords: list[str] = Field(default_factory=list)
-    country: list[str] = Field(default_factory=list)
-    researcher_links: list[ResearcherLink] = Field(default_factory=list)
-    external_identifiers: list[ExternalIdentifier] = Field(default_factory=list)
-    affiliations: list[Affiliation] = Field(default_factory=list)
-    works: list[ResearcherWork] = Field(default_factory=list)
-    works_omitted: int | None = None
-    fundings: list[ResearcherFunding] = Field(default_factory=list)
-    record_retrieved_at: datetime
-    record_source: str
-
-
 class StepProgress(Frozen):
     """How far one process-flow step has gone, as the project log shows it; a step left out is
     open (docs/specs/orchestration.md)."""
@@ -385,8 +305,9 @@ class ReplyAnswers(Frozen):
 class Message(Frozen):
     """One conversational turn and the conversation so far (docs/specs/orchestration.md). The
     conductor fills `project_inventory`, `project_entry`, `project_progress`, `project_title`,
-    `project_title_by_researcher`, `project_entry_by_researcher`, `project_documentation` and
-    `project_researchers` from the conversation's project; a caller never does."""
+    `project_title_by_researcher`, `project_entry_by_researcher`, `project_documentation`,
+    `project_researchers`, `project_decisions` and `project_repository` from the conversation's
+    project; a caller never does."""
 
     schema_class: Literal["Message"] = "Message"
     message_text: str
@@ -400,92 +321,8 @@ class Message(Frozen):
     project_documentation: list[DocumentationSummary] | None = None
     project_entry_by_researcher: bool | None = None
     project_researchers: list[ResearcherRecord] | None = None
-
-
-class TableField(Frozen):
-    """One field of a table, as a Frictionless Table Schema field descriptor."""
-
-    name: str
-    field_type: str | None = None
-    field_format: str | None = None
-    field_description: str | None = None
-
-
-class InventoryFile(Frozen):
-    file_path: str = Field(pattern=r"^[^/]")
-    file_size: int
-    file_sha256: str = Field(pattern=SHA256_PATTERN)
-    file_media_type: str | None = None
-    file_pronom_ids: list[str] = Field(default_factory=list)
-    file_identified_by: IdentificationMethod
-    file_fields: list[TableField] = Field(default_factory=list)
-    file_description: str | None = None
-    file_role: FileRole | None = None
-
-
-PART_FOLDER_PATTERN = r"^[^/]+(/[^/]+)*$"
-
-
-class InventoryPart(Frozen):
-    """One scan of one folder in an inventory made of several (docs/specs/projects.md)."""
-
-    part_folder: str = Field(pattern=PART_FOLDER_PATTERN)
-    part_tool: str
-    part_tool_version: str
-    part_identified_with: str | None = None
-    part_made_at: datetime
-    part_limitations: list[str] = Field(default_factory=list)
-
-
-def _within(path: str, folder: str) -> bool:
-    return path == folder or path.startswith(folder + "/")
-
-
-def inventory_part_problems(inventory: Any) -> list[str]:
-    """What is wrong with a `FileInventory` document's parts, which its schema cannot say: a
-    folder with a `.` or `..` segment, a folder that is another's or lies inside another's, and a
-    file under no part's folder. Empty for a document without parts, or with nothing wrong.
-
-    Reads the document as JSON, so the store can call it on a document its schema accepted."""
-    parts = inventory.get("inventory_parts") if isinstance(inventory, dict) else None
-    if not parts:
-        return []
-    folders = [str(p.get("part_folder", "")) for p in parts if isinstance(p, dict)]
-    problems = [
-        f"part folder {f!r} has a . or .. segment"
-        for f in folders
-        if any(segment in {".", ".."} for segment in f.split("/"))
-    ]
-    for i, a in enumerate(folders):
-        for b in folders[i + 1 :]:
-            if _within(a, b) or _within(b, a):
-                problems.append(f"part folders {a!r} and {b!r} overlap")
-    for file in inventory.get("inventory_files") or []:
-        path = str(file.get("file_path", "")) if isinstance(file, dict) else ""
-        if not any(path.startswith(f + "/") for f in folders):
-            problems.append(f"{path!r} is under no part's folder")
-    return problems
-
-
-class FileInventory(Frozen):
-    """The facts about a dataset's files a project holds in place of the files
-    (docs/specs/projects.md). Made of `inventory_parts` when it covers more than one folder."""
-
-    schema_class: Literal["FileInventory"] = "FileInventory"
-    inventory_files: list[InventoryFile] = Field(default_factory=list)
-    inventory_tool: str
-    inventory_tool_version: str
-    inventory_identified_with: str | None = None
-    inventory_made_at: datetime
-    inventory_limitations: list[str] = Field(default_factory=list)
-    inventory_parts: list[InventoryPart] | None = None
-
-    @model_validator(mode="after")
-    def _parts_cover_the_files(self) -> FileInventory:
-        problems = inventory_part_problems(self.model_dump(mode="json"))
-        if problems:
-            raise ValueError("; ".join(problems))
-        return self
+    project_decisions: list[ProjectFact] | None = None
+    project_repository: ChosenRepository | None = None
 
 
 class OpenInput(Frozen):
@@ -767,22 +604,13 @@ class DraftRequest(Frozen):
     redraft_document: str | None = Field(default=None, pattern=UUID7_PATTERN)
     # Filled by the conductor in a project, from the facts people kept from their ORCID records.
     researchers: list[ResearcherRecord] = Field(default_factory=list)
+    # Filled by the conductor in a project, from the documents a researcher attached.
+    project_documents: list[ProjectDocument] = Field(default_factory=list)
+    # Filled by the conductor in a project, from the facts people decided.
+    project_decisions: list[ProjectFact] = Field(default_factory=list)
 
 
 # --- Evidence and telemetry -----------------------------------------------------------------
-
-
-class EvidenceItem(Frozen):
-    source_id: str
-    source_uri: str | None = None
-    retrieved_at: datetime | None = None
-    snapshot_ref: str | None = None
-    hash_algorithm: str = "sha256"
-    canonicalisation: str
-    content_hash: str = Field(pattern=SHA256_PATTERN)
-    # What the hash covers, already projected; the linter re-hashes it (E1,
-    # docs/specs/grounding.md).
-    content: dict[str, Any] | None = None
 
 
 class ModelCall(Frozen):
@@ -876,6 +704,8 @@ class Envelope(Frozen):
     project_id: str | None = Field(default=None, pattern=UUID7_PATTERN)
     parent_invocation_id: str | None = Field(default=None, pattern=UUID7_PATTERN)
     delegations: list[Delegation] = Field(default_factory=list)
+    # Filled only by the conductor, from the tool gateway (docs/specs/grounding.md).
+    tool_retrievals: list[ToolRetrieval] = Field(default_factory=list)
 
     def payload_as[P: Grounded](self, model: type[P]) -> P:
         """The payload as `model`, the reader's own model of its class (docs/specs/contract.md).
@@ -897,8 +727,8 @@ class Envelope(Frozen):
         nullable in the generated schema). The one exception is `energy_estimate_j`, which is
         written as an explicit null: P14 asks for the footprint to be captured, and an explicit
         null says "slot exists, not measured" where an absent key says nothing. An empty
-        `delegations` or `model_calls` list is omitted, so envelopes of agents that neither
-        delegate nor call a model are unchanged.
+        `delegations`, `tool_retrievals` or `model_calls` list is omitted, so envelopes of
+        agents that neither delegate, call a tool nor call a model are unchanged.
         """
         doc = to_document(self)
         doc["telemetry"].setdefault("energy_estimate_j", None)
@@ -908,6 +738,9 @@ class Envelope(Frozen):
         if not doc["delegations"]:
             # Only a delegation agent's envelope lists them (docs/specs/orchestration.md).
             del doc["delegations"]
+        if not doc["tool_retrievals"]:
+            # Only a run that read a record through the tool gateway lists them.
+            del doc["tool_retrievals"]
         return doc
 
 

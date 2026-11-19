@@ -40,6 +40,8 @@ from dd_app.config import DEFAULT_AGENTS_CONFIG, DEFAULT_PROFILE, settings_from_
 from dd_app.governance import (
     Governance,
 )
+from dd_app.routes.meta import Policy, ProcessFlow
+from dd_app.routes.runs import RawAgentsResponse
 from dd_harness.identity import IdentityError, OperatorAssertion
 from dd_harness.policy import load_profile
 from dd_harness.registry import load_config
@@ -152,6 +154,7 @@ def test_api_agents_gives_each_manifest_beside_what_the_profile_assigns(
     assert body["unavailable"] == {} and body["incompatible"] == {}
     assert body["profile"]["ref"] == "profile:data-director-app@v9"
     assert body["profile"]["orchestrator"] == "orchestrator.stub"
+    assert body["profile"]["attached_documents"] == "allowed"
     assert body["acting_for"] == {"name": TEST_PRINCIPAL.name, "assurance": "asserted"}
 
 
@@ -169,6 +172,21 @@ def test_every_other_path_serves_the_built_shell(governance: Governance, dist: P
     response = TestClient(build_app(governance, dist)).get("/")
     assert response.status_code == 200
     assert "<title>shell</title>" in response.text
+
+
+def test_a_missing_page_is_404_with_the_shell_for_a_browser(governance: Governance, dist: Path):
+    client = TestClient(build_app(governance, dist))
+    response = client.get("/no/such/page", headers={"accept": "text/html,application/xhtml+xml"})
+    assert response.status_code == 404
+    assert "<title>shell</title>" in response.text
+
+
+def test_a_missing_path_is_404_plainly_to_anything_else(governance: Governance, dist: Path):
+    client = TestClient(build_app(governance, dist))
+    assert client.get("/no/such/page", headers={"accept": "application/json"}).status_code == 404
+    api = client.get("/api/no-such-route", headers={"accept": "text/html"})
+    assert api.status_code == 404
+    assert "<title>shell</title>" not in api.text
 
 
 @pytest.mark.parametrize("page", ["/agents", "/activity", "/policy"])
@@ -193,7 +211,7 @@ def test_api_policy_gives_the_profile_the_gate_holds_runs_to(governance: Governa
         assert agent["requires_approval"] is (
             agent["action_class"] in profile.actions_requiring_approval
         )
-    check_fixture("policy.json", body)
+    check_fixture("policy.json", body, model=Policy)
 
 
 def test_an_unbuilt_shell_stops_start_up(governance: Governance, tmp_path: Path):
@@ -236,7 +254,7 @@ def test_a_listed_agent_that_is_not_running_is_shown_unavailable(
 
 
 def test_the_reference_fixture_is_what_the_server_says(governance: Governance, dist: Path):
-    check_fixture("agents.json", agents_response(governance, dist))
+    check_fixture("agents.json", agents_response(governance, dist), model=RawAgentsResponse)
 
 
 def test_the_process_flow_is_the_blueprints(governance: Governance, dist: Path):
@@ -254,7 +272,7 @@ def test_the_process_flow_is_the_blueprints(governance: Governance, dist: Path):
         "optional": False,
         "out_of_scope": False,
     }
-    check_fixture("process-flow.json", body)
+    check_fixture("process-flow.json", body, model=ProcessFlow)
 
 
 def test_the_several_agents_fixture_is_what_the_server_says(env: Path, dist: Path):
@@ -268,7 +286,7 @@ def test_the_several_agents_fixture_is_what_the_server_says(env: Path, dist: Pat
         make_conductor(env, *agents, remote=False, profile=PERMISSIVE),
         OperatorAssertion(TEST_PRINCIPAL),
     )
-    check_fixture("agents-several.json", agents_response(governance, dist))
+    check_fixture("agents-several.json", agents_response(governance, dist), model=RawAgentsResponse)
 
 
 # Delegation (#129): the app is the conductor's callback, and its A2A routes take delegation

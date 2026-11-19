@@ -22,8 +22,8 @@ quote. None of that is taken on trust (`_apply`):
 
 Whatever is dropped is said in the run's statement. If the model declines, cannot be reached,
 or never submits findings it is allowed to, the template explainer's result is used and the
-statement says so. The tools reach registries directly from this agent until the harness's tool
-gateway exists. TODO(#875)
+statement says so. The tools reach registries directly from this agent, not yet through the
+harness's tool gateway. TODO(#1143)
 """
 
 from __future__ import annotations

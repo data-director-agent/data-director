@@ -28,7 +28,7 @@ import os
 import sys
 from collections.abc import AsyncGenerator, Callable
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from a2a.helpers import get_data_parts, new_data_part, new_task_from_user_message
 from a2a.server.agent_execution import AgentExecutor, RequestContext
@@ -65,6 +65,7 @@ from dd_sdk.contract.models import InvocationRequest
 from dd_sdk.credentials import ConfigError
 from dd_sdk.model import bind_grant
 from dd_sdk.model_account import accounted
+from dd_sdk.tools import Tools, ToolsGrant
 from dd_sdk.tracing import make_tracing
 from dd_sdk.wire import (
     ARTIFACT_NAME,
@@ -77,6 +78,9 @@ from dd_sdk.wire import (
     META_TRACEPARENT,
     reply_to_document,
 )
+
+if TYPE_CHECKING:
+    from dd_sdk.tools_client import ClientFactory as ToolsClientFactory
 
 PROTOCOL_VERSION = "1.0"
 # The exit status for a configuration error. systemd units do not restart on it
@@ -133,11 +137,13 @@ def run_traced(
     request: InvocationRequest,
     metadata: dict[str, Any],
     delegate_client_factory: delegation.ClientFactory = delegation.default_client,
+    tools_client_factory: ToolsClientFactory | None = None,
 ) -> dict[str, Any]:
     """Run the agent under a tracer parented to the caller's span; return the artifact body.
 
     If the harness sent a delegation grant (docs/specs/orchestration.md), the agent's context
-    carries a `delegate` bound to it. If it sent a model grant (docs/specs/model-accounts.md), the
+    carries a `delegate` bound to it; if it sent a tools grant (docs/specs/agents.md), the context
+    carries `tools` bound to that. If it sent a model grant (docs/specs/model-accounts.md), the
     context carries it and it is bound to the run (`dd_sdk.model.bind_grant`), so the SDK's model
     clients send it to the broker. If the agent raises because the broker refused a person's own
     model account, the run ends `abstained` with the reason code (`dd_sdk.model_account.accounted`).
@@ -173,6 +179,7 @@ def run_traced(
                         ),
                         model_grant=model_grant,
                         settings=settings,
+                        tools=_tools(ToolsGrant.from_metadata(metadata), tools_client_factory),
                     ),
                 )
             )
@@ -183,14 +190,31 @@ def run_traced(
     return reply_to_document(result, spans)
 
 
+def _tools(grant: ToolsGrant | None, factory: ToolsClientFactory | None) -> Tools | None:
+    """The agent's `tools`, bound to `grant`. The client needs the SDK's `tools` extra, which is
+    imported only when the harness sent a grant: an agent granted a server without it fails
+    with an `ImportError` naming the extra, a configuration error."""
+    if grant is None:
+        return None
+    try:
+        from dd_sdk.tools_client import HarnessTools, default_client
+    except ImportError as exc:
+        raise ImportError(
+            "the harness granted this agent MCP tools; install data-director-sdk[tools]"
+        ) from exc
+    return HarnessTools(grant=grant, client_factory=factory or default_client)
+
+
 class AgentServerExecutor(AgentExecutor):
     def __init__(
         self,
         agent: Agent,
         delegate_client_factory: delegation.ClientFactory = delegation.default_client,
+        tools_client_factory: ToolsClientFactory | None = None,
     ) -> None:
         self.agent = agent
         self.delegate_client_factory = delegate_client_factory
+        self.tools_client_factory = tools_client_factory
 
     async def execute(self, context: RequestContext, event_queue: EventQueue) -> None:
         message = context.message
@@ -214,7 +238,12 @@ class AgentServerExecutor(AgentExecutor):
         try:
             request = InvocationRequest.model_validate(inputs[0])
             body = await asyncio.to_thread(
-                run_traced, self.agent, request, metadata, self.delegate_client_factory
+                run_traced,
+                self.agent,
+                request,
+                metadata,
+                self.delegate_client_factory,
+                self.tools_client_factory,
             )
         except Exception as exc:  # noqa: BLE001 — reported to the conductor, which records it
             await updater.failed(
@@ -299,11 +328,14 @@ def app(
     agent: Agent,
     base_url: str = "http://127.0.0.1:8100",
     delegate_client_factory: delegation.ClientFactory = delegation.default_client,
+    tools_client_factory: ToolsClientFactory | None = None,
 ) -> Starlette:
     """`delegate_client_factory` gives the httpx client a delegation agent uses to call the
-    harness back; tests bind it to the harness's in-process app."""
+    harness back, and `tools_client_factory` the one an agent calls the tool gateway with; tests
+    bind both to the harness's in-process app."""
     card = agent_card(agent, base_url)
-    handler = request_handler(AgentServerExecutor(agent, delegate_client_factory), card)
+    executor = AgentServerExecutor(agent, delegate_client_factory, tools_client_factory)
+    handler = request_handler(executor, card)
     return Starlette(
         routes=[*create_agent_card_routes(card), *create_jsonrpc_routes(handler, JSONRPC_PATH)]
     )
