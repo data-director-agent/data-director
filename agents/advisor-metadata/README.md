@@ -55,6 +55,17 @@ Every value left `null` is a gap with one question in `document_questions`
 is the same in every draft. Its text is the rule table's `ask` for the property, with the
 qualifiers the repository asks for.
 
+Where the data were collected (`geoLocations`) is asked in two steps (`location.py`, #1073),
+because a precise location can expose people, private land or protected species. First, the
+question the rule table gives as `publish`: whether the location may be published, and at what
+precision, which the landowner, the principal investigator or an ecologist decides. It targets the
+location's entry (`geoLocations[0]`), names the inventory's fields that suggest a location, and its
+answer is never placed in the record. Only once that is decided is the place asked for, at the
+precision agreed. The project's `sensitivity` decisions about locations (`project_decisions`)
+stand over an answer: the coarsest precision decided stands, and an undecided one asks again.
+When the location is withheld, by a decision or an answer beginning "withhold", the place is left
+`null`, asked about no more, and the statement says why.
+
 The conductor puts the answers a person recorded into the request's `draft_answers`. Each is
 placed in its gap as given, and that gap is asked no more. The record's text is the rule's: no
 model writes a value.

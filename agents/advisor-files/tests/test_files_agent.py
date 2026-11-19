@@ -254,3 +254,19 @@ def test_the_formats_table_has_no_puid_twice_for_different_formats() -> None:
     for known in load_formats().values():
         for puid in known.pronom:
             assert seen.setdefault(puid, known.name) == known.name
+
+
+@pytest.mark.parametrize(
+    ("path", "pronom"),
+    [
+        ("analysis/plot_temp_gradient.R", ("fmt/1599",)),
+        ("analysis/fit.py", ("fmt/938", "fido-fmt/python")),
+        ("analysis/run.sh", ()),
+        ("analysis/model.jl", ()),
+    ],
+)
+def test_code_is_an_open_format(path: str, pronom: tuple[str, ...]) -> None:
+    # #1071: as the inventory identifies a script, by PRONOM or by extension alone.
+    assessment = FileArchivist()._assess(file(path, pronom=pronom))
+    assert assessment.format_name != UNKNOWN
+    assert assessment.open_format

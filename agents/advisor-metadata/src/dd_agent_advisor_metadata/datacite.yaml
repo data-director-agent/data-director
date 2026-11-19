@@ -8,9 +8,11 @@
 # deposits: the resource is a dataset.
 #
 # `ask` is the question put to the researcher for a value left null; a property with none is
-# asked about by its name. `suggest: true` marks the properties a model may suggest a value for,
-# beside the question and never in the record (docs/specs/drafting.md, invariant 7): what the
-# dataset's files can make likely. Never who made it, when, under what rights or with whose money,
+# asked about by its name. `publish` is asked first, for a value a person must decide may be
+# published at all: where the data were collected (`location.py`, #1073). Until it is answered,
+# or the project's decisions settle it, the value is not asked for. `suggest: true` marks the
+# properties a model may suggest a value for, beside the question and never in the record
+# (docs/specs/drafting.md, invariant 7): what the dataset's files can make likely. Never who made it, when, under what rights or with whose money,
 # which only the researcher can say, and never an entry from a named vocabulary (TODO(#703)).
 titles:
   value: title
@@ -44,7 +46,12 @@ relatedIdentifiers:
   ask: Give the identifier, such as a DOI, of a related publication or dataset.
 geoLocations:
   value: geoLocationPlace
-  ask: Where were the data collected? Name the place.
+  publish: >-
+    Can the place where the data were collected be published, and at what precision (exact,
+    site, region or country)? Locations near protected species, on private land or linked to
+    people may need to be generalised or withheld: the landowner, the principal investigator or
+    an ecologist decides. Give the precision agreed, or answer "withhold".
+  ask: Where were the data collected? Name the place, at the precision agreed.
 publisher:
   ask: Who publishes the dataset? This is usually the repository.
 publicationYear:

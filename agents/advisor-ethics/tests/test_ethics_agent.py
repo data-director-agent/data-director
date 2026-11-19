@@ -9,7 +9,14 @@ from pathlib import Path
 import pytest
 
 import dd_agent_advisor_ethics
-from dd_agent_advisor_ethics.agent import UNKNOWN_EMBARGO_QUESTION, EthicsAdviser
+from dd_agent_advisor_ethics.agent import (
+    EMBARGO_QUESTION,
+    LOCATION_QUESTION,
+    NOT_PEOPLE_QUESTION,
+    PEOPLE_QUESTION,
+    UNKNOWN_EMBARGO_QUESTION,
+    EthicsAdviser,
+)
 from dd_agent_advisor_ethics.classes import SensitivityContext, SensitivityFlags
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import describe
@@ -64,6 +71,35 @@ def test_with_nothing_flagged_it_still_asks_about_an_unknown_embargo(runs_dir: P
     assert payload.flags == []
     assert [q.text for q in payload.questions] == [UNKNOWN_EMBARGO_QUESTION]
     assert not env.telemetry.model_calls
+
+
+def questions(context: SensitivityContext, runs_dir: Path) -> list[str]:
+    env = make_conductor(runs_dir, EthicsAdviser()).invoke(
+        request("advisor.ethics", context), acting_for=TEST_PRINCIPAL
+    )
+    return [q.text for q in env.payload_as(SensitivityFlags).questions]
+
+
+@pytest.mark.parametrize(
+    ("fields", "involves_people", "expected"),
+    [
+        # Locations only, and the researcher says no people (#1069).
+        (["node", "lat", "lon"], False, [LOCATION_QUESTION]),
+        (["node", "lat", "lon"], None, [LOCATION_QUESTION]),
+        (["node", "lat", "lon"], True, [PEOPLE_QUESTION]),
+        # A personal field contradicts the researcher's answer: ask, do not assert.
+        (["postcode", "lat"], False, [NOT_PEOPLE_QUESTION]),
+        (["postcode"], None, [PEOPLE_QUESTION]),
+        (["kwh_daily"], False, []),
+    ],
+)
+def test_asks_about_people_only_as_the_input_supports(
+    runs_dir: Path, fields: list[str], involves_people: bool | None, expected: list[str]
+) -> None:
+    context = SensitivityContext(
+        fields=fields, involves_people=involves_people, embargo_intended=True
+    )
+    assert questions(context, runs_dir) == [*expected, EMBARGO_QUESTION]
 
 
 def test_the_card_names_the_persona_and_its_steps() -> None:

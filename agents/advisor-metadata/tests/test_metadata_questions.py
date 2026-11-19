@@ -10,6 +10,7 @@ from typing import Any
 from test_metadata_agent import draft, sample
 
 from dd_agent_advisor_metadata.agent import load_form
+from dd_agent_advisor_metadata.location import entry_path
 from dd_agent_advisor_metadata.questions import gaps, question_id
 from dd_sdk.contract.models import Document, DraftAnswer, OutcomeStatus
 
@@ -33,10 +34,12 @@ def test_every_null_value_has_exactly_one_question_naming_it(runs_dir: Path) -> 
     document = drafted(runs_dir)
     record = json.loads(document.document_text)
     asked = {q.gap_property or "": q for q in document.document_questions}
-    nulls = [g.path for g in gaps(record)]
-    assert nulls and sorted(asked) == sorted(nulls)
+    # A place is asked about first by its entry: whether it may be published (#1073).
+    first = {g.path: entry_path(g) for g in gaps(record) if g.prop == "geoLocations"}
+    nulls = [first.get(g.path, g.path) for g in gaps(record)]
+    assert first and nulls and sorted(asked) == sorted(nulls)
     for path, question in asked.items():
-        assert path and value_at(record, path) is None
+        assert path and (path in first.values() or value_at(record, path) is None)
         assert question.question_id == question_id(path)
         assert question.gap_section is None and question.gap_file is None
         assert question.suggested_answer is None  # the template suggests nothing

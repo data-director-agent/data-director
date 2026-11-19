@@ -77,6 +77,17 @@ EMBARGO_QUESTION = (
     "policies before deposit."
 )
 UNKNOWN_EMBARGO_QUESTION = "Say whether the data need an embargo before they are shared."
+NOT_PEOPLE_QUESTION = (
+    "You said the data do not involve people, but some field names suggest personal data. "
+    "Confirm with your institution's ethics and data protection staff whether they do, before "
+    "sharing them."
+)
+LOCATION_QUESTION = (
+    "Some fields hold locations. Confirm whether publishing them could expose people, private "
+    "land or protected species, and at what precision they may be shared, before sharing them."
+)
+# The keyword category that marks a place, not a person (keywords.yaml).
+LOCATION = "location"
 
 
 def load_keywords(path: Path = KEYWORDS) -> dict[str, list[str]]:
@@ -143,7 +154,7 @@ class EthicsAdviser:
         ]
         questions = [
             SensitivityQuestion(text=text, derivation=Derivation.TEMPLATE)
-            for text in self._questions(context, flagged=bool(flags))
+            for text in _questions(context, {flag.category for flag in flags})
         ] + [
             SensitivityQuestion(text=text, derivation=Derivation.MODEL)
             for text in reading.questions
@@ -179,16 +190,6 @@ class EthicsAdviser:
             prompts=calls.prompts if calls is not None else {},
         )
 
-    def _questions(self, context: SensitivityContext, *, flagged: bool) -> list[str]:
-        questions = []
-        if context.involves_people or flagged:
-            questions.append(PEOPLE_QUESTION)
-        if context.embargo_intended:
-            questions.append(EMBARGO_QUESTION)
-        elif context.embargo_intended is None:
-            questions.append(UNKNOWN_EMBARGO_QUESTION)
-        return questions
-
     def _flag(self, name: str) -> SensitivityFlag | None:
         words = set(WORD.findall(name.lower()))
         for category, keywords in self.keywords.items():
@@ -201,6 +202,27 @@ class EthicsAdviser:
                         derivation=Derivation.LEXICAL,
                     )
         return None
+
+
+def _questions(context: SensitivityContext, categories: set[str]) -> list[str]:
+    """The template questions: about people only when the researcher says the data involve
+    people or a flag suggests it, worded so as not to contradict a researcher who said they do
+    not (#1069); about locations when a location is flagged and people are not in question."""
+    questions = []
+    about_people = categories - {LOCATION}
+    if context.involves_people:
+        questions.append(PEOPLE_QUESTION)
+    elif about_people:
+        questions.append(
+            NOT_PEOPLE_QUESTION if context.involves_people is False else PEOPLE_QUESTION
+        )
+    if LOCATION in categories and not context.involves_people and not about_people:
+        questions.append(LOCATION_QUESTION)
+    if context.embargo_intended:
+        questions.append(EMBARGO_QUESTION)
+    elif context.embargo_intended is None:
+        questions.append(UNKNOWN_EMBARGO_QUESTION)
+    return questions
 
 
 def _how_read(reading: Reading) -> str:

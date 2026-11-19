@@ -11,7 +11,9 @@ and writes a `FileInventory`, a JSON document of the core contract, that gives f
   matched, found with [fido](https://github.com/openpreserve/fido), and whether the match was by
   byte signature, container signature or extension only;
 - for a CSV or TSV table, its fields as a [Frictionless](https://framework.frictionlessdata.io/)
-  Table Schema inferred from a sample of rows;
+  Table Schema inferred from a sample of rows, reading empty cells and `NA`, `N/A`, `NaN` and
+  `null` as missing values, and saying in its limitations which markers it met and which fields
+  had no value to type;
 - where it found possible personal data, and never what (below).
 
 The inventory holds facts about the files and never their content. Research data are not
