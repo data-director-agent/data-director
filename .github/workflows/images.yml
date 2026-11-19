@@ -39,6 +39,9 @@ env:
 jobs:
   build:
     name: Build (${{ matrix.platform }})
+    # release-please's pull request only bumps versions, and the merge queue (ci.yml) and the push
+    # to main build the result. Nothing requires this workflow, so the skip blocks no merge.
+    if: github.event_name != 'pull_request' || !startsWith(github.head_ref, 'release-please--')
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     permissions:

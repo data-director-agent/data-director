@@ -57,9 +57,14 @@ jobs:
       - id: paths
         env:
           EVENT: ${{ github.event_name }}
+          HEAD_REF: ${{ github.head_ref }}
         run: |
           if [ "$EVENT" = pull_request ]; then
-            git -c core.quotepath=off diff --name-only --no-renames HEAD^1 HEAD | bash scripts/ci_changes.sh >> "$GITHUB_OUTPUT"
+            # release-please's branch may skip the jobs when it only bumps versions; the merge
+            # queue then runs every job on the result.
+            mode=""
+            case "$HEAD_REF" in release-please--*) mode=--release ;; esac
+            git -c core.quotepath=off diff --name-only --no-renames HEAD^1 HEAD | bash scripts/ci_changes.sh $mode >> "$GITHUB_OUTPUT"
           else
             bash scripts/ci_changes.sh --all >> "$GITHUB_OUTPUT"
           fi
