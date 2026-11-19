@@ -5,8 +5,10 @@ import { axe } from "jest-axe";
 import builtFixture from "../../../fixtures/project-package.json";
 import refusedFixture from "../../../fixtures/project-package-refused.json";
 import chosenFixture from "../../../fixtures/repository-chosen.json";
+import reviewFixture from "../../../fixtures/project-review.json";
 import {
   type BuiltPackage,
+  type DepositReview,
   PackageRefused,
   type ProjectApi,
   ProjectApiContext,
@@ -27,6 +29,10 @@ const VALID: Validation = Object.fromEntries(
   Object.entries(BUILT).filter(([key]) => key !== "package"),
 ) as unknown as Validation;
 const PROJECT_ID = BUILT.project_id;
+// The same project once its inventory lists field notes (app/tests/test_deposit_package.py): valid,
+// and waiting for the researcher to decide each marked file and confirm the checks before deposit.
+const REVIEW = reviewFixture as DepositReview;
+const PAUSED: Validation = { ...VALID, ready: false, review: REVIEW };
 // ORDA as the server resolves it (app/tests/test_repository_choice.py): form labels, its address
 // and what its profile leaves unconfirmed.
 const ORDA = chosenFixture as RepositoryRequirements;
@@ -207,6 +213,54 @@ describe("DepositPanel", () => {
     setRevision(1);
     expect(within(region()).getByText(/changed since it was checked/)).toBeVisible();
     expect(within(region()).queryByRole("button", { name: /Build/ })).not.toBeInTheDocument();
+  });
+
+  it("waits for a person to decide each marked file and confirm, and offers no build", async () => {
+    const user = userEvent.setup();
+    const decideItem = vi.fn(() => Promise.resolve(REVIEW));
+    const validate = vi.fn(() => Promise.resolve(PAUSED));
+    const { container } = renderPanel({ validate, decideItem });
+    await user.click(within(region()).getByRole("button", { name: "Check the project" }));
+
+    expect(await within(region()).findByRole("status")).toHaveTextContent(outcome(PAUSED));
+    expect(outcome(PAUSED)).not.toMatch(/ready to package/);
+    expect(within(region()).queryByRole("button", { name: /Build/ })).not.toBeInTheDocument();
+    const decide = within(region()).getByRole("region", { name: "Decide before packaging" });
+    for (const item of REVIEW.items) {
+      expect(within(decide).getAllByText(item.question).length).toBeGreaterThan(0);
+    }
+    for (const text of REVIEW.not_checked) {
+      expect(within(decide).getByText(text)).toBeVisible();
+    }
+    expect(await axe(container)).toHaveNoViolations();
+
+    // A decision is recorded for the item, and the project is checked again.
+    const first = REVIEW.items[0] as DepositReview["items"][number];
+    const form = within(decide).getAllByRole("form")[0] as HTMLElement;
+    await user.click(within(form).getByRole("radio", { name: /Leave it out/ }));
+    await user.click(within(form).getByRole("button", { name: "Record my decision" }));
+    expect(decideItem).toHaveBeenCalledWith(PROJECT_ID, first.item_id, "leave_out", undefined);
+    expect(validate).toHaveBeenCalledTimes(2);
+  });
+
+  it("confirms the checks before deposit only once every statement is ticked", async () => {
+    const user = userEvent.setup();
+    const confirmChecks = vi.fn(() => Promise.resolve(REVIEW));
+    renderPanel({
+      validate: () => Promise.resolve({ ...PAUSED, review: { ...REVIEW, items: [] } }),
+      confirmChecks,
+    });
+    await user.click(within(region()).getByRole("button", { name: "Check the project" }));
+    const confirm = await within(region()).findByRole("button", { name: "Confirm" });
+    for (const statement of REVIEW.statements) {
+      expect(confirm).toBeDisabled();
+      await user.click(within(region()).getByRole("checkbox", { name: statement.text }));
+    }
+    await user.click(confirm);
+    expect(confirmChecks).toHaveBeenCalledWith(
+      PROJECT_ID,
+      REVIEW.statements.map((s) => s.id),
+    );
   });
 
   it("says when the project cannot be checked", async () => {

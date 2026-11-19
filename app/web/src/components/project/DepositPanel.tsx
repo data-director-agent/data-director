@@ -11,6 +11,11 @@
  * A decision changes the project (`revision`), so a check made before it no longer stands: the
  * panel says so and offers no build until the project is checked again.
  *
+ * A project with no problem may still wait on a person: each file the check marks, and the checks
+ * before deposit, are decided and confirmed in `BeforePackaging`, and the panel says it is ready
+ * to package, and offers the build, only once nothing waits (docs/specs/deposit.md, "The pause
+ * before packaging"). After each decision it checks the project again.
+ *
  * Once a package is built, the panel says what the researcher does next to deposit by hand, since
  * Data Director does not deposit (TODO(#383)). The field labels, the repository's address and what
  * is not yet confirmed come from the chosen repository's requirements, never from this file.
@@ -29,6 +34,7 @@ import {
 } from "../../project/api";
 import { Button } from "../ui/Button";
 import { formatNumber } from "../../format";
+import { BeforePackaging } from "./BeforePackaging";
 
 const HEADING_ID = "deposit-heading";
 const NEXT_ID = "deposit-next";
@@ -59,9 +65,22 @@ export function sizeInWords(bytes: number): string {
   return `${formatNumber(value, { maximumFractionDigits: 1 })} ${units[unit]}`;
 }
 
+/** What waits on a person before a valid project can be packaged, in one sentence. */
+function waiting(validation: Validation): string {
+  const open = validation.review?.items.filter((i) => !i.decision).length ?? 0;
+  const parts: string[] = [];
+  if (open > 0) parts.push(`${count(open, "file waits", "files wait")} for your decision`);
+  if (!validation.review?.confirmation) {
+    parts.push("the checks before deposit wait for your confirmation");
+  }
+  const what = parts.length > 0 ? parts.join(", and ") : "a decision waits for you";
+  return `Nothing must be fixed, but ${what} before the package can be built.`;
+}
+
 /** What a validation found, in one sentence for the live region. */
 export function outcome(validation: Validation): string {
   const warnings = validation.warnings.length;
+  if (validation.conforms && !validation.ready) return waiting(validation);
   if (validation.conforms) {
     return warnings === 0
       ? "The project is ready to package."
@@ -299,9 +318,16 @@ export function DepositPanel({ projectId, revision }: { projectId: string; revis
             results={validation.violations}
           />
           <Results id="deposit-warnings" heading="Worth fixing" results={validation.warnings} />
+          {validation.review && shown?.state !== "built" && (
+            <BeforePackaging
+              projectId={projectId}
+              review={validation.review}
+              onChanged={() => void run("checking")}
+            />
+          )}
         </>
       )}
-      {shown?.state === "checked" && shown.validation.conforms && (
+      {shown?.state === "checked" && shown.validation.ready && (
         <p className="document-actions">
           <Button
             variant="primary"

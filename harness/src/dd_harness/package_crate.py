@@ -100,6 +100,57 @@ def add_approval(
     approval["object"] = entity
 
 
+# How a decision before packaging reads in the crate (dd_harness.deposit_review).
+DECISION_WORDS = {
+    "keep": "Checked: deposited as it is.",
+    "leave_out": "Left out of the deposit.",
+    "change": "A changed copy is deposited instead.",
+}
+
+
+def add_review(files: CrateFiles, review: Mapping[str, Any]) -> None:
+    """Each decision a person made before packaging, and their confirmation of the checks before
+    deposit, as `AssessAction`s naming who made them and when (docs/specs/deposit.md, invariant
+    22). `review` is `Review.to_document()`."""
+    crate = files.crate
+    for item in review["items"]:
+        decision = item.get("decision")
+        if decision is None:
+            continue
+        words = DECISION_WORDS.get(decision["decision"], decision["decision"])
+        note = f" {decision['note']}" if decision.get("note") else ""
+        action = crate.add(
+            ContextEntity(
+                crate,
+                f"#deposit-decision-{item['item_id']}",
+                properties={
+                    "@type": "AssessAction",
+                    "name": f"Decision before deposit on {item['path']} ({item['kind']})",
+                    "actionStatus": {"@id": "http://schema.org/CompletedActionStatus"},
+                    "endTime": decision["decided_at"],
+                    "description": f"{item['question']} Decided: {words}{note}",
+                },
+            )
+        )
+        action["agent"] = files.person(decision["decided_by"])
+    confirmation = review.get("confirmation")
+    if confirmation is not None:
+        action = crate.add(
+            ContextEntity(
+                crate,
+                "#deposit-checks-confirmed",
+                properties={
+                    "@type": "AssessAction",
+                    "name": "Confirmation of the checks before deposit",
+                    "actionStatus": {"@id": "http://schema.org/CompletedActionStatus"},
+                    "endTime": confirmation["confirmed_at"],
+                    "description": " ".join(s["text"] for s in confirmation["statements"]),
+                },
+            )
+        )
+        action["agent"] = files.person(confirmation["confirmed_by"])
+
+
 def produced_action(
     crate: ROCrate,
     made: Any,

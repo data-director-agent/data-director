@@ -23,7 +23,13 @@ from dd_harness.projects import APPROVED, Decision, ProjectStore
 from dd_harness.requirements import DATACITE, load_requirements
 from dd_harness.sources import RecordsFile, Sources
 from dd_harness.store import RunStore
-from dd_harness.testing import TEST_PRINCIPAL, file_inventory, make_conductor, request
+from dd_harness.testing import (
+    TEST_PRINCIPAL,
+    clear_review,
+    file_inventory,
+    make_conductor,
+    request,
+)
 from dd_sdk.contract.models import (
     ConversationTurn,
     Envelope,
@@ -247,6 +253,9 @@ def test_the_stub_leads_from_the_files_to_a_package(
     assert [v["state"] for v in record["versions"]] == ["approved", "proposed"]
     assert record["versions"][1]["revises"] == {"document_id": record["document_id"], "version": 1}
     approve_the_record_with_a_title(projects, project, "Soil cores 2024")
+    # The researcher decides each file the deposit check marks and confirms the checks before
+    # deposit (docs/specs/deposit.md, "The pause before packaging").
+    clear_review(projects, project, acted_for=TEST_PRINCIPAL)
     build_package(projects, runs, project, acted_for=TEST_PRINCIPAL, caused_by="test")
     steps = projects.progress(project)["steps"]
     assert steps["deposit.validate"] == "done"

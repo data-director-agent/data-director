@@ -40,6 +40,7 @@ from dd_harness.testing.classes import (
     ProbeRecord,
     ProbeReview,
 )
+from dd_harness.testing.deposit import clear_review
 from dd_harness.testing.doubles import (
     SPECS,
     STUB_QUESTION,
@@ -142,6 +143,7 @@ __all__ = [
     "check_run_storage",
     "check_shared_record",
     "claim",
+    "clear_review",
     "document_request",
     "fact_check_over",
     "file_inventory",

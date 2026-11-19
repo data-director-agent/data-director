@@ -27,8 +27,14 @@ from support import (
 
 from dd_app.app import build_app
 from dd_app.governance import Governance
-from dd_app.routes.deposit import BuiltPackage, PackageRefusedProblem
-from dd_harness.projects import PACKAGE_BUILT, PROJECT_VALIDATED, text_digest
+from dd_app.routes.deposit import BuiltPackage, DepositReview, PackageRefusedProblem
+from dd_harness.projects import (
+    DEPOSIT_CHECKS_CONFIRMED,
+    DEPOSIT_ITEM_DECIDED,
+    PACKAGE_BUILT,
+    PROJECT_VALIDATED,
+    text_digest,
+)
 from dd_harness.storage import ProjectStorage
 from dd_harness.testing import (
     TEST_PRINCIPAL,
@@ -128,6 +134,24 @@ def valid(
     return chosen
 
 
+@pytest.fixture
+def ready(client: TestClient, valid: str) -> str:
+    """`valid` with every item the deposit check lists decided, and the checks before deposit
+    confirmed, through the server."""
+    review = client.get(f"/api/projects/{valid}/review").json()
+    for item in review["items"]:
+        decided = client.put(
+            f"/api/projects/{valid}/review/items/{item['item_id']}", json={"decision": "keep"}
+        )
+        assert decided.status_code == 200, decided.text
+    confirmed = client.put(
+        f"/api/projects/{valid}/review/confirmation",
+        json={"confirmed": [s["id"] for s in review["statements"]]},
+    )
+    assert confirmed.status_code == 200, confirmed.text
+    return valid
+
+
 def normalised(body: Any) -> Any:
     """`body` with each identifier and digest numbered in order of first appearance, every time
     fixed and the package's size, which follows the times it holds, fixed too."""
@@ -187,8 +211,9 @@ def test_a_project_with_a_violation_builds_no_package_and_says_why(
 
 
 def test_a_valid_project_builds_a_package_to_download_by_its_digest(
-    client: TestClient, store: ProjectStorage, valid: str
+    client: TestClient, store: ProjectStorage, ready: str
 ) -> None:
+    valid = ready
     response = client.post(f"/api/projects/{valid}/package", headers=JSON_HEADERS)
     assert response.status_code == 201
     body = response.json()
@@ -227,3 +252,63 @@ def test_an_unknown_project_is_not_found(client: TestClient, method: str, path: 
     response = client.request(method, f"/api/projects/{UNKNOWN}/{path}", headers=JSON_HEADERS)
     assert response.status_code == 404
     assert response.json()["type"].endswith("/project-not-found")
+
+
+@pytest.mark.requirement("C2")
+def test_a_marked_file_holds_the_package_until_the_person_decides_it(
+    client: TestClient, store: ProjectStorage, valid: str
+) -> None:
+    """Field notes in the inventory hold the package until the person signed in decides them and
+    confirms the checks before deposit; each is recorded for them (docs/specs/deposit.md, "The
+    pause before packaging")."""
+    store.add_inventory(
+        valid,
+        file_inventory("data/cores.csv", "fieldnotes/day1.txt"),
+        acted_for=TEST_PRINCIPAL,
+        caused_by="test",
+    )
+    refused = client.post(f"/api/projects/{valid}/package", headers=JSON_HEADERS)
+    assert refused.status_code == 409
+    validation = refused.json()["validation"]
+    assert (validation["conforms"], validation["ready"]) == (True, False)
+    review = validation["review"]
+    assert {i["path"] for i in review["items"]} >= {"fieldnotes/day1.txt"}
+    assert review["confirmation"] is None
+    assert review["not_checked"]
+    check_fixture("project-review.json", normalised(review), model=DepositReview)
+
+    unknown = client.put(
+        f"/api/projects/{valid}/review/items/{'0' * 24}", json={"decision": "keep"}
+    )
+    assert unknown.status_code == 404
+    assert unknown.json()["type"].endswith("/review-item-not-found")
+    malformed = client.put(
+        f"/api/projects/{valid}/review/items/{review['items'][0]['item_id']}",
+        json={"decision": "publish"},
+    )
+    assert malformed.status_code == 400
+    partial = client.put(
+        f"/api/projects/{valid}/review/confirmation", json={"confirmed": ["ethics_approval"]}
+    )
+    assert partial.status_code == 400
+    assert events(store, valid, DEPOSIT_ITEM_DECIDED) == []
+    assert events(store, valid, DEPOSIT_CHECKS_CONFIRMED) == []
+
+    for item in review["items"]:
+        decided = client.put(
+            f"/api/projects/{valid}/review/items/{item['item_id']}",
+            json={"decision": "leave_out", "note": "Not part of the dataset."},
+        )
+        assert decided.status_code == 200
+    confirmed = client.put(
+        f"/api/projects/{valid}/review/confirmation",
+        json={"confirmed": [s["id"] for s in review["statements"]]},
+    )
+    after = confirmed.json()
+    assert after["confirmation"]["confirmed_by"]["principal_id"] == TEST_PRINCIPAL.principal_id
+    assert all(i["decision"]["decision"] == "leave_out" for i in after["items"])
+    assert client.get(f"/api/projects/{valid}/review").json() == after
+    for event in events(store, valid, DEPOSIT_ITEM_DECIDED):
+        assert event["acted_for"]["principal_id"] == TEST_PRINCIPAL.principal_id
+        assert event["caused_by"].startswith("PUT /api/projects/")
+    assert client.post(f"/api/projects/{valid}/package", headers=JSON_HEADERS).status_code == 201

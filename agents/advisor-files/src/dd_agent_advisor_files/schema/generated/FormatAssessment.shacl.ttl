@@ -21,7 +21,7 @@ files:FormatAssessment a sh:NodeShape ;
             sh:order 0 ;
             sh:path <https://w3id.org/data-director/schema_class> ],
         [ sh:class files:FileCheck ;
-            sh:description "The files a person should look at, in the inventory's order and, for each file, in the order of hints.yaml. Empty when no name, size or digest called for one, which says nothing about what the files hold." ;
+            sh:description "The files a person should look at, in the inventory's order and, for each file, in the order of the rules in dd_sdk.inventory_hints. Empty when no name, size or digest called for one, which says nothing about what the files hold." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 2 ;
             sh:path files:checks ],
@@ -120,7 +120,7 @@ files:FileAssessment a sh:NodeShape ;
     sh:targetClass files:FileAssessment .
 
 files:FileCheck a sh:NodeShape ;
-    rdfs:comment "A file a person should look at before deposit, and why, judged from names, size and digest in the inventory alone (hints.yaml). A prompt for a person, never a finding about the file's contents, which are never read." ;
+    rdfs:comment "A file a person should look at before deposit, and why, judged from names, size and digest in the inventory alone (dd_sdk.inventory_hints). A prompt for a person, never a finding about the file's contents, which are never read." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
@@ -136,19 +136,19 @@ files:FileCheck a sh:NodeShape ;
             sh:order 1 ;
             sh:path files:kind ],
         [ sh:datatype xsd:string ;
+            sh:description "What a person should check, from dd_sdk.inventory_hints." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path files:question ],
+        [ sh:datatype xsd:string ;
             sh:description "The file's path in the inventory (file_path)." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path files:path ],
-        [ sh:datatype xsd:string ;
-            sh:description "What a person should check, from hints.yaml." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 3 ;
-            sh:path files:question ],
         [ sh:datatype xsd:string ;
             sh:description "For a duplicate, the paths of the other files with the same digest." ;
             sh:nodeKind sh:Literal ;

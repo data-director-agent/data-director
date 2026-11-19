@@ -1,6 +1,6 @@
 """What a project keeps of getting its data deposited: each validation of it against its
-repository's requirements, and each deposit package built (docs/specs/deposit.md, invariants 8
-and 9)."""
+repository's requirements, each decision and confirmation a person makes before packaging, and
+each deposit package built (docs/specs/deposit.md, invariants 8, 9 and 20 to 22)."""
 
 from __future__ import annotations
 
@@ -9,6 +9,8 @@ from collections.abc import Mapping
 from typing import Any
 
 from dd_harness.projects.rules import (
+    DEPOSIT_CHECKS_CONFIRMED,
+    DEPOSIT_ITEM_DECIDED,
     ENVELOPE_KEYS,
     PACKAGE_BUILT,
     PROJECT_VALIDATED,
@@ -51,6 +53,34 @@ class DepositRecords(ProjectRules):
             },
         )
         return digest
+
+    def record_item_decision(
+        self,
+        project_id: str,
+        decision: Mapping[str, Any],
+        *,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> None:
+        """Keep a person's decision on an item the deposit check asked them to decide, as a
+        `deposit_item_decided` event carrying `decision` (`dd_harness.deposit_review`,
+        docs/specs/deposit.md, invariant 21). Raises `ProjectError` for an unknown project."""
+        detail = {key: value for key, value in decision.items() if key not in ENVELOPE_KEYS}
+        self._append(project_id, DEPOSIT_ITEM_DECIDED, acted_for, caused_by, detail)
+
+    def record_confirmation(
+        self,
+        project_id: str,
+        confirmation: Mapping[str, Any],
+        *,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> None:
+        """Keep a person's confirmation that the checks before deposit were made, as a
+        `deposit_checks_confirmed` event carrying `confirmation` (`dd_harness.deposit_review`,
+        docs/specs/deposit.md, invariant 22). Raises `ProjectError` for an unknown project."""
+        detail = {key: value for key, value in confirmation.items() if key not in ENVELOPE_KEYS}
+        self._append(project_id, DEPOSIT_CHECKS_CONFIRMED, acted_for, caused_by, detail)
 
     def record_package(
         self,

@@ -28,6 +28,7 @@ from dd_harness.deposit import (
     build_package,
     validate,
 )
+from dd_harness.deposit_review import REVIEW_CHECKS
 from dd_harness.projects import (
     APPROVED,
     PACKAGE_BUILT,
@@ -41,6 +42,7 @@ from dd_harness.testing import (
     HARNESS_URL,
     TEST_PRINCIPAL,
     DocumentStub,
+    clear_review,
     document_request,
     file_inventory,
     make_conductor,
@@ -149,14 +151,20 @@ def approve(
 
 @pytest.fixture
 def ready(projects: ProjectStore, runs: RunStore, chosen: str) -> str:
-    """A project with an approved metadata record and README: valid for ORDA."""
+    """A project with an approved metadata record and README, and nothing waiting on a person:
+    ready to package for ORDA."""
     approve(projects, runs, chosen, DocumentKind.METADATA_RECORD, json.dumps(RECORD))
     approve(projects, runs, chosen, DocumentKind.README)
+    clear_review(projects, chosen, acted_for=TEST_PRINCIPAL)
     return chosen
 
 
 def messages(results: Any, severity: str) -> list[str]:
-    return [r.message for r in results if r.severity == severity]
+    """The messages of `results` of `severity`, leaving out what waits on a person's decision
+    (tested in test_deposit_review.py)."""
+    return [
+        r.message for r in results if r.severity == severity and r.component not in REVIEW_CHECKS
+    ]
 
 
 @pytest.mark.requirement("R4.2")
@@ -416,6 +424,7 @@ def test_a_run_that_kept_no_crate_is_named_and_not_made_up(
         acted_for=TEST_PRINCIPAL,
         caused_by="test",
     )
+    clear_review(projects, chosen, acted_for=TEST_PRINCIPAL)
     package = build_package(projects, runs, chosen, acted_for=TEST_PRINCIPAL, caused_by="test")
     archive = zipfile.ZipFile(io.BytesIO(package.content))
     assert not any(name.startswith("runs/") for name in archive.namelist())
@@ -485,6 +494,11 @@ def test_the_package_command_writes_the_package_or_says_why_not(
     assert not out_file.exists()
 
     approve(projects, runs, chosen, DocumentKind.METADATA_RECORD, json.dumps(RECORD))
+    assert server.main(["project", "package", chosen, "-o", str(out_file)]) == 1
+    _, err = capsys.readouterr()
+    assert "Decide before packaging" in err
+
+    clear_review(projects, chosen, acted_for=TEST_PRINCIPAL)
     assert server.main(["project", "package", chosen, "-o", str(out_file)]) == 0
     out, _ = capsys.readouterr()
     built = projects.events(chosen)[-1]

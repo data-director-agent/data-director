@@ -4,9 +4,9 @@
  * never a finding: a file with none may still hold personal data, sensitive locations or someone
  * else's material (docs/specs/personal-data.md).
  *
- * The rules are a copy of the File Archivist's
- * (`agents/advisor-files/src/dd_agent_advisor_files/hints.yaml`), so that the app marks the files
- * the adviser lists; neither package may import the other, so change both together.
+ * The rules are a copy of `dd_sdk.inventory_hints` (`sdk/src/dd_sdk/inventory_hints.py`), which
+ * the File Archivist and the harness's deposit check read, so that the app marks the files they
+ * list; this package may import neither, so change both together.
  */
 
 import type { FileInventory, InventoryFile } from "./types";
@@ -43,7 +43,7 @@ interface Rule {
   prefixes?: readonly string[];
 }
 
-/** In the order of hints.yaml, which is the order a file's hints are given in. */
+/** In the order of `dd_sdk.inventory_hints.RULES`: the order a file's hints are given in. */
 export const HINT_RULES: readonly Rule[] = [
   {
     kind: "free_text",

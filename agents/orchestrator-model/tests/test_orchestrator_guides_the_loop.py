@@ -26,7 +26,13 @@ from dd_harness.projects import APPROVED, Decision, ProjectStore
 from dd_harness.requirements import DATACITE, load_requirements
 from dd_harness.sources import RecordsFile, Sources
 from dd_harness.store import RunStore
-from dd_harness.testing import TEST_PRINCIPAL, file_inventory, make_conductor, request
+from dd_harness.testing import (
+    TEST_PRINCIPAL,
+    clear_review,
+    file_inventory,
+    make_conductor,
+    request,
+)
 from dd_sdk.contract.models import Envelope, Message, OutcomeStatus
 from dd_sdk.model import ModelRequest, ModelResponse, ToolCall, Usage, message_json
 
@@ -250,6 +256,9 @@ def test_the_model_leads_from_the_files_to_a_package(
     )
     assert env.delegations == []
     assert model.tools_serving("deposit.finalise") == []
+    # The researcher decides each file the deposit check marks and confirms the checks before
+    # deposit (docs/specs/deposit.md, "The pause before packaging").
+    clear_review(projects, project, acted_for=TEST_PRINCIPAL)
     build_package(
         projects,
         RunStore(tmp_path / "runs"),
