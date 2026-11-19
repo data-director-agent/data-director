@@ -45,3 +45,13 @@ mp4: {format: MPEG-4, media_type: video/mp4, open: false, pronom: [fmt/199]}
 zip: {format: ZIP archive, media_type: application/zip, open: true, pronom: [x-fmt/263]}
 gz: {format: Gzip, media_type: application/gzip, open: true, pronom: [x-fmt/266]}
 tar: {format: Tar archive, media_type: application/x-tar, open: true, pronom: [x-fmt/265]}
+# Code: plain text in a publicly specified language, so open (#1071). PUIDs as DROID signature
+# file v109 gives them for the extension; a row without one has none there.
+r: {format: R script, media_type: text/plain, open: true, pronom: [fmt/1599]}
+py: {format: Python script, media_type: text/x-python, open: true, pronom: [fmt/938]}
+m: {format: MATLAB script, media_type: text/plain, open: true, pronom: [fmt/1678]}
+do: {format: Stata do-file, media_type: text/plain, open: true, pronom: [fmt/1598]}
+ipynb: {format: Jupyter notebook, media_type: application/x-ipynb+json, open: true, pronom: [fmt/1119]}
+jl: {format: Julia script, media_type: text/plain, open: true}
+sh: {format: Shell script, media_type: application/x-sh, open: true}
+sas: {format: SAS program, media_type: text/plain, open: true}
