@@ -62,7 +62,7 @@ repository or makes a judgement:
   Each theme is also matched to the DFG subjects it names (`dfg.py`), and the repositories re3data
   files under them are retrieved too, so a repository whose record never uses the theme's word is
   still found. A further query names the researcher's institution, and the generalist
-  repositories listed in `ranking.yaml` (Zenodo, figshare, Harvard Dataverse, Dryad, OSF and
+  repositories listed in `ranking.yaml` (Zenodo, Harvard Dataverse, OSF, Dryad, figshare and
   Mendeley Data) are taken by identifier.
 - **Assessment** (`assess.py`). Fixed rules over registry fields. Where the records are silent
   the answer is `unstated`, never a guess. A commercial institution counts as an operator only
@@ -103,11 +103,18 @@ repository or makes a judgement:
   operates it. The researcher's own institutional repository is offered beyond the cap, unless
   it lacks the access the data needs, and takes no other repository's place, so naming an
   institution adds to the shortlist and removes nothing.
-- **Order at an equal score.** A commercial operator is listed after the others, and then a
-  repository that lists a deposit fee; neither is dropped. Repositories of the same kind of fit
-  and score each say in `ranked_by` that they are ranked equal, so the order among them is not
-  read as a preference. Certification carries no weight,
-  because Figure 3 says paid certification must not outweigh free evaluation.
+- **Reserved places** (`reserve`). Within the cap, a place is kept for at least one generalist
+  whenever one qualifies, so a broad theme that finds five repositories of the discipline cannot
+  crowd every generalist out, and a researcher who does not know where to deposit always has a
+  usable option (#1169). A generalist listed only because of its place says so in `ranked_by`.
+- **Order at an equal score** (`tie_break`). A commercial operator is listed after the others,
+  and then a repository that lists a deposit fee, and then one that assigns no persistent
+  identifiers; none is dropped. re3data does not tell some generalists apart (Zenodo, Harvard
+  Dataverse and OSF answer all three alike), so the order of `generalists` is a stated
+  preference that settles them, never the alphabet. Repositories of the same kind of fit and
+  score each say in `ranked_by` that they are ranked equal, and by which rule. Certification
+  carries no weight, because Figure 3 says paid certification must not outweigh free
+  evaluation.
 - **Credit.** Every statement ends by crediting re3data and naming the export it read.
 - **Explanation.** The template is the default. With `DD_REPOSITORY_EXPLAINER=model`, a model
   writes the rationale only, from `system_prompt.md`, and is sent registry text and the needs,
@@ -131,7 +138,7 @@ command that builds every agent's sources builds it:
 ```sh
 uv run dd-sources prepare         # build registry.jsonl (and any other built source) as pinned
 uv run dd-sources check           # does each built source match its pin?
-uv run dd-re3data fetch           # build registry.jsonl alone
+uv run dd-re3data fetch           # build registry.jsonl alone; also runs the `re3data` tests
 uv run dd-re3data fetch --update-pin [--month YYYY-MM]   # pin another month's export
 uv run scripts/pin_re3data.py     # then pin both sources.yaml files to it
 ```

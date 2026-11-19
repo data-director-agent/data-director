@@ -16,7 +16,8 @@
          "enum": [
             "mandated",
             "asked_about",
-            "recommended"
+            "recommended",
+            "chosen"
          ],
          "title": "CandidateBasis",
          "type": "string"

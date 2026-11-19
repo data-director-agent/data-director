@@ -30,7 +30,7 @@ which they mean. ROR's records are evidence like FAIRsharing's, under the same c
 
 from __future__ import annotations
 
-from dd_agent_advisor_policy import assess, reading, report, search
+from dd_agent_advisor_policy import assess, given, reading, report, search
 from dd_agent_advisor_policy.classes import PolicyChecks, PolicyContext
 from dd_agent_advisor_policy.crossref import CrossrefJournals
 from dd_agent_advisor_policy.explain import Explainer, Explanation, Item, TemplateExplainer
@@ -123,8 +123,9 @@ class PolicyAgent:
         self.extractor = extractor or NoExtractor()
 
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
-        context = request.input
-        assert isinstance(context, PolicyContext)  # the conductor checked spec.accepts
+        assert isinstance(request.input, PolicyContext)  # the conductor checked spec.accepts
+        # What people in the project decided takes precedence over what the caller wrote.
+        context = given.with_project(request.input)
         if not context.actors:
             return abstain(
                 ReasonCode.INSUFFICIENT_INPUT,

@@ -15,11 +15,20 @@ from typing import ClassVar
 
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
+from starlette.responses import Response
 from starlette.routing import Route
 
+from dd_app import contract_shapes as contract
 from dd_app.folder_scan import FolderRefusedError, FolderRoots
-from dd_app.routes.common import Deps, RequestBody, parse_body, problem, signed_in
+from dd_app.routes.common import (
+    Deps,
+    RequestBody,
+    ResponseBody,
+    parse_body,
+    problem,
+    respond,
+    signed_in,
+)
 from dd_sdk.contract.models import Principal
 
 DESCRIBE_REFUSED = "Data Director could not describe this folder"
@@ -32,6 +41,20 @@ class DescribeFolder(RequestBody):
 
     root: str
     path: str = ""
+
+
+class ServerFolderRoots(ResponseBody):
+    """The folders on its own machine the deployment names, which a local install may describe."""
+
+    roots: list[str]
+
+
+class FolderListing(ResponseBody):
+    """The subfolders of `path` under `root`, by name; never a file."""
+
+    root: str
+    path: str
+    folders: list[str]
 
 
 def routes(deps: Deps) -> list[Route]:
@@ -55,13 +78,13 @@ async def list_folders(request: Request, _: Principal, deps: Deps) -> Response:
         return _no_folders()
     root = request.query_params.get("root")
     if root is None:
-        return JSONResponse({"roots": roots.names})
+        return respond(ServerFolderRoots, {"roots": roots.names})
     path = request.query_params.get("path", "")
     try:
         folders = await run_in_threadpool(roots.subfolders, root, path)
     except FolderRefusedError as exc:
         return _not_found(str(exc))
-    return JSONResponse({"root": root, "path": path, "folders": folders})
+    return respond(FolderListing, {"root": root, "path": path, "folders": folders})
 
 
 async def describe_folder(request: Request, _: Principal, deps: Deps) -> Response:
@@ -75,4 +98,4 @@ async def describe_folder(request: Request, _: Principal, deps: Deps) -> Respons
         inventory = await run_in_threadpool(roots.describe, body.root, body.path)
     except FolderRefusedError as exc:
         return _not_found(str(exc))
-    return JSONResponse(inventory)
+    return respond(contract.FileInventory, inventory)

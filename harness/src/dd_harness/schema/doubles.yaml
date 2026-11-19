@@ -50,11 +50,12 @@ classes:
   ProbeReading:
     description: >-
       What a checking double reads in a project: an agent's own input class that asks the
-      conductor for the attached documents and the decided facts by their slots
-      (docs/specs/projects.md, invariant 6).
+      conductor for the attached documents, the decided facts and the chosen repository by their
+      slots (docs/specs/projects.md, invariant 6).
     mixins:
       - GivenProjectDocuments
       - GivenProjectDecisions
+      - GivenProjectRepository
     slots:
       - schema_class
       - title

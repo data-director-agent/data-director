@@ -18,19 +18,23 @@ from __future__ import annotations
 
 from typing import Any, ClassVar, Literal
 
+from pydantic import MISSING
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
+from starlette.responses import Response
 from starlette.routing import Route
 
+from dd_app.contract_shapes import ProjectFact
 from dd_app.routes.common import (
     Deps,
     RequestBody,
+    ResponseBody,
     caused_by,
     in_project,
     parse_body,
     problem,
     project_refused,
+    respond,
 )
 from dd_harness.project_access import Action, allowed
 from dd_harness.projects import ChangeRefusedError, FactVerdict, ProjectError, Refusal
@@ -57,6 +61,28 @@ class DecideFact(RequestBody):
     reason: str | None = None
 
 
+class FactProposal(ResponseBody):
+    """A proposal no decision on its kind and subject has followed yet."""
+
+    proposal: str
+    """The proposal's identifier, which a decision names."""
+    agent_id: str
+    """The check agent that proposed it."""
+    proposed_at: str
+    fact: ProjectFact
+    """The fact as proposed, with why (`proposed_because`), for the person deciding."""
+
+
+class ProjectFacts(ResponseBody):
+    """What a project holds: proposals to decide, and the facts that stand."""
+
+    proposals: list[FactProposal]
+    decisions: list[ProjectFact]
+    """The facts that stand: the last decision on each kind and subject."""
+    decided: ProjectFact | MISSING | None = MISSING
+    """After a decision, the fact that now stands, or null after a rejection."""
+
+
 def routes(deps: Deps) -> list[Route]:
     facts = "/api/projects/{project_id}/facts"
     return [
@@ -71,7 +97,7 @@ def routes(deps: Deps) -> list[Route]:
 
 async def get_facts(request: Request, _: Principal, deps: Deps) -> Response:
     project_id = request.path_params["project_id"]
-    return JSONResponse(await run_in_threadpool(deps.projects.facts, project_id))
+    return respond(ProjectFacts, await run_in_threadpool(deps.projects.facts, project_id))
 
 
 async def decide_fact(request: Request, decider: Principal, deps: Deps) -> Response:
@@ -103,7 +129,7 @@ async def decide_fact(request: Request, decider: Principal, deps: Deps) -> Respo
         )
     except ProjectError as exc:
         return _change_refused(exc, project_id)
-    return JSONResponse(decided, status_code=201)
+    return respond(ProjectFacts, decided, status_code=201)
 
 
 def _kind(

@@ -16,7 +16,8 @@ from support import check_fixture, configure_env, dist_dir, new_governance
 
 from dd_app.app import build_app
 from dd_app.governance import Governance
-from dd_app.routes.documents import DECISION_REFUSED
+from dd_app.routes.deposit import Disclosure
+from dd_app.routes.documents import DECISION_REFUSED, ProjectDocuments
 from dd_harness.projects import (
     DOCUMENT_CHANGE_REFUSED,
     DOCUMENT_VERSION_ADDED,
@@ -105,7 +106,7 @@ def test_a_project_lists_its_documents_with_the_rule_for_reasons(
     dictionary = body["documents"][1]["versions"][0]
     approved = decide(client, project_id, dictionary, decision="approved")
     assert approved.status_code == 201
-    check_fixture("project-documents.json", normalised(approved.json()))
+    check_fixture("project-documents.json", normalised(approved.json()), model=ProjectDocuments)
 
 
 @pytest.mark.requirement("C13.3")
@@ -244,6 +245,7 @@ def test_the_disclosure_says_how_each_approved_document_came_about(
     check_fixture(
         "project-disclosure.json",
         json.loads(DATE.sub("2026-01-01", json.dumps(normalised(body)))),
+        model=Disclosure,
     )
 
 

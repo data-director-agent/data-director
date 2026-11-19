@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from dd_agent_advisor_repository import rank
+from dd_agent_advisor_repository import given, rank
 from dd_agent_advisor_repository.classes import (
     CandidateBasis,
     RepositoryCandidate,
@@ -50,13 +50,14 @@ class Named:
         self.not_found: list[str] = []
 
 
-def choose(named: Named, ranked: list[rank.Ranked]) -> list[Chosen]:
+def choose(named: Named, ranked: list[rank.Ranked], only_chosen: str | None = None) -> list[Chosen]:
     """The candidates, each once: the mandated repositories, then those the researcher asked
     about, then the rest of the shortlist. A repository asked about that the shortlist also
     ranks keeps its score and reasons, so the researcher can compare it, but stays marked as
-    asked about rather than recommended."""
+    asked about rather than recommended. `only_chosen` is the identifier of a repository
+    described only because the researcher chose it (`given.basis`)."""
     by_id = {r.record.re3data_id: r for r in ranked}
-    chosen: list[Chosen] = [(r, CandidateBasis.MANDATED, None, ()) for r in named.mandated]
+    chosen: list[Chosen] = [(r, given.basis(r, only_chosen), None, ()) for r in named.mandated]
     for record in named.asked_about:
         hit = by_id.pop(record.re3data_id, None)
         score, reasons = (hit.score, hit.reasons) if hit else (None, ())
@@ -102,6 +103,7 @@ def abstention(
 
 _BASES = (
     (CandidateBasis.MANDATED, "mandated, described"),
+    (CandidateBasis.CHOSEN, "chosen by the researcher, described"),
     (CandidateBasis.ASKED_ABOUT, "asked about by the researcher, described"),
     (CandidateBasis.RECOMMENDED, "recommended"),
 )

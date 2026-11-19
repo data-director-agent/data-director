@@ -186,6 +186,12 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
     must be one of these records (`dd_sdk.contract.validate`; [Agents](agents.md), Tools;
     [Evidence and grounding](grounding.md), invariant 15). Adding it raised the contract version
     to 0.15.0.
+28. A `Message` may carry `project_repository`, a `ChosenRepository`: the name and re3data
+    identifier of the repository a researcher chose for the project, which only the conductor
+    fills in a project. An agent's own input class asks for it by mixing in
+    `GivenProjectRepository` ([Projects](projects.md), invariants 6 and 8;
+    [Orchestration](orchestration.md), invariant 21; #1168). Adding them raised the contract
+    version to 0.17.0.
 
 ## Boundaries and contracts
 

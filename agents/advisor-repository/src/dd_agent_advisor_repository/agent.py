@@ -7,7 +7,9 @@ repository is mandated is a policy question, answered by `advisor.policy` from p
 `RepositoryNeeds.mandated`. With mandated repositories the agent describes them, flagging the
 needs they do not meet; with none it shortlists. A repository the researcher only names or asks
 about (`RepositoryNeeds.asked_about`) is not a mandate: it is described alongside the shortlist,
-never instead of it, and never marked mandated (#1167). The researcher chooses (TODO(#199)).
+never instead of it, and never marked mandated (#1167). The researcher chooses (TODO(#199)). In a
+project, decided required repositories are mandated too, and the repository the researcher chose
+is described when nothing else is asked (`given.py`).
 
 Grounding invariant: retrieval precedes any model call, and the model never determines which
 repositories are offered or any judgement about them. A candidate names its records once, in
@@ -19,7 +21,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from dd_agent_advisor_repository import assess, choose, rank
+from dd_agent_advisor_repository import assess, choose, given, rank
 from dd_agent_advisor_repository.classes import (
     RepositoryCandidate,
     RepositoryNeeds,
@@ -274,8 +276,9 @@ class RepositoryAgent:
     # --- assembly -------------------------------------------------------------------------
 
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
-        needs = request.input
-        assert isinstance(needs, RepositoryNeeds)  # the conductor checked spec.accepts
+        assert isinstance(request.input, RepositoryNeeds)  # the conductor checked spec.accepts
+        # What people in the project decided takes precedence over what the caller wrote.
+        needs, only_chosen = given.with_project(request.input)
         if not (needs.mandated or needs.asked_about or rank.queries(needs)):
             return abstain(
                 ReasonCode.INSUFFICIENT_INPUT,
@@ -305,7 +308,7 @@ class RepositoryAgent:
         )
 
         ranked = rank.rank(matches, hits, needs) if hits else []
-        chosen = choose.choose(named, ranked)
+        chosen = choose.choose(named, ranked, only_chosen)
         if not chosen:
             return choose.abstention(named, got, len(hits), shortlisted, source)
         searched = searched.model_copy(update={"candidates_qualifying": len(chosen)})

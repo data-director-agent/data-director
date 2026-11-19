@@ -29,7 +29,11 @@ classes:
     description: >-
       What the researcher has said about the dataset that bears on its licence and access: the
       reuse they want to allow, whether the data are sensitive, any licence they are required to
-      use, and whether the data include content from third parties.
+      use, and whether the data include content from third parties. In a project the conductor
+      also gives the facts people decided: a decided licence is the mandated one, and a decision
+      to withhold or generalise a sensitive field or file says the data are sensitive.
+    mixins:
+      - GivenProjectDecisions
     slots:
       - schema_class
       - reuse_wanted

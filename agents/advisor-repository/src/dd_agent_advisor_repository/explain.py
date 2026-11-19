@@ -60,6 +60,10 @@ def template_rationale(item: Item) -> str:
             f"{r.name} ({r.re3data_id}) is described because the researcher asked about it; "
             f"no policy given requires it.{why}"
         )
+    elif item.basis == CandidateBasis.CHOSEN:
+        lead = (
+            f"{r.name} ({r.re3data_id}) is the repository the researcher chose, so it is described."
+        )
     else:
         why = f" {' '.join(item.reasons)}" if item.reasons else ""
         lead = f"{r.name} ({r.re3data_id}) is shortlisted.{why}"

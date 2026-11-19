@@ -90,7 +90,7 @@ repository:RepositoryCandidate a sh:NodeShape ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 11 ;
             sh:path <https://w3id.org/data-director/grounded_on> ],
-        [ sh:in ( "mandated" "asked_about" "recommended" ) ;
+        [ sh:in ( "mandated" "asked_about" "recommended" "chosen" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 0 ;

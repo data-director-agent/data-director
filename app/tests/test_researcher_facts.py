@@ -12,6 +12,7 @@ import pytest
 from starlette.testclient import TestClient
 from support import JSON_HEADERS, check_fixture, configure_env, dist_dir, new_governance
 
+from dd_app import contract_shapes as contract
 from dd_app.app import build_app
 from dd_app.governance import Governance
 from dd_harness.projects import RESEARCHER_ADDED, RESEARCHER_WITHDRAWN
@@ -69,7 +70,7 @@ def test_a_person_sees_what_their_own_record_offers_and_nothing_is_kept(
     assert body["orcid_id"] == TEST_PRINCIPAL.principal_id
     assert body["affiliations"] and body["works"] and body["keywords"]
     assert "@" not in offered.text
-    check_fixture("orcid-record.json", normalised(body))
+    check_fixture("orcid-record.json", normalised(body), model=contract.ResearcherRecord)
     assert store.researchers(project) is None
 
 
@@ -96,7 +97,11 @@ def test_only_what_is_ticked_is_kept_and_given_back(
     }
     assert [a["put_code"] for a in record["affiliations"]] == [employment]
     assert client.get(f"/api/projects/{project}/researchers").json() == [record]
-    check_fixture("project-researchers.json", normalised(kept.json()))
+    check_fixture(
+        "project-researchers.json",
+        normalised(kept.json()),
+        model=list[contract.ResearcherRecord],
+    )
     (event,) = [e for e in store.events(project) if e["event"] == RESEARCHER_ADDED]
     assert event["caused_by"] == f"PUT /api/projects/{project}/researchers/me"
     assert event["acted_for"]["principal_id"] == TEST_PRINCIPAL.principal_id

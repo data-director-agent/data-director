@@ -21,6 +21,7 @@ from support import (
 
 from dd_app.app import build_app
 from dd_app.governance import Governance
+from dd_app.routes.deposit import RepositorySearch
 
 
 @pytest.fixture
@@ -45,7 +46,7 @@ def test_without_a_query_the_deployments_suggestions_come_overrides_first(
     assert body["snapshot_ref"] == EXPORT
     # The deployment's list names repositories this export does not hold; they are left out.
     assert [r["re3data_id"] for r in body["repositories"]] == [ORDA, ZENODO]
-    check_fixture("repositories-suggested.json", body)
+    check_fixture("repositories-suggested.json", body, model=RepositorySearch)
 
 
 @pytest.mark.parametrize(

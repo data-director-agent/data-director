@@ -20,11 +20,13 @@ from __future__ import annotations
 
 from typing import Any, ClassVar
 
+from pydantic import MISSING
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
-from starlette.responses import JSONResponse, PlainTextResponse, Response
+from starlette.responses import PlainTextResponse, Response
 from starlette.routing import Route
 
+from dd_app import contract_shapes as contract
 from dd_app.documentation_check import checked_with, kinds, screen
 from dd_app.problems import refused
 from dd_app.routes.common import (
@@ -32,13 +34,16 @@ from dd_app.routes.common import (
     Endpoint,
     Handler,
     RequestBody,
+    ResponseBody,
     caused_by,
     in_project,
     parse_body,
     problem,
     project_refused,
+    respond,
     signed_in,
 )
+from dd_app.routes.conversations import SavedInventory
 from dd_app.turn_body import decoded
 from dd_harness import orcid
 from dd_harness.policy import check_attached_document
@@ -88,6 +93,37 @@ class CheckDocument(RequestBody):
     text: str
 
 
+class DocumentFinding(ResponseBody):
+    """What may be in a document: a kind of personal data, or `secret` with the type of secret as
+    its detail."""
+
+    kind: str
+    places: str
+    """How many places, as a band, so that a finding cannot be turned into a count."""
+    confidence: str
+    detail: str | MISSING = MISSING
+    """The type of secret; left out for personal data."""
+
+
+class DocumentCheck(ResponseBody):
+    """What the check found in a document before it is attached (`POST /api/documentation/check`)"""
+
+    findings: list[DocumentFinding]
+    kinds: list[str]
+    """The kinds a researcher confirms: a secret's type stands for itself."""
+    checked_with: str
+    """What the check ran."""
+
+
+class ExtractedDocument(ResponseBody):
+    """The text read from a Word document or PDF (`POST /api/documentation/extract`)."""
+
+    name: str
+    text: str
+    size: int
+    """The text's length in bytes, as UTF-8."""
+
+
 class KeepResearcher(RequestBody):
     """Which of their public ORCID record the person ticked
     (`{"keep": {"sections": [...], "works": [put-codes], ...}}`), never the facts themselves."""
@@ -130,12 +166,13 @@ async def check_document(request: Request, _: Principal, __: Deps) -> Response:
     except ProjectError as exc:
         return problem(400, "request-refused", CHECK_REFUSED, str(exc))
     found = await run_in_threadpool(screen, body.text)
-    return JSONResponse(
+    return respond(
+        DocumentCheck,
         {
             "findings": [f.as_json() for f in found],
             "kinds": kinds(found),
             "checked_with": await run_in_threadpool(checked_with),
-        }
+        },
     )
 
 
@@ -146,7 +183,7 @@ async def get_inventory(request: Request, _: Principal, deps: Deps) -> Response:
         return problem(
             404, "inventory-not-found", "No inventory", f"Project {project_id!r} has none."
         )
-    return JSONResponse(found)
+    return respond(contract.FileInventory, found)
 
 
 async def add_inventory(request: Request, person: Principal, deps: Deps) -> Response:
@@ -162,12 +199,15 @@ async def add_inventory(request: Request, person: Principal, deps: Deps) -> Resp
         )
     except ProjectError as exc:
         return project_refused(exc, project_id, INVENTORY_REFUSED)
-    return JSONResponse(held, status_code=201)
+    return respond(SavedInventory, held, status_code=201)
 
 
 async def list_documentation(request: Request, _: Principal, deps: Deps) -> Response:
     project_id = request.path_params["project_id"]
-    return JSONResponse(await run_in_threadpool(deps.projects.documentation, project_id))
+    return respond(
+        list[contract.DocumentationSummary],
+        await run_in_threadpool(deps.projects.documentation, project_id),
+    )
 
 
 async def get_documentation(request: Request, _: Principal, deps: Deps) -> Response:
@@ -210,7 +250,7 @@ async def get_orcid_record(request: Request, person: Principal, deps: Deps) -> R
     """What the signed-in person's public ORCID record offers, to choose from. Nothing is
     kept: keeping is `keep_researcher`, which reads the record again."""
     try:
-        return JSONResponse(await run_in_threadpool(read_orcid, person, deps))
+        return respond(contract.ResearcherRecord, await run_in_threadpool(read_orcid, person, deps))
     except orcid.OrcidError as exc:
         return problem(409, "no-orcid-record", "No ORCID record to read", str(exc))
     except orcid.OrcidUnavailableError as exc:
@@ -219,7 +259,10 @@ async def get_orcid_record(request: Request, person: Principal, deps: Deps) -> R
 
 async def list_researchers(request: Request, _: Principal, deps: Deps) -> Response:
     project_id = request.path_params["project_id"]
-    return JSONResponse(await run_in_threadpool(deps.projects.researchers, project_id))
+    return respond(
+        list[contract.ResearcherRecord],
+        await run_in_threadpool(deps.projects.researchers, project_id),
+    )
 
 
 async def keep_researcher(request: Request, person: Principal, deps: Deps) -> Response:
@@ -237,7 +280,9 @@ async def keep_researcher(request: Request, person: Principal, deps: Deps) -> Re
         return deps.projects.keep_researcher(project_id, chosen, acted_for=person, caused_by=cause)
 
     try:
-        return JSONResponse(await run_in_threadpool(keep), status_code=201)
+        return respond(
+            list[contract.ResearcherRecord], await run_in_threadpool(keep), status_code=201
+        )
     except UnknownProjectError:
         raise
     except orcid.OrcidUnavailableError as exc:
@@ -260,7 +305,7 @@ async def withdraw_researcher(request: Request, person: Principal, deps: Deps) -
         raise
     except ProjectError as exc:
         return problem(404, "researcher-not-found", "Nothing of yours to withdraw", str(exc))
-    return JSONResponse(standing)
+    return respond(list[contract.ResearcherRecord], standing)
 
 
 def _orcid_unavailable(detail: str) -> Response:
@@ -280,4 +325,7 @@ async def extract_document(request: Request, _: Principal, deps: Deps) -> Respon
         text = await run_in_threadpool(read_document_file, body.name, body.media_type, data)
     except ValueError as exc:  # a `ProjectError`, or documents the profile refuses
         return refused(str(exc), DOCUMENT_REFUSED)
-    return JSONResponse({"name": body.name, "text": text, "size": len(text.encode("utf-8"))})
+    return respond(
+        ExtractedDocument,
+        {"name": body.name, "text": text, "size": len(text.encode("utf-8"))},
+    )
