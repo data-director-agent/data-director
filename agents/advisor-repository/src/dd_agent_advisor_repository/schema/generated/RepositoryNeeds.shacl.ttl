@@ -7,7 +7,7 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 repository:RepositoryNeeds a sh:NodeShape ;
-    rdfs:comment "What a dataset needs of a repository. With mandated repositories, the agent describes them; with none, it shortlists. Repositories the researcher asked about are described either way, alongside the shortlist when there is one. The mandate and the access constraint come from Phase 2 (governance), usually by way of the orchestrator. In a project the conductor also gives the facts people decided and the repository the researcher chose: a decided required repository is described as mandated, and the chosen one is described when nothing else is asked." ;
+    rdfs:comment "What a dataset needs of a repository. With mandated repositories, the agent describes them; with none, it shortlists. Repositories the researcher asked about are described either way, alongside the shortlist when there is one. The mandate and the access constraint come from Phase 2 (governance), usually by way of the orchestrator. In a project the conductor also gives the facts people decided and the repository the researcher chose: a decided required repository is described as mandated, a repository that a confirmed sharing commitment of the data management plan names is described alongside the shortlist (never as mandated), and the chosen one is described when nothing else is asked." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:class repository:RepositoryRef ;

@@ -34,8 +34,10 @@ classes:
       either way, alongside the shortlist when there is one. The mandate and the access
       constraint come from Phase 2 (governance), usually by way of the orchestrator. In a
       project the conductor also gives the facts people decided and the repository the
-      researcher chose: a decided required repository is described as mandated, and the chosen
-      one is described when nothing else is asked.
+      researcher chose: a decided required repository is described as mandated, a repository
+      that a confirmed sharing commitment of the data management plan names is described
+      alongside the shortlist (never as mandated), and the chosen one is described when nothing
+      else is asked.
     mixins:
       - GivenProjectDecisions
       - GivenProjectRepository
@@ -173,8 +175,8 @@ slots:
     inlined_as_list: true
   not_found:
     description: >-
-      Mandated repositories, and repositories the researcher asked about, for which no single
-      registry record was found.
+      Mandated repositories, and repositories the data management plan names or the researcher
+      asked about, for which no single registry record was found.
     multivalued: true
   searched:
     range: SearchedSummary
@@ -217,7 +219,7 @@ slots:
       Why a recommended repository is on the shortlist and in its place, one sentence per
       ranking signal: the themes and kinds of data it matches, whether it is a generalist, run by
       the researcher's institution, or lacks the access the data needs. Empty when mandated, and
-      for a repository asked about that the shortlist did not rank.
+      for a repository in the plan or asked about that the shortlist did not rank.
     multivalued: true
   rationale:
     required: true
@@ -255,6 +257,10 @@ enums:
         description: >-
           Named by the researcher, who asked about it. Described, not ranked; not a
           requirement.
+      in_plan:
+        description: >-
+          Named by the project's data management plan, in a sharing commitment the researcher
+          confirmed. Described, not ranked; not a requirement.
       recommended:
         description: Shortlisted by the agent from the registries.
       chosen:

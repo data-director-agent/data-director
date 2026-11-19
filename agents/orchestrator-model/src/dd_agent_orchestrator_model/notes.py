@@ -1,5 +1,6 @@
 """Notes from the harness about the project, which open the current message (`agent.py`): what
-the project is called, and what people in it chose or decided (docs/specs/orchestration.md).
+the project is called, what people in it chose or decided, and which documents are attached
+and whether a plan among them has been read for a repository (docs/specs/orchestration.md).
 
 Each note is written from the slots the conductor fills on a `Message` (docs/specs/projects.md),
 never from the conversation, so it is current on every turn, however new or long the
@@ -16,6 +17,11 @@ from dd_sdk.contract.facts import FactKind, ProjectFact
 from dd_sdk.contract.models import Message
 
 LEAD = "[From the harness, not the researcher] "
+
+
+def record_notes(message: Message) -> tuple[str | None, ...]:
+    """The notes written from the project record, in the order they open the message."""
+    return name_note(message), decisions_note(message), documents_note(message)
 
 
 def name_note(message: Message) -> str | None:
@@ -53,6 +59,27 @@ def decisions_note(message: Message) -> str | None:
         "From the project record, the researcher chose, and people in the project decided: "
         + "; ".join(said)
         + ". Each stands until the researcher changes it in their project."
+    )
+
+
+def documents_note(message: Message) -> str | None:
+    """The documents attached to the project, by name, and, while no sharing commitment of a
+    data management plan is decided, that no attached plan has been read for a repository
+    (#1233): a repository shortlist does not read the documents, so without this the model may
+    offer generalists alone, and say nothing of the repository the plan names. None when no
+    document is attached."""
+    documents = message.project_documentation or []
+    if not documents:
+        return None
+    names = ", ".join(json.dumps(d.documentation_name) for d in documents)
+    note = LEAD + f"The researcher attached to the project: {names}."
+    if any(f.fact_kind == FactKind.SHARING_COMMITMENT for f in message.project_decisions or []):
+        return note
+    return note + (
+        " No sharing commitment from a data management plan has been confirmed, so no attached "
+        "plan has been read for a repository: a repository shortlist does not use it. If one is "
+        "a plan, say so when you report a shortlist, and offer the Data Management Plan check, "
+        "which reads the plan and proposes its commitments for the researcher to confirm."
     )
 
 
