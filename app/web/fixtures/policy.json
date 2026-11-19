@@ -87,5 +87,378 @@
     "orchestrator": "orchestrator.stub",
     "ref": "profile:data-director-app@v9",
     "version": 9
-  }
+  },
+  "steps": [
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Plan how your data will be documented",
+      "phase_name": "Plan ahead",
+      "phase_number": 1,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "setup.documentation"
+    },
+    {
+      "action_classes": [
+        "advise"
+      ],
+      "agent_ids": [
+        "advisor.standards"
+      ],
+      "autonomy": "delegated",
+      "label": "Choose standard terms to describe your data",
+      "phase_name": "Plan ahead",
+      "phase_number": 1,
+      "reason": null,
+      "refers_to": null,
+      "step_id": "setup.vocabularies"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Write a Data Management Plan",
+      "phase_name": "Plan ahead",
+      "phase_number": 1,
+      "reason": "out_of_scope",
+      "refers_to": null,
+      "step_id": "setup.dmp-create"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Review your Data Management Plan",
+      "phase_name": "Plan ahead",
+      "phase_number": 1,
+      "reason": "out_of_scope",
+      "refers_to": null,
+      "step_id": "setup.dmp-review"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Check what your funder, journal and institution expect",
+      "phase_name": "Check the rules",
+      "phase_number": 2,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "governance.policies"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Spot any sensitive information in your data",
+      "phase_name": "Check the rules",
+      "phase_number": 2,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "governance.sensitive-data-identify"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "never_delegated",
+      "label": "Decide how sensitive data will be protected",
+      "phase_name": "Check the rules",
+      "phase_number": 2,
+      "reason": null,
+      "refers_to": null,
+      "step_id": "governance.sensitive-data-handle"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Decide whether to delay public release",
+      "phase_name": "Check the rules",
+      "phase_number": 2,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "governance.embargo"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Check your plans match your Data Management Plan",
+      "phase_name": "Check the rules",
+      "phase_number": 2,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "governance.dmp"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Find out whether you must use a particular repository",
+      "phase_name": "Choose where to share",
+      "phase_number": 3,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "repository.mandated"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Choose a repository",
+      "phase_name": "Choose where to share",
+      "phase_number": 3,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "repository.recommend"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Make sure your data will get a permanent identifier, such as a DOI",
+      "phase_name": "Choose where to share",
+      "phase_number": 3,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "repository.pid"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Check who can access the data and what depositing costs",
+      "phase_name": "Choose where to share",
+      "phase_number": 3,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "repository.access-and-costs"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Check that the repository is trustworthy",
+      "phase_name": "Choose where to share",
+      "phase_number": 3,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "repository.certification"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Tidy and version your files",
+      "phase_name": "Get your data ready",
+      "phase_number": 4,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "preparation.files"
+    },
+    {
+      "action_classes": [
+        "advise"
+      ],
+      "agent_ids": [
+        "advisor.standards"
+      ],
+      "autonomy": "delegated",
+      "label": "Save your data in open formats",
+      "phase_name": "Get your data ready",
+      "phase_number": 4,
+      "reason": null,
+      "refers_to": null,
+      "step_id": "preparation.formats"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Write a README and a data dictionary",
+      "phase_name": "Get your data ready",
+      "phase_number": 4,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "preparation.documentation"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Choose the metadata standard to follow",
+      "phase_name": "Get your data ready",
+      "phase_number": 4,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "preparation.metadata-standard"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Fill in the description of your dataset",
+      "phase_name": "Get your data ready",
+      "phase_number": 4,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "preparation.metadata"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Check the description is complete and correct",
+      "phase_name": "Deposit your data",
+      "phase_number": 5,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "deposit.validate"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Choose a licence",
+      "phase_name": "Deposit your data",
+      "phase_number": 5,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "deposit.licence"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Link to your paper, your ORCID iD, your institution and your grant",
+      "phase_name": "Deposit your data",
+      "phase_number": 5,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "deposit.links"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Set who can see or download the data",
+      "phase_name": "Deposit your data",
+      "phase_number": 5,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "deposit.access"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Create a private link for peer reviewers",
+      "phase_name": "Deposit your data",
+      "phase_number": 5,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "deposit.review-link"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Upload your files",
+      "phase_name": "Deposit your data",
+      "phase_number": 5,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "deposit.upload"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Review and submit",
+      "phase_name": "Deposit your data",
+      "phase_number": 5,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "deposit.finalise"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Update your Data Management Plan with what you published",
+      "phase_name": "After publication",
+      "phase_number": 6,
+      "reason": "out_of_scope",
+      "refers_to": null,
+      "step_id": "post.dmp-update"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Record the deposit with your institution",
+      "phase_name": "After publication",
+      "phase_number": 6,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "post.institutional-record"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Follow downloads and citations",
+      "phase_name": "After publication",
+      "phase_number": 6,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "post.monitor"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Release your data when the delay ends",
+      "phase_name": "After publication",
+      "phase_number": 6,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "post.embargo-release"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Check how FAIR your published data are",
+      "phase_name": "After publication",
+      "phase_number": 6,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "post.fairness"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Improve the description of older datasets",
+      "phase_name": "After publication",
+      "phase_number": 6,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "post.retrofit"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Connect your data to related publications and datasets",
+      "phase_name": "After publication",
+      "phase_number": 6,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "post.links"
+    }
+  ]
 }

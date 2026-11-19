@@ -153,7 +153,9 @@ Some steps are deliberately served by no agent, and the orchestrators name them 
 agent:
 
 - deciding how sensitive data are handled (`governance.sensitive-data-handle`) is a person's
-  decision (C2). The ethics adviser flags sensitive data and stops there;
+  decision (C2). The ethics adviser flags sensitive data and stops there. The step is marked
+  `person_decides`, so `AgentSpec` refuses an agent that serves it and the policy page shows it
+  as never delegated;
 - the steps that act in a repository or an institutional system: reviewing the deposit link,
   uploading, finalising, the institutional record, monitoring and embargo release. Whether a
   deposit persona should take any of them on is undecided: TODO(#362).

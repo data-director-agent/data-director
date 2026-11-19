@@ -53,7 +53,7 @@ describe("PolicyPage", () => {
 
   it("lists every agent the profile allows, with its action class and what happens here", async () => {
     renderPage(directory());
-    const table = await screen.findByRole("table");
+    const table = await screen.findByRole("table", { name: /allowed agent/ });
     const rows = within(table).getAllByRole("row").slice(1);
     expect(rows).toHaveLength(POLICY.agents.length);
     const reached = rowWith(rows, "Standards Librarian");
@@ -94,12 +94,60 @@ describe("PolicyPage", () => {
       profile: { ...POLICY.profile, description: "", orchestrator: null },
       agents: [],
       actions_requiring_approval: [],
+      steps: [],
     };
     renderPage(directory(), { get: () => Promise.resolve(bare) });
     expect(await screen.findByText(/offers no conversation/)).toBeVisible();
     expect(screen.getByText("Not described")).toBeVisible();
     expect(screen.getByText(/allows no agent to run/)).toBeVisible();
     expect(screen.queryByRole("table")).toBeNull();
+    expect(
+      screen.getByRole("heading", { name: "What it does at each step" }),
+    ).toBeVisible();
+  });
+
+  it("shows each Blueprint step with how far it is delegated and whom it is referred to", async () => {
+    renderPage(directory());
+    const table = await screen.findByRole("table", { name: /Blueprint/ });
+    const groups = within(table).getAllByRole("rowgroup").slice(1);
+    const phases = new Set(POLICY.steps.map((step) => step.phase_number));
+    expect(groups).toHaveLength(phases.size);
+    const rows = within(table)
+      .getAllByRole("row")
+      .filter((row) => within(row).queryAllByRole("cell").length > 0);
+    expect(rows).toHaveLength(POLICY.steps.length);
+    for (const [autonomy, chip] of [
+      ["delegated", "Delegated"],
+      ["never_delegated", "Never delegated"],
+      ["not_offered", "Not offered"],
+    ] as const) {
+      const step = POLICY.steps.find((s) => s.autonomy === autonomy);
+      if (!step) throw new Error(`the fixture has no ${autonomy} step`);
+      const row = rowWith(rows, step.label);
+      expect(within(row).getByText(chip)).toBeVisible();
+    }
+    const delegated = POLICY.steps.find((s) => s.autonomy === "delegated");
+    const agentId = delegated?.agent_ids[0] ?? "";
+    expect(
+      within(rowWith(rows, delegated?.label ?? "")).getByRole("link"),
+    ).toHaveAttribute("href", `/agents?agent=${encodeURIComponent(agentId)}`);
+  });
+
+  it("says a step needing approval is referred to a data steward", async () => {
+    const [first, ...rest] = POLICY.steps;
+    if (!first) throw new Error("the fixture has no step");
+    const approval: Policy = {
+      ...POLICY,
+      steps: [
+        { ...first, autonomy: "must_approve", refers_to: "data_steward" },
+        ...rest,
+      ],
+    };
+    renderPage(directory(), { get: () => Promise.resolve(approval) });
+    const table = await screen.findByRole("table", { name: /Blueprint/ });
+    const row = rowWith(within(table).getAllByRole("row"), first.label);
+    expect(within(row).getByText("Must approve")).toBeVisible();
+    expect(within(row).getByText("A data steward")).toBeVisible();
   });
 
   it("says when the policy cannot be read", async () => {
@@ -115,7 +163,7 @@ describe("PolicyPage", () => {
     const { container } = renderPage(
       directory([{ ...STRANGER, assigned_action_class: null }]),
     );
-    await screen.findByRole("table");
+    await screen.findAllByRole("table");
     expect(await axe(container)).toHaveNoViolations();
   });
 });

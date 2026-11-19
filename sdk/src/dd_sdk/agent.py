@@ -44,7 +44,7 @@ from dd_sdk.contract.models import (
 )
 from dd_sdk.contract.version import CONTRACT_VERSION, compatible
 from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
-from dd_sdk.process_flow import OUT_OF_SCOPE, STEPS
+from dd_sdk.process_flow import OUT_OF_SCOPE, PERSON_DECIDES, STEPS
 from dd_sdk.skills import SkillUse, skills_from_description
 from dd_sdk.tools import Tools, ToolUse, tools_from_description
 
@@ -120,6 +120,12 @@ class AgentSpec:
             raise SpecError(
                 f"agent {self.agent_id!r} serves {out}, which are out of scope for now "
                 "(docs/specs/orchestration.md); no agent may serve them"
+            )
+        decided = sorted(set(self.serves) & PERSON_DECIDES)
+        if decided:
+            raise SpecError(
+                f"agent {self.agent_id!r} serves {decided}, which a person decides (C2, "
+                "docs/specs/agents.md); no agent may serve them"
             )
         if self.payload is not None and not self.payload.grounded:
             raise SpecError(

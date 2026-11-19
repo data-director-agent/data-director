@@ -9,7 +9,7 @@ import { createContext, useContext } from "react";
 import type { Policy } from "../api/generated/responses";
 import { checkSignedIn } from "../session/api";
 
-export type { Policy, PolicyAgent } from "../api/generated/responses";
+export type { Policy, PolicyAgent, PolicyStep } from "../api/generated/responses";
 
 export interface PolicyApi {
   get(signal?: AbortSignal): Promise<Policy>;

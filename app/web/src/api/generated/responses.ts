@@ -60,6 +60,7 @@ export type AppResponse =
   | Policy
   | PolicyAgent
   | PolicyProfile
+  | PolicyStep
   | PrincipalSummary
   | ProblemDetails
   | ProcessFlow
@@ -725,6 +726,10 @@ export interface FlowStep {
    */
   out_of_scope: boolean;
   /**
+   * A person decides the step (C2); no agent may serve it.
+   */
+  person_decides: boolean;
+  /**
    * How a researcher might open a conversation about the step.
    */
   prompt: string;
@@ -807,6 +812,10 @@ export interface Policy {
   actions_requiring_approval: string[];
   agents: PolicyAgent[];
   profile: PolicyProfile;
+  /**
+   * Each Blueprint step in order, with how far it is delegated here.
+   */
+  steps: PolicyStep[];
 }
 export interface PolicyAgent {
   /**
@@ -832,6 +841,42 @@ export interface PolicyProfile {
    */
   ref: string;
   version: number;
+}
+/**
+ * How far a Blueprint step is delegated under this profile (#448).
+ *
+ * Worked out from the profile and the agents serving the step, not set by a profile key.
+ */
+export interface PolicyStep {
+  /**
+   * The classes the profile assigns those agents.
+   */
+  action_classes: string[];
+  /**
+   * The enabled agents serving the step.
+   */
+  agent_ids: string[];
+  /**
+   * `delegated`: the agents serving it run as their class allows; `must_approve`: a serving
+   * agent's class needs approval, so its runs are referred; `never_delegated`: a person decides it;
+   * `not_offered`: no agent here does it.
+   */
+  autonomy: "delegated" | "must_approve" | "never_delegated" | "not_offered";
+  /**
+   * The step in a researcher's words.
+   */
+  label: string;
+  phase_name: string;
+  phase_number: number;
+  /**
+   * Why a step is not offered; null for any other.
+   */
+  reason: ("out_of_scope" | "no_agent") | null;
+  /**
+   * Whom the step's runs are referred to, such as `data_steward`; null when none.
+   */
+  refers_to: string | null;
+  step_id: string;
 }
 /**
  * What the shell is told about a person (`dd_app.governance.principal_summary`): whom runs

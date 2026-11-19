@@ -1058,12 +1058,19 @@ describe("ConversationHome", () => {
       const repository = within(state).getByText("Repository")
         .nextElementSibling as HTMLElement;
       expect(repository).toHaveTextContent(/None chosen yet/);
-      for (const label of ["Dataset", "Phase", "Governance"]) {
+      for (const label of ["Dataset", "Phase"]) {
         const dd = within(state).getByText(label)
           .nextElementSibling as HTMLElement;
         expect(within(dd).getByText("Not built yet")).toBeVisible();
         expect(within(dd).getAllByRole("link").length).toBeGreaterThan(0);
       }
+      const governance = within(state).getByText("Governance")
+        .nextElementSibling as HTMLElement;
+      expect(
+        within(governance).getByRole("link", {
+          name: "What Data Director may do at each step",
+        }),
+      ).toHaveAttribute("href", "/policy#policy-steps");
       expect(
         screen.queryByRole("region", { name: "Where this work stands" }),
       ).not.toBeInTheDocument();

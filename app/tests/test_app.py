@@ -6,6 +6,7 @@ An alpha substantiates no requirement, so these tests carry no requirement marke
 
 from __future__ import annotations
 
+import dataclasses
 import webbrowser
 from collections.abc import Iterator
 from pathlib import Path
@@ -44,6 +45,7 @@ from dd_app.routes.meta import Policy, ProcessFlow
 from dd_app.routes.runs import RawAgentsResponse
 from dd_harness.identity import IdentityError, OperatorAssertion
 from dd_harness.policy import load_profile
+from dd_harness.refusals import DATA_STEWARD
 from dd_harness.registry import load_config
 from dd_harness.remote import RemoteAgent, RemoteAgentError
 from dd_harness.settings import SettingsError
@@ -58,7 +60,7 @@ from dd_harness.testing import (
 from dd_harness.transport.a2a import DELEGATED_ONLY
 from dd_sdk.agent import Agent
 from dd_sdk.contract.models import InvocationRequest
-from dd_sdk.process_flow import ENTRIES, PHASES
+from dd_sdk.process_flow import ENTRIES, OUT_OF_SCOPE, PERSON_DECIDES, PHASES
 
 
 @pytest.fixture
@@ -214,6 +216,52 @@ def test_api_policy_gives_the_profile_the_gate_holds_runs_to(governance: Governa
     check_fixture("policy.json", body, model=Policy)
 
 
+def test_api_policy_gives_each_blueprint_step_the_line_it_draws(governance: Governance, dist: Path):
+    body = TestClient(build_app(governance, dist)).get("/api/policy").json()
+    profile = governance.conductor.profile
+    steps = {s["step_id"]: s for s in body["steps"]}
+    assert [s["step_id"] for s in body["steps"]] == [s.id for p in PHASES for s in p.steps]
+    for step_id in OUT_OF_SCOPE:
+        assert (steps[step_id]["autonomy"], steps[step_id]["reason"]) == (
+            "not_offered",
+            "out_of_scope",
+        )
+    for step_id in PERSON_DECIDES:
+        assert steps[step_id]["autonomy"] == "never_delegated"
+        assert steps[step_id]["agent_ids"] == []
+    for step in body["steps"]:
+        assert set(step["agent_ids"]) <= set(profile.agents)
+        assert step["action_classes"] == sorted({profile.agents[a] for a in step["agent_ids"]})
+        if step["autonomy"] == "delegated":
+            assert step["agent_ids"] and step["refers_to"] is None
+        if step["reason"] == "no_agent":
+            assert step["agent_ids"] == []
+    # Every enabled agent advises here, so no step needs approval.
+    assert not any(s["autonomy"] == "must_approve" for s in body["steps"])
+
+
+def test_a_step_an_agent_needing_approval_serves_is_referred_to_a_data_steward(
+    governance: Governance, dist: Path
+):
+    profile = governance.conductor.profile
+    served = next(
+        a
+        for a in governance.conductor.registry.manifest()
+        if a["agent_id"] in profile.agents and a["serves"]
+    )
+    governance.conductor.profile = dataclasses.replace(
+        profile,
+        actions_requiring_approval=frozenset(
+            {*profile.actions_requiring_approval, profile.agents[served["agent_id"]]}
+        ),
+    )
+    body = TestClient(build_app(governance, dist)).get("/api/policy").json()
+    steps = {s["step_id"]: s for s in body["steps"]}
+    for step_id in served["serves"]:
+        assert steps[step_id]["autonomy"] == "must_approve"
+        assert steps[step_id]["refers_to"] == DATA_STEWARD
+
+
 def test_an_unbuilt_shell_stops_start_up(governance: Governance, tmp_path: Path):
     with pytest.raises(ShellNotBuiltError, match="npm ci && npm run build"):
         build_app(governance, tmp_path / "missing")
@@ -271,6 +319,7 @@ def test_the_process_flow_is_the_blueprints(governance: Governance, dist: Path):
         "requirements": ["R3"],
         "optional": False,
         "out_of_scope": False,
+        "person_decides": False,
     }
     check_fixture("process-flow.json", body, model=ProcessFlow)
 

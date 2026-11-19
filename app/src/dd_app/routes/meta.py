@@ -18,7 +18,7 @@ import logging
 import time
 from collections.abc import Awaitable, Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 from starlette.concurrency import run_in_threadpool
@@ -78,6 +78,8 @@ class FlowStep(ResponseBody):
     optional: bool
     out_of_scope: bool
     """The Blueprint has the step but this project does not yet do it."""
+    person_decides: bool
+    """A person decides the step (C2); no agent may serve it."""
     label: str
     """The step in a researcher's words."""
     prompt: str
@@ -128,12 +130,39 @@ class PolicyAgent(ResponseBody):
     requires_approval: bool
 
 
+class PolicyStep(ResponseBody):
+    """How far a Blueprint step is delegated under this profile (#448).
+
+    Worked out from the profile and the agents serving the step, not set by a profile key.
+    """
+
+    step_id: str
+    phase_number: int
+    phase_name: str
+    label: str
+    """The step in a researcher's words."""
+    autonomy: Literal["delegated", "must_approve", "never_delegated", "not_offered"]
+    """`delegated`: the agents serving it run as their class allows; `must_approve`: a serving
+    agent's class needs approval, so its runs are referred; `never_delegated`: a person decides it;
+    `not_offered`: no agent here does it."""
+    reason: Literal["out_of_scope", "no_agent"] | None
+    """Why a step is not offered; null for any other."""
+    agent_ids: list[str]
+    """The enabled agents serving the step."""
+    action_classes: list[str]
+    """The classes the profile assigns those agents."""
+    refers_to: str | None
+    """Whom the step's runs are referred to, such as `data_steward`; null when none."""
+
+
 class Policy(ResponseBody):
     """The rules the policy gate holds every run to (`GET /api/policy`)."""
 
     profile: PolicyProfile
     agents: list[PolicyAgent]
     actions_requiring_approval: list[str]
+    steps: list[PolicyStep]
+    """Each Blueprint step in order, with how far it is delegated here."""
 
 
 class DeployedProfile(ResponseBody):
@@ -221,7 +250,8 @@ async def get_process_flow(request: Request, _: Principal, deps: Deps) -> Respon
 
 
 async def get_policy(request: Request, _: Principal, deps: Deps) -> Response:
-    return respond(Policy, deps.governance.policy())
+    # It refreshes the registry, which reaches agents over the network.
+    return respond(Policy, await run_in_threadpool(deps.governance.policy))
 
 
 async def get_about(request: Request, deps: Deps) -> Response:

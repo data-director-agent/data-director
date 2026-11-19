@@ -120,6 +120,10 @@ the identifiers of the run and conversation. It never includes your inputs or re
 Every run is checked against the deployment's policy before it starts, and its record names that
 policy, for example `profile:data-director-app@v7`. Select **Policy** in the banner to see it: which
 agents may run, what each is allowed to do, and which actions need a data steward's approval.
+Its table **What it does at each step** shows, for each step of the Blueprint, whether Data
+Director does it with an agent (delegated), only with a data steward's approval (must approve),
+leaves it to a person (never delegated), or does not offer it, and whom it refers the step to. The
+**Governance** line of a project's current state links to it.
 A data steward sets the policy; it cannot be changed from the app.
 
 ## How long records are kept
