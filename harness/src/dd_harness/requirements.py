@@ -151,6 +151,10 @@ class Requirements:
         _unique("re3data_id", (s.requirement_set.re3data_id for s in self.overrides))
         self._by_standard = {s.requirement_set.conforms_to: s for s in self.standards}
         self._by_repository = {s.requirement_set.re3data_id: s for s in self.overrides}
+        for standard in self.standards:
+            _distinct_terms(
+                standard.requirement_set.requirement_set_id, standard.requirement_set.fields
+            )
         if DATACITE not in self._by_standard:
             raise RequirementsError(
                 f"no standard's set conforms to {DATACITE}: DataCite's is the one a repository "
@@ -213,6 +217,7 @@ class Requirements:
                 "for which there is no standard's set"
             )
         theirs = {_field_key(f): f for f in standard.requirement_set.fields}
+        _distinct_terms(own.requirement_set_id, [*theirs.values(), *own.fields])
         for field in own.fields:
             base = theirs.get(_field_key(field))
             if (
@@ -301,6 +306,27 @@ def _misplaced(found: RequirementSet) -> list[str]:
 
 def _field_key(field: RequirementField) -> tuple[str, str, str]:
     return field.property, json.dumps(field.qualifier, sort_keys=True), field.schema_org
+
+
+def _distinct_terms(set_id: str, fields: Iterable[RequirementField]) -> None:
+    """Refuse two fields, of a set or of an override merged on its standard, that share a
+    schema.org term. A record's values are checked under their field's term, so the value of one
+    would satisfy the other: a lineage mapped to `description` would pass on the abstract alone."""
+    seen: dict[str, tuple[str, str]] = {}
+    for field in fields:
+        named = field.property, json.dumps(field.qualifier, sort_keys=True)
+        other = seen.setdefault(field.schema_org, named)
+        if other != named:
+            raise RequirementsError(
+                f"{set_id!r} maps both {_described(other)} and {_described(named)} to "
+                f"schema:{field.schema_org}, so a value of one would be taken for the other; "
+                "give each field its own term (docs/specs/deposit.md)"
+            )
+
+
+def _described(named: tuple[str, str]) -> str:
+    prop, qualifier = named
+    return prop if qualifier == "null" else f"{prop} {qualifier}"
 
 
 def _unique(what: str, values: Iterable[Any]) -> None:

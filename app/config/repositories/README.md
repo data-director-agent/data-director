@@ -72,7 +72,9 @@ Each entry of `fields` has:
 - `property`: the schema's property, such as DataCite's `titles`;
 - `qualifier` (optional): a value that narrows it, such as a subject scheme;
 - `schema_org`: the schema.org term it maps to, used to read the record for checking and to
-  describe the dataset in the package;
+  describe the dataset in the package. A record's values are checked under this term, so two
+  fields may not share one, even across an override and its standard: a lineage mapped to
+  `description` would pass on the abstract alone. Such sets are refused on load;
 - `obligation`: `required` (a missing value stops the package) or `recommended` (a warning);
 - `form_label` (overrides only): the label of the field in the repository's deposit form, where a
   person depositing by hand puts the value.
@@ -91,3 +93,8 @@ that cites an issue, never guessed, and listed under `unconfirmed` so a research
 |---|---|
 | `standards/datacite-4.yaml` | The DataCite Metadata Schema 4. |
 | `overrides/orda.yaml` | ORDA, the University of Sheffield's repository on Figshare. What its public pages leave open is TODO(#385). |
+| `overrides/eidc.yaml` | The NERC EDS Environmental Information Data Centre (EIDC), from its Service Agreement and its DataCite records. It builds on DataCite until a UK GEMINI / ISO 19115 set exists (#401). What its public pages leave open is TODO(#1250). |
+
+The other NERC Environmental Data Service centres, BODC (`r3d100010192`), CEDA (`r3d100012305`),
+the NGDC (`r3d100010189`) and the UK Polar Data Centre (`r3d100010120`), have no override yet:
+each needs its own deposit guidance read, TODO(#1250).

@@ -82,7 +82,10 @@ TODO(#394, #200).
 4. **An override adds or raises, never lowers.** It may add a field, or raise one from
    `recommended` to `required` and label it; lowering one is refused on load. Documents are the
    union of both sets, and a kind either requires is required. Media types, sizes and licences
-   come from the override alone (`harness/tests/test_requirements.py`).
+   come from the override alone (`harness/tests/test_requirements.py`). Two fields of a set, or of
+   an override merged on its standard, never share a schema.org term, since a record's values are
+   checked under their field's term and one field's value would pass for the other's; such sets
+   are refused on load.
 5. **A choice resolves deterministically.** The override is the one for the repository's re3data
    identifier. The standard is the one the override names, because a steward who wrote the
    override knows the repository better than its registry record (re3data lists only Dublin Core
