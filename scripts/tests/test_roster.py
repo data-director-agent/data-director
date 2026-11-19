@@ -56,6 +56,7 @@ def _roster(spec: str) -> dict[str, str]:
 
 
 ROSTER: Mapping[str, str] = _roster(SPEC.read_text(encoding="utf-8"))
+ROW_LABELS = [label for label, _ in ROW.findall(SPEC.read_text(encoding="utf-8"))]
 
 # Blueprint requirements a mock's or an alpha's tests still name, by agent. The list only shrinks:
 # an entry that no longer occurs fails too.
@@ -134,7 +135,9 @@ def _blueprint_marks(package: Path) -> set[str]:
 
 
 def test_the_roster_table_gives_every_state() -> None:
-    assert set(ROSTER.values()) == set(STATES.values())
+    # Every row is in the table, though one may name no agent: no in-tree agent is a mock now.
+    assert set(ROW_LABELS) == set(STATES)
+    assert set(ROSTER.values()) <= set(STATES.values())
 
 
 @pytest.mark.requirement("DD-REGISTRY")

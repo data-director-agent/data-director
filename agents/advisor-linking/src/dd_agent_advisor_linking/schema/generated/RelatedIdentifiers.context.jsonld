@@ -60,6 +60,12 @@
          "@id": "https://w3id.org/data-director/source_id"
       },
       "spdx": "http://spdx.org/rdf/terms#",
+      "summary": {
+         "@id": "https://w3id.org/data-director/agents/linking/summary"
+      },
+      "summary_derivation": {
+         "@id": "https://w3id.org/data-director/agents/linking/summary_derivation"
+      },
       "title": {
          "@id": "https://w3id.org/data-director/agents/linking/title"
       },

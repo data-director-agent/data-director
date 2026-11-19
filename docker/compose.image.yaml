@@ -44,6 +44,9 @@ services:
     command: dd-advisor-quality serve --host 0.0.0.0 --port 8102 --public-url http://advisor-quality:8102
     environment:
       PORT: "8102"
+      # As for the documentation advisor: its model is on by default and this stack gives it no
+      # key, so it runs with `template` unless the shell exports DD_QUALITY_SUMMARISER=model.
+      DD_QUALITY_SUMMARISER: ${DD_QUALITY_SUMMARISER:-template}
 
   advisor-standards:
     <<: *agent
@@ -84,6 +87,9 @@ services:
     command: dd-advisor-files serve --host 0.0.0.0 --port 8110 --public-url http://advisor-files:8110
     environment:
       PORT: "8110"
+      # As for the documentation advisor: its model is on by default and this stack gives it no
+      # key, so it runs with `template` unless the shell exports DD_FILES_SUMMARISER=model.
+      DD_FILES_SUMMARISER: ${DD_FILES_SUMMARISER:-template}
 
   advisor-dmp:
     <<: *agent
@@ -122,6 +128,9 @@ services:
     command: dd-advisor-linking serve --host 0.0.0.0 --port 8116 --public-url http://advisor-linking:8116
     environment:
       PORT: "8116"
+      # As for the documentation advisor: its model is on by default and this stack gives it no
+      # key, so it runs with `template` unless the shell exports DD_LINKING_SUMMARISER=model.
+      DD_LINKING_SUMMARISER: ${DD_LINKING_SUMMARISER:-template}
 
   advisor-fairness:
     <<: *agent

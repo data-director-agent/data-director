@@ -1,7 +1,8 @@
 """Which repositories a run offers, and how its outcome reads (`agent.RepositoryAgent.run`).
 
 A mandated repository is described instead of a shortlist; one the researcher only asked about
-is described beside it, never marked mandated (#1167).
+is described beside it, never marked mandated (#1167); so is one the data management plan names
+in a commitment the researcher confirmed (#1233).
 """
 
 from __future__ import annotations
@@ -24,6 +25,7 @@ class Retrieved(Protocol):
     """What a run retrieved, as far as the outcome reports it."""
 
     ambiguous: dict[str, list[str]]
+    aliased: dict[str, str]
 
     def summary(self) -> str: ...
 
@@ -41,27 +43,31 @@ Chosen = tuple[Re3dataRecord, CandidateBasis, float | None, tuple[str, ...]]
 
 
 class Named:
-    """The records of the repositories named in the needs, mandated or asked about, and the
-    names for which no single record was found."""
+    """The records of the repositories named in the needs, mandated, in the data management
+    plan or asked about, and the names for which no single record was found."""
 
     def __init__(self) -> None:
         self.mandated: list[Re3dataRecord] = []
+        self.in_plan: list[Re3dataRecord] = []
         self.asked_about: list[Re3dataRecord] = []
         self.not_found: list[str] = []
 
 
 def choose(named: Named, ranked: list[rank.Ranked], only_chosen: str | None = None) -> list[Chosen]:
-    """The candidates, each once: the mandated repositories, then those the researcher asked
-    about, then the rest of the shortlist. A repository asked about that the shortlist also
-    ranks keeps its score and reasons, so the researcher can compare it, but stays marked as
-    asked about rather than recommended. `only_chosen` is the identifier of a repository
+    """The candidates, each once: the mandated repositories, then those the data management
+    plan names, then those the researcher asked about, then the rest of the shortlist. A
+    repository in the plan or asked about that the shortlist also ranks keeps its score and
+    reasons, so the researcher can compare it, but stays marked as the plan's or asked about
+    rather than recommended. `only_chosen` is the identifier of a repository
     described only because the researcher chose it (`given.basis`)."""
     by_id = {r.record.re3data_id: r for r in ranked}
     chosen: list[Chosen] = [(r, given.basis(r, only_chosen), None, ()) for r in named.mandated]
-    for record in named.asked_about:
+    described = [(r, CandidateBasis.IN_PLAN) for r in named.in_plan]
+    described += [(r, CandidateBasis.ASKED_ABOUT) for r in named.asked_about]
+    for record, basis in described:
         hit = by_id.pop(record.re3data_id, None)
         score, reasons = (hit.score, hit.reasons) if hit else (None, ())
-        chosen.append((record, CandidateBasis.ASKED_ABOUT, score, reasons))
+        chosen.append((record, basis, score, reasons))
     for record in named.mandated:
         by_id.pop(record.re3data_id, None)
     chosen += [(r.record, CandidateBasis.RECOMMENDED, r.score, r.reasons) for r in by_id.values()]
@@ -104,6 +110,7 @@ def abstention(
 _BASES = (
     (CandidateBasis.MANDATED, "mandated, described"),
     (CandidateBasis.CHOSEN, "chosen by the researcher, described"),
+    (CandidateBasis.IN_PLAN, "named by the researcher's data management plan, described"),
     (CandidateBasis.ASKED_ABOUT, "asked about by the researcher, described"),
     (CandidateBasis.RECOMMENDED, "recommended"),
 )
@@ -134,11 +141,21 @@ def statement(
             f" Mandated repositories that do not meet, or do not state, every need: "
             f"{len(short)}; see each candidate's misses."
         )
+    if named.in_plan:
+        statement += (
+            " The repositories the data management plan names are described because a sharing "
+            "commitment the researcher confirmed names them; a plan's choice is not a mandate."
+        )
     if named.asked_about:
         statement += (
             " The repositories asked about are described because the researcher named them; "
             "no policy given requires them."
         )
+    statement += "".join(
+        f" {name!r} is not a name re3data gives any record; it was read as {rid} from the "
+        "agent's list of other names for repositories."
+        for name, rid in got.aliased.items()
+    )
     if named.not_found:
         statement += (
             f" No record found for: {', '.join(named.not_found)}.{ambiguous(got.ambiguous)}"

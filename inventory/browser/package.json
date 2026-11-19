@@ -17,8 +17,9 @@
     "src"
   ],
   "scripts": {
-    "lint": "eslint . && npm run knip",
+    "lint": "eslint . && npm run knip && npm run depcruise",
     "knip": "knip --no-progress --treat-config-hints-as-errors",
+    "depcruise": "depcruise src --config .dependency-cruiser.cjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "bundle": "node bundle/build.ts",
@@ -30,6 +31,7 @@
     "@playwright/test": "1.65.0",
     "@types/node": "26.6.6",
     "@vitest/coverage-v8": "5.1.0",
+    "dependency-cruiser": "18.7.2",
     "eslint": "10.14.0",
     "knip": "6.45.1",
     "pyodide": "314.0.8",

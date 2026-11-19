@@ -284,6 +284,18 @@ for it.
 
 The table under "Checks added with this review" records the limits as this review first set them.
 
+## Checks added since the review
+
+Each follows the same rule as those above: today's excess is recorded where it is, and may only
+shrink.
+
+| Check | Limit | How the existing excess is recorded |
+|---|---|---|
+| Ruff `PLR0904` (Python outside tests; #1056) | 20 public methods in a class | `# noqa: PLR0904` on `Governance` and `ProjectService` in `dd_app` |
+| dependency-cruiser `no-circular` in `sdk/browser` and `inventory/browser` (#1059), as `app/web` has | no import cycle in `src/` | none: neither package has one |
+| Import Linter `acyclic_siblings` over every member (#1055) | no cycle between a package's modules | the 6 cycles that exist, as `ignore_imports` entries; a stale entry fails (TODO(#1066)) |
+| Import Linter `layers` in `dd_harness` and `dd_app` (#1055) | server, transport, conductor and pipeline, storage, then the checks; app, routes, project service, then governance | one `ignore_imports` entry in `dd_app`: `responses` imports `app` inside a function (TODO(#1066)) |
+
 ## Boolean parameters and silenced exceptions, November 2026
 
 Two kinds of code that make an interface or a failure hard to follow were not checked (#1095).

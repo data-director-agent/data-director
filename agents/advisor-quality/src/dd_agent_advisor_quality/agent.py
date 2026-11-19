@@ -1,9 +1,10 @@
 """advisor.quality: a completeness review of an existing metadata record.
 
 The first agent that is not standards-advisor-shaped. It reads a `MetadataRecord`, retrieves
-nothing and calls no model, and returns a `QualityReview` grounded on the input alone (grounding
-mode `input_only`: a model *may* be called under this mode; this agent does not). Every finding is
-produced by a rule in `checks.yaml` and is badged `lexical`.
+nothing, and returns a `QualityReview` grounded on the input alone (grounding mode `input_only`).
+Every finding and the score are produced by a rule in `checks.yaml` and are badged `lexical`. A
+summariser (`dd_sdk.summary`) then writes a short summary beside them: a model's by default, the
+rules' own with `DD_QUALITY_SUMMARISER=template` (`factory.py`). It changes no finding.
 
 This is a demonstration of the harness, not a quality framework. The criteria and weights are
 hand-chosen; see `checks.yaml` and #18.
@@ -17,7 +18,7 @@ from typing import Any
 import yaml
 
 from dd_agent_advisor_quality.classes import Finding, MetadataRecord, QualityReview, Severity
-from dd_sdk import serve
+from dd_sdk import summary
 from dd_sdk.agent import (
     AgentResult,
     AgentSpec,
@@ -72,12 +73,18 @@ class QualityReviewer:
             "score": Derived(Derivation.LEXICAL),
             "findings.severity": Derived(Derivation.LEXICAL),
             "findings.message": Derived(Derivation.LEXICAL, recorded_in="derivation"),
+            "summary": Derived(Derivation.MODEL, recorded_in="summary_derivation"),
         },
         serves=("deposit.validate",),
     )
 
-    def __init__(self, checks: list[dict[str, Any]] | None = None) -> None:
+    def __init__(
+        self,
+        checks: list[dict[str, Any]] | None = None,
+        summariser: summary.Summariser | None = None,
+    ) -> None:
         self.checks = checks if checks is not None else load_checks()
+        self.summariser = summariser or summary.TemplateSummariser()
 
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
         record = request.input
@@ -113,25 +120,33 @@ class QualityReviewer:
             )
         score = round(earned / total, 3) if total else None
         missing = [f for f in findings if f.severity != Severity.INFO]
-        return AgentResult(
-            outcome=Outcome(
-                status=OutcomeStatus.SUCCEEDED,
-                statement=(
-                    f"Completeness {score:.0%}: {len(missing)} of {len(findings)} criteria "
-                    "unmet. Deterministic rules over the record as given; human review is required."
-                    if score is not None
-                    else "No criteria configured."
-                ),
+        statement = (
+            f"Completeness {score:.0%}: {len(missing)} of {len(findings)} criteria "
+            "unmet. Deterministic rules over the record as given; human review is required."
+            if score is not None
+            else "No criteria configured."
+        )
+        told = summary.Findings(
+            {
+                "record": record.model_dump(mode="json", exclude={"schema_class"}),
+                "score": score,
+                "findings": [
+                    {"criterion": f.criterion, "severity": f.severity.value, "message": f.message}
+                    for f in findings
+                ],
+            },
+            " ".join(f.message for f in missing) or "Every criterion is met.",
+        )
+        summarised, explanation = summary.summarise(self.summariser, told, ctx)
+        result = AgentResult(
+            outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement=statement),
+            payload=QualityReview(
+                score=score,
+                findings=findings,
+                summary=summarised.text,
+                summary_derivation=summarised.derivation,
+                grounded_on=[ref],
             ),
-            payload=QualityReview(score=score, findings=findings, grounded_on=[ref]),
             evidence=[input_evidence(ctx)],
         )
-
-
-def build() -> QualityReviewer:
-    return QualityReviewer()
-
-
-def main() -> int:
-    """Console script: serve this agent over A2A (`dd_sdk.serve`)."""
-    return serve.main(build)
+        return summary.with_calls(result, self.summariser.model_id, explanation)

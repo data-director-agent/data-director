@@ -65,7 +65,8 @@ is in [`harness/docs/registry.md`](../../harness/docs/registry.md).
     says in `limitations` what it does not yet do; a payload of the core `Document` class, which
     has no such slot, says it in the outcome statement instead. A mock declares no model and
     substantiates no Blueprint requirement; its tests may be marked only with the project's own
-    contract requirements (`DD-*`) that the harness enforces on every agent.
+    contract requirements (`DD-*`) that the harness enforces on every agent. No in-tree agent is
+    a mock now: `advisor.files`, the last, is a model-backed alpha.
 14. A model-backed alpha advisor sits between a mock and a persona. It has a pre-release version,
     its grounding mode is `input_only`, or `retrieval` where it reads outside records (the Policy
     Adviser), and its description does not begin "Mock.". It has a `template` writer, which
@@ -180,8 +181,8 @@ roster for #353 found:
 | `advisor.ethics`, `advisor.dmp` | Model-backed alpha first: the rules are the weak point and the task is reading language. |
 | `advisor.rights`, `advisor.metadata` | Model-backed alpha, choosing from a closed set (rights) or suggesting beside a value (metadata). |
 | `advisor.fairness` | Model-backed alpha for its recommendations only; little gain until it retrieves. |
-| `advisor.quality` | Stays rule-based; it overlaps the FAIR Assessor (#18). |
-| `advisor.linking`, `advisor.files` | Stay deterministic: identifier syntax, checksums and format lookup are exact. Their next step is retrieval (#360, #354). `advisor.linking` has taken it for DOIs, through the tool gateway; it declares `retrieval` and left the mock row, so invariant 13 no longer describes it. |
+| `advisor.quality` | Stays rule-based in its findings; it overlaps the FAIR Assessor (#18). Since every advisor became model-backed by default, a model writes a summary beside them (`dd_sdk.summary`). |
+| `advisor.linking`, `advisor.files` | Identifier syntax, checksums and format lookup are exact and stay in rules. Their next step is retrieval (#360, #354); `advisor.linking` has taken it for DOIs, through the tool gateway. Since every advisor became model-backed by default, each is a model-backed alpha whose model only writes a summary beside the rules' findings (`dd_sdk.summary`). |
 | `orchestrator.stub`, `example.hello` | Stay deterministic by design. |
 
 Each in-tree agent's state now. This table is the one place a state is written down:
@@ -189,10 +190,10 @@ Each in-tree agent's state now. This table is the one place a state is written d
 
 | State | Agents |
 |---|---|
-| Mock (invariant 13) | `advisor.files` |
-| Model-backed alpha (invariant 14) | `advisor.dmp`, `advisor.documentation`, `advisor.ethics`, `advisor.fairness`, `advisor.metadata`, `advisor.policy`, `advisor.rights` |
+| Mock (invariant 13) | none |
+| Model-backed alpha (invariant 14) | `advisor.dmp`, `advisor.documentation`, `advisor.ethics`, `advisor.fairness`, `advisor.files`, `advisor.linking`, `advisor.metadata`, `advisor.policy`, `advisor.rights` |
 | Persona | `advisor.quality`, `advisor.repository`, `advisor.standards` |
-| Deterministic by design, or not an advisor | `advisor.linking`, `example.hello`, `orchestrator.model`, `orchestrator.stub` |
+| Deterministic by design, or not an advisor | `example.hello`, `orchestrator.model`, `orchestrator.stub` |
 
 What a persona that drafts project documents may infer, ask and write is in
 [Drafting documents](drafting.md).

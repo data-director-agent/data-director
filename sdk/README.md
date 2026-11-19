@@ -27,6 +27,7 @@ package.
 | `dd_sdk.sources` | `BuiltSource`, how an agent declares a source copy it builds outside git, and `dd-sources`, which prepares them all ([Evidence and grounding](../docs/specs/grounding.md)). |
 | `dd_sdk.registry` | What agents that read a registry share: `Query`, `Hit`, `SnapshotRef` and `RegistryUnavailable`; the snapshot tokeniser (`registry.tokenise`); the pinned-archive pipeline (`registry.pinned`); and FAIRsharing's sign-in, search and record reads (`registry.fairsharing`). |
 | `dd_sdk.explain` | `Rationale`, `Explanation`, `TemplateExplainer` and `ModelExplainer`, and the check that a model's rationale names only identifiers it was given ([Agents](../docs/specs/agents.md)). |
+| `dd_sdk.summary` | `TemplateSummariser`, `ModelSummariser`, `summarise` and `configured`: the barebones model path of an advisor whose work is otherwise exact, a model's summary beside the rules' findings that changes none of them ([Agents](../docs/specs/agents.md#model-backed-personas)). |
 
 ## What belongs here
 

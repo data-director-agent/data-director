@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-import time
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
@@ -139,16 +139,30 @@ def test_refreshes_from_several_threads_register_an_agent_once(tmp_path: Path) -
     apps: dict[str, Any] = {}
     config = write_config(tmp_path, [{"name": "hello", "url": "http://hello.test"}])
     reach = routed(apps)
+    threads = 4
+    arrived = threading.Semaphore(0)
+    refreshing, held = threading.Event(), threading.Event()
 
     def slow(base_url: str, timeout_s: float) -> httpx.AsyncClient:
-        time.sleep(0.05)  # long enough for every thread to be refreshing at once
+        # Hold the first refresh inside the factory until every thread has called refresh, so
+        # the others are queued behind it whatever the timing.
+        if refreshing.is_set() and not held.is_set():
+            held.set()
+            for _ in range(threads):
+                assert arrived.acquire(timeout=10), "a refreshing thread never arrived"
         client: httpx.AsyncClient = reach(base_url, timeout_s)
         return client
 
     registry = Registry.from_config(config, client_factory=slow)
     apps["http://hello.test"] = serve.app(HelloWorld(), base_url="http://hello.test")
-    with ThreadPoolExecutor(max_workers=4) as pool:
-        for refreshed in [pool.submit(registry.refresh) for _ in range(4)]:
+    refreshing.set()
+
+    def refresh() -> None:
+        arrived.release()
+        registry.refresh()
+
+    with ThreadPoolExecutor(max_workers=threads) as pool:
+        for refreshed in [pool.submit(refresh) for _ in range(threads)]:
             refreshed.result()  # raises what the refresh raised
 
     assert registry.ids() == ["example.hello"]

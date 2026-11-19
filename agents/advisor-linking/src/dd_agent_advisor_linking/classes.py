@@ -10,7 +10,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from dd_sdk.contract.models import Frozen, Grounded
+from dd_sdk.contract.models import Derivation, Frozen, Grounded
 
 
 class LinkCandidates(Frozen):
@@ -33,4 +33,6 @@ class RelatedLink(Frozen):
 class RelatedIdentifiers(Grounded):
     schema_class: Literal["RelatedIdentifiers"] = "RelatedIdentifiers"
     links: list[RelatedLink] = Field(default_factory=list)
+    summary: str | None = None
+    summary_derivation: Derivation | None = None
     limitations: list[str] = Field(default_factory=list)

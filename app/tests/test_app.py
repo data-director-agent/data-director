@@ -32,7 +32,7 @@ from support import (
     with_standards,
 )
 
-from dd_agent_advisor_quality.agent import build as build_quality
+from dd_agent_advisor_quality.factory import build as build_quality
 from dd_agent_advisor_standards import factory as standards
 from dd_agent_example_hello.agent import build as build_hello
 from dd_app import app as dd_app
@@ -327,7 +327,7 @@ def test_the_process_flow_is_the_blueprints(governance: Governance, dist: Path):
 def test_the_several_agents_fixture_is_what_the_server_says(env: Path, dist: Path):
     agents: list[Agent] = [
         build_hello(),
-        build_quality(),
+        build_quality({"DD_QUALITY_SUMMARISER": "template"}),
         AbstainingStub(),
         standards.build(),
     ]

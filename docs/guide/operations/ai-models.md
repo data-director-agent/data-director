@@ -22,7 +22,10 @@ one only while `deployment.yaml` names it.
 | `advisor.fairness` | `DD_FAIRNESS_WRITER` | Tailors the retrofit recommendation for each check a published record does not meet, from the record's metadata as given. Whether a check is met stays by rule. | `claude-sonnet-5-5` |
 | `advisor.ethics` | `DD_ETHICS_READER` | Reads a dataset's field names for sensitive data the keyword table missed. It can add flags and questions, never remove a keyword flag. | `claude-sonnet-5-5` |
 | `advisor.metadata` | `DD_METADATA_SUGGESTER` | Suggests values beside a metadata record's questions. It never writes a value into the record. | `claude-sonnet-5-5` |
-| `advisor.files`, `advisor.linking`, `advisor.quality`, `example.hello`, `orchestrator.stub` | none | Never calls a model. Exact work such as checksums and identifier syntax stays in code. | none |
+| `advisor.files` | `DD_FILES_SUMMARISER` | Writes a short summary beside the rules' findings about a file inventory. It cannot add, remove or change a finding. | `claude-sonnet-5-5` |
+| `advisor.linking` | `DD_LINKING_SUMMARISER` | Writes a short summary beside the rules' findings about the identifiers given. It cannot add, remove or change a finding. | `claude-sonnet-5-5` |
+| `advisor.quality` | `DD_QUALITY_SUMMARISER` | Writes a short summary beside the rules' completeness findings about a metadata record. It cannot add, remove or change a finding. | `claude-sonnet-5-5` |
+| `example.hello`, `orchestrator.stub` | none | Never calls a model; neither is a sub-agent. | none |
 
 For each advisor in the table, the setting is `model` unless you set it to `template`. `template`
 needs no key, calls no model and sends nothing to a provider. Whichever you choose, the agent's rules
@@ -160,6 +163,10 @@ steward, and to the institution's data protection officer, before turning any of
   of a sensitive dataset can themselves say something about the people in it, and the profile's
   `hosted_models` rule does not yet cover this input (TODO(#40)). Set `DD_ETHICS_READER=template`,
   or use a local model, if a hosted provider must not see them.
+- **The files, linking and quality advisors** each send what their rules found beside the input
+  they were given: each file's path, format and check, each identifier with what was found for it,
+  or a metadata record with its completeness findings. The model writes one summary and cannot
+  change a finding.
 
 The provider's retention terms govern what happens next. Some models require the provider to keep
 data, and an organisation under a zero-data-retention agreement gets an error on every turn from

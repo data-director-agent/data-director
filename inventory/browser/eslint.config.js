@@ -2,7 +2,7 @@ import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["coverage", "node_modules", "dist", ".cache", "playwright-report", "test-results"] },
+  { ignores: [".dependency-cruiser.cjs", "coverage", "node_modules", "dist", ".cache", "playwright-report", "test-results"] },
   js.configs.recommended,
   ...tseslint.configs.strict,
   {

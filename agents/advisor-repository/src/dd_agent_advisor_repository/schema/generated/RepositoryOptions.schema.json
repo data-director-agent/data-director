@@ -16,6 +16,7 @@
          "enum": [
             "mandated",
             "asked_about",
+            "in_plan",
             "recommended",
             "chosen"
          ],
@@ -108,7 +109,7 @@
                ]
             },
             "ranked_by": {
-               "description": "Why a recommended repository is on the shortlist and in its place, one sentence per ranking signal: the themes and kinds of data it matches, whether it is a generalist, run by the researcher's institution, or lacks the access the data needs. Empty when mandated, and for a repository asked about that the shortlist did not rank.",
+               "description": "Why a recommended repository is on the shortlist and in its place, one sentence per ranking signal: the themes and kinds of data it matches, whether it is a generalist, run by the researcher's institution, or lacks the access the data needs. Empty when mandated, and for a repository in the plan or asked about that the shortlist did not rank.",
                "items": {
                   "type": "string"
                },
@@ -202,7 +203,7 @@
          ]
       },
       "not_found": {
-         "description": "Mandated repositories, and repositories the researcher asked about, for which no single registry record was found.",
+         "description": "Mandated repositories, and repositories the data management plan names or the researcher asked about, for which no single registry record was found.",
          "items": {
             "type": "string"
          },

@@ -1,11 +1,13 @@
 # advisor.files
 
-**Alpha** (`0.2.0a1`), and a **mock**: it does not yet do the File Archivist's real work.
+**Alpha** (`0.2.0a1`), a model-backed alpha ([Agents](../../docs/specs/agents.md), invariant 14):
+it does not yet do the File Archivist's real work, and its model only writes a summary beside the
+rules' findings.
 
 The File Archivist is one of the personas of the agent roster ([Agents](../../docs/specs/agents.md)). It serves one step of the
 Blueprint's process flow:
 
-| Step | What the mock does |
+| Step | What it does |
 |---|---|
 | `preparation.files` (clean and version the data files) | Lists each file of the project's inventory with the format its PRONOM identification, media type or extension suggests, and whether the format is open, and the files a person should look at before deposit. |
 
@@ -19,7 +21,7 @@ media type, PRONOM identifiers and, for a table, its fields. The files themselve
 `extension`, `format_name`, `media_type`, `open_format`, what the judgement rests on
 (`judged_by`) and the PRONOM identifier it used (`pronom_id`); a `checks` list of the files a person should look at before deposit (a
 `FileCheck` each, with its `path`, `kind`, the word or name that `matched`, the `question` for a
-person and, for a copy, its `related_paths`); and a `limitations` list stating what the mock does
+person and, for a copy, its `related_paths`); a `summary` (below); and a `limitations` list stating what it does
 not do. A file whose PRONOM
 identifiers, media type and extension are all missing from the rule table gives the format
 `unknown` and `open_format` false. A file the inventory identified by PRONOM, but only as formats
@@ -28,18 +30,18 @@ the first identifier, so that it is not mistaken for a file nothing is known abo
 
 ## How it decides
 
-The mock looks up, in `formats.yaml`, the PRONOM identifiers (PUIDs such as `x-fmt/18`) the
+It looks up, in `formats.yaml`, the PRONOM identifiers (PUIDs such as `x-fmt/18`) the
 inventory gives, which `dd-inventory` read from the file's content with fido: the first one in the
 table decides. If there is none, it looks up the media type the inventory gives, then the file name's
 last extension, case ignored. A row of the table has a `pronom` list only where we are sure of its
-PUIDs, so a format without one is still found by media type or extension. It reads no file,
-consults no source and calls no model, so its grounding mode is `none` and it cites only its input.
+PUIDs, so a format without one is still found by media type or extension. It reads no file and
+consults no source, so its grounding mode is `input_only` and it cites only its input.
 
 ### Files for a person to look at
 
 The inventory never holds contents, so the problems a dataset most often hides (personal data in
 field notes, the coordinates of a sensitive site, a file under someone else's licence) cannot be
-found from it (#449). The mock lists instead the files whose names, size or digest call for a
+found from it (#449). It lists instead the files whose names, size or digest call for a
 person to look, by the rules in `hints.yaml`:
 
 | Kind | Called for by |
@@ -60,6 +62,23 @@ limitations say so. The app marks the same files in the inventory under **Files 
 a copy of these rules in `inventory/browser/src/hints.ts`; change both together. Content
 detection, and findings carried in the inventory itself, are #470 and #471
 ([Personal data](../../docs/specs/personal-data.md)).
+
+
+## Summary
+
+A summariser (`dd_sdk.summary`) writes a short `summary` beside the findings, with
+`summary_derivation` saying how it came about. `DD_FILES_SUMMARISER` (`factory.py`,
+`config/examples/agents.env`) chooses it:
+
+- `model` (default): a model is sent the findings (each file's path, format and check, never a file's contents) and writes the summary from
+  `system_prompt.md`. A reply that is missing, refused, or names a DOI, ORCID iD or web address
+  the findings do not give is replaced by the rules' own summary, marked `template`, as is a
+  model that cannot be reached. The model and its key are set as for every agent
+  ([AI models](../../docs/guide/operations/ai-models.md)). Left unset with no key, `dd.py start`
+  runs it with `template`.
+- `template`: the rules' own summary; calls no model and needs no key.
+
+The model changes no finding: each format and each check is decided by the rules above either way.
 
 ## What it does not do
 

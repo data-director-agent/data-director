@@ -1,0 +1,11 @@
+{
+  "schema_class": "RepositoryNeeds",
+  "themes": [
+    "social sciences"
+  ],
+  "data_kinds": [
+    "survey data",
+    "interview transcripts"
+  ],
+  "country": "GBR"
+}

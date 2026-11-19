@@ -1,7 +1,8 @@
 # advisor.linking
 
 **Alpha** (`0.2.0a1`, [Agents](../../docs/specs/agents.md)). It checks the form of identifiers and,
-where the deployment grants it a DOI source, looks DOIs up. It calls no model.
+where the deployment grants it a DOI source, looks DOIs up. A model writes only a summary beside
+its findings.
 
 The Linking Adviser helps a researcher link a dataset to the publications, people, organisations,
 grants and software around it (Blueprint R11), with persistent identifiers in a form ready for
@@ -29,7 +30,7 @@ one `RelatedLink` per identifier, with:
   the record's title and type; `resolved` is absent where no lookup was made;
 - `message`: what to check or how to record it, or why a lookup failed.
 
-It also lists, in `limitations`, what it did not do.
+It also gives a `summary` (below) and lists, in `limitations`, what it did not do.
 
 ## How it decides
 
@@ -67,3 +68,19 @@ nothing without one.
 - It recognises no other identifier, such as an arXiv id or an accession number.
 
 Resolving those identifiers is TODO(#360).
+
+## Summary
+
+A summariser (`dd_sdk.summary`) writes a short `summary` beside the findings, with
+`summary_derivation` saying how it came about. `DD_LINKING_SUMMARISER` (`factory.py`,
+`config/examples/agents.env`) chooses it:
+
+- `model` (default): a model is sent the findings (each identifier as given and what was found for it) and writes the summary from
+  `system_prompt.md`. A reply that is missing, refused, or names a DOI, ORCID iD or web address
+  the findings do not give is replaced by the rules' own summary, marked `template`, as is a
+  model that cannot be reached. The model and its key are set as for every agent
+  ([AI models](../../docs/guide/operations/ai-models.md)). Left unset with no key, `dd.py start`
+  runs it with `template`.
+- `template`: the rules' own summary; calls no model and needs no key.
+
+The model changes no finding: each link is recognised, checked and looked up by the rules above either way.
