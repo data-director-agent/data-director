@@ -17,6 +17,13 @@ Facts checked on 2026-11-19:
 - `/mcp`, `/sse`, `/health` and `/.well-known/mcp` all return the same page, and a POST to `/mcp`
   returns 405. **The machine endpoint is therefore not discoverable from outside.**
 
+Related, from #8: FAIRsharing also publishes
+[FAIRsharing/fairsharing-mcp](https://github.com/FAIRsharing/fairsharing-mcp), which wraps the
+GraphQL API in 97 tools, authenticates with a free API key and is licensed under the GPL. It is not
+yet known whether FRED is that server hosted, a fork of it, or a separate build. If FRED is
+GPL-licensed, we may run it as a separate process but must not import or vendor it into our MIT
+code (#8 asks for that decision). Phase 0 is the spike #8 already describes, widened to FRED.
+
 Open questions, all of which block the design below. Each goes to the FAIRsharing team before
 any code is written:
 
@@ -28,6 +35,7 @@ any code is written:
 | Q4 | Is authentication needed, and does the existing FAIRsharing login apply? | Decides credential handling (security.md, TODO(#883)). |
 | Q5 | Licence and terms for the returned records, rate limits and an SLA. | The snapshot is CC BY-SA 4.0. Pinning, caching and quoting depend on the answer. |
 | Q6 | Is a pinned or versioned copy of the data behind the server available? | Without one, the source check cannot resolve `tool:fairsharing/<id>` and runs stay unresolved. |
+| Q8 | What is FRED's relationship to `fairsharing-mcp`, and what is its licence? | Decides whether we may only run it, or also reuse code (#8). |
 | Q7 | Does FRED expose natural-language tools (an LLM inside the server)? | A server that calls its own model sends our query text to a further third party. |
 
 ## 2. Decision: FRED is an MCP source behind the gateway, not a persona
@@ -61,7 +69,7 @@ criteria written when the issue is made. Issue numbers are to be filed; none is 
 
 ### Phase 0: Discovery (no code)
 
-- Get answers to Q1 to Q7 from FAIRsharing. Record them in an RFC or a spec change, as the
+- Get answers to Q1 to Q8 from FAIRsharing. Record them in an RFC or a spec change, as the
   planning guide requires for a decision that others depend on.
 - Run `tools/list` against the real endpoint from a development machine. Save the tool
   definitions as a fixture.
@@ -142,6 +150,6 @@ that goes.
 
 ## 7. Immediate next steps
 
-1. Contact the FAIRsharing and Oxford team with Q1 to Q7.
+1. Contact the FAIRsharing and Oxford team with Q1 to Q8.
 2. File one issue per phase and link them to #8 and #1143.
 3. Do Phase 0, then decide go or no-go before any code.
