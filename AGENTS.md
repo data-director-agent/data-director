@@ -31,6 +31,30 @@ Put code in the package whose job it is, not the one you have open; the full tab
 - Each member imports only what it declares and reads no path outside itself
   (`scripts/check_boundaries.py`).
 
+## Build for reuse
+
+The work here is meant to outlast this repository: each capability should be publishable on its
+own, as part of an open ecosystem of research data management agentic tools. So, when you build or
+change anything, ask first whether the useful part needs the Data Director contract at all
+([System and boundaries](docs/specs/system.md)).
+
+- Put contract-free work in a framework-neutral, separately publishable asset: a library, an MCP
+  server (`mcp-<name>`), or an Agent Skill for know-how and procedure that a model follows. An
+  agent then wraps it and adds only what the contract needs (classes, grounding, evidence). A
+  lookup in a public registry is an MCP server or library first and an agent second.
+- Prefer open, standard interfaces over private ones: A2A for agents, MCP for tools and data,
+  Agent Skills for instructions, JSON Schema, LinkML and SHACL for formats. Do not invent a
+  Data Director-specific mechanism where one exists.
+- Keep `sdk/` small and contract-only. A helper that does not speak the contract belongs in a
+  neutral library, not in `dd_sdk`. An agent imports nothing from another agent, the harness, the
+  workbench or the app, so that it can be lifted out whole.
+- Keep a unit single-purpose, with its own tests, README, licence and version, and no dependency
+  on a path outside its directory, so that moving it to its own repository is a copy.
+- The orchestrator is the exception: it has no MCP servers, web search or Skills of its own
+  ([Orchestration](docs/specs/orchestration.md)). An agent it delegates to may use all of them.
+- Credit what you reuse, and record in the unit's README what it depends on and what is open
+  about it. If you cannot say why a unit could not be reused elsewhere, make it so.
+
 ## Commands
 
 Run from the root; config for pytest, ruff and mypy is in the root `pyproject.toml`.
