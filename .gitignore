@@ -241,3 +241,6 @@ app/config/profile.yaml
 
 # mutmut working copies (.github/workflows/mutation.yml)
 mutants/
+
+# Load-test results (loadtest/README.md)
+loadtest/out/

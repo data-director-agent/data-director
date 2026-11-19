@@ -192,4 +192,5 @@ TODO(#35).
   stopped?"), which can build on the stopping score.
 - TODO(#35, #42): how to benchmark Data Director beyond seeded defects and the harness's own
   performance ([Benchmark](#benchmark)): agents, models and whole workflows, at deployment, and
-  evaluation of the guardrails.
+  evaluation of the guardrails. Load on the whole stack, with fake models, is measured by
+  [`loadtest/`](../../loadtest/README.md).
