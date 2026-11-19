@@ -52,14 +52,42 @@ a newer inventory is added beside the earlier one, and the latest counts. An inv
 about your files and never their content. When an agent uses an AI model, the facts it is given
 from the inventory can be sent to that model's provider (see AI models, below).
 
+**Projects**, the first item in the menu at the top, lists your projects, the one you worked in
+most recently first. Each is named after its first conversation, and says how many files its
+inventory describes and how many of its documents are waiting for you to review. Select one to
+read its documents and decide on them.
+
+A project's page lists its documents on the left, those waiting for you first, and opens the one
+you choose beside them. **Preview** shows the document laid out, with a data dictionary as a
+table. **Source** shows the exact text your decision is on, which is what goes into the deposit
+package. **Versions** lists each earlier version, what was decided on it and why, and what each
+version changed. Your decision form is under the document. If you edit the text, the preview
+shows your version before you approve it.
+
+### Deleting a project
+
+If you created a project, its page has **Delete project**. Type the project's name to confirm,
+and it leaves your lists, with its conversations, and takes no new work. Deleting hides a project
+and does not erase it: its record, documents and decisions are kept, and a deposit package
+already built or downloaded is not recalled. Until the day the dialog names, 30 days unless your
+deployment sets another period, you can bring it back as it was: on **Projects**, under
+**Recently deleted**, select **Restore**.
+
+### Deleting a conversation
+
+Each conversation in the list beside the open one has a delete button. Confirm in the dialog, and
+the conversation leaves the lists, yours and those of everyone working on its project, and takes
+no new message. You can delete a conversation you started, and the project's owner can delete any
+of its conversations. As with a project, nothing is erased: its turns and runs are kept. Until the
+day the dialog names, you can bring it back as it was: on the project's page, beneath its
+conversations, under **Recently deleted**, select **Restore**.
+
 ## Where you can see it
 
 - **After a run**, the page shows the stages it went through, the outcome, the result and the
   evidence.
 - **In a conversation**, each step handed to an agent appears as a card. Opening the card shows
   that run in full.
-- **On an agent's History tab**, every stored run for that agent is listed, newest first. Each
-  reopens in the same view as when it ran.
 - **Past conversations** reopen with their results in place.
 
 ## AI models
@@ -77,18 +105,26 @@ server or on your own machine. They are not sent to the Data Director project.
 
 Where the deployment signs people in, you sign in with your ORCID iD, and each run is recorded as
 done for you, with ORCID named as the one that vouched for who you are. Data Director asks ORCID
-for your iD and your name only. Where nobody signs in, the banner says so, and every run is
+for your iD and your name only; select your name in the banner to see them on your profile page. Where nobody signs in, the banner says so, and every run is
 recorded as acting for the person who set up the deployment.
 
-In this version anyone who can open the app, or who is signed in to it, can see every run and
-conversation in it (TODO(#153)). Do not enter anything you would not want others with access to
-the app to read.
+Where people sign in, each person sees only their own runs, conversations and projects. A
+project's documents, inventory and progress can be read only by the person who created it, even by
+someone else who has its address; sharing a project with colleagues is TODO(#389).
 
 If you report a problem from the app, the report includes what you type and, only if you agree,
 the identifiers of the run and conversation. It never includes your inputs or results.
 
+## The rules each run is held to
+
+Every run is checked against the deployment's policy before it starts, and its record names that
+policy, for example `profile:data-director-app@v7`. Select **Policy** in the banner to see it: which
+agents may run, what each is allowed to do, and which actions need a data steward's approval.
+A data steward sets the policy; it cannot be changed from the app.
+
 ## How long records are kept
 
-Records are kept until whoever runs the deployment removes them. The app does not yet let you
-delete a run or a conversation, and there is no automatic expiry (TODO(#41, #156)). Ask the
+Records are kept until whoever runs the deployment removes them. Deleting a project hides it but
+keeps its record (see Projects, above). The app does not yet let you delete a run or a
+conversation, and there is no automatic expiry (TODO(#41, #156)). Ask the
 person who runs your deployment if you need a record removed.

@@ -1,0 +1,21 @@
+{
+  "query": "",
+  "repositories": [
+    {
+      "additional_names": [],
+      "doi": null,
+      "name": "ORDA - The University of Sheffield Research Data Catalogue and Repository",
+      "re3data_id": "r3d100012124",
+      "url": "https://orda.shef.ac.uk/"
+    },
+    {
+      "additional_names": [],
+      "doi": null,
+      "name": "Zenodo",
+      "re3data_id": "r3d100010468",
+      "url": "https://zenodo.org/"
+    }
+  ],
+  "snapshot_ref": "re3data:export:2026-11",
+  "suggested": true
+}

@@ -1,0 +1,24 @@
+{
+   "@context": {
+      "@vocab": "https://w3id.org/data-director/agents/linking/",
+      "LinkCandidates": {
+         "@id": "https://w3id.org/data-director/agents/linking/LinkCandidates"
+      },
+      "dcat": "http://www.w3.org/ns/dcat#",
+      "dcterms": "http://purl.org/dc/terms/",
+      "dd": "https://w3id.org/data-director/",
+      "identifiers": {
+         "@id": "https://w3id.org/data-director/agents/linking/identifiers"
+      },
+      "linking": "https://w3id.org/data-director/agents/linking/",
+      "linkml": "https://w3id.org/linkml/",
+      "prov": "http://www.w3.org/ns/prov#",
+      "schema": "http://schema.org/",
+      "schema_class": {
+         "@id": "https://w3id.org/data-director/schema_class"
+      },
+      "shex": "http://www.w3.org/ns/shex#",
+      "spdx": "http://spdx.org/rdf/terms#",
+      "xsd": "http://www.w3.org/2001/XMLSchema#"
+   }
+}

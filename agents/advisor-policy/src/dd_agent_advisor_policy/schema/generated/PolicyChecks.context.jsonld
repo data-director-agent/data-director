@@ -1,0 +1,188 @@
+{
+   "@context": {
+      "@vocab": "https://w3id.org/data-director/agents/policy/",
+      "AmbiguousActor": {
+         "@id": "https://w3id.org/data-director/agents/policy/AmbiguousActor"
+      },
+      "GroundingRef": {
+         "@id": "https://w3id.org/data-director/GroundingRef"
+      },
+      "MatchedPolicy": {
+         "@id": "https://w3id.org/data-director/agents/policy/MatchedPolicy"
+      },
+      "Obligation": {
+         "@id": "https://w3id.org/data-director/agents/policy/Obligation"
+      },
+      "PolicyChecks": {
+         "@id": "https://w3id.org/data-director/agents/policy/PolicyChecks"
+      },
+      "PolicyConflict": {
+         "@id": "https://w3id.org/data-director/agents/policy/PolicyConflict"
+      },
+      "PolicyReading": {
+         "@id": "https://w3id.org/data-director/agents/policy/PolicyReading"
+      },
+      "RepositoryRef": {
+         "@id": "https://w3id.org/data-director/agents/policy/RepositoryRef"
+      },
+      "ResolvedFunder": {
+         "@id": "https://w3id.org/data-director/agents/policy/ResolvedFunder"
+      },
+      "ResolvedJournal": {
+         "@id": "https://w3id.org/data-director/agents/policy/ResolvedJournal"
+      },
+      "SearchedSummary": {
+         "@id": "https://w3id.org/data-director/agents/policy/SearchedSummary"
+      },
+      "StatedObligation": {
+         "@id": "https://w3id.org/data-director/agents/policy/StatedObligation"
+      },
+      "actor": {
+         "@id": "https://w3id.org/data-director/agents/policy/actor"
+      },
+      "ambiguous": {
+         "@id": "https://w3id.org/data-director/agents/policy/ambiguous",
+         "@type": "@id"
+      },
+      "conflicts": {
+         "@id": "https://w3id.org/data-director/agents/policy/conflicts",
+         "@type": "@id"
+      },
+      "content_hash": {
+         "@id": "https://w3id.org/data-director/content_hash"
+      },
+      "crossref_funder_id": {
+         "@id": "https://w3id.org/data-director/agents/policy/crossref_funder_id"
+      },
+      "dcat": "http://www.w3.org/ns/dcat#",
+      "dcterms": "http://purl.org/dc/terms/",
+      "dd": "https://w3id.org/data-director/",
+      "derivation": {
+         "@id": "https://w3id.org/data-director/agents/policy/derivation"
+      },
+      "description": {
+         "@id": "https://w3id.org/data-director/agents/policy/description"
+      },
+      "dropped": {
+         "@id": "https://w3id.org/data-director/agents/policy/dropped"
+      },
+      "funders": {
+         "@id": "https://w3id.org/data-director/agents/policy/funders",
+         "@type": "@id"
+      },
+      "grounded_on": {
+         "@id": "https://w3id.org/data-director/grounded_on",
+         "@type": "@id"
+      },
+      "issn": {
+         "@id": "https://w3id.org/data-director/agents/policy/issn"
+      },
+      "journals": {
+         "@id": "https://w3id.org/data-director/agents/policy/journals",
+         "@type": "@id"
+      },
+      "kind": {
+         "@id": "https://w3id.org/data-director/agents/policy/kind"
+      },
+      "limitations": {
+         "@id": "https://w3id.org/data-director/agents/policy/limitations"
+      },
+      "linkml": "https://w3id.org/linkml/",
+      "mandated_repositories": {
+         "@id": "https://w3id.org/data-director/agents/policy/mandated_repositories",
+         "@type": "@id"
+      },
+      "match_derivation": {
+         "@id": "https://w3id.org/data-director/agents/policy/match_derivation"
+      },
+      "name": {
+         "@id": "http://schema.org/name"
+      },
+      "no_record": {
+         "@id": "https://w3id.org/data-director/agents/policy/no_record"
+      },
+      "notes": {
+         "@id": "https://w3id.org/data-director/agents/policy/notes"
+      },
+      "obligations": {
+         "@id": "https://w3id.org/data-director/agents/policy/obligations",
+         "@type": "@id"
+      },
+      "policies": {
+         "@id": "https://w3id.org/data-director/agents/policy/policies",
+         "@type": "@id"
+      },
+      "policies_retrieved": {
+         "@id": "https://w3id.org/data-director/agents/policy/policies_retrieved"
+      },
+      "policy": "https://w3id.org/data-director/agents/policy/",
+      "prov": "http://www.w3.org/ns/prov#",
+      "publisher": {
+         "@id": "https://w3id.org/data-director/agents/policy/publisher"
+      },
+      "queries": {
+         "@id": "https://w3id.org/data-director/agents/policy/queries"
+      },
+      "quote": {
+         "@id": "https://w3id.org/data-director/agents/policy/quote"
+      },
+      "rationale": {
+         "@id": "https://w3id.org/data-director/agents/policy/rationale"
+      },
+      "rationale_derivation": {
+         "@id": "https://w3id.org/data-director/agents/policy/rationale_derivation"
+      },
+      "re3data_id": {
+         "@id": "https://w3id.org/data-director/agents/policy/re3data_id"
+      },
+      "readings": {
+         "@id": "https://w3id.org/data-director/agents/policy/readings",
+         "@type": "@id"
+      },
+      "reason": {
+         "@id": "https://w3id.org/data-director/agents/policy/reason"
+      },
+      "recorded_as": {
+         "@id": "https://w3id.org/data-director/agents/policy/recorded_as"
+      },
+      "registry": {
+         "@id": "https://w3id.org/data-director/agents/policy/registry"
+      },
+      "role": {
+         "@id": "https://w3id.org/data-director/agents/policy/role"
+      },
+      "schema": "http://schema.org/",
+      "schema_class": {
+         "@id": "https://w3id.org/data-director/schema_class"
+      },
+      "scope": {
+         "@id": "https://w3id.org/data-director/agents/policy/scope"
+      },
+      "searched": {
+         "@id": "https://w3id.org/data-director/agents/policy/searched",
+         "@type": "@id"
+      },
+      "shex": "http://www.w3.org/ns/shex#",
+      "snapshot_ref": {
+         "@id": "https://w3id.org/data-director/agents/policy/snapshot_ref"
+      },
+      "source_id": {
+         "@id": "https://w3id.org/data-director/source_id"
+      },
+      "spdx": "http://spdx.org/rdf/terms#",
+      "stated": {
+         "@id": "https://w3id.org/data-director/agents/policy/stated",
+         "@type": "@id"
+      },
+      "status": {
+         "@id": "https://w3id.org/data-director/agents/policy/status"
+      },
+      "strength": {
+         "@id": "https://w3id.org/data-director/agents/policy/strength"
+      },
+      "value": {
+         "@id": "https://w3id.org/data-director/agents/policy/value"
+      },
+      "xsd": "http://www.w3.org/2001/XMLSchema#"
+   }
+}

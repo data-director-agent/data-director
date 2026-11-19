@@ -330,3 +330,30 @@ def test_a_malformed_edit_records_nothing(
     with pytest.raises(ProjectError, match="UUIDv7"):
         store.edit(project, "../x", 1, "0" * 64, "# New\n", acted_for=DECIDER, caused_by="t")
     assert store.events(project) == before
+
+
+def test_the_current_version_is_the_latest_of_the_document_with_its_decision(
+    store: ProjectStore, project: str, draft: Envelope
+) -> None:
+    assert store.current_version(project, DocumentKind.README) is None
+    payload = {**draft.to_document()["payload"], "document_title": "About the soil cores"}
+    titled = Envelope.model_validate({**draft.to_document(), "payload": payload})
+    first = store.record_draft(project, titled)
+    decide(store, project, verdict=REJECTED, reason="Too short.")
+
+    given = store.current_version(project, DocumentKind.README)
+
+    assert given == {
+        "version_ref": first.model_dump(mode="json"),
+        "document_title": "About the soil cores",
+        "media_type": latest(store, project)["media_type"],
+        "document_text": latest(store, project)["text"],
+        "version_state": REJECTED,
+        "decision_reason": "Too short.",
+    }
+    assert store.current_version(project, DocumentKind.README, first.document_id) == given
+    assert store.current_version(project, DocumentKind.DATA_DICTIONARY) is None
+    with pytest.raises(ProjectError, match="is a readme, not a data_dictionary"):
+        store.current_version(project, DocumentKind.DATA_DICTIONARY, first.document_id)
+    with pytest.raises(ProjectError, match="has no document"):
+        store.current_version(project, DocumentKind.README, "0" * 8 + first.document_id[8:])

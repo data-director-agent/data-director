@@ -9,7 +9,9 @@ picture and adds detail one level at a time, so a reader can stop at the level t
    runs.
 4. [Conversations and delegation](#4-conversations-and-delegation): how the orchestrator uses
    other agents.
-5. [Configuration and deployment](#5-configuration-and-deployment): where it runs and who
+5. [The loop, from files to package](#5-the-loop-from-files-to-package): the whole of the
+   minimum loop, followed through the app.
+6. [Configuration and deployment](#6-configuration-and-deployment): where it runs and who
    decides what it may do.
 
 The reasons behind each choice are in the [specifications](specs/README.md). Terms are defined in the
@@ -173,9 +175,9 @@ What each step is for:
   consistency check, not proof.
 - **Source check.** Re-hashes each cited record against a pinned copy of its source, which does
   verify the citation ([Evidence and grounding](specs/grounding.md)).
-- **Run store.** Appends the envelope to `invocations.jsonl` and writes a folder per run with the
-  request, envelope, trace, both checks' verdicts and a
-  [Process Run Crate](specs/contract.md).
+- **Run store.** Keeps the envelope, the request, the trace, both checks' verdicts and a
+  [Process Run Crate](specs/contract.md) behind the `RunStorage` protocol ([Storage](specs/storage.md));
+  the file backend writes `invocations.jsonl` and a folder per run.
 
 A run that belongs to a project is also given the project facts its input class asks for. The
 conductor puts them into the input, so the agent never reads the project store itself. The
@@ -183,16 +185,15 @@ conductor puts them into the input, so the agent never reads the project store i
 added, a document uploaded, a repository chosen) and any uploaded documentation, kept by digest.
 It holds an inventory of the research data files, made where the data live, never the files
 themselves. Which project content may go to an agent that calls a hosted model is the profile's
-decision ([Projects](specs/projects.md)). The inventory is made by
+decision, its `hosted_models` ([Projects](specs/projects.md)). The inventory is made by
 [`dd-inventory`](../inventory/README.md) and kept in the project store
-([projects](../harness/docs/projects.md)); giving agents the project's facts is not built yet
-(#394).
+([projects](../harness/docs/projects.md)); giving a drafter the version it regenerates is not
+built yet (#394).
 
 A **project document** (a metadata record, a README, a data dictionary) is a `Document` payload.
 When a run in a project returns one, the conductor adds it to the log as a new version. A
 person's edit is a version too. Each version is proposed, approved or rejected on its own, and
-none is removed ([Projects](specs/projects.md); the conductor recording a run's draft is not
-built yet, #394). A person approves or rejects the latest version, with a reason to reject or
+none is removed ([Projects](specs/projects.md)). A person approves or rejects the latest version, with a reason to reject or
 edit, and the harness records the decision in the log under the principal who made it. The app
 only shows it, at `/projects/{project_id}`, and nothing resumes a run
 ([Projects](specs/projects.md)).
@@ -213,8 +214,9 @@ formats, sizes and licences it accepts. The harness, not an agent, checks the pr
 them and writes a SHACL Validation Report. Only from a report with no violation does it build the package: an RO-Crate
 of the dataset that holds the approved documents, the inventory, the report and the audit trail,
 and no data files. The researcher adds the files when depositing
-([Deposit](specs/deposit.md)). Recording the choice is
-built; validation and the package are not yet, #199, #202.
+([Deposit](specs/deposit.md)). Choosing the repository, validation and the package are built in
+the harness and its command line, and in the app, which calls the harness in process and lets
+the researcher download the package.
 
 If a step refuses, the agent's result is withheld but the run is still recorded, and the person
 gets an envelope that says why. Only a caller's own mistake (a malformed request, a reused
@@ -270,7 +272,59 @@ sequenceDiagram
 The rules are in [Orchestration](specs/orchestration.md) and
 [`conductor.md`](../harness/docs/conductor.md#delegation).
 
-## 5. Configuration and deployment
+## 5. The loop, from files to package
+
+The minimum loop takes a researcher from their files to a package they can deposit. It is the
+worked example of everything above: each step is a route of the app, which either runs an agent
+through the conductor or calls the harness in process, and each leaves an event in the project's
+log. [`app/tests/test_minimum_loop.py`](../app/tests/test_minimum_loop.py) runs the whole loop
+in CI on the in-tree agents' deterministic paths, and checks the package's audit trail.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor R as Researcher
+    participant App as App server
+    participant C as Conductor
+    participant D as Orchestrator
+    participant X as Drafter
+    participant L as Project log
+
+    R->>R: dd-inventory on their folder
+    R->>App: turn with the inventory
+    App->>L: inventory_added
+    R->>App: choose ORDA
+    App->>L: repository_chosen
+    R->>App: turn choosing a drafting step
+    App->>C: Message for the orchestrator
+    C->>D: run
+    D->>C: delegate a DraftRequest
+    C->>X: run, with the project's inventory and requirements
+    X-->>C: Document
+    C->>L: document_version_added (proposed)
+    R->>App: approve, or edit and approve
+    App->>L: document_version_added (the edit), document_version_decided
+    R->>App: validate, then package
+    App->>L: project_validated, package_built
+    App-->>R: the package, by its digest
+```
+
+| Step | The researcher | Route | Done by | In the log |
+|---|---|---|---|---|
+| Inventory | Scans their folder with `dd-inventory` and attaches the result to a turn. No data file leaves their computer. | `POST /api/conversations/{id}/turns` | The harness's project store | `inventory_added` |
+| Choose a repository | Chooses by re3data identifier; the requirements are the deployment's DataCite set merged with ORDA's override. | `PUT /api/projects/{id}/repository` | The harness | `repository_chosen` |
+| Draft | Chooses a drafting step the orchestrator offers. The orchestrator delegates a `DraftRequest`, and the conductor fills it with the project's inventory, requirements and latest approved record. | `POST /api/conversations/{id}/turns` | `advisor.metadata` (metadata record), `advisor.documentation` (README, data dictionary) | `document_version_added`, naming the run that drafted it |
+| Check and approve | Approves each version, or edits it and approves the edit, with a reason. | `POST /api/projects/{id}/documents/{document_id}/decisions` | The harness | `document_version_added` for an edit, `document_version_decided` |
+| Validate | Checks the project against the repository's requirements. | `POST /api/projects/{id}/validation` | The harness (SHACL) | `project_validated` |
+| Package | Builds the package and downloads it. | `POST /api/projects/{id}/package` | The harness | `package_built` |
+
+The package's audit trail is the project log itself (`project-log.jsonl`), and, in its root
+`ro-crate-metadata.json`, a `CreateAction` for each run behind an approved version, with that
+run's crate under `runs/`, and an `AssessAction` for each decision, made by the researcher
+([Deposit](specs/deposit.md)). Nothing in the loop deposits: the researcher uploads the package
+and their files to the repository themselves.
+
+## 6. Configuration and deployment
 
 ### The deployment decides
 
@@ -281,7 +335,7 @@ The harness ships no profile, agent list or source list. Each comes from the dep
 |---|---|
 | `DD_PROFILE` | The institutional profile: which agents may run, and with what approval. |
 | `DD_AGENTS_CONFIG` | The list of agent URLs to read cards from. |
-| `DD_SOURCES_CONFIG` | The pinned source copies the source check uses. |
+| `DD_SOURCES_CONFIG` | The pinned source copies the source check uses, and the re3data export a chosen repository is read from. |
 | `DD_RUNS_DIR` | Where runs are written. |
 | `DD_PROJECTS_DIR` | Where project records and uploaded documentation are kept ([Projects](specs/projects.md), not built yet). |
 | `DD_REPOSITORIES_DIR` | The requirement sets for metadata standards and repository overrides ([Deposit](specs/deposit.md)). Only `dd-harness project choose-repository` reads them so far. |
@@ -302,7 +356,7 @@ deployment is one Ubuntu VM that pulls `main` and serves it once CI has passed
 flowchart LR
     browser(["Browser"])
     subgraph vm["Ubuntu VM"]
-        nginx["NGINX<br/>HTTPS, password,<br/>/a2a closed"]
+        nginx["NGINX<br/>HTTPS,<br/>/a2a closed"]
         app["data-director-app<br/>127.0.0.1:7860"]
         agents["data-director-agent@…<br/>hello :8101, quality :8102,<br/>standards :8105, director :8106"]
         runs[("/var/lib/data-director/runs")]
@@ -319,9 +373,9 @@ flowchart LR
     timer -- "fetch, build, switch" --> github
 ```
 
-The app and agents listen on loopback only, and NGINX asks for a password, because callers are
-not yet authenticated: every run acts for the operator configured on the VM (#17). Do not expose
-the app or the agents beyond a trusted network until that is done. The VM holds no research
+The app and agents listen on loopback only. The app signs people in with ORCID and answers 401 to
+a request without a session; an agent reached directly carries no sign-in (#17), so only NGINX
+is exposed. The VM holds no research
 data: a project there holds only an inventory of its files and any uploaded documentation
 ([Projects](specs/projects.md)).
 

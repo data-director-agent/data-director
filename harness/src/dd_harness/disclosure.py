@@ -23,9 +23,9 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Literal
 
-from dd_harness.projects import APPROVED, PROPOSED, ProjectStore
+from dd_harness.projects import APPROVED, PROPOSED
 from dd_harness.provenance import AGENT_BASE
-from dd_harness.store import RunStore
+from dd_harness.storage import ProjectDocuments, RunStorage
 from dd_sdk.contract.models import now
 
 # Where a model is named, beside the agents (TODO(#3): the w3id namespace is not yet registered).
@@ -210,7 +210,7 @@ class Disclosure:
         return {"@context": CONTEXT, "@graph": list(graph.values())}
 
 
-def disclose(projects: ProjectStore, runs: RunStore, project_id: str) -> Disclosure:
+def disclose(projects: ProjectDocuments, runs: RunStorage, project_id: str) -> Disclosure:
     """The disclosure of a project's approved documents. Raises `UnknownProjectError` for an
     unknown project."""
     found: list[DocumentDisclosure] = []
@@ -226,9 +226,9 @@ def disclose(projects: ProjectStore, runs: RunStore, project_id: str) -> Disclos
 
 
 def _disclose(
-    runs: RunStore, document: dict[str, Any], version: dict[str, Any]
+    runs: RunStorage, document: dict[str, Any], version: dict[str, Any]
 ) -> DocumentDisclosure:
-    chain = _chain(document, version)
+    chain = version_chain(document, version)
     drafted = next((v for v in reversed(chain) if v.get("drafted_by")), None)
     draft = _draft(runs, drafted["drafted_by"]) if drafted else None
     after = chain[chain.index(drafted) + 1 :] if drafted else chain
@@ -260,7 +260,7 @@ def _disclose(
     )
 
 
-def _chain(document: dict[str, Any], version: dict[str, Any]) -> list[dict[str, Any]]:
+def version_chain(document: dict[str, Any], version: dict[str, Any]) -> list[dict[str, Any]]:
     """The versions from the first a version revises back to, to the version, oldest first."""
     by_number = {v["version"]: v for v in document["versions"]}
     chain = [version]
@@ -271,12 +271,12 @@ def _chain(document: dict[str, Any], version: dict[str, Any]) -> list[dict[str, 
     return chain
 
 
-def _draft_of(runs: RunStore, version: dict[str, Any]) -> Draft | None:
+def _draft_of(runs: RunStorage, version: dict[str, Any]) -> Draft | None:
     drafted_by = version.get("drafted_by")
     return _draft(runs, drafted_by) if drafted_by else None
 
 
-def _draft(runs: RunStore, drafted_by: dict[str, Any]) -> Draft:
+def _draft(runs: RunStorage, drafted_by: dict[str, Any]) -> Draft:
     envelope = runs.get(drafted_by["invocation_id"]) or {}
     telemetry = envelope.get("telemetry", {})
     models = tuple(
@@ -334,7 +334,7 @@ def _sentence_end(text: str) -> str:
 def _version_nodes(put: Any, d: DocumentDisclosure, link: dict[str, Any]) -> None:
     """The PROV nodes for one version of the chain: the version, what generated it, and, for the
     approved version, its approval."""
-    vid = _version_id(link["document_id"], link["version"])
+    vid = version_id(link["document_id"], link["version"])
     node: dict[str, Any] = {
         "@id": vid,
         "@type": ["prov:Entity", "schema:CreativeWork"],
@@ -344,7 +344,7 @@ def _version_nodes(put: Any, d: DocumentDisclosure, link: dict[str, Any]) -> Non
         "schema:version": link["version"],
     }
     if revises := link.get("revises"):
-        node["prov:wasRevisionOf"] = {"@id": _version_id(link["document_id"], revises["version"])}
+        node["prov:wasRevisionOf"] = {"@id": version_id(link["document_id"], revises["version"])}
     draft: Draft | None = link["draft"]
     if draft is not None:
         agent = AGENT_BASE + draft.agent_id
@@ -384,7 +384,7 @@ def _version_nodes(put: Any, d: DocumentDisclosure, link: dict[str, Any]) -> Non
             if m.called_at:
                 call["prov:startedAtTime"] = _datetime(m.called_at)
             if m.prompt_digest:
-                prompt = _ni(m.prompt_digest)
+                prompt = ni(m.prompt_digest)
                 put(
                     {
                         "@id": prompt,
@@ -450,11 +450,11 @@ def _person(put: Any, principal: dict[str, Any]) -> str:
     return str(principal["principal_id"])
 
 
-def _version_id(document_id: str, version: int) -> str:
+def version_id(document_id: str, version: int) -> str:
     return f"urn:uuid:{document_id}#v{version}"
 
 
-def _ni(digest: str) -> str:
+def ni(digest: str) -> str:
     """The RFC 6920 `ni` URI of a SHA-256 hex digest."""
     raw = bytes.fromhex(digest)
     return "ni:///sha-256;" + base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")

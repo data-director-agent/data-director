@@ -1,0 +1,32 @@
+{
+  "summary": "An inventory lists the files in a folder of research data, with their sizes, formats and table columns, and never what is in them; you make it on your own computer, and your data never leave it.",
+  "uvGuide": "https://docs.astral.sh/uv/getting-started/installation/",
+  "systems": [
+    {
+      "id": "windows",
+      "name": "Windows",
+      "terminal": "Open PowerShell: select Start, type PowerShell and press Enter.",
+      "install": "powershell -ExecutionPolicy ByPass -c \"irm https://astral.sh/uv/install.ps1 | iex\"",
+      "run": "uvx data-director-inventory path\\to\\dataset -o inventory.json"
+    },
+    {
+      "id": "macos",
+      "name": "macOS",
+      "terminal": "Open Terminal: press Command and Space, type Terminal and press Return.",
+      "install": "curl -LsSf https://astral.sh/uv/install.sh | sh",
+      "run": "uvx data-director-inventory path/to/dataset -o inventory.json"
+    },
+    {
+      "id": "linux",
+      "name": "Linux",
+      "terminal": "Open a terminal. On a server or a cluster, sign in to it as you usually do.",
+      "install": "curl -LsSf https://astral.sh/uv/install.sh | sh",
+      "run": "uvx data-director-inventory path/to/dataset -o inventory.json"
+    }
+  ],
+  "steps": {
+    "install": "Install uv, a tool that installs and runs Python programs. You need do this only once. Then close the terminal and open a new one, so that it finds uv.",
+    "run": "Run the inventory, replacing the path with the folder that holds your data. On your own computer you can drag the folder onto the terminal to type its path.",
+    "after": "It writes inventory.json in the folder where you ran it. A large dataset can take a while, because every file is read to compute its digest. The command sends nothing anywhere."
+  }
+}

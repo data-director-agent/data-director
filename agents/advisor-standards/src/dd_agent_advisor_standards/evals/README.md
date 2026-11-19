@@ -3,10 +3,11 @@
 A seeded-defect evaluation of `advisor.standards` on Inspect AI
 ([Evaluation and conformance](../../../../../docs/specs/evaluation.md)). Each case takes the
 soil-chemistry sample profile, breaks it in one registered way (`defects.py`), and states what the standards advisor
-should then do (`cases.yaml`). Every case goes through the workbench conductor, so the policy
+should then do (`cases.yaml`). Every case goes through the harness's conductor, so the policy
 gate, the input check and the grounding linter run as they do in any other invocation.
 
 ```bash
+DD_STANDARDS_EXPLAINER=template \
 uv run inspect eval agents/advisor-standards/src/dd_agent_advisor_standards/evals/seeded.py --model none
 uv run inspect view                                   # browse the logs in ./logs
 uv run inspect eval agents/advisor-standards/src/dd_agent_advisor_standards/evals/seeded.py --model none \
@@ -14,8 +15,11 @@ uv run inspect eval agents/advisor-standards/src/dd_agent_advisor_standards/eval
 uv run python workbench/scripts/eval_compare.py logs/OLD.eval logs/NEW.eval
 ```
 
-`--model none` is correct: the evaluation calls no model. The standards advisor's own environment variables
-(`DD_STANDARDS_EXPLAINER`, `DD_STANDARDS_RETRIEVAL`, …) choose what is evaluated, and the log records them.
+`--model none` is correct: Inspect calls no model itself. The standards advisor's own environment
+variables (`DD_STANDARDS_EXPLAINER`, `DD_STANDARDS_RETRIEVAL`, …) choose what is evaluated, and the
+log records them. The baseline is the ranking rules' own, with `DD_STANDARDS_EXPLAINER=template`:
+the model advisor, on by default in a deployment, is not yet evaluated here (#415). Its
+false-negative cases are ENVO and AGROVOC below, which only the model may add.
 
 ## Scores
 
@@ -37,6 +41,7 @@ revision, the configuration, and the hashes of `ranking.yaml`, the snapshot and 
 better or worse. To accept a change in the standards advisor's behaviour:
 
 ```bash
+DD_STANDARDS_EXPLAINER=template \
 uv run inspect eval agents/advisor-standards/src/dd_agent_advisor_standards/evals/seeded.py --model none --log-dir /tmp/standards
 uv run python workbench/scripts/eval_compare.py --baseline agents/advisor-standards/src/dd_agent_advisor_standards/evals/baseline.json /tmp/standards
 uv run python workbench/scripts/eval_compare.py --write-baseline agents/advisor-standards/src/dd_agent_advisor_standards/evals/baseline.json /tmp/standards

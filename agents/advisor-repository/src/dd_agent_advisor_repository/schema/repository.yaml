@@ -30,19 +30,28 @@ classes:
   RepositoryNeeds:
     description: >-
       What a dataset needs of a repository. With mandated repositories, the agent describes
-      them; with none, it shortlists. The mandate and the access constraint come from Phase 2
-      (governance), usually by way of the orchestrator.
+      them; with none, it shortlists. Repositories the researcher asked about are described
+      either way, alongside the shortlist when there is one. The mandate and the access
+      constraint come from Phase 2 (governance), usually by way of the orchestrator. In a
+      project the conductor also gives the facts people decided and the repository the
+      researcher chose: a decided required repository is described as mandated, and the chosen
+      one is described when nothing else is asked.
+    mixins:
+      - GivenProjectDecisions
+      - GivenProjectRepository
     slots:
       - schema_class
       - themes
       - data_kinds
       - access
       - mandated
+      - asked_about
       - affiliation
+      - country
 
   RepositoryRef:
     description: >-
-      A repository named by a funder, journal, institution or the researcher. The re3data
+      A repository named by a funder, journal or institutional policy, or by the researcher. The re3data
       identifier is used when given; otherwise the name is looked up.
     slots:
       - name
@@ -106,7 +115,10 @@ slots:
     slot_uri: dcat:theme
     multivalued: true
   data_kinds:
-    description: What the data is, e.g. interview transcripts or household survey microdata.
+    description: >-
+      What the data is, each in one to three words, e.g. interview transcripts, survey
+      microdata or time series. A repository matches a kind only if its record has every word,
+      so a long description (e.g. environmental data logger time series) matches none.
     multivalued: true
   access:
     description: >-
@@ -115,8 +127,19 @@ slots:
     range: AccessNeed
   mandated:
     description: >-
-      Repositories that a funder, journal or institutional policy requires, as Phase 2 found
-      them. Naming an institution does not make its repository mandated.
+      Only repositories that a funder, journal or institutional policy requires: as a policy
+      result found them in Phase 2, or as the researcher states such a policy requires them. A
+      repository the researcher merely names, prefers or asks about belongs in asked_about.
+      Naming an institution, or being funded by a funder, does not make its repository mandated.
+      A mandated repository replaces the shortlist.
+    range: RepositoryRef
+    multivalued: true
+    inlined_as_list: true
+  asked_about:
+    description: >-
+      Repositories the researcher named or asked about (e.g. "what about Zenodo?") that no
+      policy is known to require. Each is described with the needs it meets and misses,
+      alongside the shortlist rather than instead of it.
     range: RepositoryRef
     multivalued: true
     inlined_as_list: true
@@ -127,6 +150,13 @@ slots:
       themes as if it were not set.
     range: Affiliation
     inlined: true
+  country:
+    description: >-
+      The country of the researcher's institution, as an ISO 3166-1 alpha-3 code (e.g. GBR), as
+      re3data writes it. A repository that already matches ranks a little higher when operated
+      in this country; it adds no repository to the shortlist on its own. Unset, it is the
+      country re3data records for the affiliation's institution, where re3data lists one.
+    pattern: "^[A-Z]{3}$"
 
   name:
     slot_uri: schema:name
@@ -142,7 +172,9 @@ slots:
     multivalued: true
     inlined_as_list: true
   not_found:
-    description: Mandated repositories for which no registry record was found.
+    description: >-
+      Mandated repositories, and repositories the researcher asked about, for which no single
+      registry record was found.
     multivalued: true
   searched:
     range: SearchedSummary
@@ -184,7 +216,8 @@ slots:
     description: >-
       Why a recommended repository is on the shortlist and in its place, one sentence per
       ranking signal: the themes and kinds of data it matches, whether it is a generalist, run by
-      the researcher's institution, or lacks the access the data needs. Empty when mandated.
+      the researcher's institution, or lacks the access the data needs. Empty when mandated, and
+      for a repository asked about that the shortlist did not rank.
     multivalued: true
   rationale:
     required: true
@@ -195,7 +228,7 @@ slots:
   queries:
     multivalued: true
   snapshot_ref:
-    description: Which copies of the registries answered, e.g. re3data:snapshot:2026-10-29.
+    description: Which copies of the registries answered, e.g. re3data:export:2026-11.
   candidates_retrieved:
     range: integer
   candidates_qualifying:
@@ -218,8 +251,16 @@ enums:
     permissible_values:
       mandated:
         description: Named in the input as mandated by a funder, journal or institution.
+      asked_about:
+        description: >-
+          Named by the researcher, who asked about it. Described, not ranked; not a
+          requirement.
       recommended:
         description: Shortlisted by the agent from the registries.
+      chosen:
+        description: >-
+          The repository the researcher chose for the project, described when nothing else was
+          asked.
 
   Answer:
     permissible_values:

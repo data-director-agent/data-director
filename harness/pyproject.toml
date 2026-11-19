@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "data-director-harness"
-version = "0.2.0-alpha.1"
+version = "0.2.0-alpha.4"
 description = "Data Director harness: the conductor, policy gate, grounding linter, source check, run store and provenance, with an A2A way in (docs/specs/system.md)"
 readme = "README.md"
 requires-python = ">=3.14"
@@ -18,11 +18,23 @@ dependencies = [
   "httpx>=0.28",
   "opentelemetry-sdk>=1.44",
   "a2a-sdk[http-server]>=1.2.2,<2",
+  "protobuf>=5",
+  "starlette>=0.40",
   "rocrate>=0.16.0",
   "pydantic>=2.14.1,<3",
   "pyyaml>=6.0",
   "python-dotenv>=1.1",
   "joserfc>=1.0",
+  # SHACL validation, behind dd_harness.shacl: a project against its repository's requirements
+  # and a payload against its class's shapes (docs/specs/contract.md, docs/specs/dependencies.md).
+  "pyshacl>=0.30",
+  "rdflib>=7.1",
+  # AG-UI events for a browser, behind dd_harness.transport.agui (docs/specs/transport.md).
+  "ag-ui-protocol>=1.0.0,<1.1",
+  # The text of an attached Word or PDF document, behind dd_harness.projects.extract
+  # (docs/specs/projects.md, docs/specs/dependencies.md).
+  "pypdf>=6.21.4,<8",
+  "python-docx>=1.2,<2",
 ]
 
 [project.scripts]
@@ -32,15 +44,34 @@ dd-harness = "dd_harness.server:main"
 # `dd-harness serve` (#55). An extra, so a way in that serves itself (the workbench) or embeds
 # the conductor as a library (the app) does not need it.
 serve = ["uvicorn>=0.30"]
+# The tool gateway (dd_harness.gateway, docs/specs/agents.md), set up only when DD_TOOLS_CONFIG
+# names the deployment's MCP servers. The endpoint uses a per-request entry the MCP SDK keeps in a
+# private module, so it is pinned to a minor version (docs/specs/dependencies.md). The test kit
+# serves it to agents over httpx2, the MCP client's HTTP library.
+gateway = ["mcp>=2.3,<2.4", "mcp-types>=2.3,<2.4", "jsonschema>=4.23", "httpx2>=2.13"]
+# The PostgreSQL backend of the run and project storage (docs/specs/storage.md). An extra, so a
+# deployment on files does not install the driver; `binary` bundles libpq.
+# `psycopg-pool` keeps a pool of connections per store, sized by DD_POSTGRES_POOL_SIZE.
+postgres = ["psycopg[binary]>=3.2", "psycopg-pool>=3.2"]
 
 # What this package's tests import from the workspace (docs/specs/system.md, scripts/check_boundaries.py).
 [dependency-groups]
 dev = [
   "data-director-agent-example-hello",
   "data-director-agent-advisor-quality",
-  # Reads the disclosure's PROV-O graph as RDF in tests (docs/specs/dependencies.md).
-  "rdflib>=7.1",
+  # The RO-Crate validator, run on the deposit package in tests (docs/specs/deposit.md).
+  "roc-validator>=0.13",
 ]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dd_harness"]
+
+# Weekly mutation testing of the policy gate and the grounding linter
+# (.github/workflows/mutation.yml, CONTRIBUTING.md). Run from this directory:
+# `uv run --group mutation mutmut run`.
+[tool.mutmut]
+source_paths = ["src"]
+only_mutate = ["src/dd_harness/policy.py", "src/dd_harness/grounding.py"]
+# One process: the root addopts spread tests over workers, which mutmut cannot follow.
+pytest_add_cli_args = ["-n0"]
+pytest_add_cli_args_test_selection = ["tests"]

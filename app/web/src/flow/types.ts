@@ -1,31 +1,20 @@
 /**
  * What `GET /api/process-flow` returns: the Blueprint's entry points and phases (§8.1, §8.2),
- * serialised from `dd_sdk.process_flow` so the shell keeps no copy of its own.
+ * serialised from `dd_sdk.process_flow` so the shell keeps no copy of its own, and where a
+ * project is in that flow. The server's types are generated
+ * (`../api/generated/responses.ts`).
  */
 
-export interface FlowStep {
-  /** A stable label, `<phase>.<step>`, that an agent's `serves` names (docs/specs/orchestration.md). */
-  id: string;
-  text: string;
-  /** The Blueprint requirements applied at this step; empty when the figure names none. */
-  requirements: string[];
-  optional: boolean;
-}
+export type {
+  Decision,
+  FlowEntry,
+  FlowPhase,
+  FlowStep,
+  ProcessFlow,
+  ProjectProgress,
+  StepReason,
+  StepState,
+} from "../api/generated/responses";
 
-export interface FlowPhase {
-  number: number;
-  title: string;
-  steps: FlowStep[];
-}
-
-export interface FlowEntry {
-  number: number;
-  text: string;
-  /** The phase a researcher entering here joins at. */
-  starts_at: number;
-}
-
-export interface ProcessFlow {
-  entries: FlowEntry[];
-  phases: FlowPhase[];
-}
+/** What a researcher may mark a step; "open" withdraws an earlier mark. */
+export type StepMark = "done" | "skipped" | "open";

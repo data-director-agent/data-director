@@ -49,6 +49,23 @@ def test_without_an_override_the_declared_standard_applies_and_the_researcher_is
     assert "licences" not in merged and "media_types" not in merged
 
 
+def test_the_merged_set_says_where_to_deposit_and_what_is_unconfirmed(tmp_path: Path) -> None:
+    """The person depositing by hand is told where the repository is and what its sets leave
+    open; only an override says where to deposit, since a standard's url describes the standard."""
+    root = write(
+        tmp_path / "repositories",
+        ("standards", standard(url="https://datacite.org/", unconfirmed=["A", "B"])),
+        ("overrides", override(url="https://orda.example/", unconfirmed=["B", "C"])),
+    )
+    requirements = load_requirements(root)
+    ours = requirements.resolve(ORDA, "ORDA", ["Dublin Core"]).requirements()
+    assert ours["repository_url"] == "https://orda.example/"
+    assert ours["unconfirmed"] == ["A", "B", "C"]
+    other = requirements.resolve(ELSEWHERE, "Elsewhere", ["DataCite Metadata Schema"])
+    assert "repository_url" not in other.requirements()
+    assert other.requirements()["unconfirmed"] == ["A", "B"]
+
+
 @pytest.mark.parametrize(
     ("re3data_id", "name", "declared"),
     [(ORDA, "ORDA", ["Dublin Core"]), (ELSEWHERE, "Elsewhere", ["Dublin Core"])],
@@ -146,3 +163,16 @@ def test_malformed_or_contradictory_sets_stop_start_up(
 def test_a_missing_directory_is_refused(tmp_path: Path) -> None:
     with pytest.raises(RequirementsError, match="not found"):
         load_requirements(tmp_path / "nowhere")
+
+
+def test_the_suggested_repositories_are_the_overrides_then_the_listed_ones(sets: Path) -> None:
+    assert load_requirements(sets).suggested == (ORDA,)
+    (sets / "suggested.yaml").write_text(f"re3data_ids: [{ELSEWHERE}, {ORDA}]\n", encoding="utf-8")
+    assert load_requirements(sets).suggested == (ORDA, ELSEWHERE)
+
+
+@pytest.mark.parametrize("text", ["re3data_ids: [orda]\n", "re3data_ids: r3d100012124\n", "[\n"])
+def test_a_malformed_suggested_list_stops_start_up(sets: Path, text: str) -> None:
+    (sets / "suggested.yaml").write_text(text, encoding="utf-8")
+    with pytest.raises(RequirementsError):
+        load_requirements(sets)

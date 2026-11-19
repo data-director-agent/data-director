@@ -1,0 +1,263 @@
+{
+  "schema_class": "FileInventory",
+  "inventory_files": [
+    {
+      "file_path": "analysis/plot_temp_gradient.R",
+      "file_size": 430,
+      "file_sha256": "66024f640c4742ac61ce2375dd6ad47aa49b5a6e32c814c95c35e8c053f2c010",
+      "file_pronom_ids": [
+        "fmt/1599"
+      ],
+      "file_identified_by": "extension"
+    },
+    {
+      "file_path": "calibration/calibration_offsets.xlsx",
+      "file_size": 5597,
+      "file_sha256": "695445c98cfbd5ebabfa898562f6d156e54e0376a0ac3ee675f69d2aa7a5fbd7",
+      "file_media_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "file_pronom_ids": [
+        "fmt/214"
+      ],
+      "file_identified_by": "container"
+    },
+    {
+      "file_path": "calibration/sites.csv",
+      "file_size": 174,
+      "file_sha256": "77c41ad221c25b60bd57e2e685c86bedb15ecb81eb10b1ffb4519091b77f2c8e",
+      "file_media_type": "text/csv",
+      "file_pronom_ids": [
+        "x-fmt/18"
+      ],
+      "file_identified_by": "extension",
+      "file_fields": [
+        {
+          "name": "node",
+          "field_type": "string"
+        },
+        {
+          "name": "lat",
+          "field_type": "number"
+        },
+        {
+          "name": "lon",
+          "field_type": "number"
+        },
+        {
+          "name": "elev",
+          "field_type": "integer"
+        }
+      ]
+    },
+    {
+      "file_path": "data/N01-N06_Sep2024-Feb2025_v3.csv",
+      "file_size": 2721145,
+      "file_sha256": "3e39c3daa4109291d30bf91888dd76a36fe847aa1162438ed6ec83038f8471ba",
+      "file_media_type": "text/csv",
+      "file_pronom_ids": [
+        "x-fmt/18"
+      ],
+      "file_identified_by": "extension",
+      "file_fields": [
+        {
+          "name": "timestamp_utc",
+          "field_type": "datetime"
+        },
+        {
+          "name": "node_id",
+          "field_type": "string"
+        },
+        {
+          "name": "ta",
+          "field_type": "number"
+        },
+        {
+          "name": "ts",
+          "field_type": "number"
+        },
+        {
+          "name": "rh",
+          "field_type": "string"
+        },
+        {
+          "name": "vwc",
+          "field_type": "number"
+        },
+        {
+          "name": "pm2_5",
+          "field_type": "number"
+        },
+        {
+          "name": "vbat",
+          "field_type": "number"
+        },
+        {
+          "name": "flag",
+          "field_type": "integer"
+        }
+      ]
+    },
+    {
+      "file_path": "data/Thumbs.db",
+      "file_size": 0,
+      "file_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "file_media_type": "application/vnd.microsoft.windows.thumbnail-cache",
+      "file_pronom_ids": [
+        "x-fmt/147",
+        "fmt/350",
+        "fmt/351",
+        "fmt/352",
+        "fmt/682",
+        "fmt/729",
+        "fmt/1135"
+      ],
+      "file_identified_by": "extension"
+    },
+    {
+      "file_path": "data/logger_export_N01-N03_Mar-Sep2024.csv",
+      "file_size": 1401668,
+      "file_sha256": "86490a94052e52b3176d7a584435f6b7017bffd228b1d86d235d9443eb18fc9e",
+      "file_media_type": "text/csv",
+      "file_pronom_ids": [
+        "x-fmt/18"
+      ],
+      "file_identified_by": "extension",
+      "file_fields": [
+        {
+          "name": "Date",
+          "field_type": "string"
+        },
+        {
+          "name": "Time",
+          "field_type": "string"
+        },
+        {
+          "name": "Node",
+          "field_type": "string"
+        },
+        {
+          "name": "T_air",
+          "field_type": "number"
+        },
+        {
+          "name": "T_soil",
+          "field_type": "number"
+        },
+        {
+          "name": "RH",
+          "field_type": "number"
+        },
+        {
+          "name": "SM",
+          "field_type": "integer"
+        },
+        {
+          "name": "PM25",
+          "field_type": "any"
+        },
+        {
+          "name": "Batt",
+          "field_type": "number"
+        }
+      ]
+    },
+    {
+      "file_path": "data/old/logger_export_N01-N03_Mar-Sep2024 (copy).csv",
+      "file_size": 1401668,
+      "file_sha256": "86490a94052e52b3176d7a584435f6b7017bffd228b1d86d235d9443eb18fc9e",
+      "file_media_type": "text/csv",
+      "file_pronom_ids": [
+        "x-fmt/18"
+      ],
+      "file_identified_by": "extension",
+      "file_fields": [
+        {
+          "name": "Date",
+          "field_type": "string"
+        },
+        {
+          "name": "Time",
+          "field_type": "string"
+        },
+        {
+          "name": "Node",
+          "field_type": "string"
+        },
+        {
+          "name": "T_air",
+          "field_type": "number"
+        },
+        {
+          "name": "T_soil",
+          "field_type": "number"
+        },
+        {
+          "name": "RH",
+          "field_type": "number"
+        },
+        {
+          "name": "SM",
+          "field_type": "integer"
+        },
+        {
+          "name": "PM25",
+          "field_type": "any"
+        },
+        {
+          "name": "Batt",
+          "field_type": "number"
+        }
+      ]
+    },
+    {
+      "file_path": "fieldnotes/fieldnotes_2024.txt",
+      "file_size": 1774,
+      "file_sha256": "00f61a64e1d87760f35863ddc4a9e0b843d1a658ab1682e4893c46197c4ed648",
+      "file_media_type": "text/plain",
+      "file_pronom_ids": [
+        "x-fmt/111",
+        "fmt/1085",
+        "fmt/1591"
+      ],
+      "file_identified_by": "extension"
+    },
+    {
+      "file_path": "reference/WeatherNest_Stn442_hourly.csv",
+      "file_size": 298032,
+      "file_sha256": "a3167a40b5ae3e41573a428d1411f92b3f6f04d8393f482edc06ea45c7ac8968",
+      "file_media_type": "text/csv",
+      "file_pronom_ids": [
+        "x-fmt/18"
+      ],
+      "file_identified_by": "extension",
+      "file_fields": [
+        {
+          "name": "time_utc",
+          "field_type": "string"
+        },
+        {
+          "name": "temp_c",
+          "field_type": "number"
+        },
+        {
+          "name": "rain_mm",
+          "field_type": "number"
+        },
+        {
+          "name": "wind_ms",
+          "field_type": "number"
+        },
+        {
+          "name": "gust_ms",
+          "field_type": "number"
+        }
+      ]
+    }
+  ],
+  "inventory_tool": "dd-inventory",
+  "inventory_tool_version": "0.1.0-alpha.4",
+  "inventory_identified_with": "fido 1.6.1 with PRONOM signatures v109",
+  "inventory_made_at": "2026-11-16T01:44:01+00:00",
+  "inventory_limitations": [
+    "Table fields are inferred from a sample of rows; a later row may not fit the type given."
+  ]
+}

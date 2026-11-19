@@ -32,3 +32,5 @@ The software is archived on Zenodo, and is cited as
 
 To take part without writing code, by reviewing advice, specifications or conformance, see
 [Giving feedback](user-guide/feedback.md).
+
+How this site and the project handle personal data is in the [privacy notice](privacy.md).

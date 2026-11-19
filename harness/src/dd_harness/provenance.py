@@ -6,12 +6,18 @@ span file the results. Each model call the agent made is a `CreateAction` of its
 model as instrument and the prompt as object (docs/specs/disclosure.md). The prompt is named by its
 `dd-prompt-json-v1` digest and is not in the crate: the run store keeps it.
 
+The crate is built in a temporary directory and returned as its files, which the conductor keeps
+as the run's `crate/...` artifacts (docs/specs/storage.md), so it does not depend on how the run
+store keeps them.
+
 Profile: https://w3id.org/ro/wfrun/process/0.5. This module is the only importer of `rocrate`
 (docs/specs/dependencies.md).
 """
 
 from __future__ import annotations
 
+import json
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -19,22 +25,56 @@ from typing import Any
 from rocrate.model import ContextEntity, Person, SoftwareApplication
 from rocrate.rocrate import ROCrate
 
+from dd_harness import footprint
+from dd_harness.footprint import FootprintTable
+
 PROCESS_RUN_CRATE = "https://w3id.org/ro/wfrun/process/0.5"
 AGENT_BASE = "https://w3id.org/data-director/agents/"
+VALIDATION_FILE = "validation-report.jsonld"
 # The contract's `vouched_by` slot (dd:vouched_by), a term of the crate's context
 # (docs/specs/policy-and-identity.md).
 VOUCHED_BY = "vouchedBy"
 VOUCHED_BY_IRI = "https://w3id.org/data-director/vouched_by"
 
 
-def write_process_run_crate(
-    run_dir: Path,
+def process_run_crate(
     envelope: dict[str, Any],
-    request_path: Path,
-    envelope_path: Path,
-    spans_path: Path | None,
+    request: dict[str, Any],
+    spans: bytes | None,
     started_at: datetime,
-) -> Path:
+    validation: bytes | None = None,
+    table: FootprintTable | None = None,
+) -> dict[str, bytes]:
+    """The Process Run Crate of one invocation, as its files: each path relative to the crate's
+    root, with its bytes. The envelope and request are written as the run store writes them;
+    `validation`, the payload's SHACL Validation Report, is a result beside them when given.
+    `table`, the profile's `model_footprint`, gives each model call and the run an estimated
+    energy and cost (docs/specs/disclosure.md, Footprint)."""
+    with tempfile.TemporaryDirectory(prefix="dd-crate-") as tmp:
+        work = Path(tmp)
+        request_path = work / "request.json"
+        request_path.write_text(json.dumps(request, indent=2), encoding="utf-8")
+        envelope_path = work / "envelope.json"
+        envelope_path.write_text(json.dumps(envelope, indent=2), encoding="utf-8")
+        if spans is not None:
+            (work / "spans.jsonl").write_bytes(spans)
+        if validation is not None:
+            (work / VALIDATION_FILE).write_bytes(validation)
+        out = work / "crate"
+        _write_crate(work, envelope, started_at, table)
+        return {
+            path.relative_to(out).as_posix(): path.read_bytes()
+            for path in sorted(out.rglob("*"))
+            if path.is_file()
+        }
+
+
+def _write_crate(
+    work: Path, envelope: dict[str, Any], started_at: datetime, table: FootprintTable | None
+) -> None:
+    """Write the crate into `work`'s `crate/`, from the files `process_run_crate` put in `work`."""
+    request_path, envelope_path = work / "request.json", work / "envelope.json"
+    spans_path, validation_path = work / "spans.jsonl", work / VALIDATION_FILE
     crate = ROCrate()
     crate.root_dataset["conformsTo"] = {"@id": PROCESS_RUN_CRATE}
     crate.root_dataset["name"] = f"Data Director invocation {envelope['invocation_id']}"
@@ -88,12 +128,24 @@ def write_process_run_crate(
         envelope_path, dest_path="envelope.json", properties={"encodingFormat": "application/json"}
     )
     results = [envelope_file]
-    if spans_path is not None and spans_path.exists():
+    if spans_path.exists():
         results.append(
             crate.add_file(
                 spans_path,
                 dest_path="spans.jsonl",
                 properties={"encodingFormat": "application/jsonl"},
+            )
+        )
+    if validation_path.exists():
+        results.append(
+            crate.add_file(
+                validation_path,
+                dest_path=VALIDATION_FILE,
+                properties={
+                    "encodingFormat": "application/ld+json",
+                    "description": "The payload's SHACL Validation Report against the shapes "
+                    "of its class. It reports only; the envelope's outcome does not depend on it.",
+                },
             )
         )
 
@@ -105,6 +157,12 @@ def write_process_run_crate(
         "description": envelope["outcome"]["statement"],
         "agent": human,
     }
+    calls = envelope["telemetry"].get("model_calls", [])
+    estimates = footprint.estimate_calls(table, calls)
+    if run_figures := _footprint_properties(
+        crate, "#" + envelope["invocation_id"], footprint.total(estimates), table
+    ):
+        action_props["additionalProperty"] = run_figures
     crate.add_action(
         agent,
         identifier="#" + envelope["invocation_id"],
@@ -112,7 +170,7 @@ def write_process_run_crate(
         result=results,
         properties=action_props,
     )
-    _add_model_calls(crate, envelope)
+    _add_model_calls(crate, envelope, estimates, table)
     # The outcome vocabulary is not schema.org; record it as an extra typed entity so a reader of
     # the crate sees the status without opening the envelope.
     crate.add(
@@ -126,16 +184,26 @@ def write_process_run_crate(
             },
         )
     )
-    out = run_dir / "crate"
-    crate.write(out)
-    return out
+    crate.write(work / "crate")
 
 
-def _add_model_calls(crate: ROCrate, envelope: dict[str, Any]) -> None:
+def _add_model_calls(
+    crate: ROCrate,
+    envelope: dict[str, Any],
+    estimates: list[footprint.Estimate],
+    table: FootprintTable | None,
+) -> None:
     """One `CreateAction` per model call, with the model as instrument and the prompt, named by
-    digest and not included, as object (docs/specs/disclosure.md)."""
+    digest and not included, as object (docs/specs/disclosure.md). Whose account paid, `own` or
+    `deployment` and never whose, is the action's `model_account` property; a call the profile's
+    model map routed to another model also has a `model_declared` property, the model the agent's
+    card declared (docs/specs/model-accounts.md). Each call's token counts, and its estimated
+    energy and cost where the profile's footprint table gives them, are properties too
+    (docs/specs/disclosure.md, Footprint)."""
     models: dict[tuple[str, str], SoftwareApplication] = {}
-    for n, call in enumerate(envelope["telemetry"].get("model_calls", []), start=1):
+    calls = envelope["telemetry"].get("model_calls", [])
+    for n, (call, estimate) in enumerate(zip(calls, estimates, strict=True), start=1):
+        action_id = f"#{envelope['invocation_id']}-model-call-{n}"
         key = (call["model_provider"], call["model_id"])
         if key not in models:
             models[key] = crate.add(
@@ -170,9 +238,105 @@ def _add_model_calls(crate: ROCrate, envelope: dict[str, Any]) -> None:
             "startTime": call["called_at"],
             "actionStatus": {"@id": "http://schema.org/CompletedActionStatus"},
         }
+        extra: list[Any] = []
+        account = call.get("model_account")
+        if account:
+            extra.append(
+                crate.add(
+                    ContextEntity(
+                        crate,
+                        f"#model-account-{account}",
+                        properties={
+                            "@type": "PropertyValue",
+                            "name": "model_account",
+                            "value": account,
+                            "description": (
+                                "Whose account paid for the call: a person's own or the "
+                                "deployment's. Never whose."
+                            ),
+                        },
+                    )
+                )
+            )
+        declared = call.get("model_declared")
+        if declared:
+            extra.append(
+                crate.add(
+                    ContextEntity(
+                        crate,
+                        f"#model-declared-{call['model_provider']}-{declared}",
+                        properties={
+                            "@type": "PropertyValue",
+                            "name": "model_declared",
+                            "value": declared,
+                            "description": (
+                                "The model the agent's card declared. The profile's model map "
+                                "routed the call to the model this action's instrument names."
+                            ),
+                        },
+                    )
+                )
+            )
+        for name in ("input_tokens", "output_tokens"):
+            if call.get(name) is not None:
+                extra.append(
+                    _figure(
+                        crate,
+                        action_id,
+                        name,
+                        call[name],
+                        description="As the model's provider reported it.",
+                    )
+                )
+        extra += _footprint_properties(crate, action_id, estimate, table)
+        if extra:
+            properties["additionalProperty"] = extra[0] if len(extra) == 1 else extra
         crate.add_action(
             models[key],
-            identifier=f"#{envelope['invocation_id']}-model-call-{n}",
+            identifier=action_id,
             object=[prompt],
             properties=properties,
         )
+
+
+def _figure(crate: ROCrate, about: str, name: str, value: Any, **more: str) -> ContextEntity:
+    """One named figure of an action, as a `PropertyValue` of its own."""
+    properties = {"@type": "PropertyValue", "name": name, "value": value, **more}
+    entity: ContextEntity = crate.add(
+        ContextEntity(crate, f"{about}-{name}", properties=properties)
+    )
+    return entity
+
+
+def _footprint_properties(
+    crate: ROCrate, about: str, estimate: footprint.Estimate, table: FootprintTable | None
+) -> list[ContextEntity]:
+    """The estimated energy, in joules, and cost of one call or one run, as `PropertyValue`s
+    saying what they rest on; none where nothing could be estimated."""
+    if table is None:
+        return []
+    method = f"Estimated, not measured: tokens times the profile's factors from {table.basis}."
+    figures = []
+    if estimate.energy_j is not None:
+        figures.append(
+            _figure(
+                crate,
+                about,
+                "energy_estimate_j",
+                estimate.energy_j,
+                unitCode="JOU",
+                description=method,
+            )
+        )
+    if estimate.cost is not None and table.currency is not None:
+        figures.append(
+            _figure(
+                crate,
+                about,
+                "cost_estimate",
+                estimate.cost,
+                unitText=table.currency,
+                description=method,
+            )
+        )
+    return figures

@@ -17,8 +17,11 @@ from dd_sdk.agent import (
     ContractVersionError,
     Derived,
     ModelUse,
+    RunContext,
+    Setting,
     SpecError,
     describe,
+    setting,
     spec_from_description,
     typed_request,
 )
@@ -32,6 +35,8 @@ from dd_sdk.contract.models import (
     OpenInput,
 )
 from dd_sdk.contract.version import CONTRACT_VERSION, compatible
+from dd_sdk.skills import SkillUse
+from dd_sdk.tools import ToolUse
 
 # The SDK knows no agent's classes, so this module brings its own, as an agent would
 # (docs/specs/contract.md): an input class and a payload class with nested items and an optional
@@ -115,6 +120,8 @@ SPEC = AgentSpec(
         "items.rationale": Derived(Derivation.MODEL, recorded_in="rationale_derivation"),
         "searched.snapshot_ref": Derived(Derivation.REGISTRY),
     },
+    skills=(SkillUse("licence-choice", "v1.0.0", "0123456789abcdef" * 4),),
+    tools=(ToolUse("spdx", ("get_licence", "search_licences")),),
 )
 
 
@@ -150,6 +157,26 @@ def test_the_models_an_agent_sends_data_to_round_trip_through_the_manifest() -> 
     assert spec_from_description(entry).models == spec.models
 
 
+def test_a_model_the_agent_relies_on_for_tool_calls_is_declared_so() -> None:
+    uses = (
+        ModelUse("anthropic", "claude-x", "hosted", tools=True),
+        ModelUse("anthropic", "claude-y", "hosted"),
+    )
+    entry = describe(dataclasses.replace(SPEC, models=uses))
+    assert entry["models"][0]["tools"] is True
+    assert "tools" not in entry["models"][1]
+    assert spec_from_description(entry).models == uses
+
+
+def test_a_model_whose_tools_is_not_a_boolean_is_refused() -> None:
+    entry = describe(SPEC)
+    entry["models"] = [
+        {"provider": "anthropic", "model": "claude-x", "hosting": "hosted", "tools": "yes"}
+    ]
+    with pytest.raises(SpecError):
+        spec_from_description(entry)
+
+
 def test_a_description_without_models_declares_none() -> None:
     entry = describe(SPEC)
     assert entry["models"] == []
@@ -177,6 +204,70 @@ def test_the_persona_title_round_trips_through_the_manifest() -> None:
     assert spec_from_description(entry).title == "Metadata Librarian"
 
 
+@pytest.mark.parametrize("icon", ["📚", "🧑🏽‍🔬", "⚖️"])
+def test_the_persona_icon_round_trips_through_the_manifest(icon: str) -> None:
+    entry = json.loads(json.dumps(describe(dataclasses.replace(SPEC, icon=icon))))
+    assert entry["icon"] == icon
+    assert spec_from_description(entry).icon == icon
+
+
+def test_a_description_without_an_icon_has_none() -> None:
+    entry = describe(SPEC)
+    del entry["icon"]
+    assert spec_from_description(entry).icon == ""
+
+
+@pytest.mark.parametrize("icon", ["book", "📚 📚", "📚📚📚📚📚📚📚📚📚", "1"])
+def test_an_icon_that_is_not_one_emoji_is_refused(icon: str) -> None:
+    with pytest.raises(SpecError, match="icon"):
+        dataclasses.replace(SPEC, icon=icon)
+
+
+def test_a_description_whose_icon_is_not_a_string_is_refused() -> None:
+    entry = {**describe(SPEC), "icon": 7}
+    with pytest.raises(SpecError, match="icon"):
+        spec_from_description(entry)
+
+
+def test_the_settings_an_agent_offers_round_trip_through_the_manifest() -> None:
+    offered = {"depth": Setting(("shallow", "deep"), "deep", "How far it looks.")}
+    entry = json.loads(json.dumps(describe(dataclasses.replace(SPEC, settings=offered))))
+    assert entry["settings"]["depth"]["default"] == "deep"
+    assert spec_from_description(entry).settings == offered
+
+
+def test_a_description_without_settings_offers_none() -> None:
+    entry = describe(SPEC)
+    del entry["settings"]
+    assert spec_from_description(entry).settings == {}
+
+
+@pytest.mark.parametrize(
+    "offered",
+    [
+        Setting(("shallow", "deep"), "sideways"),
+        Setting((), ""),
+        Setting(("deep", "deep"), "deep"),
+    ],
+)
+def test_a_setting_whose_default_is_not_a_choice_is_refused(offered: Setting) -> None:
+    with pytest.raises(SpecError):
+        dataclasses.replace(SPEC, settings={"depth": offered})
+
+
+def test_an_agent_reads_the_setting_sent_or_its_default() -> None:
+    spec = dataclasses.replace(SPEC, settings={"depth": Setting(("shallow", "deep"), "shallow")})
+    tracer = object()
+
+    def ctx(sent: dict[str, str]) -> RunContext:
+        return RunContext(tracer=tracer, input_ref="", input_hash="", settings=sent)  # type: ignore[arg-type]
+
+    assert setting(ctx({"depth": "deep"}), spec, "depth") == "deep"
+    assert setting(ctx({}), spec, "depth") == "shallow"
+    with pytest.raises(KeyError):
+        setting(ctx({}), spec, "breadth")
+
+
 def test_a_description_without_a_title_has_none() -> None:
     entry = describe(SPEC)
     del entry["title"]
@@ -190,6 +281,15 @@ def test_serving_anything_but_a_step_is_refused(serves: tuple[str, ...]) -> None
     entry = describe(SPEC)
     entry["serves"] = list(serves)
     with pytest.raises(SpecError, match="not process flow steps"):
+        spec_from_description(entry)
+
+
+def test_serving_a_step_that_is_out_of_scope_for_now_is_refused() -> None:
+    with pytest.raises(SpecError, match="out of scope for now"):
+        dataclasses.replace(SPEC, serves=("setup.dmp-create",))
+    entry = describe(SPEC)
+    entry["serves"] = ["post.dmp-update"]
+    with pytest.raises(SpecError, match="out of scope for now"):
         spec_from_description(entry)
 
 

@@ -1,0 +1,72 @@
+{
+  "answer_max_length": 2000,
+  "answered": {
+    "document_id": "01900000-0000-7000-8000-000000000001",
+    "version": 1
+  },
+  "documents": [
+    {
+      "answers": [
+        {
+          "answer_text": "Soil cores",
+          "answered_at": "2026-01-01T00:00:00Z",
+          "answered_by": {
+            "assurance": "asserted",
+            "name": "Josiah Carberry",
+            "principal_id": "https://orcid.org/0000-0002-1825-0097",
+            "principal_kind": "person"
+          },
+          "question_id": "q-0000000000000000",
+          "version": 1
+        }
+      ],
+      "document_id": "01900000-0000-7000-8000-000000000001",
+      "document_kind": "readme",
+      "document_title": null,
+      "versions": [
+        {
+          "added_at": "2026-01-01T00:00:00Z",
+          "added_by": {
+            "assurance": "asserted",
+            "name": "Josiah Carberry",
+            "principal_id": "https://orcid.org/0000-0002-1825-0097",
+            "principal_kind": "person"
+          },
+          "conforms_to": null,
+          "decision": null,
+          "digest": "b04ab7d4e3815605c46456d58f2fa25d125343365a5eec88d4a55f211ead28ca",
+          "document_id": "01900000-0000-7000-8000-000000000001",
+          "document_kind": "readme",
+          "document_title": null,
+          "drafted_by": {
+            "agent_id": "stub.document",
+            "agent_version": "0.1.0",
+            "document_derivation": "template",
+            "invocation_id": "01900000-0000-7000-8000-000000000002"
+          },
+          "media_type": "text/markdown",
+          "questions": [
+            {
+              "gap_section": "Description",
+              "question_id": "q-0000000000000000",
+              "question_prompt": "What does the dataset describe?"
+            }
+          ],
+          "revises": null,
+          "state": "proposed",
+          "text": "# Untitled dataset\n\nDrafted by a stub.\n",
+          "version": 1
+        }
+      ]
+    }
+  ],
+  "project_id": "01900000-0000-7000-8000-000000000003",
+  "review": {
+    "reason_max_length": 2000,
+    "reason_required": {
+      "approved": false,
+      "edited_and_approved": true,
+      "rejected": true
+    }
+  }
+}

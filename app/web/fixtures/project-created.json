@@ -1,0 +1,57 @@
+{
+  "conversation_count": 0,
+  "conversations": [],
+  "created_at": "2026-01-01T00:00:00Z",
+  "created_by": {
+    "assurance": "asserted",
+    "name": "Josiah Carberry",
+    "principal_id": "https://orcid.org/0000-0002-1825-0097",
+    "principal_kind": "person"
+  },
+  "deleted": null,
+  "documents": {
+    "approved": 0,
+    "proposed": 0,
+    "rejected": 0
+  },
+  "intake": "pending",
+  "inventory": null,
+  "progress": {
+    "decisions": [
+      {
+        "answer_labels": null,
+        "answer_values": null,
+        "asked": false,
+        "before": "setup.dmp-create",
+        "prompt": "Do you have a Data Management Plan for this project?",
+        "question_id": "intake.dmp"
+      },
+      {
+        "answer_labels": null,
+        "answer_values": null,
+        "asked": false,
+        "before": "governance.sensitive-data-identify",
+        "prompt": "Does the data include personal or otherwise sensitive information?",
+        "question_id": "intake.sensitive"
+      },
+      {
+        "answer_labels": null,
+        "answer_values": null,
+        "asked": false,
+        "before": "repository.mandated",
+        "prompt": "Has a funder, journal or institution said where the data must go?",
+        "question_id": "intake.repository-mandated"
+      }
+    ],
+    "entry": null,
+    "entry_source": null,
+    "reasons": {},
+    "steps": {},
+    "suggested": null
+  },
+  "project_id": "01900000-0000-7000-8000-000000000001",
+  "repository": null,
+  "restore_days": 30,
+  "title": "Soil cores",
+  "title_source": "researcher"
+}

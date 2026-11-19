@@ -1,25 +1,27 @@
 # advisor.files's whole rule table: file extension (lower case, no dot) to the format it suggests,
-# that format's media type, and whether the format is open (publicly specified and readable
-# without proprietary software). A file is matched on its last extension only. A mock's table
-# (docs/specs/agents.md): an extension says nothing certain about a file's content, and the real archivist
-# identifies formats from the content with PRONOM, TODO(#354).
-csv: {format: Comma-separated values, media_type: text/csv, open: true}
+# that format's media type, whether the format is open (publicly specified and readable without
+# proprietary software) and, where we are sure of them, the format's PRONOM identifiers (`pronom`,
+# PUIDs such as fmt/18). A row with no `pronom` has none we are sure of; leave it so rather than
+# guess. The inventory's PRONOM identifiers, read from content, are looked up first (by PUID), then
+# its media type, then a file's last extension. A mock's table (docs/specs/agents.md): the
+# extension alone says nothing certain about a file's content, and the real archivist is TODO(#354).
+csv: {format: Comma-separated values, media_type: text/csv, open: true, pronom: [x-fmt/18]}
 tsv: {format: Tab-separated values, media_type: text/tab-separated-values, open: true}
-txt: {format: Plain text, media_type: text/plain, open: true}
-md: {format: Markdown, media_type: text/markdown, open: true}
-json: {format: JSON, media_type: application/json, open: true}
+txt: {format: Plain text, media_type: text/plain, open: true, pronom: [x-fmt/111]}
+md: {format: Markdown, media_type: text/markdown, open: true, pronom: [fmt/1149]}
+json: {format: JSON, media_type: application/json, open: true, pronom: [fmt/817]}
 jsonld: {format: JSON-LD, media_type: application/ld+json, open: true}
-xml: {format: XML, media_type: application/xml, open: true}
-yaml: {format: YAML, media_type: application/yaml, open: true}
-yml: {format: YAML, media_type: application/yaml, open: true}
-html: {format: HTML, media_type: text/html, open: true}
-pdf: {format: PDF, media_type: application/pdf, open: true}
+xml: {format: XML, media_type: application/xml, open: true, pronom: [fmt/101]}
+yaml: {format: YAML, media_type: application/yaml, open: true, pronom: [fmt/818]}
+yml: {format: YAML, media_type: application/yaml, open: true, pronom: [fmt/818]}
+html: {format: HTML, media_type: text/html, open: true, pronom: [fmt/96]}
+pdf: {format: PDF, media_type: application/pdf, open: true, pronom: [fmt/14, fmt/15, fmt/16, fmt/17, fmt/18, fmt/19, fmt/20, fmt/276]}
 odt: {format: OpenDocument Text, media_type: application/vnd.oasis.opendocument.text, open: true}
 ods: {format: OpenDocument Spreadsheet, media_type: application/vnd.oasis.opendocument.spreadsheet, open: true}
-docx: {format: Microsoft Word (OOXML), media_type: application/vnd.openxmlformats-officedocument.wordprocessingml.document, open: true}
-xlsx: {format: Microsoft Excel (OOXML), media_type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, open: true}
-doc: {format: Microsoft Word 97-2003, media_type: application/msword, open: false}
-xls: {format: Microsoft Excel 97-2003, media_type: application/vnd.ms-excel, open: false}
+docx: {format: Microsoft Word (OOXML), media_type: application/vnd.openxmlformats-officedocument.wordprocessingml.document, open: true, pronom: [fmt/412]}
+xlsx: {format: Microsoft Excel (OOXML), media_type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, open: true, pronom: [fmt/214]}
+doc: {format: Microsoft Word 97-2003, media_type: application/msword, open: false, pronom: [fmt/40]}
+xls: {format: Microsoft Excel 97-2003, media_type: application/vnd.ms-excel, open: false, pronom: [fmt/61, fmt/62]}
 sav: {format: SPSS data file, media_type: application/x-spss-sav, open: false}
 dta: {format: Stata data file, media_type: application/x-stata-dta, open: false}
 sas7bdat: {format: SAS data set, media_type: application/x-sas-data, open: false}
@@ -30,16 +32,16 @@ h5: {format: HDF5, media_type: application/x-hdf5, open: true}
 hdf5: {format: HDF5, media_type: application/x-hdf5, open: true}
 parquet: {format: Apache Parquet, media_type: application/vnd.apache.parquet, open: true}
 sqlite: {format: SQLite database, media_type: application/vnd.sqlite3, open: true}
-tif: {format: TIFF, media_type: image/tiff, open: true}
-tiff: {format: TIFF, media_type: image/tiff, open: true}
-png: {format: PNG, media_type: image/png, open: true}
-jpg: {format: JPEG, media_type: image/jpeg, open: true}
-jpeg: {format: JPEG, media_type: image/jpeg, open: true}
-svg: {format: SVG, media_type: image/svg+xml, open: true}
-wav: {format: WAVE audio, media_type: audio/wav, open: true}
-flac: {format: FLAC audio, media_type: audio/flac, open: true}
-mp3: {format: MP3 audio, media_type: audio/mpeg, open: true}
-mp4: {format: MPEG-4, media_type: video/mp4, open: false}
-zip: {format: ZIP archive, media_type: application/zip, open: true}
-gz: {format: Gzip, media_type: application/gzip, open: true}
-tar: {format: Tar archive, media_type: application/x-tar, open: true}
+tif: {format: TIFF, media_type: image/tiff, open: true, pronom: [fmt/353]}
+tiff: {format: TIFF, media_type: image/tiff, open: true, pronom: [fmt/353]}
+png: {format: PNG, media_type: image/png, open: true, pronom: [fmt/11, fmt/12, fmt/13]}
+jpg: {format: JPEG, media_type: image/jpeg, open: true, pronom: [fmt/42, fmt/43, fmt/44]}
+jpeg: {format: JPEG, media_type: image/jpeg, open: true, pronom: [fmt/42, fmt/43, fmt/44]}
+svg: {format: SVG, media_type: image/svg+xml, open: true, pronom: [fmt/91, fmt/92]}
+wav: {format: WAVE audio, media_type: audio/wav, open: true, pronom: [fmt/6, fmt/141]}
+flac: {format: FLAC audio, media_type: audio/flac, open: true, pronom: [fmt/279]}
+mp3: {format: MP3 audio, media_type: audio/mpeg, open: true, pronom: [fmt/134]}
+mp4: {format: MPEG-4, media_type: video/mp4, open: false, pronom: [fmt/199]}
+zip: {format: ZIP archive, media_type: application/zip, open: true, pronom: [x-fmt/263]}
+gz: {format: Gzip, media_type: application/gzip, open: true, pronom: [x-fmt/266]}
+tar: {format: Tar archive, media_type: application/x-tar, open: true, pronom: [x-fmt/265]}

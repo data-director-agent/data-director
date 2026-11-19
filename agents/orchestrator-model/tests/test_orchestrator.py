@@ -10,7 +10,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import pytest
 
@@ -22,7 +22,6 @@ from dd_agent_orchestrator_model.agent import (
     tool_schema,
     tools_from_manifest,
 )
-from dd_agent_orchestrator_model.model import ModelError, ModelTurn, ToolCall
 from dd_agent_orchestrator_model.prompt import SYSTEM_PROMPT
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import describe
@@ -33,9 +32,21 @@ from dd_sdk.contract.models import (
     InventorySummary,
     Message,
     OutcomeStatus,
+    QuestionKind,
     ReasonCode,
     Reply,
+    StepProgress,
+    StepState,
     TurnRole,
+)
+from dd_sdk.model import (
+    ModelCallError,
+    ModelRequest,
+    ModelResponse,
+    StopReason,
+    ToolCall,
+    Usage,
+    message_json,
 )
 from dd_sdk.process_flow import describe_flow
 from dd_sdk.prompts import prompt_digest
@@ -44,48 +55,36 @@ from dd_sdk.tracing import CHAT, DELEGATE, records_from_jsonl
 MODEL = "claude-test"
 
 
-def say(text: str, stop: str = "end_turn") -> ModelTurn:
-    return ModelTurn(
-        text=text,
-        tool_calls=[],
-        stop_reason=stop,
-        content=[{"type": "text", "text": text}],
-        model_id=MODEL,
-        input_tokens=100,
-        output_tokens=10,
-    )
+def say(text: str, stop: StopReason = "end_turn") -> ModelResponse:
+    return ModelResponse(text, model_id=MODEL, usage=Usage(100, 10), stop=stop)
 
 
-def call(*calls: tuple[str, dict[str, Any]]) -> ModelTurn:
-    tool_calls = [
+def call(*calls: tuple[str, dict[str, Any]]) -> ModelResponse:
+    tool_calls = tuple(
         ToolCall(id=f"toolu_{n}", name=name, input=args) for n, (name, args) in enumerate(calls)
-    ]
-    return ModelTurn(
-        text="",
-        tool_calls=tool_calls,
-        stop_reason="tool_use",
-        content=[
-            {"type": "tool_use", "id": c.id, "name": c.name, "input": c.input} for c in tool_calls
-        ],
-        model_id=MODEL,
-        input_tokens=100,
-        output_tokens=10,
+    )
+    return ModelResponse(
+        "", model_id=MODEL, usage=Usage(100, 10), tool_calls=tool_calls, stop="tool_use"
     )
 
 
 @dataclass
 class ScriptedModel:
-    """Plays back one turn per call and keeps what it was sent."""
+    """Plays back one response per call and keeps what it was sent, as JSON."""
 
-    turns: list[ModelTurn]
+    turns: list[ModelResponse]
     model_id: str = MODEL
+    provider: str = "fake"
+    hosting: Literal["hosted", "local"] = "hosted"
     sent: list[dict[str, Any]] = field(default_factory=list)
 
-    def turn(
-        self, messages: list[dict[str, Any]], tools: list[dict[str, Any]], *, use_tools: bool
-    ) -> ModelTurn:
+    def send(self, request: ModelRequest) -> ModelResponse:
         self.sent.append(
-            {"messages": json.loads(json.dumps(messages)), "tools": tools, "use_tools": use_tools}
+            {
+                "messages": [message_json(m) for m in request.messages],
+                "tools": [t.to_json() for t in request.tools],
+                "use_tools": request.tool_choice == "auto",
+            }
         )
         if not self.turns:
             raise AssertionError("the model was called more often than scripted")
@@ -94,7 +93,10 @@ class ScriptedModel:
 
 def conductor(runs_dir: Path, model: Any, **kwargs: Any):
     return make_conductor(
-        runs_dir, ModelOrchestrator(model, **kwargs), HelloWorld(), build_standards({})
+        runs_dir,
+        ModelOrchestrator(model, **kwargs),
+        HelloWorld(),
+        build_standards({"DD_STANDARDS_EXPLAINER": "template"}),
     )
 
 
@@ -128,11 +130,11 @@ def test_the_model_delegates_and_its_reply_is_grounded_on_the_child(runs_dir: Pa
     assert env.telemetry.model_id == MODEL
     assert env.telemetry.input_tokens == 200 and env.telemetry.output_tokens == 20
 
-    # The child's result went back to the model as a tool result, in one user message.
+    # The child's result went back to the model as a tool result, in one message.
     results = model.sent[1]["messages"][-1]
-    assert results["role"] == "user"
-    [result] = results["content"]
-    assert result["type"] == "tool_result" and result["is_error"] is False
+    assert results["role"] == "tool"
+    [result] = results["results"]
+    assert result["is_error"] is False
     assert json.loads(result["content"])["payload"]["greeting_text"] == "Hello, Ada!"
 
 
@@ -146,7 +148,7 @@ def test_each_model_call_is_recorded_with_what_it_was_sent(runs_dir: Path) -> No
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
 
     calls = env.telemetry.model_calls
-    assert [(x.model_provider, x.model_id) for x in calls] == [("anthropic", MODEL)] * 2
+    assert [(x.model_provider, x.model_id) for x in calls] == [("fake", MODEL)] * 2
     kept = c.store.get_prompts(env.invocation_id)
     for made, sent in zip(calls, model.sent, strict=True):
         prompt = kept[made.prompt_digest]
@@ -162,7 +164,7 @@ def test_the_tools_are_the_agents_the_harness_lists(runs_dir: Path) -> None:
     model = ScriptedModel([say("Which dataset do you mean?")])
     invoke(conductor(runs_dir, model))
     names = {t["name"] for t in model.sent[0]["tools"]}
-    assert names == {"example_hello", "advisor_standards"}
+    assert names == {"example_hello", "advisor_standards", "ask_questions"}
     hello = next(t for t in model.sent[0]["tools"] if t["name"] == "example_hello")
     assert "schema_class" not in hello["input_schema"]["properties"]
     assert hello["input_schema"]["required"] == ["greeted_name"]
@@ -181,13 +183,19 @@ def test_a_tool_says_which_steps_its_agent_serves(runs_dir: Path) -> None:
 def test_a_tool_serving_steps_that_name_no_requirement_says_only_the_steps() -> None:
     entry = describe(dataclasses.replace(HelloWorld.spec, serves=("governance.policies",)))
     [tool] = tools_from_manifest([entry])
-    assert tool.definition["description"].endswith("Serves step(s) governance.policies.")
+    assert tool.definition.description.endswith("Serves step(s) governance.policies.")
 
 
 def test_the_prompt_carries_every_entry_point_and_phase_and_names_no_agent() -> None:
     assert describe_flow() in SYSTEM_PROMPT
     assert "no agent yet (R5)" in SYSTEM_PROMPT
     assert "example.hello" not in SYSTEM_PROMPT and "advisor.standards" not in SYSTEM_PROMPT
+
+
+def test_the_prompt_lists_the_out_of_scope_steps_and_tells_the_model_not_to_offer_them() -> None:
+    assert "out of scope for now: say so, and do not offer to do it" in SYSTEM_PROMPT
+    assert "[setup.dmp-create]" in SYSTEM_PROMPT
+    assert "Do not offer to do it" in SYSTEM_PROMPT
 
 
 def test_the_prompt_treats_content_it_did_not_write_as_data() -> None:
@@ -239,8 +247,8 @@ def test_a_failed_or_refused_child_is_reported_and_the_parent_succeeds(runs_dir:
     c = conductor(runs_dir, model)
     env = invoke(c)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
-    results = model.sent[1]["messages"][-1]["content"]
-    assert [r["tool_use_id"] for r in results] == ["toolu_0", "toolu_1"]
+    results = model.sent[1]["messages"][-1]["results"]
+    assert [r["call_id"] for r in results] == ["toolu_0", "toolu_1"]
     assert results[0]["is_error"] is True
     [delegation] = env.delegations
     assert delegation.delegated_status == OutcomeStatus.FAILED
@@ -254,20 +262,39 @@ def test_a_turn_stops_delegating_at_its_limit(runs_dir: Path) -> None:
     env = invoke(conductor(runs_dir, model, max_delegations=1))
     assert env.outcome.status == OutcomeStatus.SUCCEEDED
     assert len(env.delegations) == 1
-    first, second = model.sent[1]["messages"][-1]["content"]
+    first, second = model.sent[1]["messages"][-1]["results"]
     assert first["is_error"] is False
     assert second["is_error"] is True and "limit" in second["content"]
     assert model.sent[1]["use_tools"] is False
 
 
 def test_a_declined_turn_fails_the_run(runs_dir: Path) -> None:
-    class Declining(ScriptedModel):
-        def turn(self, *args: Any, **kwargs: Any) -> ModelTurn:
-            raise ModelError("the model declined the request (category: none)")
-
-    env = invoke(conductor(runs_dir, Declining([])))
+    declined = ModelResponse("", refused=True, model_id=MODEL, stop="refusal")
+    env = invoke(conductor(runs_dir, ScriptedModel([declined])))
     assert env.outcome.status == OutcomeStatus.FAILED
     assert "declined" in env.outcome.statement
+
+
+def test_a_provider_that_does_not_answer_fails_the_run(runs_dir: Path) -> None:
+    """Such as an endpoint that refuses tools (docs/specs/orchestration.md)."""
+
+    class Failing(ScriptedModel):
+        def send(self, request: ModelRequest) -> ModelResponse:
+            raise ModelCallError("the endpoint answered 400: tools are not supported")
+
+    env = invoke(conductor(runs_dir, Failing([])))
+    assert env.outcome.status == OutcomeStatus.FAILED
+
+
+def test_a_tool_call_whose_input_cannot_be_read_runs_nothing(runs_dir: Path) -> None:
+    unread = ToolCall("toolu_0", "example_hello", {}, "the arguments are not a JSON object")
+    garbled = ModelResponse("", model_id=MODEL, tool_calls=(unread,), stop="tool_use")
+    model = ScriptedModel([garbled, say("Sorry, let me try again later.")])
+    env = invoke(conductor(runs_dir, model))
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED
+    assert env.delegations == []
+    [result] = model.sent[1]["messages"][-1]["results"]
+    assert result["is_error"] is True
 
 
 def test_a_reply_cut_short_says_so(runs_dir: Path) -> None:
@@ -321,3 +348,135 @@ def test_the_model_is_told_of_the_projects_inventory_only_when_it_holds_one() ->
     assert note.startswith("[From the harness, not the researcher]")
     assert "42 files, made 2026-11-01 09:00 UTC by dd-inventory 0.1.0" in note
     assert "skipped 1 unreadable file" in note
+
+
+def test_the_model_is_told_where_the_project_is_only_in_a_project() -> None:
+    """The note is derived by the conductor from the project log on every turn; the model keeps
+    no place in the flow of its own (docs/specs/orchestration.md)."""
+    assert len(conversation(Message(message_text="now"), history_turns=0)) == 1
+    message = Message(
+        message_text="now",
+        project_entry=2,
+        project_progress=[
+            StepProgress(step_id="governance.policies", step_state=StepState.DONE),
+            StepProgress(step_id="preparation.metadata", step_state=StepState.STARTED),
+        ],
+    )
+    (sent,) = conversation(message, history_turns=0)
+    note, text = sent["content"].split("\n\n")
+    assert text == "now"
+    assert note.startswith("[From the harness, not the researcher]")
+    assert "entry point 2" in note
+    assert "governance.policies" in note
+    # A started step is suggested before an earlier open one.
+    assert "Suggested next: [preparation.metadata]" in note
+    # In a project with no entry chosen and nothing done, the note still says so, and suggests
+    # no step: a researcher whose data are collected is not sent back to Phase 1.
+    (sent,) = conversation(Message(message_text="now", project_progress=[]), history_turns=0)
+    assert "no entry point" in sent["content"]
+    assert "Suggested next" not in sent["content"]
+
+
+CHOICES: dict[str, Any] = {
+    "question_key": "repository",
+    "question_kind": "choice",
+    "question_prompt": "Which repository will you deposit in?",
+    "question_options": [
+        {"option_value": "zenodo", "option_label": "Zenodo"},
+        {"option_value": "figshare", "option_label": "Figshare", "option_help": "Hosted"},
+    ],
+    "question_other": True,
+}
+TITLE: dict[str, Any] = {
+    "question_key": "title",
+    "question_kind": "short_text",
+    "question_prompt": "What is the dataset called?",
+}
+METHOD: dict[str, Any] = {
+    "question_key": "method",
+    "question_kind": "long_text",
+    "question_prompt": "How were the data collected?",
+    "question_help": "A few sentences are enough.",
+}
+
+
+def questions(*asked: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    """An `ask_questions` call asking `asked`."""
+    return ("ask_questions", {"questions": list(asked)})
+
+
+def asks(text: str, *calls: tuple[str, dict[str, Any]]) -> ModelResponse:
+    """A turn with reply text followed by tool calls."""
+    return dataclasses.replace(call(*calls), text=text)
+
+
+@pytest.mark.requirement("DD-CONVERSATION")
+def test_asking_questions_ends_the_turn_and_the_reply_carries_them(runs_dir: Path) -> None:
+    model = ScriptedModel(
+        [asks("I need to know a few things first.", questions(CHOICES, TITLE, METHOD))]
+    )
+    env = invoke(conductor(runs_dir, model), "Help me deposit")
+
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert len(model.sent) == 1  # no second call
+    reply = env.payload_as(Reply)
+    assert reply.reply_text == "I need to know a few things first."
+    asked = reply.reply_questions or []
+    assert [q.question_key for q in asked] == ["repository", "title", "method"]
+    assert [q.question_kind for q in asked] == [
+        QuestionKind.CHOICE,
+        QuestionKind.SHORT_TEXT,
+        QuestionKind.LONG_TEXT,
+    ]
+    choice = asked[0]
+    assert [o.option_value for o in choice.question_options or []] == ["zenodo", "figshare"]
+    assert choice.question_other and not choice.question_multiple
+    assert env.delegations == []
+    assert "reply_questions" in ModelOrchestrator.spec.derivations
+
+
+def test_questions_without_text_reply_with_the_question(runs_dir: Path) -> None:
+    model = ScriptedModel([call(questions(CHOICES))])
+    env = invoke(conductor(runs_dir, model), "Help me deposit")
+    assert env.payload_as(Reply).reply_text == "Which repository will you deposit in?"
+
+
+@pytest.mark.parametrize(
+    "asked",
+    [
+        [{**CHOICES, "question_options": CHOICES["question_options"][:1]}],  # one option
+        [{**TITLE, "question_options": CHOICES["question_options"]}],  # options on text
+        [TITLE, TITLE],  # the same key twice
+        [{**TITLE, "question_key": f"q{n}"} for n in range(9)],  # too many
+        [],
+    ],
+)
+def test_invalid_questions_are_refused_and_the_model_asks_in_prose(
+    runs_dir: Path, asked: list[dict[str, Any]]
+) -> None:
+    model = ScriptedModel([call(questions(*asked)), say("Which repository will you use?")])
+    env = invoke(conductor(runs_dir, model), "Help me deposit")
+
+    reply = env.payload_as(Reply)
+    assert reply.reply_questions is None and reply.reply_text == "Which repository will you use?"
+    [result] = model.sent[1]["messages"][-1]["results"]
+    assert result["is_error"] is True and "not valid questions" in result["content"]
+
+
+def test_questions_beside_a_delegation_are_refused_and_the_delegation_runs(
+    runs_dir: Path,
+) -> None:
+    model = ScriptedModel(
+        [
+            call(("example_hello", {"greeted_name": "Ada"}), questions(CHOICES)),
+            asks("Greeted Ada. Where next?", questions(CHOICES)),
+        ]
+    )
+    env = invoke(conductor(runs_dir, model))
+
+    [delegation] = env.delegations
+    assert delegation.delegated_agent_id == "example.hello"
+    hello, asked = model.sent[1]["messages"][-1]["results"]
+    assert hello["is_error"] is False
+    assert asked["is_error"] is True and "alone" in asked["content"]
+    assert env.payload_as(Reply).reply_questions is not None

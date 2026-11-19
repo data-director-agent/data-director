@@ -1,38 +1,85 @@
-# advisor.documentation's README template: the draft's sections, in order. A mock's table
-# (docs/specs/agents.md): it writes no prose of its own, and the real editor replaces it, TODO(#358).
+# advisor.documentation's README template: the draft's sections, in order
+# (docs/specs/drafting.md). A model, where one is configured, writes prose only for a section with
+# a fact to draft from, and never in place of its `ask`.
 #
 # The sections are the common core of the research data README templates compared in #200:
 # Cornell's Data README, Dryad's and the Borealis working group's minimum README. `ask` says what
 # the researcher writes in the section, and the draft shows it as a placeholder. `from` names the
-# project fact a section is drafted from:
+# project fact, or the list of facts in order, a section is drafted from:
 #
-#   files     the inventory's files, as a table of path, format and size
-#   tables    the inventory's tables, as a table of field, type and format per file
-#   licences  the licences the chosen repository offers, for the researcher to choose from
+#   files            the inventory's files, as a table of path, format and size
+#   licences         the licences the chosen repository offers, for the researcher to choose from
+#   record_general   the approved metadata record's title, creators and funders
+#   record_abstract  the approved metadata record's abstract
+#   record_rights    the licence the approved metadata record names
+#   record_citation  a citation by the approved metadata record's creators, year and title
 #
-# A section drafted from a fact still shows its `ask`, for what the fact cannot say.
+# A section drafted from a fact still shows its `ask`, for what the fact cannot say, unless the
+# fact named by `complete_from` gives it: that fact says all the section asks.
+#
+# A section may list `parts` instead of one `ask`: each part is asked as a question of its own,
+# with its own `label` and `ask`, and placed as a `- **label:** answer` line. A part with
+# `given_by` is not asked when the approved metadata record gives it:
+#
+#   title      the record's title
+#   creators   the record's creators
+#   collected  the record's dates of type Collected
+#   location   the record's geographic locations, by place name
+#   funding    the record's funders
+#
+# A section with `suggest: true` may have a model's suggested answer offered beside its question,
+# never written into the README (docs/specs/drafting.md, invariant 7). Only a section whose answer
+# the facts can inform is marked: never the people, dates, places or citation, which only the
+# researcher can give, and never a section with parts. `suggest: documents` marks a section a
+# model may suggest only from the documents the researcher attached, and only when there are
+# some: the methods, which the researcher's own field notes or protocol can say and nothing else
+# can.
+#
+# The README names people; their identifiers, affiliations and contact details belong to the
+# metadata record, so it does not ask for them.
 - heading: General information
-  ask: >-
-    the dataset's title; the principal investigator and a contact, with institution, email and
-    ORCID iD; the dates of data collection (YYYY-MM-DD); the geographic location; the funding.
+  from: record_general
+  parts:
+    - label: Title
+      given_by: title
+      ask: the dataset's title.
+    - label: Creators
+      given_by: creators
+      ask: who created the dataset, by name, and which of them answers questions about the data.
+    - label: Dates of data collection
+      given_by: collected
+      ask: when the data were collected, as YYYY-MM-DD to YYYY-MM-DD.
+    - label: Geographic location
+      given_by: location
+      ask: where the data were collected, or say it does not apply.
+    - label: Funding
+      given_by: funding
+      ask: the funders and grant numbers.
 - heading: Description
+  from: record_abstract
+  complete_from: record_abstract
   ask: what the dataset is, and what it is for.
 - heading: Files
   from: files
+  suggest: true
   ask: how the files relate to one another, and any related data not included.
 - heading: Methods
+  suggest: documents
   ask: >-
     how the data were collected and processed; the software and instruments, with their versions;
     the standards, calibration and quality assurance applied.
 - heading: Variables
-  from: tables
+  suggest: true
   ask: >-
-    each field's definition, unit and missing value codes, in the data dictionary; any
-    abbreviations used.
+    where the data dictionary is, which describes each field's definition, type, unit and missing
+    value codes; any abbreviations or coding conventions shared across the tables.
 - heading: Access and licence
-  from: licences
+  from: [record_rights, licences]
+  suggest: true
   ask: the licence, any restrictions, related publications and other places the data are held.
 - heading: How to cite
+  from: record_citation
   ask: the recommended citation. The repository gives the DOI when the dataset is deposited.
 - heading: Software requirements
+  suggest: true
   ask: anything needed to open or reuse the data.

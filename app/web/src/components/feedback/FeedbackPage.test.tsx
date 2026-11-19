@@ -8,14 +8,15 @@ import {
   FeedbackApiContext,
   describeBuild,
 } from "../../feedback/api";
+import { about } from "../../test/api";
 import { FeedbackPage } from "./FeedbackPage";
 
-const ABOUT: About = {
+const ABOUT: About = about({
   app_version: "0.3.0-alpha.1",
   harness_version: "0.1.0",
   commit: "abcdef0123456789",
   feedback_enabled: true,
-};
+});
 
 function fakeApi(overrides: Partial<FeedbackApi> = {}): FeedbackApi {
   return {
@@ -85,7 +86,7 @@ describe("FeedbackPage", () => {
 
   it("cannot send where reports are off, and points to GitHub", async () => {
     renderPage(fakeApi({ about: () => Promise.resolve({ ...ABOUT, feedback_enabled: false }) }), "");
-    expect(await screen.findByRole("link", { name: "open an issue on GitHub" })).toBeVisible();
+    expect(await screen.findByRole("link", { name: /^open an issue on GitHub/ })).toBeVisible();
     expect(screen.getByRole("button", { name: "Send report" })).toBeDisabled();
   });
 });

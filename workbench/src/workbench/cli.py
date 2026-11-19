@@ -30,7 +30,9 @@ from dd_harness.settings import (
     load_env_file,
 )
 from dd_harness.sources import SourceConfigError
+from dd_harness.storage import SOURCES
 from dd_sdk.contract.models import InvocationRequest, OpenInput
+from dd_sdk.credentials import ConfigError
 from dd_sdk.tracing import records_from_jsonl
 from workbench.config import CONFIG_DIR_FILES, CONFIG_DIR_VARIABLE, settings_from_env
 
@@ -130,9 +132,10 @@ def cmd_invoke(args: argparse.Namespace) -> int:
     report = conductor.grounding_reports[request.invocation_id]
     print(json.dumps(envelope.to_document(), indent=2))
     print(report.summary(), file=sys.stderr)
-    run_dir = conductor.store.run_dir(request.invocation_id)
-    print((run_dir / "sources.txt").read_text(encoding="utf-8").rstrip(), file=sys.stderr)
-    print(f"run directory: {run_dir}", file=sys.stderr)
+    store = conductor.store
+    checked = store.get_artifact(request.invocation_id, SOURCES) or b""
+    print(checked.decode("utf-8").rstrip(), file=sys.stderr)
+    print(f"stored at: {store.where(request.invocation_id)}", file=sys.stderr)
     return 0
 
 
@@ -160,11 +163,18 @@ def cmd_serve(args: argparse.Namespace) -> int:
     import uvicorn
 
     from workbench.transport.app import build_app
+    from workbench.transport.signin import admin_sign_in
 
     base_url = f"http://{args.host}:{args.port}"
+    settings = _settings(args)
     # The harness's own server builds the same conductor (#55); the workbench adds its routes.
-    conductor, authenticator = serving(_settings(args), base_url)
-    app = build_app(conductor, authenticator, base_url=base_url)
+    conductor, authenticator = serving(settings, base_url)
+    try:
+        sign_in = admin_sign_in(os.environ, settings, base_url)
+    except BaseException:
+        conductor.close()
+        raise
+    app = build_app(conductor, authenticator, base_url=base_url, sign_in=sign_in)
     try:
         uvicorn.run(app, host=args.host, port=args.port)
     finally:
@@ -217,7 +227,14 @@ def main(argv: list[str] | None = None) -> int:
     # No principal (docs/specs/policy-and-identity.md), a path the deployment must name
     # (docs/specs/system.md), or a profile, agent list or source list that is missing or malformed:
     # nothing may run.
-    except (IdentityError, SettingsError, PolicyError, RegistryError, SourceConfigError) as exc:
+    except (
+        IdentityError,
+        SettingsError,
+        PolicyError,
+        RegistryError,
+        SourceConfigError,
+        ConfigError,
+    ) as exc:
         sys.exit(f"workbench: {exc}")
     return result
 

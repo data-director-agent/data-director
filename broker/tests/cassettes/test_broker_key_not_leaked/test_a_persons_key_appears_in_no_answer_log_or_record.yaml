@@ -1,0 +1,53 @@
+# Written by hand, not recorded: the provider's answers to the broker. vcrpy matches on method and
+# URI, so the request headers and bodies below are not compared, and the answers play back in order.
+# The error answers quote the sentinel key, as a careless provider might, to show the broker never passes them on.
+interactions:
+- request:
+    body: ''
+    headers:
+      content-type:
+      - application/json
+    method: POST
+    uri: https://api.anthropic.com/v1/messages
+  response:
+    body:
+      string: "{\"id\": \"msg_1\", \"type\": \"message\", \"role\": \"assistant\", \"model\": \"claude-sonnet-5-5\", \"content\": [{\"type\": \"text\", \"text\": \"Use the Data Documentation Initiative.\"}], \"stop_reason\": \"end_turn\", \"stop_sequence\": null, \"usage\": {\"input_tokens\": 120, \"output_tokens\": 30, \"cache_read_input_tokens\": 10, \"cache_creation_input_tokens\": 0}}"
+    headers:
+      content-type:
+      - application/json
+    status:
+      code: 200
+      message: OK
+- request:
+    body: ''
+    headers:
+      content-type:
+      - application/json
+    method: POST
+    uri: https://api.anthropic.com/v1/messages
+  response:
+    body:
+      string: "{\"type\": \"error\", \"error\": {\"type\": \"authentication_error\", \"message\": \"invalid x-api-key sk-ant-sentinel-7d2e9b40c1a85f36\"}}"
+    headers:
+      content-type:
+      - application/json
+    status:
+      code: 401
+      message: Unauthorized
+- request:
+    body: ''
+    headers:
+      content-type:
+      - application/json
+    method: POST
+    uri: https://api.anthropic.com/v1/messages
+  response:
+    body:
+      string: "{\"type\": \"error\", \"error\": {\"type\": \"rate_limit_error\", \"message\": \"This request would exceed your organization's rate limit for key sk-ant-sentinel-7d2e9b40c1a85f36\"}}"
+    headers:
+      content-type:
+      - application/json
+    status:
+      code: 429
+      message: Too Many Requests
+version: 1

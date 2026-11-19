@@ -10,7 +10,7 @@ import { DisclosurePanel, statementBody } from "./DisclosurePanel";
 const DISCLOSURE = fixture as Disclosure;
 
 function renderPanel(api: Pick<ProjectApi, "disclosure">, revision = 0) {
-  const full = { documents: vi.fn(), decide: vi.fn(), ...api } as unknown as ProjectApi;
+  const full = { projects: vi.fn(), documents: vi.fn(), decide: vi.fn(), ...api } as unknown as ProjectApi;
   return render(
     <ProjectApiContext.Provider value={full}>
       <DisclosurePanel projectId={DISCLOSURE.project_id} revision={revision} />
@@ -53,7 +53,7 @@ describe("DisclosurePanel", () => {
     await screen.findByRole("heading", { name: "README", level: 3 });
     rerender(
       <ProjectApiContext.Provider
-        value={{ documents: vi.fn(), decide: vi.fn(), disclosure } as unknown as ProjectApi}
+        value={{ projects: vi.fn(), documents: vi.fn(), decide: vi.fn(), disclosure } as unknown as ProjectApi}
       >
         <DisclosurePanel projectId={DISCLOSURE.project_id} revision={1} />
       </ProjectApiContext.Provider>,

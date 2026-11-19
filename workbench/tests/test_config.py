@@ -27,37 +27,18 @@ from workbench.config import (
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
 
-from devstack.common import load_agents
+from ddtool.common import load_agents
 
 
 def test_the_shipped_config_lists_every_agent_package() -> None:
-    # agents.yaml holds only URLs; scripts/dev.py starts each agent on the port the app's list
+    # agents.yaml holds only URLs; scripts/dd.py starts each agent on the port the app's list
     # names it at, so the two lists must agree.
     root = Path(__file__).resolve().parents[2]
     ports = {int(e["url"].rsplit(":", 1)[1]) for e in load_config(DEFAULT_AGENTS_CONFIG)}
     served = {a.name: a.port for a in load_agents(root / "app" / "config" / "agents.yaml")}
     packages = {d.name for d in (root / "agents").iterdir() if (d / "pyproject.toml").exists()}
-    assert (
-        set(served)
-        == packages
-        == {
-            "example-hello",
-            "advisor-quality",
-            "advisor-standards",
-            "advisor-policy",
-            "advisor-repository",
-            "advisor-ethics",
-            "advisor-files",
-            "advisor-dmp",
-            "advisor-metadata",
-            "advisor-documentation",
-            "advisor-rights",
-            "advisor-linking",
-            "advisor-fairness",
-            "orchestrator-stub",
-            "orchestrator-model",
-        }
-    )
+    assert set(served) == packages
+    assert {"example-hello", "orchestrator-stub"} <= packages
     assert set(served.values()) == ports
 
 

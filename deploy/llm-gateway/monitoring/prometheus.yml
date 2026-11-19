@@ -1,0 +1,13 @@
+# Scrapes LiteLLM's /metrics. The endpoint needs an API key: put a LiteLLM key
+# (e.g. a dedicated key with max_budget 0) in monitoring/litellm_key.
+global:
+  scrape_interval: 30s
+
+scrape_configs:
+  - job_name: litellm
+    metrics_path: /metrics/
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/litellm_key
+    static_configs:
+      - targets: ["litellm:4000"]

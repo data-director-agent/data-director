@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.1.1-alpha.4](https://github.com/data-director-agent/data-director/compare/agent-orchestrator-model-v0.1.1-alpha.3...agent-orchestrator-model-v0.1.1-alpha.4) (2026-11-07)
+
+
+### Features
+
+* **agents:** lead the loop from the files to a package with both orchestrators ([#630](https://github.com/data-director-agent/data-director/issues/630)) ([22f22e2](https://github.com/data-director-agent/data-director/commit/22f22e2f43f9c582fbcb58e5442dd5ad187a5c1f))
+* **agents:** suggest data dictionary definitions and units as questions ([#638](https://github.com/data-director-agent/data-director/issues/638)) ([05f1330](https://github.com/data-director-agent/data-director/commit/05f133061b033ba066088a10eed9c784a77c0228))
+* **agents:** write readme prose with a model and answer drafter questions ([#627](https://github.com/data-director-agent/data-director/issues/627)) ([764d6ea](https://github.com/data-director-agent/data-director/commit/764d6ea3393ab54eb53843912ea0423fb9f22747))
+* track project progress from process flow logs ([#628](https://github.com/data-director-agent/data-director/issues/628)) ([fc5be95](https://github.com/data-director-agent/data-director/commit/fc5be95bdfe9a3d66c4ed023a04765199973db1a))
+
+## [0.1.1-alpha.3](https://github.com/data-director-agent/data-director/compare/agent-orchestrator-model-v0.1.1-alpha.2...agent-orchestrator-model-v0.1.1-alpha.3) (2026-11-06)
+
+
+### Features
+
+* **app:** ask categorical questions as clickable choices ([#586](https://github.com/data-director-agent/data-director/issues/586)) ([57b4e9f](https://github.com/data-director-agent/data-director/commit/57b4e9f0d7e5dedea4b9e45201de64365c04b90b))
+* **sdk:** show the data management plan steps as out of scope ([631f442](https://github.com/data-director-agent/data-director/commit/631f442c5ee6bfeb3f73813bda88ac648901df60))
+* **sdk:** show the data management plan steps as out of scope ([7109c17](https://github.com/data-director-agent/data-director/commit/7109c1790d13d84cbdfe54668ad0cfc2803fb2df))
+
+## [0.1.1-alpha.2](https://github.com/data-director-agent/data-director/compare/agent-orchestrator-model-v0.1.1-alpha.1...agent-orchestrator-model-v0.1.1-alpha.2) (2026-11-06)
+
+
+### Features
+
+* **app:** give each earlier conversation a title ([#542](https://github.com/data-director-agent/data-director/issues/542)) ([0202dfa](https://github.com/data-director-agent/data-director/commit/0202dfaf94cbb60f951299d138c12877600e7e2f))
+* **harness:** disclose the generative AI behind each approved document ([#479](https://github.com/data-director-agent/data-director/issues/479)) ([31c0e31](https://github.com/data-director-agent/data-director/commit/31c0e31ae6465c954ecad99c91bc34e3a3193d54)), closes [#476](https://github.com/data-director-agent/data-director/issues/476)
+
+
+### Documentation
+
+* **deploy:** document the data-director command for operators ([55d0d69](https://github.com/data-director-agent/data-director/commit/55d0d6901b56add54627f2286abc72c24d1909ac))
+* **deploy:** document the data-director command for operators ([50825e4](https://github.com/data-director-agent/data-director/commit/50825e4ada925fc89de1d76db980970cab268e94))
+
 ## [0.1.1-alpha.1](https://github.com/data-director-agent/data-director/compare/agent-orchestrator-model-v0.1.1-alpha...agent-orchestrator-model-v0.1.1-alpha.1) (2026-11-05)
 
 

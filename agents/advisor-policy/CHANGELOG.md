@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.0-alpha.2](https://github.com/data-director-agent/data-director/compare/agent-advisor-policy-v0.1.0-alpha.1...agent-advisor-policy-v0.1.0-alpha.2) (2026-11-06)
+
+
+### Features
+
+* **deploy:** one configuration tool with a doctor for the VM ([#548](https://github.com/data-director-agent/data-director/issues/548)) ([73f1db1](https://github.com/data-director-agent/data-director/commit/73f1db15081ccd20ff660b168d5249b4c30e29af))
+* **harness:** disclose the generative AI behind each approved document ([#479](https://github.com/data-director-agent/data-director/issues/479)) ([31c0e31](https://github.com/data-director-agent/data-director/commit/31c0e31ae6465c954ecad99c91bc34e3a3193d54)), closes [#476](https://github.com/data-director-agent/data-director/issues/476)
+
 ## [0.1.0-alpha.1](https://github.com/data-director-agent/data-director/compare/agent-advisor-policy-v0.1.0-alpha...agent-advisor-policy-v0.1.0-alpha.1) (2026-11-05)
 
 

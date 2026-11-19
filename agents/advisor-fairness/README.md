@@ -1,15 +1,16 @@
 # advisor.fairness
 
-**Alpha** (`0.1.0a1`), and a **mock** ([Agents](../../docs/specs/agents.md)): it shows where the FAIR Assessor sits in the
-process flow, and gives no real assessment.
+**Alpha** (`0.2.0a1`), and a **model-backed alpha** ([Agents](../../docs/specs/agents.md)): rules
+decide what the record meets, and a model, if configured, writes the recommendations. It gives no
+FAIRness evaluation.
 
 The FAIR Assessor looks at a dataset that is already published. It serves two steps of the
 Blueprint's process flow (§8.2):
 
-| Step | What the mock does |
+| Step | What it does |
 |---|---|
 | `post.fairness` (R12) | Checks the metadata given for the dataset against a short list of FAIR-related presence checks. |
-| `post.retrofit` (R9) | Suggests what to add to the record for each check not met. |
+| `post.retrofit` (R9) | Recommends what to add to the record for each check not met. |
 
 Both steps are optional and advisory. The agent changes no record: the researcher decides what to
 submit to the repository.
@@ -17,28 +18,56 @@ submit to the repository.
 ## Input and output
 
 `PublishedRecord` holds the dataset's metadata as the researcher gives it: `identifier` (a DOI or
-URL), `title`, `licence`, `keywords`, `creators`, `creator_identifiers` (such as ORCID iDs),
-`formats` (media types), `related_identifiers` and `access_protocol`. With neither an identifier
-nor a title, the agent abstains.
+URL), `title`, `description`, `licence`, `keywords`, `creators`, `creator_identifiers` (such as
+ORCID iDs), `formats` (media types), `related_identifiers` and `access_protocol`. With neither an
+identifier nor a title, the agent abstains.
 
 `FairnessReport` holds one `FairCheck` per rule: the FAIR sub-principle (`F1`, `R1.1`, …), the
-check's short identifier, whether it is `met`, and a `recommendation` when it is not. It also
-lists the mock's `limitations`. There is no score.
+check's short identifier, whether it is `met`, and, when it is not, a `recommendation` with its
+`recommendation_derivation` (`template` or `model`). It also lists the assessor's `limitations`.
+There is no score.
 
 ## What it does
 
 It applies the twelve rules in `src/dd_agent_advisor_fairness/checks.yaml` to its input: for
 example, whether the identifier is a DOI (F1), keywords are given (F2), at least one format is
 open (I1), related identifiers are given (I3), there is a licence (R1.1) and every creator has an
-identifier (R1.2). Its grounding mode is `none`, and it cites only its input.
+identifier (R1.2). Whether a check is met is always decided by these rules.
+
+The recommendation for each unmet check comes from a writer (`write.py`):
+
+- `template`: the rule table's own text, the same for every record. It needs no key.
+- `model` (the default): a model is sent the record as given and the unmet checks with their template text, and
+  writes a recommendation tailored to the record, such as naming the creator who has no
+  identifier or saying what the description leaves out. Each is checked before it is used: one
+  for a check not sent, an empty or overlong one, or one naming a DOI, ORCID iD or web address the
+  record does not give, is dropped, and that check keeps its template text, marked `template`. A
+  refusal, a reply that does not match the schema or a model that cannot be reached leaves every
+  recommendation as the template's. The statement says which happened.
+
+Its grounding mode is `input_only`, and it cites only its input.
+
+## Settings
+
+| Variable | Values |
+|---|---|
+| `DD_FAIRNESS_WRITER` | `model` (default) or `template` (no model, no key). `anthropic` is the older name for `model` with `DD_MODEL_PROVIDER=anthropic`. |
+| `DD_MODEL_PROVIDER`, `DD_MODEL_ID`, `DD_MODEL_BASE_URL` and the provider's key | Unless `template` (`dd_sdk.model_provider`). The default model for Anthropic is `claude-sonnet-5-5`. |
+
+Unless it is set to `template`, the record's metadata as the researcher gave them are sent to the configured model
+([AI models](../../docs/guide/operations/ai-models.md)). An unknown value or an unusable model
+setting stops `dd-advisor-fairness serve` at start-up.
 
 ## What it does not do
 
 - It is not a FAIRness evaluation, and the Blueprint does not ask the tool to replicate one (R4).
 - It retrieves nothing: it does not resolve the identifier or read the repository's record, files
-  or landing page, so it cannot tell whether what was given is true.
-- It does not discover related datasets or outputs.
+  or landing page, so it cannot tell whether what was given is true. Resolving the record and
+  running a community FAIRness tool such as F-UJI is TODO(#704).
+- It does not discover related datasets or outputs: TODO(#954).
 - It changes no record.
 
-The real assessor, drawing on community tools such as F-UJI and discovering related datasets (for
-example through DataCite's search), is TODO(#361).
+## Tests
+
+`uv run pytest agents/advisor-fairness`. The model path runs against `dd_sdk.testing.FakeModel`;
+no test needs a key.

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -14,8 +15,10 @@ from support import configure_env, dist_dir, new_governance
 
 from dd_app import feedback
 from dd_app.about import about, commit
-from dd_app.app import build_app
+from dd_app.app import Links, build_app
+from dd_app.github_auth import StaticToken
 from dd_app.governance import Governance
+from dd_app.routes.common import Feedback
 from dd_harness.testing import TEST_PRINCIPAL
 from dd_sdk.credentials import ConfigError
 
@@ -36,6 +39,7 @@ def dist(tmp_path: Path) -> Path:
 
 
 BUILD = {"app_version": "1.2.3", "harness_version": "0.4.5", "commit": "abc1234def"}
+EXAMPLE = Path(__file__).resolve().parents[1] / "config/examples/soil-chemistry.profile.json"
 REPORT = {"kind": "bug", "title": "  The run  hangs ", "description": "It never ends."}
 
 
@@ -54,7 +58,8 @@ def client_for(
         return httpx.Response(201, json={"html_url": "https://github.test/i/7", "number": 7})
 
     github = httpx.AsyncClient(transport=httpx.MockTransport(answer))
-    app = build_app(governance, dist, feedback_token=token, feedback_client=github, build=BUILD)
+    source = StaticToken(token) if token is not None else None
+    app = build_app(governance, dist, feedback=Feedback(source, client=github), build=BUILD)
     return TestClient(app), seen
 
 
@@ -74,11 +79,60 @@ def test_about_names_the_installed_versions(tmp_path: Path) -> None:
     assert found["app_version"] and found["harness_version"]
 
 
+def test_server_status_answers_a_monitor_without_a_session(
+    governance: Governance, dist: Path
+) -> None:
+    client, _ = client_for(governance, dist)
+    found = client.get("/server-status?auto")
+    assert found.status_code == 200
+    assert found.headers["content-type"].startswith("text/plain")
+    assert "Uptime: " in found.text
+
+
 def test_about_says_whether_reports_are_on(governance: Governance, dist: Path) -> None:
     on, _ = client_for(governance, dist)
     off, _ = client_for(governance, dist, token=None)
-    assert on.get("/api/about").json() == {**BUILD, "feedback_enabled": True}
+    assert on.get("/api/about").json()["feedback_enabled"] is True
     assert off.get("/api/about").json()["feedback_enabled"] is False
+
+
+def test_about_gives_the_operators_privacy_notice_only_when_one_is_set(
+    governance: Governance, dist: Path
+) -> None:
+    unset, _ = client_for(governance, dist)
+    assert unset.get("/api/about").json()["privacy_notice_url"] is None
+    url = "https://example.ac.uk/data-director/privacy"
+    app = build_app(governance, dist, build=BUILD, links=Links(privacy_notice_url=url))
+    assert TestClient(app).get("/api/about").json()["privacy_notice_url"] == url
+
+
+def test_about_names_the_build_and_the_profile_it_runs_to(
+    governance: Governance, dist: Path
+) -> None:
+    client, _ = client_for(governance, dist)
+    found = client.get("/api/about").json()
+    assert {key: found[key] for key in BUILD} == BUILD
+    profile = governance.conductor.profile
+    assert found["profile"] == {
+        "id": profile.profile_id,
+        "version": profile.version,
+        "digest": profile.digest,
+        "orchestrator": profile.orchestrator,
+    }
+    assert found["unavailable"] == [] and found["incompatible"] == []
+
+
+def test_about_names_an_unreachable_agent_without_its_address(
+    monkeypatch: pytest.MonkeyPatch, governance: Governance, dist: Path
+) -> None:
+    registry = governance.conductor.registry
+    monkeypatch.setattr(registry, "refresh", lambda: None)
+    registry.unavailable = {"nowhere": "http://10.0.0.9:8199/ refused the connection"}
+    client, _ = client_for(governance, dist)
+    found = client.get("/api/about")
+    assert found.status_code == 200
+    assert found.json()["unavailable"] == ["nowhere"]
+    assert "10.0.0.9" not in found.text
 
 
 def test_a_report_files_an_issue_with_the_build(governance: Governance, dist: Path) -> None:
@@ -92,7 +146,7 @@ def test_a_report_files_an_issue_with_the_build(governance: Governance, dist: Pa
     sent = json.loads(request.content)
     assert sent["title"] == "The run hangs"
     assert sent["type"] == "Bug"
-    assert sent["labels"] == ["area: app"]
+    assert sent["labels"] == ["area: app", "user report"]
     for line in ("`1.2.3`", "`0.4.5`", "`abc1234def`", "It never ends."):
         assert line in sent["body"]
 
@@ -142,11 +196,16 @@ def test_a_bad_report_is_refused_before_github(
     assert not seen
 
 
-def test_github_failing_is_a_502(governance: Governance, dist: Path) -> None:
+def test_github_failing_is_a_502_and_is_logged(
+    governance: Governance, dist: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     client, _ = client_for(governance, dist, lambda _: httpx.Response(500))
-    response = client.post("/api/feedback", json=REPORT)
+    with caplog.at_level("WARNING", logger="dd_app.routes.meta"):
+        response = client.post("/api/feedback", json=REPORT)
     assert response.status_code == 502
     assert "t0ken" not in response.text
+    assert "GitHub answered 500" in caplog.text
+    assert "t0ken" not in caplog.text
 
 
 def test_reports_are_rate_limited(governance: Governance, dist: Path) -> None:
@@ -171,6 +230,26 @@ def test_context_is_attached_only_with_consent_and_only_identifiers(
         assert (started in text) is consent
 
 
+def test_a_report_attaches_nothing_the_reporter_may_not_read(
+    governance: Governance, dist: Path
+) -> None:
+    """Someone else's run or conversation is not attached, even with consent (#153)."""
+    other = TEST_PRINCIPAL.model_copy(
+        update={"principal_id": "https://orcid.org/0000-0001-5000-0007", "name": "Ada Example"}
+    )
+    profile = json.loads(EXAMPLE.read_text(encoding="utf-8"))
+    theirs = asyncio.run(governance.run("advisor.standards", profile, other))["envelope"]
+    mine = asyncio.run(governance.run("advisor.standards", profile, TEST_PRINCIPAL))["envelope"]
+    conversation = governance.start_conversation(other)
+    for run_id, attached in ((theirs["invocation_id"], False), (mine["invocation_id"], True)):
+        client, seen = client_for(governance, dist)
+        body = {**REPORT, "run": run_id, "conversation": conversation, "include_context": True}
+        assert client.post("/api/feedback", json=body).status_code == 201
+        text = json.loads(seen[0].content)["body"]
+        assert (f"Run `{run_id}`" in text) is attached
+        assert f"Conversation `{conversation}`" not in text
+
+
 def test_the_token_comes_from_a_value_or_a_credential_file(tmp_path: Path) -> None:
     (tmp_path / "token").write_text("filed\n", encoding="utf-8")
     assert feedback.token_from_env({}) is None
@@ -186,3 +265,11 @@ def test_the_token_comes_from_a_value_or_a_credential_file(tmp_path: Path) -> No
         feedback.token_from_env({f"{feedback.TOKEN_VARIABLE}_FILE": "token"})
     with pytest.raises(ConfigError):
         feedback.token_from_env({f"{feedback.TOKEN_VARIABLE}_FILE": str(tmp_path / "none")})
+
+
+def test_only_a_bug_is_marked_as_a_user_report() -> None:
+    from dd_app.feedback import labels_for
+
+    assert labels_for("bug") == ["area: app", "user report"]
+    assert labels_for("feature") == ["area: app"]
+    assert labels_for("other") == ["area: app"]

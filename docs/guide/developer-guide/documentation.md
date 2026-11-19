@@ -21,5 +21,14 @@ describes, and `docs/hooks.py` publishes it from there without a copy:
 - A Markdown file that git tracks and that is neither in the nav nor listed in `UNPUBLISHED` in
   `docs/hooks.py` fails the build, as does a link to a file that does not exist.
 
+The `plugins` in `mkdocs.yml` add a few things:
+
+- `redirects`: when a page moves or is renamed, add `old/path.md: new/path.md` to
+  `redirect_maps` so links to the old address keep working.
+- `git-revision-date-localized`: each page shows when it was created and last changed, from git
+  history. The workflows check out the full history for this; a shallow clone gives every page the
+  same date.
+- `tags`: a page can list `tags:` in its front matter, and the tags are indexed.
+
 A pull request that touches the site builds it in the `Accessibility` workflow, which then checks
 it against WCAG 2.2 AA. The `Docs` workflow publishes it to GitHub Pages when `main` changes. In the repository settings, set Pages to the "GitHub Actions" source once.

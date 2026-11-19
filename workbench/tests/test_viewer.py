@@ -96,26 +96,16 @@ def test_base_derivation_values_are_from_the_contract_enum_or_verified() -> None
             assert opts["dd:derivation"] in allowed, path
 
 
-def test_payload_presentation_is_worked_out_from_schema_and_derivations() -> None:
-    assert "uiSchema: payloadUi(ps, derivations)" in VIEWER
-    assert "agents[envelope.agent_id]?.derivations" in VIEWER
-    assert "uischema" not in (VIEWER_DIR / "js" / "inspect.js").read_text(encoding="utf-8")
-
-
 def test_base_uischema_covers_the_envelope_not_any_payload() -> None:
     assert "payload" not in BASE
     assert BASE["grounding_mode"]["ui:widget"] == "derivationBadge"
 
 
-def test_shell_is_read_only_generic_and_pins_library_versions() -> None:
+def test_shell_is_read_only_and_generic() -> None:
     assert BASE["ui:readonly"] is True
-    assert "readonly: true" in VIEWER
-    assert "@rjsf/core@6.8.0?deps=react@19.3.1,react-dom@19.3.1" in VIEWER
-    assert "@rjsf/validator-ajv8@6.8.0?deps=react@19.3.1,react-dom@19.3.1" in VIEWER
-    assert 'role="status"' in PAGES["index.html"] and 'role="status"' in PAGES["index.html"]
+    assert 'role="status"' in PAGES["index.html"]
     assert '<label for="agent-select">' in VIEWER
     # Driven by the manifest and the samples listing; no agent or sample is named.
-    assert 'fetch("/agents")' in VIEWER and 'fetch("/samples")' in VIEWER
     for name in (
         "advisor.standards",
         "stub.abstain",
@@ -127,15 +117,6 @@ def test_shell_is_read_only_generic_and_pins_library_versions() -> None:
 
 
 def test_input_form_is_built_from_the_cards_class_schema_and_names_no_class() -> None:
-    form = (VIEWER_DIR / "js" / "inputform.js").read_text(encoding="utf-8")
-    assert "@rjsf/core@6.8.0?deps=react@19.3.1,react-dom@19.3.1" in form
-    assert "@rjsf/validator-ajv8@6.8.0?deps=react@19.3.1,react-dom@19.3.1" in form
-    assert 'tagName: "div"' in form  # Chat's composer is a <form>; forms do not nest
-    for page in ("inspect.js", "chat.js"):
-        module = (VIEWER_DIR / "js" / page).read_text(encoding="utf-8")
-        # The card's schema (docs/specs/contract.md).
-        assert "editor.show(cls, classSchema(" in module, page
-        assert 'from "./inputform.js"' in module, page
     # Chat names Message for its text box; no other input class is named anywhere.
     for name in ("Salutation", "Claim", "MetadataRecord", "DatasetProfile"):
         assert name not in VIEWER, name
@@ -144,15 +125,9 @@ def test_input_form_is_built_from_the_cards_class_schema_and_names_no_class() ->
 
 @pytest.mark.requirement("DD-CONVERSATION")
 def test_chat_mode_is_driven_by_the_conversation_api_and_names_every_agent_version() -> None:
+    # The behaviour is in browser_tests/; here, only that the Chat page has its agent picker and
+    # links a run to Inspect.
     assert '<label for="chat-agent-select">' in PAGES["index.html"]
-    assert 'fetch("/conversations")' in VIEWER and "fetch(`/conversations/${" in VIEWER
-    # Every reply card, and every delegated card inside it, is labelled agent_id@agent_version.
-    assert "`${env.agent_id}@${env.agent_version}`" in VIEWER
-    assert "version_changes" in VIEWER
-    # The orchestrator is found by grounding mode, never by name.
-    assert 'grounding_mode === "delegation"' in VIEWER
-    # Chat and Inspect both reload from the address bar; Inspect forwards the old Chat address.
-    assert "/viewer/?conversation_id=" in VIEWER and "/viewer/inspect.html?invocation_id=" in VIEWER
     assert "/viewer/inspect.html?invocation_id=" in PAGES["index.html"]
 
 

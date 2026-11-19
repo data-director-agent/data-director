@@ -1,0 +1,335 @@
+/* The journey map: phases as lines of stops, after the Blueprint's §8 figures. One column on a
+   narrow screen, then two or three, then all six side by side. The track and dots are
+   decoration; each stop also says its state in words. */
+
+@layer components {
+  .journey {
+    --journey-track: var(--color-border-subtle);
+    --journey-dot-size: 0.875rem;
+  }
+
+  .journey-rail {
+    margin: 0 0 var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border-left: var(--focus-width) solid var(--color-danger-fg);
+    background: var(--color-danger-bg);
+    color: var(--color-text);
+    font-size: var(--font-size-small);
+    border-radius: var(--radius-small);
+    max-width: none;
+  }
+
+  .journey-lines {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4) var(--space-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  @media (width >= 40rem) {
+    .journey-lines {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (width >= 64rem) {
+    .journey-lines {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @media (width >= 100rem) {
+    .journey-lines {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+  }
+
+  .journey-line {
+    min-width: 0;
+    padding-top: var(--space-2);
+    border-top: var(--focus-width) solid var(--color-accent);
+  }
+
+  .journey-phase {
+    margin: 0;
+    font-size: var(--font-size-h3);
+  }
+
+  .journey-phase-number {
+    display: block;
+    font-size: var(--font-size-small);
+    color: var(--color-text-muted);
+  }
+
+  .journey-phase-summary,
+  .journey-count {
+    margin: var(--space-1) 0;
+    font-size: var(--font-size-small);
+  }
+
+  .journey-count {
+    font-weight: var(--font-weight-medium);
+  }
+
+  .journey-entry {
+    display: flex;
+    gap: var(--space-1);
+    align-items: baseline;
+    margin: var(--space-2) 0;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-large);
+    border: var(--border-width) solid var(--color-ok-fg);
+    color: var(--color-ok-fg);
+    font-size: var(--font-size-small);
+  }
+
+  .journey-entry.is-yours {
+    background: var(--color-ok-bg);
+    font-weight: var(--font-weight-strong);
+  }
+
+  .journey-entry-icon {
+    flex: none;
+  }
+
+  /* The line's track runs down the left of its stops; each dot sits on it. */
+  .journey-stops {
+    position: relative;
+    margin: var(--space-2) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .journey-stops::before {
+    content: "";
+    position: absolute;
+    inset-block: var(--space-2);
+    inset-inline-start: calc(var(--space-2) + var(--journey-dot-size) / 2 - 1px);
+    border-inline-start: 2px solid var(--journey-track);
+  }
+
+  .journey-stops > li {
+    position: relative;
+  }
+
+  .journey-stop.button {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: var(--space-2);
+    width: 100%;
+    height: auto;
+    min-height: var(--control-height);
+    padding: var(--space-1) var(--space-2);
+    text-align: start;
+    white-space: normal;
+    font-weight: var(--font-weight-normal);
+  }
+
+  .journey-stop.button[data-selected] {
+    background: var(--color-surface-selected);
+    color: var(--color-text);
+  }
+
+  .journey-dot {
+    flex: none;
+    width: var(--journey-dot-size);
+    height: var(--journey-dot-size);
+    margin-top: 0.3em;
+    border-radius: var(--radius-full);
+    border: 2px solid var(--color-accent);
+    background: var(--color-bg);
+  }
+
+  .journey-stop-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .journey-stop-state {
+    font-size: var(--font-size-small);
+    color: var(--color-text-muted);
+  }
+
+  .journey-station.is-done .journey-dot {
+    background: var(--color-accent);
+  }
+
+  .journey-station.is-started .journey-dot {
+    background: linear-gradient(90deg, var(--color-accent) 50%, var(--color-bg) 50%);
+  }
+
+  .journey-station.is-skipped .journey-dot {
+    border-color: var(--color-text-muted);
+  }
+
+  .journey-station.is-skipped .journey-stop-label {
+    text-decoration: line-through;
+    color: var(--color-text-muted);
+  }
+
+  .journey-station.is-optional .journey-dot {
+    border-style: dashed;
+  }
+
+  .journey-station.is-out-of-scope .journey-dot {
+    border-style: dotted;
+    border-color: var(--color-undeclared-fg);
+  }
+
+  .journey-station.is-out-of-scope .journey-stop-label,
+  .journey-station.is-before-entry .journey-stop-label {
+    color: var(--color-text-muted);
+  }
+
+  .journey-station.is-suggested .journey-dot {
+    box-shadow: 0 0 0 3px var(--color-bg), 0 0 0 5px var(--color-focus);
+  }
+
+  .journey-station.is-suggested .journey-stop-state,
+  .journey-station.is-waiting .journey-stop-state {
+    color: var(--color-text);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .journey-station.is-waiting .journey-dot {
+    border-color: var(--color-warn-fg);
+  }
+
+  /* A decision point: a dashed diamond on the track, with the question and its answer. */
+  .journey-decision {
+    display: flex;
+    gap: var(--space-2);
+    align-items: flex-start;
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--font-size-small);
+  }
+
+  .journey-diamond {
+    flex: none;
+    width: calc(var(--journey-dot-size) * 0.8);
+    height: calc(var(--journey-dot-size) * 0.8);
+    margin: 0.35em calc(var(--journey-dot-size) * 0.1) 0;
+    transform: rotate(45deg);
+    border: 2px dashed var(--color-warn-fg);
+    background: var(--color-warn-bg);
+  }
+
+  .journey-decision-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-style: italic;
+  }
+
+  .journey-decision-answer {
+    display: block;
+    font-style: normal;
+    font-weight: var(--font-weight-medium);
+  }
+
+  .journey-badge {
+    margin-top: var(--space-1);
+    font-style: normal;
+  }
+
+  .journey-loop {
+    display: flex;
+    gap: var(--space-2);
+    align-items: baseline;
+    margin: var(--space-4) 0 0;
+    font-size: var(--font-size-small);
+    color: var(--color-text-muted);
+  }
+
+  /* "Waiting on you": everything else steps back, but stays readable and usable. */
+  .journey-waiting-only .journey-station:not(.is-waiting),
+  .journey-waiting-only .journey-decision:not(.is-waiting) {
+    opacity: 0.45;
+  }
+
+  /* The mini-map on a project card: six segments, each filled as far as its phase is finished. */
+  .journey-mini {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 2px;
+    margin: var(--space-2) 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .journey-mini-segment {
+    position: relative;
+    height: 0.5rem;
+    border-radius: var(--radius-small);
+    background: var(--color-border-subtle);
+    overflow: hidden;
+  }
+
+  .journey-mini-fill {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    background: var(--color-accent);
+  }
+
+  .journey-mini-segment.is-next {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 1px;
+  }
+
+  /* The page: the map, and beside it on a wide screen the open stop's details. */
+  .journey-page {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+  }
+
+  @media (width >= 64rem) {
+    .journey-page.has-panel {
+      grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
+      align-items: start;
+    }
+
+    .journey-page.has-panel .station-panel {
+      position: sticky;
+      top: var(--space-3);
+    }
+  }
+
+  .journey-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-4);
+    align-items: center;
+    margin-bottom: var(--space-3);
+  }
+
+  .station-panel {
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-raised);
+  }
+
+  .station-panel h2 {
+    margin-top: 0;
+    font-size: var(--font-size-h2);
+  }
+
+  .station-panel-phase {
+    margin: 0;
+    font-size: var(--font-size-small);
+    color: var(--color-text-muted);
+  }
+
+  .station-panel-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin: var(--space-3) 0;
+  }
+}

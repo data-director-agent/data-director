@@ -45,6 +45,8 @@ class FakeIdentityProvider:
     client_id: str = "APP-TESTCLIENT0000"
     client_secret: str = "fake-client-secret"
     key: RSAKey = field(default_factory=lambda: _signing_key("fake-1"))
+    # How long each ID token holds from its `iat`; a test may shorten or lengthen it.
+    token_lifetime_s: int = FAKE_TOKEN_LIFETIME_S
     fetches: int = 0
     # Each form the token endpoint was sent, so a test can see how the client authenticated.
     token_requests: list[dict[str, str]] = field(default_factory=list)
@@ -78,7 +80,6 @@ class FakeIdentityProvider:
         name: str | None = "Josiah Carberry",
         nonce: str | None = None,
         issued_at: int | None = None,
-        lifetime_s: int = FAKE_TOKEN_LIFETIME_S,
         audience: str | list[str] | None = None,
         issuer: str | None = None,
         key: RSAKey | None = None,
@@ -92,7 +93,7 @@ class FakeIdentityProvider:
             "aud": self.client_id if audience is None else audience,
             "sub": sub,
             "iat": iat,
-            "exp": iat + lifetime_s,
+            "exp": iat + self.token_lifetime_s,
             "auth_time": iat,
             **({"name": name} if name is not None else {}),
             **({"nonce": nonce} if nonce is not None else {}),

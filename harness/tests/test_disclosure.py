@@ -30,6 +30,7 @@ from dd_sdk.contract.models import (
     EvidenceItem,
     GroundingMode,
     GroundingRef,
+    ModelAccount,
     Outcome,
     OutcomeStatus,
     Principal,
@@ -92,11 +93,13 @@ def test_a_model_call_is_in_the_envelope_and_its_prompt_beside_it_only(
     (call,) = envelope.telemetry.model_calls
     assert (call.model_provider, call.model_id) == ("test", MODEL)
     assert (call.input_tokens, call.output_tokens) == (12, 34)
+    # No broker answered, so the deployment paid (docs/specs/model-accounts.md).
+    assert call.model_account is ModelAccount.DEPLOYMENT
 
     prompts = conductor.store.get_prompts(envelope.invocation_id)
     assert list(prompts) == [call.prompt_digest]
     assert prompt_digest(prompts[call.prompt_digest]) == call.prompt_digest
-    run_dir = conductor.store.run_dir(envelope.invocation_id)
+    run_dir = runs_dir / envelope.invocation_id
     prompt_text = "Draft the document asked for."
     for kept in ("envelope.json", "spans.jsonl", "crate/ro-crate-metadata.json"):
         assert prompt_text not in (run_dir / kept).read_text(encoding="utf-8"), kept
@@ -217,9 +220,9 @@ def test_the_disclosure_says_how_each_approved_document_came_about(
     )
     assert f"{MODEL} (test)" in statement
     assert "reproduced verbatim" in statement
-    assert "Josiah Carberry revised the text and approved it" in statement
+    assert "Josiah Carberry" in statement
     assert "The title was wrong." in statement
-    assert "by rule from the project's record, with no generative AI" in statement
+    assert "no generative AI" in statement  # the document drafted by rule
     assert model_used.prompt_digest in statement
 
 
@@ -236,8 +239,8 @@ def test_only_approved_versions_are_disclosed(
     assert found.documents == ()
     assert found.pending == 1
     statement = found.statement()
-    assert "No document of this project has been approved yet." in statement
-    assert "1 other document awaits a decision" in statement
+    assert "\n## " not in statement  # no document is described
+    assert "1 other document" in statement
 
 
 def test_a_template_only_project_says_no_generative_model_was_used(

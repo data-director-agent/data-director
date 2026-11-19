@@ -5,6 +5,7 @@ caller without a good token refused rather than given a default. The provider is
 
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import replace
 from pathlib import Path
@@ -23,6 +24,7 @@ from dd_harness.identity import (
     IdentityError,
     IssuerKeys,
     OperatorAssertion,
+    RefusalReason,
     Unauthenticated,
     checked_configuration,
     fetch_configuration,
@@ -44,6 +46,7 @@ from dd_harness.testing import (
     send_to_harness,
 )
 from dd_harness.transport.a2a import a2a_routes
+from dd_sdk import security_log
 from dd_sdk.agent import AgentResult, RunContext
 from dd_sdk.contract.models import (
     Assurance,
@@ -54,6 +57,8 @@ from dd_sdk.contract.models import (
     ReasonCode,
     to_document,
 )
+from dd_sdk.security_log import SecurityEvent
+from dd_sdk.testing import security_events
 from dd_sdk.wire import META_DELEGATION_TOKEN
 
 ORCID_ID = "0000-0002-1825-0097"
@@ -369,3 +374,23 @@ def test_a_child_acts_for_its_parent_whoever_sends_the_callback(
     assert parent["principal_id"] == f"https://sandbox.orcid.org/{ORCID_ID}"
     assert envelopes["fake.none"]["acting_for"] == parent
     assert parent != to_document(TEST_PRINCIPAL)
+
+
+def test_a_refused_caller_is_recorded_with_its_reason_and_not_its_token(
+    idp: FakeIdentityProvider, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """docs/specs/security.md, Security events."""
+    caplog.set_level(logging.INFO, logger=security_log.LOGGER)
+    conductor = make_conductor(tmp_path / "runs", AbstainingStub())
+    app = Starlette(routes=a2a_routes(conductor, idp.authenticator(), URL)[1])
+    expired = idp.id_token(issued_at=int(time.time()) - 3600)
+    for headers in (None, bearer(expired)):
+        send_to_harness(app, URL, request("stub.abstain", message()), headers=headers)
+    events = security_events(caplog.records)
+    assert [event["event"] for event in events] == [SecurityEvent.CALLER_REFUSED] * 2
+    assert [event["reason"] for event in events] == [
+        RefusalReason.NO_CREDENTIAL,
+        RefusalReason.TOKEN_REFUSED,
+    ]
+    assert {event["transport"] for event in events} == {"a2a"}
+    assert expired not in str(events)

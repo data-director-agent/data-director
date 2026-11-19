@@ -2,6 +2,9 @@
 .venv
 **/node_modules
 app/web/dist
+# Built in the image from this commit (docker/release.Dockerfile); never a local copy or cache.
+inventory/browser/dist
+inventory/browser/.cache
 **/__pycache__
 .mypy_cache
 .ruff_cache
@@ -9,3 +12,10 @@ app/web/dist
 app/runs
 workbench/runs
 site
+# Local settings and credentials (`dd.py setup`) must never reach an image.
+config/local
+**/.venv
+# Rebuilt in the image by `dd-sources prepare`; the pin beside them is kept.
+agents/advisor-repository/data/re3data/registry.jsonl
+agents/advisor-repository/data/re3data/archives
+.github

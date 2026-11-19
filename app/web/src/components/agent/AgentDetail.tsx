@@ -1,63 +1,72 @@
 /**
- * One agent: its name and description over three tabs. Run is where a person gives it input and
- * reads what came back; About is what it can do and what this deployment allows (its manifest);
- * History is its stored runs.
+ * One agent as an end user needs to know it: its name, what it does, what it takes and returns,
+ * what powers it and whether this deployment will run it. There is nothing to run here: a person
+ * works with agents through the conversation, and the detail of how one behaves is for the
+ * workbench.
  *
- * The tabs are React Aria Tabs: arrow keys move between them, and Run and History stay mounted
- * while hidden, so a run and an opened record survive a look at About.
+ * When the deployment has an orchestrator, a line under the description says where the agent
+ * sits: the one a person talks to, or one it calls on behind the scenes.
+ *
+ * Under it, folded away, is what the agent's card declares, field by field
+ * (`@data-director/agent-view`'s `AgentSpecView`), for a data steward or developer who needs to
+ * inspect it: the schemas, derivations and contract version that the rest of the page puts into
+ * words.
  */
 
 import "./AgentDetail.css";
+import "@data-director/agent-view/styles.css";
 
-import { useState } from "react";
-import { Tab, TabList, TabPanel, Tabs } from "react-aria-components";
+import { AgentSpecView } from "@data-director/agent-view/react";
 
-import type { AgentView } from "../../manifest/normalise";
+import { AgentIcon, type AgentView, agentName } from "../../manifest/normalise";
 import { CapabilitiesPanel } from "../capabilities/CapabilitiesPanel";
-import { ModelTag } from "../capabilities/ModelDisclosure";
-import { RunHistory } from "../history/RunHistory";
-import { RunView } from "../run/RunView";
 
-export function AgentDetail({ agent }: { agent: AgentView }) {
+export function AgentDetail({
+  agent,
+  orchestrator,
+  behindSection,
+  ownAccounts = false,
+}: {
+  agent: AgentView;
+  /** The deployment's orchestrator, if it has one. */
+  orchestrator?: AgentView | undefined;
+  /** What the directory calls the section of agents behind the scenes, if it shows one. */
+  behindSection?: string | undefined;
+  /** Whether this deployment lets the signed-in person use their own AI account. */
+  ownAccounts?: boolean;
+}) {
   const headingId = `agent-${agent.id}-heading`;
-  const [finished, setFinished] = useState(0);
   return (
     <section className="agent-detail" aria-labelledby={headingId}>
       <h2 id={headingId}>
-        {agent.title ? (
-          <>
-            {agent.title} <code>{agent.id}</code>
-          </>
-        ) : (
-          <code>{agent.id}</code>
-        )}
+        <AgentIcon agent={agent} />
+        {agent.title || <code>{agent.id}</code>}
       </h2>
       <p>{agent.description}</p>
-      <p>
-        <ModelTag agent={agent} />
-      </p>
-      <Tabs className="tabs" defaultSelectedKey="run">
-        <TabList className="tab-list" aria-label={`${agent.id}: views`}>
-          <Tab className="tab" id="run">
-            Run
-          </Tab>
-          <Tab className="tab" id="about">
-            About
-          </Tab>
-          <Tab className="tab" id="history">
-            History
-          </Tab>
-        </TabList>
-        <TabPanel className="tab-panel" id="run" shouldForceMount>
-          <RunView agent={agent} onFinished={() => setFinished((n) => n + 1)} />
-        </TabPanel>
-        <TabPanel className="tab-panel" id="about">
-          <CapabilitiesPanel agent={agent} embedded />
-        </TabPanel>
-        <TabPanel className="tab-panel" id="history" shouldForceMount>
-          <RunHistory agent={agent} refresh={finished} />
-        </TabPanel>
-      </Tabs>
+      {orchestrator && (
+        <p className="agent-role-note">
+          {agent.id === orchestrator.id ? (
+            <>
+              This is the agent you talk to.
+              {behindSection && (
+                <>
+                  {" "}
+                  It hands work to the agents listed under <em>{behindSection}</em>.
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              {agentName(orchestrator)} calls on this agent; you don’t talk to it directly.
+            </>
+          )}
+        </p>
+      )}
+      <CapabilitiesPanel agent={agent} ownAccounts={ownAccounts} />
+      <details className="agent-technical">
+        <summary>Technical details: what its agent card declares</summary>
+        <AgentSpecView spec={agent} withIdentity />
+      </details>
     </section>
   );
 }

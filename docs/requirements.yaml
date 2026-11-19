@@ -5,12 +5,12 @@
 # CONFORMANCE.md whether or not any test substantiates it. A row with no passing test is
 # rendered "unsubstantiated" — that is the intended default, not a gap to hide. The register
 # therefore lists every functional (R) and non-functional (C) requirement in the Blueprint's §7
-# tables, not only the ones the workbench exercises.
+# tables, not only the ones the project exercises.
 #
 # source: blueprint  — the identifier and title are the Blueprint's own (docs/blueprint/07-functional-specification.md).
 # source: project    — a decomposition or obligation this project introduced; the Blueprint does
 #                      not use the identifier. R3.1–R3.6 come from agents/advisor-standards; the other sub-IDs
-#                      (R4.1, R10.n, C5.1, C13.n, C14.1) split a Blueprint
+#                      (R4.n, R10.n, C5.1, C13.n, C14.1) split a Blueprint
 #                      requirement so that a row claims only what its tests show.
 #
 # assessed_by      — how the requirement is assessed (docs/specs/evaluation.md): `test` (a marked test in a pytest
@@ -73,6 +73,10 @@ requirements:
     source: project
     parent: R4
     title: Completeness of a metadata record scored against declared criteria, each finding explained
+  - id: R4.2
+    source: project
+    parent: R4
+    title: A project is validated against its chosen repository's requirements in a SHACL Validation Report, a violation blocks the deposit package and says why, and the package passes the RO-Crate validator
   - id: R5
     source: blueprint
     title: Draft data documentation including READMEs and data dictionaries at publication
@@ -98,7 +102,7 @@ requirements:
   - id: R10.2
     source: project
     parent: R10
-    title: Each approved project document is disclosed as a statement and a PROV-O graph naming the run and models that drafted it, each prompt by digest, each person's edit and the approval; carrying the disclosure in the deposit package is not exercised (#202)
+    title: Each approved project document is disclosed as a statement and a PROV-O graph naming the run and models that drafted it, each prompt by digest, each person's edit and the approval, and carried in the deposit package
   - id: R11
     source: blueprint
     title: Link datasets to related research outputs including publications, people, grants and software
@@ -129,7 +133,7 @@ requirements:
   - id: C5.1
     source: project
     parent: C5
-    title: The workbench exposes an open API (A2A agent card and message send, AG-UI run and replay); established metadata standards, exchange with repositories and a harmonised API between instances are not exercised (#24)
+    title: The harness exposes an open API (A2A agent card and message send; AG-UI run, its stages and checks' reports, replay and cancelling); established metadata standards, exchange with repositories and a harmonised API between instances are not exercised (#24)
   - id: C6
     source: blueprint
     title: Accessibility
@@ -172,6 +176,10 @@ requirements:
     source: project
     parent: C13
     title: Each model call an agent makes is recorded with the model the provider named, when it was made and the digest of the prompt sent; the harness keeps the prompt beside the run and refuses a run whose prompts are not those its calls name; that an agent reports every call is not checked (#26)
+  - id: C13.5
+    source: project
+    parent: C13
+    title: An agent whose card declares a hosted model is given only the classes of project content the profile's hosted_models lists, inventory and decided facts by default, and is otherwise refused before anything is sent; that the card declares every model the agent calls is not checked
   - id: C14
     source: blueprint
     title: Explainability — human-readable explanations for recommendations and decisions
@@ -189,11 +197,19 @@ requirements:
   - id: C17
     source: blueprint
     title: Affordability
+  - id: C17.1
+    source: project
+    parent: C17
+    title: Each run's Process Run Crate records an estimated cost for each model call and for the run, from the prices in the profile's model_footprint; a call or run it cannot price has no figure, never zero; that the prices are current, cached-token pricing and spend limits are not exercised (#163)
 
-  # --- Blueprint §6 principles the workbench carries a slot for -----------------------------
+  # --- Blueprint §6 principles the project carries a slot for -------------------------------
   - id: P14
     source: blueprint
     title: Low Impact — energy footprint captured in provenance records
+  - id: P14.1
+    source: project
+    parent: P14
+    title: Each run's envelope and Process Run Crate record an estimated energy figure for each model call and for the run, from the per-token factors in the profile's model_footprint, marked estimated, never measured; a run it cannot estimate stays not_measured; the factors' accuracy, compute other than model calls and a workflow total across delegations are not exercised (#480)
 
   # --- Project obligations (the contract itself) --------------------------------------------
   - id: DD-OUTCOME
@@ -225,7 +241,10 @@ requirements:
     title: A conversation is a sequence of invocations sharing a conversation_id; every turn names the agent and version that produced it
   - id: DD-DELEGATION
     source: project
-    title: An orchestrator delegates only through the workbench; each child is a governed, stored invocation and the parent records it
+    title: An orchestrator delegates only through the conductor; each child is a governed, stored invocation and the parent records it
+  - id: DD-TOOL-GATEWAY
+    source: project
+    title: A persona reaches MCP servers only through the harness's tool gateway, under the servers its card declares and the profile grants; the conductor records each structured record a tool returns, and the linter grounds a tool source on that record alone; that a server's records are true is not shown (docs/specs/agents.md, docs/specs/grounding.md)
   - id: DD-ENTRY-POINTS
     source: project
     title: The orchestrator finds which of the Blueprint's three entry points (§8.1) applies, and for each phase step from there names the agent that serves it or the requirement no agent serves yet; the steps are taken from the figure captions, not checked against the figures

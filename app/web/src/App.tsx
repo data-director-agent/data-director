@@ -1,28 +1,43 @@
-import { useCallback, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 
 import { AgentDirectory } from "./components/capabilities/AgentDirectory";
+import { ActivityLog } from "./components/workspace/ActivityLog";
 import { FeedbackPage } from "./components/feedback/FeedbackPage";
 import { ConversationHome } from "./components/conversation/ConversationHome";
+import { ErrorBoundary } from "./components/errors/ErrorBoundary";
+import { NotFoundPage } from "./components/errors/ErrorPage";
 import { Frame } from "./components/frame/Frame";
+import { JourneyLanding } from "./components/journey/JourneyLanding";
+import { JourneyPage } from "./components/journey/JourneyPage";
+import { PolicyPage } from "./components/policy/PolicyPage";
+import { ProfilePage } from "./components/profile/ProfilePage";
+import { ProjectLanding } from "./components/project/ProjectLanding";
 import { ProjectPage } from "./components/project/ProjectPage";
+import { ProjectsPage } from "./components/project/ProjectsPage";
+import { SettingsPage } from "./components/settings/SettingsPage";
 import { PageHeader } from "./components/frame/PageHeader";
 import { Account } from "./components/session/Account";
 import { SessionTimeout } from "./components/session/SessionTimeout";
 import { SignedOutPage } from "./components/session/SignedOutPage";
 import { SignInPage } from "./components/session/SignInPage";
+import { ActiveProjectProvider } from "./project/active";
+import { RunActivityProvider } from "./run/activity";
 import { useLocation } from "./route";
 import { type Directory, normalise } from "./manifest/normalise";
 import type { RawAgentsResponse } from "./manifest/types";
 import {
   SIGNED_OUT,
   type Session,
-  assuranceText,
   checkSignedIn,
   useSessionApi,
 } from "./session/api";
 
-// A project's documents: `/projects/{project_id}` (docs/specs/projects.md).
+// The person's projects: `/projects`; a project's documents: `/projects/{project_id}`
+// (docs/specs/projects.md); its journey map: `/projects/{project_id}/journey`. `/project` and
+// `/journey`, in the main navigation, open the current project's page or journey map, or the list
+// of projects (asking which project's, for the map) when none is current.
 const PROJECT_PREFIX = "/projects/";
+const JOURNEY_SUFFIX = "/journey";
 
 type Load<T> = { state: "loading" } | { state: "failed"; message: string } | { state: "loaded"; value: T };
 
@@ -36,6 +51,51 @@ export async function fetchDirectory(signal?: AbortSignal): Promise<Directory> {
   if (!response.ok) throw new Error(`the server answered ${response.status}`);
   return normalise((await response.json()) as RawAgentsResponse);
 }
+
+/** A project's page, or its journey map, from the path; neither when the path is another. */
+function projectRoute(path: string): { projectId: string | null; onJourney: boolean } {
+  if (!path.startsWith(PROJECT_PREFIX)) return { projectId: null, onJourney: false };
+  const rest = path.slice(PROJECT_PREFIX.length);
+  const onJourney = rest.endsWith(JOURNEY_SUFFIX);
+  return { projectId: onJourney ? rest.slice(0, -JOURNEY_SUFFIX.length) : rest, onJourney };
+}
+
+/** The main navigation's entry that `path` is under. A project's journey map is under Journey
+ * map; its other pages, the list of projects and `/project` are under Projects (`/project`). */
+function navCurrent(path: string): string {
+  const { projectId, onJourney } = projectRoute(path);
+  if (path === "/journey" || (projectId && onJourney)) return "/journey";
+  if (path === "/project" || path === "/projects" || projectId) return "/project";
+  const pages = [
+    "/activity",
+    "/agents",
+    "/feedback",
+    "/policy",
+    "/profile",
+    "/settings",
+    "/sign-in",
+    "/signed-out",
+  ];
+  return pages.includes(path) ? path : "/";
+}
+
+/** Whether the shell has a page at `path`; anything else is answered with the not-found page. */
+function hasPage(path: string): boolean {
+  const { projectId } = projectRoute(path);
+  if (projectId !== null) return projectId !== "" && !projectId.includes("/");
+  return path === "/" || path === "/agents" || path === "/policy" || path in SESSION_PAGES;
+}
+
+/** The pages that need only the session and the query, by path. */
+const SESSION_PAGES: Record<string, (session: Session, query: string) => ReactNode> = {
+  "/feedback": (_, query) => <FeedbackPage query={query} />,
+  "/profile": (session) => <ProfilePage session={session} />,
+  "/settings": (session) => <SettingsPage session={session} />,
+  "/activity": () => <ActivityLog />,
+  "/project": () => <ProjectLanding />,
+  "/projects": () => <ProjectsPage />,
+  "/journey": () => <JourneyLanding />,
+};
 
 /**
  * The shell. It asks the server who is signed in before anything else (docs/specs/policy-and-identity.md): where the
@@ -51,7 +111,9 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
   const [path = "/", query] = location.split("?");
   const onAgents = path === "/agents";
   const onFeedback = path === "/feedback";
-  const projectId = path.startsWith(PROJECT_PREFIX) ? path.slice(PROJECT_PREFIX.length) : null;
+  const onPolicy = path === "/policy";
+  const { projectId, onJourney } = projectRoute(path);
+  const current = navCurrent(path);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -96,6 +158,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
     return () => controller.abort();
   }, [load, signedIn, principalId]);
 
+  // eslint-disable-next-line complexity -- recorded debt: split it, do not add to it (docs/architecture-review.md)
   const content = () => {
     if (path === "/signed-out") return <SignedOutPage issuer={known?.issuer ?? null} />;
     if (session.state === "loading") return <p role="status">Loading…</p>;
@@ -115,8 +178,11 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
         />
       );
     }
-    if (onFeedback) return <FeedbackPage query={query ?? ""} />;
-    if (projectId) return <ProjectPage projectId={projectId} />;
+    if (!hasPage(path)) return <NotFoundPage path={path} />;
+    const sessionPage = SESSION_PAGES[path];
+    if (sessionPage) return sessionPage(session.value, query ?? "");
+    if (projectId && onJourney) return <JourneyPage projectId={projectId} query={query ?? ""} />;
+    if (projectId) return <ProjectPage projectId={projectId} query={query ?? ""} />;
     if (state.state === "loading") return <p role="status">Loading the agents…</p>;
     if (state.state === "failed") {
       return (
@@ -125,15 +191,15 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
         </div>
       );
     }
+    if (onPolicy) return <PolicyPage directory={state.value} />;
     if (!onAgents) return <ConversationHome directory={state.value} />;
     return (
       <>
-        <PageHeader title="Agents: what Data Director can do here" titleHidden>
-          <ActingFor directory={state.value} />
-        </PageHeader>
+        <PageHeader title="Agents: what Data Director can do here" titleHidden />
         <AgentDirectory
           directory={state.value}
           initial={new URLSearchParams(query).get("agent") ?? undefined}
+          ownAccounts={session.value.modelAccounts && session.value.signsIn}
         />
       </>
     );
@@ -141,27 +207,25 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
 
   return (
     <Frame
-      current={["/agents", "/feedback", "/sign-in", "/signed-out"].includes(path) ? path : "/"}
+      current={current}
       from={onFeedback ? (new URLSearchParams(query).get("from") ?? "/") : location}
       account={known && <Account session={known} />}
     >
       {known?.signsIn && known.principal && (
         <SessionTimeout session={known} onChange={updateSession} />
       )}
-      {content()}
+      {/* The app works in one project at a time (docs/specs/app.md); only someone signed in has
+          projects to work in. */}
+      {/* The runs this tab streams, for the activity log: kept per person signed in. */}
+      {signedIn ? (
+        <ActiveProjectProvider key={principalId}>
+          <RunActivityProvider>
+            <ErrorBoundary resetKey={location}>{content()}</ErrorBoundary>
+          </RunActivityProvider>
+        </ActiveProjectProvider>
+      ) : (
+        <ErrorBoundary resetKey={location}>{content()}</ErrorBoundary>
+      )}
     </Frame>
-  );
-}
-
-/**
- * Whom runs act for and whose rules apply: the signed-in person and who vouched for them, or on a
- * development server the operator's assertion, and the line says which. On the conversation the
- * workspace's status bar says this.
- */
-function ActingFor({ directory: { actingFor, profileRef } }: { directory: Directory }) {
-  return (
-    <p className="hint">
-      Acting as {actingFor.name} ({assuranceText(actingFor)}) · Policy <code>{profileRef}</code>
-    </p>
   );
 }

@@ -17,7 +17,32 @@ package.
 | `dd_sdk.agent` | `AgentSpec` (with the `models` it sends data to), `AgentResult`, `RunContext`, the `Agent` protocol, and `describe`. |
 | `dd_sdk.wire` | How a request, a result, its spans and a spec cross A2A. |
 | `dd_sdk.serve` | `app(agent)` and `main(build)`: serve one agent over A2A. |
+| `dd_sdk.prompts` | `ModelCallLog`: the model calls of one run and the prompts they name by digest ([Disclosure](../docs/specs/disclosure.md)). |
+| `dd_sdk.model` | `call`: one model call, with its `chat` span, token counts and `ModelCallLog` entry, through a `Model` adapter ([Agents](../docs/specs/agents.md)). |
+| `dd_sdk.model_anthropic` | `AnthropicModel`, the adapter for Claude; needs the `anthropic` extra ([Dependencies](../docs/specs/dependencies.md)). |
+| `dd_sdk.model_openai` | `OpenAIModel`, the adapter for any OpenAI-compatible Chat Completions endpoint (OpenAI, Gemini, Ollama, vLLM, llama.cpp, LM Studio, a gateway); needs the `openai` extra. |
+| `dd_sdk.model_provider` | `configured_model(env)` and `optional_model(env, setting)`: the model an agent's settings name (`DD_MODEL_PROVIDER`, `DD_MODEL_ID`, `DD_MODEL_BASE_URL`, the provider's key), and `hosting_of`, which works out whether an endpoint is `local` ([Policy and identity](../docs/specs/policy-and-identity.md)). |
+| `dd_sdk.testing` | `FakeModel`, a `Model` for tests that needs no key. |
 | `dd_sdk.credentials` | `api_key(env)`: a model key, read once at start-up, and `ConfigError` ([Policy and identity](../docs/specs/policy-and-identity.md)). |
+| `dd_sdk.sources` | `BuiltSource`, how an agent declares a source copy it builds outside git, and `dd-sources`, which prepares them all ([Evidence and grounding](../docs/specs/grounding.md)). |
+| `dd_sdk.registry` | What agents that read a registry share: `Query`, `Hit`, `SnapshotRef` and `RegistryUnavailable`; the snapshot tokeniser (`registry.tokenise`); the pinned-archive pipeline (`registry.pinned`); and FAIRsharing's sign-in, search and record reads (`registry.fairsharing`). |
+| `dd_sdk.explain` | `Rationale`, `Explanation`, `TemplateExplainer` and `ModelExplainer`, and the check that a model's rationale names only identifiers it was given ([Agents](../docs/specs/agents.md)). |
+
+## What belongs here
+
+The SDK holds only what speaks the Data Director contract. It is deliberately small, so that
+agents built on it stay thin and the work worth sharing sits outside it. Before adding a helper,
+ask whether it needs the contract:
+
+- If not (an HTTP client for a registry, a parser, a format converter), it is a framework-neutral
+  library, MCP server or Agent Skill, published on its own and called by the agent
+  ([System and boundaries](../docs/specs/system.md)).
+- If so, add it here, built on open standards (A2A, MCP, JSON Schema, LinkML, OpenTelemetry), and
+  make it usable by an agent in any repository: no path outside the package, no import of the
+  harness, workbench, app or an agent.
+
+An SDK helper that wraps an MCP server or loads an Agent Skill's instructions is welcome, provided
+what it retrieves still becomes evidence ([Evidence and grounding](../docs/specs/grounding.md)).
 
 ## Contract
 

@@ -1,0 +1,162 @@
+{
+  "next": null,
+  "progress": {
+    "decisions": [
+      {
+        "answer_labels": [
+          "No"
+        ],
+        "answer_values": [
+          "no"
+        ],
+        "asked": true,
+        "before": "setup.dmp-create",
+        "prompt": "Do you have a Data Management Plan for this project?",
+        "question_id": "intake.dmp"
+      },
+      {
+        "answer_labels": [
+          "Not sure"
+        ],
+        "answer_values": [
+          "not-sure"
+        ],
+        "asked": true,
+        "before": "governance.sensitive-data-identify",
+        "prompt": "Does the data include personal or otherwise sensitive information?",
+        "question_id": "intake.sensitive"
+      },
+      {
+        "answer_labels": [
+          "Not sure"
+        ],
+        "answer_values": [
+          "not-sure"
+        ],
+        "asked": true,
+        "before": "repository.mandated",
+        "prompt": "Has a funder, journal or institution said where the data must go?",
+        "question_id": "intake.repository-mandated"
+      }
+    ],
+    "entry": 1,
+    "entry_source": "researcher",
+    "reasons": {},
+    "steps": {},
+    "suggested": "setup.documentation"
+  },
+  "questions": [
+    {
+      "answer_values": [
+        "1"
+      ],
+      "question": {
+        "question_key": "entry",
+        "question_kind": "choice",
+        "question_multiple": false,
+        "question_options": [
+          {
+            "option_label": "Starting a new project, before data collection begins",
+            "option_value": "1"
+          },
+          {
+            "option_label": "Data already collected, being prepared for sharing",
+            "option_value": "2"
+          },
+          {
+            "option_label": "Ready to deposit data into a repository",
+            "option_value": "3"
+          }
+        ],
+        "question_other": false,
+        "question_prompt": "Where are you with your research data?"
+      },
+      "question_id": "intake.entry"
+    },
+    {
+      "answer_values": [
+        "no"
+      ],
+      "question": {
+        "question_key": "dmp",
+        "question_kind": "choice",
+        "question_multiple": false,
+        "question_options": [
+          {
+            "option_label": "Yes",
+            "option_value": "yes"
+          },
+          {
+            "option_label": "No",
+            "option_value": "no"
+          },
+          {
+            "option_label": "Not sure",
+            "option_value": "not-sure"
+          }
+        ],
+        "question_other": false,
+        "question_prompt": "Do you have a Data Management Plan for this project?"
+      },
+      "question_id": "intake.dmp"
+    },
+    {
+      "answer_values": [
+        "not-sure"
+      ],
+      "notices": {
+        "yes": "Please do not paste or upload the sensitive data itself into this conversation. The governance step will cover how it is handled."
+      },
+      "question": {
+        "question_key": "sensitive",
+        "question_kind": "choice",
+        "question_multiple": false,
+        "question_options": [
+          {
+            "option_label": "Yes",
+            "option_value": "yes"
+          },
+          {
+            "option_label": "No",
+            "option_value": "no"
+          },
+          {
+            "option_label": "Not sure",
+            "option_value": "not-sure"
+          }
+        ],
+        "question_other": false,
+        "question_prompt": "Does the data include personal or otherwise sensitive information?"
+      },
+      "question_id": "intake.sensitive"
+    },
+    {
+      "answer_values": [
+        "not-sure"
+      ],
+      "question": {
+        "question_key": "repository-mandated",
+        "question_kind": "choice",
+        "question_multiple": false,
+        "question_options": [
+          {
+            "option_label": "Yes",
+            "option_value": "yes"
+          },
+          {
+            "option_label": "No",
+            "option_value": "no"
+          },
+          {
+            "option_label": "Not sure",
+            "option_value": "not-sure"
+          }
+        ],
+        "question_other": false,
+        "question_prompt": "Has a funder, journal or institution said where the data must go?"
+      },
+      "question_id": "intake.repository-mandated"
+    }
+  ],
+  "state": "complete"
+}

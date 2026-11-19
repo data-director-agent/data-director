@@ -7,7 +7,8 @@ name: release-please
 # one release PR open for every package with a pending release, so that a release starts one CI
 # run rather than one per package, and tags each `<component>-v<version>` when that PR is merged. The PR's title
 # starts `chore(main): release `, which the sign-off check in ci.yml exempts. Merging it also
-# archives the repository in Zenodo as a new version with its own DOI (zenodo.yml).
+# archives the repository in Zenodo as a new version with its own DOI (zenodo.yml), and a release of
+# the app publishes the production image with its version (images.yml).
 on:
   push:
     branches: [main]
@@ -22,7 +23,8 @@ concurrency:
 
 jobs:
   release-please:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     permissions:
       contents: write # to tag releases and push the release branches
       pull-requests: write # to open and update the release PRs
@@ -30,6 +32,13 @@ jobs:
       prs: ${{ steps.release.outputs.prs }}
       publish: ${{ steps.publish.outputs.paths }}
       releases_created: ${{ steps.release.outputs.releases_created }}
+      # Set only when this run released the app; the image is tagged with it (images.yml).
+      app_version: ${{ steps.release.outputs['app--release_created'] == 'true' && steps.release.outputs['app--version'] || '' }}
+      # Set only when this run created releases: the commit they were tagged on. release-please
+      # works from the tip of main, not from the commit that started this run, so when two pushes
+      # land together the run for the earlier one can create the releases, and its github.sha is
+      # then not the release commit. A release PR is one merge, so every path shares the one SHA.
+      release_sha: ${{ steps.release.outputs.releases_created == 'true' && steps.release.outputs[format('{0}--sha', fromJSON(steps.release.outputs.paths_released)[0])] || '' }}
     steps:
       # A token other than GITHUB_TOKEN, so that CI runs on the release PRs it opens.
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
@@ -45,14 +54,15 @@ jobs:
         env:
           RELEASED: ${{ steps.release.outputs.paths_released }}
         run: |
-          echo "paths=$(jq -c '[.[] | select(. == "sdk" or . == "harness")]' <<< "${RELEASED:-[]}")" >> "$GITHUB_OUTPUT"
+          echo "paths=$(jq -c '[.[] | select(. == "sdk" or . == "harness" or . == "inventory")]' <<< "${RELEASED:-[]}")" >> "$GITHUB_OUTPUT"
 
   # release-please edits each pyproject.toml but cannot regenerate uv.lock, which records the
   # workspace members' versions. Refresh it on every release PR branch.
   refresh-lock:
     needs: release-please
     if: ${{ needs.release-please.outputs.prs != '' && needs.release-please.outputs.prs != '[]' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     permissions:
       contents: read # the push uses RELEASE_PLEASE_TOKEN, not GITHUB_TOKEN
     strategy:
@@ -65,7 +75,10 @@ jobs:
           ref: ${{ matrix.pr.headBranchName }}
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           persist-credentials: false
-      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+      # No cache: this job holds a token that can push, so it restores nothing another run saved.
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: false
       - run: uv lock
       - name: Commit the lock file
         env:
@@ -79,13 +92,13 @@ jobs:
           git commit -s -m "chore: refresh uv.lock for release"
           git push "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${BRANCH}"
 
-  # Publish a released sdk or harness to TestPyPI, so that an agent outside this repository can
-  # install them (#277). Trusted publishing: TestPyPI trusts this workflow in the `testpypi`
+  # Publish a released sdk, harness or inventory to TestPyPI, so that an agent outside this
+  # repository can install them (#277), and the inventory command can be tried by uvx (#552). Trusted publishing: TestPyPI trusts this workflow in the `testpypi`
   # environment, and no token is stored. The commit is the one the release was tagged on.
   publish-testpypi:
     needs: release-please
     if: ${{ needs.release-please.outputs.publish != '' && needs.release-please.outputs.publish != '[]' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     environment:
       name: testpypi
@@ -102,7 +115,7 @@ jobs:
         with:
           persist-credentials: false
       # No cache: a publishing job must not restore anything another run could have written.
-      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: false
       - name: Build
@@ -117,6 +130,37 @@ jobs:
           --check-url https://test.pypi.org/simple/
           dist/*
 
+  # Publish a released inventory to PyPI itself, so that `uvx data-director-inventory` works for
+  # a researcher with no checkout (#552). Only the inventory goes: the sdk and harness stay on
+  # TestPyPI (RELEASING.md). Trusted publishing: PyPI trusts this workflow in the `pypi`
+  # environment, and no token is stored.
+  publish-pypi:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.publish != '' && contains(fromJSON(needs.release-please.outputs.publish), 'inventory') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment:
+      name: pypi
+      url: https://pypi.org/p/data-director-inventory
+    permissions:
+      contents: read
+      id-token: write # to prove this workflow's identity to PyPI
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # No cache: a publishing job must not restore anything another run could have written.
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: false
+      - run: uv build --out-dir dist inventory
+      - run: uvx twine check dist/*
+      - name: Publish
+        run: >-
+          uv publish --trusted-publishing always
+          --check-url https://pypi.org/simple/
+          dist/*
+
   # One Zenodo version per merged release PR, however many packages it released.
   zenodo:
     needs: release-please
@@ -126,4 +170,19 @@ jobs:
     # actionlint 1.7.12 (ci.yml) does not yet accept the `$/` form zizmor prefers.
     uses: ./.github/workflows/zenodo.yml # zizmor: ignore[self-repository]
     with:
-      ref: ${{ github.sha }}
+      # The commit the releases were tagged on (see release_sha above), not necessarily this run's.
+      ref: ${{ needs.release-please.outputs.release_sha || github.sha }}
+
+  # The production image, tagged with the app's version, when the app was released (#223).
+  images:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.app_version != '' }}
+    permissions:
+      contents: read
+      packages: write # to push the image
+      id-token: write # to sign its build provenance attestation
+      attestations: write # to store it
+    # actionlint 1.7.12 (ci.yml) does not yet accept the `$/` form zizmor prefers.
+    uses: ./.github/workflows/images.yml # zizmor: ignore[self-repository]
+    with:
+      version: ${{ needs.release-please.outputs.app_version }}

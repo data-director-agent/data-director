@@ -1,0 +1,6 @@
+{
+  "detail": "Only an owner of project '01900000-0000-7000-8000-000000000003' may decide a sensitivity fact.",
+  "status": 403,
+  "title": "Not yours to do in this project",
+  "type": "https://w3id.org/data-director/problems/project-action-forbidden"
+}

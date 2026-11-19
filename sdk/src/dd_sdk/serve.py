@@ -10,6 +10,13 @@ Per request the server starts an isolated tracer, parents it to the `traceparent
 sent, runs the agent in a worker thread, and returns the result with the spans the agent emitted.
 It does no governance: the harness's conductor applies the policy gate, the input check and the
 grounding linter to whatever comes back.
+
+`request_handler` is the A2A request handler this server and the harness's
+(`dd_harness.transport.a2a`) both use. It answers `message/send` alone: A2A's task methods (get,
+list, cancel, subscribe) are refused, a message may not name an earlier task, and a task is
+forgotten once it ends. Callers are not authenticated to the SDK's task store, so a stored task
+would otherwise be readable by any caller, with the request, the reply and the message metadata (a
+delegation grant included) (docs/specs/transport.md).
 """
 
 from __future__ import annotations
@@ -19,17 +26,34 @@ import asyncio
 import importlib
 import os
 import sys
-from collections.abc import Callable
+from collections.abc import AsyncGenerator, Callable
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from a2a.helpers import get_data_parts, new_data_part, new_task_from_user_message
 from a2a.server.agent_execution import AgentExecutor, RequestContext
+from a2a.server.context import ServerCallContext
 from a2a.server.events import EventQueue
 from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.routes import create_agent_card_routes, create_jsonrpc_routes
 from a2a.server.tasks import InMemoryTaskStore, TaskUpdater
-from a2a.types import AgentCapabilities, AgentCard, AgentExtension, AgentInterface, AgentSkill
+from a2a.types import (
+    AgentCapabilities,
+    AgentCard,
+    AgentExtension,
+    AgentInterface,
+    AgentSkill,
+    CancelTaskRequest,
+    GetTaskRequest,
+    ListTasksRequest,
+    ListTasksResponse,
+    Message,
+    SendMessageRequest,
+    SubscribeToTaskRequest,
+    Task,
+    TaskState,
+)
+from a2a.utils.errors import InvalidParamsError, UnsupportedOperationError
 from google.protobuf.json_format import MessageToDict
 from opentelemetry import context as otel_context
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
@@ -39,6 +63,9 @@ from dd_sdk import delegate as delegation
 from dd_sdk.agent import Agent, AgentResult, RunContext, describe, typed_request
 from dd_sdk.contract.models import InvocationRequest
 from dd_sdk.credentials import ConfigError
+from dd_sdk.model import bind_grant
+from dd_sdk.model_account import accounted
+from dd_sdk.tools import Tools, ToolsGrant
 from dd_sdk.tracing import make_tracing
 from dd_sdk.wire import (
     ARTIFACT_NAME,
@@ -46,9 +73,14 @@ from dd_sdk.wire import (
     JSONRPC_PATH,
     META_INPUT_HASH,
     META_INPUT_REF,
+    META_MODEL_GRANT,
+    META_SETTINGS,
     META_TRACEPARENT,
     reply_to_document,
 )
+
+if TYPE_CHECKING:
+    from dd_sdk.tools_client import ClientFactory as ToolsClientFactory
 
 PROTOCOL_VERSION = "1.0"
 # The exit status for a configuration error. systemd units do not restart on it
@@ -67,7 +99,7 @@ def agent_card(agent: Agent, base_url: str) -> AgentCard:
         default_output_modes=["application/json"],
         capabilities=AgentCapabilities(
             # An agent answers once, with its finished envelope; the conductor checks the whole
-            # envelope before anything is shown. TODO(#68, #69) covers streaming to the shell.
+            # envelope before anything is shown. TODO(#159) covers streaming replies to the shell.
             streaming=False,
             extensions=[
                 AgentExtension(
@@ -105,38 +137,52 @@ def run_traced(
     request: InvocationRequest,
     metadata: dict[str, Any],
     delegate_client_factory: delegation.ClientFactory = delegation.default_client,
+    tools_client_factory: ToolsClientFactory | None = None,
 ) -> dict[str, Any]:
     """Run the agent under a tracer parented to the caller's span; return the artifact body.
 
     If the harness sent a delegation grant (docs/specs/orchestration.md), the agent's context
-    carries a `delegate` bound to it. An exception from the agent propagates; the executor turns it
-    into a failed task.
+    carries a `delegate` bound to it; if it sent a tools grant (docs/specs/agents.md), the context
+    carries `tools` bound to that. If it sent a model grant (docs/specs/model-accounts.md), the
+    context carries it and it is bound to the run (`dd_sdk.model.bind_grant`), so the SDK's model
+    clients send it to the broker. If the agent raises because the broker refused a person's own
+    model account, the run ends `abstained` with the reason code (`dd_sdk.model_account.accounted`).
+    Any other exception from the agent propagates; the executor turns it into a failed task.
     """
     tracing = make_tracing(service_name=agent.spec.agent_id)
     parent = TraceContextTextMapPropagator().extract(
         {META_TRACEPARENT: str(metadata.get(META_TRACEPARENT, ""))}
     )
     grant = delegation.DelegationGrant.from_metadata(metadata)
+    sent = metadata.get(META_MODEL_GRANT)
+    model_grant = sent if isinstance(sent, str) and sent else None
+    settings = _settings(metadata.get(META_SETTINGS))
     token = otel_context.attach(parent)
     try:
-        result: AgentResult = agent.run(
-            typed_request(agent.spec, request),
-            RunContext(
-                tracer=tracing.tracer,
-                input_ref=str(metadata.get(META_INPUT_REF, "")),
-                input_hash=str(metadata.get(META_INPUT_HASH, "")),
-                delegate=(
-                    delegation.HarnessDelegate(
-                        grant=grant,
-                        parent=request,
+        with bind_grant(model_grant):
+            result: AgentResult = accounted(
+                lambda: agent.run(
+                    typed_request(agent.spec, request),
+                    RunContext(
                         tracer=tracing.tracer,
-                        client_factory=delegate_client_factory,
-                    )
-                    if grant is not None
-                    else None
-                ),
-            ),
-        )
+                        input_ref=str(metadata.get(META_INPUT_REF, "")),
+                        input_hash=str(metadata.get(META_INPUT_HASH, "")),
+                        delegate=(
+                            delegation.HarnessDelegate(
+                                grant=grant,
+                                parent=request,
+                                tracer=tracing.tracer,
+                                client_factory=delegate_client_factory,
+                            )
+                            if grant is not None
+                            else None
+                        ),
+                        model_grant=model_grant,
+                        settings=settings,
+                        tools=_tools(ToolsGrant.from_metadata(metadata), tools_client_factory),
+                    ),
+                )
+            )
     finally:
         otel_context.detach(token)
         spans = [s.to_json(indent=None) for s in tracing.memory.get_finished_spans()]
@@ -144,14 +190,31 @@ def run_traced(
     return reply_to_document(result, spans)
 
 
+def _tools(grant: ToolsGrant | None, factory: ToolsClientFactory | None) -> Tools | None:
+    """The agent's `tools`, bound to `grant`. The client needs the SDK's `tools` extra, which is
+    imported only when the harness sent a grant: an agent granted a server without it fails
+    with an `ImportError` naming the extra, a configuration error."""
+    if grant is None:
+        return None
+    try:
+        from dd_sdk.tools_client import HarnessTools, default_client
+    except ImportError as exc:
+        raise ImportError(
+            "the harness granted this agent MCP tools; install data-director-sdk[tools]"
+        ) from exc
+    return HarnessTools(grant=grant, client_factory=factory or default_client)
+
+
 class AgentServerExecutor(AgentExecutor):
     def __init__(
         self,
         agent: Agent,
         delegate_client_factory: delegation.ClientFactory = delegation.default_client,
+        tools_client_factory: ToolsClientFactory | None = None,
     ) -> None:
         self.agent = agent
         self.delegate_client_factory = delegate_client_factory
+        self.tools_client_factory = tools_client_factory
 
     async def execute(self, context: RequestContext, event_queue: EventQueue) -> None:
         message = context.message
@@ -175,7 +238,12 @@ class AgentServerExecutor(AgentExecutor):
         try:
             request = InvocationRequest.model_validate(inputs[0])
             body = await asyncio.to_thread(
-                run_traced, self.agent, request, metadata, self.delegate_client_factory
+                run_traced,
+                self.agent,
+                request,
+                metadata,
+                self.delegate_client_factory,
+                self.tools_client_factory,
             )
         except Exception as exc:  # noqa: BLE001 — reported to the conductor, which records it
             await updater.failed(
@@ -193,22 +261,92 @@ class AgentServerExecutor(AgentExecutor):
         raise NotImplementedError("invocations are synchronous; nothing to cancel")
 
 
+# A task in one of these states has ended: nothing further is sent for it.
+ENDED = frozenset(
+    {
+        TaskState.TASK_STATE_COMPLETED,
+        TaskState.TASK_STATE_FAILED,
+        TaskState.TASK_STATE_CANCELED,
+        TaskState.TASK_STATE_REJECTED,
+    }
+)
+ONE_SHOT = "this server answers message/send alone; it keeps no task to get, list, cancel or follow"
+
+
+class TransientTaskStore(InMemoryTaskStore):
+    """Holds a task only while it runs, and forgets it once it has ended."""
+
+    async def save(self, task: Task, context: ServerCallContext) -> None:
+        if task.status.state in ENDED:
+            await self.delete(task.id, context)
+        else:
+            await super().save(task, context)
+
+
+class OneShotRequestHandler(DefaultRequestHandler):
+    """`message/send` and nothing else, each message a task of its own (`ONE_SHOT`)."""
+
+    async def on_message_send(
+        self, params: SendMessageRequest, context: ServerCallContext
+    ) -> Message | Task:
+        if params.message.task_id:
+            raise InvalidParamsError(message="a message may not name an earlier task")
+        answered: Message | Task = await super().on_message_send(params, context)
+        return answered
+
+    async def on_get_task(self, params: GetTaskRequest, context: ServerCallContext) -> Task | None:
+        raise UnsupportedOperationError(message=ONE_SHOT)
+
+    async def on_list_tasks(
+        self, params: ListTasksRequest, context: ServerCallContext
+    ) -> ListTasksResponse:
+        raise UnsupportedOperationError(message=ONE_SHOT)
+
+    async def on_cancel_task(
+        self, params: CancelTaskRequest, context: ServerCallContext
+    ) -> Task | None:
+        raise UnsupportedOperationError(message=ONE_SHOT)
+
+    async def on_subscribe_to_task(
+        self, params: SubscribeToTaskRequest, context: ServerCallContext
+    ) -> AsyncGenerator[Any]:
+        # An async generator, as the base's is, which the dispatcher iterates: it yields nothing.
+        nothing: tuple[Any, ...] = ()
+        for event in nothing:
+            yield event
+        raise UnsupportedOperationError(message=ONE_SHOT)
+
+
+def request_handler(executor: AgentExecutor, card: AgentCard) -> DefaultRequestHandler:
+    """The A2A request handler for `executor` behind `card` (`OneShotRequestHandler`)."""
+    return OneShotRequestHandler(
+        agent_executor=executor, task_store=TransientTaskStore(), agent_card=card
+    )
+
+
 def app(
     agent: Agent,
     base_url: str = "http://127.0.0.1:8100",
     delegate_client_factory: delegation.ClientFactory = delegation.default_client,
+    tools_client_factory: ToolsClientFactory | None = None,
 ) -> Starlette:
     """`delegate_client_factory` gives the httpx client a delegation agent uses to call the
-    harness back; tests bind it to the harness's in-process app."""
+    harness back, and `tools_client_factory` the one an agent calls the tool gateway with; tests
+    bind both to the harness's in-process app."""
     card = agent_card(agent, base_url)
-    handler = DefaultRequestHandler(
-        agent_executor=AgentServerExecutor(agent, delegate_client_factory),
-        task_store=InMemoryTaskStore(),
-        agent_card=card,
-    )
+    executor = AgentServerExecutor(agent, delegate_client_factory, tools_client_factory)
+    handler = request_handler(executor, card)
     return Starlette(
         routes=[*create_agent_card_routes(card), *create_jsonrpc_routes(handler, JSONRPC_PATH)]
     )
+
+
+def _settings(sent: object) -> dict[str, str]:
+    """The settings the harness sent, keeping only string names with string values; anything else
+    is dropped, and the agent's card defaults apply (`dd_sdk.agent.setting`)."""
+    if not isinstance(sent, dict):
+        return {}
+    return {k: v for k, v in sent.items() if isinstance(k, str) and isinstance(v, str)}
 
 
 # How `--reload` hands the agent to the reloaded worker, which uvicorn starts from an import string.

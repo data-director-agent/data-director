@@ -10,7 +10,13 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: { baseURL: `http://127.0.0.1:${PORT}`, trace: "retain-on-failure" },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  // Describing a folder runs the browser scanner, whose support differs by browser engine (#554),
+  // so its test runs in Firefox and WebKit too. The rest of the shell is tested in Chromium.
+  projects: [
+    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    { name: "firefox", testMatch: "scan.spec.ts", use: { ...devices["Desktop Firefox"] } },
+    { name: "webkit", testMatch: "scan.spec.ts", use: { ...devices["Desktop Safari"] } },
+  ],
   webServer: {
     command: `npm run build && npx vite preview --host 127.0.0.1 --port ${PORT} --strictPort`,
     timeout: 120_000,

@@ -1,0 +1,14 @@
+# Restart the app and agents when deploy.sh asks. deploy.sh runs as the datadirector user, which
+# may not restart services, so it writes this file and root's unit does the restart
+# (data-director-restart.service). Installed by root (install.sh), so that a commit cannot change
+# what is restarted or by whom.
+[Unit]
+Description=Restart Data Director when a deployment asks for it
+Documentation=https://github.com/data-director-agent/data-director/blob/main/deploy/README.md
+
+[Path]
+PathModified=/opt/data-director/restart-requested
+Unit=data-director-restart.service
+
+[Install]
+WantedBy=multi-user.target

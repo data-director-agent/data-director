@@ -1,0 +1,13 @@
+<a class="tile{% if budget.state == 'over' %} bad{% elif budget.state == 'warn' %} warn{% elif budget.state == 'good' %} good{% endif %}" href="/spend">
+  <span class="tile-label">Spend, this month</span>
+  {% if gateway.answered %}
+    <span class="tile-value">{{ gateway.month_to_date | money }}</span>
+    <span class="tile-sub">{% if budget.limit %}{{ budget.share | percent }} of {{ budget.limit | money }}{% if budget.state == 'over' %}, over budget{% endif %}{% else %}no budget set{% endif %}</span>
+  {% elif gateway.configured %}
+    <span class="tile-value small">Gateway not answering</span>
+    <span class="tile-sub">{{ tokens_30[0] | number }} in, {{ tokens_30[1] | number }} out, 30 days</span>
+  {% else %}
+    <span class="tile-value small">{{ (tokens_30[0] + tokens_30[1]) | number }} tokens</span>
+    <span class="tile-sub">30 days · no gateway, so no prices</span>
+  {% endif %}
+</a>

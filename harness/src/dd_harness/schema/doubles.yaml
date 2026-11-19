@@ -47,6 +47,19 @@ classes:
       - schema_class
       - title
 
+  ProbeReading:
+    description: >-
+      What a checking double reads in a project: an agent's own input class that asks the
+      conductor for the attached documents, the decided facts and the chosen repository by their
+      slots (docs/specs/projects.md, invariant 6).
+    mixins:
+      - GivenProjectDocuments
+      - GivenProjectDecisions
+      - GivenProjectRepository
+    slots:
+      - schema_class
+      - title
+
   ProbeReview:
     description: What an input_only or none double returns.
     mixins:
@@ -62,6 +75,16 @@ classes:
     slots:
       - schema_class
       - document_kind
+
+  ProbeFindings:
+    description: >-
+      What a checking double returns: facts it proposes about the project for a person to decide
+      (docs/specs/projects.md), in a payload class the harness knows only from its card.
+    mixins:
+      - Grounded
+      - ProposesFacts
+    slots:
+      - schema_class
 
   ProbeCheck:
     description: What a retrieval double returns.

@@ -6,14 +6,11 @@ An alpha substantiates no requirement, so these tests carry no requirement marke
 
 from __future__ import annotations
 
-import asyncio
-import json
-import re
-import threading
 import webbrowser
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 import pytest
@@ -23,48 +20,45 @@ from a2a.types import TaskState
 from starlette.testclient import TestClient
 from support import (
     APP_URL,
+    STANDARDS_AGENT_ID,
     check_fixture,
     configure_env,
+    delegating_app,
     dist_dir,
+    example,
     new_governance,
+    run,
     with_standards,
 )
 
 from dd_agent_advisor_quality.agent import build as build_quality
 from dd_agent_advisor_standards import factory as standards
 from dd_agent_example_hello.agent import build as build_hello
-from dd_agent_orchestrator_stub.agent import build as build_director
 from dd_app import app as dd_app
 from dd_app.app import ShellNotBuiltError, build_app
 from dd_app.config import DEFAULT_AGENTS_CONFIG, DEFAULT_PROFILE, settings_from_env
-from dd_app.governance import INVENTORY_ONLY_TEXT, Governance, TurnConflictError
-from dd_harness.conductor import Conductor
+from dd_app.governance import (
+    Governance,
+)
+from dd_app.routes.meta import Policy, ProcessFlow
+from dd_app.routes.runs import RawAgentsResponse
 from dd_harness.identity import IdentityError, OperatorAssertion
 from dd_harness.policy import load_profile
-from dd_harness.projects import ProjectStore
-from dd_harness.registry import Registry, load_config
+from dd_harness.registry import load_config
 from dd_harness.remote import RemoteAgent, RemoteAgentError
 from dd_harness.settings import SettingsError
-from dd_harness.store import RunStore
 from dd_harness.testing import (
     PERMISSIVE,
     RESTRICTIVE,
     TEST_PRINCIPAL,
     AbstainingStub,
-    asgi_client_factory,
-    in_process,
     make_conductor,
     send_to_harness,
 )
 from dd_harness.transport.a2a import DELEGATED_ONLY
 from dd_sdk.agent import Agent
-from dd_sdk.contract.models import UUID7_PATTERN, InvocationRequest
+from dd_sdk.contract.models import InvocationRequest
 from dd_sdk.process_flow import ENTRIES, PHASES
-
-# The fixtures (`support.check_fixture`): `agents.json` is the reference set;
-# `agents-several.json` is five agents of different grounding modes and payload shapes under the
-# permissive test profile, which does not list the standards advisor.
-STANDARDS_AGENT_ID = "advisor.standards"
 
 
 @pytest.fixture
@@ -80,6 +74,19 @@ def governance(env: Path) -> Iterator[Governance]:
 @pytest.fixture
 def dist(tmp_path: Path) -> Path:
     return dist_dir(tmp_path)
+
+
+@pytest.fixture
+def delegating(env: Path, dist: Path) -> Iterator[tuple[Governance, Any]]:
+    """The app over the orchestrator and `example.hello`, each reached over in-process A2A, with
+    the orchestrator calling back to the app's own routes, under the app's reference profile. It
+    keeps no projects."""
+    yield delegating_app(env, dist, None)
+
+
+# The fixtures (`support.check_fixture`): `agents.json` is the reference set;
+# `agents-several.json` is five agents of different grounding modes and payload shapes under the
+# permissive test profile, which does not list the standards advisor.
 
 
 def agents_response(governance: Governance, dist: Path) -> dict[str, Any]:
@@ -106,41 +113,17 @@ def test_api_agents_retries_an_agent_that_was_down_and_still_reports_it(
 
 
 def test_the_reference_set_lists_and_enables_every_in_tree_agent():
+    # scripts/check_members.py checks that the list names every in-tree agent; here, that each
+    # has a port of its own on this machine and that the reference profile enables each one.
     entries = load_config(DEFAULT_AGENTS_CONFIG)
-    assert [(e["name"], e["url"]) for e in entries] == [
-        ("example-hello", "http://127.0.0.1:8101"),
-        ("advisor-quality", "http://127.0.0.1:8102"),
-        ("advisor-standards", "http://127.0.0.1:8105"),
-        ("advisor-policy", "http://127.0.0.1:8108"),
-        ("advisor-repository", "http://127.0.0.1:8109"),
-        ("advisor-ethics", "http://127.0.0.1:8111"),
-        ("advisor-files", "http://127.0.0.1:8110"),
-        ("advisor-dmp", "http://127.0.0.1:8112"),
-        ("advisor-metadata", "http://127.0.0.1:8113"),
-        ("advisor-documentation", "http://127.0.0.1:8114"),
-        ("advisor-rights", "http://127.0.0.1:8115"),
-        ("advisor-linking", "http://127.0.0.1:8116"),
-        ("advisor-fairness", "http://127.0.0.1:8117"),
-        ("orchestrator-stub", "http://127.0.0.1:8106"),
-        ("orchestrator-model", "http://127.0.0.1:8107"),
-    ]
-    enabled = (
-        STANDARDS_AGENT_ID,
-        "advisor.policy",
-        "advisor.repository",
-        "example.hello",
-        "advisor.quality",
-        "advisor.ethics",
-        "advisor.files",
-        "advisor.dmp",
-        "advisor.metadata",
-        "advisor.documentation",
-        "advisor.rights",
-        "advisor.linking",
-        "advisor.fairness",
-        "orchestrator.stub",
-        "orchestrator.model",
-    )
+    names = [e["name"] for e in entries]
+    urls = [urlsplit(e["url"]) for e in entries]
+    assert {"example-hello", "orchestrator-stub"} <= set(names)
+    assert len(set(names)) == len(names)
+    assert {url.hostname for url in urls} == {"127.0.0.1"}
+    assert len({url.port for url in urls}) == len(urls)
+    # An agent id is its directory's name with the first hyphen a dot (agents/README.md).
+    enabled = [name.replace("-", ".", 1) for name in names]
     profile = load_profile(DEFAULT_PROFILE)
     assert profile.agents == dict.fromkeys(enabled, "advise")
     # The rule-based stub, which needs no model key, is the conversation until a deployment
@@ -169,8 +152,9 @@ def test_api_agents_gives_each_manifest_beside_what_the_profile_assigns(
     assert standards["requires_approval"] is False
     assert standards["grounding_mode"] == "retrieval"
     assert body["unavailable"] == {} and body["incompatible"] == {}
-    assert body["profile"]["ref"] == "profile:data-director-app@v7"
+    assert body["profile"]["ref"] == "profile:data-director-app@v9"
     assert body["profile"]["orchestrator"] == "orchestrator.stub"
+    assert body["profile"]["attached_documents"] == "allowed"
     assert body["acting_for"] == {"name": TEST_PRINCIPAL.name, "assurance": "asserted"}
 
 
@@ -190,10 +174,44 @@ def test_every_other_path_serves_the_built_shell(governance: Governance, dist: P
     assert "<title>shell</title>" in response.text
 
 
-def test_the_agents_page_serves_the_built_shell(governance: Governance, dist: Path):
-    response = TestClient(build_app(governance, dist)).get("/agents")
+def test_a_missing_page_is_404_with_the_shell_for_a_browser(governance: Governance, dist: Path):
+    client = TestClient(build_app(governance, dist))
+    response = client.get("/no/such/page", headers={"accept": "text/html,application/xhtml+xml"})
+    assert response.status_code == 404
+    assert "<title>shell</title>" in response.text
+
+
+def test_a_missing_path_is_404_plainly_to_anything_else(governance: Governance, dist: Path):
+    client = TestClient(build_app(governance, dist))
+    assert client.get("/no/such/page", headers={"accept": "application/json"}).status_code == 404
+    api = client.get("/api/no-such-route", headers={"accept": "text/html"})
+    assert api.status_code == 404
+    assert "<title>shell</title>" not in api.text
+
+
+@pytest.mark.parametrize("page", ["/agents", "/activity", "/policy"])
+def test_each_page_serves_the_built_shell(governance: Governance, dist: Path, page: str):
+    response = TestClient(build_app(governance, dist)).get(page)
     assert response.status_code == 200
     assert "<title>shell</title>" in response.text
+
+
+def test_api_policy_gives_the_profile_the_gate_holds_runs_to(governance: Governance, dist: Path):
+    response = TestClient(build_app(governance, dist)).get("/api/policy")
+    assert response.status_code == 200
+    body = response.json()
+    profile = governance.conductor.profile
+    assert body["profile"]["ref"] == profile.ref
+    assert body["profile"]["digest"] == profile.digest
+    assert body["profile"]["description"] == profile.description != ""
+    assert body["profile"]["orchestrator"] == "orchestrator.stub"
+    assert {a["agent_id"]: a["action_class"] for a in body["agents"]} == profile.agents
+    assert body["actions_requiring_approval"] == sorted(profile.actions_requiring_approval)
+    for agent in body["agents"]:
+        assert agent["requires_approval"] is (
+            agent["action_class"] in profile.actions_requiring_approval
+        )
+    check_fixture("policy.json", body, model=Policy)
 
 
 def test_an_unbuilt_shell_stops_start_up(governance: Governance, tmp_path: Path):
@@ -236,7 +254,7 @@ def test_a_listed_agent_that_is_not_running_is_shown_unavailable(
 
 
 def test_the_reference_fixture_is_what_the_server_says(governance: Governance, dist: Path):
-    check_fixture("agents.json", agents_response(governance, dist))
+    check_fixture("agents.json", agents_response(governance, dist), model=RawAgentsResponse)
 
 
 def test_the_process_flow_is_the_blueprints(governance: Governance, dist: Path):
@@ -248,10 +266,13 @@ def test_the_process_flow_is_the_blueprints(governance: Governance, dist: Path):
     assert body["phases"][0]["steps"][1] == {
         "id": "setup.vocabularies",
         "text": "Select controlled vocabularies and ontologies",
+        "label": "Choose standard terms to describe your data",
+        "prompt": PHASES[0].steps[1].prompt,
         "requirements": ["R3"],
         "optional": False,
+        "out_of_scope": False,
     }
-    check_fixture("process-flow.json", body)
+    check_fixture("process-flow.json", body, model=ProcessFlow)
 
 
 def test_the_several_agents_fixture_is_what_the_server_says(env: Path, dist: Path):
@@ -265,171 +286,11 @@ def test_the_several_agents_fixture_is_what_the_server_says(env: Path, dist: Pat
         make_conductor(env, *agents, remote=False, profile=PERMISSIVE),
         OperatorAssertion(TEST_PRINCIPAL),
     )
-    check_fixture("agents-several.json", agents_response(governance, dist))
-
-
-# Runs (`POST /api/runs`, `GET /api/runs`, `GET /api/runs/{id}`) and examples. The run fixtures
-# hold fixed values for what changes between two runs of the same input.
-
-EXAMPLES = Path(__file__).resolve().parents[1] / "config/examples"
-FIXED_RUN_ID = "01900000-0000-7000-8000-000000000001"
-FIXED_TIME = "2026-01-01T00:00:00Z"
-
-
-def example(name: str) -> dict[str, Any]:
-    document: dict[str, Any] = json.loads((EXAMPLES / f"{name}.json").read_text("utf-8"))
-    return document
-
-
-def run(client: TestClient, input: Any, agent_id: str = STANDARDS_AGENT_ID) -> Any:
-    return client.post("/api/runs", json={"agent_id": agent_id, "input": input})
-
-
-def normalised(body: dict[str, Any]) -> dict[str, Any]:
-    envelope = body["envelope"]
-    envelope["invocation_id"] = FIXED_RUN_ID
-    envelope["completed_at"] = FIXED_TIME
-    envelope["telemetry"]["trace_id"] = "0" * 32
-    for item in envelope.get("evidence") or []:
-        item["retrieved_at"] = FIXED_TIME
-    return body
-
-
-def test_a_run_answers_with_its_envelope_and_the_checks(governance: Governance, dist: Path):
-    response = run(TestClient(build_app(governance, dist)), example("soil-chemistry.profile"))
-    assert response.status_code == 200
-    body = response.json()
-    envelope = body["envelope"]
-    assert envelope["agent_id"] == STANDARDS_AGENT_ID
-    assert envelope["outcome"]["status"] == "succeeded"
-    assert envelope["acting_for"]["name"] == TEST_PRINCIPAL.name
-    assert envelope["evidence"] and envelope["payload"]["schema_class"] == "Recommendations"
-    assert body["checks"]["grounding"]["passed"] is True
-    assert body["checks"]["sources"]["passed"] is True
-    assert body["checks"]["sources"]["summary"].startswith("sources: ")
-    check_fixture("run-succeeded.json", normalised(body))
-
-
-def test_a_profile_with_nothing_to_search_on_abstains(governance: Governance, dist: Path):
-    body = run(TestClient(build_app(governance, dist)), example("empty.profile")).json()
-    assert body["envelope"]["outcome"]["status"] == "abstained"
-    assert body["envelope"]["outcome"]["reason_code"] == "insufficient_input"
-    check_fixture("run-abstained.json", normalised(body))
-
-
-@pytest.mark.parametrize(
-    "body",
-    [
-        {"input": {}},
-        {"agent_id": STANDARDS_AGENT_ID},
-        {"agent_id": STANDARDS_AGENT_ID, "input": []},
-        [],
-    ],
-)
-def test_a_malformed_body_is_refused_as_a_problem(governance: Governance, dist: Path, body: Any):
-    response = TestClient(build_app(governance, dist)).post("/api/runs", json=body)
-    assert response.status_code == 400
-    assert response.headers["content-type"] == "application/problem+json"
-    assert response.json()["type"].endswith("/request-refused")
-
-
-def test_an_unknown_agent_is_refused_before_it_runs(governance: Governance, dist: Path):
-    client = TestClient(build_app(governance, dist))
-    response = run(client, example("soil-chemistry.profile"), agent_id="no.such-agent")
-    assert response.status_code == 400
-    assert "no.such-agent" in response.json()["detail"]
-    assert client.get("/api/runs").json() == []
-
-
-def test_an_input_the_agent_does_not_accept_is_a_failed_run(governance: Governance, dist: Path):
-    body = run(TestClient(build_app(governance, dist)), {"schema_class": "Claim"}).json()
-    assert body["envelope"]["outcome"]["status"] == "failed"
-    assert body["envelope"]["problem"]["type"].endswith("/input-not-accepted")
-    # The checks run over every envelope; with no output there was nothing for them to find.
-    assert body["checks"]["grounding"]["passed"] is True
-    assert body["checks"]["sources"]["summary"] == "sources: 0 verified, 0 unresolved"
-
-
-def test_the_history_lists_runs_newest_first_and_each_reopens(governance: Governance, dist: Path):
-    client = TestClient(build_app(governance, dist))
-    first = run(client, example("soil-chemistry.profile")).json()["envelope"]
-    second = run(client, example("empty.profile")).json()["envelope"]
-    rows = client.get("/api/runs").json()
-    assert [r["invocation_id"] for r in rows] == [
-        second["invocation_id"],
-        first["invocation_id"],
-    ]
-    assert rows[0] == {
-        "invocation_id": second["invocation_id"],
-        "agent_id": STANDARDS_AGENT_ID,
-        "status": "abstained",
-        "completed_at": second["completed_at"],
-        "acting_for": TEST_PRINCIPAL.name,
-    }
-    stored = client.get(f"/api/runs/{first['invocation_id']}").json()
-    assert stored["envelope"] == first
-    assert stored["request"]["agent_id"] == STANDARDS_AGENT_ID
-    assert stored["checks"]["grounding"]["passed"] is True
-
-
-@pytest.mark.parametrize("invocation_id", ["01900000-0000-7000-8000-000000000009", "a.b"])
-def test_a_run_that_is_not_stored_is_not_found(
-    governance: Governance, dist: Path, invocation_id: str
-):
-    response = TestClient(build_app(governance, dist)).get(f"/api/runs/{invocation_id}")
-    assert response.status_code == 404
-    assert response.json()["type"].endswith("/run-not-found")
-
-
-def test_the_examples_name_their_class(governance: Governance, dist: Path):
-    found = TestClient(build_app(governance, dist)).get("/api/examples").json()
-    assert [(e["name"], e["schema_class"]) for e in found] == [
-        ("director.message", "Message"),
-        ("empty.profile", "DatasetProfile"),
-        ("hello.salutation", "Salutation"),
-        ("orda-record.metadata", "MetadataRecord"),
-        ("soil-chemistry.profile", "DatasetProfile"),
-    ]
-    assert found[4]["input"] == example("soil-chemistry.profile")
+    check_fixture("agents-several.json", agents_response(governance, dist), model=RawAgentsResponse)
 
 
 # Delegation (#129): the app is the conductor's callback, and its A2A routes take delegation
 # callbacks and nothing else.
-
-
-@pytest.fixture
-def delegating(env: Path, dist: Path) -> Iterator[tuple[Governance, Any]]:
-    """The app over the orchestrator and `example.hello`, each reached over in-process A2A, with
-    the orchestrator calling back to the app's own routes, under the app's reference profile. It
-    keeps no projects."""
-    yield delegating_app(env, dist, None)
-
-
-@pytest.fixture
-def in_projects(env: Path, dist: Path) -> Iterator[tuple[Governance, Any]]:
-    """As `delegating`, with each conversation started in a project of its own."""
-    yield delegating_app(env, dist, ProjectStore(env / "projects"))
-
-
-def delegating_app(env: Path, dist: Path, projects: ProjectStore | None) -> tuple[Governance, Any]:
-    served: dict[str, Any] = {}
-
-    def app_client(base_url: str, timeout_s: float) -> httpx.AsyncClient:
-        return asgi_client_factory(served["app"])(base_url, timeout_s)
-
-    registry = Registry.from_agents(
-        [
-            in_process(build_director(), delegate_client_factory=app_client),
-            in_process(build_hello()),
-        ]
-    )
-    conductor = Conductor(
-        registry=registry, store=RunStore(env), profile=load_profile(DEFAULT_PROFILE)
-    )
-    conductor.harness_url = APP_URL
-    governance = Governance(conductor, OperatorAssertion(TEST_PRINCIPAL), projects)
-    served["app"] = build_app(governance, dist)
-    return governance, served["app"]
 
 
 def test_the_orchestrator_delegates_through_the_app(delegating: tuple[Governance, Any]):
@@ -485,358 +346,3 @@ def test_the_configured_url_is_the_callback(
     dd_app.main()
     assert started["governance"].conductor.harness_url == "http://app.internal:7860"
     assert "private network only" in capsys.readouterr().err
-
-
-# Conversations (#130): a turn is one invocation of the orchestrator with a `conversation_id`,
-# and the server, not the caller, builds its history from the stored turns (docs/specs/app.md).
-
-UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
-SHA256 = re.compile(r"(?<![0-9a-f])[0-9a-f]{64}(?![0-9a-f])")
-TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})")
-TRACE_ID = re.compile(r'"trace_id": "[0-9a-f]{32}"')
-
-
-def normalised_conversation(body: Any) -> Any:
-    """`body` with each identifier and hash that changes between two runs of the same
-    conversation replaced by a fixed one, numbered in order of first appearance, so the same
-    value stays the same throughout. A turn's input hash covers the history, which names the
-    earlier turns' runs, and a delegation's content hash covers the child's envelope, so the
-    hashes change with the identifiers."""
-    text = json.dumps(body, sort_keys=True)
-    seen: dict[str, str] = {}
-
-    def fixed(template: str) -> Any:
-        def replace(match: re.Match[str]) -> str:
-            value = match.group(0)
-            if value not in seen:
-                seen[value] = template.format(len(seen) + 1)
-            return seen[value]
-
-        return replace
-
-    text = UUID.sub(fixed("01900000-0000-7000-8000-{:012d}"), text)
-    text = SHA256.sub(fixed("{:064d}"), text)
-    text = TIMESTAMP.sub(FIXED_TIME, text)
-    text = TRACE_ID.sub(f'"trace_id": "{"0" * 32}"', text)
-    return json.loads(text)
-
-
-def start(client: TestClient) -> str:
-    response = client.post("/api/conversations")
-    assert response.status_code == 201
-    conversation_id: str = response.json()["conversation_id"]
-    assert response.headers["location"] == f"/api/conversations/{conversation_id}"
-    return conversation_id
-
-
-def turn(
-    client: TestClient,
-    conversation_id: str,
-    text: str,
-    follows: str | None = None,
-    **extra: Any,
-) -> Any:
-    return client.post(
-        f"/api/conversations/{conversation_id}/turns",
-        json={"agent_id": "orchestrator.stub", "message_text": text, "follows": follows, **extra},
-    )
-
-
-def test_a_conversation_is_started_with_no_turns(governance: Governance, dist: Path):
-    client = TestClient(build_app(governance, dist))
-    conversation_id = start(client)
-    assert re.fullmatch(UUID7_PATTERN, conversation_id)
-    found = client.get(f"/api/conversations/{conversation_id}").json()
-    assert found["turns"] == [] and found["history"] == []
-    # Listed once it has a turn, since the store is what holds a conversation.
-    assert client.get("/api/conversations").json() == []
-
-
-@pytest.mark.parametrize(
-    "conversation_id",
-    ["01900000-0000-7000-8000-000000000001", "not-an-id", "01900000-0000-4000-8000-000000000001"],
-)
-def test_a_conversation_the_app_did_not_start_is_not_found(
-    governance: Governance, dist: Path, conversation_id: str
-):
-    client = TestClient(build_app(governance, dist))
-    for response in (
-        client.get(f"/api/conversations/{conversation_id}"),
-        turn(client, conversation_id, "hello world"),
-    ):
-        assert response.status_code == 404
-        assert response.headers["content-type"] == "application/problem+json"
-        assert response.json()["type"].endswith("conversation-not-found")
-
-
-def test_each_turn_is_shown_the_turns_before_it(in_projects: tuple[Governance, Any]):
-    governance, app = in_projects
-    client = TestClient(app)
-    conversation_id = start(client)
-    first = turn(client, conversation_id, "hello world")
-    assert first.status_code == 200
-    second = turn(client, conversation_id, "hello again", first.json()["envelope"]["invocation_id"])
-    assert second.status_code == 200
-    envelopes = [first.json()["envelope"], second.json()["envelope"]]
-    for envelope in envelopes:
-        assert envelope["conversation_id"] == conversation_id
-        assert envelope["outcome"]["status"] == "succeeded"
-        assert [d["delegated_agent_id"] for d in envelope["delegations"]] == ["example.hello"]
-
-    store = governance.conductor.store
-    shown = [(store.get_request(e["invocation_id"]) or {})["input"] for e in envelopes]
-    assert shown[0] == {"schema_class": "Message", "message_text": "hello world", "history": []}
-    assert shown[1]["message_text"] == "hello again"
-    user, agent = shown[1]["history"]
-    assert (user["role"], user["turn_text"]) == ("user", "hello world")
-    assert agent["role"] == "agent"
-    assert agent["turn_text"] == envelopes[0]["payload"]["reply_text"]
-    assert agent["turn_invocation_id"] == envelopes[0]["invocation_id"]
-
-    found = client.get(f"/api/conversations/{conversation_id}").json()
-    assert [t["invocation_id"] for t in found["turns"]] == [e["invocation_id"] for e in envelopes]
-    for t, envelope in zip(found["turns"], envelopes, strict=True):
-        assert [c["invocation_id"] for c in t["children"]] == [
-            d["delegated_invocation_id"] for d in envelope["delegations"]
-        ]
-    (listed,) = client.get("/api/conversations").json()
-    assert (listed["conversation_id"], listed["turns"]) == (conversation_id, 2)
-    check_fixture("conversation-turn.json", normalised_conversation(second.json()))
-    check_fixture("conversation.json", normalised_conversation(found))
-
-
-def a_file_inventory(*paths: str) -> dict[str, Any]:
-    """What `dd-inventory` writes for files at `paths`."""
-    return {
-        "schema_class": "FileInventory",
-        "inventory_tool": "dd-inventory",
-        "inventory_tool_version": "0.1.0",
-        "inventory_made_at": "2026-11-01T09:00:00Z",
-        "inventory_files": [
-            {
-                "file_path": path,
-                "file_size": 10,
-                "file_sha256": "a" * 64,
-                "file_media_type": "text/csv",
-                "file_identified_by": "extension",
-            }
-            for path in paths
-        ],
-    }
-
-
-def test_a_conversation_is_started_in_a_project_of_its_own(governance: Governance, dist: Path):
-    client = TestClient(build_app(governance, dist))
-    first, second = (client.post("/api/conversations").json() for _ in range(2))
-    assert first["project_id"] != second["project_id"]
-    store = governance.projects
-    assert store is not None
-    for started in (first, second):
-        assert store.project_of(started["conversation_id"]) == started["project_id"]
-        events = store.events(started["project_id"])
-        assert [e["event"] for e in events] == ["project_created", "conversation_started"]
-        assert {e["acted_for"]["principal_id"] for e in events} == {TEST_PRINCIPAL.principal_id}
-        found = client.get(f"/api/conversations/{started['conversation_id']}").json()
-        assert (found["project_id"], found["inventory"]) == (started["project_id"], None)
-
-
-def test_an_attached_inventory_is_kept_and_the_orchestrator_is_told_of_it(
-    in_projects: tuple[Governance, Any],
-):
-    governance, app = in_projects
-    client = TestClient(app)
-    conversation_id = start(client)
-    # An inventory may be sent with no words.
-    first = turn(client, conversation_id, " ", inventory=a_file_inventory("a.csv", "b.csv"))
-    assert first.status_code == 200, first.json()
-    envelope = first.json()["envelope"]
-    project_id = envelope["project_id"]
-    store = governance.projects
-    assert store is not None
-    added = store.events(project_id)[-1]
-    assert added["event"] == "inventory_added"
-    assert added["caused_by"] == f"POST /api/conversations/{conversation_id}/turns"
-
-    shown = (governance.conductor.store.get_request(envelope["invocation_id"]) or {})["input"]
-    assert shown["message_text"] == INVENTORY_ONLY_TEXT
-    assert shown["project_inventory"]["inventory_digest"] == added["digest"]
-    assert shown["project_inventory"]["inventory_file_count"] == 2
-
-    # Later turns are told of it too, without sending it again.
-    second = turn(client, conversation_id, "Draft a README", envelope["invocation_id"])
-    later = governance.conductor.store.get_request(second.json()["envelope"]["invocation_id"])
-    assert later is not None
-    assert later["input"]["project_inventory"] == shown["project_inventory"]
-    found = client.get(f"/api/conversations/{conversation_id}").json()
-    assert found["inventory"]["file_count"] == 2
-    assert found["inventory"]["digest"] == added["digest"]
-
-
-@pytest.mark.parametrize(
-    ("inventory", "detail"),
-    [
-        ({"schema_class": "FileInventory"}, "not a FileInventory"),
-        (["a.csv"], "`inventory` must be"),
-    ],
-)
-def test_an_inventory_that_is_refused_leaves_no_trace_and_nothing_runs(
-    in_projects: tuple[Governance, Any], inventory: Any, detail: str
-):
-    governance, app = in_projects
-    client = TestClient(app)
-    started = client.post("/api/conversations").json()
-    response = turn(client, started["conversation_id"], "hello", inventory=inventory)
-    assert response.status_code == 400
-    assert detail in response.json()["detail"]
-    assert list(governance.conductor.store.iter_envelopes()) == []
-    assert governance.projects is not None
-    assert governance.projects.summary(started["project_id"])["inventory"] is None
-
-
-def test_an_inventory_needs_a_project_to_keep_it(delegating: tuple[Governance, Any]):
-    governance, app = delegating
-    client = TestClient(app)
-    response = turn(client, start(client), "hello", inventory=a_file_inventory("a.csv"))
-    assert response.status_code == 400
-    assert "no project" in response.json()["detail"]
-    assert list(governance.conductor.store.iter_envelopes()) == []
-
-
-def test_a_cancelled_turn_still_comes_before_the_next(delegating: tuple[Governance, Any]):
-    """A turn cancelled (the client went away) runs on to the end in the conductor's thread. A
-    message sent again meanwhile is refused, not run twice (#337); once the first is stored, a
-    turn that follows it runs and is shown it."""
-    governance, _app = delegating
-    conductor = governance.conductor
-    entered, release = threading.Event(), threading.Event()
-    invoke = conductor.invoke
-
-    def held_first(request: InvocationRequest, **kwargs: Any) -> Any:
-        if not entered.is_set():
-            entered.set()
-            release.wait(timeout=30)
-        return invoke(request, **kwargs)
-
-    conductor.invoke = held_first  # type: ignore[method-assign]
-    conversation_id = governance.start_conversation(TEST_PRINCIPAL)
-
-    def top_level_turns() -> list[dict[str, Any]]:
-        return [e for e in conductor.store.iter_envelopes() if not e.get("parent_invocation_id")]
-
-    async def scenario() -> dict[str, Any]:
-        first = asyncio.create_task(
-            governance.turn(
-                conversation_id, "orchestrator.stub", "hello world", None, TEST_PRINCIPAL
-            )
-        )
-        await asyncio.to_thread(entered.wait, 30)
-        first.cancel()
-        with pytest.raises(TurnConflictError, match="still running"):
-            await governance.turn(
-                conversation_id, "orchestrator.stub", "hello world", None, TEST_PRINCIPAL
-            )
-        release.set()
-        with pytest.raises(asyncio.CancelledError):
-            await first
-        (stored,) = top_level_turns()
-        return await governance.turn(
-            conversation_id,
-            "orchestrator.stub",
-            "hello again",
-            stored["invocation_id"],
-            TEST_PRINCIPAL,
-        )
-
-    try:
-        second = asyncio.run(scenario())
-    finally:
-        release.set()
-        conductor.close()
-
-    shown = (conductor.store.get_request(second["envelope"]["invocation_id"]) or {})["input"]
-    user, _agent = shown["history"]
-    assert user["turn_text"] == "hello world"
-    assert len(top_level_turns()) == 2  # the resend never ran
-    assert governance._turn_locks == {}  # nothing kept for a conversation with no turn running
-
-
-@pytest.mark.parametrize(
-    ("body", "detail"),
-    [
-        ({"history": []}, "history"),
-        ({"input": {}}, "only `agent_id`, `message_text`, `follows` and `inventory`"),
-        ({"message_text": 3}, "as strings"),
-        ({"follows": 3}, "must give `follows`"),
-        ({"message_text": "  "}, "empty"),
-    ],
-)
-def test_a_malformed_turn_is_refused_and_nothing_runs(
-    delegating: tuple[Governance, Any], body: dict[str, Any], detail: str
-):
-    governance, app = delegating
-    client = TestClient(app)
-    conversation_id = start(client)
-    response = turn(client, conversation_id, "hello world", **body)
-    assert response.status_code == 400
-    assert response.headers["content-type"] == "application/problem+json"
-    assert detail in response.json()["detail"]
-    assert list(governance.conductor.store.iter_envelopes()) == []
-
-
-def test_a_turn_must_name_the_turn_it_follows(delegating: tuple[Governance, Any]):
-    governance, app = delegating
-    client = TestClient(app)
-    response = client.post(
-        f"/api/conversations/{start(client)}/turns",
-        json={"agent_id": "orchestrator.stub", "message_text": "hello world"},
-    )
-    assert response.status_code == 400
-    assert "must give `follows`" in response.json()["detail"]
-    assert list(governance.conductor.store.iter_envelopes()) == []
-
-
-@pytest.mark.parametrize("follows", [None, "01900000-0000-7000-8000-000000000001"])
-def test_a_turn_that_does_not_follow_the_latest_is_refused_and_nothing_runs(
-    delegating: tuple[Governance, Any], follows: str | None
-):
-    """A message sent again after its first attempt was stored names the turn before it, so it
-    is refused rather than run twice (#337, docs/specs/orchestration.md)."""
-    governance, app = delegating
-    client = TestClient(app)
-    conversation_id = start(client)
-    assert turn(client, conversation_id, "hello world").status_code == 200
-    stored = list(governance.conductor.store.iter_envelopes())
-    response = turn(client, conversation_id, "hello world", follows)
-    assert response.status_code == 409
-    assert response.headers["content-type"] == "application/problem+json"
-    assert response.json()["type"].endswith("turn-conflict")
-    assert stored[-1]["invocation_id"] in response.json()["detail"]
-    assert list(governance.conductor.store.iter_envelopes()) == stored
-
-
-def test_a_turn_goes_only_to_the_orchestrator_the_profile_names(
-    delegating: tuple[Governance, Any],
-):
-    governance, app = delegating
-    client = TestClient(app)
-    response = turn(client, start(client), "hello world", agent_id="example.hello")
-    assert response.status_code == 400
-    assert "'orchestrator.stub', not 'example.hello'" in response.json()["detail"]
-    assert list(governance.conductor.store.iter_envelopes()) == []
-
-
-def test_a_turn_that_is_not_json_is_refused(governance: Governance, dist: Path):
-    client = TestClient(build_app(governance, dist))
-    response = client.post(f"/api/conversations/{start(client)}/turns", content=b"{")
-    assert response.status_code == 400
-
-
-def test_a_turn_to_an_unknown_agent_is_refused_before_it_runs(governance: Governance, dist: Path):
-    client = TestClient(build_app(governance, dist))
-    response = client.post(
-        f"/api/conversations/{start(client)}/turns",
-        json={"agent_id": "no.such.agent", "message_text": "hello", "follows": None},
-    )
-    assert response.status_code == 400
-    assert response.json()["type"].endswith("request-refused")
-    assert list(governance.conductor.store.iter_envelopes()) == []

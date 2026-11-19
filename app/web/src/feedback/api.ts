@@ -8,18 +8,12 @@
 
 import { createContext, useContext } from "react";
 
-import { RunRefused } from "../run/api";
-import type { Problem } from "../run/types";
-import { checkSignedIn } from "../session/api";
+import type { About, FiledIssue } from "../api/generated/responses";
+import { json } from "../http";
+
+export type { About, FiledIssue } from "../api/generated/responses";
 
 export type FeedbackKind = "bug" | "feature" | "other";
-
-export interface About {
-  app_version: string | null;
-  harness_version: string | null;
-  commit: string | null;
-  feedback_enabled: boolean;
-}
 
 export interface Report {
   kind: FeedbackKind;
@@ -31,11 +25,6 @@ export interface Report {
   include_context: boolean;
 }
 
-export interface FiledIssue {
-  url: string;
-  number: number;
-}
-
 export interface FeedbackApi {
   about(signal?: AbortSignal): Promise<About>;
   send(report: Report, signal?: AbortSignal): Promise<FiledIssue>;
@@ -45,14 +34,6 @@ export interface FeedbackApi {
 export function describeBuild(about: Pick<About, "app_version" | "commit">): string {
   const version = about.app_version ? `v${about.app_version}` : "unknown version";
   return about.commit ? `${version} (${about.commit.slice(0, 7)})` : version;
-}
-
-async function json<T>(response: Response): Promise<T> {
-  if (response.ok) return (await response.json()) as T;
-  checkSignedIn(response);
-  const problem = (await response.json().catch(() => null)) as Problem | null;
-  if (response.status === 400 && problem) throw new RunRefused(problem);
-  throw new Error(problem?.detail ?? `the server answered ${response.status}`);
 }
 
 export const httpFeedbackApi: FeedbackApi = {

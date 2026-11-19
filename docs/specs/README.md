@@ -43,10 +43,18 @@ which gets one line that points to the code.
 | [Agents](agents.md) | Agents as separate services, the registry and manifest, derivations, and the roster. |
 | [Orchestration](orchestration.md) | Conversations, delegation through the harness, entry points and the process steps an agent serves. |
 | [Policy and identity](policy-and-identity.md) | Institutional profiles, signing in, the human an invocation acts for, and model credentials. |
+| [A person's own model account](model-accounts.md) | The model broker, enrolling a person's own key, the model grant, and recording whose account paid. |
 | [The app](app.md) | The browser shell, the app's process boundary and problem reports. |
+| [Interface languages](languages.md) | The interface's text in more than one language: catalogues, codes that are never translated, the person's choice, reviewed translations and text the shell did not write. |
 | [Projects](projects.md) | Projects, file inventories, documents and their versions, proposed changes and approval, sharing. |
+| [Personal data and disclosure control](personal-data.md) | Detecting direct identifiers where the inventory is made, disclosure control for the summary values it computes, and quasi-identifier risk referred to a person. |
+| [The intake against §8](intake-reading.md) | A reading of the project intake's questions, entry points and the steps an answer skips against Blueprint §8, and the decisions it settled. |
+| [Drafting documents](drafting.md) | What a drafter may infer, ask and write; gaps, questions to the researcher and their answers. |
 | [Deposit](deposit.md) | Repository requirements and the deposit package. |
+| [Storage](storage.md) | The run and project storage protocols, their guarantees, the file backends and how another backend is added. |
 | [Disclosure](disclosure.md) | Model calls and their prompts, and the disclosure of how each approved document came about, as a statement and a PROV-O graph. |
+| [Provenance](provenance.md) | What "all actions" means for a project, how each event and run maps to PROV-O, the identifiers, and how the graph is checked complete. |
+| [Security baseline](security.md) | The controls behind C1 mapped to NIST SP 800-53, each with its status and evidence; secrets, audit streams and secure defaults. |
 | [Evaluation and conformance](evaluation.md) | Evaluation, assessment lanes, and how conformance to the Blueprint is reported. |
 
 ## The shape of a spec

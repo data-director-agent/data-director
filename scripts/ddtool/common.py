@@ -1,0 +1,458 @@
+"""What `setup`, `start` and `doctor` share: the settings files, the agents, the shell's build and
+the toolchain."""
+
+from __future__ import annotations
+
+import os
+import re
+import shutil
+import socket
+import subprocess
+import urllib.request
+from collections.abc import Iterable
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+from urllib.parse import urlsplit
+
+import yaml
+
+from ddtool import paths
+
+# The example principal the documentation uses (config/examples/app.env): ORCID's test record.
+EXAMPLE_PRINCIPAL = {
+    "DD_PRINCIPAL_ID": "https://orcid.org/0000-0002-1825-0097",
+    "DD_PRINCIPAL_NAME": "Josiah Carberry",
+}
+# Each model provider's key variable, by `DD_MODEL_PROVIDER` (dd_sdk.model_provider.PROVIDERS).
+PROVIDER_KEYS = {
+    "anthropic": "ANTHROPIC_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "gemini": "GEMINI_API_KEY",
+    "openai-compatible": "DD_MODEL_API_KEY",
+}
+# Every variable a model key may be given in, which only the agent's own file may set.
+KEY_VARS = tuple(v for key in PROVIDER_KEYS.values() for v in (key, f"{key}_FILE"))
+# Agents that stop at start-up without a model key, so `start` skips them when they have none.
+MODEL_BACKED = {"orchestrator-model"}
+# Agents whose model is on unless their own setting says `template`, by that setting: every
+# advisor that can call a model (each package's `factory.SWITCH`, which
+# `scripts/tests/test_dev_script.py` checks this against). Left unset with no key, `start` runs
+# them with `template`; a deployment on a VM is refused until they have a key, call through the
+# model broker, or are set to `template`.
+MODEL_BY_DEFAULT = {
+    "advisor-standards": "DD_STANDARDS_EXPLAINER",
+    "advisor-policy": "DD_POLICY_ADVISOR",
+    "advisor-repository": "DD_REPOSITORY_EXPLAINER",
+    "advisor-documentation": "DD_DOCUMENTATION_WRITER",
+    "advisor-dmp": "DD_DMP_MATCHER",
+    "advisor-rights": "DD_RIGHTS_INTERPRETER",
+    "advisor-fairness": "DD_FAIRNESS_WRITER",
+    "advisor-ethics": "DD_ETHICS_READER",
+    "advisor-metadata": "DD_METADATA_SUGGESTER",
+}
+NODE_MAJOR = 22  # the oldest Node the shell's toolchain supports (README, "Quick start")
+APP_PORT = 7860  # dd_app's default (DD_APP_PORT)
+WEB_PORT = 5173  # Vite's default
+INSTALL_LINKS = {
+    "uv": "https://docs.astral.sh/uv/getting-started/installation/",
+    "node": "https://nodejs.org/en/download (version 22 or later)",
+    "npm": "https://nodejs.org/en/download (npm comes with Node)",
+}
+# What the shell's build depends on: newer than app/web/dist/index.html means the build is stale.
+WEB_INPUTS = (
+    "src",
+    "index.html",
+    "package.json",
+    "package-lock.json",
+    "vite.config.ts",
+    "tsconfig.json",
+)
+
+
+class DevError(Exception):
+    """A problem the person can fix, reported as one line."""
+
+
+# --- Settings files --------------------------------------------------------------------------
+
+
+def parse_env(text: str, source: str = "<env>") -> dict[str, str]:
+    """A dotenv file's variables, read as `uv run --env-file` reads them.
+
+    An unquoted value with a space in it is refused here, as uv refuses it ("Failed to parse
+    environment file"), so `doctor` can name the line.
+    """
+    values: dict[str, str] = {}
+    for number, raw in enumerate(text.splitlines(), start=1):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        line = line.removeprefix("export ").lstrip()
+        name, sep, value = line.partition("=")
+        name = name.strip()
+        if not sep or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name):
+            raise DevError(f"{source}, line {number}: expected NAME=value")
+        value = value.strip()
+        if value[:1] in {'"', "'"}:
+            quote = value[0]
+            end = value.find(quote, 1)
+            if end == -1:
+                raise DevError(f"{source}, line {number}: the quote is not closed")
+            value = value[1:end]
+        else:
+            value = re.split(r"\s+#", value, maxsplit=1)[0].strip()
+            if re.search(r"\s", value):
+                raise DevError(
+                    f'{source}, line {number}: put quotes round a value with a space: {name}="{value}"'
+                )
+        values[name] = value
+    return values
+
+
+def read_env(path: Path) -> dict[str, str]:
+    """`path`'s variables, or none if there is no such file."""
+    if not path.is_file():
+        return {}
+    return parse_env(path.read_text(encoding="utf-8"), shown(path))
+
+
+def shown(path: Path) -> str:
+    """`path` as a message names it: relative to the repository if inside it, else in full."""
+    return str(path.relative_to(paths.ROOT)) if path.is_relative_to(paths.ROOT) else str(path)
+
+
+def _quoted(value: str) -> str:
+    if re.fullmatch(r"[A-Za-z0-9_./:@+-]*", value):
+        return value
+    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
+
+
+def update_env(path: Path, updates: dict[str, str], header: str) -> None:
+    """Set each of `updates` in `path`, keeping every other line as it was.
+
+    A variable already set is replaced where it stands; a new one is added at the end. A new file
+    starts with `header`. The file is readable only by its owner, as it may hold a key.
+    """
+    lines = path.read_text(encoding="utf-8").splitlines() if path.is_file() else [header]
+    pending = dict(updates)
+    for i, raw in enumerate(lines):
+        name = raw.strip().removeprefix("export ").partition("=")[0].strip()
+        if not raw.lstrip().startswith("#") and name in pending:
+            lines[i] = f"{name}={_quoted(pending.pop(name))}"
+    lines += [f"{name}={_quoted(value)}" for name, value in pending.items()]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.touch(mode=0o600)
+    path.chmod(0o600)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def remove_env(path: Path, names: Iterable[str]) -> bool:
+    """Remove each of `names` from `path`, keeping every other line as it was. Whether any was."""
+    if not path.is_file():
+        return False
+    drop = set(names)
+    lines = path.read_text(encoding="utf-8").splitlines()
+    kept = [
+        raw
+        for raw in lines
+        if raw.lstrip().startswith("#")
+        or raw.strip().removeprefix("export ").partition("=")[0].strip() not in drop
+    ]
+    if len(kept) == len(lines):
+        return False
+    path.write_text("\n".join(kept) + "\n", encoding="utf-8")
+    return True
+
+
+def _without_key(path: Path) -> dict[str, str]:
+    """The settings in `path`, which every agent reads, so it may hold no model key (docs/specs/policy-and-identity.md)."""
+    found = read_env(path)
+    if leaked := [var for var in KEY_VARS if found.get(var)]:
+        raise DevError(
+            f"{shown(path)} sets {leaked[0]}, which every agent would read; "
+            f"move it to the agent's own file, config/local/agents/<name>.env (docs/specs/policy-and-identity.md)"
+        )
+    return found
+
+
+def app_env() -> dict[str, str]:
+    """What the app reads, as under systemd: `config/local/app.env` and nothing of the agents'."""
+    return _without_key(paths.APP_ENV)
+
+
+def agent_env(agent: Agent) -> dict[str, str]:
+    """What one agent reads: `agents.env`, then its own file, and the credentials directory.
+
+    It is given neither the app's settings nor another agent's (docs/specs/policy-and-identity.md).
+    """
+    return (
+        _without_key(paths.AGENTS_ENV)
+        | read_env(agent.env_file)
+        | {"CREDENTIALS_DIRECTORY": str(paths.CREDENTIALS_DIR)}
+    )
+
+
+def has_key(env: dict[str, str]) -> bool:
+    return any(env.get(var) for var in KEY_VARS)
+
+
+def model_on_by_default(name: str, settings: dict[str, str]) -> bool:
+    """Whether `name` is an agent whose model is on by default and `settings` leave it on."""
+    var = MODEL_BY_DEFAULT.get(name)
+    return var is not None and (settings.get(var) or "").strip() != "template"
+
+
+def ensure_local_tree() -> list[Path]:
+    """Create `config/local/` as deployment has it, from the committed examples. Never overwrites.
+
+    Returns what it created.
+    """
+    created: list[Path] = []
+    for name in ("app.env", "agents.env", "deployment.yaml"):
+        dest = paths.LOCAL_DIR / name
+        if not dest.exists():
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(paths.EXAMPLES_DIR / name, dest)
+            dest.chmod(0o600)
+            created.append(dest)
+    paths.AGENT_ENV_DIR.mkdir(parents=True, exist_ok=True)
+    paths.CREDENTIALS_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
+    return created
+
+
+# Where a stray settings file of the old layout moves to (docs/specs/policy-and-identity.md).
+OLD_LOCATIONS = {
+    ".env": "config/local/app.env (DD_PRINCIPAL_*, DD_APP_*) and config/local/agents.env (the rest)",
+    "workbench/.env": "config/local/app.env (DD_PRINCIPAL_*, DD_RUNS_DIR, DD_PROFILE) and "
+    "config/local/agents.env (DD_STANDARDS_*, FAIRSHARING_*)",
+    "app/.env": "config/local/app.env",
+}
+
+
+def profile_omissions(app: dict[str, str]) -> list[str]:
+    """The agents the example profile enables that the local copy, when the app uses it, omits.
+
+    The local copy is not committed, so it keeps none of the agents added to the example after it
+    was made, and the gate refuses each of those as not enabled (#343). A profile named by
+    `DD_PROFILE` is chosen on purpose, so it is not compared.
+    """
+    if app.get("DD_PROFILE") or not paths.PROFILE.is_file():
+        return []
+    return sorted(_enabled(paths.PROFILE_EXAMPLE) - _enabled(paths.PROFILE))
+
+
+def omissions_note(omitted: list[str]) -> str:
+    """What `start` and `doctor` say about the agents `profile_omissions` found."""
+    return (
+        f"{shown(paths.PROFILE)} does not enable {', '.join(omitted)}, which the "
+        "example does, so the app refuses them as not enabled; add them to it, or delete it to "
+        "use the example"
+    )
+
+
+def _load(path: Path) -> dict[str, Any]:
+    """A profile's keys."""
+    try:
+        return dict(yaml.safe_load(path.read_text(encoding="utf-8")) or {})
+    except yaml.YAMLError as exc:
+        raise DevError(f"{shown(path)} is not valid YAML: {exc}") from exc
+
+
+def _enabled(path: Path) -> set[str]:
+    """The agents a profile enables."""
+    return set(dict(_load(path).get("agents") or {}))
+
+
+def profile_drift(app: dict[str, str]) -> tuple[list[str], list[str]]:
+    """How the local profile has fallen behind the example, as (notes, problems).
+
+    Beyond the agents `profile_omissions` finds: a `version` lower than the example's (setup raises
+    it above the example's on purpose, so higher is not drift), approval actions the example
+    requires that the local copy drops, and an orchestrator the local copy does not enable. The
+    last is a problem; the rest are notes. Skipped as `profile_omissions` is.
+    """
+    if app.get("DD_PROFILE") or not paths.PROFILE.is_file():
+        return [], []
+    return compare_profile(paths.PROFILE, paths.PROFILE_EXAMPLE)
+
+
+def compare_profile(local_path: Path, example_path: Path) -> tuple[list[str], list[str]]:
+    """How the profile at `local_path` has fallen behind the one at `example_path`, as (notes,
+    problems): `profile_drift`'s checks, for any two files."""
+    name = shown(local_path)
+    local, example = _load(local_path), _load(example_path)
+    notes: list[str] = []
+    if omitted := sorted(_enabled(example_path) - _enabled(local_path)):
+        notes.append(
+            omissions_note(omitted)
+            if local_path == paths.PROFILE
+            else f"{name} does not enable {', '.join(omitted)}, which {shown(example_path)} does"
+        )
+    have, want = local.get("version"), example.get("version")
+    if isinstance(want, int) and (not isinstance(have, int) or have < want):
+        notes.append(
+            f"{name} is version {have}, behind the example's {want}; compare it with "
+            f"{example_path.name}, or delete it to use the example"
+        )
+    if dropped := sorted(
+        set(example.get("actions_requiring_approval") or [])
+        - set(local.get("actions_requiring_approval") or [])
+    ):
+        notes.append(
+            f"{name} does not require approval for {', '.join(dropped)}, which the example does, "
+            "so the app would carry those out without it"
+        )
+    problems: list[str] = []
+    orchestrator = local.get("orchestrator")
+    if orchestrator and orchestrator not in _enabled(local_path):
+        problems.append(f"{name} names {orchestrator} as the orchestrator but does not enable it")
+    return notes, problems
+
+
+def stray_files() -> list[str]:
+    """Settings files of the old layout that exist, each with where its settings now go."""
+    found = [
+        f"{old} -> {new}" for old, new in OLD_LOCATIONS.items() if (paths.ROOT / old).is_file()
+    ]
+    old_agents = paths.ROOT / "workbench" / "agents"
+    found += [
+        f"{p.relative_to(paths.ROOT)} -> config/local/agents/{p.name}"
+        f" (a model key goes in config/local/credentials/, named by ANTHROPIC_API_KEY_FILE)"
+        for p in sorted(old_agents.glob("*.env"))
+    ]
+    return found
+
+
+# --- Agents and the shell --------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Agent:
+    name: str
+    port: int
+
+    @property
+    def script(self) -> str:
+        return f"dd-{self.name}"
+
+    @property
+    def url(self) -> str:
+        return f"http://127.0.0.1:{self.port}"
+
+    @property
+    def env_file(self) -> Path:
+        return paths.AGENT_ENV_DIR / f"{self.name}.env"
+
+
+def load_agents(path: Path | None = None) -> list[Agent]:
+    """The agents the app reaches, from its agent list, each on the port its URL names."""
+    text = (path or paths.AGENTS_CONFIG).read_text(encoding="utf-8")
+    entries = yaml.safe_load(text)["agents"]
+    return [Agent(e["name"], urlsplit(e["url"]).port or 80) for e in entries]
+
+
+def _newest(files: Iterable[Path]) -> float:
+    newest = 0.0
+    for path in files:
+        if path.is_dir():
+            newest = max([newest, *(p.stat().st_mtime for p in path.rglob("*") if p.is_file())])
+        elif path.is_file():
+            newest = max(newest, path.stat().st_mtime)
+    return newest
+
+
+def needs_install(web: Path | None = None) -> bool:
+    """Whether `node_modules` is missing or older than the lock file."""
+    web = web or paths.WEB
+    modules = web / "node_modules"
+    return (
+        not modules.is_dir()
+        or modules.stat().st_mtime < (web / "package-lock.json").stat().st_mtime
+    )
+
+
+def needs_build(web: Path | None = None) -> bool:
+    """Whether the built shell is missing or older than anything it is built from."""
+    web = web or paths.WEB
+    built = web / "dist" / "index.html"
+    return not built.is_file() or built.stat().st_mtime < _newest(web / p for p in WEB_INPUTS)
+
+
+def workspace_env() -> dict[str, str]:
+    """This environment less `VIRTUAL_ENV`: `uv run` gives this script an environment of its own,
+    and what it starts uses the workspace's `.venv`."""
+    return {k: v for k, v in os.environ.items() if k != "VIRTUAL_ENV"}
+
+
+def run(cmd: list[str], cwd: Path | None = None) -> None:
+    print(f"$ {' '.join(cmd)}", flush=True)
+    if subprocess.run(cmd, cwd=cwd or paths.ROOT, env=workspace_env()).returncode != 0:
+        raise DevError(f"`{' '.join(cmd)}` failed; its output is above")
+
+
+# Some agents build a copy of a source from something pinned, rather than commit it (the
+# repository advisor's re3data registry, say). Each agent declares its own, and `dd-sources`
+# prepares them all (dd_sdk.sources): it does nothing for a copy built as pinned, and downloads
+# only what no cached copy holds.
+SOURCES_PREPARE = ["uv", "run", "dd-sources", "prepare"]
+SOURCES_CHECK = ["uv", "run", "--quiet", "dd-sources", "check"]
+
+
+def prepare_sources() -> None:
+    """Build every agent's built source that is not built as pinned."""
+    run(SOURCES_PREPARE)
+
+
+def sources_problem() -> str | None:
+    """Why some built source is not built as pinned, or None."""
+    done = subprocess.run(
+        SOURCES_CHECK, cwd=paths.ROOT, env=workspace_env(), capture_output=True, text=True
+    )
+    return None if done.returncode == 0 else (done.stdout + done.stderr).strip()
+
+
+def prepare_web(web: Path | None = None) -> None:
+    """Install the shell's packages and build it, if either is out of date."""
+    web = web or paths.WEB
+    if needs_install(web):
+        run(["npm", "ci"], cwd=web)
+        (web / "node_modules").touch()
+    if needs_build(web):
+        run(["npm", "run", "build"], cwd=web)
+
+
+def port_free(port: int) -> bool:
+    with socket.socket() as sock:
+        try:
+            sock.bind(("127.0.0.1", port))
+        except OSError:
+            return False
+    return True
+
+
+def answers(url: str) -> bool:
+    try:
+        with urllib.request.urlopen(url, timeout=2):
+            return True
+    except OSError:
+        return False
+
+
+# --- Toolchain -------------------------------------------------------------------------------
+
+
+def tool_problems() -> list[str]:
+    """What is missing from the toolchain, each with where to get it. Python comes with uv."""
+    problems = [
+        f"{tool} is not installed: {INSTALL_LINKS[tool]}"
+        for tool in ("uv", "node", "npm")
+        if not shutil.which(tool)
+    ]
+    if shutil.which("node"):
+        version = subprocess.run(["node", "--version"], capture_output=True, text=True).stdout
+        major = int(m[1]) if (m := re.match(r"v(\d+)", version)) else 0
+        if major < NODE_MAJOR:
+            problems.append(f"Node {version.strip() or '?'} is too old: {INSTALL_LINKS['node']}")
+    return problems

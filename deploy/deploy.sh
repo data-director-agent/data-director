@@ -3,21 +3,37 @@
 # datadirector user, every five minutes:
 #
 #   1. fetch the branch into the bare clone;
-#   2. stop if its tip is already live, failed here before, or has not passed CI;
-#   3. build the tip into its own release directory (uv sync, npm build of app/web);
-#   4. point /opt/data-director/current at it and restart data-director.target;
-#   5. if the app does not answer, point `current` back and restart again.
+#   2. pick the newest commit on the branch that passed CI, did not fail here before and is newer
+#      than the live one (pick() below); stop if there is none;
+#   3. build it into its own release directory (uv sync, the re3data registry, npm build of
+#      app/web, the browser scanner's bundle);
+#   4. point /opt/data-director/current at it and ask for data-director.target to be restarted
+#      (restart() below);
+#   5. if the app does not report the new commit, point `current` back and restart again.
+#
+# "Running" means the app reports the commit on /api/about, not only that `current` points at
+# it: if the restart did not happen, the old processes are still serving the old commit.
 #
 # Settings, each with its default (set them in /etc/data-director/deploy.env):
 #   DD_DEPLOY_REPO        https://github.com/data-director-agent/data-director.git
 #   DD_DEPLOY_BRANCH      main
 #   DD_DEPLOY_CHECK       CI passed       the check run that must have succeeded on the commit
 #   DD_DEPLOY_ROOT        /opt/data-director
+#   UV_PYTHON_INSTALL_DIR DD_DEPLOY_ROOT/python   where uv installs Python, for every service's user
 #   DD_DEPLOY_KEEP        3               release directories kept, the live one included
-#   DD_DEPLOY_HEALTH_URL  http://127.0.0.1:7860/api/agents
+#   DD_DEPLOY_DEPTH       10              commits back from the tip that a pass looks at
+#   DD_DEPLOY_ABOUT_URL   http://127.0.0.1:7860/api/about   where the app names its commit
 #   GITHUB_TOKEN          (unset)         only for a private repository or the API rate limit
 #
-# `deploy.sh --force` skips the CI check and the record of failed commits.
+# `deploy.sh --force` deploys the tip, skipping the CI check and the record of failed commits.
+#
+# `deploy.sh --bootstrap [sha]` is the way out when this script, the copy in the live release, is
+# what stops a deployment: it points `current` at a release that is already built (sha, or the
+# newest built one), restarts, and waits for the app to report it. It fetches nothing, checks
+# no CI, builds nothing and records no failure. Run it from that release's own copy, as the
+# deploy user or as root (deploy/README.md, "The app shows an old commit"):
+#
+#   sudo /opt/data-director/releases/<sha>/deploy/deploy.sh --bootstrap
 set -euo pipefail
 
 REPO="${DD_DEPLOY_REPO:-https://github.com/data-director-agent/data-director.git}"
@@ -25,13 +41,33 @@ BRANCH="${DD_DEPLOY_BRANCH:-main}"
 CHECK="${DD_DEPLOY_CHECK:-CI passed}"
 ROOT="${DD_DEPLOY_ROOT:-/opt/data-director}"
 KEEP="${DD_DEPLOY_KEEP:-3}"
-HEALTH_URL="${DD_DEPLOY_HEALTH_URL:-http://127.0.0.1:7860/api/agents}"
-# Seconds the app has to answer after a restart: the agents get 60 (wait-for-ports.sh) and the
+DEPTH="${DD_DEPLOY_DEPTH:-10}"
+# Where uv installs Python, which each release's .venv links to: readable by every service's user,
+# the model broker's among them, unlike the deploy user's home (deploy/install.sh).
+export UV_PYTHON_INSTALL_DIR="${UV_PYTHON_INSTALL_DIR:-$ROOT/python}"
+# /api/about answers without a session, so the check works with sign-in on (app/README.md).
+ABOUT_URL="${DD_DEPLOY_ABOUT_URL:-http://127.0.0.1:7860/api/about}"
+# Seconds the app has to report the new commit after a restart: the agents get 60 (wait-for-ports.sh) and the
 # app then reads their cards.
 HEALTH_TIMEOUT=120
+# Seconds after a commit's date before "no CI run at all" is reported as a problem, not a wait.
+MISSING_CHECK_GRACE=1800
 
 FORCE=0
-[[ "${1:-}" == "--force" ]] && FORCE=1
+BOOTSTRAP=0
+BOOTSTRAP_SHA=""
+case "${1:-}" in
+  "") ;;
+  --force) FORCE=1 ;;
+  --bootstrap)
+    BOOTSTRAP=1
+    BOOTSTRAP_SHA="${2:-}"
+    ;;
+  *)
+    echo "usage: deploy.sh [--force | --bootstrap [sha]]" >&2
+    exit 2
+    ;;
+esac
 
 BARE="$ROOT/repo.git"
 RELEASES="$ROOT/releases"
@@ -41,9 +77,106 @@ FAILED="$ROOT/failed-commits"
 log() { echo "$*"; }
 die() { echo "error: $*" >&2; exit 1; }
 
+# The commit the running app reports, or nothing if it does not answer.
+running_commit() {
+  curl --fail --silent --max-time 5 "$ABOUT_URL" 2>/dev/null | jq -r '.commit // empty' 2>/dev/null || true
+}
+
+# Ask for the app and agents to be restarted. The deploy user may not restart them: root's
+# data-director-restart.path unit watches a file and restarts data-director.target when it is
+# written (install.sh installs the unit). The restart follows a moment after this returns, and
+# healthy() waits for it, so a restart that never comes ends in the same rollback as one that fails.
+# Root (a --bootstrap by hand) restarts them directly.
+restart() {
+  if ((EUID == 0)); then
+    systemctl restart data-director.target 9>&-
+    return
+  fi
+  systemctl is-active --quiet data-director-restart.path ||
+    die "data-director-restart.path is not active, so nothing would restart data-director.target; run deploy/install.sh as root (deploy/README.md)"
+  # A write, not a touch: the path unit watches for modification.
+  date --utc +%FT%TZ >"$ROOT/restart-requested"
+}
+
+link() {
+  ln -sfn "$1" "$ROOT/current.new"
+  # Run as root, the link would be root's and the next pass, as the deploy user, could not replace it.
+  if ((EUID == 0)); then chown -h --reference="$ROOT" "$ROOT/current.new"; fi
+  mv -T "$ROOT/current.new" "$CURRENT"
+}
+
+# Wait until the app reports the given commit.
+healthy() {
+  local deadline=$((SECONDS + HEALTH_TIMEOUT))
+  until [[ "$(running_commit)" == "$1" ]]; do
+    ((SECONDS >= deadline)) && return 1
+    sleep 2
+  done
+}
+
 # One pass at a time, whether from the timer or by hand.
 exec 9>"$ROOT/deploy.lock"
+# Created by root, the lock would be unusable by the deploy user's next pass.
+if ((EUID == 0)); then chown --reference="$ROOT" "$ROOT/deploy.lock"; fi
 flock -n 9 || { log "another deployment is running"; exit 0; }
+
+# --- Bootstrap ---------------------------------------------------------------------------------
+
+# Point `current` at a release that is already built, restart, and wait for it. This depends on
+# neither GitHub, CI nor the build, only on the release directory and a way to restart.
+bootstrap() {
+  [[ -d "$RELEASES" ]] || die "no releases in $RELEASES"
+  local release
+  if [[ -n "$BOOTSTRAP_SHA" ]]; then
+    local matches=() dir
+    for dir in "$RELEASES/$BOOTSTRAP_SHA"*/; do
+      [[ -d "$dir" ]] && matches+=("${dir%/}")
+    done
+    ((${#matches[@]} == 1)) || die "\"$BOOTSTRAP_SHA\" matches ${#matches[@]} releases in $RELEASES, not one"
+    release="${matches[0]}"
+  else
+    # The newest release that finished building (its .built is written last).
+    release="$(find "$RELEASES" -mindepth 2 -maxdepth 2 -name .built -printf '%T@ %h\n' | sort -rn | sed -n 1p | cut -d' ' -f2-)"
+    [[ -n "$release" ]] || die "no built release in $RELEASES"
+  fi
+  [[ -f "$release/.built" ]] || die "$(basename "$release") was not built to the end; nothing to bootstrap"
+
+  local sha short previous prev_short=""
+  sha="$(basename "$release")"
+  short="${sha:0:12}"
+  previous=""
+  if [[ -L "$CURRENT" ]]; then
+    previous="$(readlink -f "$CURRENT")"
+    prev_short="$(basename "$previous")"
+    prev_short="${prev_short:0:12}"
+  fi
+
+  if [[ "$previous" == "$release" && "$(running_commit)" == "$sha" ]]; then
+    log "$short: already live"
+    return
+  fi
+
+  log "$short: bootstrapping (was ${prev_short:-nothing})"
+  link "$release"
+  if ! (restart); then
+    [[ -n "$previous" ]] && link "$previous"
+    exit 1
+  fi
+  if ! healthy "$sha"; then
+    if [[ -n "$previous" ]]; then
+      log "$short: the app did not report $short at $ABOUT_URL; putting $prev_short back"
+      link "$previous"
+      restart
+    fi
+    die "$short: the app did not report $short at $ABOUT_URL"
+  fi
+  log "$short: live"
+}
+
+if ((BOOTSTRAP == 1)); then
+  bootstrap
+  exit 0
+fi
 
 # --- 1. Fetch ----------------------------------------------------------------------------------
 
@@ -51,48 +184,86 @@ if [[ ! -d "$BARE" ]]; then
   git clone --quiet --bare --single-branch --branch "$BRANCH" "$REPO" "$BARE"
 fi
 git -C "$BARE" fetch --quiet --force "$REPO" "+refs/heads/$BRANCH:refs/heads/$BRANCH"
-sha="$(git -C "$BARE" rev-parse "refs/heads/$BRANCH")"
-short="${sha:0:12}"
+tip="$(git -C "$BARE" rev-parse "refs/heads/$BRANCH")"
 
 # --- 2. Decide ---------------------------------------------------------------------------------
 
 live=""
 [[ -L "$CURRENT" ]] && live="$(basename "$(readlink "$CURRENT")")"
-if [[ "$live" == "$sha" ]]; then
+
+# The conclusion of the check on a commit: success, a state still to finish, the conclusion it
+# ended with, or "missing" if CI has not run on it at all. The repository is public, so no token
+# is needed: a pass makes one request for each commit it looks at (pick() below), and 60
+# unauthenticated requests an hour allow about five a pass.
+slug="$(sed -E 's#^(https://github.com/|ssh://git@github.com/|git@github.com:)##; s#\.git$##' <<<"$REPO")"
+auth=()
+[[ -n "${GITHUB_TOKEN:-}" ]] && auth=(-H "Authorization: Bearer $GITHUB_TOKEN")
+check_of() {
+  curl --fail --silent --show-error --max-time 30 "${auth[@]}" \
+    -H "Accept: application/vnd.github+json" \
+    --get --data-urlencode "check_name=$CHECK" --data-urlencode "per_page=100" \
+    "https://api.github.com/repos/$slug/commits/$1/check-runs" |
+    jq -r '[.check_runs[] | .conclusion // .status] | if length == 0 then "missing" else (if any(. == "success") then "success" else .[0] end) end'
+}
+
+# The newest commit on the branch that passed CI and is newer than the live one, or nothing. It
+# walks back from the tip, so that a tip still in CI, or one that failed, does not hold back a
+# commit before it that passed. It stops at the live commit, so it never goes back to an older
+# one, and after DEPTH commits.
+pick() {
+  local commit short conclusion age
+  while read -r commit; do
+    [[ "$commit" == "$live" ]] && return
+    short="${commit:0:12}"
+    if [[ -f "$FAILED" ]] && grep -qx "$commit" "$FAILED"; then
+      continue
+    fi
+    conclusion="$(check_of "$commit")" || die "could not read the checks on $short from GitHub"
+    case "$conclusion" in
+      success)
+        echo "$commit"
+        return
+        ;;
+      missing)
+        # No run at all is not the same as a run in progress: a commit that CI never saw (pushed
+        # with GITHUB_TOKEN, marked [skip ci], or during an Actions outage) waits for ever. Say
+        # so once the commit is old enough that CI should have started.
+        age=$(($(date +%s) - $(git -C "$BARE" log -1 --format=%ct "$commit")))
+        if ((age > MISSING_CHECK_GRACE)); then
+          log "$short: no \"$CHECK\" run after $((age / 60)) minutes; run the CI workflow on main by hand, or deploy with --force" >&2
+        else
+          log "$short: \"$CHECK\" has not started" >&2
+        fi
+        ;;
+      queued | in_progress | pending | waiting | requested)
+        log "$short: \"$CHECK\" has not finished" >&2
+        ;;
+      *)
+        # Not recorded as failed: if CI is re-run and passes, the commit is deployed then.
+        log "$short: \"$CHECK\" ended $conclusion; not deploying it" >&2
+        ;;
+    esac
+  done < <(git -C "$BARE" rev-list --first-parent --max-count="$DEPTH" "$tip")
+}
+
+if ((FORCE == 1)); then
+  sha="$tip"
+else
+  sha="$(pick)"
+fi
+
+if [[ -z "$sha" || "$sha" == "$live" ]]; then
+  # Linked but not running: an earlier pass switched the link and then could not restart.
+  running="$(running_commit)"
+  if [[ -n "$live" && -n "$running" && "$running" != "$live" ]]; then
+    log "${live:0:12}: is current but the app reports ${running:0:12}; restarting"
+    restart
+    healthy "$live" || die "${live:0:12}: the app did not report ${live:0:12} at $ABOUT_URL after a restart"
+    log "${live:0:12}: live"
+  fi
   exit 0
 fi
-
-if ((FORCE == 0)); then
-  if [[ -f "$FAILED" ]] && grep -qx "$sha" "$FAILED"; then
-    exit 0
-  fi
-
-  # The check runs on the commit. The repository is public, so no token is needed; 60
-  # unauthenticated requests an hour is more than one every five minutes uses.
-  slug="$(sed -E 's#^(https://github.com/|ssh://git@github.com/|git@github.com:)##; s#\.git$##' <<<"$REPO")"
-  auth=()
-  [[ -n "${GITHUB_TOKEN:-}" ]] && auth=(-H "Authorization: Bearer $GITHUB_TOKEN")
-  conclusion="$(
-    curl --fail --silent --show-error --max-time 30 "${auth[@]}" \
-      -H "Accept: application/vnd.github+json" \
-      --get --data-urlencode "check_name=$CHECK" \
-      "https://api.github.com/repos/$slug/commits/$sha/check-runs" |
-      jq -r '[.check_runs[] | .conclusion // .status] | if length == 0 then "missing" else (if any(. == "success") then "success" else .[0] end) end'
-  )" || die "could not read the checks on $short from GitHub"
-
-  case "$conclusion" in
-    success) ;;
-    missing | queued | in_progress | pending | waiting | requested)
-      log "$short: \"$CHECK\" has not finished; waiting"
-      exit 0
-      ;;
-    *)
-      # Not recorded as failed: if CI is re-run and passes, the commit is deployed then.
-      log "$short: \"$CHECK\" ended $conclusion; not deploying it"
-      exit 0
-      ;;
-  esac
-fi
+short="${sha:0:12}"
 
 # --- 3. Build ----------------------------------------------------------------------------------
 
@@ -106,52 +277,59 @@ if [[ ! -f "$release/.built" ]]; then
   git -C "$BARE" archive "$sha" | tar -x -C "$release"
   # A release has no .git, so the app reads the commit it was built from here (dd_app.about).
   echo "$sha" >"$release/REVISION"
+  # Chained with &&: on the left of `||`, bash ignores `set -e`, so each step must stop the next.
+  # Only dist is served; the packages are hundreds of megabytes per release.
   (
-    cd "$release"
-    uv sync --locked --no-dev --quiet
-    cd app/web
-    npm ci --no-audit --no-fund --loglevel=error
-    npm run build --silent
-    # Only dist is served; the packages are hundreds of megabytes per release.
-    rm -rf node_modules
+    cd "$release" &&
+      uv sync --locked --no-dev --quiet &&
+      # Sources that agents build outside git, such as the repository advisor's re3data registry
+      # (dd-sources, sdk/src/dd_sdk/sources.py). What they are built from is kept outside the
+      # releases, so it is downloaded once per pin, not once per release.
+      uv run --no-sync dd-sources prepare --cache-dir "$ROOT/cache/sources" &&
+      cd app/web &&
+      npm ci --no-audit --no-fund --loglevel=error &&
+      npm run build --silent &&
+      rm -rf node_modules &&
+      # The browser scanner's bundle (inventory/browser/README.md, Browser bundle), served from
+      # dist/inventory-bundle/. Its wheels are kept outside the releases, as the sources are, and
+      # each is checked against its lock whether it was downloaded or read back.
+      cd ../../inventory/browser &&
+      mkdir -p "$ROOT/cache/inventory-wheels" .cache &&
+      ln -sfn "$ROOT/cache/inventory-wheels" .cache/wheels &&
+      npm ci --no-audit --no-fund --loglevel=error &&
+      npm run bundle --silent &&
+      cp -R dist/inventory-bundle ../../app/web/dist/ &&
+      rm -rf node_modules dist .cache
   ) || die "$short: build failed"
   echo "$sha" >"$release/.built"
 fi
 
 # --- 4. Switch ---------------------------------------------------------------------------------
 
-switch_to() {
-  ln -sfn "$1" "$ROOT/current.new"
-  mv -T "$ROOT/current.new" "$CURRENT"
-  # Without the lock's descriptor, so that nothing started here can hold the lock.
-  sudo --non-interactive /usr/bin/systemctl restart data-director.target 9>&-
-}
-
-healthy() {
-  local deadline=$((SECONDS + HEALTH_TIMEOUT))
-  until curl --fail --silent --output /dev/null --max-time 5 "$HEALTH_URL"; do
-    ((SECONDS >= deadline)) && return 1
-    sleep 2
-  done
-}
-
 previous=""
 [[ -L "$CURRENT" ]] && previous="$(readlink -f "$CURRENT")"
 
 was="${live:0:12}"
 log "$short: going live (was ${was:-nothing})"
-switch_to "$release"
+link "$release"
+# A restart that could not be requested leaves the old processes running: put the link back so
+# that the next pass tries again, instead of taking the link for the running release.
+if ! (restart); then
+  [[ -n "$previous" ]] && link "$previous"
+  exit 1
+fi
 
 # --- 5. Check, or roll back --------------------------------------------------------------------
 
-if ! healthy; then
+if ! healthy "$sha"; then
   echo "$sha" >>"$FAILED"
   if [[ -n "$previous" ]]; then
-    log "$short: the app did not answer at $HEALTH_URL; rolling back to ${live:0:12}"
-    switch_to "$previous"
-    healthy || die "${live:0:12} did not answer after the rollback either"
+    log "$short: the app did not report $short at $ABOUT_URL; rolling back to ${live:0:12}"
+    link "$previous"
+    restart
+    healthy "$live" || die "${live:0:12} did not answer after the rollback either"
   fi
-  die "$short: the app did not answer at $HEALTH_URL"
+  die "$short: the app did not report $short at $ABOUT_URL"
 fi
 log "$short: live"
 

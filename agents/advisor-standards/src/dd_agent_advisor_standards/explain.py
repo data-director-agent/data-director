@@ -1,70 +1,83 @@
-"""Explainers: turn already-decided recommendations into rationale (C14).
+"""Explainers: say why each recommendation the rules chose fits (C14), and what an explainer
+may add beside them.
 
-The grounding invariant lives here as a shape: an explainer receives records that were
-retrieved and ranked before it is called, and returns one rationale per recommendation. It
-cannot add, remove or reorder recommendations. If a model's rationale names a FAIRsharing
-identifier that was not retrieved, the template rationale is used instead and the substitution
-is noted in the text.
+The grounding invariant lives here as a shape: an explainer receives records that were retrieved
+and ranked before it is called, and returns one rationale per rule pick, in order. It cannot
+remove or reorder a rule pick. A model explainer (`advise.ModelAdvisor`) may also add
+recommendations, each naming a record retrieved in this run, and note a concern beside a rule
+pick; the agent checks neither less than the rules' own picks.
 
-`TemplateExplainer` is the default and needs no credentials. `AnthropicExplainer` is selected with
-`DD_STANDARDS_EXPLAINER=anthropic` and is the only importer of the `anthropic` SDK
-(docs/specs/dependencies.md).
+`TemplateExplainer` needs no credentials and is selected with `DD_STANDARDS_EXPLAINER=template`.
+`advise.ModelAdvisor` is the default.
 """
 
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
-from pathlib import Path
-from typing import TYPE_CHECKING, Protocol
+from collections.abc import Sequence
+from dataclasses import dataclass, field
+from typing import Protocol
 
 from dd_agent_advisor_standards.classes import DatasetProfile, RecommendationKind
 from dd_agent_advisor_standards.fairsharing.records import Record
+from dd_agent_advisor_standards.retrieve import RetrievalAdapter
+from dd_sdk import explain
 from dd_sdk.agent import RunContext
-from dd_sdk.contract.models import Derivation, now
-from dd_sdk.prompts import ModelCallLog
-from dd_sdk.tracing import chat_span, record_tokens
-
-if TYPE_CHECKING:
-    import anthropic
+from dd_sdk.explain import Rationale as Rationale
+from dd_sdk.model import Usage as Usage
 
 # (record, kind, target, ranking reasons) — what an explainer is told about each recommendation.
 Item = tuple[Record, RecommendationKind, str, tuple[str, ...]]
 
-_FAIRSHARING_ID = re.compile(r"FAIRsharing\.[0-9a-z-]+", re.IGNORECASE)
+IDENTIFIER = re.compile(r"FAIRsharing\.[0-9a-z-]+", re.IGNORECASE)
+
+
+def names_other_identifier(text: str, allowed: set[str]) -> bool:
+    """Whether `text` names a FAIRsharing identifier outside `allowed`."""
+    return explain.names_other_identifier(text, allowed, IDENTIFIER)
 
 
 @dataclass(frozen=True)
-class Rationale:
-    text: str
-    derivation: Derivation
+class Addition:
+    """A recommendation a model added: a record retrieved in this run, the kind and target it
+    chose, and its rationale. The agent has already checked it (`advise._apply`)."""
+
+    record: Record
+    kind: RecommendationKind
+    target: str
+    rationale: Rationale
+
+
+@dataclass(frozen=True)
+class Explanation(explain.Explanation):
+    """One rationale per item, and the tokens spent on this call (`dd_sdk.explain.Explanation`);
+    with a model, what it added, the concern it noted beside each item (or None), and what the
+    agent did not take from it."""
+
+    concerns: Sequence[str | None] = ()
+    additions: Sequence[Addition] = ()
+    remarks: Sequence[str] = field(default_factory=list)
 
 
 @dataclass
-class Usage:
-    input_tokens: int | None = None
-    output_tokens: int | None = None
+class Lookups:
+    """What a model explainer may search in one run, and every record retrieved so far, by
+    FAIRsharing id. The agent builds it for each run; a record a search retrieves is added here,
+    with its `retrieval` span, before it may be cited."""
 
-
-@dataclass(frozen=True)
-class Explanation:
-    """One rationale per item, and the tokens spent on this call.
-
-    Usage is returned rather than kept on the explainer, because one explainer instance serves
-    concurrent runs (`dd_sdk.serve` runs each request on its own thread).
-    """
-
-    rationales: list[Rationale]
-    usage: Usage
-    # The model calls made and the prompts sent (dd_sdk.prompts); None if no model was called.
-    calls: ModelCallLog | None = None
+    retrieval: RetrievalAdapter | None = None
+    records: dict[str, Record] = field(default_factory=dict)
 
 
 class Explainer(Protocol):
     model_id: str | None
 
     def explain(
-        self, profile: DatasetProfile, items: list[Item], ctx: RunContext
+        self,
+        profile: DatasetProfile,
+        items: list[Item],
+        ctx: RunContext,
+        lookups: Lookups | None = None,
     ) -> Explanation: ...
 
 
@@ -102,130 +115,9 @@ def template_rationale(
     )
 
 
-class TemplateExplainer:
-    model_id: str | None = None
+class TemplateExplainer(explain.TemplateExplainer[DatasetProfile, Item, Explanation]):
+    def rationale(self, item: Item) -> str:
+        return template_rationale(*item)
 
-    def explain(self, profile: DatasetProfile, items: list[Item], ctx: RunContext) -> Explanation:
-        return Explanation(
-            [Rationale(template_rationale(*item), Derivation.TEMPLATE) for item in items], Usage()
-        )
-
-
-DEFAULT_MODEL = "claude-sonnet-5-5"
-# Who serves the model, as the agent's card names it (factory.py).
-PROVIDER = "anthropic"
-
-# What the model is told it may and may not do; the prose is a Markdown file beside this module.
-SYSTEM_PROMPT = Path(__file__).with_name("system_prompt.md").read_text(encoding="utf-8").strip()
-
-
-class AnthropicExplainer:
-    """Explains with Claude. Emits one `chat` span carrying model id and token counts."""
-
-    def __init__(
-        self,
-        client: anthropic.Anthropic | None = None,
-        model_id: str = DEFAULT_MODEL,
-        api_key: str | None = None,
-    ) -> None:
-        """Give a `client` (tests) or an `api_key` (`dd_sdk.credentials.api_key`). The key is
-        always passed explicitly, so the SDK's own credential chain is never used
-        (docs/specs/policy-and-identity.md)."""
-        if client is None:
-            if not api_key:
-                raise ValueError("AnthropicExplainer needs a client or an api_key")
-            import anthropic as _anthropic
-
-            client = _anthropic.Anthropic(api_key=api_key)
-        self._client = client
-        self.model_id: str | None = model_id
-
-    def _prompt(self, profile: DatasetProfile, items: list[Item]) -> str:
-        lines = [
-            "Dataset profile:",
-            f"  title: {profile.title or '(none)'}",
-            f"  description: {profile.description or '(none)'}",
-            f"  keywords: {', '.join(profile.keywords) or '(none)'}",
-            f"  themes: {', '.join(profile.themes) or '(none)'}",
-            "  fields: "
-            + (
-                ", ".join(f"{f.name} ({f.field_type or 'unknown'})" for f in profile.fields)
-                or "(none)"
-            ),
-            "",
-            "Selected standards:",
-        ]
-        for n, (record, kind, target, reasons) in enumerate(items, start=1):
-            desc = (record.description or "").strip().replace("\n", " ")
-            lines.append(
-                f"{n}. {record.name} [{record.fairsharing_id}] — kind: {kind.value}; "
-                f"target: {target}; "
-                f"status: {record.status}; subjects: {', '.join(record.subjects[:6])}; "
-                f"registry description: {desc[:600]}; ranking signals: {', '.join(reasons)}"
-            )
-        return "\n".join(lines)
-
-    def explain(self, profile: DatasetProfile, items: list[Item], ctx: RunContext) -> Explanation:
-        if not items:
-            return Explanation([], Usage())
-        assert self.model_id is not None
-        # What is sent, kept by digest with the run (docs/specs/disclosure.md).
-        content = self._prompt(profile, items)
-        prompt = {"system": SYSTEM_PROMPT, "messages": [{"role": "user", "content": content}]}
-        calls = ModelCallLog(PROVIDER)
-        with chat_span(ctx.tracer, self.model_id) as span:
-            called_at = now()
-            response = self._client.messages.create(
-                model=self.model_id,
-                max_tokens=4096,
-                system=SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": content}],
-            )
-            usage = Usage(response.usage.input_tokens, response.usage.output_tokens)
-            record_tokens(span, usage.input_tokens, usage.output_tokens)
-        calls.record(
-            prompt,
-            # The model the response names, which may be more exact than the one asked for.
-            getattr(response, "model", None) or self.model_id,
-            called_at=called_at,
-            input_tokens=usage.input_tokens,
-            output_tokens=usage.output_tokens,
-        )
-        if response.stop_reason == "refusal":
-            return Explanation(
-                [
-                    Rationale(
-                        template_rationale(*item) + " (Model declined; template used.)",
-                        Derivation.TEMPLATE,
-                    )
-                    for item in items
-                ],
-                usage,
-                calls,
-            )
-        text = "".join(block.text for block in response.content if block.type == "text")
-        return Explanation(self._parse(text, items), usage, calls)
-
-    def _parse(self, text: str, items: list[Item]) -> list[Rationale]:
-        numbered: dict[int, str] = {}
-        for line in text.splitlines():
-            m = re.match(r"\s*(\d+)[.)]\s+(.*\S)", line)
-            if m:
-                numbered[int(m.group(1))] = m.group(2)
-        allowed = {r.fairsharing_id.lower() for r, *_ in items}
-        out: list[Rationale] = []
-        for n, item in enumerate(items, start=1):
-            candidate = numbered.get(n)
-            mentioned = {x.lower() for x in _FAIRSHARING_ID.findall(candidate or "")}
-            if not candidate or (mentioned - allowed):
-                # Missing line, or the model named an identifier it was not given: fall back.
-                out.append(
-                    Rationale(
-                        template_rationale(*item)
-                        + " (Model rationale replaced: ungrounded reference.)",
-                        Derivation.TEMPLATE,
-                    )
-                )
-            else:
-                out.append(Rationale(candidate, Derivation.MODEL))
-        return out
+    def result(self, rationales: list[Rationale], usage: Usage) -> Explanation:
+        return Explanation(rationales, usage)

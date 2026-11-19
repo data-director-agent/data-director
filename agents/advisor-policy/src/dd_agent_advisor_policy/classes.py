@@ -11,7 +11,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from dd_sdk.contract.models import Derivation, Frozen, Grounded
+from dd_sdk.contract.models import Derivation, Frozen, Grounded, ProjectFact
 
 
 class ActorRole(StrEnum):
@@ -30,6 +30,22 @@ class ObligationKind(StrEnum):
     TIMING = "timing"
 
 
+class ReadingStatus(StrEnum):
+    READ = "read"
+    NOT_READ = "not_read"
+    UNREADABLE = "unreadable"
+
+
+class PolicyRegistry(StrEnum):
+    FAIRSHARING = "fairsharing"
+    OPEN_POLICY_FINDER = "open_policy_finder"
+
+
+class PolicyScope(StrEnum):
+    DATA = "data"
+    PUBLICATION = "publication"
+
+
 class Strength(StrEnum):
     REQUIRED = "required"
     RECOMMENDED = "recommended"
@@ -40,6 +56,9 @@ class Actor(Frozen):
     role: ActorRole
     name: str
     fairsharing_id: str | None = Field(default=None, pattern=r"^FAIRsharing\.\S+$")
+    ror_id: str | None = Field(default=None, pattern=r"^(https?://ror\.org/)?0[a-z0-9]{6}[0-9]{2}$")
+    issn: str | None = Field(default=None, pattern=r"^\d{4}-?\d{3}[\dXx]$")
+    policy_url: str | None = Field(default=None, pattern=r"^https?://\S+$")
 
 
 class PolicyContext(Frozen):
@@ -48,12 +67,18 @@ class PolicyContext(Frozen):
     disciplines: list[str] = Field(default_factory=list)
     data_kinds: list[str] = Field(default_factory=list)
     publication_date: str | None = Field(default=None, pattern=r"^\d{4}(-\d{2}(-\d{2})?)?$")
+    # Filled by the conductor in a project (`GivenProjectDecisions`).
+    project_decisions: list[ProjectFact] = Field(default_factory=list)
 
 
 class Obligation(Frozen):
     kind: ObligationKind
     strength: Strength
     recorded_as: str | None = None
+    scope: PolicyScope | None = None
+    value: str | None = None
+    quote: str | None = None
+    derivation: Derivation | None = None
 
 
 class MatchedPolicy(Grounded):
@@ -62,6 +87,8 @@ class MatchedPolicy(Grounded):
 
     actor: str
     role: ActorRole
+    registry: PolicyRegistry
+    match_derivation: Derivation
     obligations: list[Obligation] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
     rationale: str
@@ -80,6 +107,49 @@ class RepositoryRef(Frozen):
     re3data_id: str | None = Field(default=None, pattern=r"^r3d\d+$")
 
 
+class ResolvedFunder(Grounded):
+    """A funder identified in ROR. Names its ROR record only in `grounded_on`."""
+
+    actor: str
+    crossref_funder_id: str | None = None
+
+
+class StatedObligation(Frozen):
+    kind: ObligationKind
+    strength: Strength
+    value: str
+    quote: str
+
+
+class PolicyReading(Grounded):
+    """What a model read in one policy's own text. Grounded on the text, and on the policy
+    record it was reached from, if any."""
+
+    actor: str
+    role: ActorRole
+    status: ReadingStatus
+    stated: list[StatedObligation] = Field(default_factory=list)
+    dropped: list[str] = Field(default_factory=list)
+    reason: str | None = None
+
+
+class ResolvedJournal(Grounded):
+    """A journal identified in Crossref or Open Policy Finder, with its publisher. Names its
+    record only in `grounded_on`."""
+
+    actor: str
+    publisher: str | None = None
+    issn: str | None = Field(default=None, pattern=r"^\d{4}-?\d{3}[\dXx]$")
+
+
+class AmbiguousActor(Grounded):
+    """A funder or journal whose name could mean more than one. Grounded on each candidate,
+    likeliest first."""
+
+    actor: str
+    role: ActorRole
+
+
 class SearchedSummary(Frozen):
     queries: list[str] = Field(default_factory=list)
     snapshot_ref: str | None = None
@@ -92,4 +162,9 @@ class PolicyChecks(Grounded):
     conflicts: list[PolicyConflict] = Field(default_factory=list)
     mandated_repositories: list[RepositoryRef] = Field(default_factory=list)
     no_record: list[str] = Field(default_factory=list)
+    readings: list[PolicyReading] = Field(default_factory=list)
+    funders: list[ResolvedFunder] = Field(default_factory=list)
+    journals: list[ResolvedJournal] = Field(default_factory=list)
+    ambiguous: list[AmbiguousActor] = Field(default_factory=list)
     searched: SearchedSummary | None = None
+    limitations: list[str] = Field(default_factory=list)

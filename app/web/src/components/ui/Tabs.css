@@ -1,0 +1,44 @@
+/* Tabs (Tabs.tsx). State comes from React Aria's data attributes, not modifier classes. */
+
+@layer components {
+  .tab-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    border-bottom: var(--border-width) solid var(--color-border);
+  }
+
+  .tab {
+    padding: var(--space-2) var(--control-padding-inline);
+    font-weight: var(--font-weight-strong);
+    color: var(--color-text-muted);
+    border-bottom: var(--focus-width) solid transparent;
+    margin-bottom: calc(-1 * var(--border-width));
+    cursor: pointer;
+    transition-property: color, border-color, background-color;
+    transition-duration: var(--duration-fast);
+    transition-timing-function: var(--easing);
+  }
+
+  .tab[data-hovered] {
+    color: var(--color-text);
+    background: var(--color-control-hover);
+  }
+
+  /* The selected tab is marked by its underline as well as its colour. */
+  .tab[data-selected] {
+    color: var(--color-text);
+    border-bottom-color: var(--color-accent);
+  }
+
+  .tab-panel {
+    padding-top: var(--space-3);
+  }
+
+  /* The panel's ring is for the panel itself, not for a control inside it. */
+  .tab[data-focus-visible],
+  .tab-panel:focus-visible {
+    outline: var(--focus-width) solid var(--color-focus);
+    outline-offset: var(--focus-offset);
+  }
+}

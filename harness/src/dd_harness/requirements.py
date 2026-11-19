@@ -6,6 +6,7 @@ kept as YAML under `DD_REPOSITORIES_DIR`:
 
     standards/<id>.yaml    one per metadata standard, naming it in re3data_names
     overrides/<id>.yaml    what one repository asks beyond its standard, naming it in re3data_id
+    suggested.yaml         optional: the re3data identifiers the app offers before a search
 
 A choice resolves to the repository's override, if the deployment has one, and the standard's
 set: the one the override names in `conforms_to`, else one the repository's re3data record
@@ -16,7 +17,8 @@ either requires is required. Media types, sizes and licences come from the overr
 
 Every set is checked when it is loaded, so a deployment whose sets are malformed, of neither
 kind, or contradict one another does not start. Recording the choice in a project is
-`ProjectStore.choose_repository`; checking a project against the merged set is TODO(#19, #202).
+`ProjectStore.choose_repository`; checking a project against the merged set is
+`dd_harness.deposit`.
 """
 
 from __future__ import annotations
@@ -36,6 +38,7 @@ from dd_sdk.contract.models import Obligation, RequirementField, RequirementSet
 
 STANDARDS_DIR = "standards"
 OVERRIDES_DIR = "overrides"
+SUGGESTED_FILE = "suggested.yaml"
 # The standard every repository that mints DataCite DOIs accepts, and so the one a repository is
 # checked against when it declares no standard the deployment has a set for (docs/specs/deposit.md).
 DATACITE = "http://datacite.org/schema/kernel-4"
@@ -113,13 +116,31 @@ class Resolved:
             str(k) for k in dict.fromkeys(recommended) if k not in required
         ]
         merged["warnings"] = list(self.warnings)
+        merged["unconfirmed"] = list(
+            dict.fromkeys(item for s in self.sets for item in s.requirement_set.unconfirmed)
+        )
+        # A standard's url describes the standard, not where to deposit.
+        if override is not None and override.requirement_set.url is not None:
+            merged["repository_url"] = override.requirement_set.url
         return merged
 
 
 class Requirements:
     """The deployment's requirement sets, checked against one another."""
 
-    def __init__(self, standards: Iterable[LoadedSet], overrides: Iterable[LoadedSet]) -> None:
+    def __init__(
+        self,
+        standards: Iterable[LoadedSet],
+        overrides: Iterable[LoadedSet],
+        suggested: Sequence[str] = (),
+    ) -> None:
+        for re3data_id in suggested:
+            if not RE3DATA_ID.fullmatch(re3data_id):
+                raise RequirementsError(
+                    f"suggested repository {re3data_id!r} is not a re3data identifier "
+                    "(r3d + 9 digits)"
+                )
+        self._suggested = tuple(suggested)
         self.standards = sorted(standards, key=lambda s: s.requirement_set.requirement_set_id)
         self.overrides = sorted(overrides, key=lambda s: s.requirement_set.requirement_set_id)
         _unique("requirement_set_id", (s.requirement_set.requirement_set_id for s in self.all))
@@ -137,6 +158,13 @@ class Requirements:
             )
         for override in self.overrides:
             self._check_override(override)
+
+    @property
+    def suggested(self) -> tuple[str, ...]:
+        """The repositories to offer a researcher before they search, by re3data identifier: those
+        the deployment has an override for, then those `suggested.yaml` lists, each once."""
+        overridden = (s.requirement_set.re3data_id for s in self.overrides)
+        return tuple(dict.fromkeys([*(i for i in overridden if i), *self._suggested]))
 
     @property
     def all(self) -> list[LoadedSet]:
@@ -206,7 +234,21 @@ def load_requirements(directory: Path) -> Requirements:
     schema = ClassSchema.of(RequirementSet)
     standards = [_load(p, schema, override=False) for p in _files(directory / STANDARDS_DIR)]
     overrides = [_load(p, schema, override=True) for p in _files(directory / OVERRIDES_DIR)]
-    return Requirements(standards, overrides)
+    return Requirements(standards, overrides, _suggested(directory / SUGGESTED_FILE))
+
+
+def _suggested(path: Path) -> list[str]:
+    """The identifiers `suggested.yaml` lists under `re3data_ids`; none if there is no file."""
+    if not path.is_file():
+        return []
+    try:
+        data = yaml.safe_load(path.read_bytes())
+    except yaml.YAMLError as exc:
+        raise RequirementsError(f"{path}: not YAML: {exc}") from exc
+    ids = data.get("re3data_ids") if isinstance(data, dict) else None
+    if not isinstance(ids, list) or not all(isinstance(i, str) for i in ids):
+        raise RequirementsError(f"{path}: expected a 're3data_ids' list of re3data identifiers")
+    return ids
 
 
 def _files(directory: Path) -> list[Path]:

@@ -1,4 +1,5 @@
-"""advisor.ethics through the conductor: the Research Ethics Adviser mock (docs/specs/agents.md)."""
+"""advisor.ethics through the conductor: the Research Ethics Adviser alpha with its default,
+keyword-only reader (docs/specs/agents.md)."""
 
 from __future__ import annotations
 
@@ -12,7 +13,7 @@ from dd_agent_advisor_ethics.agent import UNKNOWN_EMBARGO_QUESTION, EthicsAdvise
 from dd_agent_advisor_ethics.classes import SensitivityContext, SensitivityFlags
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import describe
-from dd_sdk.contract.models import GroundingMode, OutcomeStatus, ReasonCode
+from dd_sdk.contract.models import Derivation, GroundingMode, OutcomeStatus, ReasonCode
 from dd_sdk.schema import gen
 
 SAMPLES = Path(__file__).resolve().parents[3] / "workbench" / "samples"
@@ -30,14 +31,17 @@ def test_flags_field_names_and_asks_about_consent(runs_dir: Path) -> None:
     conductor = make_conductor(runs_dir, EthicsAdviser())
     env = conductor.invoke(request("advisor.ethics", sample()), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
-    assert env.grounding_mode == GroundingMode.NONE
+    assert env.grounding_mode == GroundingMode.INPUT_ONLY
     payload = env.payload_as(SensitivityFlags)
     assert [(f.field, f.category) for f in payload.flags] == [
         ("postcode", "direct identifier"),
         ("date_of_birth", "indirect identifier"),
         ("health_conditions", "special category"),
     ]
-    assert any("consent" in q for q in payload.questions)
+    assert {f.derivation for f in payload.flags} == {Derivation.LEXICAL}
+    assert all(f.matched for f in payload.flags)
+    assert {q.derivation for q in payload.questions} == {Derivation.TEMPLATE}
+    assert any("consent" in q.text for q in payload.questions)
     assert payload.limitations
     assert conductor.grounding_reports[env.invocation_id].passed
 
@@ -58,13 +62,14 @@ def test_with_nothing_flagged_it_still_asks_about_an_unknown_embargo(runs_dir: P
     )
     payload = env.payload_as(SensitivityFlags)
     assert payload.flags == []
-    assert payload.questions == [UNKNOWN_EMBARGO_QUESTION]
+    assert [q.text for q in payload.questions] == [UNKNOWN_EMBARGO_QUESTION]
+    assert not env.telemetry.model_calls
 
 
 def test_the_card_names_the_persona_and_its_steps() -> None:
     entry = describe(EthicsAdviser.spec)
     assert entry["title"] == "Research Ethics Adviser"
-    assert entry["description"].startswith("Mock.")
+    assert not entry["description"].startswith("Mock.")  # a model-backed alpha (invariant 14)
     assert entry["serves"] == ["governance.sensitive-data-identify", "governance.embargo"]
     json.dumps(entry)
 

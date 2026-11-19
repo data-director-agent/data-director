@@ -4,9 +4,11 @@
 
 A dataset's metadata record, README and data dictionary are research outputs, published under
 the researcher's name. Institutions and publishers ask that any use of generative AI in producing
-them be disclosed. A typical policy, the University of Sheffield's *Principles for Using GenAI in
-Research and Innovation*, asks for the name and version of the tool, the date it was used,
-whether the output was validated, which sections are reproduced verbatim, and the prompt texts.
+them be disclosed. A typical policy, the University of Sheffield's [*Principles for Using GenAI
+in Research and Innovation*](https://sheffield.ac.uk/rpi/ethics-integrity/generative-ai-principles-research-and-innovation),
+asks for the name and version of the tool, the date it was used, whether the output was
+validated, and which sections are reproduced verbatim. It asks that the prompt texts be
+recorded, not that they be published.
 The Blueprint asks for the same record: R10 (provenance of AI agent actions, with PROV-O), C13
 (actions attributable and under human oversight) and C14 (explanations kept alongside metadata
 records).
@@ -27,13 +29,17 @@ document should have been drafted with a model is a matter for policy
 1. **An agent reports each model call it makes.** An agent that calls a language model returns
    one `ModelCall` per call, with the provider, the model the response named, when the call was
    made, the token counts and the `dd-prompt-json-v1` digest of what it sent (`dd_sdk.prompts`).
+   A call also says whether a person's own account or the deployment's paid for it, and never
+   whose (`model_account`, [A person's own model account](model-accounts.md), invariant 9).
    The conductor puts the calls in the envelope's `telemetry.model_calls`
    (`test_a_model_call_is_in_the_envelope_and_its_prompt_beside_it_only`,
    `test_each_model_call_is_recorded_with_what_it_was_sent`,
    `test_a_call_is_recorded_with_the_prompt_it_sent`).
 2. **A prompt is kept by the harness beside the run, and nowhere else.** An agent returns the
    prompts its calls name. The run store keeps them in the run's `prompts.json`. The envelope,
-   the trace and the Process Run Crate name a prompt by its digest only.
+   the trace and the Process Run Crate name a prompt by its digest only. An Agent Skill a persona
+   loads is part of its system prompt, so the digest covers it too
+   ([Agents](agents.md#tools-mcp-servers-and-agent-skills)).
 3. **A prompt is what its call names.** The conductor keeps a prompt only if it hashes to its
    digest. A prompt that does not hash to its digest, a call whose prompt is missing, or a prompt
    that no call names, fails the run with `agent-error`. The calls are still recorded, because
@@ -71,7 +77,24 @@ document should have been drafted with a model is a matter for policy
    `prov:used` the version and is associated with the person who approved it. The approved
    version carries schema.org `digitalSourceType` from the IPTC Digital Source Type vocabulary.
    A prompt is identified by its RFC 6920 `ni:` URI, so the graph names it without carrying it
-   (`test_the_disclosure_reads_as_prov_o`).
+   (`test_the_disclosure_reads_as_prov_o`). This graph is the part of the project's provenance
+   graph reachable from each approved version, with the same IRIs
+   ([Provenance](provenance.md), invariant 10); today it is built on its own, TODO(#799).
+8. **A run's model footprint is estimated from the profile, never measured.** When the
+   profile has a `model_footprint` table ([Policy and identity](policy-and-identity.md)), the
+   conductor estimates each model call's energy, in joules, and cost, in the table's currency,
+   as its token counts times the table's per-token factors and per-million-token prices for the
+   model the provider named (`dd_harness.footprint`). A run's figure is the sum over its calls,
+   and exists only if every call has one: a call to a model the table does not list, or one
+   whose provider reported no token counts, leaves the run with no figure, never a partial sum or
+   zero. A run that called no model has no figure. The envelope carries the run's energy in
+   `telemetry.energy_estimate_j` with `energy_method: estimated`, and otherwise null and
+   `not_measured`. The Process Run Crate carries each call's token counts and estimates, and the
+   run's totals, as `PropertyValue`s of the call's and the invocation's `CreateAction`, each
+   saying that it is estimated and from which source and date (`unitCode` `JOU` for joules,
+   `unitText` the currency). The cost is in the crate only; the contract has no cost slot
+   (`test_a_runs_crate_records_estimated_energy_and_cost_per_call_and_per_run`,
+   `test_a_model_the_table_does_not_list_is_not_estimated_never_zero`).
 
 ## Boundaries and contracts
 
@@ -89,8 +112,10 @@ prompt into a floating-point number and change its digest ([Transport and tracin
 account and the PROV-O graph. The project page shows the statement and offers the statement and
 the graph for download.
 
-**The deposit package** carries the statement and the graph when it is built
-([Deposit](deposit.md)). Until then, a researcher takes them from the project page.
+**The deposit package** carries the statement as `use-of-generative-ai.md` and the graph as
+`provenance.jsonld`, written when it is built ([Deposit](deposit.md),
+`test_a_valid_project_writes_a_package_with_its_audit_trail`). Like the Process Run Crates in
+the package, they name each prompt by its digest only.
 
 ## Rationale
 
@@ -107,7 +132,8 @@ prompt exactly without carrying it. Anyone who holds the prompt can show that it
 
 The model named in a call is the one the provider's response names, because a configured alias
 or a server-side fallback may resolve to a different model, and the policy asks for the version
-used.
+used. For the same reason the provider named is the one the model broker reports serving the call,
+where the call went through it ([A person's own model account](model-accounts.md), invariant 9).
 
 PROV-O is the vocabulary R10 names, and RO-Crate, which the Process Run Crate already uses, draws
 on it. No standard term says "generated by AI" in metadata. The IPTC Digital Source Type values,
@@ -126,6 +152,12 @@ media, so they are carried alongside the PROV account, not instead of it.
   differ from the record.
 - **DataCite contributor roles or CRediT.** Both name people's roles, and publishing ethics (COPE)
   hold that an AI tool is not an author or contributor.
+- **Prompts in the deposit package, at the researcher's choice.** The policies that ask about
+  prompts ask that they be recorded, and the run store records them. The statement names each by
+  its digest, so a researcher can produce a prompt on request and show it is the one used. A
+  published prompt cannot be withdrawn, and may hold paths, draft text or personal data whose
+  erasure is not yet decided (TODO(#156)). This is revisited if a publisher or funder requires
+  the prompt texts themselves.
 - **C2PA content credentials.** They are made for signed media assets, not for text records that
   are edited and approved in a log.
 
@@ -137,6 +169,11 @@ media, so they are carried alongside the PROV account, not instead of it.
 - **Auditability.** A disclosure can be made again from the log and the run store at any time,
   and a prompt verified against its digest.
 - **Accessibility.** The statement is plain prose with headings, readable without the graph.
+- **Low impact and affordability (Blueprint P14, C17).** A footprint figure is only as good as
+  the steward's factors. Providers of hosted models publish prices but not energy per token, so
+  an energy factor for one is itself modelled, and the crate says so. A run's figure covers its
+  own model calls: not the agent's other compute, the harness's or the network's, and not a
+  delegated child's, which has its own run.
 
 ## Open questions
 
@@ -144,9 +181,10 @@ media, so they are carried alongside the PROV account, not instead of it.
   profile: TODO(#477).
 - Whether, and how, the statement is offered for the researcher to add to the README or the
   metadata record's description, which they would then approve: TODO(#478).
-- Whether a researcher may choose to include the prompts themselves in the deposit package:
-  TODO(#202).
 - A run that raises after calling a model reports none of its calls, and the grounding linter
-  does not check that each `chat` span has a call. Both bear on audit-trail completeness:
-  TODO(#26).
+  does not check that each `chat` span has a call. Both bear on the completeness of the project's
+  provenance ([Provenance](provenance.md), invariant 3): TODO(#800).
 - The w3id namespace under which models are named is not yet registered: TODO(#3).
+- Cached input tokens are counted as input, so a cached call is overestimated, and a
+  workflow's total across its delegations is not summed: TODO(#163, #480). A spend limit is
+  TODO(#163); a measured, rather than estimated, figure for a self-hosted model is TODO(#480).

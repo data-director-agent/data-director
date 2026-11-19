@@ -24,9 +24,8 @@ from a2a.helpers import (
 )
 from a2a.server.agent_execution import AgentExecutor, RequestContext
 from a2a.server.events import EventQueue
-from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.routes import create_agent_card_routes, create_jsonrpc_routes
-from a2a.server.tasks import InMemoryTaskStore, TaskUpdater
+from a2a.server.tasks import TaskUpdater
 from a2a.types import (
     AgentCapabilities,
     AgentCard,
@@ -38,11 +37,12 @@ from google.protobuf.json_format import MessageToDict
 from starlette.routing import BaseRoute
 
 from dd_harness.conductor import Conductor, UnknownAgent
-from dd_harness.identity import Authenticator, IdentityError, Unauthenticated
+from dd_harness.identity import Authenticator, IdentityError, Unauthenticated, record_refusal
 from dd_harness.policy import PolicyError
 from dd_sdk.contract.models import InvocationRequest, to_document
 from dd_sdk.contract.problem import unauthenticated
 from dd_sdk.contract.validate import ContractViolation
+from dd_sdk.serve import request_handler
 from dd_sdk.wire import (
     ENVELOPE_JSON_ARTIFACT,
     MANIFEST_EXTENSION_URI,
@@ -84,7 +84,7 @@ def agent_card(conductor: Conductor, base_url: str) -> AgentCard:
         default_output_modes=["application/json"],
         capabilities=AgentCapabilities(
             # One reply per request, as for agents: the envelope is complete and checked before
-            # it is sent. TODO(#68, #69) covers streaming to the shell.
+            # it is sent. TODO(#159) covers streaming replies to the shell.
             streaming=False,
             extensions=[
                 AgentExtension(
@@ -137,6 +137,8 @@ class ConductorExecutor(AgentExecutor):
                 )
             )
             return
+        # Only the delegation token and the trace parent are read. A model grant a caller puts here
+        # is ignored: the conductor mints every grant itself (docs/specs/model-accounts.md).
         metadata = MessageToDict(message.metadata) if message.HasField("metadata") else {}
         token = metadata.get(META_DELEGATION_TOKEN)
         try:
@@ -158,6 +160,7 @@ class ConductorExecutor(AgentExecutor):
                 acting_for = await asyncio.to_thread(self.authenticator.principal_for, headers)
                 envelope = await self.conductor.ainvoke(request, acting_for=acting_for)
         except Unauthenticated as exc:
+            record_refusal(exc, transport="a2a")
             # Refused in the task, with the problem document docs/specs/policy-and-identity.md sets.
             # TODO(#17): answer the HTTP request itself with 401 and WWW-Authenticate, which needs
             # the credential checked before the JSON-RPC handler, where a delegation callback cannot
@@ -191,11 +194,8 @@ def a2a_routes(
     With `authenticator` None the endpoint accepts delegation callbacks only (`DELEGATED_ONLY`).
     """
     card = agent_card(conductor, base_url)
-    handler = DefaultRequestHandler(
-        agent_executor=ConductorExecutor(conductor, authenticator),
-        task_store=InMemoryTaskStore(),
-        agent_card=card,
-    )
+    # `message/send` alone: no task is kept for any caller to read back (dd_sdk.serve).
+    handler = request_handler(ConductorExecutor(conductor, authenticator), card)
     routes: list[BaseRoute] = [
         *create_agent_card_routes(card),
         *create_jsonrpc_routes(handler, "/a2a"),

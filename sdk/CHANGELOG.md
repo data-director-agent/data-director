@@ -1,5 +1,42 @@
 # Changelog
 
+## [0.2.0-alpha.4](https://github.com/data-director-agent/data-director/compare/sdk-v0.2.0-alpha.3...sdk-v0.2.0-alpha.4) (2026-11-07)
+
+
+### Features
+
+* **agents:** ask the researcher about each gap in a drafted document ([#602](https://github.com/data-director-agent/data-director/issues/602)) ([bf91107](https://github.com/data-director-agent/data-director/commit/bf911077a941a6a4199d1c0b293d2d26533b4cf7))
+* **agents:** draft a readme from the project's approved metadata record ([#617](https://github.com/data-director-agent/data-director/issues/617)) ([281cc59](https://github.com/data-director-agent/data-director/commit/281cc594db577a1517294e429a88b1e35f063d81))
+* **agents:** suggest data dictionary definitions and units as questions ([#638](https://github.com/data-director-agent/data-director/issues/638)) ([05f1330](https://github.com/data-director-agent/data-director/commit/05f133061b033ba066088a10eed9c784a77c0228))
+* **harness:** keep project documentation from hosted models unless the profile allows it ([#634](https://github.com/data-director-agent/data-director/issues/634)) ([a47d148](https://github.com/data-director-agent/data-director/commit/a47d1486706ceaa081b947fe69c3fea17d6ae02b))
+* **harness:** redraft a project document as its next version ([#639](https://github.com/data-director-agent/data-director/issues/639)) ([3d40d7f](https://github.com/data-director-agent/data-director/commit/3d40d7fb16f2b0edc62ed51610c6a420f1de9273))
+* track project progress from process flow logs ([#628](https://github.com/data-director-agent/data-director/issues/628)) ([fc5be95](https://github.com/data-director-agent/data-director/commit/fc5be95bdfe9a3d66c4ed023a04765199973db1a))
+
+
+### Performance Improvements
+
+* **ci:** parallelize CI jobs and improve test assertions ([#621](https://github.com/data-director-agent/data-director/issues/621)) ([c0a53da](https://github.com/data-director-agent/data-director/commit/c0a53da72790e3db30fbf98688948562b7cc7882))
+
+## [0.2.0-alpha.3](https://github.com/data-director-agent/data-director/compare/sdk-v0.2.0-alpha.2...sdk-v0.2.0-alpha.3) (2026-11-06)
+
+
+### Features
+
+* **app:** ask categorical questions as clickable choices ([#586](https://github.com/data-director-agent/data-director/issues/586)) ([57b4e9f](https://github.com/data-director-agent/data-director/commit/57b4e9f0d7e5dedea4b9e45201de64365c04b90b))
+* **app:** show the phases as a plain-language data journey ([df64bb0](https://github.com/data-director-agent/data-director/commit/df64bb0e12f13210f7a5c55d24bfd6cff55c4db5))
+* **app:** show the phases as a plain-language data journey ([ab98cf6](https://github.com/data-director-agent/data-director/commit/ab98cf69959982c18ea60a76df5cdeb2146e2e42))
+* **sdk:** show the data management plan steps as out of scope ([631f442](https://github.com/data-director-agent/data-director/commit/631f442c5ee6bfeb3f73813bda88ac648901df60))
+* **sdk:** show the data management plan steps as out of scope ([7109c17](https://github.com/data-director-agent/data-director/commit/7109c1790d13d84cbdfe54668ad0cfc2803fb2df))
+
+## [0.2.0-alpha.2](https://github.com/data-director-agent/data-director/compare/sdk-v0.2.0-alpha.1...sdk-v0.2.0-alpha.2) (2026-11-06)
+
+
+### Features
+
+* **app:** give each earlier conversation a title ([#542](https://github.com/data-director-agent/data-director/issues/542)) ([0202dfa](https://github.com/data-director-agent/data-director/commit/0202dfaf94cbb60f951299d138c12877600e7e2f))
+* **harness:** disclose the generative AI behind each approved document ([#479](https://github.com/data-director-agent/data-director/issues/479)) ([31c0e31](https://github.com/data-director-agent/data-director/commit/31c0e31ae6465c954ecad99c91bc34e3a3193d54)), closes [#476](https://github.com/data-director-agent/data-director/issues/476)
+* **sdk:** prepare every agent's built sources with one command ([#508](https://github.com/data-director-agent/data-director/issues/508)) ([3c76b2b](https://github.com/data-director-agent/data-director/commit/3c76b2ba0edb97ca58bc25910d4ac67224db0262)), closes [#507](https://github.com/data-director-agent/data-director/issues/507)
+
 ## [0.2.0-alpha.1](https://github.com/data-director-agent/data-director/compare/sdk-v0.2.0-alpha...sdk-v0.2.0-alpha.1) (2026-11-05)
 
 

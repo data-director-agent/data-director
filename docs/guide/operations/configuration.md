@@ -6,18 +6,20 @@ are used; this page is the map. On a server the paths are those that
 
 ## Layers
 
-A setting has one home, and development has the same tree as a server, rooted at `config/local/` (git-ignored; `uv run scripts/dev.py setup` creates it). `dev.py doctor` reports settings files of the old layout (`.env`, `workbench/.env`) and where each moves, and a local `app/config/profile.yaml` that has fallen behind the example (agents omitted, an older `version`, approval actions dropped, an orchestrator it does not enable). Secrets are the exception that matters: a key sits in the one file that
+A setting has one home, and development has the same tree as a server, rooted at `config/local/` (git-ignored; `uv run scripts/dd.py setup` creates it). On a server, `sudo data-director doctor` checks the deployment against this map and names the fix for each problem ([Deploying to a VM](../../../deploy/README.md)). In development, `dd.py doctor` reports settings files of the old layout (`.env`, `workbench/.env`) and where each moves, and a local `app/config/profile.yaml` that has fallen behind the example (agents omitted, an older `version`, approval actions dropped, an orchestrator it does not enable). Secrets are the exception that matters: a key sits in the one file that
 only its own agent can read.
 
 | What | On a server | In development | Read by |
 |---|---|---|---|
-| The operator's identity, the app's address, problem reports | `/etc/data-director/app.env` | `config/local/app.env` ([example](../../../config/examples/app.env)) | The app |
+| What the instance runs: its name, the orchestrator (`model` or `stub`), agents disabled, the address of its [privacy notice](privacy.md) and whether people may use [their own model account](model-broker.md#the-profile-turning-own-accounts-on) | `/etc/data-director/deployment.yaml`, then `sudo data-director apply` | `config/local/deployment.yaml` ([example](../../../config/examples/deployment.yaml)), applied by `dd.py start` | `apply`, which writes the profile (`profile.yaml` beside it, named by `DD_PROFILE`) and the app's agent list (`agents.yaml` beside it, named by `DD_AGENTS_CONFIG`, marking each agent that [calls through the model broker](model-broker.md#the-agents-calling-through-the-broker)), sets or removes `DD_PRIVACY_NOTICE_URL` in `app.env` and, on a server, the units that start the agents |
+| The ORCID client, the app's address, problem reports (and the operator, on a development server) | `/etc/data-director/app.env` | `config/local/app.env` ([example](../../../config/examples/app.env)) | The app |
+| The workbench's ORCID client, address and admins | `/etc/data-director/workbench.env` ([example](../../../config/examples/workbench.env)) | none: a local workbench signs nobody in | The workbench |
 | Settings every agent shares | `/etc/data-director/agents.env` | `config/local/agents.env` ([example](../../../config/examples/agents.env)) | Every agent |
 | One agent's own settings, such as `DD_STANDARDS_*` and `DD_MODEL_ID` | `/etc/data-director/agents/<name>.env` | `config/local/agents/<name>.env` ([examples](../../../config/examples/agents/)) | That agent |
-| A model key | `/etc/data-director/credentials/<name>/`, root-only, loaded as a systemd credential | `config/local/credentials/`, named by `ANTHROPIC_API_KEY_FILE` in the agent's own file | That agent |
+| A model key, or the app's ORCID client secret | `/etc/data-director/credentials/<name>/`, root-only, loaded as a systemd credential; an agent's is put there by `sudo data-director secret set` | `config/local/credentials/`, named by `ANTHROPIC_API_KEY_FILE` in the agent's own file | That agent |
 | An agent's port | `deploy/agents/<name>.env` in the release | `scripts/run-agents.sh` | The unit, and `agents.yaml` |
 | The deployment's own behaviour (repository, branch, releases kept) | `/etc/data-director/deploy.env` | none | `deploy.sh` |
-| Who may use the site | `/etc/nginx/data-director.htpasswd` | none | NGINX |
+| The admin service's overrides, if any | `/etc/data-director/admin.env` (optional; [the admin service](admin.md)) | none: settings in the environment | The admin service |
 
 The app and the harness hold no model key ([Policy and identity](../../specs/policy-and-identity.md)), so the first two rows never contain one.
 
@@ -27,9 +29,45 @@ These are policy, not secrets, and are safe to review and to keep under version 
 
 | File | Sets | Override |
 |---|---|---|
-| Institutional profile (`app/config/profile.yaml.example`, or your `profile.yaml`) | Which agents may run, the action class each is assigned, which classes need approval, and the agent the home page converses with. | `DD_PROFILE` |
-| `app/config/agents.yaml` | Where each agent is, by URL. | `DD_AGENTS_CONFIG` |
+| Institutional profile (`app/config/profile.yaml.example`; an instance runs the copy `apply` generates from it and `deployment.yaml`) | Which agents may run, the action class each is assigned, which classes need approval, and the agent the home page converses with. | `DD_PROFILE` |
+| `app/config/agents.yaml` (an instance runs the copy `apply` generates from it, with `model_broker: true` on each agent that calls through the model broker) | Where each agent is, by URL, and which agents call through the model broker. | `DD_AGENTS_CONFIG` |
 | `app/config/sources.yaml` | The pinned source copies the source check resolves evidence against. | `DD_SOURCES_CONFIG` |
+
+A fourth file is optional: the MCP servers the harness's tool gateway calls, named by
+`DD_TOOLS_CONFIG` ([Agents](../../specs/agents.md#tools-mcp-servers-and-agent-skills)). Without it
+there is no gateway, and no agent calls a tool. Each server is listed with the source it serves
+and the digest of its tools, which the harness checks at start-up:
+
+```yaml
+servers:
+  - name: spdx                              # what cards and the profile's tool_servers call it
+    url: http://127.0.0.1:8300/mcp          # its streamable HTTP endpoint
+    id_field: licenseId                     # the field that identifies a record
+    canonicalisation: dd-json-document-v1   # registered in dd_sdk.evidence
+    snapshot_ref: spdx:3.27                 # optional: the pinned copy it serves
+    tools_sha256: "<64 hexadecimal digits>" # from `dd-harness tools pins`, quoted
+```
+
+The harness needs its `gateway` extra (`data-director-harness[gateway]`) for this file, and an
+agent that calls tools needs the SDK's `tools` extra. A server whose tools have changed is
+unavailable until you review them and pin the new digest: `dd-harness tools pins` prints each
+server's current digest and exits 1 if any differs. A server on a host name or a public address
+is `remote`, and the profile's `remote_tool_content` decides which project content may go to an
+agent that calls it. The gateway is served at `/mcp` beside the delegation callback; like `/a2a`,
+it is for agents on loopback, and NGINX closes it to everyone else.
+
+How long an owner may restore a project they deleted is `DD_PROJECT_RESTORE_DAYS`, in the app's
+environment: whole days, 30 if unset, and 0 to make deletion final to the app. The same period
+applies to a deleted conversation. Deleting a project or a conversation never removes its record
+([Projects](../../specs/projects.md), invariants 25 and 31).
+
+On an app installed on a researcher's own machine, `DD_INVENTORY_FOLDERS` names the folders there
+that the app may describe for an inventory: absolute paths, separated by `:` (`;` on Windows). The
+researcher may open any folder under them, and the app lists folders by name and runs
+`dd-inventory` on the one chosen, read only, following no link; it records nothing until the
+researcher checks the inventory and adds it ([Projects](../../specs/projects.md), The inventory
+command). Unset, the app describes no folder of its own. The app refuses to start when it is set
+and `DD_APP_HOST` is not a loopback address, so a shared deployment never sets it.
 
 Raise the profile's `version` on every change. Each stored run records the profile and version it
 was held to, with the digest of its bytes, so a later reader can tell which rules applied. A
@@ -51,31 +89,100 @@ deployment, with the redirect URI `https://<your host>/api/sign-in/callback`, th
 | `DD_SESSION_IDLE_S`, `DD_SESSION_LIFETIME_S` | Optional: a session ends after 8 hours unused or 7 days at most |
 
 Sign-in needs HTTPS. Sessions are held in memory, so restarting the app signs everyone out. The
-app asks ORCID for the iD and the name only, and keeps no token. TODO(#155): `install.sh` and the
-NGINX configuration still set up the operator and the site's password; follow #155 before relying
-on sign-in in a deployment.
+app asks ORCID for the iD and the name only, and keeps no token. A researcher may choose, on a
+project's page, facts from their own public ORCID record for its agents; the app then reads that
+record from ORCID's public API (`pub.orcid.org`, or `pub.sandbox.orcid.org` for the sandbox
+issuer), so the host must be able to reach it. It needs no credential. A deployment made with
+`deploy/install.sh` always signs people in: the installer fills `DD_APP_PUBLIC_URL`, waits for the
+other settings and the secret (`/etc/data-director/credentials/app/orcid-client-secret`, which the
+app's unit loads), and sets up no site password ([Deploying to a VM](../../../deploy/README.md)).
+The default session lengths are 8 hours unused and 7 days at most; confirm them against your
+institution's policy.
 
-Without `DD_OIDC_ISSUER`, nobody signs in. `DD_PRINCIPAL_ID` and `DD_PRINCIPAL_NAME` are then
+### Trying sign-in against the ORCID sandbox
+
+To test sign-in without real iDs, on a development server or on your own machine, use the ORCID
+sandbox, a separate system with its own accounts and iDs. It is not backed up and may be wiped.
+
+1. Create a sandbox account at <https://sandbox.orcid.org/register>. The sandbox sends email only
+   to `@mailinator.com` addresses, which are public inboxes that anyone can read: choose a name
+   nobody would guess, use a throwaway password, and read the verification email at
+   <https://www.mailinator.com>. Verify the address; the developer tools stay closed until you do.
+2. Register a client under *Developer tools* in the sandbox, through ORCID's
+   [sandbox registration page](https://info.orcid.org/register-a-client-application-sandbox-member-api/).
+   Give it the redirect URI the app will send, which is `DD_APP_PUBLIC_URL` followed by
+   `/api/sign-in/callback`:
+
+   | Where the app runs | `DD_APP_PUBLIC_URL` | Redirect URI to register |
+   |---|---|---|
+   | Your machine | `http://127.0.0.1:7860` | `http://127.0.0.1:7860/api/sign-in/callback` |
+   | A development server | `https://<your host>` | `https://<your host>/api/sign-in/callback` |
+
+   ORCID's support advises `127.0.0.1` rather than `localhost` for a local client. ORCID matches
+   the URI exactly, character for character: scheme, host, port and path.
+3. Set `DD_OIDC_ISSUER=https://sandbox.orcid.org`, `DD_OIDC_CLIENT_ID`, the client's secret (as a
+   file or `DD_OIDC_CLIENT_SECRET`), and `DD_APP_PUBLIC_URL` as in the table. Leave
+   `DD_PRINCIPAL_ID` and `DD_PRINCIPAL_NAME` empty. Restart the app.
+4. Open the app at the address in `DD_APP_PUBLIC_URL`, not at another name for the same machine.
+   The sign-in cookie belongs to one host, so starting at `localhost:7860` and returning to
+   `127.0.0.1:7860` fails.
+
+A client belongs to the sandbox account that registered it, and only that account can change its
+redirect URIs. Register one client per instance, so that a developer's local address is never
+added to a shared server's client.
+
+If sign-in fails, the page gives one message for every cause. The reason is in the app's log, on
+the line that starts `data-director: sign-in refused:`.
+
+| Symptom | Cause and fix |
+|---|---|
+| ORCID's own page says `redirect_uri … does not match for registered client` | The app sent an address the client does not list. Compare `DD_APP_PUBLIC_URL` with the registered URI, and check that a leftover value from another environment is not set. |
+| `this sign-in was not started in this browser` | The cookie did not come back: you started on a different host name, or the browser refuses `Secure` cookies over plain HTTP (Chrome and Firefox allow it for `127.0.0.1`; Safari does not). |
+| `the sign-in has expired or was already used` | The app restarted between starting and finishing, which `--reload` does on any code change, or the callback address was reloaded. Start again. |
+| `the provider refused the code` | The client secret is not the one for this client, or belongs to production rather than the sandbox. |
+
+A production client takes the same settings with `DD_OIDC_ISSUER=https://orcid.org` and an
+`https` redirect URI, and does not accept `http://127.0.0.1`.
+
+On a development server, without `DD_OIDC_ISSUER`, nobody signs in. `DD_PRINCIPAL_ID` and `DD_PRINCIPAL_NAME` are then
 required, every run acts for this operator, whoever uses the page, and the banner says on every
 page that nobody is signed in. Use an ORCID iD URL as the identifier where the operator has one.
 Setting both a provider and an operator stops the app at start-up.
+
+### The workbench on a server
+
+A deployed workbench signs people in with the same ORCID client and admits only admins
+([Deploying to a VM](../../../deploy/README.md#the-workbench)). Its settings are in
+`/etc/data-director/workbench.env`:
+
+| Setting | What it is |
+|---|---|
+| `DD_OIDC_ISSUER`, `DD_OIDC_CLIENT_ID` | The app's; `install.sh` copies them. The secret is the app's file, loaded by the workbench's own unit. |
+| `DD_WORKBENCH_PUBLIC_URL` | Where admins reach it, `https://<host>:8443`. Register `DD_WORKBENCH_PUBLIC_URL/api/sign-in/callback` as a second redirect URI on the ORCID client. |
+| `DD_WORKBENCH_ADMINS` | The ORCID iDs it admits, bare or as iD URLs, separated by commas or spaces. Required: with none, or one that is not an iD, it does not start. |
+
+Anyone else who signs in is told they are not an admin, and no session is opened for them. A
+workbench without `DD_OIDC_ISSUER`, as on a developer's machine, signs nobody in and acts for the
+operator, as before.
 
 ## What is stored
 
 | What | Where | Notes |
 |---|---|---|
 | Each run: input, output, spans, evidence and, by default, a Process Run Crate | `/var/lib/data-director/runs/` (`DD_RUNS_DIR`) | It outlives releases, so back it up with the rest of the host. `DD_WRITE_CRATE=0` stops the crate being written. |
+| Each conversation's turn lock | `locks/` under `DD_RUNS_DIR`, or an advisory lock in its database | Lets several app processes share one store. On PostgreSQL each running turn holds one database connection of its own, beside the pool (`DD_POSTGRES_POOL_SIZE`). |
+| Each workbench run | `/var/lib/data-director/workbench-runs/` | Apart from the app's runs. |
 | Model calls | In the run, as `chat` spans with token counts | No key is ever stored. |
-| Problem reports | A public GitHub issue, if a token is set | Off without `DD_FEEDBACK_GITHUB_TOKEN`; the token needs Issues: write on one repository and nothing else. |
+| Problem reports | A public GitHub issue, if a credential is set | Off without a GitHub App (`DD_FEEDBACK_GITHUB_APP_ID` and `DD_FEEDBACK_GITHUB_APP_PRIVATE_KEY_FILE`) or a token (`DD_FEEDBACK_GITHUB_TOKEN`), not both. Either needs Issues: write on one repository and nothing else. |
 
 ## Before you open it to users
 
-1. Turn on sign-in (above), or set the operator in `app.env` and the site's password in NGINX,
-   which are then the only access controls.
+1. Check that sign-in works (above): sign in with an ORCID iD, and confirm that a request with no
+   session is answered 401 (`curl -i https://<your host>/api/agents`).
 2. Review the profile. List only the agents you intend to offer, and add to
    `actions_requiring_approval` any action that must be referred to a person.
 3. Decide on [AI models](ai-models.md): whether either model-backed agent is on, which model, and
    whose key. Tell users when the answer is yes, since their conversation then goes to a
    provider.
 4. Confirm the app and agent ports are on loopback or a private network.
-5. Open the app and read each agent's About tab: it states what the instance is configured to do.
+5. Open the app and read each agent's page in the agent directory: it states what the instance is configured to do.

@@ -1,0 +1,808 @@
+"""Model grants (docs/specs/model-accounts.md, The grant): the conductor mints one for each
+invocation of a model-backed agent, delegated children included; the agent receives it in the A2A
+metadata alone; and the broker can verify it against the harness's published keys."""
+
+from __future__ import annotations
+
+import json
+import logging
+from dataclasses import replace
+from pathlib import Path
+from typing import Any
+
+import pytest
+from starlette.applications import Starlette
+from starlette.testclient import TestClient
+
+from dd_harness import settings as harness_settings
+from dd_harness.identity import OperatorAssertion
+from dd_harness.model_grants import (
+    JWKS_PATH,
+    GrantKeyError,
+    GrantMinter,
+    broker_subject_key,
+    jwks_routes,
+    signing_key,
+)
+from dd_harness.policy import PolicyError
+from dd_harness.remote import RemoteAgent
+from dd_harness.settings import MODEL_GRANT_SETTINGS, SettingsError, grant_minter
+from dd_harness.testing import (
+    HARNESS_URL,
+    PERMISSIVE,
+    TEST_PRINCIPAL,
+    GrantKeys,
+    ScriptedAgent,
+    make_conductor,
+    message,
+    record,
+    reply_over,
+    request,
+    review_of_input,
+    send_to_harness,
+)
+from dd_harness.transport.a2a import a2a_routes
+from dd_sdk import model_account, security_log
+from dd_sdk.agent import AgentResult, ModelUse, RunContext
+from dd_sdk.contract.models import (
+    GroundingMode,
+    InvocationRequest,
+    ModelAccount,
+    OutcomeStatus,
+    Principal,
+    PrincipalKind,
+    ReasonCode,
+    to_document,
+)
+from dd_sdk.contract.problem import PROBLEM_BASE
+from dd_sdk.model_grant import (
+    BROKER_AUDIENCE,
+    CLAIM_MODEL_MAP,
+    HEADER_REASON,
+    META_MODEL_GRANT,
+    TICKET_LIFETIME_S,
+    TICKET_TYPE,
+    Account,
+    EnrolmentTicketClaims,
+    ModelGrantClaims,
+    ModelGrantError,
+)
+from dd_sdk.prompts import ModelCallLog
+from dd_sdk.security_log import SecurityEvent
+from dd_sdk.testing import security_events
+
+MODEL = "claude-test"
+TIMEOUT_S = 30.0
+
+
+@pytest.fixture(scope="module")
+def keys() -> GrantKeys:
+    return GrantKeys()
+
+
+def model_backed(seen: list[RunContext], **overrides: Any) -> ScriptedAgent:
+    """An agent whose card declares a model, and which keeps the context it was given."""
+
+    def behaviour(req: InvocationRequest, ctx: RunContext) -> AgentResult:
+        seen.append(ctx)
+        return review_of_input(req, ctx)
+
+    overrides.setdefault("models", (ModelUse("anthropic", MODEL, "hosted"),))
+    return ScriptedAgent(GroundingMode.NONE, behaviour, **overrides)
+
+
+def delegating_model_backed(seen: list[RunContext], *targets: str) -> ScriptedAgent:
+    def behaviour(req: InvocationRequest, ctx: RunContext) -> AgentResult:
+        seen.append(ctx)
+        assert ctx.delegate is not None
+        return reply_over(ctx, *(ctx.delegate(t, record()) for t in targets))
+
+    return ScriptedAgent(
+        GroundingMode.DELEGATION, behaviour, models=(ModelUse("anthropic", MODEL, "hosted"),)
+    )
+
+
+# --- The grant ---------------------------------------------------------------------------------
+
+
+def test_a_grant_has_the_shape_the_broker_checks(keys: GrantKeys) -> None:
+    grant = keys.minter().mint(
+        agent_id="fake.none",
+        invocation_id="inv-1",
+        models=[MODEL, MODEL],
+        account=Account.DEPLOYMENT,
+        acting_for=TEST_PRINCIPAL,
+        lifetime_s=TIMEOUT_S + 0.9,
+    )
+    opened = keys.open(grant)
+
+    claims = ModelGrantClaims.from_claims(opened.claims)
+    assert claims.audience == BROKER_AUDIENCE
+    assert (claims.agent, claims.invocation) == ("fake.none", "inv-1")
+    assert claims.models == (MODEL,)
+    assert claims.account == Account.DEPLOYMENT
+    assert claims.expires_at - claims.issued_at <= TIMEOUT_S
+    assert opened.header["alg"] in ("RS256", "ES256")
+    assert opened.header["kid"] == keys.signing_key.kid
+    # The pseudonym is the person's, under the harness's secret, and only the broker can read it.
+    assert opened.pseudonym == keys.minter().pseudonym(TEST_PRINCIPAL)
+    assert opened.pseudonym not in grant
+    assert TEST_PRINCIPAL.principal_id not in json.dumps(opened.claims)
+
+
+def test_no_two_grants_carry_the_same_sealed_pseudonym(keys: GrantKeys) -> None:
+    minter = keys.minter()
+
+    def mint() -> dict[str, Any]:
+        grant = minter.mint(
+            agent_id="fake.none",
+            invocation_id="inv-1",
+            models=[MODEL],
+            account=Account.DEPLOYMENT,
+            acting_for=TEST_PRINCIPAL,
+            lifetime_s=TIMEOUT_S,
+        )
+        return keys.open(grant).claims
+
+    first, second = mint(), mint()
+    assert first["dd_subject"] != second["dd_subject"]
+
+
+def test_an_enrolment_ticket_names_only_the_sealed_pseudonym(keys: GrantKeys) -> None:
+    ticket, expires_at = keys.minter().enrolment_ticket(acting_for=TEST_PRINCIPAL)
+    opened = keys.open(ticket)
+
+    claims = EnrolmentTicketClaims.from_claims(opened.claims)
+    assert claims.audience == BROKER_AUDIENCE
+    assert claims.expires_at == expires_at
+    assert 0 < claims.expires_at - claims.issued_at <= TICKET_LIFETIME_S
+    assert opened.header["typ"] == TICKET_TYPE
+    assert opened.header["kid"] == keys.signing_key.kid
+    assert opened.pseudonym == keys.minter().pseudonym(TEST_PRINCIPAL)
+    assert opened.pseudonym not in ticket
+    assert TEST_PRINCIPAL.principal_id not in json.dumps(opened.claims)
+    # A ticket is no grant.
+    with pytest.raises(ModelGrantError):
+        ModelGrantClaims.from_claims(opened.claims)
+
+
+def test_every_ticket_is_a_different_ticket(keys: GrantKeys) -> None:
+    minter = keys.minter()
+    first, second = (
+        keys.open(minter.enrolment_ticket(acting_for=TEST_PRINCIPAL)[0]).claims for _ in range(2)
+    )
+    assert first["jti"] != second["jti"]
+    assert first["dd_subject"] != second["dd_subject"]
+
+
+def test_the_pseudonym_is_stable_for_a_person_and_differs_between_people(
+    keys: GrantKeys,
+) -> None:
+    minter = keys.minter()
+    other = Principal(
+        principal_id="https://orcid.org/0000-0001-5109-3700",
+        name="Another researcher",
+        principal_kind=PrincipalKind.PERSON,
+    )
+    assert minter.pseudonym(TEST_PRINCIPAL) == keys.minter().pseudonym(TEST_PRINCIPAL)
+    assert minter.pseudonym(TEST_PRINCIPAL) != minter.pseudonym(other)
+    # A different secret, a different pseudonym.
+    assert GrantKeys().minter().pseudonym(TEST_PRINCIPAL) != minter.pseudonym(TEST_PRINCIPAL)
+
+
+def test_the_published_keys_hold_no_private_part(keys: GrantKeys) -> None:
+    jwks = keys.minter().jwks()
+    [key] = jwks["keys"]
+    assert key["kid"] == keys.signing_key.kid
+    assert not {"d", "p", "q", "dp", "dq", "qi"} & set(key)
+
+
+def test_a_signing_key_without_a_kid_is_given_its_thumbprint() -> None:
+    material = GrantKeys().signing_key.as_pem(private=True).decode()
+    key = signing_key(material)
+    assert key.kid == key.thumbprint()
+
+
+@pytest.mark.parametrize(
+    "material",
+    [
+        "not a key",
+        "{not json",
+        json.dumps(GrantKeys().signing_key.as_dict(private=False)),
+    ],
+)
+def test_an_unusable_signing_key_is_refused(material: str) -> None:
+    with pytest.raises(GrantKeyError):
+        signing_key(material)
+
+
+def test_the_harness_takes_only_the_public_half_of_the_brokers_key(keys: GrantKeys) -> None:
+    with pytest.raises(GrantKeyError):
+        broker_subject_key(keys.subject_key.as_pem(private=True).decode())
+    public = broker_subject_key(keys.subject_key.as_pem(private=False).decode())
+    assert not public.is_private
+
+
+def test_a_short_pseudonym_secret_is_refused(keys: GrantKeys) -> None:
+    with pytest.raises(GrantKeyError):
+        GrantMinter(keys.signing_key, keys.minter().subject_key, b"short")
+
+
+# --- Settings ----------------------------------------------------------------------------------
+
+
+def grant_env(keys: GrantKeys) -> dict[str, str]:
+    return dict(
+        zip(
+            MODEL_GRANT_SETTINGS,
+            (
+                json.dumps(keys.signing_key.as_dict(private=True)),
+                keys.subject_key.as_pem(private=False).decode(),
+                keys.secret.hex(),
+            ),
+            strict=True,
+        )
+    )
+
+
+def test_without_grant_settings_the_harness_mints_none() -> None:
+    assert grant_minter({}) is None
+
+
+def test_the_three_settings_make_a_minter(keys: GrantKeys, tmp_path: Path) -> None:
+    env = grant_env(keys)
+    # The signing key as a systemd credential, as a deployment supplies it.
+    name = MODEL_GRANT_SETTINGS[0]
+    (tmp_path / "signing").write_text(env.pop(name))
+    env |= {f"{name}_FILE": "signing", "CREDENTIALS_DIRECTORY": str(tmp_path)}
+    minter = grant_minter(env)
+    assert minter is not None
+    assert minter.jwks() == keys.minter().jwks()
+
+
+@pytest.mark.parametrize("unset", MODEL_GRANT_SETTINGS)
+def test_some_but_not_all_settings_stop_start_up(keys: GrantKeys, unset: str) -> None:
+    env = grant_env(keys)
+    del env[unset]
+    with pytest.raises(SettingsError) as caught:
+        grant_minter(env)
+    message = str(caught.value)
+    assert unset in message and "\n" not in message
+    assert keys.secret.hex() not in message
+
+
+def test_an_unusable_setting_stops_start_up_without_its_value(keys: GrantKeys) -> None:
+    env = grant_env(keys) | {MODEL_GRANT_SETTINGS[1]: "not a key"}
+    with pytest.raises(SettingsError) as caught:
+        grant_minter(env)
+    assert "not a key" not in str(caught.value)
+    assert keys.secret.hex() not in str(caught.value)
+
+
+def test_settings_hand_the_minter_to_the_conductor(
+    keys: GrantKeys, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    for name, value in grant_env(keys).items():
+        monkeypatch.setenv(name, value)
+    built = harness_settings.Settings.from_env(
+        runs_dir=tmp_path,
+        profile=Path("unused"),
+        agents_config=Path("unused"),
+        sources_config=Path("unused"),
+    )
+    assert built.model_grants is not None
+    assert built.model_grants.jwks() == keys.minter().jwks()
+
+
+# --- The conductor -----------------------------------------------------------------------------
+
+
+def test_a_model_backed_agent_is_sent_a_grant_for_its_invocation(
+    keys: GrantKeys, tmp_path: Path
+) -> None:
+    seen: list[RunContext] = []
+    conductor = make_conductor(tmp_path, model_backed(seen), model_grants=keys.minter())
+
+    env = conductor.invoke(request("fake.none", record()), acting_for=TEST_PRINCIPAL)
+
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    [ctx] = seen
+    assert ctx.model_grant is not None
+    claims = ModelGrantClaims.from_claims(keys.open(ctx.model_grant).claims)
+    assert (claims.agent, claims.invocation) == ("fake.none", env.invocation_id)
+    assert claims.models == (MODEL,)
+    assert claims.expires_at - claims.issued_at <= TIMEOUT_S
+
+
+def _own_profile(
+    tmp_path: Path,
+    own: str,
+    fallback: str | None,
+    base_urls: str = "",
+    provider: str = "anthropic",
+) -> Path:
+    path = tmp_path / "own.yaml"
+    written = PERMISSIVE.read_text(encoding="utf-8") + f"model_accounts:\n  own: {own}\n"
+    if fallback is not None:
+        written += f"  fallback: {fallback}\n  providers:\n    - provider: {provider}\n{base_urls}"
+    path.write_text(written, encoding="utf-8")
+    return path
+
+
+@pytest.mark.parametrize(
+    ("own", "fallback", "account"),
+    [
+        ("off", None, Account.DEPLOYMENT),
+        ("allowed", "deployment", Account.OWN_OR_DEPLOYMENT),
+        ("allowed", "none", Account.OWN),
+        ("required", "none", Account.OWN),
+    ],
+)
+def test_the_profile_decides_whose_account_the_grant_names(
+    keys: GrantKeys, tmp_path: Path, own: str, fallback: str | None, account: Account
+) -> None:
+    """docs/specs/model-accounts.md, The profile: the conductor turns `model_accounts` into the
+    grant's account, and names the providers and base URLs a person's own account may use."""
+    seen: list[RunContext] = []
+    profile = _own_profile(
+        tmp_path,
+        own,
+        fallback,
+        "      base_urls: [{url: 'https://llm.example.ac.uk/v1'}]\n",
+        provider="openai-compatible",
+    )
+    conductor = make_conductor(
+        tmp_path / "runs",
+        model_backed(seen),
+        model_grants=keys.minter(),
+        profile=profile,
+        model_broker=True,
+    )
+
+    conductor.invoke(request("fake.none", record()), acting_for=TEST_PRINCIPAL)
+
+    [ctx] = seen
+    assert ctx.model_grant is not None
+    claims = ModelGrantClaims.from_claims(keys.open(ctx.model_grant).claims)
+    assert claims.account is account
+    if account is Account.DEPLOYMENT:
+        assert (claims.providers, claims.base_urls) == ((), ())
+    else:
+        assert claims.providers == ("openai-compatible",)
+        assert claims.base_urls == ("https://llm.example.ac.uk",)
+
+
+def test_own_accounts_without_model_grants_stop_the_conductor(tmp_path: Path) -> None:
+    """Without grants nothing would carry the profile's decision to the broker."""
+    with pytest.raises(PolicyError, match="model_accounts"):
+        make_conductor(tmp_path, profile=_own_profile(tmp_path, "allowed", "deployment"))
+
+
+def test_a_grant_for_an_own_account_names_its_providers(keys: GrantKeys) -> None:
+    minter = keys.minter()
+    common: dict[str, Any] = {
+        "agent_id": "fake.none",
+        "invocation_id": "inv-1",
+        "models": [MODEL],
+        "acting_for": TEST_PRINCIPAL,
+        "lifetime_s": TIMEOUT_S,
+    }
+    with pytest.raises(ValueError):
+        minter.mint(account=Account.OWN, **common)
+    with pytest.raises(ValueError):
+        minter.mint(account=Account.DEPLOYMENT, providers=["anthropic"], **common)
+    # The deployment never pays for a mapped call, and a map maps only what the grant allows.
+    with pytest.raises(ValueError):
+        minter.mint(account=Account.DEPLOYMENT, model_map={"openai": {MODEL: "gpt-x"}}, **common)
+    with pytest.raises(ValueError):
+        minter.mint(
+            account=Account.OWN,
+            providers=["anthropic"],
+            model_map={"openai": {MODEL: "x"}},
+            **common,
+        )
+    with pytest.raises(ValueError):
+        minter.mint(
+            account=Account.OWN,
+            providers=["openai"],
+            model_map={"openai": {"other": "x"}},
+            **common,
+        )
+
+
+@pytest.mark.parametrize(
+    ("own", "fallback", "mapped"),
+    [
+        ("off", None, {}),
+        ("allowed", "deployment", {"openai": {MODEL: "gpt-x"}}),
+        ("required", "none", {"openai": {MODEL: "gpt-x"}}),
+    ],
+)
+def test_a_grant_carries_the_profiles_map_of_the_models_the_card_declares(
+    keys: GrantKeys, tmp_path: Path, own: str, fallback: str | None, mapped: dict[str, Any]
+) -> None:
+    """docs/specs/model-accounts.md, The model map: the conductor puts into the grant each mapping
+    of a model the card declares, and none into a grant the deployment pays for."""
+    seen: list[RunContext] = []
+    profile = _own_profile(
+        tmp_path,
+        own,
+        fallback,
+        "      models:\n"
+        f"        - {{declared: {MODEL}, model: gpt-x}}\n"
+        "        - {declared: claude-undeclared, model: gpt-y}\n",
+        provider="openai",
+    )
+    conductor = make_conductor(
+        tmp_path / "runs",
+        model_backed(seen),
+        model_grants=keys.minter(),
+        profile=profile,
+        model_broker=True,
+    )
+
+    conductor.invoke(request("fake.none", record()), acting_for=TEST_PRINCIPAL)
+
+    [ctx] = seen
+    assert ctx.model_grant is not None
+    claims = keys.open(ctx.model_grant).claims
+    assert claims.get(CLAIM_MODEL_MAP, {}) == mapped
+    assert ModelGrantClaims.from_claims(claims).model_map == mapped
+
+
+def test_an_agent_that_declares_no_model_is_sent_no_grant(keys: GrantKeys, tmp_path: Path) -> None:
+    seen: list[RunContext] = []
+    conductor = make_conductor(tmp_path, model_backed(seen, models=()), model_grants=keys.minter())
+    conductor.invoke(request("fake.none", record()), acting_for=TEST_PRINCIPAL)
+    [ctx] = seen
+    assert ctx.model_grant is None
+
+
+def test_a_harness_that_mints_no_grants_sends_none(tmp_path: Path) -> None:
+    seen: list[RunContext] = []
+    conductor = make_conductor(tmp_path, model_backed(seen))
+    conductor.invoke(request("fake.none", record()), acting_for=TEST_PRINCIPAL)
+    [ctx] = seen
+    assert ctx.model_grant is None
+
+
+def test_each_invocation_and_each_delegated_child_has_its_own_grant(
+    keys: GrantKeys, tmp_path: Path
+) -> None:
+    parents: list[RunContext] = []
+    children: list[RunContext] = []
+    conductor = make_conductor(
+        tmp_path,
+        delegating_model_backed(parents, "fake.none", "fake.none"),
+        model_backed(children),
+        model_grants=keys.minter(),
+    )
+
+    env = conductor.invoke(request("fake.delegation", message()), acting_for=TEST_PRINCIPAL)
+
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    grants = [ctx.model_grant for ctx in [*parents, *children]]
+    assert all(grants) and len(set(grants)) == 3
+    opened = [ModelGrantClaims.from_claims(keys.open(g).claims) for g in grants if g]
+    assert [c.agent for c in opened] == ["fake.delegation", "fake.none", "fake.none"]
+    child_ids = {d.delegated_invocation_id for d in env.delegations}
+    assert {c.invocation for c in opened[1:]} == child_ids
+    assert opened[0].invocation == env.invocation_id
+
+
+def test_a_grant_a_caller_sends_is_never_passed_on(keys: GrantKeys, tmp_path: Path) -> None:
+    seen: list[RunContext] = []
+    # An agent that declares no model: the conductor mints it no grant, so whatever it is given
+    # could only have come from the caller.
+    conductor = make_conductor(tmp_path, model_backed(seen, models=()), model_grants=keys.minter())
+    app = Starlette(routes=a2a_routes(conductor, OperatorAssertion(TEST_PRINCIPAL), HARNESS_URL)[1])
+    forged = "eyJhbGciOiJub25lIn0.forged."
+
+    task = send_to_harness(
+        app, HARNESS_URL, request("fake.none", record()), metadata={META_MODEL_GRANT: forged}
+    )
+
+    assert task is not None
+    [ctx] = seen
+    assert ctx.model_grant is None
+
+
+def test_the_grant_is_not_kept_in_any_record(keys: GrantKeys, tmp_path: Path) -> None:
+    seen: list[RunContext] = []
+    runs = tmp_path / "runs"
+    conductor = make_conductor(runs, model_backed(seen), crate=True, model_grants=keys.minter())
+
+    env = conductor.invoke(request("fake.none", record()), acting_for=TEST_PRINCIPAL)
+
+    [ctx] = seen
+    grant = ctx.model_grant
+    assert grant
+    stored = [p for p in runs.rglob("*") if p.is_file()]
+    assert any(p.name == "ro-crate-metadata.json" for p in stored)
+    for path in stored:
+        assert grant.encode() not in path.read_bytes(), f"the grant is in {path}"
+    assert grant not in json.dumps(to_document(env))
+
+
+# --- An agent that does not call through the broker ------------------------------------------
+
+
+BYPASSED = PROBLEM_BASE + "model-broker-bypassed"
+
+
+@pytest.mark.parametrize("remote", [True, False])
+def test_with_own_accounts_on_an_agent_not_stated_to_call_through_the_broker_is_refused(
+    keys: GrantKeys, tmp_path: Path, remote: bool
+) -> None:
+    """docs/specs/model-accounts.md, invariant 14: only the operator's statement counts, and an
+    agent run in the conductor's process can never call through the broker. The refusal is an
+    outcome, stored like any run, and the agent is not run."""
+    seen: list[RunContext] = []
+    runs = tmp_path / "runs"
+    conductor = make_conductor(
+        runs,
+        model_backed(seen),
+        remote=remote,
+        model_grants=keys.minter(),
+        profile=_own_profile(tmp_path, "allowed", "deployment"),
+    )
+
+    env = conductor.invoke(request("fake.none", record()), acting_for=TEST_PRINCIPAL)
+
+    assert env.outcome.status is OutcomeStatus.FAILED
+    assert env.problem is not None and env.problem.type == BYPASSED
+    assert seen == []
+    assert (runs / env.invocation_id).is_dir()
+
+
+@pytest.mark.parametrize("own", ["allowed", "required"])
+def test_with_own_accounts_on_an_agent_stated_to_call_through_the_broker_runs(
+    keys: GrantKeys, tmp_path: Path, own: str
+) -> None:
+    seen: list[RunContext] = []
+    conductor = make_conductor(
+        tmp_path / "runs",
+        model_backed(seen),
+        model_grants=keys.minter(),
+        profile=_own_profile(tmp_path, own, "none"),
+        model_broker=True,
+    )
+
+    env = conductor.invoke(request("fake.none", record()), acting_for=TEST_PRINCIPAL)
+
+    assert env.outcome.status is OutcomeStatus.SUCCEEDED, env.outcome.statement
+    [ctx] = seen
+    assert ctx.model_grant is not None
+
+
+def test_with_own_accounts_on_an_agent_that_calls_no_model_needs_no_broker(
+    keys: GrantKeys, tmp_path: Path
+) -> None:
+    seen: list[RunContext] = []
+    conductor = make_conductor(
+        tmp_path / "runs",
+        model_backed(seen, models=()),
+        model_grants=keys.minter(),
+        profile=_own_profile(tmp_path, "allowed", "deployment"),
+    )
+
+    env = conductor.invoke(request("fake.none", record()), acting_for=TEST_PRINCIPAL)
+
+    assert env.outcome.status is OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert len(seen) == 1
+
+
+def test_with_own_accounts_off_no_agent_needs_the_broker(keys: GrantKeys, tmp_path: Path) -> None:
+    seen: list[RunContext] = []
+    conductor = make_conductor(tmp_path, model_backed(seen), model_grants=keys.minter())
+
+    env = conductor.invoke(request("fake.none", record()), acting_for=TEST_PRINCIPAL)
+
+    assert env.outcome.status is OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert len(seen) == 1
+
+
+def test_a_delegated_child_not_stated_to_call_through_the_broker_is_refused(
+    keys: GrantKeys, tmp_path: Path
+) -> None:
+    """The child's refusal is its own stored run; the parent receives its envelope."""
+    parents: list[RunContext] = []
+    children: list[RunContext] = []
+    conductor = make_conductor(
+        tmp_path / "runs",
+        delegating_model_backed(parents, "fake.none"),
+        model_backed(children),
+        model_grants=keys.minter(),
+        profile=_own_profile(tmp_path, "allowed", "deployment"),
+    )
+    # The operator states it for the parent alone.
+    parent = conductor.registry.get("fake.delegation")
+    assert isinstance(parent, RemoteAgent)
+    parent.model_broker = True
+
+    env = conductor.invoke(request("fake.delegation", message()), acting_for=TEST_PRINCIPAL)
+
+    assert len(parents) == 1
+    assert children == []
+    [delegation] = env.delegations
+    child = conductor.store.get(delegation.delegated_invocation_id)
+    assert child is not None
+    assert child["outcome"]["status"] == OutcomeStatus.FAILED.value
+    assert child["problem"]["type"] == BYPASSED
+
+
+# --- Whose account paid, and a refused account ---------------------------------------------------
+
+
+class _Answer:
+    def __init__(self, reason: str) -> None:
+        self.headers = {HEADER_REASON: reason}
+
+
+class _BrokerRefusedError(Exception):
+    """What a provider client raises for a broker's refusal: the answer is on `response`."""
+
+    def __init__(self, reason: str) -> None:
+        super().__init__("the broker refused the call")
+        self.response = _Answer(reason)
+
+
+@pytest.mark.parametrize("remote", [True, False])
+@pytest.mark.parametrize(
+    ("reason", "code"),
+    [
+        ("model-account-limit", ReasonCode.MODEL_ACCOUNT_LIMIT),
+        ("model-account-missing", ReasonCode.MODEL_ACCOUNT_MISSING),
+        ("model-account-rejected", ReasonCode.MODEL_ACCOUNT_REJECTED),
+    ],
+)
+def test_a_refused_own_account_ends_the_run_abstained_with_its_calls_recorded(
+    keys: GrantKeys, tmp_path: Path, remote: bool, reason: str, code: ReasonCode
+) -> None:
+    """docs/specs/model-accounts.md, invariants 9 and 10: the call made before the refusal is
+    recorded with whose account paid, in the envelope and the crate, and the run is an outcome."""
+
+    def behaviour(req: InvocationRequest, ctx: RunContext) -> AgentResult:
+        calls = ModelCallLog("anthropic")
+        calls.record(
+            {"messages": [{"role": "user", "content": "hi"}]}, MODEL, account=ModelAccount.OWN
+        )
+        raise RuntimeError("the model could not be called") from _BrokerRefusedError(reason)
+
+    agent = ScriptedAgent(
+        GroundingMode.NONE, behaviour, models=(ModelUse("anthropic", MODEL, "hosted"),)
+    )
+    runs = tmp_path / "runs"
+    conductor = make_conductor(runs, agent, crate=True, remote=remote, model_grants=keys.minter())
+
+    env = conductor.invoke(request("fake.none", record()), acting_for=TEST_PRINCIPAL)
+
+    assert env.outcome.status is OutcomeStatus.ABSTAINED
+    assert env.outcome.reason_code is code
+    [made] = env.telemetry.model_calls
+    assert made.model_account is ModelAccount.OWN
+    crate = json.loads(
+        (runs / env.invocation_id / "crate" / "ro-crate-metadata.json").read_text(encoding="utf-8")
+    )
+    by_id = {e["@id"]: e for e in crate["@graph"]}
+    [action] = [e for e in crate["@graph"] if "additionalProperty" in e]
+    assert by_id[action["additionalProperty"]["@id"]]["value"] == ModelAccount.OWN.value
+
+
+@pytest.mark.parametrize("remote", [True, False])
+def test_a_routed_call_records_the_declared_model_in_the_envelope_and_the_crate(
+    keys: GrantKeys, tmp_path: Path, remote: bool
+) -> None:
+    """docs/specs/model-accounts.md, invariant 9: a call the model map routed records the model
+    the card declared beside the one that served it; an unrouted call does not."""
+
+    def behaviour(req: InvocationRequest, ctx: RunContext) -> AgentResult:
+        calls = ModelCallLog("anthropic")
+        model_account.routed(MODEL)
+        calls.record({"messages": [{"role": "user", "content": "hi"}]}, "gpt-test")
+        calls.record({"messages": [{"role": "user", "content": "again"}]}, MODEL)
+        return replace(review_of_input(req, ctx), model_calls=calls.calls, prompts=calls.prompts)
+
+    agent = ScriptedAgent(
+        GroundingMode.NONE, behaviour, models=(ModelUse("anthropic", MODEL, "hosted"),)
+    )
+    runs = tmp_path / "runs"
+    conductor = make_conductor(runs, agent, crate=True, remote=remote, model_grants=keys.minter())
+
+    env = conductor.invoke(request("fake.none", record()), acting_for=TEST_PRINCIPAL)
+
+    assert env.outcome.status is OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert [c.model_declared for c in env.telemetry.model_calls] == [MODEL, None]
+    crate = json.loads(
+        (runs / env.invocation_id / "crate" / "ro-crate-metadata.json").read_text(encoding="utf-8")
+    )
+    by_id = {e["@id"]: e for e in crate["@graph"]}
+    actions = sorted(
+        (
+            e
+            for e in crate["@graph"]
+            if e.get("@type") == "CreateAction" and "model-call" in e["@id"]
+        ),
+        key=lambda e: e["@id"],
+    )
+    named = [
+        {
+            by_id[p["@id"]]["name"]: by_id[p["@id"]]["value"]
+            for p in (
+                a["additionalProperty"]
+                if isinstance(a["additionalProperty"], list)
+                else [a["additionalProperty"]]
+            )
+        }
+        for a in actions
+    ]
+    assert named == [
+        {"model_account": "deployment", "model_declared": MODEL},
+        {"model_account": "deployment"},
+    ]
+
+
+# --- The published keys ------------------------------------------------------------------------
+
+
+def test_the_harness_publishes_its_public_keys_when_it_mints(keys: GrantKeys) -> None:
+    app = Starlette(routes=jwks_routes(keys.minter()))
+    response = TestClient(app).get(JWKS_PATH)
+    assert response.status_code == 200
+    assert response.json() == keys.minter().jwks()
+    # A grant verifies against what was published, as the broker verifies it.
+    grant = keys.minter().mint(
+        agent_id="fake.none",
+        invocation_id="inv-1",
+        models=[MODEL],
+        account=Account.DEPLOYMENT,
+        acting_for=TEST_PRINCIPAL,
+        lifetime_s=TIMEOUT_S,
+    )
+    assert keys.open(grant, response.json()).claims["dd_agent"] == "fake.none"
+
+
+def test_a_harness_that_mints_nothing_publishes_nothing() -> None:
+    assert jwks_routes(None) == []
+
+
+# --- Security events (docs/specs/security.md, Security events) -------------------------------
+
+
+def test_a_minted_grant_is_recorded_by_its_terms_and_never_itself(
+    keys: GrantKeys, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.INFO, logger=security_log.LOGGER)
+    seen: list[RunContext] = []
+    conductor = make_conductor(tmp_path, model_backed(seen), model_grants=keys.minter())
+
+    env = conductor.invoke(request("fake.none", record()), acting_for=TEST_PRINCIPAL)
+
+    [ctx] = seen
+    assert ctx.model_grant
+    [event] = security_events(caplog.records)
+    assert event["event"] == SecurityEvent.GRANT_MINTED
+    assert event["principal"] == TEST_PRINCIPAL.principal_id
+    assert (event["agent_id"], event["invocation_id"]) == ("fake.none", env.invocation_id)
+    assert event["models"] == [MODEL]
+    assert ctx.model_grant not in str(event)
+
+
+def test_an_agent_refused_for_bypassing_the_broker_is_recorded(
+    keys: GrantKeys, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.INFO, logger=security_log.LOGGER)
+    conductor = make_conductor(
+        tmp_path / "runs",
+        model_backed([]),
+        model_grants=keys.minter(),
+        profile=_own_profile(tmp_path, "allowed", "deployment"),
+    )
+
+    env = conductor.invoke(request("fake.none", record()), acting_for=TEST_PRINCIPAL)
+
+    [event] = security_events(caplog.records)
+    assert event["event"] == SecurityEvent.BROKER_BYPASS_REFUSED
+    assert event["outcome"] == "failure"
+    assert event["reason"] == "model-broker-bypassed"
+    assert event["invocation_id"] == env.invocation_id

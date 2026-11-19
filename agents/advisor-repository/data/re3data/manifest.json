@@ -1,9 +1,12 @@
 {
-  "fetched_at": "2026-10-29T14:30:31+00:00",
-  "source": "https://www.re3data.org/api/v1/repository/{id}",
-  "requested": 29,
-  "records": 29,
-  "missing": [],
-  "licence": "CC0 1.0 (re3data metadata) — see LICENCE.md",
-  "sha256": "84949843c4adf9812463eeb602da152d1001646fd744b9f1a46bad5eb36551b5"
+  "month": "2026-11",
+  "archive": "https://www.re3data.org/export/re3data-repositories-2026-11.zip",
+  "archive_sha256": "2578ca8e6ed4ea02fdaebd61ff8e8258f768eb7c75269b81e5d52b89816a9274",
+  "records": 3540,
+  "snapshot_sha256": "37e4ce9d248a72765357d5d14d966f7ac55eb9b9cd2160f442f305fe17acfcbd",
+  "fetched_at": "2026-11-06T09:23:14+00:00",
+  "schema": "4.0",
+  "citation": "re3data.org - Registry of Research Data Repositories. https://doi.org/10.17616/R3D",
+  "schema_citation": "re3data.org Metadata Schema for the Description of Research Data Repositories, version 4.0. https://doi.org/10.48440/re3.014",
+  "licence": "CC0 1.0 (re3data metadata); see SOURCE.md"
 }

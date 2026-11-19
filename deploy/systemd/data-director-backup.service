@@ -1,0 +1,20 @@
+# Back up the settings, secrets and stores (deploy/README.md, "Backups"). It runs as root: it reads
+# root's secrets, and stops and starts the app while it copies a store kept in files. install.sh
+# installs the script it runs from the clone, so a commit to the branch cannot change it. Run it by
+# hand with `sudo data-director backup` or `sudo systemctl start data-director-backup.service`.
+[Unit]
+Description=Back up Data Director
+Documentation=https://github.com/data-director-agent/data-director/blob/main/deploy/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/data-director/backup.sh
+SyslogIdentifier=data-director-backup
+TimeoutStartSec=2h
+Nice=10
+IOSchedulingClass=idle
+NoNewPrivileges=yes
+ProtectSystem=full
+PrivateTmp=yes

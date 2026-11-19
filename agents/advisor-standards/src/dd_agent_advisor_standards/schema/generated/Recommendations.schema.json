@@ -64,6 +64,34 @@
                   }
                ]
             },
+            "selection_derivation": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/Derivation"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "Who chose the record: lexical, by the ranking rules over the first search, or model, by a model from the records retrieved in the run, its own searches included."
+            },
+            "concern": {
+               "description": "A model's doubt that a record the rules chose suits the dataset. The recommendation is kept; a person decides.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "notes": {
+               "description": "Facts to weigh beside the recommendation, such as that a model chose it.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
             "grounded_on": {
                "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",
                "items": {
@@ -160,6 +188,16 @@
             {
                "type": "null"
             }
+         ]
+      },
+      "limitations": {
+         "description": "What the advisor does not yet do.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
          ]
       },
       "grounded_on": {

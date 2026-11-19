@@ -2,7 +2,7 @@
 
 The contract defines what an agent receives and what it returns. It is written in LinkML in
 [`sdk/src/dd_sdk/schema/data_director.yaml`](../sdk/src/dd_sdk/schema/data_director.yaml),
-which the workbench and every agent share through the SDK. The JSON Schema and SHACL shapes in
+which the harness and every agent share through the SDK. The JSON Schema and SHACL shapes in
 `generated/` beside it are produced from that file and are never edited by hand.
 
 ## How the contract is written
@@ -67,13 +67,30 @@ data live ([`inventory/`](../inventory/README.md)), and it never holds a file's 
 `DraftRequest` is what every drafter accepts: an agent that returns a `Document` is asked for one
 `document_kind` and given the project's facts. These are the `inventory`, the `requirements` of
 the repository chosen (`RepositoryRequirements`, the merged set of
-[Deposit](specs/deposit.md)) and, to
-regenerate a document, its `current_version`. A `CurrentVersion` gives the version as a
+[Deposit](specs/deposit.md)), the `metadata_record` a person approved last and, to
+regenerate a document, its `current_version`. An `ApprovedMetadataRecord` gives the record's
+version as a `DocumentVersionRef`, its media type, the schema it `conforms_to` and its text. A `CurrentVersion` gives the version as a
 `DocumentVersionRef`, its text and media type, its `version_state` (`proposed`, `approved` or
 `rejected`) and the `decision_reason` a person gave, and the drafter names that version in its
 payload's `revises`. Because the class is the core's, a drafter can be replaced without its
-caller changing. The conductor is to fill the facts from the project, TODO(#394). Until it does,
-the caller sends them.
+caller changing. In a project, the conductor fills the inventory, the requirements and the
+metadata record from the project, and a caller leaves them out; outside a project, the caller
+sends them. In a project the conductor also fills `current_version`, the latest version of the
+project's document of that kind, so a redraft is that document's next version; a caller may name
+which document with `redraft_document` where the project holds more than one of the kind
+([Projects](specs/projects.md), invariant 6). Its `project_documents` are the documents a
+researcher attached to the project, each a `ProjectDocument`: the name, digest, media type, size
+and date of a `DocumentationSummary`, with the document's text. A document whose text was read
+from a Word document or PDF names that file's media type in `documentation_source_media_type`;
+its text is plain text either way. A drafter's model may suggest answers from them; nothing in
+them is placed in a document as supplied.
+
+A `Document` may ask the researcher about what its drafter could not know: `document_questions`
+holds one `DocumentQuestion` per gap, naming the README section or the data dictionary cell it
+would fill under an identifier derived from that gap, and, where the drafter suggests one, a
+`suggested_answer` with how it was derived (`suggestion_derivation`), which is never placed in the
+document. The answers a person gives come back in the next `DraftRequest` as `draft_answers`
+(`DraftAnswer`: the question answered and the text), and the drafter places each one as given ([Drafting documents](specs/drafting.md)).
 
 ## The envelope
 
@@ -86,7 +103,7 @@ An agent's response is wrapped in an `Envelope`. Every envelope contains:
 | `evidence` | The source records the result rests on. Each item carries a content hash and names the canonicalisation used to compute it ([Evidence and grounding](specs/grounding.md)). |
 | `grounding_mode` | The grounding mode the agent declared ([`grounding.md`](../harness/docs/grounding.md)). |
 | `policy_bundle_ref`, `policy_digest` | The institutional profile the conductor applied, as `profile:<id>@v<version>`, and the SHA-256 of its file ([Policy and identity](specs/policy-and-identity.md)). |
-| `telemetry` | The trace id, the model id, token counts, and energy fields. The energy fields are always empty for now (`not_measured`). |
+| `telemetry` | The trace id, the model id, token counts, and energy fields. The energy fields hold an estimate (`estimated`) only when the profile gives per-token energy factors for every model the run called, and are otherwise empty (`not_measured`) ([Disclosure](specs/disclosure.md), invariant 8). |
 | `requires_human_review` | Always `true`. The schema fixes it as a constant, so no envelope can claim otherwise. |
 | `problem` | Details of the problem, when the status is `failed` or `suspended`. |
 | `conversation_id`, `parent_invocation_id` | Copied from the request, when present. |
@@ -97,7 +114,7 @@ The [conductor](../harness/docs/conductor.md) fills these in, not the agent.
 
 ## Outcomes
 
-The Blueprint does not define a set of outcomes. This vocabulary is the workbench's own
+The Blueprint does not define a set of outcomes. This vocabulary is the project's own
 proposal.
 
 | Status | Meaning | Also carries |
@@ -105,8 +122,14 @@ proposal.
 | `succeeded` | The agent produced a result it stands behind. | A `payload`. |
 | `abstained` | The agent declined to give a result. This is a valid answer, not an error. | A `reason_code`, such as `no_candidates_retrieved`. |
 | `referred` | The agent passed the decision to a named person or role. | A `reason_code` and `referred_to`. |
-| `failed` | The agent or the workbench could not complete the run. | A `problem` in RFC 9457 Problem Details format. |
-| `suspended` | The run is waiting for something outside the workbench. | A `problem` that says what must happen before it can resume. |
+| `failed` | The agent or the harness could not complete the run. | A `problem` in RFC 9457 Problem Details format. |
+| `suspended` | The run is waiting for something outside the harness. | A `problem` that says what must happen before it can resume. |
+
+A run that could not use the person's own AI account is `abstained` with `model_account_missing`,
+`model_account_rejected` or `model_account_limit` ([A person's own model account](specs/model-accounts.md)).
+
+A run that its caller cancelled is `failed` with problem type `run-cancelled`. Whatever the agent
+answered is not kept ([Transport and tracing](specs/transport.md)).
 
 ## Payloads
 
@@ -133,11 +156,20 @@ names the agent, version and run it came from. The history is part of the input,
 hash covers everything the agent was shown. The agent replies with a `Reply` payload
 (`reply_text`, `reply_derivation`).
 
-The workbench keeps no separate conversation store. `GET /conversations` lists conversations and
-`GET /conversations/{id}` returns one, read back from the stored runs: each turn with the runs it
+A `Reply` may ask a series of up to eight questions (`reply_questions`, each a `Question`),
+which the app puts to the researcher one at a time as form fields: a choice from a fixed set of
+options (`choice`), a line in their own words (`short_text`) or a few sentences (`long_text`). The
+researcher's next `Message` may answer them together with `ReplyAnswers` (`reply_answers`): the
+run it answers and, for each question answered, its key, the values chosen and any answer in
+their own words, beside the same answers in `message_text`. Any question may be skipped, and the
+researcher may also ignore them all and type; nothing waits for the answers.
+
+The harness keeps no separate conversation store: `dd_harness.conversations` reads each one back
+from the stored runs. In the workbench, `GET /conversations` lists conversations and
+`GET /conversations/{id}` returns one: each turn with the runs it
 delegated, the stored inputs, where an agent's version changed between turns, and the history to
 send with the next `Message`.
 
-An orchestrator hands work to other agents only through the workbench. Each hand-off is a run of
+An orchestrator hands work to other agents only through the conductor. Each hand-off is a run of
 its own, stored with `parent_invocation_id`, and listed in the parent envelope's `delegations`.
 [`conductor.md`](../harness/docs/conductor.md) describes how.

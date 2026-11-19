@@ -17,7 +17,7 @@ describe("normalise", () => {
     const directory = normalise(referenceSet);
     expect(directory.agents.map((a) => a.id)).toEqual(["advisor.standards"]);
     expect(directory.agents[0]?.gate).toEqual({ kind: "permitted", actionClass: "advise" });
-    expect(directory.profileRef).toBe("profile:data-director-app@v7");
+    expect(directory.profileRef).toBe("profile:data-director-app@v9");
     expect(directory.actingFor.assurance).toBe("asserted");
   });
 
@@ -49,8 +49,12 @@ describe("normalise", () => {
   it("lists derivations by field path, with the field that records each value's", () => {
     const standards = normalise(referenceSet).agents[0];
     expect(standards?.derivations).toEqual([
+      { path: "items.concern", how: "model" },
       { path: "items.kind", how: "lexical", recordedIn: "classification_derivation" },
+      { path: "items.notes", how: "template" },
       { path: "items.rationale", how: "model", recordedIn: "rationale_derivation" },
+      { path: "items.target", how: "lexical", recordedIn: "selection_derivation" },
+      { path: "limitations", how: "template" },
     ]);
   });
 

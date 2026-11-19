@@ -1,0 +1,98 @@
+{
+  "schema_class": "FileInventory",
+  "inventory_files": [
+    {
+      "file_path": "README.md",
+      "file_size": 105,
+      "file_sha256": "cd00446e75af92920a6572c8515c17c147550fbaf2bc1edd31b7f01020613179",
+      "file_media_type": "text/markdown",
+      "file_pronom_ids": [
+        "fmt/1149"
+      ],
+      "file_identified_by": "extension"
+    },
+    {
+      "file_path": "data/readings.csv",
+      "file_size": 99,
+      "file_sha256": "06261577b06e8c7ebf94a02697c06d21219e700439c025516fc584bdb003b1c0",
+      "file_media_type": "text/csv",
+      "file_pronom_ids": [
+        "x-fmt/18"
+      ],
+      "file_identified_by": "extension",
+      "file_fields": [
+        {
+          "name": "site",
+          "field_type": "string"
+        },
+        {
+          "name": "sampled_on",
+          "field_type": "date"
+        },
+        {
+          "name": "ph",
+          "field_type": "number"
+        },
+        {
+          "name": "nitrate_mg_kg",
+          "field_type": "number"
+        }
+      ]
+    },
+    {
+      "file_path": "data/sites.tsv",
+      "file_size": 97,
+      "file_sha256": "98ca687ba76459b4ee0ce97a668f64f24caa680a41ee207901c68a5a9eb97644",
+      "file_media_type": "text/tab-separated-values",
+      "file_pronom_ids": [
+        "x-fmt/13"
+      ],
+      "file_identified_by": "extension",
+      "file_fields": [
+        {
+          "name": "site",
+          "field_type": "string"
+        },
+        {
+          "name": "latitude",
+          "field_type": "number"
+        },
+        {
+          "name": "longitude",
+          "field_type": "number"
+        },
+        {
+          "name": "name",
+          "field_type": "string"
+        }
+      ]
+    },
+    {
+      "file_path": "docs/protocol.pdf",
+      "file_size": 327,
+      "file_sha256": "4028af3714fa07d2f20e758649532faef11b4818c99a2b8dc0c88170a0dc8784",
+      "file_media_type": "application/pdf",
+      "file_pronom_ids": [
+        "fmt/18"
+      ],
+      "file_identified_by": "signature"
+    },
+    {
+      "file_path": "docs/site-map.png",
+      "file_size": 67,
+      "file_sha256": "a1abfd410973b0111c215baa879b9edcd739e601659ba44168269767cc2e9108",
+      "file_media_type": "image/png",
+      "file_pronom_ids": [
+        "fmt/11"
+      ],
+      "file_identified_by": "signature"
+    }
+  ],
+  "inventory_tool": "dd-inventory",
+  "inventory_tool_version": "0.1.0-alpha",
+  "inventory_identified_with": "fido 1.6.1 with PRONOM signatures v109",
+  "inventory_made_at": "2026-10-30T15:06:19+00:00",
+  "inventory_limitations": [
+    "Table fields are inferred from a sample of rows; a later row may not fit the type given."
+  ]
+}

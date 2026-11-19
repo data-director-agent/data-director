@@ -1,0 +1,57 @@
+{
+   "@context": {
+      "@vocab": "https://w3id.org/data-director/agents/quality/",
+      "Finding": {
+         "@id": "https://w3id.org/data-director/agents/quality/Finding"
+      },
+      "GroundingRef": {
+         "@id": "https://w3id.org/data-director/GroundingRef"
+      },
+      "QualityReview": {
+         "@id": "https://w3id.org/data-director/agents/quality/QualityReview"
+      },
+      "content_hash": {
+         "@id": "https://w3id.org/data-director/content_hash"
+      },
+      "criterion": {
+         "@id": "https://w3id.org/data-director/agents/quality/criterion"
+      },
+      "dcat": "http://www.w3.org/ns/dcat#",
+      "dcterms": "http://purl.org/dc/terms/",
+      "dd": "https://w3id.org/data-director/",
+      "derivation": {
+         "@id": "https://w3id.org/data-director/agents/quality/derivation"
+      },
+      "findings": {
+         "@id": "https://w3id.org/data-director/agents/quality/findings",
+         "@type": "@id"
+      },
+      "grounded_on": {
+         "@id": "https://w3id.org/data-director/grounded_on",
+         "@type": "@id"
+      },
+      "linkml": "https://w3id.org/linkml/",
+      "message": {
+         "@id": "https://w3id.org/data-director/agents/quality/message"
+      },
+      "prov": "http://www.w3.org/ns/prov#",
+      "quality": "https://w3id.org/data-director/agents/quality/",
+      "schema": "http://schema.org/",
+      "schema_class": {
+         "@id": "https://w3id.org/data-director/schema_class"
+      },
+      "score": {
+         "@id": "https://w3id.org/data-director/agents/quality/score",
+         "@type": "http://www.w3.org/2001/XMLSchema#float"
+      },
+      "severity": {
+         "@id": "https://w3id.org/data-director/agents/quality/severity"
+      },
+      "shex": "http://www.w3.org/ns/shex#",
+      "source_id": {
+         "@id": "https://w3id.org/data-director/source_id"
+      },
+      "spdx": "http://spdx.org/rdf/terms#",
+      "xsd": "http://www.w3.org/2001/XMLSchema#"
+   }
+}

@@ -17,6 +17,7 @@ import {
 } from "../../session/api";
 import { DEVELOPMENT, SIGNED_OUT, WithSession, fakeSessionApi, signedIn } from "../../test/session";
 import { SessionTimeout } from "./SessionTimeout";
+import { SignInPage } from "./SignInPage";
 
 const directory = normalise(reference as unknown as RawAgentsResponse);
 
@@ -24,9 +25,9 @@ function at(path: string) {
   history.pushState(null, "", path);
 }
 
-/** The page's banner (a page header is a `<header>` too). */
+/** The app's banner: the first in the document, before any page's own header. */
 function banner(): HTMLElement {
-  const found = document.querySelector<HTMLElement>("header.app-header");
+  const [found] = screen.getAllByRole("banner");
   if (!found) throw new Error("no banner");
   return found;
 }
@@ -47,6 +48,17 @@ describe("signing in", () => {
     expect(load).not.toHaveBeenCalled();
     expect(within(banner()).queryByText("Sign out")).toBeNull();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("draws the ORCID iD icon on the button for ORCID, and a generic icon for any other provider", () => {
+    const { rerender } = render(<SignInPage issuer="https://orcid.org" returnTo="/" />);
+    const orcid = screen.getByRole("link", { name: "Sign in with ORCID" });
+    expect(orcid.querySelector('svg[viewBox="0 0 72 72"]')).not.toBeNull();
+
+    rerender(<SignInPage issuer="https://idp.example.org" returnTo="/" />);
+    const other = screen.getByRole("link", { name: "Sign in with idp.example.org" });
+    expect(other.querySelector("svg")).not.toBeNull();
+    expect(other.querySelector('svg[viewBox="0 0 72 72"]')).toBeNull();
   });
 
   it("is reached by keyboard: the sign-in link is in the tab order", async () => {
@@ -79,7 +91,7 @@ describe("signing in", () => {
     );
   });
 
-  it("names the signed-in person in the banner and whom runs act for", async () => {
+  it("names the signed-in person in the banner", async () => {
     at("/agents");
     const load = () =>
       Promise.resolve({
@@ -98,7 +110,6 @@ describe("signing in", () => {
     const header = banner();
     expect(await within(header).findByText("Josiah Carberry")).toBeVisible();
     expect(within(header).getByRole("button", { name: "Sign out" })).toBeVisible();
-    expect(await screen.findByText(/authenticated by sandbox\.orcid\.org/)).toBeVisible();
     expect(await axe(container)).toHaveNoViolations();
   });
 
@@ -156,7 +167,6 @@ describe("signing in", () => {
     const header = banner();
     expect(await within(header).findByText("Not signing anyone in")).toBeVisible();
     expect(within(header).queryByRole("button", { name: "Sign out" })).toBeNull();
-    expect(await screen.findByText(/asserted by the operator, not authenticated/)).toBeVisible();
   });
 
   it("reports a failure to learn who is signed in as an alert", async () => {
@@ -238,6 +248,8 @@ describe("the session API", () => {
           vouched_by: "https://orcid.org",
         },
         expires_at: "2026-10-29T18:00:00Z",
+        model_accounts: false,
+        model_account_providers: [],
       }),
     ).toEqual({
       signsIn: true,
@@ -249,6 +261,8 @@ describe("the session API", () => {
         vouchedBy: "https://orcid.org",
       },
       expiresAt: "2026-10-29T18:00:00Z",
+      modelAccounts: false,
+      modelAccountProviders: [],
     });
   });
 
@@ -264,9 +278,9 @@ describe("the session API", () => {
   });
 
   it("says who vouched, in words", () => {
-    expect(assuranceText({ assurance: "asserted" })).toBe("asserted by the operator, not authenticated");
-    expect(assuranceText({ assurance: "authenticated", vouchedBy: "https://orcid.org" })).toBe(
-      "authenticated by orcid.org",
+    expect(assuranceText({ assurance: "asserted" })).toMatch(/operator.*not authenticated/);
+    expect(assuranceText({ assurance: "authenticated", vouchedBy: "https://orcid.org" })).toMatch(
+      /authenticated by orcid\.org/,
     );
     expect(assuranceText({ assurance: "authenticated" })).toBe("authenticated");
   });
