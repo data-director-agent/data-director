@@ -1,5 +1,6 @@
 import flowFixture from "../../fixtures/process-flow.json";
 import type { ProjectDocument } from "../project/api";
+import { projectProgress } from "../test/api";
 import {
   journey,
   locate,
@@ -30,12 +31,12 @@ describe("journey", () => {
   it("takes each state, reason and suggestion from the progress, and counts what is finished", () => {
     const done = firstStep(1);
     const next = firstStep(2);
-    const progress: ProjectProgress = {
+    const progress: ProjectProgress = projectProgress({
       entry: 2,
       steps: { [done.id]: "done" },
       suggested: next.id,
       reasons: { [done.id]: { state: "done", source: "marked", event: "step_marked" } },
-    };
+    });
     const lines = journey(FLOW, progress);
     const all = stations(lines);
     const found = all.find((s) => s.step.id === done.id);
@@ -52,7 +53,7 @@ describe("journey", () => {
 
   it("places each decision before its step and counts an unanswered one as waiting", () => {
     const before = firstStep(2);
-    const progress: ProjectProgress = {
+    const progress: ProjectProgress = projectProgress({
       entry: 1,
       steps: {},
       suggested: null,
@@ -66,7 +67,7 @@ describe("journey", () => {
           answer_labels: null,
         },
       ],
-    };
+    });
     const lines = journey(FLOW, progress);
     const items = lines.flatMap((l) => l.items);
     const at = items.findIndex((i) => i.kind === "decision");
@@ -77,7 +78,7 @@ describe("journey", () => {
 
   it("marks a step waiting while the document that started it awaits a decision", () => {
     const step = firstStep(3);
-    const progress: ProjectProgress = {
+    const progress: ProjectProgress = projectProgress({
       entry: 1,
       steps: { [step.id]: "started" },
       suggested: null,
@@ -90,7 +91,7 @@ describe("journey", () => {
           document_kind: "readme",
         },
       },
-    };
+    });
     const documents = [
       { document_id: "d1", document_kind: "readme", versions: [{ state: "proposed" }] },
     ] as unknown as ProjectDocument[];

@@ -12,7 +12,7 @@ description: >-
   schema_class (docs/specs/contract.md); every payload mixes in Grounded so the grounding linter can check it
   without knowing its class (docs/specs/grounding.md). Formats here are fixed; see docs/specs/ for why.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.16.0
+version: 0.17.0
 license: MIT
 
 prefixes:
@@ -187,7 +187,8 @@ classes:
       In a project that holds an inventory, the conductor adds what it is (docs/specs/projects.md);
       in any project, it adds the entry point chosen, the progress the project log shows and the
       project's title, if it has one (docs/specs/orchestration.md). It adds the researcher facts
-      people in the project chose to keep from their public ORCID records (docs/specs/projects.md).
+      people in the project chose to keep from their public ORCID records, the facts they decided
+      and the repository they chose (docs/specs/projects.md).
     slots:
       - schema_class
       - message_text
@@ -202,6 +203,7 @@ classes:
       - project_entry_by_researcher
       - project_researchers
       - project_decisions
+      - project_repository
 
   ConversationTurn:
     description: >-
@@ -252,6 +254,16 @@ classes:
       - inventory_tool_version
       - inventory_made_at
       - inventory_limitations
+
+  ChosenRepository:
+    description: >-
+      The repository a researcher chose to deposit the project's data in, from the shortlist, by
+      its re3data identifier: the conductor fills it into a Message, and into the input of an agent
+      that mixes in GivenProjectRepository, so that the agent knows a repository is chosen and which
+      (docs/specs/projects.md). The last choice stands until a researcher chooses again.
+    slots:
+      - chosen_repository_name
+      - chosen_re3data_id
 
   DocumentationSummary:
     description: >-
@@ -689,6 +701,16 @@ classes:
       6); outside one, the caller sends them.
     slots:
       - project_decisions
+
+  GivenProjectRepository:
+    mixin: true
+    description: >-
+      Mixed into an agent's own input class when the agent reads the repository a researcher chose
+      for the project. In a project the conductor fills project_repository by this name and never
+      needs to know the input class (docs/specs/projects.md, invariant 6); outside one, the caller
+      sends it.
+    slots:
+      - project_repository
 
   ProposesFacts:
     mixin: true
@@ -1569,6 +1591,18 @@ slots:
     range: ProjectFact
     multivalued: true
     inlined_as_list: true
+  project_repository:
+    description: >-
+      The repository a researcher in the project chose last, filled by the conductor and never by
+      the caller. Absent when the run is in no project, or nobody in its project has chosen one.
+    range: ChosenRepository
+  chosen_repository_name:
+    description: The chosen repository's name, as the pinned re3data export gives it.
+    required: true
+  chosen_re3data_id:
+    description: The chosen repository's re3data identifier, such as r3d100010468.
+    required: true
+    pattern: "^r3d[0-9]{9}$"
   proposed_facts:
     description: >-
       Facts the agent proposes for a person to confirm. A proposal is never a fact until a person

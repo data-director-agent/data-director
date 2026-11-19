@@ -1,6 +1,9 @@
 {
    "@context": {
       "@vocab": "https://w3id.org/data-director/harness/doubles/",
+      "ChosenRepository": {
+         "@id": "https://w3id.org/data-director/ChosenRepository"
+      },
       "ProbeReading": {
          "@id": "https://w3id.org/data-director/harness/doubles/ProbeReading"
       },
@@ -9,6 +12,12 @@
       },
       "ProjectFact": {
          "@id": "https://w3id.org/data-director/ProjectFact"
+      },
+      "chosen_re3data_id": {
+         "@id": "https://w3id.org/data-director/chosen_re3data_id"
+      },
+      "chosen_repository_name": {
+         "@id": "https://w3id.org/data-director/chosen_repository_name"
       },
       "commitment_access": {
          "@id": "https://w3id.org/data-director/commitment_access"
@@ -99,6 +108,10 @@
       },
       "project_documents": {
          "@id": "https://w3id.org/data-director/project_documents",
+         "@type": "@id"
+      },
+      "project_repository": {
+         "@id": "https://w3id.org/data-director/project_repository",
          "@type": "@id"
       },
       "proposed_because": {

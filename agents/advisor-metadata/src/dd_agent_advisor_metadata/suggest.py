@@ -8,15 +8,14 @@ answer. The record, its gaps and its questions are drafted by rule in `agent.py`
 cannot fill a value, close a gap or change an answer. It is never given the researcher's answers,
 an earlier version, or the data.
 
-`TemplateSuggester` is the default (`DD_METADATA_SUGGESTER` unset or `template`, `factory.py`) and
-suggests nothing. `ModelSuggester` (`DD_METADATA_SUGGESTER=model`) calls whichever model the
-agent's settings name through the SDK's model seam (`dd_sdk.model`, `dd_sdk.model_provider`), so
-this package imports no model provider's SDK (docs/specs/dependencies.md). The model replies
-against a schema (`SuggestionReply`); a reply that does not match is not used. Each suggestion is
-checked before it is offered (`check_suggestions`): it must answer a question the model was asked,
-once, in one short line of plain text that names no link, DOI, email address or ORCID iD the facts
-do not give.
-"""
+`ModelSuggester` is the default (`DD_METADATA_SUGGESTER` unset or `model`, `factory.py`);
+`TemplateSuggester` (`DD_METADATA_SUGGESTER=template`) suggests nothing and needs no key.
+`ModelSuggester` calls whichever model the agent's settings name through the SDK's model seam
+(`dd_sdk.model`, `dd_sdk.model_provider`), so this package imports no model provider's SDK
+(docs/specs/dependencies.md). The model replies against a schema (`SuggestionReply`); a reply that
+does not match is not used. Each suggestion is checked before it is offered (`check_suggestions`):
+it must answer a question the model was asked, once, in one short line of plain text that names no
+link, DOI, email address or ORCID iD the facts do not give."""
 
 from __future__ import annotations
 

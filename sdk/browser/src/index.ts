@@ -30,6 +30,8 @@ export type {
   RawDerived,
   RawModelUse,
   RawSchemaEntry,
+  RawSkillUse,
+  RawToolUse,
 } from "./spec/types";
 export {
   type AgentSpec,

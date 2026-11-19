@@ -192,10 +192,18 @@ def test_a_record_that_meets_every_check_calls_no_model(runs_dir: Path) -> None:
     assert model.sent == []
 
 
-def test_the_default_build_needs_no_model_and_no_key() -> None:
-    agent = build({})
+def test_the_template_build_needs_no_model_and_no_key() -> None:
+    agent = build({SWITCH: "template"})
     assert isinstance(agent.writer, TemplateWriter)
     assert agent.spec.models == ()
+
+
+def test_the_model_writer_is_on_by_default_and_says_how_to_run_without_it() -> None:
+    with pytest.raises(ConfigError, match=f"{SWITCH}=template"):
+        build({})
+    agent = build({"ANTHROPIC_API_KEY": "sk-test"})
+    assert isinstance(agent.writer, ModelWriter)
+    assert agent.spec.models
 
 
 def test_the_model_writer_is_declared_on_the_card() -> None:

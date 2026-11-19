@@ -266,6 +266,18 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     but does not hold pending, and the other questions are asked with nothing chosen. A
     Blueprint reading checked the wording, the entry points and the mapping
     ([The intake against §8](intake-reading.md)).
+21. **What people decided reaches the model as decided.** In a project, the model-backed
+    orchestrator opens the current message with a note from the harness naming the repository the
+    researcher chose (`Message.project_repository`, by name and re3data identifier) and each fact
+    people decided (`Message.project_decisions`), written from their structured values only,
+    never from anyone's words about why. Like the progress note it is derived from the project
+    record on every turn, so a choice made after the conversation started reaches the next turn.
+    The prompt tells the model to treat each as decided until the researcher changes it, not to
+    say it is undecided, and to put a decided value into an agent's input where the input has a
+    place for it. With nothing chosen or decided there is no note, and none says that nothing is
+    decided, since a profile may keep `decisions` from a hosted model ([Projects](projects.md),
+    invariant 8). (#1168; `agents/orchestrator-model/tests/test_orchestrator_decisions.py`;
+    `harness/tests/test_project_repository_given.py`)
 
 ## Boundaries and contracts
 

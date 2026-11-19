@@ -197,10 +197,18 @@ def test_an_invented_identifier_or_an_unasked_question_is_dropped() -> None:
     assert not long.answers and long.dropped
 
 
-def test_the_default_build_suggests_nothing_and_needs_no_key() -> None:
-    agent = build({})
+def test_the_template_build_suggests_nothing_and_needs_no_key() -> None:
+    agent = build({SWITCH: "template"})
     assert isinstance(agent.suggester, TemplateSuggester)
     assert agent.spec.models == ()
+
+
+def test_the_model_suggester_is_on_by_default_and_says_how_to_run_without_it() -> None:
+    with pytest.raises(ConfigError, match=f"{SWITCH}=template"):
+        build({})
+    agent = build({"ANTHROPIC_API_KEY": "sk-test"})
+    assert isinstance(agent.suggester, ModelSuggester)
+    assert agent.spec.models
 
 
 def test_the_model_suggester_is_declared_on_the_card() -> None:

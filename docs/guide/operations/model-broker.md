@@ -65,10 +65,12 @@ does not reveal any agent's credential. The file maps each agent's id (its name 
 ```
 
 One script does it for every agent you name. Run it as root from the clone, naming each
-model-backed agent as in `app/config/agents.yaml`:
+model-backed agent as in `app/config/agents.yaml`. Every advisor that calls a model does so by
+default ([AI models](ai-models.md#which-agents-call-a-model)), so name all nine, less any you set to
+`template`, and the orchestrator if it runs:
 
 ```bash
-sudo deploy/broker-credentials.sh advisor-documentation advisor-policy advisor-repository advisor-standards orchestrator-model
+sudo deploy/broker-credentials.sh advisor-standards advisor-policy advisor-repository advisor-documentation advisor-dmp advisor-rights advisor-fairness advisor-ethics advisor-metadata orchestrator-model
 ```
 
 For each agent it makes a credential, stores it as the agent's `dd-model-broker-credential` secret
@@ -242,8 +244,9 @@ Keep its `DD_MODEL_PROVIDER` and `DD_MODEL_ID`; for `openai-compatible`, remove
 `DD_MODEL_BASE_URL`, since the broker decides where the call goes. The broker serves each provider
 in its own format, below its own path (`/anthropic`, `/openai`, `/gemini`,
 `/openai-compatible`), and never serves a call with a provider other than the one the agent asked
-for. Each of the model-backed agents (`advisor.documentation`, `advisor.policy`,
-`advisor.repository`, `advisor.standards` and `orchestrator.model`) reads the same two settings.
+for. Each of the model-backed agents (the nine advisors in
+[AI models](ai-models.md#which-agents-call-a-model) and `orchestrator.model`) reads the same two
+settings.
 
 ### The deployment's own calls
 

@@ -10,24 +10,18 @@ import type {
   ConversationSummary,
   DeletedConversation,
 } from "../../conversation/types";
+import { conversationSummary } from "../../test/api";
 import { EarlierConversations } from "./EarlierConversations";
 
-const SUMMARY: ConversationSummary = {
-  conversation_id: "c1",
-  project_id: "p1",
-  agent_id: "orchestrator.model",
-  title: "Depositing a soil survey",
-  title_source: "model",
-  turns: 2,
-  started_at: "2026-01-01T09:30:00Z",
-};
+const SUMMARY: ConversationSummary = conversationSummary({ project_id: "p1", turns: 2 });
 
 const DELETED: DeletedConversation = {
   conversation_id: "c1",
   project_id: "p1",
   title: SUMMARY.title,
   at: "2026-11-18T10:00:00Z",
-  by: { principal_id: "https://orcid.org/0000-0002-1825-0097" },
+  by: { principal_id: "https://orcid.org/0000-0002-1825-0097", name: "Josiah Carberry", assurance: "asserted" },
+  started_by: "https://orcid.org/0000-0002-1825-0097",
   restorable_until: "2026-12-18T10:00:00Z",
 };
 

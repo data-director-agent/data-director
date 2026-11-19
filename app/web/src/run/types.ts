@@ -1,15 +1,13 @@
 /**
- * What the run endpoints return (app/src/dd_app/app.py), as the shell reads it.
+ * What the run endpoints return, as generated from the app's response models
+ * (`../api/generated/responses.ts`), and the checks' reports the run's event stream carries.
  *
  * The envelope is the contract's (sdk/src/dd_sdk/contract/models.py), typed in
- * `@data-director/agent-view`. These types cover the fields the shell uses; a field it does not
- * know is ignored, not refused.
+ * `@data-director/agent-view`.
  *
- * TODO(#69): generate these from the contract's JSON Schema. The run's AG-UI event stream is
+ * TODO(#69): generate the contract's types from its JSON Schema. The run's AG-UI event stream is
  * read by `reduce.ts`.
  */
-
-import type { Envelope, OutcomeStatus } from "@data-director/agent-view";
 
 export type {
   Envelope,
@@ -20,29 +18,7 @@ export type {
   Problem,
 } from "@data-director/agent-view";
 
-/** A check's stored summary; null if the run's directory holds none. */
-export interface CheckReport {
-  passed: boolean;
-  summary: string;
-}
-
-export interface Checks {
-  grounding: CheckReport | null;
-  sources: CheckReport | null;
-}
-
-export interface RunResult {
-  envelope: Envelope;
-  checks: Checks;
-}
-
-export interface RunRow {
-  invocation_id: string;
-  agent_id: string;
-  status: OutcomeStatus;
-  completed_at: string;
-  acting_for: string | null;
-}
+export type { CheckReport, Checks, RunResult, RunRow, StoredRun } from "../api/generated/responses";
 
 /**
  * The grounding check's report, as the harness's AG-UI binding sends it in `CUSTOM dd.grounding`

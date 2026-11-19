@@ -21,8 +21,10 @@ from dd_sdk.contract.base import SHA256_PATTERN as SHA256_PATTERN
 from dd_sdk.contract.base import Frozen as Frozen
 from dd_sdk.contract.facts import Affiliation as Affiliation
 from dd_sdk.contract.facts import AffiliationKind as AffiliationKind
+from dd_sdk.contract.facts import ChosenRepository as ChosenRepository
 from dd_sdk.contract.facts import DocumentationSummary as DocumentationSummary
 from dd_sdk.contract.facts import ExternalIdentifier as ExternalIdentifier
+from dd_sdk.contract.facts import InventorySummary as InventorySummary
 from dd_sdk.contract.facts import ProjectDocument as ProjectDocument
 from dd_sdk.contract.facts import ProjectFact as ProjectFact
 from dd_sdk.contract.facts import ResearcherFunding as ResearcherFunding
@@ -266,17 +268,6 @@ class ConversationTurn(Frozen):
     turn_invocation_id: str | None = Field(default=None, pattern=UUID7_PATTERN)
 
 
-class InventorySummary(Frozen):
-    """What the inventory a project holds is, without its files (docs/specs/projects.md)."""
-
-    inventory_digest: str = Field(pattern=SHA256_PATTERN)
-    inventory_file_count: int
-    inventory_tool: str
-    inventory_tool_version: str
-    inventory_made_at: datetime
-    inventory_limitations: list[str] = Field(default_factory=list)
-
-
 class StepProgress(Frozen):
     """How far one process-flow step has gone, as the project log shows it; a step left out is
     open (docs/specs/orchestration.md)."""
@@ -315,8 +306,8 @@ class Message(Frozen):
     """One conversational turn and the conversation so far (docs/specs/orchestration.md). The
     conductor fills `project_inventory`, `project_entry`, `project_progress`, `project_title`,
     `project_title_by_researcher`, `project_entry_by_researcher`, `project_documentation`,
-    `project_researchers` and `project_decisions` from the conversation's project; a caller never
-    does."""
+    `project_researchers`, `project_decisions` and `project_repository` from the conversation's
+    project; a caller never does."""
 
     schema_class: Literal["Message"] = "Message"
     message_text: str
@@ -331,6 +322,7 @@ class Message(Frozen):
     project_entry_by_researcher: bool | None = None
     project_researchers: list[ResearcherRecord] | None = None
     project_decisions: list[ProjectFact] | None = None
+    project_repository: ChosenRepository | None = None
 
 
 class OpenInput(Frozen):

@@ -38,6 +38,9 @@ also offered `name_project`, which runs nothing either: it puts a short name for
 `Reply.new_project_title`, declared model-derived, which the conductor records as the project's
 title unless a person names it first (docs/specs/projects.md). A note from the harness says what
 the project is called, if anything, and by whom. The tool is answered and the loop goes on.
+Another note says what the researcher chose and people decided (`notes.py`): the repository chosen
+for deposit and each decided fact, which the model treats as settled until the researcher changes
+it (#1168).
 
 In a project whose researcher has not chosen an entry point (`Message.project_entry_by_researcher`
 not true), the model is also offered `set_entry_point`, which runs nothing either: it puts the
@@ -64,6 +67,7 @@ from dataclasses import dataclass, field
 from datetime import UTC
 from typing import Any
 
+from dd_agent_orchestrator_model.notes import decisions_note, name_note
 from dd_agent_orchestrator_model.own_tools import ENTRY_TOOL as ENTRY_TOOL
 from dd_agent_orchestrator_model.own_tools import ENTRY_TOOL_DEFINITION as ENTRY_TOOL_DEFINITION
 from dd_agent_orchestrator_model.own_tools import NAME_TOOL as NAME_TOOL
@@ -225,7 +229,16 @@ def conversation(message: Message, history_turns: int) -> list[dict[str, Any]]:
         }
         for turn in window
     ]
-    notes = [n for n in (inventory_note(message), progress_note(message), name_note(message)) if n]
+    notes = [
+        n
+        for n in (
+            inventory_note(message),
+            progress_note(message),
+            name_note(message),
+            decisions_note(message),
+        )
+        if n
+    ]
     text = "\n\n".join([*notes, message.message_text])
     messages.append({"role": "user", "content": text})
     return messages
@@ -247,24 +260,6 @@ def inventory_note(message: Message) -> str | None:
     return (
         note + " The harness puts it into the input of any agent that takes an inventory: leave "
         "`inventory` out, and send an empty input to an agent that takes only an inventory."
-    )
-
-
-def name_note(message: Message) -> str | None:
-    """What the harness says of the project's name, or None outside a project."""
-    if message.project_title_by_researcher is None:
-        return None
-    lead = "[From the harness, not the researcher] "
-    if message.project_title is None:
-        return lead + (
-            "The project has no name yet. Once you know what the research or dataset is, name "
-            f"it with {NAME_TOOL}."
-        )
-    if message.project_title_by_researcher:
-        return lead + f"The researcher named the project {json.dumps(message.project_title)}."
-    return lead + (
-        f"You named the project {json.dumps(message.project_title)}; the researcher has not "
-        f"renamed it. Call {NAME_TOOL} again only if the name is wrong."
     )
 
 

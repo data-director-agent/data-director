@@ -25,9 +25,7 @@
   the advisor also uses one. With no usable model, the text is not read and the statement says so.
   Whether it is read at all is the agent's `policy_text` setting, which the profile sets
   (`agent_settings`, docs/specs/policy-and-identity.md).
-- With `model`: `DD_MODEL_PROVIDER` (`anthropic` by default), `DD_MODEL_ID` (Claude Sonnet 5.5
-  by default for Anthropic), `DD_MODEL_BASE_URL` and the provider's key, read at start-up
-  (`dd_sdk.model_provider`, docs/specs/policy-and-identity.md).
+- The model's provider, id and key: as for every advisor (docs/guide/operations/ai-models.md).
 
 An unknown value, live retrieval with no account, or an unusable model setting is a
 configuration error (`ConfigError`), and `dd-advisor-policy serve` stops at start-up: with the
@@ -41,7 +39,6 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import Literal
 
 from dd_agent_advisor_policy.advise import DEFAULT_MAX_LOOKUPS, DEFAULT_MODEL, ModelAdvisor
 from dd_agent_advisor_policy.agent import PolicyAgent
@@ -59,7 +56,6 @@ from dd_sdk.model import Model, declared
 from dd_sdk.model_provider import configured_model, optional_model
 
 SWITCH = "DD_POLICY_ADVISOR"
-DEFAULT: Literal["template", "model"] = "model"
 OLD_SWITCH = "DD_POLICY_EXPLAINER"
 OPF_KEY = "OPEN_POLICY_FINDER_API_KEY"
 
@@ -86,7 +82,7 @@ def _lookups(env: Mapping[str, str]) -> int:
 
 def build_explainer(env: Mapping[str, str]) -> Explainer:
     env = _switch(env)
-    model = optional_model(env, SWITCH, default_model=DEFAULT_MODEL, default=DEFAULT, tool_use=True)
+    model = optional_model(env, SWITCH, default_model=DEFAULT_MODEL, tool_use=True)
     return TemplateExplainer() if model is None else ModelAdvisor(model, _lookups(env))
 
 

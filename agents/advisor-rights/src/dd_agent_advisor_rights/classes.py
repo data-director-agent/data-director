@@ -10,7 +10,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from dd_sdk.contract.models import Derivation, Frozen, Grounded
+from dd_sdk.contract.models import Derivation, Frozen, Grounded, ProjectFact
 
 
 class RightsContext(Frozen):
@@ -19,6 +19,8 @@ class RightsContext(Frozen):
     sensitive: bool | None = None
     mandated_licence: str | None = None
     third_party_content: bool | None = None
+    # Filled by the conductor in a project (`GivenProjectDecisions`).
+    project_decisions: list[ProjectFact] = Field(default_factory=list)
 
 
 class LicenceOption(Frozen):

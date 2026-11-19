@@ -6,7 +6,7 @@ import { App } from "../../App";
 import reference from "../../../fixtures/agents.json";
 import several from "../../../fixtures/agents-several.json";
 import { type Directory, normalise, normaliseAgent } from "../../manifest/normalise";
-import type { RawAgentsResponse } from "../../manifest/types";
+import type { RawAgentsResponse, RawManifestEntry } from "../../manifest/types";
 import { DEVELOPMENT, WithSession, fakeSessionApi } from "../../test/session";
 import { AgentDetail } from "../agent/AgentDetail";
 import { AgentDirectory } from "./AgentDirectory";
@@ -56,9 +56,10 @@ describe("CapabilitiesPanel", () => {
   it("does not call an agent deterministic when its card says nothing about models", () => {
     const raw = severalAgents.agents.find((a) => a.agent_id === "advisor.standards");
     if (!raw) throw new Error("no advisor.standards in the fixture");
-    const card = { ...raw };
+    // The app always sends `models`; an agent card need not carry it, and is read the same way.
+    const card: Omit<RawManifestEntry, "models"> & { models?: RawManifestEntry["models"] } = { ...raw };
     delete card.models;
-    render(<CapabilitiesPanel agent={normaliseAgent(card)} />);
+    render(<CapabilitiesPanel agent={normaliseAgent(card as RawManifestEntry)} />);
     expect(screen.getByText(/does not say whether it uses an AI model/)).toBeVisible();
     expect(screen.queryByText(/deterministic/)).toBeNull();
   });

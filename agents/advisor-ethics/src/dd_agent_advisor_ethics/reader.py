@@ -5,13 +5,14 @@ intended, the categories it may use and the fields the keyword table has flagged
 returns flags for other fields and any further questions. It cannot remove or change a keyword
 flag: the agent merges the two and keeps every keyword flag (`agent.py`, union only).
 
-`TemplateReader` is the default (`DD_ETHICS_READER` unset or `template`, `factory.py`) and adds
-nothing: the flags are the keyword table's. `ModelReader` calls whichever model the agent's
-settings name through the SDK's model seam (`dd_sdk.model`, `dd_sdk.model_provider`), so this
-package imports no model provider's SDK (docs/specs/dependencies.md). It is sent the field names and
-the two context flags, never the title, the description or any data value. The model replies
-against a schema (`ReaderReply`), which the provider constrains it to; a reply that does not match,
-a refusal and a model that cannot be reached are reported and leave the keyword flags as they are.
+`ModelReader` is the default (`DD_ETHICS_READER` unset or `model`, `factory.py`); `TemplateReader`
+(`DD_ETHICS_READER=template`) adds nothing, so the flags are the keyword table's, and needs no key.
+`ModelReader` calls whichever model the agent's settings name through the SDK's model seam
+(`dd_sdk.model`, `dd_sdk.model_provider`), so this package imports no model provider's SDK
+(docs/specs/dependencies.md). It is sent the field names and the two context flags, never the
+title, the description or any data value. The model replies against a schema (`ReaderReply`), which
+the provider constrains it to; a reply that does not match, a refusal and a model that cannot be
+reached are reported and leave the keyword flags as they are.
 
 What the model returns is checked before it is used (`check`): a flag naming a field not in the
 input or a category not in the table is dropped, and the reason is recorded.

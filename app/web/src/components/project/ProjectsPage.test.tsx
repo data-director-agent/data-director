@@ -12,6 +12,7 @@ import {
   ProjectApiContext,
 } from "../../project/api";
 import { projectName } from "../../project/name";
+import { projectDetails } from "../../test/api";
 import { ProjectsPage } from "./ProjectsPage";
 
 // What the server says (app/tests/test_app.py): one untitled project with an inventory of one
@@ -175,7 +176,7 @@ describe("projectName", () => {
   it("lists a deleted project under Recently deleted and restores it", async () => {
     const user = userEvent.setup();
     const reloadProjects = vi.fn();
-    const restore = vi.fn<ProjectApi["restore"]>(() => Promise.resolve({}));
+    const restore = vi.fn<ProjectApi["restore"]>(() => Promise.resolve(projectDetails()));
     const listed = vi
       .fn<ProjectApi["deletedProjects"]>()
       .mockResolvedValueOnce(DELETED)

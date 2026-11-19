@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import flowFixture from "../../fixtures/process-flow.json";
 
+import { projectProgress } from "../test/api";
 import { startablePrompts } from "./prompts";
 import type { ProcessFlow, ProjectProgress } from "./types";
 
@@ -9,7 +10,7 @@ const steps = flow.phases.flatMap((p) => p.steps);
 const offerable = steps.filter((s) => !s.optional && !s.out_of_scope);
 
 function progress(change: Partial<ProjectProgress>): ProjectProgress {
-  return { entry: 1, steps: {}, suggested: null, ...change };
+  return projectProgress({ entry: 1, ...change });
 }
 
 describe("startablePrompts", () => {

@@ -115,13 +115,21 @@ intended design, and each part says where it is not built yet.
    a `DraftRequest`'s `project_decisions` are the facts people in the project decided
    (invariant 28), the last decision on each kind and subject, without anyone's words about why;
    what an agent only proposed is never given, and a `Message`'s are removed outside a project.
-   A `DraftRequest`'s `project_documents` are the documents a researcher attached, each with its
+   A `Message`'s `project_repository` is the repository a researcher chose last, by its name and
+   re3data identifier, and is removed outside a project and until one is chosen, so a caller can
+   never claim one ([Orchestration](orchestration.md), invariant 21). A `DraftRequest`'s `project_documents` are the documents a researcher attached, each with its
    text, replacing what the caller sent. An agent's own input class asks for the same by mixing
-   in `GivenProjectDocuments` (`project_documents`) or `GivenProjectDecisions`
-   (`project_decisions`): where the accepted schema on the agent's card declares the slot, the
+   in `GivenProjectDocuments` (`project_documents`), `GivenProjectDecisions`
+   (`project_decisions`) or `GivenProjectRepository` (`project_repository`): where the accepted schema on the agent's card declares the slot, the
    conductor fills it as it fills a `DraftRequest`'s, by slot name and never by the class's name,
    and outside a project what the caller sent is kept, as for a `DraftRequest`
-   (`dd_harness.project_facts.agent_slots`, `harness/tests/test_project_agent_inputs.py`).
+   (`dd_harness.project_facts.agent_slots`, `harness/tests/test_project_agent_inputs.py`,
+   `harness/tests/test_project_repository_given.py`). `advisor.dmp` reads decided facts this way;
+   `advisor.repository` mandates each decided required repository and describes the chosen one
+   when asked nothing else, `advisor.rights` takes a decided licence as the mandated licence and a
+   decision to withhold or generalise as saying the data are sensitive, and `advisor.policy` looks
+   up each decided funder's policy. Each takes a person's decision over what its caller wrote
+   (each agent's `given.py`).
    Filling any other class is not built yet.
 7. **The conductor fills `project_id`.** The request and the envelope carry an optional
    `project_id`, which the conductor takes from the conversation and a caller cannot set. A
@@ -140,15 +148,16 @@ intended design, and each part says where it is not built yet.
    and a `Message`'s `project_inventory` are `inventory`; a metadata record, the version a
    drafter regenerates, a person's answers and the `project_documents` of a `DraftRequest` or an agent's own class are
    `documentation`; a `Message`'s `project_researchers` and a `DraftRequest`'s `researchers` are
-   `researcher`; the `project_decisions` of any of these are `decisions`; a repository's requirements
-   are none of these (`dd_harness.project_facts.given`). The conductor checks after the input
+   `researcher`; the `project_decisions` of any of these, and the `project_repository` of a
+   `Message` or an agent's own class, a researcher's choice, are `decisions`; a repository's
+   requirements are none of these (`dd_harness.project_facts.given`). The conductor checks after the input
    check: a run it refuses fails with problem `project-content-withheld` and is stored, and the
    agent is not called (`harness/tests/test_project_runs.py`). Researcher facts are the
    exception: they add to what an agent is given and no agent needs them, so where the profile
    keeps `researcher` from an agent the conductor leaves them out of its input, before it is
    hashed, and the run goes ahead, so a conversation with a hosted orchestrator does not stop
    because someone kept facts (`dd_harness.project_facts.leave_out`). A `Message`'s decided facts
-   are left out the same way, since an orchestrator drafts nothing, and so are a
+   and chosen repository are left out the same way, since an orchestrator drafts nothing, and so are a
    `DraftRequest`'s or an agent's own class's attached documents, from which a drafter only
    suggests answers and a checker only proposes facts, so a run does not stop because someone
    attached notes. What remains is classed again, so a metadata

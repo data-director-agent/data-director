@@ -8,13 +8,14 @@
 import { createContext, useContext } from "react";
 
 import { json } from "../http";
-import type { RunResult, RunRow } from "./types";
+import type { RunRow, StoredRun } from "./types";
 
 export { RunRefused } from "../http";
 
 export interface RunApi {
   list(signal?: AbortSignal): Promise<RunRow[]>;
-  get(invocationId: string, signal?: AbortSignal): Promise<RunResult>;
+  /** A stored run: its envelope, its checks and the request it was started with. */
+  get(invocationId: string, signal?: AbortSignal): Promise<StoredRun>;
 }
 
 function init(signal?: AbortSignal): RequestInit {
