@@ -146,7 +146,7 @@ that goes.
 - Policy choices go in the institutional profile, not an environment variable.
 - Pull request titles are Conventional Commits, for example
   `feat(harness): Register the FRED server with the tool gateway`.
-- Mark every open item `TODO(#n)` with a real issue, and file the Phase 0 to 4 issues first.
+- Mark every open item with a to-do marker that names a real issue (AGENTS.md), and file the Phase 0 to 4 issues first.
 
 ## 7. Immediate next steps
 

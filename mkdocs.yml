@@ -135,6 +135,7 @@ nav:
       - Architecture review: /docs/architecture-review.md
       - Contract: /docs/contract.md
       - Glossary: /docs/glossary.md
+      - FRED integration plan: /docs/plans/fred-integration.md
       - Repository: /README.md
       - UI best practices: /docs/ui/best-practices.md
       - Steward escalation flows: /docs/ui/steward-escalation-flows.md
