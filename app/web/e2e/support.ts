@@ -78,7 +78,10 @@ export async function serveConversation(page: Page) {
   await page.route("/api/conversations", (route) =>
     route.fulfill(
       route.request().method() === "POST"
-        ? { status: 201, json: { conversation_id: conversation.conversation_id } }
+        ? {
+            status: 201,
+            json: { conversation_id: conversation.conversation_id, project_id: conversation.project_id },
+          }
         : { json: [] },
     ),
   );
