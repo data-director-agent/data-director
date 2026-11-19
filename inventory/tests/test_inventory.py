@@ -368,3 +368,11 @@ def test_the_mixed_sample_has_an_empty_file_and_hidden_ones_left_out(mixed: Inve
     assert not any(part.startswith(".") for p in files for part in p.split("/"))
     assert (MIXED / ".DS_Store").is_file()
     assert (MIXED / ".hidden").is_dir()
+
+
+@pytest.mark.parametrize("name", ["plot.R", "clean.do", "model.jl", "run.sas", "explore.ipynb"])
+def test_code_has_a_media_type(dataset: Path, name: str) -> None:
+    # #1071: Python's mimetypes knows none of these.
+    (dataset / name).write_text("x <- 1\n", encoding="utf-8")
+    made = make_inventory(dataset)
+    assert _by_path(made)[name].get("file_media_type")

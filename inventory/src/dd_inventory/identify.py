@@ -53,8 +53,20 @@ def _quiet_fido() -> Iterator[None]:
         yield
 
 
+# Code and notebooks Python's `mimetypes` has no type for, so that a README does not show an R
+# script's type as unknown (#1071). Scripts are plain text; none has a registered type of its own.
+CODE_MEDIA_TYPES = {
+    ".r": "text/plain",
+    ".do": "text/plain",
+    ".jl": "text/plain",
+    ".sas": "text/plain",
+    ".ipynb": "application/x-ipynb+json",
+}
+
+
 def guess_media_type(path: Path) -> str | None:
-    return mimetypes.guess_type(path.name, strict=False)[0]
+    guessed = mimetypes.guess_type(path.name, strict=False)[0]
+    return guessed or CODE_MEDIA_TYPES.get(path.suffix.lower())
 
 
 class ExtensionIdentifier:
