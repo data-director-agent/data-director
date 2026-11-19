@@ -52,6 +52,9 @@ class Step:
     # flow is complete; no agent may serve it (`AgentSpec`) and an orchestrator says it is out of
     # scope rather than "no agent yet".
     out_of_scope: bool = False
+    # A person decides the step and no agent may serve it (C2): an agent may flag what bears on
+    # it, and stops there. The app shows it as never delegated (docs/specs/agents.md).
+    person_decides: bool = False
     # What the step is, in a researcher's words, for the people using the app. `text` is the
     # Blueprint's wording, which the orchestrator reasons over.
     label: str = ""
@@ -140,6 +143,7 @@ PHASES: tuple[Phase, ...] = (
             Step(
                 "governance.sensitive-data-handle",
                 "Handle sensitive data",
+                person_decides=True,
                 label="Decide how sensitive data will be protected",
                 prompt="Help me decide how to protect the sensitive information in my data.",
             ),
@@ -378,6 +382,11 @@ STEPS: frozenset[str] = frozenset(s.id for p in PHASES for s in p.steps)
 # The steps the Blueprint has and this project does not yet do; no agent may serve them.
 OUT_OF_SCOPE: frozenset[str] = frozenset(s.id for p in PHASES for s in p.steps if s.out_of_scope)
 
+# The steps a person decides (C2); no agent may serve them either.
+PERSON_DECIDES: frozenset[str] = frozenset(
+    s.id for p in PHASES for s in p.steps if s.person_decides
+)
+
 
 def requirements_of(step_ids: Iterable[str]) -> tuple[str, ...]:
     """The requirements the steps named apply, in R-number order and without repeats."""
@@ -474,21 +483,3 @@ def suggested_next(steps: Iterable[ProgressStep], start: Entry | None) -> Progre
     if start is None:
         return next(iter(started), None)
     return next(iter(started or candidates), None)
-
-
-def describe_flow() -> str:
-    """The entry points and phases as plain text, for a model's prompt."""
-    lines = ["Entry points:"]
-    lines += [f"- Entry {e.number}: {e.text}. Starts at Phase {e.starts_at}." for e in ENTRIES]
-    lines.append("All three continue through every later phase.")
-    for phase in PHASES:
-        lines.append("")
-        lines.append(f"Phase {phase.number}: {phase.title}")
-        for step in phase.steps:
-            notes = [", ".join(step.requirements)] if step.requirements else ["no requirement"]
-            if step.optional:
-                notes.append("optional")
-            if step.out_of_scope:
-                notes.append("out of scope for now: say so, and do not offer to do it")
-            lines.append(f"- [{step.id}] {step.text} ({'; '.join(notes)})")
-    return "\n".join(lines)

@@ -28,10 +28,11 @@ import { IssueLinks } from "../NotBuilt";
 const NOT_BUILT: { label: string; issues: number[] }[] = [
   { label: "Dataset", issues: [160] },
   { label: "Phase", issues: [160] },
-  // TODO(#72, #39): governance flags have no single issue; the review gate and the
-  // personal-data pause are the nearest.
-  { label: "Governance", issues: [72, 39] },
 ];
+// TODO(#72, #39): a project's own governance flags have no single issue; the review gate and the
+// personal-data pause are the nearest. Until then the Governance row links to what this
+// deployment's policy delegates at each step (#448).
+const GOVERNANCE_ISSUES = [72, 39];
 
 /**
  * The project's documents, each with its latest version and that version's state, linked to its
@@ -169,6 +170,19 @@ export function ContextPanel({
               </dd>
             </div>
           ))}
+          <div>
+            <dt>Governance</dt>
+            <dd>
+              <Link to="/policy#policy-steps">
+                What Data Director may do at each step
+              </Link>
+              <br />
+              <span className="hint">
+                Flags for this project are not built yet (
+                <IssueLinks issues={GOVERNANCE_ISSUES} />)
+              </span>
+            </dd>
+          </div>
         </dl>
       </section>
       {projectId && (

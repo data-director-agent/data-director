@@ -31,6 +31,7 @@ describe("servingStep", () => {
       requirements: [],
       optional: false,
       out_of_scope: false,
+      person_decides: false,
     };
     expect(servingStep(step, servingIndex(directory.agents))).toEqual([]);
   });
@@ -47,6 +48,7 @@ describe("servingStep", () => {
       requirements: ["R3"],
       optional: false,
       out_of_scope: false,
+      person_decides: false,
     };
     expect(servingStep(formats, index)).toEqual([]);
   });

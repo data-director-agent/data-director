@@ -13,6 +13,7 @@ import type { AgentView, Directory } from "../../manifest/normalise";
 import { type Policy, type PolicyAgent, usePolicyApi } from "../../policy/api";
 import { Link } from "../../route";
 import { PageHeader } from "../frame/PageHeader";
+import { StepAutonomy } from "./StepAutonomy";
 
 type Load =
   | { state: "loading" }
@@ -66,6 +67,13 @@ export function PolicyPage({ directory }: { directory: Directory }) {
     return () => controller.abort();
   }, [api]);
 
+  // A link to a section, such as `/policy#policy-steps` from the current state panel, lands on
+  // it once the policy has loaded and the section is drawn.
+  useEffect(() => {
+    if (state.state !== "loaded" || !location.hash) return;
+    document.getElementById(location.hash.slice(1))?.scrollIntoView?.();
+  }, [state.state]);
+
   const header = (
     <PageHeader title="Policy">
       <p className="hint">
@@ -95,7 +103,12 @@ export function PolicyPage({ directory }: { directory: Directory }) {
     );
   }
 
-  const { profile, agents, actions_requiring_approval: approval } = state.value;
+  const {
+    profile,
+    agents,
+    actions_requiring_approval: approval,
+    steps,
+  } = state.value;
   const reached = new Map(directory.agents.map((agent) => [agent.id, agent]));
   const enabled = new Set(agents.map((entry) => entry.agent_id));
   const refused = directory.agents.filter((agent) => !enabled.has(agent.id));
@@ -227,6 +240,8 @@ export function PolicyPage({ directory }: { directory: Directory }) {
           </>
         )}
       </section>
+
+      <StepAutonomy steps={steps} reached={reached} />
 
       {refused.length > 0 && (
         <section aria-labelledby="policy-refused">

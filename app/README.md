@@ -30,7 +30,8 @@ starts one.
 The conversation sits in the centre of a workspace ([The app](../docs/specs/app.md)):
 
 - across the top, whom the work acts for and whose policy applies, then the project's dataset,
-  phase, repository and governance flags, which are not built yet (#160);
+  phase and repository, and a governance link to what the policy delegates at each step; the
+  dataset, phase and a project's own governance flags are not built yet (#160, #72);
 - on the left, the six data management phases and their steps, from `GET /api/process-flow`, each step
   naming the agents here whose manifest `serves` the step ([Orchestration](../docs/specs/orchestration.md));
 - on the right, the project's documents, which are not built yet (#160), and what the
@@ -42,7 +43,8 @@ stages, outcome and evidence inside the card. On a narrow screen the zones stack
 
 The **Policy** page shows the deployment's institutional profile, the rules the policy gate holds
 every run to: its reference and digest, the agent a conversation goes to, each agent it allows
-with its action class, and which action classes need a data steward's approval
+with its action class, which action classes need a data steward's approval, and each Blueprint
+step as delegated, must approve, never delegated or not offered, with whom it is referred to
 ([The app](../docs/specs/app.md)).
 
 What is not built yet is drawn in place, marked "Not built yet", with a link to the issue that

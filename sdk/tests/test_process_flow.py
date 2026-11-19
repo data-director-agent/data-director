@@ -8,13 +8,14 @@ from typing import Any
 import pytest
 import yaml
 
+from dd_sdk.flow_prompt import describe_flow
 from dd_sdk.process_flow import (
     ENTRIES,
     OUT_OF_SCOPE,
+    PERSON_DECIDES,
     PHASES,
     REQUIREMENTS,
     STEPS,
-    describe_flow,
     entry,
     plan,
     progress,
@@ -184,3 +185,10 @@ def test_with_no_entry_point_only_a_started_step_is_suggested() -> None:
     states = {"preparation.metadata": "started"}
     begun = suggested_next(progress(None, states, []), None)
     assert begun is not None and begun.step.id == "preparation.metadata"
+
+
+def test_handling_sensitive_data_is_a_persons_decision_and_no_other_step_is() -> None:
+    # C2: the ethics adviser flags sensitive data and stops there; a person decides how they are
+    # handled (docs/specs/agents.md).
+    assert {"governance.sensitive-data-handle"} == PERSON_DECIDES
+    assert not PERSON_DECIDES & OUT_OF_SCOPE

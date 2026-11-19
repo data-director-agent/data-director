@@ -433,3 +433,8 @@ def test_the_agent_sees_its_own_model_and_the_workbench_the_document() -> None:
     assert isinstance(typed.input, Survey) and typed.input.title == "t"
     rebuilt = spec_from_description(describe(SPEC))
     assert typed_request(rebuilt, request) is request  # no model on the workbench's side
+
+
+def test_serving_a_step_a_person_decides_is_refused() -> None:
+    with pytest.raises(SpecError, match="a person decides"):
+        dataclasses.replace(SPEC, serves=("governance.sensitive-data-handle",))

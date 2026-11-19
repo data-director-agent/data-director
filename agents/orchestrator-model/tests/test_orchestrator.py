@@ -39,6 +39,7 @@ from dd_sdk.contract.models import (
     StepState,
     TurnRole,
 )
+from dd_sdk.flow_prompt import describe_flow
 from dd_sdk.model import (
     ModelCallError,
     ModelRequest,
@@ -48,7 +49,6 @@ from dd_sdk.model import (
     Usage,
     message_json,
 )
-from dd_sdk.process_flow import describe_flow
 from dd_sdk.prompts import prompt_digest
 from dd_sdk.tracing import CHAT, DELEGATE, records_from_jsonl
 

@@ -23,6 +23,7 @@ from typing import Any
 from dd_app.attached import keep_attached
 from dd_app.config import DEFAULT_PROJECTS_DIR, DEFAULT_REPOSITORIES_DIR
 from dd_app.documentation_check import accept
+from dd_app.policy_view import policy_view
 from dd_app.principals import principal_summary
 from dd_app.turn_body import AttachedDocument, Turn
 from dd_app.turn_lock import hold_turn
@@ -625,33 +626,8 @@ class Governance:
             self._about_lock.release()
 
     def policy(self) -> dict[str, Any]:
-        """The rules the policy gate holds every run to (`GET /api/policy`), for the policy page.
-
-        The profile as the conductor loaded it: its identifier, version, digest and description,
-        the agent the conversation goes to, each agent it enables with the action class it assigns
-        and whether that class needs approval, and every class that needs approval. The shell
-        renders this and decides nothing from it (docs/specs/app.md).
-        """
-        profile = self.conductor.profile
-        return {
-            "profile": {
-                "id": profile.profile_id,
-                "version": profile.version,
-                "ref": profile.ref,
-                "digest": profile.digest,
-                "description": profile.description,
-                "orchestrator": profile.orchestrator,
-            },
-            "agents": [
-                {
-                    "agent_id": agent_id,
-                    "action_class": action_class,
-                    "requires_approval": action_class in profile.actions_requiring_approval,
-                }
-                for agent_id, action_class in sorted(profile.agents.items())
-            ],
-            "actions_requiring_approval": sorted(profile.actions_requiring_approval),
-        }
+        """The rules the policy gate holds every run to (`GET /api/policy`), for the policy page."""
+        return policy_view(self.conductor)
 
     def deployment(self) -> dict[str, Any]:
         """What this deployment runs, for an operator's check (`GET /api/about`, open to all).

@@ -273,8 +273,14 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     profile's reference, description, digest and orchestrator, each agent it enables with the
     action class it assigns, and the action classes that need approval. What happens to each
     agent's runs here is read from `GET /api/agents`, never worked out in the shell, and an agent
-    the profile enables that the deployment does not reach is named by its identifier
-    (`app/tests/test_app.py`, `app/web/src/components/policy/PolicyPage.test.tsx`).
+    the profile enables that the deployment does not reach is named by its identifier. The page
+    also shows the line drawn at each Blueprint step (#448): `delegated` to the enabled agents
+    serving it, as their class allows; `must_approve`, referred to a data steward, when a serving
+    agent's class needs approval; `never_delegated` when a person decides it (`Step.person_decides`,
+    C2); or `not_offered`, out of scope or served by no enabled agent. The server works each step
+    out from the profile and the agents' `serves`, with no profile key of its own; the shell draws
+    it. The Governance row of the current state panel links to it (`app/tests/test_app.py`,
+    `app/web/src/components/policy/PolicyPage.test.tsx`).
 
 23. **A draft's questions are answered on its card, in the researcher's own words.** While a
     drafted version is its document's latest, its card in the conversation puts the questions no
@@ -747,7 +753,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   each phase's steps and the agents serving them. On the left, the person's conversations, so
   that another is one press away; on the right, an overview of the project: its current state
   (dataset, phase, repository, governance flags), the files attached to it and its documents.
-  Only the repository is built; the others await a record of where the project is (#160).
+  Only the repository is built; the dataset and phase await a record of where the project is
+  (#160). Governance links to what the policy delegates at each step; a project's own flags are
+  not built (#72, #39).
   The activity log spans runs and conversations, so it is a page of its own in the main
   navigation. What the orchestrator is and how far to rely on it is on the agents page, not
   beside every conversation. Evidence belongs beside the claim it supports
