@@ -1,8 +1,8 @@
 # Deploying to a VM
 
 This directory sets up one Ubuntu VM to run the Data Director app (`app/`) and its agents, and to
-keep it deployed: every five minutes the VM fetches `main`, and if CI passed on its tip, builds
-and serves that commit. A commit that fails to start is rolled back. The VM pulls; GitHub never
+keep it deployed: every five minutes the VM fetches `main`, and builds and serves the newest
+commit on it that CI passed. A commit that fails to start is rolled back. The VM pulls; GitHub never
 connects to it, so it needs no inbound access but HTTP(S) and no deploy key.
 
 ```text
@@ -277,6 +277,13 @@ budgets and its spend ([Backups](#backups)).
 Merging to `main` is the deployment. Within about five minutes of "CI passed" turning green on
 the merge commit, the VM runs it.
 
+Each pass walks back from the tip of `main`, newest first, to the first commit that passed CI. It
+skips commits still in CI, commits that failed CI and commits that failed to start here
+(`failed-commits`). So when merges come faster than CI finishes, the VM still moves forward. It
+never goes back past the live commit, and looks at most `DD_DEPLOY_DEPTH` (10) commits back. Each
+commit it looks at is one request to the GitHub API, which allows 60 an hour without a token; set
+`GITHUB_TOKEN` in `deploy.env` if a long run of failing commits uses them up.
+
 Start with the doctor. It changes nothing, and names the command that fixes each problem it
 finds:
 
@@ -387,7 +394,7 @@ sudo /opt/data-director/releases/<sha>/deploy/deploy.sh --bootstrap
 
 If the app does not report the release within two minutes, `--bootstrap` puts the previous link
 back and exits with an error. After it succeeds, the next pass of the timer runs the new
-`deploy.sh` and deploys the tip of `main` as usual.
+`deploy.sh` and deploys the newest commit on `main` that passed CI, as usual.
 
 A release built before `--bootstrap` existed has no such option. On a VM whose releases all
 predate it, do the same by hand once, as root, with a release built after the fix to the restart:
