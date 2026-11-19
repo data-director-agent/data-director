@@ -11,7 +11,6 @@ hand-chosen; see `checks.yaml` and #18.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -19,19 +18,24 @@ import yaml
 
 from dd_agent_advisor_quality.classes import Finding, MetadataRecord, QualityReview, Severity
 from dd_sdk import serve
-from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
+from dd_sdk.agent import (
+    AgentResult,
+    AgentSpec,
+    Derived,
+    RunContext,
+    abstain,
+    input_evidence,
+    input_ref,
+)
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Derivation,
-    EvidenceItem,
     GroundingMode,
-    GroundingRef,
     InvocationRequest,
     Outcome,
     OutcomeStatus,
     ReasonCode,
 )
-from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 
 HERE = Path(__file__).resolve().parent
 CHECKS = HERE / "checks.yaml"
@@ -57,6 +61,7 @@ class QualityReviewer:
     spec = AgentSpec(
         agent_id="advisor.quality",
         title="Metadata Reviewer",
+        icon="🔍",
         version="0.1.0",
         description="Scores the completeness of a metadata record against fixed criteria.",
         action_class="advise",
@@ -79,15 +84,12 @@ class QualityReviewer:
         assert isinstance(record, MetadataRecord)  # the conductor checked spec.accepts
         values = record.model_dump()
         if not any(_present(values.get(c["slot"])) for c in self.checks):
-            return AgentResult(
-                outcome=Outcome(
-                    status=OutcomeStatus.ABSTAINED,
-                    reason_code=ReasonCode.INSUFFICIENT_INPUT,
-                    statement="The record is empty on every criterion; there is nothing to review.",
-                )
+            return abstain(
+                ReasonCode.INSUFFICIENT_INPUT,
+                "The record is empty on every criterion; there is nothing to review.",
             )
 
-        ref = GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)
+        ref = input_ref(ctx)
         findings: list[Finding] = []
         total = 0.0
         earned = 0.0
@@ -122,15 +124,7 @@ class QualityReviewer:
                 ),
             ),
             payload=QualityReview(score=score, findings=findings, grounded_on=[ref]),
-            evidence=[
-                EvidenceItem(
-                    source_id=ctx.input_ref,
-                    retrieved_at=datetime.now(UTC),
-                    hash_algorithm=HASH_ALGORITHM,
-                    canonicalisation=INPUT_CANONICALISATION,
-                    content_hash=ctx.input_hash,
-                )
-            ],
+            evidence=[input_evidence(ctx)],
         )
 
 

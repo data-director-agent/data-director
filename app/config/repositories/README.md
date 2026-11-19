@@ -8,8 +8,9 @@ drafter is given the same requirements, so that it knows what to write.
 
 The sets are YAML so that the people who know a repository, its research data management team
 and the deployment's stewards, can read them and propose changes. The harness loads them and
-records a researcher's choice (`dd-harness project choose-repository`); checking a project
-against them is not built yet (#199, #202). `app/tests/test_repositories.py` checks that they
+records a researcher's choice (`dd-harness project choose-repository`, which reads the
+repository's name and declared standards from the pinned re3data export), and checks a project
+against the merged set it recorded (`dd-harness project validate`). `app/tests/test_repositories.py` checks that they
 load and that ORDA resolves as intended.
 
 ## Standards and overrides
@@ -38,13 +39,22 @@ The harness loads the directory that `DD_REPOSITORIES_DIR` names. When a researc
 repository, the project records each set it used as `<requirement_set_id>@v<version>`, with the
 SHA-256 of the file, so a later reader can tell which requirements a package was checked against.
 
+## Suggested repositories
+
+`suggested.yaml` lists, by re3data identifier and in order, the repositories the app offers on a
+project's page before the researcher searches the pinned re3data export
+(`GET /api/repositories`). Every repository with an override is offered first, whether or not it
+is listed. An identifier the pinned export does not hold is left out, and one that is not a
+re3data identifier stops start-up. The file is optional; without it only the overrides are
+offered.
+
 ## What a set contains
 
 | Key | Meaning |
 |---|---|
 | `schema_class` | Always `RequirementSet`. |
 | `requirement_set_id`, `version` | Identify the set. Raise `version` on every change. |
-| `title`, `url` | What people call the standard or the repository, and where it is described. |
+| `title`, `url` | What people call the standard or the repository, and where it is described. An override's `url` is where the app tells a researcher to deposit. |
 | `conforms_to` | The URI of the metadata schema. An override names the standard it builds on. |
 | `re3data_names` | Standards only: the names re3data uses for the standard. |
 | `re3data_id` | Overrides only: the repository's re3data record. |
@@ -55,6 +65,7 @@ SHA-256 of the file, so a later reader can tell which requirements a package was
 | `max_file_size`, `max_item_size` | Overrides only: size limits in bytes. Leave a key out if the repository does not state it. |
 | `licences` | Overrides only: SPDX identifiers, or the URL of the repository's own terms. |
 | `guidance` | The pages the values were taken from. |
+| `unconfirmed` | What the guidance leaves open, each a short statement that names its issue. The app shows them to a researcher depositing by hand. |
 
 Each entry of `fields` has:
 
@@ -66,8 +77,13 @@ Each entry of `fields` has:
 - `form_label` (overrides only): the label of the field in the repository's deposit form, where a
   person depositing by hand puts the value.
 
+An override will also be able to name the API the harness deposits a draft through: a `deposit`
+block giving the API kind (`figshare`, `zenodo` or `dataverse`), its `base_url` and the `target`
+collection or community. It holds no credential; each researcher uses their own token. The block
+is not accepted yet, TODO(#383); its design is in [Deposit](../../../docs/specs/deposit.md#depositing-through-an-api).
+
 A key outside this list is refused. A value the guidance does not state is left out with a marker
-that cites an issue, never guessed.
+that cites an issue, never guessed, and listed under `unconfirmed` so a researcher sees it too.
 
 ## Files
 

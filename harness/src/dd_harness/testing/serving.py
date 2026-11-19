@@ -16,7 +16,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
 from a2a.client import ClientConfig, create_client
@@ -26,11 +26,13 @@ from a2a.types import Role, SendMessageRequest
 from starlette.applications import Starlette
 
 from dd_harness.conductor import Conductor
+from dd_harness.gateway import routes as tool_routes
 from dd_harness.identity import OperatorAssertion
+from dd_harness.model_grants import GrantMinter
 from dd_harness.policy import load_profile
 from dd_harness.registry import Registry
 from dd_harness.remote import RemoteAgent
-from dd_harness.store import RunStore
+from dd_harness.settings import StorageLocation, run_storage
 from dd_harness.testing.fixtures import PERMISSIVE, TEST_PRINCIPAL
 from dd_harness.transport.a2a import a2a_routes
 from dd_sdk import serve
@@ -48,6 +50,12 @@ def asgi_client_factory(app: Any) -> Callable[[str, float], httpx.AsyncClient]:
 
     return factory
 
+
+if TYPE_CHECKING:
+    import httpx2
+
+    from dd_harness.gateway.core import Gateway
+    from dd_sdk.tools import ToolsGrant
 
 HARNESS_URL = "http://harness.test"
 
@@ -86,27 +94,41 @@ def in_process(
     agent: Agent,
     timeout_s: float = 30.0,
     delegate_client_factory: Callable[[str, float], httpx.AsyncClient] | None = None,
+    *,
+    model_broker: bool = False,
+    tools_client_factory: Callable[[ToolsGrant, float], httpx2.AsyncClient] | None = None,
 ) -> RemoteAgent:
     """Serve `agent` in memory and return the `RemoteAgent` built from its card.
 
-    `delegate_client_factory` is the client a delegation agent calls the harness back with.
+    `delegate_client_factory` is the client a delegation agent calls the harness back with, and
+    `tools_client_factory` the one an agent calls the tool gateway with.
+    `model_broker` stands for the operator's statement in `agents.yaml` that the agent calls its
+    models through the model broker.
     """
     base_url = f"http://{agent.spec.agent_id}.agents.test"
     kwargs: dict[str, Any] = {}
     if delegate_client_factory is not None:
         kwargs["delegate_client_factory"] = delegate_client_factory
+    if tools_client_factory is not None:
+        kwargs["tools_client_factory"] = tools_client_factory
     app = serve.app(agent, base_url=base_url, **kwargs)
     return RemoteAgent.from_url(
-        base_url, timeout_s=timeout_s, client_factory=asgi_client_factory(app)
+        base_url,
+        timeout_s=timeout_s,
+        client_factory=asgi_client_factory(app),
+        model_broker=model_broker,
     )
 
 
 def make_conductor(
-    runs_dir: Path,
+    runs_dir: StorageLocation,
     *agents: Agent,
     crate: bool = False,
     remote: bool = True,
     profile: Path = PERMISSIVE,
+    model_grants: GrantMinter | None = None,
+    model_broker: bool = False,
+    gateway: Gateway | None = None,
 ) -> Conductor:
     """A conductor over `agents`, each reached over in-process A2A unless `remote` is False,
     governed by the institutional profile at `profile`.
@@ -114,23 +136,46 @@ def make_conductor(
     A remote conductor also serves its own A2A routes in memory at `HARNESS_URL` and sets them
     as the delegation callback, so delegation runs over the wire as it does in production. Those
     routes act for `TEST_PRINCIPAL`; a test invokes the conductor with `acting_for=TEST_PRINCIPAL`.
+    `model_grants` mints a model grant for each model-backed agent (`GrantKeys.minter`).
+    `model_broker` states, as an operator would in `agents.yaml`, that each remote agent calls its
+    models through the model broker. `gateway` is the tool gateway (`dd_harness.testing.tools`),
+    served in memory beside the delegation callback.
     """
     harness_app: dict[str, Any] = {}
 
     def harness_client(base_url: str, timeout_s: float) -> httpx.AsyncClient:
         return asgi_client_factory(harness_app["app"])(base_url, timeout_s)
 
+    def tools_client(grant: ToolsGrant, timeout_s: float) -> httpx2.AsyncClient:
+        import httpx2
+
+        return httpx2.AsyncClient(
+            transport=httpx2.ASGITransport(app=harness_app["app"]),
+            headers={"Authorization": f"Bearer {grant.token}"},
+            timeout=timeout_s,
+        )
+
     registry = Registry.from_agents(
-        in_process(a, delegate_client_factory=harness_client) if remote else a for a in agents
+        in_process(
+            a,
+            delegate_client_factory=harness_client,
+            model_broker=model_broker,
+            tools_client_factory=tools_client if gateway is not None else None,
+        )
+        if remote
+        else a
+        for a in agents
     )
     conductor = Conductor(
         registry=registry,
-        store=RunStore(runs_dir),
+        store=run_storage(runs_dir),
         profile=load_profile(profile),
         write_crate=crate,
+        model_grants=model_grants,
+        gateway=gateway,
     )
     if remote:
         _card, routes = a2a_routes(conductor, OperatorAssertion(TEST_PRINCIPAL), HARNESS_URL)
-        harness_app["app"] = Starlette(routes=routes)
+        harness_app["app"] = Starlette(routes=[*routes, *tool_routes(gateway)])
         conductor.harness_url = HARNESS_URL
     return conductor

@@ -1,0 +1,16 @@
+@layer components {
+  .profile-details {
+    display: grid;
+    gap: 0.75rem;
+    margin-block: 1rem;
+  }
+
+  .profile-details dt {
+    font-weight: 600;
+  }
+
+  .profile-details dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+}

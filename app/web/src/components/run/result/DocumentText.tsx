@@ -6,38 +6,15 @@
  * and a data dictionary's rows can be read. Any other media type is shown as
  * it is, with its line breaks kept. Either way the person can copy the text exactly or download
  * it as a file, since what they take away is the text, not the rendering. Whether the document is
- * kept is decided on the project's documents page, which shows the stored text unrendered.
+ * kept is decided on the project's documents page.
  */
 
 import { Copy, Download } from "lucide-react";
 import { useState } from "react";
+
+import { dataUrl, essence, fileName } from "../../../project/media";
 import { Button } from "../../ui/Button";
 import { Markdown } from "../../ui/Markdown";
-
-const EXTENSIONS: Record<string, string> = {
-  "text/markdown": "md",
-  "text/csv": "csv",
-  "application/json": "json",
-  "application/ld+json": "jsonld",
-  "application/xml": "xml",
-  "text/xml": "xml",
-  "text/plain": "txt",
-};
-
-/** The media type without its parameters, such as `text/markdown` for `text/markdown; charset=utf-8`. */
-function essence(mediaType: string): string {
-  return (mediaType.split(";")[0] ?? "").trim().toLowerCase();
-}
-
-/** A file name for the download: the document's title in lower case, hyphenated. */
-export function fileName(title: string, mediaType: string): string {
-  const stem =
-    title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "") || "document";
-  return `${stem}.${EXTENSIONS[essence(mediaType)] ?? "txt"}`;
-}
 
 export function DocumentText({
   text,
@@ -54,7 +31,7 @@ export function DocumentText({
   const [copied, setCopied] = useState<string | null>(null);
   const markdown = essence(mediaType) === "text/markdown";
   const name = fileName(title, mediaType);
-  const href = `data:${essence(mediaType) || "text/plain"};charset=utf-8,${encodeURIComponent(text)}`;
+  const href = dataUrl(mediaType, text);
 
   async function copy() {
     try {

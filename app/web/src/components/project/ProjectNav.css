@@ -1,0 +1,60 @@
+/* A project's breadcrumb and tabs (ProjectNav.tsx). The tabs look like the main navigation's
+   links, a bar beneath the current one, on a rule that spans the page. */
+
+@layer components {
+  .project-nav {
+    margin-bottom: var(--space-4);
+  }
+
+  .project-breadcrumb ol {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    margin: 0 0 var(--space-2);
+    padding: 0;
+    list-style: none;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-small);
+  }
+
+  .project-breadcrumb li + li::before {
+    content: "›";
+    margin-inline-end: var(--space-1);
+    color: var(--color-text-muted);
+  }
+
+  .project-tabs ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 var(--space-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-bottom: var(--border-width) solid var(--color-border-subtle);
+  }
+
+  .project-tab {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    color: var(--color-text);
+    text-decoration: none;
+    font-weight: var(--font-weight-strong);
+    white-space: nowrap;
+  }
+
+  .project-tab:hover {
+    background: var(--color-surface-selected);
+    text-decoration: underline;
+  }
+
+  .project-tab:focus-visible {
+    outline-offset: calc(-1 * var(--focus-width));
+  }
+
+  .project-tab[aria-current="page"] {
+    color: var(--color-link);
+    box-shadow: inset 0 calc(-1 * var(--focus-width)) 0 var(--color-link);
+  }
+}

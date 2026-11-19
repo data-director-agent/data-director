@@ -1,0 +1,5 @@
+.env
+monitoring/litellm_key
+exports/
+*.csv
+__pycache__/

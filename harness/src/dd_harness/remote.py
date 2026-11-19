@@ -10,6 +10,7 @@ payload check and grounding linter do.
 
 `from_url` reads the agent card and rebuilds the `AgentSpec` from the Data Director extension:
 the class schemas it carries, pinned by digest, and the contract version (docs/specs/contract.md).
+Each call is made from that card, so the card is read once, not once per call.
 
 Each call opens its own event loop (`asyncio.run`): the conductor is synchronous, and every
 transport already calls it from a worker thread. `client_factory` gives the httpx client for one
@@ -21,18 +22,18 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
-from a2a.client import ClientConfig, create_client
 from a2a.helpers import get_data_parts, get_text_parts, new_data_part
-from a2a.types import Message, Role, SendMessageRequest, TaskState
+from a2a.types import AgentCard, Message, Role, SendMessageRequest, TaskState
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 from dd_sdk.agent import AgentResult, AgentSpec, RunContext, SpecError, spec_from_description
 from dd_sdk.contract.models import InvocationRequest, new_invocation_id, to_document
-from dd_sdk.delegate import DelegationGrant
+from dd_sdk.delegate import DelegationGrant, a2a_client, parse_card
+from dd_sdk.tools import ToolsGrant
 from dd_sdk.tracing import records_from_jsonl
 from dd_sdk.wire import (
     ARTIFACT_NAME,
@@ -40,6 +41,8 @@ from dd_sdk.wire import (
     EXTENSION_URI,
     META_INPUT_HASH,
     META_INPUT_REF,
+    META_MODEL_GRANT,
+    META_SETTINGS,
     META_TRACEPARENT,
     WireError,
     reply_from_document,
@@ -84,6 +87,13 @@ class RemoteAgent:
     timeout_s: float = DEFAULT_TIMEOUT_S
     client_factory: ClientFactory = default_client
     card: dict[str, Any] | None = None
+    # Whether the operator states that this agent calls its models through the model broker
+    # (`model_broker` in `agents.yaml`, docs/specs/model-accounts.md, invariant 14). Never read
+    # from the agent's card: the agent's own claim does not decide who pays.
+    model_broker: bool = False
+    # `card` as A2A reads it, parsed on first use: each call is built from it rather than
+    # fetching the card again.
+    _a2a_card: AgentCard | None = field(default=None, init=False, repr=False, compare=False)
 
     @classmethod
     def from_url(
@@ -91,9 +101,12 @@ class RemoteAgent:
         url: str,
         timeout_s: float = DEFAULT_TIMEOUT_S,
         client_factory: ClientFactory = default_client,
+        *,
+        model_broker: bool = False,
     ) -> RemoteAgent:
         """Read the card at `url`. Raises `RemoteAgentError` if it cannot be read, `SpecError`
-        if it does not describe a Data Director agent this contract admits."""
+        if it does not describe a Data Director agent this contract admits. `model_broker` is the
+        operator's statement that the agent calls its models through the model broker."""
 
         async def fetch() -> dict[str, Any]:
             async with client_factory(url, timeout_s) as hc:
@@ -112,36 +125,51 @@ class RemoteAgent:
             timeout_s=timeout_s,
             client_factory=client_factory,
             card=card,
+            model_broker=model_broker,
         )
 
     def call(
-        self, request: InvocationRequest, ctx: RunContext, grant: DelegationGrant | None = None
+        self,
+        request: InvocationRequest,
+        ctx: RunContext,
+        grant: DelegationGrant | None = None,
+        *,
+        model_grant: str | None = None,
+        tools_grant: ToolsGrant | None = None,
     ) -> Received:
+        """Send `request` to the agent. `grant` is a delegation agent's callback; `model_grant` the
+        grant for its model calls (docs/specs/model-accounts.md); `tools_grant` its way to the
+        tool gateway (docs/specs/agents.md). Each travels only in the A2A message's metadata."""
         carrier: dict[str, str] = {}
         TraceContextTextMapPropagator().inject(carrier)  # the conductor's current span
-        metadata = {
+        metadata: dict[str, Any] = {
             META_INPUT_REF: ctx.input_ref,
             META_INPUT_HASH: ctx.input_hash,
             META_TRACEPARENT: carrier.get(META_TRACEPARENT, ""),
         }
         if grant is not None:  # a delegation agent's callback (docs/specs/orchestration.md)
             metadata |= grant.metadata()
+        if tools_grant is not None:
+            metadata |= tools_grant.metadata()
+        if model_grant is not None:
+            metadata[META_MODEL_GRANT] = model_grant
+        # The agent's settings under the profile (docs/specs/policy-and-identity.md).
+        if ctx.settings:
+            metadata[META_SETTINGS] = dict(ctx.settings)
         try:
             body = asyncio.run(self._send(to_document(request), metadata))
         except (httpx.HTTPError, TimeoutError) as exc:
             raise RemoteAgentError(f"{self.spec.agent_id} at {self.url}: {exc!r}") from exc
         return self._parse(body)
 
-    async def _send(self, request_doc: dict[str, Any], metadata: dict[str, str]) -> Any:
+    async def _send(self, request_doc: dict[str, Any], metadata: dict[str, Any]) -> Any:
         async with asyncio.timeout(self.timeout_s):
             async with self.client_factory(self.url, self.timeout_s) as hc:
                 # Not streamed: the policy gate, grounding linter and source check judge the
                 # whole envelope, so the conductor waits for the agent's finished reply and
                 # nothing reaches a person before those checks have run. Streaming text to the
-                # shell is a separate matter, TODO(#68, #69).
-                client = await create_client(
-                    agent=self.url, client_config=ClientConfig(streaming=False, httpx_client=hc)
-                )
+                # shell is a separate matter, TODO(#159).
+                client = await a2a_client(self.url, hc, self._parsed_card())
                 message = Message(
                     role=Role.ROLE_USER,
                     parts=[new_data_part(request_doc)],
@@ -152,6 +180,11 @@ class RemoteAgent:
                 async for response in client.send_message(SendMessageRequest(message=message)):
                     last = response
                 return last
+
+    def _parsed_card(self) -> AgentCard | None:
+        if self._a2a_card is None and self.card is not None:
+            self._a2a_card = parse_card(self.card)
+        return self._a2a_card
 
     def _parse(self, response: Any) -> Received:
         agent_id = self.spec.agent_id

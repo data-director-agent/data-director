@@ -13,7 +13,8 @@
       "component": "sdk",
       "release-type": "python",
       "exclude-paths": [
-        "sdk/tests"
+        "sdk/tests",
+        "sdk/browser"
       ]
     },
     "harness": {
@@ -43,6 +44,20 @@
       ],
       "exclude-paths": [
         "app/tests"
+      ]
+    },
+    "admin": {
+      "component": "admin",
+      "release-type": "python",
+      "exclude-paths": [
+        "admin/tests"
+      ]
+    },
+    "broker": {
+      "component": "model-broker",
+      "release-type": "python",
+      "exclude-paths": [
+        "broker/tests"
       ]
     },
     "agents/orchestrator-stub": {
@@ -98,7 +113,8 @@
       "component": "inventory",
       "release-type": "python",
       "exclude-paths": [
-        "inventory/tests"
+        "inventory/tests",
+        "inventory/browser"
       ]
     }
   }

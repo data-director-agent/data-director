@@ -29,7 +29,10 @@ classes:
   PolicyContext:
     description: >-
       Who funds, publishes and hosts the research, and what the data is. The agent looks up each
-      actor's data policy.
+      actor's data policy. In a project the conductor also gives the facts people decided: each
+      decided funder is an actor, whether or not the caller named it.
+    mixins:
+      - GivenProjectDecisions
     slots:
       - schema_class
       - actors
@@ -40,11 +43,17 @@ classes:
   Actor:
     description: >-
       A funder, journal or institution. The FAIRsharing identifier of its policy is used when
-      given; otherwise the name is looked up.
+      given; otherwise the name is looked up. A funder is first identified in ROR, by its ROR
+      identifier when given, otherwise by its name. A journal is identified by its ISSN when
+      given, otherwise by its title, and linked to its publisher. The policy's own text is read
+      from policy_url when given, as well as from the address each matched record names.
     slots:
       - role
       - name
       - fairsharing_id
+      - ror_id
+      - issn
+      - policy_url
 
   PolicyChecks:
     description: >-
@@ -59,17 +68,26 @@ classes:
       - conflicts
       - mandated_repositories
       - no_record
+      - readings
+      - funders
+      - journals
+      - ambiguous
       - searched
+      - limitations
 
   MatchedPolicy:
     description: >-
-      One policy record matched to an actor. It is named only in grounded_on; the record's name,
-      clauses and relations are in the cited evidence item's content (docs/specs/grounding.md).
+      One policy record matched to an actor, from FAIRsharing or Open Policy Finder. It is named
+      only in grounded_on; the record's name, clauses and policies are in the cited evidence
+      item's content (docs/specs/grounding.md). A record a model found with its tools, rather
+      than the first search, has match_derivation model.
     mixins:
       - Grounded
     slots:
       - actor
       - role
+      - registry
+      - match_derivation
       - obligations
       - notes
       - rationale
@@ -77,12 +95,17 @@ classes:
 
   Obligation:
     description: >-
-      What a policy record says about one kind of obligation, read from a curated field by a
-      fixed rule.
+      What a policy record says about one kind of obligation. Read from a curated field by a
+      fixed rule (derivation registry), or stated by a model with a quote from the record that
+      the agent found in it, word for word, before keeping it (derivation model).
     slots:
       - kind
       - strength
       - recorded_as
+      - scope
+      - value
+      - quote
+      - derivation
 
   PolicyConflict:
     description: >-
@@ -101,6 +124,71 @@ classes:
     slots:
       - name
       - re3data_id
+
+  ResolvedFunder:
+    description: >-
+      A funder identified in ROR. Its ROR identifier is stated only in grounded_on; what ROR
+      records about it is in the cited evidence item's content (docs/specs/grounding.md).
+    mixins:
+      - Grounded
+    slots:
+      - actor
+      - crossref_funder_id
+
+  PolicyReading:
+    description: >-
+      What a model read in one policy's own text, fetched from the address its policy record
+      names or the researcher gave. Grounded on the text, and on the policy record it was
+      reached from, if any. Each obligation kept quotes the text word for word, and the code has
+      found the quote in it; what was dropped, and why, is in dropped. A person confirms each
+      against the policy.
+    mixins:
+      - Grounded
+    slots:
+      - actor
+      - role
+      - status
+      - stated
+      - dropped
+      - reason
+
+  StatedObligation:
+    description: >-
+      One obligation a policy's own text states, as a model read it: its kind, its strength and
+      what it asks, with the passage that says so.
+    slots:
+      - kind
+      - strength
+      - value
+      - quote
+    slot_usage:
+      value:
+        required: true
+      quote:
+        required: true
+
+  ResolvedJournal:
+    description: >-
+      A journal identified in Crossref or Open Policy Finder, and the publisher whose policy it
+      follows. Grounded on the journal's record.
+    mixins:
+      - Grounded
+    slots:
+      - actor
+      - publisher
+      - issn
+
+  AmbiguousActor:
+    description: >-
+      A funder whose name could mean more than one organisation in ROR, or a journal title that
+      could mean more than one journal. Grounded on each candidate, likeliest first; the agent
+      does not choose. Its policy was not looked up: the researcher says which they mean, by
+      giving its ROR identifier or ISSN.
+    mixins:
+      - Grounded
+    slots:
+      - actor
+      - role
 
   SearchedSummary:
     description: >-
@@ -137,6 +225,20 @@ slots:
   fairsharing_id:
     description: The FAIRsharing identifier of the actor's policy, e.g. FAIRsharing.636kdn.
     pattern: "^FAIRsharing\\.\\S+$"
+  ror_id:
+    description: >-
+      The organisation's ROR identifier, e.g. https://ror.org/02b5d8509 or 02b5d8509.
+    pattern: "^(https?://ror\\.org/)?0[a-z0-9]{6}[0-9]{2}$"
+  issn:
+    description: A journal's ISSN, e.g. 0048-9697.
+    pattern: "^\\d{4}-?\\d{3}[\\dXx]$"
+  publisher:
+    description: The publisher's name, as the journal's record gives it.
+  policy_url:
+    description: >-
+      The address of the page or PDF that publishes the actor's data policy, when the researcher
+      knows it. Its text is read as well as that of any policy record matched.
+    pattern: "^https?://\\S+$"
   re3data_id:
     description: The re3data identifier, e.g. r3d100010230.
     pattern: "^r3d\\d+$"
@@ -159,12 +261,59 @@ slots:
   no_record:
     description: Actors for which no FAIRsharing policy record was found.
     multivalued: true
+  readings:
+    description: >-
+      What a model read in each policy's own text, or why the text was not read. Each obligation
+      quotes the passage it comes from; a person confirms it.
+    range: PolicyReading
+    multivalued: true
+    inlined_as_list: true
+  status:
+    range: ReadingStatus
+    required: true
+  stated:
+    range: StatedObligation
+    multivalued: true
+    inlined_as_list: true
+  dropped:
+    description: >-
+      What the model said that was not kept, and why, such as a quote not found in the text.
+    multivalued: true
+  reason:
+    description: Why the text was not read, or was read in part.
+  funders:
+    description: >-
+      The funders identified in ROR, each grounded on its ROR record, so that the identifier can
+      be passed on.
+    range: ResolvedFunder
+    multivalued: true
+    inlined_as_list: true
+  journals:
+    description: >-
+      The journals identified, each with its publisher and grounded on its record, so that the
+      publisher's policy can be looked up.
+    range: ResolvedJournal
+    multivalued: true
+    inlined_as_list: true
+  ambiguous:
+    description: >-
+      Funders or journals whose name could mean more than one. The researcher should say which;
+      their policies were not looked up.
+    range: AmbiguousActor
+    multivalued: true
+    inlined_as_list: true
+  crossref_funder_id:
+    description: >-
+      The Crossref Funder ID ROR prefers for the funder, where it names one, e.g. 501100000270.
   searched:
     range: SearchedSummary
     inlined: true
+  limitations:
+    description: What this alpha does not yet do.
+    multivalued: true
 
   actor:
-    description: The name of the actor, as given in the input, that this policy was matched to.
+    description: The name of the actor, as given in the input.
     required: true
   obligations:
     range: Obligation
@@ -175,6 +324,16 @@ slots:
       Facts to weigh beside the obligations, such as a policy subject outside the discipline or a
       policy dated after the publication.
     multivalued: true
+  registry:
+    description: The registry the policy record came from.
+    range: PolicyRegistry
+    required: true
+  match_derivation:
+    description: >-
+      How the record was matched to the actor: registry, by the agent's fixed rule over the
+      first search, or model, by a model with its search tools.
+    range: Derivation
+    required: true
   rationale:
     required: true
   rationale_derivation:
@@ -191,6 +350,21 @@ slots:
     description: >-
       The value FAIRsharing's curators recorded, such as "suggested" or "no", kept so that an
       unstated strength does not hide what the record says.
+  scope:
+    description: >-
+      What the obligation is about: the data, or the publication (an open access policy's
+      embargo or licence applies to the article, not the data).
+    range: PolicyScope
+  value:
+    description: >-
+      What the policy asks, in brief, e.g. "within two years of the end of the grant" or
+      "CC BY 4.0".
+  quote:
+    description: >-
+      The words of the record that state the obligation, found in it word for word by the agent.
+  derivation:
+    description: How the obligation was read, registry (a fixed rule) or model.
+    range: Derivation
   description:
     required: true
 
@@ -227,6 +401,31 @@ enums:
         description: The licence the outputs are released under.
       timing:
         description: When the data must be shared.
+
+  PolicyRegistry:
+    permissible_values:
+      fairsharing:
+        description: FAIRsharing's policy records.
+      open_policy_finder:
+        description: Jisc Open Policy Finder (formerly Sherpa Romeo and Juliet).
+
+  PolicyScope:
+    permissible_values:
+      data:
+        description: The research data.
+      publication:
+        description: The article or other publication, e.g. where it may be deposited.
+
+  ReadingStatus:
+    permissible_values:
+      read:
+        description: The text was read; what it states is in stated.
+      not_read:
+        description: >-
+          The text was not read: it could not be fetched, no model is configured, or the
+          deployment's profile turns reading off.
+      unreadable:
+        description: The address answered with nothing that could be read as text.
 
   Strength:
     permissible_values:

@@ -2,7 +2,7 @@
 # core contract as `data_director`. After an edit, run
 # `uv run dd-gen-schema agents/advisor-linking/src/dd_agent_advisor_linking/schema/linking.yaml` to
 # regenerate generated/, and keep ../classes.py in step; ClassSchema.of refuses a model that has
-# drifted. These classes are a mock's sketch (docs/specs/agents.md), not a settled format.
+# drifted. These classes are an alpha's sketch (docs/specs/agents.md), not a settled format.
 id: https://w3id.org/data-director/agents/linking
 name: dd_agent_advisor_linking
 title: advisor.linking classes
@@ -36,7 +36,8 @@ classes:
   RelatedIdentifiers:
     description: >-
       The payload of advisor.linking: each identifier recognised, checked for form and put in
-      canonical form, with a suggested way to record it. It suggests linking metadata for the
+      canonical form, with a suggested way to record it, and a DOI's title and type where it was
+      resolved. It suggests linking metadata for the
       researcher to review; registering the links stays with the researcher and the repository
       (R11).
     mixins:
@@ -54,6 +55,9 @@ classes:
       - normalised
       - relation
       - valid
+      - resolved
+      - title
+      - resource_type
       - message
 
 slots:
@@ -66,7 +70,7 @@ slots:
     multivalued: true
     inlined_as_list: true
   limitations:
-    description: What this mock does not yet do.
+    description: What the adviser did not do, such as the identifiers it did not resolve.
     multivalued: true
   given:
     description: The identifier, as given.
@@ -79,13 +83,22 @@ slots:
   relation:
     description: >-
       A suggested DataCite relationType, such as IsSupplementTo, for the researcher to confirm.
-      Absent where the mock cannot tell.
+      Absent where the adviser cannot tell.
   valid:
     description: >-
-      Whether the identifier is well formed for its scheme. True does not mean it exists: nothing
-      was resolved.
+      Whether the identifier is well formed for its scheme. True does not mean it exists: only a
+      link with resolved true was looked up.
     range: boolean
     required: true
+  resolved:
+    description: >-
+      Whether a DOI was found through the tool gateway. Absent when no lookup was made; false when
+      it was made and found nothing or failed, with the reason in message.
+    range: boolean
+  title:
+    description: The title of the record a resolved DOI names, as the source gives it.
+  resource_type:
+    description: The type of the record a resolved DOI names, as the source gives it.
   message:
     description: What the researcher should check or do with the identifier.
     required: true

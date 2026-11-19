@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% from "_macros.html" import person %}
+{% block title %}People{% endblock %}
+{% block heading %}People{% endblock %}
+{% block content %}
+<p class="muted">Everyone a run acted for or who created a project. The service keeps no list of accounts: people are known only from the stores. Who may use the workbench is <code>DD_WORKBENCH_ADMINS</code> in <code>/etc/data-director/workbench.env</code>.</p>
+{% for error in usage.errors %}<div class="banner bad" role="alert">{{ error }}</div>{% endfor %}
+<div class="table-wrap">
+<table>
+  <thead><tr>
+    <th scope="col">Person</th><th scope="col">Sign-in</th><th scope="col" class="num">Runs</th>
+    <th scope="col" class="num">Conversations</th><th scope="col" class="num">Projects</th>
+    <th scope="col">First seen</th><th scope="col">Last seen</th>
+  </tr></thead>
+  <tbody>
+  {% for p in usage.people %}
+    <tr>
+      <td>{{ person(p.name, p.principal_id) }}</td>
+      <td>{{ p.assurance or "—" }}</td>
+      <td class="num"><a href="/runs?principal={{ p.principal_id | urlencode }}">{{ p.runs | number }}</a></td>
+      <td class="num">{{ p.conversations | length | number }}</td>
+      <td class="num">{{ p.projects | number }}</td>
+      <td class="nowrap">{{ p.first_seen | when }}</td>
+      <td class="nowrap">{{ p.last_seen | ago(now) }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="7" class="empty">Nobody yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

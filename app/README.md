@@ -22,18 +22,28 @@ The app opens on a conversation with the orchestrator, the agent whose grounding
 a child opens its run, and past conversations reopen. Without a permitted orchestrator the page
 says so and links to the pages above, which are one step away (#131).
 
+The app works in one project at a time. The workspace header names the active project and
+switches to another or to **New project**; the conversations listed are that project's, and
+**New conversation** starts another thread in it. With no project active, the first message
+starts one.
+
 The conversation sits in the centre of a workspace ([The app](../docs/specs/app.md)):
 
 - across the top, whom the work acts for and whose policy applies, then the project's dataset,
   phase, repository and governance flags, which are not built yet (#160);
-- on the left, the Blueprint's six phases and their steps, from `GET /api/process-flow`, each step
+- on the left, the six data management phases and their steps, from `GET /api/process-flow`, each step
   naming the agents here whose manifest `serves` the step ([Orchestration](../docs/specs/orchestration.md));
 - on the right, the project's documents, which are not built yet (#160), and what the
   orchestrator is and what it has not declared;
-- beneath, the activity log, which needs streamed runs (#68, #69).
+- beneath, the activity log, which needs streamed runs (#69).
 
 Each run the orchestrator delegates is a card in the conversation; opening it shows the run's
 stages, outcome and evidence inside the card. On a narrow screen the zones stack in that order.
+
+The **Policy** page shows the deployment's institutional profile, the rules the policy gate holds
+every run to: its reference and digest, the agent a conversation goes to, each agent it allows
+with its action class, and which action classes need a data steward's approval
+([The app](../docs/specs/app.md)).
 
 What is not built yet is drawn in place, marked "Not built yet", with a link to the issue that
 builds it, rather than filled with invented data (#75). `docs/ui/best-practices.md` is the design
@@ -48,11 +58,14 @@ It is built from:
   - `GET /api/agents`: each agent's manifest beside what the profile assigns it;
   - `POST /api/runs` (`{agent_id, input}`): runs the agent through the conductor and answers when
     it has ended, with the envelope and the checks' reports. A request refused before it runs is
-    a 400 with Problem Details;
+    a 400 with Problem Details. It is for scripting and tests: the shell starts runs only through
+    conversation turns;
   - `GET /api/runs` and `GET /api/runs/{id}`: the run store, newest first;
-  - `GET /api/examples`: the example inputs in `config/examples/`;
+  - `GET /api/examples`: the example inputs in `config/examples/`, for scripting `POST /api/runs`;
   - `GET /api/process-flow`: the Blueprint's entry points and phases (`dd_sdk.process_flow`);
-  - `POST /api/conversations`: starts a conversation and gives its `conversation_id`;
+  - `POST /api/conversations` (optionally `{project_id}`): starts a conversation in that project,
+    or in a new one, and gives its `conversation_id` and `project_id`; an unknown project, or
+    one the person may not read, is a 404;
   - `POST /api/conversations/{id}/turns` (`{agent_id, message_text, follows}`): sends one
     `Message` to the agent through the conductor and answers as `POST /api/runs` does. The server
     builds the message's history from the stored turns; a request that gives one is refused
@@ -63,6 +76,14 @@ It is built from:
   - `GET /api/conversations` and `GET /api/conversations/{id}`: the stored conversations, most
     recently active first, and one conversation's turns, each with its delegated children, the
     stored inputs, version changes per agent and the history;
+  - `GET /api/projects`: the projects the person signed in has a role in, the one created
+    last first and a page at a time (`?limit=`, `?before=`, a `Link` to the next page), each
+    with its inventory, its documents counted by state and the conversations started in it. The shell draws it at `/projects`, the first item in the main navigation;
+  - `DELETE /api/projects/{id}` (body `{"title": …}`, the project's name as its owner typed it),
+    `POST /api/projects/{id}/restore` and `GET /api/projects/deleted`: an owner deletes a
+    project, which hides it and removes nothing, and restores it within the restore period. The
+    shell confirms on the project's page and lists deleted projects under **Recently deleted**
+    on `/projects`;
   - `GET /api/projects/{id}/documents`: a project's documents, each version with its text and
     state as the project log records it, and the harness's rule for when a decision needs a
     reason. The shell draws it at `/projects/{id}`;
@@ -72,6 +93,24 @@ It is built from:
     refused. A decision on a version that is no longer the latest or undecided, or whose
     `digest` is not that of its text, is a 409 and is recorded as refused
     ([Projects](../docs/specs/projects.md));
+  - `GET /api/projects/{id}/repository`: the requirements of the repository chosen last, with
+    the requirement sets by version and digest and their warnings, or a 404
+    `repository-not-chosen` problem when none has been. `PUT` on it (`{re3data_id}`) chooses one,
+    its name and declared standards read from the pinned re3data export
+    ([Deposit](../docs/specs/deposit.md)). The shell draws it as the project page's Repository
+    entry;
+  - `POST /api/projects/{id}/validation`: validates the project against the requirements
+    recorded for the repository chosen last, for the person signed in, and keeps the report;
+    answers with each violation and warning in the harness's words and the SHACL Validation
+    Report ([Deposit](../docs/specs/deposit.md));
+  - `POST /api/projects/{id}/package`: validates the project and, only if it has no violation,
+    builds the deposit package, answering with the validation and the package's digest, size and
+    download path; a project with a violation is a 409 `package-refused` problem whose
+    `validation` says why. `GET /api/projects/{id}/packages/{digest}` is a package the project
+    log records as built, as a zip. Every `/api/projects/{id}/…` route answers a person with no
+    role in the project with 404 `project-not-found`, as for a project that does not exist, and a
+    member asking for an owner's action with 403 (`dd_harness.project_access`). Until membership
+    is built, a project's only role is its creator's, as owner (#389);
   - `POST /a2a` and `GET /.well-known/agent-card.json`: the conductor's A2A endpoint, which
     takes a delegation agent's call back under its grant ([Orchestration](../docs/specs/orchestration.md)) and refuses every other
     request, so the app is no general A2A way in;
@@ -83,13 +122,13 @@ It is built from:
 From the repository root:
 
 ```bash
-uv run scripts/dev.py setup        # once: whom runs act for, an optional model key; installs, builds
-uv run scripts/dev.py start        # the agents, the app (:7860) and the Vite dev server (:5173)
+uv run scripts/dd.py setup        # once: whom runs act for, an optional model key; installs, builds
+uv run scripts/dd.py start        # the agents, the app (:7860) and the Vite dev server (:5173)
 ```
 
 `start` builds the shell again whenever `app/web` has changed since the last build, starts every
 agent in `config/agents.yaml`, waits for each, and then starts the app and `npm run dev`, which
-proxies `/api` to it. Ctrl-C stops them all. `uv run scripts/dev.py doctor` says what is wrong
+proxies `/api` to it. Ctrl-C stops them all. `uv run scripts/dd.py doctor` says what is wrong
 when something is. The README at the repository root, "Quick start", has the steps by hand.
 
 By hand, with Node 22 or later, from `app/web`:
@@ -112,6 +151,14 @@ app's own A2A endpoint, under a grant the conductor issues for that run.
 
 To run it on a server that keeps itself up to date with `main`, see `deploy/README.md`.
 
+**Describe a folder…**, the browser scanner in Make an inventory, is offered only where the app
+serves the scanner's bundle at `/inventory-bundle/`. Build it with `npm ci && npm run bundle` in
+`inventory/browser`; `npm run dev` and `vite preview` then serve it from there, with its licence
+notices (`NOTICES.md`). `uv run data-director` serves it once it is copied into
+`app/web/dist/inventory-bundle/`, as the release image and the VM deploy do. The app sends the
+scanner's worker its own Content Security Policy, and the bundle `Cache-Control: no-cache`
+(`dd_app.worker_policy`).
+
 `DD_APP_HOST` and `DD_APP_PORT` change the address. The agents call the app back on
 `http://DD_APP_HOST:DD_APP_PORT`; set `DD_HARNESS_URL` if they reach it at another address. To work on the shell, run the server as
 above and `npm run dev` in `app/web`, which proxies `/api` to it (set `DD_APP_URL` if it is
@@ -127,12 +174,17 @@ The app supplies its own configuration to the harness ([System and boundaries](.
 | `config/profile.yaml.example` | The institutional profile. It enables every in-tree agent. Copy it to `config/profile.yaml` (not committed) to edit it locally; the app prefers that copy. | `DD_PROFILE` |
 | `config/agents.yaml` | Agents reached over A2A: every in-tree agent. | `DD_AGENTS_CONFIG` |
 | `config/sources.yaml` | The pinned FAIRsharing snapshot the source check uses. | `DD_SOURCES_CONFIG` |
-| `config/examples/` | Example inputs the Run tab offers, copied from the workbench's samples. TODO(#108): agents should declare their own. | — |
+| `config/examples/` | Example inputs, copied from the workbench's samples. TODO(#108): agents should declare their own. | — |
 | `runs/` (not committed) | Where each run is stored. | `DD_RUNS_DIR` |
 | `projects/` (not committed) | Each project's log, with its documents and the decisions on them. | `DD_PROJECTS_DIR` |
 
-To change the profile for your own machine, copy the example. `config/profile.yaml` is not
-committed, and the app uses it in place of the example when it exists:
+`scripts/dd.py` writes the profile the app runs under, `config/local/profile.yaml`, from the
+example and `config/local/deployment.yaml`, and names it with `DD_PROFILE`. It does this again
+on each `start`, so the profile follows the example. To choose the orchestrator or leave an
+agent out, edit `deployment.yaml`.
+
+Without `DD_PROFILE`, the app uses `config/profile.yaml` in place of the example when that file
+exists. It is not committed:
 
 ```bash
 cp app/config/profile.yaml.example app/config/profile.yaml
@@ -140,8 +192,13 @@ cp app/config/profile.yaml.example app/config/profile.yaml
 
 Edit the copy (raise `version` when you change it). Delete it to return to the example.
 
+This copy is the fallback. `scripts/dd.py apply` generates a profile from `deployment.yaml`
+(`config/local/profile.yaml`) and names it in `DD_PROFILE`, which takes precedence; the
+orchestrator and the agents that run are better changed there
+([the command](../docs/guide/operations/commands.md)).
+
 The copy does not follow the example: an agent added to the example later is not enabled in it,
-and the app refuses that agent as not enabled. `scripts/dev.py start` and `doctor` name any agent
+and the app refuses that agent as not enabled. `scripts/dd.py start` and `doctor` name any agent
 the example enables that the copy omits; add it to the copy, or delete the copy.
 
 The app stops at start-up, with one line, if a setting is unset or wrong, a file is missing or
@@ -165,21 +222,27 @@ To try it locally, register a client through ORCID's
 with the redirect URI `http://127.0.0.1:7860/api/sign-in/callback`. Sign in with a sandbox account:
 create one at `https://sandbox.orcid.org/register`, using a `@mailinator.com` address, since the
 sandbox only sends email there, and verify it before editing records. Sandbox data is not backed up
-and may be deleted (#178). A test needs neither: `dd_harness.testing.FakeIdentityProvider` stands in
+and may be deleted (#178). Open the app at `http://127.0.0.1:7860`, not `localhost`, so the sign-in
+cookie returns with the callback; the [operations guide](../docs/guide/operations/configuration.md#trying-sign-in-against-the-orcid-sandbox)
+has the full set-up and what its failures mean. A test needs neither: `dd_harness.testing.FakeIdentityProvider` stands in
 for ORCID.
 
-- The app runs the authorisation-code flow itself (`src/dd_app/signin.py`), asks for the `openid`
-  scope alone, and verifies the ID token with the harness's `verify_id_token`. It keeps the
-  principal in a server-side session (`src/dd_app/sessions.py`) and no token. The browser holds an
+- The app serves the sign-in routes and runs the harness's authorisation-code flow
+  (`dd_harness.signin`), which asks for the `openid` scope alone and verifies the ID token with
+  `verify_id_token`. It keeps the principal in a server-side session (`dd_harness.sessions`) and no
+  token. The browser holds an
   opaque `HttpOnly`, `Secure`, `SameSite=Lax` cookie. Browsers treat `127.0.0.1` as secure, so
   this works over plain HTTP locally; a deployment needs HTTPS (#155).
 - Every `/api` route that runs or reads anything answers `401` with an `unauthenticated` problem
   when there is no session, and the shell then shows its sign-in page. `/api/about`,
-  `/api/session` and the sign-in routes are open.
+  `/api/session` and the sign-in routes are open, as is `/server-status`, which answers a monitor's
+  `GET /server-status?auto` (collectd's apache plugin) with the app's version and uptime in
+  `Key: value` lines. NGINX answers `404` to it, so only the VM itself reaches it, on
+  `127.0.0.1:7860`.
 - Sessions are held in memory, so restarting the app signs everyone out.
 - Signing out ends the session here. ORCID offers no sign-out for the app, so the person may still
   be signed in at ORCID, and the signed-out page says so.
-- TODO(#153): every signed-in person still sees every run and conversation.
+- Each person sees only their own runs and conversations; someone else's is answered `404`.
 
 Without `DD_OIDC_ISSUER` the app is a development server. `DD_PRINCIPAL_ID` and
 `DD_PRINCIPAL_NAME` are then required, every run acts for this operator, not for the person
@@ -189,11 +252,19 @@ both a provider and an operator principal stops start-up.
 ### Version and problem reports
 
 `GET /api/about` names the build: the app and harness versions, and the commit (`DD_REVISION`,
-else a `REVISION` file at the root of a deployed release, else `git` in a checkout). The
+else a `REVISION` file at the root of a deployed release, else `git` in a checkout), and what
+the deployment runs: the profile (`id`, `version`, `digest`, `orchestrator`) and the names of the
+configured agents it cannot reach (`unavailable`, `incompatible`). It needs no session, so an
+operator can check a server without signing in. The
 footer of every page shows it, and the
 "Report a problem" page, linked from the banner, shows it too and files a GitHub issue through
-`POST /api/feedback` ([The app](../docs/specs/app.md)). It is on only if `DD_FEEDBACK_GITHUB_TOKEN` (or `_FILE`) is
-set; `DD_FEEDBACK_REPO` names the repository. A report carries what the person typed, the
+`POST /api/feedback` ([The app](../docs/specs/app.md)). It is on only if the app holds a credential for
+GitHub, and then only one of these: a **GitHub App** (`DD_FEEDBACK_GITHUB_APP_ID` and
+`DD_FEEDBACK_GITHUB_APP_PRIVATE_KEY_FILE`, the PEM key's path, relative to `$CREDENTIALS_DIRECTORY`
+under systemd; `DD_FEEDBACK_GITHUB_APP_INSTALLATION_ID` is optional), or a fine-grained
+**token** (`DD_FEEDBACK_GITHUB_TOKEN`, or `_FILE`). The App is preferred, since it belongs to the
+organisation and its tokens expire by themselves; [Problem reports](../deploy/README.md#problem-reports)
+says how to create it. `DD_FEEDBACK_REPO` names the repository. A report carries what the person typed, the
 build, the page, and, if they agree, the identifiers of the run and conversation, never their
 inputs or results.
 
@@ -210,15 +281,17 @@ rule-based `orchestrator.stub`, which needs no model key: its replies are templa
 by its `routing.yaml`.
 
 The model-backed `orchestrator.model` (`agents/orchestrator-model/`) decides which agents to ask
-from what each one declares, and writes its replies with a model. In development, `uv run scripts/dev.py setup` does
-both steps below when you give it a key. To use it, give it a model key
-(`config/local/agents/orchestrator-model.env` in development, `deploy/README.md` on a server), and in the
-profile the app runs under (your local `config/profile.yaml`) set
+from what each one declares, and writes its replies with a model. To use it:
 
-```yaml
-version: 5                         # one more than before
-orchestrator: orchestrator.model
-```
+1. Give it a model key: `uv run scripts/dd.py secret set orchestrator-model anthropic-api-key`,
+   or `sudo data-director secret set …` on a server.
+2. Set `orchestrator: model` in `deployment.yaml`: `config/local/` in development,
+   `/etc/data-director/` on a server.
+3. Apply it. `dd.py start` does this in development; on a server, run `sudo data-director apply`.
+
+`apply` writes the profile the app runs under, with `orchestrator: orchestrator.model` and a raised
+`version` ([Configuration](../docs/guide/operations/configuration.md)). In development,
+`uv run scripts/dd.py setup` does steps 1 and 2 when you give it a key.
 
 When the named agent is not running, does not delegate, or is not permitted, the home page says
 so and links to the agent directory; it does not fall back to another agent.
@@ -226,7 +299,7 @@ so and links to the agent directory; it does not fall back to another agent.
 ## Layout and styles
 
 Every page is the same frame (`web/src/components/frame/Frame.tsx`): a banner holding the name,
-the main navigation, who is signed in and the dark mode switch, identical on every page so that
+the main navigation, who is signed in and the settings link, identical on every page so that
 nothing in it moves, and one `main`. Each page opens with a `PageHeader` (its `h1` and what the reader needs
 before the content). What a page acts for is said in the page, not in the banner.
 
@@ -236,7 +309,7 @@ layers, not selector specificity, decides which rule wins.
 
 - **Where a rule goes.** Page layout and each page's grid are in `styles/layout.css`; patterns
   used by several components (statuses, callouts, fields, data tables) in `styles/patterns.css`;
-  anything else beside its component (`RunForm.tsx` imports `RunForm.css`), wrapped in
+  anything else beside its component (`Stages.tsx` imports `Stages.css`), wrapped in
   `@layer components`. A component does not set its own outer margins or grid placement.
 - **Names.** Classes are kebab-case and start with their component's name (`app-nav-link`,
   `stage-name`).
@@ -247,9 +320,16 @@ layers, not selector specificity, decides which rule wins.
   `web/src/tokens/neutral.css` ([The app](../docs/specs/app.md)). Stylelint (`web/.stylelintrc.json`, part of
   `npm run lint`) rejects a literal colour outside the token file. The typeface, Inter, is
   self-hosted from `@fontsource-variable/inter`; no font is fetched from a third party.
+- **Imports.** `npm run lint` also checks the import graph: dependency-cruiser
+  (`web/.dependency-cruiser.cjs`) rejects cycles, and eslint-plugin-boundaries
+  (`web/eslint.config.js`) keeps `components/ui` free of feature components and the domain
+  folders free of components ([The app](../docs/specs/app.md)).
 - **Icons.** Icons are [Lucide](https://lucide.dev) (`lucide-react`, ISC licence), bundled with
   the app and imported one by one. A button takes one through its `icon` prop. The icon is
   decoration and hidden from screen readers, so the label alone says what the button does.
+  Lucide has no brand marks, so the ORCID iD icon and GitHub's mark (Octicons, MIT) are inline SVGs
+  in `web/src/components/ui/BrandIcon.tsx`, beside the ORCID sign-in and iD and beside links to
+  GitHub; their licences are in `brand-icons.LICENCE` there.
 - **Controls.** Buttons come from the shell's kit, `web/src/components/ui/Button.tsx`: React
   Aria's `Button` and `ToggleButton` in four variants (`primary` for the one action a view exists
   for, `secondary` by default, `quiet` beside the content it acts on, `danger` to remove what the
@@ -266,19 +346,22 @@ npm run lint && npm run typecheck && npm test      # ESLint (with jsx-a11y), Sty
 npx playwright install chromium && npm run e2e      # axe light and dark, keyboard, 400% reflow
 ```
 
+`npm run e2e` includes `e2e/scan.spec.ts`, which describes a folder with the real scanner and
+needs its bundle built first (`npm ci && npm run bundle` in `inventory/browser`).
+
 The shell's tests draw manifests from `app/web/fixtures/`. `app/tests/test_app.py` builds them
-from the real server and fails if they drift; `DD_WRITE_FIXTURES=1 uv run pytest app/tests`
-rewrites them. `agents-several.json` holds five agents of different grounding modes and payload
+from the real server. Run locally, `uv run pytest app/tests` rewrites a fixture that has drifted,
+for the change to be committed; in CI (`CI` set) a drifted fixture fails the test instead, and
+`DD_WRITE_FIXTURES=1` or `=0` forces either behaviour. `agents-several.json` holds five agents of different grounding modes and payload
 shapes, under a profile that does not list the standards advisor, so the shell is tested on more than one agent.
 
 ## What it does not do
 
 - A run is one request that answers when the run has ended, so the stages are read back
   afterwards rather than watched, and a run cannot be cancelled. Streaming runs over AG-UI
-  replaces it (#68, #69).
+  replaces it (#69).
 - A person can approve, edit then approve, or reject a project's documents at `/projects/{id}`,
-  but no run adds a document to a project yet (#394), nothing links to that page, and anyone
-  signed in can decide (#389). Risk tiers and batching for review are #72 and #73.
+  and only the project's owner, its creator until membership is built (#389), can decide. Risk tiers and batching for review are #72 and #73.
 - The form checks only required fields and numbers; the conductor's input check decides.
 - The conversation is with the rule-based `orchestrator.stub` unless the profile names the
   model-backed orchestrator, which needs a key (see "Choosing the orchestrator"). Replies are not

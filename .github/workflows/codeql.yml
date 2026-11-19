@@ -24,7 +24,7 @@ concurrency:
 jobs:
   changes:
     name: Changed paths
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       languages: ${{ steps.paths.outputs.codeql }}
@@ -40,7 +40,7 @@ jobs:
           EVENT: ${{ github.event_name }}
         run: |
           if [ "$EVENT" = pull_request ]; then
-            git diff --name-only HEAD^1 HEAD | bash scripts/ci_changes.sh >> "$GITHUB_OUTPUT"
+            git -c core.quotepath=off diff --name-only --no-renames HEAD^1 HEAD | bash scripts/ci_changes.sh >> "$GITHUB_OUTPUT"
           else
             bash scripts/ci_changes.sh --all >> "$GITHUB_OUTPUT"
           fi
@@ -50,7 +50,7 @@ jobs:
     needs: changes
     # An empty matrix is an error, so a pull request that changes no source skips the job.
     if: needs.changes.outputs.languages != '[]'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
       contents: read
@@ -63,10 +63,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+      - uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           languages: ${{ matrix.language }}
           build-mode: none
-      - uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+      - uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           category: /language:${{ matrix.language }}

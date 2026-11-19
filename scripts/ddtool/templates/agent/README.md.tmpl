@@ -1,0 +1,25 @@
+# $agent_id
+
+**Mock** (`0.1.0a0`): $title. Made by `uv run scripts/dd.py new-agent $name`; it does
+nothing useful yet. Replace this paragraph with what the agent does ([Agents](../README.md)).
+
+| Part | In this agent |
+|---|---|
+| Input | `$input_class`: `subject`, what to advise on. |
+| Payload | `$payload_class`: `advice_text`, how it came about (`advice_derivation`), `limitations` and `grounded_on`. |
+| Grounding mode | `none`: deterministic, no retrieval and no model. It cites the input and nothing else. |
+| Outcomes | `succeeded` with advice; `abstained` (`insufficient-input`) for a blank subject. |
+| Steps served | None yet; name the process-flow steps it helps with in `serves`. |
+
+## Run it
+
+```sh
+uv run $script serve --port $port
+uv run pytest agents/$name
+```
+
+## Where to read
+
+`src/$package/agent.py` is the agent. The classes are declared in
+`src/$package/schema/$name.yaml`; after editing it, run
+`uv run dd-gen-schema agents/$name/src/$package/schema/$name.yaml` and keep `classes.py` in step.

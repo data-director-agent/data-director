@@ -238,7 +238,9 @@ has no copy in `sources.yaml` is reported as unresolved, and never counted as ve
 ## 6. Validate and store
 
 The finished envelope is validated against the JSON Schema. If what the agent returned breaks
-the contract, the run is stored as `failed` with `agent-error`.
+the contract, the run is stored as `failed` with `agent-error`. A payload that passes is then
+checked against the SHACL shapes its class carries on the card, and the SHACL Validation Report is
+kept with the run. That check only reports: the outcome does not depend on it.
 
 The envelope is then appended to `runs/invocations.jsonl`, and a folder is written for the run:
 
@@ -249,6 +251,7 @@ runs/<invocation_id>/
 ├── spans.jsonl      the trace: the tree shown in step 3, with times
 ├── grounding.txt    the linter's verdict
 ├── sources.txt      the source check's verdict
+├── validation-report.jsonld  the payload against its class's SHACL shapes
 └── crate/           a Process Run Crate: a standard provenance record of the run
 ```
 

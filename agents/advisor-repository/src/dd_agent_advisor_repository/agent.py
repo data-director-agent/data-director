@@ -5,7 +5,11 @@ persistent identifiers (R7), its access options and costs, and its certification
 repository is mandated is a policy question, answered by `advisor.policy` from policy records
 (its `PolicyChecks.mandated_repositories`); the orchestrator passes the answer in as
 `RepositoryNeeds.mandated`. With mandated repositories the agent describes them, flagging the
-needs they do not meet; with none it shortlists. The researcher chooses (TODO(#199)).
+needs they do not meet; with none it shortlists. A repository the researcher only names or asks
+about (`RepositoryNeeds.asked_about`) is not a mandate: it is described alongside the shortlist,
+never instead of it, and never marked mandated (#1167). The researcher chooses (TODO(#199)). In a
+project, decided required repositories are mandated too, and the repository the researcher chose
+is described when nothing else is asked (`given.py`).
 
 Grounding invariant: retrieval precedes any model call, and the model never determines which
 repositories are offered or any judgement about them. A candidate names its records once, in
@@ -17,23 +21,18 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from dd_agent_advisor_repository import assess, rank
+from dd_agent_advisor_repository import assess, choose, given, rank
 from dd_agent_advisor_repository.classes import (
-    CandidateBasis,
     RepositoryCandidate,
     RepositoryNeeds,
     RepositoryOptions,
+    RepositoryRef,
     SearchedSummary,
 )
-from dd_agent_advisor_repository.explain import Explainer, Item, TemplateExplainer
+from dd_agent_advisor_repository.explain import Explainer, Item, Rationale, TemplateExplainer
 from dd_agent_advisor_repository.records import DatabaseRecord, Re3dataRecord
-from dd_agent_advisor_repository.retrieve import (
-    Databases,
-    RegistryUnavailable,
-    Repositories,
-    SnapshotRef,
-)
-from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
+from dd_agent_advisor_repository.retrieve import Databases, Repositories
+from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext, abstain
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Derivation,
@@ -46,13 +45,8 @@ from dd_sdk.contract.models import (
     ReasonCode,
 )
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, HASH_ALGORITHM
+from dd_sdk.registry import RegistryUnavailable, SnapshotRef
 from dd_sdk.tracing import retrieval_span
-
-
-def _abstain(reason: ReasonCode, statement: str) -> AgentResult:
-    return AgentResult(
-        outcome=Outcome(status=OutcomeStatus.ABSTAINED, reason_code=reason, statement=statement)
-    )
 
 
 class _Retrieved:
@@ -65,6 +59,9 @@ class _Retrieved:
         # part-way through a run, after which the snapshot answers.
         self.databases: dict[str, tuple[DatabaseRecord, SnapshotRef]] = {}
         self.databases_down = False
+        # Each name given (mandated or asked about) that several records bear, with their
+        # identifiers.
+        self.ambiguous: dict[str, list[str]] = {}
 
     def summary(self) -> str:
         refs = [self.re3data_ref.as_string()]
@@ -72,15 +69,112 @@ class _Retrieved:
         return "; ".join(refs)
 
 
+def _lookup(
+    refs: list[RepositoryRef], source: Repositories, got: _Retrieved, named: choose.Named
+) -> list[Re3dataRecord]:
+    """The records of the repositories `refs` names, each once; the names not found go to
+    `named.not_found` (`_from_re3data`)."""
+    records: list[Re3dataRecord] = []
+    for ref in refs:
+        if ref.re3data_id:
+            by_id = source.fetch(ref.re3data_id)
+            found = [by_id] if by_id is not None else []
+        else:
+            found = source.find(ref.name)
+        if len(found) != 1:
+            named.not_found.append(ref.name)
+            if found:
+                got.ambiguous[ref.name] = [n.re3data_id for n in found]
+            continue
+        if found[0].re3data_id not in {r.re3data_id for r in records}:
+            records.append(found[0])
+    return records
+
+
+def _shortlist(
+    needs: RepositoryNeeds, source: Repositories
+) -> tuple[rank.Matches, dict[str, Re3dataRecord]]:
+    """The shortlist's hits, by text and by the themes' DFG subjects, and the generalist
+    repositories (`_from_re3data`)."""
+    matches = rank.Matches()
+    hits: dict[str, Re3dataRecord] = {}
+    limit = int(rank.config()["search_limit"])
+    themes = [q.text for q in rank.queries(needs) if q.label == rank.THEME]
+    if themes:
+        rank.resolve(themes, source.subjects(), matches)
+    for query in rank.queries(needs):
+        found = source.search(query)
+        matches.add(query, found)
+        for hit in found[:limit]:
+            hits.setdefault(hit.record.re3data_id, hit.record)
+    for theme in themes:
+        filed = [r for c in matches.subjects[theme] for r in source.with_subject(c)]
+        for found_record in rank.by_subject(theme, filed, matches):
+            hits.setdefault(found_record.re3data_id, found_record)
+    for rid in rank.generalists():
+        if rid not in hits and (record := source.fetch(rid)) is not None:
+            hits[rid] = record
+    return matches, hits
+
+
+def _items(chosen: list[choose.Chosen], got: _Retrieved, needs: RepositoryNeeds) -> list[Item]:
+    """What the explainer is told about each candidate chosen."""
+    items: list[Item] = []
+    for record, basis, _, reasons in chosen:
+        pair = got.databases.get(record.fairsharing_id or "")
+        cross = pair[0] if pair else None
+        items.append(
+            Item(
+                record=record,
+                database=cross,
+                basis=basis,
+                assessment=assess.assess(record, cross, needs),
+                reasons=reasons,
+            )
+        )
+    return items
+
+
+def _candidate(
+    item: Item, score: float | None, reasons: tuple[str, ...], rationale: Rationale
+) -> RepositoryCandidate:
+    grounded = [
+        GroundingRef(source_id=item.record.re3data_id, content_hash=item.record.content_hash())
+    ]
+    if item.database is not None:
+        grounded.append(
+            GroundingRef(
+                source_id=item.database.fairsharing_id,
+                content_hash=item.database.content_hash(),
+            )
+        )
+    return RepositoryCandidate(
+        basis=item.basis,
+        score=score,
+        assigns_pids=assess.assigns_pids(item.record),
+        commercial=assess.commercial(item.record),
+        fee_required=assess.fee_required(item.record),
+        meets=item.assessment.meets,
+        misses=item.assessment.misses,
+        notes=item.assessment.notes,
+        ranked_by=list(reasons),
+        rationale=rationale.text,
+        rationale_derivation=rationale.derivation,
+        grounded_on=grounded,
+    )
+
+
 class RepositoryAgent:
     spec = AgentSpec(
         agent_id="advisor.repository",
         title="Repository Librarian",
+        icon="🏛️",
         version="0.1.0-alpha",
         description=(
             "Recommends data repositories from re3data, or describes the ones mandated, with "
             "their persistent identifiers, access, costs and certification as the registries "
-            "record them. The researcher chooses."
+            "record them. Repositories the researcher asks about are described alongside the "
+            "shortlist; only a policy's requirement is mandated. The researcher chooses."
         ),
         action_class="advise",
         accepts=(ClassSchema.of(RepositoryNeeds),),
@@ -109,42 +203,54 @@ class RepositoryAgent:
         repositories: Repositories,
         databases: Databases | None = None,
         explainer: Explainer | None = None,
-        fallback: Repositories | None = None,
         databases_fallback: Databases | None = None,
     ) -> None:
         self.repositories = repositories
         self.databases = databases
-        self.fallback = fallback
         self.databases_fallback = databases_fallback
         self.explainer = explainer or TemplateExplainer()
 
     # --- retrieval ------------------------------------------------------------------------
 
     def _from_re3data(
-        self, needs: RepositoryNeeds, source: Repositories
-    ) -> tuple[list[Re3dataRecord], list[str], rank.Matches, dict[str, Re3dataRecord]]:
-        """Mandated records and the names not found, or the shortlist's hits and the generalist
-        repositories."""
-        mandated: list[Re3dataRecord] = []
-        not_found: list[str] = []
-        matches = rank.Matches()
-        hits: dict[str, Re3dataRecord] = {}
-        for ref in needs.mandated:
-            record = source.fetch(ref.re3data_id) if ref.re3data_id else source.find(ref.name)
-            if record is None:
-                not_found.append(ref.name)
-            elif record.re3data_id not in {m.re3data_id for m in mandated}:
-                mandated.append(record)
-        if not needs.mandated:
-            for query in rank.queries(needs):
-                found = source.search(query)
-                for hit in found:
-                    hits.setdefault(hit.record.re3data_id, hit.record)
-                    matches.add(query, hit.record.re3data_id)
-            for rid in rank.generalists():
-                if rid not in hits and (record := source.fetch(rid)) is not None:
-                    hits[rid] = record
-        return mandated, not_found, matches, hits
+        self, needs: RepositoryNeeds, source: Repositories, got: _Retrieved
+    ) -> tuple[choose.Named, rank.Matches, dict[str, Re3dataRecord]]:
+        """The records of the repositories named, mandated or asked about, and the shortlist's
+        hits (by text and by the themes' DFG subjects) with the generalist repositories. A
+        mandated repository replaces the shortlist; one the researcher asked about does not, and
+        a repository both mandated and asked about is mandated. With no theme, kind of data or
+        affiliation there is nothing to shortlist on. A name that several records bear is not
+        found, and noted in `got`: the researcher is asked for the identifier rather than given
+        a guess."""
+        named = choose.Named()
+        named.mandated = _lookup(needs.mandated, source, got, named)
+        mandated_ids = {r.re3data_id for r in named.mandated}
+        named.asked_about = [
+            r
+            for r in _lookup(needs.asked_about, source, got, named)
+            if r.re3data_id not in mandated_ids
+        ]
+        if needs.mandated or not rank.queries(needs):
+            return named, rank.Matches(), {}
+        matches, hits = _shortlist(needs, source)
+        return named, matches, hits
+
+    def _collect(self, records: list[Re3dataRecord], got: _Retrieved, ctx: RunContext) -> None:
+        """Keep the records retrieved, fetch the FAIRsharing records they cross-reference, and
+        open one retrieval span per record: this is the evidence the linter matches on."""
+        for record in records:
+            got.repositories[record.re3data_id] = record
+        for record in got.repositories.values():
+            if record.fairsharing_id and record.fairsharing_id not in got.databases:
+                self._database(record.fairsharing_id, got)
+        for rid, repository in got.repositories.items():
+            with retrieval_span(ctx.tracer, rid, repository.content_hash()):
+                pass
+        # A FAIRsharing record by its own identifier, as the candidate cites it, not as re3data
+        # wrote it (#741).
+        for database, _ in got.databases.values():
+            with retrieval_span(ctx.tracer, database.fairsharing_id, database.content_hash()):
+                pass
 
     def _database(self, fairsharing_id: str, got: _Retrieved) -> None:
         """Fetch the FAIRsharing record re3data cross-references. Optional: if FAIRsharing cannot
@@ -170,173 +276,67 @@ class RepositoryAgent:
     # --- assembly -------------------------------------------------------------------------
 
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
-        needs = request.input
-        assert isinstance(needs, RepositoryNeeds)  # the conductor checked spec.accepts
-        if not (needs.mandated or rank.queries(needs)):
-            return _abstain(
+        assert isinstance(request.input, RepositoryNeeds)  # the conductor checked spec.accepts
+        # What people in the project decided takes precedence over what the caller wrote.
+        needs, only_chosen = given.with_project(request.input)
+        if not (needs.mandated or needs.asked_about or rank.queries(needs)):
+            return abstain(
                 ReasonCode.INSUFFICIENT_INPUT,
-                "The needs name no mandated repository, no theme or kind of data, and no "
-                "affiliation, so there was nothing to look up.",
+                "The needs name no repository, no theme or kind of data, and no affiliation, so "
+                "there was nothing to look up.",
             )
 
         source = self.repositories
-        got = _Retrieved(source.snapshot_ref())
         try:
-            mandated, not_found, matches, hits = self._from_re3data(needs, source)
+            got = _Retrieved(source.snapshot_ref())
+            named, matches, hits = self._from_re3data(needs, source, got)
         except RegistryUnavailable as exc:
-            if self.fallback is None:
-                return _abstain(
-                    ReasonCode.REGISTRY_UNAVAILABLE,
-                    f"re3data could not be searched: {exc}. This is not an empty result.",
-                )
-            try:
-                mandated, not_found, matches, hits = self._from_re3data(needs, self.fallback)
-            except RegistryUnavailable as again:
-                return _abstain(
-                    ReasonCode.REGISTRY_UNAVAILABLE,
-                    f"re3data could not be searched ({exc}), nor its snapshot ({again}).",
-                )
-            got.re3data_ref = SnapshotRef(
-                label=self.fallback.snapshot_ref().label,
-                stale=True,
-                notes=[f"live route failed: {exc}"],
+            return abstain(
+                ReasonCode.REGISTRY_UNAVAILABLE,
+                f"re3data could not be read: {exc}. This is not an empty result.",
             )
-        for record in [*mandated, *hits.values()]:
-            got.repositories[record.re3data_id] = record
-        for record in got.repositories.values():
-            if record.fairsharing_id and record.fairsharing_id not in got.databases:
-                self._database(record.fairsharing_id, got)
-        # One retrieval span per record: this is the evidence the linter matches on.
-        for rid, repository in got.repositories.items():
-            with retrieval_span(ctx.tracer, rid, repository.content_hash()):
-                pass
-        for fid, (database, _) in got.databases.items():
-            with retrieval_span(ctx.tracer, fid, database.content_hash()):
-                pass
+        self._collect([*named.mandated, *named.asked_about, *hits.values()], got, ctx)
 
-        queries = [f"mandated: {r.name!r}" for r in needs.mandated] or [
-            q.describe() for q in rank.queries(needs)
-        ]
+        # The shortlist's queries; none when a mandate replaces the shortlist.
+        shortlisted = [] if needs.mandated else [q.describe() for q in rank.queries(needs)]
         searched = SearchedSummary(
-            queries=queries,
+            queries=[f"mandated: {r.name!r}" for r in needs.mandated]
+            + [f"asked about: {r.name!r}" for r in needs.asked_about]
+            + shortlisted,
             snapshot_ref=got.summary(),
             candidates_retrieved=len(got.repositories),
         )
 
-        chosen: list[tuple[Re3dataRecord, CandidateBasis, float | None, tuple[str, ...]]]
-        if needs.mandated:
-            if not mandated:
-                return _abstain(
-                    ReasonCode.NO_CANDIDATES_RETRIEVED,
-                    f"No re3data record was found for {', '.join(not_found)} "
-                    f"({got.summary()}). Check the names, or give the re3data identifiers.",
-                )
-            chosen = [(r, CandidateBasis.MANDATED, None, ()) for r in mandated]
-        else:
-            if not hits:
-                return _abstain(
-                    ReasonCode.NO_CANDIDATES_RETRIEVED,
-                    f"re3data ({got.summary()}) returned nothing for: " + "; ".join(queries),
-                )
-            ranked = rank.rank(matches, hits, needs)
-            if not ranked:
-                return _abstain(
-                    ReasonCode.NO_QUALIFYING_RESOURCE,
-                    f"{len(hits)} repositories were retrieved ({got.summary()}) but none "
-                    f"reached the floor of {rank.config()['confidence_floor']} or accepts "
-                    "deposits. Searched: " + "; ".join(queries),
-                )
-            chosen = [(r.record, CandidateBasis.RECOMMENDED, r.score, r.reasons) for r in ranked]
+        ranked = rank.rank(matches, hits, needs) if hits else []
+        chosen = choose.choose(named, ranked, only_chosen)
+        if not chosen:
+            return choose.abstention(named, got, len(hits), shortlisted, source)
         searched = searched.model_copy(update={"candidates_qualifying": len(chosen)})
 
-        items: list[Item] = []
-        for record, basis, _, reasons in chosen:
-            pair = got.databases.get(record.fairsharing_id or "")
-            cross = pair[0] if pair else None
-            items.append(
-                Item(
-                    record=record,
-                    database=cross,
-                    basis=basis,
-                    assessment=assess.assess(record, cross, needs),
-                    reasons=reasons,
-                )
-            )
+        items = _items(chosen, got, needs)
         # Explain — after retrieval, over decided candidates only.
         explanation = self.explainer.explain(needs, items, ctx)
 
-        candidates: list[RepositoryCandidate] = []
-        for item, (_, _, score, reasons), rationale in zip(
-            items, chosen, explanation.rationales, strict=True
-        ):
-            grounded = [
-                GroundingRef(
-                    source_id=item.record.re3data_id, content_hash=item.record.content_hash()
-                )
-            ]
-            if item.database is not None:
-                grounded.append(
-                    GroundingRef(
-                        source_id=item.database.fairsharing_id,
-                        content_hash=item.database.content_hash(),
-                    )
-                )
-            candidates.append(
-                RepositoryCandidate(
-                    basis=item.basis,
-                    score=score,
-                    assigns_pids=assess.assigns_pids(item.record),
-                    commercial=assess.commercial(item.record),
-                    fee_required=assess.fee_required(item.record),
-                    meets=item.assessment.meets,
-                    misses=item.assessment.misses,
-                    notes=item.assessment.notes,
-                    ranked_by=list(reasons),
-                    rationale=rationale.text,
-                    rationale_derivation=rationale.derivation,
-                    grounded_on=grounded,
-                )
+        candidates = [
+            _candidate(item, score, reasons, rationale)
+            for item, (_, _, score, reasons), rationale in zip(
+                items, chosen, explanation.rationales, strict=True
             )
+        ]
 
         evidence = self._evidence(candidates, got)
         grounded_on = [
             GroundingRef(source_id=e.source_id, content_hash=e.content_hash) for e in evidence
         ]
-        done = "mandated, described" if needs.mandated else "recommended"
-        statement = (
-            f"Repositories {done}: {len(candidates)}, grounded in {len(evidence)} registry "
-            f"record(s) ({got.summary()})."
+        statement = choose.statement(
+            needs, candidates, len(evidence), got, named, ranked, shortlisted
         )
-        short = [c for c in candidates if c.basis == CandidateBasis.MANDATED and c.misses]
-        if short:
-            statement += (
-                f" Mandated repositories that do not meet, or do not state, every need: "
-                f"{len(short)}; see each candidate's misses."
-            )
-        if not_found:
-            statement += f" No record found for: {', '.join(not_found)}."
-        themes = [q.text for q in rank.queries(needs) if q.label == rank.THEME]
-        chosen_ids = {record.re3data_id for record, *_ in chosen}
-        disciplinary = set(matches.themes) - set(rank.generalists())
-        if not needs.mandated and themes and not chosen_ids & disciplinary:
-            statement += (
-                " No discipline-specific repository matched the themes ("
-                + "; ".join(themes)
-                + "), so only generalist and institutional repositories are offered. The broad "
-                "field of study, such as environmental science, may find repositories of the "
-                "discipline that a narrow topic does not."
-            )
-        if not needs.mandated:
-            statement += (
-                " No mandated repository was given; a funder, journal or institution may still "
-                "require one, so check their policies before choosing from this shortlist."
-            )
-        statement += " The researcher chooses; human review is required."
+        statement += " The researcher chooses; human review is required. " + source.credit()
         return AgentResult(
             outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement=statement),
             payload=RepositoryOptions(
                 candidates=candidates,
-                not_found=not_found,
+                not_found=named.not_found,
                 searched=searched,
                 grounded_on=grounded_on,
             ),
@@ -344,6 +344,8 @@ class RepositoryAgent:
             model_id=self.explainer.model_id,
             input_tokens=explanation.usage.input_tokens,
             output_tokens=explanation.usage.output_tokens,
+            model_calls=explanation.calls.calls if explanation.calls else (),
+            prompts=explanation.calls.prompts if explanation.calls else {},
         )
 
     def _evidence(
@@ -366,11 +368,13 @@ class RepositoryAgent:
                         content=repository.document(),
                     )
                 )
-        for fid, (database, ref) in sorted(got.databases.items()):
-            if fid in cited:
+        # Keyed by the record's own identifier, which the candidate grounds on: re3data may cite
+        # it in another case (FAIRsharing.d6pe1f for FAIRsharing.d6Pe1f, #741).
+        for _, (database, ref) in sorted(got.databases.items()):
+            if database.fairsharing_id in cited - {e.source_id for e in out}:
                 out.append(
                     EvidenceItem(
-                        source_id=fid,
+                        source_id=database.fairsharing_id,
                         source_uri=database.source_uri,
                         retrieved_at=now,
                         snapshot_ref=ref.as_string(),

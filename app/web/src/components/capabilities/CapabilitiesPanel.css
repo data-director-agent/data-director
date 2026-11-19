@@ -4,18 +4,4 @@
   .panel {
     min-width: 0;
   }
-
-  table.derivations {
-    border-collapse: collapse;
-    width: 100%;
-    max-width: var(--measure);
-  }
-
-  table.derivations th,
-  table.derivations td {
-    text-align: left;
-    padding: var(--space-1) var(--space-2);
-    border-bottom: var(--border-width) solid var(--color-border);
-    vertical-align: top;
-  }
 }

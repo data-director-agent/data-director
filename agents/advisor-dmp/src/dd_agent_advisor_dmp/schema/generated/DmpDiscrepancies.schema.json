@@ -1,16 +1,27 @@
 {
    "$comment": "Generated from dmp.yaml by `uv run dd-gen-schema <path to dmp.yaml>`. Do not edit.",
    "$defs": {
+      "Derivation": {
+         "description": "",
+         "enum": [
+            "template",
+            "model",
+            "lexical",
+            "registry"
+         ],
+         "title": "Derivation",
+         "type": "string"
+      },
       "Discrepancy": {
          "additionalProperties": false,
-         "description": "One difference between what the plan committed to and what is planned.",
+         "description": "One difference between what the plan committed to and what is planned. Found by rule (discrepancy_derivation lexical), or, for a renamed output, by a model pairing a committed output with a planned one (discrepancy_derivation model, with its reason). Either way it is for a person to review.",
          "properties": {
             "output": {
                "description": "The output, by name, such as a dataset or software.",
                "type": "string"
             },
             "aspect": {
-               "description": "What differs: missing (committed, not planned), unplanned (planned, not committed), repository, access or licence.",
+               "description": "What differs: missing (committed, not planned), unplanned (planned, not committed), renamed (a committed output a model paired with a planned one of another name; committed and planned give the two names), repository, access or licence.",
                "type": "string"
             },
             "committed": {
@@ -30,15 +41,50 @@
             "message": {
                "description": "The difference, said for a person to review.",
                "type": "string"
+            },
+            "discrepancy_derivation": {
+               "$ref": "#/$defs/Derivation",
+               "description": "How the discrepancy was found: lexical, by the agent's rule matching names and comparing text, or model, by a model pairing a renamed output."
+            },
+            "reason": {
+               "description": "The model's short reason for a pairing or a reconciliation. Present exactly when a model found it.",
+               "type": [
+                  "string",
+                  "null"
+               ]
             }
          },
          "required": [
             "output",
             "aspect",
-            "message"
+            "message",
+            "discrepancy_derivation"
          ],
          "title": "Discrepancy",
          "type": "object"
+      },
+      "FactKind": {
+         "description": "What a project fact is about (docs/specs/projects.md).",
+         "enum": [
+            "funder",
+            "required_repository",
+            "file_inclusion",
+            "sensitivity",
+            "licence",
+            "sharing_commitment"
+         ],
+         "title": "FactKind",
+         "type": "string"
+      },
+      "FileDecision": {
+         "description": "Whether a file of the inventory is to be deposited.",
+         "enum": [
+            "include",
+            "exclude",
+            "undecided"
+         ],
+         "title": "FileDecision",
+         "type": "string"
       },
       "GroundingRef": {
          "additionalProperties": false,
@@ -58,12 +104,377 @@
          ],
          "title": "GroundingRef",
          "type": "object"
+      },
+      "LocationPrecision": {
+         "description": "The precision at which a location may be published.",
+         "enum": [
+            "exact",
+            "site",
+            "region",
+            "country"
+         ],
+         "title": "LocationPrecision",
+         "type": "string"
+      },
+      "ProjectFact": {
+         "additionalProperties": false,
+         "allOf": [
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "funder"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "fact_funder_name": {}
+                  },
+                  "required": [
+                     "fact_funder_name"
+                  ]
+               }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "required_repository"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "fact_repository_name": {}
+                  },
+                  "required": [
+                     "fact_repository_name"
+                  ]
+               }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "file_inclusion"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "fact_file_path": {},
+                     "file_decision": {}
+                  },
+                  "required": [
+                     "fact_file_path",
+                     "file_decision"
+                  ]
+               }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "sensitivity"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "sensitive_subject": {},
+                     "sensitivity_decision": {}
+                  },
+                  "required": [
+                     "sensitive_subject",
+                     "sensitivity_decision"
+                  ]
+               }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "licence"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "licence_id": {}
+                  },
+                  "required": [
+                     "licence_id"
+                  ]
+               }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "sharing_commitment"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "commitment_document": {},
+                     "commitment_quote": {}
+                  },
+                  "required": [
+                     "commitment_quote",
+                     "commitment_document"
+                  ]
+               }
+            }
+         ],
+         "description": "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, the licence, or an output a data management plan committed to share (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because.",
+         "properties": {
+            "fact_kind": {
+               "$ref": "#/$defs/FactKind",
+               "description": "What the fact is about, which says which value slots apply."
+            },
+            "fact_subject": {
+               "description": "The key a decision counts by within its kind: the funder's identifier or name, the repository's re3data identifier or name, the file's path, the field or path judged sensitive, or licence. The last decision on a kind and subject stands.",
+               "pattern": "\\S",
+               "type": "string"
+            },
+            "fact_funder_name": {
+               "description": "The funder's name, as its policy record or the researcher gives it.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "fact_funder_ror": {
+               "description": "The funder's ROR identifier, as a URL, where it is known.",
+               "format": "uri",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "fact_crossref_funder_id": {
+               "description": "The funder's Crossref Funder ID, as a DOI URL, where it is known.",
+               "format": "uri",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "fact_repository_name": {
+               "description": "The required repository's name.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "fact_re3data_id": {
+               "description": "The required repository's re3data identifier, such as r3d100010199, where known.",
+               "pattern": "^r3d[0-9]{9}$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "fact_required_by": {
+               "description": "The funders, journals or institutions that require the repository.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "fact_file_path": {
+               "description": "The path of the file the fact is about, relative to the dataset's root folder, as the inventory gives it.",
+               "pattern": "^[^/]",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "file_decision": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/FileDecision"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "Whether the file is to be deposited."
+            },
+            "fact_check_kind": {
+               "description": "The kind of check that raised the fact, in the checking agent's words, such as duplicate, system_file or third_party. Kept as it was given; the core does not enumerate it.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "sensitive_subject": {
+               "description": "The field name, or the file path, judged sensitive, such as a lat or lon field, or a file of site coordinates.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "sensitivity_decision": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/SensitivityDecision"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "Whether the sensitive field or file may be published, and how."
+            },
+            "location_precision": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/LocationPrecision"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "For a location that may be published or generalised, the precision agreed. Absent where the subject is not a location."
+            },
+            "licence_id": {
+               "description": "The licence decided, as an SPDX identifier or a URL.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "commitment_repository": {
+               "description": "For a sharing commitment, the repository the plan committed to share the output in, as the plan names it; absent where it names none.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "commitment_access": {
+               "description": "For a sharing commitment, how openly the plan committed to share the output (such as open, embargoed or on request), as the plan says it; absent where it says nothing.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "commitment_licence": {
+               "description": "For a sharing commitment, the licence the plan committed to, as the plan names it; absent where it names none.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "commitment_quote": {
+               "description": "For a sharing commitment, the plan's own words the commitment was read from, verbatim, so the person deciding can see the passage it rests on.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "commitment_document": {
+               "description": "For a sharing commitment, the digest of the attached document's text (its documentation_digest) the quote is from.",
+               "pattern": "^[0-9a-f]{64}$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "proposed_because": {
+               "description": "Why the agent proposes the fact, in a sentence for the person deciding. Kept with the proposal and shown to the person, never given to an agent.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "fact_kind",
+            "fact_subject"
+         ],
+         "title": "ProjectFact",
+         "type": "object"
+      },
+      "Reconciliation": {
+         "additionalProperties": false,
+         "description": "A difference the rules found in an aspect that a model judged to name the same thing, such as two spellings of one licence. It is shown, with the model's reason, so a person can see and overrule it, and is not counted as a discrepancy. Always found by a model.",
+         "properties": {
+            "output": {
+               "description": "The output, by name, such as a dataset or software.",
+               "type": "string"
+            },
+            "aspect": {
+               "description": "What differs: missing (committed, not planned), unplanned (planned, not committed), renamed (a committed output a model paired with a planned one of another name; committed and planned give the two names), repository, access or licence.",
+               "type": "string"
+            },
+            "committed": {
+               "description": "What the plan committed to for this aspect, if anything.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "planned": {
+               "description": "What is planned for this aspect, if anything.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "reason": {
+               "description": "The model's short reason for a pairing or a reconciliation. Present exactly when a model found it.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "output",
+            "aspect"
+         ],
+         "title": "Reconciliation",
+         "type": "object"
+      },
+      "SensitivityDecision": {
+         "description": "Whether a sensitive field or file may be published.",
+         "enum": [
+            "publish",
+            "generalise",
+            "withhold",
+            "undecided"
+         ],
+         "title": "SensitivityDecision",
+         "type": "string"
       }
    },
    "$id": "https://w3id.org/data-director/agents/dmp/DmpDiscrepancies",
    "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
-   "description": "The payload of advisor.dmp: where the planned sharing differs from the plan's commitments, for a person to review (R8). It flags and never enforces; a reviewed decision not to share is a valid outcome.",
+   "description": "The payload of advisor.dmp: where the planned sharing differs from the plan's commitments, for a person to review (R8). It flags and never enforces; a reviewed decision not to share is a valid outcome. Where it has read an attached plan and nobody has confirmed its commitments yet, it proposes each commitment as a project fact for the researcher to confirm, quoting the passage it rests on, and compares nothing until they do.",
    "properties": {
       "schema_class": {
          "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -81,8 +492,28 @@
             "null"
          ]
       },
+      "reconciled": {
+         "description": "Differences in repository, access or licence that a model judged to be the same thing, each with its reason, for a person to check. Empty when no model is configured.",
+         "items": {
+            "$ref": "#/$defs/Reconciliation"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "dropped": {
+         "description": "What the model proposed that was not used, and why: a pairing or reconciliation naming something not in the input, or a second pairing for one output.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
       "limitations": {
-         "description": "What this mock does not yet do.",
+         "description": "What this checker does not yet do.",
          "items": {
             "type": "string"
          },
@@ -97,6 +528,16 @@
             "$ref": "#/$defs/GroundingRef"
          },
          "type": "array"
+      },
+      "proposed_facts": {
+         "description": "Facts the agent proposes for a person to confirm. A proposal is never a fact until a person decides it (docs/specs/projects.md).",
+         "items": {
+            "$ref": "#/$defs/ProjectFact"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
       }
    },
    "required": [

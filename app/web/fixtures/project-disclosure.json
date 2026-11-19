@@ -1,0 +1,155 @@
+{
+  "documents": [
+    {
+      "approved_at": "2026-01-01T00:00:00Z",
+      "approved_by": "Josiah Carberry",
+      "digest": "b04ab7d4e3815605c46456d58f2fa25d125343365a5eec88d4a55f211ead28ca",
+      "document_id": "01900000-0000-7000-8000-000000000001",
+      "document_kind": "readme",
+      "document_title": null,
+      "draft": {
+        "agent_id": "stub.document",
+        "agent_version": "0.1.0",
+        "completed_at": "2026-01-01T00:00:00Z",
+        "derivation": "model",
+        "invocation_id": "01900000-0000-7000-8000-000000000002",
+        "models": [
+          {
+            "called_at": "2026-01-01T00:00:00Z",
+            "model_id": "test-model",
+            "prompt_digest": "4afccee6e55a2e326792609dc65828c0f97ddc1b7d1e91818367517f1739f81d",
+            "provider": "test"
+          }
+        ]
+      },
+      "edited_by": [],
+      "origin": "model",
+      "reason": null,
+      "version": 1
+    }
+  ],
+  "made_at": "2026-01-01T00:00:00Z",
+  "pending": 1,
+  "project_id": "01900000-0000-7000-8000-000000000003",
+  "prov": {
+    "@context": {
+      "dd": "https://w3id.org/data-director/",
+      "prov": "http://www.w3.org/ns/prov#",
+      "schema": "http://schema.org/",
+      "xsd": "http://www.w3.org/2001/XMLSchema#"
+    },
+    "@graph": [
+      {
+        "@id": "https://w3id.org/data-director/agents/stub.document",
+        "@type": [
+          "prov:SoftwareAgent",
+          "schema:SoftwareApplication"
+        ],
+        "schema:name": "stub.document"
+      },
+      {
+        "@id": "https://w3id.org/data-director/models/test/test-model",
+        "@type": [
+          "prov:SoftwareAgent",
+          "schema:SoftwareApplication"
+        ],
+        "schema:name": "test-model",
+        "schema:provider": "test"
+      },
+      {
+        "@id": "ni:///sha-256;SvzO5uVaLjJnkmCdxlgowPl93Bt9HpGBg2dRfxc5-B0",
+        "@type": [
+          "prov:Entity",
+          "prov:Plan"
+        ],
+        "schema:name": "Prompt sent to the model",
+        "schema:sha256": "4afccee6e55a2e326792609dc65828c0f97ddc1b7d1e91818367517f1739f81d"
+      },
+      {
+        "@id": "urn:uuid:01900000-0000-7000-8000-000000000002#model-call-1",
+        "@type": "prov:Activity",
+        "prov:qualifiedAssociation": {
+          "@type": "prov:Association",
+          "prov:agent": {
+            "@id": "https://w3id.org/data-director/models/test/test-model"
+          },
+          "prov:hadPlan": {
+            "@id": "ni:///sha-256;SvzO5uVaLjJnkmCdxlgowPl93Bt9HpGBg2dRfxc5-B0"
+          }
+        },
+        "prov:startedAtTime": {
+          "@type": "xsd:dateTime",
+          "@value": "2026-01-01T00:00:00Z"
+        },
+        "prov:used": {
+          "@id": "ni:///sha-256;SvzO5uVaLjJnkmCdxlgowPl93Bt9HpGBg2dRfxc5-B0"
+        },
+        "prov:wasAssociatedWith": {
+          "@id": "https://w3id.org/data-director/models/test/test-model"
+        }
+      },
+      {
+        "@id": "urn:uuid:01900000-0000-7000-8000-000000000002",
+        "@type": "prov:Activity",
+        "dd:derivation": "model",
+        "prov:endedAtTime": {
+          "@type": "xsd:dateTime",
+          "@value": "2026-01-01T00:00:00Z"
+        },
+        "prov:wasAssociatedWith": {
+          "@id": "https://w3id.org/data-director/agents/stub.document"
+        },
+        "prov:wasInformedBy": [
+          {
+            "@id": "urn:uuid:01900000-0000-7000-8000-000000000002#model-call-1"
+          }
+        ],
+        "schema:softwareVersion": "0.1.0"
+      },
+      {
+        "@id": "https://orcid.org/0000-0002-1825-0097",
+        "@type": [
+          "prov:Person",
+          "schema:Person"
+        ],
+        "schema:name": "Josiah Carberry"
+      },
+      {
+        "@id": "urn:uuid:01900000-0000-7000-8000-000000000001#v1-approval",
+        "@type": "prov:Activity",
+        "prov:endedAtTime": {
+          "@type": "xsd:dateTime",
+          "@value": "2026-01-01T00:00:00Z"
+        },
+        "prov:used": {
+          "@id": "urn:uuid:01900000-0000-7000-8000-000000000001#v1"
+        },
+        "prov:wasAssociatedWith": {
+          "@id": "https://orcid.org/0000-0002-1825-0097"
+        },
+        "schema:name": "approval"
+      },
+      {
+        "@id": "urn:uuid:01900000-0000-7000-8000-000000000001#v1",
+        "@type": [
+          "prov:Entity",
+          "schema:CreativeWork"
+        ],
+        "prov:wasAttributedTo": {
+          "@id": "https://w3id.org/data-director/agents/stub.document"
+        },
+        "prov:wasGeneratedBy": {
+          "@id": "urn:uuid:01900000-0000-7000-8000-000000000002"
+        },
+        "schema:additionalType": "readme",
+        "schema:digitalSourceType": {
+          "@id": "http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia"
+        },
+        "schema:name": "README",
+        "schema:sha256": "b04ab7d4e3815605c46456d58f2fa25d125343365a5eec88d4a55f211ead28ca",
+        "schema:version": 1
+      }
+    ]
+  },
+  "statement": "# Use of generative AI\n\nOf the 1 approved document of this project, 1 was drafted with generative AI through the Data Director, using test-model (test). A person validated each document before approving it, as recorded below.\n\n## README\n\nDrafted on 2026-01-01 by the Data Director agent stub.document 0.1.0, using test-model (test). The approved text is that model output, reproduced verbatim. Josiah Carberry approved it without change on 2026-01-01.\n\n1 prompt sent to the model is kept with the project's record, by SHA-256: 4afccee6e55a2e326792609dc65828c0f97ddc1b7d1e91818367517f1739f81d.\n\n1 other document awaits a decision and is not covered by this statement.\n\nStatement made by the Data Director on 2026-01-01 from the project's record (01900000-0000-7000-8000-000000000003).\n"
+}

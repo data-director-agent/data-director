@@ -13,7 +13,8 @@ records the last released version of each package.
 - Each package is versioned on its own: `sdk`, `harness`, `workbench`, `app` and each agent in
   `agents/`. Its component name is in the configuration (`agent-orchestrator-stub`, `sdk`, …).
 - The [Conventional Commit](https://www.conventionalcommits.org/) subjects of the squash-merged
-  pull requests that touch a package's directory decide its next version. A commit that touches
+  pull requests (the only merge the repository allows; see
+  [Merging a pull request](CONTRIBUTING.md#merging-a-pull-request)) that touch a package's directory decide its next version. A commit that touches
   only the package's tests does not.
 - release-please keeps **one** release pull request open for every package with a pending release,
   titled `chore(main): release main`, and rewrites it after every merge to `main`. It changes each
@@ -22,8 +23,11 @@ records the last released version of each package.
 - Nothing is tagged or published until the release pull request is merged. Merging it tags each
   package `<component>-v<version>` (for example `harness-v0.2.0-alpha`) and creates a GitHub
   release, marked as a pre-release.
-- If the merge released `sdk` or `harness`, the workflow then builds that package and publishes
-  it to [TestPyPI](https://test.pypi.org/) (see below). No other package is published.
+- If the merge released `sdk`, `harness` or `inventory`, the workflow then builds that package and publishes
+  it to [TestPyPI](https://test.pypi.org/) (see below). If it released `inventory`, that package is
+  also published to PyPI. No other package is published to an index.
+- If the merge released `app`, the workflow publishes the container image, tagged with the app's
+  version (see [Publishing the container image](#publishing-the-container-image)).
 
 ## Publishing to TestPyPI
 
@@ -41,14 +45,45 @@ stored. A version already on TestPyPI is skipped, so running the workflow again 
 
 Set-up, once, by a maintainer:
 
-1. On TestPyPI, add a pending trusted publisher for each of `data-director-sdk` and
-   `data-director-harness`: owner `data-director-agent`, repository `data-director`, workflow
+1. On TestPyPI, add a pending trusted publisher for each of `data-director-sdk`,
+   `data-director-harness` and `data-director-inventory`: owner `data-director-agent`, repository `data-director`, workflow
    `release.yaml`, environment `testpypi`.
 2. In this repository's settings, create the environment `testpypi`, limited to the `main`
    branch.
 
-Publishing to PyPI itself is a separate decision, after the contract reaches 1.0 or sooner
-(TODO(#260, #277)).
+## Publishing the inventory to PyPI
+
+The inventory is also published to [PyPI](https://pypi.org/p/data-director-inventory), so that a
+researcher can run `uvx data-director-inventory path/to/dataset` without a checkout (#552). The
+`publish-pypi` job does this on the same trigger as the TestPyPI job, with the same build, and uses trusted
+publishing in the same way: PyPI trusts `.github/workflows/release.yaml` running in the `pypi`
+environment. A version already on PyPI is skipped.
+
+Set-up, once, by a maintainer:
+
+1. On PyPI, add a pending trusted publisher for `data-director-inventory`: owner
+   `data-director-agent`, repository `data-director`, workflow `release.yaml`, environment `pypi`.
+2. In this repository's settings, create the environment `pypi`, limited to the `main` branch,
+   with a required reviewer so that a release is published only when a maintainer approves it.
+
+A PyPI release cannot be replaced, only yanked, and its name cannot be reused. The sdk and harness
+stay on TestPyPI only; publishing them to PyPI is a separate decision, after the contract reaches
+1.0 or sooner (TODO(#260, #277)).
+
+## Publishing the container image
+
+`.github/workflows/images.yml` builds `ghcr.io/data-director-agent/data-director` (the app and
+every in-tree agent, from `docker/release.Dockerfile`) for `linux/amd64` and `linux/arm64`, and
+smoke-tests each platform before anything is pushed. A push to `main` publishes it as `edge`;
+the `images` job of `release.yaml` calls the same workflow when a release includes the app, and
+tags it with the app's version. One image serves every package, so its tag follows the app's
+version, and every package's version is in its `org.data-director.package-versions` label. It is
+pushed with `GITHUB_TOKEN` and needs no secret. [Container images](deploy/README.md#container-images)
+says how to run it.
+
+Set-up, once, by a maintainer: after the first push, make the
+[package](https://github.com/orgs/data-director-agent/packages/container/package/data-director)
+public, and check that it is linked to this repository.
 
 ## Version numbers
 
@@ -100,7 +135,10 @@ of its own.
 - `release.yaml` calls `.github/workflows/zenodo.yml` when merging the release pull request
   creates at least one release. One merge makes one version, however many packages it released.
 - `zenodo.yml` zips the merge commit with `git archive` and runs `scripts/zenodo.py release`, which
-  makes a new version, replaces its file with the zip and publishes it.
+  makes a new version, replaces its file with the zip and publishes it. The merge commit is the one
+  release-please tagged the releases on (the `release_sha` output of `release.yaml`), which is not
+  always the commit that started the run: when two pushes land on `main` together, the run for the
+  earlier one can create the releases.
 - The record's metadata comes from `CITATION.cff`: title, abstract, authors, keywords, licence and
   references. The description also records the commit and every package's version from
   `.release-please-manifest.json`. Correct the metadata there, not in Zenodo, since the next
@@ -110,6 +148,11 @@ of its own.
 - If the job fails, run **Zenodo** from the Actions tab with the release commit as `ref`. It
   carries on with a draft the failed run left; once a version is published, running it again
   publishes another, so check Zenodo first.
+- If the job says `ZENODO_TOKEN is not set`, the secret is missing from the `zenodo` environment
+  (Settings, Environments, zenodo). Add it there and run **Zenodo** again. If Zenodo answers
+  `403 Permission denied` (or 401), it does not accept the token: make a new one, with the scopes
+  `deposit:write` and `deposit:actions`, from the Zenodo account that owns the record, and replace
+  the secret.
 
 `uv run scripts/zenodo.py release --archive <zip> --dry-run` prints the metadata without calling
 Zenodo.

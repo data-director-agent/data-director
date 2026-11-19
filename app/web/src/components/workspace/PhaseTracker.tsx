@@ -1,96 +1,354 @@
 /**
- * The Blueprint's six phases (§8.2), each with its steps, the requirements applied at each, and
- * which of the agents here serve them (docs/specs/orchestration.md). The phases come from the server's process flow
- * and the agents from the manifest; the tracker names no agent of its own.
+ * The journey from planning a dataset to sharing it, in a researcher's words: six phases, each
+ * with the things they will do in it. It names no agent and no Blueprint requirement; which
+ * agents help is for the conversation to say. The phases come from the server's process flow, so
+ * the shell keeps no copy of it.
  *
- * Where the researcher stands in these phases is not known yet: that needs a record of the
- * project (#160), so it is drawn as not built rather than guessed.
+ * Drawn as a strip, like a progress bar, opening to show each phase's steps. Where the project
+ * is comes from the harness, which derives it from the project log on every read
+ * (docs/specs/orchestration.md): the entry point the researcher chose, each step started, done or
+ * skipped, and the step to suggest next. Data Director may record the entry point from what the
+ * researcher said, which the strip says, until they choose one themselves; with none recorded,
+ * nothing is suggested. The shell computes none of it. The suggestion is never
+ * a gate: the researcher may mark any step done or skipped, or open it again, for the many steps
+ * nothing in the project records, and may do the steps in any order.
+ *
+ * Each step not yet done or skipped, and the suggested one beside the suggestion, offers to start
+ * a new conversation about it: the step's `prompt` is put in the message box for the researcher to
+ * edit and send. Nothing is sent or recorded until they send it.
  */
 
 import "./PhaseTracker.css";
 
-import type { AgentView } from "../../manifest/normalise";
-import { Link } from "../../route";
-import { servingIndex, servingStep } from "../../flow/serving";
-import type { ProcessFlow } from "../../flow/types";
-import { NotBuilt } from "../NotBuilt";
+import type {
+  FlowStep,
+  ProcessFlow,
+  ProjectProgress,
+  StepMark,
+  StepState,
+} from "../../flow/types";
+import { ListChecks, Map as MapIcon, MessageSquarePlus } from "lucide-react";
+
+import { locate, waitingOn } from "../../flow/journey";
+import type { ProjectDocument } from "../../project/api";
+import { Link, journeyPath } from "../../route";
+import { Button } from "../ui/Button";
 
 export type FlowLoad =
   | { state: "loading" }
   | { state: "failed"; message: string }
   | { state: "loaded"; flow: ProcessFlow };
 
-export function PhaseTracker({ load, agents }: { load: FlowLoad; agents: AgentView[] }) {
+/** The project's progress and how to change it; absent until the conversation has a project. */
+export interface TrackedProgress {
+  progress: ProjectProgress;
+  chooseEntry(entry: number): void;
+  markStep(stepId: string, mark: StepMark): void;
+  /** Starts a new conversation with the step's prompt in the message box, unsent. */
+  startConversation?: (step: FlowStep) => void;
+  /** Why the last change was not recorded, if it was not. */
+  error?: string | null;
+  /** Opens the intake card with the current answers chosen (docs/specs/app.md, rule 25). */
+  answerIntakeAgain?: () => void;
+  /** The project, whose journey map the strip links to. */
+  projectId?: string;
+  /** The project's documents, once read, for the count of what waits on the researcher. */
+  documents?: readonly ProjectDocument[];
+}
+
+const STATE_LABEL: Record<StepState, string> = {
+  done: "Done",
+  started: "Started",
+  skipped: "Skipped",
+};
+
+export function PhaseTracker({
+  load,
+  tracked,
+}: {
+  load: FlowLoad;
+  tracked?: TrackedProgress | null;
+}) {
+  const flow = load.state === "loaded" ? load.flow : null;
+  const located = flow && tracked ? locate(flow, tracked.progress.suggested) : null;
   return (
-    <nav aria-labelledby="phases-heading" className="workspace-phases">
-      <h2 id="phases-heading">Blueprint phases</h2>
-      <NotBuilt title="Where your project is in these phases" issues={[160]} />
-      {load.state === "loading" && <p role="status">Loading the phases…</p>}
+    <nav
+      aria-labelledby="phases-heading"
+      className="workspace-phases phase-strip"
+    >
+      <div className="phase-strip-head">
+        <h2 id="phases-heading">Your data journey</h2>
+        {!tracked && (
+          <p className="phase-strip-where">
+            Where your project is shows here once your conversation has a
+            project.
+          </p>
+        )}
+        {tracked && flow && (
+          <>
+            <label className="phase-strip-entry">
+              Where you started{" "}
+              <select
+                value={tracked.progress.entry ?? ""}
+                onChange={(e) => tracked.chooseEntry(Number(e.target.value))}
+              >
+                {tracked.progress.entry === null && (
+                  <option value="">Not said yet</option>
+                )}
+                {flow.entries.map((entry) => (
+                  <option key={entry.number} value={entry.number}>
+                    {capitalised(entry.text)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {tracked.progress.entry !== null &&
+              tracked.progress.entry_source === "model" && (
+                <p className="phase-strip-where muted">
+                  Set by Data Director from what you said.
+                </p>
+              )}
+            <JourneyLinks projectId={tracked.projectId} waiting={waitingOn(flow, tracked.progress, tracked.documents)} />
+            <SuggestedNext
+              located={located}
+              entryChosen={tracked.progress.entry !== null}
+              projectId={tracked.projectId}
+              start={tracked.startConversation}
+            />
+            {tracked.answerIntakeAgain && (
+              <Button size="small" icon={ListChecks} onPress={tracked.answerIntakeAgain}>
+                Answer the setup questions again
+              </Button>
+            )}
+          </>
+        )}
+      </div>
+      {tracked?.error && (
+        <p role="alert" className="callout status-danger">
+          Data Director could not record that: {tracked.error}.
+        </p>
+      )}
+      {load.state === "loading" && <p role="status">Loading the journey…</p>}
       {load.state === "failed" && (
         <div role="alert" className="callout status-danger">
-          <p>Data Director could not load the Blueprint's phases: {load.message}.</p>
+          <p>Data Director could not load the journey: {load.message}.</p>
         </div>
       )}
-      {load.state === "loaded" && <Phases flow={load.flow} agents={agents} />}
+      {flow && (
+        <>
+          <ol className="phase-bar" aria-label="The phases in order">
+            {flow.phases.map((phase) => {
+              const counted = phase.steps.filter((s) => !s.out_of_scope);
+              const finished = counted.filter((s) => {
+                const state = tracked?.progress.steps[s.id];
+                return state === "done" || state === "skipped";
+              }).length;
+              return (
+                <li key={phase.number} className="phase-bar-segment">
+                  <span className="phase-bar-number" aria-hidden="true">
+                    {phase.number}
+                  </span>
+                  <span className="phase-bar-title">{phase.name}</span>
+                  {tracked && (
+                    <span className="phase-bar-count muted">
+                      {finished} of {counted.length} done or skipped
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+          <details className="phase-strip-details">
+            <summary>Show what happens in each phase</summary>
+            <Phases flow={flow} tracked={tracked ?? null} />
+          </details>
+        </>
+      )}
     </nav>
   );
 }
 
-function Phases({ flow, agents }: { flow: ProcessFlow; agents: AgentView[] }) {
-  const index = servingIndex(agents);
-  const titles = new Map(agents.map((a) => [a.id, a.title]));
+function Phases({
+  flow,
+  tracked,
+}: {
+  flow: ProcessFlow;
+  tracked: TrackedProgress | null;
+}) {
   return (
     <ol className="phase-list">
-      {flow.phases.map((phase) => {
-        const served = phase.steps.filter((s) => servingStep(s, index).length > 0).length;
-        return (
-          <li key={phase.number}>
-            <details>
-              <summary>
-                <span className="phase-number">Phase {phase.number}</span> {phase.title}{" "}
-                <span className="muted phase-served">
-                  ({served} of {phase.steps.length} {phase.steps.length === 1 ? "step" : "steps"}{" "}
-                  with an agent here)
-                </span>
-              </summary>
-              <ol className="step-list">
-                {phase.steps.map((step) => {
-                  const serving = servingStep(step, index);
-                  return (
-                    <li key={step.text}>
-                      <p className="step-text">
-                        {step.text}
-                        {step.optional && <span className="muted"> (optional)</span>}
-                      </p>
-                      <p className="step-meta">
-                        {step.requirements.length > 0
-                          ? `Requirements: ${step.requirements.join(", ")}. `
-                          : "The Blueprint names no requirement here. "}
-                        {serving.length > 0 ? (
-                          <>
-                            Served by{" "}
-                            {serving.map((id, i) => (
-                              <span key={id}>
-                                {i > 0 && ", "}
-                                <Link to={`/agents?agent=${encodeURIComponent(id)}`}>
-                                  {titles.get(id) || <code>{id}</code>}
-                                </Link>
-                              </span>
-                            ))}
-                            .
-                          </>
-                        ) : (
-                          "No agent here serves this step."
-                        )}
-                      </p>
-                    </li>
-                  );
-                })}
-              </ol>
-            </details>
-          </li>
-        );
-      })}
+      {flow.phases.map((phase) => (
+        <li key={phase.number}>
+          <details>
+            <summary>
+              <span className="phase-number">Phase {phase.number}</span>{" "}
+              {phase.name}
+            </summary>
+            <p className="phase-summary">{phase.summary}</p>
+            <ol className="step-list">
+              {phase.steps.map((step) => (
+                <li key={step.id}>
+                  <Step step={step} tracked={tracked} />
+                </li>
+              ))}
+            </ol>
+          </details>
+        </li>
+      ))}
     </ol>
   );
+}
+
+function Step({
+  step,
+  tracked,
+}: {
+  step: FlowStep;
+  tracked: TrackedProgress | null;
+}) {
+  const state = tracked?.progress.steps[step.id];
+  const suggested = tracked?.progress.suggested === step.id;
+  return (
+    <div className="step">
+      <p className="step-text">
+        {step.label}
+        {step.optional && <span className="muted"> (optional)</span>}
+        {step.out_of_scope && (
+          <span className="muted"> (out of scope for now)</span>
+        )}
+        {state && (
+          <span className={`step-state step-state-${state}`}>
+            {" "}
+            {STATE_LABEL[state]}
+          </span>
+        )}
+        {suggested && (
+          <span className="step-state step-state-suggested">
+            {" "}
+            Suggested next
+          </span>
+        )}
+      </p>
+      {tracked && !step.out_of_scope && (
+        <div className="step-actions">
+          {state === "done" || state === "skipped" ? (
+            <Button
+              size="small"
+              variant="quiet"
+              aria-label={`Open again: ${step.label}`}
+              onPress={() => tracked.markStep(step.id, "open")}
+            >
+              Open again
+            </Button>
+          ) : (
+            <>
+              {tracked.startConversation && (
+                <StartButton step={step} start={tracked.startConversation} />
+              )}
+              <Button
+                size="small"
+                variant="quiet"
+                aria-label={`Mark done: ${step.label}`}
+                onPress={() => tracked.markStep(step.id, "done")}
+              >
+                Mark done
+              </Button>
+              <Button
+                size="small"
+                variant="quiet"
+                aria-label={`Skip: ${step.label}`}
+                onPress={() => tracked.markStep(step.id, "skipped")}
+              >
+                Skip
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function JourneyLinks({
+  projectId,
+  waiting,
+}: {
+  projectId: string | undefined;
+  waiting: number | undefined;
+}) {
+  if (!projectId) return null;
+  const pending = waiting !== undefined && waiting > 0 ? waiting : 0;
+  return (
+    <p className="phase-strip-where">
+      <Link to={journeyPath(projectId)} className="button button-secondary button-small">
+        <MapIcon className="button-icon" size="1.125em" aria-hidden="true" />
+        Open the journey map
+        {pending > 0 && <span className="status status-warn">Waiting on you: {pending}</span>}
+      </Link>
+    </p>
+  );
+}
+
+function SuggestedNext({
+  located,
+  entryChosen,
+  projectId,
+  start,
+}: {
+  located: ReturnType<typeof locate> | null;
+  entryChosen: boolean;
+  projectId: string | undefined;
+  start: ((step: FlowStep) => void) | undefined;
+}) {
+  const suggested = located?.step ?? null;
+  return (
+    <>
+      <p className="phase-strip-where" role="status">
+        {suggested && located ? (
+          <>
+            Suggested next:{" "}
+            {projectId ? (
+              <Link to={journeyPath(projectId, suggested.id)}>
+                <strong>{suggested.label}</strong>
+              </Link>
+            ) : (
+              <strong>{suggested.label}</strong>
+            )}{" "}
+            <span className="muted">
+              (phase {located.phase.number}, {located.phase.name})
+            </span>
+          </>
+        ) : entryChosen ? (
+          "Every step from where you started is done or skipped."
+        ) : (
+          "Choose where you started, or tell Data Director, to get a suggested next step."
+        )}
+      </p>
+      {suggested && start && <StartButton step={suggested} start={start} />}
+    </>
+  );
+}
+
+function StartButton({
+  step,
+  start,
+}: {
+  step: FlowStep;
+  start: (step: FlowStep) => void;
+}) {
+  return (
+    <Button
+      size="small"
+      variant="quiet"
+      icon={MessageSquarePlus}
+      aria-label={`Start a conversation: ${step.label}`}
+      onPress={() => start(step)}
+    >
+      Start a conversation
+    </Button>
+  );
+}
+
+function capitalised(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }

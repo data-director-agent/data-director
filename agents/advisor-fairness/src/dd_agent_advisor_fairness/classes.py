@@ -10,13 +10,14 @@ from typing import Literal
 
 from pydantic import Field
 
-from dd_sdk.contract.models import Frozen, Grounded
+from dd_sdk.contract.models import Derivation, Frozen, Grounded
 
 
 class PublishedRecord(Frozen):
     schema_class: Literal["PublishedRecord"] = "PublishedRecord"
     identifier: str | None = None
     title: str | None = None
+    description: str | None = None
     licence: str | None = None
     keywords: list[str] = Field(default_factory=list)
     creators: list[str] = Field(default_factory=list)
@@ -31,6 +32,7 @@ class FairCheck(Frozen):
     check: str
     met: bool
     recommendation: str | None = None
+    recommendation_derivation: Derivation | None = None
 
 
 class FairnessReport(Grounded):

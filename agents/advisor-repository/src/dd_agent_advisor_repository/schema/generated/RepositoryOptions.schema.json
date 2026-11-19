@@ -15,7 +15,9 @@
          "description": "",
          "enum": [
             "mandated",
-            "recommended"
+            "asked_about",
+            "recommended",
+            "chosen"
          ],
          "title": "CandidateBasis",
          "type": "string"
@@ -106,7 +108,7 @@
                ]
             },
             "ranked_by": {
-               "description": "Why a recommended repository is on the shortlist and in its place, one sentence per ranking signal: the themes and kinds of data it matches, whether it is a generalist, run by the researcher's institution, or lacks the access the data needs. Empty when mandated.",
+               "description": "Why a recommended repository is on the shortlist and in its place, one sentence per ranking signal: the themes and kinds of data it matches, whether it is a generalist, run by the researcher's institution, or lacks the access the data needs. Empty when mandated, and for a repository asked about that the shortlist did not rank.",
                "items": {
                   "type": "string"
                },
@@ -155,7 +157,7 @@
                ]
             },
             "snapshot_ref": {
-               "description": "Which copies of the registries answered, e.g. re3data:snapshot:2026-10-29.",
+               "description": "Which copies of the registries answered, e.g. re3data:export:2026-11.",
                "type": [
                   "string",
                   "null"
@@ -200,7 +202,7 @@
          ]
       },
       "not_found": {
-         "description": "Mandated repositories for which no registry record was found.",
+         "description": "Mandated repositories, and repositories the researcher asked about, for which no single registry record was found.",
          "items": {
             "type": "string"
          },

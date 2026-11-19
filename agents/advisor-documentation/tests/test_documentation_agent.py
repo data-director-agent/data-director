@@ -1,23 +1,33 @@
-"""advisor.documentation through the conductor: the Documentation Editor mock
-(docs/specs/agents.md) as the stub drafter of the README and the data dictionary (#200)."""
+"""advisor.documentation through the conductor, on the template path: the Documentation Editor
+(docs/specs/drafting.md) drafting the README and the data dictionary with no model configured."""
 
 from __future__ import annotations
 
 import csv
 import io
 import json
+import re
 from pathlib import Path
 
 import pytest
 
-from dd_agent_advisor_documentation.agent import DICTIONARY_COLUMNS, DocumentationEditor
+from dd_agent_advisor_documentation.agent import (
+    DICTIONARY_COLUMNS,
+    VALUE_COLUMNS,
+    DocumentationEditor,
+    Source,
+    _question_id,
+)
+from dd_agent_advisor_documentation.sections import load_sections
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import describe
 from dd_sdk.contract.models import (
     CurrentVersion,
+    Derivation,
     Document,
     DocumentKind,
     DocumentVersionRef,
+    DraftAnswer,
     DraftRequest,
     Envelope,
     GroundingMode,
@@ -27,7 +37,7 @@ from dd_sdk.contract.models import (
     new_invocation_id,
 )
 
-SAMPLES = Path(__file__).resolve().parents[3] / "workbench" / "samples"
+SAMPLES = Path(__file__).with_name("data")
 
 
 def sample(name: str) -> DraftRequest:
@@ -45,9 +55,10 @@ def test_drafts_a_readme_from_the_inventory_and_marks_the_rest(runs_dir: Path) -
     asked = sample("soil-survey.readme.draft.json")
     env, grounded = draft(runs_dir, asked)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
-    assert env.grounding_mode == GroundingMode.NONE and grounded
+    assert env.grounding_mode == GroundingMode.INPUT_ONLY and grounded
     document = env.payload_as(Document)
     assert document.document_kind == DocumentKind.README
+    assert document.document_derivation == Derivation.TEMPLATE
     assert document.media_type == "text/markdown"
     assert document.revises is None
     text = document.document_text
@@ -62,15 +73,21 @@ def test_drafts_a_readme_from_the_inventory_and_marks_the_rest(runs_dir: Path) -
         "How to cite",
         "Software requirements",
     ]
-    assert text.count("_To be written by the researcher:") == len(headings)
+    # One placeholder per section, and one per part in a section asked part by part.
+    sections = load_sections()
+    assert text.count("_To be written by the researcher:") == sum(
+        len(s.parts) or 1 for s in sections
+    )
     assert asked.inventory is not None
     for f in asked.inventory.inventory_files:
         assert f"`{f.file_path}`" in text
-        for field in f.file_fields:
-            assert f"`{field.name}`" in text
+    # The fields are described in the data dictionary, which Variables points to; not repeated.
+    variables = text.split("## Variables", 1)[1].split("\n## ", 1)[0]
+    assert "data dictionary" in variables
+    assert "| Field |" not in text
     assert asked.requirements is not None and asked.requirements.licences
     assert f"`{asked.requirements.licences[0]}`" in text
-    assert env.outcome.statement.startswith("Mock:")
+    assert "template path" in env.outcome.statement
 
 
 def test_drafts_a_data_dictionary_with_a_row_per_field(runs_dir: Path) -> None:
@@ -90,7 +107,66 @@ def test_drafts_a_data_dictionary_with_a_row_per_field(runs_dir: Path) -> None:
     ]
     assert [(r["file"], r["field"]) for r in rows] == expected
     assert tuple(rows[0]) == DICTIONARY_COLUMNS
-    assert all(r["unit"] == "" and r["missing_values"] == "" for r in rows)
+    for r in rows:
+        assert {r[f"{c}_source"] for c in VALUE_COLUMNS} <= set(Source)
+        assert r["type_source"] == (Source.INFERRED if r["type"] else Source.UNKNOWN)
+        for column in ("unit", "missing_values"):
+            assert (r[column], r[f"{column}_source"]) == ("", Source.UNKNOWN)
+    assert "inferred from the inventory" in env.outcome.statement
+
+
+def regenerate(runs_dir: Path, earlier: str) -> list[dict[str, str]]:
+    """The rows of a data dictionary regenerated from an earlier version with this CSV text."""
+    asked = sample("soil-survey.data-dictionary.draft.json").model_copy(
+        update={
+            "current_version": CurrentVersion(
+                version_ref=DocumentVersionRef(document_id=new_invocation_id(), version=1),
+                document_title="Data dictionary",
+                media_type="text/csv",
+                document_text=earlier,
+                version_state=VersionState.PROPOSED,
+            )
+        }
+    )
+    env, _ = draft(runs_dir, asked)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    return list(csv.DictReader(io.StringIO(env.payload_as(Document).document_text)))
+
+
+def first_rows(runs_dir: Path) -> list[dict[str, str]]:
+    env, _ = draft(runs_dir, sample("soil-survey.data-dictionary.draft.json"))
+    return list(csv.DictReader(io.StringIO(env.payload_as(Document).document_text)))
+
+
+def write_csv(rows: list[dict[str, str]], columns: tuple[str, ...]) -> str:
+    out = io.StringIO()
+    writer = csv.DictWriter(out, columns, extrasaction="ignore", lineterminator="\n")
+    writer.writeheader()
+    writer.writerows(rows)
+    return out.getvalue()
+
+
+def test_regenerating_keeps_what_the_researcher_supplied(runs_dir: Path) -> None:
+    rows = first_rows(runs_dir)
+    assert len(rows) >= 2
+    rows[0] |= {"unit": "pH units", "description": "Soil acidity", "missing_values": "-99"}
+    rows[1] |= {"type": "string"}  # the researcher corrects an inferred type
+    again = regenerate(runs_dir, write_csv(rows, DICTIONARY_COLUMNS))
+    assert [(r["file"], r["field"]) for r in again] == [(r["file"], r["field"]) for r in rows]
+    for column in ("unit", "description", "missing_values"):
+        assert (again[0][column], again[0][f"{column}_source"]) == (rows[0][column], "supplied")
+    assert (again[1]["type"], again[1]["type_source"]) == ("string", "supplied")
+    assert again[2:] == rows[2:]
+    assert again[0]["type_source"] == rows[0]["type_source"]
+
+
+def test_a_hand_made_dictionary_is_all_supplied(runs_dir: Path) -> None:
+    rows = first_rows(runs_dir)
+    rows[0] |= {"unit": "cm"}
+    again = regenerate(runs_dir, write_csv(rows, ("file", "field", "type", "unit")))
+    assert (again[0]["unit"], again[0]["unit_source"]) == ("cm", "supplied")
+    # A value equal to the inventory's keeps the inventory's source.
+    assert again[0]["type_source"] == rows[0]["type_source"]
 
 
 def test_regenerating_names_the_version_it_replaces(runs_dir: Path) -> None:
@@ -146,6 +222,354 @@ def test_no_table_no_data_dictionary(runs_dir: Path) -> None:
 def test_the_card_names_the_persona_and_its_steps() -> None:
     entry = describe(DocumentationEditor.spec)
     assert entry["title"] == "Documentation Editor"
-    assert entry["description"].startswith("Mock.")
-    assert entry["serves"] == ["setup.documentation", "preparation.documentation"]
+    assert not entry["description"].startswith("Mock.")
+    assert entry["grounding_mode"] == GroundingMode.INPUT_ONLY.value
+    assert entry["derivations"]["document_text"] == {
+        "how": "model",
+        "recorded_in": "document_derivation",
+    }
+    # Not `setup.documentation`: before collection there is no inventory to draft from (#1017).
+    assert entry["serves"] == ["preparation.documentation"]
     json.dumps(entry)
+
+
+def asked_with(name: str, *answers: tuple[str, str]) -> DraftRequest:
+    given = [DraftAnswer(answered_question=q, answer_text=a) for q, a in answers]
+    return sample(name).model_copy(update={"draft_answers": given})
+
+
+@pytest.mark.requirement("R5")
+def test_every_readme_gap_is_marked_and_asked_once(runs_dir: Path) -> None:
+    env, _ = draft(runs_dir, sample("soil-survey.readme.draft.json"))
+    document = env.payload_as(Document)
+    markers = re.findall(r"<!-- dd:gap (q-[0-9a-f]{16}) -->", document.document_text)
+    questions = document.document_questions
+    assert markers == [q.question_id for q in questions]
+    assert len(markers) == document.document_text.count("_To be written by the researcher:")
+    targets = [
+        (s.heading, p.label if p else None) for s in load_sections() for p in s.parts or (None,)
+    ]
+    assert [(q.gap_section, q.gap_part) for q in questions] == targets
+    assert f"leaves {len(questions)} gaps" in env.outcome.statement
+
+
+@pytest.mark.requirement("R5")
+def test_a_section_of_parts_asks_each_part_and_places_it_under_its_label(
+    runs_dir: Path,
+) -> None:
+    name = "soil-survey.readme.draft.json"
+    env, _ = draft(runs_dir, sample(name))
+    asked = [
+        q
+        for q in env.payload_as(Document).document_questions
+        if q.gap_section == "General information"
+    ]
+    general = next(s for s in load_sections() if s.heading == "General information")
+    assert [q.gap_part for q in asked] == [p.label for p in general.parts]
+    assert len({q.question_id for q in asked}) == len(asked)
+
+    funding = next(q for q in asked if q.gap_part == "Funding")
+    answer = "Natural Environment Research Council, NE/X000000/1"
+    env, _ = draft(runs_dir, asked_with(name, (funding.question_id, answer)))
+    document = env.payload_as(Document)
+    section = section_of(document.document_text, "General information")
+    assert f"- **Funding:** {answer}" in section
+    assert funding.question_id not in document.document_text
+    left = [
+        q.gap_part for q in document.document_questions if q.gap_section == "General information"
+    ]
+    assert "Funding" not in left and left
+    assert "1 written from your answers" in env.outcome.statement
+
+
+def test_an_answer_to_a_whole_section_of_parts_is_still_placed(runs_dir: Path) -> None:
+    """An answer recorded before the section was asked part by part stands, and asks no part."""
+    name = "soil-survey.readme.draft.json"
+    whole = _question_id({"section": "General information"})
+    answer = "Soil survey, PI Alex Example, 2025, funded by NERC."
+    env, _ = draft(runs_dir, asked_with(name, (whole, answer)))
+    document = env.payload_as(Document)
+    assert section_of(document.document_text, "General information") == answer
+    assert "General information" not in {q.gap_section for q in document.document_questions}
+
+
+@pytest.mark.requirement("R5")
+def test_every_unknown_dictionary_cell_is_asked_once(runs_dir: Path) -> None:
+    env, _ = draft(runs_dir, sample("soil-survey.data-dictionary.draft.json"))
+    document = env.payload_as(Document)
+    rows = list(csv.DictReader(io.StringIO(document.document_text)))
+    unknown = [
+        (r["file"], r["field"], c)
+        for r in rows
+        for c in VALUE_COLUMNS
+        if r[f"{c}_source"] == Source.UNKNOWN
+    ]
+    asked = [(q.gap_file, q.gap_field, q.gap_column) for q in document.document_questions]
+    assert asked == unknown and unknown
+    assert f"asks {len(unknown)} questions" in env.outcome.statement
+
+
+def test_a_gap_is_asked_under_the_same_identifier_in_every_version(runs_dir: Path) -> None:
+    for name in ("soil-survey.readme.draft.json", "soil-survey.data-dictionary.draft.json"):
+        first, _ = draft(runs_dir, sample(name))
+        again, _ = draft(runs_dir, sample(name))
+        ids = [q.question_id for q in first.payload_as(Document).document_questions]
+        assert ids == [q.question_id for q in again.payload_as(Document).document_questions]
+
+
+@pytest.mark.requirement("R5")
+def test_an_answer_is_placed_as_given_and_marked_supplied(runs_dir: Path) -> None:
+    name = "soil-survey.data-dictionary.draft.json"
+    env, _ = draft(runs_dir, sample(name))
+    question = next(
+        q for q in env.payload_as(Document).document_questions if q.gap_column == "unit"
+    )
+    answer = "  mg/kg, dry weight "
+    env, _ = draft(runs_dir, asked_with(name, (question.question_id, answer)))
+    document = env.payload_as(Document)
+    row = next(
+        r
+        for r in csv.DictReader(io.StringIO(document.document_text))
+        if (r["file"], r["field"]) == (question.gap_file, question.gap_field)
+    )
+    assert (row["unit"], row["unit_source"]) == (answer, Source.SUPPLIED)
+    assert question.question_id not in {q.question_id for q in document.document_questions}
+
+
+def test_an_answered_readme_gap_holds_the_answer_and_no_marker(runs_dir: Path) -> None:
+    name = "soil-survey.readme.draft.json"
+    env, _ = draft(runs_dir, sample(name))
+    methods = next(
+        q for q in env.payload_as(Document).document_questions if q.gap_section == "Methods"
+    )
+    answer = "Cores were taken at 0 to 10 cm and air-dried."
+    env, _ = draft(runs_dir, asked_with(name, (methods.question_id, answer)))
+    document = env.payload_as(Document)
+    section = document.document_text.split("## Methods\n\n", 1)[1].split("\n\n## ", 1)[0]
+    assert section == answer
+    assert methods.question_id not in document.document_text
+    assert "1 written from your answers" in env.outcome.statement
+
+
+def test_a_blank_or_unmatched_answer_changes_nothing(runs_dir: Path) -> None:
+    name = "soil-survey.data-dictionary.draft.json"
+    plain, _ = draft(runs_dir, sample(name))
+    before = plain.payload_as(Document)
+    first = before.document_questions[0].question_id
+    env, _ = draft(runs_dir, asked_with(name, (first, "  "), ("q-" + "f" * 16, "Stray")))
+    after = env.payload_as(Document)
+    assert after.document_text == before.document_text
+    assert after.document_questions == before.document_questions
+
+
+WITH_RECORD = "soil-survey.readme-with-record.draft.json"
+
+
+def section_of(text: str, heading: str) -> str:
+    return text.split(f"## {heading}\n\n", 1)[1].split("\n\n## ", 1)[0]
+
+
+def with_record(asked: DraftRequest, **properties: object) -> DraftRequest:
+    """`asked` with its metadata record's properties replaced by `properties`."""
+    assert asked.metadata_record is not None
+    record = asked.metadata_record.model_copy(update={"document_text": json.dumps(properties)})
+    return asked.model_copy(update={"metadata_record": record})
+
+
+@pytest.mark.requirement("R5")
+def test_a_readme_takes_what_the_approved_metadata_record_gives(runs_dir: Path) -> None:
+    """The record's values are supplied (docs/specs/drafting.md, invariant 2): placed as given."""
+    asked = sample(WITH_RECORD)
+    env, grounded = draft(runs_dir, asked)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert grounded
+    document = env.payload_as(Document)
+    text = document.document_text
+    assert text.startswith("# Soil chemistry of upland survey sites, 2025\n")
+
+    general = section_of(text, "General information")
+    assert "- **Title:** Soil chemistry of upland survey sites, 2025" in general
+    assert "- **Creators:** Example, Alex; Sample, Sam" in general
+    # The record gives the title, so it is not asked; its funder is a placeholder the metadata
+    # mock left, not a value, so the funding is asked.
+    parts = {
+        q.gap_part for q in document.document_questions if q.gap_section == "General information"
+    }
+    assert "Title" not in parts and "Funding" in parts
+    assert "_To be written by the researcher:" in general
+
+    # The abstract says all the Description asks, so no gap is left there.
+    assert section_of(text, "Description").startswith("Soil pH, moisture and organic carbon")
+    assert "_To be written" not in section_of(text, "Description")
+    asked_sections = {q.gap_section for q in document.document_questions}
+    assert "Description" not in asked_sections
+    assert {"General information", "Access and licence", "How to cite"} <= asked_sections
+
+    access = section_of(text, "Access and licence")
+    assert access.startswith(
+        "Licence: Creative Commons Attribution 4.0 International "
+        "(<https://creativecommons.org/licenses/by/4.0/>)."
+    )
+    assert "ORDA offers these licences:" in access
+    assert section_of(text, "How to cite").startswith(
+        "Example, Alex; Sample, Sam. Soil chemistry of upland survey sites, 2025."
+    )
+    assert "version 2 of the approved metadata record" in env.outcome.statement
+    assert "(1 in full)" in env.outcome.statement
+
+
+def test_a_record_of_placeholders_drafts_as_no_record_does(runs_dir: Path) -> None:
+    """An approved record the metadata mock left empty gives nothing: every gap stays asked."""
+    plain, _ = draft(runs_dir, sample("soil-survey.readme.draft.json"))
+    empty = with_record(
+        sample(WITH_RECORD),
+        titles=[{"title": None}],
+        creators=[{"name": " "}],
+        descriptions=[{"description": None, "descriptionType": "Abstract"}],
+        rightsList=[{"rights": None}],
+    )
+    env, _ = draft(runs_dir, empty)
+    document = env.payload_as(Document)
+    assert document.document_text == plain.payload_as(Document).document_text
+    assert document.document_questions == plain.payload_as(Document).document_questions
+
+
+@pytest.mark.parametrize(
+    ("conforms_to", "text", "why"),
+    [
+        ("http://example.org/other-schema", "{}", "reads only DataCite records"),
+        ("http://datacite.org/schema/kernel-4", "not json", "not JSON"),
+        ("http://datacite.org/schema/kernel-4", "[]", "not a JSON object"),
+    ],
+)
+def test_a_record_the_editor_cannot_read_is_not_used_and_it_says_so(
+    runs_dir: Path, conforms_to: str, text: str, why: str
+) -> None:
+    asked = sample(WITH_RECORD)
+    assert asked.metadata_record is not None
+    record = asked.metadata_record.model_copy(
+        update={"conforms_to": conforms_to, "document_text": text}
+    )
+    env, _ = draft(runs_dir, asked.model_copy(update={"metadata_record": record}))
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert "The approved metadata record was not used" in env.outcome.statement
+    assert why in env.outcome.statement
+    assert env.payload_as(Document).document_text.startswith("# README\n")
+
+
+def test_an_answer_is_kept_beside_what_the_record_gives(runs_dir: Path) -> None:
+    asked = sample(WITH_RECORD)
+    env, _ = draft(runs_dir, asked)
+    cite = next(
+        q for q in env.payload_as(Document).document_questions if q.gap_section == "How to cite"
+    )
+    answer = "Cite the DOI the repository gives on deposit."
+    answered = asked.model_copy(
+        update={
+            "draft_answers": [DraftAnswer(answered_question=cite.question_id, answer_text=answer)]
+        }
+    )
+    env, _ = draft(runs_dir, answered)
+    section = section_of(env.payload_as(Document).document_text, "How to cite")
+    assert section.endswith(answer)
+    assert section.startswith("Example, Alex; Sample, Sam.")
+
+
+def test_a_citation_has_the_year_when_the_record_gives_one(runs_dir: Path) -> None:
+    asked = with_record(
+        sample(WITH_RECORD),
+        titles=[{"title": "Subtitle", "titleType": "Subtitle"}, {"title": "Soil survey."}],
+        creators=[{"familyName": "Example", "givenName": "Alex"}],
+        publicationYear="2026",
+    )
+    env, _ = draft(runs_dir, asked)
+    text = env.payload_as(Document).document_text
+    assert text.startswith("# Soil survey.\n")
+    assert section_of(text, "How to cite").startswith("Example, Alex (2026). Soil survey.\n")
+
+
+def test_a_part_the_record_gives_is_not_asked(runs_dir: Path) -> None:
+    asked = with_record(
+        sample(WITH_RECORD),
+        titles=[{"title": "Soil survey"}],
+        fundingReferences=[{"funderName": "Natural Environment Research Council"}],
+    )
+    env, _ = draft(runs_dir, asked)
+    document = env.payload_as(Document)
+    general = section_of(document.document_text, "General information")
+    assert "- **Funding:** Natural Environment Research Council" in general
+    parts = {q.gap_part for q in document.document_questions if q.gap_part}
+    assert parts and not parts & {"Title", "Funding"}
+
+
+def test_the_record_gives_the_creators_dates_of_collection_and_location(runs_dir: Path) -> None:
+    asked = with_record(
+        sample(WITH_RECORD),
+        creators=[{"name": "Example, Alex"}],
+        dates=[
+            {"date": "2026-01-05", "dateType": "Created"},
+            {"date": "2025-03-01/2025-09-30", "dateType": "Collected"},
+        ],
+        geoLocations=[{"geoLocationPlace": "Peak District, England"}],
+    )
+    env, _ = draft(runs_dir, asked)
+    document = env.payload_as(Document)
+    general = section_of(document.document_text, "General information")
+    assert "- **Creators:** Example, Alex" in general
+    assert "- **Dates of data collection:** 2025-03-01/2025-09-30" in general
+    assert "2026-01-05" not in general
+    assert "- **Geographic location:** Peak District, England" in general
+    parts = {q.gap_part for q in document.document_questions if q.gap_part}
+    assert parts and not parts & {"Creators", "Dates of data collection", "Geographic location"}
+
+
+def test_a_date_of_another_type_or_a_placeholder_is_not_a_date_of_collection(
+    runs_dir: Path,
+) -> None:
+    asked = with_record(
+        sample(WITH_RECORD),
+        dates=[
+            {"date": "2026-01-05", "dateType": "Created"},
+            {"date": None, "dateType": "Collected"},
+        ],
+        geoLocations=[{"geoLocationPlace": " "}],
+    )
+    env, _ = draft(runs_dir, asked)
+    parts = {q.gap_part for q in env.payload_as(Document).document_questions if q.gap_part}
+    assert {"Dates of data collection", "Geographic location"} <= parts
+
+
+@pytest.mark.parametrize(
+    ("section", "why"),
+    [
+        ({"heading": "A", "from": "nowhere", "ask": "x."}, "unknown"),
+        ({"heading": "A", "from": "files", "complete_from": "tables", "ask": "x."}, "completed"),
+        ({"heading": "A"}, "either ask or parts"),
+        ({"heading": "A", "ask": "x.", "parts": [{"label": "B", "ask": "y."}]}, "either ask"),
+        (
+            {
+                "heading": "A",
+                "from": "record_general",
+                "complete_from": "record_general",
+                "parts": [{"label": "B", "ask": "y."}],
+            },
+            "has parts",
+        ),
+        (
+            {"heading": "A", "parts": [{"label": "B", "ask": "y.", "given_by": "colour"}]},
+            "given by unknown",
+        ),
+        ({"heading": "A", "ask": "x.", "suggest": "always"}, "not true, false or documents"),
+        (
+            {"heading": "A", "suggest": "documents", "parts": [{"label": "B", "ask": "y."}]},
+            "which a model does not suggest",
+        ),
+    ],
+)
+def test_a_malformed_readme_template_is_refused(
+    tmp_path: Path, section: dict[str, object], why: str
+) -> None:
+    path = tmp_path / "readme.yaml"
+    path.write_text(json.dumps([section]), encoding="utf-8")
+    with pytest.raises(ValueError, match=why):
+        load_sections(path)

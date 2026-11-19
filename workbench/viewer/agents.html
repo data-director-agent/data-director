@@ -9,6 +9,7 @@
   <script type="module" src="/viewer/js/agents.js"></script>
 </head>
 <body>
+  <a class="skip-link" href="#agent-view">Skip to main content</a>
   <header class="top">
     <div class="title-row">
       <h1>Data Director Workbench</h1>
@@ -30,7 +31,7 @@
     <nav aria-label="Registered agents">
       <section class="panel" aria-labelledby="agents-heading">
         <div class="head-row"><h2 id="agents-heading"><svg class="icon" aria-hidden="true" focusable="false"><use href="/viewer/icons.svg#bot"/></svg>Agents</h2><span data-help="agent"></span></div>
-        <ul class="history" id="agent-list"></ul>
+        <ul class="history" id="agent-list"><li class="muted">Loading…</li></ul>
       </section>
     </nav>
     <main id="agent-view" aria-label="Agent">

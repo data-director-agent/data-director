@@ -31,6 +31,7 @@ import urllib.error
 import urllib.request
 import uuid
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager, suppress
 from datetime import UTC, datetime
 from pathlib import Path
@@ -44,12 +45,19 @@ SAMPLES = WORKBENCH / "samples"
 # How long a service may take to answer for the first time: `uv run` may build the package.
 START_TIMEOUT_S = 120
 WORKBENCH_PORT = 8100
+# How many sample runs go at once: each is a short-lived `workbench` process.
+CASE_WORKERS = 8
 PRINCIPAL = {"DD_PRINCIPAL_ID": "https://orcid.org/0000-0002-1825-0097", "DD_PRINCIPAL_NAME": "CI"}
 
 # Each agent that needs a model key, by registry URL, with the name of its own env file
 # (workbench/agents/<name>.env, as scripts/run-agents.sh reads it).
 MODEL_BACKED = {"http://127.0.0.1:8107": "orchestrator-model"}
-KEY_VARS = ("ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY_FILE")
+# Every variable a model key may be given in (dd_sdk.model_provider.PROVIDERS).
+KEY_VARS = tuple(
+    v
+    for key in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "DD_MODEL_API_KEY")
+    for v in (key, f"{key}_FILE")
+)
 
 # (agent, sample, outcome.status), as samples/README.md documents them.
 CASES = [
@@ -60,6 +68,7 @@ CASES = [
     ("advisor.policy", "policy-context.json", "succeeded"),
     ("advisor.repository", "repository-needs.json", "succeeded"),
     ("advisor.repository", "repository-mandated.json", "succeeded"),
+    ("advisor.repository", "repository-asked-about.json", "succeeded"),
     ("advisor.ethics", "ethics-context.json", "succeeded"),
     ("advisor.files", "soil-survey.inventory.json", "succeeded"),
     ("advisor.dmp", "dmp-commitments.json", "succeeded"),
@@ -77,7 +86,7 @@ class SmokeError(Exception):
     """A check that did not hold."""
 
 
-def check(condition: bool, message: str, detail: object = "") -> None:
+def check(condition: bool, message: str, detail: object = "") -> None:  # noqa: FBT001
     """Print `message` if `condition` holds; otherwise fail with `detail` appended."""
     if not condition:
         raise SmokeError(f"{message}\n{detail}" if detail else message)
@@ -137,6 +146,20 @@ def workbench(env: dict[str, str], *args: str) -> subprocess.CompletedProcess[st
     )
 
 
+def invoke_and_verify(
+    env: dict[str, str], tmp: Path, agent: str, sample: str
+) -> tuple[subprocess.CompletedProcess[str], subprocess.CompletedProcess[str] | None]:
+    """`workbench invoke` of `agent` on `sample`, then `workbench verify` of the envelope it
+    printed, if it exited 0. The caller checks both."""
+    run = workbench(env, "invoke", "--agent", agent, "--input", str(SAMPLES / sample))
+    if run.returncode != 0:
+        return run, None
+    envelope = json.loads(run.stdout)
+    path = tmp / f"{envelope['invocation_id']}.json"
+    path.write_text(run.stdout, encoding="utf-8")
+    return run, workbench(env, "verify", str(path))
+
+
 def agui_run(agent_id: str, payload: dict[str, Any]) -> list[dict[str, Any]]:
     """One AG-UI run against `workbench serve`, as the viewer's `postRun` sends it."""
     invocation_id = str(uuid.uuid7())
@@ -183,7 +206,7 @@ def smoke(tmp: Path) -> None:
     with started([str(ROOT / "scripts" / "run-agents.sh")], env, agents_log):
         for url in urls:
             wait_for(f"{url}/.well-known/agent-card.json", agents_log)
-        check(True, f"{len(urls)} agent services answer")
+        print(f"ok    {len(urls)} agent services answer")
 
         listed = workbench(env, "agents", "--json")
         check(listed.returncode == 0, "`workbench agents` exits 0", listed.stderr)
@@ -194,16 +217,20 @@ def smoke(tmp: Path) -> None:
             {k: listing[k] for k in ("unavailable", "incompatible")},
         )
 
-        for agent, sample, status in CASES:
-            run = workbench(env, "invoke", "--agent", agent, "--input", str(SAMPLES / sample))
-            check(run.returncode == 0, f"invoke {agent} on {sample} exits 0", run.stderr)
-            envelope = json.loads(run.stdout)
-            got = envelope["outcome"]["status"]
-            check(got == status, f"{agent} on {sample} is {status}", f"got {got}")
-            path = tmp / f"{envelope['invocation_id']}.json"
-            path.write_text(run.stdout, encoding="utf-8")
-            verified = workbench(env, "verify", str(path))
-            check(verified.returncode == 0, f"verify {agent} on {sample}", verified.stdout)
+        # Each case is its own `workbench` process and run, so they go side by side; the checks
+        # are then made, and reported, in the order of CASES.
+        with ThreadPoolExecutor(max_workers=CASE_WORKERS) as pool:
+            runs = [
+                pool.submit(invoke_and_verify, env, tmp, agent, sample)
+                for agent, sample, _ in CASES
+            ]
+            for (agent, sample, status), future in zip(CASES, runs, strict=True):
+                run, verified = future.result()
+                check(run.returncode == 0, f"invoke {agent} on {sample} exits 0", run.stderr)
+                got = json.loads(run.stdout)["outcome"]["status"]
+                check(got == status, f"{agent} on {sample} is {status}", f"got {got}")
+                assert verified is not None
+                check(verified.returncode == 0, f"verify {agent} on {sample}", verified.stdout)
 
         serve = [str(shutil.which("workbench")), "serve", "--port", str(WORKBENCH_PORT)]
         with started(serve, {**env, "PWD": str(WORKBENCH)}, serve_log):

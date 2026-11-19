@@ -15,15 +15,65 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, SerializeAsAny, model_validator
 
+# `base` and `inventory` hold the rest of the core's mirrors; their names are this module's too.
+from dd_sdk.contract import inventory
+from dd_sdk.contract.base import SHA256_PATTERN as SHA256_PATTERN
+from dd_sdk.contract.base import Frozen as Frozen
+from dd_sdk.contract.facts import Affiliation as Affiliation
+from dd_sdk.contract.facts import AffiliationKind as AffiliationKind
+from dd_sdk.contract.facts import ChosenRepository as ChosenRepository
+from dd_sdk.contract.facts import DocumentationSummary as DocumentationSummary
+from dd_sdk.contract.facts import ExternalIdentifier as ExternalIdentifier
+from dd_sdk.contract.facts import InventorySummary as InventorySummary
+from dd_sdk.contract.facts import ProjectDocument as ProjectDocument
+from dd_sdk.contract.facts import ProjectFact as ProjectFact
+from dd_sdk.contract.facts import ResearcherFunding as ResearcherFunding
+from dd_sdk.contract.facts import ResearcherLink as ResearcherLink
+from dd_sdk.contract.facts import ResearcherRecord as ResearcherRecord
+from dd_sdk.contract.facts import ResearcherWork as ResearcherWork
+from dd_sdk.contract.retrieval import TOOL_SOURCE_PREFIX as TOOL_SOURCE_PREFIX
+from dd_sdk.contract.retrieval import EvidenceItem as EvidenceItem
+from dd_sdk.contract.retrieval import ToolRetrieval as ToolRetrieval
+from dd_sdk.contract.retrieval import tool_source_id as tool_source_id
+
+PART_FOLDER_PATTERN = inventory.PART_FOLDER_PATTERN
+ConfidenceBand = inventory.ConfidenceBand
+FileInventory = inventory.FileInventory
+FileRole = inventory.FileRole
+FindingTarget = inventory.FindingTarget
+IdentificationMethod = inventory.IdentificationMethod
+InventoryFile = inventory.InventoryFile
+InventoryPart = inventory.InventoryPart
+PersonalDataFinding = inventory.PersonalDataFinding
+PersonalDataKind = inventory.PersonalDataKind
+ProportionBand = inventory.ProportionBand
+TableField = inventory.TableField
+inventory_part_problems = inventory.inventory_part_problems
+
 UUID7_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
-SHA256_PATTERN = r"^[0-9a-f]{64}$"
 POLICY_BUNDLE_REF_PATTERN = r"^profile:[a-z0-9][a-z0-9.-]*@v[0-9]+$"
 IRI_PATTERN = r"^[a-z][a-z0-9+.-]*:\S+$"
 VERSION_PATTERN = r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$"
-
-
-class Frozen(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="forbid")
+# One line of 1 to 80 characters (Reply.conversation_title).
+CONVERSATION_TITLE_PATTERN = r"^.{1,80}$"
+# A drafter's question about a gap, derived from the gap (docs/specs/drafting.md).
+QUESTION_ID_PATTERN = r"^q-[0-9a-f]{16}$"
+CONVERSATION_TITLE_MAX = 80
+# A project's title (Message.project_title), and a name a model gives one (Reply.new_project_title).
+PROJECT_TITLE_PATTERN = r"^.{1,200}$"
+NEW_PROJECT_TITLE_PATTERN = CONVERSATION_TITLE_PATTERN
+NEW_PROJECT_TITLE_MAX = CONVERSATION_TITLE_MAX
+# A choice question offers between 2 and 12 options (Question.question_options).
+CHOICE_OPTIONS_MIN = 2
+CHOICE_OPTIONS_MAX = 12
+# A reply asks between 1 and 8 questions (Reply.reply_questions).
+QUESTIONS_MAX = 8
+# An answer in the researcher's own words: one line for a short text question, several for a
+# long one; a choice question's own-words answer is held to the short bound (QuestionAnswer).
+SHORT_TEXT_MAX = 200
+LONG_TEXT_MAX = 4000
+# A question's identifier within its reply (Question.question_key, QuestionAnswer.answered_key).
+QUESTION_KEY_PATTERN = r"^[a-z][a-z0-9-]{0,39}$"
 
 
 def new_invocation_id() -> str:
@@ -58,6 +108,18 @@ class ReasonCode(StrEnum):
     REQUIRES_HUMAN_JUDGEMENT = "requires_human_judgement"
     POLICY_REQUIRES_APPROVAL = "policy_requires_approval"
     OUTSIDE_AGENT_SCOPE = "outside_agent_scope"
+    # abstained: a person's own model account could not be used (docs/specs/model-accounts.md)
+    MODEL_ACCOUNT_MISSING = "model_account_missing"
+    MODEL_ACCOUNT_REJECTED = "model_account_rejected"
+    MODEL_ACCOUNT_LIMIT = "model_account_limit"
+
+
+class ModelAccount(StrEnum):
+    """Whose account paid for a model call: a person's own or the deployment's
+    (docs/specs/model-accounts.md)."""
+
+    OWN = "own"
+    DEPLOYMENT = "deployment"
 
 
 class Derivation(StrEnum):
@@ -108,16 +170,21 @@ class Assurance(StrEnum):
     AUTHENTICATED = "authenticated"
 
 
+class StepState(StrEnum):
+    STARTED = "started"
+    DONE = "done"
+    SKIPPED = "skipped"
+
+
+class QuestionKind(StrEnum):
+    CHOICE = "choice"
+    SHORT_TEXT = "short_text"
+    LONG_TEXT = "long_text"
+
+
 class TurnRole(StrEnum):
     USER = "user"
     AGENT = "agent"
-
-
-class IdentificationMethod(StrEnum):
-    SIGNATURE = "signature"
-    CONTAINER = "container"
-    EXTENSION = "extension"
-    NONE = "none"
 
 
 class Obligation(StrEnum):
@@ -159,6 +226,7 @@ class RequirementSet(Frozen):
     max_item_size: int | None = None
     licences: list[str] | None = None
     guidance: list[str] = Field(default_factory=list)
+    unconfirmed: list[str] = Field(default_factory=list)
 
 
 class RequirementSetUse(Frozen):
@@ -181,6 +249,8 @@ class RepositoryRequirements(Frozen):
     max_item_size: int | None = None
     licences: list[str] | None = None
     warnings: list[str] = Field(default_factory=list)
+    unconfirmed: list[str] = Field(default_factory=list)
+    repository_url: str | None = None
 
 
 # --- Inputs -----------------------------------------------------------------------------------
@@ -198,57 +268,61 @@ class ConversationTurn(Frozen):
     turn_invocation_id: str | None = Field(default=None, pattern=UUID7_PATTERN)
 
 
-class InventorySummary(Frozen):
-    """What the inventory a project holds is, without its files (docs/specs/projects.md)."""
+class StepProgress(Frozen):
+    """How far one process-flow step has gone, as the project log shows it; a step left out is
+    open (docs/specs/orchestration.md)."""
 
-    inventory_digest: str = Field(pattern=SHA256_PATTERN)
-    inventory_file_count: int
-    inventory_tool: str
-    inventory_tool_version: str
-    inventory_made_at: datetime
-    inventory_limitations: list[str] = Field(default_factory=list)
+    step_id: str = Field(pattern=r"^[a-z]+\.[a-z-]+$")
+    step_state: StepState
+
+
+class QuestionAnswer(Frozen):
+    """The researcher's answer to one question of a reply: the values of the options chosen, or
+    the answer in their own words. Whether it fits its question is checked against the question
+    (`dd_harness.conversations.answer_problem`)."""
+
+    answered_key: str = Field(pattern=QUESTION_KEY_PATTERN)
+    answer_values: list[str] = Field(default_factory=list)
+    answer_words: str | None = Field(default=None, max_length=LONG_TEXT_MAX)
+
+
+class ReplyAnswers(Frozen):
+    """The researcher's answers to the questions the turn before asked, given together, one for
+    each question answered (docs/specs/orchestration.md)."""
+
+    answer_to: str = Field(pattern=UUID7_PATTERN)
+    # The bound is not in the schema (#333).
+    given_answers: list[QuestionAnswer] = Field(min_length=1, max_length=QUESTIONS_MAX)
+
+    @model_validator(mode="after")
+    def _one_answer_a_question(self) -> ReplyAnswers:
+        keys = [a.answered_key for a in self.given_answers]
+        if len(set(keys)) != len(keys):
+            raise ValueError("each question is answered at most once")
+        return self
 
 
 class Message(Frozen):
     """One conversational turn and the conversation so far (docs/specs/orchestration.md). The
-    conductor fills `project_inventory` from the conversation's project; a caller never does."""
+    conductor fills `project_inventory`, `project_entry`, `project_progress`, `project_title`,
+    `project_title_by_researcher`, `project_entry_by_researcher`, `project_documentation`,
+    `project_researchers`, `project_decisions` and `project_repository` from the conversation's
+    project; a caller never does."""
 
     schema_class: Literal["Message"] = "Message"
     message_text: str
     history: list[ConversationTurn] = Field(default_factory=list)
     project_inventory: InventorySummary | None = None
-
-
-class TableField(Frozen):
-    """One field of a table, as a Frictionless Table Schema field descriptor."""
-
-    name: str
-    field_type: str | None = None
-    field_format: str | None = None
-    field_description: str | None = None
-
-
-class InventoryFile(Frozen):
-    file_path: str = Field(pattern=r"^[^/]")
-    file_size: int
-    file_sha256: str = Field(pattern=SHA256_PATTERN)
-    file_media_type: str | None = None
-    file_pronom_ids: list[str] = Field(default_factory=list)
-    file_identified_by: IdentificationMethod
-    file_fields: list[TableField] = Field(default_factory=list)
-
-
-class FileInventory(Frozen):
-    """The facts about a dataset's files a project holds in place of the files
-    (docs/specs/projects.md)."""
-
-    schema_class: Literal["FileInventory"] = "FileInventory"
-    inventory_files: list[InventoryFile] = Field(default_factory=list)
-    inventory_tool: str
-    inventory_tool_version: str
-    inventory_identified_with: str | None = None
-    inventory_made_at: datetime
-    inventory_limitations: list[str] = Field(default_factory=list)
+    reply_answers: ReplyAnswers | None = None
+    project_entry: int | None = Field(default=None, ge=1, le=3)  # bounds not in the schema (#333)
+    project_progress: list[StepProgress] | None = None
+    project_title: str | None = Field(default=None, pattern=PROJECT_TITLE_PATTERN)
+    project_title_by_researcher: bool | None = None
+    project_documentation: list[DocumentationSummary] | None = None
+    project_entry_by_researcher: bool | None = None
+    project_researchers: list[ResearcherRecord] | None = None
+    project_decisions: list[ProjectFact] | None = None
+    project_repository: ChosenRepository | None = None
 
 
 class OpenInput(Frozen):
@@ -355,12 +429,70 @@ AnyPayloadDocument = Annotated[SerializeAsAny[Grounded], BeforeValidator(_open_p
 # (docs/specs/contract.md, docs/specs/projects.md).
 
 
+class ChoiceOption(Frozen):
+    """One option of a choice question. The value is a string: a number would reach the agent as
+    a floating-point value over A2A."""
+
+    option_value: str
+    option_label: str
+    option_help: str | None = None
+
+
+class Question(Frozen):
+    """One question a reply asks, shown as a form field. A choice question has fixed options, of
+    which one or several may be chosen, and may be answered in the researcher's own words where
+    `question_other` is true; a short or long text question is answered in their own words and
+    has no options."""
+
+    question_key: str = Field(pattern=QUESTION_KEY_PATTERN)
+    question_prompt: str
+    question_kind: QuestionKind
+    question_help: str | None = None
+    # The bounds are not in the schema (#333).
+    question_options: list[ChoiceOption] | None = Field(
+        default=None, min_length=CHOICE_OPTIONS_MIN, max_length=CHOICE_OPTIONS_MAX
+    )
+    question_multiple: bool = False
+    question_other: bool = False
+
+    @model_validator(mode="after")
+    def _options_fit_the_kind(self) -> Question:
+        if self.question_kind is QuestionKind.CHOICE:
+            if self.question_options is None:
+                raise ValueError("a choice question has options")
+            values = [o.option_value for o in self.question_options]
+            if len(set(values)) != len(values):
+                raise ValueError("each option of a choice question has a value of its own")
+        elif self.question_options is not None or self.question_multiple or self.question_other:
+            raise ValueError("only a choice question has options")
+        return self
+
+
 class Reply(Grounded):
     """The payload of a conversational agent (docs/specs/orchestration.md)."""
 
     schema_class: Literal["Reply"] = "Reply"
     reply_text: str
     reply_derivation: Derivation
+    # Set by a model on a conversation's first turn only; what lists the conversation shows.
+    conversation_title: str | None = Field(default=None, pattern=CONVERSATION_TITLE_PATTERN)
+    # The questions the reply asks, put to the researcher one at a time and answered together.
+    # The bounds are not in the schema (#333).
+    reply_questions: list[Question] | None = Field(
+        default=None, min_length=1, max_length=QUESTIONS_MAX
+    )
+    # A name for the conversation's project, which the conductor records unless a person named it.
+    new_project_title: str | None = Field(default=None, pattern=NEW_PROJECT_TITLE_PATTERN)
+    # An entry point a model worked out, which the conductor records unless the researcher chose
+    # one. The bounds are not in the schema (#333).
+    new_project_entry: int | None = Field(default=None, ge=1, le=3)
+
+    @model_validator(mode="after")
+    def _question_keys_are_unique(self) -> Reply:
+        keys = [q.question_key for q in self.reply_questions or []]
+        if len(set(keys)) != len(keys):
+            raise ValueError("each question of a reply has a key of its own")
+        return self
 
 
 class DocumentVersionRef(Frozen):
@@ -368,6 +500,38 @@ class DocumentVersionRef(Frozen):
 
     document_id: str = Field(pattern=UUID7_PATTERN)
     version: int = Field(ge=1)  # not in the schema (#333)
+
+
+class DocumentQuestion(Frozen):
+    """A drafter's question about one gap in its draft: a README section, a data dictionary cell
+    named by file, field and column, or a metadata record value (docs/specs/drafting.md)."""
+
+    question_id: str = Field(pattern=QUESTION_ID_PATTERN)
+    question_prompt: str
+    gap_section: str | None = None
+    # The part of the section, when the drafter asks a section part by part.
+    gap_part: str | None = None
+    gap_file: str | None = None
+    gap_field: str | None = None
+    gap_column: str | None = None
+    # A metadata record value, by its path in the record's JSON form, such as titles[0].title.
+    gap_property: str | None = None
+    # Offered with the question, never placed in the document (docs/specs/drafting.md).
+    suggested_answer: str | None = None
+    suggestion_derivation: Derivation | None = None
+
+    @model_validator(mode="after")
+    def _one_target(self) -> DocumentQuestion:
+        if (self.suggested_answer is None) != (self.suggestion_derivation is None):
+            raise ValueError("a suggested answer says how it was derived, and only then")
+        cell = (self.gap_file, self.gap_field, self.gap_column)
+        if self.gap_part is not None and self.gap_section is None:
+            raise ValueError("a question targets a part only within a README section")
+        if None in cell and any(c is not None for c in cell):
+            raise ValueError("a question targets a cell by file, field and column together")
+        if sum(t is not None for t in (self.gap_section, self.gap_file, self.gap_property)) != 1:
+            raise ValueError("a question targets one of a README section, a cell or a property")
+        return self
 
 
 class Document(Grounded):
@@ -381,6 +545,15 @@ class Document(Grounded):
     document_text: str
     document_derivation: Derivation
     revises: DocumentVersionRef | None = None
+    # One question for each gap the version leaves (docs/specs/drafting.md).
+    document_questions: list[DocumentQuestion] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _question_ids_are_unique(self) -> Document:
+        ids = [q.question_id for q in self.document_questions]
+        if len(set(ids)) != len(ids):
+            raise ValueError("each question of a document has an identifier of its own")
+        return self
 
 
 # --- Drafting ---------------------------------------------------------------------------------
@@ -399,6 +572,23 @@ class CurrentVersion(Frozen):
     decision_reason: str | None = None
 
 
+class ApprovedMetadataRecord(Frozen):
+    """The version of the project's metadata record a person approved last
+    (docs/specs/projects.md)."""
+
+    version_ref: DocumentVersionRef
+    media_type: str
+    conforms_to: str | None = None
+    document_text: str
+
+
+class DraftAnswer(Frozen):
+    """A person's answer to one of the current version's questions, placed as given."""
+
+    answered_question: str = Field(pattern=QUESTION_ID_PATTERN)
+    answer_text: str
+
+
 class DraftRequest(Frozen):
     """A project document of one kind to draft from the project's facts (docs/specs/projects.md)."""
 
@@ -406,23 +596,38 @@ class DraftRequest(Frozen):
     document_kind: DocumentKind
     inventory: FileInventory | None = None
     requirements: RepositoryRequirements | None = None
+    metadata_record: ApprovedMetadataRecord | None = None
     current_version: CurrentVersion | None = None
+    # Filled by the conductor in a project, from the answers people recorded.
+    draft_answers: list[DraftAnswer] = Field(default_factory=list)
+    # The project document to redraft, where the project holds more than one of the kind.
+    redraft_document: str | None = Field(default=None, pattern=UUID7_PATTERN)
+    # Filled by the conductor in a project, from the facts people kept from their ORCID records.
+    researchers: list[ResearcherRecord] = Field(default_factory=list)
+    # Filled by the conductor in a project, from the documents a researcher attached.
+    project_documents: list[ProjectDocument] = Field(default_factory=list)
+    # Filled by the conductor in a project, from the facts people decided.
+    project_decisions: list[ProjectFact] = Field(default_factory=list)
 
 
 # --- Evidence and telemetry -----------------------------------------------------------------
 
 
-class EvidenceItem(Frozen):
-    source_id: str
-    source_uri: str | None = None
-    retrieved_at: datetime | None = None
-    snapshot_ref: str | None = None
-    hash_algorithm: str = "sha256"
-    canonicalisation: str
-    content_hash: str = Field(pattern=SHA256_PATTERN)
-    # What the hash covers, already projected; the linter re-hashes it (E1,
-    # docs/specs/grounding.md).
-    content: dict[str, Any] | None = None
+class ModelCall(Frozen):
+    """One call an agent made to a language model, as it reports it (docs/specs/disclosure.md).
+    `prompt_digest` names the messages sent; the harness keeps them beside the run.
+    `model_account` says whose account paid, never whose key; it is absent only in runs recorded
+    before contract 0.10.0. `model_declared` is the model the agent's card declared, on a call the
+    profile's model map routed to another model; it is absent for every other call."""
+
+    model_provider: str
+    model_id: str
+    called_at: datetime
+    prompt_digest: str = Field(pattern=SHA256_PATTERN)
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    model_account: ModelAccount | None = None
+    model_declared: str | None = None
 
 
 class Telemetry(Frozen):
@@ -432,6 +637,7 @@ class Telemetry(Frozen):
     output_tokens: int | None = None
     energy_estimate_j: float | None = None
     energy_method: EnergyMethod = EnergyMethod.NOT_MEASURED
+    model_calls: list[ModelCall] = Field(default_factory=list)
 
 
 # --- Envelope -------------------------------------------------------------------------------
@@ -498,6 +704,8 @@ class Envelope(Frozen):
     project_id: str | None = Field(default=None, pattern=UUID7_PATTERN)
     parent_invocation_id: str | None = Field(default=None, pattern=UUID7_PATTERN)
     delegations: list[Delegation] = Field(default_factory=list)
+    # Filled only by the conductor, from the tool gateway (docs/specs/grounding.md).
+    tool_retrievals: list[ToolRetrieval] = Field(default_factory=list)
 
     def payload_as[P: Grounded](self, model: type[P]) -> P:
         """The payload as `model`, the reader's own model of its class (docs/specs/contract.md).
@@ -519,13 +727,20 @@ class Envelope(Frozen):
         nullable in the generated schema). The one exception is `energy_estimate_j`, which is
         written as an explicit null: P14 asks for the footprint to be captured, and an explicit
         null says "slot exists, not measured" where an absent key says nothing. An empty
-        `delegations` list is omitted, so envelopes of agents that cannot delegate are unchanged.
+        `delegations`, `tool_retrievals` or `model_calls` list is omitted, so envelopes of
+        agents that neither delegate, call a tool nor call a model are unchanged.
         """
         doc = to_document(self)
         doc["telemetry"].setdefault("energy_estimate_j", None)
+        if not doc["telemetry"]["model_calls"]:
+            # Only a run that called a model lists its calls (docs/specs/disclosure.md).
+            del doc["telemetry"]["model_calls"]
         if not doc["delegations"]:
             # Only a delegation agent's envelope lists them (docs/specs/orchestration.md).
             del doc["delegations"]
+        if not doc["tool_retrievals"]:
+            # Only a run that read a record through the tool gateway lists them.
+            del doc["tool_retrievals"]
         return doc
 
 

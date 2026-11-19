@@ -23,39 +23,71 @@ need retrieval to go through the harness, as delegation does. TODO(#246) (docs/s
 
 A copy is independent of the agent because its bytes are pinned by `sha256` in `sources.yaml`,
 not because of where the file lives. A file that does not match its pin is a configuration
-error. Configuration shape:
+error, and so is a missing one, unless its entry says it is built outside git (`built: true`):
+such a copy, if it has not been built, is logged with the one command that builds every agent's
+sources (`dd-sources prepare`, dd_sdk.sources), and evidence citing it is unresolved, so a
+deployment that serves no agent citing it need not build it. How a copy is built is its agent's
+business, not this file's.
+Configuration shape:
 
     sources:
       - snapshot_refs: ["snapshot:2026-09-04"]   # evidence snapshot_ref values this copy serves
         path: ../agents/advisor-standards/data/fairsharing/snapshot.jsonl   # relative to this file
         id_field: fairsharing_id                 # the record field that is the source_id
         sha256: 9696…                            # of the file's bytes
+        built: true                              # optional: the copy is built, not kept in git
 
 A file is JSON Lines, or one JSON array of records.
+
+The same copies answer one other question: what re3data says about a repository a researcher
+chooses (docs/specs/deposit.md). `Sources.re3data` reads the latest re3data export pinned under
+`re3data:export:YYYY-MM` and returns the record with the hash a citation of it would carry.
+`Sources.find_repositories` searches the same export by name or by the repository's own
+identifiers (its re3data identifier, its re3data DOI or its URL), so that a researcher can choose
+one without an advisor's shortlist; the same query always gives the same answer.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Mapping
+import logging
+import re
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
 
 import yaml
 
-from dd_sdk.contract.models import GroundingMode, input_source_id, invocation_source_id
-from dd_sdk.evidence import content_hash
+from dd_sdk.contract.models import (
+    TOOL_SOURCE_PREFIX,
+    GroundingMode,
+    input_source_id,
+    invocation_source_id,
+)
+from dd_sdk.evidence import DOCUMENT_CANONICALISATION, content_hash
+from dd_sdk.sources import PREPARE_COMMAND
 
 # The prefixes of source ids whose hashes the conductor computed itself, and the grounding modes
 # whose linter rules check them against those hashes.
 ATTESTED_PREFIXES = (input_source_id(""), invocation_source_id(""))
 ATTESTED_MODES = (GroundingMode.INPUT_ONLY, GroundingMode.NONE, GroundingMode.DELEGATION)
 
+# The snapshot_ref prefix of a pinned monthly re3data export, followed by its month (YYYY-MM).
+RE3DATA_EXPORT = "re3data:export:"
+_RE3DATA_ID = re.compile(r"^r3d[0-9]{9}$")
+# A query shorter than this, once trimmed, matches no name (it would match most of them).
+MIN_QUERY = 2
+_DOI_PREFIX = re.compile(r"^(?:https?://(?:dx\.)?doi\.org/|doi:)", re.IGNORECASE)
+_URL_PREFIX = re.compile(r"^(?:https?://)?(?:www\.)?", re.IGNORECASE)
+
+log = logging.getLogger(__name__)
+
 
 class SourceConfigError(Exception):
-    """`sources.yaml` is malformed, or a file it lists is missing or does not match its pin."""
+    """`sources.yaml` is malformed, or a file it lists does not match its pin, or is missing and
+    names no command that builds it."""
 
 
 class Resolver(Protocol):
@@ -115,10 +147,81 @@ class SourceReport:
 
 
 @dataclass(frozen=True)
+class RegistryEntry:
+    """What a pinned re3data export says about one repository, and which record said it."""
+
+    re3data_id: str
+    name: str
+    metadata_standards: tuple[str, ...]
+    snapshot_ref: str
+    content_hash: str
+    canonicalisation: str = DOCUMENT_CANONICALISATION
+
+
+@dataclass(frozen=True)
+class RepositoryMatch:
+    """What a search of the pinned re3data export shows of one repository."""
+
+    re3data_id: str
+    name: str
+    additional_names: tuple[str, ...] = ()
+    url: str | None = None
+    doi: str | None = None
+
+    @classmethod
+    def of(cls, record: Mapping[str, Any]) -> RepositoryMatch:
+        names = record.get("additional_names") or []
+        url, doi = record.get("url"), record.get("doi")
+        return cls(
+            re3data_id=str(record["re3data_id"]),
+            name=str(record.get("name") or record["re3data_id"]),
+            additional_names=tuple(str(n) for n in names if isinstance(n, str)),
+            url=url if isinstance(url, str) else None,
+            doi=doi if isinstance(doi, str) else None,
+        )
+
+    def describe(self) -> dict[str, Any]:
+        return {
+            "re3data_id": self.re3data_id,
+            "name": self.name,
+            "additional_names": list(self.additional_names),
+            "url": self.url,
+            "doi": self.doi,
+        }
+
+
+def _bare_doi(value: str) -> str:
+    return _DOI_PREFIX.sub("", value.strip()).casefold()
+
+
+def _bare_url(value: str) -> str:
+    return _URL_PREFIX.sub("", value.strip()).rstrip("/").casefold()
+
+
+def _identifies(query: str, record: Mapping[str, Any]) -> bool:
+    """Whether `query` is one of the repository's own identifiers. An institution's ROR is not:
+    it names an organisation, not a repository."""
+    if _RE3DATA_ID.fullmatch(query.casefold()):
+        return record.get("re3data_id") == query.casefold()
+    doi, url = record.get("doi"), record.get("url")
+    if isinstance(doi, str) and doi and _bare_doi(doi) == _bare_doi(query):
+        return True
+    return isinstance(url, str) and bool(_bare_url(url)) and _bare_url(url) == _bare_url(query)
+
+
+def _names(record: Mapping[str, Any]) -> list[str]:
+    names = [record.get("name"), *(record.get("additional_names") or [])]
+    return [n.casefold() for n in names if isinstance(n, str)]
+
+
+@dataclass(frozen=True)
 class Sources:
     """The copies of sources the harness holds, keyed by the `snapshot_ref` they serve."""
 
     by_snapshot_ref: Mapping[str, Resolver] = field(default_factory=dict)
+    # The snapshot_refs of copies built outside git that have not been built. Evidence citing one
+    # is unresolved.
+    unbuilt: frozenset[str] = frozenset()
 
     @classmethod
     def none(cls) -> Sources:
@@ -134,6 +237,7 @@ class Sources:
         if not isinstance(entries, list):
             raise SourceConfigError(f"{path}: expected a top-level 'sources' list")
         by_ref: dict[str, Resolver] = {}
+        unbuilt: set[str] = set()
         for entry in entries:
             try:
                 refs, file, id_field, pin = (
@@ -146,28 +250,139 @@ class Sources:
                 raise SourceConfigError(
                     f"{path}: each source needs snapshot_refs, path, id_field and sha256"
                 ) from None
-            resolver = RecordsFile.load(path.parent / str(file), str(id_field), str(pin))
+            refs = [str(ref) for ref in refs]
             for ref in refs:
-                if ref in by_ref:
+                if ref in by_ref or ref in unbuilt:
                     raise SourceConfigError(f"{path}: snapshot_ref {ref!r} is listed twice")
-                by_ref[str(ref)] = resolver
-        return cls(by_snapshot_ref=by_ref)
+            built = entry.get("built", False)
+            if not isinstance(built, bool):
+                raise SourceConfigError(f"{path}: 'built' must be true or false, not {built!r}")
+            if built and not (path.parent / str(file)).is_file():
+                log.warning(
+                    "%s: source file %s is not built, so evidence citing %s will be unresolved; "
+                    "build it with `%s`",
+                    path,
+                    file,
+                    ", ".join(refs),
+                    PREPARE_COMMAND,
+                )
+                unbuilt.update(refs)
+                continue
+            resolver = RecordsFile.load(path.parent / str(file), str(id_field), str(pin))
+            by_ref.update(dict.fromkeys(refs, resolver))
+        return cls(by_snapshot_ref=by_ref, unbuilt=frozenset(unbuilt))
+
+    def _re3data_export(self) -> tuple[str, Resolver]:
+        """The latest pinned re3data export and its `snapshot_ref`. Raises `SourceConfigError` if
+        none is pinned or the latest is not built."""
+        refs = sorted(
+            ref for ref in (*self.by_snapshot_ref, *self.unbuilt) if ref.startswith(RE3DATA_EXPORT)
+        )
+        if not refs:
+            raise SourceConfigError(
+                f"sources.yaml pins no re3data export ({RE3DATA_EXPORT}YYYY-MM), so a repository "
+                "cannot be looked up"
+            )
+        ref = refs[-1]
+        resolver = self.by_snapshot_ref.get(ref)
+        if resolver is None:
+            raise SourceConfigError(
+                f"the re3data export {ref} is not built; build it with `{PREPARE_COMMAND}`"
+            )
+        return ref, resolver
+
+    def re3data_export_ref(self) -> str:
+        """The `snapshot_ref` of the export `re3data` and `find_repositories` read."""
+        return self._re3data_export()[0]
+
+    def find_repositories(self, query: str, limit: int = 20) -> list[RepositoryMatch]:
+        """The repositories in the latest pinned re3data export that `query` names, at most
+        `limit` of them. A repository `query` identifies (its re3data identifier, its re3data DOI
+        or its URL) comes first; then those with a name or additional name that starts with it;
+        then those with one that contains it. Each group is in order of name, then identifier.
+        Raises `SourceConfigError` as `re3data` does."""
+        ref, resolver = self._re3data_export()
+        if not isinstance(resolver, RecordsFile):
+            raise SourceConfigError(f"the re3data export {ref} cannot be searched")
+        wanted = query.strip()
+        if not wanted:
+            return []
+        folded = wanted.casefold()
+        groups: tuple[list[Mapping[str, Any]], ...] = ([], [], [])
+        for record in resolver.records.values():
+            names = _names(record)
+            if _identifies(wanted, record):
+                groups[0].append(record)
+            elif len(folded) < MIN_QUERY:
+                continue
+            elif any(n.startswith(folded) for n in names):
+                groups[1].append(record)
+            elif any(folded in n for n in names):
+                groups[2].append(record)
+        found: list[RepositoryMatch] = []
+        for group in groups:
+            matches = sorted(
+                (RepositoryMatch.of(r) for r in group),
+                key=lambda m: (m.name.casefold(), m.re3data_id),
+            )
+            found.extend(matches)
+        return found[: max(limit, 0)]
+
+    def repositories(self, re3data_ids: Sequence[str]) -> list[RepositoryMatch]:
+        """The repositories the latest pinned re3data export holds of `re3data_ids`, in that
+        order, without those it does not hold. Raises `SourceConfigError` as `re3data` does."""
+        _, resolver = self._re3data_export()
+        found = (resolver.record(i) for i in dict.fromkeys(re3data_ids))
+        return [RepositoryMatch.of(r) for r in found if r is not None]
+
+    def re3data(self, re3data_id: str) -> RegistryEntry | None:
+        """The record the latest pinned re3data export holds for `re3data_id`, or `None` if it
+        holds none. Raises `SourceConfigError` if no export is pinned or the latest is not built.
+        """
+        ref, resolver = self._re3data_export()
+        record = resolver.record(re3data_id)
+        if record is None:
+            return None
+        name, standards = record.get("name"), record.get("metadata_standards") or []
+        if not isinstance(name, str) or not all(isinstance(s, str) for s in standards):
+            raise SourceConfigError(
+                f"{ref}: the record of {re3data_id} has no name or a malformed metadata_standards"
+            )
+        return RegistryEntry(
+            re3data_id=re3data_id,
+            name=name,
+            metadata_standards=tuple(standards),
+            snapshot_ref=ref,
+            content_hash=content_hash(record, DOCUMENT_CANONICALISATION),
+        )
 
 
 def check(envelope: dict[str, Any], sources: Sources) -> SourceReport:
-    """Re-hash every externally sourced evidence item against the harness's copy."""
+    """Re-hash every externally sourced evidence item against the harness's copy. A record the
+    conductor kept from the tool gateway is its own observation (docs/specs/grounding.md,
+    invariant 15), and is not looked up again."""
     verified = 0
     unresolved: list[str] = []
     violations: list[str] = []
     attested = envelope.get("grounding_mode") in {m.value for m in ATTESTED_MODES}
+    from_gateway = {
+        (str(r.get("source_id")), str(r.get("content_hash")))
+        for r in envelope.get("tool_retrievals") or []
+        if isinstance(r, dict)
+    }
     for ev in envelope.get("evidence") or []:
         source_id = str(ev.get("source_id"))
         if attested and source_id.startswith(ATTESTED_PREFIXES):
             continue
+        if source_id.startswith(TOOL_SOURCE_PREFIX) and (
+            (source_id, str(ev.get("content_hash"))) in from_gateway
+        ):
+            continue
         snapshot_ref = ev.get("snapshot_ref")
         resolver = sources.by_snapshot_ref.get(str(snapshot_ref))
         if resolver is None:
-            unresolved.append(f"{source_id} ({snapshot_ref})")
+            why = ", not built" if str(snapshot_ref) in sources.unbuilt else ""
+            unresolved.append(f"{source_id} ({snapshot_ref}{why})")
             continue
         record = resolver.record(source_id)
         if record is None:

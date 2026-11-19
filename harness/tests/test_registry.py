@@ -210,6 +210,29 @@ def test_a_missing_or_malformed_config_is_a_registry_error(tmp_path: Path) -> No
         load_config(bad)
 
 
+def test_the_operator_states_which_agents_call_through_the_model_broker(tmp_path: Path) -> None:
+    """docs/specs/model-accounts.md, invariant 14: `model_broker` comes from the configuration the
+    operator writes, never from the agent's card, and is off unless stated."""
+    apps = {url: serve.app(agent, base_url=url) for url, agent in AGENTS.items()}
+    entries: list[dict[str, Any]] = [
+        {"url": "http://hello.test", "model_broker": True},
+        {"url": "http://quality.test", "model_broker": False},
+        {"url": "http://stub.test"},
+    ]
+    registry = Registry.from_config(write_config(tmp_path, entries), client_factory=routed(apps))
+    stated = {a.spec.agent_id: a.model_broker for a in registry if isinstance(a, RemoteAgent)}
+    assert stated == {"example.hello": True, "advisor.quality": False, "stub.abstain": False}
+
+
+@pytest.mark.parametrize("value", ["yes", 1, None])
+def test_a_model_broker_that_is_not_a_boolean_is_a_registry_error(
+    tmp_path: Path, value: Any
+) -> None:
+    path = write_config(tmp_path, [{"url": "http://hello.test", "model_broker": value}])
+    with pytest.raises(RegistryError, match="model_broker"):
+        load_config(path)
+
+
 def test_duplicate_agent_id_is_a_registry_error() -> None:
     a = in_process(ScriptedAgent(GroundingMode.NONE, review_of_input))
     b = in_process(ScriptedAgent(GroundingMode.NONE, review_of_input))

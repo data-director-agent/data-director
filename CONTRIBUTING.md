@@ -7,7 +7,9 @@ The organisation-wide [contribution guide](https://github.com/data-director-agen
 applies here: when to open an RFC, the Developer Certificate of Origin sign-off (`git commit -s`)
 and the pull request workflow. [Governance](https://github.com/data-director-agent/.github/blob/main/GOVERNANCE.md)
 and the [code of conduct](https://github.com/data-director-agent/.github/blob/main/CODE_OF_CONDUCT.md)
-are also organisation-wide. This file covers what is specific to this repository.
+are also organisation-wide. This file covers what is specific to this repository. New here? Start with
+[your first contribution](docs/guide/developer-guide/first-contribution.md): a table of what you
+might want to do, and the steps from a fresh clone to a pull request.
 
 ## Contributing without writing code
 
@@ -27,22 +29,34 @@ issue form, chosen when you [open an issue](https://github.com/data-director-age
 
 ## Repository structure
 
-This repository is organised as follow:
+The repository root is a uv workspace. Put each piece of code in the package whose job it is, not
+the one you happen to have open. The workbench was the first package, and that does not make it
+the default home for anything.
 
-* `docs/` contains what governs every package: the Blueprint, the specifications (`docs/specs/`),
-  the contract, the glossary, the requirements register and the review record. A package's own
-  documents are in its own `docs/` (`harness/docs/`, `workbench/docs/`)
-* `app/` contains the Data Director app that people use (alpha); its browser shell in `app/web`
-  needs Node 22 or later and npm (`app/README.md`)
-* `sdk/` contains what agents and the harness share: the contract, evidence and the agent server
-* `harness/` contains the governance every agent invocation goes through ([System and boundaries](docs/specs/system.md))
-* `workbench/` contains the development environment for building and testing sub-agents
-* `agents/` contains one package per agent, including alpha-versioned experimental ones
-  (`agents/README.md`)
+| What you are writing | Where it goes |
+| --- | --- |
+| The contract, evidence, span helpers, the agent server: anything agents and the harness share | `sdk/` (`dd_sdk`) |
+| Governance: the conductor, policy gate, input check, grounding linter, source check, stores, provenance, sign-in, the A2A way in ([System and boundaries](docs/specs/system.md)) | `harness/` (`dd_harness`) |
+| Test doubles and helpers that any way in or any agent can use | `harness/` (`dd_harness.testing`) |
+| One agent's logic, schema, data, scripts, sample inputs, evaluation cases and tests; prototypes too, marked alpha by their version (`agents/README.md`) | `agents/<name>/` (sample inputs are still in `workbench/samples/` until TODO(#275) moves them) |
+| The app people use: its server, configuration (`app/config/`) and browser shell (`app/web`, React and TypeScript, Node 22 or later; [The app](docs/specs/app.md), designed from `docs/ui/best-practices.md`) | `app/` |
+| The operators' read-only view of a deployment, on loopback only ([The admin service](docs/guide/operations/admin.md)) | `admin/` |
+| The model broker, which holds people's own model keys and makes their model calls ([A person's own model account](docs/specs/model-accounts.md)) | `broker/` |
+| The development client for agent authors: the `workbench` CLI, viewer and its development configuration | `workbench/` |
+| `dd-inventory`, which a researcher runs where their data live to describe a dataset's files ([Projects](docs/specs/projects.md)) | `inventory/` |
+| Repository tooling and tests of the repository as a whole (scripts, shipped configuration, cross-package checks) | `scripts/`, `scripts/tests/` |
+| What governs every package: the Blueprint, system overview, specifications, contract, glossary, requirements register, reviews | `docs/` |
 
-Each package keeps to its own directory, so that it can later move to a repository of its own.
-Agent Skills, MCP servers and other resources that do not use the contract belong in their own
-repositories in the organisation. [System and boundaries](docs/specs/system.md)
+A package's own documents are kept with it (`harness/docs/`, `workbench/docs/`). The workbench and
+the app are both clients of the harness. Neither holds governance, and neither may be a dependency
+of the harness, the SDK or an agent: if a second way in to the harness would need what you are
+writing, it belongs in the harness or the SDK. The app's browser shell is drawn from each agent's
+manifest and names no agent; it renders the harness's decisions and holds no policy.
+
+Each package keeps to its own directory, so that it can later move to a repository of its own: it
+imports only what it declares (tests from its own `dev` group) and reads no path outside itself
+(`scripts/check_boundaries.py`). Agent Skills, MCP servers and other resources that do not use the
+contract belong in their own repositories in the organisation. [System and boundaries](docs/specs/system.md)
 sets out both.
 
 ## Changing the design
@@ -57,27 +71,35 @@ issues are the record of how the design got here; the spec is the result.
 ## Code style and testing
 
 The Python packages use Python 3.14 and [uv](https://docs.astral.sh/uv/); `app/web` uses Node 22
-and npm. `uv run scripts/dev.py setup` installs both sides and `uv run scripts/dev.py doctor`
+and npm. `uv run scripts/dd.py setup` installs both sides and `uv run scripts/dd.py doctor`
 says what is wrong with a setup (README, "Quick start"). Follow the conventions of the surrounding
 code, and describe how you tested your change in the pull request description.
 
 Every pull request runs `.github/workflows/ci.yml`, which ends in one check, **CI passed**, that
-passes only when every other job has. Each job can be run locally from the repository root:
+passes only when no job it waits for failed or was cancelled. A job skipped because a change does
+not touch what it checks counts as passed, and the advisory conformance job is not waited for and only warns when the file is stale.
+`scripts/check_ci_gate.py` fails the Workflows job when a job is left out of the wait. Network
+steps that download (browsers, images) retry through `scripts/retry.sh`. Each job can be run
+locally from the repository root:
 
 | Job | Locally |
 |---|---|
 | Ruff (lint + format) | `uv run ruff check . && uv run ruff format --check .` |
 | mypy | `uv run mypy` |
-| pytest | `uv run pytest --json-report --json-report-file=.report.json` |
+| pytest | `uv run pytest --json-report --json-report-file=.report.json` (runs on every core; `-n0` for one process, to debug) |
 | CONFORMANCE.md is current | `uv run python scripts/conformance_report.py --check` (after pytest, which writes `.report.json`) |
 | Generated schemas up to date | `uv run dd-gen-schema && git diff --exit-code -- sdk/src/dd_sdk/schema/generated/` |
 | Packages build and install alone | `uv build --all-packages -o dist && uv run python scripts/check_wheels.py dist` |
 | Agents as services (smoke) | `uv run python scripts/smoke_agents.py` |
+| PostgreSQL benchmark (`.github/workflows/bench.yml`, its own workflow, weekly and on demand; reports, never gates) | `DD_TEST_POSTGRES=postgresql://postgres@localhost/postgres uv run python harness/scripts/bench_postgres.py` (`--quick` to check it runs) |
+| Container image (`.github/workflows/images.yml`, its own workflow) | `docker build -f docker/release.Dockerfile --build-arg REVISION="$(git rev-parse HEAD)" -t data-director:smoke . && python3 scripts/smoke_image.py --image data-director:smoke --revision "$(git rev-parse HEAD)"` |
 | Workbench viewer in a browser | `uv run playwright install chromium && uv run pytest workbench/browser_tests` |
-| App shell | in `app/web`: `npm ci && npm run lint && npm run typecheck && npm test && npm run build && npm run e2e` |
+| App shell (three jobs: checks, Vitest, Playwright) | in `app/web`: `npm ci && npm run lint && npm run typecheck && npm run build && npm test && npm run e2e` |
 | Links and citation file | `lychee --offline --include-fragments '**/*.md'`, `uvx cffconvert --validate`, `uv run scripts/check_citation.py`, `scripts/check_todos.py` and `scripts/check_boundaries.py` |
-| Workflows | `uvx zizmor .github` and [actionlint](https://github.com/rhysd/actionlint) |
-| Developer Certificate of Origin | every commit signed off by its author: `git commit -s` |
+| Workflows | `uvx zizmor .github`, [actionlint](https://github.com/rhysd/actionlint) and `python3 scripts/check_ci_gate.py`; every `uses:` is pinned to a full commit SHA with the version as a trailing comment (`# v1.2.3`) |
+| NGINX site | `sudo bash scripts/check_nginx.sh` (installs nginx; CI runs it on a clean runner) |
+| LiteLLM gateway and model broker | in `deploy/llm-gateway`, with Docker: `scripts/testing/ci_env.sh && docker compose -f compose.yaml -f compose.test.yaml up -d --wait && scripts/smoke_test.sh && scripts/testing/broker_e2e.sh`, then `docker compose -f compose.yaml -f compose.test.yaml down -v` (a fake provider: no keys, nothing billed) |
+| Developer Certificate of Origin | a person signs off, either with a `Signed-off-by` at the end of the pull request description or implicitly by opening the pull request from their own account (a notice names them), and no coding agent signs off anywhere, which may only co-author (`.github/workflows/dco.yml`, re-run when the description is edited; a problem is a warning, not a failure): `python3 scripts/check_signoff.py BASE HEAD --body-file description.md --author LOGIN` |
 | Dependency review | a new dependency with a known advisory of moderate severity or worse is refused |
 
 `.github/workflows/accessibility.yml` checks what people read and use against WCAG 2.2 AA, with
@@ -90,13 +112,170 @@ request runs each job only when it touches what the job checks, by the rules in
 | Documentation site | `uv run --only-group docs mkdocs build --strict && uv run --only-group docs --only-group accessibility scripts/check_site_accessibility.py site` |
 | Workbench viewer | `uv run pytest workbench/browser_tests/test_viewer_accessibility.py` |
 
-The app shell's accessibility checks run in the App shell job of `ci.yml`.
+The app shell's accessibility checks run in the App shell jobs of `ci.yml`.
 
-The pytest suite blocks the network and needs no credentials. `CONFORMANCE.md` is generated;
+The pytest suite blocks the network and needs no credentials. It also keeps the JSON fixtures in
+`app/web/fixtures`, which the shell's tests read, current: run locally, a test rewrites a fixture
+that no longer matches what the server says, so commit what changed. In CI a stale fixture fails
+the test instead. The AG-UI cassettes in `app/web/cassettes`, the event streams the harness sends
+for each kind of run, are kept the same way by `app/tests/test_ui_cassettes.py`;
+`uv run python scripts/record_ui_cassettes.py` rewrites them all. [Writing tests](#writing-tests) says what a test should and should not pin down. `CONFORMANCE.md` is generated;
 regenerate it with the same two commands without `--check`. CodeQL (`codeql.yml`) analyses the
 Python, JavaScript and TypeScript code and the workflows (in a pull request, only the languages it
 changes), and `audit.yml` checks every locked
 dependency against the advisory databases each day. Dependabot proposes updates weekly.
+
+### Mutation testing
+
+Coverage shows which code the tests run, not which code they check. Once a week
+`.github/workflows/mutation.yml` runs [mutmut](https://mutmut.readthedocs.io) over the governance
+code the project owns: evidence hashing (`sdk/src/dd_sdk/evidence.py`), the policy gate
+(`harness/src/dd_harness/policy.py`) and the grounding linter
+(`harness/src/dd_harness/grounding.py`). The report is the job summary of the latest
+[Mutation testing run](https://github.com/data-director-agent/data-director/actions/workflows/mutation.yml):
+for each package, the counts, each surviving mutant (a change to the code that no test notices)
+with its diff, and the functions no selected test reaches. It is information only: it does not
+run on pull requests and never blocks a merge. To close a surviving mutant, add or tighten a test
+that the change would fail. Which modules and which tests are set under `[tool.mutmut]` in
+`sdk/pyproject.toml` and `harness/pyproject.toml`. To run it locally, from `sdk/` or `harness/`:
+
+```bash
+uv run --group mutation mutmut run
+uv run --group mutation mutmut results
+```
+
+### Keeping the code in shape
+
+The package boundaries are checked by Import Linter and `scripts/check_boundaries.py`. Inside a
+package, these ratchets keep code from growing past what a reviewer can follow
+([Architecture review](docs/architecture-review.md)):
+
+- **Function complexity.** Ruff applies mccabe complexity 12 and the pylint limits on branches
+  (12), statements (50), arguments (7) and returns (6) to Python outside tests. ESLint applies
+  complexity 18 and nesting depth 4 to `app/web`, `sdk/browser` and `inventory/browser` outside
+  tests.
+- **Boolean parameters and silenced exceptions.** Ruff's `FBT` rules fail a boolean positional
+  parameter in a definition and a `True` or `False` passed positionally in a call, in Python
+  outside tests: a call such as `run(x, True, False)` cannot be read without the definition. Make
+  the parameter keyword-only with `*` and name the argument. Ruff's `S110` fails
+  `try`/`except Exception`/`pass` (`SIM105` already fails a narrower `except`/`pass`, asking for
+  `contextlib.suppress`), and `BLE` fails a broad `except Exception` that neither re-raises nor
+  logs: a content problem is an outcome, not a swallowed exception. No rule catches
+  `contextlib.suppress(Exception)`; do not use it either.
+- **File size.** `scripts/check_size.py` holds each Python source file to 500 lines and each
+  TypeScript one to 400. A file already over the limit is recorded in `scripts/size_baseline.toml`
+  at its present size and may not grow. The pre-commit hook lowers an entry when its file shrinks;
+  commit the change.
+- **Copied code.** Agents may not import one another, so copying a block between them is the easy
+  route. `scripts/check_duplication.py` runs [jscpd](https://github.com/kucherenko/jscpd) over the
+  Python and TypeScript sources of every member (not tests or generated code) and fails on a block
+  of 5 lines and 50 tokens or more that appears twice. The copies already there are recorded in
+  `scripts/duplication_baseline.toml`, by pair of files, with the number of blocks and lines they
+  share; a pair may not gain a block or a line, and a new pair fails. Move shared code to the
+  package whose job it is, above all `dd_sdk` for what agents share, and import it. The check is a
+  pre-commit hook, as it takes about a second; the first run installs the jscpd pinned in
+  `scripts/jscpd/package-lock.json` with `npm ci`, so it needs Node.js. The hook lowers an entry
+  when a copy is removed; commit the change. Its canary, `scripts/tests/test_check_duplication.py`,
+  plants a block in two agents and expects the check to fail; it is skipped where jscpd is not
+  installed, and CI's "Architecture" job installs it.
+- **Unused code.** `uv run python scripts/check_unused.py` runs vulture over the Python, counting
+  a use in a test or script, and fails a function, method, class or import in a member's `src/`
+  that nothing calls. Code reached by a name vulture cannot see (a template, a base class that
+  calls an override) is listed under `[[reached]]` in `scripts/unused_code.toml` with how it is
+  reached; the unused code found when the check was added is listed under `[[unused]]` and may
+  only shrink. `npm run lint` in `app/web`, `sdk/browser` and `inventory/browser` runs knip, which
+  fails an unused file, export or dependency. A stale entry in either fails.
+- **Member registration.** `scripts/check_members.py` checks that each workspace member, and above
+  all each agent, appears in every list that names members by hand: the root `pyproject.toml`
+  and the files that deploy every agent.
+
+The code that exceeded a limit when it was introduced carries a marker: `# noqa: C901` (and the
+like, `# noqa: FBT001` among them) in Python, `// eslint-disable-next-line complexity` in TypeScript, or an entry in the size
+baseline. These record debt. Remove the marker when you split the function or file; a marker that
+no longer suppresses anything is itself an error (Ruff's RUF100, ESLint's unused-directive
+report). Never add one to get new code past these checks: split the code by responsibility
+instead, and if that is not possible in your pull request, open an issue and say so. The CI
+"Architecture" job counts these markers, the baseline entries and the boundary exceptions in its
+summary (`scripts/architecture_debt.py`), so the count can be seen to fall.
+
+## Writing tests
+
+The project is in alpha, and its wording, layout and set of agents change from week to week. A test
+should fail when behaviour breaks, not when a sentence is reworded or an agent is added:
+
+* Assert on structure: an outcome's status, a code, an identifier (`advisor.policy`, `R5`), a role
+  and accessible name. Where text is the behaviour, match a short distinctive term or a regular
+  expression, not the whole sentence.
+* Take expected lists and counts from where they are defined (`app/config/agents.yaml`, the
+  registry, the LinkML source, a fixture) rather than copying them into the test. Assert a lower
+  bound or membership where the exact number does not matter.
+* In the browser shell, query by role and accessible name; avoid CSS classes and DOM shape.
+* Test what code does, not what its source says: no searching source files for code strings or
+  pinned versions, and the public interface rather than `_private` attributes.
+* Every test that substantiates a requirement carries `@pytest.mark.requirement("<ID>")`, with an
+  ID from `docs/requirements.yaml` that it actually exercises. These tests feed `CONFORMANCE.md`:
+  loosen what they assert, but keep them. An evaluation test carries no requirement marker
+  ([Evaluation and conformance](docs/specs/evaluation.md)).
+* Property tests use Hypothesis, for code the project owns outright (evidence canonicalisation,
+  the contract validators, project event replay). The root `conftest.py` bounds every property
+  test to 50 examples with no deadline; a slower one, such as one against a database, sets fewer
+  with its own `@settings`.
+* Test module basenames are unique across the workspace. Test directories are not packages;
+  shared doubles live in `dd_harness.testing` and in an agent's own `testing` module.
+* Cassettes must not contain credentials. The root `conftest.py` filters the auth headers and the
+  sign-in password; check a new cassette before committing it.
+
+## Issues and labels
+
+The kind of an issue is its GitHub issue type (Task, Bug or Feature), not a label; an umbrella
+issue is a parent with sub-issues. Labels say where and what about:
+
+* `area: …`: the part touched, one or more of `sdk`, `harness`, `workbench`, `app`, `agents`,
+  `docs`, `ci`.
+* Themes: `blueprint` (review or conformance against the Blueprint), `security`, `evaluation`,
+  `accessibility`, `user report` (a bug filed from the app by someone using it; the app applies
+  it, and triage treats it first), and `needs spec` for a change to a fixed format.
+* `good first issue`, `help wanted` and `blocked` (waiting on something outside the project).
+
+Pull requests take no labels by hand: the Conventional Commit title carries kind and scope.
+`dependencies`, `python:uv`, `javascript` and `autorelease: …` are applied by Dependabot and
+release-please. How issues move across the organisation's project board, and what coding agents
+keep up to date on it, is in the organisation's
+[planning guide](https://github.com/data-director-agent/.github/blob/main/PLANNING.md).
+
+## Merging a pull request
+
+Merge with **Squash and merge**. The repository allows no other method, and its ruleset on `main`
+requires three checks to pass first: **CI passed**, **Accessibility passed** and **PR title and
+branch name**. The squashed commit takes the pull request's title as its subject and has no body.
+
+Squashing keeps one commit per pull request on `main`, which release-please needs. A merge commit
+would put the branch's own commits on `main` beside GitHub's merge commit, whose body repeats the
+pull request title, so release-please would list the change twice in the changelog and count every
+`feat:` or `fix:` commit on the branch as a change of its own.
+
+### The merge queue
+
+`main` takes its pull requests through GitHub's merge queue. Once a pull request is approved and
+its checks have passed, add it to the queue instead of merging it directly. The queue builds the
+pull request on top of those queued ahead of it and runs the checks on that combined result, so
+what lands on `main` is what was tested. The queue squashes in the same way as a direct merge, so
+the rules above on titles and the squashed commit still apply.
+
+The checks run differently in the queue:
+
+* Every job in `ci.yml` and `accessibility.yml` runs, whether or not the change touches its files,
+  as it does for a push to `main`. **CI passed** and **Accessibility passed** therefore test the
+  combined result in full.
+* **PR title and branch name** does not run. The queue has no title or branch of its own, and the
+  check was made when the pull request was opened or its title edited. Its job is skipped, which
+  counts as passed.
+* A run in the queue is not cancelled by a later one: `ci.yml` cancels an earlier run only for a
+  pull request.
+
+If a check fails, the pull request leaves the queue. Fix it on its branch, push, wait for its
+checks to pass on the pull request, and then add it to the queue again. The `merge_group` trigger
+in each workflow is what starts these runs; a change to a workflow's triggers should keep it.
 
 ## Pull request titles and branch names
 
@@ -107,28 +286,59 @@ and runs again when the title is edited:
 
 * the title is `type(scope)!: summary`. `type` is one of `build`, `chore`, `ci`, `docs`, `feat`,
   `fix`, `perf`, `refactor`, `revert`, `style` or `test`; `(scope)`, usually the package
-  (`app`, `harness`, `sdk`), and `!`, for a breaking change, are optional. The summary starts in
-  lower case unless its first word is a name or acronym, has no closing full stop, and the whole
-  title is at most 90 characters: `feat(app): register every in-tree agent`
+  (`app`, `harness`, `sdk`), and `!`, for a breaking change, are optional. The summary is a
+  sentence that starts with a capital letter, has no closing full stop, and the whole title is at
+  most 90 characters: `feat(app): Register every in-tree agent`. Lower case is also accepted, for
+  a summary that opens with a command or package name such as `uv`
 * the branch is lower-case words joined by hyphens, optionally grouped with slashes, in at most
   60 characters: `ci-faster`, `harness/run-store`
 
-Dependabot's and release-please's pull requests are exempt. Check a title and branch locally:
+Dependabot's and release-please's pull requests are exempt. The check runs on every push and
+every title edit, so a wrong title is fixed by editing it, with no new commit. Check a title and
+branch locally:
 
 ```sh
 python3 scripts/check_names.py --title "feat(app): history tab" --branch "$(git branch --show-current)"
 ```
+
+`project-status.yml` puts a pull request on the project board when it is opened or marked ready
+for review, using the repository secret `PROJECT_TOKEN`. When that secret is unset the job fails
+with "To use GitHub CLI in a GitHub Actions workflow, set the GH_TOKEN environment variable". The
+failure comes from repository settings, not from the change: the organisation owner sets
+`PROJECT_TOKEN` as the workflow's header comment describes.
+
+## Pre-commit hooks
+
+`.pre-commit-config.yaml` holds the fast checks, so that they fail on your machine rather than in
+CI. Install them once per clone:
+
+```sh
+uv tool install pre-commit && pre-commit install
+```
+
+Before each commit they fix trailing whitespace, final newlines and line endings; check YAML, TOML
+and JSON parse, and that no merge marker, private key or file over 1 MB is committed; check file
+modes against shebangs; run Ruff (lint with fixes, then format, at the version in `uv.lock`);
+check each to-do marker names an issue (`scripts/check_todos.py`); hold source files to their
+size and copied code to its baseline (`scripts/check_size.py`, `scripts/check_duplication.py`);
+check every member is registered (`scripts/check_members.py`); re-lock `uv.lock` (below);
+lint the workflows with actionlint and zizmor (offline); and refuse a commit made directly on
+`main`. A `commit-msg` hook holds each commit subject to the pull request title rule
+(`scripts/check_names.py`): a Conventional Commit, `type(scope): summary`. The title itself is
+still checked in CI, as it is the one squash-merged onto `main`.
+
+Run them all over the tree with `pre-commit run --all-files`. Generated and recorded files
+(`uv.lock`, lock files, `schema/generated/`, test data, cassettes) and `docs/blueprint/` are left
+alone. mypy, pytest, the architecture checks and the app/web npm scripts take minutes and need the
+full environment, so they are not hooks: CI runs them. CI's "Pre-commit hooks" job runs the hooks
+too, for anyone who has not installed them. Dependabot keeps the hook revisions current.
 
 ## Keeping `uv.lock` current
 
 `uv.lock` records every workspace package's version and dependencies, so any branch that changes
 a `pyproject.toml` changes it too, and two such branches conflict. The `uv-lock` pre-commit hook
 re-locks whenever a `pyproject.toml` changes, so the lock never lags behind and CI's locked check
-never fails for that reason. Install it once:
-
-```sh
-uv tool install pre-commit && pre-commit install
-```
+never fails for that reason.
 
 Never resolve a `uv.lock` conflict by hand. Take the base branch's file and lock again:
 

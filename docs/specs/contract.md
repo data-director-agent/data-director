@@ -23,8 +23,9 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
    outcome and problem details, grounding and evidence, telemetry, delegation and the principal,
    and the few classes the harness, the project record or the deposit package read without
    knowing the agent (conversation turns, `Message` with the `InventorySummary` the conductor fills
-   in, `Document`, `FileInventory`, `RequirementSet`, the drafters'
-   `DraftRequest` with `CurrentVersion` and `RepositoryRequirements`, and the
+   in and its `ReplyAnswers`, `Reply` with its `Question`s, `Document` with its
+   `DocumentQuestion`s, `FileInventory`, `RequirementSet`, the drafters' `DraftRequest` with
+   `CurrentVersion`, `DraftAnswer` and `RepositoryRequirements`, and the
    enums they use). No agent's own input or payload class is added to it.
 2. In the core, an input is any object with a `schema_class`, and a payload is any object with a
    `schema_class` that mixes in `Grounded`. The core checks nothing else about either
@@ -40,7 +41,12 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
 5. A card carries the contract version its agent was built against and, for each class it accepts
    or returns, the class's JSON Schema with its digest (sha256 in the `dd-json-document-v1`
    canonicalisation). A card whose digest does not match its schema, or that names a class it
-   carries no schema for, is refused (`harness/tests/test_registry.py`).
+   carries no schema for, is refused (`harness/tests/test_registry.py`). Beside the schema, a
+   class may carry `shapes`: its SHACL shapes as Turtle text, the JSON-LD context that reads its
+   documents as RDF, and their digest (of `{"shacl", "context"}` in the same canonicalisation;
+   neither holds a number, so the digest survives A2A). Shapes that do not match their digest are
+   refused like a schema; a class without them is governed all the same
+   (`harness/tests/test_payload_shapes.py`).
 6. An agent is governed only when its contract version has the harness's major version and, while
    the major version is 0, its minor version too (the caret rule). Any other agent is recorded as
    **incompatible**, naming both versions, and never as unavailable (`dd_sdk/contract/version.py`,
@@ -49,6 +55,11 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
    accept or which fails that class's schema: the outcome is `failed` with problem type
    `input-not-accepted` (HTTP 422). A payload of another class than the declared one, or one its
    class schema rejects, becomes `failed` with `agent-error` (`harness/tests/test_harness.py`).
+   A payload the envelope still carries once every check has run is then checked against its
+   class's shapes, when the class has any, and the SHACL Validation Report is kept beside the run
+   as `validation-report.jsonld` and in its Process Run Crate. The shape check reports only: the
+   outcome, payload and problem are the same whatever the report says
+   (`harness/tests/test_payload_shapes.py`).
 8. A stored envelope names the contract version it was governed under, the digest of the input
    class schema it was checked against (when the class was accepted) and the digest of the
    payload class schema exactly when there is a payload. The run store keeps each schema once,
@@ -59,7 +70,7 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
 10. The input hash is taken over the validated input document as the agent is given it, with
     null values removed: as it was received, except for the project's facts the conductor puts
     into a `Message`, a `DraftRequest` or a `FileInventory` in a project, and a `Message`'s
-    `project_inventory`, which it removes outside one ([Projects](projects.md), invariant 6). No
+    `project_inventory`, `project_entry` and `project_progress`, which it removes outside one ([Projects](projects.md), invariant 6). No
     model defaults are added before hashing.
 11. `project_id`, on the request and the envelope, is set only by the conductor, from the
     conversation a request is a turn of or a child's grant. A caller's request that carries it is
@@ -92,6 +103,95 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
 20. No agent builds, sends or parses an RO-Crate as part of a call, and nothing in the harness
     reads a crate back to make a decision. `dd_harness/provenance.py` is the only importer of
     `rocrate`.
+21. An envelope records each model call an agent reports in `telemetry.model_calls`, and names
+    the call's prompt by its `dd-prompt-json-v1` digest only. The prompt itself never enters the
+    envelope, the trace or the crate; the run store keeps it ([Disclosure](disclosure.md)).
+    Each call records whose account paid for it, `own` or `deployment` (`model_account`), never
+    whose. A run whose person's own account cannot be used ends `abstained` with
+    `model_account_missing`, `model_account_rejected` or `model_account_limit`
+    ([A person's own model account](model-accounts.md), invariants 9 and 10;
+    `sdk/tests/test_whose_account_paid.py`). Adding them raised the contract version to 0.10.0.
+    A call the profile's model map routed to another model also records the model the card
+    declared (`model_declared`); every other call leaves it out. Adding it raised the contract
+    version to 0.11.0.
+22. A `Reply` may carry `conversation_title`, one line of at most 80 characters that a person can
+    tell the conversation apart by. A model writes it from the researcher's first message, on a
+    conversation's first turn only; an agent that sets it declares it model-derived, and a later
+    turn, or a rule-based agent, leaves it out. The harness reads it to name the conversation
+    ([Orchestration](orchestration.md)) and checks nothing else about it.
+23. A `Reply` may carry a series of 1 to 8 `Question`s (`reply_questions`), which the app puts
+    to the researcher one at a time. Each has a key unique within the reply (`question_key`), a
+    prompt, optional help and a kind (`QuestionKind`): `choice`, with 2 to 12 options, each a
+    string value with a label and optional help, whether several may be chosen, and whether the
+    researcher may answer in their own words instead; or `short_text` (one line, at most 200
+    characters) or `long_text` (at most 4000 characters), answered in their own words and with no
+    options. Option values are unique within the question and are strings, because A2A carries
+    numbers as doubles. A `Message` may carry `ReplyAnswers` (`reply_answers`) naming the
+    invocation whose reply asked and giving one `QuestionAnswer` for each question answered: its
+    key, the values chosen and any answer in the researcher's own words (`answer_words`); a
+    question skipped has none, and at least one is given. `message_text` says the same in words.
+    The bounds are in the Pydantic model, not the schema: a card carries class schemas over A2A,
+    which would turn them into doubles and break the schema digest (#333). The harness checks the
+    answers against the questions before the turn runs (`dd_harness.conversations.answer_problem`,
+    `sdk/tests/test_contract.py`, `harness/tests/test_conversations.py`). The project intake asks
+    its questions as `Question`s of kind `choice` too, outside any reply; its answers go to the
+    project, not a turn, so they carry no `ReplyAnswers` and the core schema does not change for
+    them
+    ([Orchestration](orchestration.md), invariant 20). A `Reply` may instead carry
+    `intake_suggestions`, each an intake question id and the option values a model read in the
+    researcher's words, which an agent that sets it declares model-derived and the harness
+    records as suggestions, never answers ([Projects](projects.md), rule 20). Adding it will raise
+    the contract version; it is not in the schema yet, TODO(#908).
+24. A `Document` may carry `document_questions`, one `DocumentQuestion` for each gap the version
+    leaves: an identifier unique within the document (`q-` and 16 hexadecimal digits, derived
+    from the gap), the text put to the person, and a target that is one of a README section, a
+    data dictionary cell named by file, field and column, or a metadata record value named by its
+    path in the record's JSON form (`gap_property`, such as `titles[0].title`), and optionally a
+    suggested answer with how it was derived (`suggested_answer` and `suggestion_derivation`,
+    both or neither). Adding `gap_property` raised the contract version to 0.12.0. A
+    `DraftRequest` may carry `draft_answers`, each a `DraftAnswer` naming the question it answers
+    and the text, which the drafter places as given ([Drafting documents](drafting.md), `sdk/tests/test_contract.py`).
+25. A `ProjectFact` is one fact about a project: a funder, a repository a funder, journal or
+    institution requires, whether one file of the inventory is deposited, whether a sensitive
+    field or file may be published and at what precision, the licence, or a commitment to share
+    an output. Its `fact_kind`
+    (`FactKind`) says which value slots it must hold, and its `fact_subject` is the key the last
+    decision counts by; `proposed_because` says, for the person deciding, why it was proposed.
+    An agent's payload class proposes facts by mixing in `ProposesFacts` (`proposed_facts`), so
+    the harness reads them without knowing the class. A `DraftRequest` and a `Message` may carry
+    `project_decisions`, the facts a person decided, which only the conductor fills in a project
+    ([Projects](projects.md), invariants 6 and 28; `sdk/tests/test_contract.py`). Adding them
+    raised the contract version to 0.13.0. A `sharing_commitment` fact is what a data management plan commits
+    to share: the output as its subject, where, how openly and under what licence, with the
+    plan's own words (`commitment_quote`) and the digest of the attached document's text that
+    holds them (`commitment_document`), both required (`sdk/tests/test_fact_kinds.py`). An
+    agent's own input class asks the conductor for the project's attached documents or decided
+    facts by mixing in `GivenProjectDocuments` (`project_documents`) or `GivenProjectDecisions`
+    (`project_decisions`), so the harness fills them without knowing the class ([Projects](projects.md),
+    invariant 6). Adding them raised the contract version to 0.16.0.
+26. A `FileInventory` may carry `inventory_personal_data`, and each `InventoryPart`
+    `part_personal_data`: a list of `PersonalDataFinding`s, each a kind, the file (or a folder,
+    ending in a slash), what was examined (a column, a field name, a file name or text), the
+    column if any, the share of sampled values that matched and the confidence as bands, the
+    detector with its version and configuration, and how much was examined. A finding never
+    holds a value. Absent means no detector ran; empty means one ran and found nothing, so an
+    inventory made before the change still validates and reads as "no detector ran". Adding
+    them raised the contract version to 0.14.0
+    ([Personal data and disclosure control](personal-data.md), `inventory/tests/test_personal_data.py`).
+27. An `Envelope` may carry `tool_retrievals`, one `ToolRetrieval` for each record a tool
+    returned through the harness's tool gateway during the run: the server and tool, the
+    record's source id (`tool:<server>/<record id>`), and its content hash under the
+    canonicalisation the deployment names for the server, with when the gateway returned it.
+    Only the conductor fills it, as it fills `delegations`, and evidence naming a `tool:` source
+    must be one of these records (`dd_sdk.contract.validate`; [Agents](agents.md), Tools;
+    [Evidence and grounding](grounding.md), invariant 15). Adding it raised the contract version
+    to 0.15.0.
+28. A `Message` may carry `project_repository`, a `ChosenRepository`: the name and re3data
+    identifier of the repository a researcher chose for the project, which only the conductor
+    fills in a project. An agent's own input class asks for it by mixing in
+    `GivenProjectRepository` ([Projects](projects.md), invariants 6 and 8;
+    [Orchestration](orchestration.md), invariant 21; #1168). Adding them raised the contract
+    version to 0.17.0.
 
 ## Boundaries and contracts
 
@@ -113,7 +213,8 @@ slot present in the source and missing from a core mirror.
 project's contribution. `abstained` and `referred` are not problems. They are outcomes of equal
 standing with `succeeded`, each with a reason from the `ReasonCode` enumeration. Only `failed`
 and `suspended` are problems. Problem types the harness emits are in
-`dd_sdk/contract/problem.py`.
+`dd_sdk/contract/problem.py`. A run its caller cancels is `failed` with `run-cancelled`: cancelling
+is a fact about the transport, not a sixth status ([Transport and tracing](transport.md)).
 
 **The dataset profile.** `DatasetProfile` is the standards advisor's input class, owned by that
 agent, not a core class. It is deliberately minimal: it describes only what the standards advisor
@@ -130,10 +231,21 @@ schema.org, PROV) says so with `slot_uri` or `class_uri`. A slot without an exte
 
 **Validation reports.** Structured validation output (C15) uses the W3C SHACL Validation Report
 vocabulary (`sh:ValidationReport`, `sh:ValidationResult`), with a Frictionless validation report
-for tabular data. No bespoke report type is defined. SHACL shapes are generated for the core
-only. Running SHACL validation and emitting reports is not built yet: the only validation today
-is JSON Schema validation raising `ContractViolation`, which is a programmer or configuration
-error, never a content outcome. TODO(#19)
+for tabular data. No bespoke report type is defined. The harness writes a report in two places.
+When it validates a project for deposit, the shapes are generated from the chosen repository's
+requirements ([Deposit](deposit.md)). When an agent returns a payload, the shapes are its class's
+own: `dd-gen-schema` writes, beside each class's JSON Schema, the class's SHACL shapes
+(`<Class>.shacl.ttl`, the class's node shape and every shape it reaches) and a JSON-LD context
+(`<Class>.context.jsonld`), and the card carries both. The harness reads the payload as RDF
+through the context, naming each object's class with `@type` from the class schema
+(`dd_sdk.contract.rdf`), and runs pySHACL (`dd_harness.shacl`). The report names the
+invocation, the payload class and the digests of its schema and shapes.
+
+The shape check does not change the outcome. The class's JSON Schema, which a payload must
+pass, already decides what is structurally valid, and the shapes are generated from the same
+LinkML source; what the shapes add is a reading of the payload in its vocabularies, which a
+reviewer reads beside the run. A violation is a finding for the agent's author, not a content
+problem for the researcher.
 
 **RO-Crate.** RO-Crate is a record written after a run, not a message format. Callers, the
 harness and agents exchange `InvocationRequest` and `Envelope` over A2A, validated against the
@@ -198,6 +310,15 @@ touching the contract, the agents or the checks.
   agents to read the input directly; the second adds a mapping problem for every repository that
   already speaks DCAT.
 - **A bespoke `ValidationReport` type.** A second thing to maintain where a W3C vocabulary exists.
+- **A SHACL violation in a payload downgrades the outcome, as a linter violation does.** The
+  shapes come from the same source as the JSON Schema that already gates the payload, so a
+  violation is a disagreement between two readings of one class, which the agent's author
+  resolves; withholding a researcher's result for it would be out of proportion.
+- **The payload's report in the envelope.** The envelope is closed, and a report is a record of a
+  check, like the linter's summary, not part of the agent's answer; it is kept beside the run.
+- **Shapes for the whole core and every agent in one file, as `gen-shacl` writes them.** A card
+  would carry shapes for classes the agent never returns; per-class shapes are as self-contained
+  as the class schemas.
 - **Treating `abstained` or `referred` as problems.** Declining or handing to a person is a valid
   answer, not an error.
 - **RO-Crate as the message between agents.** The checks run on the request, envelope and trace;
@@ -206,7 +327,9 @@ touching the contract, the agents or the checks.
 ## Non-functional requirements
 
 - **Portability.** Validation needs only a Draft 7 JSON Schema validator; the generated schemas
-  declare Draft 7, and the workbench viewer validates against the same files.
+  declare Draft 7, and the workbench viewer validates against the same files. The shape check
+  needs a SHACL processor, and only reports, so a consumer without one loses no check that
+  decides an outcome.
 - **Auditability.** A stored run can be rechecked and rendered from its own record: contract
   version, schema digests and the schemas themselves are kept with it.
 - **Privacy.** An identifier carries nothing about the dataset, and a problem report never
@@ -216,15 +339,13 @@ touching the contract, the agents or the checks.
 
 - Problem type URIs and agent identifiers use the w3id namespace, which is not yet registered.
   TODO(#3)
-- Whether an agent's classes get SHACL shapes, and where a validation report would find them;
-  running SHACL validation at all. TODO(#19)
 - `TableField` slots carry `see_also` until Frictionless publishes term IRIs. TODO(#20)
 - The Process Run Crate names the harness's own files as object and result rather than the
   records the agent read or the metadata it changed; it does not link a delegated run to its
   parent, names an accountable role as a `Person`, records the outcome as an unreferenced
   `PropertyValue`, does not name the schema digests, and is not checked against the profile with
-  `rocrate-validator` or aligned with PROV-O (R10). TODO(#26)
-- Checking the deposit package with the RO-Crate validator (R4). TODO(#202)
+  `rocrate-validator`. Its alignment with PROV-O (R10) is set out in [Provenance](provenance.md).
+  TODO(#26, #800)
 - Envelopes stored under an older contract lack the contract version and schema digests and do not
   validate against the current schema; they are shown as raw JSON until migrated. TODO(#247)
 - Why the core models are hand-written mirrors rather than LinkML's `gen-pydantic` output is not

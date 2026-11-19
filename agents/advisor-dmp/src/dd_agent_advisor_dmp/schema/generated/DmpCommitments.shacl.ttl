@@ -1,0 +1,262 @@
+@prefix dmp: <https://w3id.org/data-director/agents/dmp/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dmp:DmpCommitments a sh:NodeShape ;
+    rdfs:comment "The outputs a data management plan committed to share, and the outputs the researcher plans to share at publication. In a project the conductor also gives the documents the researcher attached, from which the checker reads a plan's commitments for the researcher to confirm, and the facts people decided, among them the commitments they confirmed (#962)." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/schema_class> ],
+        [ sh:class <https://w3id.org/data-director/ProjectFact> ;
+            sh:description "The facts a person in the project decided (ProjectFact), the last decision on each subject, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project decided any. A drafter treats each as supplied." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 5 ;
+            sh:path <https://w3id.org/data-director/project_decisions> ],
+        [ sh:class <https://w3id.org/data-director/ProjectDocument> ;
+            sh:description "The documents the project holds, with their text, in the order they were added. In a project the conductor fills them and a caller leaves them out; outside a project, the caller sends them, as it does the other facts." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 4 ;
+            sh:path <https://w3id.org/data-director/project_documents> ],
+        [ sh:class dmp:SharingCommitment ;
+            sh:description "What the data management plan committed to share." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 2 ;
+            sh:path dmp:committed_outputs ],
+        [ sh:class dmp:SharingCommitment ;
+            sh:description "What the researcher now plans to share at publication." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 3 ;
+            sh:path dmp:planned_outputs ],
+        [ sh:datatype xsd:string ;
+            sh:description "The data management plan's identifier, such as a DOI, if it has one." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dmp:dmp_identifier ] ;
+    sh:targetClass dmp:DmpCommitments .
+
+<https://w3id.org/data-director/ProjectDocument> a sh:NodeShape ;
+    rdfs:comment "One document a researcher attached to a project, with its text: the conductor fills one per document into a DraftRequest so that a drafter's model may suggest answers from it (docs/specs/projects.md). Its text is the researcher's, untrusted, and given as data." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:integer ;
+            sh:description "The size of the document's UTF-8 text, in bytes." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path <https://w3id.org/data-director/documentation_size> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The document's media type, text/plain or text/markdown." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path <https://w3id.org/data-director/documentation_media_type> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The document's text, as the researcher attached it, or as read from the file named by documentation_source_media_type." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path <https://w3id.org/data-director/documentation_text> ],
+        [ sh:datatype xsd:dateTime ;
+            sh:description "When the document was added to the project." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path <https://w3id.org/data-director/documentation_added_at> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The media type of the Word document or PDF the document's text was read from, inside the deployment; absent for a document attached as text. The project keeps the file beside the text." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path <https://w3id.org/data-director/documentation_source_media_type> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The SHA-256 of the document's UTF-8 text, by which the project keeps it." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <https://w3id.org/data-director/documentation_digest> ;
+            sh:pattern "^[0-9a-f]{64}$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The file name the researcher attached the document under, without any folder." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/documentation_name> ] ;
+    sh:targetClass <https://w3id.org/data-director/ProjectDocument> .
+
+<https://w3id.org/data-director/ProjectFact> a sh:NodeShape ;
+    rdfs:comment "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, the licence, or an output a data management plan committed to share (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The licence decided, as an SPDX identifier or a URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 14 ;
+            sh:path <https://w3id.org/data-director/licence_id> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The kind of check that raised the fact, in the checking agent's words, such as duplicate, system_file or third_party. Kept as it was given; the core does not enumerate it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 10 ;
+            sh:path <https://w3id.org/data-director/fact_check_kind> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The funders, journals or institutions that require the repository." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path <https://w3id.org/data-director/fact_required_by> ],
+        [ sh:description "The funder's ROR identifier, as a URL, where it is known." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 3 ;
+            sh:path <https://w3id.org/data-director/fact_funder_ror> ],
+        [ sh:description "The funder's Crossref Funder ID, as a DOI URL, where it is known." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 4 ;
+            sh:path <https://w3id.org/data-director/fact_crossref_funder_id> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The required repository's re3data identifier, such as r3d100010199, where known." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path <https://w3id.org/data-director/fact_re3data_id> ;
+            sh:pattern "^r3d[0-9]{9}$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a sharing commitment, the licence the plan committed to, as the plan names it; absent where it names none." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 17 ;
+            sh:path <https://w3id.org/data-director/commitment_licence> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The key a decision counts by within its kind: the funder's identifier or name, the repository's re3data identifier or name, the file's path, the field or path judged sensitive, or licence. The last decision on a kind and subject stands." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <https://w3id.org/data-director/fact_subject> ;
+            sh:pattern "\\S" ],
+        [ sh:datatype xsd:string ;
+            sh:description "Why the agent proposes the fact, in a sentence for the person deciding. Kept with the proposal and shown to the person, never given to an agent." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 20 ;
+            sh:path <https://w3id.org/data-director/proposed_because> ],
+        [ sh:description "Whether the file is to be deposited." ;
+            sh:in ( "include" "exclude" "undecided" ) ;
+            sh:maxCount 1 ;
+            sh:order 9 ;
+            sh:path <https://w3id.org/data-director/file_decision> ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a sharing commitment, the digest of the attached document's text (its documentation_digest) the quote is from." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 19 ;
+            sh:path <https://w3id.org/data-director/commitment_document> ;
+            sh:pattern "^[0-9a-f]{64}$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The funder's name, as its policy record or the researcher gives it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path <https://w3id.org/data-director/fact_funder_name> ],
+        [ sh:description "Whether the sensitive field or file may be published, and how." ;
+            sh:in ( "publish" "generalise" "withhold" "undecided" ) ;
+            sh:maxCount 1 ;
+            sh:order 12 ;
+            sh:path <https://w3id.org/data-director/sensitivity_decision> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The path of the file the fact is about, relative to the dataset's root folder, as the inventory gives it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 8 ;
+            sh:path <https://w3id.org/data-director/fact_file_path> ;
+            sh:pattern "^[^/]" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The required repository's name." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path <https://w3id.org/data-director/fact_repository_name> ],
+        [ sh:description "What the fact is about, which says which value slots apply." ;
+            sh:in ( "funder" "required_repository" "file_inclusion" "sensitivity" "licence" "sharing_commitment" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/fact_kind> ],
+        [ sh:description "For a location that may be published or generalised, the precision agreed. Absent where the subject is not a location." ;
+            sh:in ( "exact" "site" "region" "country" ) ;
+            sh:maxCount 1 ;
+            sh:order 13 ;
+            sh:path <https://w3id.org/data-director/location_precision> ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a sharing commitment, how openly the plan committed to share the output (such as open, embargoed or on request), as the plan says it; absent where it says nothing." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 16 ;
+            sh:path <https://w3id.org/data-director/commitment_access> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The field name, or the file path, judged sensitive, such as a lat or lon field, or a file of site coordinates." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 11 ;
+            sh:path <https://w3id.org/data-director/sensitive_subject> ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a sharing commitment, the plan's own words the commitment was read from, verbatim, so the person deciding can see the passage it rests on." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 18 ;
+            sh:path <https://w3id.org/data-director/commitment_quote> ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a sharing commitment, the repository the plan committed to share the output in, as the plan names it; absent where it names none." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 15 ;
+            sh:path <https://w3id.org/data-director/commitment_repository> ] ;
+    sh:targetClass <https://w3id.org/data-director/ProjectFact> .
+
+dmp:SharingCommitment a sh:NodeShape ;
+    rdfs:comment "One output to be shared, with where, how openly and under what licence." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The repository the output is or will be deposited in." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dmp:repository ],
+        [ sh:datatype xsd:string ;
+            sh:description "The licence the output is shared under." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dmp:licence ],
+        [ sh:datatype xsd:string ;
+            sh:description "How openly the output is shared, e.g. open, restricted or closed." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dmp:access ],
+        [ sh:datatype xsd:string ;
+            sh:description "The output, by name, such as a dataset or software." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dmp:output ] ;
+    sh:targetClass dmp:SharingCommitment .
+

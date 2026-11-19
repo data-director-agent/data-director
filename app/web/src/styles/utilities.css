@@ -20,3 +20,9 @@
   color: var(--color-text-muted);
   font-size: var(--font-size-small);
 }
+
+/* A service's mark (`ui/BrandIcon`) beside the text of a link: it sits on the text's baseline. */
+.brand-icon {
+  flex: none;
+  vertical-align: -0.125em;
+}

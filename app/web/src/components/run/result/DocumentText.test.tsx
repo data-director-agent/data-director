@@ -2,9 +2,9 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 
-import type { JsonSchema } from "../../../run/schema";
+import type { JsonSchema } from "@data-director/agent-view";
 import { ResultView } from "../ResultView";
-import { fileName } from "./DocumentText";
+import { fileName } from "../../../project/media";
 
 // The parts of the contract's Document that the result view reads.
 const SCHEMA: JsonSchema = {

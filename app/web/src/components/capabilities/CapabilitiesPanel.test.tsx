@@ -8,6 +8,7 @@ import several from "../../../fixtures/agents-several.json";
 import { type Directory, normalise, normaliseAgent } from "../../manifest/normalise";
 import type { RawAgentsResponse } from "../../manifest/types";
 import { DEVELOPMENT, WithSession, fakeSessionApi } from "../../test/session";
+import { AgentDetail } from "../agent/AgentDetail";
 import { AgentDirectory } from "./AgentDirectory";
 import { CapabilitiesPanel } from "./CapabilitiesPanel";
 
@@ -27,23 +28,24 @@ describe("CapabilitiesPanel", () => {
   });
 
   it("names the agent in a heading and shows what it takes and returns", () => {
-    render(<CapabilitiesPanel agent={agent("advisor.quality")} />);
-    expect(screen.getByRole("heading", { level: 2, name: "Metadata Reviewer advisor.quality" })).toBeVisible();
+    render(<AgentDetail agent={agent("advisor.quality")} />);
+    expect(screen.getByRole("heading", { level: 2, name: "Metadata Reviewer" })).toBeVisible();
     expect(screen.getByText("metadata record")).toBeVisible();
     expect(screen.getByText("quality review")).toBeVisible();
+  });
+
+  it("offers nothing to run and no technical tabs", () => {
+    render(<AgentDetail agent={agent("advisor.quality")} />);
+    expect(screen.queryByRole("tab")).toBeNull();
+    expect(screen.queryByRole("button")).toBeNull();
+    // What the card declares is there for whoever needs to inspect it, but folded away.
+    expect(screen.getByText(/contract/i)).not.toBeVisible();
+    expect(screen.queryByRole("heading", { name: /grounds its results/ })).toBeNull();
   });
 
   it("says when an agent returns no result", () => {
     render(<CapabilitiesPanel agent={agent("stub.abstain")} />);
     expect(screen.getByText("No result: it only reports an outcome")).toBeVisible();
-    expect(screen.queryByRole("heading", { name: "How each field is produced" })).toBeNull();
-  });
-
-  it("tables each declared derivation", () => {
-    render(<CapabilitiesPanel agent={agent("advisor.standards")} />);
-    const table = screen.getByRole("table");
-    expect(within(table).getByRole("row", { name: /items\.rationale Written by a language model/ }))
-      .toBeVisible();
   });
 
   it("says when an agent has no AI model and is deterministic", () => {
@@ -70,7 +72,7 @@ describe("CapabilitiesPanel", () => {
     });
     render(<CapabilitiesPanel agent={view} />);
     const item = screen.getByRole("listitem");
-    expect(item).toHaveTextContent("Language model, remote: Anthropic claude-test");
+    expect(item).toHaveTextContent(/remote.*claude-test/);
     expect(item).toHaveTextContent("outside this institution");
   });
 
@@ -82,18 +84,7 @@ describe("CapabilitiesPanel", () => {
       models: [{ provider: "ollama", model: "llama-test", hosting: "local" }],
     });
     render(<CapabilitiesPanel agent={view} />);
-    expect(screen.getByRole("listitem")).toHaveTextContent("Language model, local: ollama llama-test");
-  });
-
-  it("says the grounding check is not proof of retrieval", () => {
-    render(<CapabilitiesPanel agent={agent("advisor.standards")} />);
-    expect(screen.getByText(/does not prove the agent retrieved them/)).toBeVisible();
-  });
-
-  it("shows each undeclared oversight field as Not declared, and reliability as unsubstantiated", () => {
-    render(<CapabilitiesPanel agent={agent("example.hello")} />);
-    expect(screen.getAllByText("Not declared")).toHaveLength(5);
-    expect(screen.getByText(/Treat its reliability as unsubstantiated/)).toBeVisible();
+    expect(screen.getByRole("listitem")).toHaveTextContent(/local.*llama-test/);
   });
 
   it("says when the profile does not permit the agent", () => {
@@ -118,7 +109,7 @@ describe("AgentDirectory", () => {
   it("selects an agent from the keyboard and shows its panel", async () => {
     const user = userEvent.setup();
     render(<AgentDirectory directory={directory} />);
-    expect(screen.getByRole("heading", { level: 2, name: "Metadata Reviewer advisor.quality" })).toBeVisible();
+    expect(screen.getByRole("heading", { level: 2, name: "Metadata Reviewer" })).toBeVisible();
 
     await user.tab();
     expect(screen.getByRole("option", { name: /^Metadata Reviewer/ })).toHaveFocus();
@@ -127,7 +118,7 @@ describe("AgentDirectory", () => {
       "aria-selected",
       "true",
     );
-    expect(screen.getByRole("heading", { level: 2, name: "Standards Librarian advisor.standards" })).toBeVisible();
+    expect(screen.getByRole("heading", { level: 2, name: "Standards Librarian" })).toBeVisible();
   });
 
   it("lists agents that could not be registered", async () => {
@@ -136,20 +127,78 @@ describe("AgentDirectory", () => {
       unregistered: [{ name: "http://127.0.0.1:8101", state: "unavailable", reason: "refused" }],
     };
     const { container } = render(<AgentDirectory directory={withMissing} />);
-    expect(screen.getByRole("heading", { name: "Agents that could not be registered" }))
-      .toBeVisible();
-    expect(screen.getByText("Unavailable")).toBeVisible();
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("Agent unavailable");
+    expect(alert).toHaveTextContent("http://127.0.0.1:8101");
+    expect(alert).toHaveTextContent("refused");
+    // The alert comes before the agents, at the top of the page.
+    expect(
+      alert.compareDocumentPosition(screen.getByRole("heading", { name: "Agents" })) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  describe("with an orchestrator", () => {
+    const orchestrator = {
+      ...agent("advisor.quality"),
+      id: "orchestrator.stub",
+      title: "Data Director",
+      groundingMode: "delegation" as const,
+    };
+    const withOrchestrator: Directory = {
+      ...directory,
+      orchestratorId: orchestrator.id,
+      agents: [...directory.agents, orchestrator],
+    };
+
+    it("pins it first, apart from the agents behind the scenes, and selects it", async () => {
+      const { container } = render(<AgentDirectory directory={withOrchestrator} />);
+      const [front, behind] = within(screen.getByRole("listbox")).getAllByRole("group");
+      expect(front).toHaveAccessibleName("You talk to");
+      expect(behind).toHaveAccessibleName("Works behind the scenes");
+      const option = screen.getByRole("option", { name: /^Data Director/ });
+      expect(front).toContainElement(option);
+      expect(option).toHaveTextContent("Orchestrator");
+      expect(option).toHaveAttribute("aria-selected", "true");
+      expect(behind).toContainElement(screen.getByRole("option", { name: /^Metadata Reviewer/ }));
+      expect(screen.getByText(/This is the agent you talk to/)).toBeVisible();
+      expect(await axe(container)).toHaveNoViolations();
+    });
+
+    it("says of an agent behind the scenes who calls on it", async () => {
+      const user = userEvent.setup();
+      render(<AgentDirectory directory={withOrchestrator} />);
+      await user.click(screen.getByRole("option", { name: /^Metadata Reviewer/ }));
+      expect(
+        screen.getByText("Data Director calls on this agent; you don’t talk to it directly."),
+      ).toBeVisible();
+      expect(screen.getByRole("option", { name: /^Metadata Reviewer/ })).not.toHaveTextContent(
+        "Orchestrator",
+      );
+    });
+
+    it("still honours an agent asked for by name", () => {
+      render(<AgentDirectory directory={withOrchestrator} initial="advisor.quality" />);
+      expect(screen.getByRole("heading", { level: 2, name: "Metadata Reviewer" })).toBeVisible();
+    });
+  });
+
+  it("keeps the list flat without an orchestrator", () => {
+    render(<AgentDirectory directory={{ ...directory, orchestratorId: null }} />);
+    expect(within(screen.getByRole("listbox")).queryByRole("group")).toBeNull();
+    expect(screen.queryByText("Orchestrator")).toBeNull();
+    expect(screen.queryByText(/talk to/)).toBeNull();
   });
 
   it("says when no agent is registered", () => {
     render(<AgentDirectory directory={{ ...directory, agents: [] }} />);
-    expect(screen.getByText("No agents are registered with this deployment.")).toBeVisible();
+    expect(screen.getByText(/no agents/i)).toBeVisible();
   });
 });
 
 describe("App", () => {
-  it("loads the directory and names whom runs act for", async () => {
+  it("loads the directory", async () => {
     history.pushState(null, "", "/");
     const { container } = render(
       <WithSession api={fakeSessionApi(DEVELOPMENT)}>
@@ -158,8 +207,7 @@ describe("App", () => {
     );
     // The reference set has no orchestrator, so the home page points to the directory.
     await userEvent.click(await screen.findByRole("link", { name: "Open the agent directory" }));
-    expect(await screen.findByRole("heading", { name: "Standards Librarian advisor.standards" })).toBeVisible();
-    expect(screen.getByText(/asserted by the operator, not authenticated/)).toBeVisible();
+    expect(await screen.findByRole("heading", { name: "Standards Librarian" })).toBeVisible();
     expect(await axe(container)).toHaveNoViolations();
   });
 

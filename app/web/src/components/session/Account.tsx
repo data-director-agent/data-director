@@ -9,7 +9,7 @@ import "./Session.css";
 import { CircleUserRound, LogOut } from "lucide-react";
 import { useState } from "react";
 
-import { navigate } from "../../route";
+import { Link, navigate } from "../../route";
 import { SIGNED_OUT, type Session, useSessionApi } from "../../session/api";
 import { Button } from "../ui/Button";
 
@@ -39,7 +39,7 @@ export function Account({ session }: { session: Session }) {
       <span className="session-name">
         <CircleUserRound className="app-icon" size="1.125em" aria-hidden="true" />
         <span className="visually-hidden">Signed in as </span>
-        {session.principal.name}
+        <Link to="/profile">{session.principal.name}</Link>
       </span>
       {/* Not `isPending`: the button is gone once the page moves on, and its busy indicator
           would be left behind without its label. */}

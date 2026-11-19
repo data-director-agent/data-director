@@ -9,8 +9,6 @@ The Data Director is an agentic AI tool for research data stewardship. It helps 
 
 This is proposed _reference implementation_ for the [Data Director Agentic AI Blueprint](https://doi.org/10.15497/RDA00157) developed under the coordination of the [Research Data Alliance Data Director Working Group](https://www.rd-alliance.org/groups/data-director-agentic-ai-blueprint/activity/). The Blueprint followed an RDA community consultation, reported in [Global Community Priorities for Agentic AI in Research. Community Consultation Results](https://doi.org/10.15497/RDA00151).
 
-Related work: [RDA for Artificial Intelligence Cross-fertilisation Summary](https://doi.org/10.15497/RDA00160) (RDA Secretariat, 2026), and [The Research Data Director: A Persona-Based Agentic AI Blueprint and Application for FAIR Research Data, Metadata, and Schema and Crosswalk Workflows](https://doi.org/10.5281/zenodo.23670411) (Uzwyshyn, 2026), a companion persona-based blueprint.
-
 > [!NOTE]
 > Please read [the **documentation**](https://data-director-agent.github.io/data-director/):
 > - [**User Guide**](https://data-director-agent.github.io/data-director/user-guide/) is for researchers and data stewards using the Data Director app.
@@ -24,6 +22,11 @@ Related work: [RDA for Artificial Intelligence Cross-fertilisation Summary](http
 
 [Towards a Data Director reference implementation](https://digitalmedia.sheffield.ac.uk/media/Towards+a+Data+Director+reference+implementation/1_f0c1kkwg) is a recorded introduction to this project. It is also posted on the [RDA working group page](https://www.rd-alliance.org/groups/data-director-agentic-ai-blueprint/posts/towards-a-data-director-reference-implementation/).
 
+### Related work
+
+- [RDA for Artificial Intelligence Cross-fertilisation Summary](https://doi.org/10.15497/RDA00160) (RDA Secretariat, 2026)
+- [The Research Data Director: A Persona-Based Agentic AI Blueprint and Application for FAIR Research Data, Metadata, and Schema and Crosswalk Workflows](https://doi.org/10.5281/zenodo.23670411) (Uzwyshyn, 2026)
+
 ## Quick start
 
 You need [`uv`](https://docs.astral.sh/uv/getting-started/installation/), which brings Python
@@ -33,8 +36,8 @@ WSL). No account or API key is needed.
 Clone the repository, then from its root:
 
 ```sh
-uv run scripts/dev.py setup           # asks a few questions, then installs and builds everything
-uv run scripts/dev.py start           # the agents, the app and the shell; Ctrl-C stops them all
+uv run scripts/dd.py setup           # asks a few questions, then installs and builds everything
+uv run scripts/dd.py start           # the agents, the app and the shell; Ctrl-C stops them all
 ```
 
 `setup` asks for your name and ORCID iD, because every run acts for a named person, and,
@@ -54,7 +57,7 @@ included (`start --no-reload` turns that off).
 If something does not work, run
 
 ```sh
-uv run scripts/dev.py doctor          # checks the toolchain, the settings and the ports
+uv run scripts/dd.py doctor          # checks the toolchain, the settings and the ports
 ```
 
 which changes nothing and names each problem it finds, such as a missing tool, a settings file
@@ -68,7 +71,7 @@ uv run pytest                         # network blocked; everything runs offline
 
 ### By hand
 
-`scripts/dev.py` runs these steps for you. The app does not start the agents, and the agents do
+`scripts/dd.py` runs these steps for you. The app does not start the agents, and the agents do
 not start the app, so each needs its own terminal. Every invocation acts for a named person, so in
 each terminal set who that is:
 
@@ -103,7 +106,7 @@ ignored by git. On a server the same settings live in `/etc/data-director/agents
 Start the agents in one terminal and use the workbench from a second terminal in `workbench/`:
 
 ```sh
-scripts/run-agents.sh                 # first terminal; the same as `scripts/dev.py start --agents-only`
+scripts/run-agents.sh                 # first terminal; the same as `scripts/dd.py start --agents-only`
 ```
 ```sh
 cd workbench
@@ -114,29 +117,65 @@ To run the whole development stack in containers instead, you need only Docker w
 Source is bind-mounted, so edits to Python and to the shell take effect without a rebuild:
 
 ```sh
-uv run scripts/dev.py setup --no-install   # or: copy `config/examples/` to `config/local/` and edit it
+uv run scripts/dd.py setup --no-install   # or: copy `config/examples/` to `config/local/` and edit it
 docker compose up --build             # app at http://127.0.0.1:7860, shell at :5173
 docker compose --profile workbench up workbench   # viewer at http://127.0.0.1:8000/viewer/
 docker compose --profile llm up       # adds the model-backed orchestrator
 ```
 
-The first start installs the dependencies into a volume, which takes a few minutes. The agents are
-reachable only inside the Compose network. Model keys go in `config/local/credentials/`, named in `config/local/agents/<name>.env`, as when
+The first start installs the dependencies into a volume, which takes a few minutes. Every agent
+the app lists runs as a service of its own (`docker/agents.yaml`), reachable only inside the
+Compose network; runs and projects are kept in volumes. Model keys go in `config/local/credentials/`, named in `config/local/agents/<name>.env`, as when
 running locally. If a host port is taken, set `DD_APP_HOST_PORT`, `DD_WEB_HOST_PORT` or
 `DD_WORKBENCH_HOST_PORT` in the shell. Containers run as uid 1000. This stack is for development only;
 `deploy/` covers deployment.
 
+#### Keeping runs and projects in PostgreSQL
+
+The stack keeps runs and projects in files by default. To keep them in PostgreSQL, as a deployment
+with more than one instance does ([Storage](docs/specs/storage.md)), answer yes to the PostgreSQL
+question in `uv run scripts/dd.py setup`. It generates a password into
+`config/local/credentials/` (the database's, and a libpq password file, both readable only by you)
+and names the database in `config/local/app.env`. The locations carry no password and no host:
+libpq takes them from `PGHOST`, `PGPORT` and `PGPASSFILE`, which Compose sets for its containers.
+Then start the `postgres` profile, which adds the database and applies its schema before the app
+starts:
+
+```sh
+docker compose --profile postgres up --build                  # the stack, on PostgreSQL
+docker compose --profile postgres up -d db db-migrate         # only the database, for `dd.py start`
+```
+
+The database is published on `127.0.0.1:5432`. Set `DD_DB_HOST_PORT` in the shell if that port is
+taken, and `PGPORT` in `config/local/app.env` to match. Run the storage conformance kit against it
+from the host:
+
+```sh
+DD_TEST_POSTGRES=postgresql://dd@localhost:5432/dd PGPASSFILE=config/local/credentials/pgpass uv run pytest -m postgres harness/tests/test_postgres.py
+```
+
+Each test works in schemas of its own and drops them, so the app's data is left alone. To start
+again with an empty database, remove its volume (`docker compose down -v` would remove the file
+stores' volumes too):
+
+```sh
+docker compose --profile postgres down
+docker volume rm data-director_db-data
+```
+
+Answering no in `setup` puts the app back on files and keeps the password, which the volume needs.
+
 ### Settings in `config/local/`
 
-`scripts/dev.py setup` creates `config/local/`, which mirrors `/etc/data-director/` on a server:
+`scripts/dd.py setup` creates `config/local/`, which mirrors `/etc/data-director/` on a server:
 `app.env` (the app), `agents.env` (every agent), `agents/<name>.env` (one agent) and
-`credentials/` (model keys, named by `*_FILE` variables). `dev.py start` and Docker Compose read
+`credentials/` (model keys, named by `*_FILE` variables). `dd.py start` and Docker Compose read
 it, and each agent is given `agents.env` and its own file only. The `workbench` command reads
 `app.env` and `agents.env` from the directory `DD_CONFIG_DIR` names (`DD_CONFIG_DIR=config/local`).
 These are ordinary dotenv files, so quote a value that contains a space: otherwise uv reports
 "Failed to parse environment file", and the file is not applied. Put a model key only in that
 agent's credential file, never in `agents.env`, which every agent reads. If you used the earlier
-layout (`.env`, `workbench/.env`, `workbench/agents/*.env`), `dev.py doctor` says where each file's
+layout (`.env`, `workbench/.env`, `workbench/agents/*.env`), `dd.py doctor` says where each file's
 settings move.
 
 ## Acknowledgements
@@ -159,6 +198,14 @@ implementation meetings since October 2026. We thank the participants for the id
 - Slava Tykhonov (CODATA): verified agent identities with signed inputs and outputs, ODRL for policies, and evaluation.
 - Raymond Uzwyshyn (University of California, Riverside): a persona-based design of six agents.
 - Carlo Maria Zwölf (LUX, Observatoire de Paris): a post-mortem of an end-to-end deposit prototype.
+
+The advisors read two community registries, and we are grateful to the people who curate them:
+[re3data.org](https://www.re3data.org), the Registry of Research Data Repositories
+([doi:10.17616/R3D](https://doi.org/10.17616/R3D), CC0), and
+[FAIRsharing](https://fairsharing.org) (Sansone et al. 2019,
+[doi:10.1038/s41587-019-0080-8](https://doi.org/10.1038/s41587-019-0080-8); CC BY-SA 4.0). Each record an agent relies on is cited in its evidence, and how each copy is
+taken is described beside it (for example
+[`agents/advisor-repository/data/re3data/SOURCE.md`](agents/advisor-repository/data/re3data/SOURCE.md)).
 
 ## Contributing
 

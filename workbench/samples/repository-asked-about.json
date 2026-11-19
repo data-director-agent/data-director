@@ -1,0 +1,18 @@
+{
+  "schema_class": "RepositoryNeeds",
+  "themes": [
+    "materials science",
+    "perovskite solar cells"
+  ],
+  "data_kinds": [
+    "X-ray diffraction patterns",
+    "SEM images"
+  ],
+  "access": "open",
+  "asked_about": [
+    {
+      "name": "Zenodo",
+      "re3data_id": "r3d100010468"
+    }
+  ]
+}

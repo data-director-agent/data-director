@@ -1,0 +1,148 @@
+"""`dd.py doctor` in development: check the toolchain, the settings and the ports; change
+nothing. On a VM, `vm_doctor` checks instead."""
+
+from __future__ import annotations
+
+import os
+import urllib.request
+from typing import Any
+
+import yaml
+
+from ddtool import paths
+from ddtool.common import (
+    APP_PORT,
+    MODEL_BACKED,
+    MODEL_BY_DEFAULT,
+    WEB_PORT,
+    DevError,
+    agent_env,
+    answers,
+    app_env,
+    has_key,
+    load_agents,
+    needs_build,
+    needs_install,
+    port_free,
+    profile_drift,
+    read_env,
+    shown,
+    sources_problem,
+    stray_files,
+    tool_problems,
+)
+from ddtool.deployment import Place, plan
+from ddtool.vm import System
+
+
+def doctor() -> int:
+    print(f"target: dev ({paths.LOCAL_DIR})")
+    problems = tool_problems()
+    for stray in stray_files():
+        problems.append(
+            f"settings file of the old layout, move it: {stray} (docs/specs/policy-and-identity.md)"
+        )
+    problems.extend(_settings_problems())
+    problems.extend(_deployment_problems())
+    problems.extend(_agent_problems())
+    if found := sources_problem():
+        detail = found.replace("\n", "\n  ")
+        print(f"note: not every built source is built as pinned; `start` will build it\n  {detail}")
+    if needs_install() or needs_build():
+        print("note: the shell is not built or is out of date; `start` will build it")
+    problems.extend(_running_problems())
+
+    for problem in problems:
+        print(f"problem: {problem}")
+    print("All good." if not problems else f"{len(problems)} problem(s).")
+    return 1 if problems else 0
+
+
+def _settings_problems() -> list[str]:
+    """Read every settings file and the profile, noting what `start` will fill in."""
+    problems = []
+    for path in [
+        paths.APP_ENV,
+        paths.AGENTS_ENV,
+        *sorted(paths.AGENT_ENV_DIR.glob("*.env")),
+    ]:
+        try:
+            read_env(path)
+        except DevError as exc:
+            problems.append(str(exc))
+    try:
+        env = {**os.environ, **app_env()}
+        if not env.get("DD_OIDC_ISSUER") and not (
+            env.get("DD_PRINCIPAL_ID") and env.get("DD_PRINCIPAL_NAME")
+        ):
+            print(
+                "note: no principal is set; `start` will use the example (run setup to set yours)"
+            )
+        notes, drift = profile_drift(env)
+        for note in notes:
+            print(f"note: {note}")
+        problems.extend(drift)
+        if env.get("DD_PROFILE") and paths.PROFILE.is_file():
+            print(
+                f"note: {shown(paths.PROFILE)} is no longer read (DD_PROFILE names "
+                f"{env['DD_PROFILE']}); delete it"
+            )
+    except DevError as exc:
+        problems.append(str(exc))
+    return problems
+
+
+def _deployment_problems() -> list[str]:
+    """Whether deployment.yaml exists, plans without refusal and is applied."""
+    place = Place.dev()
+    if not place.deployment.is_file():
+        print(f"note: no {shown(place.deployment)} yet; `start` creates it from the example")
+        return []
+    problems: list[str] = []
+    try:
+        _, planned = plan(System(), place)
+        problems.extend(planned.refusals)
+        if pending := planned.pending(System()):
+            print(
+                f"note: {shown(place.deployment)} is not applied yet "
+                f"({', '.join(pending)}); `start` applies it"
+            )
+    except DevError as exc:
+        problems.append(str(exc))
+    return problems
+
+
+def _agent_problems() -> list[str]:
+    """Read each agent's settings, noting which have no model key."""
+    problems = []
+    for agent in load_agents():
+        try:
+            keyed = has_key(agent_env(agent) | dict(os.environ))
+        except DevError as exc:
+            problems.append(str(exc))
+            continue
+        if agent.name in MODEL_BACKED and not keyed:
+            print(f"note: {agent.script} has no model key, so `start` will skip it")
+        elif (switch := MODEL_BY_DEFAULT.get(agent.name)) and not keyed:
+            print(
+                f"note: {agent.script} has no model key, so `start` runs it with "
+                f"{switch}=template unless you set it to model"
+            )
+    return problems
+
+
+def _running_problems() -> list[str]:
+    """Note the ports in use and ask a running app which agents it cannot reach."""
+    problems = []
+    agents = load_agents()
+    busy = [a.port for a in agents if not port_free(a.port)] + [
+        p for p in (APP_PORT, WEB_PORT) if not port_free(p)
+    ]
+    if busy:
+        print(f"note: port {', '.join(map(str, busy))} in use (is the stack running?)")
+    if answers(f"http://127.0.0.1:{APP_PORT}/api/agents"):
+        with urllib.request.urlopen(f"http://127.0.0.1:{APP_PORT}/api/agents", timeout=10) as resp:
+            listing: dict[str, Any] = yaml.safe_load(resp.read())
+        for url, reason in dict(listing.get("unavailable") or {}).items():
+            problems.append(f"the app cannot reach {url}: {reason}")
+    return problems

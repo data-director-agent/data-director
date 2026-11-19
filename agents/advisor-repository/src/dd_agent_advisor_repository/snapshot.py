@@ -1,59 +1,36 @@
-"""Snapshot backends: committed JSON Lines copies of both registries.
+"""Local copies of both registries, in JSON Lines.
 
-Used in CI and offline, and as the fallback when a live route fails. Each line is a record's whole
-document, as hashed, so the harness's source check can use the same file (docs/specs/grounding.md).
-re3data records are searched lexically with `rank_bm25`; this module is its only importer
-(docs/specs/dependencies.md).
+- re3data: the whole registry, built from the pinned monthly export (`registry.py`). It is the
+  only copy of re3data the agent reads.
+- FAIRsharing: a committed snapshot of the database records re3data cross-references, used by
+  default and as the fallback when the live route fails.
+
+Each line is a record's whole document, as hashed, so the harness's source check can use the same
+file (docs/specs/grounding.md). re3data records are searched lexically with `rank_bm25`; this
+module is its only importer (docs/specs/dependencies.md).
 """
 
 from __future__ import annotations
 
 import json
-import re
 from functools import cached_property
 from pathlib import Path
 
 from rank_bm25 import BM25Okapi
 
+from dd_agent_advisor_repository import dfg, registry
 from dd_agent_advisor_repository.records import DatabaseRecord, Re3dataRecord
-from dd_agent_advisor_repository.retrieve import Hit, Query, RegistryUnavailable, SnapshotRef
+from dd_sdk.registry import Hit, Query, RegistryUnavailable, SnapshotRef
+from dd_sdk.registry.tokenise import STOP_WORDS
+from dd_sdk.registry.tokenise import fold as fold
+from dd_sdk.registry.tokenise import tokenise as shared_tokenise
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
-RE3DATA_SNAPSHOT = DATA_DIR / "re3data" / "snapshot.jsonl"
 FAIRSHARING_SNAPSHOT = DATA_DIR / "fairsharing" / "snapshot.jsonl"
-
-_TOKEN = re.compile(r"[a-z0-9]+")
-_STOP = frozenset(
-    [
-        "the",
-        "a",
-        "an",
-        "of",
-        "and",
-        "or",
-        "for",
-        "to",
-        "in",
-        "on",
-        "with",
-        "by",
-        "from",
-        "at",
-        "as",
-        "is",
-        "are",
-        "be",
-        "this",
-        "that",
-        "its",
-        "it",
-        "data",
-    ]
-)
 
 
 def tokenise(text: str) -> list[str]:
-    return [t for t in _TOKEN.findall(text.lower()) if t not in _STOP and len(t) > 1]
+    return shared_tokenise(text, STOP_WORDS | {"data"}, fold_plurals=True)
 
 
 def _lines(path: Path) -> list[dict[str, object]]:
@@ -66,21 +43,34 @@ def _lines(path: Path) -> list[dict[str, object]]:
     return out
 
 
-def _ref(registry: str, path: Path) -> SnapshotRef:
+def _ref(name: str, path: Path) -> SnapshotRef:
     manifest = path.with_name("manifest.json")
     fetched_at = None
     if manifest.is_file():
         fetched_at = json.loads(manifest.read_text(encoding="utf-8")).get("fetched_at")
-    label = f"{registry}:snapshot:{fetched_at[:10] if fetched_at else path.name}"
+    label = f"{name}:snapshot:{fetched_at[:10] if fetched_at else path.name}"
     return SnapshotRef(label=label, fetched_at=fetched_at)
 
 
-class Re3dataSnapshot:
-    def __init__(self, path: Path = RE3DATA_SNAPSHOT) -> None:
+class Re3dataRegistry:
+    """Every repository in the pinned re3data export. The registry is checked against its pin
+    when first read, so the label it gives the evidence is true of the records it holds."""
+
+    def __init__(self, path: Path = registry.REGISTRY, manifest: Path = registry.MANIFEST) -> None:
         self.path = path
+        self.manifest = manifest
+
+    @cached_property
+    def pin(self) -> registry.Pin:
+        try:
+            return registry.Pin.load(self.manifest)
+        except registry.RegistryError as exc:
+            raise RegistryUnavailable(str(exc)) from None
 
     @cached_property
     def records(self) -> list[Re3dataRecord]:
+        if (found := registry.problem(self.path, self.manifest)) is not None:
+            raise RegistryUnavailable(found)
         return [Re3dataRecord.model_validate(d) for d in _lines(self.path)]
 
     @cached_property
@@ -91,32 +81,80 @@ class Re3dataSnapshot:
     def _bm25(self) -> BM25Okapi:
         return BM25Okapi(self._tokens)
 
-    def snapshot_ref(self) -> SnapshotRef:
-        return _ref("re3data", self.path)
+    @cached_property
+    def _token_sets(self) -> list[frozenset[str]]:
+        return [frozenset(t) for t in self._tokens]
 
-    def search(self, query: Query) -> list[Hit]:
+    @cached_property
+    def _by_name(self) -> dict[str, list[Re3dataRecord]]:
+        """Records by their own name, casefolded."""
+        index: dict[str, list[Re3dataRecord]] = {}
+        for r in self.records:
+            index.setdefault(r.name.casefold().strip(), []).append(r)
+        return index
+
+    @cached_property
+    def _by_any_name(self) -> dict[str, list[Re3dataRecord]]:
+        """Records by every name they go by, casefolded."""
+        index: dict[str, list[Re3dataRecord]] = {}
+        for r in self.records:
+            for n in r.names():
+                index.setdefault(n, []).append(r)
+        return index
+
+    @cached_property
+    def _by_id(self) -> dict[str, Re3dataRecord]:
+        return {r.re3data_id: r for r in self.records}
+
+    def snapshot_ref(self) -> SnapshotRef:
+        return SnapshotRef(label=self.pin.label, fetched_at=self.pin.fetched_at)
+
+    def credit(self) -> str:
+        return self.pin.credit
+
+    def search(self, query: Query) -> list[Hit[Re3dataRecord]]:
         """Records that contain every word of the query, as re3data's own search requires, in
         BM25 order. A record matching only some words is not a hit: a ranking that counts any
         hit as a match must not be fed partial ones (#440)."""
         tokens = tokenise(query.text)
         if not tokens:
             return []
-        wanted = set(tokens)
+        wanted = frozenset(tokens)
         scores = self._bm25.get_scores(tokens)
         hits = [
             Hit(record=r, lexical_score=float(s))
-            for r, words, s in zip(self.records, self._tokens, scores, strict=True)
-            if s > 0 and wanted <= set(words)
+            for r, words, s in zip(self.records, self._token_sets, scores, strict=True)
+            if s > 0 and wanted <= words
         ]
         hits.sort(key=lambda h: (-h.lexical_score, h.record.re3data_id))
         return hits[: query.limit]
 
     def fetch(self, re3data_id: str) -> Re3dataRecord | None:
-        return next((r for r in self.records if r.re3data_id == re3data_id), None)
+        return self._by_id.get(re3data_id)
 
-    def find(self, name: str) -> Re3dataRecord | None:
+    @cached_property
+    def _vocabulary(self) -> dict[str, str]:
+        return dfg.vocabulary(s for r in self.records for s in r.subjects)
+
+    @cached_property
+    def _by_subject(self) -> dict[str, list[Re3dataRecord]]:
+        index: dict[str, list[Re3dataRecord]] = {}
+        for r in sorted(self.records, key=lambda r: r.re3data_id):
+            for code in dfg.codes(r.subjects):
+                index.setdefault(code, []).append(r)
+        return index
+
+    def subjects(self) -> dict[str, str]:
+        return self._vocabulary
+
+    def with_subject(self, code: str) -> list[Re3dataRecord]:
+        return list(self._by_subject.get(code, []))
+
+    def find(self, name: str) -> list[Re3dataRecord]:
+        """As `find_by_name`, from indexes built once."""
         wanted = name.casefold().strip()
-        return next((r for r in self.records if wanted in r.names()), None)
+        found = self._by_name.get(wanted) or self._by_any_name.get(wanted, [])
+        return sorted(found, key=lambda r: r.re3data_id)
 
 
 class FairsharingSnapshot:
@@ -131,5 +169,11 @@ class FairsharingSnapshot:
     def snapshot_ref(self) -> SnapshotRef:
         return _ref("fairsharing", self.path)
 
+    @cached_property
+    def _by_folded_id(self) -> dict[str, DatabaseRecord]:
+        return {fid.casefold(): r for fid, r in self.records.items()}
+
     def fetch(self, fairsharing_id: str) -> DatabaseRecord | None:
-        return self.records.get(fairsharing_id)
+        """Ignoring case, as FAIRsharing resolves its identifiers: re3data cites ESS-DIVE's
+        record as FAIRsharing.d6pe1f, which FAIRsharing writes FAIRsharing.d6Pe1f."""
+        return self.records.get(fairsharing_id) or self._by_folded_id.get(fairsharing_id.casefold())

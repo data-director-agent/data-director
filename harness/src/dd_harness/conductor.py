@@ -1,5 +1,6 @@
 """The conductor: policy gate → input check → agent → grounding linter → source check →
-validation → store → provenance.
+validation → project effects → shape check → store → provenance. Each is a named step of
+`dd_harness.pipeline`, run in order over the invocation's `RunState`.
 
 `invoke` is a plain function. Every transport (CLI, A2A, AG-UI) is a wrapper around it
 (docs/specs/transport.md). It fills in everything an agent must not decide about itself:
@@ -11,6 +12,11 @@ The grounding linter checks the agent's account of its run for consistency; the 
 re-hashes what the evidence cites against a copy of the source the harness holds
 (docs/specs/grounding.md). A violation of either withholds a succeeded result. Their verdicts are
 stored separately, in `grounding.txt` and `sources.txt`.
+
+The shape check runs a payload the envelope still carries against the SHACL shapes its class
+brings on the card, where it brings any (docs/specs/contract.md). It only reports: the SHACL
+Validation Report is kept as `validation-report.jsonld` beside the run and in its crate, and the
+outcome is the same whatever it says.
 
 Delegation (docs/specs/orchestration.md). When the conductor runs a remote agent in grounding mode
 `delegation`, and it knows its own A2A address (`harness_url`), it issues that invocation a grant: a
@@ -28,10 +34,14 @@ is recorded in the envelope and the crate and is never sent to the agent.
 
 Projects (docs/specs/projects.md). A run belongs to a project when its conversation was started
 in one, or, for a delegated child, when its parent did. The conductor sets `project_id` on the
-request and the envelope; a caller may not, and the agent is never sent it. Before the input is
+request and the envelope; a caller may not, and the agent is never sent it. A run in a project
+whose principal may not read it (`project_access`) is refused with `UnknownProjectError` before
+anything is stored, and a run in a deleted project with `ProjectDeletedError`; a run already going
+when its project is deleted finishes and is recorded, its draft included. Before the input is
 hashed, the conductor puts the project's facts into an input class that asks for them
-(`project_facts`). A run in a project that succeeds with a `Document` is recorded in the project
-as a proposed version, caused by the run; a draft the project refuses fails the run instead.
+(`project_facts`). Once a run in a project has finished, the project takes its effects (a
+proposed version, a title or an entry point) through `ProjectEffects`, which holds those rules
+(`dd_harness.project_effects`); a draft the project refuses fails the run instead.
 
 Threads (#171). `invoke` may be called from any thread, and several invocations may run at
 once. Async code calls `ainvoke` and `ainvoke_delegated` instead, which keep the one rule that
@@ -43,54 +53,70 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import logging
 import secrets
+import tempfile
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
-from typing import Any
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Protocol
 
 from opentelemetry.trace import SpanContext
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
-from dd_harness import grounding, policy, project_facts
+from dd_harness import (
+    grounding,
+    model_accounts,
+    pipeline,
+    policy,
+    project_access,
+    project_facts,
+)
 from dd_harness import sources as source_check
-from dd_harness.projects import ProjectError, ProjectStore
-from dd_harness.provenance import write_process_run_crate
+from dd_harness.model_grants import GrantMinter
+from dd_harness.observe import RunObserver, Watch
+from dd_harness.project_effects import ProjectEffects
+from dd_harness.project_facts import FactSource
+from dd_harness.projects import (
+    ProjectDeletedError,
+    UnknownProjectError,
+)
 from dd_harness.registry import Registry
-from dd_harness.remote import Received, RemoteAgent
-from dd_harness.store import RunStore
-from dd_sdk.agent import AgentResult, AgentSpec, RunContext, typed_request
-from dd_sdk.contract import problem as problems
+from dd_harness.run_state import Grant as Grant
+from dd_harness.run_state import RunState
+from dd_harness.storage import SPANS, RunStorage
+from dd_sdk.agent import AgentSpec
 from dd_sdk.contract import validate
 from dd_sdk.contract.models import (
     Delegation,
     Envelope,
-    GroundingMode,
     InvocationRequest,
-    Outcome,
-    OutcomeStatus,
     Principal,
-    ReasonCode,
-    Telemetry,
-    input_source_id,
     to_document,
 )
-from dd_sdk.contract.version import CONTRACT_VERSION
-from dd_sdk.delegate import DelegationGrant
 from dd_sdk.evidence import envelope_hash
-from dd_sdk.evidence import input_hash as compute_input_hash
 from dd_sdk.tracing import (
     ATTR_OUTCOME,
     Tracing,
     invoke_agent_span,
     make_tracing,
-    policy_gate_span,
 )
 
-DATA_STEWARD = "data_steward"
-# The core payload class a run in a project records as a document version.
-DOCUMENT = "Document"
+if TYPE_CHECKING:
+    from dd_harness.gateway.core import Gateway
+
+log = logging.getLogger(__name__)
+
+
+class RunProjects(FactSource, ProjectEffects, Protocol):
+    """The project areas a run reads facts from (every area but deposits, which no run records),
+    and what a finished run does to its project (`dd_harness.project_effects`)."""
+
+    def snapshot(self, project_id: str) -> FactSource:
+        """The project's facts as its log reads now, read once for one invocation's questions
+        (`dd_harness.projects.SnapshotLog`, docs/specs/storage.md, invariant 12)."""
+        ...
 
 
 class UnknownAgent(Exception):
@@ -114,29 +140,14 @@ class DuplicateInvocation(ValueError):
 
 
 # The most recent grounding reports kept in memory, for a caller that reads one straight after
-# `invoke` (the CLI, the evaluation). `grounding.txt` in each run directory is the durable copy.
+# `invoke` (the CLI, the evaluation). Each run's `grounding.txt` artifact is the durable copy.
 GROUNDING_REPORTS_KEPT = 256
-
-
-@dataclass
-class Grant:
-    """One delegation grant, live while its parent invocation runs."""
-
-    token: str
-    parent_invocation_id: str
-    parent_agent_id: str
-    conversation_id: str | None
-    project_id: str | None
-    acting_for: Principal
-    delegations: list[Delegation] = field(default_factory=list)
-    # Children admitted under this grant and not yet finished; revocation waits for them.
-    in_flight: int = 0
 
 
 @dataclass
 class Conductor:
     registry: Registry
-    store: RunStore
+    store: RunStorage
     # The deployment's institutional profile, loaded once by whoever builds the conductor. Every
     # invocation, delegated or not, is gated by it; a request cannot name another
     # (docs/specs/policy-and-identity.md).
@@ -150,9 +161,15 @@ class Conductor:
     # The harness's own A2A address, sent to delegation agents as their callback. None (the
     # CLI) means no grant is issued and a delegation agent runs without `delegate`.
     harness_url: str | None = None
-    # The projects runs may belong to (docs/specs/projects.md). None (most tests, the workbench
-    # without DD_PROJECTS_DIR) means no run is in a project.
-    projects: ProjectStore | None = None
+    # The projects runs may belong to (docs/specs/projects.md), as `RunProjects`. None (most
+    # tests, the workbench without DD_PROJECTS_DIR) means no run is in a project.
+    projects: RunProjects | None = None
+    # Mints the model grant each invocation of a model-backed agent is sent
+    # (docs/specs/model-accounts.md). None (the default) mints none.
+    model_grants: GrantMinter | None = None
+    # The tool gateway over the deployment's MCP servers (docs/specs/agents.md, Tools). None (no
+    # DD_TOOLS_CONFIG) means no agent is granted a tool.
+    gateway: Gateway | None = None
     _grants: dict[str, Grant] = field(default_factory=dict, repr=False)
     _grants_lock: threading.Condition = field(default_factory=threading.Condition, repr=False)
     _running: set[str] = field(default_factory=set, repr=False)
@@ -164,13 +181,50 @@ class Conductor:
     _parents: ThreadPoolExecutor | None = field(default=None, repr=False)
     _parents_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
-    async def ainvoke(self, request: InvocationRequest, *, acting_for: Principal) -> Envelope:
+    def __post_init__(self) -> None:
+        # A profile that lets people's own accounts pay is in force only if grants carry that
+        # to the broker (docs/specs/policy-and-identity.md, invariant 4).
+        if self.profile.model_accounts.own != "off" and self.model_grants is None:
+            raise policy.PolicyError(
+                f"profile {self.profile.profile_id!r} sets model_accounts.own to "
+                f"{self.profile.model_accounts.own}, but the harness mints no model grants; set "
+                "DD_MODEL_GRANT_SIGNING_KEY, DD_MODEL_BROKER_SUBJECT_KEY and DD_PSEUDONYM_SECRET "
+                "(docs/specs/model-accounts.md)"
+            )
+        # A grant of a server the deployment does not list would be in force nowhere.
+        listed = {s.name for s in self.gateway.servers} if self.gateway is not None else set()
+        if unlisted := sorted({s for g in self.profile.tool_servers.values() for s in g} - listed):
+            raise policy.PolicyError(
+                f"profile {self.profile.profile_id!r} grants MCP servers the deployment does not "
+                f"list: {', '.join(unlisted)} (DD_TOOLS_CONFIG, docs/specs/agents.md)"
+            )
+        # Each run of these is refused; say so once at start-up, where the operator looks.
+        for agent in self.registry:
+            if model_accounts.bypasses_broker(self.profile, agent):
+                log.warning(
+                    "profile %r lets people's own model accounts pay, and agent %r calls a model "
+                    "without the agent configuration stating model_broker: true; its runs will "
+                    "be refused (docs/specs/model-accounts.md, invariant 14)",
+                    self.profile.profile_id,
+                    agent.spec.agent_id,
+                )
+
+    async def ainvoke(
+        self,
+        request: InvocationRequest,
+        *,
+        acting_for: Principal,
+        observer: RunObserver | None = None,
+        cancel: threading.Event | None = None,
+    ) -> Envelope:
         """`invoke`, awaited from async code without blocking its event loop."""
         with self._parents_lock:
             if self._parents is None:
                 self._parents = ThreadPoolExecutor(thread_name_prefix="dd-conductor")
             parents = self._parents
-        call = functools.partial(self.invoke, request, acting_for=acting_for)
+        call = functools.partial(
+            self.invoke, request, acting_for=acting_for, observer=observer, cancel=cancel
+        )
         return await asyncio.get_running_loop().run_in_executor(parents, call)
 
     def close(self) -> None:
@@ -187,9 +241,21 @@ class Conductor:
         """`invoke_delegated`, awaited from async code, off the pool parents run on."""
         return await asyncio.to_thread(self.invoke_delegated, request, token, traceparent)
 
-    def invoke(self, request: InvocationRequest, *, acting_for: Principal) -> Envelope:
+    def invoke(
+        self,
+        request: InvocationRequest,
+        *,
+        acting_for: Principal,
+        observer: RunObserver | None = None,
+        cancel: threading.Event | None = None,
+    ) -> Envelope:
         """Run one top-level invocation on behalf of `acting_for`, the principal the caller's
-        transport authenticated. Lineage is the conductor's to set, never the caller's."""
+        transport authenticated. Lineage is the conductor's to set, never the caller's.
+
+        `observer` is told the run's stages and its checks' reports as they happen
+        (`dd_harness.observe`). Setting `cancel` cancels the run: the conductor looks at it before
+        each stage and when the agent answers, and a cancelled run is stored as failed with the
+        problem `run-cancelled`, whatever the agent answered (docs/specs/transport.md)."""
         if request.parent_invocation_id is not None:
             raise DelegationError(
                 "parent_invocation_id is set by the conductor from a delegation grant; "
@@ -204,7 +270,27 @@ class Conductor:
             if self.projects is not None and request.conversation_id is not None
             else None
         )
-        return self._invoke(request, acting_for, project_id=project_id)
+        # Everything this run asks of its project before it runs is read from one snapshot.
+        facts = (
+            self.projects.snapshot(project_id)
+            if self.projects is not None and project_id is not None
+            else None
+        )
+        # Only someone who may read the project runs anything in it; anyone else is answered as
+        # for a project that does not exist (docs/specs/projects.md, invariant 17). A delegated
+        # child is not checked again: its grant carries its parent's project.
+        if (
+            project_id is not None
+            and facts is not None
+            and not project_access.may(facts, project_id, acting_for, project_access.Action.READ)
+        ):
+            raise UnknownProjectError(f"no project {project_id!r}")
+        # A deleted project takes no new run, not even its owner's (invariant 24).
+        if project_id is not None and facts is not None and facts.is_deleted(project_id):
+            raise ProjectDeletedError(f"project {project_id} is deleted")
+        return self._invoke(
+            request, acting_for, project_id=project_id, facts=facts, watch=Watch(observer, cancel)
+        )
 
     def invoke_delegated(
         self, request: InvocationRequest, token: str, traceparent: str = ""
@@ -237,8 +323,9 @@ class Conductor:
                 "project_id": None,
             }
         )
-        envelope = self._invoke(
-            child, grant.acting_for, link=_span_context(traceparent), project_id=grant.project_id
+        link = _span_context(traceparent)
+        envelope = grant.watch.child(
+            child, lambda: self._invoke(child, grant.acting_for, link, project_id=grant.project_id)
         )
         record = Delegation(
             delegated_invocation_id=envelope.invocation_id,
@@ -251,7 +338,9 @@ class Conductor:
             grant.delegations.append(record)
         return envelope
 
-    def _issue_grant(self, request: InvocationRequest, acting_for: Principal) -> Grant:
+    def _issue_grant(
+        self, request: InvocationRequest, acting_for: Principal, watch: Watch
+    ) -> Grant:
         grant = Grant(
             token=secrets.token_urlsafe(32),
             parent_invocation_id=request.invocation_id,
@@ -259,6 +348,7 @@ class Conductor:
             conversation_id=request.conversation_id,
             project_id=request.project_id,
             acting_for=acting_for,
+            watch=watch,
         )
         with self._grants_lock:
             self._grants[grant.token] = grant
@@ -283,13 +373,36 @@ class Conductor:
         link: SpanContext | None = None,
         *,
         project_id: str | None = None,
+        facts: FactSource | None = None,
+        watch: Watch | None = None,
     ) -> Envelope:
         # The project's facts go in before anything is hashed or stored, so the input hash and
         # request.json cover what the agent was shown; outside a project, what only the conductor
-        # may fill is removed (docs/specs/projects.md).
+        # may fill is removed (docs/specs/projects.md). They are read from one snapshot of the
+        # project: the caller's, or one taken here for a delegated child.
         in_project = project_id if self.projects is not None else None
+        if facts is None and self.projects is not None and in_project is not None:
+            facts = self.projects.snapshot(in_project)
         sent = to_document(request.input)
-        filled = project_facts.give(self.projects, in_project, sent)
+        # A profile that refuses attached documents has no agent given any (projects.md).
+        documents = not self.profile.refuses_documents
+        spec = self._spec_of(request.agent_id)  # an agent's own class may ask for facts by slot
+        filled = project_facts.give(facts, in_project, sent, documents=documents, spec=spec)
+        given = project_facts.given(facts, in_project, filled)
+        # Researcher facts, a `Message`'s decided facts and a draft's attached documents that the
+        # profile keeps from this agent's hosted model are left out, not refused
+        # (docs/specs/projects.md, invariant 8): the agent does not need them. What remains is
+        # classed again, since a draft's other documentation shares a class with its documents.
+        if optional := given & project_facts.left_out(filled):
+            spec = self._spec_of(request.agent_id)
+            hostings = [model.hosting for model in spec.models] if spec else []
+            remote = spec is not None and pipeline.remote_tools(self, spec)
+            if out := frozenset(
+                policy.withheld(self.profile, hostings, optional, remote_tools=remote)
+            ):
+                filled = project_facts.leave_out(filled, out)
+                given = project_facts.given(facts, in_project, filled)
+        refused = project_facts.refusal(facts, in_project, filled)
         if in_project is not None or filled != sent:
             request = InvocationRequest.model_validate(
                 {**to_document(request), "input": filled, "project_id": in_project}
@@ -305,10 +418,20 @@ class Conductor:
                 )
             self._running.add(invocation_id)
         try:
-            return self._run(request, request_doc, acting_for, link)
+            return self._run(
+                request, request_doc, acting_for, link, given, refused, watch or Watch(None, None)
+            )
         finally:
             with self._running_lock:
                 self._running.discard(invocation_id)
+
+    def _spec_of(self, agent_id: str) -> AgentSpec | None:
+        """The agent's card; None for an agent not registered, which `_run` refuses."""
+        agent = self.registry.get(agent_id)
+        if agent is None:
+            self.registry.refresh()
+            agent = self.registry.get(agent_id)
+        return agent.spec if agent is not None else None
 
     def _run(
         self,
@@ -316,7 +439,13 @@ class Conductor:
         request_doc: dict[str, Any],
         acting_for: Principal,
         link: SpanContext | None,
+        given: frozenset[str] = frozenset(),
+        unfillable: str | None = None,
+        watch: Watch | None = None,
     ) -> Envelope:
+        """Run the steps of `dd_harness.pipeline` in order. `given` is the classes of project
+        content the conductor put into the input, and `unfillable` why it could not fill it from
+        the project, if it could not."""
         agent = self.registry.get(request.agent_id)
         if agent is None:
             self.registry.refresh()  # it may have started since the registry was built
@@ -326,292 +455,39 @@ class Conductor:
                 f"no agent registered as {request.agent_id!r}; known: {self.registry.ids()}"
                 + self.registry.not_registered()
             )
+        watch = watch or Watch(None, None)
+        watch.plan()
+        run = RunState(request, request_doc, acting_for, agent, watch, link, given, unfillable)
         spec = agent.spec
-        started = datetime.now(UTC)
-        tracer = self.tracing.tracer
-        input_hash = compute_input_hash(request_doc["input"])
-        # The class schema the card carries for the input, if the agent accepts its class.
-        accepted = spec.accepted(str(request_doc["input"].get("schema_class")))
-        input_ref = input_source_id(request.invocation_id)
-
-        delegations: list[Delegation] = []
-        grant: Grant | None = None
-        from_agent = False
         with invoke_agent_span(
-            tracer, spec.agent_id, spec.grounding_mode.value, input_hash, link=link
+            self.tracing.tracer, spec.agent_id, spec.grounding_mode.value, run.input_hash, link=link
         ) as root:
-            trace_id = format(root.get_span_context().trace_id, "032x")
-
-            # 1. Policy gate, against the deployment's profile.
-            profile = self.profile
-            with policy_gate_span(tracer, spec.agent_id):
-                decision = policy.gate(profile, spec.agent_id, spec.action_class)
-            result: AgentResult
-            if not decision.allowed:
-                result = AgentResult(
-                    outcome=Outcome(
-                        status=OutcomeStatus.FAILED,
-                        statement=f"{decision.reason}. The agent was not run.",
-                    ),
-                )
-                prob = (
-                    problems.action_class_mismatch(
-                        spec.agent_id,
-                        spec.action_class,
-                        profile.agents[spec.agent_id],
-                        profile.profile_id,
-                    )
-                    if decision.refusal == "action-class-mismatch"
-                    else problems.agent_not_permitted(spec.agent_id, profile.profile_id)
-                )
-            elif decision.requires_approval:
-                result = AgentResult(
-                    outcome=Outcome(
-                        status=OutcomeStatus.REFERRED,
-                        reason_code=ReasonCode.POLICY_REQUIRES_APPROVAL,
-                        referred_to=DATA_STEWARD,
-                        statement=f"{decision.reason}. The agent was not run.",
-                    )
-                )
-                prob = None
-            elif refused := _input_refusal(spec, request_doc["input"]):
-                # 2. Input check, against the class schema the agent's card carries
-                # (docs/specs/contract.md).
-                # A valid request addressed to an agent that does not read this input is an
-                # outcome, not an exception: the caller, the store and a reviewer all see the
-                # refusal as an envelope, as they do a policy refusal.
-                got, errors = refused
-                statement = (
-                    f"The input is not a valid {got}: {'; '.join(errors)}."
-                    if errors
-                    else f"{spec.agent_id} accepts {', '.join(spec.accepts_names())}, not {got}."
-                )
-                result = AgentResult(
-                    outcome=Outcome(
-                        status=OutcomeStatus.FAILED,
-                        statement=f"{statement} The agent was not run.",
-                    )
-                )
-                prob = problems.input_not_accepted(
-                    spec.agent_id, got, spec.accepts_names(), tuple(errors)
-                )
-            else:
-                # 3. Run the agent. An exception becomes a failed outcome; never a crash.
-                prob = None
-                # A grant travels on the A2A wire, so only a remote agent can be sent one.
-                sent_grant: DelegationGrant | None = None
-                if (
-                    spec.grounding_mode == GroundingMode.DELEGATION
-                    and request.parent_invocation_id is None
-                    and self.harness_url is not None
-                    and isinstance(agent, RemoteAgent)
-                ):
-                    grant = self._issue_grant(request, acting_for)
-                    sent_grant = DelegationGrant(url=self.harness_url, token=grant.token)
-                ctx = RunContext(tracer=tracer, input_ref=input_ref, input_hash=input_hash)
-                # The agent is never told which project it works in (docs/specs/projects.md).
-                sent = request.model_copy(update={"project_id": None})
-                try:
-                    # An in-process agent records its spans in this trace already.
-                    received = (
-                        agent.call(sent, ctx, sent_grant)
-                        if isinstance(agent, RemoteAgent)
-                        else Received(agent.run(typed_request(spec, sent), ctx))
-                    )
-                except Exception as exc:  # noqa: BLE001 — converted to a failed outcome by design
-                    result = AgentResult(
-                        outcome=Outcome(
-                            status=OutcomeStatus.FAILED, statement=f"Agent raised: {exc}"
-                        )
-                    )
-                    prob = problems.agent_error(spec.agent_id, exc)
-                else:
-                    from_agent = True
-                    # A remote agent's spans were recorded in its own process; bring them into
-                    # this trace so the linter reads one tree (docs/specs/agents.md).
-                    self.tracing.import_spans(trace_id, received.spans)
-                    result = received.result
-                    # An agent that returns a payload other than the class it declared, or one
-                    # its own class schema does not admit, is contradicting its specification: a
-                    # programmer error, handled the same way as an exception.
-                    if result.payload is not None and (
-                        mismatch := _payload_mismatch(spec, to_document(result.payload))
-                    ):
-                        result = AgentResult(
-                            outcome=Outcome(
-                                status=OutcomeStatus.FAILED,
-                                statement=f"Agent contradicted its specification: {mismatch}",
-                            )
-                        )
-                        prob = problems.agent_error(spec.agent_id, mismatch)
-
-            if grant is not None:
-                # Recorded whatever the agent did afterwards: the children ran and are stored.
-                delegations = self._revoke_grant(grant)
-
-            envelope = Envelope(
-                invocation_id=request.invocation_id,
-                agent_id=spec.agent_id,
-                agent_version=spec.version,
-                completed_at=datetime.now(UTC),
-                grounding_mode=spec.grounding_mode,
-                policy_bundle_ref=profile.ref,
-                policy_digest=profile.digest,
-                acting_for=acting_for,
-                contract_version=CONTRACT_VERSION,
-                input_schema=accepted.digest if accepted else None,
-                outcome=result.outcome,
-                payload=result.payload,
-                payload_schema=(
-                    spec.payload.digest if result.payload is not None and spec.payload else None
-                ),
-                evidence=result.evidence,
-                telemetry=Telemetry(
-                    trace_id=trace_id,
-                    model_id=result.model_id,
-                    input_tokens=result.input_tokens,
-                    output_tokens=result.output_tokens,
-                ),
-                problem=prob,
-                conversation_id=request.conversation_id,
-                project_id=request.project_id,
-                parent_invocation_id=request.parent_invocation_id,
-                delegations=delegations,
-            )
-            root.set_attribute(ATTR_OUTCOME, envelope.outcome.status.value)
-
+            run.trace_id = format(root.get_span_context().trace_id, "032x")
+            for step in pipeline.INSIDE_SPAN:
+                step(self, run)
+            root.set_attribute(ATTR_OUTCOME, run.finished.outcome.status.value)
         try:
-            # 4. Grounding linter, over the finished tree of this trace.
-            records = self.tracing.finished_records(trace_id)
-            report = grounding.lint(records, envelope.to_document())
-            with self._reports_lock:  # invocations finish side by side
-                self.grounding_reports[request.invocation_id] = report
-                while len(self.grounding_reports) > GROUNDING_REPORTS_KEPT:
-                    del self.grounding_reports[next(iter(self.grounding_reports))]
-            # 4a. Source check, over the evidence the linter has just read
-            # (docs/specs/grounding.md).
-            source_report = source_check.check(envelope.to_document(), self.sources)
-            withheld = [
-                (check, found)
-                for check, found in (
-                    ("the grounding linter", report.violations),
-                    ("the source check", source_report.violations),
-                )
-                if found
-            ]
-            if withheld and envelope.outcome.status == OutcomeStatus.SUCCEEDED:
-                violations = [v for _, found in withheld for v in found]
-                envelope = envelope.model_copy(
-                    update={
-                        "outcome": Outcome(
-                            status=OutcomeStatus.FAILED,
-                            statement="Output withheld: it failed "
-                            + " and ".join(check for check, _ in withheld)
-                            + ". "
-                            + "; ".join(violations),
-                        ),
-                        "payload": None,
-                        "payload_schema": None,
-                        "evidence": [],
-                        "problem": problems.grounding_violation(violations),
-                    }
-                )
-
-            # 5. Validate, store, trace file, provenance. A result the agent returned that still
-            # breaks the contract is the agent's error, as a payload of the wrong class is: it is
-            # stored as failed(agent-error), not raised past the store. An envelope the conductor
-            # built itself that breaks the contract is a conductor bug, and raises.
-            doc = envelope.to_document()
-            if from_agent:
-                try:
-                    validate.validate_envelope(doc)
-                except validate.ContractViolation as exc:
-                    envelope = envelope.model_copy(
-                        update={
-                            "outcome": Outcome(
-                                status=OutcomeStatus.FAILED,
-                                statement="Agent result violates the contract: "
-                                + "; ".join(exc.messages),
-                            ),
-                            "payload": None,
-                            "payload_schema": None,
-                            "evidence": [],
-                            "problem": problems.agent_error(spec.agent_id, exc),
-                        }
-                    )
-                    doc = envelope.to_document()
-            validate.validate_envelope(doc)
-            # 5a. A draft in a project becomes a proposed version of it, caused by this run. A
-            # draft the project refuses fails the run, and that failed run is the record.
-            if (
-                self.projects is not None
-                and envelope.project_id is not None
-                and envelope.outcome.status == OutcomeStatus.SUCCEEDED
-                and doc.get("payload", {}).get("schema_class") == DOCUMENT
-            ):
-                try:
-                    self.projects.record_draft(envelope.project_id, envelope)
-                except ProjectError as exc:
-                    envelope = envelope.model_copy(
-                        update={
-                            "outcome": Outcome(
-                                status=OutcomeStatus.FAILED,
-                                statement=f"The draft was not kept in the project: {exc}.",
-                            ),
-                            "payload": None,
-                            "payload_schema": None,
-                            "evidence": [],
-                            "problem": problems.revision_refused(str(exc)),
-                        }
-                    )
-                    doc = envelope.to_document()
-                    validate.validate_envelope(doc)
-            # The schemas the run was checked against, kept by digest for the viewer
-            # (docs/specs/contract.md).
-            checked = [accepted] if accepted else []
-            if envelope.payload is not None and spec.payload is not None:
-                checked.append(spec.payload)
-            run_dir = self.store.append(doc, request_doc, checked)
-            spans_path = run_dir / "spans.jsonl"
-            self.tracing.write_jsonl(spans_path, trace_id)
-            (run_dir / "grounding.txt").write_text(report.summary() + "\n", encoding="utf-8")
-            (run_dir / "sources.txt").write_text(source_report.summary() + "\n", encoding="utf-8")
-            if self.write_crate:
-                write_process_run_crate(
-                    run_dir,
-                    doc,
-                    run_dir / "request.json",
-                    run_dir / "envelope.json",
-                    spans_path,
-                    started,
-                )
+            for step in pipeline.AFTER_SPAN:
+                step(self, run)
         finally:
             # spans.jsonl is the durable copy; a long-running server must not keep them all.
-            self.tracing.discard(trace_id)
-        return envelope
+            self.tracing.discard(run.trace_id)
+        return run.finished
 
+    def _keep_report(self, invocation_id: str, report: grounding.GroundingReport) -> None:
+        """Keep the run's grounding report in memory, dropping the oldest past
+        `GROUNDING_REPORTS_KEPT`."""
+        with self._reports_lock:  # invocations finish side by side
+            self.grounding_reports[invocation_id] = report
+            while len(self.grounding_reports) > GROUNDING_REPORTS_KEPT:
+                del self.grounding_reports[next(iter(self.grounding_reports))]
 
-def _input_refusal(spec: AgentSpec, document: dict[str, Any]) -> tuple[str, list[str]] | None:
-    """Why the agent will not read this input: the class it names, and how the input fails that
-    class's schema (no errors: the agent does not accept the class at all). None if it will."""
-    got = str(document.get("schema_class"))
-    accepted = spec.accepted(got)
-    if accepted is None:
-        return got, []
-    errors = accepted.errors(document)
-    return (got, errors) if errors else None
-
-
-def _payload_mismatch(spec: AgentSpec, document: dict[str, Any]) -> TypeError | None:
-    """How a returned payload contradicts the agent's declared payload class, or None."""
-    got = document.get("schema_class")
-    if spec.payload is None or got != spec.payload.name:
-        declared = spec.payload.name if spec.payload else "none"
-        return TypeError(f"returned {got}, declared {declared}")
-    errors = spec.payload.errors(document)
-    if errors:
-        return TypeError(f"returned a {got} its class schema does not admit: {'; '.join(errors)}")
-    return None
+    def _spans(self, trace_id: str) -> bytes:
+        """The trace's finished spans as JSON Lines, the bytes of `spans.jsonl`."""
+        with tempfile.TemporaryDirectory(prefix="dd-spans-") as tmp:
+            path = Path(tmp) / SPANS
+            self.tracing.write_jsonl(path, trace_id)
+            return path.read_bytes()
 
 
 def _span_context(traceparent: str) -> SpanContext | None:

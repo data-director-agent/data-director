@@ -6,18 +6,21 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
+import sys
+import types
 import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import pytest
+from packaging.version import Version
 
-from dd_inventory import cli, identify, make_inventory, scan
+from dd_inventory import FileProgress, cli, identify, make_inventory, make_inventory_of, scan
 from dd_inventory.identify import ExtensionIdentifier, FidoUnavailableError
 from dd_inventory.tables import TableError
 from dd_sdk.contract.classes import ClassSchema
-from dd_sdk.contract.models import FileInventory
+from dd_sdk.contract.models import FileInventory, inventory_part_problems
 
 Inventory = dict[str, Any]
 FIXTURE = Path(__file__).parent / "data" / "soil-survey"
@@ -198,3 +201,156 @@ def test_a_zip_based_format_is_identified_by_its_container_signature(dataset: Pa
     found = _by_path(make_inventory(dataset))["docs/consent-form.docx"]
     assert found["file_identified_by"] == "container"
     assert found["file_pronom_ids"] == ["fmt/412"]  # Microsoft Word for Windows 2007 onwards
+
+
+def test_progress_is_reported_once_per_file_in_order(inventory: Inventory) -> None:
+    seen: list[FileProgress] = []
+    made = make_inventory(FIXTURE, on_file=seen.append)
+    files = inventory["inventory_files"]
+    assert [(p.path, p.size) for p in seen] == [(f["file_path"], f["file_size"]) for f in files]
+    assert [p.done for p in seen] == list(range(1, len(files) + 1))
+    assert {p.total for p in seen} == {len(files)}
+    assert made["inventory_files"] == files
+
+
+def test_a_file_that_cannot_be_read_still_reports_progress(
+    dataset: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real = scan.sha256
+
+    def flaky(path: Path) -> str:
+        if path.name == "sites.tsv":
+            raise PermissionError(13, "Permission denied")
+        return real(path)
+
+    monkeypatch.setattr(scan, "sha256", flaky)
+    seen: list[FileProgress] = []
+    made = make_inventory(dataset, on_file=seen.append)
+    assert "data/sites.tsv" not in _by_path(made)
+    assert FileProgress("data/sites.tsv", 0, 3, 5) in seen
+    assert [p.done for p in seen] == [1, 2, 3, 4, 5]
+
+
+def test_a_native_inventory_names_no_runtime(inventory: Inventory) -> None:
+    assert inventory["inventory_tool"] == "dd-inventory"
+    assert inventory["inventory_tool_version"] == scan.tool_version()
+    assert Version(inventory["inventory_tool_version"]).local is None
+
+
+def test_a_runtime_passed_in_is_a_local_version_label() -> None:
+    made = make_inventory(FIXTURE, runtime="pyodide.314.0.7")
+    assert made["inventory_tool"] == "dd-inventory"
+    assert made["inventory_tool_version"] == f"{scan.tool_version()}+pyodide.314.0.7"
+    assert Version(made["inventory_tool_version"]).local == "pyodide.314.0.7"
+    assert ClassSchema.of(FileInventory).errors(made) == []
+
+
+def test_under_pyodide_the_runtime_is_detected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys, "platform", "emscripten")
+    monkeypatch.setitem(sys.modules, "pyodide", types.SimpleNamespace(__version__="314.0.7"))
+    made = make_inventory(FIXTURE)
+    assert Version(made["inventory_tool_version"]).local == "pyodide.314.0.7"
+    assert make_inventory(FIXTURE, runtime=None)["inventory_tool_version"] == scan.tool_version()
+
+
+def test_a_runtime_version_is_made_a_valid_label(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys, "platform", "emscripten")
+    monkeypatch.setitem(sys.modules, "pyodide", types.SimpleNamespace(__version__="0.29.0-dev"))
+    assert scan.detect_runtime() == "pyodide.0.29.0.dev"
+    monkeypatch.setitem(sys.modules, "pyodide", None)  # cannot be imported
+    assert scan.detect_runtime() == "emscripten"
+
+
+def test_several_folders_make_one_inventory_with_a_part_for_each(
+    dataset: Path, tmp_path: Path
+) -> None:
+    other = tmp_path / "instrument"
+    other.mkdir()
+    (other / "run1.csv").write_text("t,v\n1,2\n", encoding="utf-8")
+    seen: list[FileProgress] = []
+    inventory = make_inventory_of(
+        {"lab": dataset, "instrument": other},
+        now=datetime(2026, 11, 1, tzinfo=UTC),
+        on_file=seen.append,
+    )
+    assert ClassSchema.of(FileInventory).errors(inventory) == []
+    assert inventory_part_problems(inventory) == []
+    FileInventory.model_validate(inventory)
+    paths = [f["file_path"] for f in inventory["inventory_files"]]
+    assert paths == sorted(paths)
+    assert "instrument/run1.csv" in paths
+    alone = make_inventory(dataset, now=datetime(2026, 11, 1, tzinfo=UTC))
+    assert {p for p in paths if p.startswith("lab/")} == {
+        "lab/" + f["file_path"] for f in alone["inventory_files"]
+    }
+    assert [p["part_folder"] for p in inventory["inventory_parts"]] == ["instrument", "lab"]
+    assert all(
+        s.startswith(("In instrument: ", "In lab: ")) for s in inventory["inventory_limitations"]
+    )
+    assert [p.done for p in seen] == list(range(1, len(paths) + 1))
+    assert {p.total for p in seen} == {len(paths)}
+
+
+@pytest.mark.parametrize("names", [["raw", "raw/2024"], ["a/../b", "c"], ["", "c"], ["/abs", "c"]])
+def test_folder_names_that_overlap_or_climb_are_refused(names: list[str], dataset: Path) -> None:
+    with pytest.raises(ValueError):
+        make_inventory_of(dict(zip(names, [dataset, dataset], strict=True)))
+
+
+def test_the_command_takes_several_folders_and_names_them(dataset: Path, tmp_path: Path) -> None:
+    other = tmp_path / "copy" / "soil-survey"
+    shutil.copytree(dataset, other)
+    out = tmp_path / "inventory.json"
+    # Two folders of the same name need names of their own.
+    assert cli.main([str(dataset), str(other), "-o", str(out)]) == cli.EXIT_USAGE
+    assert cli.main([str(dataset), str(other), "--as", "2024"]) == cli.EXIT_USAGE
+    args = [str(dataset), str(other), "--as", "2024", "--as", "2025", "-o", str(out)]
+    assert cli.main(args) == cli.EXIT_OK
+    written = json.loads(out.read_text("utf-8"))
+    assert [p["part_folder"] for p in written["inventory_parts"]] == ["2024", "2025"]
+    assert ClassSchema.of(FileInventory).errors(written) == []
+
+
+# The sample folder both runtimes describe: natively here, and under Pyodide in the browser
+# bundle's parity check (inventory/browser/README.md), which compares the two slot by slot.
+MIXED = Path(__file__).parent / "data" / "mixed"
+
+
+@pytest.fixture(scope="module")
+def mixed() -> Inventory:
+    return make_inventory(MIXED)
+
+
+def test_the_mixed_sample_is_a_core_file_inventory(mixed: Inventory) -> None:
+    assert ClassSchema.of(FileInventory).errors(mixed) == []
+
+
+def test_the_mixed_sample_needs_signature_container_and_extension(mixed: Inventory) -> None:
+    files = _by_path(mixed)
+    assert files["images/plot-map.png"]["file_identified_by"] == "signature"
+    assert files["reports/report.docx"]["file_identified_by"] == "container"
+    assert files["reports/report.docx"]["file_pronom_ids"] == ["fmt/412"]
+    assert files["tables/plots.csv"]["file_identified_by"] == "extension"
+
+
+def test_the_mixed_sample_has_a_misleading_extension(mixed: Inventory) -> None:
+    misnamed = _by_path(mixed)["misnamed.csv"]
+    assert misnamed["file_identified_by"] == "signature"
+    assert misnamed["file_pronom_ids"] == _by_path(mixed)["images/plot-map.png"]["file_pronom_ids"]
+    assert "file_fields" not in misnamed
+    assert any("misnamed.csv" in note for note in mixed["inventory_limitations"])
+
+
+def test_the_mixed_sample_has_tables_of_every_simple_field_type(mixed: Inventory) -> None:
+    files = _by_path(mixed)
+    for table in ("tables/plots.csv", "tables/nested/readings.tsv"):
+        types_ = {f["field_type"] for f in files[table]["file_fields"]}
+        assert types_ == {"integer", "number", "boolean", "date", "string"}
+
+
+def test_the_mixed_sample_has_an_empty_file_and_hidden_ones_left_out(mixed: Inventory) -> None:
+    files = _by_path(mixed)
+    assert files["empty.txt"]["file_size"] == 0
+    assert not any(part.startswith(".") for p in files for part in p.split("/"))
+    assert (MIXED / ".DS_Store").is_file()
+    assert (MIXED / ".hidden").is_dir()

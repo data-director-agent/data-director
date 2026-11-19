@@ -6,9 +6,10 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from re3data_fixture import session_registry
 
 import dd_agent_advisor_repository
-from dd_agent_advisor_repository import rank
+from dd_agent_advisor_repository import dfg, rank
 from dd_agent_advisor_repository.agent import RepositoryAgent
 from dd_agent_advisor_repository.classes import (
     AccessNeed,
@@ -20,13 +21,14 @@ from dd_agent_advisor_repository.classes import (
     RepositoryRef,
 )
 from dd_agent_advisor_repository.records import DatabaseRecord, Institution, Re3dataRecord
-from dd_agent_advisor_repository.retrieve import Hit, Query, RegistryUnavailable, SnapshotRef
-from dd_agent_advisor_repository.snapshot import FairsharingSnapshot, Re3dataSnapshot
+from dd_agent_advisor_repository.retrieve import find_by_name
+from dd_agent_advisor_repository.snapshot import FairsharingSnapshot, Re3dataRegistry
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import describe
 from dd_sdk.contract.models import Envelope, OutcomeStatus, ReasonCode
 from dd_sdk.evidence import verify
 from dd_sdk.process_flow import STEPS
+from dd_sdk.registry import Hit, Query, RegistryUnavailable, SnapshotRef
 from dd_sdk.schema import gen
 
 SCHEMA = Path(dd_agent_advisor_repository.__file__).parent / "schema" / "repository.yaml"
@@ -103,6 +105,11 @@ NEEDS = RepositoryNeeds(
 )
 
 
+@pytest.fixture(scope="session")
+def re3data(tmp_path_factory: pytest.TempPathFactory) -> Re3dataRegistry:
+    return session_registry(tmp_path_factory)
+
+
 class FakeRepositories:
     """Word matching over a fixed record list; enough to drive ranking and the linter."""
 
@@ -112,6 +119,9 @@ class FakeRepositories:
 
     def snapshot_ref(self) -> SnapshotRef:
         return SnapshotRef(label="fake-re3data")
+
+    def credit(self) -> str:
+        return "Credit to the fake registry."
 
     def _check(self) -> None:
         if self.down:
@@ -133,9 +143,17 @@ class FakeRepositories:
         self._check()
         return next((r for r in self.records if r.re3data_id == re3data_id), None)
 
-    def find(self, name: str) -> Re3dataRecord | None:
+    def find(self, name: str) -> list[Re3dataRecord]:
         self._check()
-        return next((r for r in self.records if name.casefold() in r.names()), None)
+        return find_by_name(self.records, name)
+
+    def subjects(self) -> dict[str, str]:
+        self._check()
+        return dfg.vocabulary(s for r in self.records for s in r.subjects)
+
+    def with_subject(self, code: str) -> list[Re3dataRecord]:
+        self._check()
+        return [r for r in self.records if code in dfg.codes(r.subjects)]
 
 
 class FakeDatabases:
@@ -253,7 +271,7 @@ def test_certification_carries_no_weight(runs_dir: Path) -> None:
     options = env.payload_as(RepositoryOptions)
     assert named(env, options) == ["Yak Archive", "Zebra Archive"]  # by name, at an equal score
     assert options.candidates[0].score == options.candidates[1].score
-    assert "Certification listed: CoreTrustSeal." in options.candidates[1].notes
+    assert any("CoreTrustSeal" in note for note in options.candidates[1].notes)
 
 
 @pytest.mark.requirement("R1")
@@ -269,23 +287,23 @@ def test_the_researchers_institutional_repository_is_offered_beyond_the_cap(
     )
     env = invoke(runs_dir, needs, agent(repositories=FakeRepositories([*many, INSTITUTIONAL])))
     options = env.payload_as(RepositoryOptions)
-    assert len(options.candidates) == 6
+    # As many others as the cap allows, then the institution's own.
+    assert len(options.candidates) == min(len(many), rank.config()["max_candidates"]) + 1
     home = options.candidates[-1]
     assert named(env, options)[-1] == "Testing University Research Data"
-    assert "Operated by University of Testing, the researcher's institution." in home.meets
-    assert "Deposit is open to members of the researcher's institution." in home.meets
-    assert "A commercial organisation, figshare, supplies the platform." in home.notes
+    assert any("University of Testing" in meets for meets in home.meets)
+    assert any("members" in meets for meets in home.meets)
+    assert any("figshare" in note for note in home.notes)
     assert home.commercial == Answer.NO  # the supplier does not operate it
 
 
 AFFILIATED = NEEDS.model_copy(
     update={"affiliation": Affiliation(name="Testing", ror="https://ror.org/0abcd1234")}
 )
-FALLBACK = (
-    "Operated by University of Testing, the researcher's institution, and offered as a fallback: "
-    "a repository of the dataset's discipline, or one a funder, journal or project requires, may "
-    "suit the data better."
-)
+
+
+def offered_as_fallback(ranked_by: list[str]) -> bool:
+    return any("University of Testing" in r and "fallback" in r for r in ranked_by)
 
 
 @pytest.mark.requirement("R1")
@@ -316,8 +334,8 @@ def test_an_institutional_repository_that_matches_the_discipline_gets_no_bonus(
     assert named(env, options) == ["Testing University Research Data", "Zeta Survey Archive"]
     home, rival = options.candidates
     assert home.score == rival.score  # in order of name, not of affiliation
-    assert "Operated by University of Testing, the researcher's institution." in home.ranked_by
-    assert FALLBACK not in home.ranked_by
+    assert any("University of Testing" in r for r in home.ranked_by)
+    assert not offered_as_fallback(home.ranked_by)
 
 
 @pytest.mark.requirement("R1")
@@ -340,7 +358,8 @@ def test_the_institutional_fallback_comes_after_the_discipline_and_before_genera
         "Testing University Research Data",
         "A Generalist",
     ]
-    assert options.candidates[1].ranked_by == [FALLBACK]
+    assert len(options.candidates[1].ranked_by) == 1
+    assert offered_as_fallback(options.candidates[1].ranked_by)
 
 
 @pytest.mark.requirement("R1")
@@ -392,8 +411,35 @@ def test_a_kind_of_data_alone_does_not_recommend_a_repository(runs_dir: Path) ->
     assert named(env, options) == ["Social Survey Archive"]
     assert options.candidates[0].ranked_by == [
         'Matches the theme "social survey" (1 of 1 given).',
+        'Ranks 1 of 1 in a text search of re3data for "social survey".',
         'Matches the kind of data "interview transcripts".',
     ]
+
+
+@pytest.mark.requirement("R1")
+def test_a_repository_is_retrieved_and_recommended_for_its_dfg_subject(runs_dir: Path) -> None:
+    """A repository whose record never names the theme is found where re3data files it."""
+    filed = OPEN_ONLY.model_copy(
+        update={
+            "re3data_id": "r3d100000014",
+            "name": "Water Archive",
+            "subjects": [
+                "3 Natural Sciences",
+                "34 Geosciences",
+                "346 Water Research",
+                "34601 Hydrogeology, Hydrology, Limnology",
+            ],
+            "keywords": [],
+            "data_upload_restrictions": [],
+        }
+    )
+    needs = RepositoryNeeds(themes=["hydrology"], access=AccessNeed.OPEN)
+    env = invoke(runs_dir, needs, agent(repositories=FakeRepositories([filed, SURVEYS])))
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    options = env.payload_as(RepositoryOptions)
+    assert named(env, options) == ["Water Archive"]
+    assert options.candidates[0].ranked_by[0].startswith("Matches the theme")
+    assert "No discipline-specific repository" not in env.outcome.statement
 
 
 @pytest.mark.requirement("R1")
@@ -411,14 +457,13 @@ def test_a_generalist_is_offered_after_a_repository_of_the_discipline(runs_dir: 
     env = invoke(runs_dir, NEEDS, advisor)
     options = env.payload_as(RepositoryOptions)
     assert named(env, options) == ["Social Survey Archive", "Anything Archive"]
-    assert options.candidates[1].ranked_by == [
-        "A generalist repository, which takes data from any discipline."
-    ]
+    [why] = options.candidates[1].ranked_by
+    assert "generalist" in why
     # With no repository of the discipline, the generalists are offered and the statement
     # says why.
     env = invoke(runs_dir, NEEDS, agent(repositories=FakeRepositories([generalist])))
     assert named(env, env.payload_as(RepositoryOptions)) == ["Anything Archive"]
-    assert "No discipline-specific repository matched the themes" in env.outcome.statement
+    assert "discipline-specific" in env.outcome.statement
 
 
 # --- the mandated branch --------------------------------------------------------------------
@@ -435,8 +480,8 @@ def test_mandated_repositories_are_described_with_the_needs_they_miss(runs_dir: 
     options = env.payload_as(RepositoryOptions)
     (only,) = options.candidates
     assert only.basis == CandidateBasis.MANDATED and only.score is None
-    assert "Restricted access is not listed." in only.misses
-    assert "re3data lists no persistent identifier system." in only.misses
+    assert any("restricted" in miss.lower() for miss in only.misses)
+    assert any("persistent identifier" in miss for miss in only.misses)
     assert only.assigns_pids == Answer.NO
     assert only.fee_required == Answer.YES
     assert options.not_found == ["Nowhere Archive"]
@@ -469,6 +514,120 @@ def test_no_mandated_repository_found_abstains(runs_dir: Path) -> None:
     env = invoke(runs_dir, RepositoryNeeds(mandated=[RepositoryRef(name="Nowhere Archive")]))
     assert env.outcome.status == OutcomeStatus.ABSTAINED
     assert env.outcome.reason_code == ReasonCode.NO_CANDIDATES_RETRIEVED
+    # It reports what re3data returned, so it credits re3data like any other statement.
+    assert env.outcome.statement.endswith("Credit to the fake registry.")
+
+
+def test_a_name_several_records_bear_is_not_guessed(runs_dir: Path) -> None:
+    twin = SURVEYS.model_copy(update={"re3data_id": "r3d100000099", "fairsharing_id": None})
+    needs = RepositoryNeeds(mandated=[RepositoryRef(name="Social Survey Archive")])
+    env = invoke(runs_dir, needs, agent(repositories=FakeRepositories([twin, SURVEYS])))
+    assert env.outcome.status == OutcomeStatus.ABSTAINED
+    assert "r3d100000001" in env.outcome.statement
+    assert "r3d100000099" in env.outcome.statement
+
+
+# --- repositories the researcher asked about (#1167) ------------------------------------------
+
+
+def bases(options: RepositoryOptions) -> dict[str, CandidateBasis]:
+    return {c.grounded_on[0].source_id: c.basis for c in options.candidates}
+
+
+@pytest.mark.requirement("R1")
+def test_a_repository_asked_about_is_described_beside_the_shortlist_not_mandated(
+    runs_dir: Path,
+) -> None:
+    asked = NEEDS.model_copy(update={"asked_about": [RepositoryRef(name="Open Social Data")]})
+    env = invoke(runs_dir, asked)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    options = env.payload_as(RepositoryOptions)
+    by_id = bases(options)
+    assert by_id[OPEN_ONLY.re3data_id] == CandidateBasis.ASKED_ABOUT
+    assert CandidateBasis.MANDATED not in by_id.values()
+    # The shortlist is still there, as it is without the question.
+    alone = bases(invoke(runs_dir, NEEDS).payload_as(RepositoryOptions))
+    recommended = {rid for rid, b in by_id.items() if b == CandidateBasis.RECOMMENDED}
+    assert recommended == set(alone) - {OPEN_ONLY.re3data_id}
+    (open_only,) = [c for c in options.candidates if c.basis == CandidateBasis.ASKED_ABOUT]
+    assert any("restricted" in miss.lower() for miss in open_only.misses)
+    # No mandate was given, so the caveat that a policy may still require one stays.
+    assert "may still require one" in env.outcome.statement
+
+
+@pytest.mark.requirement("R1")
+def test_a_repository_asked_about_that_ranks_is_listed_once_with_its_score(
+    runs_dir: Path,
+) -> None:
+    ref = RepositoryRef(name="x", re3data_id=SURVEYS.re3data_id)
+    options = invoke(runs_dir, NEEDS.model_copy(update={"asked_about": [ref]})).payload_as(
+        RepositoryOptions
+    )
+    ids = [c.grounded_on[0].source_id for c in options.candidates]
+    assert ids.count(SURVEYS.re3data_id) == 1
+    (surveys,) = [c for c in options.candidates if c.grounded_on[0].source_id == ids[0]]
+    assert surveys.basis == CandidateBasis.ASKED_ABOUT
+    assert surveys.score is not None and surveys.ranked_by
+
+
+@pytest.mark.requirement("R1")
+def test_a_repository_asked_about_alone_is_described(runs_dir: Path) -> None:
+    env = invoke(runs_dir, RepositoryNeeds(asked_about=[RepositoryRef(name="Acme Data Cloud")]))
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    options = env.payload_as(RepositoryOptions)
+    assert bases(options) == {COMMERCIAL.re3data_id: CandidateBasis.ASKED_ABOUT}
+
+
+@pytest.mark.requirement("R1")
+def test_a_repository_asked_about_and_not_found_leaves_the_shortlist(runs_dir: Path) -> None:
+    asked = NEEDS.model_copy(update={"asked_about": [RepositoryRef(name="Nowhere Archive")]})
+    env = invoke(runs_dir, asked)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    options = env.payload_as(RepositoryOptions)
+    assert options.not_found == ["Nowhere Archive"]
+    assert set(bases(options).values()) == {CandidateBasis.RECOMMENDED}
+
+
+@pytest.mark.requirement("DD-OUTCOME")
+def test_only_repositories_asked_about_and_none_found_abstains(runs_dir: Path) -> None:
+    env = invoke(runs_dir, RepositoryNeeds(asked_about=[RepositoryRef(name="Nowhere Archive")]))
+    assert env.outcome.status == OutcomeStatus.ABSTAINED
+    assert env.outcome.reason_code == ReasonCode.NO_CANDIDATES_RETRIEVED
+
+
+@pytest.mark.requirement("R1")
+def test_a_mandate_and_a_question_are_both_described_each_on_its_own_basis(
+    runs_dir: Path,
+) -> None:
+    needs = NEEDS.model_copy(
+        update={
+            "mandated": [RepositoryRef(name="x", re3data_id=SURVEYS.re3data_id)],
+            "asked_about": [
+                RepositoryRef(name="y", re3data_id=COMMERCIAL.re3data_id),
+                # Asked about and mandated: it is mandated, and listed once.
+                RepositoryRef(name="z", re3data_id=SURVEYS.re3data_id),
+            ],
+        }
+    )
+    options = invoke(runs_dir, needs).payload_as(RepositoryOptions)
+    assert [c.grounded_on[0].source_id for c in options.candidates] == [
+        SURVEYS.re3data_id,
+        COMMERCIAL.re3data_id,
+    ]
+    assert bases(options) == {
+        SURVEYS.re3data_id: CandidateBasis.MANDATED,
+        COMMERCIAL.re3data_id: CandidateBasis.ASKED_ABOUT,
+    }
+
+
+def test_a_name_beats_another_records_additional_name() -> None:
+    alias = SURVEYS.model_copy(
+        update={"re3data_id": "r3d100000000", "name": "Elsewhere", "additional_names": ["SSA"]}
+    )
+    named = SURVEYS.model_copy(update={"name": "SSA"})
+    assert find_by_name([alias, named], "ssa") == [named]
+    assert find_by_name([alias], "SSA") == [alias]
+    assert find_by_name([alias, named], "nothing") == []
 
 
 # --- answers read from the registry ----------------------------------------------------------
@@ -517,10 +676,11 @@ def test_an_unreachable_registry_is_not_an_empty_result(runs_dir: Path) -> None:
     assert env.outcome.reason_code == ReasonCode.REGISTRY_UNAVAILABLE
 
 
-def test_a_failed_live_route_falls_back_to_the_snapshot_marked_stale(runs_dir: Path) -> None:
+def test_a_failed_fairsharing_route_falls_back_to_its_snapshot_marked_stale(
+    runs_dir: Path, re3data: Re3dataRegistry
+) -> None:
     advisor = agent(
-        repositories=FakeRepositories(down=True),
-        fallback=Re3dataSnapshot(),
+        repositories=re3data,
         databases=FakeDatabases(down=True),
         databases_fallback=FairsharingSnapshot(),
     )
@@ -529,8 +689,23 @@ def test_a_failed_live_route_falls_back_to_the_snapshot_marked_stale(runs_dir: P
     )
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     refs = {e.source_id: e.snapshot_ref for e in env.evidence}
-    assert refs["r3d100010230"] is not None and refs["r3d100010230"].endswith("(stale)")
+    assert refs["r3d100010230"] == "re3data:export:2026-11"
     assert refs["FAIRsharing.1ky0cs"] is not None and refs["FAIRsharing.1ky0cs"].endswith("(stale)")
+
+
+def test_re3data_is_credited_and_each_record_cited_by_its_doi(
+    runs_dir: Path, re3data: Re3dataRegistry
+) -> None:
+    advisor = agent(repositories=re3data, databases=FairsharingSnapshot())
+    env = invoke(runs_dir, RepositoryNeeds(mandated=[RepositoryRef(name="EIDC")]), advisor)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert env.outcome.statement is not None
+    assert env.outcome.statement.endswith(
+        "Repository details are from re3data.org, the Registry of Research Data Repositories "
+        "(export of 2026-11, CC0; https://doi.org/10.17616/R3D)."
+    )
+    uris = {e.source_id: e.source_uri for e in env.evidence}
+    assert uris["r3d100010199"] == "https://doi.org/10.17616/R3XG68"
 
 
 def test_without_fairsharing_a_candidate_stands_on_re3data_alone(runs_dir: Path) -> None:

@@ -7,11 +7,18 @@ name: CI
 # counts a skipped job as passed. Pushes to main, the merge queue and the weekly run always run
 # every job. The cheap repository-wide jobs run on every pull request.
 #
-#   Python workspace (docs/specs/agents.md): Ruff, mypy, generated schemas, pytest with CONFORMANCE.md,
-#     packages, the agents as real services, the workbench viewer in a browser (#9)
-#   app/web (docs/specs/app.md): ESLint, tsc, Vitest with coverage, Vite build, Playwright
-#   Deployment: the NGINX reverse proxy in deploy/nginx, set up as install.sh does
-#   Repository: links, citation file, workflows, sign-off, dependency review
+#   Python workspace (docs/specs/agents.md): Ruff, mypy, generated schemas, architecture checks,
+#     pytest with CONFORMANCE.md, packages, the agents as real services, the workbench viewer in a browser (#9)
+#   app/web (docs/specs/app.md): ESLint, tsc and the Vite build; Vitest with coverage; Playwright,
+#     as three jobs side by side so that the slowest, not their sum, sets how long the run takes
+#   Deployment: the NGINX reverse proxy in deploy/nginx, set up as install.sh does, the
+#     systemd units in deploy/systemd, and the LiteLLM gateway in deploy/llm-gateway with the
+#     model broker calling it
+#   Repository: pre-commit hooks, links, citation file, workflows, sign-off, dependency review
+#
+# The jobs that test the Python workspace do not wait for one another: each restores the built
+# sources and the Playwright browser from the cache (.github/actions/), so the longest single job
+# decides when "CI passed" reports. Each job installs only what it needs.
 #
 # The weekly run catches what changes without a commit: the latest uv and Python 3.14 patch
 # release, the runner image, a browser build, a newly published advisory (see audit.yml).
@@ -31,8 +38,12 @@ on:
 permissions:
   contents: read
 
+# A pull request's new push cancels the run it supersedes. Each commit to main has a group of its
+# own: GitHub keeps one pending run per group and cancels the one it replaces, so a shared group
+# dropped the run of any commit merged while another's was still going, and that commit was never
+# tested nor deployable (deploy/deploy.sh reads its "CI passed" result).
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.sha || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -44,12 +55,14 @@ jobs:
 
   changes:
     name: Changed paths
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       python: ${{ steps.paths.outputs.python }}
       web: ${{ steps.paths.outputs.web }}
+      inventory: ${{ steps.paths.outputs.inventory }}
       deploy: ${{ steps.paths.outputs.deploy }}
+      gateway: ${{ steps.paths.outputs.gateway }}
     steps:
       # A pull request is checked out as GitHub's merge commit, whose first parent is the base
       # branch, so HEAD^1..HEAD is exactly what the pull request changes.
@@ -68,7 +81,7 @@ jobs:
           EVENT: ${{ github.event_name }}
         run: |
           if [ "$EVENT" = pull_request ]; then
-            git diff --name-only HEAD^1 HEAD | bash scripts/ci_changes.sh >> "$GITHUB_OUTPUT"
+            git -c core.quotepath=off diff --name-only --no-renames HEAD^1 HEAD | bash scripts/ci_changes.sh >> "$GITHUB_OUTPUT"
           else
             bash scripts/ci_changes.sh --all >> "$GITHUB_OUTPUT"
           fi
@@ -77,13 +90,13 @@ jobs:
 
   lint:
     name: Ruff (lint + format)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           cache-dependency-glob: uv.lock
       # Ruff reads source, not imports: the development tools are enough, without the workspace.
@@ -95,64 +108,206 @@ jobs:
     name: mypy and generated schemas
     needs: changes
     if: needs.changes.outputs.python == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           cache-dependency-glob: uv.lock
       - run: uv sync --all-packages --all-extras
       - run: uv run mypy
+      # Each member declares the third-party packages it imports and imports those it declares
+      # (docs/specs/dependencies.md). Needs the synced environment, so it runs here.
+      - run: uv run python scripts/check_dependencies.py
       - run: uv run dd-gen-schema
       # The SHACL file is excluded: rdflib does not order blank nodes stably, so it is compared as
       # a graph by sdk/tests/test_contract.py instead.
       - run: git diff --exit-code -- 'sdk/src/dd_sdk/schema/generated/*.json'
 
-  test:
-    name: pytest
+  architecture:
+    name: Architecture (import direction, boundaries)
     needs: changes
     if: needs.changes.outputs.python == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           cache-dependency-glob: uv.lock
       - run: uv sync --all-packages --all-extras
+      # Packages depend only in the direction docs/specs/system.md gives, directly or not.
+      - run: uv run lint-imports
+      # Each workspace member imports only what it declares and reads only its own files
+      # (docs/specs/system.md). Known exceptions only shrink: a stale one fails.
+      - run: uv run --no-project --python 3.14 scripts/check_boundaries.py
+      # No function, method, class or import in a member's src/ that nothing calls (vulture).
+      # Code reached dynamically, and the unused code recorded with the check, are listed in
+      # scripts/unused_code.toml; a stale entry fails.
+      - run: uv run python scripts/check_unused.py
+      # The recorded debt (complexity markers, size baseline, boundary and Import Linter
+      # exceptions), counted into the job summary so that it can be seen to fall
+      # (docs/architecture-review.md). Information only: it never fails the run.
+      - name: Recorded architecture debt
+        continue-on-error: true
+        run: uv run --no-project --python 3.14 scripts/architecture_debt.py --summary "$GITHUB_STEP_SUMMARY"
+      # The VM and the Compose stack run every agent the app lists, on the port it expects
+      # (deploy/README.md, docker/agents.yaml).
+      - run: uv run python scripts/check_deploy.py
+      # The canary: a planted violation of each kind must fail its check, so that a misconfigured
+      # check cannot pass silently. The duplication canary needs the pinned jscpd, which it would
+      # otherwise skip without; DD_REQUIRE_JSCPD makes a missing one fail. The duplication check
+      # itself runs in the "Pre-commit hooks" job, on every pull request.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - run: npm ci --prefix scripts/jscpd --ignore-scripts --no-audit --no-fund
+      - env:
+          DD_REQUIRE_JSCPD: "1"
+        run: >-
+          uv run pytest scripts/tests/test_architecture_canary.py scripts/tests/test_check_boundaries.py
+          scripts/tests/test_check_duplication.py scripts/tests/test_check_unused.py
+
+  # Sources that agents build outside git, such as the repository advisor's re3data registry
+  # (dd-sources, sdk/src/dd_sdk/sources.py). This job builds them and saves what they are built
+  # from in the cache, keyed on every source's pin (Blueprint P14). The jobs that need the sources
+  # do not wait for it: on the usual cache hit they build from the cache straight away. Only on
+  # the first run after a pin changes do they each download it, at the same time as this job.
+  sources:
+    name: Built sources
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          cache-dependency-glob: uv.lock
+      - run: uv sync --all-packages --all-extras
+      - uses: ./.github/actions/built-sources # zizmor: ignore[self-repository]
+
+  # The suite runs as three jobs side by side, each a third of the test files (--test-shard, the
+  # root conftest.py), because a runner has two cores and the whole suite on one took eight
+  # minutes. Each shard hands its JSON report to the conformance job and its coverage data to the
+  # coverage job, which combine them.
+  test:
+    name: pytest (${{ matrix.shard }} of 3)
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    # The database the PostgreSQL storage backend's tests run against
+    # (harness/tests/test_postgres.py); without DD_TEST_POSTGRES they are skipped. The password
+    # reaches libpq through PGPASSWORD, never the URL, as a deployment's must (docs/specs/storage.md).
+    # It guards a throwaway container that only this job can reach.
+    services:
+      postgres:
+        image: postgres:17@sha256:ff87138949ad9a46f32ff23bd6852b52ce024a13dffe9b4087be98292cdd3b4f
+        env:
+          POSTGRES_PASSWORD: dd-ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      DD_TEST_POSTGRES: postgresql://postgres@localhost:5432/postgres
+      PGPASSWORD: dd-ci
+      SHARD: ${{ matrix.shard }}/3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          cache-dependency-glob: uv.lock
+      - run: uv sync --all-packages --all-extras
+      # Sources agents build outside git, from the cache the `sources` job filled.
+      - uses: ./.github/actions/built-sources # zizmor: ignore[self-repository]
+      # pg_dump and pg_restore of the service's major version, for the backup round trip
+      # (scripts/tests/test_backup.py), which skips with an older pg_dump; the runner's is older.
+      - run: |
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          scripts/retry.sh sudo apt-get install -y -q postgresql-client-17
       # --record-mode=none --block-network come from pyproject addopts: no cassette, no call.
-      # The JSON report is handed to the conformance job, which decides CONFORMANCE.md from it.
-      # Coverage is measured over the same session (pyproject.toml, [tool.coverage]); the report
-      # goes to the job summary, and one XML goes to Codecov, which splits it into a flag per
-      # package (codecov.yml).
-      # pytest-xdist spreads the session over the runner's cores. --dist loadfile keeps each test
-      # module on one worker, so a module's fixtures and teardown run as they do serially; the
-      # JSON report and coverage are merged from the workers into the one session.
+      # pytest-xdist spreads the shard over the runner's cores (pyproject addopts); the JSON
+      # report and coverage are merged from the workers into the one session. Coverage is
+      # measured over the same session (pyproject.toml, [tool.coverage]). --durations lists the
+      # slowest tests in the log, to show where the time goes. A shard covers too little to meet
+      # the coverage floor, so --cov-fail-under=0 leaves the floor to the coverage job.
       - run: >-
-          uv run pytest -n auto --dist loadfile
-          --json-report --json-report-file=.report.json --cov --cov-report=
+          uv run pytest --test-shard "$SHARD" --durations=20
+          --json-report --json-report-file=.report-${{ matrix.shard }}.json
+          --cov --cov-report= --cov-fail-under=0
       - name: Hand the test report to the conformance job
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: pytest-report
-          path: .report.json
+          name: pytest-report-${{ matrix.shard }}
+          path: .report-${{ matrix.shard }}.json
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 1
+      - name: Hand the coverage data to the coverage job
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-${{ matrix.shard }}
+          path: .coverage
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
+  # Coverage of the whole suite, combined from the shards: a shard alone covers too little to
+  # meet the floor in pyproject.toml ([tool.coverage.report] fail_under). The report goes to the
+  # job summary, and one XML goes to Codecov, which splits it into a flag per package
+  # (codecov.yml).
+  coverage:
+    name: Coverage
+    needs: [changes, test]
+    if: needs.changes.outputs.python == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          cache-dependency-glob: uv.lock
+      # Coverage reads the recorded data and the source, not imports: the development tools are
+      # enough.
+      - run: uv sync --only-dev
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: coverage-*
+          path: shards
+      - run: uv run coverage combine shards/*/.coverage
+      # `coverage report` exits non-zero under the floor ([tool.coverage.report] fail_under); the
+      # step keeps that status, so the floor fails the job after the report is written.
       - name: Coverage report
         run: |
+          status=0
           {
             echo '## Coverage'
             echo '```'
-            uv run coverage report --skip-covered
+            uv run coverage report --skip-covered || status=$?
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
       - run: uv run coverage xml -o coverage.xml
       - uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         # A fork's pull request has no secret; the report in the job summary still shows.
@@ -160,44 +315,50 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
-          flags: sdk,harness,workbench,app,agents,inventory
+          flags: sdk,harness,workbench,app,admin,broker,agents,inventory
           fail_ci_if_error: false
 
   # CONFORMANCE.md is decided by the register, the review record, the report script and the outcome
-  # of every requirement-marked test, so this job reads the report that `test` wrote. It runs even
-  # when a test failed, so a stale file is reported beside the failure.
-  # It is advisory for now: `ci-passed` does not need it, so a stale file is reported but does
-  # not block a pull request. TODO(#458): decide how the file is kept current and require it again.
+  # of every requirement-marked test, so this job reads the reports the `test` shards wrote. It
+  # runs even when a test failed, so a stale file is reported beside the failure.
+  # It is advisory for now: `ci-passed` does not need it, and a stale file is raised as a warning
+  # annotation, so the job stays green and nothing blocks a pull request.
+  # TODO(#458): decide how the file is kept current and require it again.
   conformance:
     name: CONFORMANCE.md is current
     needs: [changes, test]
     if: ${{ !cancelled() && needs.changes.outputs.python == 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           cache-dependency-glob: uv.lock
       - run: uv sync --all-packages --all-extras
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: pytest-report
-      - run: uv run python scripts/conformance_report.py --check --summary "$GITHUB_STEP_SUMMARY"
+          pattern: pytest-report-*
+          merge-multiple: true
+      - name: Check CONFORMANCE.md (warning only)
+        run: |
+          if ! uv run python scripts/conformance_report.py --check --report .report-*.json --summary "$GITHUB_STEP_SUMMARY"; then
+            echo "::warning title=CONFORMANCE.md is out of date::Run scripts/conformance_report.py after pytest and commit the result (docs/conformance.md)."
+          fi
 
   packages:
     name: Packages and agents as services
     needs: changes
     if: needs.changes.outputs.python == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           cache-dependency-glob: uv.lock
       - run: uv build --all-packages --out-dir dist
@@ -209,25 +370,30 @@ jobs:
       - run: uv run python scripts/check_wheels.py dist
       # Then the agents as real services, from the workspace.
       - run: uv sync --all-packages --all-extras
+      # Sources agents build outside git, from the cache the `sources` job filled.
+      - uses: ./.github/actions/built-sources # zizmor: ignore[self-repository]
       - run: uv run python scripts/smoke_agents.py
 
   viewer:
     name: Workbench viewer in a browser
     needs: changes
     if: needs.changes.outputs.python == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           cache-dependency-glob: uv.lock
       - run: uv sync --all-packages --all-extras
+      # Sources agents build outside git, from the cache the `sources` job filled.
+      - uses: ./.github/actions/built-sources # zizmor: ignore[self-repository]
       # The browser matches the locked Playwright; the CDN modules come from the recorded HAR.
-      # Headless runs need only chromium-headless-shell, not the full browser.
-      - run: uv run playwright install --with-deps --only-shell chromium
+      - uses: ./.github/actions/playwright # zizmor: ignore[self-repository]
+        with:
+          playwright: uv run playwright
       # The viewer's accessibility checks run in accessibility.yml.
       - run: >-
           uv run pytest workbench/browser_tests --tracing=retain-on-failure --output=test-results
@@ -241,12 +407,55 @@ jobs:
 
   # --- app/web: the browser shell (docs/specs/app.md). --------------------------------------------------
 
-  web:
-    name: App shell (lint, types, unit, build, browser)
+  # Three jobs, side by side, each with its own `npm ci` from the npm cache. ESLint (with jsx-a11y),
+  # tsc, Vitest with axe, and Playwright (axe in light and dark, keyboard-only use, reflow at 320
+  # CSS pixels). The fixtures they read are kept current by app/tests/test_app.py, which the
+  # pytest job runs. The libraries the shell links (inventory/browser, sdk/browser) are checked
+  # in web-checks; the other two jobs compile their source with the shell's own dependencies.
+
+  web-checks:
+    name: App shell (lint, types, build)
     needs: changes
     if: needs.changes.outputs.web == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: app/web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            app/web/package-lock.json
+            inventory/browser/package-lock.json
+            sdk/browser/package-lock.json
+      # The inventory library the shell links (inventory/browser/README.md): its own lint, types
+      # and tests. The shell compiles its source, so the shell's checks cover it as used.
+      - name: Inventory library
+        working-directory: inventory/browser
+        run: npm ci && npm run lint && npm run typecheck && npm test -- --coverage
+      # The agent card and payload library the shell links (sdk/browser/README.md), likewise. Its
+      # card fixtures are kept current by sdk/tests/test_agent_view_fixtures.py, which the
+      # pytest job runs. Installed before the shell's typecheck, which reads its source.
+      - name: Agent view library
+        working-directory: sdk/browser
+        run: npm ci && npm run lint && npm run typecheck && npm test -- --coverage
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run build
+
+  web-unit:
+    name: App shell (Vitest)
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: app/web
@@ -260,12 +469,8 @@ jobs:
           cache: npm
           cache-dependency-path: app/web/package-lock.json
       - run: npm ci
-      - run: npm run lint
-      - run: npm run typecheck
-      # ESLint (with jsx-a11y), tsc, Vitest with axe, and Playwright (axe in light and dark,
-      # keyboard-only use, reflow at 320 CSS pixels). The fixtures it reads are kept current by
-      # app/tests/test_app.py, which the test job runs. Vitest measures coverage as the pytest job
-      # does: the report goes to the job summary, and lcov to Codecov under the `web` flag.
+      # Vitest measures coverage as the Python suite does (the coverage job): the report goes to
+      # the job summary, and lcov to Codecov under the `web` flag.
       - run: npm test -- --coverage
       - name: Coverage report
         run: |
@@ -283,9 +488,48 @@ jobs:
           files: app/web/coverage/lcov.info
           flags: web
           fail_ci_if_error: false
-      - run: npm run build
-      # Headless runs need only chromium-headless-shell, not the full browser.
-      - run: npx playwright install --with-deps --only-shell chromium
+
+  # The shell's browser tests, among them Describe a folder… with the real browser scanner
+  # (e2e/scan.spec.ts), so the scanner's bundle is built first for the preview server to serve.
+  # That test runs in Firefox and WebKit too; the rest in Chromium.
+  web-e2e:
+    name: App shell in a browser (Playwright)
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: app/web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          cache-dependency-glob: uv.lock
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            app/web/package-lock.json
+            inventory/browser/package-lock.json
+      # The wheels the bundle downloads, each checked against its lock as it is read back.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: inventory/browser/.cache/wheels
+          key: inventory-wheels-${{ hashFiles('uv.lock', 'inventory/browser/package-lock.json') }}
+          restore-keys: inventory-wheels-
+      - run: npm ci && npm run bundle
+        working-directory: inventory/browser
+      - run: npm ci
+      - uses: ./.github/actions/playwright # zizmor: ignore[self-repository]
+        with:
+          playwright: npx playwright
+          working-directory: app/web
+          other-browsers: "true"
+      # playwright.config.ts builds the shell before it serves it, so there is no build step here.
       - run: npm run e2e
       - if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -294,29 +538,152 @@ jobs:
           path: app/web/playwright-report
           retention-days: 14
 
+  # --- The command's browser bundle (inventory/browser/README.md). --------------------------------
+
+  # Builds the bundle the app is to serve (Pyodide, the command's wheel from this commit and its
+  # dependencies), then runs the command natively and under Pyodide on inventory/tests/data/mixed.
+  # Fails on any difference but when each inventory was made and the runtime's label, and on any
+  # network request under Pyodide. The bundle's size and versions go to the job summary. Then the
+  # browser scanner runs the same bundle in a worker in Chromium, Firefox and WebKit, with no
+  # network, over a copy of that folder holding a canary that must appear in no request.
+  inventory-bundle:
+    name: Inventory browser bundle (parity)
+    needs: changes
+    if: needs.changes.outputs.inventory == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: inventory/browser
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          cache-dependency-glob: uv.lock
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: inventory/browser/package-lock.json
+      - run: npm ci
+      - run: npm run bundle
+      - run: npm run parity
+      - uses: ./.github/actions/playwright # zizmor: ignore[self-repository]
+        with:
+          playwright: npx playwright
+          working-directory: inventory/browser
+          other-browsers: "true"
+      # playwright.config.ts builds the test page before it serves it with the bundle.
+      - run: npm run e2e
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: inventory-scanner-playwright-report
+          path: inventory/browser/playwright-report
+          retention-days: 14
+
   # --- Deployment: the way in from outside the VM (deploy/README.md). -----------------------------
 
   nginx:
     name: NGINX reverse proxy
     needs: changes
     if: needs.changes.outputs.deploy == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      # The site as install.sh sets it up, without the packaged default site, in front of a
-      # stand-in for the app and with a self-signed certificate in place of certbot's: the
-      # redirect to HTTPS, TLS 1.3, HSTS, the password, the closed A2A routes, the headers.
-      - run: sudo apt-get install -y -q nginx apache2-utils
+      # The site as install.sh sets it up, without the packaged default site, in front of
+      # stand-ins for the app and the workbench and with a self-signed certificate in place of
+      # certbot's: the redirect to HTTPS, TLS 1.3, HSTS, no password, the closed A2A routes, the
+      # headers, and port 8443 reaching the workbench.
+      - run: sudo apt-get update -q && scripts/retry.sh sudo apt-get install -y -q nginx
       - run: sudo bash scripts/check_nginx.sh
+
+  systemd:
+    name: systemd units
+    needs: changes
+    if: needs.changes.outputs.deploy == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      # systemd-analyze verify over deploy/systemd, against a throwaway root that stands in for
+      # /opt/data-director/current and the service user: bad directives and values, missing units
+      # and executables. Then systemdlint, whose findings must be in deploy/systemd-lint-baseline.txt.
+      - run: bash scripts/check_systemd.sh
+
+  llm-gateway:
+    name: LiteLLM gateway and model broker
+    needs: changes
+    if: needs.changes.outputs.gateway == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          cache-dependency-glob: uv.lock
+      - run: uv sync --all-packages --all-extras
+      # The test stack: the gateway and its database with a fake provider in place of Anthropic and
+      # OpenAI, so no secret is used and nothing is billed. The .env holds throwaway secrets.
+      - working-directory: deploy/llm-gateway
+        run: |
+          scripts/testing/ci_env.sh
+          ../../scripts/retry.sh docker compose -f compose.yaml -f compose.test.yaml pull --quiet
+          docker compose -f compose.yaml -f compose.test.yaml up -d --wait --wait-timeout 300
+      # Spend tracking, tags, budgets, reports and metrics (deploy/llm-gateway/README.md).
+      - working-directory: deploy/llm-gateway
+        run: scripts/smoke_test.sh
+      # The broker's deployment-paid calls, in both formats, through the gateway and costed there.
+      - working-directory: deploy/llm-gateway
+        run: scripts/testing/broker_e2e.sh
+      # The gateway's database through backup.sh and restore.sh, in its container (deploy/gateway-store.sh).
+      - env:
+          DD_TEST_GATEWAY_PROJECT: llm-gateway
+        run: uv run pytest -n0 -m gateway scripts/tests/test_backup.py
+      - if: failure()
+        working-directory: deploy/llm-gateway
+        run: docker compose -f compose.yaml -f compose.test.yaml logs --no-color --tail 200
+      - if: always()
+        working-directory: deploy/llm-gateway
+        run: docker compose -f compose.yaml -f compose.test.yaml down -v
 
   # --- Repository ------------------------------------------------------------------------------
 
+  hooks:
+    name: Pre-commit hooks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: false
+      # The duplication hook installs jscpd with npm (scripts/jscpd).
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      # The hooks in .pre-commit-config.yaml, for every contributor whether or not they installed
+      # them. Skipped here: the branch rule (pushes to main), the lock (UV_LOCKED holds every job
+      # to it), Ruff (the lint job) and zizmor (the workflows job runs it online).
+      - env:
+          SKIP: no-commit-to-branch,uv-lock,ruff-check,ruff-format,zizmor
+        run: uvx pre-commit run --all-files --show-diff-on-failure
+
   docs:
     name: Links and citation file
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -334,73 +701,39 @@ jobs:
             '**/*.md'
           fail: true
           jobSummary: true
-      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: false
       - run: uvx cffconvert --validate --infile CITATION.cff
       # Everyone who authors or co-authors a commit is cited (CONTRIBUTING.md, Credit).
       - run: uv run --python 3.14 scripts/check_citation.py
-      # Each to-do marker names the issue that will resolve it (AGENTS.md, writing conventions).
+      # Each to-do marker names the issue that will resolve it (AGENTS.md, "Writing").
       - run: uv run --no-project --python 3.14 scripts/check_todos.py
-      # Each workspace member imports only what it declares and reads only its own files
-      # (docs/specs/system.md).
-      - run: uv run --no-project --python 3.14 scripts/check_boundaries.py
+      # Both sources.yaml files pin the re3data registry that the repository advisor's manifest
+      # pins (agents/advisor-repository/README.md, "Sources").
+      - run: uv run --no-project --python 3.14 scripts/pin_re3data.py --check
 
   workflows:
     name: Workflows (actionlint, zizmor)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       # actionlint (with shellcheck) from its image; the tag is updated by hand.
-      - run: docker run --rm -v "$PWD:/repo" --workdir /repo rhysd/actionlint:1.7.12 -color
-      - uses: zizmorcore/zizmor-action@53290badfa369cb0bf7ad16342cb62c2fa47ac7b # v0.8.0
+      - run: scripts/retry.sh docker run --rm -v "$PWD:/repo" --workdir /repo rhysd/actionlint:1.7.12 -color
+      - uses: zizmorcore/zizmor-action@45d7276c9ca790aabd705e31ca99c6185c3e76dd # v0.8.1
         with:
           advanced-security: false
           persona: regular
-
-  dco:
-    name: Developer Certificate of Origin
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}
-      # Every commit in the pull request carries a Signed-off-by trailer naming its author
-      # (`git commit -s`; CONTRIBUTING.md). A bot's commits are exempt: Dependabot signs off
-      # with an address other than the one it commits from. So are release-please's release
-      # commits, which it makes with a personal access token and cannot sign off.
-      - name: Every commit is signed off by its author
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          status=0
-          for sha in $(git rev-list --no-merges "$BASE_SHA..$HEAD_SHA"); do
-            author=$(git log -1 --format='%an <%ae>' "$sha")
-            case "$author" in *"[bot] <"*) continue ;; esac
-            case "$(git log -1 --format=%s "$sha")" in "chore(main): release "*) continue ;; esac
-            if ! git log -1 --format='%(trailers:key=Signed-off-by,valueonly)' "$sha" \
-                | grep -qxF "$author"; then
-              echo "::error::$(git log -1 --format='%h %s' "$sha"): no 'Signed-off-by: $author'"
-              status=1
-            fi
-          done
-          if [ "$status" -ne 0 ]; then
-            echo "Sign off with 'git commit -s'; amend earlier commits with 'git rebase --signoff $BASE_SHA'."
-          fi
-          exit "$status"
+      # "CI passed" and "Accessibility passed" must wait for every job in their workflow.
+      - run: python3 scripts/check_ci_gate.py
 
   dependency-review:
     name: Dependency review
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -422,19 +755,27 @@ jobs:
       - changes
       - lint
       - typecheck
+      - architecture
+      - sources
       - test
+      - coverage
       - packages
       - viewer
-      - web
+      - web-checks
+      - web-unit
+      - web-e2e
+      - inventory-bundle
       - nginx
+      - systemd
+      - llm-gateway
+      - hooks
       - docs
       - workflows
-      - dco
       - dependency-review
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      # A job skipped by its own `if` (dco and dependency-review outside pull requests, a side
+      # A job skipped by its own `if` (dependency-review outside pull requests, a side
       # of the repository that a pull request does not touch) passes; a job that failed or was
       # cancelled does not.
       - name: Every job passed or was skipped

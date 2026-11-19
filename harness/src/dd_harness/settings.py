@@ -16,10 +16,17 @@ console-script entry calls it; `Settings.from_env()` reads the real environment 
 
 from __future__ import annotations
 
+import functools
+import importlib
 import os
-from collections.abc import Iterable, MutableMapping
+from collections.abc import Callable, Iterable, Mapping, MutableMapping
 from dataclasses import dataclass
+from datetime import timedelta
 from pathlib import Path
+from types import ModuleType
+from typing import TYPE_CHECKING
+from urllib.parse import parse_qsl, urlsplit
+from urllib.request import url2pathname
 
 from dotenv import dotenv_values
 
@@ -32,11 +39,27 @@ from dd_harness.identity import (
     OidcProvider,
     OperatorAssertion,
 )
+from dd_harness.model_grants import GrantKeyError, GrantMinter
 from dd_harness.policy import load_profile
+from dd_harness.projects import DEFAULT_RESTORE_PERIOD, Projects, ProjectStore
 from dd_harness.registry import Registered, Registry
 from dd_harness.sources import Sources
+from dd_harness.storage import ProjectStorage, RunStorage
 from dd_harness.store import RunStore
+from dd_harness.turn_locks import ConversationLocks, FileConversationLocks
 from dd_sdk.contract.models import Principal, PrincipalKind
+from dd_sdk.credentials import ConfigError, api_key
+
+# The three settings a harness that mints model grants needs (docs/specs/model-accounts.md, The
+# grant), each as `NAME` (development) or `NAME_FILE` (deployment, a systemd credential).
+MODEL_GRANT_SETTINGS = (
+    "DD_MODEL_GRANT_SIGNING_KEY",
+    "DD_MODEL_BROKER_SUBJECT_KEY",
+    "DD_PSEUDONYM_SECRET",
+)
+
+if TYPE_CHECKING:
+    from dd_harness.gateway.core import Gateway
 
 
 class SettingsError(ValueError):
@@ -57,6 +80,29 @@ def load_env_file(path: Path, environ: MutableMapping[str, str] = os.environ) ->
     return True
 
 
+def grant_minter(env: Mapping[str, str]) -> GrantMinter | None:
+    """The minter for model grants, or None if the deployment mints none
+    (docs/specs/model-accounts.md).
+
+    `DD_MODEL_GRANT_SIGNING_KEY` is the harness's private signing key, `DD_MODEL_BROKER_SUBJECT_KEY`
+    the broker's public P-256 key and `DD_PSEUDONYM_SECRET` the secret the pseudonym is keyed with.
+    All three, or none: some but not all, or one that is unusable, is a `SettingsError` in one line
+    that names the setting, never its value.
+    """
+    given = [name for name in MODEL_GRANT_SETTINGS if env.get(name) or env.get(f"{name}_FILE")]
+    if not given:
+        return None
+    if missing := [name for name in MODEL_GRANT_SETTINGS if name not in given]:
+        raise SettingsError(
+            f"model grants need {', '.join(MODEL_GRANT_SETTINGS)}; {', '.join(missing)} unset"
+        )
+    try:
+        signing, subject, secret = (api_key(env, name) for name in MODEL_GRANT_SETTINGS)
+        return GrantMinter.from_material(signing, subject, secret)
+    except (ConfigError, GrantKeyError) as exc:
+        raise SettingsError(str(exc)) from None
+
+
 def _path(variable: str, default: Path | None) -> Path:
     """The path `variable` names, else the caller's default. With neither, start-up stops."""
     value = os.environ.get(variable)
@@ -69,16 +115,202 @@ def _path(variable: str, default: Path | None) -> Path:
     return default
 
 
-def projects_dir(default: Path | None = None) -> Path:
+# The schemes a storage location may name in this build (docs/specs/storage.md). A location with no
+# scheme is a path; it and `file://` mean the file backends, and `postgresql://` the PostgreSQL one.
+STORAGE_SCHEMES = ("file", "postgresql")
+POSTGRES = "postgresql"
+
+# Where runs or projects are kept: a directory for the file backends, or a `postgresql://` URL.
+type StorageLocation = Path | str
+
+
+def storage_location(
+    location: StorageLocation, variable: str = "a storage location"
+) -> StorageLocation:
+    """What a storage location names: the directory a path or a `file://` URL names, or a
+    `postgresql://` URL as given. Raises `SettingsError` for any other scheme, naming the ones this
+    build supports, and for a database URL that carries a credential (invariant 13)."""
+    if isinstance(location, Path) or "://" not in location:
+        return Path(location)
+    parsed = urlsplit(location)
+    if parsed.scheme not in STORAGE_SCHEMES:
+        supported = ", ".join(f"{s}://" for s in STORAGE_SCHEMES)
+        raise SettingsError(
+            f"{variable}: {parsed.scheme}:// storage is not supported by this build; "
+            f"name a path or one of {supported} (docs/specs/storage.md)"
+        )
+    if parsed.scheme == POSTGRES:
+        query = {key.lower() for key, _ in parse_qsl(parsed.query, keep_blank_values=True)}
+        if parsed.password is not None or "password" in query:
+            raise SettingsError(
+                f"{variable}: {redact_location(location)} carries a password; a location never "
+                "does: give it in libpq's password file, service file or PGPASSWORD "
+                "(docs/specs/storage.md)"
+            )
+        return location
+    if parsed.netloc not in ("", "localhost"):
+        raise SettingsError(f"{variable}: a file:// URL names no host, not {parsed.netloc!r}")
+    return Path(url2pathname(parsed.path))
+
+
+def redact_location(location: StorageLocation) -> str:
+    """A storage location as a person may be shown it: a database URL without its user, password
+    or parameters (docs/specs/storage.md, invariant 13)."""
+    if isinstance(location, Path) or "://" not in location:
+        return str(location)
+    parsed = urlsplit(location)
+    host = parsed.hostname or ""
+    if ":" in host:  # an IPv6 address
+        host = f"[{host}]"
+    try:
+        port = parsed.port
+    except ValueError:
+        port = None
+    netloc = f"{host}:{port}" if port is not None else host
+    # Written out, not with urlunsplit, which drops the `//` of a URL that names no host.
+    return f"{parsed.scheme}://{netloc}{parsed.path}"
+
+
+def _storage(variable: str, default: Path | None) -> StorageLocation:
+    """The storage location `variable` names, else the caller's default."""
+    value = os.environ.get(variable)
+    return storage_location(value, variable) if value else _path(variable, default)
+
+
+def _postgres(variable: str) -> ModuleType:
+    """The PostgreSQL backend, imported only when a location names it, so a deployment on files
+    does not install its driver."""
+    try:
+        return importlib.import_module("dd_harness.postgres")
+    except ImportError as exc:
+        raise SettingsError(
+            f"{variable}: postgresql:// storage needs its driver; install "
+            "data-director-harness[postgres] (docs/specs/storage.md)"
+        ) from exc
+
+
+POOL_SIZE_VARIABLE = "DD_POSTGRES_POOL_SIZE"
+
+
+def postgres_pool_size() -> int | None:
+    """The most connections one PostgreSQL store keeps: `DD_POSTGRES_POOL_SIZE`, or None for the
+    backend's default (docs/specs/storage.md). Anything but a positive whole number stops start-up
+    with `SettingsError`."""
+    value = os.environ.get(POOL_SIZE_VARIABLE, "").strip()
+    if not value:
+        return None
+    if not value.isdecimal() or int(value) < 1:
+        raise SettingsError(
+            f"{POOL_SIZE_VARIABLE}={value!r}: the pool size is a whole number of connections, "
+            "at least 1 (docs/specs/storage.md)"
+        )
+    return int(value)
+
+
+def _pooled() -> dict[str, int]:
+    """The pool size to pass a PostgreSQL store, if the environment names one."""
+    size = postgres_pool_size()
+    return {} if size is None else {"pool_size": size}
+
+
+def run_storage(location: StorageLocation, variable: str = "DD_RUNS_DIR") -> RunStorage:
+    """The run storage at `location` (`DD_RUNS_DIR`): a path or `file://` URL is the file backend,
+    a `postgresql://` URL the PostgreSQL one (docs/specs/storage.md). A location that cannot be
+    used stops start-up with `SettingsError`."""
+    where = storage_location(location, variable)
+    if isinstance(where, Path):
+        return _on_files(variable, where, RunStore)
+    pooled = _pooled()
+    try:
+        store: RunStorage = _postgres(variable).PostgresRunStore(where, **pooled)
+    except SettingsError as exc:
+        raise SettingsError(f"{variable} {exc}") from exc
+    return store
+
+
+def conversation_locks(
+    location: StorageLocation, variable: str = "DD_RUNS_DIR"
+) -> ConversationLocks:
+    """The turn locks beside the run storage at `location` (`DD_RUNS_DIR`): files under the runs'
+    directory, or advisory locks on the runs' PostgreSQL database (docs/specs/storage.md, "Turn
+    locks"). A location that cannot be used stops start-up with `SettingsError`."""
+    where = storage_location(location, variable)
+    if isinstance(where, Path):
+        return _on_files(variable, where, FileConversationLocks)
+    _postgres(variable)  # names the missing driver, if it is
+    from dd_harness.postgres.locks import PostgresConversationLocks
+
+    try:
+        locks: ConversationLocks = PostgresConversationLocks(where)
+    except SettingsError as exc:
+        raise SettingsError(f"{variable} {exc}") from exc
+    return locks
+
+
+RESTORE_DAYS_VARIABLE = "DD_PROJECT_RESTORE_DAYS"
+
+
+def project_restore_period() -> timedelta:
+    """How long an owner may restore a deleted project: `DD_PROJECT_RESTORE_DAYS` whole days, 30
+    unless set; 0 makes a deletion final to the app (docs/specs/projects.md, invariant 25).
+    Anything but a whole number stops start-up with `SettingsError`."""
+    value = os.environ.get(RESTORE_DAYS_VARIABLE, "").strip()
+    if not value:
+        return DEFAULT_RESTORE_PERIOD
+    if not value.isdecimal():
+        raise SettingsError(
+            f"{RESTORE_DAYS_VARIABLE}={value!r}: the restore period is a whole number of days, "
+            "0 or more (docs/specs/projects.md)"
+        )
+    return timedelta(days=int(value))
+
+
+def project_storage(location: StorageLocation, variable: str = "DD_PROJECTS_DIR") -> ProjectStorage:
+    """The project storage at `location` (`DD_PROJECTS_DIR`): the project rules over the file log
+    for a path or `file://` URL, or over the PostgreSQL log for a `postgresql://` URL
+    (docs/specs/storage.md), with the restore period `project_restore_period` gives. A location
+    or period that cannot be used stops start-up with `SettingsError`."""
+    where = storage_location(location, variable)
+    period = project_restore_period()
+    if isinstance(where, Path):
+        return _on_files(variable, where, functools.partial(ProjectStore, restore_period=period))
+    pooled = _pooled()
+    try:
+        log = _postgres(variable).PostgresProjectLog(where, **pooled)
+    except SettingsError as exc:
+        raise SettingsError(f"{variable} {exc}") from exc
+    return Projects(log, restore_period=period)
+
+
+def _on_files[S](variable: str, root: Path, backend: Callable[[Path], S]) -> S:
+    try:
+        return backend(root)
+    except OSError as exc:
+        # One line at start-up, like any other setting that is wrong.
+        raise SettingsError(f"{variable} {root} cannot be used: {exc.strerror or exc}") from exc
+
+
+def projects_dir(default: Path | None = None) -> StorageLocation:
     """Where project records are kept: `DD_PROJECTS_DIR`, which has no default
     (docs/specs/projects.md)."""
-    return _path("DD_PROJECTS_DIR", default)
+    return _storage("DD_PROJECTS_DIR", default)
+
+
+def runs_dir(default: Path | None = None) -> StorageLocation:
+    """Where runs are kept: `DD_RUNS_DIR`, which has no default (docs/specs/storage.md)."""
+    return _storage("DD_RUNS_DIR", default)
 
 
 def repositories_dir(default: Path | None = None) -> Path:
     """The deployment's requirement sets: `DD_REPOSITORIES_DIR`, which has no default
     (docs/specs/deposit.md)."""
     return _path("DD_REPOSITORIES_DIR", default)
+
+
+def sources_config(default: Path | None = None) -> Path:
+    """The deployment's `sources.yaml`: `DD_SOURCES_CONFIG`, which has no default
+    (harness/src/dd_harness/sources.py)."""
+    return _path("DD_SOURCES_CONFIG", default)
 
 
 def named_principal(
@@ -116,7 +348,8 @@ def principal_from_env() -> Principal:
 
 @dataclass(frozen=True)
 class Settings:
-    runs_dir: Path
+    # A directory, or a `postgresql://` URL (docs/specs/storage.md).
+    runs_dir: StorageLocation
     # The one institutional profile this deployment applies to every invocation
     # (docs/specs/policy-and-identity.md).
     profile: Path
@@ -140,6 +373,12 @@ class Settings:
     # caller.
     oidc_issuer: str | None = None
     oidc_client_id: str | None = None
+    # Mints a model grant for each invocation of a model-backed agent
+    # (docs/specs/model-accounts.md). None mints none, and agents' calls are paid as before.
+    model_grants: GrantMinter | None = None
+    # The deployment's list of MCP servers, which the tool gateway calls (docs/specs/agents.md,
+    # Tools). None: no gateway, and no agent is granted a tool.
+    tools_config: Path | None = None
 
     def principal(self) -> Principal:
         """The configured principal. Raises `IdentityError` if it is unset or malformed."""
@@ -153,11 +392,12 @@ class Settings:
         profile: Path | None = None,
         agents_config: Path | None = None,
         sources_config: Path | None = None,
+        tools_config: Path | None = None,
     ) -> Settings:
         """The settings the environment names. A `DD_*` variable wins over the caller's default
         for that path; a path with neither raises `SettingsError`."""
         return cls(
-            runs_dir=_path("DD_RUNS_DIR", runs_dir),
+            runs_dir=_storage("DD_RUNS_DIR", runs_dir),
             profile=_path("DD_PROFILE", profile),
             agents_config=_path("DD_AGENTS_CONFIG", agents_config),
             sources_config=_path("DD_SOURCES_CONFIG", sources_config),
@@ -168,6 +408,10 @@ class Settings:
             principal_kind=os.environ.get("DD_PRINCIPAL_KIND") or PrincipalKind.PERSON.value,
             oidc_issuer=os.environ.get("DD_OIDC_ISSUER") or None,
             oidc_client_id=os.environ.get("DD_OIDC_CLIENT_ID") or None,
+            model_grants=grant_minter(os.environ),
+            tools_config=Path(os.environ["DD_TOOLS_CONFIG"])
+            if os.environ.get("DD_TOOLS_CONFIG")
+            else tools_config,
         )
 
 
@@ -183,11 +427,31 @@ def build_registry(settings: Settings, agents: Iterable[Registered] = ()) -> Reg
 def build_conductor(settings: Settings, *, agents: Iterable[Registered] = ()) -> Conductor:
     return Conductor(
         registry=build_registry(settings, agents),
-        store=RunStore(settings.runs_dir),
+        store=run_storage(settings.runs_dir, "DD_RUNS_DIR"),
         profile=load_profile(settings.profile),  # a bad profile stops start-up, not a request
         write_crate=settings.write_crate,
         sources=Sources.from_config(settings.sources_config),
+        model_grants=settings.model_grants,
+        gateway=_gateway(settings.tools_config),
     )
+
+
+def _gateway(path: Path | None) -> Gateway | None:
+    """The tool gateway over the servers `path` lists, connected and pinned; None without a list.
+    It needs the `gateway` extra, imported only when a list is named."""
+    if path is None:
+        return None
+    try:
+        from dd_harness.gateway.config import load_servers
+        from dd_harness.gateway.core import Gateway
+    except ImportError as exc:
+        raise SettingsError(
+            "DD_TOOLS_CONFIG: the tool gateway needs the MCP SDK; install "
+            "data-director-harness[gateway] (docs/specs/agents.md)"
+        ) from exc
+    gateway = Gateway(load_servers(path))
+    gateway.connect()
+    return gateway
 
 
 def build_authenticator(settings: Settings) -> Authenticator:

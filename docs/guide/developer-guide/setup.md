@@ -7,7 +7,9 @@ uv run ruff check .
 uv run ruff format --check .
 ```
 
-Every commit must be signed off under the Developer Certificate of Origin (`git commit -s`).
+Every pull request is signed off under the Developer Certificate of Origin: by opening it from
+your own GitHub account you certify the DCO for it, and you may also end its description with a
+`Signed-off-by: Name <email>` line, which is recorded in the merged commit.
 See `CONTRIBUTING.md` for the full process.
 
 The workbench, the development way in to the harness, starts with:

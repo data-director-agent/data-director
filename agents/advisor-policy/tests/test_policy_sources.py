@@ -13,16 +13,22 @@ import httpx
 import pytest
 
 from dd_agent_advisor_policy import factory
-from dd_agent_advisor_policy.explain import AnthropicExplainer, TemplateExplainer
+from dd_agent_advisor_policy.advise import ModelAdvisor
+from dd_agent_advisor_policy.crossref import CrossrefJournals
+from dd_agent_advisor_policy.explain import TemplateExplainer
 from dd_agent_advisor_policy.live import PolicyLive
+from dd_agent_advisor_policy.opf import OpenPolicyFinder
 from dd_agent_advisor_policy.records import from_api_json, from_public_json
-from dd_agent_advisor_policy.retrieve import Query, RegistryUnavailable
+from dd_agent_advisor_policy.ror import RorDump, RorLive
 from dd_agent_advisor_policy.snapshot import SNAPSHOT, PolicySnapshot
 from dd_sdk.credentials import ConfigError
+from dd_sdk.registry import Query, RegistryUnavailable
 
 DATA = Path(__file__).with_name("data")
 PUBLIC = json.loads((DATA / "FAIRsharing.e081af.public.json").read_text(encoding="utf-8"))
 API = json.loads((DATA / "FAIRsharing.e081af.api.json").read_text(encoding="utf-8"))
+# Settings that run without a model, for the tests that are not about the model.
+TEMPLATE = {"DD_POLICY_ADVISOR": "template"}
 
 
 # --- parsers ----------------------------------------------------------------------------------
@@ -161,18 +167,73 @@ def test_the_snapshot_finds_a_policy_by_name() -> None:
 # --- factory ----------------------------------------------------------------------------------
 
 
-def test_the_factory_defaults_to_the_snapshot_and_template() -> None:
-    agent = factory.build({})
+def test_the_factory_defaults_to_the_snapshot_and_the_model_advisor() -> None:
+    agent = factory.build({"ANTHROPIC_API_KEY": "k"})
     assert isinstance(agent.policies, PolicySnapshot)
+    assert isinstance(agent.explainer, ModelAdvisor)
+    assert agent.explainer.max_lookups == 6
+    assert isinstance(agent.organisations, RorDump) and agent.organisations_fallback is None
+    assert isinstance(agent.crossref, CrossrefJournals) and agent.opf is None
+    [model] = agent.spec.models
+    assert model.model == agent.explainer.model_id and model.tools
+
+
+def test_without_a_model_key_the_error_says_how_to_run_without_a_model() -> None:
+    with pytest.raises(ConfigError, match="DD_POLICY_ADVISOR=template"):
+        factory.build({})
+
+
+def test_the_template_needs_no_key_and_declares_no_model() -> None:
+    agent = factory.build(TEMPLATE)
     assert isinstance(agent.explainer, TemplateExplainer)
     assert agent.spec.models == ()
 
 
+def test_the_older_switch_still_turns_the_model_off() -> None:
+    agent = factory.build({"DD_POLICY_EXPLAINER": "template"})
+    assert isinstance(agent.explainer, TemplateExplainer)
+
+
+def test_open_policy_finder_is_searched_only_with_a_key(tmp_path: Path) -> None:
+    assert factory.build(TEMPLATE).opf is None
+    assert isinstance(
+        factory.build({**TEMPLATE, "OPEN_POLICY_FINDER_API_KEY": "k"}).opf, OpenPolicyFinder
+    )
+    (tmp_path / "opf").write_text("k\n", encoding="utf-8")
+    agent = factory.build(
+        {
+            **TEMPLATE,
+            "OPEN_POLICY_FINDER_API_KEY_FILE": "opf",
+            "CREDENTIALS_DIRECTORY": str(tmp_path),
+        }
+    )
+    assert isinstance(agent.opf, OpenPolicyFinder)
+
+
+def test_crossref_can_be_turned_off_and_the_lookups_limited() -> None:
+    agent = factory.build(
+        {"ANTHROPIC_API_KEY": "k", "DD_POLICY_CROSSREF": "off", "DD_POLICY_MAX_LOOKUPS": "0"}
+    )
+    assert agent.crossref is None
+    assert isinstance(agent.explainer, ModelAdvisor) and agent.explainer.max_lookups == 0
+
+
+def test_live_ror_falls_back_to_the_built_dump() -> None:
+    agent = factory.build({**TEMPLATE, "DD_POLICY_ROR": "live"})
+    assert isinstance(agent.organisations, RorLive)
+    assert isinstance(agent.organisations_fallback, RorDump)
+
+
 def test_live_retrieval_needs_an_account_and_falls_back_to_the_snapshot() -> None:
     with pytest.raises(ConfigError, match="FAIRSHARING_LOGIN"):
-        factory.build({"DD_POLICY_RETRIEVAL": "live"})
+        factory.build({**TEMPLATE, "DD_POLICY_RETRIEVAL": "live"})
     agent = factory.build(
-        {"DD_POLICY_RETRIEVAL": "live", "FAIRSHARING_LOGIN": "me", "FAIRSHARING_PASSWORD": "pw"}
+        {
+            **TEMPLATE,
+            "DD_POLICY_RETRIEVAL": "live",
+            "FAIRSHARING_LOGIN": "me",
+            "FAIRSHARING_PASSWORD": "pw",
+        }
     )
     assert isinstance(agent.policies, PolicyLive)
     assert isinstance(agent.fallback, PolicySnapshot)
@@ -182,6 +243,7 @@ def test_the_password_may_be_a_credential_file(tmp_path: Path) -> None:
     (tmp_path / "fairsharing").write_text("pw\n", encoding="utf-8")
     agent = factory.build(
         {
+            **TEMPLATE,
             "DD_POLICY_RETRIEVAL": "live",
             "FAIRSHARING_LOGIN": "me",
             "FAIRSHARING_PASSWORD_FILE": "fairsharing",
@@ -193,18 +255,59 @@ def test_the_password_may_be_a_credential_file(tmp_path: Path) -> None:
 
 def test_the_anthropic_explainer_declares_its_model() -> None:
     agent = factory.build({"DD_POLICY_EXPLAINER": "anthropic", "ANTHROPIC_API_KEY": "k"})
-    assert isinstance(agent.explainer, AnthropicExplainer)
+    assert isinstance(agent.explainer, ModelAdvisor)
     assert [m.model for m in agent.spec.models] == [agent.explainer.model_id]
 
 
 @pytest.mark.parametrize(
     "env",
     [
-        {"DD_POLICY_RETRIEVAL": "both"},
+        {**TEMPLATE, "DD_POLICY_RETRIEVAL": "both"},
+        {**TEMPLATE, "DD_POLICY_ROR": "both"},
+        {**TEMPLATE, "DD_POLICY_CROSSREF": "maybe"},
+        {"DD_POLICY_ADVISOR": "magic"},
         {"DD_POLICY_EXPLAINER": "magic"},
         {"DD_POLICY_EXPLAINER": "anthropic"},
+        {"DD_POLICY_ADVISOR": "model", "ANTHROPIC_API_KEY": "k", "DD_POLICY_MAX_LOOKUPS": "many"},
     ],
 )
 def test_bad_configuration_stops_at_start_up(env: dict[str, str]) -> None:
     with pytest.raises(ConfigError):
         factory.build(env)
+
+
+@pytest.mark.parametrize(
+    ("settings", "declared"),
+    [
+        (
+            {"DD_MODEL_PROVIDER": "openai", "DD_MODEL_ID": "m-1", "OPENAI_API_KEY": "k"},
+            ("openai", "m-1", "hosted"),
+        ),
+        (
+            {
+                "DD_MODEL_PROVIDER": "openai-compatible",
+                "DD_MODEL_ID": "llama",
+                "DD_MODEL_BASE_URL": "http://localhost:11434/v1",
+            },
+            ("localhost:11434", "llama", "local"),
+        ),
+    ],
+)
+def test_the_model_can_come_from_another_provider(
+    settings: dict[str, str], declared: tuple[str, str, str]
+) -> None:
+    pytest.importorskip("openai")
+    agent = factory.build({"DD_POLICY_EXPLAINER": "model", **settings})
+    assert [(m.provider, m.model, m.hosting) for m in agent.spec.models] == [declared]
+
+
+def test_the_older_anthropic_setting_names_only_anthropic() -> None:
+    with pytest.raises(ConfigError):
+        factory.build(
+            {
+                "DD_POLICY_EXPLAINER": "anthropic",
+                "DD_MODEL_PROVIDER": "openai",
+                "DD_MODEL_ID": "m-1",
+                "OPENAI_API_KEY": "k",
+            }
+        )

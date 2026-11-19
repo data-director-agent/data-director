@@ -26,8 +26,11 @@ describe("servingStep", () => {
     const step = {
       id: "deposit.upload",
       text: "Upload the files",
+      label: "Upload the files",
+      prompt: "Help me upload my files.",
       requirements: [],
       optional: false,
+      out_of_scope: false,
     };
     expect(servingStep(step, servingIndex(directory.agents))).toEqual([]);
   });
@@ -39,8 +42,11 @@ describe("servingStep", () => {
     const formats = {
       id: "preparation.formats",
       text: "Recommend open formats",
+      label: "Recommend open formats",
+      prompt: "Which open formats should I use?",
       requirements: ["R3"],
       optional: false,
+      out_of_scope: false,
     };
     expect(servingStep(formats, index)).toEqual([]);
   });

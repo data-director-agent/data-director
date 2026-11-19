@@ -1,0 +1,11 @@
+{
+  "status": "ok",
+  "message-type": "journal",
+  "message": {
+    "title": "Science of The Total Environment",
+    "publisher": "Elsevier BV",
+    "ISSN": ["0048-9697", "1879-1026"],
+    "issn-type": [{"value": "0048-9697", "type": "print"}, {"value": "1879-1026", "type": "electronic"}],
+    "subjects": [{"name": "Pollution", "ASJC": 2310}, {"name": "Environmental Engineering", "ASJC": 2305}]
+  }
+}

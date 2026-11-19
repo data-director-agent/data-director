@@ -1,6 +1,60 @@
-/* The Blueprint's phases and their steps. */
+/* The journey's phases and their steps: a strip of six equal segments, each saying how many of
+   its steps are done or skipped, that opens to the list of phases and steps. */
 
 @layer components {
+  .phase-strip {
+    padding: var(--space-2) var(--space-3);
+    background: var(--color-surface);
+    border-radius: var(--radius);
+  }
+
+  .phase-strip-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-1) var(--space-4);
+  }
+
+  .phase-strip-head h2 {
+    margin: 0;
+    font-size: var(--font-size-body);
+  }
+
+  .phase-strip-where {
+    margin: 0;
+    font-size: var(--font-size-small);
+  }
+
+  .phase-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+    gap: var(--space-1);
+    margin: var(--space-2) 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .phase-bar-segment {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 0;
+    padding: var(--space-1) var(--space-2);
+    border-top: var(--focus-width) solid var(--color-border-subtle);
+    font-size: var(--font-size-small);
+  }
+
+  .phase-bar-number {
+    flex: none;
+    font-weight: var(--font-weight-strong);
+    color: var(--color-text-muted);
+  }
+
+  .phase-bar-title {
+    overflow-wrap: anywhere;
+  }
+
   .phase-list,
   .step-list {
     margin: 0;
@@ -27,9 +81,9 @@
     content: " ·";
   }
 
-  .phase-served {
-    font-weight: var(--font-weight-normal);
-    font-size: var(--font-size-small);
+  .phase-summary {
+    margin: var(--space-1) 0 0;
+    color: var(--color-text-muted);
   }
 
   .step-list {
@@ -43,12 +97,39 @@
   }
 
   .step-text {
-    margin-bottom: var(--space-1);
+    margin: 0;
   }
 
-  .step-meta {
+  .phase-strip-details > summary {
+    cursor: pointer;
     font-size: var(--font-size-small);
-    color: var(--color-text-muted);
-    margin: 0;
+  }
+
+  .phase-strip-details[open] > summary {
+    margin-bottom: var(--space-2);
+  }
+
+  .phase-strip-entry {
+    font-size: var(--font-size-small);
+  }
+
+  .phase-bar-count {
+    flex-basis: 100%;
+    font-size: var(--font-size-small);
+  }
+
+  .step-state {
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-strong);
+  }
+
+  .step-state-suggested {
+    color: var(--color-link);
+  }
+
+  .step-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
   }
 }

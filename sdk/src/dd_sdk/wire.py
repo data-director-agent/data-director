@@ -8,7 +8,8 @@ conductor's `invoke_agent` span.
 Agent → harness: a completed task whose single artifact, named `agent-result`, has one data
 part `{"result": <AgentResult document>, "spans": [<span JSON>, ...]}`. Each span is the string
 `ReadableSpan.to_json` produced, carried as a string so protobuf's `Struct` (which has only
-floating-point numbers) cannot alter it. The agent never returns an `Envelope`: the conductor
+floating-point numbers) cannot alter it. For the same reason, the result's `prompts` are JSON
+strings keyed by digest (`dd_sdk.prompts`). The agent never returns an `Envelope`: the conductor
 builds that.
 
 The agent card declares the extension `EXTENSION_URI`, whose `params` are `describe(spec)`. The
@@ -28,8 +29,18 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from dd_sdk.agent import AgentResult
-from dd_sdk.contract.models import EvidenceItem, Grounded, OpenPayload, Outcome, to_document
+from dd_sdk.agent_result import AgentResult
+from dd_sdk.contract.models import (
+    EvidenceItem,
+    Grounded,
+    ModelCall,
+    OpenPayload,
+    Outcome,
+    to_document,
+)
+from dd_sdk.model_grant import META_MODEL_GRANT as META_MODEL_GRANT
+from dd_sdk.tools import META_TOOLS_TOKEN as META_TOOLS_TOKEN
+from dd_sdk.tools import META_TOOLS_URL as META_TOOLS_URL
 
 # TODO(#3): a persistent identifier for the extension. The w3id namespace the problem types use is
 # not yet registered either (contract/problem.py).
@@ -44,6 +55,14 @@ META_TRACEPARENT = "traceparent"
 # present.
 META_DELEGATE_URL = "dd.delegate_url"
 META_DELEGATION_TOKEN = "dd.delegation_token"
+# META_TOOLS_URL and META_TOOLS_TOKEN (imported above, docs/specs/agents.md): sent by the harness
+# only to an agent its profile grants an MCP server. The URL is the harness's tool gateway; the
+# token is the grant a call to it must present.
+# META_MODEL_GRANT (imported above, docs/specs/model-accounts.md): the model grant for one
+# invocation of a model-backed agent, minted by the conductor.
+# The agent's settings for one invocation: the defaults its card declares, overlaid by the
+# profile's `agent_settings` (docs/specs/policy-and-identity.md). A mapping of strings to strings.
+META_SETTINGS = "dd.settings"
 
 ARTIFACT_NAME = "agent-result"
 # The harness's answer to a delegated request: one text part holding the envelope as the JSON
@@ -51,6 +70,8 @@ ARTIFACT_NAME = "agent-result"
 # turn integers into floating-point numbers).
 ENVELOPE_JSON_ARTIFACT = "envelope-json"
 JSONRPC_PATH = "/a2a"
+# The harness's tool gateway, an MCP endpoint, beside its A2A endpoint (docs/specs/agents.md).
+GATEWAY_PATH = "/mcp"
 CARD_PATH = "/.well-known/agent-card.json"
 
 
@@ -90,6 +111,15 @@ def _result_to_document(result: AgentResult) -> dict[str, Any]:
         value = getattr(result, key)
         if value is not None:
             doc[key] = value
+    if result.model_calls:
+        doc["model_calls"] = [to_document(c) for c in result.model_calls]
+    if result.prompts:
+        # As JSON strings, as spans are, so that Struct cannot turn an integer in a prompt into a
+        # floating-point number and change its digest.
+        doc["prompts"] = {
+            digest: json.dumps(prompt, ensure_ascii=False)
+            for digest, prompt in result.prompts.items()
+        }
     return doc
 
 
@@ -104,7 +134,20 @@ def _result_from_document(doc: dict[str, Any]) -> AgentResult:
         model_id=doc.get("model_id"),
         input_tokens=_int_or_none(doc.get("input_tokens")),
         output_tokens=_int_or_none(doc.get("output_tokens")),
+        model_calls=tuple(ModelCall.model_validate(c) for c in doc.get("model_calls", [])),
+        prompts=_prompts(doc.get("prompts", {})),
     )
+
+
+def _prompts(value: Any) -> dict[str, dict[str, Any]]:
+    if not isinstance(value, dict) or not all(
+        isinstance(k, str) and isinstance(v, str) for k, v in value.items()
+    ):
+        raise TypeError("prompts are not JSON strings keyed by digest")
+    prompts = {digest: json.loads(text) for digest, text in value.items()}
+    if not all(isinstance(p, dict) for p in prompts.values()):
+        raise TypeError("a prompt is not a JSON object")
+    return prompts
 
 
 def _int_or_none(value: Any) -> int | None:

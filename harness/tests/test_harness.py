@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from dd_harness import grounding
+from dd_harness import grounding, policy
 from dd_harness import testing as fakes
 from dd_harness.conductor import DuplicateInvocation
 from dd_harness.policy import PolicyError, gate, load_profile
@@ -28,7 +28,7 @@ from dd_harness.testing import (
     make_conductor,
     request,
 )
-from dd_sdk.agent import AgentResult, RunContext
+from dd_sdk.agent import AgentResult, ModelUse, RunContext, Setting
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Assurance,
@@ -51,6 +51,7 @@ from dd_sdk.evidence import (
     content_hash,
     input_hash,
 )
+from dd_sdk.model_grant import Account
 from dd_sdk.schema import gen
 from dd_sdk.tracing import records_from_jsonl
 
@@ -115,6 +116,97 @@ def test_a_profile_key_nothing_enforces_is_refused(tmp_path: Path) -> None:
         load_profile(stale)
 
 
+DEPTH = {"depth": Setting(("shallow", "deep"), "shallow", "How far the agent looks.")}
+
+
+def _settings_profile(tmp_path: Path, settings: str) -> Path:
+    path = tmp_path / "settings.yaml"
+    path.write_text(
+        "profile_id: settings\nagents:\n  fake.input-only: advise\n" + settings,
+        encoding="utf-8",
+    )
+    return path
+
+
+def _recording(seen: list[dict[str, str]]) -> ScriptedAgent:
+    def behaviour(request: InvocationRequest, ctx: RunContext) -> AgentResult:
+        seen.append(dict(ctx.settings))
+        return fakes.review_of_input(request, ctx)
+
+    return ScriptedAgent(GroundingMode.INPUT_ONLY, behaviour, settings=DEPTH)
+
+
+@pytest.mark.requirement("DD-POLICY")
+@pytest.mark.parametrize(
+    ("written", "expected"),
+    [
+        ("", {"depth": "shallow"}),
+        ("agent_settings:\n  fake.input-only:\n    depth: deep\n", {"depth": "deep"}),
+    ],
+)
+def test_an_agent_is_sent_its_card_defaults_overlaid_by_the_profile(
+    runs_dir: Path, tmp_path: Path, written: str, expected: dict[str, str]
+) -> None:
+    seen: list[dict[str, str]] = []
+    agent = _recording(seen)
+    # Over the A2A wire, as in production: the settings travel in the message's metadata.
+    env = make_conductor(runs_dir, agent, profile=_settings_profile(tmp_path, written)).invoke(
+        request(agent.spec.agent_id), acting_for=TEST_PRINCIPAL
+    )
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED
+    assert seen == [expected]
+
+
+@pytest.mark.requirement("DD-POLICY")
+@pytest.mark.parametrize("value", ["sideways", None])
+def test_a_setting_the_card_does_not_offer_fails_and_the_agent_is_not_run(
+    runs_dir: Path, tmp_path: Path, value: str | None
+) -> None:
+    # A value outside the card's choices, or a setting the card does not declare at all.
+    written = (
+        f"agent_settings:\n  fake.input-only:\n    depth: {value}\n"
+        if value
+        else "agent_settings:\n  fake.input-only:\n    breadth: wide\n"
+    )
+    seen: list[dict[str, str]] = []
+    agent = _recording(seen)
+    env = make_conductor(runs_dir, agent, profile=_settings_profile(tmp_path, written)).invoke(
+        request(agent.spec.agent_id), acting_for=TEST_PRINCIPAL
+    )
+    assert env.outcome.status == OutcomeStatus.FAILED
+    assert env.problem is not None and env.problem.type.endswith("/setting-not-declared")
+    assert env.problem.http_status == 403
+    assert agent.calls == 0 and seen == []
+
+
+@pytest.mark.requirement("DD-POLICY")
+@pytest.mark.parametrize(
+    "written",
+    [
+        "agent_settings: [depth]\n",
+        "agent_settings:\n  not.enabled:\n    depth: deep\n",
+        "agent_settings:\n  fake.input-only: deep\n",
+        # YAML reads an unquoted `off` as false: the steward is asked to write a string.
+        "agent_settings:\n  fake.input-only:\n    depth: off\n",
+    ],
+)
+def test_malformed_agent_settings_refuse_the_profile(tmp_path: Path, written: str) -> None:
+    with pytest.raises(PolicyError, match="agent_settings"):
+        load_profile(_settings_profile(tmp_path, written))
+
+
+@pytest.mark.requirement("DD-POLICY")
+def test_a_profile_keeps_its_description(tmp_path: Path) -> None:
+    described = tmp_path / "described.yaml"
+    described.write_text(
+        "profile_id: described\ndescription: |\n  For tests.\nagents: {}\n", encoding="utf-8"
+    )
+    assert load_profile(described).description == "For tests."
+    undescribed = tmp_path / "undescribed.yaml"
+    undescribed.write_text("profile_id: undescribed\nagents: {}\n", encoding="utf-8")
+    assert load_profile(undescribed).description == ""
+
+
 @pytest.mark.requirement("DD-POLICY")
 def test_the_orchestrator_a_profile_names_must_be_an_agent_it_enables(tmp_path: Path) -> None:
     base = PERMISSIVE.read_text(encoding="utf-8")
@@ -126,6 +218,310 @@ def test_the_orchestrator_a_profile_names_must_be_an_agent_it_enables(tmp_path: 
     stranger.write_text(base + "orchestrator: not.enabled\n", encoding="utf-8")
     with pytest.raises(PolicyError, match=r"not\.enabled"):
         load_profile(stranger)
+
+
+@pytest.mark.requirement("DD-POLICY", "C13.5")
+@pytest.mark.parametrize(
+    ("written", "expected"),
+    [
+        ("", {"inventory", "decisions"}),
+        ("hosted_models: []\n", set()),
+        ("hosted_models: [inventory, documentation]\n", {"inventory", "documentation"}),
+    ],
+)
+def test_hosted_models_defaults_to_the_inventory_and_decided_facts(
+    tmp_path: Path, written: str, expected: set[str]
+) -> None:
+    """docs/specs/projects.md, invariant 8."""
+    path = tmp_path / "profile.yaml"
+    path.write_text("profile_id: hosted\nagents: {}\n" + written, encoding="utf-8")
+    assert load_profile(path).hosted_models == expected
+
+
+def test_the_base_urls_a_grant_carries_are_each_named_once(tmp_path: Path) -> None:
+    accounts = load_profile(
+        _accounts(
+            tmp_path,
+            "model_accounts:\n  own: allowed\n  fallback: none\n  providers:\n"
+            "    - provider: openai-compatible\n      base_urls:\n"
+            "        - {url: 'https://LLM.example.ac.uk/v1'}\n"
+            "        - {url: 'https://llm.example.ac.uk:443'}\n",
+        )
+    ).model_accounts
+    assert accounts.base_urls == ("https://llm.example.ac.uk",)
+
+
+def test_a_profile_that_is_not_a_mapping_is_refused(tmp_path: Path) -> None:
+    path = tmp_path / "profile.yaml"
+    path.write_text("- profile_id: accounts\n", encoding="utf-8")
+    with pytest.raises(PolicyError, match="not a mapping"):
+        load_profile(path)
+
+
+def test_an_agent_must_map_to_an_action_class(tmp_path: Path) -> None:
+    path = tmp_path / "profile.yaml"
+    path.write_text("profile_id: accounts\nagents: [inventory]\n", encoding="utf-8")
+    with pytest.raises(PolicyError):
+        load_profile(path)
+
+
+@pytest.mark.requirement("DD-POLICY")
+@pytest.mark.parametrize(
+    ("written", "match"),
+    [
+        ("hosted_models: documentation\n", "must list"),
+        ("hosted_models: [inventory, personal_data]\n", "personal_data"),
+    ],
+)
+def test_hosted_models_names_only_classes_of_project_content(
+    tmp_path: Path, written: str, match: str
+) -> None:
+    """A class nothing enforces would tell a steward a rule is in force when it is not."""
+    path = tmp_path / "profile.yaml"
+    path.write_text("profile_id: hosted\nagents: {}\n" + written, encoding="utf-8")
+    with pytest.raises(PolicyError, match=match):
+        load_profile(path)
+
+
+@pytest.mark.requirement("DD-POLICY")
+@pytest.mark.parametrize(
+    ("written", "refuses"),
+    [
+        ("", False),
+        ("attached_documents: allowed\n", False),
+        ("attached_documents: refused\n", True),
+    ],
+)
+def test_attached_documents_are_allowed_unless_the_profile_refuses_them(
+    tmp_path: Path, written: str, refuses: bool
+) -> None:
+    """docs/specs/projects.md, Documentation."""
+    path = tmp_path / "profile.yaml"
+    path.write_text("profile_id: documents\nagents: {}\n" + written, encoding="utf-8")
+    profile = load_profile(path)
+    assert profile.refuses_documents is refuses
+    if refuses:
+        with pytest.raises(policy.DocumentsRefusedError):
+            policy.check_attached_document(profile)
+    else:
+        policy.check_attached_document(profile)
+
+
+@pytest.mark.requirement("DD-POLICY")
+@pytest.mark.parametrize("value", ["no", "false", "[refused]"])
+def test_attached_documents_is_allowed_or_refused_and_nothing_else(
+    tmp_path: Path, value: str
+) -> None:
+    path = tmp_path / "profile.yaml"
+    path.write_text(
+        f"profile_id: documents\nagents: {{}}\nattached_documents: {value}\n", encoding="utf-8"
+    )
+    with pytest.raises(PolicyError, match="attached_documents"):
+        load_profile(path)
+
+
+def _accounts(tmp_path: Path, written: str) -> Path:
+    path = tmp_path / "profile.yaml"
+    path.write_text("profile_id: accounts\nagents: {}\n" + written, encoding="utf-8")
+    return path
+
+
+@pytest.mark.requirement("DD-POLICY")
+def test_model_accounts_are_off_unless_the_profile_turns_them_on(tmp_path: Path) -> None:
+    for written in ("", "model_accounts:\n  own: off\n"):
+        accounts = load_profile(_accounts(tmp_path, written)).model_accounts
+        assert accounts.own == "off"
+        assert accounts.account is Account.DEPLOYMENT
+        assert not accounts.hosted
+
+
+@pytest.mark.requirement("DD-POLICY")
+@pytest.mark.parametrize(
+    ("own", "fallback", "expected"),
+    [
+        ("allowed", "deployment", Account.OWN_OR_DEPLOYMENT),
+        ("allowed", "none", Account.OWN),
+        ("required", "none", Account.OWN),
+    ],
+)
+def test_model_accounts_decide_the_grants_account(
+    tmp_path: Path, own: str, fallback: str, expected: Account
+) -> None:
+    """docs/specs/model-accounts.md, The profile."""
+    path = _accounts(
+        tmp_path,
+        f"model_accounts:\n  own: {own}\n  fallback: {fallback}\n"
+        "  providers:\n    - provider: anthropic\n",
+    )
+    accounts = load_profile(path).model_accounts
+    assert accounts.account is expected
+    assert accounts.provider_names == ("anthropic",)
+
+
+@pytest.mark.requirement("DD-POLICY")
+@pytest.mark.parametrize(
+    ("provider", "base_urls"),
+    [
+        ("anthropic", ""),
+        ("openai", ""),
+        ("gemini", ""),
+        ("openai-compatible", "      base_urls: [{url: 'https://llm.example.ac.uk/v1'}]\n"),
+    ],
+)
+def test_a_persons_own_account_may_be_with_any_provider_the_broker_serves(
+    tmp_path: Path, provider: str, base_urls: str
+) -> None:
+    """docs/specs/model-accounts.md, The profile: only an openai-compatible account names a base
+    URL, and it must, since it has no endpoint of its own."""
+    path = _accounts(
+        tmp_path,
+        "model_accounts:\n  own: allowed\n  fallback: none\n"
+        f"  providers:\n    - provider: {provider}\n{base_urls}",
+    )
+    accounts = load_profile(path).model_accounts
+    assert accounts.provider_names == (provider,)
+    assert bool(accounts.base_urls) is bool(base_urls)
+
+
+MAPPED = (
+    "model_accounts:\n  own: allowed\n  fallback: none\n  providers:\n"
+    "    - provider: anthropic\n"
+    "    - provider: openai\n"
+    "      models:\n"
+    "        - {declared: claude-big, model: gpt-big, tools: true}\n"
+    "        - {declared: claude-small, model: gpt-small}\n"
+    "        - {declared: claude-other, model: gpt-other}\n"
+    "    - provider: gemini\n"
+    "      models: [{declared: claude-big, model: gemini-big}]\n"
+)
+
+
+@pytest.mark.requirement("DD-POLICY")
+def test_a_grant_maps_only_the_models_the_card_declares(tmp_path: Path) -> None:
+    """docs/specs/model-accounts.md, The model map: a mapping of a model the card does not declare
+    stays out of its grant."""
+    accounts = load_profile(_accounts(tmp_path, MAPPED)).model_accounts
+    uses = (ModelUse("anthropic", "claude-big", "hosted"),)
+    assert accounts.model_map(uses) == {
+        "openai": {"claude-big": "gpt-big"},
+        "gemini": {"claude-big": "gemini-big"},
+    }
+    assert accounts.model_map(()) == {}
+
+
+@pytest.mark.requirement("DD-POLICY")
+def test_a_model_relied_on_for_tool_calls_maps_only_to_one_that_serves_them(
+    tmp_path: Path,
+) -> None:
+    """docs/specs/model-accounts.md, The model map: the steward states which mapped models serve
+    tool calls, and a model the card relies on for them is never mapped to another."""
+    accounts = load_profile(_accounts(tmp_path, MAPPED)).model_accounts
+    uses = (
+        ModelUse("anthropic", "claude-big", "hosted", tools=True),
+        ModelUse("anthropic", "claude-small", "hosted", tools=True),
+    )
+    assert accounts.model_map(uses) == {"openai": {"claude-big": "gpt-big"}}
+
+
+@pytest.mark.requirement("DD-POLICY")
+@pytest.mark.parametrize(
+    "written",
+    [
+        "model_accounts: allowed\n",
+        "model_accounts:\n  own: sometimes\n",
+        "model_accounts:\n  own: off\n  fallback: deployment\n",
+        "model_accounts:\n  own: off\n  providers: [{provider: anthropic}]\n",
+        "model_accounts:\n  own: allowed\n  providers: [{provider: anthropic}]\n",
+        "model_accounts:\n  own: required\n  fallback: deployment\n"
+        "  providers: [{provider: anthropic}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n  providers: []\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n  providers: [{provider: mistral}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n"
+        "  providers: [{provider: openai-compatible}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n"
+        "  providers: [{provider: openai, base_urls: [{url: 'https://x.example'}]}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n"
+        "  providers: [{provider: anthropic}, {provider: anthropic}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n"
+        "  providers: [{provider: openai-compatible, base_urls: [{url: 'http://x.example'}]}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n"
+        "  providers: [{provider: openai-compatible,\n"
+        "               base_urls: [{url: 'https://x.example', local: 2}]}]\n",
+        # A model map entry that is not a mapping, lacks a side, has a key nothing enforces or a
+        # tools that is not a boolean, or maps one declared model twice under one provider.
+        "model_accounts:\n  own: allowed\n  fallback: none\n"
+        "  providers: [{provider: anthropic, models: [x]}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n"
+        "  providers: [{provider: openai, models: {declared: a, model: b}}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n"
+        "  providers: [{provider: openai, models: [{declared: claude-x}]}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n"
+        "  providers: [{provider: openai, models: [{model: gpt-x}]}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n"
+        "  providers: [{provider: openai, models: [{declared: claude-x, model: gpt-x,\n"
+        "               cost: 1}]}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n"
+        "  providers: [{provider: openai, models: [{declared: claude-x, model: gpt-x,\n"
+        "               tools: maybe}]}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n"
+        "  providers: [{provider: openai, models: [{declared: claude-x, model: gpt-x},\n"
+        "                                         {declared: claude-x, model: gpt-y}]}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n  providers: [anthropic]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n"
+        "  providers: [{provider: openai-compatible, base_urls: 'https://x.example'}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n"
+        "  providers: [{provider: openai-compatible, base_urls: ['https://x.example']}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n  budget: 10\n"
+        "  providers: [{provider: anthropic}]\n",
+    ],
+)
+def test_model_accounts_a_steward_could_misread_are_refused(tmp_path: Path, written: str) -> None:
+    """A setting nothing would enforce, or one that contradicts itself, stops the profile loading
+    (docs/specs/policy-and-identity.md, invariant 4)."""
+    with pytest.raises(PolicyError):
+        load_profile(_accounts(tmp_path, written))
+
+
+@pytest.mark.requirement("DD-POLICY", "C13.5")
+@pytest.mark.parametrize(
+    ("providers", "hosted"),
+    [
+        ("  - provider: anthropic\n", True),
+        (
+            "  - provider: openai-compatible\n"
+            "    base_urls: [{url: 'https://llm.example.ac.uk'}]\n",
+            True,
+        ),
+        (
+            "  - provider: openai-compatible\n"
+            "    base_urls: [{url: 'https://llm.example.ac.uk/v1', local: true}]\n",
+            False,
+        ),
+        (
+            "  - provider: openai-compatible\n    base_urls:\n"
+            "      - {url: 'https://llm.example.ac.uk', local: true}\n"
+            "      - {url: 'https://other.example.org'}\n",
+            True,
+        ),
+    ],
+)
+def test_an_own_endpoint_counts_as_hosted_unless_declared_local(
+    tmp_path: Path, providers: str, hosted: bool
+) -> None:
+    """docs/specs/model-accounts.md, The profile; docs/specs/projects.md, invariant 8."""
+    profile = load_profile(
+        _accounts(
+            tmp_path,
+            "hosted_models: [inventory]\nmodel_accounts:\n  own: allowed\n  fallback: none\n"
+            "  providers:\n" + providers,
+        )
+    )
+    assert profile.model_accounts.hosted is hosted
+    kept = policy.withheld(profile, ["local"], ["inventory", "documentation"])
+    assert kept == (["documentation"] if hosted else [])
+    # An agent that calls no model is never given a grant, so nothing changes for it.
+    assert policy.withheld(profile, [], ["documentation"]) == []
 
 
 @pytest.mark.requirement("DD-POLICY", "C13.2")

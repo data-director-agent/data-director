@@ -1,5 +1,4 @@
-"""orchestrator.model: the model-backed Data Director orchestrator (docs/specs/orchestration.md,
-#21).
+"""orchestrator.model: the model-backed orchestrator (docs/specs/orchestration.md, #21).
 
 The Blueprint's Data Director is one agent a person converses with, which hands work to
 specialist agents (§9.3, "AI Model Orchestration"). `orchestrator.stub` routes by fixed rules; this
@@ -16,46 +15,116 @@ The model is sent the last `history_turns` turns of `Message.history`, oldest fi
 current message. Every turn is still covered by the input hash; what was sent follows from the
 input and the setting. When the conductor says the project holds an inventory
 (`Message.project_inventory`, docs/specs/projects.md), the current message opens with a note of it
-from the harness, so the model neither asks for one nor copies one into an agent's input.
+from the harness, so the model neither asks for one nor copies one into an agent's input. In a
+project, a second note says which entry point the researcher chose, which steps the project log
+shows started, done or skipped, and the step `suggested_next` names (docs/specs/orchestration.md):
+the model keeps no place in the flow of its own, and the prompt stays the same on every run.
 
 The parent succeeds once the model has replied, whatever its children's outcomes were. A failed
 child is on the parent's `delegations` and its own envelope, and the reply reports it
 (docs/specs/orchestration.md, "Discovery and failed children"). A turn the model declines, or an API
 failure, raises, and the conductor records failed(agent-error): a model-derived reply is never
 replaced by a template.
+
+Besides the delegations the model has one tool of the agent's own, `ask_questions`, which runs
+nothing: called alone, it ends the turn, and the reply carries the questions as
+`Reply.reply_questions`, for the app to put to the researcher one at a time as form fields:
+choices, or a line or more in their own words (docs/specs/orchestration.md). Called beside a
+delegation, or with questions that are not valid `Question`s, it is answered with an error and the
+loop goes on.
+
+In a project no person has named (`Message.project_title_by_researcher` false), the model is
+also offered `name_project`, which runs nothing either: it puts a short name for the project on
+`Reply.new_project_title`, declared model-derived, which the conductor records as the project's
+title unless a person names it first (docs/specs/projects.md). A note from the harness says what
+the project is called, if anything, and by whom. The tool is answered and the loop goes on.
+Another note says what the researcher chose and people decided (`notes.py`): the repository chosen
+for deposit and each decided fact, which the model treats as settled until the researcher changes
+it (#1168).
+
+In a project whose researcher has not chosen an entry point (`Message.project_entry_by_researcher`
+not true), the model is also offered `set_entry_point`, which runs nothing either: it puts the
+entry point the model worked out from what the researcher said, such as data already collected,
+on `Reply.new_project_entry`, declared model-derived. The conductor records it as the model's word,
+which the researcher can change and which never replaces their own choice
+(docs/specs/orchestration.md, invariant 18). With no entry point recorded, the harness's note names
+no suggested step and tells the model to find out where the researcher is. With one recorded, from
+the intake, the phase tracker or the model, the prompt tells the model not to ask again, even on
+the first turn, and to suggest the step the note names (invariant 15).
+
+On a conversation's first turn (an empty `Message.history`), once the model has replied, a
+second model, the titler, names the conversation from the researcher's message (`title.py`). The
+title is `Reply.conversation_title`, declared model-derived; no title, or a failed call, leaves it
+out.
 """
 
 from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass
-from datetime import UTC, datetime
+from collections.abc import Sequence
+from dataclasses import dataclass, field
+from datetime import UTC
 from typing import Any
 
-from dd_agent_orchestrator_model.model import Model, ModelError, ModelTurn, ToolCall
-from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
+from dd_agent_orchestrator_model.notes import decisions_note, name_note
+from dd_agent_orchestrator_model.own_tools import ENTRY_TOOL as ENTRY_TOOL
+from dd_agent_orchestrator_model.own_tools import ENTRY_TOOL_DEFINITION as ENTRY_TOOL_DEFINITION
+from dd_agent_orchestrator_model.own_tools import NAME_TOOL as NAME_TOOL
+from dd_agent_orchestrator_model.own_tools import NAME_TOOL_DEFINITION as NAME_TOOL_DEFINITION
+from dd_agent_orchestrator_model.own_tools import QUESTIONS_TOOL as QUESTIONS_TOOL
+from dd_agent_orchestrator_model.own_tools import (
+    QUESTIONS_TOOL_DEFINITION as QUESTIONS_TOOL_DEFINITION,
+)
+from dd_agent_orchestrator_model.own_tools import entry_of, name_of, questions_of, tool_result
+from dd_agent_orchestrator_model.prompt import SYSTEM_PROMPT
+from dd_agent_orchestrator_model.title import titled
+from dd_sdk.agent import (
+    AgentResult,
+    AgentSpec,
+    Derived,
+    RunContext,
+    abstain,
+    input_evidence,
+    input_ref,
+)
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Derivation,
-    EvidenceItem,
     GroundingMode,
-    GroundingRef,
     InvocationRequest,
     Message,
     OpenInput,
     Outcome,
     OutcomeStatus,
+    Question,
     ReasonCode,
     Reply,
     TurnRole,
 )
 from dd_sdk.delegate import Delegated, DelegationRefused
-from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
-from dd_sdk.process_flow import requirements_of
-from dd_sdk.tracing import ATTR_MODEL_ID, chat_span, record_tokens
+from dd_sdk.model import (
+    Model,
+    ModelCallError,
+    ModelMessage,
+    ModelReply,
+    ToolCall,
+    ToolResult,
+    ToolResults,
+    ToolSpec,
+    call,
+)
+from dd_sdk.process_flow import entry as flow_entry
+from dd_sdk.process_flow import progress, requirements_of, suggested_next
+from dd_sdk.prompts import ModelCallLog
 
 AGENT_ID = "orchestrator.model"
+# Claude Sonnet 5.5, when the provider is Anthropic and `DD_MODEL_ID` is unset (factory.py).
+DEFAULT_MODEL = "claude-sonnet-5-5"
+# Claude's effort when `DD_ORCHESTRATOR_EFFORT` is unset; other providers are sent none.
+DEFAULT_EFFORT = "high"
+# Room for a reply and the tool calls before it; a turn that reaches it is reported as cut short.
+MAX_TOKENS = 16000
 DEFAULT_HISTORY_TURNS = 20
 DEFAULT_MAX_DELEGATIONS = 4
 # The API's rule for a tool name.
@@ -66,6 +135,10 @@ SCHEMA_ANNOTATIONS = ("$comment", "$id", "$schema", "title")
 CUT_SHORT = "(This reply was cut short.)"
 
 
+class ModelError(Exception):
+    """The model gave no usable turn: the provider failed, or the model declined the request."""
+
+
 @dataclass(frozen=True)
 class Tool:
     """One tool offered to the model: delegate an input of `schema_class` to `agent_id`."""
@@ -73,7 +146,7 @@ class Tool:
     name: str
     agent_id: str
     schema_class: str
-    definition: dict[str, Any]
+    definition: ToolSpec
 
 
 def tools_from_manifest(manifest: list[dict[str, Any]], own_id: str = AGENT_ID) -> list[Tool]:
@@ -107,13 +180,13 @@ def tools_from_manifest(manifest: list[dict[str, Any]], own_id: str = AGENT_ID) 
                     name=name[:TOOL_NAME_MAX],
                     agent_id=agent_id,
                     schema_class=schema_class,
-                    definition={
-                        "name": name[:TOOL_NAME_MAX],
-                        "description": (
+                    definition=ToolSpec(
+                        name=name[:TOOL_NAME_MAX],
+                        description=(
                             f"Ask the agent {agent_id} (input class {schema_class}). {description}"
                         ),
-                        "input_schema": tool_schema(schema),
-                    },
+                        input_schema=tool_schema(schema),
+                    ),
                 )
             )
     return tools
@@ -145,7 +218,7 @@ def conversation(message: Message, history_turns: int) -> list[dict[str, Any]]:
     """The messages sent to the model: the last `history_turns` turns, then the current one.
 
     An agent turn becomes an assistant message. Turns before the first user turn in the window
-    are dropped, since the API requires a conversation to open with the user."""
+    are dropped, since providers require a conversation to open with the user."""
     window = list(message.history)[-history_turns:] if history_turns > 0 else []
     while window and window[0].role != TurnRole.USER:
         window.pop(0)
@@ -156,8 +229,17 @@ def conversation(message: Message, history_turns: int) -> list[dict[str, Any]]:
         }
         for turn in window
     ]
-    note = inventory_note(message)
-    text = f"{note}\n\n{message.message_text}" if note else message.message_text
+    notes = [
+        n
+        for n in (
+            inventory_note(message),
+            progress_note(message),
+            name_note(message),
+            decisions_note(message),
+        )
+        if n
+    ]
+    text = "\n\n".join([*notes, message.message_text])
     messages.append({"role": "user", "content": text})
     return messages
 
@@ -181,10 +263,102 @@ def inventory_note(message: Message) -> str | None:
     )
 
 
+def progress_note(message: Message) -> str | None:
+    """What the harness says of where the project is in the process flow, or None outside a
+    project. Names steps by id, as the prompt's flow does, and the suggested next step."""
+    if message.project_progress is None and message.project_entry is None:
+        return None
+    start = flow_entry(message.project_entry) if message.project_entry is not None else None
+    states = {p.step_id: p.step_state.value for p in message.project_progress or []}
+    if start is None:
+        where = (
+            "no entry point has been recorded, so where the researcher is is not known: if they "
+            f"have said, record it with {ENTRY_TOOL}; if not, ask which entry point applies"
+        )
+    elif message.project_entry_by_researcher is False:
+        where = (
+            f"you recorded entry point {start.number} ({start.text}) from what the researcher "
+            "said; they can change it"
+        )
+    else:
+        where = f"the researcher chose entry point {start.number} ({start.text})"
+    by_state = {
+        state: [step_id for step_id, s in states.items() if s == state]
+        for state in ("done", "started", "skipped")
+    }
+    shown = (
+        "; ".join(f"{state}: {', '.join(ids)}" for state, ids in by_state.items() if ids)
+        or "no step is started, done or skipped yet"
+    )
+    suggested = suggested_next(progress(start, states, []), start)
+    if suggested is not None:
+        nxt = f" Suggested next: [{suggested.step.id}]."
+    elif start is None:
+        nxt = " No step is suggested until the entry point is known."
+    else:
+        nxt = " Every step from the entry point is done or skipped."
+    return (
+        f"[From the harness, not the researcher] For this project, {where}. The project record "
+        f"shows {shown}.{nxt}"
+    )
+
+
+@dataclass
+class _Turns:
+    """One run's exchange with the model: the conversation, the tools offered, the delegations
+    made and attempted, the tokens spent, each call and what it sent (kept by digest with the
+    run, docs/specs/disclosure.md), and what the model's own tools took."""
+
+    messages: list[ModelMessage]
+    definitions: list[ToolSpec]
+    tools: dict[str, Tool]
+    may_name: bool
+    may_enter: bool
+    calls: ModelCallLog
+    delegated: list[Delegated] = field(default_factory=list)
+    attempts: int = 0
+    input_tokens: int = 0
+    output_tokens: int = 0
+    questions: list[Question] | None = None
+    name: str | None = None
+    entry_point: int | None = None
+
+    def answer_own(self, made: Sequence[ToolCall]) -> tuple[dict[str, ToolResult], list[ToolCall]]:
+        """Answer the calls that delegate nothing (unreadable ones, a name, an entry point), and
+        the readable calls left, `ask_questions` and delegations."""
+        # A call whose input could not be read runs nothing, and counts against the limit, so
+        # that the loop ends whatever the model sends.
+        answered: dict[str, ToolResult] = {}
+        for unread in (c for c in made if c.problem is not None):
+            self.attempts += 1
+            answered[unread.id] = tool_result(
+                unread, f"Not run: {unread.problem}. Call the tool again.", is_error=True
+            )
+        readable = [c for c in made if c.id not in answered]
+        # A name is taken whatever else the turn calls; it never ends the turn.
+        for naming in (c for c in readable if c.name == NAME_TOOL):
+            # A second name, or one refused, counts against the turn's limit, so that the loop
+            # ends whatever the model calls.
+            if self.name is not None or not self.may_name:
+                self.attempts += 1
+            given, result = name_of(naming, offered=self.may_name)
+            self.name = given or self.name
+            answered[naming.id] = result
+        # So is an entry point; the last one recorded counts.
+        for entering in (c for c in readable if c.name == ENTRY_TOOL):
+            if self.entry_point is not None or not self.may_enter:
+                self.attempts += 1
+            given_entry, result = entry_of(entering, offered=self.may_enter)
+            self.entry_point = given_entry or self.entry_point
+            answered[entering.id] = result
+        return answered, [c for c in readable if c.name not in (NAME_TOOL, ENTRY_TOOL)]
+
+
 class ModelOrchestrator:
     spec = AgentSpec(
         agent_id=AGENT_ID,
         title="Data Director",
+        icon="🎬",
         version="0.1.0",
         description=(
             "The model-backed Data Director orchestrator. Talks with a researcher, and hands "
@@ -194,7 +368,13 @@ class ModelOrchestrator:
         accepts=(ClassSchema.of(Message),),
         grounding_mode=GroundingMode.DELEGATION,
         payload=ClassSchema.of(Reply),
-        derivations={"reply_text": Derived(Derivation.MODEL, recorded_in="reply_derivation")},
+        derivations={
+            "reply_text": Derived(Derivation.MODEL, recorded_in="reply_derivation"),
+            "conversation_title": Derived(Derivation.MODEL),
+            "reply_questions": Derived(Derivation.MODEL),
+            "new_project_title": Derived(Derivation.MODEL),
+            "new_project_entry": Derived(Derivation.MODEL),
+        },
     )
 
     def __init__(
@@ -203,8 +383,11 @@ class ModelOrchestrator:
         *,
         history_turns: int = DEFAULT_HISTORY_TURNS,
         max_delegations: int = DEFAULT_MAX_DELEGATIONS,
+        titler: Model | None = None,
     ) -> None:
         self.model = model
+        # Names a conversation on its first turn; None writes no title.
+        self.titler = titler
         self.history_turns = history_turns
         self.max_delegations = max_delegations
 
@@ -213,41 +396,92 @@ class ModelOrchestrator:
         assert isinstance(message, Message)  # the conductor refused anything else
 
         if ctx.delegate is None:
-            return _abstain(
+            return abstain(
                 ReasonCode.CAPABILITY_NOT_IMPLEMENTED,
                 "The harness gave this run no way to delegate (for example, it was started "
                 "from `workbench invoke`), so no agent was asked.",
             )
-        tools = {t.name: t for t in tools_from_manifest(ctx.delegate.manifest())}
-        definitions = [t.definition for t in tools.values()]
-        messages = conversation(message, self.history_turns)
-
-        delegated: list[Delegated] = []
-        attempts = 0
-        input_tokens = output_tokens = 0
-        model_id = self.model.model_id
+        state = self._start(message, ctx.delegate.manifest())
         while True:
-            use_tools = bool(definitions) and attempts < self.max_delegations
-            with chat_span(ctx.tracer, self.model.model_id) as span:
-                turn = self.model.turn(messages, definitions, use_tools=use_tools)
-                if turn.model_id != self.model.model_id:
-                    # A server-side fallback answered.
-                    span.set_attribute(ATTR_MODEL_ID, turn.model_id)
-                record_tokens(span, turn.input_tokens, turn.output_tokens)
-            input_tokens += turn.input_tokens
-            output_tokens += turn.output_tokens
-            model_id = turn.model_id
-            messages.append({"role": "assistant", "content": turn.content})
-            if turn.stop_reason != "tool_use" or not turn.tool_calls:
+            turn = self._turn(state, ctx)
+            state.input_tokens += turn.usage.input_tokens or 0
+            state.output_tokens += turn.usage.output_tokens or 0
+            state.messages.append(turn.message)
+            if turn.stop != "tool_use" or not turn.tool_calls:
                 break
-            results = []
-            for call in turn.tool_calls:
-                attempts += 1
-                results.append(self._call(call, tools, attempts, ctx, delegated))
+            results = self._results(turn, state, ctx)
+            if results is None:
+                break
             # Every result of one turn goes back in one message.
-            messages.append({"role": "user", "content": results})
+            state.messages.append(ToolResults(tuple(results)))
 
-        return self._reply(turn, delegated, ctx, model_id, input_tokens, output_tokens)
+        return self._reply(message, turn, state, ctx)
+
+    def _start(self, message: Message, manifest: list[dict[str, Any]]) -> _Turns:
+        """The tools offered, from the harness's manifest, and the conversation so far."""
+        tools = {t.name: t for t in tools_from_manifest(manifest)}
+        definitions = [*(t.definition for t in tools.values()), QUESTIONS_TOOL_DEFINITION]
+        # Only a project no person has named may be named by the model.
+        may_name = message.project_title_by_researcher is False
+        if may_name:
+            definitions.append(NAME_TOOL_DEFINITION)
+        # In a project, the model may record the entry point until the researcher chooses one.
+        may_enter = (
+            message.project_title_by_researcher is not None
+            and message.project_entry_by_researcher is not True
+        )
+        if may_enter:
+            definitions.append(ENTRY_TOOL_DEFINITION)
+        return _Turns(
+            messages=list(conversation(message, self.history_turns)),
+            definitions=definitions,
+            tools=tools,
+            may_name=may_name,
+            may_enter=may_enter,
+            calls=ModelCallLog(self.model.provider),
+        )
+
+    def _results(self, turn: ModelReply, state: _Turns, ctx: RunContext) -> list[ToolResult] | None:
+        """The results of a turn's tool calls, in the order made; None when the turn asks the
+        researcher questions, which ends it."""
+        answered, others = state.answer_own(turn.tool_calls)
+        state.questions, problem = questions_of(others)
+        if state.questions is not None:
+            return None
+        results = []
+        for made in turn.tool_calls:
+            if made.id in answered:
+                results.append(answered[made.id])
+                continue
+            if made.name == QUESTIONS_TOOL:
+                results.append(tool_result(made, problem or "", is_error=True))
+                continue
+            state.attempts += 1
+            results.append(self._call(made, state.tools, state.attempts, ctx, state.delegated))
+        return results
+
+    def _turn(self, state: _Turns, ctx: RunContext) -> ModelReply:
+        """One call to the model, recorded in `state.calls`, offering the tools while delegations
+        remain; a provider failure or a refusal is a `ModelError`."""
+        use_tools = bool(state.definitions) and state.attempts < self.max_delegations
+        try:
+            turn = call(
+                self.model,
+                ctx,
+                system=SYSTEM_PROMPT,
+                messages=state.messages,
+                tools=state.definitions,
+                tool_choice="auto" if use_tools else "none",
+                max_tokens=MAX_TOKENS,
+                calls=state.calls,
+            )
+        except ModelCallError as exc:
+            raise ModelError(str(exc)) from exc
+        if turn.stop == "refusal":
+            raise ModelError(
+                f"the model declined the request (category: {turn.refusal_category or 'none'})"
+            )
+        return turn
 
     def _call(
         self,
@@ -256,23 +490,27 @@ class ModelOrchestrator:
         attempt: int,
         ctx: RunContext,
         delegated: list[Delegated],
-    ) -> dict[str, Any]:
+    ) -> ToolResult:
         tool = tools.get(call.name)
         if tool is None:
-            return _tool_result(call, f"There is no agent behind the tool {call.name!r}.", True)
+            return tool_result(
+                call, f"There is no agent behind the tool {call.name!r}.", is_error=True
+            )
         if attempt > self.max_delegations:
-            return _tool_result(
+            return tool_result(
                 call,
                 f"Not run: this turn has reached its limit of {self.max_delegations} "
                 "delegations. Reply with what you have.",
-                True,
+                is_error=True,
             )
         assert ctx.delegate is not None
         document = {**call.input, "schema_class": tool.schema_class}
         try:
             child = ctx.delegate(tool.agent_id, OpenInput.model_validate(document))
         except DelegationRefused as exc:
-            return _tool_result(call, f"The harness did not run {tool.agent_id}: {exc}", True)
+            return tool_result(
+                call, f"The harness did not run {tool.agent_id}: {exc}", is_error=True
+            )
         delegated.append(child)
         envelope = child.envelope
         result = {
@@ -288,22 +526,25 @@ class ModelOrchestrator:
             ),
         }
         failed = envelope.outcome.status == OutcomeStatus.FAILED
-        return _tool_result(call, json.dumps(result, default=str), failed)
+        return tool_result(call, json.dumps(result, default=str), is_error=failed)
 
     def _reply(
-        self,
-        turn: ModelTurn,
-        delegated: list[Delegated],
-        ctx: RunContext,
-        model_id: str,
-        input_tokens: int,
-        output_tokens: int,
+        self, message: Message, turn: ModelReply, state: _Turns, ctx: RunContext
     ) -> AgentResult:
+        questions, delegated, calls = state.questions, state.delegated, state.calls
+        input_tokens, output_tokens = state.input_tokens, state.output_tokens
         text = turn.text.strip()
-        if turn.stop_reason == "max_tokens":
+        if questions and not text:
+            text = (
+                questions[0].question_prompt
+                if len(questions) == 1
+                else f"I have {len(questions)} questions for you."
+            )
+        model_id = turn.model_id
+        if turn.stop == "max_tokens":
             text = f"{text}\n\n{CUT_SHORT}" if text else CUT_SHORT
         if not text:
-            raise ModelError(f"the model stopped ({turn.stop_reason}) without a reply")
+            raise ModelError(f"the model stopped ({turn.stop}) without a reply")
         if delegated:
             asked = ", ".join(
                 f"{d.envelope.agent_id}@{d.envelope.agent_version} "
@@ -313,7 +554,12 @@ class ModelOrchestrator:
             statement = f"Delegated to {asked}; each outcome is on its own envelope."
         else:
             statement = "Replied without delegating."
-        input_ref = GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)
+        title = None
+        if self.titler is not None and not message.history:
+            title = titled(self.titler, message.message_text, ctx, calls)
+            if title is not None:
+                input_tokens += title.input_tokens
+                output_tokens += title.output_tokens
         return AgentResult(
             outcome=Outcome(
                 status=OutcomeStatus.SUCCEEDED,
@@ -322,34 +568,19 @@ class ModelOrchestrator:
             payload=Reply(
                 reply_text=text,
                 reply_derivation=Derivation.MODEL,
-                grounded_on=[input_ref, *(d.ref for d in delegated)],
+                conversation_title=title.text if title is not None else None,
+                reply_questions=questions,
+                new_project_title=state.name,
+                new_project_entry=state.entry_point,
+                grounded_on=[input_ref(ctx), *(d.ref for d in delegated)],
             ),
             evidence=[
-                EvidenceItem(
-                    source_id=ctx.input_ref,
-                    retrieved_at=datetime.now(UTC),
-                    hash_algorithm=HASH_ALGORITHM,
-                    canonicalisation=INPUT_CANONICALISATION,
-                    content_hash=ctx.input_hash,
-                ),
+                input_evidence(ctx),
                 *(d.evidence for d in delegated),
             ],
             model_id=model_id,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
+            model_calls=calls.calls,
+            prompts=calls.prompts,
         )
-
-
-def _tool_result(call: ToolCall, content: str, is_error: bool) -> dict[str, Any]:
-    return {
-        "type": "tool_result",
-        "tool_use_id": call.id,
-        "content": content,
-        "is_error": is_error,
-    }
-
-
-def _abstain(reason: ReasonCode, statement: str) -> AgentResult:
-    return AgentResult(
-        outcome=Outcome(status=OutcomeStatus.ABSTAINED, reason_code=reason, statement=statement)
-    )

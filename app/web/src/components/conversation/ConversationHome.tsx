@@ -1,7 +1,12 @@
 /**
  * The home page: a conversation with the orchestrator (docs/specs/app.md), in the centre of the
- * workspace (§18), with the Blueprint's phases on one side and the project's documents on the
- * other. A delegated run opens inside its card in the transcript (§14).
+ * workspace (§18), in the project the shell is working in. The project's conversations are on the
+ * left, an overview of it on the right, and the Blueprint's phases in a strip above. New
+ * conversation starts another thread in the same project; with no project active, the first
+ * message starts one, which becomes the active project. The open conversation is named in the
+ * address (`?conversation=`), so a reload or a link reopens it and a message sent after it
+ * continues it. Switching project closes the open conversation. A delegated run opens inside its card in the
+ * transcript (§14).
  *
  * The orchestrator is the agent the profile names (docs/specs/app.md), never one the shell picks.
  * When the profile names none, the named agent is not running, its card does not declare
@@ -11,299 +16,203 @@
  * Until there is authentication (#17) the conversation acts for the operator (docs/specs/policy-and-identity.md).
  *
  * While a reply is awaited the message sits in the transcript beside a pulsing sign that the
- * orchestrator is working. A new reply is announced in a polite live region, the busy state is
- * announced, and focus returns to the message box.
+ * orchestrator is working. A new reply is announced in a polite live region, with any document
+ * version the turn drafted once the project's documents have been read again, the busy state is
+ * announced, and focus returns to the message box. The project's documents are read once for
+ * both the transcript's cards and the side bar's list.
+ *
+ * A reply may ask a choice question, which the transcript shows as choices; sending the answer
+ * takes the same path as a typed message, with the answer beside the labels chosen. The message
+ * box stays usable, so the researcher may ignore the question and type instead.
  *
  * A message may attach a `dd-inventory` file, chosen with the Attach button, dropped on the form
  * or pasted, which shows as a chip and goes to the conversation's project, never into the text
- * (#443, docs/specs/app.md). A link beside the button says how to make one.
+ * (#443, docs/specs/app.md). A file read as an inventory is first opened to be checked, and is
+ * attached, without whatever the researcher left out, only when they confirm (#472). Make an inventory, beside the button, opens a dialog that says how
+ * to make one and ends by choosing it (#553).
+ *
+ * The same Attach a file button, or a drop, takes a supporting document as plain text or
+ * Markdown, which is opened to be checked, attached as a chip only when the researcher confirms,
+ * and goes to the project, never into the text (docs/specs/app.md). A message may carry one
+ * inventory and one document.
+ *
+ * A step of the data journey, or one of the prompts an empty conversation offers, starts a new
+ * conversation with the step's prompt in the message box, unsent. A message already being written
+ * is replaced only when the researcher confirms.
+ *
+ * The page puts together hooks that each hold one part: the open conversation and its turns
+ * (`useConversationTurns`), what a message carries (`useAttachments`), and the project's
+ * documents, progress and intake (`useProjectDocuments`, `useProjectProgress`, `useIntake`), each
+ * read with `useResource`.
  */
 
-import {
-  type ClipboardEvent,
-  type DragEvent,
-  type FormEvent,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useRef, useState } from "react";
 
-import { FolderOpen, MessageSquarePlus, Paperclip, SendHorizontal, X } from "lucide-react";
-import { FileTrigger } from "react-aria-components";
-import { TurnConflict, Unreachable, useConversationApi } from "../../conversation/api";
-import {
-  type AttachedInventory,
-  INVENTORY_GUIDE,
-  NotAnInventory,
-  looksLikeInventory,
-  readInventory,
-} from "../../conversation/inventory";
-import { useFlowApi } from "../../flow/api";
-import type { Conversation, ConversationSummary } from "../../conversation/types";
-import type { AgentView, Directory } from "../../manifest/normalise";
-import { Link, navigate, useLocation } from "../../route";
-import { OUTCOME } from "../../manifest/wording";
-import { RunRefused, errorMessage } from "../../run/api";
+import type { ReplyAnswers } from "../../conversation/question";
+import type { FlowStep } from "../../flow/types";
+import type { Directory } from "../../manifest/normalise";
+import { useActiveProject } from "../../project/active";
+import { useProjectApi } from "../../project/api";
+import { homePath, navigate, useLocation } from "../../route";
 import type { Envelope } from "../../run/types";
-import { ActivityLog } from "../workspace/ActivityLog";
 import { ContextPanel } from "../workspace/ContextPanel";
-import { type FlowLoad, PhaseTracker } from "../workspace/PhaseTracker";
-import { StatusBar } from "../workspace/StatusBar";
+import { PhaseTracker } from "../workspace/PhaseTracker";
+import { useFlowLoad } from "../workspace/useFlowLoad";
+import { useAskAbout } from "./useAskAbout";
 import { Workspace } from "../workspace/Workspace";
-import { Button } from "../ui/Button";
-import { InventoryChip } from "./InventoryChip";
-import { RunDetail } from "./RunDetail";
+import { ProjectSwitcher } from "../project/ProjectSwitcher";
+import { useAnnounce } from "../ui/Announcer";
+import { Composer } from "./Composer";
+import { EarlierConversations } from "./EarlierConversations";
+import {
+  LinkedRun,
+  NoConversation,
+  OpenIntake,
+  chosenRepository,
+  holdsRun,
+  offeredPrompts,
+  projectHandlers,
+  projectNamed,
+  restoreDays,
+  trackedProgress,
+} from "./ConversationHomeParts";
+import { whyUnusable } from "./orchestrator";
+import { StartFromStep } from "./StartFromStep";
 import { Transcript } from "./Transcript";
-
-/** Why the named orchestrator cannot be conversed with, or null when it can. */
-function whyUnusable(named: string | null, agent: AgentView | undefined): string | null {
-  if (named === null) {
-    return "The policy in force names no agent to converse with.";
-  }
-  if (!agent) {
-    return `The policy in force names ${named} to converse with, but it is not available.`;
-  }
-  if (agent.groundingMode !== "delegation") {
-    return `The policy in force names ${named} to converse with, but it does not delegate to other agents.`;
-  }
-  if (agent.gate.kind === "not-permitted" || agent.gate.kind === "mismatch") {
-    return `The policy in force does not permit ${named} to run here.`;
-  }
-  return null;
-}
+import { useAttachments } from "./useAttachments";
+import { useConversationTurns } from "./useConversationTurns";
+import { useIntake } from "./useIntake";
+import { useProjectDocuments } from "./useProjectDocuments";
+import { useProjectProgress } from "./useProjectProgress";
 
 export function ConversationHome({ directory }: { directory: Directory }) {
-  const api = useConversationApi();
-  const flowApi = useFlowApi();
+  const projectApi = useProjectApi();
   const named = directory.orchestratorId;
   const orchestrator = directory.agents.find((a) => a.id === named);
   const unusable = whyUnusable(named, orchestrator);
-  const [conversationId, setConversationId] = useState<string | null>(null);
-  const [conversation, setConversation] = useState<Conversation | null>(null);
-  const [past, setPast] = useState<ConversationSummary[]>([]);
+  const { projectId, projects, reloadProjects } = useActiveProject();
   const [text, setText] = useState("");
-  const [attached, setAttached] = useState<AttachedInventory | null>(null);
-  const [attachError, setAttachError] = useState<string | null>(null);
-  const [dropping, setDropping] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [sent, setSent] = useState<{ message: string; inventory: AttachedInventory | null } | null>(
-    null,
-  );
-  const [error, setError] = useState<string | null>(null);
-  const [announcement, setAnnouncement] = useState("");
-  const [flow, setFlow] = useState<FlowLoad>({ state: "loading" });
-  const runId = new URLSearchParams(useLocation().split("?")[1]).get("run");
+  const announce = useAnnounce();
+  // A step whose prompt waits on the researcher's leave to replace the message being written.
+  const [replacing, setReplacing] = useState<FlowStep | null>(null);
+  const params = new URLSearchParams(useLocation().split("?")[1]);
+  const runId = params.get("run");
+  // The open conversation is kept in the address, so a reload or a link reopens it.
+  const urlConversation = params.get("conversation");
   const box = useRef<HTMLTextAreaElement>(null);
 
-  const reloadPast = useCallback(
-    (signal?: AbortSignal) => api.list(signal).then(setPast, () => undefined),
-    [api],
+  const attachments = useAttachments(box, announce, directory.documentsAllowed);
+  const turns = useConversationTurns({
+    orchestratorId: orchestrator?.id,
+    runId,
+    urlConversation,
+    box,
+    announce: announce,
+    setText,
+    restore: attachments.restore,
+    clearAttachError: attachments.clearError,
+  });
+  const { conversation, busy, sent, turnCount, quiet } = turns;
+  const { inventory: attached, document: attachedDocument } = attachments;
+  const writing = Boolean(text.trim()) || attachments.carries;
+  const { documents, answered } = useProjectDocuments(
+    projectId,
+    turnCount,
+    turns.awaitedDrafts,
+    announce,
   );
+  const progress = useProjectProgress(projectId, turnCount);
+  const intakeRead = useIntake(projectId, turnCount, {
+    progressed: progress.set,
+    announce: announce,
+    failed: turns.setError,
+  });
+  const { intake } = intakeRead;
 
-  useEffect(() => {
-    const abort = new AbortController();
-    void reloadPast(abort.signal);
-    return () => abort.abort();
-  }, [reloadPast]);
+  const tracked = trackedProgress(projectId, progress, {
+    projectApi,
+    documents,
+    // A new conversation is not started while a reply is awaited.
+    startConversation: busy ? undefined : (step: FlowStep) => startStep(step),
+    answerIntakeAgain: intakeRead.intake ? intakeRead.openAgain : undefined,
+  });
 
-  // The phases do not depend on the conversation: if they fail, only the tracker says so.
-  useEffect(() => {
-    const abort = new AbortController();
-    flowApi.get(abort.signal).then(
-      (loaded) => setFlow({ state: "loaded", flow: loaded }),
-      (e: unknown) => abort.signal.aborted || setFlow({ state: "failed", message: errorMessage(e) }),
-    );
-    return () => abort.abort();
-  }, [flowApi]);
+  const flow = useFlowLoad();
+
+  useAskAbout(flow, setText, box, {
+    conversation: urlConversation,
+    run: runId,
+  });
 
   const frame = {
-    status: <StatusBar directory={directory} />,
-    phases: <PhaseTracker load={flow} agents={directory.agents} />,
-    log: <ActivityLog />,
+    project: <ProjectSwitcher />,
+    phases: <PhaseTracker load={flow} tracked={tracked} />,
   };
+  const project = projectNamed(projects, projectId);
 
   if (unusable || !orchestrator) {
     return (
-      <Workspace
-        {...frame}
-        title="No conversation is available"
-        centre={
-          <>
-            <p>{unusable} You can still use each agent on its own.</p>
-            <p>
-              <Link to="/agents">Open the agent directory</Link>
-            </p>
-          </>
-        }
-        context={<ContextPanel orchestrator={undefined} />}
+      <NoConversation
+        frame={frame}
+        why={unusable}
+        projectId={projectId}
+        project={project}
       />
     );
   }
 
-  /** Reads `text` as an inventory and attaches it, or says why it cannot. */
-  function attach(content: string, name: string | null): boolean {
-    try {
-      setAttached(readInventory(content, name));
-      setAttachError(null);
-      setAnnouncement("Inventory attached.");
-      return true;
-    } catch (e) {
-      setAttachError(e instanceof NotAnInventory ? e.message : errorMessage(e));
-      return false;
-    }
+  async function send() {
+    await turns.deliver(
+      text.trim(),
+      { inventory: attached, document: attachedDocument },
+      null,
+    );
   }
 
-  async function attachFile(file: File | undefined) {
-    if (!file) return;
-    try {
-      attach(await file.text(), file.name);
-    } catch (e) {
-      setAttachError(`Data Director could not read ${file.name}: ${errorMessage(e)}`);
-    }
+  /** Sends the answers to the latest turn's questions, said in words as `message`. What is in
+   * the message box stays there. */
+  async function answerQuestions(answers: ReplyAnswers, message: string) {
+    await turns.deliver(message, { inventory: null, document: null }, answers);
   }
 
-  function removeInventory() {
-    setAttached(null);
-    setAnnouncement("Inventory removed.");
-    box.current?.focus();
+  // The finished intake hands over to the conversation: the researcher's press sends their
+  // opening turn, naming the suggested step, by the ordinary path.
+  function startFromIntake(message: string) {
+    intakeRead.close();
+    void turns.deliver(message, { inventory: null, document: null }, null);
   }
 
-  // A whole inventory pasted into the box becomes a chip, not text (#443).
-  function onPaste(event: ClipboardEvent<HTMLTextAreaElement>) {
-    const pasted = event.clipboardData.getData("text");
-    if (!looksLikeInventory(pasted)) return;
-    event.preventDefault();
-    attach(pasted, null);
+  /** Starts a new conversation about `step`, asking first if a message is being written. */
+  function startStep(step: FlowStep) {
+    if (writing) setReplacing(step);
+    else beginWith(step);
   }
 
-  function onDragOver(event: DragEvent<HTMLFormElement>) {
-    if (!event.dataTransfer.types.includes("Files")) return;
-    event.preventDefault();
-    setDropping(true);
-  }
-
-  function onDrop(event: DragEvent<HTMLFormElement>) {
-    if (!event.dataTransfer.types.includes("Files")) return;
-    event.preventDefault();
-    setDropping(false);
-    void attachFile(event.dataTransfer.files[0]);
-  }
-
-  async function send(event: FormEvent) {
-    event.preventDefault();
-    const message = text.trim();
-    const inventory = attached;
-    if (!orchestrator || (!message && !inventory) || busy) return;
-    setBusy(true);
-    setError(null);
-    setAttachError(null);
-    setAnnouncement("Waiting for a reply.");
-    // The message and its inventory move into the transcript while the reply is awaited, and
-    // come back to the box if the send fails, so nothing typed or attached is lost.
-    setSent({ message, inventory });
-    setText("");
-    setAttached(null);
-    let id = conversationId;
-    let stored = false;
-    // The latest turn this page shows: the server refuses the turn if the conversation has
-    // moved on since, so a message sent again after a dropped connection never runs twice.
-    const follows = conversation?.turns[conversation.turns.length - 1]?.invocation_id ?? null;
-    try {
-      id ??= await api.create();
-      setConversationId(id);
-      await api.sendTurn(id, orchestrator.id, message, follows, inventory?.document ?? null);
-      // The turn is stored: from here a failure is in showing the reply, not in sending it, so
-      // the message must not come back to the box to be sent twice (#337).
-      stored = true;
-      // Once more if the first read gets no response: the reply is there to be read.
-      const sentTo = id;
-      const updated = await api.get(sentTo).catch((e: unknown) => {
-        if (e instanceof Unreachable) return api.get(sentTo);
-        throw e;
-      });
-      setConversation(updated);
-      const last = updated.turns[updated.turns.length - 1];
-      setAnnouncement(
-        last
-          ? `New reply from ${last.agent_id}: ${OUTCOME[last.envelope.outcome.status].label}.`
-          : "",
-      );
-      void reloadPast();
-    } catch (e) {
-      if (stored) {
-        void reloadPast();
-        setError(
-          "Your message was sent and answered, but Data Director could not show the reply " +
-            `(${errorMessage(e)}). Open this conversation from Earlier conversations to see it.`,
-        );
-        setAnnouncement("");
-        return;
-      }
-      setText(message);
-      setAttached(inventory);
-      if (e instanceof Unreachable) {
-        // The server may have received the turn and be running it, so show what it stored.
-        if (id) api.get(id).then(setConversation, () => undefined);
-        setError(
-          "Data Director could not reach the server, so this message may not have been sent. " +
-            "Your message is kept: sending it again is safe, because a message that was " +
-            "received is not run twice.",
-        );
-      } else if (e instanceof TurnConflict) {
-        if (id) api.get(id).then(setConversation, () => undefined);
-        setError(
-          "This conversation has changed since you wrote this: another message was answered or " +
-            "is still being answered. Your message is kept. Check the conversation above, then " +
-            "send it again if it is still needed.",
-        );
-      } else {
-        setError(
-          e instanceof RunRefused
-            ? `${e.problem.title}: ${e.message}`
-            : `Data Director could not send this: ${errorMessage(e)}`,
-        );
-      }
-      setAnnouncement("");
-    } finally {
-      setSent(null);
-      setBusy(false);
-      box.current?.focus();
-    }
-  }
-
-  function reset() {
-    setConversationId(null);
-    setConversation(null);
-    setError(null);
-    setText("");
-    setAttached(null);
-    setAttachError(null);
-    setAnnouncement("");
-    box.current?.focus();
-  }
-
-  async function reopen(id: string) {
-    try {
-      setConversation(await api.get(id));
-      setConversationId(id);
-      setError(null);
-      box.current?.focus();
-    } catch (e) {
-      setError(`Data Director could not open that conversation: ${errorMessage(e)}`);
-    }
+  /** A new conversation, with the step's prompt in the box to edit and send. */
+  function beginWith(step: FlowStep) {
+    setReplacing(null);
+    turns.reset();
+    setText(step.prompt);
+    announce(
+      `New conversation about ${step.label}. The message box holds a suggested message: edit it if you wish, then send.`,
+    );
+    requestAnimationFrame(() => {
+      const input = box.current;
+      if (!input) return;
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+    });
   }
 
   // Opening a run shows it in its card and closing it hides it; focus stays on the card's button.
   function toggleRun(envelope: Envelope) {
-    navigate(envelope.invocation_id === runId ? "/" : `/?run=${encodeURIComponent(envelope.invocation_id)}`);
+    navigate(
+      homePath({
+        conversation: urlConversation,
+        run: envelope.invocation_id === runId ? null : envelope.invocation_id,
+      }),
+    );
   }
-
-  // A run named in the address but not in the transcript, as after a reload (the conversation is
-  // not in the address), is shown above the message box so the link still opens it.
-  const inTranscript = conversation?.turns
-    .flatMap((t) => t.children)
-    .some((c) => c.invocation_id === runId);
 
   return (
     <Workspace
@@ -311,124 +220,93 @@ export function ConversationHome({ directory }: { directory: Directory }) {
       title="Talk to Data Director"
       titleHidden
       centre={
-        <section aria-labelledby="conversation-heading" className="conversation-main">
+        <section
+          aria-labelledby="conversation-heading"
+          className="conversation-main"
+        >
           <h2 id="conversation-heading" className="visually-hidden">
             Conversation
           </h2>
-          <p>
-            <Button icon={MessageSquarePlus} onPress={reset}>New conversation</Button>
-          </p>
-          {((conversation && conversation.turns.length > 0) || sent !== null) && (
+          <OpenIntake
+            projectId={projectId}
+            read={intakeRead}
+            flow={flow}
+            onStart={quiet ? startFromIntake : undefined}
+            onAnnounce={announce}
+          />
+          {(turnCount > 0 || sent !== null) && (
             <Transcript
               conversation={conversation}
               agents={directory.agents}
               onToggleRun={toggleRun}
               selectedRun={runId}
-              pending={
-                sent === null
-                  ? null
-                  : { agentId: orchestrator.id, message: sent.message, inventory: sent.inventory }
+              documents={
+                documents.state === "loaded" ? documents.documents : null
               }
+              pending={sent && { agentId: orchestrator.id, ...sent, live: turns.live }}
+              onAnswer={(answers, message) =>
+                void answerQuestions(answers, message)
+              }
+              chosenRepository={chosenRepository(project)}
+              project={project}
+              onRetry={(message) =>
+                void turns.deliver(message, { inventory: null, document: null }, null)
+              }
+              {...projectHandlers(projectId, answered, reloadProjects)}
             />
           )}
-          {runId && !inTranscript && (
-            <section aria-labelledby="linked-run" className="callout">
-              <h3 id="linked-run">
-                Run <code>{runId}</code>
-              </h3>
-              <RunDetail invocationId={runId} agents={directory.agents} idPrefix="linked-run" />
-              <p>
-                <Button icon={X} onPress={() => navigate("/")}>Close the run</Button>
-              </p>
-            </section>
-          )}
-          {/* Dropping a file is a shortcut for the Attach inventory button, which keyboard and
-              screen reader users have, so the form's drag listeners need no role of their own. */}
-          {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
-          <form
-            onSubmit={(e) => void send(e)}
-            aria-busy={busy}
-            className={dropping ? "dropping" : undefined}
-            onDragOver={onDragOver}
-            onDragLeave={() => setDropping(false)}
-            onDrop={onDrop}
-          >
-            <div className="field">
-              <label htmlFor="message">What would you like to do?</label>
-              <textarea
-                id="message"
-                ref={box}
-                rows={3}
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                onPaste={onPaste}
-                onKeyDown={(e) => {
-                  // Ctrl+Enter (Cmd+Enter on a Mac) sends; the Send button's rules still apply.
-                  if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.nativeEvent.isComposing) {
-                    e.preventDefault();
-                    if (!busy && (text.trim() || attached)) e.currentTarget.form?.requestSubmit();
-                  }
-                }}
-              />
-            </div>
-            <div className="composer-attach">
-              {attached ? (
-                <InventoryChip
-                  fileCount={attached.fileCount}
-                  madeAt={attached.madeAt}
-                  name={attached.name}
-                  onRemove={removeInventory}
-                />
-              ) : (
-                <FileTrigger
-                  acceptedFileTypes={["application/json", ".json"]}
-                  onSelect={(files) => void attachFile(files?.[0])}
-                >
-                  <Button icon={Paperclip} isDisabled={busy}>Attach inventory</Button>
-                </FileTrigger>
-              )}
-              <a href={INVENTORY_GUIDE}>How do I make an inventory?</a>
-            </div>
-            {attachError && (
-              <p role="alert" className="callout status-danger">
-                {attachError}
-              </p>
+          <StartFromStep
+            offered={offeredPrompts(
+              flow,
+              tracked,
+              quiet && !writing && !intake?.open,
             )}
-            <Button
-              type="submit"
-              variant="primary"
-              icon={SendHorizontal}
-              isDisabled={!busy && !text.trim() && !attached}
-              isPending={busy}
-            >
-              {busy ? "Sending…" : "Send"}
-            </Button>
-          </form>
-          <div role="status" aria-live="polite" className="visually-hidden">
-            {announcement}
-          </div>
-          {error && (
-            <div role="alert" className="callout status-danger">
-              <p>{error}</p>
-            </div>
+            replacing={replacing}
+            onChoose={beginWith}
+            onCancel={() => setReplacing(null)}
+          />
+          {runId && !holdsRun(conversation, runId) && (
+            <LinkedRun runId={runId} agents={directory.agents} />
           )}
-          {past.length > 0 && (
-            <section aria-labelledby="past-heading">
-              <h3 id="past-heading">Earlier conversations</h3>
-              <ul className="plain-list">
-                {past.map((c) => (
-                  <li key={c.conversation_id}>
-                    <Button variant="quiet" icon={FolderOpen} onPress={() => void reopen(c.conversation_id)}>
-                      {c.started_at} ({c.turns} {c.turns === 1 ? "turn" : "turns"})
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            </section>
+          <Composer
+            box={box}
+            text={text}
+            onText={setText}
+            attachments={attachments}
+            busy={busy}
+            onSend={() => void send()}
+          />
+          {turns.error && (
+            <div role="alert" className="callout status-danger">
+              <p>{turns.error}</p>
+            </div>
           )}
         </section>
       }
-      context={<ContextPanel orchestrator={orchestrator} conversation={conversation} />}
+      history={
+        <EarlierConversations
+          conversations={turns.past.filter(
+            (c) => (c.project_id ?? null) === projectId,
+          )}
+          currentId={turns.conversationId}
+          onOpen={(id) => void turns.reopen(id)}
+          onNew={turns.reset}
+          onDeleted={(id) => {
+            turns.deleted(id);
+            void reloadProjects();
+          }}
+          restoreDays={restoreDays(project)}
+        />
+      }
+      context={
+        <ContextPanel
+          projectId={projectId}
+          project={project}
+          conversation={conversation}
+          documents={documents}
+          onInventorySaved={() => void reloadProjects()}
+        />
+      }
     />
   );
 }

@@ -5,22 +5,33 @@ a proposed version caused by the run."""
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import pytest
 from a2a.helpers import get_data_parts
-from requirement_sets import override, standard, write
+from requirement_sets import ORDA, override, pinned, standard, write
 from starlette.applications import Starlette
 
 from dd_harness.conductor import Conductor, ProjectAssignmentError
 from dd_harness.conversations import get_conversation, list_conversations
 from dd_harness.identity import OperatorAssertion
-from dd_harness.projects import DOCUMENT_VERSION_ADDED, PROPOSED, ProjectStore
+from dd_harness.projects import (
+    APPROVED,
+    DOCUMENT_VERSION_ADDED,
+    PROPOSED,
+    REJECTED,
+    Decision,
+    ProjectDeletedError,
+    ProjectStore,
+    UnknownProjectError,
+)
 from dd_harness.requirements import load_requirements
 from dd_harness.testing import (
     HARNESS_URL,
+    STUB_QUESTION,
     TEST_PRINCIPAL,
     AbstainingStub,
     DocumentStub,
@@ -34,14 +45,18 @@ from dd_harness.testing import (
     send_to_harness,
 )
 from dd_harness.transport.a2a import a2a_routes
-from dd_sdk.agent import AgentResult, RunContext
+from dd_sdk.agent import AgentResult, ModelUse, RunContext
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
+    ApprovedMetadataRecord,
+    CurrentVersion,
     Derivation,
     Document,
     DocumentKind,
     DocumentVersionRef,
+    DraftAnswer,
     DraftRequest,
+    Envelope,
     FileInventory,
     GroundingMode,
     GroundingRef,
@@ -51,6 +66,8 @@ from dd_sdk.contract.models import (
     OpenInput,
     Outcome,
     OutcomeStatus,
+    Principal,
+    VersionState,
     new_invocation_id,
 )
 from dd_sdk.contract.problem import PROBLEM_BASE
@@ -97,8 +114,14 @@ def project(projects: ProjectStore, tmp_path: Path) -> str:
     repositories = write(
         tmp_path / "repositories", ("standards", standard()), ("overrides", override())
     )
-    orda = load_requirements(repositories).resolve("r3d100012124", "ORDA", ["Dublin Core"])
-    projects.choose_repository(project_id, orda, acted_for=TEST_PRINCIPAL, caused_by="test")
+    projects.choose_repository(
+        project_id,
+        ORDA,
+        registry=pinned(tmp_path / "re3data"),
+        requirements=load_requirements(repositories),
+        acted_for=TEST_PRINCIPAL,
+        caused_by="test",
+    )
     return project_id
 
 
@@ -148,7 +171,24 @@ def test_a_draft_in_a_project_is_given_its_facts_and_kept_as_a_proposed_version(
 
     # The conversation says which project it is in.
     assert get_conversation(conductor.store, conversation)["project_id"] == project  # type: ignore[index]
-    assert list_conversations(conductor.store)[0]["project_id"] == project
+    assert list_conversations(conductor.store, limit=50).items[0]["project_id"] == project
+
+
+def test_a_run_in_a_project_its_principal_may_not_read_is_refused_and_nothing_is_stored(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """Docs/specs/projects.md, invariant 17: the conductor checks before an invocation."""
+    conductor = conductor_over(tmp_path / "runs", projects, DocumentStub())
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    before = projects.events(project)
+    someone = Principal(principal_id="https://orcid.org/0000-0002-1694-233X", name="Someone Else")
+    with pytest.raises(UnknownProjectError):
+        conductor.invoke(
+            in_conversation(request("stub.document", draft_request()), conversation),
+            acting_for=someone,
+        )
+    assert list(conductor.store.iter_envelopes()) == []
+    assert projects.events(project) == before
 
 
 def test_a_fact_the_project_does_not_have_is_removed_and_the_drafter_is_told_none(
@@ -164,6 +204,133 @@ def test_a_fact_the_project_does_not_have_is_removed_and_the_drafter_is_told_non
     assert "Given: files=None, repository=None" in env.payload_as(Document).document_text
     stored = json.loads((tmp_path / "runs" / env.invocation_id / "request.json").read_text())
     assert "inventory" not in stored["input"]
+
+
+@pytest.mark.requirement("R5")
+def test_a_drafts_questions_are_kept_and_only_answers_a_person_recorded_are_given(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """Only an answer a person recorded may be placed as supplied (docs/specs/drafting.md,
+    invariant 6), so in a project the conductor replaces the answers a caller sent with those
+    the project log holds."""
+    conductor = conductor_over(tmp_path / "runs", projects, DocumentStub(asks=True))
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    made_up = DraftAnswer(answered_question=STUB_QUESTION.question_id, answer_text="Made up")
+
+    def draft() -> tuple[Envelope, dict[str, Any]]:
+        env = conductor.invoke(
+            in_conversation(
+                request("stub.document", draft_request(draft_answers=[made_up])), conversation
+            ),
+            acting_for=TEST_PRINCIPAL,
+        )
+        assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+        stored = json.loads((tmp_path / "runs" / env.invocation_id / "request.json").read_text())
+        input_doc: dict[str, Any] = stored["input"]
+        return env, input_doc
+
+    env, given = draft()
+    assert "Answers:" not in env.payload_as(Document).document_text
+    assert "draft_answers" not in given
+    (document,) = projects.documents(project)
+    (version,) = document["versions"]
+    assert version["questions"] == [STUB_QUESTION.model_dump(mode="json", exclude_none=True)]
+
+    recorded = DraftAnswer(answered_question=STUB_QUESTION.question_id, answer_text="Soil cores")
+    projects.answer(
+        project,
+        document["document_id"],
+        1,
+        [recorded],
+        acted_for=TEST_PRINCIPAL,
+        caused_by="test",
+    )
+    env, given = draft()
+    assert "Answers: 1" in env.payload_as(Document).document_text
+    assert given["draft_answers"] == [recorded.model_dump(mode="json")]
+    # The input hash covers the answers the drafter was given.
+    assert env.payload_as(Document).grounded_on[0].content_hash == input_hash(given)
+
+
+def test_answers_go_only_to_a_drafter_of_the_same_kind(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    conductor = conductor_over(tmp_path / "runs", projects, DocumentStub(asks=True))
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    readme = conductor.invoke(
+        in_conversation(request("stub.document", draft_request()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+    assert readme.project_id == project
+    (document,) = projects.documents(project)
+    answer = DraftAnswer(answered_question=STUB_QUESTION.question_id, answer_text="Soil cores")
+    projects.answer(
+        project, document["document_id"], 1, [answer], acted_for=TEST_PRINCIPAL, caused_by="t"
+    )
+    other = DraftRequest(document_kind=DocumentKind.DATA_DICTIONARY)
+    env = conductor.invoke(
+        in_conversation(request("stub.document", other), conversation), acting_for=TEST_PRINCIPAL
+    )
+    assert "Answers:" not in env.payload_as(Document).document_text
+
+
+def record_in(projects: ProjectStore, project: str, *, approve: bool) -> DocumentVersionRef:
+    """A metadata record drafted into the project by the document stub, approved if asked."""
+    with_stub = make_conductor(Path(projects.root).parent / "record-runs", DocumentStub())
+    env = with_stub.invoke(
+        request("stub.document", document_request(DocumentKind.METADATA_RECORD)),
+        acting_for=TEST_PRINCIPAL,
+    )
+    ref = projects.record_draft(project, env)
+    if approve:
+        (digest,) = [
+            d["versions"][-1]["digest"]
+            for d in projects.documents(project)
+            if d["document_id"] == ref.document_id
+        ]
+        projects.decide(
+            project,
+            Decision(ref.document_id, ref.version, digest, APPROVED),
+            acted_for=TEST_PRINCIPAL,
+            caused_by="test",
+        )
+    return ref
+
+
+@pytest.mark.requirement("R5")
+def test_a_draft_is_given_the_metadata_record_a_person_approved_and_no_other(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """The metadata record is supplied content (docs/specs/drafting.md, invariant 2), so a
+    drafter is given only a version a person approved, never one a caller sent."""
+    conductor = conductor_over(tmp_path / "runs", projects, DocumentStub())
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    made_up = ApprovedMetadataRecord(
+        version_ref=DocumentVersionRef(document_id=new_invocation_id(), version=9),
+        media_type="application/json",
+        document_text='{"titles": [{"title": "Made up"}]}',
+    )
+
+    def draft() -> dict[str, Any]:
+        sent = draft_request(metadata_record=made_up)
+        env = conductor.invoke(
+            in_conversation(request("stub.document", sent), conversation),
+            acting_for=TEST_PRINCIPAL,
+        )
+        assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+        stored = json.loads((tmp_path / "runs" / env.invocation_id / "request.json").read_text())
+        assert "record=9" not in env.payload_as(Document).document_text
+        input_doc: dict[str, Any] = stored["input"]
+        return input_doc
+
+    record_in(projects, project, approve=False)
+    assert "metadata_record" not in draft()
+
+    approved = record_in(projects, project, approve=True)
+    record_in(projects, project, approve=False)
+    given = draft()["metadata_record"]
+    assert given == projects.metadata_record(project)
+    assert given["version_ref"] == approved.model_dump(mode="json")
 
 
 def test_outside_a_project_nothing_is_filled_or_recorded(
@@ -396,3 +563,842 @@ def test_a_draft_that_revises_no_version_of_the_project_fails_the_run(
     assert stored is not None
     assert stored["outcome"]["status"] == "failed"
     assert projects.documents(project) == []
+
+
+def withholding(conductor: Conductor, hosted_models: frozenset[str]) -> Conductor:
+    conductor.profile = replace(conductor.profile, hosted_models=hosted_models)
+    return conductor
+
+
+@pytest.mark.requirement("C13.5")
+def test_documentation_is_withheld_from_a_hosted_model_by_default(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """Only `inventory` and `decisions` go to an agent that calls a hosted model unless the
+    profile says otherwise (docs/specs/projects.md, invariant 8). The run is refused before
+    anything is sent, and the refusal is stored."""
+    hosted = DocumentStub("hosted-model", hosting="hosted")
+    conductor = conductor_over(tmp_path / "runs", projects, hosted)
+    assert conductor.profile.hosted_models == {"inventory", "decisions"}
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    record_in(projects, project, approve=True)  # a metadata record is documentation
+    before = len(projects.documents(project))
+
+    env = conductor.invoke(
+        in_conversation(request("stub.document", draft_request()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+
+    assert env.outcome.status == OutcomeStatus.FAILED
+    assert "not run" in (env.outcome.statement or "")
+    assert env.problem is not None
+    assert env.problem.type == PROBLEM_BASE + "project-content-withheld"
+    assert "documentation" in (env.problem.detail or "")
+    assert env.payload is None and not env.telemetry.model_calls
+    assert (tmp_path / "runs" / env.invocation_id / "envelope.json").is_file()
+    assert len(projects.documents(project)) == before
+
+
+@pytest.mark.requirement("C13.5")
+def test_a_hosted_model_is_given_the_inventory(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    hosted = DocumentStub("hosted-model", hosting="hosted")
+    conductor = conductor_over(tmp_path / "runs", projects, hosted)
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+
+    env = conductor.invoke(
+        in_conversation(request("stub.document", draft_request()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert "files=2" in env.payload_as(Document).document_text
+
+
+@pytest.mark.requirement("C13.5")
+def test_a_profile_may_let_a_hosted_model_be_given_documentation(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    hosted = DocumentStub("hosted-model", hosting="hosted")
+    conductor = withholding(
+        conductor_over(tmp_path / "runs", projects, hosted),
+        frozenset({"inventory", "documentation"}),
+    )
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    record_in(projects, project, approve=True)
+
+    env = conductor.invoke(
+        in_conversation(request("stub.document", draft_request()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert "metadata_record" in stored_input(tmp_path / "runs", env.invocation_id)
+
+
+@pytest.mark.requirement("C13.5")
+def test_a_profile_may_withhold_even_the_inventory(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    hosted = DocumentStub("hosted-model", hosting="hosted")
+    conductor = withholding(conductor_over(tmp_path / "runs", projects, hosted), frozenset())
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+
+    env = conductor.invoke(
+        in_conversation(request("stub.document", draft_request()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+
+    assert env.problem is not None
+    assert env.problem.type == PROBLEM_BASE + "project-content-withheld"
+
+
+@pytest.mark.requirement("C13.5")
+def test_a_local_model_or_none_is_given_everything(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    for stub in (DocumentStub("local-model"), DocumentStub()):
+        conductor = withholding(conductor_over(tmp_path / "runs", projects, stub), frozenset())
+        conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+        record_in(projects, project, approve=True)
+        env = conductor.invoke(
+            in_conversation(request("stub.document", draft_request()), conversation),
+            acting_for=TEST_PRINCIPAL,
+        )
+        assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+
+
+@pytest.mark.requirement("C13.5")
+def test_outside_a_project_a_hosted_model_is_given_what_the_caller_sent(tmp_path: Path) -> None:
+    """What a caller sends is not the project's, so `hosted_models` does not apply to it."""
+    hosted = DocumentStub("hosted-model", hosting="hosted")
+    conductor = withholding(make_conductor(tmp_path / "runs", hosted), frozenset())
+    made_up = ApprovedMetadataRecord(
+        version_ref=DocumentVersionRef(document_id=new_invocation_id(), version=1),
+        media_type="application/json",
+        document_text="{}",
+    )
+
+    env = conductor.invoke(
+        request("stub.document", draft_request(metadata_record=made_up)),
+        acting_for=TEST_PRINCIPAL,
+    )
+
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+
+
+def test_a_message_in_a_project_is_told_its_entry_point_and_progress(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """The conductor derives where the project is from its log on every turn; whatever a caller
+    says of it is replaced (docs/specs/orchestration.md)."""
+    projects.choose_entry(project, 2, acted_for=TEST_PRINCIPAL, caused_by="t")
+    projects.mark_step(
+        project, "governance.embargo", "skipped", acted_for=TEST_PRINCIPAL, caused_by="t"
+    )
+    conductor = conductor_over(tmp_path / "runs", projects, AbstainingStub())
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    forged = OpenInput.model_validate(
+        {
+            **message().model_dump(mode="json"),
+            "project_entry": 3,
+            "project_progress": [{"step_id": "deposit.finalise", "step_state": "done"}],
+        }
+    )
+    env = conductor.invoke(
+        in_conversation(request("stub.abstain", forged), conversation), acting_for=TEST_PRINCIPAL
+    )
+    given = stored_input(tmp_path / "runs", env.invocation_id)
+    assert given["project_entry"] == 2
+    states = {s["step_id"]: s["step_state"] for s in given["project_progress"]}
+    assert states["preparation.files"] == "done"  # the inventory
+    assert states["repository.recommend"] == "done"  # ORDA chosen
+    assert states["governance.embargo"] == "skipped"
+    assert "deposit.finalise" not in states
+
+
+def test_a_message_outside_a_project_is_told_no_progress(
+    tmp_path: Path, projects: ProjectStore
+) -> None:
+    conductor = conductor_over(tmp_path / "runs", projects, AbstainingStub())
+    forged = OpenInput.model_validate(
+        {
+            **message().model_dump(mode="json"),
+            "project_entry": 3,
+            "project_progress": [{"step_id": "deposit.finalise", "step_state": "done"}],
+        }
+    )
+    env = conductor.invoke(request("stub.abstain", forged), acting_for=TEST_PRINCIPAL)
+    given = stored_input(tmp_path / "runs", env.invocation_id)
+    assert "project_entry" not in given and "project_progress" not in given
+
+
+def drafted(
+    conductor: Conductor, conversation: str, kind: DocumentKind = DocumentKind.README, **sent: Any
+) -> Envelope:
+    asked = DraftRequest(document_kind=kind, **sent)
+    env = conductor.invoke(
+        in_conversation(request("stub.document", asked), conversation), acting_for=TEST_PRINCIPAL
+    )
+    return env
+
+
+def decide_latest(
+    projects: ProjectStore,
+    project: str,
+    verdict: Literal["approved", "rejected"],
+    reason: str | None,
+) -> None:
+    (document,) = projects.documents(project)
+    latest = document["versions"][-1]
+    projects.decide(
+        project,
+        Decision(document["document_id"], latest["version"], latest["digest"], verdict, reason),
+        acted_for=TEST_PRINCIPAL,
+        caused_by="test",
+    )
+
+
+@pytest.mark.requirement("C13.3")
+def test_a_redraft_is_the_next_version_of_the_document_and_is_given_the_decision(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """A drafter is given the latest version of the project's document of the kind, with the
+    reason a person rejected it, so its redraft is version 2 of that document
+    (docs/specs/projects.md, invariant 6; #631)."""
+    conductor = conductor_over(tmp_path / "runs", projects, DocumentStub())
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    first = drafted(conductor, conversation)
+    assert "current_version" not in stored_input(tmp_path / "runs", first.invocation_id)
+    decide_latest(projects, project, REJECTED, "Too short.")
+
+    second = drafted(conductor, conversation)
+
+    assert second.outcome.status == OutcomeStatus.SUCCEEDED, second.outcome.statement
+    given = stored_input(tmp_path / "runs", second.invocation_id)["current_version"]
+    (document,) = projects.documents(project)
+    assert given == {
+        "version_ref": {"document_id": document["document_id"], "version": 1},
+        "media_type": document["versions"][0]["media_type"],
+        "document_text": document["versions"][0]["text"],
+        "version_state": "rejected",
+        "decision_reason": "Too short.",
+    }
+    assert [v["version"] for v in document["versions"]] == [1, 2]
+    assert document["versions"][1]["revises"] == given["version_ref"]
+    assert document["versions"][1]["state"] == PROPOSED
+
+
+@pytest.mark.requirement("C13.3")
+def test_a_caller_may_not_send_the_version_to_regenerate(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    conductor = conductor_over(tmp_path / "runs", projects, DocumentStub())
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    made_up = CurrentVersion(
+        version_ref=DocumentVersionRef(document_id=new_invocation_id(), version=7),
+        media_type="text/markdown",
+        document_text="# Made up\n",
+        version_state=VersionState.APPROVED,
+    )
+
+    first = drafted(conductor, conversation, current_version=made_up)
+    assert "current_version" not in stored_input(tmp_path / "runs", first.invocation_id)
+    second = drafted(conductor, conversation, current_version=made_up)
+    given = stored_input(tmp_path / "runs", second.invocation_id)["current_version"]
+    assert given["version_ref"]["version"] == 1
+    assert given["version_ref"]["document_id"] != made_up.version_ref.document_id
+
+
+@pytest.mark.requirement("C13.3")
+def test_a_redraft_may_name_which_document_of_the_kind_it_continues(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """A project drafted before redrafts kept their document may hold two of one kind; without
+    a name the drafter is given the one drafted or revised last."""
+    first = record_in(projects, project, approve=False)
+    second = record_in(projects, project, approve=False)
+    conductor = conductor_over(tmp_path / "runs", projects, DocumentStub())
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    kind = DocumentKind.METADATA_RECORD
+
+    latest = drafted(conductor, conversation, kind)
+    named = drafted(conductor, conversation, kind, redraft_document=first.document_id)
+
+    runs = tmp_path / "runs"
+    assert stored_input(runs, latest.invocation_id)["current_version"]["version_ref"] == {
+        "document_id": second.document_id,
+        "version": 1,
+    }
+    assert stored_input(runs, named.invocation_id)["current_version"]["version_ref"] == {
+        "document_id": first.document_id,
+        "version": 1,
+    }
+    versions = {d["document_id"]: len(d["versions"]) for d in projects.documents(project)}
+    assert versions == {first.document_id: 2, second.document_id: 2}
+
+
+@pytest.mark.requirement("C13.3")
+@pytest.mark.parametrize("which", ["unknown", "another kind"])
+def test_a_redraft_of_a_document_the_project_does_not_hold_is_refused(
+    tmp_path: Path, projects: ProjectStore, project: str, which: str
+) -> None:
+    record = record_in(projects, project, approve=False)  # a metadata record, not a README
+    named = new_invocation_id() if which == "unknown" else record.document_id
+    conductor = conductor_over(tmp_path / "runs", projects, DocumentStub())
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    before = projects.documents(project)
+
+    env = drafted(conductor, conversation, DocumentKind.README, redraft_document=named)
+
+    assert env.outcome.status == OutcomeStatus.FAILED
+    assert "not run" in (env.outcome.statement or "")
+    assert env.problem is not None
+    assert env.problem.type == PROBLEM_BASE + "revision-refused"
+    assert named in (env.problem.detail or "")
+    assert projects.documents(project) == before
+
+
+def test_outside_a_project_a_redraft_names_no_document(tmp_path: Path) -> None:
+    conductor = make_conductor(tmp_path / "runs", DocumentStub())
+    asked = DraftRequest(document_kind=DocumentKind.README, redraft_document=new_invocation_id())
+
+    env = conductor.invoke(request("stub.document", asked), acting_for=TEST_PRINCIPAL)
+
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert "redraft_document" not in stored_input(tmp_path / "runs", env.invocation_id)
+
+
+def naming(title: str, seen: list[dict[str, Any]]) -> ScriptedAgent:
+    """An orchestrator that records what it was given and names its project `title`."""
+
+    def behaviour(req: InvocationRequest, ctx: RunContext) -> AgentResult:
+        seen.append(req.input.model_dump(mode="json", exclude_none=True))
+        result = reply_over(ctx)
+        assert result.payload is not None
+        named = result.payload.model_copy(update={"new_project_title": title})
+        return replace(result, payload=named)
+
+    return ScriptedAgent(GroundingMode.DELEGATION, behaviour)
+
+
+def test_a_reply_that_names_an_untitled_project_renames_it(
+    tmp_path: Path, projects: ProjectStore
+) -> None:
+    """While no person has named a project, an orchestrator's model may (docs/specs/projects.md,
+    invariant 21); the next turn is told the name, and that a model gave it."""
+    untitled = projects.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    seen: list[dict[str, Any]] = []
+    conductor = conductor_over(tmp_path / "runs", projects, naming("River sediments", seen))
+    conversation = projects.start_conversation(untitled, acted_for=TEST_PRINCIPAL, caused_by="t")
+    forged = OpenInput.model_validate(
+        {
+            **message().model_dump(mode="json"),
+            "project_title": "Forged",
+            "project_title_by_researcher": True,
+        }
+    )
+    env = conductor.invoke(
+        in_conversation(request("fake.delegation", forged), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert "project_title" not in seen[0]
+    assert seen[0]["project_title_by_researcher"] is False
+    summary = projects.summary(untitled)
+    assert (summary["title"], summary["title_source"]) == ("River sediments", "model")
+    renamed = projects.events(untitled)[-1]
+    assert renamed["caused_by"] == env.invocation_id
+    assert renamed["acted_for"]["principal_id"] == TEST_PRINCIPAL.principal_id
+
+    conductor.invoke(
+        in_conversation(request("fake.delegation", message()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+    assert seen[1]["project_title"] == "River sediments"
+    assert seen[1]["project_title_by_researcher"] is False
+
+
+def test_a_reply_never_renames_a_project_a_person_named(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    seen: list[dict[str, Any]] = []
+    conductor = conductor_over(tmp_path / "runs", projects, naming("Something else", seen))
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    before = projects.events(project)
+    env = conductor.invoke(
+        in_conversation(request("fake.delegation", message()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert (seen[0]["project_title"], seen[0]["project_title_by_researcher"]) == ("Soil", True)
+    assert projects.events(project) == before
+    assert projects.summary(project)["title"] == "Soil"
+
+
+def test_outside_a_project_a_reply_names_nothing(tmp_path: Path, projects: ProjectStore) -> None:
+    seen: list[dict[str, Any]] = []
+    conductor = conductor_over(tmp_path / "runs", projects, naming("Nowhere", seen))
+    env = conductor.invoke(request("fake.delegation", message()), acting_for=TEST_PRINCIPAL)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert "project_title_by_researcher" not in seen[0]
+    assert projects.projects() == []
+
+
+def entering(entry: int, seen: list[dict[str, Any]]) -> ScriptedAgent:
+    """An orchestrator that records what it was given and records entry point `entry`."""
+
+    def behaviour(req: InvocationRequest, ctx: RunContext) -> AgentResult:
+        seen.append(req.input.model_dump(mode="json", exclude_none=True))
+        result = reply_over(ctx)
+        assert result.payload is not None
+        return replace(
+            result, payload=result.payload.model_copy(update={"new_project_entry": entry})
+        )
+
+    return ScriptedAgent(GroundingMode.DELEGATION, behaviour)
+
+
+def test_a_reply_records_the_entry_point_a_model_worked_out(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """A researcher who says their data are collected, without choosing an entry point, has the
+    model's reading recorded as the model's word (docs/specs/orchestration.md, invariant 18)."""
+    seen: list[dict[str, Any]] = []
+    conductor = conductor_over(tmp_path / "runs", projects, entering(2, seen))
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    forged = OpenInput.model_validate(
+        {**message().model_dump(mode="json"), "project_entry_by_researcher": True}
+    )
+    env = conductor.invoke(
+        in_conversation(request("fake.delegation", forged), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert "project_entry_by_researcher" not in seen[0]
+    where = projects.progress(project)
+    assert (where["entry"], where["entry_source"]) == (2, "model")
+    recorded = projects.events(project)[-1]
+    assert recorded["caused_by"] == env.invocation_id
+
+    conductor.invoke(
+        in_conversation(request("fake.delegation", message()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+    assert (seen[1]["project_entry"], seen[1]["project_entry_by_researcher"]) == (2, False)
+
+
+def test_a_reply_never_replaces_the_entry_point_the_researcher_chose(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    projects.choose_entry(project, 3, acted_for=TEST_PRINCIPAL, caused_by="test")
+    seen: list[dict[str, Any]] = []
+    conductor = conductor_over(tmp_path / "runs", projects, entering(1, seen))
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    before = projects.events(project)
+    env = conductor.invoke(
+        in_conversation(request("fake.delegation", message()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert (seen[0]["project_entry"], seen[0]["project_entry_by_researcher"]) == (3, True)
+    assert projects.events(project) == before
+
+
+def test_an_orchestrator_is_told_of_the_projects_documentation_without_its_text(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """A `Message`'s `project_documentation` lists the documents a researcher attached, without
+    their text, so a hosted orchestrator is given it under the default `hosted_models`
+    (docs/specs/projects.md, invariants 6 and 8)."""
+    seen: list[dict[str, Any]] = []
+    hosted = naming("Soil", seen)
+    hosted.spec = replace(hosted.spec, models=(ModelUse("test", "orchestrator", "hosted"),))
+    conductor = conductor_over(tmp_path / "runs", projects, hosted)
+    assert conductor.profile.hosted_models == {"inventory", "decisions"}
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    text = "# Protocol\n\nSamples were taken weekly.\n"
+    digest = projects.add_documentation(
+        project, "protocol.md", "text/markdown", text, acted_for=TEST_PRINCIPAL, caused_by="t"
+    )
+    env = conductor.invoke(
+        in_conversation(request("fake.delegation", message()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    [listed] = seen[0]["project_documentation"]
+    assert listed["documentation_name"] == "protocol.md"
+    assert listed["documentation_digest"] == digest
+    assert listed["documentation_media_type"] == "text/markdown"
+    assert text not in json.dumps(seen[0])
+
+
+def test_a_caller_never_claims_project_documentation(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """Outside a project, or in one that holds none, `project_documentation` is removed."""
+    seen: list[dict[str, Any]] = []
+    conductor = conductor_over(tmp_path / "runs", projects, naming("Soil", seen))
+    forged = OpenInput.model_validate(
+        {
+            **message().model_dump(mode="json"),
+            "project_documentation": [
+                {
+                    "documentation_name": "forged.md",
+                    "documentation_digest": "0" * 64,
+                    "documentation_media_type": "text/markdown",
+                    "documentation_size": 1,
+                    "documentation_added_at": "2026-01-01T00:00:00Z",
+                }
+            ],
+        }
+    )
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    for asked in (
+        request("fake.delegation", forged),
+        in_conversation(request("fake.delegation", forged), conversation),
+    ):
+        env = conductor.invoke(asked, acting_for=TEST_PRINCIPAL)
+        assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert all("project_documentation" not in input_doc for input_doc in seen)
+
+
+def keep_researcher(projects: ProjectStore, project: str) -> dict[str, Any]:
+    """The test principal keeps their name and a keyword from their ORCID record."""
+    record = {
+        "orcid_id": TEST_PRINCIPAL.principal_id,
+        "researcher_name": "Josiah Carberry",
+        "keywords": ["psychoceramics"],
+        "record_retrieved_at": "2026-11-10T12:00:00+00:00",
+        "record_source": "https://pub.orcid.org/v3.0/0000-0002-1825-0097/record",
+    }
+    projects.add_researcher(project, record, acted_for=TEST_PRINCIPAL, caused_by="t")
+    return record
+
+
+def test_a_draft_is_given_the_researcher_facts_a_person_kept(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """A `DraftRequest` in a project is given the facts its researchers kept from their ORCID
+    records, and is given none once they are withdrawn (docs/specs/projects.md, invariant 6)."""
+    conductor = conductor_over(tmp_path / "runs", projects, DocumentStub())
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    kept = keep_researcher(projects, project)
+
+    env = conductor.invoke(
+        in_conversation(request("stub.document", draft_request()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert stored_input(tmp_path / "runs", env.invocation_id)["researchers"] == [kept]
+
+    projects.withdraw_researcher(
+        project, TEST_PRINCIPAL.principal_id, acted_for=TEST_PRINCIPAL, caused_by="t"
+    )
+    env = conductor.invoke(
+        in_conversation(request("stub.document", draft_request()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+    assert "researchers" not in stored_input(tmp_path / "runs", env.invocation_id)
+
+
+@pytest.mark.requirement("C13.5")
+def test_researcher_facts_are_left_out_for_a_hosted_model_by_default(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """Researcher facts are `researcher`, which the default `hosted_models` keeps from a hosted
+    model; they are left out and the run goes ahead (docs/specs/projects.md, invariant 8)."""
+    hosted = DocumentStub("hosted-model", hosting="hosted")
+    conductor = conductor_over(tmp_path / "runs", projects, hosted)
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    keep_researcher(projects, project)
+
+    env = conductor.invoke(
+        in_conversation(request("stub.document", draft_request()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert "researchers" not in stored_input(tmp_path / "runs", env.invocation_id)
+
+
+@pytest.mark.requirement("C13.5")
+def test_a_profile_may_let_a_hosted_model_be_given_researcher_facts(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    hosted = DocumentStub("hosted-model", hosting="hosted")
+    conductor = withholding(
+        conductor_over(tmp_path / "runs", projects, hosted),
+        frozenset({"inventory", "researcher"}),
+    )
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    keep_researcher(projects, project)
+
+    env = conductor.invoke(
+        in_conversation(request("stub.document", draft_request()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert "researchers" in stored_input(tmp_path / "runs", env.invocation_id)
+
+
+def test_a_message_is_given_researcher_facts_a_caller_never_claims(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """A `Message` in a project is given `project_researchers`; outside one, what a caller sends
+    in their place is removed."""
+    seen: list[dict[str, Any]] = []
+    conductor = conductor_over(tmp_path / "runs", projects, naming("Soil", seen))
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    kept = keep_researcher(projects, project)
+    forged = OpenInput.model_validate(
+        {**message().model_dump(mode="json"), "project_researchers": [kept]}
+    )
+
+    for asked in (
+        in_conversation(request("fake.delegation", message()), conversation),
+        request("fake.delegation", forged),
+    ):
+        env = conductor.invoke(asked, acting_for=TEST_PRINCIPAL)
+        assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+
+    [given] = seen[0]["project_researchers"]
+    assert (given["orcid_id"], given["keywords"]) == (kept["orcid_id"], kept["keywords"])
+    assert "project_researchers" not in seen[1]
+
+
+def test_a_hosted_orchestrator_goes_on_without_researcher_facts(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """A conversation is not stopped by facts the profile keeps from its hosted model."""
+    seen: list[dict[str, Any]] = []
+    hosted = naming("Soil", seen)
+    hosted.spec = replace(hosted.spec, models=(ModelUse("test", "orchestrator", "hosted"),))
+    conductor = conductor_over(tmp_path / "runs", projects, hosted)
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    keep_researcher(projects, project)
+
+    env = conductor.invoke(
+        in_conversation(request("fake.delegation", message()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert "project_researchers" not in seen[0]
+
+
+class DeletingDocumentStub(DocumentStub):
+    """A drafter during whose run its project is deleted."""
+
+    def __init__(self, projects: ProjectStore, project_id: str) -> None:
+        super().__init__()
+        self.projects, self.project_id = projects, project_id
+
+    def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
+        self.projects.delete(self.project_id, acted_for=TEST_PRINCIPAL, caused_by="test")
+        return super().run(request, ctx)
+
+
+def test_a_run_going_when_its_project_is_deleted_is_recorded_and_a_new_one_refused(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """Docs/specs/projects.md, invariant 24."""
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    going = conductor_over(tmp_path / "runs", projects, DeletingDocumentStub(projects, project))
+    env = going.invoke(
+        in_conversation(request("stub.document", draft_request()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert projects.is_deleted(project)
+    (document,) = projects.documents(project)
+    assert document["versions"][0]["drafted_by"]["invocation_id"] == env.invocation_id
+
+    before = projects.events(project)
+    conductor = conductor_over(tmp_path / "runs", projects, DocumentStub())
+    with pytest.raises(ProjectDeletedError):
+        conductor.invoke(
+            in_conversation(request("stub.document", draft_request()), conversation),
+            acting_for=TEST_PRINCIPAL,
+        )
+    assert projects.events(project) == before
+    assert len(list(conductor.store.iter_envelopes())) == 1
+
+
+def attach(projects: ProjectStore, project: str) -> tuple[str, str]:
+    """The test principal attaches field notes to the project: their text and digest."""
+    text = "# Field notes\n\nSoil cores were taken at 10 cm, weekly from March.\n"
+    digest = projects.add_documentation(
+        project, "fieldnotes.md", "text/markdown", text, acted_for=TEST_PRINCIPAL, caused_by="t"
+    )
+    return text, digest
+
+
+@pytest.mark.requirement("R5")
+def test_a_draft_is_given_the_text_of_the_documents_a_researcher_attached(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """A `DraftRequest` in a project is given each attached document with its text, replacing
+    whatever the caller sent (docs/specs/projects.md, invariant 6)."""
+    conductor = conductor_over(tmp_path / "runs", projects, DocumentStub())
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    text, digest = attach(projects, project)
+    forged = draft_request(
+        project_documents=[
+            {
+                "documentation_name": "forged.md",
+                "documentation_digest": "0" * 64,
+                "documentation_media_type": "text/markdown",
+                "documentation_size": 1,
+                "documentation_added_at": "2026-01-01T00:00:00Z",
+                "documentation_text": "x",
+            }
+        ]
+    )
+
+    env = conductor.invoke(
+        in_conversation(request("stub.document", forged), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    [given] = stored_input(tmp_path / "runs", env.invocation_id)["project_documents"]
+    assert given["documentation_digest"] == digest
+    assert given["documentation_text"] == text
+
+
+def test_a_draft_in_a_project_with_no_documents_is_given_none(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    conductor = conductor_over(tmp_path / "runs", projects, DocumentStub())
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+
+    env = conductor.invoke(
+        in_conversation(request("stub.document", draft_request()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert not stored_input(tmp_path / "runs", env.invocation_id).get("project_documents")
+
+
+@pytest.mark.requirement("C13.5")
+def test_attached_documents_are_left_out_for_a_hosted_model_by_default(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """Attached documents' text is `documentation`, which the default `hosted_models` keeps from
+    a hosted model; it is left out and the draft still runs (invariant 8)."""
+    hosted = DocumentStub("hosted-model", hosting="hosted")
+    conductor = conductor_over(tmp_path / "runs", projects, hosted)
+    assert "documentation" not in conductor.profile.hosted_models
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    text, _ = attach(projects, project)
+
+    env = conductor.invoke(
+        in_conversation(request("stub.document", draft_request()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    stored = stored_input(tmp_path / "runs", env.invocation_id)
+    assert "project_documents" not in stored
+    assert text not in json.dumps(stored)
+
+
+@pytest.mark.requirement("C13.5")
+def test_a_metadata_record_withheld_still_refuses_when_documents_are_left_out(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """Leaving out attached documents does not let other withheld documentation through."""
+    hosted = DocumentStub("hosted-model", hosting="hosted")
+    conductor = conductor_over(tmp_path / "runs", projects, hosted)
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    attach(projects, project)
+    record_in(projects, project, approve=True)
+
+    env = conductor.invoke(
+        in_conversation(request("stub.document", draft_request()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+
+    assert env.outcome.status == OutcomeStatus.FAILED
+    assert env.problem is not None
+    assert env.problem.type == PROBLEM_BASE + "project-content-withheld"
+
+
+@pytest.mark.requirement("C13.5")
+def test_a_profile_may_let_a_hosted_model_be_given_attached_documents(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    hosted = DocumentStub("hosted-model", hosting="hosted")
+    conductor = withholding(
+        conductor_over(tmp_path / "runs", projects, hosted),
+        frozenset({"inventory", "documentation"}),
+    )
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    text, _ = attach(projects, project)
+
+    env = conductor.invoke(
+        in_conversation(request("stub.document", draft_request()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    [given] = stored_input(tmp_path / "runs", env.invocation_id)["project_documents"]
+    assert given["documentation_text"] == text
+
+
+def refusing_documents(conductor: Conductor) -> Conductor:
+    conductor.profile = replace(conductor.profile, attached_documents="refused")
+    return conductor
+
+
+def test_a_profile_that_refuses_documents_gives_a_draft_none(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """Under `attached_documents: refused`, a document a project already holds reaches no
+    agent, and what a caller sends in its place is removed (docs/specs/projects.md)."""
+    conductor = refusing_documents(conductor_over(tmp_path / "runs", projects, DocumentStub()))
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    text, _ = attach(projects, project)
+    sent = draft_request(
+        project_documents=[
+            {
+                "documentation_name": "sent.md",
+                "documentation_digest": "0" * 64,
+                "documentation_media_type": "text/markdown",
+                "documentation_size": 1,
+                "documentation_added_at": "2026-01-01T00:00:00Z",
+                "documentation_text": "x",
+            }
+        ]
+    )
+
+    env = conductor.invoke(
+        in_conversation(request("stub.document", sent), conversation), acting_for=TEST_PRINCIPAL
+    )
+
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    stored = stored_input(tmp_path / "runs", env.invocation_id)
+    assert "project_documents" not in stored
+    assert text not in json.dumps(stored)
+
+
+def test_a_profile_that_refuses_documents_tells_a_message_of_none(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    seen: list[dict[str, Any]] = []
+    orchestrator = naming("Soil", seen)
+    conductor = refusing_documents(conductor_over(tmp_path / "runs", projects, orchestrator))
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    attach(projects, project)
+
+    env = conductor.invoke(
+        in_conversation(request("fake.delegation", message()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert "project_documentation" not in seen[0]

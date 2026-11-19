@@ -1,9 +1,10 @@
 # Local development stack: agents, the app and its Vite dev server. See README.md, "With Docker
 # Compose". For development only; deployment is in deploy/. Ports are published on loopback only,
 # because the app does not authenticate callers. Settings are read from config/local/, which
-# `uv run scripts/dev.py setup` creates, as in deployment. Set DD_APP_HOST_PORT, DD_WEB_HOST_PORT or
+# `uv run scripts/dd.py setup` creates, as in deployment. Set DD_APP_HOST_PORT, DD_WEB_HOST_PORT or
 # DD_WORKBENCH_HOST_PORT in the shell if a port is taken. The agents are reached only inside the
-# network.
+# network. Runs and projects are kept in volumes unless config/local/app.env names a
+# postgresql:// location; the `postgres` profile runs that database (README.md).
 
 x-python: &python
   build:
@@ -18,6 +19,14 @@ x-python: &python
     DD_AGENTS_CONFIG: /workspace/docker/agents.yaml
     # Where a relative *_FILE is read from, as under systemd (docs/specs/policy-and-identity.md).
     CREDENTIALS_DIRECTORY: /workspace/config/local/credentials
+
+# Where libpq finds the `db` service and its password file inside the stack. `dd.py setup` writes
+# the host's own values to config/local/app.env, which these override, so that file serves
+# `dd.py start` on the host as well. A location never carries a password (docs/specs/storage.md).
+x-postgres-env: &postgres-env
+  PGHOST: db
+  PGPORT: "5432"
+  PGPASSFILE: /workspace/config/local/credentials/pgpass
 
 x-agent: &agent
   <<: *python
@@ -35,11 +44,79 @@ x-agent: &agent
     retries: 24
   restart: unless-stopped
 
+# Every agent the app and the workbench wait for, since they read the agents' cards once at
+# start-up. orchestrator-model is left out: it runs only with the `llm` profile.
+x-agents-healthy: &agents-healthy
+  example-hello:
+    condition: service_healthy
+  advisor-quality:
+    condition: service_healthy
+  advisor-standards:
+    condition: service_healthy
+  advisor-policy:
+    condition: service_healthy
+  advisor-repository:
+    condition: service_healthy
+  advisor-files:
+    condition: service_healthy
+  advisor-ethics:
+    condition: service_healthy
+  advisor-dmp:
+    condition: service_healthy
+  advisor-metadata:
+    condition: service_healthy
+  advisor-documentation:
+    condition: service_healthy
+  advisor-rights:
+    condition: service_healthy
+  advisor-linking:
+    condition: service_healthy
+  advisor-fairness:
+    condition: service_healthy
+  orchestrator-stub:
+    condition: service_healthy
+
 services:
-  # Installs every workspace package into the venv volume, then exits.
+  # The database runs and projects are kept in when config/local/app.env names it: opt-in, with
+  # `docker compose --profile postgres up`, after `dd.py setup` has written its password. The
+  # major version CI tests against (.github/workflows/ci.yml).
+  db:
+    image: postgres:17@sha256:ff87138949ad9a46f32ff23bd6852b52ce024a13dffe9b4087be98292cdd3b4f
+    profiles: [postgres]
+    environment:
+      POSTGRES_USER: dd
+      POSTGRES_DB: dd
+      POSTGRES_PASSWORD_FILE: /credentials/postgres-password
+    volumes:
+      - ./config/local/credentials:/credentials:ro
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD, pg_isready, -U, dd, -d, dd]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+    ports: ["127.0.0.1:${DD_DB_HOST_PORT:-5432}:5432"]
+
+  # Applies the schema to `db`, then exits; with nothing to apply, it changes nothing.
+  db-migrate:
+    <<: *python
+    profiles: [postgres]
+    depends_on:
+      deps:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+    command: uv run --no-sync dd-harness storage migrate postgresql://dd@/dd
+    environment:
+      <<: [*python-env, *postgres-env]
+
+  # Installs every workspace package into the venv volume, builds the sources that agents build
+  # outside git (dd-sources, sdk/src/dd_sdk/sources.py), then exits. Downloads stay in each
+  # source's gitignored cache in the checkout, so they survive the container.
   deps:
     <<: *python
-    command: uv sync --all-packages --all-extras
+    command: sh -c "uv sync --all-packages --all-extras && uv run --no-sync dd-sources prepare"
 
   example-hello:
     <<: *agent
@@ -77,6 +154,126 @@ services:
       - path: config/local/agents/advisor-standards.env
         required: false
 
+  advisor-policy:
+    <<: *agent
+    command: uv run --no-sync dd-advisor-policy serve --host 0.0.0.0 --port 8108 --public-url http://advisor-policy:8108
+    environment:
+      <<: *python-env
+      PORT: "8108"
+    env_file:
+      - path: config/local/agents.env
+        required: false
+      - path: config/local/agents/advisor-policy.env
+        required: false
+
+  advisor-repository:
+    <<: *agent
+    command: uv run --no-sync dd-advisor-repository serve --host 0.0.0.0 --port 8109 --public-url http://advisor-repository:8109
+    environment:
+      <<: *python-env
+      PORT: "8109"
+    env_file:
+      - path: config/local/agents.env
+        required: false
+      - path: config/local/agents/advisor-repository.env
+        required: false
+
+  advisor-files:
+    <<: *agent
+    command: uv run --no-sync dd-advisor-files serve --host 0.0.0.0 --port 8110 --public-url http://advisor-files:8110
+    environment:
+      <<: *python-env
+      PORT: "8110"
+    env_file:
+      - path: config/local/agents.env
+        required: false
+      - path: config/local/agents/advisor-files.env
+        required: false
+
+  advisor-ethics:
+    <<: *agent
+    command: uv run --no-sync dd-advisor-ethics serve --host 0.0.0.0 --port 8111 --public-url http://advisor-ethics:8111
+    environment:
+      <<: *python-env
+      PORT: "8111"
+    env_file:
+      - path: config/local/agents.env
+        required: false
+      - path: config/local/agents/advisor-ethics.env
+        required: false
+
+  advisor-dmp:
+    <<: *agent
+    command: uv run --no-sync dd-advisor-dmp serve --host 0.0.0.0 --port 8112 --public-url http://advisor-dmp:8112
+    environment:
+      <<: *python-env
+      PORT: "8112"
+    env_file:
+      - path: config/local/agents.env
+        required: false
+      - path: config/local/agents/advisor-dmp.env
+        required: false
+
+  advisor-metadata:
+    <<: *agent
+    command: uv run --no-sync dd-advisor-metadata serve --host 0.0.0.0 --port 8113 --public-url http://advisor-metadata:8113
+    environment:
+      <<: *python-env
+      PORT: "8113"
+    env_file:
+      - path: config/local/agents.env
+        required: false
+      - path: config/local/agents/advisor-metadata.env
+        required: false
+
+  advisor-documentation:
+    <<: *agent
+    command: uv run --no-sync dd-advisor-documentation serve --host 0.0.0.0 --port 8114 --public-url http://advisor-documentation:8114
+    environment:
+      <<: *python-env
+      PORT: "8114"
+    env_file:
+      - path: config/local/agents.env
+        required: false
+      - path: config/local/agents/advisor-documentation.env
+        required: false
+
+  advisor-rights:
+    <<: *agent
+    command: uv run --no-sync dd-advisor-rights serve --host 0.0.0.0 --port 8115 --public-url http://advisor-rights:8115
+    environment:
+      <<: *python-env
+      PORT: "8115"
+    env_file:
+      - path: config/local/agents.env
+        required: false
+      - path: config/local/agents/advisor-rights.env
+        required: false
+
+  advisor-linking:
+    <<: *agent
+    command: uv run --no-sync dd-advisor-linking serve --host 0.0.0.0 --port 8116 --public-url http://advisor-linking:8116
+    environment:
+      <<: *python-env
+      PORT: "8116"
+    env_file:
+      - path: config/local/agents.env
+        required: false
+      - path: config/local/agents/advisor-linking.env
+        required: false
+
+  advisor-fairness:
+    <<: *agent
+    command: uv run --no-sync dd-advisor-fairness serve --host 0.0.0.0 --port 8117 --public-url http://advisor-fairness:8117
+    environment:
+      <<: *python-env
+      PORT: "8117"
+    env_file:
+      - path: config/local/agents.env
+        required: false
+      - path: config/local/agents/advisor-fairness.env
+        required: false
+
   orchestrator-stub:
     <<: *agent
     command: uv run --no-sync dd-orchestrator-stub serve --host 0.0.0.0 --port 8106 --public-url http://orchestrator-stub:8106
@@ -104,6 +301,32 @@ services:
       - path: config/local/agents/orchestrator-model.env
         required: false
 
+  # The model broker (docs/guide/operations/model-broker.md): opt-in with the `model-broker`
+  # profile. Its secrets are files in config/local/credentials/model-broker/, its settings
+  # config/local/model-broker.env. Reached only inside the network, like the agents.
+  model-broker:
+    <<: *python
+    profiles: [model-broker]
+    depends_on:
+      deps:
+        condition: service_completed_successfully
+    command: uv run --no-sync dd-model-broker serve --host 0.0.0.0 --port 8300
+    environment:
+      <<: *python-env
+      DD_BROKER_STORE: /var/lib/model-broker/broker.sqlite3
+      DD_BROKER_KEY_ENCRYPTION_KEY_FILE: model-broker/key-encryption-key
+      DD_BROKER_SUBJECT_KEY_FILE: model-broker/subject-key
+      DD_BROKER_AGENT_CREDENTIALS_FILE: model-broker/agent-credentials
+    env_file:
+      - path: config/local/model-broker.env
+        required: false
+    volumes:
+      - .:/workspace
+      - venv:/venv
+      - uv-cache:/uv-cache
+      - model-broker:/var/lib/model-broker
+    restart: unless-stopped
+
   # Builds the shell once: the app will not start without app/web/dist.
   web-build:
     build:
@@ -112,6 +335,8 @@ services:
       target: node
     volumes:
       - ./app/web:/workspace/app/web
+      - ./inventory/browser:/workspace/inventory/browser:ro
+      - ./sdk/browser:/workspace/sdk/browser:ro
       - ./app/config:/workspace/app/config:ro
       - node-modules:/workspace/app/web/node_modules
     command: sh -c "npm ci && npm run build"
@@ -123,16 +348,15 @@ services:
         condition: service_completed_successfully
       web-build:
         condition: service_completed_successfully
-      example-hello:
-        condition: service_healthy
-      advisor-quality:
-        condition: service_healthy
-      advisor-standards:
-        condition: service_healthy
-      orchestrator-stub:
-        condition: service_healthy
+      # Only with the `postgres` profile; without it, there is nothing to wait for.
+      db-migrate:
+        condition: service_completed_successfully
+        required: false
+      <<: *agents-healthy
     command: uv run --no-sync data-director
+    # The volumes below, unless config/local/app.env names other locations.
     env_file:
+      - docker/storage.env
       - path: config/local/app.env
         required: false
     healthcheck:
@@ -145,16 +369,19 @@ services:
       timeout: 5s
       retries: 24
     environment:
-      <<: *python-env
+      <<: [*python-env, *postgres-env]
       DD_APP_HOST: 0.0.0.0
       DD_APP_PORT: "7860"
       DD_HARNESS_URL: http://app:7860
-      DD_RUNS_DIR: /runs
+      # `dd.py setup` names the profile it writes by its path on the host; this is the same
+      # file where the checkout is mounted.
+      DD_PROFILE: /workspace/config/local/profile.yaml
     volumes:
       - .:/workspace
       - venv:/venv
       - uv-cache:/uv-cache
       - app-runs:/runs
+      - app-projects:/projects
     ports: ["127.0.0.1:${DD_APP_HOST_PORT:-7860}:7860"]
 
   # Vite dev server for the shell, with hot reload. Proxies /api to the app.
@@ -170,10 +397,15 @@ services:
         condition: service_healthy
     volumes:
       - ./app/web:/workspace/app/web
+      - ./inventory/browser:/workspace/inventory/browser:ro
+      - ./sdk/browser:/workspace/sdk/browser:ro
       - ./app/config:/workspace/app/config:ro
       - node-modules:/workspace/app/web/node_modules
     environment:
       DD_APP_URL: http://app:7860
+      # /broker/enrolment/ goes to the model broker, when its profile is up and the app sets
+      # DD_APP_MODEL_BROKER_URL=/broker (config/local/app.env).
+      DD_BROKER_URL: http://model-broker:8300
     command: npm run dev -- --host 0.0.0.0
     ports: ["127.0.0.1:${DD_WEB_HOST_PORT:-5173}:5173"]
 
@@ -184,21 +416,20 @@ services:
     depends_on:
       deps:
         condition: service_completed_successfully
-      example-hello:
-        condition: service_healthy
-      advisor-quality:
-        condition: service_healthy
-      advisor-standards:
-        condition: service_healthy
-      orchestrator-stub:
-        condition: service_healthy
+      db-migrate:
+        condition: service_completed_successfully
+        required: false
+      <<: *agents-healthy
     working_dir: /workspace/workbench
     command: uv run --no-sync workbench serve --host 0.0.0.0 --port 8000
     environment:
-      <<: *python-env
+      <<: [*python-env, *postgres-env]
       DD_HARNESS_URL: http://workbench:8000
-      DD_RUNS_DIR: /runs
+      # `dd.py setup` names the profile it writes by its path on the host; this is the same
+      # file where the checkout is mounted.
+      DD_PROFILE: /workspace/config/local/profile.yaml
     env_file:
+      - docker/storage.env
       - path: config/local/app.env
         required: false
     volumes:
@@ -213,4 +444,7 @@ volumes:
   uv-cache:
   node-modules:
   app-runs:
+  app-projects:
   workbench-runs:
+  model-broker:
+  db-data:

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "data-director-sdk"
-version = "0.2.0-alpha.1"
+version = "0.2.0-alpha.4"
 description = "Data Director agent SDK: the invocation contract, evidence hashing, trace helpers and the A2A agent server"
 readme = "README.md"
 requires-python = ">=3.14"
@@ -16,14 +16,61 @@ dependencies = [
   "jsonschema>=4.23",
   "opentelemetry-sdk>=1.44",
   "a2a-sdk[http-server]>=1.2.2,<2",
+  "httpx>=0.28",
+  "protobuf>=5",
+  "starlette>=0.40",
   "uvicorn>=0.30",
   # So that `serve --reload` sees a prompt change, not only a change to Python.
   "watchfiles>=1.0",
 ]
 
+[project.optional-dependencies]
+# The Claude adapter behind the model seam (dd_sdk.model_anthropic, docs/specs/dependencies.md).
+anthropic = ["anthropic>=1.15.0,<2.9"]
+# The adapter for OpenAI-compatible Chat Completions endpoints behind the model seam: OpenAI,
+# Gemini, local servers and gateways (dd_sdk.model_openai, docs/specs/dependencies.md).
+openai = ["openai>=3.40,<4"]
+# The client an agent calls the harness's tool gateway with (dd_sdk.tools_client,
+# docs/specs/dependencies.md). httpx2 and mcp-types come with mcp; the client imports them itself.
+tools = ["mcp>=2.3,<3", "mcp-types>=2.3,<3", "httpx2>=2.13"]
+
 [project.scripts]
 # Regenerates JSON Schema from LinkML; needs the workspace's development dependencies (docs/specs/contract.md).
 dd-gen-schema = "dd_sdk.schema.gen:main"
+# Prepares every source an agent builds outside git (dd_sdk.sources, docs/specs/grounding.md).
+dd-sources = "dd_sdk.sources:main"
+# Vendors an Agent Skill from a release into an agent package and pins it (dd_sdk.skills_vendor).
+dd-vendor-skill = "dd_sdk.skills_vendor:main"
+
+[tool.deptry.per_rule_ignores]
+# uvicorn imports watchfiles itself when asked to reload (`serve --reload`); nothing here does.
+DEP002 = ["watchfiles"]
+# `dd-gen-schema` imports these lazily and needs the workspace's development group (linkml).
+DEP003 = ["linkml_runtime", "rdflib"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dd_sdk"]
+
+# The TypeScript library beside the SDK (sdk/browser) is not part of the Python package.
+[tool.hatch.build.targets.sdist]
+exclude = ["browser"]
+
+# Weekly mutation testing of evidence hashing (.github/workflows/mutation.yml, CONTRIBUTING.md).
+# Run from this directory: `uv run --group mutation mutmut run`. The harness's tests are selected
+# too, because that is where evidence is hashed, checked and read in a run. The selection names
+# test files rather than tests/, since some SDK tests rewrite fixtures and read the register by
+# their path in the repository, which mutmut's copy under mutants/ does not have.
+[tool.mutmut]
+source_paths = ["src"]
+only_mutate = ["src/dd_sdk/evidence.py"]
+# One process: the root addopts spread tests over workers, which mutmut cannot follow.
+pytest_add_cli_args = ["-n0"]
+pytest_add_cli_args_test_selection = [
+  "tests/test_contract.py",
+  "tests/test_agent_kit.py",
+  "../../harness/tests/test_harness.py",
+  "../../harness/tests/test_delegation.py",
+  "../../harness/tests/test_disclosure.py",
+  "../../harness/tests/test_grounding.py",
+  "../../harness/tests/test_sources.py",
+]

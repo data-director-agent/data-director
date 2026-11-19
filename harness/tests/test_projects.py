@@ -1,20 +1,33 @@
 """The project record: an append-only log that holds a project's inventory
-(docs/specs/projects.md)."""
+(docs/specs/projects.md).
+
+What any backend must do is in the conformance kit (`dd_harness.testing.storage`, run by
+`test_storage.py`). The tests here that read `store.root` are of the file backend's layout."""
 
 from __future__ import annotations
 
 import json
 import threading
-from datetime import UTC, datetime
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
 import pytest
-from requirement_sets import override, standard, write
+import yaml
+from requirement_sets import (
+    ELSEWHERE,
+    EXPORT,
+    ORDA,
+    RECORDS,
+    override,
+    pinned,
+    registry,
+    standard,
+    write,
+)
 
 from dd_harness import server
 from dd_harness.projects import (
-    CONVERSATION_STARTED,
     INVENTORY_ADDED,
     PROJECT_CREATED,
     REPOSITORY_CHOSEN,
@@ -22,29 +35,13 @@ from dd_harness.projects import (
     ProjectStore,
     UnknownProjectError,
 )
-from dd_harness.requirements import load_requirements
-from dd_harness.testing import TEST_PRINCIPAL
-from dd_sdk.contract.models import FileInventory, IdentificationMethod, InventoryFile
-from dd_sdk.evidence import input_hash
+from dd_harness.requirements import RequirementsError, load_requirements
+from dd_harness.settings import SettingsError, project_storage, projects_dir
+from dd_harness.sources import SourceConfigError, Sources
+from dd_harness.testing import TEST_PRINCIPAL, file_inventory, file_inventory_of_parts
+from dd_sdk.evidence import DOCUMENT_CANONICALISATION, content_hash, input_hash
 
-
-def inventory(*paths: str) -> dict[str, Any]:
-    return FileInventory(
-        inventory_tool="dd-inventory",
-        inventory_tool_version="0.1.0",
-        inventory_made_at=datetime(2026, 10, 30, tzinfo=UTC),
-        inventory_files=[
-            InventoryFile(
-                file_path=path,
-                file_size=10,
-                file_sha256="a" * 64,
-                file_media_type="text/csv",
-                file_pronom_ids=["x-fmt/18"],
-                file_identified_by=IdentificationMethod.EXTENSION,
-            )
-            for path in paths
-        ],
-    ).model_dump(mode="json", exclude_none=True)
+inventory = file_inventory
 
 
 @pytest.fixture
@@ -52,33 +49,12 @@ def store(tmp_path: Path) -> ProjectStore:
     return ProjectStore(tmp_path / "projects")
 
 
-def test_a_project_holds_the_inventory_it_was_given(store: ProjectStore) -> None:
-    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
-    assert store.inventory(project_id) is None
-    given = inventory("data/readings.csv")
-    digest = store.add_inventory(project_id, given, acted_for=TEST_PRINCIPAL, caused_by="test")
-    # The digest is the input hash the conductor records when an agent is given the inventory.
-    assert digest == input_hash(given)
-    assert store.inventory(project_id) == given
-
-    created, added = store.events(project_id)
-    assert created["event"] == PROJECT_CREATED
-    assert added["event"] == INVENTORY_ADDED
-    assert added["digest"] == digest
-    assert added["file_count"] == 1
-    for event in (created, added):
-        assert event["project_id"] == project_id
-        assert event["acted_for"]["principal_id"] == TEST_PRINCIPAL.principal_id
-        assert event["caused_by"] == "test"
-    assert created["event_id"] < added["event_id"]  # UUIDv7: in the order they happened
-
-
 def test_a_read_waits_for_its_project_and_not_for_another(store: ProjectStore) -> None:
     """A read never sees part of an append, and one project's change never waits on another's."""
     busy = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
     idle = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
     read: list[str] = []
-    with store._lock(busy):
+    with store.log.section(busy):
         reader = threading.Thread(target=lambda: read.append(store.events(busy)[0]["event"]))
         reader.start()
         assert [e["event"] for e in store.events(idle)] == [PROJECT_CREATED]
@@ -106,6 +82,78 @@ def test_the_log_is_appended_to_and_the_latest_inventory_wins(store: ProjectStor
     assert sorted(b.name for b in blobs) == sorted({input_hash(first), input_hash(second)})
 
 
+def test_a_new_inventory_names_the_one_it_revises(store: ProjectStore) -> None:
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    first = inventory("a.csv")
+    second = inventory("a.csv")
+    second["inventory_files"][0] |= {
+        "file_description": "Soil readings by site",
+        "file_role": "data",
+        "file_identified_by": "researcher",
+    }
+    store.add_inventory(project_id, first, acted_for=TEST_PRINCIPAL, caused_by="test")
+    assert store.summary(project_id)["inventory"]["revises"] is None
+    store.add_inventory(project_id, second, acted_for=TEST_PRINCIPAL, caused_by="test")
+    added = [e for e in store.events(project_id) if e["event"] == INVENTORY_ADDED]
+    assert "revises" not in added[0]
+    assert added[1]["revises"] == added[0]["digest"]
+    assert store.summary(project_id)["inventory"]["revises"] == added[0]["digest"]
+    assert store.inventory(project_id) == second
+
+
+def test_an_inventory_of_parts_is_one_inventory_and_says_how_many_parts(
+    store: ProjectStore,
+) -> None:
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    first = file_inventory_of_parts({"lab": ["a.csv"], "instrument": ["run1.csv"]})
+    store.add_inventory(project_id, first, acted_for=TEST_PRINCIPAL, caused_by="test")
+    # Updating one part is a whole new inventory with the other part as it was.
+    second = file_inventory_of_parts({"lab": ["a.csv"], "instrument": ["run1.csv", "run2.csv"]})
+    store.add_inventory(project_id, second, acted_for=TEST_PRINCIPAL, caused_by="test")
+    added = [e for e in store.events(project_id) if e["event"] == INVENTORY_ADDED]
+    assert [e["part_count"] for e in added] == [2, 2]
+    assert added[1]["revises"] == added[0]["digest"]
+    assert store.inventory(project_id) == second
+    summary = store.summary(project_id)["inventory"]
+    assert summary["part_count"] == 2 and summary["file_count"] == 3
+
+
+@pytest.mark.parametrize(
+    "document",
+    [
+        file_inventory_of_parts({"raw": ["a.csv"], "raw/2024": ["b.csv"]}),
+        file_inventory_of_parts({"raw": ["a.csv"], "raw ": ["b.csv"]})
+        | {
+            "inventory_parts": [
+                {
+                    "part_folder": "raw",
+                    "part_tool": "t",
+                    "part_tool_version": "1",
+                    "part_made_at": "2026-10-30T00:00:00Z",
+                }
+            ]
+        },
+        file_inventory_of_parts({"a/../b": ["c.csv"]}),
+    ],
+    ids=["overlapping folders", "a file under no part", "a .. segment"],
+)
+def test_an_inventory_whose_parts_do_not_cover_its_files_is_refused(
+    store: ProjectStore, document: dict[str, Any]
+) -> None:
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    with pytest.raises(ProjectError, match="not a FileInventory"):
+        store.add_inventory(project_id, document, acted_for=TEST_PRINCIPAL, caused_by="t")
+    assert [e["event"] for e in store.events(project_id)] == [PROJECT_CREATED]
+
+
+def test_an_inventory_with_a_role_outside_the_vocabulary_is_refused(store: ProjectStore) -> None:
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    document = inventory("a.csv")
+    document["inventory_files"][0]["file_role"] = "secret"
+    with pytest.raises(ProjectError, match="not a FileInventory"):
+        store.add_inventory(project_id, document, acted_for=TEST_PRINCIPAL, caused_by="t")
+
+
 def test_what_is_not_a_file_inventory_is_refused_and_nothing_is_recorded(
     store: ProjectStore,
 ) -> None:
@@ -117,14 +165,6 @@ def test_what_is_not_a_file_inventory_is_refused_and_nothing_is_recorded(
             store.add_inventory(project_id, document, acted_for=TEST_PRINCIPAL, caused_by="t")
     assert [e["event"] for e in store.events(project_id)] == [PROJECT_CREATED]
     assert not (store.root / project_id / "blobs").exists()
-
-
-@pytest.mark.parametrize("project_id", ["0192c0de-0000-7000-8000-000000000000", "../escape", ""])
-def test_an_unknown_project_is_refused(store: ProjectStore, project_id: str) -> None:
-    with pytest.raises(ProjectError, match="no project"):
-        store.add_inventory(project_id, inventory(), acted_for=TEST_PRINCIPAL, caused_by="t")
-    with pytest.raises(ProjectError, match="no project"):
-        store.events(project_id)
 
 
 @pytest.fixture
@@ -183,47 +223,127 @@ def repositories(tmp_path: Path) -> Path:
     return write(tmp_path / "repositories", ("standards", standard()), ("overrides", override()))
 
 
-def test_a_project_records_the_repository_chosen_and_its_requirements(
-    store: ProjectStore, repositories: Path
+def test_a_project_records_the_repository_chosen_and_the_record_it_was_read_from(
+    store: ProjectStore, repositories: Path, tmp_path: Path
 ) -> None:
     project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
     assert store.requirements(project_id) is None
     requirements = load_requirements(repositories)
-    elsewhere = requirements.resolve("r3d100000001", "Elsewhere", ["Dublin Core"])
-    store.choose_repository(project_id, elsewhere, acted_for=TEST_PRINCIPAL, caused_by="test")
-    orda = requirements.resolve("r3d100012124", "ORDA", ["Dublin Core"])
-    digest = store.choose_repository(project_id, orda, acted_for=TEST_PRINCIPAL, caused_by="test")
+    sources = pinned(tmp_path / "re3data")
 
-    # The last choice counts, and the merged set reads back as it was recorded.
+    def choose(re3data_id: str, project: str = project_id) -> str:
+        return store.choose_repository(
+            project,
+            re3data_id,
+            registry=sources,
+            requirements=requirements,
+            acted_for=TEST_PRINCIPAL,
+            caused_by="test",
+        )
+
+    choose(ELSEWHERE)
+    digest = choose(ORDA)
+
+    # The name and declared standards are re3data's, the last choice counts, and the merged set
+    # reads back as it was recorded.
+    orda = requirements.resolve(ORDA, "ORDA", ["Dublin Core"])
     assert store.requirements(project_id) == orda.requirements()
     assert digest == input_hash(orda.requirements())
     first, last = store.events(project_id)[1:]
     assert first["event"] == last["event"] == REPOSITORY_CHOSEN
+    assert first["repository_name"] == "Elsewhere"
     assert len(first["warnings"]) == 2
-    assert last["re3data_id"] == "r3d100012124"
+    assert last["re3data_id"] == ORDA
+    assert last["repository_name"] == "ORDA"
     assert last["declared_standards"] == ["Dublin Core"]
+    assert last["snapshot_ref"] == EXPORT
+    assert last["record_hash"] == content_hash(RECORDS[0], DOCUMENT_CANONICALISATION)
+    assert last["record_canonicalisation"] == DOCUMENT_CANONICALISATION
     assert [s["ref"] for s in last["requirement_sets"]] == ["datacite-4@v1", "orda@v2"]
     assert last["digest"] == digest
     assert last["warnings"] == []
     with pytest.raises(ProjectError, match="no project"):
+        choose(ORDA, "0" * 8 + "-0000-7000-8000-" + "0" * 12)
+
+    # An identifier the export does not hold, or one that is not an identifier, changes nothing.
+    with pytest.raises(RequirementsError, match="holds no repository r3d100099999"):
+        choose("r3d100099999")
+    with pytest.raises(RequirementsError, match="not a re3data identifier"):
+        choose("orda")
+    assert len(store.events(project_id)) == 3
+
+
+def test_a_choice_needs_a_built_re3data_export(
+    store: ProjectStore, repositories: Path, tmp_path: Path
+) -> None:
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    requirements = load_requirements(repositories)
+
+    def choose(sources: Sources) -> None:
         store.choose_repository(
-            "0" * 8 + "-0000-7000-8000-" + "0" * 12, orda, acted_for=TEST_PRINCIPAL, caused_by="t"
+            project_id,
+            ORDA,
+            registry=sources,
+            requirements=requirements,
+            acted_for=TEST_PRINCIPAL,
+            caused_by="test",
         )
 
+    with pytest.raises(SourceConfigError, match="pins no re3data export"):
+        choose(Sources.none())
+    config = registry(tmp_path / "re3data")
+    config.write_text(config.read_text().replace("sha256:", "built: true\n  sha256:"), "utf-8")
+    (config.parent / "registry.jsonl").unlink()
+    with pytest.raises(SourceConfigError, match="not built; build it with `uv run dd-sources"):
+        choose(Sources.from_config(config))
+    assert len(store.events(project_id)) == 1
 
-def test_the_command_records_a_choice_and_warns_of_what_is_not_checked(
+
+def test_the_latest_re3data_export_pinned_is_the_one_read(tmp_path: Path) -> None:
+    older = registry(
+        tmp_path / "older", ({**RECORDS[0], "name": "Old ORDA"},), "re3data:export:2026-10"
+    )
+    newer = registry(tmp_path / "newer", RECORDS[:1])
+    config = tmp_path / "sources.yaml"
+    entries = [
+        {**yaml.safe_load(c.read_text())["sources"][0], "path": f"{c.parent.name}/registry.jsonl"}
+        for c in (newer, older)
+    ]
+    config.write_text(yaml.safe_dump({"sources": entries}), "utf-8")
+    entry = Sources.from_config(config).re3data(ORDA)
+    assert entry is not None
+    assert (entry.name, entry.snapshot_ref) == ("ORDA", EXPORT)
+
+
+def test_a_re3data_record_without_a_name_or_with_malformed_standards_is_refused(
+    tmp_path: Path,
+) -> None:
+    broken_records: tuple[dict[str, Any], ...] = (
+        {"name": None},
+        {"metadata_standards": ["Dublin Core", 3]},
+    )
+    for i, broken in enumerate(broken_records):
+        sources = Sources.from_config(registry(tmp_path / str(i), ({**RECORDS[0], **broken},)))
+        with pytest.raises(SourceConfigError, match="has no name or a malformed"):
+            sources.re3data(ORDA)
+
+
+def test_the_command_records_a_choice_from_re3data_and_warns_of_what_is_not_checked(
     operator: Path,
     repositories: Path,
+    tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     server.main(["project", "create"])
     project_id = capsys.readouterr().out.strip()
-    choose = ["project", "choose-repository", project_id, "--re3data", "r3d100000001"]
-    choose += ["--name", "Elsewhere", "--standard", "DataCite Metadata Schema"]
+    choose = ["project", "choose-repository", project_id, "--re3data", ELSEWHERE]
     with pytest.raises(SystemExit, match="DD_REPOSITORIES_DIR unset"):
         server.main(choose)
     monkeypatch.setenv("DD_REPOSITORIES_DIR", str(repositories))
+    with pytest.raises(SystemExit, match="DD_SOURCES_CONFIG unset"):
+        server.main(choose)
+    monkeypatch.setenv("DD_SOURCES_CONFIG", str(registry(tmp_path / "re3data")))
     assert server.main(choose) == 0
     out, err = capsys.readouterr()
     assert "warning: the deployment has no override for Elsewhere" in err
@@ -231,9 +351,17 @@ def test_the_command_records_a_choice_and_warns_of_what_is_not_checked(
         e for e in ProjectStore(operator).events(project_id) if e["event"] == REPOSITORY_CHOSEN
     ]
     assert event["digest"] == out.strip()
+    assert event["repository_name"] == "Elsewhere"
+    assert event["snapshot_ref"] == EXPORT
     assert event["caused_by"] == "dd-harness project choose-repository"
     with pytest.raises(SystemExit, match="not a re3data identifier"):
-        server.main([*choose[:4], "orda", *choose[5:]])
+        server.main([*choose[:4], "orda"])
+    with pytest.raises(SystemExit, match="holds no repository r3d100099999"):
+        server.main([*choose[:4], "r3d100099999"])
+    assert server.main([*choose[:4], ORDA]) == 0
+    out, err = capsys.readouterr()
+    assert err == ""
+    assert ProjectStore(operator).summary(project_id)["repository"]["repository_name"] == "ORDA"
 
 
 def test_a_project_is_named_by_its_title_and_a_blank_title_is_none(store: ProjectStore) -> None:
@@ -248,30 +376,6 @@ def test_a_project_is_named_by_its_title_and_a_blank_title_is_none(store: Projec
     assert sorted(p.name for p in store.root.iterdir()) == before
 
 
-def test_a_conversation_started_in_a_project_is_found_after_a_restart(
-    store: ProjectStore,
-) -> None:
-    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
-    other = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
-    conversation_id = store.start_conversation(
-        project_id, acted_for=TEST_PRINCIPAL, caused_by="POST /api/conversations"
-    )
-    assert store.project_of(conversation_id) == project_id
-    started = store.events(project_id)[-1]
-    assert started["event"] == CONVERSATION_STARTED
-    assert started["conversation_id"] == conversation_id
-    assert started["caused_by"] == "POST /api/conversations"
-    assert store.events(other)[-1]["event"] == PROJECT_CREATED
-
-    # A new store, as after a restart, reads the association back from the log.
-    again = ProjectStore(store.root)
-    assert again.project_of(conversation_id) == project_id
-    assert again.project_of("0" * 8 + "-0000-7000-8000-" + "0" * 12) is None
-    # And keeps it up to date once it has read the logs.
-    later = again.start_conversation(other, acted_for=TEST_PRINCIPAL, caused_by="test")
-    assert again.project_of(later) == other
-
-
 def test_a_conversation_in_an_unknown_project_is_refused(store: ProjectStore) -> None:
     unknown = "0" * 8 + "-0000-7000-8000-" + "0" * 12
     with pytest.raises(UnknownProjectError):
@@ -280,15 +384,21 @@ def test_a_conversation_in_an_unknown_project_is_refused(store: ProjectStore) ->
 
 
 def test_the_list_summarises_each_project_in_the_order_created(
-    store: ProjectStore, repositories: Path
+    store: ProjectStore, repositories: Path, tmp_path: Path
 ) -> None:
     first = store.create(acted_for=TEST_PRINCIPAL, caused_by="test", title="First")
     second = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
     store.add_inventory(first, inventory("a.csv"), acted_for=TEST_PRINCIPAL, caused_by="test")
     latest = inventory("a.csv", "b.csv")
     digest = store.add_inventory(first, latest, acted_for=TEST_PRINCIPAL, caused_by="test")
-    orda = load_requirements(repositories).resolve("r3d100012124", "ORDA", ["Dublin Core"])
-    store.choose_repository(first, orda, acted_for=TEST_PRINCIPAL, caused_by="test")
+    store.choose_repository(
+        first,
+        ORDA,
+        registry=pinned(tmp_path / "re3data"),
+        requirements=load_requirements(repositories),
+        acted_for=TEST_PRINCIPAL,
+        caused_by="test",
+    )
     store.start_conversation(first, acted_for=TEST_PRINCIPAL, caused_by="test")
 
     summaries = store.projects()
@@ -316,3 +426,56 @@ def test_the_command_names_a_project_and_lists_projects(
     listed = json.loads(line)
     assert listed["project_id"] == project_id
     assert listed["title"] == "Soil cores 2024"
+
+
+def test_the_commands_record_the_entry_point_and_a_marked_step(
+    operator: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    server.main(["project", "create"])
+    project_id = capsys.readouterr().out.strip()
+    assert server.main(["project", "choose-entry", project_id, "2"]) == 0
+    assert server.main(["project", "mark-step", project_id, "governance.embargo", "skipped"]) == 0
+    found = ProjectStore(operator).progress(project_id)
+    assert found["entry"] == 2
+    assert found["steps"] == {"governance.embargo": "skipped"}
+    with pytest.raises(SystemExit):
+        server.main(["project", "mark-step", project_id, "R5", "done"])
+
+
+def test_the_command_deletes_and_restores_a_project(
+    operator: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert server.main(["project", "create"]) == 0
+    project_id = capsys.readouterr().out.strip()
+    assert server.main(["project", "delete", project_id]) == 0
+    deleted = json.loads(capsys.readouterr().out)
+    assert set(deleted) == {"at", "by", "restorable_until"}
+    assert ProjectStore(operator).is_deleted(project_id)
+    with pytest.raises(SystemExit):
+        server.main(["project", "delete", project_id])
+    assert server.main(["project", "restore", project_id]) == 0
+    assert not ProjectStore(operator).is_deleted(project_id)
+    events = ProjectStore(operator).events(project_id)
+    assert [e["caused_by"] for e in events[1:]] == [
+        "dd-harness project delete",
+        "dd-harness project restore",
+    ]
+    with pytest.raises(SystemExit):
+        server.main(["project", "restore", project_id])
+
+
+@pytest.mark.parametrize(("value", "days"), [("", 30), ("0", 0), ("7", 7)])
+def test_the_restore_period_comes_from_the_settings(
+    operator: Path, monkeypatch: pytest.MonkeyPatch, value: str, days: int
+) -> None:
+    monkeypatch.setenv("DD_PROJECT_RESTORE_DAYS", value)
+    assert project_storage(projects_dir()).restore_period == timedelta(days=days)
+
+
+@pytest.mark.parametrize("value", ["-1", "two", "1.5"])
+def test_a_restore_period_that_is_not_whole_days_stops_start_up(
+    operator: Path, monkeypatch: pytest.MonkeyPatch, value: str
+) -> None:
+    monkeypatch.setenv("DD_PROJECT_RESTORE_DAYS", value)
+    with pytest.raises(SettingsError, match="DD_PROJECT_RESTORE_DAYS"):
+        project_storage(projects_dir())

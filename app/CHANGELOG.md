@@ -1,5 +1,101 @@
 # Changelog
 
+## [0.3.0-alpha.8](https://github.com/data-director-agent/data-director/compare/app-v0.3.0-alpha.7...app-v0.3.0-alpha.8) (2026-11-07)
+
+
+### Features
+
+* **agents:** ask the researcher about each gap in a drafted document ([#602](https://github.com/data-director-agent/data-director/issues/602)) ([bf91107](https://github.com/data-director-agent/data-director/commit/bf911077a941a6a4199d1c0b293d2d26533b4cf7))
+* **agents:** draft a readme from the project's approved metadata record ([#617](https://github.com/data-director-agent/data-director/issues/617)) ([281cc59](https://github.com/data-director-agent/data-director/commit/281cc594db577a1517294e429a88b1e35f063d81))
+* **agents:** suggest data dictionary definitions and units as questions ([#638](https://github.com/data-director-agent/data-director/issues/638)) ([05f1330](https://github.com/data-director-agent/data-director/commit/05f133061b033ba066088a10eed9c784a77c0228))
+* **agents:** write readme prose with a model and answer drafter questions ([#627](https://github.com/data-director-agent/data-director/issues/627)) ([764d6ea](https://github.com/data-director-agent/data-director/commit/764d6ea3393ab54eb53843912ea0423fb9f22747))
+* **app:** browse a project's documents in a list and a reader ([#601](https://github.com/data-director-agent/data-director/issues/601)) ([297ebea](https://github.com/data-director-agent/data-director/commit/297ebeace08b97108e7774ce392d18a3e76872c6))
+* **app:** check an inventory and leave things out before it is attached ([#605](https://github.com/data-director-agent/data-director/issues/605)) ([d275526](https://github.com/data-director-agent/data-director/commit/d2755264c831a9d566d114a97626f3de9f7450be))
+* **app:** show the chosen repository's requirements on the project page ([#642](https://github.com/data-director-agent/data-director/issues/642)) ([b3f0ae1](https://github.com/data-director-agent/data-director/commit/b3f0ae1322e2e4812c206885857ad77709a6fe27))
+* **app:** validate a project and download its deposit package ([#636](https://github.com/data-director-agent/data-director/issues/636)) ([a4e9dce](https://github.com/data-director-agent/data-director/commit/a4e9dce1169f8bca09edc43f63be54ef31e6911b))
+* **app:** work in one project at a time ([#600](https://github.com/data-director-agent/data-director/issues/600)) ([23a3913](https://github.com/data-director-agent/data-director/commit/23a39136afb1421ae2c3012c3bc53fc11b9d1342))
+* **harness:** implement project validation and deposit package building ([#625](https://github.com/data-director-agent/data-director/issues/625)) ([529fea5](https://github.com/data-director-agent/data-director/commit/529fea59de999f95dbf8a75bb4c69f5c402ea388))
+* **harness:** keep project documentation from hosted models unless the profile allows it ([#634](https://github.com/data-director-agent/data-director/issues/634)) ([a47d148](https://github.com/data-director-agent/data-director/commit/a47d1486706ceaa081b947fe69c3fea17d6ae02b))
+* **harness:** resolve a chosen repository from the pinned re3data export ([#633](https://github.com/data-director-agent/data-director/issues/633)) ([6a5d862](https://github.com/data-director-agent/data-director/commit/6a5d862f158f61031adceddd7741bbc8a4e1b3ee))
+* track project progress from process flow logs ([#628](https://github.com/data-director-agent/data-director/issues/628)) ([fc5be95](https://github.com/data-director-agent/data-director/commit/fc5be95bdfe9a3d66c4ed023a04765199973db1a))
+
+
+### Performance Improvements
+
+* **ci:** parallelize CI jobs and improve test assertions ([#621](https://github.com/data-director-agent/data-director/issues/621)) ([c0a53da](https://github.com/data-director-agent/data-director/commit/c0a53da72790e3db30fbf98688948562b7cc7882))
+
+## [0.3.0-alpha.7](https://github.com/data-director-agent/data-director/compare/app-v0.3.0-alpha.6...app-v0.3.0-alpha.7) (2026-11-06)
+
+
+### Features
+
+* **app:** add a make an inventory dialog beside attach inventory ([#593](https://github.com/data-director-agent/data-director/issues/593)) ([9e65d6f](https://github.com/data-director-agent/data-director/commit/9e65d6f02f61403218af81ba44a4c3380547ff32))
+* **app:** add a policy page that shows the rules runs are held to ([2b76eb6](https://github.com/data-director-agent/data-director/commit/2b76eb60e1aebf23211f34f526098068260805c6))
+* **app:** ask categorical questions as clickable choices ([#586](https://github.com/data-director-agent/data-director/issues/586)) ([57b4e9f](https://github.com/data-director-agent/data-director/commit/57b4e9f0d7e5dedea4b9e45201de64365c04b90b))
+* **app:** put a projects page first in the navigation ([13ddf5c](https://github.com/data-director-agent/data-director/commit/13ddf5c3658c9c492f710a8d18ad02836423e944))
+* **app:** put a projects page first in the navigation ([003b270](https://github.com/data-director-agent/data-director/commit/003b270302c5d34efbc94aa8ac8700b51899f518))
+* **app:** say that ctrl+enter sends a chat message ([#595](https://github.com/data-director-agent/data-director/issues/595)) ([c9817d0](https://github.com/data-director-agent/data-director/commit/c9817d0c3cec3af3f03872a8a270ff752783e585))
+* **app:** show the phases as a plain-language data journey ([df64bb0](https://github.com/data-director-agent/data-director/commit/df64bb0e12f13210f7a5c55d24bfd6cff55c4db5))
+* **sdk:** show the data management plan steps as out of scope ([631f442](https://github.com/data-director-agent/data-director/commit/631f442c5ee6bfeb3f73813bda88ac648901df60))
+* **sdk:** show the data management plan steps as out of scope ([7109c17](https://github.com/data-director-agent/data-director/commit/7109c1790d13d84cbdfe54668ad0cfc2803fb2df))
+
+
+### Bug Fixes
+
+* **app:** put the tabindex lint exemption on the reported line ([01d43b8](https://github.com/data-director-agent/data-director/commit/01d43b85c421e1d51b578847cc64bd50d1b6c666))
+* **app:** put the tabindex lint exemption on the reported line ([c5e37de](https://github.com/data-director-agent/data-director/commit/c5e37de9e8708595bc3f4d5585d43c9cf62cba9a))
+
+## [0.3.0-alpha.6](https://github.com/data-director-agent/data-director/compare/app-v0.3.0-alpha.5...app-v0.3.0-alpha.6) (2026-11-06)
+
+
+### Features
+
+* **app:** put conversations left, the project right and the activity log on its own page ([0ed2f31](https://github.com/data-director-agent/data-director/commit/0ed2f3118533c0d4d9d20b4c8fa966515f55dd13))
+* **app:** put conversations left, the project right and the activity log on its own page ([93477f9](https://github.com/data-director-agent/data-director/commit/93477f92effb6b51701c851ea7e1fc05194d0d29))
+* **app:** remove the acting for and policy strip from the workspace ([9e6a3f0](https://github.com/data-director-agent/data-director/commit/9e6a3f04166ca0c0eed03f1446e09e59d28af78c))
+* **app:** remove the acting for and policy strip from the workspace ([75d755b](https://github.com/data-director-agent/data-director/commit/75d755b6a6b8b5384b9fd72e7eb4ee23c1d67ba7))
+* **app:** serve a project's inventory for the researcher to read ([46d9e8b](https://github.com/data-director-agent/data-director/commit/46d9e8bd570fdfbc3b04299c2272c918ca301175))
+* **app:** show an inventory in readable form ([e4461f1](https://github.com/data-director-agent/data-director/commit/e4461f1b6314bcdb938cc9a6f5d3f05b1809886c))
+* **app:** show an inventory in readable form ([d38c95d](https://github.com/data-director-agent/data-director/commit/d38c95ddf8a5ded75c85c27f50a23d9e259c6de0))
+
+
+### Bug Fixes
+
+* **app:** say what an agent is given, not where it sends your data ([6be219e](https://github.com/data-director-agent/data-director/commit/6be219eb3bbdd0a83e1a2861258e2391ebe33595))
+* **app:** say what an agent is given, not where it sends your data ([d33153a](https://github.com/data-director-agent/data-director/commit/d33153a95491794cf2589c627dcc408211f89e4a))
+
+## [0.3.0-alpha.5](https://github.com/data-director-agent/data-director/compare/app-v0.3.0-alpha.4...app-v0.3.0-alpha.5) (2026-11-06)
+
+
+### Features
+
+* **agents:** name example.hello the friendly greeter and refresh the template ([#530](https://github.com/data-director-agent/data-director/issues/530)) ([7e796e2](https://github.com/data-director-agent/data-director/commit/7e796e2ca638bb46414ae5fe93e834b007de0f4c))
+* **agents:** search every re3data repository from a pinned monthly export ([#489](https://github.com/data-director-agent/data-director/issues/489)) ([4a05699](https://github.com/data-director-agent/data-director/commit/4a056996f5ef9611cd97a03722dfdc38f67ab1b9))
+* **app:** add a profile page showing what sign-in holds ([#536](https://github.com/data-director-agent/data-director/issues/536)) ([1e5566f](https://github.com/data-director-agent/data-director/commit/1e5566f6b67ed758487c66b14d96ffdbc63ac0f0))
+* **app:** answer a monitor's server-status request ([#526](https://github.com/data-director-agent/data-director/issues/526)) ([f1e5a8b](https://github.com/data-director-agent/data-director/commit/f1e5a8b52e6f0e76f7190db1a0dccf732fdaff5b))
+* **app:** file problem reports as a GitHub App ([#531](https://github.com/data-director-agent/data-director/issues/531)) ([1a54c05](https://github.com/data-director-agent/data-director/commit/1a54c05b8f88d02f650f3f14fe31ec61a982a698))
+* **app:** give each earlier conversation a title ([#542](https://github.com/data-director-agent/data-director/issues/542)) ([0202dfa](https://github.com/data-director-agent/data-director/commit/0202dfaf94cbb60f951299d138c12877600e7e2f))
+* **app:** report the live profile and unavailable agents in /api/about ([#547](https://github.com/data-director-agent/data-director/issues/547)) ([a9635ae](https://github.com/data-director-agent/data-director/commit/a9635ae75c10a5485101609c8dddd2bd6b5c4f34))
+* **app:** simplify the agents page for end users ([#545](https://github.com/data-director-agent/data-director/issues/545)) ([c1a8ad5](https://github.com/data-director-agent/data-director/commit/c1a8ad586e1cdc7b98e942df63bf807420e4dc0c))
+* **deploy:** declare what an instance runs in deployment.yaml ([#559](https://github.com/data-director-agent/data-director/issues/559)) ([566aa56](https://github.com/data-director-agent/data-director/commit/566aa56066d867d5c138059ab8a2efe7d3664e30))
+* **deploy:** one configuration tool with a doctor for the VM ([#548](https://github.com/data-director-agent/data-director/issues/548)) ([73f1db1](https://github.com/data-director-agent/data-director/commit/73f1db15081ccd20ff660b168d5249b4c30e29af))
+* **harness:** disclose the generative AI behind each approved document ([#479](https://github.com/data-director-agent/data-director/issues/479)) ([31c0e31](https://github.com/data-director-agent/data-director/commit/31c0e31ae6465c954ecad99c91bc34e3a3193d54)), closes [#476](https://github.com/data-director-agent/data-director/issues/476)
+* **sdk:** prepare every agent's built sources with one command ([#508](https://github.com/data-director-agent/data-director/issues/508)) ([3c76b2b](https://github.com/data-director-agent/data-director/commit/3c76b2ba0edb97ca58bc25910d4ac67224db0262)), closes [#507](https://github.com/data-director-agent/data-director/issues/507)
+
+
+### Bug Fixes
+
+* **app:** call the phases panel data management phases ([#474](https://github.com/data-director-agent/data-director/issues/474)) ([6f3efa8](https://github.com/data-director-agent/data-director/commit/6f3efa81f3249e5c16e57c8157c6f966e064b495))
+* **app:** override minimatch to 11.0.1 or later ([#493](https://github.com/data-director-agent/data-director/issues/493)) ([730668b](https://github.com/data-director-agent/data-director/commit/730668b2edb296d9a7d4cbb86d1ebfab31863e97))
+* **app:** show agent errors at the top of the agents page ([#528](https://github.com/data-director-agent/data-director/issues/528)) ([fcccff1](https://github.com/data-director-agent/data-director/commit/fcccff10933ff6df345a8aa4949d7433643a1ad0))
+
+
+### Documentation
+
+* **deploy:** document the data-director command for operators ([55d0d69](https://github.com/data-director-agent/data-director/commit/55d0d6901b56add54627f2286abc72c24d1909ac))
+* **deploy:** document the data-director command for operators ([50825e4](https://github.com/data-director-agent/data-director/commit/50825e4ada925fc89de1d76db980970cab268e94))
+* **operations:** document setting up sign-in against the ORCID sandbox ([#527](https://github.com/data-director-agent/data-director/issues/527)) ([773a98e](https://github.com/data-director-agent/data-director/commit/773a98ece74c5bdb5e57fdf0f3da90f5b74d58ae))
+
 ## [0.3.0-alpha.4](https://github.com/data-director-agent/data-director/compare/app-v0.3.0-alpha.3...app-v0.3.0-alpha.4) (2026-11-05)
 
 

@@ -1,41 +1,48 @@
-"""advisor.fairness: the FAIR Assessor persona (docs/specs/agents.md). A mock.
+"""advisor.fairness: the FAIR Assessor persona (docs/specs/agents.md). A model-backed alpha.
 
 Serves `post.fairness` (R12) and `post.retrofit` (R9). It checks the metadata of an already
 published dataset, as the researcher gives it, against a short list of FAIR-related presence
-checks, and suggests a retrofit for each check not met. It is advisory and changes no record: the
-researcher decides what to submit to the repository. It gives no score and is not a FAIRness
+checks, and recommends a retrofit for each check not met. It is advisory and changes no record:
+the researcher decides what to submit to the repository. It gives no score and is not a FAIRness
 evaluation (R4).
 
-The mock applies the rule table in `checks.yaml` to its input. It retrieves nothing, resolves no
-identifier, consults no source and calls no model, so its grounding mode is `none` and it cites
-only its input. The real assessor, drawing on community tools such as F-UJI and discovering
-related datasets, is TODO(#361).
+Whether each check is met is decided by the rule table in `checks.yaml`, never by a model. The
+recommendation for each unmet check comes from a writer (`write.py`): the table's own text by
+default, or, with a model configured (`DD_FAIRNESS_WRITER`, `factory.py`), text a model writes
+for this record, recorded in `recommendation_derivation`. It retrieves nothing and resolves no
+identifier, so its grounding mode is `input_only` and it cites only its input. Resolving the
+record and running a community FAIRness tool is TODO(#704); discovering related datasets is
+TODO(#954).
 """
 
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 
 import yaml
 
 from dd_agent_advisor_fairness.classes import FairCheck, FairnessReport, PublishedRecord
-from dd_sdk import serve
-from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
+from dd_agent_advisor_fairness.write import TemplateWriter, Unmet, Writer, Writing
+from dd_sdk.agent import (
+    AgentResult,
+    AgentSpec,
+    Derived,
+    RunContext,
+    abstain,
+    input_evidence,
+    input_ref,
+)
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Derivation,
-    EvidenceItem,
     GroundingMode,
-    GroundingRef,
     InvocationRequest,
     Outcome,
     OutcomeStatus,
     ReasonCode,
 )
-from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 
 CHECKS = Path(__file__).with_name("checks.yaml")
 TESTS = frozenset({"present", "doi", "one_of", "any_in", "covered"})
@@ -43,12 +50,16 @@ TESTS = frozenset({"present", "doi", "one_of", "any_in", "covered"})
 DOI = re.compile(r"^(?:https?://(?:dx\.)?doi\.org/|doi:)?10\.\d{4,9}/\S+$", re.IGNORECASE)
 
 LIMITATIONS = (
-    "This is a mock and not a FAIRness evaluation: it checks only whether the metadata given here "
-    "are present and in an expected form, against a short list.",
+    "This is not a FAIRness evaluation: it checks only whether the metadata given here are present "
+    "and in an expected form, against a short list.",
     "Nothing was retrieved: the identifier was not resolved and the repository's record, files and "
     "landing page were not read.",
     "It does not yet discover related datasets or outputs.",
-    "Its suggestions change no record. Submit any change to the repository yourself.",
+    "Its recommendations change no record. Submit any change to the repository yourself.",
+)
+MODEL_LIMITATION = (
+    "Recommendations marked as written by a model were tailored to the metadata given here and "
+    "were not checked against the published record. Review each before acting on it."
 )
 
 
@@ -107,86 +118,120 @@ def meets(rule: Rule, record: PublishedRecord) -> bool:
 class FairAssessor:
     spec = AgentSpec(
         agent_id="advisor.fairness",
-        version="0.1.0a1",
+        version="0.2.0a1",
         title="FAIR Assessor",
+        icon="🌱",
         description=(
-            "Mock. Checks the metadata given for a published dataset against a short list of "
-            "FAIR-related presence checks and suggests what to retrofit. Not a FAIRness "
+            "Alpha. Checks the metadata given for a published dataset against a short list of "
+            "FAIR-related presence checks and recommends what to retrofit; with a model "
+            "configured, the recommendations are tailored to the record. Not a FAIRness "
             "evaluation; retrieves nothing and changes no record."
         ),
         action_class="advise",
         accepts=(ClassSchema.of(PublishedRecord),),
-        grounding_mode=GroundingMode.NONE,
+        grounding_mode=GroundingMode.INPUT_ONLY,
         payload=ClassSchema.of(FairnessReport),
         derivations={
             "checks.principle": Derived(Derivation.TEMPLATE),
             "checks.check": Derived(Derivation.TEMPLATE),
             "checks.met": Derived(Derivation.LEXICAL),
-            "checks.recommendation": Derived(Derivation.TEMPLATE),
+            "checks.recommendation": Derived(
+                Derivation.MODEL, recorded_in="recommendation_derivation"
+            ),
             "limitations": Derived(Derivation.TEMPLATE),
         },
         serves=("post.fairness", "post.retrofit"),
     )
 
-    def __init__(self, rules: list[Rule] | None = None) -> None:
+    def __init__(self, writer: Writer | None = None, rules: list[Rule] | None = None) -> None:
+        self.writer = writer or TemplateWriter()
         self.rules = rules if rules is not None else load_checks()
 
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
         record = request.input
         assert isinstance(record, PublishedRecord)  # the conductor checked spec.accepts
         if not record.identifier and not record.title:
-            return AgentResult(
-                outcome=Outcome(
-                    status=OutcomeStatus.ABSTAINED,
-                    reason_code=ReasonCode.INSUFFICIENT_INPUT,
-                    statement="Give the published dataset's identifier or title.",
-                )
+            return abstain(
+                ReasonCode.INSUFFICIENT_INPUT, "Give the published dataset's identifier or title."
             )
 
+        met = {rule.check: meets(rule, record) for rule in self.rules}
+        unmet = [
+            Unmet(rule.principle, rule.check, rule.recommendation)
+            for rule in self.rules
+            if not met[rule.check]
+        ]
+        writing = self.writer.write(record, unmet, ctx)
+        written = dict(zip((u.check for u in unmet), writing.recommendations, strict=True))
         checks = []
         for rule in self.rules:
-            met = meets(rule, record)
+            got = written.get(rule.check)
             checks.append(
                 FairCheck(
                     principle=rule.principle,
                     check=rule.check,
-                    met=met,
-                    recommendation=None if met else rule.recommendation,
+                    met=met[rule.check],
+                    recommendation=got.text if got else None,
+                    recommendation_derivation=got.derivation if got else None,
                 )
             )
-        unmet = sum(not c.met for c in checks)
+        by_model = any(r.derivation == Derivation.MODEL for r in writing.recommendations)
+        limitations = [*LIMITATIONS, MODEL_LIMITATION] if by_model else list(LIMITATIONS)
 
-        ref = GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)
+        ref = input_ref(ctx)
+        calls = writing.calls
         return AgentResult(
             outcome=Outcome(
                 status=OutcomeStatus.SUCCEEDED,
                 statement=(
-                    f"Mock: the metadata given meet {len(checks) - unmet} of {len(checks)} "
-                    f"presence checks, with {unmet} suggestions to retrofit. This is not a "
-                    "FAIRness evaluation."
+                    f"The metadata given meet {len(checks) - len(unmet)} of {len(checks)} "
+                    f"presence checks, with {_count(len(unmet), 'recommendation')} to retrofit. "
+                    f"{_how_written(writing)} This is not a FAIRness evaluation."
                 ),
             ),
             payload=FairnessReport(
                 checks=checks,
-                limitations=list(LIMITATIONS),
+                limitations=limitations,
                 grounded_on=[ref],
             ),
-            evidence=[
-                EvidenceItem(
-                    source_id=ctx.input_ref,
-                    retrieved_at=datetime.now(UTC),
-                    hash_algorithm=HASH_ALGORITHM,
-                    canonicalisation=INPUT_CANONICALISATION,
-                    content_hash=ctx.input_hash,
-                )
-            ],
+            evidence=[input_evidence(ctx)],
+            model_id=writing.model_id,
+            input_tokens=writing.usage.input_tokens,
+            output_tokens=writing.usage.output_tokens,
+            model_calls=calls.calls if calls is not None else (),
+            prompts=calls.prompts if calls is not None else {},
         )
 
 
+def _how_written(writing: Writing) -> str:
+    """What the statement says about the writer: whether a model wrote the recommendations, and
+    what was not used."""
+    if writing.model_id is None:
+        return "No model is configured, so each recommendation is the rule table's own."
+    if writing.unused:
+        return (
+            f"Each recommendation is the rule table's own, because {writing.unused} "
+            f"({writing.model_id})."
+        )
+    by_model = sum(r.derivation == Derivation.MODEL for r in writing.recommendations)
+    said = (
+        f"A model ({writing.model_id}) tailored {by_model} of "
+        f"{_count(len(writing.recommendations), 'recommendation')} to the record"
+    )
+    if writing.dropped:
+        said += (
+            f"; {_count(len(writing.dropped), 'item')} it returned "
+            f"{'was' if len(writing.dropped) == 1 else 'were'} not used ("
+            + "; ".join(writing.dropped)
+            + ")"
+        )
+    return said + ". Review each before acting on it."
+
+
+def _count(n: int, noun: str) -> str:
+    return f"{n} {noun}{'' if n == 1 else 's'}"
+
+
 def build() -> FairAssessor:
+    """The template assessor. `factory.build` reads the agent's settings."""
     return FairAssessor()
-
-
-def main() -> int:
-    """The `dd-advisor-fairness` console script: serve over A2A with `dd_sdk.serve`."""
-    return serve.main(build)
