@@ -1,7 +1,8 @@
 # advisor.dmp
 
-**Alpha** (`0.2.0a1`). It compares the commitments it is given. Reading a machine-actionable plan
-itself is TODO(#701).
+**Alpha** (`0.2.0a1`). It compares the commitments it is given or a researcher confirmed, and with
+a model reads a free-text plan the researcher attached to propose them (#962). Reading a
+machine-actionable plan itself is TODO(#701).
 
 The Data Management Plan Checker is one persona of the agent roster ([Agents](../../docs/specs/agents.md)). It serves one
 step of the Blueprint's process flow:
@@ -60,6 +61,23 @@ a model that cannot be reached leaves the rules' result, and the outcome stateme
 
 It reads only its input, so its grounding mode is `input_only` and it cites only its input.
 
+## Reading an attached plan
+
+In a project the conductor also gives the checker the documents the researcher attached and the
+facts people decided. Where no commitment is typed or confirmed but a plan is attached, the model
+reads the plan (`read_plan.py`) and the checker proposes each commitment it finds, with the
+passage it rests on, as a `sharing_commitment` fact for the researcher to confirm, correct or
+reject. A commitment whose quote is not in the plan is dropped and said. It compares nothing until
+the researcher has decided, and then only what they confirmed, as they corrected it. "No
+commitment found" and "too vague to say" are results, not failures. On the template path a plan
+is not read, and the checker asks for the commitments instead.
+
+## Evaluation
+
+[`evals/`](src/dd_agent_advisor_dmp/evals/README.md) reads a complete, a partial and a vague
+synthetic plan, and compares the commitments a researcher confirmed, against a committed
+baseline.
+
 ## Settings
 
 | Setting | Values |
@@ -68,10 +86,13 @@ It reads only its input, so its grounding mode is `input_only` and it cites only
 
 ## What it does not do
 
-- It reads no data management plan. The real checker will read machine-actionable plans in the
-  RDA DMP Common Standard (see #284). TODO(#701)
+- It reads a free-text plan only with a model, and only to propose commitments for the researcher
+  to confirm. It does not yet read a machine-actionable plan in the RDA DMP Common Standard by
+  its identifier (see #284). TODO(#701)
 - On the template path, an output renamed since the plan is reported as both missing and
   unplanned, and two names for the same repository or licence count as different.
 - A pairing or reconciliation is a model's reading of names, not a check of the plan.
 - It does not check timing, embargoes, costs, metadata standards or any other commitment.
-- Its matcher has no evaluation set yet (#701), so it stays alpha.
+- Its evaluation ([`evals/`](src/dd_agent_advisor_dmp/evals/README.md)) has three synthetic
+  plans, and its committed baseline is the template path's, so neither how well a model reads
+  real plans nor how often the matcher misses a renamed output is measured yet. It stays alpha.

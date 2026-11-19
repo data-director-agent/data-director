@@ -1,0 +1,68 @@
+{
+  "identity": {
+    "agent_id": "advisor.dmp",
+    "cases_sha256": "3e0bc92dcf0c95d35bd2e0b58826423423fef0491a3c805af885c60dba70f51c",
+    "configuration": {},
+    "data_sha256": {
+      "complete.md": "c710707fa6fa2443497b95eea4ff266d75e2b3168e42dec2c0cb35755cf7bb6d",
+      "partial.md": "8c8c3be5441ffca88dec2022580b214e96ac54b4e6570a16e830fbc1a31bfebe",
+      "vague.md": "fb795034fb92ad7e1cfa65d82fa5d87933458ffa529504b3303654d9809eabaa"
+    },
+    "git_revision": "5e08ed71c7b6d301183c8ead8e305dd0224b1261",
+    "read_prompt_sha256": "ba2e50a0ff1e3a3f459146d4267a0a90c6bae34b42d07c40ca551d59a278b295",
+    "spec_version": "0.2.0a1"
+  },
+  "scores": {
+    "compare-complete": {
+      "aspects_agree": null,
+      "discrepancies_match": 1.0,
+      "grounding_passed": 1.0,
+      "no_unlabelled_commitment": null,
+      "outcome_matches": 1.0,
+      "outputs_recalled": null,
+      "quotes_found": null,
+      "stopped_correctly": 1.0
+    },
+    "compare-partial": {
+      "aspects_agree": null,
+      "discrepancies_match": 1.0,
+      "grounding_passed": 1.0,
+      "no_unlabelled_commitment": null,
+      "outcome_matches": 1.0,
+      "outputs_recalled": null,
+      "quotes_found": null,
+      "stopped_correctly": 1.0
+    },
+    "read-complete": {
+      "aspects_agree": null,
+      "discrepancies_match": null,
+      "grounding_passed": 1.0,
+      "no_unlabelled_commitment": null,
+      "outcome_matches": 1.0,
+      "outputs_recalled": null,
+      "quotes_found": null,
+      "stopped_correctly": 1.0
+    },
+    "read-partial": {
+      "aspects_agree": null,
+      "discrepancies_match": null,
+      "grounding_passed": 1.0,
+      "no_unlabelled_commitment": null,
+      "outcome_matches": 1.0,
+      "outputs_recalled": null,
+      "quotes_found": null,
+      "stopped_correctly": 1.0
+    },
+    "read-vague": {
+      "aspects_agree": null,
+      "discrepancies_match": null,
+      "grounding_passed": 1.0,
+      "no_unlabelled_commitment": null,
+      "outcome_matches": 1.0,
+      "outputs_recalled": null,
+      "quotes_found": null,
+      "stopped_correctly": 1.0
+    }
+  },
+  "task": "dmp_reading"
+}

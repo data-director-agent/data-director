@@ -1,0 +1,164 @@
+# The Data Management Plan Checker's evaluation cases (docs/specs/evaluation.md; #962).
+#
+# plans: each synthetic plan in data/, with the commitments it labels. A label gives the output as
+# the plan names it, any other names a reader may fairly give it (`aliases`), its repository,
+# access and licence as the plan states them (null where it states none), other forms of those
+# values a reader may fairly give (`accept`; a value read agrees if it contains the label's or
+# one of these), and the plan's own words it rests on (`quote`, which must be in the plan).
+# `vague: true` marks a plan that speaks of sharing only in terms too general to name an output:
+# it labels no commitment.
+#
+# cases:
+#   read-*      the plan attached, nothing confirmed: the checker reads it and proposes each
+#               commitment for the researcher to confirm, comparing nothing. Reading needs a
+#               model, so on the template path it abstains (`template` gives that outcome).
+#   compare-*   the plan's labelled commitments confirmed by the researcher, with any
+#               `corrections` they made, and the outputs now `planned`: the checker compares
+#               only what was confirmed. `discrepancies` lists each (output, aspect) it should
+#               flag, by rule; it runs the same with or without a model, since the planned
+#               outputs here differ from the plan only in ways a matcher must not reconcile.
+#
+# expect:
+#   status, reason_code   the outcome (reason_code optional)
+# template:               the outcome expected instead when no model is configured
+#
+# LABELS. The plans were written for this evaluation, so their commitments are known by
+# construction. They are not real plans: real ones are longer, less regular and often split a
+# commitment across sections. Audio recordings in the partial plan are a trap: the plan says
+# they will not be shared, so proposing them is a wrong commitment.
+
+plans:
+  complete:
+    file: complete.md
+    commitments:
+      - output: Eddy covariance flux data
+        aliases: [Quality-controlled eddy covariance flux data]
+        repository: NERC Environmental Information Data Centre (EIDC)
+        access: open after a 12-month embargo
+        licence: Open Government Licence
+        accept:
+          repository: [EIDC, Environmental Information Data Centre]
+          access: [12-month embargo, 12 months]
+          licence: [OGL]
+        quote: >-
+          The quality-controlled eddy covariance flux data will be deposited in the NERC
+          Environmental Information Data Centre (EIDC) and made openly available under the Open
+          Government Licence after a 12-month embargo from the end of the final field season.
+      - output: Soil core chemistry dataset
+        aliases: [Soil core chemistry]
+        repository: EIDC
+        access: open
+        licence: Open Government Licence
+        accept:
+          repository: [Environmental Information Data Centre]
+          licence: [OGL]
+        quote: >-
+          The soil core chemistry dataset will also be deposited in the EIDC, openly available
+          under the Open Government Licence, within three months of the final laboratory
+          analysis.
+      - output: Processing code
+        aliases: [All processing code]
+        repository: Zenodo
+        access: open
+        licence: MIT
+        quote: >-
+          All processing code will be released on GitHub and archived in Zenodo with a DOI,
+          openly available under the MIT licence, when the first paper is submitted.
+
+  partial:
+    file: partial.md
+    commitments:
+      - output: Survey responses
+        repository: ORDA
+        access: open
+        licence: CC BY 4.0
+        accept:
+          licence: [CC-BY 4.0, Creative Commons Attribution 4.0]
+        quote: >-
+          Survey responses will be shared openly in ORDA, the University of Sheffield's
+          repository, under CC BY 4.0 once the main findings are published.
+      - output: Anonymised interview transcripts
+        aliases: [Interview transcripts]
+        repository: UK Data Service
+        access: safeguarded
+        licence: null
+        quote: >-
+          The anonymised interview transcripts will be deposited in the UK Data Service under
+          safeguarded access.
+      - output: Analysis scripts
+        repository: null
+        access: on request
+        licence: null
+        quote: The analysis scripts will be made available on request.
+
+  vague:
+    file: vague.md
+    vague: true
+    commitments: []
+
+cases:
+  - id: read-complete
+    plan: complete
+    expect: {status: succeeded}
+    template: {status: abstained, reason_code: capability_not_implemented}
+
+  - id: read-partial
+    plan: partial
+    expect: {status: succeeded}
+    template: {status: abstained, reason_code: capability_not_implemented}
+
+  - id: read-vague
+    plan: vague
+    expect: {status: succeeded}
+    template: {status: abstained, reason_code: capability_not_implemented}
+
+  # The researcher confirmed every commitment as read. Since then the soil chemistry is planned
+  # under CC BY 4.0, the code is not planned at all, and site photographs have been added.
+  - id: compare-complete
+    plan: complete
+    planned:
+      - output: Eddy covariance flux data
+        repository: NERC Environmental Information Data Centre (EIDC)
+        access: open after a 12-month embargo
+        licence: Open Government Licence
+      - output: Soil core chemistry dataset
+        repository: EIDC
+        access: open
+        licence: CC BY 4.0
+      - output: Site photographs
+        repository: EIDC
+        access: open
+        licence: CC BY 4.0
+    expect:
+      status: succeeded
+      discrepancies:
+        - [Soil core chemistry dataset, licence]
+        - [Processing code, missing]
+        - [Site photographs, unplanned]
+
+  # The researcher corrected two commitments as they confirmed them: the transcripts' licence,
+  # which the plan left out, and where the scripts go. Now the survey is planned for Zenodo and
+  # the transcripts under another licence.
+  - id: compare-partial
+    plan: partial
+    corrections:
+      Anonymised interview transcripts: {licence: UK Data Service End User Licence}
+      Analysis scripts: {repository: GitHub, access: open, licence: MIT}
+    planned:
+      - output: Survey responses
+        repository: Zenodo
+        access: open
+        licence: CC BY 4.0
+      - output: Anonymised interview transcripts
+        repository: UK Data Service
+        access: safeguarded
+        licence: UK Data Service Special Licence
+      - output: Analysis scripts
+        repository: GitHub
+        access: open
+        licence: MIT
+    expect:
+      status: succeeded
+      discrepancies:
+        - [Survey responses, repository]
+        - [Anonymised interview transcripts, licence]

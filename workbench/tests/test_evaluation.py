@@ -21,6 +21,7 @@ from inspect_ai import eval as inspect_eval
 from inspect_ai.dataset import Sample
 from inspect_ai.scorer import NOANSWER, SampleScore, Score
 
+from dd_harness.conductor import Conductor
 from dd_harness.testing import (
     TEST_PRINCIPAL,
     ProbeRecord,
@@ -43,12 +44,16 @@ from workbench.evaluation import (
     FAILED,
     STOPPED_NEEDLESSLY,
     Scores,
+    case_dataset,
+    configuration,
     differences,
     grounding_passed,
     invoke_agent,
     mean_applicable,
+    one_conductor,
     outcome_matches,
     stopped_correctly,
+    task_identity,
 )
 
 # Inspect AI leaves its sample-event stream unclosed (inspect_ai/hooks/_hooks.py, the sample
@@ -202,3 +207,58 @@ def test_a_rise_is_a_change_and_a_score_that_stops_applying_is_a_regression():
     regressions, changes = differences({"a": {"x": 0.5, "y": 1.0}}, {"a": {"x": 1.0, "y": None}})
     assert regressions == ["a y: 1 -> n/a"]
     assert changes == ["a x: 0.5 -> 1"]
+
+
+# --- Building a task --------------------------------------------------------------------------
+
+
+def test_a_case_becomes_a_sample_with_its_input_target_and_chosen_metadata():
+    case = {"id": "c1", "input": {"a": 1}, "expect": {"status": "succeeded"}, "other": "x"}
+    [sample] = case_dataset([case], ("expect",), "named")
+    assert (sample.id, json.loads(str(sample.input)), sample.target) == (
+        "c1",
+        {"a": 1},
+        "succeeded",
+    )
+    assert sample.metadata == {"expect": {"status": "succeeded"}}
+
+
+def test_deployed_services_get_one_shared_conductor_and_no_agent_is_built(tmp_path: Path):
+    registry = tmp_path / "agents.yaml"
+    registry.write_text("agents: []\n", encoding="utf-8")
+
+    def never() -> Any:
+        raise AssertionError("no agent is built for deployed services")
+
+    conductor_for = one_conductor(never, str(registry), "dd-test-")
+    first = conductor_for({})
+    assert isinstance(first, Conductor)
+    assert conductor_for({}) is first
+
+
+def test_an_agent_built_here_is_built_once_however_many_cases(tmp_path: Path):
+    built: list[Any] = []
+
+    def agent() -> Any:
+        built.append(ScriptedAgent(GroundingMode.INPUT_ONLY, behaviour))
+        return built[-1]
+
+    conductor_for = one_conductor(agent, None, "dd-test-")
+    assert conductor_for({}) is conductor_for({})
+    assert len(built) == 1
+
+
+def test_a_runs_identity_names_the_services_or_the_local_configuration(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    def local() -> dict[str, Any]:
+        return {"configuration": configuration(("DD_SET", "DD_UNSET"))}
+
+    monkeypatch.setenv("DD_SET", "on")
+    monkeypatch.delenv("DD_UNSET", raising=False)
+    here = task_identity("a", tmp_path, {"cases_sha256": "0"}, None, local)
+    assert here["configuration"] == {"DD_SET": "on"}
+    assert here["cases_sha256"] == "0" and "agents" not in here
+
+    remote = task_identity("a", tmp_path, {}, "agents.yaml", local)
+    assert remote["agents"] == "agents.yaml" and "configuration" not in remote
