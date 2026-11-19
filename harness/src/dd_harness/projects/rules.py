@@ -94,8 +94,9 @@ class ProjectRules:
         return bool(PROJECT_ID.fullmatch(project_id)) and self.log.exists(project_id)
 
     def events(self, project_id: str) -> list[dict[str, Any]]:
-        """Every event of the project, oldest first. Raises `ProjectError` for an unknown one."""
-        self._require(project_id)
+        """Every event of the project, oldest first. Raises `UnknownProjectError` for an unknown
+        one, as the log raises `KeyError` for it (`ProjectLog`, guarantee 5), so that a read is
+        one query, with no `exists` before it."""
         try:
             return self.log.events(project_id)
         except KeyError:

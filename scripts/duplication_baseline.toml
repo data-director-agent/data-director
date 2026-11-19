@@ -206,11 +206,6 @@ clones = 2
 lines = 25
 
 [[pair]]
-files = ["harness/src/dd_harness/testing/storage.py", "harness/src/dd_harness/testing/storage.py"]
-clones = 3
-lines = 27
-
-[[pair]]
 files = ["harness/src/dd_harness/transport/a2a.py", "sdk/src/dd_sdk/serve.py"]
 clones = 1
 lines = 18

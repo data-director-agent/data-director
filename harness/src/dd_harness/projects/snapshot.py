@@ -74,6 +74,9 @@ class SnapshotLog:
     def projects_naming(self, principal_id: str) -> list[str]:
         return self._log.projects_naming(principal_id)
 
+    def logs_naming(self, principal_id: str) -> dict[str, list[dict[str, Any]]]:
+        return self._log.logs_naming(principal_id)
+
     def create(self, project_id: str, event: dict[str, Any]) -> None:
         raise TypeError("a project snapshot takes no change")
 

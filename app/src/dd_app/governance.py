@@ -356,9 +356,9 @@ class Governance:
     # by the principal it acted for. Ownership is read from what the run store and the project logs
     # already record, never from a second record that could disagree with them. A delegated child
     # carries its parent's `acting_for` and `project_id`, so it belongs where its parent does.
-    # The run store lists what a reader may read (`readable`); the projects they may read are
-    # found from the projects whose logs name them (`project_access.readable_projects`), so
-    # neither reads every project's log.
+    # The run store lists what a reader may read (`readable`), decided from the logs of the projects
+    # that name them, read at once (`project_access.readable_logs`): no listing reads every
+    # project's log, or makes a read per project.
 
     def role(self, project_id: str, principal: Principal) -> Role | None:
         """`principal`'s role in the project `project_id`, as the harness's access check reads it
@@ -410,9 +410,8 @@ class Governance:
         their deleted conversations, and runs in no project that acted for them."""
         if self.projects is None:
             return Readable(reader.principal_id, None)
-        project_ids = frozenset(project_access.readable_projects(self.projects, reader))
-        hidden = project_access.hidden_conversations(self.projects, project_ids)
-        return Readable(reader.principal_id, project_ids, hidden)
+        logs = project_access.readable_logs(self.projects, reader)
+        return project_access.readable_from(reader, logs)
 
     def conversations(
         self, reader: Principal, *, limit: int = PAGE_SIZE, before: str | None = None
@@ -437,15 +436,16 @@ class Governance:
         check_limit(limit)
         if self.projects is None:
             return Page([])
-        newest_first = list(reversed(project_access.readable_projects(self.projects, principal)))
+        logs = project_access.readable_logs(self.projects, principal)
+        newest_first = list(reversed(logs))
         if before is not None:
             if before not in newest_first:
                 return Page([])
             newest_first = newest_first[newest_first.index(before) + 1 :]
         found: list[dict[str, Any]] = []
-        every = self._every_conversation(self.readable(principal))
+        every = self._every_conversation(project_access.readable_from(principal, logs))
         for project_id in newest_first:
-            summary = self.projects.summary(project_id)
+            summary = self.projects.summary_of(project_id, logs[project_id])
             listed = [
                 {key: c.get(key) for key in LISTED_CONVERSATION}
                 for c in every
@@ -455,7 +455,7 @@ class Governance:
                 not listed
                 and summary["inventory"] is None
                 and not any(summary["documents"].values())
-                and self.projects.events(project_id)[0]["caused_by"] != CREATED_BY_ROUTE
+                and logs[project_id][0]["caused_by"] != CREATED_BY_ROUTE
             ):
                 continue
             if len(found) == limit:
