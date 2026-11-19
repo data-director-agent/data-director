@@ -99,6 +99,9 @@ app's unit loads), and sets up no site password ([Deploying to a VM](../../../de
 The default session lengths are 8 hours unused and 7 days at most; confirm them against your
 institution's policy.
 
+For a workshop or any group session, have each participant sign in with their own ORCID iD. People
+who share one sign-in act as one person, and each of them sees all the others' conversations.
+
 ### Trying sign-in against the ORCID sandbox
 
 To test sign-in without real iDs, on a development server or on your own machine, use the ORCID

@@ -743,4 +743,3 @@ loopback only, as the Compose file does, and put NGINX in front as on the VM.
 - TODO(#144): no notice reaches anyone when a deployment fails; the journal and
   `systemctl --failed` are the record.
 - TODO(#145): GitHub does not show what is deployed.
-- Everyone signed in sees every run (#153).

@@ -39,8 +39,9 @@ The [architecture](../../architecture.md) and the
 
 ## Limits of the alpha
 
-- People sign in with ORCID ([configuration](configuration.md#who-a-run-acts-for)), and everyone
-  signed in sees every run (#153). Keep the app and agent ports on loopback or a private network.
+- People sign in with ORCID ([configuration](configuration.md#who-a-run-acts-for)). Each person
+  sees the conversations and runs in the projects they are a member of, and a run outside any
+  project only if it acted for them. Keep the app and agent ports on loopback or a private network.
 - No notice reaches anyone when a deployment fails (#144), and GitHub does not show what is
   deployed (#145). The journal and `systemctl --failed` are the record.
 - A profile limits which classes of project content go to a hosted model (`hosted_models`), but
