@@ -10,9 +10,9 @@
 # `ask` is the question put to the researcher for a value left null; a property with none is
 # asked about by its name. `publish` is asked first, for a value a person must decide may be
 # published at all: where the data were collected (`location.py`, #1073). Until it is answered,
-# or the project's decisions settle it, the value is not asked for. `suggest: true` marks the properties a model may suggest a value for,
-# beside the question and never in the record (docs/specs/drafting.md, invariant 7): what the
-# dataset's files can make likely. Never who made it, when, under what rights or with whose money,
+# or the project's decisions settle it, the value is not asked for. `suggest: true` marks the
+# properties a model may suggest a value for, beside the question and never in the record
+# (docs/specs/drafting.md, invariant 7): what the dataset's files can make likely. Never who made it, when, under what rights or with whose money,
 # which only the researcher can say, and never an entry from a named vocabulary (TODO(#703)).
 titles:
   value: title
