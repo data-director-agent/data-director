@@ -9,6 +9,8 @@ This module holds what is common to every agent's evaluation:
   linter's verdict;
 - metrics that leave a case out when a scorer does not apply to it, rather than counting it as
   zero;
+- building a task: its dataset from a case list, one conductor for every case (to an agent built
+  in this process or to deployed services), and the record of what produced a run;
 - the comparison of two runs' per-case scores, which `workbench/scripts/eval_compare.py` and
   each agent's baseline test apply.
 
@@ -22,12 +24,17 @@ Needs the `eval` extra (`inspect-ai`). Like the rest of `src/`, it imports no ag
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
+import os
 import subprocess
-from collections.abc import Callable
+import tempfile
+import threading
+from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Any
 
+from inspect_ai.dataset import MemoryDataset, Sample
 from inspect_ai.log import EvalLog
 from inspect_ai.model import ModelOutput
 from inspect_ai.scorer import (
@@ -209,6 +216,96 @@ def grounding_passed() -> Scorer:
         )
 
     return score
+
+
+# --- Building a task --------------------------------------------------------------------------
+
+
+def case_dataset(cases: list[dict[str, Any]], keys: Iterable[str], name: str) -> MemoryDataset:
+    """The cases as Inspect samples: each case's `input` document as JSON, its expected status as
+    the target, and the case's `keys` (among them `expect`) as metadata for the scorers."""
+    keys = tuple(keys)
+    return MemoryDataset(
+        [
+            Sample(
+                id=case["id"],
+                input=json.dumps(case["input"]),
+                target=case["expect"]["status"],
+                metadata={k: case[k] for k in keys},
+            )
+            for case in cases
+        ],
+        name=name,
+    )
+
+
+def remote_conductor(agents: str | Path, runs: Path) -> Conductor:
+    """A conductor that reaches the services the registry file `agents` lists, under the
+    workbench's default profile, keeping its runs in `runs`."""
+    from dd_harness.policy import load_profile
+    from dd_harness.registry import Registry
+    from dd_harness.store import RunStore
+    from workbench.config import DEFAULT_PROFILE
+
+    return Conductor(
+        registry=Registry.from_config(Path(agents)),
+        store=RunStore(runs),
+        profile=load_profile(DEFAULT_PROFILE),
+        write_crate=False,
+    )
+
+
+def one_conductor(agent: Callable[[], Any], agents: str | None, prefix: str) -> ConductorFor:
+    """A `ConductorFor` that gives every case one conductor, built on first use: to the services
+    `agents` lists if given, otherwise to the agent `agent()` builds, served in memory. Its runs
+    go to a new temporary directory named with `prefix`."""
+    built: list[Conductor] = []
+    building = threading.Lock()  # cases run side by side; the conductor is built once
+    runs = Path(tempfile.mkdtemp(prefix=prefix))
+
+    def build() -> Conductor:
+        from dd_harness.testing import make_conductor
+        from workbench.config import DEFAULT_PROFILE
+
+        if agents:
+            return remote_conductor(agents, runs / "remote")
+        return make_conductor(runs / "local", agent(), profile=DEFAULT_PROFILE)
+
+    def conductor_for(case: dict[str, Any]) -> Conductor:
+        with building:
+            if not built:
+                built.append(build())
+            return built[0]
+
+    return conductor_for
+
+
+def sha256_of(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def task_identity(
+    agent_id: str,
+    path: Path,
+    hashes: dict[str, Any],
+    agents: str | None,
+    local: Callable[[], dict[str, Any]],
+) -> dict[str, Any]:
+    """What produced a run, for the task's `metadata["identity"]`: the agent, the git revision of
+    `path`, the `hashes` of the inputs the agent's version does not cover, and either the
+    services' registry file or, for an agent built in this process, what `local()` adds (its
+    version and configuration)."""
+    ident: dict[str, Any] = {"agent_id": agent_id, "git_revision": git_revision(path), **hashes}
+    if agents:
+        # The services' own configuration is not visible from here; the envelopes carry what they
+        # report (agent_version, model_id).
+        return ident | {"agents": agents}
+    return ident | local()
+
+
+def configuration(variables: Iterable[str]) -> dict[str, str]:
+    """Those of an agent's configuration `variables` that are set."""
+    return {v: os.environ[v] for v in variables if v in os.environ}
 
 
 # --- Run identity -----------------------------------------------------------------------------

@@ -22,17 +22,14 @@ variables and version, and the hashes of the case file, the README template and 
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
-import tempfile
-import threading
 from pathlib import Path
 from typing import Any
 
 import yaml
 from inspect_ai import Task, task
-from inspect_ai.dataset import MemoryDataset, Sample
+from inspect_ai.dataset import MemoryDataset
 
 from dd_agent_advisor_documentation.agent import DocumentationEditor, _question_id
 from dd_agent_advisor_documentation.evals.defects import apply_defect
@@ -57,10 +54,6 @@ DATA = HERE / "data"
 CONFIG_VARIABLES = ("DD_DOCUMENTATION_WRITER", "DD_MODEL_PROVIDER", "DD_MODEL_ID")
 # What a base takes from its request: the rest is the case's to set.
 BASE_KEYS = ("inventory", "requirements", "metadata_record")
-
-
-def _sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def _read(name: str) -> dict[str, Any]:
@@ -107,42 +100,30 @@ def load_cases(path: Path = CASES) -> list[dict[str, Any]]:
 
 
 def dataset(cases: list[dict[str, Any]]) -> MemoryDataset:
-    return MemoryDataset(
-        [
-            Sample(
-                id=case["id"],
-                input=json.dumps(case["input"]),
-                target=case["expect"]["status"],
-                metadata={
-                    k: case[k] for k in ("base", "kind", "defect", "expect", "answers", "gold")
-                },
-            )
-            for case in cases
-        ],
-        name="documentation-drafting",
-    )
+    from workbench.evaluation import case_dataset
+
+    keys = ("base", "kind", "defect", "expect", "answers", "gold")
+    return case_dataset(cases, keys, "documentation-drafting")
 
 
 def identity(agents: str | None) -> dict[str, Any]:
-    from workbench.evaluation import git_revision
+    from workbench.evaluation import configuration, sha256_of, task_identity
 
-    ident: dict[str, Any] = {
-        "agent_id": AGENT_ID,
-        "git_revision": git_revision(HERE),
-        "cases_sha256": _sha256(CASES),
-        "readme_template_sha256": _sha256(README),
-        "data_sha256": {p.name: _sha256(p) for p in sorted(DATA.glob("*.json"))},
+    hashes = {
+        "cases_sha256": sha256_of(CASES),
+        "readme_template_sha256": sha256_of(README),
+        "data_sha256": {p.name: sha256_of(p) for p in sorted(DATA.glob("*.json"))},
     }
-    if agents:
-        # The services' own configuration is not visible from here; the envelopes carry what they
-        # report (agent_version, model_id).
-        ident["agents"] = agents
-        return ident
-    ident |= {
-        "spec_version": DocumentationEditor.spec.version,
-        "configuration": {v: os.environ[v] for v in CONFIG_VARIABLES if v in os.environ},
-    }
-    return ident
+    return task_identity(
+        AGENT_ID,
+        HERE,
+        hashes,
+        agents,
+        lambda: {
+            "spec_version": DocumentationEditor.spec.version,
+            "configuration": configuration(CONFIG_VARIABLES),
+        },
+    )
 
 
 def editor() -> DocumentationEditor:
@@ -157,34 +138,9 @@ def editor() -> DocumentationEditor:
 
 def conductors(agents: str | None) -> Any:
     """A `ConductorFor`: one conductor for every case, built on first use."""
-    built: list[Any] = []
-    building = threading.Lock()  # cases run side by side; the conductor is built once
-    runs = Path(tempfile.mkdtemp(prefix="dd-eval-documentation-"))
+    from workbench.evaluation import one_conductor
 
-    def build() -> Any:
-        from dd_harness.conductor import Conductor
-        from dd_harness.policy import load_profile
-        from dd_harness.registry import Registry
-        from dd_harness.store import RunStore
-        from dd_harness.testing import make_conductor
-        from workbench.config import DEFAULT_PROFILE
-
-        if not agents:
-            return make_conductor(runs / "local", editor(), profile=DEFAULT_PROFILE)
-        return Conductor(
-            registry=Registry.from_config(Path(agents)),
-            store=RunStore(runs / "remote"),
-            profile=load_profile(DEFAULT_PROFILE),
-            write_crate=False,
-        )
-
-    def conductor_for(case: dict[str, Any]) -> Any:
-        with building:
-            if not built:
-                built.append(build())
-            return built[0]
-
-    return conductor_for
+    return one_conductor(lambda: editor(), agents, "dd-eval-documentation-")
 
 
 @task

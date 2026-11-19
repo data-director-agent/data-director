@@ -130,18 +130,9 @@ def conductors(agents: str | None) -> Any:
         return make_conductor(runs / backend, agent, profile=DEFAULT_PROFILE)
 
     def remote() -> Any:
-        from dd_harness.conductor import Conductor
-        from dd_harness.policy import load_profile
-        from dd_harness.registry import Registry
-        from dd_harness.store import RunStore
-        from workbench.config import DEFAULT_PROFILE
+        from workbench.evaluation import remote_conductor
 
-        return Conductor(
-            registry=Registry.from_config(Path(str(agents))),
-            store=RunStore(runs / "remote"),
-            profile=load_profile(DEFAULT_PROFILE),
-            write_crate=False,
-        )
+        return remote_conductor(str(agents), runs / "remote")
 
     def conductor_for(case: dict[str, Any]) -> Any:
         key = "remote" if agents else case["backend"]

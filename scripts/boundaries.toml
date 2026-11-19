@@ -15,10 +15,6 @@ path = "agents/advisor-standards/src/dd_agent_advisor_standards/evals/seeded.py"
 problem = "imports workbench"
 
 [[exception]]
-path = "agents/advisor-standards/src/dd_agent_advisor_standards/evals/seeded.py"
-problem = "imports dd_harness"
-
-[[exception]]
 path = "agents/advisor-standards/src/dd_agent_advisor_standards/testing.py"
 problem = "imports workbench"
 
