@@ -20,6 +20,9 @@ records the last released version of each package.
   titled `chore(main): release main`, and rewrites it after every merge to `main`. It changes each
   package's `pyproject.toml` (and `app/web/package.json`), `CHANGELOG.md` and the manifest.
 - The workflow also refreshes `uv.lock` on the release branch, because release-please cannot.
+- Because the release pull request only bumps versions, CI, Accessibility and CodeQL skip the jobs
+  that test code for it (`scripts/ci_changes.sh --release`), and the image build is skipped. Any
+  other change on its branch runs them, and the merge queue runs every job before it merges.
 - Nothing is tagged or published until the release pull request is merged. Merging it tags each
   package `<component>-v<version>` (for example `harness-v0.2.0-alpha`) and creates a GitHub
   release, marked as a pre-release.

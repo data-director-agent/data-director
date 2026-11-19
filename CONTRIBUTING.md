@@ -273,6 +273,11 @@ The checks run differently in the queue:
 * A run in the queue is not cancelled by a later one: `ci.yml` cancels an earlier run only for a
   pull request.
 
+release-please's release pull request, which only bumps versions (changelogs, the manifest,
+`version` lines, `uv.lock`), skips the jobs that test code, since nothing it changes can break them
+(`scripts/ci_changes.sh --release`). Any other change on its branch runs them as usual, and the
+queue runs every job before the release reaches `main`.
+
 If a check fails, the pull request leaves the queue. Fix it on its branch, push, wait for its
 checks to pass on the pull request, and then add it to the queue again. The `merge_group` trigger
 in each workflow is what starts these runs; a change to a workflow's triggers should keep it.

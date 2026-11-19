@@ -5,7 +5,9 @@ name: CI
 # never starts, so the filter is per job instead: the "changes" job reads which files a pull
 # request touches, the Python and app/web jobs run only when their side changed, and "CI passed"
 # counts a skipped job as passed. Pushes to main, the merge queue and the weekly run always run
-# every job. The cheap repository-wide jobs run on every pull request.
+# every job. The cheap repository-wide jobs run on every pull request. The exception is
+# release-please's pull request when it only bumps versions: it skips the jobs that test code
+# (scripts/ci_changes.sh --release), and the merge queue then runs all of them.
 #
 #   Python workspace (docs/specs/agents.md): Ruff, mypy, generated schemas, architecture checks,
 #     pytest with CONFORMANCE.md, packages, the agents as real services, the workbench viewer in a browser (#9)
@@ -79,9 +81,14 @@ jobs:
       - id: paths
         env:
           EVENT: ${{ github.event_name }}
+          HEAD_REF: ${{ github.head_ref }}
         run: |
           if [ "$EVENT" = pull_request ]; then
-            git -c core.quotepath=off diff --name-only --no-renames HEAD^1 HEAD | bash scripts/ci_changes.sh >> "$GITHUB_OUTPUT"
+            # release-please's branch may skip the jobs when it only bumps versions; the merge
+            # queue then runs every job on the result.
+            mode=""
+            case "$HEAD_REF" in release-please--*) mode=--release ;; esac
+            git -c core.quotepath=off diff --name-only --no-renames HEAD^1 HEAD | bash scripts/ci_changes.sh $mode >> "$GITHUB_OUTPUT"
           else
             bash scripts/ci_changes.sh --all >> "$GITHUB_OUTPUT"
           fi
