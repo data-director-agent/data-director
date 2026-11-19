@@ -128,8 +128,13 @@ suggests some of those values beside their questions
    the project's `sensitivity` decisions about locations as that answer: it asks for the place
    at the coarsest precision decided, or leaves it empty and asks no more when every location is
    withheld, saying so in its statement (`agents/advisor-metadata/tests/test_metadata_location.py`).
-   How each drafter leaves an excluded file out of the README's Files table, the data dictionary
-   and the metadata record's formats and sizes, listing it with its reason, is TODO(#1072).
+   No drafter reads `file_inclusion` decisions yet: a researcher leaves a file out by editing
+   the inventory. The Documentation Editor and the Metadata Librarian apply the File Archivist's
+   name-based rules (`dd_inventory.hints`) themselves: a system file, an empty file or all but
+   one of a set of byte-for-byte copies is left out of the README's Files table, the data
+   dictionary and the record's formats and sizes, and listed with its reason; a file whose name
+   suggests free text, coordinates or someone else's material stays in, and a person is asked
+   to decide on it before deposit (#1072).
 
 ## Boundaries and contracts
 
