@@ -126,6 +126,7 @@ nav:
       - Writing an agent: developer-guide/writing-an-agent.md
       - Reviewing a model-backed agent: developer-guide/reviewing-a-model-backed-agent.md
       - Documentation: developer-guide/documentation.md
+      - Preparing the JOSS paper: developer-guide/joss-paper.md
       - Contributing: /CONTRIBUTING.md
       - Working in the repository: /AGENTS.md
       - Releasing: /RELEASING.md
