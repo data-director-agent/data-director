@@ -8,6 +8,7 @@ from typing import Any
 import pytest
 import yaml
 
+from dd_sdk.flow_prompt import describe_flow
 from dd_sdk.process_flow import (
     ENTRIES,
     OUT_OF_SCOPE,
@@ -15,7 +16,6 @@ from dd_sdk.process_flow import (
     PHASES,
     REQUIREMENTS,
     STEPS,
-    describe_flow,
     entry,
     plan,
     progress,

@@ -6,7 +6,7 @@ and caches."""
 
 from pathlib import Path
 
-from dd_sdk.process_flow import describe_flow
+from dd_sdk.flow_prompt import describe_flow
 
 PROSE = Path(__file__).with_name("system_prompt.md")
 
