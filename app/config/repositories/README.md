@@ -94,7 +94,10 @@ that cites an issue, never guessed, and listed under `unconfirmed` so a research
 | `standards/datacite-4.yaml` | The DataCite Metadata Schema 4. |
 | `overrides/orda.yaml` | ORDA, the University of Sheffield's repository on Figshare. What its public pages leave open is TODO(#385). |
 | `overrides/eidc.yaml` | The NERC EDS Environmental Information Data Centre (EIDC), from its Service Agreement and its DataCite records. It builds on DataCite until a UK GEMINI / ISO 19115 set exists (#401). What its public pages leave open is TODO(#1250). |
+| `overrides/bodc.yaml` | The NERC EDS British Oceanographic Data Centre (BODC), from its metadata submission template and its DataCite records. What its public pages leave open is TODO(#1250). |
+| `overrides/ceda.yaml` | The NERC EDS Centre for Environmental Data Analysis (CEDA), from its help pages and its metadata.yaml generator; its catalogue record form is behind a login. What its public pages leave open is TODO(#1250). |
+| `overrides/ngdc.yaml` | The NERC EDS National Geoscience Data Centre (NGDC), from its metadata guidance and its deposit form's validation. What its public pages leave open is TODO(#1250). |
+| `overrides/ukpdc.yaml` | The NERC EDS UK Polar Data Centre (UK PDC), from its metadata guidance template and its DataCite records. What its public pages leave open is TODO(#1250). |
 
-The other NERC Environmental Data Service centres, BODC (`r3d100010192`), CEDA (`r3d100012305`),
-the NGDC (`r3d100010189`) and the UK Polar Data Centre (`r3d100010120`), have no override yet:
-each needs its own deposit guidance read, TODO(#1250).
+Every NERC EDS centre builds on DataCite, with which it registers its DOIs, until a UK GEMINI /
+ISO 19115 set exists (#401).

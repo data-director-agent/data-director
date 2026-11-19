@@ -1,0 +1,111 @@
+# What the NERC EDS Centre for Environmental Data Analysis (CEDA) asks beyond DataCite's
+# requirement set (docs/specs/deposit.md). The harness merges it with standards/datacite-4.yaml
+# when a researcher chooses CEDA, so that it can check a project against both and a drafter knows
+# what to write. Keys are as in README.md one folder up. Checked against CEDA's public help pages,
+# its public metadata.yaml generator and its DataCite records (listed under `guidance`) on
+# 2026-11-19; what they leave open is TODO(#1250).
+#
+# CEDA takes deposits through its self-service Arrivals service, after the depositor registers a
+# CEDA account and accepts its depositor's agreement. Each delivery needs a catalogue record,
+# made in a form behind the login or supplied as a metadata.yaml file. The generator of that file
+# marks nothing mandatory, so its labels are the form labels here and only what CEDA's reviewers
+# check for is required.
+schema_class: RequirementSet
+requirement_set_id: ceda
+version: 1
+title: NERC EDS Centre for Environmental Data Analysis
+url: https://arrivals.ceda.ac.uk/intro/
+re3data_id: r3d100012305
+
+# re3data lists CF and Dublin Core for CEDA. Its catalogue exports UK GEMINI 2.3 (ISO 19115), but
+# every DOI it assigns is registered with DataCite (client bl.nerc, prefix 10.5285). The drafter
+# writes DataCite records only, so DataCite is the standard here until a GEMINI/ISO 19115 set
+# exists (#401).
+conforms_to: http://datacite.org/schema/kernel-4
+
+fields:
+  - property: titles
+    schema_org: name
+    obligation: required
+    form_label: Title
+  - property: creators
+    schema_org: creator
+    obligation: required
+    form_label: Authors
+  # Reviewers check that a delivery comes with "a full description of the dataset": what, where,
+  # when, how, why, who and how complete.
+  - property: descriptions
+    qualifier: {descriptionType: Abstract}
+    schema_org: description
+    obligation: required
+    form_label: Description
+  - property: geoLocations
+    schema_org: spatialCoverage
+    obligation: recommended
+    form_label: Coverage
+  - property: dates
+    qualifier: {dateType: Collected}
+    schema_org: temporalCoverage
+    obligation: recommended
+    form_label: Temporal range
+  # CEDA's catalogue holds the lineage; its DataCite records do not. A DataCite record would carry
+  # it as a Methods description, whose schema.org term must differ from the abstract's (README.md).
+  - property: descriptions
+    qualifier: {descriptionType: Methods}
+    schema_org: measurementTechnique
+    obligation: recommended
+    form_label: Lineage
+  # CEDA's DataCite records carry a project's PI as a ProjectLeader contributor and its funder as a
+  # Sponsor contributor, not as a funding reference.
+  - property: contributors
+    schema_org: contributor
+    obligation: recommended
+    form_label: Project description
+
+# Data must come with "sufficient supporting documentation to enable understanding without the
+# need to contact the depositor", for which the README stands. Variable names and units belong in
+# the files themselves (CF-netCDF or BADC-CSV), so a data dictionary is recommended. A NERC-funded
+# project agrees a data management plan with CEDA early in the grant.
+required_documents:
+  - metadata_record
+  - readme
+recommended_documents:
+  - data_dictionary
+  - dmp
+
+# CEDA prefers CF-netCDF and does not accept plain CSV or TSV, Excel, HTML or Word files, which
+# must be converted to BADC-CSV (or PDF, for documents). A media type cannot tell BADC-CSV from
+# plain CSV, so no media type is refused here.
+media_types: []
+
+# max_file_size and max_item_size are left out: CEDA states no per-file limit, and a delivery over
+# 5 TB, or a project over 10 TB, needs its prior agreement rather than being refused.
+
+# "Generally the data produced by NERC funded research will be released under the open government
+# licence"; for other data CEDA "strongly encourage[s] open licences such as creative commons".
+# Its DataCite records carry OGL v3 and CC BY 4.0. Which licences a depositor may choose from is
+# TODO(#1250).
+licences:
+  - OGL-UK-3.0
+  - CC-BY-4.0
+
+guidance:
+  - https://arrivals.ceda.ac.uk/intro/
+  - https://help.ceda.ac.uk/article/4660-depositing-data-at-ceda-a-step-by-step-guide
+  - https://help.ceda.ac.uk/article/4661-depositing-data-faqs
+  - https://help.ceda.ac.uk/article/5104-reviewing-data-at-ceda-a-step-by-step-guide
+  - https://help.ceda.ac.uk/article/4857-acquisition-policy
+  - https://help.ceda.ac.uk/article/104-file-formats
+  - https://help.ceda.ac.uk/article/143-supplementary-info
+  - https://help.ceda.ac.uk/article/4428-metadata-basics
+  - https://artefacts.ceda.ac.uk/licences/depositors_agreement
+  - http://artefacts.ceda.ac.uk/tools/dataset_ingest_labeler/dataset_labeler.html
+  - https://api.datacite.org/dois?client-id=bl.nerc&query=publisher:%22NERC%20EDS%20Centre%20for%20Environmental%20Data%20Analysis%22
+  - https://www.re3data.org/repository/r3d100012305
+
+# What the public pages leave open, as the researcher depositing by hand is told. Each names the
+# issue that will settle it.
+unconfirmed:
+  - Which fields CEDA's catalogue record form requires; it is behind a login (#1250).
+  - Which licences a depositor may choose from (#1250).
+  - The ISO 19115 fields its catalogue record carries and a DataCite record does not (#401, #1250).
