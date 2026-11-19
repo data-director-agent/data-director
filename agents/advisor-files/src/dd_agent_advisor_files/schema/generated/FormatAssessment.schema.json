@@ -16,6 +16,17 @@
          "title": "CheckKind",
          "type": "string"
       },
+      "Derivation": {
+         "description": "",
+         "enum": [
+            "template",
+            "model",
+            "lexical",
+            "registry"
+         ],
+         "title": "Derivation",
+         "type": "string"
+      },
       "FileAssessment": {
          "additionalProperties": false,
          "description": "One file of the inventory and the format it is judged to be.",
@@ -169,6 +180,24 @@
             "array",
             "null"
          ]
+      },
+      "summary": {
+         "description": "A short summary of the findings in plain language, for the researcher. It restates the findings and changes none of them.",
+         "type": [
+            "string",
+            "null"
+         ]
+      },
+      "summary_derivation": {
+         "anyOf": [
+            {
+               "$ref": "#/$defs/Derivation"
+            },
+            {
+               "type": "null"
+            }
+         ],
+         "description": "How the summary came about: template, the rules' own summary, or model, where a model wrote it from the findings."
       },
       "limitations": {
          "description": "What this agent does not yet do.",

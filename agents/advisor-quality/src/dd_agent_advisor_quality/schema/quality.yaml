@@ -7,7 +7,7 @@ name: dd_agent_advisor_quality
 title: advisor.quality classes
 description: >-
   An existing metadata record, and a review of it: a score and the findings behind it.
-version: 0.1.0
+version: 0.2.0
 license: MIT
 
 prefixes:
@@ -49,6 +49,8 @@ classes:
       - schema_class
       - score
       - findings
+      - summary
+      - summary_derivation
 
   Finding:
     description: One observation about one criterion.
@@ -80,6 +82,15 @@ slots:
     multivalued: true
   score:
     range: float
+  summary:
+    description: >-
+      A short summary of the findings in plain language, for the researcher. It restates the
+      findings and changes none of them.
+  summary_derivation:
+    description: >-
+      How the summary came about: template, the rules' own summary, or model, where a model wrote
+      it from the findings.
+    range: Derivation
   findings:
     range: Finding
     multivalued: true

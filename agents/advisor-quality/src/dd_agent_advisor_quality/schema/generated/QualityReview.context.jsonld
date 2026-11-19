@@ -52,6 +52,12 @@
          "@id": "https://w3id.org/data-director/source_id"
       },
       "spdx": "http://spdx.org/rdf/terms#",
+      "summary": {
+         "@id": "https://w3id.org/data-director/agents/quality/summary"
+      },
+      "summary_derivation": {
+         "@id": "https://w3id.org/data-director/agents/quality/summary_derivation"
+      },
       "xsd": "http://www.w3.org/2001/XMLSchema#"
    }
 }

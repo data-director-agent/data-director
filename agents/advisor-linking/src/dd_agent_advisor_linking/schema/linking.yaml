@@ -9,7 +9,7 @@ title: advisor.linking classes
 description: >-
   Identifiers a researcher wants to link a dataset to, and the Linking Adviser's suggested
   related identifiers in reply, for the researcher to review.
-version: 0.1.0
+version: 0.2.0
 license: MIT
 
 prefixes:
@@ -45,6 +45,8 @@ classes:
     slots:
       - schema_class
       - links
+      - summary
+      - summary_derivation
       - limitations
 
   RelatedLink:
@@ -69,6 +71,15 @@ slots:
     range: RelatedLink
     multivalued: true
     inlined_as_list: true
+  summary:
+    description: >-
+      A short summary of the findings in plain language, for the researcher. It restates the
+      findings and changes none of them.
+  summary_derivation:
+    description: >-
+      How the summary came about: template, the rules' own summary, or model, where a model wrote
+      it from the findings.
+    range: Derivation
   limitations:
     description: What the adviser did not do, such as the identifiers it did not resolve.
     multivalued: true

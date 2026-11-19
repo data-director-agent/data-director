@@ -11,7 +11,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from dd_sdk.contract.models import Frozen, Grounded
+from dd_sdk.contract.models import Derivation, Frozen, Grounded
 
 
 class JudgedBy(StrEnum):
@@ -55,4 +55,6 @@ class FormatAssessment(Grounded):
     schema_class: Literal["FormatAssessment"] = "FormatAssessment"
     assessments: list[FileAssessment] = Field(default_factory=list)
     checks: list[FileCheck] = Field(default_factory=list)
+    summary: str | None = None
+    summary_derivation: Derivation | None = None
     limitations: list[str] = Field(default_factory=list)

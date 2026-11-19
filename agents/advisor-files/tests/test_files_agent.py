@@ -1,4 +1,4 @@
-"""advisor.files through the conductor: the File Archivist mock (docs/specs/agents.md)."""
+"""advisor.files through the conductor: the File Archivist (docs/specs/agents.md)."""
 
 from __future__ import annotations
 
@@ -100,7 +100,7 @@ def test_judges_each_file_of_the_inventory_by_its_identification(runs_dir: Path)
     conductor = make_conductor(runs_dir, FileArchivist())
     env = conductor.invoke(request("advisor.files", sample()), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
-    assert env.grounding_mode == GroundingMode.NONE
+    assert env.grounding_mode == GroundingMode.INPUT_ONLY
     payload = env.payload_as(FormatAssessment)
     assert [(a.path, a.format_name, a.open_format, a.judged_by) for a in payload.assessments] == [
         ("README.md", "Markdown", True, JudgedBy.PRONOM),
@@ -202,7 +202,7 @@ def test_an_empty_inventory_abstains(runs_dir: Path) -> None:
 def test_the_card_names_the_persona_and_its_step() -> None:
     entry = describe(FileArchivist.spec)
     assert entry["title"] == "File Archivist"
-    assert entry["description"].startswith("Mock.")
+    assert not entry["description"].startswith("Mock.")
     assert entry["serves"] == ["preparation.files"]
     json.dumps(entry)
 
