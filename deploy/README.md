@@ -488,8 +488,8 @@ carry come from the app's package version and `releases/<sha>/REVISION`.
 ## Secrets
 
 An agent that calls a hosted model holds the key itself. The app never does, and the key never
-appears in a run, a trace or an export ([Policy and identity](../docs/specs/policy-and-identity.md)). The orchestrator and three
-advisors' optional explainers can call a model. The model-backed orchestrator runs only while
+appears in a run, a trace or an export ([Policy and identity](../docs/specs/policy-and-identity.md)). The orchestrator and nine
+advisors can call a model, and the advisors do by default. The model-backed orchestrator runs only while
 `deployment.yaml` names it, and `apply` refuses to turn it on before it has its key. The steps to
 supply a key, turn an agent on, rotate a key and read a start-up error are in the operations
 guide, [AI models](../docs/guide/operations/ai-models.md).
@@ -513,9 +513,9 @@ credentials directory, so no other agent can read it although all run as one use
 
 systemd does not start a unit whose credential file is missing (`status=243/CREDENTIALS`, "Failed
 to set up credentials"), so the drop-in names only the files present and goes with the last of
-them; an advisor with no key runs with its template explainer, except the documentation and
-policy advisors, whose models are on by default: `apply` refuses them until they have a key or
-their own file sets them to `template`. Anything else in the directory (a
+them. Every advisor that can call a model does so by default, so `apply` refuses to turn one on
+until it has a key, a model broker credential, or its own file sets its switch to `template`
+([AI models](../docs/guide/operations/ai-models.md#which-agents-call-a-model)). Anything else in the directory (a
 directory, an empty file, a name that is not lower-case words joined by hyphens) is left out and
 reported. `secret.sh` rewrites the one agent's drop-in and restarts it if it is running;
 `install.sh` rewrites every agent's, so a secret put in place by hand takes effect when it runs.
@@ -729,11 +729,11 @@ DD_PRINCIPAL_ID=https://orcid.org/0000-0002-1825-0097 DD_PRINCIPAL_NAME="A. Rese
 The app reads the settings in [`config/examples/app.env`](../config/examples/app.env) and the
 agents those in [`config/examples/agents.env`](../config/examples/agents.env); give them in files
 named by `DD_APP_ENV_FILE` and `DD_AGENTS_ENV_FILE` (relative to `docker/`). The model-backed
-orchestrator starts only with `--profile llm` and a model key. The documentation, policy and
-standards advisors, whose models are otherwise on by default, run here with
-`DD_DOCUMENTATION_WRITER=template`, `DD_POLICY_ADVISOR=template` and
-`DD_STANDARDS_EXPLAINER=template`; to turn a model on, export its setting as `model` in the shell
-and give the agent a key.
+orchestrator starts only with `--profile llm` and a model key. The advisors whose models are
+otherwise on by default run here with their setting at `template` (`DD_STANDARDS_EXPLAINER`,
+`DD_POLICY_ADVISOR`, `DD_REPOSITORY_EXPLAINER`, `DD_DOCUMENTATION_WRITER`, `DD_DMP_MATCHER`,
+`DD_RIGHTS_INTERPRETER`, `DD_FAIRNESS_WRITER`, `DD_ETHICS_READER` and `DD_METADATA_SUGGESTER`); to
+turn a model on, export its setting as `model` in the shell and give the agent a key.
 Runs and projects are written to `/runs` and `/projects`, which should be volumes. Without ORCID
 sign-in every run acts for the operator and the app authenticates nobody, so publish its port on
 loopback only, as the Compose file does, and put NGINX in front as on the VM.

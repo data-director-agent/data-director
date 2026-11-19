@@ -12,11 +12,11 @@ exactly, and proposes:
 - equivalences: two names for one repository, access level or licence ("CC-BY" and
   "CC-BY-4.0"), each with a short reason.
 
-`TemplateMatcher` is the default (`DD_DMP_MATCHER` unset or `template`, `factory.py`) and proposes
-nothing, so the rules' result stands. `ModelMatcher` calls whichever model the agent's settings
-name through the SDK's model seam (`dd_sdk.model`, `dd_sdk.model_provider`), so this package
-imports no model provider's SDK. The model replies against a schema (`MatchReply`), which the
-provider constrains it to.
+`ModelMatcher` is the default (`DD_DMP_MATCHER` unset or `model`, `factory.py`); `TemplateMatcher`
+(`DD_DMP_MATCHER=template`) proposes nothing, so the rules' result stands, and needs no key.
+`ModelMatcher` calls whichever model the agent's settings name through the SDK's model seam
+(`dd_sdk.model`, `dd_sdk.model_provider`), so this package imports no model provider's SDK. The
+model replies against a schema (`MatchReply`), which the provider constrains it to.
 
 What the model proposes is checked before it is used (`check`). A pairing must name a committed
 output the rules left missing and a planned output they left unplanned, each once; an equivalence

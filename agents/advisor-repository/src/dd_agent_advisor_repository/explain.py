@@ -5,8 +5,9 @@ and returns one rationale per candidate. It cannot add, remove or reorder candid
 a judgement. If a model's rationale names a re3data or FAIRsharing identifier it was not given,
 the template rationale is used instead and the substitution is noted in the text.
 
-`TemplateExplainer` is the default and needs no credentials. `ModelExplainer` is selected
-with `DD_REPOSITORY_EXPLAINER=model` and calls whichever model the agent's settings name, through
+`ModelExplainer` is the default (`DD_REPOSITORY_EXPLAINER` unset or `model`); `TemplateExplainer`
+is selected with `DD_REPOSITORY_EXPLAINER=template` and needs no credentials. `ModelExplainer`
+calls whichever model the agent's settings name, through
 the SDK's model seam (`dd_sdk.model`, `dd_sdk.model_provider`).
 It is sent registry text and the needs, never research data.
 """

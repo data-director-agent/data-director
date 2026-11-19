@@ -69,10 +69,9 @@ is in [`harness/docs/registry.md`](../../harness/docs/registry.md).
 14. A model-backed alpha advisor sits between a mock and a persona. It has a pre-release version,
     its grounding mode is `input_only`, or `retrieval` where it reads outside records (the Policy
     Adviser), and its description does not begin "Mock.". It has a `template` writer, which
-    calls no model, so it runs and its tests pass with no key; that writer is its default, except
-    for the Documentation Editor and the Policy Adviser, whose models are on by default
-    (Model-backed personas). Its `factory` module names the setting that chooses the writer
-    (`SWITCH`) and that setting's default (`DEFAULT`). It declares a model in `AgentSpec.models`
+    calls no model, so its tests pass with no key; an operator can select it, but the model is
+    its default (Model-backed personas). Its `factory` module names the setting that chooses the writer
+    (`SWITCH`). It declares a model in `AgentSpec.models`
     only when one is configured. Its payload says what it still does not do, as a mock's does.
     Like a mock, it substantiates no Blueprint requirement until it leaves alpha.
 
@@ -200,16 +199,26 @@ What a persona that drafts project documents may infer, ask and write is in
 
 Every advisor that calls a model, from its alpha onwards, is built the same way, so that adding
 tools or an evaluation later changes the agent without rewriting it. `advisor-standards/` is the
-worked example of the `template` default (`factory.py`, `explain.py`), and
+worked example of the `template` path (`factory.py`, `explain.py`), and
 `advisor-documentation/` of the declared model and of structured output (`factory.py`,
 `prose.py`), and `advisor-policy/` and `advisor-standards/` of a model that calls tools
-(`advise.py`). Every model-backed advisor has a `template` path an operator can select. Three
-advisors' models are on by default (`dd_sdk.model_provider.optional_model(..., default="model")`):
-the Documentation Editor's, because its model only adds prose and suggestions beside a draft made
-by rule; the Policy Adviser's, because its model only adds to what its rules found, and each
-obligation it adds stands only on a quote that code finds in the cited record; and the Standards
-Librarian's, because its model never removes a pick its ranking rules made, and each standard it
-adds is a record retrieved in the run that code checks against the dataset profile.
+(`advise.py`). Every model-backed advisor has a `template` path an operator can select, and its
+model is on by default (`dd_sdk.model_provider.optional_model(..., default="model")`): an advisor
+without a key, a broker credential or `template` does not start, and says which setting runs it
+without a model. A model can be on by default because it is only ever added to a deterministic
+result, never trusted in place of one:
+
+- The Documentation Editor's model only adds prose and suggestions beside a draft made by rule.
+- The Policy Adviser's only adds to what its rules found, and each obligation it adds stands only
+  on a quote that code finds in the cited record.
+- The Standards Librarian's never removes a pick its ranking rules made, and each standard it adds
+  is a record retrieved in the run that code checks against the dataset profile.
+- The Repository Adviser's only writes the rationale for a ranking its rules made, and a rationale
+  that names an identifier it was not given is replaced by the template's.
+- The Ethics Adviser's only adds flags and questions to the keyword table's, never removing one.
+- The Rights Adviser's chooses only from its own licence table, and the DMP Checker's, the FAIR
+  Assessor's and the Metadata Librarian's only pair, tailor or suggest beside what their rules
+  decided, checked before use.
 
 1. **Deterministic shell, model core.** Input checks, abstentions, scores and anything exact
    (checksums, licence ids, the shape of a schema) stay in code; the model does judgement and
@@ -232,7 +241,7 @@ adds is a record retrieved in the run that code checks against the dataset profi
    beside it. The provider is an adapter behind `dd_sdk.model.Model`
    (`dd_sdk.model_anthropic.AnthropicModel` for Claude, `dd_sdk.model_openai.OpenAIModel` for
    any OpenAI-compatible endpoint), built from the agent's settings by
-   `dd_sdk.model_provider.configured_model`, or `optional_model` where a `template` default
+   `dd_sdk.model_provider.configured_model`, or `optional_model` where a `template` path
    stands in for it; so an agent imports no provider's SDK and runs on any provider the SDK
    supports with no code change ([Policy and identity](policy-and-identity.md)). An agent whose
    model calls tools passes them to `call` as `dd_sdk.model.ToolSpec`s and keeps its
@@ -381,7 +390,7 @@ loaded into the model's prompt, and a served local MCP server for a pinned SPDX 
   a card stays meaningful wherever it is read.
 - **A model-backed alpha.** It shows a persona's model-backed design to researchers early without
   claiming it is validated. The `template` path keeps CI and deployments without a key
-  working (the Documentation Editor's by being selected, the others' by default), and keeping exact work in a deterministic shell keeps it testable and lets a failed
+  working once an operator selects it, and keeping exact work in a deterministic shell keeps it testable and lets a failed
   or rejected model reply fall back to rule output.
 - **Tools through the harness.** A retrieval an agent makes itself is only its own account of
   what it read, so the linter can check only that the account agrees with itself

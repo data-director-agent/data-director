@@ -320,13 +320,13 @@ def optional_model(
     setting: str,
     *,
     default_model: str | None = None,
-    default: Literal["template", "model"] = "template",
+    default: Literal["template", "model"] = "model",
     tool_use: bool = False,
 ) -> Model | None:
     """For an agent that a model only helps: the model if `env[setting]` is `model`, None if it is
-    `template`. Unset, it is `default`: `template` for most agents, `model` for one whose model is
-    on unless an operator turns it off. `tool_use` is passed to `configured_model`, for an agent
-    whose model runs a tool loop. `anthropic` is the older name for `model` with
+    `template`. Unset, it is `default`, which is `model`: every advisor's model is on unless an
+    operator turns it off. `tool_use` is passed to `configured_model`, for an agent whose model
+    runs a tool loop. `anthropic` is the older name for `model` with
     `DD_MODEL_PROVIDER` left as `anthropic`, so settings written before other providers keep
     working.
 

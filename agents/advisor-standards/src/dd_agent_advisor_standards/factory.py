@@ -11,10 +11,8 @@
   calls no model (`anthropic`, the older name for `model`, still works).
 - `DD_STANDARDS_MAX_LOOKUPS`: the most searches the model may make in one run (4 by default; 0
   offers it none).
-- With `model`: `DD_MODEL_PROVIDER` (`anthropic` by default), `DD_MODEL_ID` (Claude Sonnet 5.5
-  by default for Anthropic), `DD_MODEL_BASE_URL` and the provider's key, read at start-up
-  (`dd_sdk.model_provider`, docs/specs/policy-and-identity.md).
 - `DD_SNAPSHOT_PATH`: the snapshot file. The default is the committed one.
+- The model's provider, id and key: as for every advisor (docs/guide/operations/ai-models.md).
 
 An unknown value, or an unusable model setting, is a configuration error
 (`ConfigError`). `dd-advisor-standards serve` then stops at start-up instead of serving
@@ -61,7 +59,7 @@ def max_lookups(env: Mapping[str, str]) -> int:
 
 
 def build_explainer(env: Mapping[str, str]) -> Explainer:
-    model = optional_model(env, SWITCH, default_model=DEFAULT_MODEL, default="model", tool_use=True)
+    model = optional_model(env, SWITCH, default_model=DEFAULT_MODEL, tool_use=True)
     return TemplateExplainer() if model is None else ModelAdvisor(model, max_lookups(env))
 
 

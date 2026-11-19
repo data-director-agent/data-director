@@ -7,9 +7,9 @@ the researcher decides what to submit to the repository. It gives no score and i
 evaluation (R4).
 
 Whether each check is met is decided by the rule table in `checks.yaml`, never by a model. The
-recommendation for each unmet check comes from a writer (`write.py`): the table's own text by
-default, or, with a model configured (`DD_FAIRNESS_WRITER`, `factory.py`), text a model writes
-for this record, recorded in `recommendation_derivation`. It retrieves nothing and resolves no
+recommendation for each unmet check comes from a writer (`write.py`): text a model writes for
+this record by default, or, with `DD_FAIRNESS_WRITER=template` (`factory.py`), the table's own
+text, recorded in `recommendation_derivation`. It retrieves nothing and resolves no
 identifier, so its grounding mode is `input_only` and it cites only its input. Resolving the
 record and running a community FAIRness tool is TODO(#704); discovering related datasets is
 TODO(#954).
