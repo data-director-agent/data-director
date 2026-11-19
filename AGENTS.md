@@ -124,6 +124,8 @@ fixtures in `app/web/fixtures` and `sdk/browser/tests/fixtures`, and the AG-UI c
   who may sign off there before merge. A pull request opened from their account is signed off
   implicitly by them, so CI ("Developer Certificate of Origin") passes without that line; it
   warns on any sign-off by an agent (a warning, not a failure, but still to be fixed).
+  A session started with `DD_AUTHOR_NAME` and `DD_AUTHOR_EMAIL` set commits as the person it works
+  for (`scripts/agent_git_identity.sh` sets the author only, never a sign-off).
 - **Every pull request title must be a Conventional Commit**, `type(scope)!: summary`, with the
   summary in sentence case, no full stop, at most 90 characters, such as
   `feat(app): Register every in-tree agent`. There is
