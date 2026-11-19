@@ -18,11 +18,12 @@ from outside the table cannot reach the payload. A licence that fits is never le
 model does not order follows in the table's order. A mandated licence is listed by rule, as
 before.
 
-`TemplateInterpreter` is the default (`DD_RIGHTS_INTERPRETER` unset or `template`, `factory.py`)
-and proposes nothing, so the rules' result stands. `ModelInterpreter` calls whichever model the
-agent's settings name through the SDK's model seam (`dd_sdk.model`, `dd_sdk.model_provider`), so
-this package imports no model provider's SDK. A refused reply, a reply that is not the schema's
-JSON, or a model that cannot be reached leaves the rules' result as it is, and the agent says so.
+`ModelInterpreter` is the default (`DD_RIGHTS_INTERPRETER` unset or `model`, `factory.py`);
+`TemplateInterpreter` (`DD_RIGHTS_INTERPRETER=template`) proposes nothing, so the rules' result
+stands, and needs no key. `ModelInterpreter` calls whichever model the agent's settings name
+through the SDK's model seam (`dd_sdk.model`, `dd_sdk.model_provider`), so this package imports no
+model provider's SDK. A refused reply, a reply that is not the schema's JSON, or a model that
+cannot be reached leaves the rules' result as it is, and the agent says so.
 
 TODO(#877): the closed set becomes the SPDX records the shell retrieves through the tool gateway,
 and a `licence-choice` Skill joins the system prompt; `check` keeps its rule.

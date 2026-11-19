@@ -246,10 +246,15 @@ def test_a_fenced_reply_is_used(runs_dir: Path) -> None:
     assert licences(env) == [("CC-BY-NC-4.0", Derivation.MODEL)]
 
 
-def test_the_factory_defaults_to_the_template_and_declares_no_model() -> None:
-    agent = factory.build({})
+def test_the_factory_runs_the_template_when_set_to_it_and_declares_no_model() -> None:
+    agent = factory.build({factory.SWITCH: "template"})
     assert isinstance(agent.interpreter, TemplateInterpreter)
     assert describe(agent.spec)["models"] == []
+
+
+def test_the_model_interpreter_is_on_by_default_and_says_how_to_run_without_it() -> None:
+    with pytest.raises(ConfigError, match=f"{factory.SWITCH}=template"):
+        factory.build({})
 
 
 @pytest.mark.parametrize("setting", ["model", "anthropic"])

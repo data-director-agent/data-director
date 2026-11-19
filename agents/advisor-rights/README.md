@@ -43,9 +43,9 @@ Rules first, over `src/dd_agent_advisor_rights/licences.yaml`:
 What the rules cannot read goes to an interpreter (`interpret.py`), chosen by
 `DD_RIGHTS_INTERPRETER` (`factory.py`):
 
-- `template` (the default) proposes nothing. A reuse wish in other words falls back to listing
+- `template` proposes nothing. A reuse wish in other words falls back to listing
   every licence and asking what reuse to allow. It calls no model and needs no key.
-- `model` sends the model the researcher's words for the reuse wanted (only when the rules did not
+- `model` (the default) sends the model the researcher's words for the reuse wanted (only when the rules did not
   understand them), the mandated licence, whether there is third-party content, and the table's
   licence ids, names and reuse values. Whether the data are sensitive is not sent. The model
   replies against a schema (`RightsReply`):

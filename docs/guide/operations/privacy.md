@@ -26,7 +26,7 @@ notice, not the notice, and it is not legal advice.
 | **Facts from ORCID records**, such as affiliations and works, if a person chooses to use them. | To fill in metadata. | Your server, and an agent that calls a hosted model only if the profile's `hosted_models` allows it. |
 | **A session cookie.** | To keep a person signed in. It is opaque, unreadable by script and needed for the sign-in the person asked for. | The person's browser. |
 | **Problem reports**, if you switch them on. | To fix faults. | **A public GitHub issue**, in the repository `DD_FEEDBACK_REPO` names. The reporter needs no GitHub account, and the page tells them it is public. |
-| **Model input**, if you turn on a model-backed agent. | The orchestrator and the optional explainers write replies with a hosted model. | The model provider, today Anthropic, whose terms govern retention. [AI models](ai-models.md) lists what each agent sends. A default installation sends nothing. |
+| **Model input**, if you turn on a model-backed agent. | The orchestrator and the advisors write replies, explanations and suggestions with a hosted model. | The model provider, today Anthropic, whose terms govern retention. [AI models](ai-models.md) lists what each agent sends. An advisor calls a model by default, so nothing is sent until it is given a key or a broker credential; set its switch to `template` to keep it from ever sending. |
 | **A person's own model key**, if you switch on the model broker. | To let their own account pay for model calls. | The [model broker](model-broker.md), which alone holds it. |
 
 ## What to say, and what to decide

@@ -271,18 +271,17 @@ def test_a_tool_loop_is_declared_on_the_card(env: dict[str, str]) -> None:
     assert not declared(configured_model(env, default_model="c")).tools
 
 
-def test_an_optional_model_is_off_unless_the_agent_defaults_it_on() -> None:
+def test_an_optional_model_is_on_unless_the_operator_turns_it_off() -> None:
     env = {"ANTHROPIC_API_KEY": "k"}
-    assert optional_model(env, "DD_X") is None
-    assert isinstance(
-        optional_model(env, "DD_X", default_model="m", default="model"), AnthropicModel
-    )
-    assert optional_model({**env, "DD_X": "template"}, "DD_X", default="model") is None
+    assert isinstance(optional_model(env, "DD_X", default_model="m"), AnthropicModel)
+    assert optional_model({**env, "DD_X": "template"}, "DD_X") is None
+    # An agent may still ask for the other default.
+    assert optional_model(env, "DD_X", default="template") is None
 
 
 def test_a_model_on_by_default_with_no_key_says_how_to_turn_it_off() -> None:
     with pytest.raises(ConfigError, match="DD_X=template"):
-        optional_model({}, "DD_X", default_model="m", default="model")
+        optional_model({}, "DD_X", default_model="m")
     with pytest.raises(ConfigError) as raised:
-        optional_model({"DD_X": "model"}, "DD_X", default_model="m", default="model")
+        optional_model({"DD_X": "model"}, "DD_X", default_model="m")
     assert "DD_X=template" not in str(raised.value)

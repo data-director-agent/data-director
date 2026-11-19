@@ -13,6 +13,7 @@ from urllib.parse import urlsplit
 from ddtool import paths
 from ddtool.common import (
     EXAMPLE_PRINCIPAL,
+    MODEL_BY_DEFAULT,
     DevError,
     ensure_local_tree,
     prepare_sources,
@@ -147,9 +148,11 @@ def ask_model_key(prompt: Prompter, changes: Changes) -> bool:
     current = read_key("orchestrator-model")
     print(
         "\nAn Anthropic API key (optional). Without one, the home page talks to orchestrator.stub, a\n"
-        "rule-based agent, and everything else works. With one, the model-backed orchestrator can\n"
-        f"hold the conversation. Create a key at {KEYS_URL}. It is stored only in the files of\n"
-        "the agents that use it (config/local/credentials/), which git ignores."
+        "rule-based agent, and the advisors answer by rule alone, so everything still works. With\n"
+        "one, the model-backed orchestrator can hold the conversation, and each advisor can use the\n"
+        "model to tailor its advice, which sends it the facts it works from. Create a key at\n"
+        f"{KEYS_URL}. It is stored only in the files of the agents that use it\n"
+        "(config/local/credentials/), which git ignores."
     )
     shown = f"Enter keeps {mask(current)}" if current else "Enter skips"
     key = prompt.secret(f"Anthropic API key ({shown})") or current
@@ -158,10 +161,12 @@ def ask_model_key(prompt: Prompter, changes: Changes) -> bool:
     if key != current:
         write_key("orchestrator-model", key, changes)
     if prompt.yes(
-        "Let the standards advisor use the model to choose and explain its advice too?",
+        "Let the advisors use the model too? Each model-backed advisor is given its own copy of "
+        "the key",
         default=True,
     ):
-        write_key("advisor-standards", key, changes, {"DD_STANDARDS_EXPLAINER": "model"})
+        for agent, switch in MODEL_BY_DEFAULT.items():
+            write_key(agent, key, changes, {switch: "model"})
     return True
 
 
