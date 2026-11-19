@@ -11,3 +11,13 @@
     color: var(--color-text-muted);
   }
 }
+
+@layer components {
+  .agent-technical {
+    margin-top: var(--space-4);
+  }
+
+  .agent-technical > summary {
+    cursor: pointer;
+  }
+}

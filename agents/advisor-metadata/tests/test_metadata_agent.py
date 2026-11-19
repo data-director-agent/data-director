@@ -1,16 +1,18 @@
-"""advisor.metadata through the conductor: the Metadata Librarian mock
-(docs/specs/agents.md) as the stub drafter of the metadata record (#200)."""
+"""advisor.metadata through the conductor: the Metadata Librarian (docs/specs/agents.md) as the
+drafter of the metadata record (#200), on its template path."""
 
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 from dd_agent_advisor_metadata.agent import DATACITE, MetadataLibrarian
-from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
+from dd_harness import orcid
+from dd_harness.testing import SAMPLE_ID, TEST_PRINCIPAL, make_conductor, request, sample_record
 from dd_sdk.agent import describe
 from dd_sdk.contract.models import (
     CurrentVersion,
@@ -22,6 +24,7 @@ from dd_sdk.contract.models import (
     GroundingMode,
     OutcomeStatus,
     ReasonCode,
+    ResearcherRecord,
     VersionState,
     new_invocation_id,
 )
@@ -47,7 +50,7 @@ def test_drafts_a_datacite_record_with_every_property_the_repository_asks_for(
     asked = sample()
     env, grounded = draft(runs_dir, asked)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
-    assert env.grounding_mode == GroundingMode.NONE and grounded
+    assert env.grounding_mode == GroundingMode.INPUT_ONLY and grounded
     document = env.payload_as(Document)
     assert document.document_kind == DocumentKind.METADATA_RECORD
     assert (document.media_type, document.conforms_to) == ("application/json", DATACITE)
@@ -56,7 +59,7 @@ def test_drafts_a_datacite_record_with_every_property_the_repository_asks_for(
     assert asked.requirements is not None
     for field in asked.requirements.fields:
         assert field.property.split(".")[0] in record, field.property
-    # The mock fills only what holds for any deposit and what the inventory states.
+    # The template fills only what holds for any deposit and what the inventory states.
     assert record["types"] == {"resourceTypeGeneral": "Dataset"}
     assert record["titles"] == [{"title": None}]
     assert {"subject": None, "subjectScheme": "ANZSRC Fields of Research"} in record["subjects"]
@@ -86,6 +89,41 @@ def test_regenerating_names_the_version_it_replaces(runs_dir: Path) -> None:
     assert env.payload_as(Document).revises == previous
 
 
+def test_fills_creators_subjects_and_funding_from_what_researchers_kept(runs_dir: Path) -> None:
+    """What a researcher kept from their public ORCID record is placed where the repository asks
+    for it (docs/specs/projects.md); a researcher who kept no name is a creator to name."""
+    kept = orcid.normalise(
+        sample_record(),
+        principal_id=f"https://sandbox.orcid.org/{SAMPLE_ID}",
+        retrieved_at=datetime(2026, 11, 10, tzinfo=UTC),
+        source="https://pub.sandbox.orcid.org/v3.0/record",
+    )
+    nameless = {
+        "orcid_id": "https://orcid.org/0000-0002-1694-233X",
+        "record_retrieved_at": "2026-11-10T00:00:00Z",
+        "record_source": "https://pub.orcid.org/v3.0/record",
+    }
+    researchers = [ResearcherRecord.model_validate(r) for r in (kept, nameless)]
+    env, grounded = draft(runs_dir, sample().model_copy(update={"researchers": researchers}))
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert grounded
+    record = json.loads(env.payload_as(Document).document_text)
+
+    first, second = record["creators"]
+    assert first["name"] == "Josiah Carberry"
+    assert first["nameIdentifiers"][0]["nameIdentifier"] == kept["orcid_id"]
+    [employer] = first["affiliation"]  # the current employer, not the degree
+    assert employer["affiliationIdentifier"] == "https://ror.org/05gq02987"
+    assert (
+        second["name"] is None and second["nameIdentifiers"][0]["nameIdentifierScheme"] == "ORCID"
+    )
+    assert {"subject": "psychoceramics"} in record["subjects"]
+    assert {"subject": None, "subjectScheme": "ANZSRC Fields of Research"} in record["subjects"]
+    [funding] = record["fundingReferences"]
+    assert funding["funderIdentifierType"] == "Crossref Funder ID"
+    assert funding["awardNumber"] == "NSF-1234567"
+
+
 @pytest.mark.requirement("DD-OUTCOME")
 def test_abstains_without_a_repository_or_for_another_kind_or_standard(runs_dir: Path) -> None:
     asked = sample()
@@ -108,6 +146,6 @@ def test_abstains_without_a_repository_or_for_another_kind_or_standard(runs_dir:
 def test_the_card_names_the_persona_and_its_steps() -> None:
     entry = describe(MetadataLibrarian.spec)
     assert entry["title"] == "Metadata Librarian"
-    assert entry["description"].startswith("Mock.")
+    assert not entry["description"].startswith("Mock.")
     assert entry["serves"] == ["preparation.metadata-standard", "preparation.metadata"]
     json.dumps(entry)

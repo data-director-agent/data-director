@@ -24,9 +24,33 @@ EXAMPLE_PRINCIPAL = {
     "DD_PRINCIPAL_ID": "https://orcid.org/0000-0002-1825-0097",
     "DD_PRINCIPAL_NAME": "Josiah Carberry",
 }
-KEY_VARS = ("ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY_FILE")
+# Each model provider's key variable, by `DD_MODEL_PROVIDER` (dd_sdk.model_provider.PROVIDERS).
+PROVIDER_KEYS = {
+    "anthropic": "ANTHROPIC_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "gemini": "GEMINI_API_KEY",
+    "openai-compatible": "DD_MODEL_API_KEY",
+}
+# Every variable a model key may be given in, which only the agent's own file may set.
+KEY_VARS = tuple(v for key in PROVIDER_KEYS.values() for v in (key, f"{key}_FILE"))
 # Agents that stop at start-up without a model key, so `start` skips them when they have none.
 MODEL_BACKED = {"orchestrator-model"}
+# Agents whose model is on unless their own setting says `template`, by that setting: every
+# advisor that can call a model (each package's `factory.SWITCH`, which
+# `scripts/tests/test_dev_script.py` checks this against). Left unset with no key, `start` runs
+# them with `template`; a deployment on a VM is refused until they have a key, call through the
+# model broker, or are set to `template`.
+MODEL_BY_DEFAULT = {
+    "advisor-standards": "DD_STANDARDS_EXPLAINER",
+    "advisor-policy": "DD_POLICY_ADVISOR",
+    "advisor-repository": "DD_REPOSITORY_EXPLAINER",
+    "advisor-documentation": "DD_DOCUMENTATION_WRITER",
+    "advisor-dmp": "DD_DMP_MATCHER",
+    "advisor-rights": "DD_RIGHTS_INTERPRETER",
+    "advisor-fairness": "DD_FAIRNESS_WRITER",
+    "advisor-ethics": "DD_ETHICS_READER",
+    "advisor-metadata": "DD_METADATA_SUGGESTER",
+}
 NODE_MAJOR = 22  # the oldest Node the shell's toolchain supports (README, "Quick start")
 APP_PORT = 7860  # dd_app's default (DD_APP_PORT)
 WEB_PORT = 5173  # Vite's default
@@ -124,6 +148,24 @@ def update_env(path: Path, updates: dict[str, str], header: str) -> None:
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def remove_env(path: Path, names: Iterable[str]) -> bool:
+    """Remove each of `names` from `path`, keeping every other line as it was. Whether any was."""
+    if not path.is_file():
+        return False
+    drop = set(names)
+    lines = path.read_text(encoding="utf-8").splitlines()
+    kept = [
+        raw
+        for raw in lines
+        if raw.lstrip().startswith("#")
+        or raw.strip().removeprefix("export ").partition("=")[0].strip() not in drop
+    ]
+    if len(kept) == len(lines):
+        return False
+    path.write_text("\n".join(kept) + "\n", encoding="utf-8")
+    return True
+
+
 def _without_key(path: Path) -> dict[str, str]:
     """The settings in `path`, which every agent reads, so it may hold no model key (docs/specs/policy-and-identity.md)."""
     found = read_env(path)
@@ -154,6 +196,12 @@ def agent_env(agent: Agent) -> dict[str, str]:
 
 def has_key(env: dict[str, str]) -> bool:
     return any(env.get(var) for var in KEY_VARS)
+
+
+def model_on_by_default(name: str, settings: dict[str, str]) -> bool:
+    """Whether `name` is an agent whose model is on by default and `settings` leave it on."""
+    var = MODEL_BY_DEFAULT.get(name)
+    return var is not None and (settings.get(var) or "").strip() != "template"
 
 
 def ensure_local_tree() -> list[Path]:

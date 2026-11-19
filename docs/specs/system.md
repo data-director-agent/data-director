@@ -10,9 +10,11 @@ fixes what the word "harness" names.
 | Member | Distribution | What it is |
 |---|---|---|
 | `sdk/` | `data-director-sdk` | What agents and the harness share: the core contract, evidence, span helpers and the A2A agent server. |
-| `harness/` | `data-director-harness` | The governance of an invocation: conductor, policy gate, input check, grounding linter, source check, run store and provenance, its A2A way in, and its test kit. Deployable. |
-| `workbench/` | `data-director-workbench` | The development way in to the harness: CLI, viewer, AG-UI transport, evaluation, and a development configuration. Not deployed. |
+| `harness/` | `data-director-harness` | The governance of an invocation: conductor, policy gate, input check, grounding linter, source check, run store and provenance, its A2A way in, the AG-UI binding other ways in mount, and its test kit. Deployable. |
+| `workbench/` | `data-director-workbench` | The development way in to the harness: CLI, viewer, evaluation, and a development configuration. Not deployed. |
 | `app/` | `data-director-app` | The Data Director app that researchers use. A way in to the harness. |
+| `admin/` | `data-director-admin` | A read-only view of one deployment for its operators: its health, agents, settings, and the runs and projects in its stores across every person. Listens on loopback only, with no sign-in. Not a way in: it runs nothing. |
+| `broker/` | `data-director-model-broker` | The model broker: holds people's own model keys, sealed, and makes model calls for an agent that presents a model grant ([A person's own model account](model-accounts.md)). A separate service that runs as its own user. Not a way in. |
 | `agents/<name>/` | `data-director-agent-<name>` | One package and one A2A service per agent ([Agents](agents.md)). |
 | `inventory/` | `data-director-inventory` | The command a researcher runs where their data live to describe a dataset's files ([Projects](projects.md)). |
 
@@ -20,8 +22,24 @@ Beside the Python members, `inventory/browser/` is `@data-director/inventory`, a
 library that reads a `FileInventory`: it parses, summarises, arranges the files as folders,
 searches them and puts the facts into words. It has no runtime dependencies, holds no user
 interface and no policy, and imports nothing else in the repository. `app/web` links it as source
-(`file:../../inventory/browser`) and never the reverse; the browser scanner (#554) is to join it.
-Its readme says how it is checked.
+(`file:../../inventory/browser`) and never the reverse. Its `src/scanner/` is the browser
+scanner: a Web Worker, with no network, that runs the browser bundle over a folder the researcher
+chooses, which the app offers as **Describe a folder…** where it serves the bundle. Its readme says how it is checked. Its `bundle/` folder
+builds the browser bundle of `dd-inventory`: Pyodide, the command's wheel built from `inventory/`
+and its dependencies, with licence notices for all of them, for the app to serve from its own origin. It builds from the `inventory/`
+member's own source and lock, so it crosses no boundary, and Pyodide is a development dependency
+of the library only, which nothing under its `src/` imports: the worker is handed Pyodide's files
+with the rest of the bundle. A CI job checks that the bundle writes the command's inventory, natively and in the
+worker in Chromium, Firefox and WebKit.
+
+Likewise `sdk/browser/` is `@data-director/agent-view`, a TypeScript and React library for
+inspecting what an agent publishes: its A2A agent card, the Data Director extensions on it
+(`agent-spec/v0`, `manifest/v0`) and the payloads it returns, laid out from each class's JSON
+Schema with their derivations and the evidence they rest on. Its headless entry point has no
+runtime dependencies; its components need only React, and a host lends them anything else
+(Markdown, a document view, renderers for particular classes) through a provider. It names no
+agent class. `app/web` links it as source (`file:../../sdk/browser`); the workbench viewer, which
+has no build step, is to move to it too.
 
 The contract, transport, grounding and the app's own process boundary are specified elsewhere:
 [Contract](contract.md), [Transport and tracing](transport.md),
@@ -32,7 +50,12 @@ The contract, transport, grounding and the app's own process boundary are specif
 1. The dependency graph between members at run time is:
    - `sdk` depends on no other member;
    - `harness` depends on `sdk` only;
-   - `workbench` and `app` depend on `harness` and `sdk`, and on nothing else in the workspace;
+   - `workbench` depends on `harness` and `sdk`, and on nothing else in the workspace;
+   - `app` depends on `harness`, `sdk` and `inventory`, the last to describe a folder on a local
+     install ([Projects](projects.md)), and on nothing else in the workspace;
+   - `admin` depends on `harness` and `sdk`, and on nothing else in the workspace; no member
+     depends on it;
+   - `broker` depends on `sdk` only; no member depends on it;
    - each agent depends on `sdk` only;
    - `inventory` depends on no other member.
 
@@ -40,8 +63,10 @@ The contract, transport, grounding and the app's own process boundary are specif
    declarations with this list, so a new first-party dependency is a change to this spec.
    Import Linter contracts in the root `pyproject.toml` (`uv run lint-imports`, CI) fail an
    import, direct or indirect, that runs against the direction above: the layers `sdk`,
-   `harness`, then `workbench`, `app` and each agent, with no agent importing another and
-   `inventory` importing no member. A known exception is an `ignore_imports` entry naming the
+   `harness`, then `workbench`, `app`, `admin` and each agent, with no agent importing another,
+   `admin` importing neither the app, the workbench nor an agent, nothing importing `admin`,
+   `broker` importing no member but `sdk` and nothing importing `broker`, and `inventory`
+   importing no member. A known exception is an `ignore_imports` entry naming the
    issue that removes it. `scripts/check_boundaries.py` (CI) fails code that imports a member it
    does not declare, and `scripts/check_wheels.py` (CI) installs each built wheel alone and
    imports it. Invariants 2 and 3 test the two edges most likely to be added by mistake.
@@ -95,7 +120,7 @@ identifiers, timestamps and lineage ([Orchestration](orchestration.md)). `dd-har
 serves the A2A routes and agent card and nothing else, for a deployment that needs no viewer;
 `uvicorn` is an optional extra so that a way in which embeds the conductor does not install it;
 a storage backend's driver is an extra for the same reason ([Storage](storage.md)).
-`workbench serve` builds the same conductor and adds AG-UI and the viewer. The CLI stays with the
+`workbench serve` builds the same conductor and adds the harness's AG-UI binding and the viewer. The CLI stays with the
 workbench.
 
 **The test kit belongs to the harness.** The scripted doubles, the in-memory agent server and
@@ -108,6 +133,10 @@ who write agents. The app must not depend on it.
 **Agents are separate services.** The harness reaches each agent over A2A at a URL from
 configuration, so an agent can be served from this repository or from anywhere else; the
 mechanics are in [Agents](agents.md) and [Transport and tracing](transport.md).
+
+**The model broker is a service of its own**, beside the harness rather than in it, because it
+holds people's own model keys and nothing else may (`broker/`,
+[A person's own model account](model-accounts.md)).
 
 **Documents are kept with what they describe.** A package's own design notes are in its
 `docs/`; what governs every package (the specs, contract, glossary, requirements register and
@@ -125,6 +154,11 @@ vocabulary snapshots and libraries usable without the contract.
 - Where an agent's work is useful without the contract (a lookup in a public registry, say), that
   work is built as a framework-neutral library or MCP server, and the agent is a thin wrapper
   that adds the contract: classes, grounding and evidence.
+- Prefer open, standard interfaces to private ones (A2A, MCP, Agent Skills, JSON Schema, LinkML,
+  SHACL), and keep each unit single-purpose with its own tests, README, licence and version, so
+  that publishing it separately is a copy. The SDK holds only what speaks the contract. An agent
+  may use MCP servers and Agent Skills if what it retrieves through them is still hashed and
+  cited; the orchestrator may not ([Orchestration](orchestration.md)).
 - A repository that evaluates an approach without committing to it (such as `classmark`) says it
   is an experiment in its README and in the organisation profile. Its work enters the ecosystem
   as a capability under the previous rule.
@@ -208,4 +242,5 @@ uses the harness without the workbench.
 - TODO(#3): whether `https://w3id.org/data-director/schema/core` is registered with w3id.
 - TODO(#260): the criteria for the contract, and so the SDK and harness, reaching 1.0.
 - TODO(#280): the first framework-neutral repositories, and whether agents are also reached over
-  MCP.
+  MCP. How a persona consumes an MCP server or an Agent Skill is decided in
+  [Agents](agents.md#tools-mcp-servers-and-agent-skills).

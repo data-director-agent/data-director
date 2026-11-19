@@ -23,7 +23,7 @@ Every event has these members:
 
 | Member | What it is |
 |---|---|
-| `event` | What happened: `project_created`, `conversation_started`, `inventory_added`, `repository_chosen`, `document_version_added`, `document_version_decided`, `document_question_answered`, `document_change_refused`, `project_validated` or `package_built`. |
+| `event` | What happened: `project_created`, `project_renamed`, `project_deleted`, `project_restored`, `conversation_started`, `conversation_deleted`, `conversation_restored`, `inventory_added`, `researcher_added`, `researcher_withdrawn`, `repository_chosen`, `document_version_added`, `document_version_decided`, `document_question_answered`, `document_change_refused`, `fact_proposed`, `fact_decided`, `project_validated` or `package_built`. |
 | `event_id` | A UUIDv7, so events sort in the order they happened. |
 | `project_id` | The project. |
 | `at` | When, in UTC. |
@@ -33,11 +33,43 @@ Every event has these members:
 `project_created` also gives `title`, if one was given: free text of at most `TITLE_MAX_LENGTH`
 (200) characters that tells the project apart from others. A blank title is none.
 
+`project_renamed` gives the project a new `title`, under the same rules except that a blank one is
+refused, and `title_source`: `researcher` for a person (`PUT /api/projects/…/title`) or `model`
+for a name an orchestrator's model wrote, caused by its run. The latest title counts. A title given
+at creation is a person's, and once a person has given one, `ProjectStore.rename` refuses a model's
+and records nothing ([Projects](../../docs/specs/projects.md), invariant 21).
+
+`project_deleted` and `project_restored` carry nothing beyond the envelope. A project is deleted
+while the last of them in its log is a deletion (`dd_harness.projects.deletion`). A deleted
+project takes no change but `restore` and a run's draft (`record_draft`), so that a run already
+going is recorded; every other change raises `ProjectDeletedError` and records nothing.
+`restore` raises `RestoreRefusedError` for a project not deleted, or once the store's
+`restore_period` from the deletion is over: 30 days, or `DD_PROJECT_RESTORE_DAYS` whole days,
+where 0 makes a deletion final. A summary gives `deleted` (when, by whom and until when it may be
+restored, or null) and `restore_days`. `project_access` gives no one but an owner a role in a
+deleted project, and leaves it out of `readable_projects`, so its conversations and runs leave
+every list too ([Projects](../../docs/specs/projects.md), invariants 22 to 25).
+
 `conversation_started` also gives the `conversation_id` (a UUIDv7) of a conversation started from
 the project. `ProjectStore.project_of(conversation_id)` says which project, if any, a conversation
-was started in. It reads every log once, when first asked, and is kept up to date after that,
-so it holds after a restart. Reading every log does not scale past one deployment's projects,
-and the cache is per process, TODO(#521).
+was started in, from what the logs hold when asked, so it holds after a restart and agrees with
+any other harness over the same directory. A conversation's project never changes once recorded,
+so the answers found are kept; a conversation not found is looked for again in every log, which
+does not scale past one deployment's projects. A deployment that outgrows it keeps its projects in
+the database, where finding a conversation's project is an indexed query
+([Storage](../../docs/specs/storage.md)).
+
+`conversation_deleted` and `conversation_restored` also give the `conversation_id` of a
+conversation started in the project. A conversation is deleted while the last of them for it is a
+deletion (`dd_harness.projects.conversation_deletions`). `delete_conversation` raises
+`UnknownConversationError` for a conversation not started in the project and
+`ConversationDeletedError` for one already deleted; `restore_conversation` raises
+`RestoreRefusedError` as `restore` does, over the same `restore_period`. `deleted_conversations`
+lists those that stand, and a summary's `conversation_count` leaves them out. Who may delete one is
+`project_access.may_delete_conversation`: whoever started it while they may contribute, and an
+owner. `project_access.hidden_conversations` names the deleted ones in a set of projects, which a
+`Readable` leaves out of every listing ([Projects](../../docs/specs/projects.md), invariants 29
+to 31).
 
 `inventory_added` also gives:
 
@@ -47,6 +79,22 @@ and the cache is per process, TODO(#521).
 | `canonicalisation` | `dd-input-json-v1`. The digest is therefore the input hash the conductor records when an agent is given this inventory. |
 | `file_count` | How many files the inventory lists. |
 | `inventory_made_at` | When `dd-inventory` made it. |
+| `revises` | The digest of the inventory the project held before, when it held one: this one revises it. The store finds it in the log; no caller gives it. |
+| `part_count` | How many parts the inventory is made of, when it is made of parts (`inventory_parts`); absent for an inventory of one folder. |
+
+`researcher_added` keeps the facts a person chose from their own public ORCID record
+([Projects](../../docs/specs/projects.md), invariant 27). It also gives:
+
+| Member | What it is |
+|---|---|
+| `orcid_id` | The person's iD URL; always the iD of the principal in `acted_for`. |
+| `digest` | The SHA-256 of the `ResearcherRecord`'s canonical bytes, under which the blob is kept. |
+| `canonicalisation` | `dd-input-json-v1`. |
+| `record_retrieved_at` | When the record was read from ORCID's public API. |
+
+The latest `researcher_added` for an iD counts. `researcher_withdrawn` gives the `orcid_id` whose
+record is no longer given to agents; it may be added again later. `ProjectStore.researchers` gives
+the records that stand, the one kept first first.
 
 `repository_chosen` also gives:
 
@@ -94,8 +142,10 @@ log that `project_access.roles` folds, TODO(#389).
 What a project holds of its research data is a `FileInventory`, made by
 [`dd-inventory`](../../inventory/README.md) where the data live, and never the files. The store
 checks an inventory against the core class schema before adding it, so a document of another
-class, or one that gives an absolute path, is refused and nothing is recorded. The latest
-inventory added is the project's inventory.
+class, or one that gives an absolute path, is refused and nothing is recorded. So is an inventory
+made of parts whose folders overlap, or with a file under no part's folder
+(`dd_sdk.contract.models.inventory_part_problems`). The latest inventory added is the project's
+inventory: updating one part of it is a whole new inventory, with the other parts as they were.
 
 ```console
 $ export DD_PROJECTS_DIR=… DD_PRINCIPAL_ID=… DD_PRINCIPAL_NAME=…
@@ -105,10 +155,12 @@ $ uv run dd-harness project create --title "Soil cores 2024"
 $ uv run dd-harness project add-inventory 0192f3a4-… inventory.json
 $ uv run dd-harness project events 0192f3a4-…
 $ uv run dd-harness project list
+$ uv run dd-harness project delete 0192f3a4-…
+$ uv run dd-harness project restore 0192f3a4-…
 ```
 
 `project list`, and `ProjectStore.projects()`, give a summary of each project in the order they were
-created. A summary has the title, who created it and when, the latest inventory (digest, file
+created. A summary has the latest title and who gave it (`title_source`), who created it and when, the latest inventory (digest, file
 count and when it was made), the repository chosen last and its warnings, how many conversations
 were started in it, and how many documents have a latest version in each state.
 
@@ -174,10 +226,25 @@ at most `ANSWER_MAX_LENGTH` (2,000) characters. Its `acted_for` is whoever answe
 together are appended in one write. A decided version's questions may still be answered: the
 answers go into the next draft, not into that version.
 
+`fact_proposed` records one fact a check agent proposed for a person to decide
+([Projects](../../docs/specs/projects.md), invariant 28). It gives `agent_id`, the agent that
+proposed it, and `fact`, the `ProjectFact` as proposed, with `proposed_because`; its `caused_by`
+is the run, and its `event_id` names the proposal. A run's proposals are appended in one write.
+
+`fact_decided` records a person's decision. It gives `verdict` (`confirmed`, `changed` or
+`rejected`), `fact` (the fact that now stands, without `proposed_because`; for a rejection, only
+its `fact_kind` and `fact_subject`), `proposal` if the decision names one, and `reason` if one was
+given, at most `FACT_REASON_MAX_LENGTH` (2,000) characters. Its `acted_for` is the decider.
+`decisions(project_id)` gives the fact that stands for each kind and subject, the last decision
+counting and a rejection removing it; `proposals(project_id)` gives the proposals no decision on
+their kind and subject has followed, the latest for each.
+
 `document_change_refused` records a decision, edit or answer refused because it named no document
 of the project (`document-not-found`), not the latest version (`version-not-latest`), a version
 already decided (`version-decided`), another text (`digest-mismatch`) or a question the latest
-version does not ask (`question-not-asked`). It gives `document_id` and `version` as sent, the
+version does not ask (`question-not-asked`), or a decision on a fact that named a proposal the
+project does not hold (`proposal-not-found`) or changed a proposal's kind or subject
+(`fact-not-proposed`), which gives the `proposal` named. It gives `document_id` and `version` as sent, the
 `digest` for a decision or edit, the `questions` not asked for an answer, the `refusal`, and the
 `latest_version` if there is one. A change malformed in itself, such as a rejection without a
 reason or a blank answer, is refused with `ProjectError` and records nothing.
@@ -209,5 +276,7 @@ until a person approves one. The conductor gives it to every drafter in the proj
 
 - Membership is not built, so a project's creator is its only owner and no one else has a
   role in it, TODO(#389).
-- The app cannot add an inventory to a project, TODO(#395).
-- How long a project is kept, and what deleting one removes, TODO(#156).
+- A drafter is not yet given the text of a document a researcher attached; only an
+  orchestrator is told, without its text, that the project holds it.
+- How long a project is kept once it can no longer be restored, and what erasing one removes,
+  TODO(#156).

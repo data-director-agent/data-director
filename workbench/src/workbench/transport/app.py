@@ -15,15 +15,16 @@ from starlette.responses import FileResponse, JSONResponse, Response
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from dd_harness import conversations
+from dd_harness import conversations, gateway
 from dd_harness.conductor import Conductor
 from dd_harness.identity import Authenticator
 from dd_harness.remote import RemoteAgent
 from dd_harness.signin import SignIn
 from dd_harness.transport.a2a import a2a_routes
+from dd_harness.transport.agui import agui_routes
+from dd_harness.transport.paging import PagingError, page_params, page_response
 from dd_sdk.agent import describe
 from dd_sdk.contract.validate import SCHEMA_DIR
-from workbench.transport import agui
 from workbench.transport.signin import SESSION_PATH, AdminGate, no_sign_in_session, sign_in_routes
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -45,7 +46,7 @@ def list_samples(directory: Path = SAMPLES_DIR) -> list[dict[str, str | None]]:
     return out
 
 
-def build_app(
+def build_app(  # noqa: C901
     conductor: Conductor,
     authenticator: Authenticator,
     base_url: str = "http://127.0.0.1:8000",
@@ -66,28 +67,19 @@ def build_app(
         session_routes = [Route(SESSION_PATH, no_sign_in_session, methods=["GET"])]
         middleware = []
 
-    async def agui_run(request: Request) -> Response:
-        return await agui.run_agent(request, conductor, authenticator)
-
-    async def agui_replay(request: Request) -> Response:
-        return await agui.replay_run(request, conductor)
-
     async def runs_index(request: Request) -> Response:
-        items = [
-            {
-                "invocation_id": e["invocation_id"],
-                "agent_id": e["agent_id"],
-                "status": e["outcome"]["status"],
-                "completed_at": e["completed_at"],
-                # Runs stored before docs/specs/policy-and-identity.md name no principal.
-                "acting_for": (e.get("acting_for") or {}).get("name"),
-            }
-            for e in conductor.store.iter_envelopes()
-        ]
-        return JSONResponse(list(reversed(items)))
+        try:
+            paging = page_params(request)
+        except PagingError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+        return page_response(request, conductor.store.list_runs(**paging))
 
     async def conversations_index(request: Request) -> Response:
-        return JSONResponse(conversations.list_conversations(conductor.store))
+        try:
+            paging = page_params(request)
+        except PagingError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+        return page_response(request, conversations.list_conversations(conductor.store, **paging))
 
     async def conversation(request: Request) -> Response:
         conversation_id = request.path_params["conversation_id"]
@@ -140,9 +132,10 @@ def build_app(
         middleware=middleware,
         routes=[
             *routes,
+            # The tool gateway, for agents' calls only, beside the delegation callback.
+            *gateway.routes(conductor.gateway),
             *session_routes,
-            Route("/agui", agui_run, methods=["POST"]),
-            Route("/agui/runs/{invocation_id}", agui_replay, methods=["GET"]),
+            *agui_routes(conductor, authenticator),
             Route("/runs", runs_index, methods=["GET"]),
             Route("/conversations", conversations_index, methods=["GET"]),
             Route("/conversations/{conversation_id}", conversation, methods=["GET"]),

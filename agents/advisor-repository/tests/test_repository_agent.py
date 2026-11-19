@@ -9,7 +9,7 @@ import pytest
 from re3data_fixture import session_registry
 
 import dd_agent_advisor_repository
-from dd_agent_advisor_repository import rank
+from dd_agent_advisor_repository import dfg, rank
 from dd_agent_advisor_repository.agent import RepositoryAgent
 from dd_agent_advisor_repository.classes import (
     AccessNeed,
@@ -21,19 +21,14 @@ from dd_agent_advisor_repository.classes import (
     RepositoryRef,
 )
 from dd_agent_advisor_repository.records import DatabaseRecord, Institution, Re3dataRecord
-from dd_agent_advisor_repository.retrieve import (
-    Hit,
-    Query,
-    RegistryUnavailable,
-    SnapshotRef,
-    find_by_name,
-)
+from dd_agent_advisor_repository.retrieve import find_by_name
 from dd_agent_advisor_repository.snapshot import FairsharingSnapshot, Re3dataRegistry
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import describe
 from dd_sdk.contract.models import Envelope, OutcomeStatus, ReasonCode
 from dd_sdk.evidence import verify
 from dd_sdk.process_flow import STEPS
+from dd_sdk.registry import Hit, Query, RegistryUnavailable, SnapshotRef
 from dd_sdk.schema import gen
 
 SCHEMA = Path(dd_agent_advisor_repository.__file__).parent / "schema" / "repository.yaml"
@@ -151,6 +146,14 @@ class FakeRepositories:
     def find(self, name: str) -> list[Re3dataRecord]:
         self._check()
         return find_by_name(self.records, name)
+
+    def subjects(self) -> dict[str, str]:
+        self._check()
+        return dfg.vocabulary(s for r in self.records for s in r.subjects)
+
+    def with_subject(self, code: str) -> list[Re3dataRecord]:
+        self._check()
+        return [r for r in self.records if code in dfg.codes(r.subjects)]
 
 
 class FakeDatabases:
@@ -408,8 +411,35 @@ def test_a_kind_of_data_alone_does_not_recommend_a_repository(runs_dir: Path) ->
     assert named(env, options) == ["Social Survey Archive"]
     assert options.candidates[0].ranked_by == [
         'Matches the theme "social survey" (1 of 1 given).',
+        'Ranks 1 of 1 in a text search of re3data for "social survey".',
         'Matches the kind of data "interview transcripts".',
     ]
+
+
+@pytest.mark.requirement("R1")
+def test_a_repository_is_retrieved_and_recommended_for_its_dfg_subject(runs_dir: Path) -> None:
+    """A repository whose record never names the theme is found where re3data files it."""
+    filed = OPEN_ONLY.model_copy(
+        update={
+            "re3data_id": "r3d100000014",
+            "name": "Water Archive",
+            "subjects": [
+                "3 Natural Sciences",
+                "34 Geosciences",
+                "346 Water Research",
+                "34601 Hydrogeology, Hydrology, Limnology",
+            ],
+            "keywords": [],
+            "data_upload_restrictions": [],
+        }
+    )
+    needs = RepositoryNeeds(themes=["hydrology"], access=AccessNeed.OPEN)
+    env = invoke(runs_dir, needs, agent(repositories=FakeRepositories([filed, SURVEYS])))
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    options = env.payload_as(RepositoryOptions)
+    assert named(env, options) == ["Water Archive"]
+    assert options.candidates[0].ranked_by[0].startswith("Matches the theme")
+    assert "No discipline-specific repository" not in env.outcome.statement
 
 
 @pytest.mark.requirement("R1")
@@ -495,6 +525,99 @@ def test_a_name_several_records_bear_is_not_guessed(runs_dir: Path) -> None:
     assert env.outcome.status == OutcomeStatus.ABSTAINED
     assert "r3d100000001" in env.outcome.statement
     assert "r3d100000099" in env.outcome.statement
+
+
+# --- repositories the researcher asked about (#1167) ------------------------------------------
+
+
+def bases(options: RepositoryOptions) -> dict[str, CandidateBasis]:
+    return {c.grounded_on[0].source_id: c.basis for c in options.candidates}
+
+
+@pytest.mark.requirement("R1")
+def test_a_repository_asked_about_is_described_beside_the_shortlist_not_mandated(
+    runs_dir: Path,
+) -> None:
+    asked = NEEDS.model_copy(update={"asked_about": [RepositoryRef(name="Open Social Data")]})
+    env = invoke(runs_dir, asked)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    options = env.payload_as(RepositoryOptions)
+    by_id = bases(options)
+    assert by_id[OPEN_ONLY.re3data_id] == CandidateBasis.ASKED_ABOUT
+    assert CandidateBasis.MANDATED not in by_id.values()
+    # The shortlist is still there, as it is without the question.
+    alone = bases(invoke(runs_dir, NEEDS).payload_as(RepositoryOptions))
+    recommended = {rid for rid, b in by_id.items() if b == CandidateBasis.RECOMMENDED}
+    assert recommended == set(alone) - {OPEN_ONLY.re3data_id}
+    (open_only,) = [c for c in options.candidates if c.basis == CandidateBasis.ASKED_ABOUT]
+    assert any("restricted" in miss.lower() for miss in open_only.misses)
+    # No mandate was given, so the caveat that a policy may still require one stays.
+    assert "may still require one" in env.outcome.statement
+
+
+@pytest.mark.requirement("R1")
+def test_a_repository_asked_about_that_ranks_is_listed_once_with_its_score(
+    runs_dir: Path,
+) -> None:
+    ref = RepositoryRef(name="x", re3data_id=SURVEYS.re3data_id)
+    options = invoke(runs_dir, NEEDS.model_copy(update={"asked_about": [ref]})).payload_as(
+        RepositoryOptions
+    )
+    ids = [c.grounded_on[0].source_id for c in options.candidates]
+    assert ids.count(SURVEYS.re3data_id) == 1
+    (surveys,) = [c for c in options.candidates if c.grounded_on[0].source_id == ids[0]]
+    assert surveys.basis == CandidateBasis.ASKED_ABOUT
+    assert surveys.score is not None and surveys.ranked_by
+
+
+@pytest.mark.requirement("R1")
+def test_a_repository_asked_about_alone_is_described(runs_dir: Path) -> None:
+    env = invoke(runs_dir, RepositoryNeeds(asked_about=[RepositoryRef(name="Acme Data Cloud")]))
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    options = env.payload_as(RepositoryOptions)
+    assert bases(options) == {COMMERCIAL.re3data_id: CandidateBasis.ASKED_ABOUT}
+
+
+@pytest.mark.requirement("R1")
+def test_a_repository_asked_about_and_not_found_leaves_the_shortlist(runs_dir: Path) -> None:
+    asked = NEEDS.model_copy(update={"asked_about": [RepositoryRef(name="Nowhere Archive")]})
+    env = invoke(runs_dir, asked)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    options = env.payload_as(RepositoryOptions)
+    assert options.not_found == ["Nowhere Archive"]
+    assert set(bases(options).values()) == {CandidateBasis.RECOMMENDED}
+
+
+@pytest.mark.requirement("DD-OUTCOME")
+def test_only_repositories_asked_about_and_none_found_abstains(runs_dir: Path) -> None:
+    env = invoke(runs_dir, RepositoryNeeds(asked_about=[RepositoryRef(name="Nowhere Archive")]))
+    assert env.outcome.status == OutcomeStatus.ABSTAINED
+    assert env.outcome.reason_code == ReasonCode.NO_CANDIDATES_RETRIEVED
+
+
+@pytest.mark.requirement("R1")
+def test_a_mandate_and_a_question_are_both_described_each_on_its_own_basis(
+    runs_dir: Path,
+) -> None:
+    needs = NEEDS.model_copy(
+        update={
+            "mandated": [RepositoryRef(name="x", re3data_id=SURVEYS.re3data_id)],
+            "asked_about": [
+                RepositoryRef(name="y", re3data_id=COMMERCIAL.re3data_id),
+                # Asked about and mandated: it is mandated, and listed once.
+                RepositoryRef(name="z", re3data_id=SURVEYS.re3data_id),
+            ],
+        }
+    )
+    options = invoke(runs_dir, needs).payload_as(RepositoryOptions)
+    assert [c.grounded_on[0].source_id for c in options.candidates] == [
+        SURVEYS.re3data_id,
+        COMMERCIAL.re3data_id,
+    ]
+    assert bases(options) == {
+        SURVEYS.re3data_id: CandidateBasis.MANDATED,
+        COMMERCIAL.re3data_id: CandidateBasis.ASKED_ABOUT,
+    }
 
 
 def test_a_name_beats_another_records_additional_name() -> None:

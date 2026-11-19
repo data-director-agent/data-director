@@ -8,7 +8,9 @@ The provider is `FakeIdentityProvider`, so no test needs the network or an ORCID
 from __future__ import annotations
 
 import json
+import logging
 import os
+import re
 import time
 import webbrowser
 from collections.abc import Iterator
@@ -20,17 +22,22 @@ from urllib.parse import parse_qs, urlsplit
 import httpx
 import pytest
 import uvicorn
+from starlette.routing import Route
 from starlette.testclient import TestClient
-from support import check_fixture, configure_env, dist_dir, with_standards
+from support import JSON_HEADERS, check_fixture, configure_env, dist_dir, with_standards
 
 from dd_app import app as dd_app
 from dd_app.app import build_app
 from dd_app.config import settings_from_env
 from dd_app.governance import Governance
-from dd_harness.identity import IdentityError, OperatorAssertion
+from dd_app.routes.session import RawSession
+from dd_harness.identity import IdentityError, OperatorAssertion, RefusalReason
 from dd_harness.sessions import PENDING_S, SESSION_COOKIE, SessionStore
 from dd_harness.signin import SignIn, SignInSettings
 from dd_harness.testing import TEST_PRINCIPAL, FakeIdentityProvider
+from dd_sdk import security_log
+from dd_sdk.security_log import SecurityEvent
+from dd_sdk.testing import security_events
 
 PUBLIC_URL = "https://app.test"
 EXAMPLE = Path(__file__).resolve().parents[1] / "config/examples/soil-chemistry.profile.json"
@@ -156,11 +163,11 @@ def test_a_person_signs_in_and_their_runs_act_for_them(deployment: Deployment):
 
 def test_the_session_fixtures_are_what_the_server_says(deployment: Deployment):
     browser = deployment.browser()
-    check_fixture("session-signed-out.json", browser.get("/api/session").json())
+    check_fixture("session-signed-out.json", browser.get("/api/session").json(), model=RawSession)
     sign_in(deployment, browser, name="Josiah Carberry")
     session = browser.get("/api/session").json()
     session["expires_at"] = "2099-01-01T00:00:00Z"  # far off, so no notice shows
-    check_fixture("session-signed-in.json", session)
+    check_fixture("session-signed-in.json", session, model=RawSession)
 
 
 def test_the_app_asks_for_openid_alone_and_authenticates_with_its_secret(
@@ -248,6 +255,27 @@ def test_a_request_with_no_session_is_refused(deployment: Deployment, method: st
     assert list(deployment.runs.glob("*/envelope.json")) == []
 
 
+# The `/api` routes open to a caller with no session, so the shell can draw its sign-in page.
+OPEN_API = {"/api/about", "/api/session", "/api/sign-in", "/api/sign-in/callback", "/api/sign-out"}
+
+
+def test_every_api_route_but_the_open_ones_needs_a_session(deployment: Deployment):
+    # Walks the route table, so a route added later without `signed_in` is caught here.
+    browser = deployment.browser()
+    checked = 0
+    for route in deployment.app.routes:
+        path = getattr(route, "path", "")
+        if not isinstance(route, Route) or not path.startswith("/api/") or path in OPEN_API:
+            continue
+        url = re.sub(r"\{[^}]+\}", "01900000-0000-7000-8000-000000000001", path)
+        for method in sorted((route.methods or set()) - {"HEAD"}):
+            response = browser.request(method, url, json={})
+            assert response.status_code == 401, (method, path)
+            checked += 1
+    assert checked > len(PROTECTED)
+    assert list(deployment.runs.glob("*/envelope.json")) == []
+
+
 def test_what_the_sign_in_page_needs_is_open(deployment: Deployment):
     browser = deployment.browser()
     assert browser.get("/api/session").json() == {
@@ -255,11 +283,14 @@ def test_what_the_sign_in_page_needs_is_open(deployment: Deployment):
         "issuer": "https://sandbox.orcid.org",
         "principal": None,
         "expires_at": None,
+        "model_accounts": False,
+        "model_account_providers": [],
     }
     assert browser.get("/api/about").status_code == 200
     assert browser.get("/sign-in").status_code == 200
     assert browser.get("/signed-out").status_code == 200
     assert browser.get("/profile").status_code == 200
+    assert browser.get("/settings").status_code == 200
 
 
 def test_an_unknown_session_cookie_is_refused(deployment: Deployment):
@@ -273,7 +304,7 @@ def test_signing_out_ends_the_session_on_the_server(deployment: Deployment):
     sign_in(deployment, browser)
     session_id = browser.cookies.get(SESSION_COOKIE)
     assert session_id
-    assert browser.post("/api/sign-out").status_code == 204
+    assert browser.post("/api/sign-out", headers=JSON_HEADERS).status_code == 204
     assert browser.get("/api/agents").status_code == 401
     # The cookie the browser held is no good anywhere: the session is gone, not hidden.
     replay = deployment.browser()
@@ -299,7 +330,9 @@ def test_asking_when_a_session_ends_does_not_keep_it_going(deployment: Deploymen
     first = browser.get("/api/session").json()["expires_at"]
     deployment.clock.now += idle_s / 2
     assert browser.get("/api/session").json()["expires_at"] == first
-    stayed = browser.post("/api/session").json()["expires_at"]  # "Stay signed in"
+    stayed = browser.post("/api/session", headers=JSON_HEADERS).json()[
+        "expires_at"
+    ]  # "Stay signed in"
     assert stayed > first
     deployment.clock.now += idle_s - 60
     assert browser.get("/api/agents").status_code == 200
@@ -387,9 +420,9 @@ def test_a_development_server_acts_for_the_operator_and_says_so(env: Path, tmp_p
     assert session["signs_in"] is False
     assert session["principal"]["name"] == TEST_PRINCIPAL.name
     assert session["principal"]["assurance"] == "asserted"
-    check_fixture("session-development.json", session)
+    check_fixture("session-development.json", session, model=RawSession)
     assert browser.get("/api/sign-in", follow_redirects=False).status_code == 404
-    assert browser.post("/api/sign-out").status_code == 204
+    assert browser.post("/api/sign-out", headers=JSON_HEADERS).status_code == 204
     assert browser.get("/api/agents").status_code == 200
 
 
@@ -503,7 +536,9 @@ def test_nobody_reads_or_continues_another_persons_conversation(deployment: Depl
     josiah, ada = deployment.browser(), deployment.browser()
     sign_in(deployment, josiah, JOSIAH)
     sign_in(deployment, ada, ADA)
-    conversation_id = josiah.post("/api/conversations").json()["conversation_id"]
+    conversation_id = josiah.post("/api/conversations", headers=JSON_HEADERS).json()[
+        "conversation_id"
+    ]
     assert josiah.get(f"/api/conversations/{conversation_id}").status_code == 200
 
     absent = "01900000-0000-7000-8000-000000000009"
@@ -517,3 +552,81 @@ def test_nobody_reads_or_continues_another_persons_conversation(deployment: Depl
         assert found.json()["type"].endswith("/conversation-not-found")
         assert sent.json()["type"].endswith("/conversation-not-found")
     assert list(deployment.runs.glob("*/envelope.json")) == []
+
+
+# Security events (docs/specs/security.md, Security events).
+
+
+@pytest.fixture
+def events(caplog: pytest.LogCaptureFixture) -> pytest.LogCaptureFixture:
+    caplog.set_level(logging.INFO, logger=security_log.LOGGER)
+    return caplog
+
+
+def recorded(caplog: pytest.LogCaptureFixture) -> list[dict[str, Any]]:
+    return security_events(caplog.records)
+
+
+def test_signing_in_and_out_is_recorded_for_the_person(
+    deployment: Deployment, events: pytest.LogCaptureFixture
+):
+    browser = deployment.browser()
+    sign_in(deployment, browser)
+    browser.post("/api/sign-out", headers=JSON_HEADERS)
+    signed_in, signed_out = recorded(events)
+    assert signed_in["event"] == SecurityEvent.SIGN_IN_SUCCEEDED
+    assert signed_out["event"] == SecurityEvent.SIGN_OUT
+    for event in (signed_in, signed_out):
+        assert event["outcome"] == "success"
+        assert JOSIAH in event["principal"]
+
+
+def test_a_refused_sign_in_is_recorded_with_its_reason_and_no_one_named(
+    deployment: Deployment, events: pytest.LogCaptureFixture
+):
+    sign_in(deployment, deployment.browser(), nonce="another-nonce")
+    [event] = recorded(events)
+    assert event["event"] == SecurityEvent.SIGN_IN_FAILED
+    assert event["outcome"] == "failure"
+    assert event["reason"] == RefusalReason.TOKEN_REFUSED
+    assert event["principal"] is None
+
+
+def test_a_declined_sign_in_is_recorded(deployment: Deployment, events: pytest.LogCaptureFixture):
+    browser = deployment.browser()
+    come_back(browser, deployment.idp.deny(start(browser)))
+    [event] = recorded(events)
+    assert event["reason"] == RefusalReason.PROVIDER_DECLINED
+
+
+def test_a_session_cookie_that_names_no_session_is_recorded(
+    deployment: Deployment, events: pytest.LogCaptureFixture
+):
+    anonymous = deployment.browser()
+    anonymous.get("/api/agents")
+    assert recorded(events) == []
+
+    stale = deployment.browser()
+    stale.cookies.set(SESSION_COOKIE, "made-up", domain="app.test")
+    stale.get("/api/agents")
+    [event] = recorded(events)
+    assert event["event"] == SecurityEvent.CALLER_REFUSED
+    assert event["reason"] == RefusalReason.NO_SESSION
+
+
+def test_no_secret_reaches_a_security_event(
+    deployment: Deployment, events: pytest.LogCaptureFixture
+):
+    browser = deployment.browser()
+    sign_in(deployment, browser)
+    session_id = browser.cookies.get(SESSION_COOKIE)
+    browser.post("/api/sign-out", headers=JSON_HEADERS)
+    sign_in(deployment, deployment.browser(), nonce="another-nonce")
+    written = [json.dumps(event) for event in recorded(events)]
+    assert written
+    (form, _) = deployment.idp.token_requests
+    for line in written:
+        assert "eyJ" not in line  # a JWT's header
+        assert session_id and session_id not in line
+        assert form["code"] not in line
+        assert deployment.idp.client_secret not in line

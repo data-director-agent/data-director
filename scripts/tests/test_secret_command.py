@@ -121,6 +121,20 @@ def test_removing_the_last_secret_removes_the_dropin(etc: Path, units: Path) -> 
     assert not (etc / "credentials" / "advisor-standards").exists()
 
 
+def test_rm_is_remove(etc: Path, units: Path) -> None:
+    secret(etc, units, "set", "advisor-standards", "anthropic-api-key", value=KEY)
+    result = secret(etc, units, "rm", "advisor-standards", "anthropic-api-key")
+    assert result.returncode == 0, result.stderr
+    assert not (etc / "credentials" / "advisor-standards").exists()
+
+
+def test_an_unknown_command_is_named_with_the_usage(etc: Path, units: Path) -> None:
+    result = secret(etc, units, "delete", "advisor-standards", "anthropic-api-key")
+    assert result.returncode == 2
+    assert "'delete'" in result.stderr
+    assert "usage:" in result.stderr
+
+
 def test_list_names_each_secret_and_its_variable_never_its_value(etc: Path, units: Path) -> None:
     secret(etc, units, "set", "orchestrator-model", "anthropic-api-key", value=KEY)
     (etc / "credentials" / "advisor-standards" / "anthropic-api-key").mkdir(parents=True)
@@ -164,3 +178,85 @@ def test_sync_all_succeeds_quietly_with_no_secrets(etc: Path, units: Path) -> No
     result = sync_all(etc, units)
     assert result.returncode == 0, result.stderr
     assert not list(units.iterdir())
+
+
+def app_dropin(units: Path) -> Path:
+    return units / "data-director-app.service.d" / "model-grants.conf"
+
+
+def put_app_secret(etc: Path, name: str, value: str) -> Path:
+    directory = etc / "credentials" / "app"
+    directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+    path = directory / name
+    path.write_text(value)
+    path.chmod(0o600)
+    return path
+
+
+def test_the_apps_model_grant_secrets_become_its_dropin(etc: Path, units: Path) -> None:
+    put_app_secret(etc, "orcid-client-secret", "orcid")
+    paths = {
+        name: put_app_secret(etc, name, f"value-of-{name}")
+        for name in ("model-grant-signing-key", "model-broker-subject-key", "pseudonym-secret")
+    }
+    result = sync_all(etc, units)
+    assert result.returncode == 0, result.stderr
+    lines = app_dropin(units).read_text().splitlines()
+    assert "[Service]" in lines
+    for name, variable in (
+        ("model-grant-signing-key", "DD_MODEL_GRANT_SIGNING_KEY_FILE"),
+        ("model-broker-subject-key", "DD_MODEL_BROKER_SUBJECT_KEY_FILE"),
+        ("pseudonym-secret", "DD_PSEUDONYM_SECRET_FILE"),
+    ):
+        assert f"LoadCredential={name}:{paths[name]}" in lines
+        assert f"Environment={variable}={name}" in lines
+    # The unit loads the ORCID secret itself, and no value is ever written or shown.
+    assert "orcid-client-secret" not in app_dropin(units).read_text()
+    assert "value-of-" not in app_dropin(units).read_text() + result.stdout + result.stderr
+
+
+def test_without_model_grant_secrets_the_app_has_no_dropin(etc: Path, units: Path) -> None:
+    put_app_secret(etc, "orcid-client-secret", "orcid")
+    stale = app_dropin(units)
+    stale.parent.mkdir(parents=True)
+    stale.write_text("[Service]\n")
+    (stale.parent / "agents.conf").write_text("[Unit]\n")
+    result = sync_all(etc, units)
+    assert result.returncode == 0, result.stderr
+    assert not stale.exists()
+    # The app's other drop-in, written by `data-director apply`, is left alone.
+    assert (stale.parent / "agents.conf").exists()
+
+
+def test_an_unusable_model_grant_secret_is_left_out_and_reported(etc: Path, units: Path) -> None:
+    put_app_secret(etc, "pseudonym-secret", "")
+    result = sync_all(etc, units)
+    assert result.returncode == 1
+    assert "pseudonym-secret: empty" in result.stderr
+    assert not app_dropin(units).exists()
+
+
+def test_the_gateways_secret_is_stored_root_only_without_an_agent_dropin(
+    etc: Path, units: Path
+) -> None:
+    # The LiteLLM gateway reads its directory itself (deploy/llm-gateway/scripts/systemd.sh).
+    result = secret(etc, units, "set", "llm-gateway", "anthropic-api-key", value=KEY)
+    assert result.returncode == 0, result.stderr
+    key = etc / "credentials" / "llm-gateway" / "anthropic-api-key"
+    assert key.read_text() == KEY
+    assert stat.S_IMODE(key.stat().st_mode) == 0o600
+    assert not list(units.iterdir())
+    assert KEY not in result.stdout + result.stderr
+
+
+def test_the_gateways_secrets_are_listed_and_left_out_of_agents_dropins(
+    etc: Path, units: Path
+) -> None:
+    secret(etc, units, "set", "llm-gateway", "anthropic-api-key", value=KEY)
+    listed = secret(etc, units, "list")
+    assert listed.returncode == 0, listed.stderr
+    assert "llm-gateway" in listed.stdout
+    assert "PROBLEM" not in listed.stdout
+    synced = sync_all(etc, units)
+    assert synced.returncode == 0, synced.stderr
+    assert not dropin(units, "llm-gateway").exists()

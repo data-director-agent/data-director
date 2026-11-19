@@ -6,28 +6,42 @@
  *
  * When the deployment has an orchestrator, a line under the description says where the agent
  * sits: the one a person talks to, or one it calls on behind the scenes.
+ *
+ * Under it, folded away, is what the agent's card declares, field by field
+ * (`@data-director/agent-view`'s `AgentSpecView`), for a data steward or developer who needs to
+ * inspect it: the schemas, derivations and contract version that the rest of the page puts into
+ * words.
  */
 
 import "./AgentDetail.css";
+import "@data-director/agent-view/styles.css";
 
-import { type AgentView, agentName } from "../../manifest/normalise";
+import { AgentSpecView } from "@data-director/agent-view/react";
+
+import { AgentIcon, type AgentView, agentName } from "../../manifest/normalise";
 import { CapabilitiesPanel } from "../capabilities/CapabilitiesPanel";
 
 export function AgentDetail({
   agent,
   orchestrator,
   behindSection,
+  ownAccounts = false,
 }: {
   agent: AgentView;
   /** The deployment's orchestrator, if it has one. */
   orchestrator?: AgentView | undefined;
   /** What the directory calls the section of agents behind the scenes, if it shows one. */
   behindSection?: string | undefined;
+  /** Whether this deployment lets the signed-in person use their own AI account. */
+  ownAccounts?: boolean;
 }) {
   const headingId = `agent-${agent.id}-heading`;
   return (
     <section className="agent-detail" aria-labelledby={headingId}>
-      <h2 id={headingId}>{agent.title ?? <code>{agent.id}</code>}</h2>
+      <h2 id={headingId}>
+        <AgentIcon agent={agent} />
+        {agent.title || <code>{agent.id}</code>}
+      </h2>
       <p>{agent.description}</p>
       {orchestrator && (
         <p className="agent-role-note">
@@ -48,7 +62,11 @@ export function AgentDetail({
           )}
         </p>
       )}
-      <CapabilitiesPanel agent={agent} />
+      <CapabilitiesPanel agent={agent} ownAccounts={ownAccounts} />
+      <details className="agent-technical">
+        <summary>Technical details: what its agent card declares</summary>
+        <AgentSpecView spec={agent} withIdentity />
+      </details>
     </section>
   );
 }

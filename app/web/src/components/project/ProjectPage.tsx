@@ -1,8 +1,9 @@
 /**
  * A project's documents (docs/specs/projects.md), as a list beside a reader: the list groups the
  * documents by state, those waiting for a decision first, and the reader shows the one chosen,
- * with the form to decide on it while it is undecided. The repository chosen, the statement of
- * how generative AI was used and the deposit package are the list's last entries.
+ * with the form to decide on it while it is undecided. The researcher facts kept from ORCID, the
+ * repository chosen, the statement of how generative AI was used and the deposit package are the
+ * list's last entries.
  *
  * What is open is in the address (`?doc=<id>`, and `&v=<n>` for an earlier version), so that it
  * can be linked and left with Back. With nothing chosen, the first document waiting for a decision
@@ -15,8 +16,13 @@
  * the page's live region, which is in the page from the start so that a screen reader announces
  * each change to it; it offers the next document waiting for a decision, without moving to it.
  *
+ * The header offers to rename the project (`ProjectRename`); after a rename the page reads the
+ * project's name again rather than showing the one it sent.
+ *
  * A project the page could read becomes the one the app is working in (docs/specs/app.md), so a
- * link to it lands in that project, and its conversations are one press away.
+ * link to it lands in that project. The project's conversations are listed beneath its documents
+ * (`ProjectConversations`), each one press away, with a link to start a new one; on a narrow
+ * screen they take turns with the reader as the documents do.
  */
 
 import "./ProjectPage.css";
@@ -25,15 +31,36 @@ import { ArrowLeft } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { useActiveProject } from "../../project/active";
-import { type DocumentVersion, type ProjectDocuments, useProjectApi } from "../../project/api";
-import { documentName, projectName } from "../../project/name";
+import {
+  type DocumentVersion,
+  type ProjectDocuments,
+  type ProjectSummary,
+  useProjectApi,
+} from "../../project/api";
+import { deletionName, documentName, projectName } from "../../project/name";
 import { Link } from "../../route";
+import { AddInventory } from "../inventory/AddInventory";
 import { PageHeader } from "../frame/PageHeader";
 import { DisclosurePanel } from "./DisclosurePanel";
 import { DepositPanel } from "./DepositPanel";
-import { DEPOSIT, DISCLOSURE, DocumentList, PANELS, REPOSITORY, stateOf } from "./DocumentList";
+import {
+  DEPOSIT,
+  DISCLOSURE,
+  DocumentList,
+  FACTS,
+  PANELS,
+  REPOSITORY,
+  RESEARCHERS,
+  stateOf,
+} from "./DocumentList";
+import { DeleteProject } from "./DeleteProject";
 import { DocumentReader } from "./DocumentReader";
+import { FactsPanel } from "./FactsPanel";
+import { ProjectConversations } from "./ProjectConversations";
+import { ProjectNav } from "./ProjectNav";
+import { ProjectRename } from "./ProjectRename";
 import { RepositoryPanel } from "./RepositoryPanel";
+import { ResearcherPanel } from "./ResearcherPanel";
 
 type Load =
   | { state: "loading" }
@@ -52,7 +79,9 @@ function versionOf(v: string | null): number | null {
 export function ProjectPage({ projectId, query = "" }: { projectId: string; query?: string }) {
   const api = useProjectApi();
   const [load, setLoad] = useState<Load>({ state: "loading" });
-  const [title, setTitle] = useState<string | null>(null);
+  const [project, setProject] = useState<ProjectSummary | null>(null);
+  // Counts renames, so that the project's name is read again after one.
+  const [renamed, setRenamed] = useState(0);
   // What a decision did, said while the document it was made on is open (`on`, as asked).
   const [decision, setDecision] = useState<{
     said: string;
@@ -97,13 +126,14 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
     const controller = new AbortController();
     api.projects(controller.signal).then(
       (projects) => {
-        const project = projects.find((p) => p.project_id === projectId);
-        if (project) setTitle(projectName(project));
+        const found = projects.find((p) => p.project_id === projectId);
+        if (found) setProject(found);
       },
       () => undefined,
     );
     return () => controller.abort();
-  }, [api, projectId]);
+  }, [api, projectId, renamed]);
+  const title = project ? projectName(project) : null;
 
   // After a refusal: the documents already shown stay if the project cannot be read again, so
   // that the person still sees why their decision was refused. Answers what went wrong, if
@@ -132,7 +162,7 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
   };
 
   const content = () => {
-    if (load.state === "loading") return <p>Reading the project…</p>;
+    if (load.state === "loading") return <p role="status">Reading the project…</p>;
     if (load.state === "failed") {
       return (
         <div role="alert" className="callout status-danger">
@@ -147,6 +177,8 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
     const unknown = chosen !== null && !PANELS.includes(chosen) && !document;
 
     const reader = () => {
+      if (chosen === RESEARCHERS) return <ResearcherPanel projectId={projectId} />;
+      if (chosen === FACTS) return <FactsPanel projectId={projectId} revision={revision} />;
       if (chosen === DISCLOSURE)
         return <DisclosurePanel projectId={projectId} revision={revision} />;
       if (chosen === REPOSITORY)
@@ -183,7 +215,10 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
 
     return (
       <div className="document-browser" data-open={asked && !unknown ? "reader" : "list"}>
-        <DocumentList documents={documents} selected={chosen} hrefFor={(id) => hrefFor(id)} />
+        <div className="document-browser-side">
+          <DocumentList documents={documents} selected={chosen} hrefFor={(id) => hrefFor(id)} />
+          <ProjectConversations key={projectId} projectId={projectId} />
+        </div>
         <div className="document-browser-reader">
           <p className="document-browser-back">
             <Link to={base}>
@@ -204,10 +239,33 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
 
   return (
     <>
-      <p>
-        <Link to="/projects">All projects</Link> · <Link to="/">This project&apos;s conversations</Link>
-      </p>
+      <ProjectNav projectId={projectId} name={title} current="documents" />
       <PageHeader title={title ?? "Project documents"}>
+        {project && title && (
+          <p className="project-name-actions">
+            <ProjectRename
+              projectId={projectId}
+              name={project.title ?? title}
+              named={project.title_source ?? null}
+              onRenamed={() => setRenamed((n) => n + 1)}
+            />{" "}
+            <DeleteProject
+              projectId={projectId}
+              name={title}
+              typedName={deletionName(project)}
+              restoreDays={project.restore_days}
+            />
+          </p>
+        )}
+        <p className="project-inventory-actions">
+          <AddInventory
+            projectId={projectId}
+            replacing={project?.inventory != null}
+            onSaved={(saved) => {
+              setProject((p) => (p ? { ...p, inventory: saved } : p));
+            }}
+          />
+        </p>
         <p className="hint">
           Check each draft before it goes into the deposit package. Approve it as it is, edit it and
           approve your version, or reject it. A decision cannot be changed once it is made; a newer

@@ -6,10 +6,10 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import { App } from "./App";
-import { applyTheme, storedTheme } from "./theme";
+import { startPreferences } from "./preferences";
 
-// Before the first render, so a dark choice does not flash light.
-applyTheme(storedTheme());
+// Before the first render, so that a dark choice does not flash light.
+startPreferences();
 
 const root = document.getElementById("root");
 if (!root) throw new Error("index.html has no #root");

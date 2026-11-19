@@ -17,9 +17,7 @@ from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     ApprovedMetadataRecord,
     Assurance,
-    ChoiceAnswer,
     ChoiceOption,
-    ChoiceQuestion,
     ConversationTurn,
     CurrentVersion,
     Delegation,
@@ -37,6 +35,7 @@ from dd_sdk.contract.models import (
     GroundingRef,
     IdentificationMethod,
     InventoryFile,
+    InventoryPart,
     InvocationRequest,
     Message,
     Obligation,
@@ -47,20 +46,27 @@ from dd_sdk.contract.models import (
     Principal,
     PrincipalKind,
     ProblemDetails,
+    Question,
+    QuestionAnswer,
+    QuestionKind,
     ReasonCode,
     Reply,
+    ReplyAnswers,
     RepositoryRequirements,
     RequirementField,
     RequirementSet,
     RequirementSetUse,
     TableField,
     Telemetry,
+    ToolRetrieval,
     TurnRole,
     VersionState,
     input_source_id,
+    inventory_part_problems,
     invocation_source_id,
     new_invocation_id,
     to_document,
+    tool_source_id,
 )
 from dd_sdk.contract.version import CONTRACT_VERSION
 from dd_sdk.evidence import (
@@ -84,13 +90,31 @@ def test_generated_schemas_are_current() -> None:
     assert gen.stale() == [], "run `uv run dd-gen-schema`"
 
 
+def test_generated_shapes_are_compared_as_graphs_when_their_text_differs() -> None:
+    """Text that differs only in the order of blank nodes is current; a changed triple is not."""
+    path = Path("Example.shacl.ttl")
+    one = "@prefix ex: <https://example.org/> .\nex:a ex:p [ ex:q 1 ], [ ex:q 2 ] .\n"
+    reordered = "@prefix ex: <https://example.org/> .\nex:a ex:p [ ex:q 2 ], [ ex:q 1 ] .\n"
+    changed = "@prefix ex: <https://example.org/> .\nex:a ex:p [ ex:q 2 ], [ ex:q 3 ] .\n"
+    assert gen._same(path, one, one)
+    assert gen._same(path, one, reordered)
+    assert not gen._same(path, one, changed)
+    assert not gen._same(Path("Example.schema.json"), "{}\n", "{ }\n")
+
+
 def test_a_class_schema_is_closed_self_contained_and_says_it_is_generated() -> None:
     schema = json.loads((SCHEMA / "generated" / "Reply.schema.json").read_text(encoding="utf-8"))
     assert schema["$comment"].endswith("Do not edit.")
     assert schema["$schema"] == gen.DRAFT_7 and "metamodel_version" not in schema
     assert schema["title"] == "Reply" and schema["additionalProperties"] is False
     # only what Reply reaches
-    assert set(schema["$defs"]) == {"ChoiceOption", "ChoiceQuestion", "Derivation", "GroundingRef"}
+    assert set(schema["$defs"]) == {
+        "ChoiceOption",
+        "Derivation",
+        "GroundingRef",
+        "Question",
+        "QuestionKind",
+    }
     assert schema["properties"]["schema_class"]["enum"] == ["Reply"]
     assert {"schema_class", "grounded_on"} <= set(schema["required"])
 
@@ -576,54 +600,116 @@ def test_message_and_reply_validate_and_are_discriminated() -> None:
     assert env["delegations"][0]["delegated_invocation_id"] == child
 
 
-def _question(**kw: object) -> ChoiceQuestion:
+def _question(**kw: object) -> Question:
     options = [
         ChoiceOption(option_value="zenodo", option_label="Zenodo"),
         ChoiceOption(option_value="figshare", option_label="Figshare", option_help="Hosted"),
     ]
-    return ChoiceQuestion.model_validate(
-        {"question_prompt": "Which repository?", "question_options": options, **kw}
+    return Question.model_validate(
+        {
+            "question_key": "repository",
+            "question_prompt": "Which repository?",
+            "question_kind": "choice",
+            "question_options": options,
+            **kw,
+        }
     )
 
 
 @pytest.mark.requirement("DD-CONVERSATION")
-def test_a_reply_may_ask_a_choice_question_and_a_message_may_answer_it() -> None:
-    question = _question(question_multiple=True, question_other=True)
+def test_a_reply_may_ask_a_series_of_questions_and_a_message_may_answer_them() -> None:
+    questions = [
+        _question(question_multiple=True, question_other=True),
+        Question(
+            question_key="title",
+            question_prompt="What is the dataset called?",
+            question_kind=QuestionKind.SHORT_TEXT,
+        ),
+        Question(
+            question_key="method",
+            question_prompt="How were the data collected?",
+            question_kind=QuestionKind.LONG_TEXT,
+            question_help="A few sentences are enough.",
+        ),
+    ]
     reply = Reply(
-        reply_text="I need to know where you will deposit.",
+        reply_text="I need to know a few things.",
         reply_derivation=Derivation.MODEL,
-        reply_question=question,
+        reply_questions=questions,
         grounded_on=[_input_ref()],
     )
     env = _succeeded(payload=reply, evidence=[_input_evidence()]).to_document()
     validate.validate_envelope(env)
-    assert Reply.model_validate(env["payload"]).reply_question == question
+    assert Reply.model_validate(env["payload"]).reply_questions == questions
 
-    answer = ChoiceAnswer(answer_to=new_invocation_id(), answer_values=["zenodo"])
+    answers = ReplyAnswers(
+        answer_to=new_invocation_id(),
+        given_answers=[
+            QuestionAnswer(answered_key="repository", answer_values=["zenodo"]),
+            QuestionAnswer(answered_key="method", answer_words="By survey."),
+        ],
+    )
     doc = to_document(
         InvocationRequest(
             agent_id="orchestrator.stub",
-            input=Message(message_text="Zenodo", choice_answer=answer),
+            input=Message(message_text="Zenodo", reply_answers=answers),
         )
     )
     validate.validate_request(doc)
-    assert Message.model_validate(doc["input"]).choice_answer == answer
+    assert Message.model_validate(doc["input"]).reply_answers == answers
 
 
 @pytest.mark.requirement("DD-CONVERSATION")
 def test_a_choice_question_has_two_to_twelve_options_with_unique_values() -> None:
     with pytest.raises(ValueError, match="value of its own"):
-        ChoiceQuestion(
-            question_prompt="Which?",
+        _question(
             question_options=[
                 ChoiceOption(option_value="a", option_label="A"),
                 ChoiceOption(option_value="a", option_label="Also A"),
             ],
         )
     with pytest.raises(ValueError, match="at least 2"):
-        ChoiceQuestion(
-            question_prompt="Which?",
-            question_options=[ChoiceOption(option_value="a", option_label="A")],
+        _question(question_options=[ChoiceOption(option_value="a", option_label="A")])
+    with pytest.raises(ValueError, match="has options"):
+        _question(question_options=None)
+
+
+@pytest.mark.requirement("DD-CONVERSATION")
+@pytest.mark.parametrize(
+    "extra",
+    [
+        {"question_options": [{"option_value": "a", "option_label": "A"}] * 2},
+        {"question_multiple": True},
+        {"question_other": True},
+    ],
+)
+def test_only_a_choice_question_has_options(extra: dict[str, object]) -> None:
+    with pytest.raises(ValueError, match="only a choice question"):
+        Question.model_validate(
+            {"question_key": "q", "question_prompt": "Why?", "question_kind": "short_text", **extra}
+        )
+
+
+@pytest.mark.requirement("DD-CONVERSATION")
+def test_a_reply_asks_one_to_eight_questions_with_unique_keys() -> None:
+    def reply(questions: list[Question]) -> Reply:
+        return Reply(
+            reply_text="x",
+            reply_derivation=Derivation.MODEL,
+            reply_questions=questions,
+            grounded_on=[_input_ref()],
+        )
+
+    with pytest.raises(ValueError, match="key of its own"):
+        reply([_question(), _question()])
+    with pytest.raises(ValueError, match="at least 1"):
+        reply([])
+    with pytest.raises(ValueError, match="at most 8"):
+        reply([_question(question_key=f"q{i}") for i in range(9)])
+    with pytest.raises(ValueError, match="answered at most once"):
+        ReplyAnswers(
+            answer_to=new_invocation_id(),
+            given_answers=[QuestionAnswer(answered_key="a", answer_words="x")] * 2,
         )
 
 
@@ -661,6 +747,55 @@ def test_delegation_evidence_must_be_the_input_or_a_recorded_delegation() -> Non
                 delegations=[_delegation(child)],
             ).to_document()
         )
+
+
+def _tool_retrieval(content_hash: str = "e" * 64) -> ToolRetrieval:
+    return ToolRetrieval(
+        tool_server="spdx",
+        tool_name="get_licence",
+        source_id=tool_source_id("spdx", "CC-BY-4.0"),
+        canonicalisation=DOCUMENT_CANONICALISATION,
+        content_hash=content_hash,
+        retrieved_at=datetime.now(UTC),
+    )
+
+
+def _tool_evidence(content_hash: str = "e" * 64) -> EvidenceItem:
+    return EvidenceItem(
+        source_id=tool_source_id("spdx", "CC-BY-4.0"),
+        canonicalisation=DOCUMENT_CANONICALISATION,
+        content_hash=content_hash,
+    )
+
+
+def _tool_ref(content_hash: str = "e" * 64) -> GroundingRef:
+    return GroundingRef(source_id=tool_source_id("spdx", "CC-BY-4.0"), content_hash=content_hash)
+
+
+def test_envelope_without_tool_retrievals_omits_the_key() -> None:
+    assert "tool_retrievals" not in _envelope().to_document()
+
+
+@pytest.mark.requirement("DD-TOOL-GATEWAY")
+def test_tool_evidence_must_be_a_record_the_gateway_returned() -> None:
+    def citing(evidence_hash: str, recorded: list[ToolRetrieval]) -> dict[str, object]:
+        return _succeeded(
+            grounding_mode=GroundingMode.RETRIEVAL,
+            payload=_reply(_tool_ref(evidence_hash)),
+            evidence=[_tool_evidence(evidence_hash)],
+            tool_retrievals=recorded,
+        ).to_document()
+
+    validate.validate_envelope(citing("e" * 64, [_tool_retrieval()]))
+    with pytest.raises(validate.ContractViolation, match="tool source"):
+        validate.validate_envelope(citing("f" * 64, [_tool_retrieval()]))
+    with pytest.raises(validate.ContractViolation, match="tool source"):
+        validate.validate_envelope(citing("e" * 64, []))
+
+
+def test_a_tool_retrieval_names_a_tool_source() -> None:
+    with pytest.raises(ValueError, match="source_id"):
+        ToolRetrieval.model_validate({**to_document(_tool_retrieval()), "source_id": "CC-BY-4.0"})
 
 
 @pytest.mark.requirement("DD-EVIDENCE")
@@ -723,9 +858,9 @@ def test_a_document_is_a_core_payload_that_may_name_the_version_it_revises() -> 
 
 @pytest.mark.requirement("R5")
 def test_a_document_asks_about_its_gaps_and_a_draft_request_carries_answers() -> None:
-    """A version's questions each target one README section or one data dictionary cell, under
-    an identifier of their own; the answers come back in the next DraftRequest
-    (docs/specs/drafting.md)."""
+    """A version's questions each target one README section, one data dictionary cell or one
+    metadata record value, under an identifier of their own; the answers come back in the next
+    DraftRequest (docs/specs/drafting.md)."""
     section = DocumentQuestion(
         question_id="q-" + "0" * 16, question_prompt="Methods?", gap_section="Methods"
     )
@@ -752,12 +887,43 @@ def test_a_document_asks_about_its_gaps_and_a_draft_request_carries_answers() ->
         Document.model_validate(
             {**asking.model_dump(mode="json"), "document_questions": [section.model_dump()] * 2}
         )
-    with pytest.raises(ValueError, match="not both"):
+    with pytest.raises(ValueError, match="one of"):
         DocumentQuestion(
-            question_id="q-" + "2" * 16, question_prompt="?", gap_section="A", gap_file="a.csv"
+            question_id="q-" + "2" * 16,
+            question_prompt="?",
+            gap_section="A",
+            gap_file="a.csv",
+            gap_field="x",
+            gap_column="unit",
         )
+    value = DocumentQuestion(
+        question_id="q-" + "4" * 16, question_prompt="Title?", gap_property="titles[0].title"
+    )
+    assert DocumentQuestion.model_validate(value.model_dump(mode="json")) == value
+    with pytest.raises(ValueError, match="one of"):
+        DocumentQuestion(
+            question_id="q-" + "4" * 16,
+            question_prompt="?",
+            gap_section="A",
+            gap_property="titles[0].title",
+        )
+    with pytest.raises(ValueError, match="one of"):
+        DocumentQuestion(question_id="q-" + "4" * 16, question_prompt="?")
     with pytest.raises(ValueError, match="file, field and column"):
         DocumentQuestion(question_id="q-" + "2" * 16, question_prompt="?", gap_file="a.csv")
+    part = DocumentQuestion(
+        question_id="q-" + "3" * 16, question_prompt="?", gap_section="A", gap_part="Funding"
+    )
+    assert part.gap_part == "Funding"
+    with pytest.raises(ValueError, match="within a README section"):
+        DocumentQuestion(
+            question_id="q-" + "3" * 16,
+            question_prompt="?",
+            gap_file="a.csv",
+            gap_field="x",
+            gap_column="unit",
+            gap_part="Funding",
+        )
     with pytest.raises(ValueError):
         DocumentQuestion(question_id="q-1", question_prompt="?", gap_section="A")
 
@@ -875,6 +1041,59 @@ def test_a_draft_request_is_the_core_input_of_every_drafter() -> None:
     assert ClassSchema.of(DraftRequest).errors({**document, "project_id": "x"})
     bare = {"schema_class": "DraftRequest", "document_kind": "readme"}
     assert ClassSchema.of(DraftRequest).errors(bare) == []
+
+
+def test_an_inventory_of_parts_puts_every_file_under_one_part_folder() -> None:
+    """An inventory may be made of several folders' scans (docs/specs/projects.md). Each file lies
+    under exactly one part's folder, and no folder is inside another."""
+
+    def entry(path: str) -> InventoryFile:
+        return InventoryFile(
+            file_path=path,
+            file_size=1,
+            file_sha256="0" * 64,
+            file_identified_by=IdentificationMethod.EXTENSION,
+        )
+
+    def part(folder: str) -> InventoryPart:
+        return InventoryPart(
+            part_folder=folder,
+            part_tool="dd-inventory",
+            part_tool_version="0.1.0",
+            part_made_at=datetime(2026, 10, 30, tzinfo=UTC),
+        )
+
+    made = {
+        "inventory_tool": "dd-inventory",
+        "inventory_tool_version": "0.1.0",
+        "inventory_made_at": datetime(2026, 10, 30, tzinfo=UTC),
+    }
+    inventory = FileInventory(
+        **made,
+        inventory_files=[entry("instrument/run1.csv"), entry("lab/a.csv")],
+        inventory_parts=[part("instrument"), part("lab")],
+    )
+    document = inventory.model_dump(mode="json", exclude_none=True)
+    assert ClassSchema.of(FileInventory).errors(document) == []
+    assert inventory_part_problems(document) == []
+    assert FileInventory.model_validate(document) == inventory
+    for files, folders in (
+        (["lab/a.csv", "lab/2024/b.csv"], ["lab", "lab/2024"]),
+        (["elsewhere/a.csv"], ["lab"]),
+        (["lab/a.csv"], ["lab", "lab"]),
+    ):
+        with pytest.raises(ValueError):
+            FileInventory(
+                **made,
+                inventory_files=[entry(f) for f in files],
+                inventory_parts=[part(f) for f in folders],
+            )
+    for folder in ("/lab", "lab/", "a//b", ""):
+        with pytest.raises(ValueError):
+            part(folder)
+    for folder in ("..", "a/./b"):
+        bad = document | {"inventory_parts": [part(folder).model_dump(mode="json")]}
+        assert inventory_part_problems(bad)
 
 
 def test_a_file_inventory_is_a_core_input_that_holds_facts_about_files_not_their_content() -> None:

@@ -14,6 +14,10 @@
     border-radius: var(--radius-full);
     background: var(--color-text-muted);
     animation: pending-pulse 1.2s ease-in-out infinite;
+
+    /* `--motion` is none when less motion is asked for, by the system or the person's
+       preferences (tokens/neutral.css). */
+    animation-name: var(--motion, pending-pulse);
   }
 
   .pending-dots span:nth-child(2) {
@@ -33,12 +37,6 @@
 
     40% {
       opacity: 1;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .pending-dots span {
-      animation: none;
     }
   }
 }

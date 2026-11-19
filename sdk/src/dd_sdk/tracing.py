@@ -19,7 +19,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import IO, Any
 
-from opentelemetry import trace
 from opentelemetry.context import Context
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
@@ -50,6 +49,11 @@ ATTR_CONTENT_HASH = "dd.content_hash"
 ATTR_MODEL_ID = "dd.model_id"
 ATTR_INPUT_TOKENS = "dd.input_tokens"
 ATTR_OUTPUT_TOKENS = "dd.output_tokens"
+# Whose account paid for a model call, `own` or `deployment`; never whose key
+# (docs/specs/model-accounts.md).
+ATTR_MODEL_ACCOUNT = "dd.model_account"
+# The model the agent's card declared, on a call the profile's model map routed to another model.
+ATTR_MODEL_DECLARED = "dd.model_declared"
 ATTR_OUTCOME = "dd.outcome"
 # The mode the linter must apply, and what an input_only agent's evidence must equal
 # (docs/specs/grounding.md).
@@ -65,6 +69,8 @@ OWNED_ATTRIBUTES = frozenset(
         ATTR_MODEL_ID,
         ATTR_INPUT_TOKENS,
         ATTR_OUTPUT_TOKENS,
+        ATTR_MODEL_ACCOUNT,
+        ATTR_MODEL_DECLARED,
         ATTR_OUTCOME,
         ATTR_GROUNDING_MODE,
         ATTR_INPUT_HASH,
@@ -334,8 +340,3 @@ def execute_tool_span(tracer: Tracer, tool_name: str) -> Iterator[Span]:
         span.set_attribute(ATTR_OPERATION, EXECUTE_TOOL)
         span.set_attribute("dd.tool_name", tool_name)
         yield span
-
-
-def current_trace_id() -> str | None:
-    ctx = trace.get_current_span().get_span_context()
-    return format(ctx.trace_id, "032x") if ctx.is_valid else None

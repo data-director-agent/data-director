@@ -12,8 +12,14 @@ This spec covers what the harness asks of a store, so that a move between backen
 caller. Each store is reached through a `typing.Protocol` in `dd_harness.storage`: `RunStorage` for
 runs, and `ProjectStorage` for projects, which the harness implements once over a narrower
 `ProjectLog` that each backend provides (see [Project rules and the project log](#project-rules-and-the-project-log)).
-The file backends, `RunStore` (`dd_harness.store`) and `ProjectStore` (`dd_harness.projects`),
-implement them today. The PostgreSQL backend is not built yet, TODO(#522).
+The file backends, `RunStore` (`dd_harness.store`) and `FileProjectLog`
+(`dd_harness.project_files`), implement them today; `ProjectStore` (`dd_harness.projects`) is the
+project rules over the file log. The PostgreSQL backend, `PostgresRunStore` and
+`PostgresProjectLog` (`dd_harness.postgres`), implements them for a deployment; `Projects` over
+`PostgresProjectLog` is its project storage.
+
+People's own model keys are not in either store: the model broker keeps them, sealed, in a store
+of its own ([A person's own model account](model-accounts.md)).
 
 It does not cover what a run or a project contains ([Contract](contract.md), [Projects](projects.md),
 [Disclosure](disclosure.md)), nor how long either is kept (see Open questions).
@@ -21,8 +27,8 @@ It does not cover what a run or a project contains ([Contract](contract.md), [Pr
 ## Invariants
 
 1. **Callers reach a store through its protocol.** The conductor, conversations, disclosure, the
-   project facts, the app and the workbench name `RunStorage` and `ProjectStorage`, never a
-   backend's layout. Only a backend's own tests read its files or tables (`RunStore.root`,
+   project facts, the app and the workbench name `RunStorage` and `ProjectStorage`, or the
+   narrower area Protocols `ProjectStorage` is composed of, never a backend's layout. Only a backend's own tests read its files or tables (`RunStore.root`,
    `run_dir`, `ProjectStore.root`). Enforced by mypy over the callers' annotations.
 2. **A run is written once.** Storing an envelope whose `invocation_id` is already stored raises
    `FileExistsError` and changes nothing the store returns. The conductor refuses a duplicate
@@ -67,7 +73,9 @@ It does not cover what a run or a project contains ([Contract](contract.md), [Pr
 12. **What a store answers is what is stored when asked.** `project_of`, the list of projects and
     the list of conversations read what is stored at the time of the call, so several harness
     instances over one database agree, and each holds after a restart. A backend may cache only
-    what can never change, such as a conversation's project once it is recorded.
+    what can never change, such as a conversation's project once it is recorded. A snapshot of
+    one project (`Projects.snapshot`) answers every read from one read of its log; the conductor
+    takes one per invocation, for what it asks before the run, and it takes no change.
 13. **A location never carries a credential.** `where` and every error name a location without a
     password or token. The PostgreSQL backend takes its credentials from libpq's own sources (a
     password file, a service file or its environment variables), never from the location.
@@ -75,17 +83,27 @@ It does not cover what a run or a project contains ([Contract](contract.md), [Pr
     or a `file://` URL, which select the file backends, or a `postgresql://` URL, which selects
     the PostgreSQL backend. Any other scheme stops start-up with `SettingsError`, naming the
     schemes this build supports (`dd_harness.settings.run_storage`, `project_storage`;
-    `harness/tests/test_storage.py`). This build supports files only, TODO(#522).
+    `harness/tests/test_storage.py`). A `postgresql://` location needs the harness's `postgres`
+    extra; without it, start-up stops naming the extra. A location that cannot be used (a
+    directory that cannot be made, a database that cannot be reached or whose schema is not this
+    build's) stops start-up with `SettingsError` too, naming the variable.
 15. **The file backends keep their layout.** A run is `<invocation_id>/` beside
-    `invocations.jsonl` and `schemas/`; a project is `<project_id>/events.jsonl` beside its
-    blobs. The layout is in the docstrings of `store.py` and `projects.py`, and
+    `invocations.jsonl`, `schemas/` and `locks/` (the turn locks, below); a project is `<project_id>/events.jsonl` beside its
+    blobs. The layout is in the docstrings of `store.py` and `project_files.py`, and
     `harness/tests/test_harness.py` and `test_projects.py` read it.
 
-Invariants 2 to 12 are the guarantees in the protocols' docstrings. The conformance kit
-(`dd_harness.testing.check_run_storage`, `check_project_storage`) checks each of them through the
-protocol alone, and `harness/tests/test_storage.py` runs it against the file backends. The kit
-checks concurrent changes from threads sharing one store; a check with two store instances
-contending for one project, which only a database backend can pass, is TODO(#522).
+Invariants 2 to 12 are the guarantees in the protocols' docstrings. The conformance kit checks
+each of them through the protocols alone: `dd_harness.testing.check_run_storage` a run storage,
+`check_project_log` a project log, and `check_project_rules` the project rules over a project log
+(it runs `check_project_storage` on them). The kit checks concurrent changes from threads sharing
+one store. `check_shared_record` checks two logs opened over one record contending for one
+project, as two harness instances over one database do; only a backend whose section holds across
+instances passes it, so the file backend does not run it. `harness/tests/test_storage.py` runs the
+kit against the file backends, and `harness/tests/test_postgres.py` against the PostgreSQL
+backend, with every check above and a contention between processes. Both also run
+`check_a_log_replays_as_it_folds` on change sequences that Hypothesis generates: a log appended
+whole and one appended an event at a time fold to the same documents, after every event and once
+opened again.
 
 ## Boundaries and contracts
 
@@ -97,11 +115,54 @@ contending for one project, which only a database backend can pass, is TODO(#522
 - `dd_harness.provenance` builds the crate in a temporary directory and returns its files, and the
   conductor keeps each as an artifact. The crate's content does not depend on the backend, and the
   file backend holds the same `<run>/crate/` it did before artifacts existed.
-- Conversations are derived from the run storage, through `iter_envelopes(conversation_id=…)` and
-  `get_request` ([Orchestration](orchestration.md), invariant 2). A backend may index them; it
-  does not keep a second record of them.
+- Conversations are derived from the run storage, through `iter_envelopes(conversation_id=…)`,
+  `list_conversations` and `get_request` ([Orchestration](orchestration.md), invariant 2). A
+  backend may index them; it does not keep a second record of them. An index written in the
+  transaction that stores each run, and rebuilt from the runs by the migration that adds it, is
+  an index in this sense: it can never disagree with the runs.
 - Artifacts and project blobs are kept in the store itself: as files in the file backends, as
   bytes in the database in the PostgreSQL backend.
+
+## Listing
+
+`RunStorage.list_runs` and `list_conversations` answer the run history and the list of
+conversations a page at a time, for the reader allowed to see them (`dd_harness.listing`).
+
+- **Order.** Runs come newest first, in reverse stored order (invariant 3); conversations by the
+  stored place of their latest turn, the most recently active first. A delegated child is listed
+  as a run, never as a turn.
+- **Reader.** A `Readable` names a principal and the projects they may read: a run in one of those
+  projects is included, and a run in no project if it acted for the principal. A conversation is
+  judged on its first turn. Which projects a person may read is decided from the project log
+  ([Projects](projects.md)), without reading every log: the backend names the projects whose log
+  may give the person a role (`ProjectLog.projects_naming`, from the principal each event names in
+  `dd_harness.role_events`), and the access check reads only those logs to confirm it
+  (`dd_harness.project_access.readable_projects`).
+- **Deleted conversations.** A `Readable` may also name conversations to leave out, the deleted
+  ones in the projects the reader may read ([Projects](projects.md), invariant 29;
+  `dd_harness.project_access.hidden_conversations`). A run or a conversation in one of them is
+  not listed; a run in no conversation is. The leaving out is part of the query, so a page still
+  holds as many as it asks for.
+- **Projects.** `GET /api/projects` lists the projects a person may read, the one created last
+  first, a page at a time. Its cursor is the last listed project; one that names no project the
+  person may read names an empty page. A project with nothing in it yet is not listed.
+- **Cursors.** A page names the cursor of the next, or none on the last. A cursor is the stored
+  place of the page's last item, opaque to the caller: the next page holds what was stored before
+  it, so a run stored while a person pages comes before the first page, not inside a later one.
+  A malformed cursor names an empty page (invariant 8).
+- **Cost.** The file backend scans `invocations.jsonl` for every page (`scan_runs`,
+  `scan_conversations`, which define the answer every backend gives). The PostgreSQL backend reads
+  one page from an index, whatever the size of the store (see below).
+- **Over HTTP.** `GET /api/runs`, `GET /api/conversations` and `GET /api/projects` in the app,
+  and `/runs` and `/conversations` in the workbench, take `?limit=` (50 unless given, at most 200) and
+  `?before=`, answer the page's items as a JSON list, and name the next page in a `Link` header
+  with `rel="next"` (`dd_harness.transport.paging`).
+
+The conformance kit checks that a backend's pages hold what the scan does, in the same order, for
+every reader, and that a malformed cursor names nothing
+(`check_runs_are_listed_newest_first_a_page_at_a_time`,
+`check_conversations_are_listed_by_their_latest_turn`,
+`check_a_listing_includes_what_its_reader_may_read`, `check_a_malformed_cursor_names_an_empty_page`).
 
 ## Project rules and the project log
 
@@ -113,9 +174,71 @@ run an exclusive section in which the rules read and append (invariants 10 and 1
 content by digest, find a conversation's project, and list projects. Nothing in a `ProjectLog`
 decides whether a change is allowed.
 
-Today the rules and the file log are one class, `ProjectStore`; separating them is
-TODO(#521). Until then a second backend cannot be added without copying the rules, which this
-design forbids.
+The rules are split by area, and each area is a class over the same `ProjectLog`, sharing its
+one fold of the log into documents (`dd_harness.projects.fold`): lifecycle, holdings (inventory and
+documentation), researchers, repository, flow (progress and intake), documents (drafts,
+decisions, answers and what is read from them) and deposits (validation reports and packages).
+`dd_harness.projects.Projects` is every area together, constructed over a `ProjectLog`.
+`ProjectStorage` is composed in the same way, of one Protocol per area (`ProjectLifecycle`,
+`ProjectHoldings`, `ProjectResearchers`, `ProjectRepository`, `ProjectProgress`,
+`ProjectDocuments`, `ProjectDeposits`), and of `ProjectEffects`, what a finished run does to
+its project (`dd_harness.project_effects`), which `Projects` gives through `RunEffects`. A
+caller names only the areas it uses, so a new feature of one area does not reach a caller of
+another; the conductor names `RunProjects`, every area but deposits with the run's effects.
+Code that builds a store or hands it on names `ProjectStorage`.
+
+Every change runs in a section of the log: the rules read the log there, decide, and append the
+change's events in one call, or a `document_change_refused` event, and raise `ChangeRefusedError`
+once the section has ended. The rules fill each event's identifier and timestamp, so every backend stores the same
+events. Content is kept by digest before the event that names it is appended, outside the
+section; content kept for a change that is then refused is named by nothing and harms nothing.
+`FileProjectLog` (`dd_harness.project_files`) is the file log, and `ProjectStore` is `Projects`
+over it, keeping the file backend's name and constructor.
+
+Every read of the rules reads the project's log, so a caller that asks one project many questions
+takes a snapshot instead: `Projects.snapshot` is the same rules over `SnapshotLog`
+(`dd_harness.projects.snapshot`), a read-only log that reads the project's events once and keeps
+each blob it reads. The conductor's access check, deletion check and the facts it gives an agent
+(`dd_harness.project_facts`) all come from one snapshot, so they agree with each other, and a
+change made meanwhile is seen by the next invocation. A snapshot refuses every change with
+`TypeError`.
+
+## Turn locks
+
+A conversation runs one turn at a time ([Orchestration](orchestration.md), invariant 4): the app
+holds the conversation's lock from reading its history until the turn is stored, and refuses a
+turn whose lock is held ([App](app.md), "Turn locks"). The lock is kept where the turns are, so
+every app process over one store is held to it, not only the process that holds it.
+
+`dd_harness.turn_locks.ConversationLocks` has one method, `try_hold(conversation_id)`, which
+returns what releases the lock, or None at once if it is held; nothing waits. Its docstring states
+the guarantees: one holder per conversation across every instance over one location, in any
+process; conversations independent; a released lock free to be held again, through any instance;
+a holder that ends without releasing (its process exits, its connection drops) releasing its
+locks; and no conversation id reaching anything outside the store as a name.
+
+`dd_harness.settings.conversation_locks` opens the locks beside the runs that `DD_RUNS_DIR` names,
+so no other setting says where they are:
+
+- **On files**, `FileConversationLocks` holds `flock` on `locks/<sha256 of the id>.lock` under
+  the runs' directory. `flock` belongs to the open file, not the process, so it holds between
+  processes on one host and between two instances in one process alike. A lock file is never
+  removed: removing one while another holder opens it would let two hold it. The directory must
+  be on a file system where `flock` holds for every app that shares it, which a local disk is.
+- **On PostgreSQL**, `dd_harness.postgres.locks.PostgresConversationLocks` takes a session-level
+  advisory lock, `pg_try_advisory_lock(TURN_LOCKS, hashtext(conversation_id))`, on a connection
+  of its own for the turn, closed when the lock is released. A turn may run for minutes, so the
+  lock does not borrow from a store's pool. The two-key form keeps it apart from the store's own
+  one-key locks. Advisory locks belong to the database, so deployments in separate schemas of one
+  database share them; `hashtext` is 32 bits, so two conversations may share a lock, and a turn
+  refused for that reason may be sent again.
+
+`dd_harness.testing.check_conversation_locks` (`CONVERSATION_LOCK_CHECKS`) holds a backend to the
+guarantees, through two instances over one location. `harness/tests/test_turn_locks.py` runs it
+on files, with a lock held from another process and one whose process ended without releasing it;
+`harness/tests/test_postgres.py` runs it on PostgreSQL, with a lock whose connection the server
+ended. `LocalConversationLocks` holds within one process, for an app built without a store
+location, as in a test, and is never opened by the settings.
 
 ## Adding a backend
 
@@ -125,15 +248,68 @@ A backend:
    named after it, as `serve` is for `uvicorn` ([System and boundaries](system.md)). The settings
    factory imports the module only when its scheme is named, so a deployment on files does not
    install the driver;
-2. implements `RunStorage` and `ProjectLog`, keeping every guarantee above;
-3. passes the conformance kit, run from the harness's tests against a real database. Those tests
+2. implements `RunStorage`, `ProjectLog` and `ConversationLocks`, keeping every guarantee above;
+3. passes the conformance kit (`check_run_storage`, `check_project_log`,
+   `check_project_rules`, `check_a_log_replays_as_it_folds` and `check_conversation_locks`), run from the harness's tests against a real database. Those tests
    are skipped when no database is named for them, and CI names one;
 4. changes its schema only through numbered SQL files, applied by an explicit command. Start-up
    refuses a database whose schema is older or newer than the build expects, naming the command.
    Nothing alters a schema as a side effect of serving.
 
-The PostgreSQL backend uses `psycopg` (version 3) and plain SQL. Its entry in the
-[dependency register](dependencies.md#the-register) is added with the code, TODO(#522).
+The PostgreSQL backend uses `psycopg` (version 3) and plain SQL
+([dependency register](dependencies.md#the-register)).
+
+## The PostgreSQL backend
+
+`dd_harness.postgres` keeps both records in one database, or in two: `DD_RUNS_DIR` and
+`DD_PROJECTS_DIR` may name the same location. Its tables are in the first schema of the
+connection's `search_path`, which a location may choose with
+`?options=-csearch_path%3D<schema>`.
+
+- **Schema.** The numbered files in `dd_harness/postgres/migrations/` are the schema, and
+  `dd_schema` records which have been applied. `dd-harness storage migrate [LOCATION]` applies
+  those a database lacks, under a lock so that two commands never apply one file twice;
+  `dd-harness storage status` prints the version and exits 1 if it is not this build's. With no
+  location they act on the `postgresql://` locations `DD_RUNS_DIR` and `DD_PROJECTS_DIR` name.
+  Opening a store reads the version and refuses any other (invariant 14, "Adding a backend").
+- **Runs.** `runs` holds each run's envelope, request and prompts in one row, with its
+  `conversation_id` in a column of its own and indexed, so a conversation is an indexed query.
+  `seq` is the stored order: a run takes it in a transaction that holds a lock for the length of
+  one insert, so runs are committed in the order of their `seq` and a reader never sees a later
+  run before an earlier one (invariant 3). Class schemas are in `run_schemas` by digest and
+  artifacts in `run_artifacts`, as bytes.
+- **Listing.** A run's `parent_invocation_id`, `project_id` and principal are copied into columns
+  of `runs`, indexed with `seq` for each way a reader may see a run. `conversation_index` has a
+  row per conversation, written in the transaction that stores each turn: its first turn's
+  project, principal, agent and time, how many turns it has, and its latest turn's place, status
+  and time. A page is one scan of an index per way in (the reader's own runs, and each of their
+  projects), each stopping after a page, so it reads entries in proportion to the page and the
+  reader's projects, not to the store. `harness/tests/test_postgres.py` asks the database for the
+  plan of each listing over twenty thousand runs and checks that no table is read whole.
+- **Projects.** `projects` has a row per project, which a section locks with
+  `select … for no key update`: sections of one project exclude one another, and keeping a blob,
+  whose foreign key takes a weaker lock on the same row, is not held up by one. Events are in
+  `project_events` in the order of `seq`; a `conversation_started` event's conversation is in an
+  indexed column, so `project_of` is an indexed query. The principal an event may give a role to
+  (`dd_harness.role_events.names`) is in `names_principal`, indexed with the project and `seq`,
+  so the projects naming a person are read from the index alone, in proportion to their projects;
+  `harness/tests/test_postgres.py` checks the plan over twenty thousand projects. Content is in
+  `project_blobs`.
+- **Documents are `json`, not `jsonb`.** `jsonb` refuses an escaped NUL (`\u0000`), which a
+  researcher's text may hold, and does not keep the order of keys. A document is read back as it
+  was given; what the backend looks up is copied into a column of its own.
+- **Connections.** Each store keeps a pool of connections (`psycopg_pool`), and each call borrows
+  one for its length, so a store is safe to share between threads and a request does not pay for
+  a connection. `DD_POSTGRES_POOL_SIZE` is the most a store keeps open at once, 10 by default; a
+  value that is not a whole number of at least 1 stops start-up. The pool is per store: when
+  `DD_RUNS_DIR` and `DD_PROJECTS_DIR` name one database, a harness process may hold twice that,
+  and each process its own, which the server's `max_connections` must allow. When every
+  connection is borrowed, a call waits for one to come back, for up to 30 seconds, and then
+  raises. A connection is checked as it is borrowed, so one the server dropped is replaced, not
+  handed out. A project's exclusive section holds one connection for its transaction. `close`
+  releases the pool, as does the store being collected or the process ending; a store is opened
+  in the process that uses it, never carried across a `fork`. The migration commands open a
+  connection of their own.
 
 ## Moving file stores into a database
 
@@ -218,16 +394,23 @@ files.
   extension.
 - **Durability.** A call that stores something returns after it is durable: flushed to disk in
   the file backends, committed in the database.
-- **Performance.** The file backends scan: conversations read every envelope, and the first call
-  to `project_of` reads every project's log. They are not indexed; a deployment that outgrows a
-  scan moves to the database. In the database, listing runs, conversations and projects and
-  finding a conversation's project are indexed queries, TODO(#524).
-- **Operations.** A documented and tested backup and restore of the database, and a health check,
-  are TODO(#525).
+- **Performance.** The file backends scan: conversations read every envelope, and `project_of` reads
+  what each project's log has gained since it last looked, for a conversation it has not found
+  before (a conversation's project, once found, is kept, as invariant 12 allows). They are not
+  indexed; a deployment that outgrows a
+  scan moves to the database. In the database, listing runs and conversations reads a page from
+  an index ("Listing"), and finding a conversation's project and the projects a person may read
+  are indexed queries. The file backend finds a person's projects by reading every project's log.
+- **Operations.** A deployment on a VM backs up its stores every night, a directory as files and a
+  database with `pg_dump`, and restores them on a clean VM; `data-director doctor` checks the
+  backups, the free disk space and each database's schema
+  ([Deploying to a VM](../../deploy/README.md#backups)).
 
 ## Open questions
 
-- How long runs, conversations and projects are kept, what deleting one removes, and how a
+- How long runs, conversations and projects are kept, what erasing one removes, and how a
   person's data in them is erased, now that the record is a database from which rows can be
-  deleted, TODO(#156).
-- Whether deposit packages and other large blobs move to object storage, TODO(#525).
+  deleted, TODO(#156). Deleting a project is settled and changes nothing here: it appends events
+  to the project's log and removes no row ([Projects](projects.md), invariant 22), so invariants 1
+  and 9 stand. Erasing would need an exception to them, and the spec of it will name one.
+- Whether deposit packages and other large blobs move to object storage, TODO(#744).

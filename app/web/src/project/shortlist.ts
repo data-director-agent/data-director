@@ -29,28 +29,47 @@ function isRef(value: unknown): value is GroundingRef {
   return typeof value === "object" && value !== null && typeof (value as GroundingRef).source_id === "string";
 }
 
-/** The repositories `envelope` shortlisted, in its order; empty if it is not a shortlist. */
-export function shortlistOf(envelope: Envelope): ShortlistedRepository[] {
-  const payload = envelope.payload;
-  if (!payload || payload.schema_class !== SHORTLIST_CLASS || !Array.isArray(payload.candidates)) return [];
+/** The run's evidence items from a pinned re3data export, by the record they cite. */
+function re3dataEvidence(envelope: Envelope): Map<string, EvidenceItem> {
   const evidence = new Map<string, EvidenceItem>();
   for (const item of envelope.evidence ?? []) {
     if (item.snapshot_ref?.startsWith(RE3DATA_EXPORT)) evidence.set(item.source_id, item);
   }
+  return evidence;
+}
+
+/** The re3data record `candidate` rests on, if any. */
+function re3dataIdOf(candidate: Record<string, unknown>): string | undefined {
+  const refs = Array.isArray(candidate.grounded_on) ? candidate.grounded_on.filter(isRef) : [];
+  return refs.map((r) => r.source_id).find((id) => RE3DATA_ID.test(id));
+}
+
+/** One shortlisted repository: `candidate`, named from `item`, the evidence citing its record. */
+function shortlisted(
+  re3dataId: string,
+  candidate: Record<string, unknown>,
+  item: EvidenceItem | undefined,
+): ShortlistedRepository {
+  const name = item?.content?.name;
+  return {
+    re3dataId,
+    name: typeof name === "string" && name ? name : re3dataId,
+    uri: item?.source_uri ?? null,
+    basis: typeof candidate.basis === "string" ? candidate.basis : null,
+    rationale: typeof candidate.rationale === "string" ? candidate.rationale : null,
+  };
+}
+
+/** The repositories `envelope` shortlisted, in its order; empty if it is not a shortlist. */
+export function shortlistOf(envelope: Envelope): ShortlistedRepository[] {
+  const payload = envelope.payload;
+  if (!payload || payload.schema_class !== SHORTLIST_CLASS || !Array.isArray(payload.candidates)) return [];
+  const evidence = re3dataEvidence(envelope);
   const found: ShortlistedRepository[] = [];
   for (const candidate of payload.candidates as Record<string, unknown>[]) {
-    const refs = Array.isArray(candidate.grounded_on) ? candidate.grounded_on.filter(isRef) : [];
-    const re3dataId = refs.map((r) => r.source_id).find((id) => RE3DATA_ID.test(id));
+    const re3dataId = re3dataIdOf(candidate);
     if (!re3dataId || found.some((f) => f.re3dataId === re3dataId)) continue;
-    const item = evidence.get(re3dataId);
-    const name = item?.content?.name;
-    found.push({
-      re3dataId,
-      name: typeof name === "string" && name ? name : re3dataId,
-      uri: item?.source_uri ?? null,
-      basis: typeof candidate.basis === "string" ? candidate.basis : null,
-      rationale: typeof candidate.rationale === "string" ? candidate.rationale : null,
-    });
+    found.push(shortlisted(re3dataId, candidate, evidence.get(re3dataId)));
   }
   return found;
 }

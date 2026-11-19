@@ -21,6 +21,11 @@ Configuration shape:
       - name: hello            # optional; labels the agent in `unavailable`
         url: http://127.0.0.1:8101
         timeout_s: 30          # optional; defaults to remote.DEFAULT_TIMEOUT_S
+        model_broker: true     # optional; the operator's statement that the agent calls its
+                               # models through the model broker (docs/specs/model-accounts.md)
+
+`model_broker` is the operator's, never the agent's: with a profile that lets people's own model
+accounts pay, the conductor refuses to run a model-backed agent without it.
 """
 
 from __future__ import annotations
@@ -115,6 +120,7 @@ class Registry:
                     url,
                     timeout_s=float(entry.get("timeout_s", DEFAULT_TIMEOUT_S)),
                     client_factory=self.client_factory,
+                    model_broker=entry.get("model_broker", False),
                 )
             except ContractVersionError as exc:
                 incompatible[name] = str(exc)
@@ -178,4 +184,6 @@ def load_config(path: Path) -> list[dict[str, Any]]:
     for i, entry in enumerate(entries):
         if not isinstance(entry, dict) or not isinstance(entry.get("url"), str):
             raise RegistryError(f"{path}: agents[{i}] needs a `url`")
+        if not isinstance(entry.get("model_broker", False), bool):
+            raise RegistryError(f"{path}: agents[{i}].model_broker must be true or false")
     return entries

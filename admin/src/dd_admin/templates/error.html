@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}{% if status == 404 %}Not found{% else %}Error {{ status }}{% endif %}{% endblock %}
+{% block as_of %}{% endblock %}
+{% block heading %}{% if status == 404 %}Not found{% else %}Error {{ status }}{% endif %}{% endblock %}
+{% block content %}
+<p>{{ detail }}</p>
+<p><a href="/">Back to the overview</a></p>
+{% endblock %}

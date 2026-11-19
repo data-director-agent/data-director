@@ -37,6 +37,16 @@ dd:FileInventory a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
             sh:path prov:wasGeneratedBy ],
+        [ sh:class dd:InventoryPart ;
+            sh:description "The scans the inventory is made of, when it is made of more than one folder. Absent, the inventory is one scan of one folder and its paths are relative to that folder. Present, every file's path begins with one part's folder; inventory_made_at is the latest part's, inventory_tool and inventory_tool_version are those of that part, and inventory_limitations holds any that concern no one part, then every part's limitations, each after \"In <folder>: \"." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 7 ;
+            sh:path dd:inventory_parts ],
+        [ sh:class dd:InventoryFile ;
+            sh:description "Every file the command read, sorted by path: under the dataset's root folder, or, in an inventory made of parts, under each part's folder." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 1 ;
+            sh:path dd:inventory_files ],
         [ sh:datatype xsd:string ;
             sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
             sh:maxCount 1 ;
@@ -51,18 +61,32 @@ dd:FileInventory a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 5 ;
             sh:path prov:generatedAtTime ],
-        [ sh:class dd:InventoryFile ;
-            sh:description "Every file under the dataset's root folder that the command read, sorted by path." ;
+        [ sh:class dd:PersonalDataFinding ;
+            sh:description "Where a personal-data detector found possible personal data (docs/specs/personal-data.md). Absent, no detector ran, or the inventory was made by a command without one; empty, a detector ran and found nothing, which does not mean the data hold none. In an inventory made of parts, it is every part's findings, and absent if any part's are absent." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 1 ;
-            sh:path dd:inventory_files ] ;
+            sh:order 8 ;
+            sh:path dd:inventory_personal_data ] ;
     sh:targetClass dd:FileInventory .
 
 dd:InventoryFile a sh:NodeShape ;
     rdfs:comment "One file of a dataset, as the inventory command found it." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
+    sh:property [ sh:description "How the PRONOM identifiers were arrived at: by the inventory command, or chosen by the researcher where the command found several matches or none." ;
+            sh:in ( "signature" "container" "extension" "none" "researcher" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 5 ;
+            sh:path dd:file_identified_by ],
+        [ sh:datatype xsd:string ;
+            sh:description "The file's path relative to the dataset's root folder, with forward slashes; in an inventory made of parts, it begins with its part's folder. Never an absolute path, which would say where the data live." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:file_path ;
+            sh:pattern "^[^/]" ],
+        [ sh:datatype xsd:string ;
             sh:description "Every PRONOM unique identifier (PUID) the file matched, such as fmt/95 or x-fmt/18. More than one means the identification is ambiguous; none means the format is unknown." ;
             sh:nodeKind sh:Literal ;
             sh:order 4 ;
@@ -72,20 +96,6 @@ dd:InventoryFile a sh:NodeShape ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 6 ;
             sh:path dd:file_fields ],
-        [ sh:description "How the PRONOM identifiers were arrived at." ;
-            sh:in ( "signature" "container" "extension" "none" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 5 ;
-            sh:path dd:file_identified_by ],
-        [ sh:datatype xsd:string ;
-            sh:description "The SHA-256 digest of the file's bytes, in lowercase hex, by which the file deposited can be shown to be the file described." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path spdx:checksumValue ;
-            sh:pattern "^[0-9a-f]{64}$" ],
         [ sh:datatype xsd:integer ;
             sh:description "The file's size in bytes." ;
             sh:maxCount 1 ;
@@ -94,26 +104,93 @@ dd:InventoryFile a sh:NodeShape ;
             sh:order 1 ;
             sh:path dcat:byteSize ],
         [ sh:datatype xsd:string ;
+            sh:description "The SHA-256 digest of the file's bytes, in lowercase hex, by which the file deposited can be shown to be the file described." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path spdx:checksumValue ;
+            sh:pattern "^[0-9a-f]{64}$" ],
+        [ sh:description "What part the file plays in the dataset, as the researcher states it. Unset means not stated, not data." ;
+            sh:in ( "data" "documentation" "code" "other" ) ;
+            sh:maxCount 1 ;
+            sh:order 8 ;
+            sh:path dd:file_role ],
+        [ sh:datatype xsd:string ;
             sh:description "The file's media type (MIME type), when it could be told." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
             sh:path dcat:mediaType ],
         [ sh:datatype xsd:string ;
-            sh:description "The file's path relative to the dataset's root folder, with forward slashes. Never an absolute path, which would say where the data live." ;
+            sh:description "What the file is, in the researcher's words. The inventory command never fills it; a researcher states it beside the facts the command found (docs/specs/projects.md)." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path dcterms:description ] ;
+    sh:targetClass dd:InventoryFile .
+
+dd:InventoryPart a sh:NodeShape ;
+    rdfs:comment "One scan of one folder, mounted at a folder name in an inventory made of several (docs/specs/projects.md). Every file of the inventory lies under exactly one part's folder, and a part is replaced whole when its folder is scanned again." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:dateTime ;
+            sh:description "When the part's folder was scanned." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path prov:generatedAtTime ],
+        [ sh:datatype xsd:string ;
+            sh:description "The folder name the part is mounted at, such as instrument or raw/2024: relative, with forward slashes, and no empty, . or .. segment. Every file of the part has a path that begins with it and a slash. No part's folder is another's or lies inside another's." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
-            sh:path dd:file_path ;
-            sh:pattern "^[^/]" ] ;
-    sh:targetClass dd:InventoryFile .
+            sh:path dd:part_folder ;
+            sh:pattern "^[^/]+(/[^/]+)*$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The command that scanned the part's folder, such as dd-inventory." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path prov:wasGeneratedBy ],
+        [ sh:datatype xsd:string ;
+            sh:description "What the scan of the part's folder left out or could not do." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dd:part_limitations ],
+        [ sh:class dd:PersonalDataFinding ;
+            sh:description "The part's findings, as inventory_personal_data, with paths that begin with the part's folder. Absent, no detector ran on the part." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 6 ;
+            sh:path dd:part_personal_data ],
+        [ sh:datatype xsd:string ;
+            sh:description "The version of the command that scanned the part's folder." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:part_tool_version ],
+        [ sh:datatype xsd:string ;
+            sh:description "What identified the formats of the part's files, as inventory_identified_with." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dd:part_identified_with ] ;
+    sh:targetClass dd:InventoryPart .
 
 dd:TableField a sh:NodeShape ;
     rdfs:comment "One field of a tabular resource, mirroring a Frictionless Table Schema field descriptor. Frictionless publishes no RDF namespace, so these slots carry see_also rather than a slot_uri (TODO(#20): revisit if Frictionless publishes term IRIs)." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:field_format ],
+        [ sh:datatype xsd:string ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -129,11 +206,62 @@ dd:TableField a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
-            sh:path dcterms:description ],
+            sh:path dcterms:description ] ;
+    sh:targetClass dd:TableField .
+
+dd:PersonalDataFinding a sh:NodeShape ;
+    rdfs:comment "Where the inventory command found what may be personal data, and how sure it is (docs/specs/personal-data.md). It never holds a matched value, any part of one, an offset into a file, a row number or an example: a kind, a place, bands and the detector only. A finding is a prompt for a person, never a decision." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:description "What the detector took the data to be." ;
+            sh:in ( "email address" "phone number" "NHS number" "National Insurance number" "postcode" "passport number" "driving licence number" "bank account number" "payment card number" "IP address" "person name" "direct identifier" "indirect identifier" "special category" "location" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 0 ;
+            sh:path dd:finding_kind ],
+        [ sh:description "The share of a column's sampled, non-empty values that matched, as a band so that it cannot be turned back into a count. Present for a column only." ;
+            sh:in ( "under 1%" "1 to 10%" "10 to 50%" "over 50%" ) ;
+            sh:maxCount 1 ;
+            sh:order 4 ;
+            sh:path dd:finding_proportion ],
+        [ sh:description "What part of the file was examined." ;
+            sh:in ( "column" "field name" "file name" "text" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 2 ;
+            sh:path dd:finding_target ],
         [ sh:datatype xsd:string ;
+            sh:description "The path of the file the finding concerns, as file_path; or, for a folder's name, the folder's path followed by a slash." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:finding_file ;
+            sh:pattern "^[^/]" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The table column the finding concerns, for a column or a field name." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path dd:field_format ] ;
-    sh:targetClass dd:TableField .
+            sh:order 3 ;
+            sh:path dd:finding_column ],
+        [ sh:description "How sure the detector is, as a band of its highest score." ;
+            sh:in ( "low" "medium" "high" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 5 ;
+            sh:path dd:finding_confidence ],
+        [ sh:datatype xsd:integer ;
+            sh:description "How much was examined: the sampled, non-empty values of a column, or the characters of a text file. Absent for a name." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path dd:finding_examined ],
+        [ sh:datatype xsd:string ;
+            sh:description "The detector, its version and its configuration, such as the recognisers that ran, so that a reader knows what was looked for." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path dd:finding_detector ] ;
+    sh:targetClass dd:PersonalDataFinding .
 

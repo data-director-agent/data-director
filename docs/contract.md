@@ -78,7 +78,12 @@ metadata record from the project, and a caller leaves them out; outside a projec
 sends them. In a project the conductor also fills `current_version`, the latest version of the
 project's document of that kind, so a redraft is that document's next version; a caller may name
 which document with `redraft_document` where the project holds more than one of the kind
-([Projects](specs/projects.md), invariant 6).
+([Projects](specs/projects.md), invariant 6). Its `project_documents` are the documents a
+researcher attached to the project, each a `ProjectDocument`: the name, digest, media type, size
+and date of a `DocumentationSummary`, with the document's text. A document whose text was read
+from a Word document or PDF names that file's media type in `documentation_source_media_type`;
+its text is plain text either way. A drafter's model may suggest answers from them; nothing in
+them is placed in a document as supplied.
 
 A `Document` may ask the researcher about what its drafter could not know: `document_questions`
 holds one `DocumentQuestion` per gap, naming the README section or the data dictionary cell it
@@ -98,7 +103,7 @@ An agent's response is wrapped in an `Envelope`. Every envelope contains:
 | `evidence` | The source records the result rests on. Each item carries a content hash and names the canonicalisation used to compute it ([Evidence and grounding](specs/grounding.md)). |
 | `grounding_mode` | The grounding mode the agent declared ([`grounding.md`](../harness/docs/grounding.md)). |
 | `policy_bundle_ref`, `policy_digest` | The institutional profile the conductor applied, as `profile:<id>@v<version>`, and the SHA-256 of its file ([Policy and identity](specs/policy-and-identity.md)). |
-| `telemetry` | The trace id, the model id, token counts, and energy fields. The energy fields are always empty for now (`not_measured`). |
+| `telemetry` | The trace id, the model id, token counts, and energy fields. The energy fields hold an estimate (`estimated`) only when the profile gives per-token energy factors for every model the run called, and are otherwise empty (`not_measured`) ([Disclosure](specs/disclosure.md), invariant 8). |
 | `requires_human_review` | Always `true`. The schema fixes it as a constant, so no envelope can claim otherwise. |
 | `problem` | Details of the problem, when the status is `failed` or `suspended`. |
 | `conversation_id`, `parent_invocation_id` | Copied from the request, when present. |
@@ -119,6 +124,12 @@ proposal.
 | `referred` | The agent passed the decision to a named person or role. | A `reason_code` and `referred_to`. |
 | `failed` | The agent or the harness could not complete the run. | A `problem` in RFC 9457 Problem Details format. |
 | `suspended` | The run is waiting for something outside the harness. | A `problem` that says what must happen before it can resume. |
+
+A run that could not use the person's own AI account is `abstained` with `model_account_missing`,
+`model_account_rejected` or `model_account_limit` ([A person's own model account](specs/model-accounts.md)).
+
+A run that its caller cancelled is `failed` with problem type `run-cancelled`. Whatever the agent
+answered is not kept ([Transport and tracing](specs/transport.md)).
 
 ## Payloads
 
@@ -145,11 +156,13 @@ names the agent, version and run it came from. The history is part of the input,
 hash covers everything the agent was shown. The agent replies with a `Reply` payload
 (`reply_text`, `reply_derivation`).
 
-A `Reply` may ask one question with a fixed set of options (`reply_question`, a
-`ChoiceQuestion`), which the app shows as choices. The researcher's next `Message` may answer it
-with a `ChoiceAnswer` (`choice_answer`): the run it answers, the values chosen and any answer in
-their own words, beside the same answer in `message_text`. The researcher may also ignore it and
-type; nothing waits for the answer.
+A `Reply` may ask a series of up to eight questions (`reply_questions`, each a `Question`),
+which the app puts to the researcher one at a time as form fields: a choice from a fixed set of
+options (`choice`), a line in their own words (`short_text`) or a few sentences (`long_text`). The
+researcher's next `Message` may answer them together with `ReplyAnswers` (`reply_answers`): the
+run it answers and, for each question answered, its key, the values chosen and any answer in
+their own words, beside the same answers in `message_text`. Any question may be skipped, and the
+researcher may also ignore them all and type; nothing waits for the answers.
 
 The harness keeps no separate conversation store: `dd_harness.conversations` reads each one back
 from the stored runs. In the workbench, `GET /conversations` lists conversations and

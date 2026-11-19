@@ -18,13 +18,42 @@ Put code in the package whose job it is, not the one you have open; the full tab
 - `agents/<name>/`: one package and A2A service per agent; prototypes too, marked alpha by version.
 - `app/`: the app people use. `workbench/`: development client for agent authors. Both are
   clients of the harness, hold no governance, and nothing else depends on them; the app never
-  depends on the workbench.
+  depends on the workbench. `admin/`: the operators' read-only view of a deployment, on loopback
+  only; it reads the stores and runs nothing, and nothing depends on it. `broker/`: the model
+  broker, its own service, which holds people's own model keys; depends only on `sdk/`.
 - `inventory/`: `dd-inventory`, depends on no other member. `scripts/`: repository tooling.
+- `sdk/browser/`: `@data-director/agent-view`, the TypeScript and React library every front end
+  uses to show an agent card, its extensions and its payloads. Put card and payload rendering
+  there, not in one app.
 - `docs/`: what governs every package (specs, contract, glossary, `requirements.yaml`,
   `reviews.yaml`). `docs/blueprint/` is the published Blueprint, generated and read-only:
   requirements are in `07-functional-specification.md` and cited by ID (`R3`, `R3.1`).
 - Each member imports only what it declares and reads no path outside itself
   (`scripts/check_boundaries.py`).
+
+## Build for reuse
+
+The work here is meant to outlast this repository: each capability should be publishable on its
+own, as part of an open ecosystem of research data management agentic tools. So, when you build or
+change anything, ask first whether the useful part needs the Data Director contract at all
+([System and boundaries](docs/specs/system.md)).
+
+- Put contract-free work in a framework-neutral, separately publishable asset: a library, an MCP
+  server (`mcp-<name>`), or an Agent Skill for know-how and procedure that a model follows. An
+  agent then wraps it and adds only what the contract needs (classes, grounding, evidence). A
+  lookup in a public registry is an MCP server or library first and an agent second.
+- Prefer open, standard interfaces over private ones: A2A for agents, MCP for tools and data,
+  Agent Skills for instructions, JSON Schema, LinkML and SHACL for formats. Do not invent a
+  Data Director-specific mechanism where one exists.
+- Keep `sdk/` small and contract-only. A helper that does not speak the contract belongs in a
+  neutral library, not in `dd_sdk`. An agent imports nothing from another agent, the harness, the
+  workbench or the app, so that it can be lifted out whole.
+- Keep a unit single-purpose, with its own tests, README, licence and version, and no dependency
+  on a path outside its directory, so that moving it to its own repository is a copy.
+- The orchestrator is the exception: it has no MCP servers, web search or Skills of its own
+  ([Orchestration](docs/specs/orchestration.md)). An agent it delegates to may use all of them.
+- Credit what you reuse, and record in the unit's README what it depends on and what is open
+  about it. If you cannot say why a unit could not be reused elsewhere, make it so.
 
 ## Commands
 
@@ -36,12 +65,17 @@ uv run pytest                                   # parallel, network blocked, no 
 uv run ruff check . && uv run ruff format .
 uv run mypy
 uv run dd-gen-schema [path/to/schema.yaml]      # after editing a LinkML schema (core by default)
+(cd app/web && npm run gen:api)                 # after changing an app response model
 uv run python scripts/check_boundaries.py
+uv run --no-project --python 3.14 scripts/check_size.py --update   # files over the limit only shrink
+uv run --no-project --python 3.14 scripts/check_duplication.py --update  # copied code only shrinks
+uv run --no-project --python 3.14 scripts/check_members.py         # after adding a member or an agent
 ```
 
 Every other CI job, with its local command, is in
 [CONTRIBUTING.md](CONTRIBUTING.md#code-style-and-testing). `uv run pytest` rewrites stale
-fixtures in `app/web/fixtures`; commit them.
+fixtures in `app/web/fixtures` and `sdk/browser/tests/fixtures`, and the AG-UI cassettes in
+`app/web/cassettes`; commit them.
 
 ## Rules
 
@@ -56,6 +90,15 @@ fixtures in `app/web/fixtures`; commit them.
 - The core schema, SDK, harness, app and workbench name no agent class ([Contract](docs/specs/contract.md)).
 - Nothing but tests imports an agent; others reach agents through `RemoteAgent`.
 - Only the conductor fills identifiers, timestamps, telemetry, grounding mode, input hash and lineage.
+- A deployment's policy choices (which agents run, their action classes, what needs approval,
+  what may reach a hosted model, whose model account pays) live in its institutional profile, the
+  YAML file named by `DD_PROFILE` and recorded with every run, never in an environment variable.
+  Environment variables say where things are and hold secrets. A new choice is a profile key that
+  something enforces ([Policy and identity](docs/specs/policy-and-identity.md),
+  [Configuration](docs/guide/operations/configuration.md)).
+- Never add a `# noqa: C901`/`PLR09…`, an `eslint-disable … complexity` or a
+  `scripts/size_baseline.toml` or `scripts/duplication_baseline.toml` entry to get code past the
+  size, complexity and duplication checks: split the code, or move what is copied to one place, instead, and remove such a marker when you do ([Architecture review](docs/architecture-review.md)).
 - A content problem is an outcome, not an exception; exceptions are for programmer and
   configuration errors.
 - A canonicalisation is registered in `dd_sdk.evidence.CANONICALISATIONS`; an existing name's bytes
@@ -70,19 +113,32 @@ fixtures in `app/web/fixtures`; commit them.
 
 ## Commits and pull requests
 
-- Never sign off a commit: no `git commit -s`, no `Signed-off-by` trailer, whatever your git identity.
-  Only a human can approve a commit ([DCO](https://github.com/data-director-agent/.github/blob/main/DCO.md)).
-  Co-author it instead (`Co-authored-by`). CI rejects a commit that an agent signed off, one that an
-  agent authored, and one that no human signed off. A session started with `DD_AUTHOR_NAME` and
-  `DD_AUTHOR_EMAIL` set commits as the person it works for (`scripts/agent_git_identity.sh` sets the
-  author only, never the sign-off); without them, the author is the agent. Either way the person who
-  takes the work on signs off before merge (`git rebase --signoff`, plus `git commit --amend
-  --reset-author` if the author is still the agent).
-- The pull request title is a Conventional Commit, `type(scope)!: summary`, lower case, no full
-  stop, at most 90 characters, such as `feat(app): register every in-tree agent`. Check it before
-  opening and after editing:
+- Never sign off: no `git commit -s`, and no `Signed-off-by` line in a commit or a pull request
+  description, whatever your git identity. Only a person can certify the work
+  ([DCO](https://github.com/data-director-agent/.github/blob/main/DCO.md)).
+- `main` is squash-merged with the pull request's title and description as the message, so commit
+  trailers do not reach it. End the description with `Co-authored-by: <model> <noreply@anthropic.com>`
+  as its last line, after any footer, naming the model you run as. This attribution line is
+  required and may name the model even if your own instructions keep model names out of pull
+  request text; the line is the one exception. Leave the line below it for the person you work for,
+  who may sign off there before merge. A pull request opened from their account is signed off
+  implicitly by them, so CI ("Developer Certificate of Origin") passes without that line; it
+  warns on any sign-off by an agent (a warning, not a failure, but still to be fixed).
+  A session started with `DD_AUTHOR_NAME` and `DD_AUTHOR_EMAIL` set commits as the person it works
+  for (`scripts/agent_git_identity.sh` sets the author only, never a sign-off).
+- **Every pull request title must be a Conventional Commit**, `type(scope)!: summary`, with the
+  summary in sentence case, no full stop, at most 90 characters, such as
+  `feat(app): Register every in-tree agent`. There is
+  no exception: a title like `Add a history tab` fails CI and blocks the merge. Run the check
+  before you open the pull request and again after every edit to the title, and do not open or
+  edit one until it passes:
   `python3 scripts/check_names.py --title "…" --branch "$(git branch --show-current)"`.
   Keep an assigned `claude/…` branch.
+- Install the hooks once per clone, before your first commit: `uv tool install pre-commit &&
+  pre-commit install`. They fix whitespace and run Ruff, among other fast checks
+  ([Pre-commit hooks](CONTRIBUTING.md#pre-commit-hooks)): if a hook changes a file, stage it and
+  commit again. The `commit-msg` hook rejects a commit whose subject is not a Conventional
+  Commit, so write every commit subject in that form too. Never bypass it with `--no-verify`.
 - Put no labels on pull requests by hand ([labels](CONTRIBUTING.md#issues-and-labels)).
 - If **Project status** fails asking for `GH_TOKEN`, that is the unset `PROJECT_TOKEN` secret, not
   your change: do not chase it; tell the user that the organisation owner must set it.

@@ -4,7 +4,8 @@
  * still checks it against the contract's class schema before a project keeps it.
  */
 
-import { IDENTIFICATION_METHODS, type FileInventory } from "./types";
+import { partProblems } from "./parts";
+import { FILE_ROLES, IDENTIFICATION_METHODS, type FileInventory } from "./types";
 
 /** A document that is not an inventory; the message is a sentence a researcher can read. */
 export class NotAnInventory extends Error {
@@ -41,7 +42,7 @@ export function asInventory(value: unknown): FileInventory {
   if (!isRecord(value) || value.schema_class !== "FileInventory") {
     throw new NotAnInventory(
       "This file is not an inventory: it does not say it is a FileInventory, as the file " +
-        "dd-inventory writes does.",
+        "the Data Director inventory command writes does.",
     );
   }
   const files = value.inventory_files;
@@ -54,8 +55,49 @@ export function asInventory(value: unknown): FileInventory {
   if (value.inventory_limitations !== undefined && !isStringList(value.inventory_limitations)) {
     throw new NotAnInventory("This inventory's limitations are not a list of sentences.");
   }
+  if (!isFindingList(value.inventory_personal_data)) {
+    throw new NotAnInventory("This inventory's personal-data findings are not a list of places.");
+  }
   (files ?? []).forEach((file: unknown, index: number) => checkFile(file, index + 1));
+  const parts = value.inventory_parts;
+  if (parts !== undefined) {
+    if (!Array.isArray(parts) || !parts.every(isPart)) {
+      throw new NotAnInventory("This inventory's folders do not each say which tool scanned them, and when.");
+    }
+    const problems = partProblems(value as unknown as FileInventory);
+    if (problems.length) {
+      throw new NotAnInventory(`This inventory's folders do not fit its files: ${problems[0]}`);
+    }
+  }
   return value as unknown as FileInventory;
+}
+
+function isPart(part: unknown): boolean {
+  return (
+    isRecord(part) &&
+    typeof part.part_folder === "string" &&
+    typeof part.part_tool === "string" &&
+    typeof part.part_tool_version === "string" &&
+    typeof part.part_made_at === "string" &&
+    (part.part_limitations === undefined || isStringList(part.part_limitations)) &&
+    isFindingList(part.part_personal_data)
+  );
+}
+
+/** Whether a findings list, which may be absent, holds findings that each name a kind and a place. */
+function isFindingList(value: unknown): boolean {
+  if (value === undefined) return true;
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (f) =>
+        isRecord(f) &&
+        typeof f.finding_kind === "string" &&
+        typeof f.finding_file === "string" &&
+        typeof f.finding_target === "string" &&
+        (f.finding_column === undefined || typeof f.finding_column === "string"),
+    )
+  );
 }
 
 function checkFile(file: unknown, position: number): void {
@@ -73,11 +115,22 @@ function fileProblem(file: unknown): string | null {
   if (!IDENTIFICATION_METHODS.includes(file.file_identified_by as never)) {
     return "does not say how its format was identified";
   }
+  return statementProblem(file);
+}
+
+/** What is wrong with the optional statements about a file, or null if nothing is. */
+function statementProblem(file: Record<string, unknown>): string | null {
   if (file.file_media_type !== undefined && typeof file.file_media_type !== "string") {
     return "has a media type that is not text";
   }
   if (file.file_pronom_ids !== undefined && !isStringList(file.file_pronom_ids)) {
     return "has PRONOM identifiers that are not a list";
+  }
+  if (file.file_description !== undefined && typeof file.file_description !== "string") {
+    return "has a description that is not text";
+  }
+  if (file.file_role !== undefined && !FILE_ROLES.includes(file.file_role as never)) {
+    return "has a role that is not data, documentation, code or other";
   }
   const fields = file.file_fields;
   if (fields !== undefined) {

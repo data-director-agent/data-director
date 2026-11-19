@@ -16,6 +16,9 @@ authors:
     family-names: Uzwyshyn
     affiliation: 'University of California, Riverside'
     orcid: 'https://orcid.org/0009-0002-3697-8548'
+  - given-names: Tian Heng
+    family-names: Zhuang
+    email: 39034691+TianHengZhuang@users.noreply.github.com
 repository-code: 'https://github.com/data-director-agent/data-director/'
 license: MIT
 keywords:
@@ -88,3 +91,15 @@ references:
     notes: >-
       The repository advisor reads re3data's monthly export of repository records
       (agents/advisor-repository/data/re3data/SOURCE.md).
+  - type: database
+    title: Research Organization Registry (ROR) data dump
+    authors:
+      - name: Research Organization Registry
+    publisher:
+      name: Zenodo
+    doi: 10.5281/zenodo.6347574
+    url: https://ror.org
+    license: CC0-1.0
+    notes: >-
+      The policy advisor identifies funders in a pinned ROR data dump
+      (agents/advisor-policy/data/ror/SOURCE.md).

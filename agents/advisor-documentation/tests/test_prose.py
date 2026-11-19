@@ -13,7 +13,15 @@ import pytest
 
 from dd_agent_advisor_documentation.agent import DocumentationEditor
 from dd_agent_advisor_documentation.factory import build
-from dd_agent_advisor_documentation.prose import SYSTEM_PROMPT, AnthropicWriter, check
+from dd_agent_advisor_documentation.prose import (
+    SUGGEST_PROMPT,
+    SUGGEST_README_PROMPT,
+    SYSTEM_PROMPT,
+    ModelWriter,
+    ProseReply,
+    check,
+)
+from dd_agent_advisor_documentation.testing import prose_reply, suggestion_reply
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.contract.models import (
     Derivation,
@@ -25,6 +33,8 @@ from dd_sdk.contract.models import (
     OutcomeStatus,
 )
 from dd_sdk.credentials import ConfigError
+from dd_sdk.model_anthropic import AnthropicModel
+from dd_sdk.testing import FakeModel
 
 SAMPLES = Path(__file__).with_name("data")
 MODEL = "claude-test"
@@ -41,18 +51,36 @@ def sample(name: str) -> DraftRequest:
 
 
 class StubClient:
-    """An Anthropic client that replies with `reply` and keeps what it was sent."""
+    """An Anthropic client that keeps what it was sent and replies with `reply`: to the prose
+    call, as paragraphs by heading; to a data dictionary's suggestion call, as suggestions by
+    question; or as the raw text to either. A README's suggestion call is given `suggestions`,
+    none by default."""
 
-    def __init__(self, reply: str | dict[str, Any], stop_reason: str = "end_turn") -> None:
-        self.reply = reply if isinstance(reply, str) else json.dumps(reply)
+    def __init__(
+        self,
+        reply: str | dict[str, Any],
+        stop_reason: str = "end_turn",
+        suggestions: dict[str, str | None] | None = None,
+    ) -> None:
+        self.reply = reply
+        self.suggestions = suggestions
         self.stop_reason = stop_reason
         self.sent: list[dict[str, Any]] = []
         self.messages = SimpleNamespace(create=self._create)
 
+    def _text(self, system: str) -> str:
+        if system == SUGGEST_README_PROMPT and self.suggestions is not None:
+            return suggestion_reply(self.suggestions)
+        if isinstance(self.reply, str):
+            return self.reply
+        if system == SYSTEM_PROMPT:
+            return prose_reply(self.reply)
+        return suggestion_reply(self.reply if system == SUGGEST_PROMPT else {})
+
     def _create(self, **kwargs: Any) -> SimpleNamespace:
         self.sent.append(kwargs)
         return SimpleNamespace(
-            content=[SimpleNamespace(type="text", text=self.reply)],
+            content=[SimpleNamespace(type="text", text=self._text(kwargs["system"]))],
             stop_reason=self.stop_reason,
             usage=SimpleNamespace(input_tokens=100, output_tokens=40),
             model=MODEL,
@@ -63,7 +91,7 @@ def draft(
     runs_dir: Path, client: StubClient, asked: DraftRequest | None = None
 ) -> tuple[Envelope, bool]:
     asked = asked or sample("soil-survey.readme.draft.json")
-    editor = DocumentationEditor(writer=AnthropicWriter(client=client, model_id=MODEL))  # type: ignore[arg-type]
+    editor = DocumentationEditor(writer=ModelWriter(AnthropicModel(MODEL, client=client)))  # type: ignore[arg-type]
     conductor = make_conductor(runs_dir, editor)
     env = conductor.invoke(request("advisor.documentation", asked), acting_for=TEST_PRINCIPAL)
     return env, conductor.grounding_reports[env.invocation_id].passed
@@ -137,27 +165,56 @@ def test_no_prose_for_a_section_with_no_facts(runs_dir: Path) -> None:
 )
 def test_a_paragraph_naming_what_the_facts_do_not_give_is_dropped(paragraph: str, why: str) -> None:
     facts = {"file_count": 5, "files": [{"path": "data/readings.csv"}]}
-    prose = check(json.dumps({"Files": paragraph}), facts, ["Files"])
+    prose = check(
+        ProseReply.model_validate_json(prose_reply({"Files": paragraph})), facts, ["Files"]
+    )
     assert prose.sections == {}
     assert prose.dropped and why in prose.dropped[0]
 
 
 def test_a_paragraph_naming_only_what_the_facts_give_is_kept() -> None:
     facts = {"file_count": 5, "files": [{"path": "data/readings.csv"}]}
-    reply = (
-        "```json\n"
-        + json.dumps({"Files": "Of the 5 files, `data/readings.csv` is a table."})
-        + "\n```"
-    )
-    prose = check(reply, facts, ["Files"])
+    reply = prose_reply({"Files": "Of the 5 files, `data/readings.csv` is a table."})
+    prose = check(ProseReply.model_validate_json(reply), facts, ["Files"])
     assert prose.sections == {"Files": "Of the 5 files, `data/readings.csv` is a table."}
     assert prose.dropped == ()
+
+
+def test_a_paragraph_written_twice_is_used_once() -> None:
+    reply = ProseReply.model_validate_json(
+        json.dumps(
+            {
+                "overview": None,
+                "sections": [
+                    {"section": "Files", "paragraph": "The tables."},
+                    {"section": "Files", "paragraph": "Again."},
+                ],
+            }
+        )
+    )
+    prose = check(reply, {}, ["Files"])
+    assert prose.sections == {"Files": "The tables."}
+    assert len(prose.dropped) == 1
+
+
+def test_a_fenced_reply_from_an_unconstrained_endpoint_is_still_used(runs_dir: Path) -> None:
+    env, _ = draft(runs_dir, StubClient(f"```json\n{prose_reply({'overview': OVERVIEW})}\n```"))
+    document = env.payload_as(Document)
+    assert document.document_derivation == Derivation.MODEL
+    assert document.document_text.startswith(f"# README\n\n{OVERVIEW}\n\n")
+
+
+def test_the_reply_is_constrained_to_the_schema(runs_dir: Path) -> None:
+    client = StubClient({"overview": OVERVIEW})
+    draft(runs_dir, client)
+    assert all(sent["output_config"]["format"]["type"] == "json_schema" for sent in client.sent)
 
 
 @pytest.mark.parametrize(
     ("client", "why"),
     [
-        (StubClient("I would rather not."), "not JSON"),
+        (StubClient("I would rather not."), "did not match its schema"),
+        (StubClient(json.dumps({"overview": OVERVIEW})), "did not match its schema"),
         (StubClient({"overview": OVERVIEW}, stop_reason="refusal"), "declined"),
         (StubClient({"overview": "The 12 sites were sampled in 2019."}), "not used"),
     ],
@@ -188,11 +245,12 @@ def test_the_model_is_given_the_facts_and_never_the_answers_or_an_earlier_versio
     env, _ = draft(runs_dir, client, asked)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED
     assert secret in env.payload_as(Document).document_text
-    assert len(client.sent) == 1
+    # One call for the prose, one for the suggested answers; neither is given the answers.
+    assert len(client.sent) == 2
+    assert all(secret not in sent["messages"][0]["content"] for sent in client.sent)
     sent = client.sent[0]
     assert sent["system"] == SYSTEM_PROMPT
     content = sent["messages"][0]["content"]
-    assert secret not in content
     assert "data/readings.csv" in content and "nitrate_mg_kg" in content
     assert asked.metadata_record is not None
     facts = json.loads(content.split("Facts:\n", 1)[1])
@@ -203,15 +261,39 @@ def test_the_model_is_given_the_facts_and_never_the_answers_or_an_earlier_versio
     assert "added none" in env.outcome.statement
 
 
-def test_the_call_and_its_prompt_are_recorded(runs_dir: Path) -> None:
+def test_each_call_and_its_prompt_are_recorded(runs_dir: Path) -> None:
     env, _ = draft(runs_dir, StubClient({"overview": OVERVIEW}))
     calls = env.telemetry.model_calls
-    assert len(calls) == 1 and calls[0].model_id == MODEL
-    assert env.telemetry.input_tokens == 100 and env.telemetry.output_tokens == 40
+    # The prose and the suggested answers: two calls, their tokens summed.
+    assert [c.model_id for c in calls] == [MODEL, MODEL]
+    assert len({c.prompt_digest for c in calls}) == 2
+    assert env.telemetry.input_tokens == 200 and env.telemetry.output_tokens == 80
 
 
-def test_the_factory_defaults_to_the_template_and_declares_a_configured_model() -> None:
-    assert build({}).spec.models == ()
+def test_the_writer_calls_any_model_through_the_sdk_seam(runs_dir: Path) -> None:
+    model = FakeModel(
+        lambda r: (
+            prose_reply({"overview": OVERVIEW})
+            if r.system == SYSTEM_PROMPT
+            else suggestion_reply({})
+        ),
+        model_id=MODEL,
+    )
+    editor = DocumentationEditor(writer=ModelWriter(model))
+    conductor = make_conductor(runs_dir, editor)
+    asked = sample("soil-survey.readme.draft.json")
+    env = conductor.invoke(request("advisor.documentation", asked), acting_for=TEST_PRINCIPAL)
+    assert env.payload_as(Document).document_text.startswith(f"# README\n\n{OVERVIEW}\n\n")
+    assert model.sent[0].system == SYSTEM_PROMPT
+    assert [c.model_id for c in env.telemetry.model_calls] == [MODEL, MODEL]
+
+
+def test_the_factory_defaults_to_a_model_and_declares_it() -> None:
+    (use,) = build({"ANTHROPIC_API_KEY": "k"}).spec.models
+    assert (use.provider, use.hosting) == ("anthropic", "hosted")
+    assert build({"DD_DOCUMENTATION_WRITER": "template"}).spec.models == ()
+    with pytest.raises(ConfigError, match="DD_DOCUMENTATION_WRITER=template"):
+        build({})
     with pytest.raises(ConfigError):
         build({"DD_DOCUMENTATION_WRITER": "anthropic"})
     with pytest.raises(ConfigError):
@@ -221,3 +303,40 @@ def test_the_factory_defaults_to_the_template_and_declares_a_configured_model() 
     )
     (use,) = agent.spec.models
     assert (use.provider, use.model, use.hosting) == ("anthropic", MODEL, "hosted")
+
+
+@pytest.mark.parametrize(
+    ("settings", "declared"),
+    [
+        (
+            {"DD_MODEL_PROVIDER": "openai", "DD_MODEL_ID": "m-1", "OPENAI_API_KEY": "k"},
+            ("openai", "m-1", "hosted"),
+        ),
+        (
+            {
+                "DD_MODEL_PROVIDER": "openai-compatible",
+                "DD_MODEL_ID": "llama",
+                "DD_MODEL_BASE_URL": "http://localhost:11434/v1",
+            },
+            ("localhost:11434", "llama", "local"),
+        ),
+    ],
+)
+def test_the_model_can_come_from_another_provider(
+    settings: dict[str, str], declared: tuple[str, str, str]
+) -> None:
+    pytest.importorskip("openai")
+    agent = build({"DD_DOCUMENTATION_WRITER": "model", **settings})
+    assert [(m.provider, m.model, m.hosting) for m in agent.spec.models] == [declared]
+
+
+def test_the_older_anthropic_setting_names_only_anthropic() -> None:
+    with pytest.raises(ConfigError):
+        build(
+            {
+                "DD_DOCUMENTATION_WRITER": "anthropic",
+                "DD_MODEL_PROVIDER": "openai",
+                "DD_MODEL_ID": "m-1",
+                "OPENAI_API_KEY": "k",
+            }
+        )

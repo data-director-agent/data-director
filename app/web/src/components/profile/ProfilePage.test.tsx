@@ -28,6 +28,12 @@ describe("ProfilePage", () => {
     expect(screen.queryByText("Session ends")).toBeNull();
   });
 
+  it("points to the Settings page for the AI account and preferences", () => {
+    render(<ProfilePage session={{ ...signedIn(), modelAccounts: true }} />);
+    expect(screen.queryByRole("heading", { name: "Your AI account" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/settings");
+  });
+
   it("has no accessibility violations", async () => {
     const { container } = render(<ProfilePage session={signedIn()} />);
     expect(await axe(container)).toHaveNoViolations();

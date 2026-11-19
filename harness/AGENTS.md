@@ -18,6 +18,13 @@ and it implements the project log, never the project rules ([Storage](../docs/sp
   its own: each path comes from a `DD_*` variable or the caller's default (the workbench's
   development defaults are in `workbench.config`, the app's in `app/config/`). If you find
   yourself computing a default from a harness module's `__file__`, stop.
+- **Policy is in the profile, not the environment ([Policy and identity](../docs/specs/policy-and-identity.md)).**
+  A `DD_*` variable names a path, an address or a credential; what a deployment allows comes from
+  the institutional profile it names, whose version and digest every envelope records. A new
+  policy choice is a profile key the gate enforces, added to the vocabulary in the spec and in
+  [`workbench/profiles/README.md`](../workbench/profiles/README.md), and refused at load until
+  something enforces it. If you find yourself reading an allow, deny or approval rule from a
+  `DD_*` variable, stop: a run could not say which rule it was held to.
 - **The harness imports no agent.** Agents are services reached through `RemoteAgent`
   (`dd_harness.remote`), and a registry file lists their URLs. Tests may import agent packages to
   serve them in memory (`dd_harness.testing.in_process`), and `src/` must not.
@@ -45,7 +52,14 @@ and it implements the project log, never the project rules ([Storage](../docs/sp
   An agent's `retrieval` spans are its own declarations. `dd_harness.sources` re-hashes cited
   records against the pinned copies in a sources file. An unresolved item is never counted as
   verified, and a source file is never read without its `sha256` pin. Do not describe
-  `grounding: passed` as proof that an agent retrieved anything.
+  `grounding: passed` as proof that an agent retrieved anything, except for a `tool:` source.
+- **A tool source is the conductor's record ([Agents](../docs/specs/agents.md), Tools).** A
+  persona reaches an MCP server only through `dd_harness.gateway`, under a grant the conductor
+  issues from the card's `tools` and the profile's `tool_servers`. Only the gateway fills
+  `tool_retrievals`, and the linter grounds a `tool:` source on those alone. If you find yourself
+  letting an agent connect to a server, or counting an agent's own span for a `tool:` source,
+  stop. `mcp` is imported only in `dd_harness.gateway` (and `dd_harness.testing.tools`), behind
+  the `gateway` extra.
 - **The doubles' schema is generated.** Edit `src/dd_harness/schema/doubles.yaml` and run
   `uv run dd-gen-schema harness/src/dd_harness/schema/doubles.yaml`.
 - **Shared test doubles live in `dd_harness.testing`**, not in another package's tests, so that

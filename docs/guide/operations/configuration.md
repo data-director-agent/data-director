@@ -11,7 +11,7 @@ only its own agent can read.
 
 | What | On a server | In development | Read by |
 |---|---|---|---|
-| What the instance runs: its name, the orchestrator (`model` or `stub`), agents disabled | `/etc/data-director/deployment.yaml`, then `sudo data-director apply` | `config/local/deployment.yaml` ([example](../../../config/examples/deployment.yaml)), applied by `dd.py start` | `apply`, which writes the profile (`profile.yaml` beside it, named by `DD_PROFILE`) and, on a server, the units that start the agents |
+| What the instance runs: its name, the orchestrator (`model` or `stub`), agents disabled, the address of its [privacy notice](privacy.md) and whether people may use [their own model account](model-broker.md#the-profile-turning-own-accounts-on) | `/etc/data-director/deployment.yaml`, then `sudo data-director apply` | `config/local/deployment.yaml` ([example](../../../config/examples/deployment.yaml)), applied by `dd.py start` | `apply`, which writes the profile (`profile.yaml` beside it, named by `DD_PROFILE`) and the app's agent list (`agents.yaml` beside it, named by `DD_AGENTS_CONFIG`, marking each agent that [calls through the model broker](model-broker.md#the-agents-calling-through-the-broker)), sets or removes `DD_PRIVACY_NOTICE_URL` in `app.env` and, on a server, the units that start the agents |
 | The ORCID client, the app's address, problem reports (and the operator, on a development server) | `/etc/data-director/app.env` | `config/local/app.env` ([example](../../../config/examples/app.env)) | The app |
 | The workbench's ORCID client, address and admins | `/etc/data-director/workbench.env` ([example](../../../config/examples/workbench.env)) | none: a local workbench signs nobody in | The workbench |
 | Settings every agent shares | `/etc/data-director/agents.env` | `config/local/agents.env` ([example](../../../config/examples/agents.env)) | Every agent |
@@ -19,6 +19,7 @@ only its own agent can read.
 | A model key, or the app's ORCID client secret | `/etc/data-director/credentials/<name>/`, root-only, loaded as a systemd credential; an agent's is put there by `sudo data-director secret set` | `config/local/credentials/`, named by `ANTHROPIC_API_KEY_FILE` in the agent's own file | That agent |
 | An agent's port | `deploy/agents/<name>.env` in the release | `scripts/run-agents.sh` | The unit, and `agents.yaml` |
 | The deployment's own behaviour (repository, branch, releases kept) | `/etc/data-director/deploy.env` | none | `deploy.sh` |
+| The admin service's overrides, if any | `/etc/data-director/admin.env` (optional; [the admin service](admin.md)) | none: settings in the environment | The admin service |
 
 The app and the harness hold no model key ([Policy and identity](../../specs/policy-and-identity.md)), so the first two rows never contain one.
 
@@ -29,8 +30,44 @@ These are policy, not secrets, and are safe to review and to keep under version 
 | File | Sets | Override |
 |---|---|---|
 | Institutional profile (`app/config/profile.yaml.example`; an instance runs the copy `apply` generates from it and `deployment.yaml`) | Which agents may run, the action class each is assigned, which classes need approval, and the agent the home page converses with. | `DD_PROFILE` |
-| `app/config/agents.yaml` | Where each agent is, by URL. | `DD_AGENTS_CONFIG` |
+| `app/config/agents.yaml` (an instance runs the copy `apply` generates from it, with `model_broker: true` on each agent that calls through the model broker) | Where each agent is, by URL, and which agents call through the model broker. | `DD_AGENTS_CONFIG` |
 | `app/config/sources.yaml` | The pinned source copies the source check resolves evidence against. | `DD_SOURCES_CONFIG` |
+
+A fourth file is optional: the MCP servers the harness's tool gateway calls, named by
+`DD_TOOLS_CONFIG` ([Agents](../../specs/agents.md#tools-mcp-servers-and-agent-skills)). Without it
+there is no gateway, and no agent calls a tool. Each server is listed with the source it serves
+and the digest of its tools, which the harness checks at start-up:
+
+```yaml
+servers:
+  - name: spdx                              # what cards and the profile's tool_servers call it
+    url: http://127.0.0.1:8300/mcp          # its streamable HTTP endpoint
+    id_field: licenseId                     # the field that identifies a record
+    canonicalisation: dd-json-document-v1   # registered in dd_sdk.evidence
+    snapshot_ref: spdx:3.27                 # optional: the pinned copy it serves
+    tools_sha256: "<64 hexadecimal digits>" # from `dd-harness tools pins`, quoted
+```
+
+The harness needs its `gateway` extra (`data-director-harness[gateway]`) for this file, and an
+agent that calls tools needs the SDK's `tools` extra. A server whose tools have changed is
+unavailable until you review them and pin the new digest: `dd-harness tools pins` prints each
+server's current digest and exits 1 if any differs. A server on a host name or a public address
+is `remote`, and the profile's `remote_tool_content` decides which project content may go to an
+agent that calls it. The gateway is served at `/mcp` beside the delegation callback; like `/a2a`,
+it is for agents on loopback, and NGINX closes it to everyone else.
+
+How long an owner may restore a project they deleted is `DD_PROJECT_RESTORE_DAYS`, in the app's
+environment: whole days, 30 if unset, and 0 to make deletion final to the app. The same period
+applies to a deleted conversation. Deleting a project or a conversation never removes its record
+([Projects](../../specs/projects.md), invariants 25 and 31).
+
+On an app installed on a researcher's own machine, `DD_INVENTORY_FOLDERS` names the folders there
+that the app may describe for an inventory: absolute paths, separated by `:` (`;` on Windows). The
+researcher may open any folder under them, and the app lists folders by name and runs
+`dd-inventory` on the one chosen, read only, following no link; it records nothing until the
+researcher checks the inventory and adds it ([Projects](../../specs/projects.md), The inventory
+command). Unset, the app describes no folder of its own. The app refuses to start when it is set
+and `DD_APP_HOST` is not a loopback address, so a shared deployment never sets it.
 
 Raise the profile's `version` on every change. Each stored run records the profile and version it
 was held to, with the digest of its bytes, so a later reader can tell which rules applied. A
@@ -52,7 +89,10 @@ deployment, with the redirect URI `https://<your host>/api/sign-in/callback`, th
 | `DD_SESSION_IDLE_S`, `DD_SESSION_LIFETIME_S` | Optional: a session ends after 8 hours unused or 7 days at most |
 
 Sign-in needs HTTPS. Sessions are held in memory, so restarting the app signs everyone out. The
-app asks ORCID for the iD and the name only, and keeps no token. A deployment made with
+app asks ORCID for the iD and the name only, and keeps no token. A researcher may choose, on a
+project's page, facts from their own public ORCID record for its agents; the app then reads that
+record from ORCID's public API (`pub.orcid.org`, or `pub.sandbox.orcid.org` for the sandbox
+issuer), so the host must be able to reach it. It needs no credential. A deployment made with
 `deploy/install.sh` always signs people in: the installer fills `DD_APP_PUBLIC_URL`, waits for the
 other settings and the secret (`/etc/data-director/credentials/app/orcid-client-secret`, which the
 app's unit loads), and sets up no site password ([Deploying to a VM](../../../deploy/README.md)).
@@ -130,6 +170,7 @@ operator, as before.
 | What | Where | Notes |
 |---|---|---|
 | Each run: input, output, spans, evidence and, by default, a Process Run Crate | `/var/lib/data-director/runs/` (`DD_RUNS_DIR`) | It outlives releases, so back it up with the rest of the host. `DD_WRITE_CRATE=0` stops the crate being written. |
+| Each conversation's turn lock | `locks/` under `DD_RUNS_DIR`, or an advisory lock in its database | Lets several app processes share one store. On PostgreSQL each running turn holds one database connection of its own, beside the pool (`DD_POSTGRES_POOL_SIZE`). |
 | Each workbench run | `/var/lib/data-director/workbench-runs/` | Apart from the app's runs. |
 | Model calls | In the run, as `chat` spans with token counts | No key is ever stored. |
 | Problem reports | A public GitHub issue, if a credential is set | Off without a GitHub App (`DD_FEEDBACK_GITHUB_APP_ID` and `DD_FEEDBACK_GITHUB_APP_PRIVATE_KEY_FILE`) or a token (`DD_FEEDBACK_GITHUB_TOKEN`), not both. Either needs Issues: write on one repository and nothing else. |

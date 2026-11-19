@@ -17,9 +17,9 @@
       "principal_kind": "person"
     },
     "agent_id": "advisor.standards",
-    "agent_version": "0.2.0",
+    "agent_version": "0.3.0",
     "completed_at": "2026-01-01T00:00:00Z",
-    "contract_version": "0.9.11",
+    "contract_version": "0.17.0",
     "evidence": [],
     "grounding_mode": "retrieval",
     "input_schema": "c4090a745dec909b44ebf3ff5a3be5b0b23c017b90ab33065cf9603eded44cbc",
@@ -29,8 +29,8 @@
       "statement": "The dataset profile has no title, keywords, themes, media types or temporal fields to search on, so no registry query was possible.",
       "status": "abstained"
     },
-    "policy_bundle_ref": "profile:data-director-app@v8",
-    "policy_digest": "03384ae5eb31b460ce1c6206fa310eea3e4b5b04bad03cc4f0309a24972c6f89",
+    "policy_bundle_ref": "profile:data-director-app@v9",
+    "policy_digest": "108dd28b01741b8cd0a10531f6fb758df13d08f7483afc489352921c558a195b",
     "requires_human_review": true,
     "telemetry": {
       "energy_estimate_j": null,

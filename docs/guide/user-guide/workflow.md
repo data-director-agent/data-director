@@ -20,6 +20,11 @@ Researchers do not always start at the beginning. Say which of the three describ
 
 All three continue through every later phase to the end.
 
+When you create a project, the Data Director first asks a few setup questions that place it
+in this flow. Once you have answered them, it tells you which phase you start at and suggests a
+first step. Select **Start with** that step to begin the conversation there, or **Not now** to
+close the questions and type your own message.
+
 On a first message that names no entry point, the Data Director asks which one you mean, with
 the three entry points as choices beneath its reply. Choose one and select **Send answer**, or
 type your answer instead: "Entry 2", or your situation in your own words ("I have collected my
@@ -93,14 +98,16 @@ schema, vocabularies and validation rules for Phase 4.
 
 ### Phase 5: Deposit and submit
 
-Metadata is validated before submission, while you can still act on what is found.
+Metadata is validated before submission, while you can still act on what is found. Data Director
+builds the deposit package; you then deposit it in the repository yourself, as
+[Depositing your data](depositing.md) explains.
 
 - Validate metadata quality (R4)
 - Assign a licence
 - Link to related research outputs: publication DOIs, ORCID, ROR and grant IDs (R7)
 - Set access restrictions
 - Generate a private peer review link (*optional*)
-- Upload the files
+- Upload the files ([Depositing your data](depositing.md))
 - Review and finalise the submission
 
 ### Phase 6: Post-publication

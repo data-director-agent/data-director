@@ -21,14 +21,16 @@ from dd_harness.testing import (
 )
 from dd_sdk.agent import AgentResult, RunContext
 from dd_sdk.contract.models import (
-    ChoiceAnswer,
     ChoiceOption,
-    ChoiceQuestion,
     Frozen,
     GroundingMode,
     InvocationRequest,
     Message,
+    Question,
+    QuestionAnswer,
+    QuestionKind,
     Reply,
+    ReplyAnswers,
     new_invocation_id,
 )
 
@@ -81,7 +83,7 @@ def test_turns_are_in_order_with_children_nested_and_history_built(tmp_path: Pat
     # The history is valid Message.history, so the next turn can carry it.
     Message(message_text="next", history=history)
 
-    [summary] = conversations.list_conversations(conductor.store)
+    [summary] = conversations.list_conversations(conductor.store, limit=50).items
     assert summary["conversation_id"] == conv
     assert summary["turns"] == 2
     assert summary["agent_id"] == "fake.delegation"
@@ -132,7 +134,7 @@ def test_a_conversation_is_titled_by_its_first_turns_reply(tmp_path: Path) -> No
     later = Message(message_text="And the licence?", history=found["history"])
     conductor.invoke(turn("fake.delegation", conv, later), acting_for=TEST_PRINCIPAL)
 
-    [summary] = conversations.list_conversations(conductor.store)
+    [summary] = conversations.list_conversations(conductor.store, limit=50).items
     assert summary["turns"] == 2
     assert summary["title"] == "Soil survey deposit"
     assert summary["title_source"] == "model"
@@ -156,7 +158,8 @@ def test_without_a_model_title_a_conversation_is_named_by_its_first_message(
     text = "I have interview transcripts from a study of farmers and want to share them openly"
     conductor.invoke(turn("fake.delegation", long, message(text)), acting_for=TEST_PRINCIPAL)
 
-    found = {s["conversation_id"]: s for s in conversations.list_conversations(conductor.store)}
+    listed = conversations.list_conversations(conductor.store, limit=50).items
+    found = {s["conversation_id"]: s for s in listed}
     assert found[short]["title"] == "Which licence should I use?"
     assert found[short]["title_source"] == "message"
     title = found[long]["title"]
@@ -165,28 +168,87 @@ def test_without_a_model_title_a_conversation_is_named_by_its_first_message(
     assert found[long]["title_source"] == "message"
 
 
-QUESTION = ChoiceQuestion(
+@pytest.mark.requirement("DD-CONVERSATION")
+def test_a_turn_that_failed_does_not_name_its_conversation(tmp_path: Path) -> None:
+    """A first message the model could not answer, sent again, names nothing."""
+    answers = iter([False, True])
+
+    def flaky(req: InvocationRequest, ctx: RunContext) -> AgentResult:
+        if not next(answers):
+            raise RuntimeError("the provider did not answer")
+        return relay(req, ctx)
+
+    conductor = make_conductor(
+        tmp_path,
+        ScriptedAgent(GroundingMode.DELEGATION, flaky),
+        ScriptedAgent(GroundingMode.NONE, review_of_input),
+    )
+    conv = new_invocation_id()
+    for text in ("Hello, are you working?", "Which licence should I use?"):
+        conductor.invoke(turn("fake.delegation", conv, message(text)), acting_for=TEST_PRINCIPAL)
+
+    [summary] = conversations.list_conversations(conductor.store, limit=50).items
+    assert summary["title"] == "Which licence should I use?"
+
+
+@pytest.mark.requirement("DD-CONVERSATION")
+def test_a_conversation_whose_every_turn_failed_is_named_by_its_first_message(
+    tmp_path: Path,
+) -> None:
+    def broken(req: InvocationRequest, ctx: RunContext) -> AgentResult:
+        raise RuntimeError("the provider did not answer")
+
+    conductor = make_conductor(tmp_path, ScriptedAgent(GroundingMode.DELEGATION, broken))
+    conv = new_invocation_id()
+    conductor.invoke(
+        turn("fake.delegation", conv, message("Hello, are you working?")),
+        acting_for=TEST_PRINCIPAL,
+    )
+
+    [summary] = conversations.list_conversations(conductor.store, limit=50).items
+    assert summary["title"] == "Hello, are you working?"
+
+
+QUESTION = Question(
+    question_key="repository",
     question_prompt="Which repository will you deposit in?",
+    question_kind=QuestionKind.CHOICE,
     question_options=[
         ChoiceOption(option_value="zenodo", option_label="Zenodo"),
         ChoiceOption(option_value="figshare", option_label="Figshare"),
     ],
     question_other=True,
 )
+TITLE = Question(
+    question_key="title",
+    question_prompt="What is the dataset called?",
+    question_kind=QuestionKind.SHORT_TEXT,
+)
+METHOD = Question(
+    question_key="method",
+    question_prompt="How were the data collected?",
+    question_kind=QuestionKind.LONG_TEXT,
+)
 
 
 def asking(req: InvocationRequest, ctx: RunContext) -> AgentResult:
-    """A reply that asks QUESTION on the first turn only."""
+    """A reply that asks QUESTION, TITLE and METHOD on the first turn only."""
     result = relay(req, ctx)
     assert isinstance(result.payload, Reply) and isinstance(req.input, Message)
-    question = None if req.input.history else QUESTION
+    questions = None if req.input.history else [QUESTION, TITLE, METHOD]
     return dataclasses.replace(
-        result, payload=result.payload.model_copy(update={"reply_question": question})
+        result, payload=result.payload.model_copy(update={"reply_questions": questions})
+    )
+
+
+def _answers(invocation: str, *given: dict[str, object]) -> ReplyAnswers:
+    return ReplyAnswers(
+        answer_to=invocation, given_answers=[QuestionAnswer.model_validate(g) for g in given]
     )
 
 
 @pytest.mark.requirement("DD-CONVERSATION")
-def test_a_question_shows_in_history_and_an_answer_is_checked_against_it(
+def test_questions_show_in_history_and_answers_are_checked_against_them(
     tmp_path: Path,
 ) -> None:
     conductor = make_conductor(
@@ -204,37 +266,53 @@ def test_a_question_shows_in_history_and_an_answer_is_checked_against_it(
     assert (
         "Which repository will you deposit in?\n- Zenodo\n- Figshare\n- or something else" in asked
     )
+    assert TITLE.question_prompt in asked and METHOD.question_prompt in asked
 
-    def problem(**kw: object) -> str | None:
-        answer = ChoiceAnswer.model_validate({"answer_to": first.invocation_id, **kw})
-        return conversations.answer_problem(found, answer)
+    def problem(*given: dict[str, object]) -> str | None:
+        return conversations.answer_problem(found, _answers(first.invocation_id, *given))
 
-    assert problem(answer_values=["zenodo"]) is None
-    assert problem(answer_other="Our institutional repository") is None
-    assert "dryad" in (problem(answer_values=["dryad"]) or "")
-    assert "one answer" in (problem(answer_values=["zenodo", "figshare"]) or "")
-    assert "one answer" in (problem(answer_values=["zenodo"], answer_other="and ours") or "")
-    assert "nothing" in (problem() or "")
-    assert "empty" in (problem(answer_other="  ") or "")
-    stale = ChoiceAnswer(answer_to=new_invocation_id(), answer_values=["zenodo"])
+    def choice(**kw: object) -> dict[str, object]:
+        return {"answered_key": "repository", **kw}
+
+    assert problem(choice(answer_values=["zenodo"])) is None
+    assert problem(choice(answer_words="Our institutional repository")) is None
+    assert "dryad" in (problem(choice(answer_values=["dryad"])) or "")
+    assert "one answer" in (problem(choice(answer_values=["zenodo", "figshare"])) or "")
+    assert "one answer" in (problem(choice(answer_values=["zenodo"], answer_words="ours")) or "")
+    assert "nothing" in (problem(choice()) or "")
+    assert "empty" in (problem(choice(answer_words="  ")) or "")
+    # Text questions take words alone, within their kind's length; any question may be skipped.
+    assert problem({"answered_key": "title", "answer_words": "Bird counts"}) is None
+    assert problem({"answered_key": "method", "answer_words": "By survey.\nTwice."}) is None
+    assert problem({"answered_key": "title", "answer_values": ["zenodo"]}) is not None
+    assert problem({"answered_key": "title"}) is not None
+    assert problem({"answered_key": "title", "answer_words": "a\nb"}) is not None
+    assert problem({"answered_key": "title", "answer_words": "x" * 201}) is not None
+    assert problem({"answered_key": "unasked", "answer_words": "x"}) is not None
+    stale = _answers(new_invocation_id(), choice(answer_values=["zenodo"]))
     assert "latest turn" in (conversations.answer_problem(found, stale) or "")
     assert conversations.answer_problem(None, stale) is not None
 
     # The next turn answers; its reply asks nothing, so nothing can answer it.
-    answer = ChoiceAnswer(answer_to=first.invocation_id, answer_values=["zenodo"])
+    answers = _answers(
+        first.invocation_id,
+        choice(answer_values=["zenodo"]),
+        {"answered_key": "method", "answer_words": "By survey."},
+    )
     second = conductor.invoke(
         turn(
             "fake.delegation",
             conv,
-            Message(message_text="Zenodo", history=found["history"], choice_answer=answer),
+            Message(message_text="Zenodo", history=found["history"], reply_answers=answers),
         ),
         acting_for=TEST_PRINCIPAL,
     )
     found = conversations.get_conversation(conductor.store, conv)
     assert found is not None
-    assert found["turns"][1]["input"]["choice_answer"]["answer_values"] == ["zenodo"]
-    again = ChoiceAnswer(answer_to=second.invocation_id, answer_values=["zenodo"])
-    assert "no choice question" in (conversations.answer_problem(found, again) or "")
+    given = found["turns"][1]["input"]["reply_answers"]["given_answers"]
+    assert [g["answered_key"] for g in given] == ["repository", "method"]
+    again = _answers(second.invocation_id, choice(answer_values=["zenodo"]))
+    assert "no question" in (conversations.answer_problem(found, again) or "")
 
 
 def test_a_question_that_takes_several_answers_accepts_them() -> None:
@@ -247,15 +325,17 @@ def test_a_question_that_takes_several_answers_accepts_them() -> None:
                 "envelope": {
                     "payload": {
                         "schema_class": "Reply",
-                        "reply_question": several.model_dump(mode="json"),
+                        "reply_questions": [several.model_dump(mode="json")],
                     }
                 },
             }
         ]
     }
-    both = ChoiceAnswer(answer_to=invocation, answer_values=["zenodo", "figshare"])
-    assert conversations.answer_problem(found, both) is None
-    twice = ChoiceAnswer(answer_to=invocation, answer_values=["zenodo", "zenodo"])
-    assert conversations.answer_problem(found, twice) == "an option is chosen more than once"
-    other = ChoiceAnswer(answer_to=invocation, answer_other="ours")
-    assert conversations.answer_problem(found, other) == "the question takes only its options"
+
+    def problem(**kw: object) -> str | None:
+        given = {"answered_key": "repository", **kw}
+        return conversations.answer_problem(found, _answers(invocation, given))
+
+    assert problem(answer_values=["zenodo", "figshare"]) is None
+    assert "more than once" in (problem(answer_values=["zenodo", "zenodo"]) or "")
+    assert "only its options" in (problem(answer_words="ours") or "")

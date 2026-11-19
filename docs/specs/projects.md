@@ -8,7 +8,8 @@ deposit package is built from what was approved ([Deposit](deposit.md)). Every s
 first works on the same dataset, so the project is a record of its own that outlives any one
 conversation. A conversation belongs to exactly one project, and a project may have many. A
 conversation is in a project when it is started from that project. One started from no project is
-in none, which the app still allows, TODO(#160).
+in none, which the app still allows, TODO(#160). The app's shell starts every conversation from a
+project, which a researcher creates on purpose from the Projects page ([The app](app.md), rule 27).
 
 A project holds four things:
 
@@ -23,27 +24,33 @@ The harness keeps the project as an append-only log of events, each saying what 
 it acted for and what caused it. The run store is separate and unchanged: conversations are still
 derived from it ([Orchestration](orchestration.md)), and the project is not. The log's events and
 how they are stored are the harness's format, described in
-[`harness/docs/projects.md`](../../harness/docs/projects.md). The inventory command is described
+[`harness/docs/projects.md`](../../harness/docs/projects.md); how each event is read into the
+project's PROV-O history is in [Provenance](provenance.md). The inventory command is described
 in [`inventory/README.md`](../../inventory/README.md).
 
 Out of scope: research data files, which are never uploaded or read by the platform; actions on
 anything outside the project, which no agent performs; a steward's route into a project, which is
 an escalation and a deployment role, not membership, TODO(#372).
 
-What is built: the project log with its creation (with an optional title), inventory, repository
-choice and conversation-start events, and a summary of each project, reached through the
+What is built: the project log with its creation (with an optional title), renaming (invariant
+20), deletion and restoration (invariants 22 to 25), inventory, repository choice and conversation-start events, and a summary of each project, reached through the
 `dd-harness project` command; the conductor taking a run's project from its conversation, giving
 an agent the project's facts and recording its draft; document versions and a person's decision on each,
 which the app shows and takes at `/projects/{project_id}`; a person's answers to a draft's
 questions, taken on the draft's card in the conversation and given to the next draft
 ([Drafting documents](drafting.md)); the app's list of a person's projects
-at `/projects` (`GET /api/projects`), which leaves out a project with nothing in it yet; the
+at `/projects` (`GET /api/projects`), the one created last first and a page at a time, which
+leaves out a project the app started for a conversation while it has nothing in it yet, lists one
+a person created with **New project** (`POST /api/projects`) from the start, and finds the
+person's projects from an index
+(docs/specs/storage.md, "Listing"); the
 access check `dd_harness.project_access`, which reads each principal's role from the log, and its
 use by the conductor before a run in a project and by every route of the app's server under
 `/api/projects/{project_id}`, with the creator as the only owner until membership is built,
 TODO(#389); the app
 starting each conversation in a project of its own and adding an inventory attached to a turn;
-the inventory command; and the core
+researcher facts a person keeps from their own public ORCID record, given to the project's
+agents (invariant 27); the inventory command; and the core
 classes `FileInventory`, `InventorySummary` and `Document`. All of the log is kept by `dd_harness.projects`. The rest of this spec is the
 intended design, and each part says where it is not built yet.
 
@@ -60,15 +67,18 @@ intended design, and each part says where it is not built yet.
    the call returns; a read of the log never sees part of an append. A checked change runs in an
    exclusive section for its project, so a change in one project never waits on another
    ([Storage](storage.md), invariants 10 and 11). Enforced in part by
-   `harness/tests/test_projects.py` and the storage conformance kit; in the file backend the
-   section holds within one harness process only (`ProjectStore._lock`).
+   `harness/tests/test_projects.py` and the storage conformance kit. In the file backend the
+   section holds within one harness process only (`FileProjectLog.section`); in the PostgreSQL
+   backend it holds across processes and hosts (`PostgresProjectLog.section`,
+   `harness/tests/test_postgres.py`).
 3. **What the store refuses leaves no trace.** An inventory that fails the `FileInventory` class
    schema, or a call on an unknown project, records nothing and keeps no blob
    (`harness/tests/test_projects.py`).
 4. **Every event names the principal it acted for and what caused it.** An event caused by a run
    names the run's `invocation_id`, as a draft's `document_version_added` does
    (`harness/tests/test_project_runs.py`); others name the command a person ran or the request.
-5. **The latest counts.** The project's inventory is the one added last; its repository is the one
+5. **The latest counts.** The project's inventory is the one added last, whether it was made of one
+   folder or of several (`inventory_parts`); its repository is the one
    chosen last; its metadata record is the version of a `metadata_record` document a person
    approved last, and a version proposed or rejected since does not displace it. Earlier ones stay
    in the log (`harness/tests/test_projects.py`, `dd_harness.testing.storage`).
@@ -79,8 +89,9 @@ intended design, and each part says where it is not built yet.
    project store, and refers to a data file by path and digest. An inventory's stored digest is
    already its `dd-input-json-v1` input hash. Today the conductor fills three core classes
    (`dd_harness.project_facts`, `harness/tests/test_project_runs.py`). In a project, a
-   `DraftRequest`'s `inventory`, `requirements`, `metadata_record` and `draft_answers` are the project's,
-   replacing what the caller sent, and a slot the project has no value for is removed. The
+   `DraftRequest`'s `inventory`, `requirements`, `metadata_record`, `draft_answers` and
+   `researchers` are the project's, replacing what the caller sent, and a slot the project has no
+   value for is removed. The
    metadata record is given with the version it is, its media type, its schema and its text, so a
    drafter can treat it as supplied ([Drafting documents](drafting.md), invariant 2). Its
    `draft_answers` are the latest answer a person recorded to each question of the project's
@@ -98,26 +109,63 @@ intended design, and each part says where it is not built yet.
    rather than a new document. A caller may name the document with `redraft_document` where the
    project holds more than one of the kind; one that is not the project's, or is of another kind,
    fails the run with problem `revision-refused` before the agent is called, and outside a
-   project it is removed (`ProjectStore.current_version`). Filling any other class is not built
-   yet.
+   project it is removed (`ProjectStore.current_version`). A `Message`'s `project_researchers` and
+   a `DraftRequest`'s `researchers` are the researcher facts the project holds (invariant 27); a
+   `Message`'s are removed outside a project, so a caller can never claim them. A `Message`'s and
+   a `DraftRequest`'s `project_decisions` are the facts people in the project decided
+   (invariant 28), the last decision on each kind and subject, without anyone's words about why;
+   what an agent only proposed is never given, and a `Message`'s are removed outside a project.
+   A `Message`'s `project_repository` is the repository a researcher chose last, by its name and
+   re3data identifier, and is removed outside a project and until one is chosen, so a caller can
+   never claim one ([Orchestration](orchestration.md), invariant 21). A `DraftRequest`'s `project_documents` are the documents a researcher attached, each with its
+   text, replacing what the caller sent. An agent's own input class asks for the same by mixing
+   in `GivenProjectDocuments` (`project_documents`), `GivenProjectDecisions`
+   (`project_decisions`) or `GivenProjectRepository` (`project_repository`): where the accepted schema on the agent's card declares the slot, the
+   conductor fills it as it fills a `DraftRequest`'s, by slot name and never by the class's name,
+   and outside a project what the caller sent is kept, as for a `DraftRequest`
+   (`dd_harness.project_facts.agent_slots`, `harness/tests/test_project_agent_inputs.py`,
+   `harness/tests/test_project_repository_given.py`). `advisor.dmp` reads decided facts this way;
+   `advisor.repository` mandates each decided required repository and describes the chosen one
+   when asked nothing else, `advisor.rights` takes a decided licence as the mandated licence and a
+   decision to withhold or generalise as saying the data are sensitive, and `advisor.policy` looks
+   up each decided funder's policy. Each takes a person's decision over what its caller wrote
+   (each agent's `given.py`).
+   Filling any other class is not built yet.
 7. **The conductor fills `project_id`.** The request and the envelope carry an optional
    `project_id`, which the conductor takes from the conversation and a caller cannot set. A
    conversation started from a project is a `conversation_started` event of its log, so the
    harness can say which project a conversation is in after a restart (`ProjectStore.project_of`,
    `harness/tests/test_projects.py`). A delegated child takes its parent's project from the
    grant. The agent is never sent `project_id` (`harness/tests/test_project_runs.py`).
-8. **Only `inventory` goes to a hosted model by default.** Project content is of two classes,
-   `inventory` and `documentation` (uploaded text, and any document version given back to an
-   agent). The profile lists the classes that may be given to an agent whose card declares a
-   `hosted` model; where it does not say, only `inventory` may. The conductor refuses anything
+8. **Only `inventory` and `decisions` go to a hosted model by default.** Project content is of
+   four classes: `inventory`, `documentation` (uploaded text, and any document version given
+   back to an agent), `researcher` (the facts researchers kept from their ORCID records,
+   invariant 27) and `decisions` (the facts people decided, invariant 28, which hold structured
+   values and never anyone's words). The profile lists the classes that may be given to an agent
+   whose card declares a `hosted` model; where it does not say, `inventory` and `decisions` may. The conductor refuses anything
    else before it is sent, with a Problem Details response, and records the refusal. The key is
    `hosted_models` (`dd_harness.policy`). A `DraftRequest`'s inventory, a plain `FileInventory`
    and a `Message`'s `project_inventory` are `inventory`; a metadata record, the version a
-   drafter regenerates and a person's answers are `documentation`; a repository's requirements
-   are neither (`dd_harness.project_facts.given`). The conductor checks after the input check: a
-   run it refuses fails with problem `project-content-withheld` and is stored, and the agent is
-   not called (`harness/tests/test_project_runs.py`). What a caller sends outside a project is
-   not the project's, and the key does not apply to it.
+   drafter regenerates, a person's answers and the `project_documents` of a `DraftRequest` or an agent's own class are
+   `documentation`; a `Message`'s `project_researchers` and a `DraftRequest`'s `researchers` are
+   `researcher`; the `project_decisions` of any of these, and the `project_repository` of a
+   `Message` or an agent's own class, a researcher's choice, are `decisions`; a repository's
+   requirements are none of these (`dd_harness.project_facts.given`). The conductor checks after the input
+   check: a run it refuses fails with problem `project-content-withheld` and is stored, and the
+   agent is not called (`harness/tests/test_project_runs.py`). Researcher facts are the
+   exception: they add to what an agent is given and no agent needs them, so where the profile
+   keeps `researcher` from an agent the conductor leaves them out of its input, before it is
+   hashed, and the run goes ahead, so a conversation with a hosted orchestrator does not stop
+   because someone kept facts (`dd_harness.project_facts.leave_out`). A `Message`'s decided facts
+   and chosen repository are left out the same way, since an orchestrator drafts nothing, and so are a
+   `DraftRequest`'s or an agent's own class's attached documents, from which a drafter only
+   suggests answers and a checker only proposes facts, so a run does not stop because someone
+   attached notes. What remains is classed again, so a metadata
+   record withheld still refuses the run. A `DraftRequest`'s decided facts are not left out: a
+   drafter given none would draft as if nothing had been decided, listing a file a person
+   excluded, so a profile that keeps `decisions` from a drafter refuses its runs once the project
+   holds any. What a caller sends outside a project is not the project's, and the key does not
+   apply to it.
 9. **Only a `Document` payload of a succeeded run becomes a project document.** When a run that
    belongs to a project succeeds with a `Document` payload, the conductor records it as a new
    version. A run that does not succeed adds no version, whatever it returned. Another payload
@@ -166,17 +214,179 @@ intended design, and each part says where it is not built yet.
     `harness/tests/test_project_runs.py`) and the app's `in_project` route guard
     (`app/tests/test_app.py`); until membership is built the creator is the only one with a role,
     TODO(#389).
-18. **No principal's identifier or name enters an agent's input.** A conversation's history marks
-    each turn's speaker with a label pseudonymous within the project, such as "Member 1", stable
-    across its conversations. Not built yet, TODO(#390).
+18. **No principal's identifier or name enters an agent's input**, except the researcher facts a
+    person chose to keep for the record (invariant 27). A conversation's history marks each
+    turn's speaker with a label pseudonymous within the project, such as "Member 1", stable
+    across its conversations. Not built yet, TODO(#390). The researcher facts are not a speaker's
+    identity: they are what a researcher supplies for the record, as they would type their name
+    into a draft, and an agent is not told which of them, if any, it acts for.
 19. **Leaving or removal takes effect from that event.** Earlier turns, runs, versions and
     decisions keep their attribution, and a run already going finishes. Not built yet,
     TODO(#389).
+20. **The intake's answers are events of the log, and a skip derived from one is the weakest
+    word.** The harness writes them through two methods ([Orchestration](orchestration.md),
+    invariant 20):
+    - `ProjectStore.answer_intake` checks an answer against its question by the rules `answer_problem` applies
+      to a turn's answer, with no turn involved.
+      An answer to `intake.entry` is an `entry_chosen` event, the same as the phase tracker's. Any
+      other answer is an `intake_answered` event, `{question_id, answer_values}`.
+    - `ProjectStore.dismiss_intake` writes `intake_dismissed`.
+
+    A third kind of event holds what an orchestrator's model read in the researcher's words: the
+    conductor writes each of a succeeded `Reply`'s `intake_suggestions` as an `intake_suggested`
+    event, `{question_id, answer_values}`, caused by the run, checked against its question as an
+    answer is ([Orchestration](orchestration.md), invariant 8). It records nothing for a question
+    the researcher has already answered, and the latest suggestion for a question counts. A
+    suggestion is not an answer: it marks no step, it leaves its question unanswered, and
+    `ProjectStore.intake` reads it beside the current answer (`suggested_values`) only so that the
+    card can show it chosen. Whether the entry point is the researcher's or a model's is read from
+    the `entry_chosen` event's `entry_source`; a model's leaves the entry question to be confirmed.
+    None of this is built yet, TODO(#908).
+
+    An answer that fails the check records nothing (rule 3). For each question the latest answer
+    counts (rule 5), and an answer recorded after a dismissal opens the intake again. A step's state
+    is derived from the log (`dd_harness.progress`), with the strongest source first:
+    1. work the log shows;
+    2. the researcher's own `step_marked`;
+    3. a skip implied by an intake answer.
+
+    So answering again replaces the skips the earlier answer implied. Marking a step open from the tracker
+    overrides the intake without changing the answer. `dd_harness.intake.next_question` derives
+    which question comes next in the same way, and none is stored; `ProjectStore.intake` reads the
+    questions with their current answers for the app's card. Any entry point recorded,
+    the researcher's or one a model worked out, places the project and decides which questions
+    are asked; only the researcher's answers the entry question, so a model's is asked again for
+    them to confirm (TODO(#908); today a model's answers it too). An answer marks
+    steps skipped only while the entry point is one its question is asked from. The project
+    summary says whether the intake is `pending`, `complete` or `dismissed`.
+    (`harness/tests/test_project_intake.py`; `harness/tests/test_progress.py`)
+21. **A person's name for a project outranks a model's.** A project's title is the latest given,
+    at creation or by a `project_renamed` event, which says whether a person (`researcher`) or an
+    orchestrator's model (`model`) gave it; a title given at creation is a person's. A member
+    renames a project from its page (`PUT /api/projects/{project_id}/title`, `CONTRIBUTE`). While
+    no person has named it, an orchestrator's model may: the conductor tells a `Message` the
+    project's title and whether a person gave it (`project_title`,
+    `project_title_by_researcher`), and records a succeeded `Reply`'s `new_project_title` as a
+    rename caused by the run. Once a person has named the project, the store refuses a model's
+    title and records nothing, so the model is no longer offered the tool. A title is one line of
+    at most 200 characters, and a blank one is refused (`ProjectStore.rename`,
+    `dd_harness.testing.storage`, `harness/tests/test_project_runs.py`,
+    `app/tests/test_project_title.py`). The title is neither `inventory` nor `documentation`
+    (invariant 8): it is what the researcher typed, or what a model wrote from the conversation it
+    was already sent.
+22. **Deleting a project is an event, not a removal.** An owner deletes a project by appending
+    `project_deleted` and restores it by appending `project_restored`. Each names the principal and
+    the cause (invariant 4). No event is changed or removed (invariant 2), and a project is deleted
+    when the last of these two events in its log is a deletion (`ProjectStore.delete`, `restore`,
+    `dd_harness.projects.deletion`; `dd-harness project delete` and `restore`;
+    `DELETE /api/projects/{project_id}`, `POST /api/projects/{project_id}/restore`, both `MANAGE`;
+    `dd_harness.testing.storage`, `app/tests/test_project_deletion.py`).
+23. **A deleted project is hidden from everyone but its owners.** It leaves every list, and so do
+    its conversations, runs, inventories, documents and decisions, which follow the project
+    (invariant 17). A non-member, and a member who is not an owner, are refused with status 404,
+    so that a refusal does not reveal that the project exists. An owner finds it only under
+    "recently deleted", with the date, the person who deleted it and the time left to restore it
+    (`project_access.role_of`, `readable_projects`, `deleted_projects`;
+    `GET /api/projects/deleted`; `harness/tests/test_project_access.py`,
+    `app/tests/test_project_deletion.py`).
+24. **A deleted project takes no new work.** Starting or continuing a conversation, adding an
+    inventory or documentation, deciding or editing a version, building a package and renaming are
+    refused with status 409 until the project is restored. A run already going finishes and is
+    recorded, as invariant 19 says of a member who leaves: the store refuses every change to a
+    deleted project with `ProjectDeletedError` except recording a run's draft, the conductor
+    refuses a new run in one, and the app answers `409` with a `project-deleted` problem
+    (`harness/tests/test_project_runs.py`, `app/tests/test_project_deletion.py`).
+25. **An owner can restore a project for a period the deployment sets.** The period runs from the
+    deletion and is 30 days unless the deployment says otherwise; zero makes a deletion final to
+    the app (`DD_PROJECT_RESTORE_DAYS`, whole days; a project's summary gives it as
+    `restore_days`). Within it, restoring appends one event and changes nothing else, so the
+    project is as it was. After it, the app does not restore the project and does not remove it
+    either: nothing in the app removes a project's content, TODO(#156).
+26. **Deleting hides and does not erase.** A deleted project's log, blobs and runs stay in the
+    record, so deleting one does not meet a person's request for their data to be erased. Nor does
+    it recall a package already built or downloaded, or a deposit already made; each holds its own
+    copy of the log ([Deposit](deposit.md)). What erasure removes, and what it leaves of the
+    provenance that P5 requires, is TODO(#156).
+27. **Researcher facts are what a person chose from their own public ORCID record, in ORCID's
+    words.** A person signed in with ORCID may read their public record from ORCID's public API
+    and keep, in a project, the sections and items they tick: name, other names, biography,
+    keywords, country, web pages, other identifiers, and affiliations, works and fundings item by
+    item (`dd_harness.orcid`). Nothing is read until they ask, only their own iD is read, and an
+    email address is never taken, even a public one (C2). The app sends a choice, never the
+    facts: the server reads the record again and keeps only what it holds, so a project never
+    holds a fact a person or a model wrote in ORCID's name. At most 50 works, the most recent, are
+    offered. The store keeps the chosen `ResearcherRecord` as a `researcher_added` event naming
+    the iD, when the record was read and the record's digest, with the record as a blob; a person
+    keeps only their own record, keeping again replaces it, and a `researcher_withdrawn` event
+    stops it being given to agents (`ProjectStore.add_researcher`, `withdraw_researcher`,
+    `researchers`). Like every event, what was kept stays in the log (invariant 2). Every run in
+    the project is given the records that stand, whoever it acts for (invariant 6). A member
+    keeps and withdraws their own from the project's page (`GET /api/researcher/orcid`,
+    `PUT` and `DELETE /api/projects/{project_id}/researchers/me`, `CONTRIBUTE`;
+    `GET /api/projects/{project_id}/researchers`, `READ`) (`harness/tests/test_orcid.py`,
+    `dd_harness.testing.storage`, `harness/tests/test_project_runs.py`,
+    `app/tests/test_researcher_facts.py`).
+28. **A fact about a project is what a person decided, never what an agent proposed.** A check
+    agent may propose facts in its payload (`ProjectFact`, [Contract](contract.md), invariant
+    25): a funder, a repository a funder, journal or institution requires, whether a file is
+    deposited (`include`, `exclude`, or `undecided`, which a person must decide before deposit),
+    whether a sensitive field or file may be published (`publish` or `generalise`, at a
+    precision, `withhold`, or `undecided`), the licence, or a sharing commitment a data
+    management plan makes (`sharing_commitment`: the output, where, how openly and under what
+    licence, with the plan's own words in `commitment_quote` and the digest of the attached
+    document's text that holds them in `commitment_document`, both required). A succeeded run's proposals are
+    `fact_proposed` events, one each, caused by the run and naming its agent, from a payload of
+    any class (`dd_harness.project_effects`); they are checked before anything is written and
+    recorded only once the run's draft is kept, so a run that fails leaves none. A person decides each as a `fact_decided` event:
+    `confirmed` takes the proposal as it is, `changed` takes the person's own value for its kind
+    and subject, and `rejected` removes it; a person may also state a fact nobody proposed. A
+    decision on a proposal the project does not hold (`proposal-not-found`), on one that a later
+    proposal or decision on its kind and subject has followed (`proposal-superseded`), so that
+    nobody overwrites what someone decided since they looked, or a changed fact of another kind or
+    subject (`fact-not-proposed`), is refused and the refusal recorded
+    (invariant 12). The fact that stands is the last decision on its kind and subject
+    (`ProjectStore.propose_facts`, `decide_fact`, `decisions`, `proposals`), and the conductor
+    gives it to every drafter and orchestrator in the project (invariant 6). A member decides
+    funders, required repositories and which files go in; whether sensitive data may be
+    published, and the licence, have legal consequences, so only an owner decides them. A person
+    decides on the project page's **Project facts** panel (`FactsPanel.tsx`), which shows each
+    proposal with why it was proposed and lets them confirm, change or reject it, change or remove
+    a fact that stands, or state one nobody proposed
+    (`GET /api/projects/{project_id}/facts`, `READ`; `POST …/facts/decisions`, `CONTRIBUTE`, or
+    `DECIDE` for `sensitivity` and `licence`). A sharing commitment is shown with the plan's words
+    and is only proposed, never stated, since it quotes the plan; the DMP Checker compares only
+    those a person decided ([Agents](agents.md)) (`dd_harness.testing.storage`,
+    `harness/tests/test_project_decisions.py`, `app/tests/test_project_facts.py`,
+    `app/web/src/components/project/FactsPanel.test.tsx`).
+29. **Deleting a conversation is an event in its project's log, not a removal.** A conversation
+    started in a project is deleted by appending `conversation_deleted` and restored by appending
+    `conversation_restored`, each naming the conversation, the principal and the cause
+    (invariant 4); it is deleted when the last of these two for it is a deletion. A deleted
+    conversation leaves every list, its runs with it, and its project's conversation count; it is
+    answered as missing (status 404) and takes no new turn. Deleting one already deleted is
+    refused with status 409, and a conversation in a deleted project is not changed (invariant
+    24). Its turns and runs stay in the run store, which is written once ([Storage](storage.md),
+    invariant 2), so deleting does not meet a request for erasure, TODO(#156)
+    (`dd_harness.projects.conversations`, `ProjectStore.delete_conversation`,
+    `restore_conversation`, `deleted_conversations`; `dd_harness.listing.Readable`,
+    `hidden_conversations`; `DELETE /api/conversations/{id}`,
+    `POST /api/conversations/{id}/restore`, `GET /api/conversations/deleted`;
+    `harness/tests/test_project_conversations.py`, `dd_harness.testing.storage`,
+    `app/tests/test_conversation_deletion.py`).
+30. **Whoever started a conversation may delete it, and so may an owner.** The person who started
+    it may delete and restore it while they may contribute to the project, and an owner may
+    delete or restore any of the project's conversations (`MANAGE`). Someone who may read it but
+    neither is refused with status 403; someone who may not read it, or may not restore a deleted
+    one, with 404, so that a refusal does not reveal it (`project_access.may_delete_conversation`).
+31. **A conversation can be restored for the period a project can.** The period is the
+    deployment's restore period (invariant 25), from the conversation's deletion. Within it,
+    restoring appends one event and changes nothing else, so the conversation is as it was; after
+    it, the app neither restores nor removes it, TODO(#156).
 
 ## Boundaries and contracts
 
-**The core contract** ([Contract](contract.md)) holds `FileInventory`, `InventorySummary`, `Document`, `DocumentKind`, `DraftRequest`
-and the version reference, because the conductor, the app and the package builder must read them
+**The core contract** ([Contract](contract.md)) holds `FileInventory` (with `InventoryPart`), `InventorySummary`, `Document`, `DocumentKind`, `DraftRequest`,
+`ResearcherRecord` and the version reference, because the conductor, the app and the package builder must read them
 from any agent without knowing the agent. A document's content is always text with a media type;
 a metadata record is serialised, and `conforms_to` names the schema it follows. Checking a record
 against that schema is validation's work ([Deposit](deposit.md)), not the contract's. What an agent
@@ -194,8 +404,10 @@ project, using the invocation's `acting_for`, and the app's server makes it for 
 with the principal from its authenticator. It shows the state it reads back from the log, never a
 state it inferred, and holds no policy. The phase tracker shows where the project is in the
 process flow, which the harness derives from the log: the researcher's entry point
-(`entry_chosen`) and their marks on steps (`step_marked`: done, skipped, or open again) are
-events of the log, written through the app's server like a decision ([Orchestration](orchestration.md),
+(`entry_chosen`, or the one an orchestrator's model worked out from what they said until they
+choose one, `entry_source` `model`), their marks on steps (`step_marked`: done, skipped, or open again) and their
+intake answers (`intake_answered`, `intake_dismissed`, rule 20) are events of the log, written
+through the app's server like a decision ([Orchestration](orchestration.md),
 invariant 18). The right panel and status bar are drawn for a project but have no record behind
 them yet, TODO(#160). The app works in one project at a
 time: each conversation it starts is started in the active project, or in a new one when none is
@@ -205,25 +417,108 @@ caused by the turn's request; an inventory the store refuses refuses the turn, a
 Before it is attached, the researcher sees all of it and may leave out files, folders and
 columns; what is left out never reaches the store, and the inventory's limitations count it
 without naming it, so the store needs no rule of its own for it.
-Adding documentation from the app
-is TODO(#395); a page for a project's members, and keeping what a person typed when a turn or edit is
+The researcher may also state, beside the facts the command found, what the command cannot know:
+what a file or a column is (`file_description`, `field_description`), what part a file plays
+(`file_role`: data, documentation, code or other), and which format a file is where the command
+matched several formats, guessed from the name, or matched none (`file_identified_by`
+`researcher`). What the command observed (a file's path, size, digest and PRONOM matches, a
+column's name and type) is never edited, so a digest always describes the bytes it was made from.
+What the researcher states is shown to agents and hosted models as the rest of the inventory is.
+Editing is one model in `@data-director/inventory` (`edit`, `applyEdits`), the same before an
+inventory is attached and when a project's inventory is revised.
+
+A revision is a whole new `inventory_added` event: the project's latest inventory is the one it
+holds, and the earlier ones stay in the log. When the project already holds one, the store
+records the digest it replaces as `revises`, which no caller can give. A researcher may revise
+the inventory the project holds, or update it with a new scan, onto which what they stated is
+carried by path (`carryOver`); a format they chose carries over only to a file whose digest is
+unchanged. What was left out of the earlier inventory cannot carry over, since it was never kept:
+a new scan lists it again, the editor marks every file new in the scan, and the researcher
+leaves it out again.
+
+**An inventory of several folders.** A dataset is not always under one folder on one machine:
+part may be on a lab server, part on an instrument's computer, part with a colleague. The
+project still holds one inventory, made of **parts** (`inventory_parts`): each part is one scan
+of one folder, mounted at a folder name (`part_folder`), with its own tool, version, time and
+limitations. Every file's path begins with its part's folder, no folder is another's or lies
+inside another's, and the store refuses an inventory that breaks either rule
+(`inventory_part_problems`), recording nothing. An inventory without parts is one scan of one
+folder, as every inventory was before parts. The top-level `inventory_made_at`, `inventory_tool`
+and `inventory_tool_version` are the latest part's, and `inventory_limitations` holds those that
+concern no one part (such as how much a folder left out whole held), then every part's, each
+after `In <folder>: `, so a reader that knows nothing of parts reads the inventory as before.
+What a researcher leaves out of a part is counted with that part, so the count stays when another
+folder is updated.
+
+A researcher **updates** a folder by scanning it again, which replaces that part whole and keeps
+the others as they were, or **adds** a folder with a scan of a folder the inventory does not
+have. Either is a whole new inventory, with `revises`, carried over as above; only the scanned
+part's files can be new, changed or gone. A part is never merged file by file. The first time a
+folder is added to an inventory without parts, the researcher names the folder it already has,
+and its paths, and what they stated about them, move under that name. `dd-inventory` given
+several folders makes an inventory of one part per folder. Replacing the whole inventory with
+another remains possible.
+A page for a project's members, and keeping what a person typed when a turn or edit is
 refused as stale, are TODO(#391).
 
 **The inventory command** `dd-inventory` is a workspace member of its own that depends on no other
 member, not even the contract ([System and boundaries](system.md)); its tests check its output
 against the `FileInventory` schema. It runs where the data live. An app installed on the
 researcher's own machine may run the same code on a folder, read only and only under folders the
-deployment lists; the shared deployment lists none. A scanner in the browser that sends only the
-inventory is TODO(#367): it is the same code run under Pyodide, and its inventory's
-`inventory_tool_version` carries a local version label naming the runtime, such as
-`0.1.0a3+pyodide.314.0.7`, while the command's has none.
+deployment lists; the shared deployment lists none. The list is `DD_INVENTORY_FOLDERS`, absolute
+paths separated by the system's path separator, and an app given it that listens beyond loopback
+does not start (`dd_app.folder_scan`). The researcher opens a listed folder and steps into its
+subfolders, which are named and never their files; a path that resolves outside the folder, through
+`..` or a link, is refused, and the command follows no link within it. Describing records nothing:
+the inventory goes through the researcher's check, as every route to one does
+(`app/tests/test_folder_scan.py`). The app's **Describe a folder…** is a
+scanner in the browser that sends only the inventory ([The app](app.md)): it is the same code run
+under Pyodide, and its inventory's `inventory_tool_version` carries a local version label naming
+the runtime, such as `0.1.0a4+pyodide.314.0.8`, while the command's has none. It is offered where
+the deployment serves its bundle, as the release image and the VM deploy do.
 
-**Documentation** may be added as text, within a size limit and from a list of media types, and
-the profile can refuse it altogether. The app cannot tell documentation from data, so the upload
-form and the user guide state the rule. Adding documentation is not built yet, TODO(#395).
+**Documentation** may be added as text, within a size limit and from a list of media types. A
+turn of the app may attach one document, plain text or Markdown of at most 256 KB under a file
+name with no folder, which the store keeps as a `documentation_added` event naming its name,
+media type, size and the SHA-256 of its UTF-8 text, under which the text is kept as a blob
+(`ProjectStore.add_documentation`). A turn may instead attach a Word document (`.docx`) or a
+PDF with a text layer, of at most 1 MB (`SOURCE_MAX_BYTES`, what a request through the
+deployment's proxy carries once encoded): the store reads its text inside the deployment
+(`dd_harness.projects.extract`, with `pypdf` and `python-docx`) and keeps it as a plain-text
+document, under the same limits, with the file as a blob beside it; the event names the file's
+media type, size and SHA-256 too, the document's `DocumentationSummary` gives
+`documentation_source_media_type`, and `ProjectStore.documentation_source` returns the file
+(`ProjectStore.add_document_file`, `harness/tests/test_document_files.py`). An encrypted or
+damaged file, a scanned PDF with no text layer (no text is recognised in images) and one whose
+text is blank or too long are refused. The text read from a file is `documentation`, so
+`hosted_models` decides whether it reaches a hosted model, as for one attached as text. Citing
+an attached document as evidence of its own is TODO(#1181), and recording its reading as an agent
+action TODO(#1182). A document the store refuses leaves no trace, and a turn
+that attaches an inventory too adds neither when either is refused. A `Message`'s
+`project_documentation` lists each document the project holds by name, digest, media type, size
+and when it was added, without its text, so that an orchestrator knows it is there; outside a
+project, or in one that holds none, it is removed, so a caller can never claim one. The list
+holds no text, so it is neither `inventory` nor `documentation`, and a hosted orchestrator is
+given it under the default `hosted_models`. A `DraftRequest`'s `project_documents` give each
+document with its text, so that a drafter's model may suggest answers to the draft's questions
+from it ([Drafting documents](drafting.md)). The text is `documentation`; where the profile
+keeps that class from a drafter's hosted model, the documents are left out and the draft still
+runs, as researcher facts are, while a metadata record, version or answers withheld still refuse
+it (`harness/tests/test_project_runs.py`, `dd_harness.testing.storage`). The app cannot tell
+documentation from data, so the attach form and the user guide state the rule, and the app
+checks the text for possible personal data and secrets first, holding a document until the
+researcher confirms what was found ([Personal data and disclosure control](personal-data.md),
+#473). A profile may refuse attached documents altogether with `attached_documents: refused` (the
+default is `allowed`; [Policy and identity](policy-and-identity.md)). Then a way in refuses a
+request that attaches one before keeping anything (`dd_harness.policy.check_attached_document`),
+the app's agent directory says so and the shell takes only an inventory, and the conductor gives no
+agent any document the project already holds: neither a `Message`'s `project_documentation` nor a
+`DraftRequest`'s `project_documents` (`harness/tests/test_project_runs.py`,
+`app/tests/test_project_materials.py`).
 
 **Agents** propose; they do not write. The only proposed change is a document version, returned as
-a `Document` payload. No agent writes anywhere or holds credentials to. A general proposed action
+a `Document` payload; a check agent's proposed facts (invariant 28) are about the project, not a
+change to anything, and become facts only when a person decides them. No agent writes anywhere or holds credentials to. A general proposed action
 for a change outside the project waits for the first agent that needs one, TODO(#72). A drafted
 version may also carry questions to the researcher, which the log keeps with the version. A
 person's answers are project log events that the conductor puts into the next `DraftRequest`
@@ -246,12 +541,26 @@ TODO(#16, #72).
 | leave the project | yes | unless the last owner |
 | approve or reject a document version | no | yes |
 | add or remove a member, or change a role | no | yes |
+| delete the project, or restore a deleted one | no | yes |
 
 A member is added by the principal identifier they sign in with (an ORCID iD for ORCID sign-in);
 they need not have signed in before. Whether an added person must accept first, and how they are
 told, are TODO(#388, #378). Each turn of a shared conversation acts for the member who sent it,
 and a delegated child for that turn's principal. A run outside any project belongs to the
 principal it acted for alone ([App](app.md), rule 24).
+
+**Deletion and retention.** Deleting and restoring are the `MANAGE` action, an owner's alone
+(`dd_harness.project_access`). The app asks the owner to type the project's name before it deletes,
+and says what stays behind: the record is kept, a package already built is not recalled, and the
+project can be restored until a date it names. The confirmation is there because the loss of access
+is immediate (C13 blocks an irreversible action without one; this one is reversible for the period,
+and the confirmation guards the owner's own mistakes and not only the agents'). A deployment sets
+the restore period; it does not set how long the record itself is kept. That decision is the
+hosting institution's, and needs the advice of its data protection officer, TODO(#156).
+
+A member may withdraw documentation they added, before any version of it is decided; a decided
+version is final (invariant 11). Withdrawing is an event, as deleting is. Not built yet,
+TODO(#156).
 
 **Audit.** The project log is the audit trail of the project: versions name the run that drafted
 them (whose grounding, evidence and trace are in the run store) or the person who edited them;
@@ -281,6 +590,29 @@ store, and writes to neither ([Disclosure](disclosure.md)).
   goes into the package, and every document in it names who approved it and when.
 - **Shared projects**, because research data are rarely managed by one person, and colleagues must
   see the same inventory, documents, decisions and conversations.
+- **One inventory per project, made of parts.** A project builds one deposit package, so it needs
+  one account of its files: one set of paths for agents, one input hash for what they saw, and
+  one list to check the package's limits against. The data, though, are often in more than one
+  place and the inventory command runs only where they are, so a scan of each folder is a part
+  of the one inventory, updated on its own by whoever holds that folder.
+- **Deleting as an event.** The log stays the audit trail and invariant 2 stays true. A mistaken
+  deletion is recoverable, and no second store holds what a deletion hid. Hiding is what the app
+  can promise today; erasing is a different promise that waits on the rules for provenance and
+  personal data (TODO(#156)).
+- **A conversation deleted in its project's log** (invariants 29 to 31), because a conversation
+  has no store of its own and its runs are written once: the project's log is where a change
+  about a conversation can be recorded, and in a deployment that keeps projects every
+  conversation is in one. Its starter may delete it, since it is their work, and an owner may,
+  since an owner may already hide the whole project; it is restorable for the same period, so
+  the dialog asks only for a confirmation, not for its name to be typed.
+- **Researcher facts from ORCID, chosen item by item** (invariant 27), because creators,
+  affiliations, subjects and funding are what a researcher is asked for most and has often
+  recorded already (`docs/ui/best-practices.md`: reduce metadata burden visibly). A person
+  ticks what to keep, rather than everything being taken at sign-in, so that what agents and any
+  hosted model see is their decision, and keeping ORCID's own words means a draft's creator is
+  the one ORCID vouches for. They are kept in the project, not with the person, because a
+  project's record is already kept, audited and shared, and holding personal data about users
+  beyond a project waits for a retention policy, TODO(#156).
 
 ## Rejected alternatives
 
@@ -292,6 +624,12 @@ store, and writes to neither ([Disclosure](disclosure.md)).
   inventory, would have to be an agent invocation for nothing gained.
 - **A mixin that each agent's payload class includes.** The harness would have to know every
   agent's class to find the text.
+- **Several independent inventories in a project.** Every agent, check and package would have to
+  ask which one, or combine them, and none would be the project's account of its files. Data in
+  more than one place are parts of one inventory instead.
+- **Merging a new scan into the inventory file by file.** A scan of part of the data cannot tell
+  a file that is gone from one that was not scanned. A part is replaced whole, so a file missing
+  from its folder's new scan is gone.
 - **One document of each kind per project.** It cannot hold a README for each folder, and the kind
   would stand in for an identity.
 - **A metadata record as a JSON object in the payload.** One class would have two shapes of
@@ -304,7 +642,12 @@ store, and writes to neither ([Disclosure](disclosure.md)).
 - **A drafting run that suspends until a person decides.** Runs would stay open for days, and the
   run's outcome would duplicate the version's state.
 - **A general proposed-action class now.** It adds a core class with one use that `Document`
-  already covers.
+  already covers. `ProjectFact` is not one: it proposes no action outside the project, only what
+  a person may confirm about it.
+- **Passing one agent's result to the next as it came.** A model, or an orchestrator's code, would
+  carry what a check found into the next agent's input, so the funder, an exclusion or a location
+  to withhold would reach a drafter only when that turn remembered it, and without a person
+  having confirmed it. A decided fact is in the log, and every later run is given it.
 - **Merging concurrent edits.** A merged text is a version nobody wrote or saw.
 - **Conversations only their starter may continue, or private conversations with a shared record.**
   A team's work would split into private threads, and what was said would be lost to colleagues.
@@ -312,18 +655,36 @@ store, and writes to neither ([Disclosure](disclosure.md)).
   anything yet, or remove one.
 - **Names or identifiers in the conversation history.** An agent would be told whom it acts for,
   and names would go to hosted models with every turn.
+- **Reading the ORCID record at sign-in, or asking for a wider scope.** Every agent would be given
+  facts nobody chose to share, and the sign-in would ask for more than it needs. The public API
+  needs no scope and returns only what the holder made public.
+- **Letting the app send the facts to keep.** A person, or a page, could then keep facts in
+  ORCID's name that ORCID does not hold.
 - **Membership set in the deployment's profile.** Who works on a research project is the
   researchers' choice, and a profile changes by review. Whether a profile may limit sharing is
   TODO(#388).
+- **Removing a project's rows when it is deleted.** The log would no longer show who could see the
+  project or who decided what, and P5 and the audit trail above would fail before the rules for
+  erasure exist.
+- **An "archived" state beside deleted.** It would hide a project in the same way and differ only
+  in the word. Revisit it if researchers want to retire a project without a restore deadline.
+- **A model's intake suggestion as an `intake_answered` event with a source**, as `entry_chosen`
+  carries one. Every reader of `intake_answered` would have to remember that one source marks
+  no step; an event of its own cannot be mistaken for an answer.
 
 ## Non-functional requirements
 
 - **Privacy.** File and field names, a project's title, uploaded documentation and a person's
   edits may identify people. Limiting what goes to a hosted model limits what leaves; it does not show that nothing
-  personal did. Detecting personal data is TODO(#39, #40), and the tool never anonymises (C2).
-  No email address is asked for or held for a member. Members see each other's words and work,
+  personal did. Detecting personal data where the inventory is made, and disclosure control for
+  any summary value it carries, are [Personal data and disclosure control](personal-data.md);
+  personal data in conversation text is TODO(#40). The tool never anonymises (C2).
+  No email address is asked for or held for a member. Researcher facts are public, but
+  personal: they go to a hosted model only where the profile lists `researcher` (invariant 8),
+  and withdrawing them stops them being given but does not erase them from the log, TODO(#156). Members see each other's words and work,
   and the user guide must say so where a member is added, TODO(#391).
-- **Disclosure.** A refusal to a non-member does not reveal whether a project exists.
+- **Disclosure.** A refusal to a non-member does not reveal whether a project exists, and a
+  deleted project is refused to anyone but an owner in the same way (invariant 23).
 - **Durability.** An event is flushed to disk before the call returns, and a blob is written aside
   and moved into place, so a reader never sees half of one.
 - **Sovereignty.** The project store lives under a directory the operator names and has no default
@@ -331,8 +692,9 @@ store, and writes to neither ([Disclosure](disclosure.md)).
 
 ## Open questions
 
-- How long a project and its conversations are kept, and what deleting a project or a version
-  removes, TODO(#156).
+- How long a project and its conversations are kept once nobody can restore them, TODO(#156).
+- What erasing a project, a conversation or a version removes, and how provenance survives it,
+  TODO(#156).
 - What a former member may have erased from a project, TODO(#156).
 - What a data steward may do in a researcher's project, and whether a deployment role may decide
   on a version, TODO(#372, #154).

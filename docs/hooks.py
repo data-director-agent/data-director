@@ -204,18 +204,10 @@ class _Resolve(Treeprocessor):
                 el.set(attr, self.resolve(page, url))
 
     def resolve(self, page: str, url: str) -> str:
-        # An e-mail address is obfuscated into entities, so has no scheme to recognise.
-        if url.startswith(AMP_SUBSTITUTE):
+        target = _repository_path(page, url)
+        if target is None:
             return url
         parts = urlsplit(url)
-        if parts.scheme or parts.netloc or not parts.path:
-            return url
-        if parts.path.startswith("/"):
-            target = posixpath.normpath(parts.path.lstrip("/"))
-        else:
-            target = posixpath.normpath(posixpath.join(posixpath.dirname(page), parts.path))
-        if target.startswith(".."):
-            return url
         suffix = (f"?{parts.query}" if parts.query else "") + (
             f"#{parts.fragment}" if parts.fragment else ""
         )
@@ -232,3 +224,19 @@ class _Resolve(Treeprocessor):
             log.warning("%s links to %s, which is not in the repository", page, url)
             return url
         return f"{self.repo_url}/blob/{BRANCH}/{target}{suffix}"
+
+
+def _repository_path(page: str, url: str) -> str | None:
+    """The repository path a link on `page` names, or None if it leaves the repository or is not
+    a path at all."""
+    # An e-mail address is obfuscated into entities, so has no scheme to recognise.
+    if url.startswith(AMP_SUBSTITUTE):
+        return None
+    parts = urlsplit(url)
+    if parts.scheme or parts.netloc or not parts.path:
+        return None
+    if parts.path.startswith("/"):
+        target = posixpath.normpath(parts.path.lstrip("/"))
+    else:
+        target = posixpath.normpath(posixpath.join(posixpath.dirname(page), parts.path))
+    return None if target.startswith("..") else target

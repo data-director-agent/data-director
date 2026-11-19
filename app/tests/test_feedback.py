@@ -15,9 +15,10 @@ from support import configure_env, dist_dir, new_governance
 
 from dd_app import feedback
 from dd_app.about import about, commit
-from dd_app.app import build_app
+from dd_app.app import Links, build_app
 from dd_app.github_auth import StaticToken
 from dd_app.governance import Governance
+from dd_app.routes.common import Feedback
 from dd_harness.testing import TEST_PRINCIPAL
 from dd_sdk.credentials import ConfigError
 
@@ -58,7 +59,7 @@ def client_for(
 
     github = httpx.AsyncClient(transport=httpx.MockTransport(answer))
     source = StaticToken(token) if token is not None else None
-    app = build_app(governance, dist, feedback_source=source, feedback_client=github, build=BUILD)
+    app = build_app(governance, dist, feedback=Feedback(source, client=github), build=BUILD)
     return TestClient(app), seen
 
 
@@ -93,6 +94,16 @@ def test_about_says_whether_reports_are_on(governance: Governance, dist: Path) -
     off, _ = client_for(governance, dist, token=None)
     assert on.get("/api/about").json()["feedback_enabled"] is True
     assert off.get("/api/about").json()["feedback_enabled"] is False
+
+
+def test_about_gives_the_operators_privacy_notice_only_when_one_is_set(
+    governance: Governance, dist: Path
+) -> None:
+    unset, _ = client_for(governance, dist)
+    assert unset.get("/api/about").json()["privacy_notice_url"] is None
+    url = "https://example.ac.uk/data-director/privacy"
+    app = build_app(governance, dist, build=BUILD, links=Links(privacy_notice_url=url))
+    assert TestClient(app).get("/api/about").json()["privacy_notice_url"] == url
 
 
 def test_about_names_the_build_and_the_profile_it_runs_to(
@@ -135,7 +146,7 @@ def test_a_report_files_an_issue_with_the_build(governance: Governance, dist: Pa
     sent = json.loads(request.content)
     assert sent["title"] == "The run hangs"
     assert sent["type"] == "Bug"
-    assert sent["labels"] == ["area: app"]
+    assert sent["labels"] == ["area: app", "user report"]
     for line in ("`1.2.3`", "`0.4.5`", "`abc1234def`", "It never ends."):
         assert line in sent["body"]
 
@@ -189,7 +200,7 @@ def test_github_failing_is_a_502_and_is_logged(
     governance: Governance, dist: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     client, _ = client_for(governance, dist, lambda _: httpx.Response(500))
-    with caplog.at_level("WARNING", logger="dd_app.app"):
+    with caplog.at_level("WARNING", logger="dd_app.routes.meta"):
         response = client.post("/api/feedback", json=REPORT)
     assert response.status_code == 502
     assert "t0ken" not in response.text
@@ -254,3 +265,11 @@ def test_the_token_comes_from_a_value_or_a_credential_file(tmp_path: Path) -> No
         feedback.token_from_env({f"{feedback.TOKEN_VARIABLE}_FILE": "token"})
     with pytest.raises(ConfigError):
         feedback.token_from_env({f"{feedback.TOKEN_VARIABLE}_FILE": str(tmp_path / "none")})
+
+
+def test_only_a_bug_is_marked_as_a_user_report() -> None:
+    from dd_app.feedback import labels_for
+
+    assert labels_for("bug") == ["area: app", "user report"]
+    assert labels_for("feature") == ["area: app"]
+    assert labels_for("other") == ["area: app"]

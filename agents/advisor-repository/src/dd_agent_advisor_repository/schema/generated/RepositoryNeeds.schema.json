@@ -32,9 +32,366 @@
          "title": "Affiliation",
          "type": "object"
       },
+      "ChosenRepository": {
+         "additionalProperties": false,
+         "description": "The repository a researcher chose to deposit the project's data in, from the shortlist, by its re3data identifier: the conductor fills it into a Message, and into the input of an agent that mixes in GivenProjectRepository, so that the agent knows a repository is chosen and which (docs/specs/projects.md). The last choice stands until a researcher chooses again.",
+         "properties": {
+            "chosen_repository_name": {
+               "description": "The chosen repository's name, as the pinned re3data export gives it.",
+               "type": "string"
+            },
+            "chosen_re3data_id": {
+               "description": "The chosen repository's re3data identifier, such as r3d100010468.",
+               "pattern": "^r3d[0-9]{9}$",
+               "type": "string"
+            }
+         },
+         "required": [
+            "chosen_repository_name",
+            "chosen_re3data_id"
+         ],
+         "title": "ChosenRepository",
+         "type": "object"
+      },
+      "FactKind": {
+         "description": "What a project fact is about (docs/specs/projects.md).",
+         "enum": [
+            "funder",
+            "required_repository",
+            "file_inclusion",
+            "sensitivity",
+            "licence",
+            "sharing_commitment"
+         ],
+         "title": "FactKind",
+         "type": "string"
+      },
+      "FileDecision": {
+         "description": "Whether a file of the inventory is to be deposited.",
+         "enum": [
+            "include",
+            "exclude",
+            "undecided"
+         ],
+         "title": "FileDecision",
+         "type": "string"
+      },
+      "LocationPrecision": {
+         "description": "The precision at which a location may be published.",
+         "enum": [
+            "exact",
+            "site",
+            "region",
+            "country"
+         ],
+         "title": "LocationPrecision",
+         "type": "string"
+      },
+      "ProjectFact": {
+         "additionalProperties": false,
+         "allOf": [
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "funder"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "fact_funder_name": {}
+                  },
+                  "required": [
+                     "fact_funder_name"
+                  ]
+               }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "required_repository"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "fact_repository_name": {}
+                  },
+                  "required": [
+                     "fact_repository_name"
+                  ]
+               }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "file_inclusion"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "fact_file_path": {},
+                     "file_decision": {}
+                  },
+                  "required": [
+                     "fact_file_path",
+                     "file_decision"
+                  ]
+               }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "sensitivity"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "sensitive_subject": {},
+                     "sensitivity_decision": {}
+                  },
+                  "required": [
+                     "sensitive_subject",
+                     "sensitivity_decision"
+                  ]
+               }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "licence"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "licence_id": {}
+                  },
+                  "required": [
+                     "licence_id"
+                  ]
+               }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "sharing_commitment"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "commitment_document": {},
+                     "commitment_quote": {}
+                  },
+                  "required": [
+                     "commitment_quote",
+                     "commitment_document"
+                  ]
+               }
+            }
+         ],
+         "description": "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, the licence, or an output a data management plan committed to share (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because.",
+         "properties": {
+            "fact_kind": {
+               "$ref": "#/$defs/FactKind",
+               "description": "What the fact is about, which says which value slots apply."
+            },
+            "fact_subject": {
+               "description": "The key a decision counts by within its kind: the funder's identifier or name, the repository's re3data identifier or name, the file's path, the field or path judged sensitive, or licence. The last decision on a kind and subject stands.",
+               "pattern": "\\S",
+               "type": "string"
+            },
+            "fact_funder_name": {
+               "description": "The funder's name, as its policy record or the researcher gives it.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "fact_funder_ror": {
+               "description": "The funder's ROR identifier, as a URL, where it is known.",
+               "format": "uri",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "fact_crossref_funder_id": {
+               "description": "The funder's Crossref Funder ID, as a DOI URL, where it is known.",
+               "format": "uri",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "fact_repository_name": {
+               "description": "The required repository's name.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "fact_re3data_id": {
+               "description": "The required repository's re3data identifier, such as r3d100010199, where known.",
+               "pattern": "^r3d[0-9]{9}$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "fact_required_by": {
+               "description": "The funders, journals or institutions that require the repository.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "fact_file_path": {
+               "description": "The path of the file the fact is about, relative to the dataset's root folder, as the inventory gives it.",
+               "pattern": "^[^/]",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "file_decision": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/FileDecision"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "Whether the file is to be deposited."
+            },
+            "fact_check_kind": {
+               "description": "The kind of check that raised the fact, in the checking agent's words, such as duplicate, system_file or third_party. Kept as it was given; the core does not enumerate it.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "sensitive_subject": {
+               "description": "The field name, or the file path, judged sensitive, such as a lat or lon field, or a file of site coordinates.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "sensitivity_decision": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/SensitivityDecision"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "Whether the sensitive field or file may be published, and how."
+            },
+            "location_precision": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/LocationPrecision"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "For a location that may be published or generalised, the precision agreed. Absent where the subject is not a location."
+            },
+            "licence_id": {
+               "description": "The licence decided, as an SPDX identifier or a URL.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "commitment_repository": {
+               "description": "For a sharing commitment, the repository the plan committed to share the output in, as the plan names it; absent where it names none.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "commitment_access": {
+               "description": "For a sharing commitment, how openly the plan committed to share the output (such as open, embargoed or on request), as the plan says it; absent where it says nothing.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "commitment_licence": {
+               "description": "For a sharing commitment, the licence the plan committed to, as the plan names it; absent where it names none.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "commitment_quote": {
+               "description": "For a sharing commitment, the plan's own words the commitment was read from, verbatim, so the person deciding can see the passage it rests on.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "commitment_document": {
+               "description": "For a sharing commitment, the digest of the attached document's text (its documentation_digest) the quote is from.",
+               "pattern": "^[0-9a-f]{64}$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "proposed_because": {
+               "description": "Why the agent proposes the fact, in a sentence for the person deciding. Kept with the proposal and shown to the person, never given to an agent.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "fact_kind",
+            "fact_subject"
+         ],
+         "title": "ProjectFact",
+         "type": "object"
+      },
       "RepositoryRef": {
          "additionalProperties": false,
-         "description": "A repository named by a funder, journal, institution or the researcher. The re3data identifier is used when given; otherwise the name is looked up.",
+         "description": "A repository named by a funder, journal or institutional policy, or by the researcher. The re3data identifier is used when given; otherwise the name is looked up.",
          "properties": {
             "name": {
                "type": "string"
@@ -53,12 +410,23 @@
          ],
          "title": "RepositoryRef",
          "type": "object"
+      },
+      "SensitivityDecision": {
+         "description": "Whether a sensitive field or file may be published.",
+         "enum": [
+            "publish",
+            "generalise",
+            "withhold",
+            "undecided"
+         ],
+         "title": "SensitivityDecision",
+         "type": "string"
       }
    },
    "$id": "https://w3id.org/data-director/agents/repository/RepositoryNeeds",
    "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
-   "description": "What a dataset needs of a repository. With mandated repositories, the agent describes them; with none, it shortlists. The mandate and the access constraint come from Phase 2 (governance), usually by way of the orchestrator.",
+   "description": "What a dataset needs of a repository. With mandated repositories, the agent describes them; with none, it shortlists. Repositories the researcher asked about are described either way, alongside the shortlist when there is one. The mandate and the access constraint come from Phase 2 (governance), usually by way of the orchestrator. In a project the conductor also gives the facts people decided and the repository the researcher chose: a decided required repository is described as mandated, and the chosen one is described when nothing else is asked.",
    "properties": {
       "schema_class": {
          "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -78,7 +446,7 @@
          ]
       },
       "data_kinds": {
-         "description": "What the data is, e.g. interview transcripts or household survey microdata.",
+         "description": "What the data is, each in one to three words, e.g. interview transcripts, survey microdata or time series. A repository matches a kind only if its record has every word, so a long description (e.g. environmental data logger time series) matches none.",
          "items": {
             "type": "string"
          },
@@ -99,7 +467,17 @@
          "description": "How the data may be accessed once deposited, as decided in Phase 2. Unset means not yet decided, and no access need is checked."
       },
       "mandated": {
-         "description": "Repositories that a funder, journal or institutional policy requires, as Phase 2 found them. Naming an institution does not make its repository mandated.",
+         "description": "Only repositories that a funder, journal or institutional policy requires: as a policy result found them in Phase 2, or as the researcher states such a policy requires them. A repository the researcher merely names, prefers or asks about belongs in asked_about. Naming an institution, or being funded by a funder, does not make its repository mandated. A mandated repository replaces the shortlist.",
+         "items": {
+            "$ref": "#/$defs/RepositoryRef"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "asked_about": {
+         "description": "Repositories the researcher named or asked about (e.g. \"what about Zenodo?\") that no policy is known to require. Each is described with the needs it meets and misses, alongside the shortlist rather than instead of it.",
          "items": {
             "$ref": "#/$defs/RepositoryRef"
          },
@@ -118,6 +496,35 @@
             }
          ],
          "description": "The researcher's institution. Its repositories are offered as a fallback, after those of the dataset's discipline and before generalist ones, and none is removed, so give the themes as if it were not set."
+      },
+      "country": {
+         "description": "The country of the researcher's institution, as an ISO 3166-1 alpha-3 code (e.g. GBR), as re3data writes it. A repository that already matches ranks a little higher when operated in this country; it adds no repository to the shortlist on its own. Unset, it is the country re3data records for the affiliation's institution, where re3data lists one.",
+         "pattern": "^[A-Z]{3}$",
+         "type": [
+            "string",
+            "null"
+         ]
+      },
+      "project_decisions": {
+         "description": "The facts a person in the project decided (ProjectFact), the last decision on each subject, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project decided any. A drafter treats each as supplied.",
+         "items": {
+            "$ref": "#/$defs/ProjectFact"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "project_repository": {
+         "anyOf": [
+            {
+               "$ref": "#/$defs/ChosenRepository"
+            },
+            {
+               "type": "null"
+            }
+         ],
+         "description": "The repository a researcher in the project chose last, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project has chosen one."
       }
    },
    "required": [

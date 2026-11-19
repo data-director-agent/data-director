@@ -15,10 +15,10 @@ coverage:
       default:
         target: 80%
         informational: true
-# The pytest job uploads one report carrying every Python flag, and the app/web job one carrying
-# `web`; each flag keeps only the files under its package. The two jobs run only when their side
-# changed, so a flag with no upload keeps the base commit's figure (carryforward) rather than
-# dropping out of the project total.
+# The coverage job uploads one report, combined from the pytest shards, carrying every Python
+# flag, and the app/web job one carrying `web`; each flag keeps only the files under its package.
+# The two jobs run only when their side changed, so a flag with no upload keeps the base commit's
+# figure (carryforward) rather than dropping out of the project total.
 flag_management:
   default_rules:
     carryforward: true
@@ -31,6 +31,10 @@ flag_management:
       paths: [workbench/]
     - name: app
       paths: [app/src/]
+    - name: admin
+      paths: [admin/]
+    - name: broker
+      paths: [broker/]
     - name: agents
       paths: [agents/]
     - name: inventory

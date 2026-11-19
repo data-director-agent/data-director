@@ -29,7 +29,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from dd_sdk.agent import AgentResult
+from dd_sdk.agent_result import AgentResult
 from dd_sdk.contract.models import (
     EvidenceItem,
     Grounded,
@@ -38,6 +38,9 @@ from dd_sdk.contract.models import (
     Outcome,
     to_document,
 )
+from dd_sdk.model_grant import META_MODEL_GRANT as META_MODEL_GRANT
+from dd_sdk.tools import META_TOOLS_TOKEN as META_TOOLS_TOKEN
+from dd_sdk.tools import META_TOOLS_URL as META_TOOLS_URL
 
 # TODO(#3): a persistent identifier for the extension. The w3id namespace the problem types use is
 # not yet registered either (contract/problem.py).
@@ -52,6 +55,14 @@ META_TRACEPARENT = "traceparent"
 # present.
 META_DELEGATE_URL = "dd.delegate_url"
 META_DELEGATION_TOKEN = "dd.delegation_token"
+# META_TOOLS_URL and META_TOOLS_TOKEN (imported above, docs/specs/agents.md): sent by the harness
+# only to an agent its profile grants an MCP server. The URL is the harness's tool gateway; the
+# token is the grant a call to it must present.
+# META_MODEL_GRANT (imported above, docs/specs/model-accounts.md): the model grant for one
+# invocation of a model-backed agent, minted by the conductor.
+# The agent's settings for one invocation: the defaults its card declares, overlaid by the
+# profile's `agent_settings` (docs/specs/policy-and-identity.md). A mapping of strings to strings.
+META_SETTINGS = "dd.settings"
 
 ARTIFACT_NAME = "agent-result"
 # The harness's answer to a delegated request: one text part holding the envelope as the JSON
@@ -59,6 +70,8 @@ ARTIFACT_NAME = "agent-result"
 # turn integers into floating-point numbers).
 ENVELOPE_JSON_ARTIFACT = "envelope-json"
 JSONRPC_PATH = "/a2a"
+# The harness's tool gateway, an MCP endpoint, beside its A2A endpoint (docs/specs/agents.md).
+GATEWAY_PATH = "/mcp"
 CARD_PATH = "/.well-known/agent-card.json"
 
 

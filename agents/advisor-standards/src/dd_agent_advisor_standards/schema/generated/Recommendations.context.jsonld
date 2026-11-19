@@ -22,6 +22,9 @@
       "classification_derivation": {
          "@id": "https://w3id.org/data-director/agents/standards/classification_derivation"
       },
+      "concern": {
+         "@id": "https://w3id.org/data-director/agents/standards/concern"
+      },
       "content_hash": {
          "@id": "https://w3id.org/data-director/content_hash"
       },
@@ -39,7 +42,13 @@
       "kind": {
          "@id": "https://w3id.org/data-director/agents/standards/kind"
       },
+      "limitations": {
+         "@id": "https://w3id.org/data-director/agents/standards/limitations"
+      },
       "linkml": "https://w3id.org/linkml/",
+      "notes": {
+         "@id": "https://w3id.org/data-director/agents/standards/notes"
+      },
       "prov": "http://www.w3.org/ns/prov#",
       "queries": {
          "@id": "https://w3id.org/data-director/agents/standards/queries"
@@ -61,6 +70,9 @@
       "searched": {
          "@id": "https://w3id.org/data-director/agents/standards/searched",
          "@type": "@id"
+      },
+      "selection_derivation": {
+         "@id": "https://w3id.org/data-director/agents/standards/selection_derivation"
       },
       "shex": "http://www.w3.org/ns/shex#",
       "snapshot_ref": {

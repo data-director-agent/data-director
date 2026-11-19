@@ -15,21 +15,26 @@ files:FormatAssessment a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path <https://w3id.org/data-director/schema_class> ],
-        [ sh:datatype xsd:string ;
-            sh:description "What this mock does not yet do." ;
-            sh:nodeKind sh:Literal ;
+        [ sh:class files:FileCheck ;
+            sh:description "The files a person should look at, in the inventory's order and, for each file, in the order of hints.yaml. Empty when no name, size or digest called for one, which says nothing about what the files hold." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 2 ;
+            sh:path files:checks ],
+        [ sh:datatype xsd:string ;
+            sh:description "What this agent does not yet do." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
             sh:path files:limitations ],
+        [ sh:class files:FileAssessment ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 1 ;
+            sh:path files:assessments ],
         [ sh:class <https://w3id.org/data-director/GroundingRef> ;
             sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
             sh:minCount 1 ;
             sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 3 ;
-            sh:path <https://w3id.org/data-director/grounded_on> ],
-        [ sh:class files:FileAssessment ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 1 ;
-            sh:path files:assessments ] ;
+            sh:order 4 ;
+            sh:path <https://w3id.org/data-director/grounded_on> ] ;
     sh:targetClass files:FormatAssessment .
 
 <https://w3id.org/data-director/GroundingRef> a sh:NodeShape ;
@@ -63,11 +68,17 @@ files:FileAssessment a sh:NodeShape ;
             sh:order 2 ;
             sh:path files:format_name ],
         [ sh:description "What the judgement rests on." ;
-            sh:in ( "media_type" "extension" "nothing" ) ;
+            sh:in ( "pronom" "pronom_unlisted" "media_type" "extension" "nothing" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 5 ;
             sh:path files:judged_by ],
+        [ sh:datatype xsd:string ;
+            sh:description "The PRONOM identifier (PUID) the judgement rests on, or, when judged_by is pronom_unlisted, the first identifier the inventory gave. Absent when the inventory gave none that was used." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path files:pronom_id ],
         [ sh:datatype xsd:string ;
             sh:description "The format's media type, from the inventory if it gave one, else from formats.yaml." ;
             sh:maxCount 1 ;
@@ -96,4 +107,41 @@ files:FileAssessment a sh:NodeShape ;
             sh:order 1 ;
             sh:path files:extension ] ;
     sh:targetClass files:FileAssessment .
+
+files:FileCheck a sh:NodeShape ;
+    rdfs:comment "A file a person should look at before deposit, and why, judged from names, size and digest in the inventory alone (hints.yaml). A prompt for a person, never a finding about the file's contents, which are never read." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The word of a folder, file or field name, or the file name, that called for the check; absent for an empty file or a duplicate." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path files:matched ],
+        [ sh:description "What the name, size or digest suggests." ;
+            sh:in ( "free_text" "coordinates" "third_party" "governance" "system_file" "empty" "duplicate" "extension_mismatch" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 1 ;
+            sh:path files:kind ],
+        [ sh:datatype xsd:string ;
+            sh:description "The file's path in the inventory (file_path)." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path files:path ],
+        [ sh:datatype xsd:string ;
+            sh:description "What a person should check, from hints.yaml." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path files:question ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a duplicate, the paths of the other files with the same digest." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path files:related_paths ] ;
+    sh:targetClass files:FileCheck .
 

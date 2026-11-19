@@ -3,7 +3,10 @@
  *
  * Components use these custom properties and no literal colour, size or font. A theme is a
  * file like this one that redefines them; nothing else changes. The scheme is light unless
- * `data-theme="dark"` is set on <html>, which the banner's dark mode switch does (`theme.ts`).
+ * `data-theme="dark"` is set on <html>, which the person's preferences do (`preferences.ts`): the
+ * banner's dark mode switch, or the Settings page, where the scheme may also match the system's.
+ * The preferences also set `data-text-size`, `data-density` and `data-motion` on <html>; the
+ * rules for them are at the end of this file.
  *
  * Every text/background pair below meets WCAG 2.2 AA (4.5:1 for text, 3:1 for control borders
  * and the focus ring) in both schemes. `--color-border-subtle` only separates regions that are
@@ -17,11 +20,11 @@
   /* Type. Inter is self-hosted (`@fontsource-variable/inter`, loaded in main.tsx); the system
      fonts stand in while it loads. */
   --font-body:
-    "Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
-    sans-serif;
+    "Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   --font-size-small: 0.875rem;
-  --font-size-body: 1rem;
+  --font-size-body: 0.9375rem;
   --font-size-h3: 1.125rem;
   --font-size-h2: 1.375rem;
   --font-size-h1: 1.75rem;
@@ -63,6 +66,7 @@
   /* Elevation: a raised surface (a card, an open run) and a floating one (a popover). */
   --shadow-raised: 0 1px 2px #1b1d2114, 0 1px 3px #1b1d210f;
   --shadow-floating: 0 4px 12px #1b1d211f, 0 2px 4px #1b1d2114;
+  --color-scrim: #1b1d2166;
 
   /* Motion. Reduced to nothing when the reader asks for less motion (below). */
   --duration-fast: 120ms;
@@ -99,12 +103,16 @@
   --color-danger-bg: #fbe6e7;
   --color-undeclared-fg: #4a4f57;
   --color-undeclared-bg: #eceef1;
+
+  /* The ground behind partner logos, which are drawn for white; the same in both schemes. */
+  --color-logo-plate: #fff;
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
   --shadow-raised: 0 1px 2px #0000004d, 0 1px 3px #0003;
   --shadow-floating: 0 4px 12px #0006, 0 2px 4px #0000004d;
+  --color-scrim: #000000a6;
   --color-bg: #15171a;
   --color-surface: #1f2226;
   --color-surface-selected: #2c3440;
@@ -131,8 +139,39 @@
   --color-undeclared-bg: #2a2d32;
 }
 
+/* Motion: none where the system asks for less, unless the person chose full motion, and none
+   where the person chose less whatever the system says. `--motion` is read by animations. */
 @media (prefers-reduced-motion: reduce) {
-  :root {
+  :root:not([data-motion="full"]) {
     --duration-fast: 0ms;
+    --motion: none;
   }
+}
+
+:root[data-motion="reduce"] {
+  --duration-fast: 0ms;
+  --motion: none;
+}
+
+/* Text size. Every size is in rem, so this scales text, space and controls together, as the
+   browser's own zoom does. */
+:root[data-text-size="large"] {
+  font-size: 112.5%;
+}
+
+:root[data-text-size="larger"] {
+  font-size: 125%;
+}
+
+/* Density: less space between and inside things. The small control height still meets the 24 CSS
+   pixel target of WCAG 2.2 SC 2.5.8. */
+:root[data-density="compact"] {
+  --space-3: 0.5rem;
+  --space-4: 0.75rem;
+  --space-5: 1rem;
+  --space-6: 1.5rem;
+  --control-height: 2.125rem;
+  --control-height-small: 1.75rem;
+  --control-padding-inline: var(--space-3);
+  --control-padding-inline-small: var(--space-2);
 }

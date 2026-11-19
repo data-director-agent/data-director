@@ -6,6 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from ror_fixture import NERC, NERC_JO, NERC_SD, build_fixture
 
 import dd_agent_advisor_policy
 from dd_agent_advisor_policy import assess
@@ -16,17 +17,23 @@ from dd_agent_advisor_policy.classes import (
     ObligationKind,
     PolicyChecks,
     PolicyContext,
+    ReadingStatus,
     Strength,
 )
+from dd_agent_advisor_policy.extract import Extraction, ModelExtractor, Read, found
+from dd_agent_advisor_policy.policy_text import PolicyText, html_text
 from dd_agent_advisor_policy.records import Clause, PolicyRecord, Relation
-from dd_agent_advisor_policy.retrieve import Query, RegistryUnavailable, SnapshotRef
+from dd_agent_advisor_policy.ror import RorDump
+from dd_agent_advisor_policy.ror_records import Organisation
 from dd_agent_advisor_policy.snapshot import PolicySnapshot
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import describe
 from dd_sdk.contract.models import Envelope, OutcomeStatus, ReasonCode
 from dd_sdk.evidence import verify
 from dd_sdk.process_flow import STEPS
+from dd_sdk.registry import Query, RegistryUnavailable, SnapshotRef
 from dd_sdk.schema import gen
+from dd_sdk.testing import FakeModel
 
 SCHEMA = Path(dd_agent_advisor_policy.__file__).parent / "schema" / "policy.yaml"
 
@@ -160,6 +167,13 @@ def test_obligations_are_read_from_the_curated_fields() -> None:
     assert stated[ObligationKind.EMBARGO].strength == Strength.UNSTATED
     assert stated[ObligationKind.LICENCE].strength == Strength.UNSTATED
     assert [o.kind for o in assess.obligations(FUNDER)] == list(ObligationKind)
+
+
+def test_the_payload_states_its_limitations(runs_dir: Path) -> None:
+    env = invoke(runs_dir, CONTEXT)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    limitations = env.payload_as(PolicyChecks).limitations
+    assert limitations and all(line.strip() for line in limitations)
 
 
 def test_a_name_is_matched_only_for_its_role(runs_dir: Path) -> None:
@@ -313,5 +327,321 @@ def test_it_serves_the_policy_check_and_the_mandate() -> None:
     assert entry["grounding_mode"] == "retrieval"
 
 
+# --- funders identified in ROR ----------------------------------------------------------------
+
+NERC_POLICY = PolicyRecord(
+    fairsharing_id="FAIRsharing.test-nerc",
+    name="Natural Environment Research Council data policy",
+    policy_type="funder",
+    clauses={"sharing_data": Clause(values={"mandated_data_sharing": "required"})},
+)
+
+
+class RecordingPolicies(FakePolicies):
+    def __init__(self) -> None:
+        super().__init__([*ALL, NERC_POLICY])
+        self.searched: list[str] = []
+
+    def search(self, query: Query) -> list[PolicyRecord]:
+        self.searched.append(query.text)
+        return super().search(query)
+
+
+class FakeOrganisations:
+    """Some of the fixture's organisations, or none when `down`."""
+
+    def __init__(self, orgs: list[Organisation], down: bool = False) -> None:
+        self.orgs = orgs
+        self.down = down
+
+    def snapshot_ref(self) -> SnapshotRef:
+        return SnapshotRef(label="fake-ror")
+
+    def find(self, name: str) -> list[Organisation]:
+        if self.down:
+            raise RegistryUnavailable("fake ROR is down")
+        return [o for o in self.orgs if o.active and o.matches(name)]
+
+    def get(self, ror_id: str) -> Organisation | None:
+        return next((o for o in self.orgs if o.id.endswith(ror_id.rsplit("/", 1)[-1])), None)
+
+
+@pytest.fixture(scope="module")
+def dump(tmp_path_factory: pytest.TempPathFactory) -> RorDump:
+    return build_fixture(tmp_path_factory.mktemp("ror"))
+
+
+def nerc_only(dump: RorDump) -> FakeOrganisations:
+    org = dump.get(NERC)
+    assert org is not None
+    return FakeOrganisations([org])
+
+
+def test_an_acronym_resolved_in_ror_matches_by_the_funders_full_name(
+    runs_dir: Path, dump: RorDump
+) -> None:
+    advisor = PolicyAgent(RecordingPolicies(), organisations=nerc_only(dump))
+    env = invoke(
+        runs_dir, PolicyContext(actors=[Actor(role=ActorRole.FUNDER, name="NERC")]), advisor
+    )
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    checks = env.payload_as(PolicyChecks)
+    assert [p.grounded_on[0].source_id for p in checks.policies] == ["FAIRsharing.test-nerc"]
+    assert [(f.actor, f.grounded_on[0].source_id) for f in checks.funders] == [("NERC", NERC)]
+    assert checks.funders[0].crossref_funder_id == "501100000270"
+    assert checks.no_record == [] and checks.ambiguous == []
+    # The ROR record is evidence like the policy record, and what the reader is shown is hashed.
+    ror_evidence = [e for e in env.evidence if e.source_id == NERC]
+    assert len(ror_evidence) == 1 and ror_evidence[0].snapshot_ref == "fake-ror"
+    assert ror_evidence[0].content is not None
+    assert verify(
+        ror_evidence[0].content, ror_evidence[0].canonicalisation, ror_evidence[0].content_hash
+    )
+    assert {(g.source_id, g.content_hash) for g in checks.grounded_on} >= {
+        (g.source_id, g.content_hash) for g in checks.funders[0].grounded_on
+    }
+
+
+@pytest.mark.requirement("DD-OUTCOME")
+def test_an_ambiguous_acronym_asks_which_organisation_and_searches_nothing_for_it(
+    runs_dir: Path, dump: RorDump
+) -> None:
+    policies = RecordingPolicies()
+    advisor = PolicyAgent(policies, organisations=dump)
+    nerc = Actor(role=ActorRole.FUNDER, name="NERC")
+    env = invoke(runs_dir, PolicyContext(actors=[nerc, TESTING]), advisor)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    checks = env.payload_as(PolicyChecks)
+    assert [(a.actor, a.role) for a in checks.ambiguous] == [("NERC", ActorRole.FUNDER)]
+    candidates = [g.source_id for g in checks.ambiguous[0].grounded_on]
+    assert candidates[0] == NERC and set(candidates) == {NERC, NERC_JO, NERC_SD}
+    assert "NERC" not in checks.no_record
+    assert "NERC" not in policies.searched
+    assert [p.actor for p in checks.policies] == ["University of Testing"]
+    for ror_id in candidates:
+        assert ror_id in env.outcome.statement
+
+    # With no other actor, the candidates are still returned, grounded on their ROR records.
+    env = invoke(runs_dir, PolicyContext(actors=[nerc]), advisor)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    checks = env.payload_as(PolicyChecks)
+    assert checks.policies == [] and len(checks.ambiguous) == 1
+    assert {g.source_id for g in checks.grounded_on} == {NERC, NERC_JO, NERC_SD}
+
+
+def test_the_researchers_choice_of_ror_identifier_settles_the_question(
+    runs_dir: Path, dump: RorDump
+) -> None:
+    advisor = PolicyAgent(RecordingPolicies(), organisations=dump)
+    nerc = Actor(role=ActorRole.FUNDER, name="NERC", ror_id="https://ror.org/02b5d8509")
+    env = invoke(runs_dir, PolicyContext(actors=[nerc]), advisor)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    checks = env.payload_as(PolicyChecks)
+    assert checks.ambiguous == []
+    assert [f.grounded_on[0].source_id for f in checks.funders] == [NERC]
+    assert [p.grounded_on[0].source_id for p in checks.policies] == ["FAIRsharing.test-nerc"]
+
+
+@pytest.mark.requirement("DD-OUTCOME")
+def test_a_name_unknown_to_ror_and_fairsharing_stays_without_a_record(
+    runs_dir: Path, dump: RorDump
+) -> None:
+    advisor = PolicyAgent(RecordingPolicies(), organisations=dump)
+    nowhere = Actor(role=ActorRole.FUNDER, name="Ministry of Nowhere")
+    env = invoke(runs_dir, PolicyContext(actors=[nowhere, TESTING]), advisor)
+    checks = env.payload_as(PolicyChecks)
+    assert checks.no_record == ["Ministry of Nowhere"]
+    assert checks.funders == [] and checks.ambiguous == []
+    env = invoke(runs_dir, PolicyContext(actors=[nowhere]), advisor)
+    assert env.outcome.status == OutcomeStatus.ABSTAINED
+    assert env.outcome.reason_code == ReasonCode.NO_CANDIDATES_RETRIEVED
+
+
+def test_a_funder_identified_in_ror_with_no_policy_record_still_carries_its_identifier(
+    runs_dir: Path, dump: RorDump
+) -> None:
+    advisor = PolicyAgent(FakePolicies(), organisations=nerc_only(dump))
+    nerc = Actor(role=ActorRole.FUNDER, name="NERC")
+    env = invoke(runs_dir, PolicyContext(actors=[nerc]), advisor)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    checks = env.payload_as(PolicyChecks)
+    assert checks.policies == [] and checks.no_record == ["NERC"]
+    assert [f.grounded_on[0].source_id for f in checks.funders] == [NERC]
+    assert "require a particular repository" in env.outcome.statement
+
+
+def test_without_ror_funders_are_searched_by_the_name_given_and_the_statement_says_so(
+    runs_dir: Path, dump: RorDump, tmp_path: Path
+) -> None:
+    unbuilt = RorDump(tmp_path / "registry.jsonl", tmp_path / "manifest.json")
+    for advisor in (
+        PolicyAgent(FakePolicies(), organisations=unbuilt),
+        PolicyAgent(FakePolicies(), organisations=FakeOrganisations([], down=True)),
+    ):
+        env = invoke(runs_dir, CONTEXT, advisor)
+        assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+        checks = env.payload_as(PolicyChecks)
+        assert [p.actor for p in checks.policies] == [SRC.name, TESTING.name]
+        assert checks.funders == []
+        assert "ROR was not consulted" in env.outcome.statement
+
+
+def test_a_failed_live_ror_route_falls_back_to_the_dump_marked_stale(
+    runs_dir: Path, dump: RorDump
+) -> None:
+    advisor = PolicyAgent(
+        RecordingPolicies(),
+        organisations=FakeOrganisations([], down=True),
+        organisations_fallback=nerc_only(dump),
+    )
+    env = invoke(
+        runs_dir, PolicyContext(actors=[Actor(role=ActorRole.FUNDER, name="NERC")]), advisor
+    )
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    refs = {e.source_id: e.snapshot_ref for e in env.evidence}
+    assert refs[NERC] == "fake-ror (stale)"
+
+
 def test_its_classes_are_generated_from_its_linkml() -> None:
     assert gen.stale(SCHEMA) == [], f"run `uv run dd-gen-schema {SCHEMA}`"
+
+
+# --- reading the policy's own text (#904) -----------------------------------------------------
+
+PAGE_URL = "https://src.example/data-policy"
+PAGE = (Path(__file__).parent / "data" / "policy-example.html").read_bytes()
+FUNDER_WITH_PAGE = FUNDER.model_copy(update={"homepage": PAGE_URL})
+QUOTED = Read(
+    kind="repository",
+    strength="required",
+    value="Social Survey Archive",
+    quote="must offer their data for deposit with the Social Survey Archive",
+)
+INVENTED = Read(
+    kind="embargo",
+    strength="required",
+    value="24 months",
+    quote="Data may be withheld for no longer than 24 months after collection.",
+)
+SRC_DEPOSIT_DIFFERS = Read(
+    kind="deposit",
+    strength="recommended",
+    value="offer the data for deposit",
+    quote="Grant holders must offer their data for deposit",
+)
+
+
+class FakePages:
+    def __init__(self, served: dict[str, bytes] | None = None) -> None:
+        self.served = {PAGE_URL: PAGE} if served is None else served
+        self.fetched: list[str] = []
+
+    def snapshot_ref(self) -> SnapshotRef:
+        return SnapshotRef(label="fake-policy-text")
+
+    def fetch(self, url: str) -> PolicyText:
+        self.fetched.append(url)
+        if url not in self.served:
+            raise RegistryUnavailable(f"{url}: HTTP 404")
+        return PolicyText(
+            url=url,
+            media_type="text/html",
+            sha256="0" * 64,
+            text=html_text(self.served[url].decode()),
+        )
+
+
+def reader(*reads: Read) -> ModelExtractor:
+    return ModelExtractor(FakeModel(Extraction(obligations=list(reads)).model_dump_json()))
+
+
+@pytest.mark.requirement("DD-GROUNDED-PAYLOAD", "DD-EVIDENCE")
+def test_a_policys_own_text_is_read_and_only_quotes_found_in_it_are_kept(runs_dir: Path) -> None:
+    pages = FakePages()
+    advisor = PolicyAgent(
+        FakePolicies([FUNDER_WITH_PAGE]), pages=pages, extractor=reader(QUOTED, INVENTED)
+    )
+    env = invoke(runs_dir, PolicyContext(actors=[SRC]), advisor)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    checks = env.payload_as(PolicyChecks)
+    assert pages.fetched == [PAGE_URL]
+    [reading] = checks.readings
+    assert reading.status == ReadingStatus.READ and reading.actor == SRC.name
+    assert [(o.kind, o.value) for o in reading.stated] == [
+        (ObligationKind.REPOSITORY, "Social Survey Archive")
+    ]
+    assert [d.split(":")[0] for d in reading.dropped] == ["embargo"]
+    # Grounded on the page's text and on the record it was reached from; the text is evidence,
+    # hashed, so the reader can find the quote in it.
+    cited = [g.source_id for g in reading.grounded_on]
+    assert cited == [PAGE_URL, FUNDER.fairsharing_id]
+    [text] = [e for e in env.evidence if e.source_id == PAGE_URL]
+    assert text.snapshot_ref == "fake-policy-text" and text.content is not None
+    assert verify(text.content, text.canonicalisation, text.content_hash)
+    assert found(reading.stated[0].quote, text.content["text"])
+    # The record's own obligations are as the curators recorded them; the reading adds to them.
+    assert strengths(checks, 0)[ObligationKind.DEPOSIT] == Strength.REQUIRED
+    assert "Social Survey Archive" in env.outcome.statement
+    assert env.telemetry.model_id == "fake-model" and env.telemetry.model_calls
+
+
+def test_where_the_text_and_the_record_differ_both_are_shown(runs_dir: Path) -> None:
+    advisor = PolicyAgent(
+        FakePolicies([FUNDER_WITH_PAGE]),
+        pages=FakePages(),
+        extractor=reader(SRC_DEPOSIT_DIFFERS),
+    )
+    env = invoke(runs_dir, PolicyContext(actors=[SRC]), advisor)
+    checks = env.payload_as(PolicyChecks)
+    assert strengths(checks, 0)[ObligationKind.DEPOSIT] == Strength.REQUIRED
+    assert checks.readings[0].stated[0].strength == Strength.RECOMMENDED
+
+
+def test_a_policy_url_is_read_for_an_actor_with_no_record(runs_dir: Path) -> None:
+    unknown = Actor(role=ActorRole.FUNDER, name="Unlisted Council", policy_url=PAGE_URL)
+    advisor = PolicyAgent(FakePolicies([]), pages=FakePages(), extractor=reader(QUOTED))
+    env = invoke(runs_dir, PolicyContext(actors=[unknown]), advisor)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    checks = env.payload_as(PolicyChecks)
+    assert checks.no_record == ["Unlisted Council"] and checks.policies == []
+    assert [g.source_id for g in checks.readings[0].grounded_on] == [PAGE_URL]
+    assert checks.readings[0].stated[0].value == "Social Survey Archive"
+
+
+def test_a_page_that_cannot_be_fetched_is_reported_beside_its_record(runs_dir: Path) -> None:
+    advisor = PolicyAgent(
+        FakePolicies([FUNDER_WITH_PAGE]), pages=FakePages({}), extractor=reader(QUOTED)
+    )
+    env = invoke(runs_dir, PolicyContext(actors=[SRC]), advisor)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    [reading] = env.payload_as(PolicyChecks).readings
+    assert reading.status == ReadingStatus.NOT_READ and reading.stated == [] and reading.reason
+    assert [g.source_id for g in reading.grounded_on] == [FUNDER.fairsharing_id]
+
+
+def test_without_a_model_no_page_is_fetched_and_the_statement_says_so(runs_dir: Path) -> None:
+    pages = FakePages()
+    env = invoke(
+        runs_dir,
+        PolicyContext(actors=[SRC]),
+        PolicyAgent(FakePolicies([FUNDER_WITH_PAGE]), pages=pages),
+    )
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert pages.fetched == [] and env.payload_as(PolicyChecks).readings == []
+
+
+@pytest.mark.requirement("DD-POLICY")
+def test_a_profile_can_turn_reading_the_text_off(runs_dir: Path, tmp_path: Path) -> None:
+    profile = tmp_path / "profile.yaml"
+    profile.write_text(
+        "profile_id: no-reading\nagents:\n  advisor.policy: advise\n"
+        'agent_settings:\n  advisor.policy:\n    policy_text: "off"\n',
+        encoding="utf-8",
+    )
+    pages = FakePages()
+    advisor = PolicyAgent(FakePolicies([FUNDER_WITH_PAGE]), pages=pages, extractor=reader(QUOTED))
+    env = make_conductor(runs_dir, advisor, profile=profile).invoke(
+        request("advisor.policy", PolicyContext(actors=[SRC])), acting_for=TEST_PRINCIPAL
+    )
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert pages.fetched == [] and env.payload_as(PolicyChecks).readings == []

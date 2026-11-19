@@ -8,54 +8,32 @@
 import AxeBuilder from "@axe-core/playwright";
 import { type Page, expect, test } from "@playwright/test";
 
-import empty from "../../config/examples/empty.profile.json" with { type: "json" };
-import soil from "../../config/examples/soil-chemistry.profile.json" with { type: "json" };
 import reference from "../fixtures/agents.json" with { type: "json" };
 import several from "../fixtures/agents-several.json" with { type: "json" };
 import conversation from "../fixtures/conversation.json" with { type: "json" };
 import answered from "../fixtures/conversation-answered.json" with { type: "json" };
 import question from "../fixtures/conversation-question.json" with { type: "json" };
 import flow from "../fixtures/process-flow.json" with { type: "json" };
+import intakeComplete from "../fixtures/intake-complete.json" with { type: "json" };
 import answeredProject from "../fixtures/project-answers.json" with { type: "json" };
 import project from "../fixtures/project-documents.json" with { type: "json" };
-import turn from "../fixtures/conversation-turn.json" with { type: "json" };
-import abstained from "../fixtures/run-abstained.json" with { type: "json" };
+import projects from "../fixtures/projects.json" with { type: "json" };
+import suggested from "../fixtures/repositories-suggested.json" with { type: "json" };
+import chosenRepository from "../fixtures/repository-chosen.json" with { type: "json" };
 import succeeded from "../fixtures/run-succeeded.json" with { type: "json" };
 import development from "../fixtures/session-development.json" with { type: "json" };
 import signedIn from "../fixtures/session-signed-in.json" with { type: "json" };
 import signedOut from "../fixtures/session-signed-out.json" with { type: "json" };
-
-const EXAMPLES = [
-  { name: "empty.profile", schema_class: "DatasetProfile", input: empty },
-  { name: "soil-chemistry.profile", schema_class: "DatasetProfile", input: soil },
-];
-
-function row(run: typeof succeeded | typeof abstained) {
-  const { envelope } = run;
-  return {
-    invocation_id: envelope.invocation_id,
-    agent_id: envelope.agent_id,
-    status: envelope.outcome.status,
-    completed_at: envelope.completed_at,
-    acting_for: envelope.acting_for.name,
-  };
-}
-
-/** Answer the shell's API from the fixtures: the agents, the phases, the examples, and a run. */
-async function serve(page: Page, body: unknown, run: unknown = succeeded) {
-  await page.route("/api/agents", (route) => route.fulfill({ json: body }));
-  await page.route("/api/process-flow", (route) => route.fulfill({ json: flow }));
-  await page.route("/api/examples", (route) => route.fulfill({ json: EXAMPLES }));
-  await page.route("/api/runs", (route) =>
-    route.fulfill({ json: route.request().method() === "POST" ? run : [row(succeeded)] }),
-  );
-  await page.route("/api/runs/*", (route) => route.fulfill({ json: succeeded }));
-}
-
-/** Who is signed in. Unless a test says otherwise, a development server: nobody signs in. */
-async function serveSession(page: Page, session: unknown) {
-  await page.route("/api/session", (route) => route.fulfill({ json: session }));
-}
+import {
+  axeViolations,
+  overflow,
+  serve,
+  serveConversation,
+  serveSession,
+  streamTurn,
+  turnSent,
+  withOrchestrator,
+} from "./support";
 
 test.beforeEach(async ({ page }) => {
   await serveSession(page, development);
@@ -66,47 +44,9 @@ async function gotoDirectory(page: Page) {
   await page.goto("/agents");
 }
 
-/** The several-agents set plus an orchestrator, named by the profile (docs/specs/app.md). */
-const withOrchestrator = {
-  ...several,
-  profile: { ...several.profile, orchestrator: "orchestrator.stub" },
-  agents: [
-    ...several.agents,
-    { ...several.agents[0], agent_id: "orchestrator.stub", grounding_mode: "delegation" },
-  ],
-};
-
-async function serveConversation(page: Page) {
-  await serve(page, withOrchestrator);
-  await page.route("/api/conversations", (route) =>
-    route.fulfill(
-      route.request().method() === "POST"
-        ? { status: 201, json: { conversation_id: conversation.conversation_id } }
-        : { json: [] },
-    ),
-  );
-  await page.route("/api/conversations/*/turns", (route) =>
-    route.fulfill({ status: 201, json: turn }),
-  );
-  await page.route("/api/conversations/*", (route) => route.fulfill({ json: conversation }));
-}
-
-/** Choose the scheme as the banner's switch would, before the page loads. */
+/** Choose the scheme as the Settings page would, before the page loads. */
 async function useScheme(page: Page, scheme: "light" | "dark") {
   await page.addInitScript((value) => localStorage.setItem("dd-theme", value), scheme);
-}
-
-async function axeViolations(page: Page) {
-  const results = await new AxeBuilder({ page })
-    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
-    .analyze();
-  return results.violations;
-}
-
-async function overflow(page: Page) {
-  return page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  );
 }
 
 for (const [name, body] of [
@@ -252,6 +192,53 @@ test("a project's document is rejected with the keyboard alone, at 320px, and th
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
 
+test("a suggested repository is chosen on the project's page with the keyboard alone, at 320px", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  let chosen: unknown = null;
+  const sent: unknown[] = [];
+  await page.route(`/api/projects/${project.project_id}/documents`, (route) =>
+    route.fulfill({ json: project }),
+  );
+  await page.route(`/api/projects/${project.project_id}/repository`, (route) => {
+    if (route.request().method() === "PUT") {
+      sent.push(route.request().postDataJSON());
+      chosen = chosenRepository;
+      return route.fulfill({ status: 201, json: chosenRepository });
+    }
+    return chosen
+      ? route.fulfill({ json: chosen })
+      : route.fulfill({
+          status: 404,
+          json: { type: "/problems/repository-not-chosen", title: "No repository chosen", status: 404 },
+        });
+  });
+  await page.route("/api/repositories*", (route) => route.fulfill({ json: suggested }));
+  await page.goto(`/projects/${project.project_id}?doc=repository`);
+  const box = page.getByRole("combobox", { name: "Find a repository" });
+  // Checked with the list closed: while it is open, react-aria hides the rest of the page.
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await box.focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(page.getByRole("option")).toHaveCount(suggested.repositories.length);
+  await page.keyboard.press("Enter");
+  await expect(box).toHaveValue(suggested.repositories[0]?.name ?? "");
+  // The combo box's own button is left out of the tab order, so the next stop is Choose.
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "Choose repository" })).toBeFocused();
+  await page.keyboard.press("Enter");
+
+  const panel = page.getByRole("region", { name: "Repository" });
+  await expect(panel.getByText("orda@v3")).toBeVisible();
+  expect(sent).toEqual([{ re3data_id: suggested.repositories[0]?.re3data_id }]);
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(0);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
+
 test("a server failure is announced as an alert", async ({ page }) => {
   await page.route("/api/agents", (route) => route.fulfill({ status: 500, body: "" }));
   await page.goto("/");
@@ -279,9 +266,9 @@ test("conversation: keyboard only, focus returns to the message box, reflows at 
   const box = page.getByRole("textbox", { name: "What would you like to do?" });
   await box.focus();
   await page.keyboard.type("hello world");
-  // Attaching an inventory, and making one, come between the message and Send.
+  // Attaching a file, and making an inventory, come between the message and Send.
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("button", { name: "Attach inventory" })).toBeFocused();
+  await expect(page.getByRole("button", { name: "Attach a file" })).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Make an inventory" })).toBeFocused();
   await page.keyboard.press("Tab");
@@ -292,7 +279,7 @@ test("conversation: keyboard only, focus returns to the message box, reflows at 
   expect(await overflow(page), "horizontal overflow on the conversation").toBeLessThanOrEqual(0);
 });
 
-test("Make an inventory: tabs and copy by keyboard, fits 320px, no axe violations", async ({
+test("Make an inventory: routes, tabs and copy by keyboard, fits 320px, no axe violations", async ({
   page,
   context,
 }) => {
@@ -304,8 +291,15 @@ test("Make an inventory: tabs and copy by keyboard, fits 320px, no axe violation
   await make.press("Enter");
   const dialog = page.getByRole("dialog", { name: "Make an inventory" });
   await expect(dialog.getByText(/your data never leave it/)).toBeVisible();
+  // The preview server serves the scanner, so the dialog opens on the browser route; the arrow
+  // keys reach the command.
+  const routes = dialog.getByRole("tablist", { name: "How to make it" });
+  await expect(routes.getByRole("tab", { name: "In this browser" })).toHaveAttribute("aria-selected", "true");
+  await routes.getByRole("tab", { selected: true }).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(routes.getByRole("tab", { name: "With the command" })).toHaveAttribute("aria-selected", "true");
   // The browser's own system is selected; the arrow keys and End reach the others.
-  await dialog.getByRole("tab", { selected: true }).focus();
+  await dialog.getByRole("tablist", { name: "Operating system" }).getByRole("tab", { selected: true }).focus();
   await page.keyboard.press("End");
   const linux = dialog.getByRole("tab", { name: /Linux/ });
   await expect(linux).toBeFocused();
@@ -334,9 +328,9 @@ for (const scheme of ["light", "dark"] as const) {
     await serveConversation(page);
     // Until an answer is sent the conversation ends with the question; then with the answer.
     let sentAnswer: unknown = null;
-    await page.route("/api/conversations/*/turns", (route) => {
-      sentAnswer = route.request().postDataJSON().choice_answer ?? null;
-      return route.fulfill({ status: 201, json: turn });
+    await page.route("/api/conversations/*/turns/stream", (route) => {
+      sentAnswer = turnSent(route).reply_answers ?? null;
+      return streamTurn(route);
     });
     await page.route("/api/conversations/*", (route) =>
       route.fulfill({ json: sentAnswer ? answered : question }),
@@ -348,7 +342,7 @@ for (const scheme of ["light", "dark"] as const) {
 
     const group = page.getByRole("group", { name: "Where are you with your research data?" });
     await expect(group).toBeVisible();
-    await expect(page.getByRole("status")).toContainText("It asks you to choose");
+    await expect(page.getByRole("log", { name: "Announcements" })).toContainText("It asks: Where are you");
     expect(await overflow(page), "horizontal overflow with a question").toBeLessThanOrEqual(0);
     expect(await axeViolations(page)).toEqual([]);
 
@@ -362,9 +356,77 @@ for (const scheme of ["light", "dark"] as const) {
     await page.keyboard.press("Enter");
 
     await expect(page.getByText("(your choice)")).toBeVisible();
-    expect(sentAnswer).toEqual({ answer_to: question.turns[0]?.invocation_id, answer_values: ["2"] });
+    expect(sentAnswer).toEqual({
+      answer_to: question.turns[0]?.invocation_id,
+      given_answers: [{ answered_key: "entry", answer_values: ["2"] }],
+    });
     await expect(box).toBeFocused();
     expect(await axeViolations(page)).toEqual([]);
+  });
+
+  test(`a series of questions, ${scheme}: answered one at a time by keyboard at 320px, with no axe violations`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 320, height: 640 });
+    await useScheme(page, scheme);
+    await serveConversation(page);
+    // The fixture's reply asks three questions instead of one: a choice, a line and a paragraph.
+    const series = structuredClone(question);
+    const asking = series.turns[0]?.envelope.payload as Record<string, unknown>;
+    const [entry] = asking.reply_questions as unknown[];
+    asking.reply_questions = [
+      entry,
+      { question_key: "title", question_kind: "short_text", question_prompt: "What is the dataset called?" },
+      {
+        question_key: "method",
+        question_kind: "long_text",
+        question_prompt: "How were the data collected?",
+        question_help: "A few sentences are enough.",
+      },
+    ];
+    let sentAnswer: unknown = null;
+    await page.route("/api/conversations/*/turns/stream", (route) => {
+      sentAnswer = turnSent(route).reply_answers ?? null;
+      return streamTurn(route);
+    });
+    await page.route("/api/conversations/*", (route) => route.fulfill({ json: series }));
+    await page.goto("/");
+    const box = page.getByRole("textbox", { name: "What would you like to do?" });
+    await box.fill("hi");
+    await page.getByRole("button", { name: "Send" }).click();
+
+    const form = page.getByRole("form", { name: /asks 3 questions for you/ });
+    await expect(form.getByText("Question 1 of 3")).toBeVisible();
+    await expect(page.getByRole("log", { name: "Announcements" })).toContainText("3 questions, one at a time");
+    expect(await overflow(page), "horizontal overflow with a series of questions").toBeLessThanOrEqual(0);
+    expect(await axeViolations(page)).toEqual([]);
+
+    // The choice, by keyboard, then Next; the focus moves to the next question.
+    await form.getByRole("radio").first().focus();
+    await page.keyboard.press("ArrowDown");
+    await form.getByRole("button", { name: "Next" }).focus();
+    await page.keyboard.press("Enter");
+    await expect(form.getByText("Question 2 of 3")).toBeVisible();
+    await expect(form.getByText("What is the dataset called?")).toBeFocused();
+    await page.keyboard.press("Tab");
+    await page.keyboard.type("Bird counts");
+    await page.keyboard.press("Enter");
+
+    // The paragraph is skipped; the answers are checked, then sent together.
+    await expect(form.getByText("Question 3 of 3")).toBeVisible();
+    await form.getByRole("button", { name: "Skip" }).click();
+    await expect(form.getByRole("heading", { name: "Check your answers" })).toBeFocused();
+    expect(await overflow(page), "horizontal overflow with the answers to check").toBeLessThanOrEqual(0);
+    expect(await axeViolations(page)).toEqual([]);
+    await form.getByRole("button", { name: "Send answers" }).click();
+
+    await expect.poll(() => sentAnswer).toEqual({
+      answer_to: question.turns[0]?.invocation_id,
+      given_answers: [
+        { answered_key: "entry", answer_values: ["2"] },
+        { answered_key: "title", answer_values: [], answer_words: "Bird counts" },
+      ],
+    });
   });
 }
 
@@ -481,7 +543,16 @@ test("an inventory is checked, trimmed by keyboard and shown as a chip at 320px 
   await leaveOut.focus();
   await page.keyboard.press("Space");
   await expect(leaveOut).not.toBeChecked();
-  await expect(review.getByText("Left out: 1 file.")).toBeVisible();
+  await expect(review.getByRole("status")).toContainText("1 file left out");
+  // A file is described by keyboard, beside the facts the command found.
+  const describe = review.getByText("Describe data/file-0.csv");
+  await describe.focus();
+  await page.keyboard.press("Enter");
+  await review.getByRole("textbox", { name: "What this file is" }).fill("Readings from site 0");
+  await page.keyboard.press("Tab");
+  await expect(review.getByRole("status")).toContainText("1 description");
+  expect(await overflow(page), "horizontal overflow while describing a file").toBeLessThanOrEqual(0);
+  expect(await axeViolations(page)).toEqual([]);
   await review.getByRole("button", { name: "Attach this inventory" }).press("Enter");
   await expect(review).toHaveCount(0);
   await expect(page.getByRole("textbox", { name: "What would you like to do?" })).toBeFocused();
@@ -498,6 +569,7 @@ test("an inventory is checked, trimmed by keyboard and shown as a chip at 320px 
   await expect(dialog.getByText("41 files, 49.2 kB in all")).toBeVisible();
   await expect(dialog.getByText("file-1.csv", { exact: true })).toHaveCount(0);
   await expect(dialog.getByText(/the researcher left out 1 file\./)).toBeVisible();
+  await expect(dialog.getByText("Readings from site 0")).toBeVisible();
   // The only top-level folder is open already.
   await expect(dialog.getByText("file-0.csv", { exact: true })).toBeVisible();
   expect(await overflow(page), "horizontal overflow with the inventory open").toBeLessThanOrEqual(0);
@@ -508,6 +580,40 @@ test("an inventory is checked, trimmed by keyboard and shown as a chip at 320px 
 
   await page.getByRole("button", { name: "Remove inventory" }).press("Enter");
   await expect(page.getByRole("textbox", { name: "What would you like to do?" })).toBeFocused();
+});
+
+test("a document is checked by keyboard and shown as a chip at 320px with no axe violations", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await serveConversation(page);
+  await page.goto("/");
+  const lines = Array.from({ length: 80 }, (_, i) => `Step ${i}: a-very-long-unbroken-instruction-${i}`);
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "a-long-sampling-protocol-file-name.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(`# Sampling protocol\n\n${lines.join("\n")}\n`),
+  });
+
+  // It is checked first: nothing is attached until it is confirmed.
+  const review = page.getByRole("dialog", { name: "Check the document before attaching it" });
+  await expect(review.getByText(/never\s+the data themselves/)).toBeVisible();
+  await expect(page.getByText(/Document: a-long-sampling-protocol/)).toHaveCount(0);
+  expect(await overflow(page), "horizontal overflow while checking the document").toBeLessThanOrEqual(0);
+  expect(await axeViolations(page)).toEqual([]);
+  await review.getByRole("button", { name: "Attach this document" }).press("Enter");
+  await expect(review).toHaveCount(0);
+  const box = page.getByRole("textbox", { name: "What would you like to do?" });
+  await expect(box).toBeFocused();
+
+  await expect(page.getByText(/Document: a-long-sampling-protocol-file-name.md/)).toBeVisible();
+  await expect(box).toHaveValue("");
+  expect(await overflow(page), "horizontal overflow with a document attached").toBeLessThanOrEqual(0);
+  expect(await axeViolations(page)).toEqual([]);
+
+  await page.getByRole("button", { name: "Remove a-long-sampling-protocol-file-name.md" }).press("Enter");
+  await expect(box).toBeFocused();
+  await expect(page.getByText(/Document: a-long-sampling-protocol/)).toHaveCount(0);
 });
 
 test("a delegated run opens inside its card at 320px, keeping focus and the conversation", async ({
@@ -521,7 +627,7 @@ test("a delegated run opens inside its card at 320px, keeping focus and the conv
   await page.getByRole("button", { name: "Send" }).click();
   const toggle = page.getByRole("button", { name: /(Show|Hide) the run/ }).first();
   await toggle.click();
-  await expect(page).toHaveURL(/\?run=/);
+  await expect(page).toHaveURL(/[?&]run=/);
   await expect(toggle).toBeFocused();
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
   const conversation = page.getByRole("list", { name: "Conversation" });
@@ -529,7 +635,7 @@ test("a delegated run opens inside its card at 320px, keeping focus and the conv
   await expect(conversation.getByRole("heading", { name: /^Outcome:/ })).toBeVisible();
   expect(await overflow(page), "horizontal overflow with a run open").toBeLessThanOrEqual(0);
   await toggle.click();
-  await expect(page).not.toHaveURL(/\?run=/);
+  await expect(page).not.toHaveURL(/[?&]run=/);
   await expect(toggle).toBeFocused();
 });
 
@@ -554,7 +660,7 @@ for (const width of [1280, 320]) {
     await page.setViewportSize({ width, height: 800 });
     await serveConversation(page);
     const nav = page.getByRole("navigation", { name: "Main" });
-    const parts = [nav, page.getByRole("button", { name: "Dark mode" })];
+    const parts = [nav, page.getByRole("link", { name: "Settings" })];
     // Where each part is on the page, not in the viewport: selecting a tab below the fold
     // scrolls the page, which moves nothing in it.
     const boxes = async () => {
@@ -625,6 +731,84 @@ test("the workspace at 1280px: conversations, conversation and the project side 
   await expect(conversation.getByRole("heading", { name: /^Outcome:/ })).toHaveCount(0);
 });
 
+test("a step of the journey starts a conversation with its prompt, sent only when the researcher sends", async ({
+  page,
+}) => {
+  const [active] = projects;
+  if (!active) throw new Error("the projects fixture lists no project");
+  await serveConversation(page);
+  await page.route("/api/projects", (route) => route.fulfill({ json: projects }));
+  await page.route(`/api/projects/${active.project_id}/progress`, (route) =>
+    route.fulfill({ json: intakeComplete.progress }),
+  );
+  await page.route(`/api/projects/${active.project_id}/intake`, (route) =>
+    route.fulfill({ json: intakeComplete }),
+  );
+  await page.addInitScript((id) => localStorage.setItem("dd-project", id), active.project_id);
+  let sent: unknown = null;
+  await page.route("/api/conversations/*/turns/stream", (route) => {
+    sent = turnSent(route);
+    return streamTurn(route);
+  });
+  await page.goto("/");
+
+  const suggested = flow.phases
+    .flatMap((p) => p.steps)
+    .find((s) => s.id === intakeComplete.progress.suggested);
+  if (!suggested) throw new Error("the intake fixture suggests no step in the flow");
+  const offered = page.getByRole("group", { name: "Suggested ways to start" });
+  await expect(offered.getByRole("button").first()).toHaveAccessibleName(suggested.prompt);
+  expect(await axeViolations(page)).toEqual([]);
+
+  const phases = page.getByRole("navigation", { name: "Your data journey" });
+  await phases
+    .getByRole("button", { name: `Start a conversation: ${suggested.label}` })
+    .first()
+    .click();
+  const box = page.getByRole("textbox", { name: "What would you like to do?" });
+  await expect(box).toHaveValue(suggested.prompt);
+  await expect(box).toBeFocused();
+  expect(sent).toBeNull();
+
+  await page.getByRole("button", { name: "Send" }).click();
+  await expect(page.getByRole("list", { name: "Conversation" })).toBeVisible();
+  expect(JSON.stringify(sent)).toContain(suggested.prompt);
+});
+
+test("the journey map is one press from the main navigation, and a tab away from the documents", async ({
+  page,
+}) => {
+  const [active] = projects;
+  if (!active) throw new Error("the projects fixture lists no project");
+  await serveConversation(page);
+  await page.route("/api/projects", (route) => route.fulfill({ json: projects }));
+  await page.route(`/api/projects/${active.project_id}/progress`, (route) =>
+    route.fulfill({ json: intakeComplete.progress }),
+  );
+  await page.route(`/api/projects/${active.project_id}/intake`, (route) =>
+    route.fulfill({ json: intakeComplete }),
+  );
+  await page.route(`/api/projects/${active.project_id}/documents`, (route) =>
+    route.fulfill({ json: { ...project, project_id: active.project_id } }),
+  );
+  await page.addInitScript((id) => localStorage.setItem("dd-project", id), active.project_id);
+  await page.goto("/");
+
+  const nav = page.getByRole("navigation", { name: "Main" });
+  await nav.getByRole("link", { name: "Journey map" }).click();
+  await expect(page).toHaveURL(`/projects/${active.project_id}/journey`);
+  await expect(page.getByRole("heading", { level: 1, name: "Your data journey" })).toBeVisible();
+  await expect(nav.getByRole("link", { name: "Journey map" })).toHaveAttribute("aria-current", "page");
+
+  const tabs = page.getByRole("navigation", { name: "Project" });
+  await tabs.getByRole("link", { name: "Documents" }).click();
+  await expect(page).toHaveURL(new RegExp(`/projects/${active.project_id}(\\?.*)?$`));
+  await expect(nav.getByRole("link", { name: "Projects" })).toHaveAttribute("aria-current", "page");
+  expect(await axeViolations(page)).toEqual([]);
+  await tabs.getByRole("link", { name: "Journey map" }).click();
+  await expect(page).toHaveURL(`/projects/${active.project_id}/journey`);
+});
+
 test("the workspace reflows at 320px with every phase open", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 });
   await serveConversation(page);
@@ -649,12 +833,10 @@ test("light by default whatever the system prefers; the dark choice survives a r
   const background = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
   expect(await background()).toBe("rgb(255, 255, 255)");
 
-  await page.getByRole("button", { name: "Dark mode" }).click();
+  await expect(page.getByRole("button", { name: "Dark mode" })).toHaveCount(0);
+  await page.getByRole("link", { name: "Settings" }).click();
+  await page.getByRole("radio", { name: "Dark", exact: true }).check();
   await expect(html).toHaveAttribute("data-theme", "dark");
-  await expect(page.getByRole("button", { name: "Dark mode" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
   await page.reload();
   await expect(html).toHaveAttribute("data-theme", "dark");
   expect(await background()).not.toBe("rgb(255, 255, 255)");
@@ -671,6 +853,7 @@ for (const scheme of ["light", "dark"] as const) {
           harness_version: "0.1.0",
           commit: "abcdef0123456789",
           feedback_enabled: true,
+          privacy_notice_url: null,
         },
       }),
     );

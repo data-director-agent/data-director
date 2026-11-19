@@ -42,6 +42,9 @@ class Recommendation(Grounded):
     rationale: str
     rationale_derivation: Derivation
     classification_derivation: Derivation | None = None
+    selection_derivation: Derivation | None = None
+    concern: str | None = None
+    notes: list[str] = Field(default_factory=list)
 
 
 class SearchedSummary(Frozen):
@@ -55,3 +58,4 @@ class Recommendations(Grounded):
     schema_class: Literal["Recommendations"] = "Recommendations"
     items: list[Recommendation] = Field(default_factory=list)
     searched: SearchedSummary | None = None
+    limitations: list[str] = Field(default_factory=list)

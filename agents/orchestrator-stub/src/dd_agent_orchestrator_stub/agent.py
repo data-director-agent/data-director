@@ -17,10 +17,12 @@ A message no rule matches may name one of the Blueprint's three entry points (§
 collection, data collected and being prepared for sharing, or ready to deposit. The reply then lists
 every step from that entry's phase to the last, with the agents whose manifest entry serves the
 step, and says "no agent yet" with the step's requirement where none does
-(docs/specs/orchestration.md). On a first turn that names neither a rule nor an entry, it asks which
-entry applies, as a choice question (`Reply.reply_question`) whose values are the entry numbers; a
-`Message.choice_answer` naming one is read before any rule. Otherwise it reads only the current
-message: `Message.history` is covered by the input hash, and used only to tell a first turn.
+(docs/specs/orchestration.md). On a first turn that names neither a rule nor an entry, and only
+when the project has no entry point (a researcher outside a project has none), it asks which
+entry applies, as a choice question (`Reply.reply_questions`, keyed `entry`) whose values are the
+entry numbers; a `Message.reply_answers` choosing one is read before any rule. Otherwise it reads
+only the current message: `Message.history` is covered by the input hash, and used only to tell a
+first turn.
 
 In a project, the conductor says which entry point the researcher chose and how far each step has
 gone (`Message.project_entry`, `Message.project_progress`), derived from the project log on every
@@ -45,33 +47,44 @@ was; the child's own status is on its envelope and on the parent's `delegations`
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
-from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 
-import yaml
-
+from dd_agent_orchestrator_stub.routing import (
+    EntryRule,
+    Rule,
+    entry_named,
+    load_entries,
+    load_next,
+    load_rules,
+    load_steps,
+    route,
+)
 from dd_sdk import serve
-from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
+from dd_sdk.agent import (
+    AgentResult,
+    AgentSpec,
+    Derived,
+    RunContext,
+    abstain,
+    input_evidence,
+    input_ref,
+)
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     ChoiceOption,
-    ChoiceQuestion,
     Derivation,
-    EvidenceItem,
     GroundingMode,
-    GroundingRef,
     InvocationRequest,
     Message,
     OpenInput,
     Outcome,
     OutcomeStatus,
+    Question,
+    QuestionKind,
     ReasonCode,
     Reply,
 )
 from dd_sdk.delegate import Delegated
-from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 from dd_sdk.process_flow import (
     ENTRIES,
     PHASES,
@@ -83,75 +96,22 @@ from dd_sdk.process_flow import (
     suggested_next,
 )
 
-HERE = Path(__file__).resolve().parent
-ROUTING = HERE / "routing.yaml"
-
-MENTION = re.compile(r"^@(?P<agent>[\w.-]+)\s+(?P<rest>.+)$", re.DOTALL)
+ENTRY_KEY = "entry"
+NEXT_STEP_KEY = "next-step"
 
 
-@dataclass(frozen=True)
-class Rule:
-    name: str
-    agent_id: str
-    pattern: re.Pattern[str]
-    input: dict[str, Any]
-    mention_input: dict[str, Any]
-    relay_field: str | None
-    example: str
+def chosen(message: Message, key: str) -> str | None:
+    """The one option the researcher chose in answer to the question keyed `key`, if any."""
+    given = message.reply_answers.given_answers if message.reply_answers else []
+    values = [a.answer_values for a in given if a.answered_key == key]
+    return values[0][0] if values and len(values[0]) == 1 else None
 
 
-def load_rules(path: Path = ROUTING) -> list[Rule]:
-    doc = yaml.safe_load(path.read_text(encoding="utf-8"))
-    return [
-        Rule(
-            name=r["name"],
-            agent_id=r["agent_id"],
-            pattern=re.compile(r["pattern"], re.IGNORECASE | re.DOTALL),
-            input=r["input"],
-            mention_input=r["mention_input"],
-            relay_field=r.get("relay_field"),
-            example=r["example"],
-        )
-        for r in doc["rules"]
-    ]
-
-
-@dataclass(frozen=True)
-class EntryRule:
-    entry: Entry
-    pattern: re.Pattern[str]
-
-
-def load_entries(path: Path = ROUTING) -> list[EntryRule]:
-    doc = yaml.safe_load(path.read_text(encoding="utf-8"))
-    return [
-        EntryRule(entry(int(e["entry"])), re.compile(e["pattern"], re.IGNORECASE | re.DOTALL))
-        for e in doc.get("entries") or []
-    ]
-
-
-def load_next(path: Path = ROUTING) -> re.Pattern[str] | None:
-    """How a message asks what to do next, if `routing.yaml` says."""
-    doc = yaml.safe_load(path.read_text(encoding="utf-8"))
-    pattern = doc.get("next")
-    return re.compile(pattern, re.IGNORECASE) if pattern else None
-
-
-def load_steps(path: Path = ROUTING) -> dict[str, list[dict[str, Any]]]:
-    """The inputs to send when a step is chosen, by step id."""
-    doc = yaml.safe_load(path.read_text(encoding="utf-8"))
-    return {str(k): list(v) for k, v in (doc.get("steps") or {}).items()}
-
-
-def entry_named(text: str, entries: list[EntryRule]) -> Entry | None:
-    """The entry point a message names, if any."""
-    text = text.strip()
-    return next((e.entry for e in entries if e.pattern.search(text)), None)
-
-
-def entry_question() -> ChoiceQuestion:
+def entry_question() -> Question:
     """Which entry point applies, as a choice question whose values are the entry numbers."""
-    return ChoiceQuestion(
+    return Question(
+        question_key=ENTRY_KEY,
+        question_kind=QuestionKind.CHOICE,
         question_prompt="Where are you with your research data?",
         question_options=[
             ChoiceOption(
@@ -164,11 +124,11 @@ def entry_question() -> ChoiceQuestion:
 
 def entry_chosen(message: Message) -> Entry | None:
     """The entry point the researcher chose in answer to `entry_question`, if they chose one."""
-    answer = message.choice_answer
-    if answer is None or len(answer.answer_values) != 1:
+    value = chosen(message, ENTRY_KEY)
+    if value is None:
         return None
     try:
-        return entry(int(answer.answer_values[0]))
+        return entry(int(value))
     except KeyError, ValueError:
         return None
 
@@ -180,10 +140,7 @@ OTHER_STEPS = 3
 
 def step_chosen(message: Message) -> str | None:
     """The step the researcher chose in answer to `next_question`, if they chose one."""
-    answer = message.choice_answer
-    if answer is None or len(answer.answer_values) != 1:
-        return None
-    value = answer.answer_values[0]
+    value = chosen(message, NEXT_STEP_KEY)
     return value if value in STEP_IDS else None
 
 
@@ -197,7 +154,7 @@ def states_of(message: Message) -> dict[str, str]:
     return {p.step_id: p.step_state.value for p in message.project_progress or []}
 
 
-def next_question(steps: list[ProgressStep], start: Entry | None) -> ChoiceQuestion | None:
+def next_question(steps: list[ProgressStep], start: Entry | None) -> Question | None:
     """The suggested step and up to `OTHER_STEPS` other open or started ones, as a choice whose
     values are step ids; None when fewer than two are left to offer."""
     first = suggested_next(steps, start)
@@ -214,7 +171,9 @@ def next_question(steps: list[ProgressStep], start: Entry | None) -> ChoiceQuest
             offered.append(s)
     if len(offered) < 2:
         return None
-    return ChoiceQuestion(
+    return Question(
+        question_key=NEXT_STEP_KEY,
+        question_kind=QuestionKind.CHOICE,
         question_prompt="What would you like to do next?",
         question_options=[
             ChoiceOption(
@@ -229,47 +188,11 @@ def next_question(steps: list[ProgressStep], start: Entry | None) -> ChoiceQuest
     )
 
 
-def fill(template: Any, values: dict[str, str]) -> Any:
-    """Fill `{name}` placeholders in every string of a template document."""
-    if isinstance(template, str):
-        return template.format_map(values)
-    if isinstance(template, dict):
-        return {k: fill(v, values) for k, v in template.items()}
-    if isinstance(template, list):
-        return [fill(v, values) for v in template]
-    return template
-
-
-@dataclass(frozen=True)
-class Route:
-    rule: Rule
-    input_document: dict[str, Any]
-
-
-def route(text: str, rules: list[Rule]) -> Route | str:
-    """The rule a message routes by and the child input it builds, or why there is none."""
-    text = text.strip()
-    mention = MENTION.match(text)
-    if mention:
-        agent_id, rest = mention["agent"], mention["rest"].strip()
-        for rule in rules:
-            if rule.agent_id == agent_id:
-                match = rule.pattern.match(rest)
-                if match:
-                    return Route(rule, fill(rule.input, match.groupdict()))
-                return Route(rule, fill(rule.mention_input, {"rest": rest}))
-        return f"No routing rule names {agent_id!r}."
-    for rule in rules:
-        match = rule.pattern.match(text)
-        if match:
-            return Route(rule, fill(rule.input, match.groupdict()))
-    return "No routing rule matched the message."
-
-
 class DirectorStub:
     spec = AgentSpec(
         agent_id="orchestrator.stub",
         title="Data Director",
+        icon="🎬",
         version="0.1.0",
         description=(
             "A rule-based stand-in for the Data Director orchestrator. Routes each message to "
@@ -282,7 +205,7 @@ class DirectorStub:
         payload=ClassSchema.of(Reply),
         derivations={
             "reply_text": Derived(Derivation.TEMPLATE, recorded_in="reply_derivation"),
-            "reply_question": Derived(Derivation.TEMPLATE),
+            "reply_questions": Derived(Derivation.TEMPLATE),
         },
     )
 
@@ -303,7 +226,7 @@ class DirectorStub:
         assert isinstance(message, Message)  # the conductor refused anything else
 
         if ctx.delegate is None:
-            return _abstain(
+            return abstain(
                 ReasonCode.CAPABILITY_NOT_IMPLEMENTED,
                 "The conductor gave this run no way to delegate (for example, it was started "
                 "from `workbench invoke`), so no agent was asked.",
@@ -322,32 +245,7 @@ class DirectorStub:
             )
         found = route(message.message_text, self.rules)
         if isinstance(found, str):
-            start = entry_named(message.message_text, self.entries)
-            if start is not None:
-                return self._where(
-                    start,
-                    message,
-                    ctx,
-                    f"Listed the steps from entry point {start.number}; no agent was asked.",
-                )
-            known = project_entry(message)
-            asks_next = bool(self.next_pattern and self.next_pattern.search(message.message_text))
-            if asks_next or (known is not None and not message.history):
-                return self._where(
-                    known,
-                    message,
-                    ctx,
-                    "Listed where the project is and suggested a next step; no agent was asked.",
-                )
-            if not message.history:
-                return _template_reply(
-                    f"Where are you with your research data? Choose one below, or ask for one "
-                    f"thing directly. {self._routable()}",
-                    "Asked which entry point applies; no agent was asked.",
-                    ctx,
-                    question=entry_question(),
-                )
-            return _abstain(ReasonCode.OUTSIDE_AGENT_SCOPE, f"{found} {self._routable()}")
+            return self._unrouted(found, message, ctx)
 
         # A refused delegation (unknown agent, unreachable conductor) raises DelegationRefused;
         # the conductor records it as failed(agent-error), which is what a developer should see.
@@ -355,6 +253,36 @@ class DirectorStub:
             found.rule.agent_id, OpenInput.model_validate(found.input_document)
         )
         return self._relay(found.rule, delegated, ctx)
+
+    def _unrouted(self, why: str, message: Message, ctx: RunContext) -> AgentResult:
+        """A message no rule routes: the steps from an entry point it names or the project's,
+        a question which entry applies on a first turn, or why no agent was asked."""
+        start = entry_named(message.message_text, self.entries)
+        if start is not None:
+            return self._where(
+                start,
+                message,
+                ctx,
+                f"Listed the steps from entry point {start.number}; no agent was asked.",
+            )
+        known = project_entry(message)
+        asks_next = bool(self.next_pattern and self.next_pattern.search(message.message_text))
+        if asks_next or (known is not None and not message.history):
+            return self._where(
+                known,
+                message,
+                ctx,
+                "Listed where the project is and suggested a next step; no agent was asked.",
+            )
+        if not message.history:
+            return _template_reply(
+                f"Where are you with your research data? Choose one below, or ask for one "
+                f"thing directly. {self._routable()}",
+                "Asked which entry point applies; no agent was asked.",
+                ctx,
+                question=entry_question(),
+            )
+        return abstain(ReasonCode.OUTSIDE_AGENT_SCOPE, f"{why} {self._routable()}")
 
     def _relay(self, rule: Rule, delegated: Delegated, ctx: RunContext) -> AgentResult:
         child = delegated.envelope
@@ -366,7 +294,6 @@ class DirectorStub:
             value = getattr(child.payload, rule.relay_field, None)
             if value:
                 text += f" {rule.relay_field}: {value}"
-        input_ref = GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)
         return AgentResult(
             outcome=Outcome(
                 status=OutcomeStatus.SUCCEEDED,
@@ -378,9 +305,9 @@ class DirectorStub:
             payload=Reply(
                 reply_text=text,
                 reply_derivation=Derivation.TEMPLATE,
-                grounded_on=[input_ref, delegated.ref],
+                grounded_on=[input_ref(ctx), delegated.ref],
             ),
-            evidence=[_input_evidence(ctx), delegated.evidence],
+            evidence=[input_evidence(ctx), delegated.evidence],
         )
 
     def _where(
@@ -445,6 +372,11 @@ class DirectorStub:
             lines.append(
                 f"Suggested next: {suggested.step.text}. You may do any step in any order, and "
                 "mark one done or skipped in your project when nothing here records it."
+            )
+        elif start is None:
+            lines.append(
+                "Say where you are with your research data, or choose it in your project, and "
+                "I will suggest a next step."
             )
         elif any(s.state != "open" for s in steps):
             lines.append("Every step from here is done or skipped.")
@@ -516,7 +448,6 @@ class DirectorStub:
                 f"{child.outcome.statement}"
             )
         lines.append("Ask 'what next?' when you are ready.")
-        input_ref = GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)
         agents = ", ".join(f"{d.envelope.agent_id}@{d.envelope.agent_version}" for d in delegated)
         return AgentResult(
             outcome=Outcome(
@@ -529,9 +460,9 @@ class DirectorStub:
             payload=Reply(
                 reply_text="\n".join(lines),
                 reply_derivation=Derivation.TEMPLATE,
-                grounded_on=[input_ref, *(d.ref for d in delegated)],
+                grounded_on=[input_ref(ctx), *(d.ref for d in delegated)],
             ),
-            evidence=[_input_evidence(ctx), *(d.evidence for d in delegated)],
+            evidence=[input_evidence(ctx), *(d.evidence for d in delegated)],
         )
 
     def _routable(self) -> str:
@@ -540,7 +471,7 @@ class DirectorStub:
 
 
 def _template_reply(
-    text: str, statement: str, ctx: RunContext, question: ChoiceQuestion | None = None
+    text: str, statement: str, ctx: RunContext, question: Question | None = None
 ) -> AgentResult:
     """A reply this agent writes itself, resting on the input alone."""
     return AgentResult(
@@ -551,26 +482,10 @@ def _template_reply(
         payload=Reply(
             reply_text=text,
             reply_derivation=Derivation.TEMPLATE,
-            reply_question=question,
-            grounded_on=[GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)],
+            reply_questions=[question] if question is not None else None,
+            grounded_on=[input_ref(ctx)],
         ),
-        evidence=[_input_evidence(ctx)],
-    )
-
-
-def _input_evidence(ctx: RunContext) -> EvidenceItem:
-    return EvidenceItem(
-        source_id=ctx.input_ref,
-        retrieved_at=datetime.now(UTC),
-        hash_algorithm=HASH_ALGORITHM,
-        canonicalisation=INPUT_CANONICALISATION,
-        content_hash=ctx.input_hash,
-    )
-
-
-def _abstain(reason: ReasonCode, statement: str) -> AgentResult:
-    return AgentResult(
-        outcome=Outcome(status=OutcomeStatus.ABSTAINED, reason_code=reason, statement=statement)
+        evidence=[input_evidence(ctx)],
     )
 
 

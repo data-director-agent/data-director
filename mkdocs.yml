@@ -23,6 +23,23 @@ validation:
 theme:
   name: material
   language: en
+  # The favicon is a copy of app/web/public/favicon.svg, which follows the system scheme itself.
+  favicon: assets/favicon.svg
+  # Two schemes, each chosen by the system's preference at first. The toggle then stores the
+  # reader's choice. primary: custom takes the app's blue from stylesheets/accessibility.css.
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
   features:
     - navigation.sections
     - navigation.indexes
@@ -75,21 +92,31 @@ markdown_extensions:
 # glob takes every match the nav does not name elsewhere. Anything else is in docs/guide/.
 nav:
   - Home: index.md
+  - Privacy notice: privacy.md
   - User guide:
       - user-guide/index.md
       - Getting started: user-guide/getting-started.md
       - The workflow: user-guide/workflow.md
       - Running an agent: user-guide/running-an-agent.md
       - Making an inventory: user-guide/making-an-inventory.md
+      - Attaching a document: user-guide/attaching-a-document.md
+      - Using your ORCID record: user-guide/orcid-facts.md
+      - Deciding project facts: user-guide/project-facts.md
       - Understanding outcomes: user-guide/outcomes.md
       - What is recorded: user-guide/records.md
+      - Depositing your data: user-guide/depositing.md
       - Giving feedback: user-guide/feedback.md
   - Operations:
       - operations/index.md
       - AI models: operations/ai-models.md
       - Configuration: operations/configuration.md
+      - Privacy notice: operations/privacy.md
       - The data-director command: operations/commands.md
+      - The admin service: operations/admin.md
+      - The model broker: operations/model-broker.md
       - Deploying to a VM: /deploy/README.md
+      - LLM gateway: /deploy/llm-gateway/README.md
+      - LLM gateway background: /deploy/llm-gateway/background.md
       - Institutional profiles: /workbench/profiles/README.md
       - Repository requirements: /app/config/repositories/README.md
   - Developer guide:
@@ -97,6 +124,7 @@ nav:
       - Your first contribution: developer-guide/first-contribution.md
       - Setting up: developer-guide/setup.md
       - Writing an agent: developer-guide/writing-an-agent.md
+      - Reviewing a model-backed agent: developer-guide/reviewing-a-model-backed-agent.md
       - Documentation: developer-guide/documentation.md
       - Contributing: /CONTRIBUTING.md
       - Working in the repository: /AGENTS.md
@@ -104,15 +132,19 @@ nav:
   - Reference:
       - reference/index.md
       - Architecture: /docs/architecture.md
+      - Architecture review: /docs/architecture-review.md
       - Contract: /docs/contract.md
       - Glossary: /docs/glossary.md
       - Repository: /README.md
       - UI best practices: /docs/ui/best-practices.md
+      - Steward escalation flows: /docs/ui/steward-escalation-flows.md
       - Specifications:
           - /docs/specs/README.md
           - /docs/specs/*.md
   - Packages:
-      - SDK: /sdk/README.md
+      - SDK:
+          - /sdk/README.md
+          - Agent card and payload library (TypeScript): /sdk/browser/README.md
       - Harness:
           - /harness/README.md
           - /harness/docs/*.md
@@ -127,6 +159,10 @@ nav:
       - App:
           - /app/README.md
           - Configuration examples: /app/config/examples/README.md
+      - Admin:
+          - /admin/README.md
+      - Model broker:
+          - /broker/README.md
       - Inventory:
           - /inventory/README.md
           - Inventory library (TypeScript): /inventory/browser/README.md
@@ -141,6 +177,7 @@ nav:
           - Repository advisor: /agents/advisor-repository/README.md
           - DMP advisor: /agents/advisor-dmp/README.md
           - Documentation advisor: /agents/advisor-documentation/README.md
+          - Documentation evaluation: /agents/advisor-documentation/src/dd_agent_advisor_documentation/evals/README.md
           - Ethics advisor: /agents/advisor-ethics/README.md
           - FAIRness advisor: /agents/advisor-fairness/README.md
           - Files advisor: /agents/advisor-files/README.md
@@ -158,6 +195,8 @@ nav:
       - Harness: /harness/CHANGELOG.md
       - Workbench: /workbench/CHANGELOG.md
       - App: /app/CHANGELOG.md
+      - Admin: /admin/CHANGELOG.md
+      - Model broker: /broker/CHANGELOG.md
       - Inventory: /inventory/CHANGELOG.md
       - Agents:
           - /agents/*/CHANGELOG.md

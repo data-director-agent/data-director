@@ -7,14 +7,31 @@
  * Drawn as a strip, like a progress bar, opening to show each phase's steps. Where the project
  * is comes from the harness, which derives it from the project log on every read
  * (docs/specs/orchestration.md): the entry point the researcher chose, each step started, done or
- * skipped, and the step to suggest next. The shell computes none of it. The suggestion is never
+ * skipped, and the step to suggest next. Data Director may record the entry point from what the
+ * researcher said, which the strip says, until they choose one themselves; with none recorded,
+ * nothing is suggested. The shell computes none of it. The suggestion is never
  * a gate: the researcher may mark any step done or skipped, or open it again, for the many steps
  * nothing in the project records, and may do the steps in any order.
+ *
+ * Each step not yet done or skipped, and the suggested one beside the suggestion, offers to start
+ * a new conversation about it: the step's `prompt` is put in the message box for the researcher to
+ * edit and send. Nothing is sent or recorded until they send it.
  */
 
 import "./PhaseTracker.css";
 
-import type { FlowStep, ProcessFlow, ProjectProgress, StepMark, StepState } from "../../flow/types";
+import type {
+  FlowStep,
+  ProcessFlow,
+  ProjectProgress,
+  StepMark,
+  StepState,
+} from "../../flow/types";
+import { ListChecks, Map as MapIcon, MessageSquarePlus } from "lucide-react";
+
+import { locate, waitingOn } from "../../flow/journey";
+import type { ProjectDocument } from "../../project/api";
+import { Link, journeyPath } from "../../route";
 import { Button } from "../ui/Button";
 
 export type FlowLoad =
@@ -27,8 +44,16 @@ export interface TrackedProgress {
   progress: ProjectProgress;
   chooseEntry(entry: number): void;
   markStep(stepId: string, mark: StepMark): void;
+  /** Starts a new conversation with the step's prompt in the message box, unsent. */
+  startConversation?: (step: FlowStep) => void;
   /** Why the last change was not recorded, if it was not. */
   error?: string | null;
+  /** Opens the intake card with the current answers chosen (docs/specs/app.md, rule 25). */
+  answerIntakeAgain?: () => void;
+  /** The project, whose journey map the strip links to. */
+  projectId?: string;
+  /** The project's documents, once read, for the count of what waits on the researcher. */
+  documents?: readonly ProjectDocument[];
 }
 
 const STATE_LABEL: Record<StepState, string> = {
@@ -37,16 +62,26 @@ const STATE_LABEL: Record<StepState, string> = {
   skipped: "Skipped",
 };
 
-export function PhaseTracker({ load, tracked }: { load: FlowLoad; tracked?: TrackedProgress | null }) {
+export function PhaseTracker({
+  load,
+  tracked,
+}: {
+  load: FlowLoad;
+  tracked?: TrackedProgress | null;
+}) {
   const flow = load.state === "loaded" ? load.flow : null;
-  const suggested = flow && tracked ? stepById(flow, tracked.progress.suggested) : null;
+  const located = flow && tracked ? locate(flow, tracked.progress.suggested) : null;
   return (
-    <nav aria-labelledby="phases-heading" className="workspace-phases phase-strip">
+    <nav
+      aria-labelledby="phases-heading"
+      className="workspace-phases phase-strip"
+    >
       <div className="phase-strip-head">
         <h2 id="phases-heading">Your data journey</h2>
         {!tracked && (
           <p className="phase-strip-where">
-            Where your project is shows here once your conversation has a project.
+            Where your project is shows here once your conversation has a
+            project.
           </p>
         )}
         {tracked && flow && (
@@ -57,7 +92,9 @@ export function PhaseTracker({ load, tracked }: { load: FlowLoad; tracked?: Trac
                 value={tracked.progress.entry ?? ""}
                 onChange={(e) => tracked.chooseEntry(Number(e.target.value))}
               >
-                {tracked.progress.entry === null && <option value="">Not said yet</option>}
+                {tracked.progress.entry === null && (
+                  <option value="">Not said yet</option>
+                )}
                 {flow.entries.map((entry) => (
                   <option key={entry.number} value={entry.number}>
                     {capitalised(entry.text)}
@@ -65,15 +102,24 @@ export function PhaseTracker({ load, tracked }: { load: FlowLoad; tracked?: Trac
                 ))}
               </select>
             </label>
-            <p className="phase-strip-where" role="status">
-              {suggested ? (
-                <>
-                  Suggested next: <strong>{suggested.label}</strong>
-                </>
-              ) : (
-                "Every step from where you started is done or skipped."
+            {tracked.progress.entry !== null &&
+              tracked.progress.entry_source === "model" && (
+                <p className="phase-strip-where muted">
+                  Set by Data Director from what you said.
+                </p>
               )}
-            </p>
+            <JourneyLinks projectId={tracked.projectId} waiting={waitingOn(flow, tracked.progress, tracked.documents)} />
+            <SuggestedNext
+              located={located}
+              entryChosen={tracked.progress.entry !== null}
+              projectId={tracked.projectId}
+              start={tracked.startConversation}
+            />
+            {tracked.answerIntakeAgain && (
+              <Button size="small" icon={ListChecks} onPress={tracked.answerIntakeAgain}>
+                Answer the setup questions again
+              </Button>
+            )}
           </>
         )}
       </div>
@@ -122,14 +168,21 @@ export function PhaseTracker({ load, tracked }: { load: FlowLoad; tracked?: Trac
   );
 }
 
-function Phases({ flow, tracked }: { flow: ProcessFlow; tracked: TrackedProgress | null }) {
+function Phases({
+  flow,
+  tracked,
+}: {
+  flow: ProcessFlow;
+  tracked: TrackedProgress | null;
+}) {
   return (
     <ol className="phase-list">
       {flow.phases.map((phase) => (
         <li key={phase.number}>
           <details>
             <summary>
-              <span className="phase-number">Phase {phase.number}</span> {phase.name}
+              <span className="phase-number">Phase {phase.number}</span>{" "}
+              {phase.name}
             </summary>
             <p className="phase-summary">{phase.summary}</p>
             <ol className="step-list">
@@ -146,7 +199,13 @@ function Phases({ flow, tracked }: { flow: ProcessFlow; tracked: TrackedProgress
   );
 }
 
-function Step({ step, tracked }: { step: FlowStep; tracked: TrackedProgress | null }) {
+function Step({
+  step,
+  tracked,
+}: {
+  step: FlowStep;
+  tracked: TrackedProgress | null;
+}) {
   const state = tracked?.progress.steps[step.id];
   const suggested = tracked?.progress.suggested === step.id;
   return (
@@ -154,9 +213,21 @@ function Step({ step, tracked }: { step: FlowStep; tracked: TrackedProgress | nu
       <p className="step-text">
         {step.label}
         {step.optional && <span className="muted"> (optional)</span>}
-        {step.out_of_scope && <span className="muted"> (out of scope for now)</span>}
-        {state && <span className={`step-state step-state-${state}`}> {STATE_LABEL[state]}</span>}
-        {suggested && <span className="step-state step-state-suggested"> Suggested next</span>}
+        {step.out_of_scope && (
+          <span className="muted"> (out of scope for now)</span>
+        )}
+        {state && (
+          <span className={`step-state step-state-${state}`}>
+            {" "}
+            {STATE_LABEL[state]}
+          </span>
+        )}
+        {suggested && (
+          <span className="step-state step-state-suggested">
+            {" "}
+            Suggested next
+          </span>
+        )}
       </p>
       {tracked && !step.out_of_scope && (
         <div className="step-actions">
@@ -171,6 +242,9 @@ function Step({ step, tracked }: { step: FlowStep; tracked: TrackedProgress | nu
             </Button>
           ) : (
             <>
+              {tracked.startConversation && (
+                <StartButton step={step} start={tracked.startConversation} />
+              )}
               <Button
                 size="small"
                 variant="quiet"
@@ -195,13 +269,84 @@ function Step({ step, tracked }: { step: FlowStep; tracked: TrackedProgress | nu
   );
 }
 
-function stepById(flow: ProcessFlow, id: string | null): FlowStep | null {
-  if (!id) return null;
-  for (const phase of flow.phases) {
-    const found = phase.steps.find((s) => s.id === id);
-    if (found) return found;
-  }
-  return null;
+function JourneyLinks({
+  projectId,
+  waiting,
+}: {
+  projectId: string | undefined;
+  waiting: number | undefined;
+}) {
+  if (!projectId) return null;
+  const pending = waiting !== undefined && waiting > 0 ? waiting : 0;
+  return (
+    <p className="phase-strip-where">
+      <Link to={journeyPath(projectId)} className="button button-secondary button-small">
+        <MapIcon className="button-icon" size="1.125em" aria-hidden="true" />
+        Open the journey map
+        {pending > 0 && <span className="status status-warn">Waiting on you: {pending}</span>}
+      </Link>
+    </p>
+  );
+}
+
+function SuggestedNext({
+  located,
+  entryChosen,
+  projectId,
+  start,
+}: {
+  located: ReturnType<typeof locate> | null;
+  entryChosen: boolean;
+  projectId: string | undefined;
+  start: ((step: FlowStep) => void) | undefined;
+}) {
+  const suggested = located?.step ?? null;
+  return (
+    <>
+      <p className="phase-strip-where" role="status">
+        {suggested && located ? (
+          <>
+            Suggested next:{" "}
+            {projectId ? (
+              <Link to={journeyPath(projectId, suggested.id)}>
+                <strong>{suggested.label}</strong>
+              </Link>
+            ) : (
+              <strong>{suggested.label}</strong>
+            )}{" "}
+            <span className="muted">
+              (phase {located.phase.number}, {located.phase.name})
+            </span>
+          </>
+        ) : entryChosen ? (
+          "Every step from where you started is done or skipped."
+        ) : (
+          "Choose where you started, or tell Data Director, to get a suggested next step."
+        )}
+      </p>
+      {suggested && start && <StartButton step={suggested} start={start} />}
+    </>
+  );
+}
+
+function StartButton({
+  step,
+  start,
+}: {
+  step: FlowStep;
+  start: (step: FlowStep) => void;
+}) {
+  return (
+    <Button
+      size="small"
+      variant="quiet"
+      icon={MessageSquarePlus}
+      aria-label={`Start a conversation: ${step.label}`}
+      onPress={() => start(step)}
+    >
+      Start a conversation
+    </Button>
+  );
 }
 
 function capitalised(text: string): string {

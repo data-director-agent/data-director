@@ -5,6 +5,8 @@ For people who write agents or work on the repository.
 - [Your first contribution](first-contribution.md): from a fresh clone to an open pull request.
 - [Setting up](setup.md)
 - [Writing an agent](writing-an-agent.md)
+- [Reviewing a model-backed agent](reviewing-a-model-backed-agent.md): a checklist for pull
+  requests that add or change an advisor that calls a model.
 - [Contributing](../../../CONTRIBUTING.md): how to propose and submit changes.
 - [Documentation](documentation.md): how these pages are built and published.
 - [DeepWiki](https://deepwiki.com/data-director-agent/data-director): an AI-generated overview of

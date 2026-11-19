@@ -4,49 +4,79 @@ Serves `preparation.files`. It takes a project's file inventory (docs/specs/proj
 the format each file is judged to be, and whether that format is open, so that a person can see
 which files may need converting before deposit. It never converts, renames or deletes a file.
 
-The mock looks up the media type the inventory gives, which `dd-inventory` may have read from the
-file's content with fido, in `formats.yaml`; failing that, the file's last extension. It reads no
-file, consults no source and calls no model, so its grounding mode is `none` and it cites only
-its input. The real archivist, which weighs the inventory's PRONOM identifiers and table fields,
-is TODO(#354).
+It also lists the files a person should look at before deposit (#449): those whose folder, file or
+field names suggest free text, coordinates, someone else's material or terms, operating-system
+files, empty files and byte-for-byte copies, by the rules in `hints.yaml`. The inventory holds no
+contents, so each is a prompt for a person, never a finding, and a file it does not list may still
+hold personal data (docs/specs/personal-data.md).
+
+The mock looks up the PRONOM identifiers the inventory gives, which `dd-inventory` read from the
+file's content with fido, in `formats.yaml`; failing that, the media type the inventory gives;
+failing that, the file's last extension. An identifier the table does not know is reported as
+identified but not in the table, and an identification that disagrees with the extension is a check
+for a person.
+It reads no file, consults no source and calls no model, so its grounding mode is `none` and it
+cites only its input. The real archivist, which also weighs table fields, is TODO(#354).
 """
 
 from __future__ import annotations
 
+import re
+from collections import defaultdict
+from collections.abc import Iterator
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 
 import yaml
 
-from dd_agent_advisor_files.classes import FileAssessment, FormatAssessment, JudgedBy
+from dd_agent_advisor_files.classes import (
+    CheckKind,
+    FileAssessment,
+    FileCheck,
+    FormatAssessment,
+    JudgedBy,
+)
 from dd_sdk import serve
-from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
+from dd_sdk.agent import (
+    AgentResult,
+    AgentSpec,
+    Derived,
+    RunContext,
+    abstain,
+    input_evidence,
+    input_ref,
+)
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Derivation,
-    EvidenceItem,
     FileInventory,
     GroundingMode,
-    GroundingRef,
     InventoryFile,
     InvocationRequest,
     Outcome,
     OutcomeStatus,
     ReasonCode,
 )
-from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 
 FORMATS = Path(__file__).with_name("formats.yaml")
+HINTS = Path(__file__).with_name("hints.yaml")
+WORD = re.compile(r"[a-z]+")
 UNKNOWN = "unknown"
 # Says nothing about a format, so it is never looked up.
 OCTET_STREAM = "application/octet-stream"
+MISMATCH_QUESTION = (
+    "The file's content was identified as one format but its name suggests another. Check that "
+    "it is the file it is meant to be, and rename it or replace it if not."
+)
 
 LIMITATIONS = (
-    "This is a mock: it judges each format from the inventory's media type or, failing that, the "
-    "file name's extension, using a short table.",
-    "It does not weigh the inventory's PRONOM identifiers or table fields.",
+    "This is a mock: it judges each format by the inventory's PRONOM identifiers, its media type "
+    "or the file name's extension, using a short table of formats.",
+    "A format outside that table is reported as such, not described.",
+    "It does not weigh the inventory's table fields.",
     "It does not check that files open or suggest conversions.",
+    "It reads folder, file and field names, never contents: a file it does not list for a person "
+    "to look at may still hold personal data, sensitive locations or someone else's material.",
 )
 
 
@@ -55,25 +85,67 @@ class Format:
     name: str
     media_type: str
     open: bool
+    pronom: tuple[str, ...] = ()
 
 
 def load_formats(path: Path = FORMATS) -> dict[str, Format]:
     with path.open(encoding="utf-8") as fh:
         table = yaml.safe_load(fh)
     return {
-        str(ext).lower(): Format(str(row["format"]), str(row["media_type"]), bool(row["open"]))
+        str(ext).lower(): Format(
+            str(row["format"]),
+            str(row["media_type"]),
+            bool(row["open"]),
+            tuple(str(p) for p in row.get("pronom", ())),
+        )
         for ext, row in table.items()
     }
+
+
+@dataclass(frozen=True)
+class Hint:
+    """One kind of check in `hints.yaml`."""
+
+    kind: CheckKind
+    question: str
+    within: frozenset[str] = frozenset()
+    words: frozenset[str] = frozenset()
+    names: frozenset[str] = frozenset()
+    prefixes: tuple[str, ...] = ()
+
+
+def load_hints(path: Path = HINTS) -> tuple[Hint, ...]:
+    with path.open(encoding="utf-8") as fh:
+        table = yaml.safe_load(fh)
+    return tuple(
+        Hint(
+            kind=CheckKind(kind),
+            question=" ".join(str(row["question"]).split()),
+            within=frozenset(row.get("in", ())),
+            words=frozenset(str(w).lower() for w in row.get("words", ())),
+            names=frozenset(str(n).lower() for n in row.get("names", ())),
+            prefixes=tuple(str(p).lower() for p in row.get("prefixes", ())),
+        )
+        for kind, row in table.items()
+    )
+
+
+def _words(*names: str) -> Iterator[str]:
+    for name in names:
+        yield from WORD.findall(name.lower())
 
 
 class FileArchivist:
     spec = AgentSpec(
         agent_id="advisor.files",
-        version="0.1.0a1",
+        version="0.2.0a1",
         title="File Archivist",
+        icon="🗄️",
         description=(
-            "Mock. Lists each file of a project's inventory with the format its media type or "
-            "extension suggests, and whether that format is open. Reads no file."
+            "Mock. Lists each file of a project's inventory with the format its PRONOM "
+            "identification, media type or extension suggests, and whether that format is open, "
+            "and the files whose names, size or digest call for a person to look at them "
+            "before deposit. Reads no file."
         ),
         action_class="advise",
         accepts=(ClassSchema.of(FileInventory),),
@@ -85,15 +157,27 @@ class FileArchivist:
             "assessments.media_type": Derived(Derivation.LEXICAL),
             "assessments.open_format": Derived(Derivation.LEXICAL),
             "assessments.judged_by": Derived(Derivation.LEXICAL),
+            "assessments.pronom_id": Derived(Derivation.LEXICAL),
+            "checks.path": Derived(Derivation.LEXICAL),
+            "checks.kind": Derived(Derivation.LEXICAL),
+            "checks.matched": Derived(Derivation.LEXICAL),
+            "checks.question": Derived(Derivation.TEMPLATE),
+            "checks.related_paths": Derived(Derivation.LEXICAL),
             "limitations": Derived(Derivation.TEMPLATE),
         },
         serves=("preparation.files",),
     )
 
-    def __init__(self, formats: dict[str, Format] | None = None) -> None:
+    def __init__(
+        self, formats: dict[str, Format] | None = None, hints: tuple[Hint, ...] | None = None
+    ) -> None:
         self.formats = formats if formats is not None else load_formats()
+        self.hints = hints if hints is not None else load_hints()
         self.by_media_type: dict[str, Format] = {}
+        self.by_puid: dict[str, Format] = {}
         for known in self.formats.values():
+            for puid in known.pronom:
+                self.by_puid.setdefault(puid, known)
             if known.media_type != OCTET_STREAM:
                 self.by_media_type.setdefault(known.media_type, known)
 
@@ -101,48 +185,86 @@ class FileArchivist:
         inventory = request.input
         assert isinstance(inventory, FileInventory)  # the conductor checked spec.accepts
         if not inventory.inventory_files:
-            return AgentResult(
-                outcome=Outcome(
-                    status=OutcomeStatus.ABSTAINED,
-                    reason_code=ReasonCode.INSUFFICIENT_INPUT,
-                    statement=(
-                        "The inventory lists no files. Run dd-inventory on the dataset's folder "
-                        "and add the inventory to the project."
-                    ),
-                )
+            return abstain(
+                ReasonCode.INSUFFICIENT_INPUT,
+                (
+                    "The inventory lists no files. Run dd-inventory on the dataset's folder "
+                    "and add the inventory to the project."
+                ),
             )
 
         assessments = [self._assess(file) for file in inventory.inventory_files]
+        checks = self._checks(inventory.inventory_files)
         closed = sum(not a.open_format for a in assessments)
-        ref = GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)
+        ref = input_ref(ctx)
         return AgentResult(
             outcome=Outcome(
                 status=OutcomeStatus.SUCCEEDED,
-                statement=(
-                    f"Mock: {closed} of {len(assessments)} files are in a format that is not "
-                    "open, or that is unknown. A person must check each file."
-                ),
+                statement=_statement(checks, closed, len(assessments)),
             ),
             payload=FormatAssessment(
                 assessments=assessments,
+                checks=checks,
                 limitations=list(LIMITATIONS),
                 grounded_on=[ref],
             ),
-            evidence=[
-                EvidenceItem(
-                    source_id=ctx.input_ref,
-                    retrieved_at=datetime.now(UTC),
-                    hash_algorithm=HASH_ALGORITHM,
-                    canonicalisation=INPUT_CANONICALISATION,
-                    content_hash=ctx.input_hash,
-                )
-            ],
+            evidence=[input_evidence(ctx)],
+        )
+
+    def _checks(self, files: list[InventoryFile]) -> list[FileCheck]:
+        copies: dict[str, list[str]] = defaultdict(list)
+        for file in files:
+            if file.file_sha256 and file.file_size:
+                copies[file.file_sha256].append(file.file_path)
+        checks = []
+        for file in files:
+            for hint in self.hints:
+                check = self._check(hint, file, copies)
+                if check is not None:
+                    checks.append(check)
+            mismatch = self._mismatch(self._assess(file))
+            if mismatch is not None:
+                checks.append(mismatch)
+        return checks
+
+    def _check(
+        self, hint: Hint, file: InventoryFile, copies: dict[str, list[str]]
+    ) -> FileCheck | None:
+        if hint.kind == CheckKind.EMPTY:
+            return _empty(hint, file)
+        if hint.kind == CheckKind.DUPLICATE:
+            return _duplicate(hint, file, copies)
+        return _named(hint, file)
+
+    def _mismatch(self, file: FileAssessment) -> FileCheck | None:
+        """Content-based identification and the extension name different formats."""
+        by_extension = self.formats.get(file.extension)
+        if file.judged_by != JudgedBy.PRONOM or by_extension is None:
+            return None
+        if by_extension.name == file.format_name:
+            return None
+        return FileCheck(
+            path=file.path,
+            kind=CheckKind.EXTENSION_MISMATCH,
+            matched=file.extension,
+            question=MISMATCH_QUESTION,
         )
 
     def _assess(self, file: InventoryFile) -> FileAssessment:
         extension = PurePosixPath(file.file_path).suffix.lstrip(".").lower()
-        known = self.by_media_type.get(file.file_media_type or "")
-        judged_by = JudgedBy.MEDIA_TYPE
+        puid = next((p for p in file.file_pronom_ids if p in self.by_puid), None)
+        if puid is None and file.file_pronom_ids:
+            return FileAssessment(
+                path=file.file_path,
+                extension=extension,
+                format_name=UNKNOWN,
+                media_type=file.file_media_type,
+                open_format=False,
+                judged_by=JudgedBy.PRONOM_UNLISTED,
+                pronom_id=file.file_pronom_ids[0],
+            )
+        known = self.by_puid[puid] if puid else self.by_media_type.get(file.file_media_type or "")
+        judged_by = JudgedBy.PRONOM if puid else JudgedBy.MEDIA_TYPE
         if known is None:
             known, judged_by = self.formats.get(extension), JudgedBy.EXTENSION
         if known is None:
@@ -161,7 +283,69 @@ class FileArchivist:
             media_type=file.file_media_type or known.media_type,
             open_format=known.open,
             judged_by=judged_by,
+            pronom_id=puid,
         )
+
+
+def _empty(hint: Hint, file: InventoryFile) -> FileCheck | None:
+    if file.file_size == 0:
+        return FileCheck(path=file.file_path, kind=hint.kind, question=hint.question)
+    return None
+
+
+def _duplicate(hint: Hint, file: InventoryFile, copies: dict[str, list[str]]) -> FileCheck | None:
+    others = [p for p in copies.get(file.file_sha256 or "", ()) if p != file.file_path]
+    if others:
+        return FileCheck(
+            path=file.file_path,
+            kind=hint.kind,
+            question=hint.question,
+            related_paths=others,
+        )
+    return None
+
+
+def _named(hint: Hint, file: InventoryFile) -> FileCheck | None:
+    """A check whose file's name, or a word in its folders, name or fields, the hint names."""
+    path = PurePosixPath(file.file_path)
+    name = path.name.lower()
+    if name in hint.names or (bool(hint.prefixes) and name.startswith(hint.prefixes)):
+        return FileCheck(
+            path=file.file_path, kind=hint.kind, matched=path.name, question=hint.question
+        )
+    places: list[str] = []
+    if "folders" in hint.within:
+        places += path.parts[:-1]
+    if "file" in hint.within:
+        places.append(path.name)
+    if "fields" in hint.within:
+        places += [f.name for f in file.file_fields]
+    for word in _words(*places):
+        if word in hint.words:
+            return FileCheck(
+                path=file.file_path, kind=hint.kind, matched=word, question=hint.question
+            )
+    return None
+
+
+def _statement(checks: list[FileCheck], closed: int, total: int) -> str:
+    formats = (
+        f"Mock: {closed} of {total} files are in a format that is not open, or that is unknown. "
+        "A person must check each file."
+    )
+    if not checks:
+        return (
+            f"{formats} No folder, file or field name called for a closer look, but the contents "
+            "were not read: that does not mean the files hold no personal data, sensitive "
+            "locations or someone else's material."
+        )
+    looked_at = len({c.path for c in checks})
+    kinds = ", ".join(dict.fromkeys(c.kind.value.replace("_", " ") for c in checks))
+    return (
+        f"Before deposit, a person should look at {looked_at} of {total} files ({kinds}): each "
+        f"is a prompt, judged from names alone, not a finding. {formats} Contents were not read, "
+        "so a file not listed may still need checking."
+    )
 
 
 def build() -> FileArchivist:

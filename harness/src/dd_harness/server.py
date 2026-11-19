@@ -15,7 +15,9 @@ No `.env` file is read.
 from the re3data export `DD_SOURCES_CONFIG` pins and its requirement sets from `DD_REPOSITORIES_DIR`
 (docs/specs/deposit.md),
 `validate` against the requirements recorded for the repository chosen, `package` to build the
-deposit package from a valid project and the runs under `DD_RUNS_DIR`, and `events`.
+deposit package from a valid project and the runs under `DD_RUNS_DIR`, `delete` and `restore`
+(which hide a project and bring it back within `DD_PROJECT_RESTORE_DAYS`, removing nothing), and
+`events`.
 
 There is no authentication of callers yet (docs/specs/policy-and-identity.md, #17, #43): every
 invocation acts for the operator's principal, whoever sent it. Do not expose this server beyond a
@@ -26,33 +28,44 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
+from types import ModuleType
+from typing import Any
 
 from starlette.applications import Starlette
 
+from dd_harness import gateway
 from dd_harness.conductor import Conductor
 from dd_harness.deposit import PackageRefusedError, Validation, build_package, check
+from dd_harness.gateway.config import ToolConfigError
 from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
+from dd_harness.model_grants import jwks_routes
 from dd_harness.policy import PolicyError
 from dd_harness.projects import ProjectError
 from dd_harness.registry import RegistryError
 from dd_harness.requirements import RequirementsError, load_requirements
 from dd_harness.settings import (
+    POSTGRES,
     Settings,
     SettingsError,
+    StorageLocation,
     build_authenticator,
     build_conductor,
     principal_from_env,
     project_storage,
     projects_dir,
+    redact_location,
     repositories_dir,
     run_storage,
     runs_dir,
     sources_config,
+    storage_location,
 )
 from dd_harness.sources import SourceConfigError, Sources
 from dd_harness.transport.a2a import a2a_routes
+from dd_sdk import security_log
 
 # Hosts that are reachable from this machine only; any other prints the warning below.
 LOOPBACK = frozenset({"127.0.0.1", "::1", "localhost"})
@@ -76,9 +89,11 @@ def serving(settings: Settings, base_url: str) -> tuple[Conductor, Authenticator
 
 
 def build_app(conductor: Conductor, authenticator: Authenticator, base_url: str) -> Starlette:
-    """The A2A endpoint at `/a2a` and the agent card at `/.well-known/agent-card.json`."""
+    """The A2A endpoint at `/a2a`, the agent card at `/.well-known/agent-card.json` and, when the
+    harness mints model grants, its public keys at `/.well-known/jwks.json`."""
     _card, routes = a2a_routes(conductor, authenticator, base_url)
-    return Starlette(routes=routes)
+    tools = gateway.routes(conductor.gateway)
+    return Starlette(routes=[*routes, *tools, *jwks_routes(conductor.model_grants)])
 
 
 def cmd_serve(args: argparse.Namespace) -> int:
@@ -94,6 +109,7 @@ def cmd_serve(args: argparse.Namespace) -> int:
     conductor, authenticator = serving(settings, base_url)
     if args.host not in LOOPBACK and isinstance(authenticator, OperatorAssertion):
         sys.stderr.write(UNTRUSTED_WARNING.format(host=args.host))
+    security_log.configure()
     try:
         uvicorn.run(build_app(conductor, authenticator, base_url), host=args.host, port=args.port)
     finally:
@@ -119,6 +135,25 @@ def cmd_project_create(args: argparse.Namespace) -> int:
 def cmd_project_list(args: argparse.Namespace) -> int:
     for summary in project_storage(projects_dir()).projects():
         sys.stdout.write(json.dumps(summary, ensure_ascii=False) + "\n")
+    return 0
+
+
+def cmd_project_delete(args: argparse.Namespace) -> int:
+    deleted = project_storage(projects_dir()).delete(
+        args.project_id,
+        acted_for=principal_from_env(),
+        caused_by=CAUSED_BY_COMMAND.format(command="delete"),
+    )
+    sys.stdout.write(json.dumps(deleted, ensure_ascii=False) + "\n")
+    return 0
+
+
+def cmd_project_restore(args: argparse.Namespace) -> int:
+    project_storage(projects_dir()).restore(
+        args.project_id,
+        acted_for=principal_from_env(),
+        caused_by=CAUSED_BY_COMMAND.format(command="restore"),
+    )
     return 0
 
 
@@ -228,7 +263,86 @@ def cmd_project_events(args: argparse.Namespace) -> int:
     return 0
 
 
-def main(argv: list[str] | None = None) -> int:
+def _databases(location: str | None) -> list[str]:
+    """The databases a storage command acts on: `location`, else each `postgresql://` location
+    `DD_RUNS_DIR` and `DD_PROJECTS_DIR` name, once each."""
+    named: list[StorageLocation] = []
+    if location is not None:
+        named.append(storage_location(location, "LOCATION"))
+    else:
+        for found in (runs_dir, projects_dir):
+            try:
+                named.append(found())
+            except SettingsError:
+                continue  # unset: nothing to migrate there
+    databases = list(dict.fromkeys(str(n) for n in named if isinstance(n, str)))
+    if not databases:
+        raise SettingsError(
+            f"no {POSTGRES}:// location: name one, or set DD_RUNS_DIR or DD_PROJECTS_DIR to one; "
+            "the file backends need no migration (docs/specs/storage.md)"
+        )
+    return databases
+
+
+def _postgres() -> ModuleType:
+    try:
+        import dd_harness.postgres as postgres
+    except ImportError:
+        sys.exit("dd-harness: storage needs psycopg; install data-director-harness[postgres]")
+    return postgres
+
+
+def cmd_storage_migrate(args: argparse.Namespace) -> int:
+    postgres = _postgres()
+    for location in _databases(args.location):
+        applied = postgres.migrate(location)
+        where = redact_location(location)
+        done = ", ".join(applied) if applied else "nothing to apply"
+        sys.stdout.write(f"{where}: version {postgres.SCHEMA_VERSION} ({done})\n")
+    return 0
+
+
+def cmd_storage_status(args: argparse.Namespace) -> int:
+    postgres = _postgres()
+    behind = False
+    for location in _databases(args.location):
+        version = postgres.schema_version(location)
+        behind = behind or version != postgres.SCHEMA_VERSION
+        sys.stdout.write(
+            f"{redact_location(location)}: version {version}, "
+            f"this build expects {postgres.SCHEMA_VERSION}\n"
+        )
+    return 1 if behind else 0
+
+
+def cmd_tools_pins(args: argparse.Namespace) -> int:
+    """Each MCP server DD_TOOLS_CONFIG lists, with the digest of the tools it lists now, so an
+    operator can review a changed list and pin it (docs/specs/agents.md, Tools). Exits 1 if any
+    differs from its pin or cannot be listed."""
+    path = os.environ.get("DD_TOOLS_CONFIG")
+    if not path:
+        raise SettingsError("DD_TOOLS_CONFIG unset: name the deployment's list of MCP servers")
+    try:
+        from dd_harness.gateway.config import load_servers, tools_digest
+        from dd_harness.gateway.core import Gateway
+    except ImportError as exc:
+        raise SettingsError("the tool gateway needs data-director-harness[gateway]") from exc
+    gateway = Gateway(load_servers(Path(path)))
+    changed = False
+    for server, tools in zip(gateway.servers, gateway.list_all(), strict=True):
+        if isinstance(tools, BaseException):
+            changed = True
+            sys.stdout.write(f"{server.name}: could not be listed: {tools}\n")
+            continue
+        digest = tools_digest(tools)
+        changed = changed or digest != server.tools_sha256
+        state = "pinned" if digest == server.tools_sha256 else "changed: review, then pin"
+        sys.stdout.write(f"{server.name}: {digest} ({state})\n")
+    return 1 if changed else 0
+
+
+def _parser() -> argparse.ArgumentParser:
+    """The command line: `serve`, and the `storage` and `project` command groups."""
     parser = argparse.ArgumentParser(
         prog="dd-harness",
         description="Data Director harness: serve the conductor over A2A, and keep projects",
@@ -240,6 +354,45 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--port", type=int, default=8000)
     p.set_defaults(func=cmd_serve)
 
+    p = sub.add_parser("tools", help="review the MCP servers the tool gateway calls")
+    tools = p.add_subparsers(dest="tools_command", required=True)
+    p = tools.add_parser("pins", help="print each server's tools digest; exits 1 if one changed")
+    p.set_defaults(func=cmd_tools_pins)
+
+    _add_storage_commands(sub)
+    _add_project_commands(sub)
+    return parser
+
+
+def _add_storage_commands(sub: Any) -> None:
+    p = sub.add_parser(
+        "storage",
+        help="keep the schema of a PostgreSQL run or project storage (docs/specs/storage.md)",
+    )
+    storage = p.add_subparsers(dest="storage_command", required=True)
+    for name, func, text in (
+        (
+            "migrate",
+            cmd_storage_migrate,
+            "apply the schema changes this build has and the database lacks",
+        ),
+        (
+            "status",
+            cmd_storage_status,
+            "print the schema version; exits 1 if it is not this build's",
+        ),
+    ):
+        p = storage.add_parser(name, help=text)
+        p.add_argument(
+            "location",
+            nargs="?",
+            help="a postgresql:// URL without a password; by default each one DD_RUNS_DIR and "
+            "DD_PROJECTS_DIR name",
+        )
+        p.set_defaults(func=func)
+
+
+def _add_project_commands(sub: Any) -> None:
     p = sub.add_parser(
         "project", help="keep a project's record under DD_PROJECTS_DIR (docs/specs/projects.md)"
     )
@@ -296,11 +449,22 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("step_id", help="a step id, such as governance.embargo")
     p.add_argument("mark", choices=("done", "skipped", "open"))
     p.set_defaults(func=cmd_project_mark_step)
+    p = project.add_parser(
+        "delete",
+        help="delete a project, removing nothing, and print until when it may be restored",
+    )
+    p.add_argument("project_id")
+    p.set_defaults(func=cmd_project_delete)
+    p = project.add_parser("restore", help="restore a deleted project within its restore period")
+    p.add_argument("project_id")
+    p.set_defaults(func=cmd_project_restore)
     p = project.add_parser("events", help="print the project's events, oldest first, as JSONL")
     p.add_argument("project_id")
     p.set_defaults(func=cmd_project_events)
 
-    args = parser.parse_args(argv)
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parser().parse_args(argv)
     try:
         result: int = args.func(args)
     # No principal (docs/specs/policy-and-identity.md), a path the deployment must name
@@ -315,6 +479,7 @@ def main(argv: list[str] | None = None) -> int:
         SourceConfigError,
         ProjectError,
         RequirementsError,
+        ToolConfigError,
     ) as exc:
         sys.exit(f"dd-harness: {exc}")
     return result

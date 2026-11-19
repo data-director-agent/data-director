@@ -3,6 +3,8 @@ setting, and the checks `start` and `doctor` make before running anything."""
 
 from __future__ import annotations
 
+import importlib
+import importlib.util
 import os
 import re
 import shutil
@@ -15,6 +17,8 @@ from pathlib import Path
 import pytest
 import yaml
 
+from dd_sdk.credentials import ConfigError
+
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
 
@@ -24,7 +28,7 @@ from ddtool import (  # noqa: E402
     paths,
     secret,
 )
-from ddtool.setup import Prompter, mask, setup  # noqa: E402
+from ddtool.setup import DB_LOCATION, Prompter, mask, setup  # noqa: E402
 
 KEY = "sk-ant-test-0123456789abcd"
 
@@ -52,14 +56,14 @@ def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 def scripted(*answers: str, asked: list[str] | None = None) -> Prompter:
-    """A prompter that gives `answers` in order, to questions and secrets alike, and records each
-    question in `asked`."""
+    """A prompter that gives `answers` in order, to questions and secrets alike, then presses Enter
+    to each question after them, and records each question in `asked`."""
     queue: Iterator[str] = iter(answers)
     log = [] if asked is None else asked
 
     def answer(question: str) -> str:
         log.append(question)
-        return next(queue)
+        return next(queue, "")
 
     return Prompter(ask=answer, ask_secret=answer)
 
@@ -68,7 +72,8 @@ def test_defaults_write_the_example_principal_and_no_key(repo: Path) -> None:
     assert setup(Prompter(accept_defaults=True), install=False) == 0
     local = repo / "config" / "local"
     assert common.read_env(local / "app.env") == common.EXAMPLE_PRINCIPAL | {
-        "DD_PROFILE": str(local / "profile.yaml")
+        "DD_PROFILE": str(local / "profile.yaml"),
+        "DD_AGENTS_CONFIG": str(local / "agents.yaml"),
     }
     assert (local / "agents.env").is_file()
     assert not list((local / "agents").iterdir())
@@ -104,16 +109,48 @@ def test_the_key_goes_only_to_the_agents_that_use_it(repo: Path) -> None:
     assert common.read_env(agents / "orchestrator-model.env") == {
         "ANTHROPIC_API_KEY_FILE": "orchestrator-model-anthropic-api-key"
     }
-    assert common.read_env(agents / "advisor-standards.env") == {
-        "DD_STANDARDS_EXPLAINER": "anthropic",
-        "ANTHROPIC_API_KEY_FILE": "advisor-standards-anthropic-api-key",
-    }
+    # Every advisor whose model is on by default is given the key and says so.
+    for agent, switch in common.MODEL_BY_DEFAULT.items():
+        assert common.read_env(agents / f"{agent}.env") == {
+            switch: "model",
+            "ANTHROPIC_API_KEY_FILE": f"{agent}-anthropic-api-key",
+        }
+        assert (credentials / f"{agent}-anthropic-api-key").read_text().strip() == KEY
     assert (credentials / "orchestrator-model-anthropic-api-key").read_text().strip() == KEY
-    assert (credentials / "advisor-standards-anthropic-api-key").read_text().strip() == KEY
     for path in (local / "app.env", local / "agents.env", agents / "orchestrator-model.env"):
         assert KEY not in path.read_text()
     for path in (*credentials.iterdir(), agents / "orchestrator-model.env", local / "app.env"):
         assert stat.S_IMODE(path.stat().st_mode) == 0o600
+
+
+def test_declining_the_advisors_gives_the_key_to_the_orchestrator_alone(repo: Path) -> None:
+    setup(scripted("", "", KEY, "n", "y", ""), install=False)
+    local = repo / "config" / "local"
+    assert sorted(p.name for p in (local / "credentials").glob("*anthropic-api-key")) == [
+        "orchestrator-model-anthropic-api-key"
+    ]
+    assert not (local / "agents" / "advisor-standards.env").exists()
+
+
+def test_the_tooling_lists_every_advisor_whose_model_is_on_by_default() -> None:
+    """`MODEL_BY_DEFAULT` is what `start`, `apply` and `doctor` read; each agent's factory is what
+    decides. An advisor left out would run without its key being asked for, or checked."""
+    advisors = sorted(p.name for p in (ROOT / "agents").glob("advisor-*"))
+    on_by_default = {}
+    for name in advisors:
+        module = f"dd_agent_{name.replace('-', '_')}.factory"
+        if importlib.util.find_spec(module) is None:
+            continue  # an advisor that never calls a model has no factory
+        factory = importlib.import_module(module)
+        switch = getattr(factory, "SWITCH", None)
+        if switch is None:
+            continue
+        try:
+            factory.build({})
+        except ConfigError as error:
+            if f"{switch}=template" in str(error):
+                on_by_default[name] = switch
+    assert on_by_default == common.MODEL_BY_DEFAULT
 
 
 def test_a_key_makes_the_model_orchestrator_the_home_pages_with_a_new_version(repo: Path) -> None:
@@ -198,6 +235,53 @@ def test_a_rerun_keeps_the_key_and_other_lines(repo: Path) -> None:
     setup(scripted("", "", "", "n", "n", "", asked=asked), install=False)
     assert own.read_text() == text
     assert any(mask(KEY) in q for q in asked) and not any(KEY in q for q in asked)
+
+
+def test_runs_and_projects_stay_in_files_by_default(repo: Path) -> None:
+    setup(Prompter(accept_defaults=True), install=False)
+    app = common.read_env(repo / "config" / "local" / "app.env")
+    assert not {"DD_RUNS_DIR", "DD_PROJECTS_DIR", "PGPASSFILE"} & app.keys()
+    assert not (repo / "config" / "local" / "credentials" / "pgpass").exists()
+
+
+def test_postgresql_gets_a_password_file_and_locations_without_a_password(repo: Path) -> None:
+    # Principal, model key, FAIRsharing login, then PostgreSQL.
+    setup(scripted("", "", "", "", "y"), install=False)
+    local = repo / "config" / "local"
+    credentials = local / "credentials"
+    password = (credentials / "postgres-password").read_text().strip()
+    assert len(password) >= 32
+    assert (credentials / "pgpass").read_text() == f"*:*:dd:dd:{password}\n"
+    for path in (credentials / "postgres-password", credentials / "pgpass", local / "app.env"):
+        assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    app = common.read_env(local / "app.env")
+    assert app["DD_RUNS_DIR"] == app["DD_PROJECTS_DIR"] == DB_LOCATION == "postgresql://dd@/dd"
+    assert (app["PGHOST"], app["PGPORT"]) == ("localhost", "5432")
+    assert app["PGPASSFILE"] == str(credentials / "pgpass")
+    assert password not in (local / "app.env").read_text()
+
+    # A rerun asks with yes as the default, and keeps the password the database started with.
+    asked: list[str] = []
+    setup(scripted(asked=asked), install=False)
+    assert any("PostgreSQL" in q and "[Y/n]" in q for q in asked)
+    assert (credentials / "postgres-password").read_text().strip() == password
+    assert common.read_env(local / "app.env")["DD_RUNS_DIR"] == DB_LOCATION
+
+    # No puts the app back on files, and keeps the password for the volume.
+    setup(scripted("", "", "", "", "n"), install=False)
+    app = common.read_env(local / "app.env")
+    assert not {"DD_RUNS_DIR", "DD_PROJECTS_DIR", "PGHOST", "PGPORT", "PGPASSFILE"} & app.keys()
+    assert app["DD_PRINCIPAL_ID"] == common.EXAMPLE_PRINCIPAL["DD_PRINCIPAL_ID"]
+    assert (credentials / "postgres-password").read_text().strip() == password
+
+
+def test_removing_settings_keeps_comments_and_other_lines(tmp_path: Path) -> None:
+    path = tmp_path / "app.env"
+    path.write_text("# DD_RUNS_DIR=/old\nA=1\nexport DD_RUNS_DIR=x\nB=2\n")
+    assert common.remove_env(path, ["DD_RUNS_DIR"])
+    assert path.read_text() == "# DD_RUNS_DIR=/old\nA=1\nB=2\n"
+    assert not common.remove_env(path, ["DD_RUNS_DIR"])
+    assert not common.remove_env(tmp_path / "missing.env", ["A"])
 
 
 @pytest.mark.parametrize(

@@ -54,12 +54,17 @@ reviewer all see the same record.
 
 | Step | What it checks | If the check fails |
 |---|---|---|
-| 1. Policy gate | Is the agent enabled in the institution's profile? Does it declare the action class the profile assigns it? Does that class need approval? | Not enabled: `failed`, problem `agent-not-permitted`. Another class: `failed`, problem `action-class-mismatch`. Needs approval: `referred` to a data steward. The agent does not run. |
+| 1. Policy gate | Is the agent enabled in the institution's profile? Does it declare the action class the profile assigns it, and offer the settings the profile gives it? Does that class need approval? | Not enabled: `failed`, problem `agent-not-permitted`. Another class: `failed`, problem `action-class-mismatch`. A setting the profile gives it that its card does not offer: `failed`, problem `setting-not-declared`. Needs approval: `referred` to a data steward. The agent does not run. |
 | 2. Input check | Does the agent read this input class? | `failed`, problem `input-not-accepted`. The agent does not run. |
 | 3. Project content | In a project, may the classes of project content the conductor put into the input (`inventory`, `documentation`) go to this agent? Only an agent whose card declares a `hosted` model is checked, against the profile's `hosted_models` ([Projects](../../docs/specs/projects.md), invariant 8). | `failed`, problem `project-content-withheld`. The agent does not run. |
 | 4. Run the agent | The agent runs. The conductor checks it returned the payload class it declared. | An exception, or a payload of the wrong class: `failed`, problem `agent-error`. |
 | 5. Grounding linter | Is the output based only on what the agent's grounding mode allows? See [`grounding.md`](grounding.md). | A `succeeded` envelope becomes `failed`, problem `grounding-violation`. The payload and evidence are removed. |
 | 6. Validate and store | The envelope is validated against the JSON Schema. In a project, a `succeeded` run with a `Document` payload is recorded as a proposed version of a project document, caused by the run. Then the run is stored. | An invalid envelope raises an exception; it is a bug in the workbench. A draft whose `revises` names no version of the project, or one of another kind: `failed`, problem `revision-refused`, and nothing is added to the project. |
+
+In the code each step is a named function in `dd_harness.pipeline`, listed in the order it runs
+in `INSIDE_SPAN` and `AFTER_SPAN`. What a run does to its project (a proposed version, a title,
+an entry point) is the project's to decide: the conductor calls `ProjectEffects.after_run`, which
+`Projects` implements (`dd_harness.project_effects`).
 
 The policy profile is a YAML file in `profiles/`. The deployment chooses it when the conductor is
 built (`DD_PROFILE`, or `--profile`), and the conductor records it on every envelope as

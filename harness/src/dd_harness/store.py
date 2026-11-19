@@ -7,8 +7,9 @@ JSONL index of envelopes, plus a directory per invocation.
     <invocation_id>/prompts.json        the prompts its model calls sent
     <invocation_id>/<artifact>          spans.jsonl, grounding.txt, sources.txt, crate/...
     schemas/<digest>.json               each class schema, once
+    locks/<sha256>.lock                 each conversation's turn lock (`dd_harness.turn_locks`)
 
-UUIDv7 identifiers mean the file is chronologically ordered as written and needs no index. A run
+UUIDv7 identifiers mean the file is chronologically ordered as written. A run
 is written once: `append` refuses an `invocation_id` whose envelope is already stored, and the
 conductor refuses such a request before it runs (`DuplicateInvocation`).
 
@@ -20,6 +21,10 @@ The prompts a run sent to a model are kept beside its envelope in `prompts.json`
 `dd-prompt-json-v1` digest (docs/specs/disclosure.md). The envelope names them by digest only; a
 prompt may hold what a researcher wrote, so whoever may read the run may read it, and nothing that
 leaves the store (the envelope, the trace, the crate) carries it.
+
+The file backend has no other index: finding a conversation, and listing runs and conversations,
+read the whole of `invocations.jsonl` (docs/specs/storage.md, "Performance"). A deployment that
+outgrows a scan keeps its runs in the database (`dd_harness.postgres`).
 """
 
 from __future__ import annotations
@@ -33,6 +38,7 @@ from collections.abc import Iterable, Iterator, Mapping
 from pathlib import Path
 from typing import Any
 
+from dd_harness.listing import Page, Readable, scan_conversations, scan_runs
 from dd_sdk.contract.classes import ClassSchema
 
 INDEX_NAME = "invocations.jsonl"
@@ -98,7 +104,7 @@ class RunStore:
 
     def iter_envelopes(self, *, conversation_id: str | None = None) -> Iterator[dict[str, Any]]:
         """Every envelope in the order stored; with `conversation_id`, only that conversation's.
-        The filter reads the whole index, TODO(#524)."""
+        The filter reads the whole index."""
         if not self.index.exists():
             return
         with self.index.open(encoding="utf-8") as fh:
@@ -108,6 +114,21 @@ class RunStore:
                 envelope: dict[str, Any] = json.loads(line)
                 if conversation_id is None or envelope.get("conversation_id") == conversation_id:
                     yield envelope
+
+    def list_runs(
+        self, *, readable: Readable | None = None, limit: int, before: str | None = None
+    ) -> Page:
+        """A page of runs, newest first, from a scan of the whole index."""
+        return scan_runs(self.iter_envelopes(), readable=readable, limit=limit, before=before)
+
+    def list_conversations(
+        self, *, readable: Readable | None = None, limit: int, before: str | None = None
+    ) -> Page:
+        """A page of conversations, most recently active first, from a scan of the whole
+        index."""
+        return scan_conversations(
+            self.iter_envelopes(), readable=readable, limit=limit, before=before
+        )
 
     def get(self, invocation_id: str) -> dict[str, Any] | None:
         return _read_json(self._read(invocation_id, "envelope.json"))
@@ -153,12 +174,8 @@ class RunStore:
     def _artifact_path(self, invocation_id: str, name: str) -> Path | None:
         """Where an artifact is kept, or None if either name is malformed or the name is one of
         the run's own files."""
-        segments = name.split("/")
-        if (
-            not RUN_ID.fullmatch(invocation_id)
-            or name in RESERVED
-            or not all(ARTIFACT_SEGMENT.fullmatch(s) for s in segments)
-        ):
+        segments = artifact_segments(name)
+        if not RUN_ID.fullmatch(invocation_id) or segments is None:
             return None
         return self.root.joinpath(invocation_id, *segments)
 
@@ -186,6 +203,15 @@ class RunStore:
         if not DIGEST.fullmatch(digest):
             return None
         return _read_json(self.root / SCHEMAS_DIR / f"{digest}.json")
+
+
+def artifact_segments(name: str) -> list[str] | None:
+    """The plain segments of an artifact name, or None if it is malformed or names one of the run's
+    own files. Every backend refuses the same names (docs/specs/storage.md, invariant 5)."""
+    segments = name.split("/")
+    if name in RESERVED or not all(ARTIFACT_SEGMENT.fullmatch(s) for s in segments):
+        return None
+    return segments
 
 
 def _read_json(path: Path | None) -> dict[str, Any] | None:

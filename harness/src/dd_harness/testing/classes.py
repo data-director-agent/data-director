@@ -11,7 +11,15 @@ from typing import Literal
 
 from pydantic import Field
 
-from dd_sdk.contract.models import Derivation, DocumentKind, Frozen, Grounded
+from dd_sdk.contract.models import (
+    ChosenRepository,
+    Derivation,
+    DocumentKind,
+    Frozen,
+    Grounded,
+    ProjectDocument,
+    ProjectFact,
+)
 
 
 class ProbeRecord(Frozen):
@@ -38,6 +46,14 @@ class ProbeDocumentRequest(Frozen):
     document_kind: DocumentKind
 
 
+class ProbeReading(Frozen):
+    schema_class: Literal["ProbeReading"] = "ProbeReading"
+    title: str | None = None
+    project_documents: list[ProjectDocument] = Field(default_factory=list)
+    project_decisions: list[ProjectFact] = Field(default_factory=list)
+    project_repository: ChosenRepository | None = None
+
+
 class ProbeReview(Grounded):
     schema_class: Literal["ProbeReview"] = "ProbeReview"
     score: float | None = None
@@ -47,3 +63,8 @@ class ProbeCheck(Grounded):
     schema_class: Literal["ProbeCheck"] = "ProbeCheck"
     rationale: str
     rationale_derivation: Derivation
+
+
+class ProbeFindings(Grounded):
+    schema_class: Literal["ProbeFindings"] = "ProbeFindings"
+    proposed_facts: list[ProjectFact] = Field(default_factory=list)

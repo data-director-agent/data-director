@@ -56,6 +56,7 @@ const IDENTIFICATION: Record<IdentificationMethod, string> = {
   container: "Recognised from the files inside it",
   extension: "Guessed from its name",
   none: "Not recognised",
+  researcher: "Chosen by the researcher",
 };
 
 /** How a file's format was identified, as a phrase: "Recognised from its content". */

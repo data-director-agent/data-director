@@ -3,50 +3,17 @@
 re3data is searched and fetched; it holds the facts Phase 3 asks about. FAIRsharing is only
 fetched, by the identifier re3data cross-references, and adds its curators' account of access
 and deposition conditions. Protocols rather than ABCs, so a test fake need not import production
-code to be valid.
+code to be valid. The types every registry's seam shares (`Query`, `Hit`, `SnapshotRef`,
+`RegistryUnavailable`) are in `dd_sdk.registry`.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterable
-from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
 from dd_agent_advisor_repository.records import DatabaseRecord, Re3dataRecord
-
-
-class RegistryUnavailable(Exception):
-    """The registry could not be asked. Not the same as an empty result."""
-
-
-@dataclass(frozen=True)
-class Query:
-    text: str
-    limit: int = 10
-    label: str = ""
-
-    def describe(self) -> str:
-        return f"{self.label or 'query'}: {self.text!r}"
-
-
-@dataclass(frozen=True)
-class Hit:
-    record: Re3dataRecord
-    lexical_score: float
-
-
-@dataclass(frozen=True)
-class SnapshotRef:
-    """Which copy of a registry answered. It is the evidence's `snapshot_ref`, by which the
-    harness's source check finds its own copy (docs/specs/grounding.md)."""
-
-    label: str
-    stale: bool = False
-    fetched_at: str | None = None
-    notes: list[str] = field(default_factory=list)
-
-    def as_string(self) -> str:
-        return self.label + (" (stale)" if self.stale else "")
+from dd_sdk.registry import Hit, Query, SnapshotRef
 
 
 @runtime_checkable
@@ -59,11 +26,20 @@ class Repositories(Protocol):
         """The sentence that credits re3data in a statement."""
         ...
 
-    def search(self, query: Query) -> list[Hit]:
+    def search(self, query: Query) -> list[Hit[Re3dataRecord]]:
         """Run one search. Raises RegistryUnavailable when the registry cannot be read."""
         ...
 
     def fetch(self, re3data_id: str) -> Re3dataRecord | None: ...
+
+    def subjects(self) -> dict[str, str]:
+        """Each DFG subject code the registry files a repository under, with its name
+        (`dfg.vocabulary`)."""
+        ...
+
+    def with_subject(self, code: str) -> list[Re3dataRecord]:
+        """Every repository filed under the DFG subject `code`, by identifier."""
+        ...
 
     def find(self, name: str) -> list[Re3dataRecord]:
         """The repositories named `name`, ignoring case (`find_by_name`): more than one when the

@@ -93,6 +93,35 @@ def test_check_compares_the_whole_file(tmp_path: Path) -> None:
     assert cr.main([*args, "--check"]) == 1
 
 
+def test_a_suite_run_in_parts_decides_as_one_run(tmp_path: Path) -> None:
+    passed = _report([("test_a", "passed", ["R3"])])
+    failed = _report([("test_b", "failed", ["R3"])])
+    whole = _report([("test_a", "passed", ["R3"]), ("test_b", "failed", ["R3"])])
+    paths = {}
+    for name, report in {"passed": passed, "failed": failed, "whole": whole}.items():
+        paths[name] = tmp_path / f"{name}.json"
+        paths[name].write_text(json.dumps(report), encoding="utf-8")
+    outputs = {"parts": tmp_path / "parts.md", "whole": tmp_path / "whole.md"}
+    assert (
+        cr.main(
+            [
+                "--report",
+                str(paths["passed"]),
+                str(paths["failed"]),
+                "--output",
+                str(outputs["parts"]),
+            ]
+        )
+        == 0
+    )
+    assert cr.main(["--report", str(paths["whole"]), "--output", str(outputs["whole"])]) == 0
+    text = {name: path.read_text(encoding="utf-8") for name, path in outputs.items()}
+    assert text["parts"] == text["whole"]
+
+    merged = cr.merge_reports([passed, failed])
+    assert merged["summary"] == {k: 2 * v for k, v in passed["summary"].items()}
+
+
 def test_the_run_summary_names_the_commit_tested(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

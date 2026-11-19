@@ -1,0 +1,9 @@
+# The repositories the app offers a researcher on a project's page before they search the pinned
+# re3data export (docs/specs/deposit.md), by re3data identifier and in this order. Those with an
+# override in overrides/ are offered first whether or not they are listed here. An identifier the
+# pinned export does not hold is left out. See README.md.
+re3data_ids:
+  - r3d100012124 # ORDA - The University of Sheffield Research Data Catalogue and Repository
+  - r3d100010468 # Zenodo
+  - r3d100010066 # figshare
+  - r3d100000044 # Dryad

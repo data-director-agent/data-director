@@ -38,6 +38,15 @@ def action_class_mismatch(
     )
 
 
+def setting_not_declared(agent_id: str, reason: str, profile_id: str) -> ProblemDetails:
+    return problem(
+        "setting-not-declared",
+        "The institutional profile sets an agent option the agent does not offer",
+        f"{reason}. The steward must update profile {profile_id!r} before agent {agent_id!r} runs.",
+        http_status=403,
+    )
+
+
 def unauthenticated(detail: str) -> ProblemDetails:
     """A caller whose credential is missing or bad (docs/specs/policy-and-identity.md). `detail`
     never holds the credential."""
@@ -91,7 +100,28 @@ def project_content_withheld(
     )
 
 
+def model_broker_bypassed(agent_id: str, profile_id: str) -> ProblemDetails:
+    """A model-backed agent the operator has not stated calls through the model broker, under a
+    profile that lets people's own model accounts pay (docs/specs/model-accounts.md, invariant
+    14). Run, it could be paid for by the deployment without the run saying so."""
+    return problem(
+        "model-broker-bypassed",
+        "An agent that does not call its models through the model broker",
+        f"Profile {profile_id!r} lets people's own model accounts pay, so every model call goes "
+        f"through the model broker, and the agent configuration does not state that agent "
+        f"{agent_id!r} calls through it. The agent was not run.",
+        http_status=403,
+    )
+
+
 def revision_refused(detail: str) -> ProblemDetails:
     """A drafted document the project could not record: it revises no version of the project, or
     a version of a document of another kind (docs/specs/projects.md)."""
     return problem("revision-refused", "The draft does not revise this project", detail, 409)
+
+
+def run_cancelled(detail: str) -> ProblemDetails:
+    """A run its caller cancelled before it ended (docs/specs/transport.md). Cancelling is a
+    transport fact, not an outcome: the run is stored `failed` with this problem, and whatever the
+    agent answered is discarded."""
+    return problem("run-cancelled", "The run was cancelled", detail, http_status=499)

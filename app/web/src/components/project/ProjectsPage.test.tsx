@@ -3,18 +3,41 @@ import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 
 import fixture from "../../../fixtures/projects.json";
+import deletedFixture from "../../../fixtures/projects-deleted.json";
 import { type ActiveProject, ActiveProjectTestContext } from "../../project/active";
-import { type ProjectApi, type ProjectSummary, ProjectApiContext } from "../../project/api";
+import {
+  type DeletedProject,
+  type ProjectApi,
+  type ProjectSummary,
+  ProjectApiContext,
+} from "../../project/api";
 import { projectName } from "../../project/name";
+import { projectDetails } from "../../test/api";
 import { ProjectsPage } from "./ProjectsPage";
 
 // What the server says (app/tests/test_app.py): one untitled project with an inventory of one
 // file and one conversation, "My logger data".
 const PROJECTS = fixture as ProjectSummary[];
 const FIRST = PROJECTS[0] as ProjectSummary;
+// A project its owner deleted and may still restore (app/tests/test_project_deletion.py).
+const DELETED = deletedFixture as DeletedProject[];
 
-function renderPage(projects: ProjectApi["projects"], active: Partial<ActiveProject> = {}) {
-  const api = { projects, documents: vi.fn(), disclosure: vi.fn(), decide: vi.fn() };
+function renderPage(
+  projects: ProjectApi["projects"],
+  active: Partial<ActiveProject> = {},
+  create: ProjectApi["create"] = () => Promise.reject(new Error("no project created in this test")),
+  deleted: Partial<Pick<ProjectApi, "deletedProjects" | "restore">> = {},
+) {
+  const api = {
+    projects,
+    create,
+    deletedProjects: () => Promise.resolve([]),
+    restore: () => Promise.reject(new Error("no project restored in this test")),
+    ...deleted,
+    documents: vi.fn(),
+    disclosure: vi.fn(),
+    decide: vi.fn(),
+  };
   const value: ActiveProject = {
     projectId: null,
     projects: [],
@@ -43,6 +66,14 @@ describe("ProjectsPage", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("offers each project's journey map as a link on its card", async () => {
+    renderPage(() => Promise.resolve(PROJECTS));
+    const link = await screen.findByRole("link", {
+      name: `Open the journey map of ${projectName(FIRST)}`,
+    });
+    expect(link).toHaveAttribute("href", `/projects/${FIRST.project_id}/journey`);
+  });
+
   it("counts a project's documents by state", async () => {
     const counted = { ...FIRST, documents: { proposed: 2, approved: 1, rejected: 0 } };
     renderPage(() => Promise.resolve([counted]));
@@ -51,14 +82,51 @@ describe("ProjectsPage", () => {
     expect(screen.queryByText(/rejected/)).not.toBeInTheDocument();
   });
 
-  it("says how to start a project when there is none, and starts one with no project active", async () => {
+  it("says how to start a project when there is none, and creates one from the dialog", async () => {
     history.pushState(null, "", "/projects");
     const setProjectId = vi.fn();
-    renderPage(() => Promise.resolve([]), { projectId: "p1", setProjectId });
+    const reloadProjects = vi.fn();
+    const create = vi.fn<ProjectApi["create"]>(() => Promise.resolve({ ...FIRST, project_id: "p-new" }));
+    const { baseElement } = renderPage(
+      () => Promise.resolve([]),
+      { projectId: "p1", setProjectId, reloadProjects },
+      create,
+    );
     expect(await screen.findByText(/You have no project yet/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Start a new project" }));
-    expect(setProjectId).toHaveBeenCalledWith(null);
+    const dialog = await screen.findByRole("dialog", { name: "New project" });
+    expect(await axe(baseElement)).toHaveNoViolations();
+    await userEvent.type(within(dialog).getByRole("textbox"), "  Soil cores  ");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Create project" }));
+    expect(create).toHaveBeenCalledWith("Soil cores");
+    expect(setProjectId).toHaveBeenCalledWith("p-new");
+    expect(reloadProjects).toHaveBeenCalled();
     expect(location.pathname).toBe("/");
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("creates an unnamed project when the name is left blank", async () => {
+    const create = vi.fn<ProjectApi["create"]>(() => Promise.resolve({ ...FIRST, project_id: "p-new" }));
+    renderPage(() => Promise.resolve([]), {}, create);
+    await userEvent.click(await screen.findByRole("button", { name: "Start a new project" }));
+    const dialog = await screen.findByRole("dialog", { name: "New project" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Create project" }));
+    expect(create).toHaveBeenCalledWith(undefined);
+  });
+
+  it("says why a project was not created, and keeps what was typed", async () => {
+    history.pushState(null, "", "/projects");
+    const setProjectId = vi.fn();
+    const create = vi.fn<ProjectApi["create"]>(() => Promise.reject(new Error("the title is too long")));
+    renderPage(() => Promise.resolve([]), { setProjectId }, create);
+    await userEvent.click(await screen.findByRole("button", { name: "Start a new project" }));
+    const dialog = await screen.findByRole("dialog", { name: "New project" });
+    await userEvent.type(within(dialog).getByRole("textbox"), "Soil cores");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Create project" }));
+    expect(await within(dialog).findByRole("alert")).toBeVisible();
+    expect(within(dialog).getByRole("textbox")).toHaveValue("Soil cores");
+    expect(setProjectId).not.toHaveBeenCalled();
+    expect(location.pathname).toBe("/projects");
   });
 
   it("marks the current project, and opens another's conversations", async () => {
@@ -97,5 +165,40 @@ describe("projectName", () => {
 
   it("falls back to when the project was started when it has no conversation", () => {
     expect(projectName({ ...FIRST, conversations: [] })).toMatch(/^Project started /);
+  });
+
+  it("shows no deleted projects while there are none", async () => {
+    renderPage(() => Promise.resolve(PROJECTS));
+    await screen.findByRole("link", { name: "My logger data" });
+    expect(screen.queryByRole("heading", { name: "Recently deleted" })).not.toBeInTheDocument();
+  });
+
+  it("lists a deleted project under Recently deleted and restores it", async () => {
+    const user = userEvent.setup();
+    const reloadProjects = vi.fn();
+    const restore = vi.fn<ProjectApi["restore"]>(() => Promise.resolve(projectDetails()));
+    const listed = vi
+      .fn<ProjectApi["deletedProjects"]>()
+      .mockResolvedValueOnce(DELETED)
+      .mockResolvedValue([]);
+    const { container } = renderPage(
+      () => Promise.resolve([]),
+      { reloadProjects },
+      undefined,
+      { deletedProjects: listed, restore },
+    );
+    const section = (await screen.findByRole("heading", { name: "Recently deleted" })).closest(
+      "section",
+    ) as HTMLElement;
+    const project = DELETED[0] as DeletedProject;
+    expect(within(section).getByText(project.title as string)).toBeInTheDocument();
+    expect(within(section).getByText(/Restorable until/)).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+
+    await user.click(within(section).getByRole("button", { name: `Restore ${project.title}` }));
+    expect(restore).toHaveBeenCalledWith(project.project_id);
+    expect(await screen.findByText(/You have no project yet/)).toBeInTheDocument();
+    expect(reloadProjects).toHaveBeenCalled();
+    expect(screen.queryByRole("heading", { name: "Recently deleted" })).not.toBeInTheDocument();
   });
 });

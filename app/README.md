@@ -35,7 +35,7 @@ The conversation sits in the centre of a workspace ([The app](../docs/specs/app.
   naming the agents here whose manifest `serves` the step ([Orchestration](../docs/specs/orchestration.md));
 - on the right, the project's documents, which are not built yet (#160), and what the
   orchestrator is and what it has not declared;
-- beneath, the activity log, which needs streamed runs (#68, #69).
+- beneath, the activity log, which needs streamed runs (#69).
 
 Each run the orchestrator delegates is a card in the conversation; opening it shows the run's
 stages, outcome and evidence inside the card. On a narrow screen the zones stack in that order.
@@ -58,9 +58,10 @@ It is built from:
   - `GET /api/agents`: each agent's manifest beside what the profile assigns it;
   - `POST /api/runs` (`{agent_id, input}`): runs the agent through the conductor and answers when
     it has ended, with the envelope and the checks' reports. A request refused before it runs is
-    a 400 with Problem Details;
+    a 400 with Problem Details. It is for scripting and tests: the shell starts runs only through
+    conversation turns;
   - `GET /api/runs` and `GET /api/runs/{id}`: the run store, newest first;
-  - `GET /api/examples`: the example inputs in `config/examples/`;
+  - `GET /api/examples`: the example inputs in `config/examples/`, for scripting `POST /api/runs`;
   - `GET /api/process-flow`: the Blueprint's entry points and phases (`dd_sdk.process_flow`);
   - `POST /api/conversations` (optionally `{project_id}`): starts a conversation in that project,
     or in a new one, and gives its `conversation_id` and `project_id`; an unknown project, or
@@ -75,9 +76,14 @@ It is built from:
   - `GET /api/conversations` and `GET /api/conversations/{id}`: the stored conversations, most
     recently active first, and one conversation's turns, each with its delegated children, the
     stored inputs, version changes per agent and the history;
-  - `GET /api/projects`: the projects the person signed in has a role in, most recently
-    active first, each with its inventory, its documents counted by state and the conversations
-    started in it. The shell draws it at `/projects`, the first item in the main navigation;
+  - `GET /api/projects`: the projects the person signed in has a role in, the one created
+    last first and a page at a time (`?limit=`, `?before=`, a `Link` to the next page), each
+    with its inventory, its documents counted by state and the conversations started in it. The shell draws it at `/projects`, the first item in the main navigation;
+  - `DELETE /api/projects/{id}` (body `{"title": …}`, the project's name as its owner typed it),
+    `POST /api/projects/{id}/restore` and `GET /api/projects/deleted`: an owner deletes a
+    project, which hides it and removes nothing, and restores it within the restore period. The
+    shell confirms on the project's page and lists deleted projects under **Recently deleted**
+    on `/projects`;
   - `GET /api/projects/{id}/documents`: a project's documents, each version with its text and
     state as the project log records it, and the harness's rule for when a decision needs a
     reason. The shell draws it at `/projects/{id}`;
@@ -144,6 +150,14 @@ when it starts. The orchestrator runs the agents it delegates to through the
 app's own A2A endpoint, under a grant the conductor issues for that run.
 
 To run it on a server that keeps itself up to date with `main`, see `deploy/README.md`.
+
+**Describe a folder…**, the browser scanner in Make an inventory, is offered only where the app
+serves the scanner's bundle at `/inventory-bundle/`. Build it with `npm ci && npm run bundle` in
+`inventory/browser`; `npm run dev` and `vite preview` then serve it from there, with its licence
+notices (`NOTICES.md`). `uv run data-director` serves it once it is copied into
+`app/web/dist/inventory-bundle/`, as the release image and the VM deploy do. The app sends the
+scanner's worker its own Content Security Policy, and the bundle `Cache-Control: no-cache`
+(`dd_app.worker_policy`).
 
 `DD_APP_HOST` and `DD_APP_PORT` change the address. The agents call the app back on
 `http://DD_APP_HOST:DD_APP_PORT`; set `DD_HARNESS_URL` if they reach it at another address. To work on the shell, run the server as
@@ -222,7 +236,9 @@ for ORCID.
 - Every `/api` route that runs or reads anything answers `401` with an `unauthenticated` problem
   when there is no session, and the shell then shows its sign-in page. `/api/about`,
   `/api/session` and the sign-in routes are open, as is `/server-status`, which answers a monitor's
-  `GET /server-status?auto` (collectd's apache plugin) with the app's uptime in `Key: value` lines.
+  `GET /server-status?auto` (collectd's apache plugin) with the app's version and uptime in
+  `Key: value` lines. NGINX answers `404` to it, so only the VM itself reaches it, on
+  `127.0.0.1:7860`.
 - Sessions are held in memory, so restarting the app signs everyone out.
 - Signing out ends the session here. ORCID offers no sign-out for the app, so the person may still
   be signed in at ORCID, and the signed-out page says so.
@@ -283,7 +299,7 @@ so and links to the agent directory; it does not fall back to another agent.
 ## Layout and styles
 
 Every page is the same frame (`web/src/components/frame/Frame.tsx`): a banner holding the name,
-the main navigation, who is signed in and the dark mode switch, identical on every page so that
+the main navigation, who is signed in and the settings link, identical on every page so that
 nothing in it moves, and one `main`. Each page opens with a `PageHeader` (its `h1` and what the reader needs
 before the content). What a page acts for is said in the page, not in the banner.
 
@@ -293,7 +309,7 @@ layers, not selector specificity, decides which rule wins.
 
 - **Where a rule goes.** Page layout and each page's grid are in `styles/layout.css`; patterns
   used by several components (statuses, callouts, fields, data tables) in `styles/patterns.css`;
-  anything else beside its component (`RunForm.tsx` imports `RunForm.css`), wrapped in
+  anything else beside its component (`Stages.tsx` imports `Stages.css`), wrapped in
   `@layer components`. A component does not set its own outer margins or grid placement.
 - **Names.** Classes are kebab-case and start with their component's name (`app-nav-link`,
   `stage-name`).
@@ -330,6 +346,9 @@ npm run lint && npm run typecheck && npm test      # ESLint (with jsx-a11y), Sty
 npx playwright install chromium && npm run e2e      # axe light and dark, keyboard, 400% reflow
 ```
 
+`npm run e2e` includes `e2e/scan.spec.ts`, which describes a folder with the real scanner and
+needs its bundle built first (`npm ci && npm run bundle` in `inventory/browser`).
+
 The shell's tests draw manifests from `app/web/fixtures/`. `app/tests/test_app.py` builds them
 from the real server. Run locally, `uv run pytest app/tests` rewrites a fixture that has drifted,
 for the change to be committed; in CI (`CI` set) a drifted fixture fails the test instead, and
@@ -340,7 +359,7 @@ shapes, under a profile that does not list the standards advisor, so the shell i
 
 - A run is one request that answers when the run has ended, so the stages are read back
   afterwards rather than watched, and a run cannot be cancelled. Streaming runs over AG-UI
-  replaces it (#68, #69).
+  replaces it (#69).
 - A person can approve, edit then approve, or reject a project's documents at `/projects/{id}`,
   and only the project's owner, its creator until membership is built (#389), can decide. Risk tiers and batching for review are #72 and #73.
 - The form checks only required fields and numbers; the conductor's input check decides.

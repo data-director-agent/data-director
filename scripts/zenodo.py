@@ -48,6 +48,14 @@ DOI_PREFIX = "10.5281/zenodo."
 # Seconds to wait for one API call or the upload.
 TIMEOUT = 300
 
+# Zenodo answers a token it does not accept with 401 or 403 and no more detail than "Permission
+# denied", so the likely causes are named here.
+TOKEN_HINT = (
+    "zenodo: the token was refused. Check that ZENODO_TOKEN in the `zenodo` environment is a"
+    " current personal access token with the scopes deposit:write and deposit:actions, made by the"
+    " account that owns the record (RELEASING.md, Archiving in Zenodo)."
+)
+
 
 class ZenodoError(Exception):
     """A call to the API failed; the message says which and why."""
@@ -77,8 +85,13 @@ class Client:
             with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
                 text = response.read().decode()
         except urllib.error.HTTPError as error:
-            detail = error.read().decode(errors="replace")
-            raise ZenodoError(f"{method} {url} returned {error.code}: {detail}") from error
+            # An HTTPError owns its response body; close it rather than leave that to the GC.
+            with error:
+                detail = error.read().decode(errors="replace")
+            message = f"{method} {url} returned {error.code}: {detail}"
+            if error.code in (401, 403):
+                message += f"\n{TOKEN_HINT}"
+            raise ZenodoError(message) from error
         except urllib.error.URLError as error:
             raise ZenodoError(f"{method} {url} failed: {error.reason}") from error
         return json.loads(text) if text else None

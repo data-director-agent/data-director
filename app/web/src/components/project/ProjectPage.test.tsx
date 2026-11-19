@@ -6,15 +6,21 @@ import disclosureFixture from "../../../fixtures/project-disclosure.json";
 import answersFixture from "../../../fixtures/project-answers.json";
 import fixture from "../../../fixtures/project-documents.json";
 import repositoryFixture from "../../../fixtures/repository-chosen.json";
+import suggestedFixture from "../../../fixtures/repositories-suggested.json";
 import {
   DecisionConflict,
   type Disclosure,
   type ProjectApi,
   type ProjectDocuments,
+  type ProjectSummary,
   type RepositoryRequirements,
+  type RepositorySearch,
   ProjectApiContext,
   digestOf,
 } from "../../project/api";
+import { type ConversationApi, ConversationApiContext } from "../../conversation/api";
+import type { ConversationSummary } from "../../conversation/types";
+import { conversationSummary, projectDetails, projectProgress, projectSummary } from "../../test/api";
 import { ProjectPage } from "./ProjectPage";
 
 // What the server says (app/tests/test_document_decisions.py): a README proposed, and a data
@@ -25,6 +31,8 @@ const PROJECT = fixture as ProjectDocuments;
 const DISCLOSURE = disclosureFixture as Disclosure;
 // ORDA, chosen by its re3data identifier (app/tests/test_repository_choice.py).
 const REPOSITORY = repositoryFixture as RepositoryRequirements;
+// ORDA and Zenodo, suggested before a search (app/tests/test_repository_search.py).
+const SUGGESTED = suggestedFixture as RepositorySearch;
 
 function at<T>(items: T[], index: number): T {
   const item = items[index];
@@ -49,28 +57,69 @@ function decided(state: "approved" | "rejected", reason: string | null = null): 
 function fakeApi(overrides: Partial<ProjectApi> = {}): ProjectApi {
   return {
     projects: () => Promise.resolve([]),
+    create: () => Promise.reject(new Error("no project created in these tests")),
+    rename: () => Promise.resolve(projectDetails()),
+    remove: () => Promise.reject(new Error("no project deleted in these tests")),
+    restore: () => Promise.reject(new Error("no project restored in these tests")),
+    deletedProjects: () => Promise.resolve([]),
     documents: () => Promise.resolve(PROJECT),
     disclosure: () => Promise.resolve(DISCLOSURE),
     decide: () => Promise.resolve(decided("approved")),
     answer: () => Promise.resolve(PROJECT),
     inventory: () => Promise.resolve(null),
+    saveInventory: () => Promise.reject(new Error("not saved in this test")),
     repository: () => Promise.resolve(REPOSITORY),
-    progress: () => Promise.resolve({ entry: null, steps: {}, suggested: null }),
-    chooseEntry: () => Promise.resolve({ entry: null, steps: {}, suggested: null }),
-    markStep: () => Promise.resolve({ entry: null, steps: {}, suggested: null }),
+    progress: () => Promise.resolve(projectProgress()),
+    chooseEntry: () => Promise.resolve(projectProgress()),
+    markStep: () => Promise.resolve(projectProgress()),
+    intake: () => Promise.reject(new Error("no intake in these tests")),
+    answerIntake: () => Promise.reject(new Error("no intake in these tests")),
+    dismissIntake: () => Promise.reject(new Error("no intake in these tests")),
     validate: () => Promise.reject(new Error("not checked in this test")),
     buildPackage: () => Promise.reject(new Error("not built in this test")),
     chooseRepository: () => Promise.reject(new Error("no repository in these tests")),
+    searchRepositories: () => Promise.resolve(SUGGESTED),
+    orcidRecord: () => Promise.reject(new Error("no ORCID record in these tests")),
+    researchers: () => Promise.resolve([]),
+    keepResearcher: () => Promise.reject(new Error("nothing kept in these tests")),
+    withdrawResearcher: () => Promise.resolve([]),
     ...overrides,
   };
 }
 
-function renderPage(api: ProjectApi, query = "") {
+function fakeConversations(
+  list: ConversationApi["list"] = () => Promise.resolve([]),
+): ConversationApi {
+  return {
+    create: () => Promise.reject(new Error("nothing started in these tests")),
+    list,
+    get: () => Promise.reject(new Error("nothing opened in these tests")),
+    remove: () => Promise.reject(new Error("nothing deleted in these tests")),
+    restore: () => Promise.resolve(),
+    deleted: () => Promise.resolve([]),
+  };
+}
+
+function renderPage(api: ProjectApi, query = "", conversations = fakeConversations()) {
   return render(
-    <ProjectApiContext.Provider value={api}>
-      <ProjectPage projectId={PROJECT.project_id} query={query} />
-    </ProjectApiContext.Provider>,
+    <ConversationApiContext.Provider value={conversations}>
+      <ProjectApiContext.Provider value={api}>
+        <ProjectPage projectId={PROJECT.project_id} query={query} />
+      </ProjectApiContext.Provider>
+    </ConversationApiContext.Provider>,
   );
+}
+
+/** A conversation summary as `GET /api/conversations` lists one. */
+function summary(conversation_id: string, project_id: string | null, title: string): ConversationSummary {
+  return conversationSummary({
+    conversation_id,
+    project_id,
+    agent_id: "orchestrator",
+    title,
+    turns: 2,
+    started_at: "2026-11-01T10:00:00Z",
+  });
 }
 
 /** `PROJECT` with the README's text and media type replaced, as the given kind of document. */
@@ -202,8 +251,48 @@ describe("ProjectPage", () => {
     expect(screen.getByRole("navigation", { name: "Documents" })).toBeVisible();
   });
 
+  it("lists the project's conversations beside its documents, each a link to open it", async () => {
+    const { container } = renderPage(
+      fakeApi(),
+      "",
+      fakeConversations(() =>
+        Promise.resolve([
+          summary("conv-1", PROJECT.project_id, "Soil cores deposit"),
+          summary("conv-2", "another-project", "Not this project"),
+          summary("conv-3", PROJECT.project_id, "Data dictionary questions"),
+        ]),
+      ),
+    );
+    const nav = await screen.findByRole("navigation", { name: /Conversations/ });
+    const first = await within(nav).findByRole("link", { name: /Soil cores deposit/ });
+    expect(first.getAttribute("href")).toBe("/?conversation=conv-1");
+    expect(within(nav).getByRole("link", { name: /Data dictionary questions/ })).toBeTruthy();
+    expect(within(nav).queryByRole("link", { name: /Not this project/ })).toBeNull();
+    expect(within(nav).getByRole("link", { name: /New conversation/ }).getAttribute("href")).toBe(
+      "/",
+    );
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("says when the project has no conversations yet", async () => {
+    renderPage(fakeApi());
+    const nav = await screen.findByRole("navigation", { name: /Conversations/ });
+    expect(await within(nav).findByText(/No conversations yet/)).toBeTruthy();
+  });
+
+  it("keeps the documents when the conversations cannot be read", async () => {
+    renderPage(
+      fakeApi(),
+      "",
+      fakeConversations(() => Promise.reject(new Error("unreachable"))),
+    );
+    const nav = await screen.findByRole("navigation", { name: /Conversations/ });
+    expect(await within(nav).findByText(/could not be read/)).toBeTruthy();
+    expect(await readme()).toBeTruthy();
+  });
+
   it("names the page after the project", async () => {
-    const summary = {
+    const summary = projectSummary({
       project_id: PROJECT.project_id,
       title: "River loggers",
       created_at: DRAFT.added_at,
@@ -212,9 +301,147 @@ describe("ProjectPage", () => {
       repository: null,
       documents: { proposed: 1, approved: 1, rejected: 0 },
       conversations: [],
-    };
+    });
     renderPage(fakeApi({ projects: () => Promise.resolve([summary]) }));
     expect(await screen.findByRole("heading", { level: 1, name: "River loggers" })).toBeVisible();
+  });
+
+  it("renames the project and shows the name the server reads back", async () => {
+    const user = userEvent.setup();
+    const summary: ProjectSummary = projectSummary({
+      project_id: PROJECT.project_id,
+      title: "Sediment cores",
+      title_source: "model",
+      created_at: DRAFT.added_at,
+      created_by: DRAFT.added_by,
+      inventory: null,
+      repository: null,
+      documents: { proposed: 1, approved: 1, rejected: 0 },
+      conversations: [],
+    });
+    let current = summary;
+    const rename = vi.fn((_: string, title: string) => {
+      current = { ...summary, title, title_source: "researcher" };
+      return Promise.resolve(current);
+    });
+    renderPage(fakeApi({ projects: () => Promise.resolve([current]), rename }));
+    expect(await screen.findByRole("heading", { level: 1, name: "Sediment cores" })).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Rename project" }));
+    const dialog = await screen.findByRole("dialog", { name: "Rename project" });
+    expect(within(dialog).getByText(/suggested this name/)).toBeVisible();
+    const field = within(dialog).getByRole("textbox", { name: "Project name" });
+    expect(field).toHaveValue("Sediment cores");
+    await user.clear(field);
+    await user.type(field, "  Humber estuary cores ");
+    await user.click(within(dialog).getByRole("button", { name: "Save name" }));
+
+    expect(rename).toHaveBeenCalledWith(PROJECT.project_id, "Humber estuary cores");
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Humber estuary cores" }),
+    ).toBeVisible();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("says why a rename was refused and keeps the dialog open", async () => {
+    const user = userEvent.setup();
+    const summary = projectSummary({
+      project_id: PROJECT.project_id,
+      title: null,
+      created_at: DRAFT.added_at,
+      created_by: DRAFT.added_by,
+      inventory: null,
+      repository: null,
+      documents: { proposed: 1, approved: 1, rejected: 0 },
+      conversations: [],
+    });
+    renderPage(
+      fakeApi({
+        projects: () => Promise.resolve([summary]),
+        rename: () => Promise.reject(new Error("the server answered 400")),
+      }),
+    );
+    await user.click(await screen.findByRole("button", { name: "Rename project" }));
+    const dialog = await screen.findByRole("dialog", { name: "Rename project" });
+    const field = within(dialog).getByRole("textbox", { name: "Project name" });
+    await user.clear(field);
+    await user.type(field, "Soil");
+    await user.click(within(dialog).getByRole("button", { name: "Save name" }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "could not rename this project: the server answered 400",
+    );
+  });
+
+  it("deletes the project only once its name is typed, and says what stays", async () => {
+    const user = userEvent.setup();
+    history.pushState(null, "", `/projects/${PROJECT.project_id}`);
+    const summary: ProjectSummary = projectSummary({
+      project_id: PROJECT.project_id,
+      title: "Sediment cores",
+      title_source: "researcher",
+      created_at: DRAFT.added_at,
+      created_by: DRAFT.added_by,
+      inventory: null,
+      repository: null,
+      documents: { proposed: 1, approved: 1, rejected: 0 },
+      conversations: [],
+      restore_days: 30,
+    });
+    const remove = vi.fn<ProjectApi["remove"]>(() =>
+      Promise.resolve({
+        ...summary,
+        deleted: { at: DRAFT.added_at, by: DRAFT.added_by, restorable_until: DRAFT.added_at },
+      }),
+    );
+    renderPage(fakeApi({ projects: () => Promise.resolve([summary]), remove }));
+
+    await user.click(await screen.findByRole("button", { name: "Delete project" }));
+    const dialog = await screen.findByRole("dialog", { name: "Delete project" });
+    expect(within(dialog).getByText(/Nothing is erased/)).toBeVisible();
+    expect(within(dialog).getByText(/not recalled/)).toBeVisible();
+    expect(within(dialog).getByText(/restore it from the Projects page until/)).toBeVisible();
+    expect(await axe(dialog)).toHaveNoViolations();
+    const confirm = within(dialog).getByRole("button", { name: "Delete project" });
+    const field = within(dialog).getByRole("textbox", { name: /to confirm/ });
+    await user.type(field, "Sediment");
+    expect(confirm).toBeDisabled();
+    await user.click(confirm);
+    expect(remove).not.toHaveBeenCalled();
+
+    await user.type(field, " cores");
+    expect(confirm).toBeEnabled();
+    await user.click(confirm);
+    expect(remove).toHaveBeenCalledWith(PROJECT.project_id, "Sediment cores");
+    await vi.waitFor(() => expect(window.location.pathname).toBe("/projects"));
+  });
+
+  it("says why a deletion was refused and keeps the dialog open", async () => {
+    const user = userEvent.setup();
+    const summary: ProjectSummary = projectSummary({
+      project_id: PROJECT.project_id,
+      title: "Sediment cores",
+      created_at: DRAFT.added_at,
+      created_by: DRAFT.added_by,
+      inventory: null,
+      repository: null,
+      documents: { proposed: 1, approved: 1, rejected: 0 },
+      conversations: [],
+      restore_days: 0,
+    });
+    renderPage(
+      fakeApi({
+        projects: () => Promise.resolve([summary]),
+        remove: () => Promise.reject(new Error("the server answered 403")),
+      }),
+    );
+    await user.click(await screen.findByRole("button", { name: "Delete project" }));
+    const dialog = await screen.findByRole("dialog", { name: "Delete project" });
+    expect(within(dialog).getByText(/does not let a deleted project be restored/)).toBeVisible();
+    await user.type(within(dialog).getByRole("textbox", { name: /to confirm/ }), "Sediment cores");
+    await user.click(within(dialog).getByRole("button", { name: "Delete project" }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "could not delete this project: the server answered 403",
+    );
   });
 
   it("shows the stored text exactly in the Source tab", async () => {
@@ -304,6 +531,19 @@ describe("ProjectPage", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("opens the project's facts from the list, for a person to decide what agents proposed", async () => {
+    const offered = { proposals: [], decisions: [] };
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response(JSON.stringify(offered)))));
+    try {
+      renderPage(fakeApi(), "doc=facts");
+      const panel = await screen.findByRole("region", { name: "Project facts" });
+      expect(await within(panel).findByText(/No agent has proposed anything/)).toBeVisible();
+      expect(screen.getByRole("link", { name: /Project facts/ })).toHaveAttribute("aria-current");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("shows the repository chosen and what it asks for", async () => {
     const { container } = renderPage(fakeApi(), "doc=repository");
     const panel = await screen.findByRole("region", { name: "Repository" });
@@ -311,7 +551,7 @@ describe("ProjectPage", () => {
       "href",
       "https://www.re3data.org/repository/r3d100012124",
     );
-    expect(within(panel).getByText("orda@v2")).toBeVisible();
+    expect(within(panel).getByText("orda@v3")).toBeVisible();
     expect(
       within(panel).getByRole("heading", { name: "Metadata the record must have" }),
     ).toBeVisible();
@@ -323,6 +563,48 @@ describe("ProjectPage", () => {
   it("says how to choose a repository when none has been", async () => {
     renderPage(fakeApi({ repository: () => Promise.resolve(null) }), "doc=repository");
     expect(await screen.findByText(/No repository has been chosen yet/)).toBeVisible();
+  });
+
+  it("chooses a suggested repository on the page and shows what it asks for", async () => {
+    const user = userEvent.setup();
+    const choose = vi.fn<ProjectApi["chooseRepository"]>().mockResolvedValue(REPOSITORY);
+    const { container } = renderPage(
+      fakeApi({ repository: () => Promise.resolve(null), chooseRepository: choose }),
+      "doc=repository",
+    );
+    const box = await screen.findByRole("combobox", { name: "Find a repository" });
+    expect(screen.getByRole("button", { name: "Choose repository" })).toBeDisabled();
+    await user.click(box);
+    const options = await screen.findAllByRole("option");
+    expect(options.map((o) => o.textContent)).toEqual(
+      SUGGESTED.repositories.map((r) => expect.stringContaining(r.name) as unknown),
+    );
+    expect(await axe(container)).toHaveNoViolations();
+    await user.click(at(options, 0));
+    await user.click(screen.getByRole("button", { name: "Choose repository" }));
+    expect(choose).toHaveBeenCalledWith(PROJECT.project_id, at(SUGGESTED.repositories, 0).re3data_id);
+    const panel = screen.getByRole("region", { name: "Repository" });
+    expect(await within(panel).findByText("orda@v3")).toBeVisible();
+    expect(within(panel).getByRole("button", { name: "Change repository" })).toBeVisible();
+  });
+
+  it("searches re3data with what is typed", async () => {
+    const user = userEvent.setup();
+    const search = vi.fn<ProjectApi["searchRepositories"]>((query) =>
+      Promise.resolve({
+        ...SUGGESTED,
+        query,
+        suggested: !query,
+        repositories: query ? SUGGESTED.repositories.slice(1) : SUGGESTED.repositories,
+      }),
+    );
+    renderPage(fakeApi({ searchRepositories: search }), "doc=repository");
+    await user.click(await screen.findByRole("button", { name: "Change repository" }));
+    await user.type(screen.getByRole("combobox", { name: "Find a repository" }), "zen");
+    await vi.waitFor(() => expect(search).toHaveBeenLastCalledWith("zen", expect.anything()));
+    const options = await screen.findAllByRole("option");
+    expect(options).toHaveLength(1);
+    expect(at(options, 0)).toHaveTextContent(at(SUGGESTED.repositories, 1).name);
   });
 
   it("reaches the repository even before any document is drafted", async () => {

@@ -5,6 +5,27 @@
     margin-top: var(--space-4);
   }
 
+  .make-inventory-route > * + * {
+    margin-top: var(--space-4);
+  }
+
+  /* A hidden tab kept mounted (the browser route, so a scan goes on) takes no room. */
+  .tab-panel[inert] {
+    display: none;
+  }
+
+  .make-inventory-checking,
+  .make-inventory-alternative {
+    color: var(--color-text-muted);
+  }
+
+  .make-inventory-alternative {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
   .make-inventory-steps > li + li {
     margin-top: var(--space-3);
   }
@@ -31,5 +52,67 @@
     overflow-wrap: anywhere;
     background: var(--color-surface);
     border-radius: var(--radius);
+  }
+
+  /* Describe a folder (DescribeFolder.tsx): a drop target as well as a button. */
+  .describe-folder {
+    padding: var(--space-3);
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius);
+  }
+
+  .describe-folder > * + * {
+    margin-top: var(--space-3);
+  }
+
+  .describe-folder.dropping {
+    border-style: solid;
+    border-color: var(--color-focus);
+  }
+
+  .describe-folder-scanning progress {
+    display: block;
+    width: 100%;
+  }
+
+  .describe-folder-file {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-small);
+    overflow-wrap: anywhere;
+  }
+
+  .describe-folder-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .describe-folder-error {
+    color: var(--color-danger-fg);
+  }
+
+  .describe-folder-notices {
+    font-size: var(--font-size-small);
+    color: var(--color-text-muted);
+  }
+}
+
+@layer components {
+  /* Describe a folder on this computer (DescribeServerFolder.tsx): the way back up, and the
+     folders here, each a button that opens it. */
+  .describe-folder-trail,
+  .describe-folder-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .describe-folder-trail > li + li::before {
+    content: "/";
+    margin-right: var(--space-2);
+    color: var(--color-text-muted);
   }
 }

@@ -1,8 +1,9 @@
 # agents
 
 Rules for working on an agent under `agents/<name>/`. The recipe for adding one is
-[`README.md`](README.md), and [`example-hello/`](example-hello/) is the worked example to copy
-([Agents](../docs/specs/agents.md)). The repository-wide rules in the root
+[`README.md`](README.md): start a new agent with `uv run scripts/dd.py new-agent <name>`, which
+writes it from a template on the agent kit in `dd_sdk.agent` and registers it. [`example-hello/`](example-hello/)
+is the worked example ([Agents](../docs/specs/agents.md)). The repository-wide rules in the root
 [`AGENTS.md`](../AGENTS.md) apply as well.
 
 An agent's code, data, schema, scripts, evaluation cases and tests live in its own directory. If
@@ -17,6 +18,9 @@ the workbench, stop.
   linter, CLI, transport, viewer or app shell to add an agent, stop.
 - **An agent is a service.** Nothing outside `agents/` imports `dd_agent_*` from its `src/`; only
   tests do, to serve an agent in memory (`dd_harness.testing.in_process`).
+- **Use the agent kit, not a copy of it.** `abstain`, `input_ref` and `input_evidence` are in
+  `dd_sdk.agent`; `scripts/tests/test_agent_kit_usage.py` fails on a private `_abstain` or an
+  input citation written out by hand.
 - **An agent returns an `AgentResult` (outcome, payload, evidence) and nothing more.** If you find
   yourself setting `invocation_id` or `grounding_mode` in an agent, stop: only the conductor
   fills them.
@@ -35,6 +39,11 @@ the workbench, stop.
   the viewer work out the rest of the presentation from the schema, whose property order
   `dd-gen-schema` keeps as the LinkML slot order. Do not add an RJSF fragment, widget name or
   layout hint to `AgentSpec`.
+- **An agent's settings are operational, never policy.** Its `DD_<AGENT>_*` variables say how it
+  works (a model, an endpoint, a snapshot path); what the deployment allows it to do comes from the
+  institutional profile, applied by the conductor and passed in the grant. If you find yourself
+  adding a variable that permits, forbids or requires approval for something, stop: it is a
+  profile key ([Policy and identity](../docs/specs/policy-and-identity.md)).
 - **A content problem is an outcome, not an exception.** Empty search → `abstained`; registry
   down → `abstained(registry_unavailable)`; policy refusal → `failed` with Problem Details or
   `referred`.
@@ -50,3 +59,13 @@ the workbench, stop.
   ([Evaluation and conformance](../docs/specs/evaluation.md)).
 - **Shared doubles for one agent's tests live in that agent's `testing` module** (for example
   `dd_agent_advisor_standards.testing`), not in another package.
+- **An advisor that calls a model is built to [Model-backed personas](../docs/specs/agents.md#model-backed-personas)**
+  and reviewed against
+  [Reviewing a model-backed agent](../docs/guide/developer-guide/reviewing-a-model-backed-agent.md).
+  If you find yourself letting a model remove a rule's flag, write a value the researcher must
+  give, or build an advisor with no `template` path an operator can select, stop. The model is the
+  default (`default="model"` in `optional_model`), so the advisor says how to run without it when it
+  has no key, and `scripts/ddtool/common.py`'s `MODEL_BY_DEFAULT` lists it
+  ([Model-backed personas](../docs/specs/agents.md#model-backed-personas)). A model's
+  claim about a source stands only on something code checks, such as a quote found in the cited
+  record (`advisor-policy/src/dd_agent_advisor_policy/verify.py`).

@@ -4,6 +4,7 @@
  */
 
 import type { ProjectDocument, ProjectSummary } from "./api";
+import { formatDate } from "../format";
 
 const KINDS: Record<string, string> = {
   metadata_record: "Metadata record",
@@ -14,8 +15,19 @@ const KINDS: Record<string, string> = {
 
 /** A day as the person's locale writes it, or the timestamp as given if it is not one. */
 export function day(at: string): string {
-  const date = new Date(at);
-  return Number.isNaN(date.getTime()) ? at : date.toLocaleDateString([], { dateStyle: "medium" });
+  return formatDate(at, { dateStyle: "medium" });
+}
+
+/** What the owner types to delete a project: its title, or its identifier while it has none, as
+ * the server checks (docs/specs/projects.md, "Deletion and retention"). */
+export function deletionName(project: Pick<ProjectSummary, "title" | "project_id">): string {
+  return project.title ?? project.project_id;
+}
+
+/** The day by which a project deleted now could still be restored, or null if deletion is final. */
+export function restorableUntil(restoreDays: number, from: Date = new Date()): string | null {
+  if (restoreDays <= 0) return null;
+  return day(new Date(from.getTime() + restoreDays * 24 * 60 * 60 * 1000).toISOString());
 }
 
 /** A project's name: its title, else its first conversation's, else when it was started. */

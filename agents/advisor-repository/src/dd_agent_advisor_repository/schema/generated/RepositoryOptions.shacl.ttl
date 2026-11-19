@@ -14,11 +14,6 @@ repository:RepositoryOptions a sh:NodeShape ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 4 ;
             sh:path <https://w3id.org/data-director/grounded_on> ],
-        [ sh:datatype xsd:string ;
-            sh:description "Mandated repositories for which no registry record was found." ;
-            sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path repository:not_found ],
         [ sh:class repository:SearchedSummary ;
             sh:maxCount 1 ;
             sh:nodeKind sh:BlankNodeOrIRI ;
@@ -31,6 +26,11 @@ repository:RepositoryOptions a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path <https://w3id.org/data-director/schema_class> ],
+        [ sh:datatype xsd:string ;
+            sh:description "Mandated repositories, and repositories the researcher asked about, for which no single registry record was found." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path repository:not_found ],
         [ sh:class repository:RepositoryCandidate ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 1 ;
@@ -41,7 +41,13 @@ repository:RepositoryCandidate a sh:NodeShape ;
     rdfs:comment "One repository. It is named only in grounded_on; its name, PID systems, access and upload conditions, certificates and metadata standards are in the cited evidence items' content (docs/specs/grounding.md). The judgements here are read from those records or compared with the needs." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
+    sh:property [ sh:description "Whether the registry lists a persistent identifier system the repository uses. re3data does not say whether assignment is automatic." ;
+            sh:in ( "yes" "no" "unstated" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 2 ;
+            sh:path repository:assigns_pids ],
+        [ sh:datatype xsd:string ;
             sh:description "The needs this repository meets, as recorded by its registry entries." ;
             sh:nodeKind sh:Literal ;
             sh:order 5 ;
@@ -57,17 +63,22 @@ repository:RepositoryCandidate a sh:NodeShape ;
             sh:minCount 1 ;
             sh:order 3 ;
             sh:path repository:commercial ],
-        [ sh:datatype xsd:float ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path repository:score ],
         [ sh:datatype xsd:string ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 9 ;
             sh:path repository:rationale ],
+        [ sh:datatype xsd:float ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path repository:score ],
+        [ sh:datatype xsd:string ;
+            sh:description "Why a recommended repository is on the shortlist and in its place, one sentence per ranking signal: the themes and kinds of data it matches, whether it is a generalist, run by the researcher's institution, or lacks the access the data needs. Empty when mandated, and for a repository asked about that the shortlist did not rank." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 8 ;
+            sh:path repository:ranked_by ],
         [ sh:datatype xsd:string ;
             sh:description "The needs this repository does not meet, or that its records leave open. Flagged for the researcher; never resolved by the agent." ;
             sh:nodeKind sh:Literal ;
@@ -79,12 +90,7 @@ repository:RepositoryCandidate a sh:NodeShape ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 11 ;
             sh:path <https://w3id.org/data-director/grounded_on> ],
-        [ sh:datatype xsd:string ;
-            sh:description "Why a recommended repository is on the shortlist and in its place, one sentence per ranking signal: the themes and kinds of data it matches, whether it is a generalist, run by the researcher's institution, or lacks the access the data needs. Empty when mandated." ;
-            sh:nodeKind sh:Literal ;
-            sh:order 8 ;
-            sh:path repository:ranked_by ],
-        [ sh:in ( "mandated" "recommended" ) ;
+        [ sh:in ( "mandated" "asked_about" "recommended" "chosen" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 0 ;
@@ -99,13 +105,7 @@ repository:RepositoryCandidate a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 10 ;
-            sh:path repository:rationale_derivation ],
-        [ sh:description "Whether the registry lists a persistent identifier system the repository uses. re3data does not say whether assignment is automatic." ;
-            sh:in ( "yes" "no" "unstated" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 2 ;
-            sh:path repository:assigns_pids ] ;
+            sh:path repository:rationale_derivation ] ;
     sh:targetClass repository:RepositoryCandidate .
 
 repository:SearchedSummary a sh:NodeShape ;
@@ -113,6 +113,12 @@ repository:SearchedSummary a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
+            sh:description "Which copies of the registries answered, e.g. re3data:export:2026-11." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path repository:snapshot_ref ],
+        [ sh:datatype xsd:string ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path repository:queries ],
@@ -125,13 +131,7 @@ repository:SearchedSummary a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
-            sh:path repository:candidates_qualifying ],
-        [ sh:datatype xsd:string ;
-            sh:description "Which copies of the registries answered, e.g. re3data:export:2026-11." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path repository:snapshot_ref ] ;
+            sh:path repository:candidates_qualifying ] ;
     sh:targetClass repository:SearchedSummary .
 
 <https://w3id.org/data-director/GroundingRef> a sh:NodeShape ;

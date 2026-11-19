@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import pytest
 import yaml
@@ -20,7 +20,6 @@ from dd_agent_advisor_documentation.agent import DocumentationEditor
 from dd_agent_advisor_files.agent import FileArchivist
 from dd_agent_advisor_metadata.agent import MetadataLibrarian
 from dd_agent_orchestrator_model.agent import ModelOrchestrator
-from dd_agent_orchestrator_model.model import ModelTurn, ToolCall
 from dd_harness.conductor import Conductor
 from dd_harness.deposit import build_package
 from dd_harness.projects import APPROVED, Decision, ProjectStore
@@ -29,36 +28,21 @@ from dd_harness.sources import RecordsFile, Sources
 from dd_harness.store import RunStore
 from dd_harness.testing import TEST_PRINCIPAL, file_inventory, make_conductor, request
 from dd_sdk.contract.models import Envelope, Message, OutcomeStatus
+from dd_sdk.model import ModelRequest, ModelResponse, ToolCall, Usage, message_json
 
 MODEL = "claude-test"
 
 
-def say(text: str) -> ModelTurn:
-    return ModelTurn(
-        text=text,
-        tool_calls=[],
-        stop_reason="end_turn",
-        content=[{"type": "text", "text": text}],
-        model_id=MODEL,
-        input_tokens=100,
-        output_tokens=10,
-    )
+def say(text: str) -> ModelResponse:
+    return ModelResponse(text, model_id=MODEL, usage=Usage(100, 10))
 
 
-def call(*calls: tuple[str, dict[str, Any]]) -> ModelTurn:
-    tool_calls = [
+def call(*calls: tuple[str, dict[str, Any]]) -> ModelResponse:
+    tool_calls = tuple(
         ToolCall(id=f"toolu_{n}", name=name, input=args) for n, (name, args) in enumerate(calls)
-    ]
-    return ModelTurn(
-        text="",
-        tool_calls=tool_calls,
-        stop_reason="tool_use",
-        content=[
-            {"type": "tool_use", "id": c.id, "name": c.name, "input": c.input} for c in tool_calls
-        ],
-        model_id=MODEL,
-        input_tokens=100,
-        output_tokens=10,
+    )
+    return ModelResponse(
+        "", model_id=MODEL, usage=Usage(100, 10), tool_calls=tool_calls, stop="tool_use"
     )
 
 
@@ -66,15 +50,20 @@ class ScriptedModel:
     """Plays back the turns queued for each researcher message, and keeps what it was sent."""
 
     model_id = MODEL
+    provider = "fake"
+    hosting: Literal["hosted", "local"] = "hosted"
 
     def __init__(self) -> None:
-        self.turns: list[ModelTurn] = []
+        self.turns: list[ModelResponse] = []
         self.sent: list[dict[str, Any]] = []
 
-    def turn(
-        self, messages: list[dict[str, Any]], tools: list[dict[str, Any]], *, use_tools: bool
-    ) -> ModelTurn:
-        self.sent.append({"messages": json.loads(json.dumps(messages)), "tools": tools})
+    def send(self, request: ModelRequest) -> ModelResponse:
+        self.sent.append(
+            {
+                "messages": [message_json(m) for m in request.messages],
+                "tools": [t.to_json() for t in request.tools],
+            }
+        )
         if not self.turns:
             raise AssertionError("the model was called more often than scripted")
         return self.turns.pop(0)
@@ -97,7 +86,7 @@ class Researcher:
         self.model = model
         self.conversation_id = conversation_id
 
-    def say(self, text: str, *turns: ModelTurn) -> Envelope:
+    def say(self, text: str, *turns: ModelResponse) -> Envelope:
         self.model.turns, self.model.sent = list(turns), []
         req = request("orchestrator.model", Message(message_text=text)).model_copy(
             update={"conversation_id": self.conversation_id}

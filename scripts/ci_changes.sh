@@ -4,8 +4,11 @@
 # stdin and prints the jobs' outputs:
 #
 #   python=true|false   the Python workspace (ci.yml; the viewer in accessibility.yml)
-#   web=true|false      app/web and the inventory library it links, inventory/browser (ci.yml)
+#   web=true|false      app/web and the libraries it links, inventory/browser and sdk/browser (ci.yml)
+#   inventory=true|false  the command and its browser bundle, checked against each other (ci.yml)
 #   deploy=true|false   the NGINX site and the systemd units (ci.yml)
+#   gateway=true|false  the LiteLLM gateway's test stack, the model broker that calls it, and the
+#                       backup of its database (ci.yml)
 #   docs=true|false     the documentation site (accessibility.yml, which builds it)
 #   codeql=[...]        the languages CodeQL analyses, as a JSON list (codeql.yml)
 #
@@ -19,7 +22,9 @@ set -euo pipefail
 if [ "${1:-}" = --all ]; then
   echo "python=true"
   echo "web=true"
+  echo "inventory=true"
   echo "deploy=true"
+  echo "gateway=true"
   echo "docs=true"
   echo 'codeql=["python","javascript-typescript","actions"]'
   exit 0
@@ -27,7 +32,9 @@ fi
 
 python=false
 web=false
+inventory=false
 deploy=false
+gateway=false
 docs=false
 codeql_python=false
 codeql_js=false
@@ -45,15 +52,22 @@ while IFS= read -r f; do
       python=true deploy=true ;;
     # app/tests writes app/web/fixtures and checks that they are current.
     app/web/fixtures/*) python=true web=true ;;
+    # The shell's API types are generated from the app's response models; the "mypy and
+    # generated schemas" job checks that they are current.
+    app/web/src/api/generated/*) python=true web=true ;;
     # The inventory library's readme is also on the documentation site.
     inventory/browser/README.md) web=true docs=true ;;
     # How to make an inventory, which the user guide renders too (docs/hooks_inventory.py).
     inventory/browser/src/making.json) web=true docs=true ;;
-    app/web/* | inventory/browser/*) web=true ;;
+    # The agent view library's readme is also on the documentation site.
+    sdk/browser/README.md) web=true docs=true ;;
+    # Its card fixtures are written by sdk/tests/test_agent_view_fixtures.py.
+    sdk/browser/tests/fixtures/*) python=true web=true ;;
+    app/web/* | inventory/browser/* | sdk/browser/*) web=true ;;
     app/*) python=true web=true ;;
     # CONFORMANCE.md is checked by the test job, and the packages' readmes by twine; all of them
     # are on the site.
-    CONFORMANCE.md | sdk/README.md | harness/README.md | workbench/README.md | inventory/README.md)
+    CONFORMANCE.md | sdk/README.md | harness/README.md | workbench/README.md | inventory/README.md | admin/README.md)
       python=true docs=true ;;
     # An agent's prompts are Markdown but are the agent's code, which its tests check.
     agents/*_prompt.md) python=true ;;
@@ -62,6 +76,25 @@ while IFS= read -r f; do
     *.md | docs/guide/* | docs/hooks.py | docs/hooks_inventory.py | mkdocs.yml | scripts/check_site_accessibility.py) docs=true ;;
     LICENSE | CITATION.cff) ;;
     *) python=true ;;
+  esac
+  # The browser bundle is the command run under Pyodide, so anything that changes the command, its
+  # dependencies, the bundle's build, the browser scanner that runs it or the sample folder both
+  # runtimes describe is checked again (inventory/browser/README.md). Independent of the rules above.
+  case "$f" in
+    .github/* | scripts/ci_changes.sh | uv.lock | inventory/src/* | inventory/pyproject.toml \
+      | inventory/tests/data/mixed/* | inventory/browser/bundle/* | inventory/browser/package.json \
+      | inventory/browser/package-lock.json | inventory/browser/src/scanner/* | inventory/browser/e2e/* \
+      | inventory/browser/playwright.config.ts)
+      inventory=true ;;
+  esac
+  # The gateway's test stack runs the gateway and the broker together, so a change to either, to
+  # the SDK the broker is built on, or to the lock that pins both is checked against the other
+  # (deploy/llm-gateway/README.md). Independent of the rules above.
+  case "$f" in
+    .github/* | scripts/ci_changes.sh | uv.lock | pyproject.toml | .python-version \
+      | deploy/llm-gateway/* | broker/* | sdk/src/* | deploy/backup.sh | deploy/restore.sh \
+      | deploy/stores.sh | deploy/gateway-store.sh | scripts/tests/test_backup.py)
+      gateway=true ;;
   esac
   # CodeQL reads source by language, without building it.
   case "$f" in
@@ -73,7 +106,7 @@ while IFS= read -r f; do
       | package.json | */package.json | package-lock.json | */package-lock.json)
       codeql_js=true ;;
   esac
-  echo "$f: python=$python web=$web deploy=$deploy docs=$docs" >&2
+  echo "$f: python=$python web=$web inventory=$inventory deploy=$deploy gateway=$gateway docs=$docs" >&2
 done
 
 languages=()
@@ -83,6 +116,8 @@ if [ "$codeql_actions" = true ]; then languages+=('"actions"'); fi
 
 echo "python=$python"
 echo "web=$web"
+echo "inventory=$inventory"
 echo "deploy=$deploy"
+echo "gateway=$gateway"
 echo "docs=$docs"
 echo "codeql=[$(IFS=,; echo "${languages[*]+"${languages[*]}"}")]"

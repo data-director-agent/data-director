@@ -5,20 +5,20 @@
  * of the first message (docs/specs/orchestration.md); the shell writes none. Beneath it, smaller,
  * are when the conversation started and how many turns it has. Both stay in the button's
  * accessible name, so two conversations with the same title can still be told apart. The open
- * conversation is marked as current.
+ * conversation is marked as current. With `onDeleted`, each has a button beside it that deletes
+ * it after asking (`DeleteConversation`).
  */
 
 import { MessageSquare, MessageSquarePlus } from "lucide-react";
 import type { ConversationSummary } from "../../conversation/types";
 import { Button } from "../ui/Button";
+import { DeleteConversation } from "./DeleteConversation";
 
 import "./EarlierConversations.css";
+import { formatDateTime } from "../../format";
 
 function started(at: string): string {
-  const date = new Date(at);
-  return Number.isNaN(date.getTime())
-    ? at
-    : date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+  return formatDateTime(at, { dateStyle: "medium", timeStyle: "short" });
 }
 
 export function EarlierConversations({
@@ -26,11 +26,17 @@ export function EarlierConversations({
   currentId = null,
   onOpen,
   onNew,
+  onDeleted,
+  restoreDays,
 }: {
   conversations: ConversationSummary[];
   currentId?: string | null;
   onOpen: (conversationId: string) => void;
   onNew?: () => void;
+  /** Called once a conversation is deleted; without it, none can be deleted from here. */
+  onDeleted?: (conversationId: string) => void;
+  /** For how many days a deleted conversation may be restored, if known. */
+  restoreDays?: number | undefined;
 }) {
   return (
     <section aria-labelledby="past-heading" className="workspace-history">
@@ -49,7 +55,7 @@ export function EarlierConversations({
           {conversations.map((c) => {
             const current = c.conversation_id === currentId;
             return (
-              <li key={c.conversation_id}>
+              <li key={c.conversation_id} className="earlier-conversation-row">
                 <Button
                   variant="quiet"
                   icon={MessageSquare}
@@ -65,6 +71,14 @@ export function EarlierConversations({
                     </span>
                   </span>
                 </Button>
+                {onDeleted && (
+                  <DeleteConversation
+                    conversationId={c.conversation_id}
+                    title={c.title}
+                    restoreDays={restoreDays}
+                    onDeleted={onDeleted}
+                  />
+                )}
               </li>
             );
           })}

@@ -8,12 +8,12 @@ from pathlib import Path
 from typing import Any
 
 from dd_agent_advisor_standards.classes import DatasetProfile, Recommendation
-from dd_agent_advisor_standards.explain import Explanation, Item, Rationale, Usage
+from dd_agent_advisor_standards.explain import Explanation, Item, Lookups, Rationale, Usage
 from dd_agent_advisor_standards.fairsharing.records import MODEL_AND_FORMAT, TERMINOLOGY, Record
-from dd_agent_advisor_standards.retrieve import Hit, Query, RegistryUnavailable, SnapshotRef
 from dd_sdk.agent import RunContext
 from dd_sdk.contract.models import Derivation, Envelope, InvocationRequest
 from dd_sdk.evidence import resolve
+from dd_sdk.registry import Hit, Query, RegistryUnavailable, SnapshotRef
 from dd_sdk.tracing import chat_span
 
 ISO8601 = Record(
@@ -76,7 +76,7 @@ ALL = [ISO8601, AGROVOC, ENVO, CSV, DEPRECATED]
 class FakeRetrieval:
     """Substring matching over a fixed record list; enough to drive ranking and the linter."""
 
-    def __init__(self, records: list[Record] | None = None, unavailable: bool = False) -> None:
+    def __init__(self, records: list[Record] | None = None, *, unavailable: bool = False) -> None:
         self.records = ALL if records is None else records
         self.unavailable = unavailable
         self.queries: list[Query] = []
@@ -84,12 +84,12 @@ class FakeRetrieval:
     def snapshot_ref(self) -> SnapshotRef:
         return SnapshotRef(label="fake")
 
-    def search(self, query: Query) -> list[Hit]:
+    def search(self, query: Query) -> list[Hit[Record]]:
         self.queries.append(query)
         if self.unavailable:
             raise RegistryUnavailable("fake registry is down")
         words = [w.lower() for w in query.text.split()]
-        hits: list[Hit] = []
+        hits: list[Hit[Record]] = []
         for r in self.records:
             if query.record_type and r.record_type != query.record_type:
                 continue
@@ -109,10 +109,16 @@ class FakeModelExplainer:
 
     model_id: str | None = "fake-model"
 
-    def __init__(self, hallucinate: bool = False) -> None:
+    def __init__(self, *, hallucinate: bool = False) -> None:
         self.hallucinate = hallucinate
 
-    def explain(self, profile: DatasetProfile, items: list[Item], ctx: RunContext) -> Explanation:
+    def explain(
+        self,
+        profile: DatasetProfile,
+        items: list[Item],
+        ctx: RunContext,
+        lookups: Lookups | None = None,
+    ) -> Explanation:
         with chat_span(ctx.tracer, "fake-model"):
             usage = Usage(input_tokens=100, output_tokens=50)
         out = []
@@ -122,10 +128,6 @@ class FakeModelExplainer:
                 text += " See also FAIRsharing.made-up."
             out.append(Rationale(text, Derivation.MODEL))
         return Explanation(out, usage)
-
-
-class ChatBeforeRetrievalExplainer(FakeModelExplainer):
-    """Used with a retrieval adapter that emits no spans, to violate G1 deliberately."""
 
 
 # --- Harness helpers --------------------------------------------------------------------------
@@ -141,7 +143,7 @@ def soil_profile() -> DatasetProfile:
     )
 
 
-def make_conductor(runs_dir: Path, standards: Any = None, crate: bool = True) -> Any:
+def make_conductor(runs_dir: Path, standards: Any = None, *, crate: bool = True) -> Any:
     """The standards advisor and the stub behind a workbench conductor. Imports the workbench
     lazily: it is a development dependency of the workspace, not a dependency of this agent."""
     from dd_agent_advisor_standards.agent import StandardsAgent

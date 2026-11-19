@@ -10,11 +10,22 @@
 
 import { createContext, useContext } from "react";
 
+import type { RawSession } from "../api/generated/responses";
+
+export type { RawSession } from "../api/generated/responses";
+
 export interface SessionPrincipal {
   principalId: string;
   name: string;
   assurance: string;
   vouchedBy?: string;
+}
+
+/** A provider a person's own model account may be with, and the base URL origins it may name. */
+export interface ModelAccountProvider {
+  provider: string;
+  /** Origins (`https://host[:port]`); listed only for `openai-compatible`, which must name one. */
+  baseUrls: string[];
 }
 
 export interface Session {
@@ -25,18 +36,10 @@ export interface Session {
   principal: SessionPrincipal | null;
   /** When the session ends if nothing more is done in it (ISO 8601), or null. */
   expiresAt: string | null;
-}
-
-export interface RawSession {
-  signs_in: boolean;
-  issuer: string | null;
-  principal: {
-    principal_id: string;
-    name: string;
-    assurance: string;
-    vouched_by?: string;
-  } | null;
-  expires_at: string | null;
+  /** Whether a person may add their own model account on the Settings page (docs/specs/model-accounts.md). */
+  modelAccounts: boolean;
+  /** The providers the profile lets a person's own account be with; empty unless `modelAccounts`. */
+  modelAccountProviders: ModelAccountProvider[];
 }
 
 export interface SessionApi {
@@ -59,6 +62,11 @@ export function fromRaw(raw: RawSession): Session {
         }
       : null,
     expiresAt: raw.expires_at,
+    modelAccounts: raw.model_accounts,
+    modelAccountProviders: raw.model_account_providers.map((p) => ({
+      provider: p.provider,
+      baseUrls: p.base_urls,
+    })),
   };
 }
 
@@ -67,15 +75,18 @@ async function session(response: Response): Promise<Session> {
   return fromRaw((await response.json()) as RawSession);
 }
 
+// The server refuses a request that changes state unless it declares JSON, body or not (#728).
+const JSON_HEADERS = { "content-type": "application/json" };
+
 export const httpSessionApi: SessionApi = {
   async get(signal) {
     return session(await fetch("/api/session", signal ? { signal } : {}));
   },
   async stay() {
-    return session(await fetch("/api/session", { method: "POST" }));
+    return session(await fetch("/api/session", { method: "POST", headers: JSON_HEADERS }));
   },
   async signOut() {
-    const response = await fetch("/api/sign-out", { method: "POST" });
+    const response = await fetch("/api/sign-out", { method: "POST", headers: JSON_HEADERS });
     if (!response.ok) throw new Error(`the server answered ${response.status}`);
   },
 };

@@ -3,21 +3,22 @@
 `build` assembles the orchestrator from its own environment variables
 (`config/examples/agents/orchestrator-model.env`):
 
-- `ANTHROPIC_API_KEY` (development) or `ANTHROPIC_API_KEY_FILE` (deployment): the key, read at
-  start-up (`dd_sdk.credentials`, docs/specs/policy-and-identity.md). There is no default: this
-  agent is a model.
-- `DD_MODEL_ID`: the model it calls. Claude Sonnet 5.5 by default;
-  a deployment may name a smaller or a more capable one.
-- `DD_ORCHESTRATOR_EFFORT`: `low`, `medium`, `high` (default), `xhigh` or `max`.
+- `DD_MODEL_PROVIDER`, `DD_MODEL_ID`, `DD_MODEL_BASE_URL` and the provider's key: the model it
+  calls, read by `dd_sdk.model_provider.configured_model` (docs/specs/policy-and-identity.md).
+  There is no default key: this agent is a model. With Anthropic, the model is Claude Sonnet 5.5
+  unless `DD_MODEL_ID` names another; any other provider must name one, and it must call tools
+  (docs/specs/orchestration.md).
+- `DD_ORCHESTRATOR_EFFORT`: Claude takes `low`, `medium`, `high` (default), `xhigh` or `max`;
+  another provider takes `low`, `medium` or `high`, and is sent none if it is unset.
 - `DD_ORCHESTRATOR_HISTORY`: how many earlier turns of the conversation it sends (default 20).
 - `DD_ORCHESTRATOR_MAX_DELEGATIONS`: how many delegations one turn may make (default 4).
-- `DD_TITLE_MODEL_ID`: the model that names a conversation on its first turn (`title.py`).
-  Claude Haiku 5.5 by default.
+- `DD_TITLE_MODEL_ID`: the model that names a conversation on its first turn (`title.py`), from
+  the same provider. Claude Haiku 5.5 by default with Anthropic, and the reply model otherwise.
 - `DD_TITLE_MODEL`: `none` names no conversation, so no second model is sent the first message.
 
 A missing key or a value out of range is a configuration error (`ConfigError`):
 `dd-orchestrator-model serve` then stops at start-up. The spec declares the models it sends data to
-(`AgentSpec.models`).
+(`AgentSpec.models`), from the models themselves (`dd_sdk.model.declared`).
 """
 
 from __future__ import annotations
@@ -27,15 +28,19 @@ from collections.abc import Mapping
 from dataclasses import replace
 
 from dd_agent_orchestrator_model.agent import (
+    DEFAULT_EFFORT,
     DEFAULT_HISTORY_TURNS,
     DEFAULT_MAX_DELEGATIONS,
+    DEFAULT_MODEL,
     ModelOrchestrator,
 )
-from dd_agent_orchestrator_model.model import DEFAULT_EFFORT, DEFAULT_MODEL, EFFORTS, AnthropicModel
-from dd_agent_orchestrator_model.title import DEFAULT_TITLE_MODEL, AnthropicTitler
+from dd_agent_orchestrator_model.title import DEFAULT_TITLE_MODEL
 from dd_sdk import serve
-from dd_sdk.agent import ModelUse
-from dd_sdk.credentials import ConfigError, api_key
+from dd_sdk.credentials import ConfigError
+from dd_sdk.model import declared
+from dd_sdk.model_provider import DEFAULT_PROVIDER, MODEL_ID, configured_model, provider_name
+
+EFFORT = "DD_ORCHESTRATOR_EFFORT"
 
 
 def _count(env: Mapping[str, str], name: str, default: int, minimum: int) -> int:
@@ -54,29 +59,34 @@ def _count(env: Mapping[str, str], name: str, default: int, minimum: int) -> int
 def build(env: Mapping[str, str] | None = None) -> ModelOrchestrator:
     """The factory `main` serves. `env` defaults to the process environment."""
     env = os.environ if env is None else env
-    effort = env.get("DD_ORCHESTRATOR_EFFORT", DEFAULT_EFFORT)
-    if effort not in EFFORTS:
-        raise ConfigError(
-            f"DD_ORCHESTRATOR_EFFORT={effort!r}: expected one of {', '.join(EFFORTS)}"
-        )
-    model_id = env.get("DD_MODEL_ID", DEFAULT_MODEL)
+    claude = provider_name(env) == DEFAULT_PROVIDER
+    effort = env.get(EFFORT) or (DEFAULT_EFFORT if claude else None)
+    model = configured_model(
+        env, default_model=DEFAULT_MODEL, effort=effort, effort_setting=EFFORT, tool_use=True
+    )
     titles = env.get("DD_TITLE_MODEL")
     if titles not in (None, "none"):
         raise ConfigError(
             f"DD_TITLE_MODEL={titles!r}: expected none, or leave it unset and name the model "
             "with DD_TITLE_MODEL_ID"
         )
-    title_model_id = None if titles == "none" else env.get("DD_TITLE_MODEL_ID", DEFAULT_TITLE_MODEL)
-    key = api_key(env)
+    titler = None
+    if titles != "none":
+        title_model_id = env.get("DD_TITLE_MODEL_ID") or (
+            DEFAULT_TITLE_MODEL if claude else model.model_id
+        )
+        # The same provider and key; a title needs no effort, and no tools.
+        titler = configured_model({**env, MODEL_ID: title_model_id})
     agent = ModelOrchestrator(
-        AnthropicModel(model_id=model_id, effort=effort, api_key=key),
+        model,
         history_turns=_count(env, "DD_ORCHESTRATOR_HISTORY", DEFAULT_HISTORY_TURNS, 0),
         max_delegations=_count(env, "DD_ORCHESTRATOR_MAX_DELEGATIONS", DEFAULT_MAX_DELEGATIONS, 1),
-        titler=(AnthropicTitler(model_id=title_model_id, api_key=key) if title_model_id else None),
+        titler=titler,
     )
-    models = [ModelUse("anthropic", model_id, "hosted")]
-    if title_model_id and title_model_id != model_id:
-        models.append(ModelUse("anthropic", title_model_id, "hosted"))
+    models = [declared(model)]
+    # One model serving both is declared once, as the main model: it relies on tool calls.
+    if titler is not None and (titled := declared(titler)).model != models[0].model:
+        models.append(titled)
     agent.spec = replace(agent.spec, models=tuple(models))
     return agent
 

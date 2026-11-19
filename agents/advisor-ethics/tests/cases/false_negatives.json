@@ -1,0 +1,15 @@
+{
+  "about": "Field names the keyword table misses but that suggest sensitive data. The seed of the false-negative cases the evaluation set needs before advisor.ethics leaves alpha (docs/specs/agents.md, Model-backed personas, item 7; TODO(#700)). Each case gives the field and the category it should be flagged with.",
+  "cases": [
+    {"field": "hiv_status", "category": "special category"},
+    {"field": "religious_affil", "category": "special category"},
+    {"field": "pcd_sector", "category": "location"},
+    {"field": "dx_code", "category": "special category"},
+    {"field": "mrn", "category": "direct identifier"},
+    {"field": "sexual_orientation", "category": "special category"},
+    {"field": "home_lsoa", "category": "location"},
+    {"field": "yob", "category": "indirect identifier"},
+    {"field": "trade_union_member", "category": "special category"},
+    {"field": "ni_number", "category": "direct identifier"}
+  ]
+}

@@ -30,6 +30,7 @@ from dd_sdk.contract.models import (
     EvidenceItem,
     GroundingMode,
     GroundingRef,
+    ModelAccount,
     Outcome,
     OutcomeStatus,
     Principal,
@@ -92,6 +93,8 @@ def test_a_model_call_is_in_the_envelope_and_its_prompt_beside_it_only(
     (call,) = envelope.telemetry.model_calls
     assert (call.model_provider, call.model_id) == ("test", MODEL)
     assert (call.input_tokens, call.output_tokens) == (12, 34)
+    # No broker answered, so the deployment paid (docs/specs/model-accounts.md).
+    assert call.model_account is ModelAccount.DEPLOYMENT
 
     prompts = conductor.store.get_prompts(envelope.invocation_id)
     assert list(prompts) == [call.prompt_digest]

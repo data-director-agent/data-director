@@ -1,0 +1,12 @@
+/* The events of a run the shell could not draw. */
+
+@layer components {
+  .unrecognised-events {
+    margin-bottom: var(--space-3);
+  }
+
+  .unrecognised-events summary {
+    cursor: pointer;
+    font-weight: var(--font-weight-strong);
+  }
+}

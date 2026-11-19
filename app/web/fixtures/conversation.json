@@ -28,6 +28,7 @@
     "01900000-0000-7000-8000-000000000002": {
       "history": [],
       "message_text": "hello world",
+      "project_title_by_researcher": false,
       "schema_class": "Message"
     },
     "01900000-0000-7000-8000-000000000003": {
@@ -45,6 +46,7 @@
         }
       ],
       "message_text": "hello again",
+      "project_title_by_researcher": false,
       "schema_class": "Message"
     },
     "01900000-0000-7000-8000-000000000004": {
@@ -58,9 +60,37 @@
   },
   "inventory": null,
   "progress": {
+    "decisions": [
+      {
+        "answer_labels": null,
+        "answer_values": null,
+        "asked": false,
+        "before": "setup.dmp-create",
+        "prompt": "Do you have a Data Management Plan for this project?",
+        "question_id": "intake.dmp"
+      },
+      {
+        "answer_labels": null,
+        "answer_values": null,
+        "asked": false,
+        "before": "governance.sensitive-data-identify",
+        "prompt": "Does the data include personal or otherwise sensitive information?",
+        "question_id": "intake.sensitive"
+      },
+      {
+        "answer_labels": null,
+        "answer_values": null,
+        "asked": false,
+        "before": "repository.mandated",
+        "prompt": "Has a funder, journal or institution said where the data must go?",
+        "question_id": "intake.repository-mandated"
+      }
+    ],
     "entry": null,
+    "entry_source": null,
+    "reasons": {},
     "steps": {},
-    "suggested": "setup.documentation"
+    "suggested": null
   },
   "project_id": "01900000-0000-7000-8000-000000000006",
   "turns": [
@@ -78,7 +108,7 @@
           "agent_id": "example.hello",
           "agent_version": "0.1.1a1",
           "completed_at": "2026-01-01T00:00:00Z",
-          "contract_version": "0.9.11",
+          "contract_version": "0.17.0",
           "conversation_id": "01900000-0000-7000-8000-000000000001",
           "evidence": [
             {
@@ -109,7 +139,7 @@
             "schema_class": "Greeting"
           },
           "payload_schema": "0000000000000000000000000000000000000000000000000000000000000009",
-          "policy_bundle_ref": "profile:data-director-app@v8",
+          "policy_bundle_ref": "profile:data-director-app@v9",
           "policy_digest": "0000000000000000000000000000000000000000000000000000000000000010",
           "project_id": "01900000-0000-7000-8000-000000000006",
           "requires_human_review": true,
@@ -131,7 +161,7 @@
         "agent_id": "orchestrator.stub",
         "agent_version": "0.1.0",
         "completed_at": "2026-01-01T00:00:00Z",
-        "contract_version": "0.9.11",
+        "contract_version": "0.17.0",
         "conversation_id": "01900000-0000-7000-8000-000000000001",
         "delegations": [
           {
@@ -181,7 +211,7 @@
           "schema_class": "Reply"
         },
         "payload_schema": "0000000000000000000000000000000000000000000000000000000000000014",
-        "policy_bundle_ref": "profile:data-director-app@v8",
+        "policy_bundle_ref": "profile:data-director-app@v9",
         "policy_digest": "0000000000000000000000000000000000000000000000000000000000000010",
         "project_id": "01900000-0000-7000-8000-000000000006",
         "requires_human_review": true,
@@ -194,6 +224,7 @@
       "input": {
         "history": [],
         "message_text": "hello world",
+        "project_title_by_researcher": false,
         "schema_class": "Message"
       },
       "invocation_id": "01900000-0000-7000-8000-000000000002",
@@ -214,7 +245,7 @@
           "agent_id": "example.hello",
           "agent_version": "0.1.1a1",
           "completed_at": "2026-01-01T00:00:00Z",
-          "contract_version": "0.9.11",
+          "contract_version": "0.17.0",
           "conversation_id": "01900000-0000-7000-8000-000000000001",
           "evidence": [
             {
@@ -245,7 +276,7 @@
             "schema_class": "Greeting"
           },
           "payload_schema": "0000000000000000000000000000000000000000000000000000000000000009",
-          "policy_bundle_ref": "profile:data-director-app@v8",
+          "policy_bundle_ref": "profile:data-director-app@v9",
           "policy_digest": "0000000000000000000000000000000000000000000000000000000000000010",
           "project_id": "01900000-0000-7000-8000-000000000006",
           "requires_human_review": true,
@@ -267,7 +298,7 @@
         "agent_id": "orchestrator.stub",
         "agent_version": "0.1.0",
         "completed_at": "2026-01-01T00:00:00Z",
-        "contract_version": "0.9.11",
+        "contract_version": "0.17.0",
         "conversation_id": "01900000-0000-7000-8000-000000000001",
         "delegations": [
           {
@@ -317,7 +348,7 @@
           "schema_class": "Reply"
         },
         "payload_schema": "0000000000000000000000000000000000000000000000000000000000000014",
-        "policy_bundle_ref": "profile:data-director-app@v8",
+        "policy_bundle_ref": "profile:data-director-app@v9",
         "policy_digest": "0000000000000000000000000000000000000000000000000000000000000010",
         "project_id": "01900000-0000-7000-8000-000000000006",
         "requires_human_review": true,
@@ -342,6 +373,7 @@
           }
         ],
         "message_text": "hello again",
+        "project_title_by_researcher": false,
         "schema_class": "Message"
       },
       "invocation_id": "01900000-0000-7000-8000-000000000003",

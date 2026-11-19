@@ -9,8 +9,8 @@ description = "orchestrator.model: the model-backed Data Director orchestrator"
 requires-python = ">=3.14"
 license = "MIT"
 authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
-# anthropic 2.3 moves to httpx2; the cassette replay in tests needs vcrpy 9 to patch it.
-dependencies = ["data-director-sdk>=0.2.0a0", "anthropic>=1.15.0,<2.4"]
+# Every provider's adapter behind the SDK's model seam; the orchestrator imports neither package.
+dependencies = ["data-director-sdk[anthropic,openai]>=0.2.0a0"]
 
 [project.scripts]
 dd-orchestrator-model = "dd_agent_orchestrator_model.factory:main"

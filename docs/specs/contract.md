@@ -23,7 +23,7 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
    outcome and problem details, grounding and evidence, telemetry, delegation and the principal,
    and the few classes the harness, the project record or the deposit package read without
    knowing the agent (conversation turns, `Message` with the `InventorySummary` the conductor fills
-   in and a `ChoiceAnswer`, `Reply` with a `ChoiceQuestion`, `Document` with its
+   in and its `ReplyAnswers`, `Reply` with its `Question`s, `Document` with its
    `DocumentQuestion`s, `FileInventory`, `RequirementSet`, the drafters' `DraftRequest` with
    `CurrentVersion`, `DraftAnswer` and `RepositoryRequirements`, and the
    enums they use). No agent's own input or payload class is added to it.
@@ -106,28 +106,92 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
 21. An envelope records each model call an agent reports in `telemetry.model_calls`, and names
     the call's prompt by its `dd-prompt-json-v1` digest only. The prompt itself never enters the
     envelope, the trace or the crate; the run store keeps it ([Disclosure](disclosure.md)).
+    Each call records whose account paid for it, `own` or `deployment` (`model_account`), never
+    whose. A run whose person's own account cannot be used ends `abstained` with
+    `model_account_missing`, `model_account_rejected` or `model_account_limit`
+    ([A person's own model account](model-accounts.md), invariants 9 and 10;
+    `sdk/tests/test_whose_account_paid.py`). Adding them raised the contract version to 0.10.0.
+    A call the profile's model map routed to another model also records the model the card
+    declared (`model_declared`); every other call leaves it out. Adding it raised the contract
+    version to 0.11.0.
 22. A `Reply` may carry `conversation_title`, one line of at most 80 characters that a person can
     tell the conversation apart by. A model writes it from the researcher's first message, on a
     conversation's first turn only; an agent that sets it declares it model-derived, and a later
     turn, or a rule-based agent, leaves it out. The harness reads it to name the conversation
     ([Orchestration](orchestration.md)) and checks nothing else about it.
-23. A `Reply` may carry one `ChoiceQuestion` (`reply_question`): a prompt and 2 to 12 options,
-    each a string value with a label and optional help, whether several may be chosen, and whether
-    the researcher may answer in their own words. Option values are unique within the question and
-    are strings, because A2A carries numbers as doubles. A `Message` may carry a `ChoiceAnswer`
-    (`choice_answer`) naming the invocation whose reply asked, the values chosen and any answer in
-    the researcher's own words; `message_text` says the same in words. The option bounds are in
-    the Pydantic model, not the schema: a card carries class schemas over A2A, which would turn the
-    bounds into doubles and break the schema digest (#333). The harness checks an answer against
-    its question before the turn runs (`dd_harness.conversations.answer_problem`,
-    `sdk/tests/test_contract.py`, `harness/tests/test_conversations.py`).
+23. A `Reply` may carry a series of 1 to 8 `Question`s (`reply_questions`), which the app puts
+    to the researcher one at a time. Each has a key unique within the reply (`question_key`), a
+    prompt, optional help and a kind (`QuestionKind`): `choice`, with 2 to 12 options, each a
+    string value with a label and optional help, whether several may be chosen, and whether the
+    researcher may answer in their own words instead; or `short_text` (one line, at most 200
+    characters) or `long_text` (at most 4000 characters), answered in their own words and with no
+    options. Option values are unique within the question and are strings, because A2A carries
+    numbers as doubles. A `Message` may carry `ReplyAnswers` (`reply_answers`) naming the
+    invocation whose reply asked and giving one `QuestionAnswer` for each question answered: its
+    key, the values chosen and any answer in the researcher's own words (`answer_words`); a
+    question skipped has none, and at least one is given. `message_text` says the same in words.
+    The bounds are in the Pydantic model, not the schema: a card carries class schemas over A2A,
+    which would turn them into doubles and break the schema digest (#333). The harness checks the
+    answers against the questions before the turn runs (`dd_harness.conversations.answer_problem`,
+    `sdk/tests/test_contract.py`, `harness/tests/test_conversations.py`). The project intake asks
+    its questions as `Question`s of kind `choice` too, outside any reply; its answers go to the
+    project, not a turn, so they carry no `ReplyAnswers` and the core schema does not change for
+    them
+    ([Orchestration](orchestration.md), invariant 20). A `Reply` may instead carry
+    `intake_suggestions`, each an intake question id and the option values a model read in the
+    researcher's words, which an agent that sets it declares model-derived and the harness
+    records as suggestions, never answers ([Projects](projects.md), rule 20). Adding it will raise
+    the contract version; it is not in the schema yet, TODO(#908).
 24. A `Document` may carry `document_questions`, one `DocumentQuestion` for each gap the version
     leaves: an identifier unique within the document (`q-` and 16 hexadecimal digits, derived
-    from the gap), the text put to the person, and a target that is either a README section or a
-    data dictionary cell named by file, field and column, and optionally a suggested answer with
-    how it was derived (`suggested_answer` and `suggestion_derivation`, both or neither). A
+    from the gap), the text put to the person, and a target that is one of a README section, a
+    data dictionary cell named by file, field and column, or a metadata record value named by its
+    path in the record's JSON form (`gap_property`, such as `titles[0].title`), and optionally a
+    suggested answer with how it was derived (`suggested_answer` and `suggestion_derivation`,
+    both or neither). Adding `gap_property` raised the contract version to 0.12.0. A
     `DraftRequest` may carry `draft_answers`, each a `DraftAnswer` naming the question it answers
     and the text, which the drafter places as given ([Drafting documents](drafting.md), `sdk/tests/test_contract.py`).
+25. A `ProjectFact` is one fact about a project: a funder, a repository a funder, journal or
+    institution requires, whether one file of the inventory is deposited, whether a sensitive
+    field or file may be published and at what precision, the licence, or a commitment to share
+    an output. Its `fact_kind`
+    (`FactKind`) says which value slots it must hold, and its `fact_subject` is the key the last
+    decision counts by; `proposed_because` says, for the person deciding, why it was proposed.
+    An agent's payload class proposes facts by mixing in `ProposesFacts` (`proposed_facts`), so
+    the harness reads them without knowing the class. A `DraftRequest` and a `Message` may carry
+    `project_decisions`, the facts a person decided, which only the conductor fills in a project
+    ([Projects](projects.md), invariants 6 and 28; `sdk/tests/test_contract.py`). Adding them
+    raised the contract version to 0.13.0. A `sharing_commitment` fact is what a data management plan commits
+    to share: the output as its subject, where, how openly and under what licence, with the
+    plan's own words (`commitment_quote`) and the digest of the attached document's text that
+    holds them (`commitment_document`), both required (`sdk/tests/test_fact_kinds.py`). An
+    agent's own input class asks the conductor for the project's attached documents or decided
+    facts by mixing in `GivenProjectDocuments` (`project_documents`) or `GivenProjectDecisions`
+    (`project_decisions`), so the harness fills them without knowing the class ([Projects](projects.md),
+    invariant 6). Adding them raised the contract version to 0.16.0.
+26. A `FileInventory` may carry `inventory_personal_data`, and each `InventoryPart`
+    `part_personal_data`: a list of `PersonalDataFinding`s, each a kind, the file (or a folder,
+    ending in a slash), what was examined (a column, a field name, a file name or text), the
+    column if any, the share of sampled values that matched and the confidence as bands, the
+    detector with its version and configuration, and how much was examined. A finding never
+    holds a value. Absent means no detector ran; empty means one ran and found nothing, so an
+    inventory made before the change still validates and reads as "no detector ran". Adding
+    them raised the contract version to 0.14.0
+    ([Personal data and disclosure control](personal-data.md), `inventory/tests/test_personal_data.py`).
+27. An `Envelope` may carry `tool_retrievals`, one `ToolRetrieval` for each record a tool
+    returned through the harness's tool gateway during the run: the server and tool, the
+    record's source id (`tool:<server>/<record id>`), and its content hash under the
+    canonicalisation the deployment names for the server, with when the gateway returned it.
+    Only the conductor fills it, as it fills `delegations`, and evidence naming a `tool:` source
+    must be one of these records (`dd_sdk.contract.validate`; [Agents](agents.md), Tools;
+    [Evidence and grounding](grounding.md), invariant 15). Adding it raised the contract version
+    to 0.15.0.
+28. A `Message` may carry `project_repository`, a `ChosenRepository`: the name and re3data
+    identifier of the repository a researcher chose for the project, which only the conductor
+    fills in a project. An agent's own input class asks for it by mixing in
+    `GivenProjectRepository` ([Projects](projects.md), invariants 6 and 8;
+    [Orchestration](orchestration.md), invariant 21; #1168). Adding them raised the contract
+    version to 0.17.0.
 
 ## Boundaries and contracts
 
@@ -149,7 +213,8 @@ slot present in the source and missing from a core mirror.
 project's contribution. `abstained` and `referred` are not problems. They are outcomes of equal
 standing with `succeeded`, each with a reason from the `ReasonCode` enumeration. Only `failed`
 and `suspended` are problems. Problem types the harness emits are in
-`dd_sdk/contract/problem.py`.
+`dd_sdk/contract/problem.py`. A run its caller cancels is `failed` with `run-cancelled`: cancelling
+is a fact about the transport, not a sixth status ([Transport and tracing](transport.md)).
 
 **The dataset profile.** `DatasetProfile` is the standards advisor's input class, owned by that
 agent, not a core class. It is deliberately minimal: it describes only what the standards advisor
@@ -279,7 +344,8 @@ touching the contract, the agents or the checks.
   records the agent read or the metadata it changed; it does not link a delegated run to its
   parent, names an accountable role as a `Person`, records the outcome as an unreferenced
   `PropertyValue`, does not name the schema digests, and is not checked against the profile with
-  `rocrate-validator` or aligned with PROV-O (R10). TODO(#26)
+  `rocrate-validator`. Its alignment with PROV-O (R10) is set out in [Provenance](provenance.md).
+  TODO(#26, #800)
 - Envelopes stored under an older contract lack the contract version and schema digests and do not
   validate against the current schema; they are shown as raw JSON until migrated. TODO(#247)
 - Why the core models are hand-written mirrors rather than LinkML's `gen-pydantic` output is not

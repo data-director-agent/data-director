@@ -31,14 +31,14 @@ import zipfile
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
-from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 import httpx
 from pydantic import ValidationError
 
 from dd_agent_advisor_repository.records import Re3dataRecord, from_re3data_xml
-from dd_sdk.sources import PREPARE_COMMAND, BuiltSource, SourceBuildError
+from dd_sdk.registry import pinned
+from dd_sdk.sources import BuiltSource, SourceBuildError
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data" / "re3data"
 MANIFEST = DATA_DIR / "manifest.json"
@@ -64,17 +64,12 @@ MAX_MEMBER_BYTES = 2_000_000
 
 def _user_agent() -> str:
     """Names the project and where to find it, never a person (re3data asks nothing more)."""
-    try:
-        ours = version("data-director-agent-advisor-repository")
-    except PackageNotFoundError:
-        ours = "unknown"
-    return (
-        f"data-director-advisor-repository/{ours} "
-        "(+https://github.com/data-director-agent/data-director)"
+    return pinned.user_agent(
+        "data-director-agent-advisor-repository", "data-director-advisor-repository"
     )
 
 
-class RegistryError(Exception):
+class RegistryError(pinned.PinError):
     """The registry cannot be built or read as pinned. The message says what to do."""
 
 
@@ -106,23 +101,10 @@ class Pin:
 
     @classmethod
     def load(cls, path: Path = MANIFEST) -> Pin:
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-            return cls(**data)
-        except (OSError, ValueError, TypeError) as exc:
-            raise RegistryError(f"re3data pin {path} cannot be read: {exc}") from None
+        return pinned.read_pin(cls, path, "re3data", RegistryError)
 
     def write(self, path: Path = MANIFEST) -> None:
-        text = json.dumps(asdict(self), indent=2, ensure_ascii=False) + "\n"
-        path.write_text(text, encoding="utf-8")
-
-
-def _sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as fh:
-        for chunk in iter(lambda: fh.read(1 << 20), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+        pinned.write_pin(self, path)
 
 
 def problem(registry: Path = REGISTRY, manifest: Path = MANIFEST) -> str | None:
@@ -131,14 +113,9 @@ def problem(registry: Path = REGISTRY, manifest: Path = MANIFEST) -> str | None:
         pin = Pin.load(manifest)
     except RegistryError as exc:
         return str(exc)
-    if not registry.is_file():
-        return f"the re3data registry is not built at {registry}; run `{PREPARE_COMMAND}`"
-    if _sha256(registry) != pin.snapshot_sha256:
-        return (
-            f"the re3data registry at {registry} does not match the pinned export of "
-            f"{pin.month}; run `{PREPARE_COMMAND}`"
-        )
-    return None
+    return pinned.problem(
+        registry, pin.snapshot_sha256, "re3data", f"the pinned export of {pin.month}"
+    )
 
 
 def _is_record(name: str) -> bool:
@@ -192,49 +169,11 @@ def _ids(data: bytes) -> set[str]:
         return set()
 
 
-def _download(url: str, dest: Path, client: httpx.Client | None) -> None:
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    partial = dest.with_suffix(".part")
-    own = client is None
-    client = client or httpx.Client(
-        timeout=TIMEOUT_S, follow_redirects=True, headers={"User-Agent": _user_agent()}
-    )
-    try:
-        with client.stream("GET", url) as resp:
-            if resp.status_code != 200:
-                raise RegistryError(f"{url}: HTTP {resp.status_code}")
-            with partial.open("wb") as fh:
-                for chunk in resp.iter_bytes():
-                    fh.write(chunk)
-    except httpx.HTTPError as exc:
-        raise RegistryError(f"{url}: {exc}") from None
-    finally:
-        if own:
-            client.close()
-    partial.replace(dest)
-
-
 def _archive(url: str, sha256: str | None, cache_dir: Path, client: httpx.Client | None) -> Path:
-    """The archive at `url`, from the cache when it holds the pinned bytes. Downloaded at most
-    once per pin (Blueprint P14)."""
-    path = cache_dir / url.rsplit("/", 1)[-1]
-    # A monthly archive does not change once published, so a whole copy (downloads are renamed
-    # into place only when complete) is reused when no pin says otherwise. Unpinned, it must at
-    # least be a zip: a server may answer 200 with a page for a month not yet published.
-    if path.is_file() and (
-        _sha256(path) == sha256 if sha256 is not None else zipfile.is_zipfile(path)
-    ):
-        return path
-    _download(url, path, client)
-    if sha256 is not None and (actual := _sha256(path)) != sha256:
-        raise RegistryError(f"{url} has sha256 {actual}, not the pinned {sha256}")
-    return path
-
-
-def _write(path: Path, data: bytes) -> None:
-    partial = path.with_suffix(".part")
-    partial.write_bytes(data)
-    partial.replace(path)
+    """The archive at `url`, from the cache when it holds the pinned bytes (`pinned.Downloader`).
+    A monthly archive does not change once published."""
+    downloader = pinned.Downloader(_user_agent(), TIMEOUT_S, RegistryError)
+    return downloader.archive(url, sha256, cache_dir / url.rsplit("/", 1)[-1], client)
 
 
 @dataclass(frozen=True)
@@ -249,12 +188,13 @@ class Report:
 
 def fetch(
     month: str | None = None,
-    update_pin: bool = False,
+    *,
     cache_dir: Path = ARCHIVES,
     registry: Path = REGISTRY,
     manifest: Path = MANIFEST,
     client: httpx.Client | None = None,
     now: datetime | None = None,
+    update_pin: bool = False,
 ) -> Report:
     """Build the registry from the pinned export, or, with `update_pin`, pin `month`'s export
     (the current month by default) and build from that."""
@@ -271,7 +211,7 @@ def fetch(
                 f"records.py changed, run `{FETCH_COMMAND} --update-pin --month {pin.month}` "
                 "and update both sources.yaml pins"
             )
-        _write(registry, data)
+        pinned.write_atomic(registry, data)
         return Report(pin.month, pin.records, [], [], downloaded=True, pinned=False)
 
     now = now or datetime.now(UTC)
@@ -285,12 +225,12 @@ def fetch(
         archive.unlink(missing_ok=True)
         raise
     before = _ids(registry.read_bytes()) if registry.is_file() else set()
-    _write(registry, data)
+    pinned.write_atomic(registry, data)
     after = _ids(data)
     pin = Pin(
         month=month,
         archive=url,
-        archive_sha256=_sha256(archive),
+        archive_sha256=pinned.sha256_file(archive),
         records=len(after),
         snapshot_sha256=hashlib.sha256(data).hexdigest(),
         fetched_at=now.isoformat(timespec="seconds"),
@@ -301,11 +241,7 @@ def fetch(
         current = None
     # The same export built to the same bytes is already pinned; keep its date, so that pinning
     # it again changes nothing.
-    unchanged = current is not None and (
-        current.archive,
-        current.archive_sha256,
-        current.snapshot_sha256,
-    ) == (pin.archive, pin.archive_sha256, pin.snapshot_sha256)
+    unchanged = pinned.same_pin(current, pin)
     if not unchanged:
         pin.write(manifest)
     return Report(
@@ -330,11 +266,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     sub.add_parser("check", help="exit 1 unless the registry is built as pinned")
     args = parser.parse_args(argv)
     if args.command == "check":
-        found = problem()
-        sys.stdout.write((found or "re3data registry matches its pin") + "\n")
-        return 1 if found else 0
+        return pinned.check(problem(), "re3data registry matches its pin")
     try:
-        report = fetch(args.month, args.update_pin, args.cache_dir)
+        report = fetch(args.month, update_pin=args.update_pin, cache_dir=args.cache_dir)
     except RegistryError as exc:
         sys.stderr.write(f"dd-re3data: {exc}\n")
         return 1

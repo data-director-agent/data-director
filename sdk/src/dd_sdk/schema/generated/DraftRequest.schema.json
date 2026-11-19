@@ -1,6 +1,87 @@
 {
    "$comment": "Generated from data_director.yaml by `uv run dd-gen-schema`. Do not edit.",
    "$defs": {
+      "Affiliation": {
+         "additionalProperties": false,
+         "description": "One affiliation on an ORCID record: an employment, an education or another kind, with the organisation and, where ORCID gives one, its identifier (ROR, GRID, Ringgold).",
+         "properties": {
+            "put_code": {
+               "description": "ORCID's identifier for the item within the record, by which a researcher chose to keep it.",
+               "type": "string"
+            },
+            "affiliation_kind": {
+               "$ref": "#/$defs/AffiliationKind",
+               "description": "What kind of affiliation the item is."
+            },
+            "organisation_name": {
+               "description": "The organisation's name.",
+               "type": "string"
+            },
+            "organisation_identifier": {
+               "description": "The organisation's identifier, where ORCID gives one: a URL for ROR, else as given.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "organisation_identifier_scheme": {
+               "description": "The scheme of organisation_identifier, in ORCID's words, such as ROR, GRID or RINGGOLD. Present exactly when organisation_identifier is.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "department": {
+               "description": "The department within the organisation.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "role_title": {
+               "description": "The researcher's role or degree.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "start_year": {
+               "description": "The year it started.",
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            },
+            "end_year": {
+               "description": "The year it ended; absent while it continues.",
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "put_code",
+            "affiliation_kind",
+            "organisation_name"
+         ],
+         "title": "Affiliation",
+         "type": "object"
+      },
+      "AffiliationKind": {
+         "description": "The kinds of affiliation an ORCID record holds.",
+         "enum": [
+            "employment",
+            "education",
+            "qualification",
+            "invited_position",
+            "distinction",
+            "membership",
+            "service"
+         ],
+         "title": "AffiliationKind",
+         "type": "string"
+      },
       "Any": {
          "additionalProperties": true,
          "description": "Placeholder range for slots whose value type is enumerated in any_of.",
@@ -45,6 +126,16 @@
          ],
          "title": "ApprovedMetadataRecord",
          "type": "object"
+      },
+      "ConfidenceBand": {
+         "description": "A band of the detector's highest score: low below 0.5, medium from 0.5 and below 0.85, high from 0.85. A low finding is reported, not dropped.",
+         "enum": [
+            "low",
+            "medium",
+            "high"
+         ],
+         "title": "ConfidenceBand",
+         "type": "string"
       },
       "CurrentVersion": {
          "additionalProperties": false,
@@ -144,6 +235,57 @@
          "title": "DraftAnswer",
          "type": "object"
       },
+      "ExternalIdentifier": {
+         "additionalProperties": false,
+         "description": "An identifier from another scheme, as an ORCID record gives it: for a researcher, such as a Scopus Author ID; for a work, such as a DOI.",
+         "properties": {
+            "identifier_type": {
+               "description": "The scheme, in ORCID's words, such as doi or Scopus Author ID.",
+               "type": "string"
+            },
+            "identifier_value": {
+               "description": "The identifier within its scheme.",
+               "type": "string"
+            },
+            "identifier_url": {
+               "description": "The identifier as a URL, where the record gives one.",
+               "format": "uri",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "identifier_type",
+            "identifier_value"
+         ],
+         "title": "ExternalIdentifier",
+         "type": "object"
+      },
+      "FactKind": {
+         "description": "What a project fact is about (docs/specs/projects.md).",
+         "enum": [
+            "funder",
+            "required_repository",
+            "file_inclusion",
+            "sensitivity",
+            "licence",
+            "sharing_commitment"
+         ],
+         "title": "FactKind",
+         "type": "string"
+      },
+      "FileDecision": {
+         "description": "Whether a file of the inventory is to be deposited.",
+         "enum": [
+            "include",
+            "exclude",
+            "undecided"
+         ],
+         "title": "FileDecision",
+         "type": "string"
+      },
       "FileInventory": {
          "additionalProperties": false,
          "description": "The facts about a dataset's files that the project holds in place of the files (docs/specs/projects.md): for each file its path, size, digest and format, and for a table its fields. Made by a command run where the data live; it never contains a file's content. advisor.files reads it.",
@@ -156,7 +298,7 @@
                "type": "string"
             },
             "inventory_files": {
-               "description": "Every file under the dataset's root folder that the command read, sorted by path.",
+               "description": "Every file the command read, sorted by path: under the dataset's root folder, or, in an inventory made of parts, under each part's folder.",
                "items": {
                   "$ref": "#/$defs/InventoryFile"
                },
@@ -194,6 +336,26 @@
                   "array",
                   "null"
                ]
+            },
+            "inventory_parts": {
+               "description": "The scans the inventory is made of, when it is made of more than one folder. Absent, the inventory is one scan of one folder and its paths are relative to that folder. Present, every file's path begins with one part's folder; inventory_made_at is the latest part's, inventory_tool and inventory_tool_version are those of that part, and inventory_limitations holds any that concern no one part, then every part's limitations, each after \"In <folder>: \".",
+               "items": {
+                  "$ref": "#/$defs/InventoryPart"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "inventory_personal_data": {
+               "description": "Where a personal-data detector found possible personal data (docs/specs/personal-data.md). Absent, no detector ran, or the inventory was made by a command without one; empty, a detector ran and found nothing, which does not mean the data hold none. In an inventory made of parts, it is every part's findings, and absent if any part's are absent.",
+               "items": {
+                  "$ref": "#/$defs/PersonalDataFinding"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
             }
          },
          "required": [
@@ -205,13 +367,36 @@
          "title": "FileInventory",
          "type": "object"
       },
+      "FileRole": {
+         "description": "What part a file plays in a dataset, as the researcher states it (docs/specs/projects.md).",
+         "enum": [
+            "data",
+            "documentation",
+            "code",
+            "other"
+         ],
+         "title": "FileRole",
+         "type": "string"
+      },
+      "FindingTarget": {
+         "description": "What part of a file a personal-data finding concerns.",
+         "enum": [
+            "column",
+            "field name",
+            "file name",
+            "text"
+         ],
+         "title": "FindingTarget",
+         "type": "string"
+      },
       "IdentificationMethod": {
          "description": "How a file's format was identified, from strongest to weakest (docs/specs/projects.md).",
          "enum": [
             "signature",
             "container",
             "extension",
-            "none"
+            "none",
+            "researcher"
          ],
          "title": "IdentificationMethod",
          "type": "string"
@@ -221,7 +406,7 @@
          "description": "One file of a dataset, as the inventory command found it.",
          "properties": {
             "file_path": {
-               "description": "The file's path relative to the dataset's root folder, with forward slashes. Never an absolute path, which would say where the data live.",
+               "description": "The file's path relative to the dataset's root folder, with forward slashes; in an inventory made of parts, it begins with its part's folder. Never an absolute path, which would say where the data live.",
                "pattern": "^[^/]",
                "type": "string"
             },
@@ -253,7 +438,7 @@
             },
             "file_identified_by": {
                "$ref": "#/$defs/IdentificationMethod",
-               "description": "How the PRONOM identifiers were arrived at."
+               "description": "How the PRONOM identifiers were arrived at: by the inventory command, or chosen by the researcher where the command found several matches or none."
             },
             "file_fields": {
                "description": "For a table, its fields as a Frictionless Table Schema inferred from a sample of rows.",
@@ -264,6 +449,24 @@
                   "array",
                   "null"
                ]
+            },
+            "file_description": {
+               "description": "What the file is, in the researcher's words. The inventory command never fills it; a researcher states it beside the facts the command found (docs/specs/projects.md).",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "file_role": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/FileRole"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "What part the file plays in the dataset, as the researcher states it. Unset means not stated, not data."
             }
          },
          "required": [
@@ -275,6 +478,76 @@
          "title": "InventoryFile",
          "type": "object"
       },
+      "InventoryPart": {
+         "additionalProperties": false,
+         "description": "One scan of one folder, mounted at a folder name in an inventory made of several (docs/specs/projects.md). Every file of the inventory lies under exactly one part's folder, and a part is replaced whole when its folder is scanned again.",
+         "properties": {
+            "part_folder": {
+               "description": "The folder name the part is mounted at, such as instrument or raw/2024: relative, with forward slashes, and no empty, . or .. segment. Every file of the part has a path that begins with it and a slash. No part's folder is another's or lies inside another's.",
+               "pattern": "^[^/]+(/[^/]+)*$",
+               "type": "string"
+            },
+            "part_tool": {
+               "description": "The command that scanned the part's folder, such as dd-inventory.",
+               "type": "string"
+            },
+            "part_tool_version": {
+               "description": "The version of the command that scanned the part's folder.",
+               "type": "string"
+            },
+            "part_identified_with": {
+               "description": "What identified the formats of the part's files, as inventory_identified_with.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "part_made_at": {
+               "description": "When the part's folder was scanned.",
+               "format": "date-time",
+               "type": "string"
+            },
+            "part_limitations": {
+               "description": "What the scan of the part's folder left out or could not do.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "part_personal_data": {
+               "description": "The part's findings, as inventory_personal_data, with paths that begin with the part's folder. Absent, no detector ran on the part.",
+               "items": {
+                  "$ref": "#/$defs/PersonalDataFinding"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "part_folder",
+            "part_tool",
+            "part_tool_version",
+            "part_made_at"
+         ],
+         "title": "InventoryPart",
+         "type": "object"
+      },
+      "LocationPrecision": {
+         "description": "The precision at which a location may be published.",
+         "enum": [
+            "exact",
+            "site",
+            "region",
+            "country"
+         ],
+         "title": "LocationPrecision",
+         "type": "string"
+      },
       "Obligation": {
          "description": "Whether a requirement set's field or document stops a package (docs/specs/deposit.md).",
          "enum": [
@@ -282,6 +555,451 @@
             "recommended"
          ],
          "title": "Obligation",
+         "type": "string"
+      },
+      "PersonalDataFinding": {
+         "additionalProperties": false,
+         "description": "Where the inventory command found what may be personal data, and how sure it is (docs/specs/personal-data.md). It never holds a matched value, any part of one, an offset into a file, a row number or an example: a kind, a place, bands and the detector only. A finding is a prompt for a person, never a decision.",
+         "properties": {
+            "finding_kind": {
+               "$ref": "#/$defs/PersonalDataKind",
+               "description": "What the detector took the data to be."
+            },
+            "finding_file": {
+               "description": "The path of the file the finding concerns, as file_path; or, for a folder's name, the folder's path followed by a slash.",
+               "pattern": "^[^/]",
+               "type": "string"
+            },
+            "finding_target": {
+               "$ref": "#/$defs/FindingTarget",
+               "description": "What part of the file was examined."
+            },
+            "finding_column": {
+               "description": "The table column the finding concerns, for a column or a field name.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "finding_proportion": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/ProportionBand"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "The share of a column's sampled, non-empty values that matched, as a band so that it cannot be turned back into a count. Present for a column only."
+            },
+            "finding_confidence": {
+               "$ref": "#/$defs/ConfidenceBand",
+               "description": "How sure the detector is, as a band of its highest score."
+            },
+            "finding_detector": {
+               "description": "The detector, its version and its configuration, such as the recognisers that ran, so that a reader knows what was looked for.",
+               "type": "string"
+            },
+            "finding_examined": {
+               "description": "How much was examined: the sampled, non-empty values of a column, or the characters of a text file. Absent for a name.",
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "finding_kind",
+            "finding_file",
+            "finding_target",
+            "finding_confidence",
+            "finding_detector"
+         ],
+         "title": "PersonalDataFinding",
+         "type": "object"
+      },
+      "PersonalDataKind": {
+         "description": "What a personal-data finding took the data to be (docs/specs/personal-data.md). The first kinds come from matching values; the last four from matching names against a keyword table, by category.",
+         "enum": [
+            "email address",
+            "phone number",
+            "NHS number",
+            "National Insurance number",
+            "postcode",
+            "passport number",
+            "driving licence number",
+            "bank account number",
+            "payment card number",
+            "IP address",
+            "person name",
+            "direct identifier",
+            "indirect identifier",
+            "special category",
+            "location"
+         ],
+         "title": "PersonalDataKind",
+         "type": "string"
+      },
+      "ProjectDocument": {
+         "additionalProperties": false,
+         "description": "One document a researcher attached to a project, with its text: the conductor fills one per document into a DraftRequest so that a drafter's model may suggest answers from it (docs/specs/projects.md). Its text is the researcher's, untrusted, and given as data.",
+         "properties": {
+            "documentation_name": {
+               "description": "The file name the researcher attached the document under, without any folder.",
+               "type": "string"
+            },
+            "documentation_digest": {
+               "description": "The SHA-256 of the document's UTF-8 text, by which the project keeps it.",
+               "pattern": "^[0-9a-f]{64}$",
+               "type": "string"
+            },
+            "documentation_media_type": {
+               "description": "The document's media type, text/plain or text/markdown.",
+               "type": "string"
+            },
+            "documentation_size": {
+               "description": "The size of the document's UTF-8 text, in bytes.",
+               "type": "integer"
+            },
+            "documentation_added_at": {
+               "description": "When the document was added to the project.",
+               "format": "date-time",
+               "type": "string"
+            },
+            "documentation_source_media_type": {
+               "description": "The media type of the Word document or PDF the document's text was read from, inside the deployment; absent for a document attached as text. The project keeps the file beside the text.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "documentation_text": {
+               "description": "The document's text, as the researcher attached it, or as read from the file named by documentation_source_media_type.",
+               "type": "string"
+            }
+         },
+         "required": [
+            "documentation_name",
+            "documentation_digest",
+            "documentation_media_type",
+            "documentation_size",
+            "documentation_added_at",
+            "documentation_text"
+         ],
+         "title": "ProjectDocument",
+         "type": "object"
+      },
+      "ProjectFact": {
+         "additionalProperties": false,
+         "allOf": [
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "funder"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "fact_funder_name": {}
+                  },
+                  "required": [
+                     "fact_funder_name"
+                  ]
+               }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "required_repository"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "fact_repository_name": {}
+                  },
+                  "required": [
+                     "fact_repository_name"
+                  ]
+               }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "file_inclusion"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "fact_file_path": {},
+                     "file_decision": {}
+                  },
+                  "required": [
+                     "fact_file_path",
+                     "file_decision"
+                  ]
+               }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "sensitivity"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "sensitive_subject": {},
+                     "sensitivity_decision": {}
+                  },
+                  "required": [
+                     "sensitive_subject",
+                     "sensitivity_decision"
+                  ]
+               }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "licence"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "licence_id": {}
+                  },
+                  "required": [
+                     "licence_id"
+                  ]
+               }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "sharing_commitment"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "commitment_document": {},
+                     "commitment_quote": {}
+                  },
+                  "required": [
+                     "commitment_quote",
+                     "commitment_document"
+                  ]
+               }
+            }
+         ],
+         "description": "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, the licence, or an output a data management plan committed to share (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because.",
+         "properties": {
+            "fact_kind": {
+               "$ref": "#/$defs/FactKind",
+               "description": "What the fact is about, which says which value slots apply."
+            },
+            "fact_subject": {
+               "description": "The key a decision counts by within its kind: the funder's identifier or name, the repository's re3data identifier or name, the file's path, the field or path judged sensitive, or licence. The last decision on a kind and subject stands.",
+               "pattern": "\\S",
+               "type": "string"
+            },
+            "fact_funder_name": {
+               "description": "The funder's name, as its policy record or the researcher gives it.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "fact_funder_ror": {
+               "description": "The funder's ROR identifier, as a URL, where it is known.",
+               "format": "uri",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "fact_crossref_funder_id": {
+               "description": "The funder's Crossref Funder ID, as a DOI URL, where it is known.",
+               "format": "uri",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "fact_repository_name": {
+               "description": "The required repository's name.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "fact_re3data_id": {
+               "description": "The required repository's re3data identifier, such as r3d100010199, where known.",
+               "pattern": "^r3d[0-9]{9}$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "fact_required_by": {
+               "description": "The funders, journals or institutions that require the repository.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "fact_file_path": {
+               "description": "The path of the file the fact is about, relative to the dataset's root folder, as the inventory gives it.",
+               "pattern": "^[^/]",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "file_decision": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/FileDecision"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "Whether the file is to be deposited."
+            },
+            "fact_check_kind": {
+               "description": "The kind of check that raised the fact, in the checking agent's words, such as duplicate, system_file or third_party. Kept as it was given; the core does not enumerate it.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "sensitive_subject": {
+               "description": "The field name, or the file path, judged sensitive, such as a lat or lon field, or a file of site coordinates.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "sensitivity_decision": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/SensitivityDecision"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "Whether the sensitive field or file may be published, and how."
+            },
+            "location_precision": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/LocationPrecision"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "For a location that may be published or generalised, the precision agreed. Absent where the subject is not a location."
+            },
+            "licence_id": {
+               "description": "The licence decided, as an SPDX identifier or a URL.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "commitment_repository": {
+               "description": "For a sharing commitment, the repository the plan committed to share the output in, as the plan names it; absent where it names none.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "commitment_access": {
+               "description": "For a sharing commitment, how openly the plan committed to share the output (such as open, embargoed or on request), as the plan says it; absent where it says nothing.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "commitment_licence": {
+               "description": "For a sharing commitment, the licence the plan committed to, as the plan names it; absent where it names none.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "commitment_quote": {
+               "description": "For a sharing commitment, the plan's own words the commitment was read from, verbatim, so the person deciding can see the passage it rests on.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "commitment_document": {
+               "description": "For a sharing commitment, the digest of the attached document's text (its documentation_digest) the quote is from.",
+               "pattern": "^[0-9a-f]{64}$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "proposed_because": {
+               "description": "Why the agent proposes the fact, in a sentence for the person deciding. Kept with the proposal and shown to the person, never given to an agent.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "fact_kind",
+            "fact_subject"
+         ],
+         "title": "ProjectFact",
+         "type": "object"
+      },
+      "ProportionBand": {
+         "description": "The share of sampled values that matched, as a band.",
+         "enum": [
+            "under 1%",
+            "1 to 10%",
+            "10 to 50%",
+            "over 50%"
+         ],
+         "title": "ProportionBand",
          "type": "string"
       },
       "RepositoryRequirements": {
@@ -382,6 +1100,24 @@
                   "array",
                   "null"
                ]
+            },
+            "unconfirmed": {
+               "description": "What the set's sources leave open, each a short statement naming the issue that will settle it, such as \"Whether ORDA's form makes any other field mandatory (#385)\". Shown to the person depositing; in a merged set, the standard's first, then the override's.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "repository_url": {
+               "description": "Where the chosen repository is, taken from its override's url; absent when the deployment has no override for it.",
+               "format": "uri",
+               "type": [
+                  "string",
+                  "null"
+               ]
             }
          },
          "required": [
@@ -457,6 +1193,287 @@
          "title": "RequirementSetUse",
          "type": "object"
       },
+      "ResearcherFunding": {
+         "additionalProperties": false,
+         "description": "One grant or award on an ORCID record, with its funder.",
+         "properties": {
+            "put_code": {
+               "description": "ORCID's identifier for the item within the record, by which a researcher chose to keep it.",
+               "type": "string"
+            },
+            "funding_title": {
+               "description": "The grant's or award's title.",
+               "type": "string"
+            },
+            "funding_type": {
+               "description": "The kind of funding, in ORCID's words, such as grant or award.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "funder_name": {
+               "description": "The funder's name.",
+               "type": "string"
+            },
+            "funder_identifier": {
+               "description": "The funder's identifier, where ORCID gives one, such as a Crossref Funder ID.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "funder_identifier_scheme": {
+               "description": "The scheme of funder_identifier, in ORCID's words, such as FUNDREF or ROR. Present exactly when funder_identifier is.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "award_identifier": {
+               "description": "The grant number or award identifier, where the record gives one.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "start_year": {
+               "description": "The year it started.",
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            },
+            "end_year": {
+               "description": "The year it ended; absent while it continues.",
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "put_code",
+            "funding_title",
+            "funder_name"
+         ],
+         "title": "ResearcherFunding",
+         "type": "object"
+      },
+      "ResearcherLink": {
+         "additionalProperties": false,
+         "description": "A web page the researcher lists on their ORCID record, such as a personal page.",
+         "properties": {
+            "link_title": {
+               "description": "The name the researcher gave the page.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "link_url": {
+               "description": "The page's address.",
+               "format": "uri",
+               "type": "string"
+            }
+         },
+         "required": [
+            "link_url"
+         ],
+         "title": "ResearcherLink",
+         "type": "object"
+      },
+      "ResearcherRecord": {
+         "additionalProperties": false,
+         "description": "What one researcher in a project chose to keep from their public ORCID record: only the sections and items they ticked, in ORCID's own words, never edited by a person or a model. The conductor fills the project's records into a Message and a DraftRequest so that an agent can draft creators, affiliations, subjects and funding from them (docs/specs/projects.md). Email addresses are never kept, even public ones.",
+         "properties": {
+            "orcid_id": {
+               "description": "The researcher's ORCID iD, as its URL, such as https://orcid.org/0000-0002-1825-0097.",
+               "format": "uri",
+               "type": "string"
+            },
+            "researcher_name": {
+               "description": "The researcher's name as their ORCID record gives it: the credit name, else the given and family names. Absent when they keep their name private or did not keep it.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "other_names": {
+               "description": "Other names the researcher is known by, as their ORCID record lists them.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "biography": {
+               "description": "The researcher's biography, as their ORCID record gives it.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "keywords": {
+               "description": "The researcher's own keywords for their research, as their ORCID record lists them.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "country": {
+               "description": "A country the researcher's ORCID record names, as an ISO 3166-1 alpha-2 code.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "researcher_links": {
+               "description": "The web pages the researcher's ORCID record lists.",
+               "items": {
+                  "$ref": "#/$defs/ResearcherLink"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "external_identifiers": {
+               "description": "The researcher's identifiers in other schemes, as their ORCID record lists them.",
+               "items": {
+                  "$ref": "#/$defs/ExternalIdentifier"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "affiliations": {
+               "description": "The researcher's affiliations they kept, the current ones first.",
+               "items": {
+                  "$ref": "#/$defs/Affiliation"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "works": {
+               "description": "The researcher's works they kept, the most recent first: at most 50 are offered, so that an agent's input stays bounded.",
+               "items": {
+                  "$ref": "#/$defs/ResearcherWork"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "works_omitted": {
+               "description": "How many works the record held beyond the 50 offered. Absent when none were left out.",
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            },
+            "fundings": {
+               "description": "The researcher's grants and awards they kept, the current ones first.",
+               "items": {
+                  "$ref": "#/$defs/ResearcherFunding"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "record_retrieved_at": {
+               "description": "When the record was read from ORCID's public API.",
+               "format": "date-time",
+               "type": "string"
+            },
+            "record_source": {
+               "description": "The public API address the record was read from.",
+               "format": "uri",
+               "type": "string"
+            }
+         },
+         "required": [
+            "orcid_id",
+            "record_retrieved_at",
+            "record_source"
+         ],
+         "title": "ResearcherRecord",
+         "type": "object"
+      },
+      "ResearcherWork": {
+         "additionalProperties": false,
+         "description": "One work on an ORCID record, such as a journal article or a dataset.",
+         "properties": {
+            "put_code": {
+               "description": "ORCID's identifier for the item within the record, by which a researcher chose to keep it.",
+               "type": "string"
+            },
+            "work_title": {
+               "description": "The work's title.",
+               "type": "string"
+            },
+            "work_type": {
+               "description": "The work's type, in ORCID's words, such as journal-article or data-set.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "publication_year": {
+               "description": "The year the work was published.",
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            },
+            "journal_title": {
+               "description": "Where the work was published, such as a journal's name.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "work_identifiers": {
+               "description": "The work's identifiers, such as its DOI.",
+               "items": {
+                  "$ref": "#/$defs/ExternalIdentifier"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "put_code",
+            "work_title"
+         ],
+         "title": "ResearcherWork",
+         "type": "object"
+      },
+      "SensitivityDecision": {
+         "description": "Whether a sensitive field or file may be published.",
+         "enum": [
+            "publish",
+            "generalise",
+            "withhold",
+            "undecided"
+         ],
+         "title": "SensitivityDecision",
+         "type": "string"
+      },
       "TableField": {
          "additionalProperties": false,
          "description": "One field of a tabular resource, mirroring a Frictionless Table Schema field descriptor. Frictionless publishes no RDF namespace, so these slots carry see_also rather than a slot_uri (TODO(#20): revisit if Frictionless publishes term IRIs).",
@@ -504,7 +1521,7 @@
    "$id": "https://w3id.org/data-director/schema/core/DraftRequest",
    "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
-   "description": "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen, the metadata record a person approved last and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory, the requirements and the metadata record in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. In a project the conductor also fills current_version, the latest version of the project's document of that kind, or of the document redraft_document names, so a redraft is that document's next version. The answers a person recorded to the current version's questions are filled in by the conductor in the same way (docs/specs/drafting.md).",
+   "description": "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen, the metadata record a person approved last and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory, the requirements and the metadata record in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. In a project the conductor also fills current_version, the latest version of the project's document of that kind, or of the document redraft_document names, so a redraft is that document's next version. The answers a person recorded to the current version's questions are filled in by the conductor in the same way (docs/specs/drafting.md), and so are the researcher facts people in the project chose to keep from their public ORCID records (docs/specs/projects.md), and the text of the documents a researcher attached to the project, from which a drafter's model may suggest answers but never fill a gap.",
    "properties": {
       "schema_class": {
          "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -576,6 +1593,36 @@
          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
          "type": [
             "string",
+            "null"
+         ]
+      },
+      "researchers": {
+         "description": "The researcher facts the project holds, one record for each person who kept some. In a project the conductor fills them and a caller leaves them out; outside a project, the caller sends them, as it does the other facts.",
+         "items": {
+            "$ref": "#/$defs/ResearcherRecord"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "project_documents": {
+         "description": "The documents the project holds, with their text, in the order they were added. In a project the conductor fills them and a caller leaves them out; outside a project, the caller sends them, as it does the other facts.",
+         "items": {
+            "$ref": "#/$defs/ProjectDocument"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "project_decisions": {
+         "description": "The facts a person in the project decided (ProjectFact), the last decision on each subject, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project decided any. A drafter treats each as supplied.",
+         "items": {
+            "$ref": "#/$defs/ProjectFact"
+         },
+         "type": [
+            "array",
             "null"
          ]
       }

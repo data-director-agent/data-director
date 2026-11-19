@@ -7,7 +7,8 @@ name: release-please
 # one release PR open for every package with a pending release, so that a release starts one CI
 # run rather than one per package, and tags each `<component>-v<version>` when that PR is merged. The PR's title
 # starts `chore(main): release `, which the sign-off check in ci.yml exempts. Merging it also
-# archives the repository in Zenodo as a new version with its own DOI (zenodo.yml).
+# archives the repository in Zenodo as a new version with its own DOI (zenodo.yml), and a release of
+# the app publishes the production image with its version (images.yml).
 on:
   push:
     branches: [main]
@@ -22,7 +23,7 @@ concurrency:
 
 jobs:
   release-please:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: write # to tag releases and push the release branches
@@ -31,6 +32,13 @@ jobs:
       prs: ${{ steps.release.outputs.prs }}
       publish: ${{ steps.publish.outputs.paths }}
       releases_created: ${{ steps.release.outputs.releases_created }}
+      # Set only when this run released the app; the image is tagged with it (images.yml).
+      app_version: ${{ steps.release.outputs['app--release_created'] == 'true' && steps.release.outputs['app--version'] || '' }}
+      # Set only when this run created releases: the commit they were tagged on. release-please
+      # works from the tip of main, not from the commit that started this run, so when two pushes
+      # land together the run for the earlier one can create the releases, and its github.sha is
+      # then not the release commit. A release PR is one merge, so every path shares the one SHA.
+      release_sha: ${{ steps.release.outputs.releases_created == 'true' && steps.release.outputs[format('{0}--sha', fromJSON(steps.release.outputs.paths_released)[0])] || '' }}
     steps:
       # A token other than GITHUB_TOKEN, so that CI runs on the release PRs it opens.
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
@@ -53,7 +61,7 @@ jobs:
   refresh-lock:
     needs: release-please
     if: ${{ needs.release-please.outputs.prs != '' && needs.release-please.outputs.prs != '[]' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read # the push uses RELEASE_PLEASE_TOKEN, not GITHUB_TOKEN
@@ -90,7 +98,7 @@ jobs:
   publish-testpypi:
     needs: release-please
     if: ${{ needs.release-please.outputs.publish != '' && needs.release-please.outputs.publish != '[]' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     environment:
       name: testpypi
@@ -129,7 +137,7 @@ jobs:
   publish-pypi:
     needs: release-please
     if: ${{ needs.release-please.outputs.publish != '' && contains(fromJSON(needs.release-please.outputs.publish), 'inventory') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     environment:
       name: pypi
@@ -162,4 +170,19 @@ jobs:
     # actionlint 1.7.12 (ci.yml) does not yet accept the `$/` form zizmor prefers.
     uses: ./.github/workflows/zenodo.yml # zizmor: ignore[self-repository]
     with:
-      ref: ${{ github.sha }}
+      # The commit the releases were tagged on (see release_sha above), not necessarily this run's.
+      ref: ${{ needs.release-please.outputs.release_sha || github.sha }}
+
+  # The production image, tagged with the app's version, when the app was released (#223).
+  images:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.app_version != '' }}
+    permissions:
+      contents: read
+      packages: write # to push the image
+      id-token: write # to sign its build provenance attestation
+      attestations: write # to store it
+    # actionlint 1.7.12 (ci.yml) does not yet accept the `$/` form zizmor prefers.
+    uses: ./.github/workflows/images.yml # zizmor: ignore[self-repository]
+    with:
+      version: ${{ needs.release-please.outputs.app_version }}

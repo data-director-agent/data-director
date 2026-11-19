@@ -3,6 +3,8 @@
   "harness": "0.2.0-alpha.4",
   "workbench": "0.2.0-alpha.5",
   "app": "0.3.0-alpha.8",
+  "admin": "0.1.0-alpha.0",
+  "broker": "0.1.0-alpha.0",
   "agents/orchestrator-stub": "0.1.1-alpha.3",
   "agents/example-hello": "0.1.1-alpha.2",
   "agents/advisor-quality": "0.1.1-alpha.1",

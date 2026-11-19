@@ -20,6 +20,7 @@ from dd_harness.projects import (
     ProjectStore,
 )
 from dd_harness.testing import TEST_PRINCIPAL
+from dd_sdk.intake import NO, NOT_SURE, YES, question
 from dd_sdk.process_flow import OUT_OF_SCOPE
 
 
@@ -139,6 +140,18 @@ def test_the_entry_point_chosen_last_counts() -> None:
     assert progress.entry_chosen(events) == 2
 
 
+def test_an_entry_point_with_no_source_is_the_researchers() -> None:
+    old = [{"event": progress.ENTRY_CHOSEN, "entry": 2}]
+    assert progress.entry_and_source(old) == (2, progress.ENTRY_BY_RESEARCHER)
+    assert progress.entry_and_source([]) == (None, None)
+
+
+def test_with_no_entry_point_nothing_open_is_suggested() -> None:
+    """A researcher who has not said where they are is not sent to Phase 1."""
+    assert progress.describe([])["suggested"] is None
+    assert progress.describe([])["entry_source"] is None
+
+
 @pytest.fixture
 def store(tmp_path: Path) -> ProjectStore:
     return ProjectStore(tmp_path / "projects")
@@ -148,12 +161,77 @@ def test_the_store_records_the_researchers_word_and_derives_progress(store: Proj
     project = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
     store.choose_entry(project, 3, acted_for=TEST_PRINCIPAL, caused_by="test")
     store.mark_step(project, "repository.mandated", "done", acted_for=TEST_PRINCIPAL, caused_by="t")
-    assert store.progress(project) == {
+    found = store.progress(project)
+    assert {k: found[k] for k in ("entry", "entry_source", "steps", "suggested")} == {
         "entry": 3,
+        "entry_source": "researcher",
         "steps": {"repository.mandated": "done"},
         "suggested": "repository.recommend",
     }
+    # Each state says why, with when the log recorded it.
+    reason = found["reasons"]["repository.mandated"]
+    assert reason["source"] == "marked" and reason["state"] == "done" and reason["at"]
     assert store.summary(project)["progress"] == store.progress(project)
+
+
+def test_each_state_has_the_reason_that_decided_it() -> None:
+    events: list[dict[str, Any]] = [
+        {"event": progress.ENTRY_CHOSEN, "entry": 1},
+        {"event": INVENTORY_ADDED, "at": "2026-11-01T00:00:00+00:00"},
+        added("r", "readme"),
+        marked("preparation.files", "skipped"),
+        marked("governance.embargo", "skipped"),
+        {
+            "event": progress.INTAKE_ANSWERED,
+            "question_id": "intake.sensitive",
+            "answer_values": [NO],
+        },
+        marked("governance.sensitive-data-handle", "open"),
+    ]
+    reasons = progress.step_reasons(events)
+    # The states are step_states', in the same order.
+    assert {k: v["state"] for k, v in reasons.items()} == progress.step_states(events)
+    assert list(reasons) == list(progress.step_states(events))
+    # The log's work outranks a skip and is the reason given.
+    assert reasons["preparation.files"]["source"] == "produced"
+    assert reasons["preparation.files"]["event"] == INVENTORY_ADDED
+    assert "at" in reasons["preparation.files"]
+    # A document step names the document that started it.
+    assert reasons["preparation.documentation"]["state"] == "started"
+    assert reasons["preparation.documentation"]["document_id"] == "r"
+    assert reasons["preparation.documentation"]["document_kind"] == "readme"
+    assert reasons["governance.embargo"]["source"] == "marked"
+    # An answer's skip names its question; a step opened again is open and has none.
+    assert reasons["governance.sensitive-data-identify"]["source"] == "intake"
+    assert reasons["governance.sensitive-data-identify"]["question_id"] == "intake.sensitive"
+    assert "governance.sensitive-data-handle" not in reasons
+
+
+def test_an_approved_document_is_the_reason_its_step_is_done() -> None:
+    reasons = progress.step_reasons([added("m", "metadata_record"), decided("m")])
+    assert reasons["preparation.metadata"]["state"] == "done"
+    assert reasons["preparation.metadata"]["event"] == DOCUMENT_VERSION_DECIDED
+    assert reasons["preparation.metadata"]["document_kind"] == "metadata_record"
+
+
+def test_the_decisions_are_the_intake_questions_with_their_answers() -> None:
+    events: list[dict[str, Any]] = [
+        {"event": progress.ENTRY_CHOSEN, "entry": 3},
+        {
+            "event": progress.INTAKE_ANSWERED,
+            "question_id": "intake.repository-mandated",
+            "answer_values": [YES],
+        },
+    ]
+    found = {d["question_id"]: d for d in progress.decisions(events)}
+    assert "intake.entry" not in found
+    mandated = found["intake.repository-mandated"]
+    assert mandated["asked"] and mandated["answer_values"] == [YES]
+    assert mandated["answer_labels"] == [question("intake.repository-mandated").options[0].label]
+    assert mandated["before"] == question("intake.repository-mandated").before
+    # Not asked from entry 3, and unanswered.
+    assert not found["intake.sensitive"]["asked"]
+    assert found["intake.sensitive"]["answer_values"] is None
 
 
 def test_the_store_refuses_what_is_no_entry_step_or_mark(store: ProjectStore) -> None:
@@ -169,3 +247,94 @@ def test_the_store_refuses_what_is_no_entry_step_or_mark(store: ProjectStore) ->
         with pytest.raises(ProjectError):
             store.mark_step(project, step_id, mark, acted_for=TEST_PRINCIPAL, caused_by="test")
     assert store.events(project) == before
+
+
+def test_a_models_entry_point_counts_until_the_researcher_chooses_one(
+    store: ProjectStore,
+) -> None:
+    project = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    model: progress.EntrySource = progress.ENTRY_BY_MODEL
+    assert store.choose_entry(project, 2, acted_for=TEST_PRINCIPAL, caused_by="r", source=model)
+    where = store.progress(project)
+    assert (where["entry"], where["entry_source"]) == (2, "model")
+    assert where["suggested"] is not None and where["suggested"].startswith("governance.")
+    # A model may correct its own reading.
+    assert store.choose_entry(project, 3, acted_for=TEST_PRINCIPAL, caused_by="r", source=model)
+    # The researcher's choice replaces it, and a model's never replaces theirs.
+    assert store.choose_entry(project, 2, acted_for=TEST_PRINCIPAL, caused_by="t")
+    before = store.events(project)
+    assert not store.choose_entry(project, 1, acted_for=TEST_PRINCIPAL, caused_by="r", source=model)
+    assert store.events(project) == before
+    where = store.progress(project)
+    assert (where["entry"], where["entry_source"]) == (2, "researcher")
+
+
+def test_the_store_refuses_an_entry_point_from_anyone_else(store: ProjectStore) -> None:
+    project = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    with pytest.raises(ProjectError):
+        store.choose_entry(
+            project,
+            2,
+            acted_for=TEST_PRINCIPAL,
+            caused_by="test",
+            source="agent",  # type: ignore[arg-type]
+        )
+    assert store.progress(project)["entry"] is None
+
+
+# The intake's answers are the weakest word (docs/specs/projects.md, rule 20).
+
+
+def chose(entry: int) -> dict[str, Any]:
+    return {"event": progress.ENTRY_CHOSEN, "entry": entry}
+
+
+def answered(question_id: str, *values: str) -> dict[str, Any]:
+    return {"event": progress.INTAKE_ANSWERED, "question_id": question_id, "answer_values": values}
+
+
+def test_only_no_to_an_intake_question_skips_its_steps() -> None:
+    no = progress.step_states([chose(2), answered("intake.sensitive", NO)])
+    assert set(no) == question("intake.sensitive").skips([NO])
+    assert set(no.values()) == {"skipped"}
+    for value in (YES, NOT_SURE):
+        assert progress.step_states([chose(2), answered("intake.sensitive", value)]) == {}
+
+
+def test_yes_to_a_mandated_repository_skips_the_recommendation_and_never_marks_a_step_done() -> (
+    None
+):
+    states = progress.step_states([chose(3), answered("intake.repository-mandated", YES)])
+    assert states == {"repository.recommend": "skipped"}
+
+
+def test_an_answer_to_the_dmp_question_marks_no_step() -> None:
+    for value in (YES, NO, NOT_SURE):
+        assert progress.step_states([chose(1), answered("intake.dmp", value)]) == {}
+
+
+def test_the_latest_answer_to_an_intake_question_counts() -> None:
+    events = [chose(1), answered("intake.sensitive", NO), answered("intake.sensitive", YES)]
+    assert progress.step_states(events) == {}
+    skipped = dict.fromkeys(question("intake.sensitive").skips([NO]), "skipped")
+    assert progress.step_states([*events, answered("intake.sensitive", NO)]) == skipped
+
+
+@pytest.mark.parametrize("mark", ["open", "done"])
+def test_a_researchers_mark_overrides_an_intake_skip(mark: str) -> None:
+    step = "governance.sensitive-data-identify"
+    events = [chose(1), answered("intake.sensitive", NO), marked(step, mark)]
+    assert progress.step_states(events).get(step, "open") == mark
+
+
+def test_work_the_log_shows_overrides_an_intake_skip() -> None:
+    events = [chose(3), answered("intake.repository-mandated", NO), {"event": REPOSITORY_CHOSEN}]
+    states = progress.step_states([*events, marked("repository.mandated", "open")])
+    assert "repository.mandated" not in states
+    assert progress.step_states(events)["repository.recommend"] == "done"
+
+
+def test_an_intake_answer_counts_only_from_an_entry_point_that_asks_it() -> None:
+    events = [chose(2), answered("intake.sensitive", NO)]
+    assert "governance.sensitive-data-handle" in progress.step_states(events)
+    assert "governance.sensitive-data-handle" not in progress.step_states([*events, chose(3)])

@@ -13,7 +13,18 @@ For each file under a folder, the inventory records:
 - its size, and a digest (a fingerprint) that later shows the files you deposit are the files
   described;
 - its format;
-- for a table (CSV or TSV), its column names and types, worked out from a sample of rows.
+- for a table (CSV or TSV), its column names and types, worked out from a sample of rows;
+- where it found what may be personal data, such as a column of e-mail addresses, a column
+  headed `dob`, or a phone number in a small text file.
+
+The check for personal data runs on your computer, in the rows the inventory already samples, in
+names and in small `.txt` and `.md` files. It records where it found something and how sure it
+is, never what it found: no value, and no part of one. It looks for e-mail addresses, phone
+numbers, NHS and National Insurance numbers, postcodes and similar identifiers, and finds names
+and places only from column headings and file names. Finding nothing does not mean your data hold
+no personal data: free text in other formats, indirect identifiers and rows beyond the sample are
+not checked. Talk to your data steward or ethics contact about anything it finds. Data Director
+does not change your files.
 
 It never holds what is in a file. It does hold **the names of your files and folders** and **the
 column headings of your tables**, and these can say more than you expect: a file named after a
@@ -24,13 +35,100 @@ you everything in it and lets you leave out anything that should not leave your 
 
 Hidden files and folders (names beginning with `.`) are left out, and the inventory says so.
 
+## What Data Director cannot see
+
+Because the inventory holds no contents, no agent can find a problem that is only inside a file.
+It cannot see:
+
+- names, telephone numbers, e-mail addresses or access codes written in notes or a diary;
+- whether coordinates are precise enough to point to a person, private land or a protected
+  species;
+- licence terms written inside a file you were given, such as "internal use only";
+- the conditions or end date of an agreement;
+- instructions written into a file, which it would in any case not follow.
+
+What it can do is mark the files whose **names** suggest one of these, so that you look at them.
+The app marks them in the inventory, under **Files to look at**, and the File Archivist lists them
+when it is run:
+
+| Marked as | Because |
+|---|---|
+| May hold free text | A folder or file name such as `notes`, `fieldnotes`, `diary`, `interview`, `transcript` or `consent` |
+| May hold locations | A column such as `lat`, `lon`, `easting`, `northing`, `gridref` or `location` |
+| May be someone else's | A folder such as `reference`, `external`, `vendor` or `downloaded` |
+| Terms or an agreement | A folder or file name such as `agreement`, `licence`, `permission` or `governance` |
+| System file | `Thumbs.db`, `desktop.ini`, `.DS_Store`, or a name beginning `~$` |
+| Empty | The file has no bytes |
+| Exact copy | Another file has the same digest |
+
+A mark is a prompt for you, not a finding and not a decision: the file may be fine. And a file
+with no mark is not cleared. That nothing was marked does not mean the data hold no personal data,
+sensitive locations or someone else's material. Before you deposit, read any free-text files
+yourself, check locations and material from others, and talk to your data steward or ethics
+contact about anything you are unsure of.
+
 ## Making one
 
 <!-- making-an-inventory:summary -->
 
-In the app, select **Make an inventory** under the message box on the conversation page. It shows
-these steps for the computer you are using, with a button to copy each command, and ends with a
-button to attach the file you made. The steps are the same here:
+In the app, select **Make an inventory** under the message box on the conversation page. It offers
+two ways, each on its own tab: **In this browser**, which describes a folder and needs nothing
+installed, and **With the command**, which you run in a terminal. It opens on the browser. Use the browser unless your data are somewhere it cannot reach, or the dataset
+is very large (below).
+
+### Describing a folder in your browser
+
+**Make an inventory** opens on the **In this browser** tab. Select **Choose a folder…** and pick the folder that holds your dataset. Your browser reads the files and makes the
+inventory itself, running the same `dd-inventory` code as the command. None of your files is sent
+anywhere: the app attaches only the inventory, and only after you have checked it (below). You can
+also drop the folder onto the dashed box. If you look at the other tab while it works, it carries
+on.
+
+This works in current versions of Chrome, Edge, Firefox and Safari. Chrome and Edge ask whether to
+let the site **view** the files in the folder; allow it. Some other browsers ask whether to
+**upload** the files instead. That is the browser's standard wording for choosing a folder:
+nothing is uploaded.
+
+Safari does not show a folder's hidden files (those whose names begin with `.`) to the page. The
+inventory is otherwise the same, but it does not mention them, as one made in another browser or
+with the command does.
+
+The first time, your browser fetches the scanner (about 16 MB), so allow a little longer; after
+that it keeps a copy. Describing a folder in the browser is slower than the command, by about
+three times, and a browser uses a lot of memory on very large files. Use the command instead, from the **With the command** tab or the **Use the command instead**
+button, when:
+
+- your data are on a server, a cluster or network storage that your browser cannot reach;
+- the dataset is very large, with files of several gigabytes or more.
+
+If the folder you choose holds a file of 4 GB or more, the browser says so before it starts, and
+suggests the command. Your browser's memory grows while it reads a file that large, and if your
+computer runs short it may close the page, and the app with it. You can still go on with
+**Describe it here anyway**.
+
+An inventory made in the browser says so: the version of the tool that made it ends in
+`+pyodide`, followed by a version number.
+
+If your organisation's Data Director does not offer this, **Make an inventory** shows only the
+command, without tabs.
+
+### Describing a folder on your own computer
+
+If Data Director is installed on your own computer, rather than reached at your organisation's
+address, whoever set it up may have named folders on that computer that it may read. Then **Make an
+inventory** begins with **Describe a folder on this computer**. Select one of the folders listed,
+and then any folder inside it, by name; select **Describe** and the folder's name, and Data Director
+makes the inventory there, with the command's own code, reading the files but changing none. As
+with the browser, the inventory is attached only after you have checked it. Your organisation's
+shared Data Director never offers this.
+
+You can describe a folder in your browser in the same way when you update the project's inventory
+later ([Changing it later](#changing-it-later)).
+
+### With the command
+
+The **With the command** tab of **Make an inventory** shows these steps for the computer you are using, with a button to copy each
+command, and ends with a button to attach the file you made. The steps are the same here:
 
 <!-- making-an-inventory:steps -->
 
@@ -38,16 +136,14 @@ If you prefer pip, install the command once with `pip install data-director-inve
 `data-director-inventory path/to/dataset -o inventory.json`. The package is published on
 [PyPI](https://pypi.org/project/data-director-inventory/).
 
-It writes `inventory.json` in the folder where you ran it. A large dataset can take a while,
-because every file is read to compute its digest. The command sends nothing anywhere.
-
-If you would rather not use a terminal, ask your research data support team, or whoever is
-running a workshop you are in, to make the inventory for you.
+If neither way suits you, ask your research data support team, or whoever is running a workshop
+you are in, to make the inventory for you.
 
 ## Attaching it in the app
 
-On the conversation page, select **Attach inventory** under the message box and choose
-`inventory.json`, or select **Choose inventory.json** at the end of **Make an inventory**. You can
+On the conversation page, select **Attach a file** under the message box and choose
+`inventory.json`, or select **Choose inventory.json** at the end of the **With the command** tab of **Make an
+inventory**. You can
 also drop the file onto the message box.
 
 The app then shows you everything the inventory holds, before anything is kept: the folders and
@@ -58,16 +154,57 @@ forms or a column whose name is sensitive; leaving out a folder leaves out every
 **Find files** to look for a name in a large inventory. When you are content, select **Attach
 this inventory**. If you select **Cancel**, nothing is attached.
 
+Under **Possible personal data**, the app lists each place where the inventory command found
+what may be personal data, such as a column of e-mail addresses, and marks those files in the
+list. It never shows a value, because the inventory holds none. Check each place, and leave out
+anything that should not be shared. If nothing was found, the app says what was not checked; if
+the inventory was made without the check, it says so.
+
 What you leave out is not sent or kept anywhere, not even its name. The inventory says only how
 many files and columns you left out, so that an agent does not assume they do not exist.
+
+You can also tell Data Director what the inventory command cannot know. Select **Describe** under
+a file to say what it is, and what part it plays: data, documentation, code or something else.
+When the command could not be sure of a file's format (it found several possible formats, only
+guessed from the name, or found none), you can choose the right one there too. Open a folder to
+set the part every file in it plays at once, and open a table under **Tables** to describe its
+columns. Agents use what you write when they describe your dataset, so it is kept and shown to
+them just as file names are: do not write anything there that you would not share. **Undo** and
+**Redo** step through your changes, and **Show** can narrow the list to the files worth a look.
 
 The inventory then shows as a chip naming how many files it lists and when it was made. Select
 **View inventory** on the chip to read it again. Write your request, such as "Please draft a
 README for this dataset", and send it. You can also send the inventory on its own.
 
 The conversation's project keeps the inventory, so you attach it once. Data Director gives it to
-the agents that need it. If your files change, make a new inventory and attach it: the latest one
-counts. The panel beside the conversation shows which inventory the project holds, with
-**View inventory** to read it again, and links to the documents agents have drafted.
+the agents that need it.
+
+## Changing it later
+
+In the panel beside the conversation, select **Edit inventory** to open the project's inventory
+again. You can leave out more, or describe more, and then select **Save as the project's
+inventory**. The project keeps the new version, and the earlier one stays in its history.
+
+If your files change, update the inventory with a new scan of the folder that changed. Under
+**Update with a new scan**, say under **Scan of** which folder it is. Then select **Choose a
+folder…** and pick the folder, or drop it there, as when you first made the inventory; or, if you
+made the new inventory with the command, choose its file as **New scan**. Only that folder is replaced, and nothing is kept until you select **Save as the project's
+inventory**. What you said about each file is carried over to the
+new scan wherever the file is still there, and the app tells you which files are new, changed or
+gone. One thing cannot be carried over: anything you left out before was never kept, so it
+appears again in the new scan. Check the files marked **New in this scan** and leave them out
+again if you need to.
+
+### Data in more than one place
+
+If your dataset is in several folders, perhaps on different computers or with different
+colleagues, the project's inventory can be made of several folders. Under **Update with a new
+scan**, choose **A folder the inventory does not have yet** and give the folder a name. Then
+describe the folder in your browser, or choose the file of an inventory made of it with the
+command, on the computer where it is. The first time, you also name the
+folder the inventory already has. Each file is then listed under its folder's name, and each
+folder can be updated later on its own, by whoever holds it. If the folders are on one computer,
+you can make one inventory of them all at once by naming each folder to the command:
+`uvx data-director-inventory raw processed -o inventory.json`.
 
 See [What the Data Director records](records.md) for who can see what you attach.

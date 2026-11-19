@@ -7,7 +7,16 @@
  * because custom properties cannot be used in media queries.
  */
 
+/* The page fills the window, so the footer sits at the bottom of a short page. */
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
 .app-main {
+  flex: 1 0 auto;
+  width: 100%;
   max-width: var(--page-width);
   margin-inline: auto;
   padding: var(--space-5) var(--page-gutter) var(--space-6);
@@ -43,7 +52,10 @@
 .workspace {
   display: grid;
   gap: var(--space-4) var(--space-5);
-  grid-template-columns: minmax(13rem, 17rem) minmax(0, 1fr) minmax(16rem, 24rem);
+  grid-template-columns: minmax(13rem, 17rem) minmax(0, 1fr) minmax(
+      16rem,
+      24rem
+    );
   grid-template-areas:
     "head head head"
     "phases phases phases"

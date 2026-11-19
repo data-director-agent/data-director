@@ -18,6 +18,19 @@ updates:
     commit-message:
       prefix: ci
 
+  # The hook revisions in .pre-commit-config.yaml. Ruff there runs from uv.lock, so has no pin.
+  - package-ecosystem: pre-commit
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      hooks:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
+
   - package-ecosystem: uv
     directory: /
     schedule:
@@ -30,9 +43,22 @@ updates:
     commit-message:
       prefix: build(deps)
 
-  # The shell and the inventory library it links (inventory/browser) share their tooling.
+  # jscpd, which scripts/check_duplication.py runs; the version is in scripts/jscpd/package.json.
   - package-ecosystem: npm
-    directories: [/app/web, /inventory/browser]
+    directory: /scripts/jscpd
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      jscpd:
+        patterns: ["*"]
+    commit-message:
+      prefix: build(deps)
+
+  # The shell and the libraries it links (inventory/browser, sdk/browser) share their tooling.
+  - package-ecosystem: npm
+    directories: [/app/web, /inventory/browser, /sdk/browser]
     schedule:
       interval: weekly
     cooldown:
@@ -45,5 +71,50 @@ updates:
     groups:
       web-minor-and-patch:
         update-types: [minor, patch]
+    commit-message:
+      prefix: build(deps)
+
+  # The base images in docker/ (development and release), pinned by digest, in one group.
+  - package-ecosystem: docker
+    directory: /docker
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    # The release copies a virtual environment built in the uv image into the Python image, so
+    # both must have the same Python minor. The uv image names its Python in the tag prefix
+    # (python3.14-…), which Dependabot cannot move, so a new Python minor moves by hand in both
+    # images at once (#716 broke every script's interpreter by moving only one). Node majors
+    # move by hand too: LTS only, with the node-version CI tests on (.github/workflows/ci.yml).
+    ignore:
+      - dependency-name: python
+        update-types: [version-update:semver-major, version-update:semver-minor]
+      - dependency-name: node
+        update-types: [version-update:semver-major]
+    groups:
+      images:
+        patterns: ["*"]
+    commit-message:
+      prefix: build(deps)
+
+  # The LiteLLM gateway's images (deploy/llm-gateway), pinned by digest, in one group. The
+  # "LiteLLM gateway and model broker" CI job runs the gateway, the broker and the backup of its
+  # database against an update. LiteLLM's minor and major releases, and PostgreSQL's majors, move
+  # by hand: the README asks for LiteLLM's release notes to be read first, and a new PostgreSQL
+  # major cannot read the old one's volume.
+  - package-ecosystem: docker-compose
+    directory: /deploy/llm-gateway
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    ignore:
+      - dependency-name: ghcr.io/berriai/litellm
+        update-types: [version-update:semver-major, version-update:semver-minor]
+      - dependency-name: postgres
+        update-types: [version-update:semver-major]
+    groups:
+      gateway-images:
+        patterns: ["*"]
     commit-message:
       prefix: build(deps)

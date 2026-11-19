@@ -13,8 +13,9 @@ from starlette.testclient import TestClient
 from support import check_fixture, configure_env, dist_dir, new_governance
 from test_document_decisions import normalised
 
-from dd_app.app import ANSWERS_REFUSED, build_app
+from dd_app.app import build_app
 from dd_app.governance import Governance
+from dd_app.routes.documents import ANSWERS_REFUSED, ProjectDocuments
 from dd_harness.projects import DOCUMENT_CHANGE_REFUSED, DOCUMENT_QUESTION_ANSWERED
 from dd_harness.storage import ProjectStorage
 from dd_harness.testing import (
@@ -89,7 +90,7 @@ def test_an_answer_acts_for_the_person_signed_in_and_is_in_the_log(
         {"answered_question": ASKED, "answer_text": "Soil cores"}
     ]
     # The shell's tests are drawn from a project whose README asks a question, answered.
-    check_fixture("project-answers.json", normalised(body))
+    check_fixture("project-answers.json", normalised(body), model=ProjectDocuments)
 
 
 @pytest.mark.parametrize(

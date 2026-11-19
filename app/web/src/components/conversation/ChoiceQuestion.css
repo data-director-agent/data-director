@@ -15,13 +15,65 @@
     width: 100%;
   }
 
-  .choice-question .field-check {
+  /* Each option is a card: the whole of it is the click target, not just the small control. */
+  .choice-option {
+    position: relative;
     align-items: flex-start;
     margin-block: var(--space-2);
+    padding: var(--space-3);
+    min-height: 2.75rem;
+    border: var(--border-width) solid var(--color-border-subtle);
+    border-radius: var(--radius);
+    background: var(--color-control);
+    cursor: pointer;
+    transition-property: background-color, border-color, box-shadow;
+    transition-duration: var(--duration-fast);
+    transition-timing-function: var(--easing);
   }
 
-  .choice-question .field-check input {
+  .choice-option input {
     margin-top: 0.2em;
+    flex-shrink: 0;
+    cursor: inherit;
+  }
+
+  /* Stretch the label over the card so a click anywhere on it chooses the option. */
+  .choice-option label {
+    flex: 1;
+    cursor: inherit;
+  }
+
+  .choice-option label::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+  }
+
+  /* Chosen: the control is ticked as well, so this is never colour alone. */
+  .choice-option:has(input:checked) {
+    border-color: var(--color-accent);
+    background: var(--color-surface-selected);
+    box-shadow: inset var(--focus-width) 0 0 var(--color-accent);
+  }
+
+  .choice-option:has(input:focus-visible) {
+    outline: var(--focus-width) solid var(--color-focus);
+    outline-offset: var(--focus-offset);
+  }
+
+  .choice-question fieldset:disabled .choice-option {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  .choice-question fieldset:not(:disabled) .choice-option:not(:has(input:checked)):hover {
+    border-color: var(--color-border);
+    background: var(--color-control-hover);
+    box-shadow: var(--shadow-raised);
+  }
+
+  .choice-question fieldset:not(:disabled) .choice-option:not(:has(input:checked)):active {
+    background: var(--color-control-pressed);
   }
 
   .choice-help {

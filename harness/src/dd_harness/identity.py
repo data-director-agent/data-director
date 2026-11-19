@@ -27,6 +27,7 @@ import threading
 import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Any, Protocol
 
 import httpx
@@ -35,6 +36,7 @@ from joserfc.errors import JoseError
 from joserfc.jwk import KeySet
 
 from dd_sdk.contract.models import Assurance, Principal, PrincipalKind
+from dd_sdk.security_log import SecurityEvent, emit
 
 # OpenID Connect Core §3.1.3.7: an ID token is signed, and ORCID signs with RS256. No other
 # algorithm is accepted, so a token cannot choose a weaker one.
@@ -53,10 +55,42 @@ class IdentityError(Exception):
     """No principal is configured, or the one configured is malformed: a configuration error."""
 
 
+class RefusalReason(StrEnum):
+    """Why a caller or a sign-in was refused: the reason code a security event carries
+    (docs/specs/security.md, Security events)."""
+
+    NO_CREDENTIAL = "no-credential"
+    NO_SESSION = "no-session"
+    TOKEN_REFUSED = "token-refused"
+    PROVIDER_UNREACHABLE = "provider-unreachable"
+    PROVIDER_REFUSED = "provider-refused"
+    PROVIDER_DECLINED = "provider-declined"
+    SIGN_IN_NOT_STARTED = "sign-in-not-started"
+    SIGN_IN_EXPIRED = "sign-in-expired"
+    NOT_ADMITTED = "not-admitted"
+
+
 class Unauthenticated(IdentityError):
     """A caller's credential is missing, expired or not to be trusted. The caller is refused (`401`,
     problem type `unauthenticated`), never given a default principal
-    (docs/specs/policy-and-identity.md). The message never contains the credential."""
+    (docs/specs/policy-and-identity.md). The message never contains the credential; `reason` says
+    why in a code."""
+
+    def __init__(self, message: str, reason: RefusalReason = RefusalReason.TOKEN_REFUSED) -> None:
+        super().__init__(message)
+        self.reason = reason
+
+
+def record_refusal(exc: Unauthenticated, *, transport: str) -> None:
+    """Record a refused caller in the security event log (docs/specs/security.md): the reason
+    code and the way in, never the message, which may name what the caller sent."""
+    emit(
+        SecurityEvent.CALLER_REFUSED,
+        outcome="failure",
+        service="harness",
+        reason=exc.reason,
+        transport=transport,
+    )
 
 
 class Authenticator(Protocol):
@@ -145,7 +179,8 @@ class IssuerKeys:
                 except (httpx.HTTPError, ValueError, KeyError, JoseError) as exc:
                     raise Unauthenticated(
                         f"the keys of {self.issuer} could not be fetched to verify the token: "
-                        f"{type(exc).__name__}"
+                        f"{type(exc).__name__}",
+                        RefusalReason.PROVIDER_UNREACHABLE,
                     ) from exc
                 self._keys, self._fetched_at = fetched, time.monotonic()
             assert self._keys is not None
@@ -192,9 +227,9 @@ def verify_id_token(
 
 def principal_from_claims(issuer: str, claims: Mapping[str, Any]) -> Principal:
     """The principal a verified token names. For ORCID the subject is the bare iD, so the principal
-    is the iD URL, `https://orcid.org/<sub>` (docs/specs/policy-and-identity.md). TODO(#179):
-    another provider's principal is a `mailto:` IRI or a URN (#179); this form fits an issuer whose
-    subjects are paths under it, as ORCID's are."""
+    is the iD URL, `https://orcid.org/<sub>` (docs/specs/policy-and-identity.md). TODO(#936):
+    another issuer's principal is the URN the spec makes from `iss` and `sub`; this form fits an
+    issuer whose subjects are paths under it, as ORCID's are."""
     principal_id = f"{issuer.rstrip('/')}/{claims['sub']}"
     given = " ".join(
         str(claims[part]).strip() for part in ("given_name", "family_name") if claims.get(part)
@@ -225,9 +260,14 @@ class BearerTokenAuthenticator:
 
     def principal_for(self, headers: Mapping[str, str] | None) -> Principal:
         if headers is None:
-            raise Unauthenticated("no request, so no credential: sign in to act")
+            raise Unauthenticated(
+                "no request, so no credential: sign in to act", RefusalReason.NO_CREDENTIAL
+            )
         value = next((v for k, v in headers.items() if k.lower() == "authorization"), "").strip()
         scheme, _, token = value.partition(" ")
         if scheme.lower() != "bearer" or not token.strip():
-            raise Unauthenticated("no bearer token: send Authorization: Bearer <ID token>")
+            raise Unauthenticated(
+                "no bearer token: send Authorization: Bearer <ID token>",
+                RefusalReason.NO_CREDENTIAL,
+            )
         return verify_id_token(token.strip(), self.provider, self.keys)

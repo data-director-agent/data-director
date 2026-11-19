@@ -8,59 +8,34 @@ module is the only importer of `rank_bm25` (docs/specs/dependencies.md).
 from __future__ import annotations
 
 import json
-import re
 from functools import cached_property
 from pathlib import Path
 
 from rank_bm25 import BM25Okapi
 
 from dd_agent_advisor_standards.fairsharing.records import Record
-from dd_agent_advisor_standards.retrieve import Hit, Query, RegistryUnavailable, SnapshotRef
+from dd_sdk.registry import Hit, Query, RegistryUnavailable, SnapshotRef
+from dd_sdk.registry.tokenise import STOP_WORDS
+from dd_sdk.registry.tokenise import tokenise as shared_tokenise
 
 DATA_DIR = Path(__file__).resolve().parents[3] / "data" / "fairsharing"
 DEFAULT_SNAPSHOT = DATA_DIR / "snapshot.jsonl"
 DEFAULT_MANIFEST = DATA_DIR / "manifest.json"
 
-_TOKEN = re.compile(r"[a-z0-9]+")
-_STOP = frozenset(
-    {
-        "the",
-        "a",
-        "an",
-        "of",
-        "and",
-        "or",
-        "for",
-        "to",
-        "in",
-        "on",
-        "with",
-        "by",
-        "from",
-        "at",
-        "as",
-        "is",
-        "are",
-        "be",
-        "this",
-        "that",
-        "these",
-        "those",
-        "its",
-        "it",
-    }
-)
-
 
 def tokenise(text: str) -> list[str]:
-    return [t for t in _TOKEN.findall(text.lower()) if t not in _STOP and len(t) > 1]
+    return shared_tokenise(text, STOP_WORDS | {"these", "those"})
 
 
 class SnapshotBackend:
     name = "snapshot"
 
     def __init__(
-        self, path: Path = DEFAULT_SNAPSHOT, manifest: Path = DEFAULT_MANIFEST, stale: bool = False
+        self,
+        path: Path = DEFAULT_SNAPSHOT,
+        manifest: Path = DEFAULT_MANIFEST,
+        *,
+        stale: bool = False,
     ) -> None:
         self.path = path
         self.manifest_path = manifest
@@ -98,7 +73,7 @@ class SnapshotBackend:
         label = f"snapshot:{fetched_at[:10]}" if fetched_at else f"snapshot:{self.path.name}"
         return SnapshotRef(label=label, stale=self._stale, fetched_at=fetched_at)
 
-    def search(self, query: Query) -> list[Hit]:
+    def search(self, query: Query) -> list[Hit[Record]]:
         tokens = tokenise(query.text)
         if not tokens:
             return []

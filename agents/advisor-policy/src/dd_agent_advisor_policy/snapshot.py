@@ -9,14 +9,14 @@ Records are searched lexically with `rank_bm25`; this module is its only importe
 from __future__ import annotations
 
 import json
-import re
 from functools import cached_property
 from pathlib import Path
 
 from rank_bm25 import BM25Okapi
 
 from dd_agent_advisor_policy.records import PolicyRecord
-from dd_agent_advisor_policy.retrieve import Query, RegistryUnavailable, SnapshotRef
+from dd_sdk.registry import Query, RegistryUnavailable, SnapshotRef
+from dd_sdk.registry.tokenise import tokenise as shared_tokenise
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data" / "fairsharing"
 SNAPSHOT = DATA_DIR / "snapshot.jsonl"
@@ -24,14 +24,13 @@ SNAPSHOT = DATA_DIR / "snapshot.jsonl"
 # from the repository advisor's copy of FAIRsharing's database records.
 REGISTRY = "fairsharing-policy"
 
-_TOKEN = re.compile(r"[a-z0-9]+")
 _STOP = frozenset(
     ["the", "a", "an", "of", "and", "or", "for", "to", "in", "on", "by", "data", "policy"]
 )
 
 
 def tokenise(text: str) -> list[str]:
-    return [t for t in _TOKEN.findall(text.lower()) if t not in _STOP and len(t) > 1]
+    return shared_tokenise(text, _STOP)
 
 
 class PolicySnapshot:

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import threading
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
@@ -35,8 +36,9 @@ from dd_harness.projects import (
     UnknownProjectError,
 )
 from dd_harness.requirements import RequirementsError, load_requirements
+from dd_harness.settings import SettingsError, project_storage, projects_dir
 from dd_harness.sources import SourceConfigError, Sources
-from dd_harness.testing import TEST_PRINCIPAL, file_inventory
+from dd_harness.testing import TEST_PRINCIPAL, file_inventory, file_inventory_of_parts
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, content_hash, input_hash
 
 inventory = file_inventory
@@ -52,7 +54,7 @@ def test_a_read_waits_for_its_project_and_not_for_another(store: ProjectStore) -
     busy = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
     idle = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
     read: list[str] = []
-    with store._lock(busy):
+    with store.log.section(busy):
         reader = threading.Thread(target=lambda: read.append(store.events(busy)[0]["event"]))
         reader.start()
         assert [e["event"] for e in store.events(idle)] == [PROJECT_CREATED]
@@ -78,6 +80,78 @@ def test_the_log_is_appended_to_and_the_latest_inventory_wins(store: ProjectStor
     # The same inventory twice is kept once.
     blobs = list((store.root / project_id / "blobs" / "sha256").iterdir())
     assert sorted(b.name for b in blobs) == sorted({input_hash(first), input_hash(second)})
+
+
+def test_a_new_inventory_names_the_one_it_revises(store: ProjectStore) -> None:
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    first = inventory("a.csv")
+    second = inventory("a.csv")
+    second["inventory_files"][0] |= {
+        "file_description": "Soil readings by site",
+        "file_role": "data",
+        "file_identified_by": "researcher",
+    }
+    store.add_inventory(project_id, first, acted_for=TEST_PRINCIPAL, caused_by="test")
+    assert store.summary(project_id)["inventory"]["revises"] is None
+    store.add_inventory(project_id, second, acted_for=TEST_PRINCIPAL, caused_by="test")
+    added = [e for e in store.events(project_id) if e["event"] == INVENTORY_ADDED]
+    assert "revises" not in added[0]
+    assert added[1]["revises"] == added[0]["digest"]
+    assert store.summary(project_id)["inventory"]["revises"] == added[0]["digest"]
+    assert store.inventory(project_id) == second
+
+
+def test_an_inventory_of_parts_is_one_inventory_and_says_how_many_parts(
+    store: ProjectStore,
+) -> None:
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    first = file_inventory_of_parts({"lab": ["a.csv"], "instrument": ["run1.csv"]})
+    store.add_inventory(project_id, first, acted_for=TEST_PRINCIPAL, caused_by="test")
+    # Updating one part is a whole new inventory with the other part as it was.
+    second = file_inventory_of_parts({"lab": ["a.csv"], "instrument": ["run1.csv", "run2.csv"]})
+    store.add_inventory(project_id, second, acted_for=TEST_PRINCIPAL, caused_by="test")
+    added = [e for e in store.events(project_id) if e["event"] == INVENTORY_ADDED]
+    assert [e["part_count"] for e in added] == [2, 2]
+    assert added[1]["revises"] == added[0]["digest"]
+    assert store.inventory(project_id) == second
+    summary = store.summary(project_id)["inventory"]
+    assert summary["part_count"] == 2 and summary["file_count"] == 3
+
+
+@pytest.mark.parametrize(
+    "document",
+    [
+        file_inventory_of_parts({"raw": ["a.csv"], "raw/2024": ["b.csv"]}),
+        file_inventory_of_parts({"raw": ["a.csv"], "raw ": ["b.csv"]})
+        | {
+            "inventory_parts": [
+                {
+                    "part_folder": "raw",
+                    "part_tool": "t",
+                    "part_tool_version": "1",
+                    "part_made_at": "2026-10-30T00:00:00Z",
+                }
+            ]
+        },
+        file_inventory_of_parts({"a/../b": ["c.csv"]}),
+    ],
+    ids=["overlapping folders", "a file under no part", "a .. segment"],
+)
+def test_an_inventory_whose_parts_do_not_cover_its_files_is_refused(
+    store: ProjectStore, document: dict[str, Any]
+) -> None:
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    with pytest.raises(ProjectError, match="not a FileInventory"):
+        store.add_inventory(project_id, document, acted_for=TEST_PRINCIPAL, caused_by="t")
+    assert [e["event"] for e in store.events(project_id)] == [PROJECT_CREATED]
+
+
+def test_an_inventory_with_a_role_outside_the_vocabulary_is_refused(store: ProjectStore) -> None:
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    document = inventory("a.csv")
+    document["inventory_files"][0]["file_role"] = "secret"
+    with pytest.raises(ProjectError, match="not a FileInventory"):
+        store.add_inventory(project_id, document, acted_for=TEST_PRINCIPAL, caused_by="t")
 
 
 def test_what_is_not_a_file_inventory_is_refused_and_nothing_is_recorded(
@@ -366,3 +440,42 @@ def test_the_commands_record_the_entry_point_and_a_marked_step(
     assert found["steps"] == {"governance.embargo": "skipped"}
     with pytest.raises(SystemExit):
         server.main(["project", "mark-step", project_id, "R5", "done"])
+
+
+def test_the_command_deletes_and_restores_a_project(
+    operator: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert server.main(["project", "create"]) == 0
+    project_id = capsys.readouterr().out.strip()
+    assert server.main(["project", "delete", project_id]) == 0
+    deleted = json.loads(capsys.readouterr().out)
+    assert set(deleted) == {"at", "by", "restorable_until"}
+    assert ProjectStore(operator).is_deleted(project_id)
+    with pytest.raises(SystemExit):
+        server.main(["project", "delete", project_id])
+    assert server.main(["project", "restore", project_id]) == 0
+    assert not ProjectStore(operator).is_deleted(project_id)
+    events = ProjectStore(operator).events(project_id)
+    assert [e["caused_by"] for e in events[1:]] == [
+        "dd-harness project delete",
+        "dd-harness project restore",
+    ]
+    with pytest.raises(SystemExit):
+        server.main(["project", "restore", project_id])
+
+
+@pytest.mark.parametrize(("value", "days"), [("", 30), ("0", 0), ("7", 7)])
+def test_the_restore_period_comes_from_the_settings(
+    operator: Path, monkeypatch: pytest.MonkeyPatch, value: str, days: int
+) -> None:
+    monkeypatch.setenv("DD_PROJECT_RESTORE_DAYS", value)
+    assert project_storage(projects_dir()).restore_period == timedelta(days=days)
+
+
+@pytest.mark.parametrize("value", ["-1", "two", "1.5"])
+def test_a_restore_period_that_is_not_whole_days_stops_start_up(
+    operator: Path, monkeypatch: pytest.MonkeyPatch, value: str
+) -> None:
+    monkeypatch.setenv("DD_PROJECT_RESTORE_DAYS", value)
+    with pytest.raises(SettingsError, match="DD_PROJECT_RESTORE_DAYS"):
+        project_storage(projects_dir())

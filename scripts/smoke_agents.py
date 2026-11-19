@@ -52,7 +52,12 @@ PRINCIPAL = {"DD_PRINCIPAL_ID": "https://orcid.org/0000-0002-1825-0097", "DD_PRI
 # Each agent that needs a model key, by registry URL, with the name of its own env file
 # (workbench/agents/<name>.env, as scripts/run-agents.sh reads it).
 MODEL_BACKED = {"http://127.0.0.1:8107": "orchestrator-model"}
-KEY_VARS = ("ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY_FILE")
+# Every variable a model key may be given in (dd_sdk.model_provider.PROVIDERS).
+KEY_VARS = tuple(
+    v
+    for key in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "DD_MODEL_API_KEY")
+    for v in (key, f"{key}_FILE")
+)
 
 # (agent, sample, outcome.status), as samples/README.md documents them.
 CASES = [
@@ -63,6 +68,7 @@ CASES = [
     ("advisor.policy", "policy-context.json", "succeeded"),
     ("advisor.repository", "repository-needs.json", "succeeded"),
     ("advisor.repository", "repository-mandated.json", "succeeded"),
+    ("advisor.repository", "repository-asked-about.json", "succeeded"),
     ("advisor.ethics", "ethics-context.json", "succeeded"),
     ("advisor.files", "soil-survey.inventory.json", "succeeded"),
     ("advisor.dmp", "dmp-commitments.json", "succeeded"),
@@ -80,7 +86,7 @@ class SmokeError(Exception):
     """A check that did not hold."""
 
 
-def check(condition: bool, message: str, detail: object = "") -> None:
+def check(condition: bool, message: str, detail: object = "") -> None:  # noqa: FBT001
     """Print `message` if `condition` holds; otherwise fail with `detail` appended."""
     if not condition:
         raise SmokeError(f"{message}\n{detail}" if detail else message)
@@ -200,7 +206,7 @@ def smoke(tmp: Path) -> None:
     with started([str(ROOT / "scripts" / "run-agents.sh")], env, agents_log):
         for url in urls:
             wait_for(f"{url}/.well-known/agent-card.json", agents_log)
-        check(True, f"{len(urls)} agent services answer")
+        print(f"ok    {len(urls)} agent services answer")
 
         listed = workbench(env, "agents", "--json")
         check(listed.returncode == 0, "`workbench agents` exits 0", listed.stderr)

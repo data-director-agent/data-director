@@ -133,7 +133,7 @@ requirements:
   - id: C5.1
     source: project
     parent: C5
-    title: The harness exposes an open API (A2A agent card and message send; AG-UI run and replay in the workbench); established metadata standards, exchange with repositories and a harmonised API between instances are not exercised (#24)
+    title: The harness exposes an open API (A2A agent card and message send; AG-UI run, its stages and checks' reports, replay and cancelling); established metadata standards, exchange with repositories and a harmonised API between instances are not exercised (#24)
   - id: C6
     source: blueprint
     title: Accessibility
@@ -179,7 +179,7 @@ requirements:
   - id: C13.5
     source: project
     parent: C13
-    title: An agent whose card declares a hosted model is given only the classes of project content the profile's hosted_models lists, inventory alone by default, and is otherwise refused before anything is sent; that the card declares every model the agent calls is not checked
+    title: An agent whose card declares a hosted model is given only the classes of project content the profile's hosted_models lists, inventory and decided facts by default, and is otherwise refused before anything is sent; that the card declares every model the agent calls is not checked
   - id: C14
     source: blueprint
     title: Explainability — human-readable explanations for recommendations and decisions
@@ -197,11 +197,19 @@ requirements:
   - id: C17
     source: blueprint
     title: Affordability
+  - id: C17.1
+    source: project
+    parent: C17
+    title: Each run's Process Run Crate records an estimated cost for each model call and for the run, from the prices in the profile's model_footprint; a call or run it cannot price has no figure, never zero; that the prices are current, cached-token pricing and spend limits are not exercised (#163)
 
   # --- Blueprint §6 principles the project carries a slot for -------------------------------
   - id: P14
     source: blueprint
     title: Low Impact — energy footprint captured in provenance records
+  - id: P14.1
+    source: project
+    parent: P14
+    title: Each run's envelope and Process Run Crate record an estimated energy figure for each model call and for the run, from the per-token factors in the profile's model_footprint, marked estimated, never measured; a run it cannot estimate stays not_measured; the factors' accuracy, compute other than model calls and a workflow total across delegations are not exercised (#480)
 
   # --- Project obligations (the contract itself) --------------------------------------------
   - id: DD-OUTCOME
@@ -234,6 +242,9 @@ requirements:
   - id: DD-DELEGATION
     source: project
     title: An orchestrator delegates only through the conductor; each child is a governed, stored invocation and the parent records it
+  - id: DD-TOOL-GATEWAY
+    source: project
+    title: A persona reaches MCP servers only through the harness's tool gateway, under the servers its card declares and the profile grants; the conductor records each structured record a tool returns, and the linter grounds a tool source on that record alone; that a server's records are true is not shown (docs/specs/agents.md, docs/specs/grounding.md)
   - id: DD-ENTRY-POINTS
     source: project
     title: The orchestrator finds which of the Blueprint's three entry points (§8.1) applies, and for each phase step from there names the agent that serves it or the requirement no agent serves yet; the steps are taken from the figure captions, not checked against the figures

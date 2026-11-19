@@ -1,0 +1,8 @@
+{
+  "name": "@data-director/duplication-tooling",
+  "private": true,
+  "description": "jscpd, pinned for scripts/check_duplication.py",
+  "devDependencies": {
+    "jscpd": "5.4.3"
+  }
+}

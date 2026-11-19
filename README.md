@@ -9,8 +9,6 @@ The Data Director is an agentic AI tool for research data stewardship. It helps 
 
 This is proposed _reference implementation_ for the [Data Director Agentic AI Blueprint](https://doi.org/10.15497/RDA00157) developed under the coordination of the [Research Data Alliance Data Director Working Group](https://www.rd-alliance.org/groups/data-director-agentic-ai-blueprint/activity/). The Blueprint followed an RDA community consultation, reported in [Global Community Priorities for Agentic AI in Research. Community Consultation Results](https://doi.org/10.15497/RDA00151).
 
-Related work: [RDA for Artificial Intelligence Cross-fertilisation Summary](https://doi.org/10.15497/RDA00160) (RDA Secretariat, 2026), and [The Research Data Director: A Persona-Based Agentic AI Blueprint and Application for FAIR Research Data, Metadata, and Schema and Crosswalk Workflows](https://doi.org/10.5281/zenodo.23670411) (Uzwyshyn, 2026), a companion persona-based blueprint.
-
 > [!NOTE]
 > Please read [the **documentation**](https://data-director-agent.github.io/data-director/):
 > - [**User Guide**](https://data-director-agent.github.io/data-director/user-guide/) is for researchers and data stewards using the Data Director app.
@@ -23,6 +21,11 @@ Related work: [RDA for Artificial Intelligence Cross-fertilisation Summary](http
 [![Towards a Data Director reference implementation — video](https://cdnapisec.kaltura.com/p/2103181/sp/210318100/thumbnail/entry_id/1_f0c1kkwg/width/640)](https://digitalmedia.sheffield.ac.uk/media/Towards+a+Data+Director+reference+implementation/1_f0c1kkwg)
 
 [Towards a Data Director reference implementation](https://digitalmedia.sheffield.ac.uk/media/Towards+a+Data+Director+reference+implementation/1_f0c1kkwg) is a recorded introduction to this project. It is also posted on the [RDA working group page](https://www.rd-alliance.org/groups/data-director-agentic-ai-blueprint/posts/towards-a-data-director-reference-implementation/).
+
+### Related work
+
+- [RDA for Artificial Intelligence Cross-fertilisation Summary](https://doi.org/10.15497/RDA00160) (RDA Secretariat, 2026)
+- [The Research Data Director: A Persona-Based Agentic AI Blueprint and Application for FAIR Research Data, Metadata, and Schema and Crosswalk Workflows](https://doi.org/10.5281/zenodo.23670411) (Uzwyshyn, 2026)
 
 ## Quick start
 
@@ -126,6 +129,41 @@ Compose network; runs and projects are kept in volumes. Model keys go in `config
 running locally. If a host port is taken, set `DD_APP_HOST_PORT`, `DD_WEB_HOST_PORT` or
 `DD_WORKBENCH_HOST_PORT` in the shell. Containers run as uid 1000. This stack is for development only;
 `deploy/` covers deployment.
+
+#### Keeping runs and projects in PostgreSQL
+
+The stack keeps runs and projects in files by default. To keep them in PostgreSQL, as a deployment
+with more than one instance does ([Storage](docs/specs/storage.md)), answer yes to the PostgreSQL
+question in `uv run scripts/dd.py setup`. It generates a password into
+`config/local/credentials/` (the database's, and a libpq password file, both readable only by you)
+and names the database in `config/local/app.env`. The locations carry no password and no host:
+libpq takes them from `PGHOST`, `PGPORT` and `PGPASSFILE`, which Compose sets for its containers.
+Then start the `postgres` profile, which adds the database and applies its schema before the app
+starts:
+
+```sh
+docker compose --profile postgres up --build                  # the stack, on PostgreSQL
+docker compose --profile postgres up -d db db-migrate         # only the database, for `dd.py start`
+```
+
+The database is published on `127.0.0.1:5432`. Set `DD_DB_HOST_PORT` in the shell if that port is
+taken, and `PGPORT` in `config/local/app.env` to match. Run the storage conformance kit against it
+from the host:
+
+```sh
+DD_TEST_POSTGRES=postgresql://dd@localhost:5432/dd PGPASSFILE=config/local/credentials/pgpass uv run pytest -m postgres harness/tests/test_postgres.py
+```
+
+Each test works in schemas of its own and drops them, so the app's data is left alone. To start
+again with an empty database, remove its volume (`docker compose down -v` would remove the file
+stores' volumes too):
+
+```sh
+docker compose --profile postgres down
+docker volume rm data-director_db-data
+```
+
+Answering no in `setup` puts the app back on files and keeps the password, which the volume needs.
 
 ### Settings in `config/local/`
 

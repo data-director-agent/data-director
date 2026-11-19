@@ -7,7 +7,7 @@ The repository advisor helps with Phase 3 of the Blueprint's process flow, repos
 
 | Step | What the agent does |
 |---|---|
-| `repository.recommend` (R1) | Shortlists repositories from the whole of re3data, or describes the ones mandated. |
+| `repository.recommend` (R1) | Shortlists repositories from the whole of re3data, or describes the ones mandated, and describes any the researcher asks about. |
 | `repository.pid` (R7) | Reports whether re3data lists a persistent identifier system the repository uses. |
 | `repository.access-and-costs` | Compares the access the data needs with what the repository offers, and reports listed fees. |
 | `repository.certification` | Reports the certificates re3data lists. They carry no weight in ranking. |
@@ -22,10 +22,18 @@ researcher chooses the repository (#199); the agent never does.
 ## Input and output
 
 `RepositoryNeeds` has the themes and kinds of data, the access decided in Phase 2 (`open`,
-`embargoed` or `restricted`), any mandated repositories, and the researcher's affiliation. With
-mandated repositories the agent describes them. With none, it shortlists (the two branches of
-Figure 3), and its statement says that a funder, journal or institution may still require a
-repository, since an empty list often means only that no policy source records one.
+`embargoed` or `restricted`), any mandated repositories, any repositories the researcher asked
+about, and the researcher's affiliation. With mandated repositories the agent describes them.
+With none, it shortlists (the two branches of Figure 3), and its statement says that a funder,
+journal or institution may still require a repository, since an empty list often means only
+that no policy source records one.
+
+`mandated` is only for a requirement: one a policy result found, or one the researcher says a
+funder, journal or institution imposes. A repository the researcher merely names or asks about
+("what about Zenodo?") goes in `asked_about` (#1167). It is described with the same `meets` and
+`misses`, with the basis `asked_about`, and listed before the shortlist rather than instead of
+it. If the shortlist also ranks it, it keeps its score and `ranked_by`. The app shows it as
+"You asked about this", never as "Mandated".
 
 `RepositoryOptions` holds one candidate per repository. A candidate names its records only in
 `grounded_on`: its re3data record, cited by the record's own DOI, and the FAIRsharing database
@@ -40,9 +48,9 @@ evidence `content` of those records ([Evidence and grounding](../../docs/specs/g
   certificates listed, and the deposit conditions FAIRsharing records;
 - `ranked_by`: for a recommended repository, why it is on the shortlist and in its place, one
   sentence per ranking signal, such as `Matches the theme "hydrology" (1 of 2 given).` Empty
-  for a mandated one.
+  for a mandated one, and for one asked about that the shortlist did not rank.
 
-Mandated names with no re3data record are listed in `not_found`.
+Mandated names, and names asked about, with no single re3data record are listed in `not_found`.
 
 ## How it decides
 
@@ -50,22 +58,39 @@ The pipeline is retrieve, assess, rank, explain. Retrieval comes first, and no m
 repository or makes a judgement:
 
 - **Search.** One query per theme and per kind of data over every repository in the registry
-  (BM25), where a hit must contain every word of the query, as re3data's own search requires. A
-  further query names the researcher's institution, and the generalist repositories listed in
-  `ranking.yaml` (Zenodo, figshare, Harvard Dataverse, Dryad, OSF and Mendeley Data) are taken by
-  identifier.
+  (BM25), where a hit must contain every word of the query, as re3data's own search requires.
+  Each theme is also matched to the DFG subjects it names (`dfg.py`), and the repositories re3data
+  files under them are retrieved too, so a repository whose record never uses the theme's word is
+  still found. A further query names the researcher's institution, and the generalist
+  repositories listed in `ranking.yaml` (Zenodo, Harvard Dataverse, OSF, Dryad, figshare and
+  Mendeley Data) are taken by identifier.
 - **Assessment** (`assess.py`). Fixed rules over registry fields. Where the records are silent
   the answer is `unstated`, never a guess. A commercial institution counts as an operator only
   when its responsibility is general or funding. A commercial technical supplier, such as
   Figshare for ORDA, is a note.
-- **Ranking** (`ranking.yaml`). The discipline is judged from the themes alone: a repository
-  scores by the share of the themes it matches. The kinds of data add a little, never enough to
+- **Ranking** (`ranking.yaml`). The discipline is judged from the themes alone. Each theme is
+  graded from 0 to 1, half on the text (a hit's BM25 score relative to the best hit for that
+  theme) and half on the DFG subject: full marks for a repository filed under the subject the
+  theme names, less for one filed only under the subject just above it or two levels above, and
+  nothing for the top level (Natural Sciences, say). A theme that names no DFG subject, such as
+  "moorland", is graded on its text alone, as is a record that lists no subjects. A theme names
+  a subject when every word of the theme is in one field of the subject's name, and the closest
+  such subjects are kept: "hydrology" names `34601 Hydrogeology, Hydrology, ...`, and "fluid
+  dynamics" names none. A repository scores by the mean of its theme grades. The kinds of data
+  add a little, never enough to
   recommend a repository on their own, since a kind of data such as "images" is found in
   repositories of every discipline. A generalist scores below a repository that matches every
   theme (Figure 3's "domain-specific or generalist"); when no repository of the discipline is
   found, the statement says that only generalist and institutional repositories are offered and
   suggests the broad field of study, since a narrow topic such as "moorland" may match none.
-  Ranking also uses whether the repository offers the access the data needs.
+  Ranking also uses whether the repository offers the access the data needs, and whether an
+  institution in the researcher's country operates it: a small weight that puts such a
+  repository above an equal or slightly closer match elsewhere, and never adds one on its own
+  (#741). The country is `country` when given, else the one re3data records for the
+  affiliation's institution, so no country, funder or repository is written into the rules.
+  Search folds English plurals to singulars (`-ies` to `-y`, a final `s` dropped except after
+  `s`, `u` or `i`) in queries and records alike, so the theme "environmental science" finds a
+  record that says only "sciences".
 - **The researcher's institution** is a fallback, in case no more specific destination (a
   repository of the discipline, or one a funder, journal or project requires) suits the data
   (#441). Affiliation adds no score. The shortlist is ordered by kind of fit (`order`): the
@@ -78,21 +103,30 @@ repository or makes a judgement:
   operates it. The researcher's own institutional repository is offered beyond the cap, unless
   it lacks the access the data needs, and takes no other repository's place, so naming an
   institution adds to the shortlist and removes nothing.
-- **Order at an equal score.** A commercial operator is listed after the others, and then a
-  repository that lists a deposit fee; neither is dropped. Certification carries no weight,
-  because Figure 3 says paid certification must not outweigh free evaluation.
+- **Reserved places** (`reserve`). Within the cap, a place is kept for at least one generalist
+  whenever one qualifies, so a broad theme that finds five repositories of the discipline cannot
+  crowd every generalist out, and a researcher who does not know where to deposit always has a
+  usable option (#1169). A generalist listed only because of its place says so in `ranked_by`.
+- **Order at an equal score** (`tie_break`). A commercial operator is listed after the others,
+  and then a repository that lists a deposit fee, and then one that assigns no persistent
+  identifiers; none is dropped. re3data does not tell some generalists apart (Zenodo, Harvard
+  Dataverse and OSF answer all three alike), so the order of `generalists` is a stated
+  preference that settles them, never the alphabet. Repositories of the same kind of fit and
+  score each say in `ranked_by` that they are ranked equal, and by which rule. Certification
+  carries no weight, because Figure 3 says paid certification must not outweigh free
+  evaluation.
 - **Credit.** Every statement ends by crediting re3data and naming the export it read.
-- **Explanation.** The template is the default. With `DD_REPOSITORY_EXPLAINER=anthropic`, a model
-  writes the rationale only, from `system_prompt.md`, and is sent registry text and the needs,
-  never research data.
+- **Explanation.** By default a model writes the rationale; `DD_REPOSITORY_EXPLAINER=template`
+  writes it from a template and needs no key. The model writes the rationale only, from
+  `system_prompt.md`, and is sent registry text and the needs, never research data.
 
 ## Configuration
 
 - `DD_REPOSITORY_RETRIEVAL`: how FAIRsharing's database records are read: `snapshot` (the
   default) or `live`. The live route is public and needs no account; when it fails the agent falls
   back to the snapshot, marked stale. re3data is always read from the pinned registry.
-- `DD_REPOSITORY_EXPLAINER`: `template` (the default) or `anthropic`, with `DD_MODEL_ID` and the
-  key as for the standards advisor ([Policy and identity](../../docs/specs/policy-and-identity.md)).
+- `DD_REPOSITORY_EXPLAINER`: `model` (the default) or `template`, which needs no key, with the provider, model and
+  key as for the standards advisor ([AI models](../../docs/guide/operations/ai-models.md)) ([Policy and identity](../../docs/specs/policy-and-identity.md)).
 
 ## Sources
 
@@ -104,7 +138,7 @@ command that builds every agent's sources builds it:
 ```sh
 uv run dd-sources prepare         # build registry.jsonl (and any other built source) as pinned
 uv run dd-sources check           # does each built source match its pin?
-uv run dd-re3data fetch           # build registry.jsonl alone
+uv run dd-re3data fetch           # build registry.jsonl alone; also runs the `re3data` tests
 uv run dd-re3data fetch --update-pin [--month YYYY-MM]   # pin another month's export
 uv run scripts/pin_re3data.py     # then pin both sources.yaml files to it
 ```
@@ -157,5 +191,3 @@ from the export (`tests/data/SOURCE.md`), so they need no network.
   types (`dataset`, `image`), so a kind of data matches only the words re3data uses.
 - The metadata standards each repository lists are in the evidence, but the chosen repository
   does not yet shape Phase 4. TODO(#321)
-- The FAIRsharing client is a copy of the standards advisor's, since an agent may not import
-  another ([System and boundaries](../../docs/specs/system.md)). TODO(#280)

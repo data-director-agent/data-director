@@ -17,10 +17,10 @@ from re3data_fixture import FIXTURE, build_fixture, session_registry
 
 from dd_agent_advisor_repository import assess, factory, registry
 from dd_agent_advisor_repository.classes import Affiliation, Answer
-from dd_agent_advisor_repository.explain import AnthropicExplainer, TemplateExplainer
+from dd_agent_advisor_repository.explain import ModelExplainer, TemplateExplainer
 from dd_agent_advisor_repository.live import FairsharingLive
 from dd_agent_advisor_repository.records import from_fairsharing_json, from_re3data_xml
-from dd_agent_advisor_repository.retrieve import Query, RegistryUnavailable, find_by_name
+from dd_agent_advisor_repository.retrieve import find_by_name
 from dd_agent_advisor_repository.snapshot import (
     FAIRSHARING_SNAPSHOT,
     FairsharingSnapshot,
@@ -28,6 +28,7 @@ from dd_agent_advisor_repository.snapshot import (
 )
 from dd_sdk.credentials import ConfigError
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, content_hash
+from dd_sdk.registry import Query, RegistryUnavailable
 from dd_sdk.sources import SourceBuildError, discover
 
 DATA = Path(__file__).with_name("data")
@@ -324,15 +325,23 @@ def test_downloads_name_the_project_not_a_person() -> None:
 # --- the factory ------------------------------------------------------------------------------
 
 
-def test_the_factory_reads_the_pinned_registry_and_defaults_to_a_template() -> None:
-    agent = factory.build({})
+def test_the_factory_reads_the_pinned_registry_and_runs_the_template_when_set_to_it() -> None:
+    agent = factory.build({factory.SWITCH: "template"})
     assert isinstance(agent.repositories, Re3dataRegistry)
     assert isinstance(agent.explainer, TemplateExplainer)
     assert agent.spec.models == ()
 
 
+def test_the_model_explainer_is_on_by_default_and_says_how_to_run_without_it() -> None:
+    with pytest.raises(ConfigError, match=f"{factory.SWITCH}=template"):
+        factory.build({})
+    agent = factory.build({"ANTHROPIC_API_KEY": "sk-test"})
+    assert isinstance(agent.explainer, ModelExplainer)
+    assert agent.spec.models
+
+
 def test_live_retrieval_asks_fairsharing_and_keeps_its_snapshot_as_fallback() -> None:
-    agent = factory.build({"DD_REPOSITORY_RETRIEVAL": "live"})
+    agent = factory.build({"DD_REPOSITORY_RETRIEVAL": "live", factory.SWITCH: "template"})
     assert isinstance(agent.repositories, Re3dataRegistry)
     assert isinstance(agent.databases, FairsharingLive)
     assert isinstance(agent.databases_fallback, FairsharingSnapshot)
@@ -340,7 +349,7 @@ def test_live_retrieval_asks_fairsharing_and_keeps_its_snapshot_as_fallback() ->
 
 def test_the_model_explainer_is_declared_on_the_spec() -> None:
     agent = factory.build({"DD_REPOSITORY_EXPLAINER": "anthropic", "ANTHROPIC_API_KEY": "sk-test"})
-    assert isinstance(agent.explainer, AnthropicExplainer)
+    assert isinstance(agent.explainer, ModelExplainer)
     assert [m.provider for m in agent.spec.models] == ["anthropic"]
 
 
@@ -375,3 +384,61 @@ def test_preparing_the_source_fetches_into_the_cache_it_is_given(
     monkeypatch.setattr(registry, "fetch", refuse)
     with pytest.raises(SourceBuildError, match="re3data: the export is not the pinned one"):
         registry.SOURCE.prepare(None)
+
+
+def test_the_fairsharing_snapshot_holds_every_record_the_fixture_cites() -> None:
+    """Which FAIRsharing records the snapshot holds is a rule, not a hand-kept list
+    (`scripts/build_fairsharing_snapshot.py --cited-by`): those the fixture's repositories cite,
+    compared ignoring case."""
+    cited = {r.fairsharing_id.casefold() for r in registry.records(FIXTURE) if r.fairsharing_id}
+    held = {fid.casefold() for fid in FairsharingSnapshot().records}
+    assert cited <= held, sorted(cited - held)
+
+
+def test_a_fairsharing_record_is_found_by_its_identifier_in_any_case(tmp_path: Path) -> None:
+    line = dict(json.loads(FAIRSHARING_SNAPSHOT.read_text(encoding="utf-8").splitlines()[0]))
+    line.update(fairsharing_id="FAIRsharing.AbC123", doi="10.25504/FAIRsharing.AbC123")
+    path = tmp_path / "snapshot.jsonl"
+    path.write_text(json.dumps(line) + "\n", encoding="utf-8")
+    snapshot = FairsharingSnapshot(path)
+    for cited in ("FAIRsharing.AbC123", "FAIRsharing.abc123", "fairsharing.ABC123"):
+        found = snapshot.fetch(cited)
+        assert found is not None and found.fairsharing_id == "FAIRsharing.AbC123", cited
+    assert snapshot.fetch("FAIRsharing.abc124") is None
+
+
+@pytest.mark.parametrize(
+    ("settings", "declared"),
+    [
+        (
+            {"DD_MODEL_PROVIDER": "openai", "DD_MODEL_ID": "m-1", "OPENAI_API_KEY": "k"},
+            ("openai", "m-1", "hosted"),
+        ),
+        (
+            {
+                "DD_MODEL_PROVIDER": "openai-compatible",
+                "DD_MODEL_ID": "llama",
+                "DD_MODEL_BASE_URL": "http://localhost:11434/v1",
+            },
+            ("localhost:11434", "llama", "local"),
+        ),
+    ],
+)
+def test_the_model_can_come_from_another_provider(
+    settings: dict[str, str], declared: tuple[str, str, str]
+) -> None:
+    pytest.importorskip("openai")
+    agent = factory.build({"DD_REPOSITORY_EXPLAINER": "model", **settings})
+    assert [(m.provider, m.model, m.hosting) for m in agent.spec.models] == [declared]
+
+
+def test_the_older_anthropic_setting_names_only_anthropic() -> None:
+    with pytest.raises(ConfigError):
+        factory.build(
+            {
+                "DD_REPOSITORY_EXPLAINER": "anthropic",
+                "DD_MODEL_PROVIDER": "openai",
+                "DD_MODEL_ID": "m-1",
+                "OPENAI_API_KEY": "k",
+            }
+        )

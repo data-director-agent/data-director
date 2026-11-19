@@ -1,16 +1,17 @@
 # advisor.documentation
 
-**Alpha** (`0.2.0a1`): the Documentation Editor persona of the agent roster
+**Alpha** (`0.3.0a1`): the Documentation Editor persona of the agent roster
 (docs/specs/agents.md), and the drafter of a project's README and data dictionary
 ([Drafting documents](../../docs/specs/drafting.md)). It is likely to change shape.
 
-The Documentation Editor drafts a README and a data dictionary for a dataset (Blueprint R5). It
-serves two steps of the process flow:
+The Documentation Editor drafts a README and a data dictionary for a dataset (Blueprint R5), from
+the project's file inventory and approved metadata record. It serves one step of the process flow,
+`preparation.documentation`.
 
-| Step | What it does |
-|---|---|
-| `setup.documentation` | Drafts a README or a data dictionary from the project's file inventory and approved metadata record. |
-| `preparation.documentation` | The same, for documentation drafted or reviewed while preparing the deposit. |
+It does not serve the Phase 1 step `setup.documentation`, planning the documentation before data
+are collected: a project has a file inventory only once its data exist, so the editor would have
+nothing to draft from. That step has no agent yet; a planning mode that needs no inventory is
+#1017.
 
 ## Input and output
 
@@ -19,24 +20,30 @@ documents ([Projects](../../docs/specs/projects.md)). A request names the `docum
 
 - `readme`: a Markdown README with the sections of `readme.yaml`. Each section shows, in italics,
   what the researcher should write in it. The **Files** section lists the inventory's files with
-  their formats and sizes. **Variables** lists each table's fields with their types. **Access and
-  licence** lists the licences the chosen repository offers, if its requirements name any.
+  their formats and sizes. **Variables** does not repeat the tables' fields: it asks the
+  researcher to point to the data dictionary, which describes them, and to give any abbreviations
+  or conventions shared across the tables. **Access and licence** lists the licences the chosen
+  repository offers, if its requirements name any.
 
   When the request carries the project's approved metadata record (`metadata_record`, which the
   conductor fills in a project), the README takes from it, as given: the title, as the README's
-  heading and in **General information** with the creators and funders; the abstract, as the
-  **Description**; the licence, in **Access and licence**; and a citation by the creators, the
-  publication year if there is one, and the title, in **How to cite**. These are `supplied`
+  heading and in **General information** with the creators, the dates of data collection (its
+  `dates` of type `Collected`), the geographic location (`geoLocationPlace`) and the funders; the
+  abstract, as the **Description**; the licence, in **Access and licence**; and a citation by the
+  creators, the publication year if there is one, and the title, in **How to cite**. These are `supplied`
   ([Drafting documents](../../docs/specs/drafting.md), invariant 2). The abstract says all the
   Description asks, so that section then has no gap; the others keep theirs for what the record
-  does not say, such as a contact, the dates of collection or the DOI. The editor reads a record
-  in DataCite's JSON form (`conforms_to` `http://datacite.org/schema/kernel-4`), as
+  does not say, such as a part the record leaves empty or the DOI. The editor reads a record in
+  DataCite's JSON form (`conforms_to` `http://datacite.org/schema/kernel-4`), as
   `advisor.metadata` drafts it, and skips any value left `null` or blank. It does not use a record
   in any other form, and says so in its statement. With no record, it drafts from the inventory
   alone and says so.
 
-  When a model is configured (below), it also writes the README's prose: an overview under the
-  title, and a short paragraph for each section that has facts to draft from, introducing them.
+  When a model is configured, as it is by default (below), it also writes the README's prose: an
+  overview under the title, and a short paragraph for each section that has facts to draft from,
+  introducing them. It also suggests answers to the questions of the Files, Variables, Access and
+  licence and Software requirements sections, beside the questions
+  ([Suggested answers](#suggested-answers)).
 - `data_dictionary`: a CSV with one row per field of each table in the inventory, keyed by `file`
   and `field`. Each of the values `type`, `format`, `description`, `unit` and `missing_values` is
   followed by a column saying where it came from (`type_source`, …), so that a person can check
@@ -53,8 +60,14 @@ documents ([Projects](../../docs/specs/projects.md)). A request names the `docum
 
 Every gap is asked ([Drafting documents](../../docs/specs/drafting.md)). The `Document` carries
 one question in `document_questions` for each README section left for the researcher and each
-`unknown` cell. In the README, each placeholder is followed by `<!-- dd:gap <question-id> -->`,
-which the rendered README does not show. A question's identifier is derived from its gap, so the
+`unknown` cell. A section that asks several separate things lists them as `parts` in
+`readme.yaml`, and each part is its own gap and question (`gap_part`), placed as a
+`- **<part>:**` line: **General information** asks the title, creators, dates of
+collection, location and funding separately, and does not ask any of them when the record gives
+it. It asks for the creators by name, and which of them answers questions about the data; their
+ORCID iDs, affiliations and email addresses belong to the metadata record, not the README. In the
+README, each placeholder is followed by `<!-- dd:gap <question-id> -->`, which the rendered
+README does not show. A question's identifier is derived from its gap, so the
 same gap has the same identifier in every version. An answer in the request's `draft_answers` is
 placed, as given, in the gap or cell it answers, marked `supplied` in a data dictionary, and that
 gap is not asked again. In a project, the researcher answers the questions on the draft's card in
@@ -92,6 +105,10 @@ draft.
   the metadata record's title, creators, funders, abstract, licence and publication year, and the
   chosen repository's name and licences. It is never given the data, a field's description, the
   researcher's answers or an earlier version.
+- **How it replies.** The model's reply is constrained to a schema (`ProseReply` in `prose.py`):
+  an `overview` and a list of `sections`, each a heading and a paragraph, any of them null. The
+  provider holds the model to it; a reply from an endpoint that does not, and that does not match
+  once a Markdown fence around it is removed, is not used.
 - **What is checked.** Each paragraph is used only if it is plain prose (no headings, lists,
   tables or HTML) of at most 1,200 characters, and every number, link, DOI, email address,
   ORCID iD and code-formatted name in it occurs in the facts as given. A paragraph that fails is
@@ -99,14 +116,26 @@ draft.
   The check catches a made-up identifier or count, not a misleading sentence built from true
   facts, so a person still reads the prose before approving it.
 - **How a version is marked.** `document_derivation` is `model` when the version has any prose a
-  model wrote, and `template` when no model is configured, the model declined, its reply was not
-  JSON or none of its paragraphs was used (docs/specs/drafting.md, "Disclosure is per version").
-  The call is recorded with the run: the model, the tokens and the prompt by digest
+  model wrote, and `template` when no model is configured, the model declined, its reply did not
+  match its schema or none of its paragraphs was used (docs/specs/drafting.md, "Disclosure is per
+  version"). The call is recorded with the run: the model, the tokens and the prompt by digest
   (docs/specs/disclosure.md).
 
 ## Suggested answers
 
-When a model is configured, it suggests answers to a data dictionary's questions about a field's
+When a model is configured, it suggests answers to some of a draft's questions, replying against a
+schema (`SuggestionReply` in `prose.py`). For a README, it suggests an answer to the question of
+each section `readme.yaml` marks `suggest`: **Files** (how the files relate, from their paths,
+formats and fields), **Variables** (a pointer to the data dictionary, and naming conventions plain
+from the field names), **Software requirements** (what opens the formats) and **Access and
+licence** (a licence from the record or the repository's list, as the researcher's choice), with
+`suggest_readme_prompt.md`. It never suggests the methods, a part of **General information** or
+the citation: only the researcher can give them. A README suggestion is checked as the prose is
+(above), at most 600 characters, and is offered beside the question; the README's text is the
+same with or without it. The README then makes two calls, one for the prose and one for the
+suggestions, both recorded with the run and their tokens summed.
+
+For a data dictionary, it suggests answers to the questions about a field's
 definition (`description`) or `unit`, such as that `age_yrs` is the participant's age in years
 (`prose.py`, `suggest`, prompted by `suggest_prompt.md`). A suggestion is a question's
 `suggested_answer`, with `suggestion_derivation` `model`, and is never placed in the CSV: the
@@ -130,15 +159,21 @@ drafted again (`tests/test_suggestions.py`; docs/specs/drafting.md, invariant 7)
 
 | Variable | Meaning |
 |---|---|
-| `DD_DOCUMENTATION_WRITER` | `template` (default): no prose, no suggestions and no key; `anthropic`: Claude writes the prose and suggests definitions and units. |
-| `DD_MODEL_ID` | The model the Anthropic writer calls. |
-| `ANTHROPIC_API_KEY` or `ANTHROPIC_API_KEY_FILE` | The Anthropic writer's key. |
+| `DD_DOCUMENTATION_WRITER` | `model` (default): a model writes the prose and suggests answers; `template`: no prose, no suggestions and no key. `anthropic`, the older value, still works. Unset with no key, the agent stops at start-up and says to set `template`; `dd.py start` sets it for you. |
+| `DD_MODEL_PROVIDER` | `anthropic` (default), `openai`, `gemini` or `openai-compatible` ([AI models](../../docs/guide/operations/ai-models.md#choose-a-provider)). |
+| `DD_MODEL_ID` | The model the writer calls; Claude Sonnet 5.5 by default with Anthropic, required with any other provider. |
+| `DD_MODEL_BASE_URL` | The endpoint, with `openai-compatible` only. |
+| The provider's key, such as `ANTHROPIC_API_KEY` or `ANTHROPIC_API_KEY_FILE` | The writer's key, unless it calls through the model broker or a local endpoint that needs none. |
+| `DD_MODEL_BROKER_URL` | The [model broker](../../docs/guide/operations/model-broker.md), if the writer calls through it in place of the provider. |
+| `DD_MODEL_BROKER_CREDENTIAL` or `DD_MODEL_BROKER_CREDENTIAL_FILE` | The agent's own broker credential, with `DD_MODEL_BROKER_URL`. |
 
-The Anthropic writer needs the package's `anthropic` extra. With it, the agent's card declares a
-`hosted` model, so in a project it runs only where the profile's `hosted_models` lists
+The model writer needs the package's `model` extra. Tests build the editor with
+`agent.build()`, which is the template path, or with a `dd_sdk.testing.FakeModel`, so CI needs no
+key. With a hosted model, the agent's card declares
+it `hosted`, so in a project it runs only where the profile's `hosted_models` lists
 `documentation` (docs/specs/projects.md, invariant 8): it is given the approved metadata record
 and people's answers. The shipped profiles list it. The CI evaluation runs the template path
-(TODO(#576)).
+([The Documentation Editor evaluation](src/dd_agent_advisor_documentation/evals/README.md)).
 
 ## What it does not do
 
@@ -146,7 +181,8 @@ and people's answers. The shipped profiles list it. The CI evaluation runs the t
   methods among it, is left to the researcher as a marked gap.
 - It does not open the files, so it says nothing about their contents beyond what the inventory
   records.
-- It infers no variable definitions, units or missing value codes. A model's suggested definition
-  or unit is only offered, and it suggests no missing value codes or README sections.
+- It infers no variable definitions, units or missing value codes. A model's suggested definition,
+  unit or README answer is only offered, and it suggests no missing value codes, methods, people,
+  dates, places or citation.
 - It does not read an earlier README, or the reason a person gave for a decision on a version.
 - It follows no data dictionary standard, such as CDIF's variable descriptions (#220).

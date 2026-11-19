@@ -1,6 +1,7 @@
 # Development images for compose.yaml. They hold only the toolchains: the source is bind-mounted
 # and dependencies are installed at start-up into named volumes, so edits show up without a rebuild.
 # Both run as uid 1000, so files written into the bind mount belong to the usual first host user.
+# The production image, which holds the source and its dependencies, is docker/release.Dockerfile.
 
 FROM ghcr.io/astral-sh/uv:python3.14-bookworm-slim@sha256:7cf77f594be8042dab6daa9fe326f90962252268b4f120a7f5dccce4d947e6c1 AS python
 # The run and project stores are named volumes, which take their owner from these directories when

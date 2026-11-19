@@ -7,6 +7,12 @@
       "InventoryFile": {
          "@id": "https://w3id.org/data-director/InventoryFile"
       },
+      "InventoryPart": {
+         "@id": "https://w3id.org/data-director/InventoryPart"
+      },
+      "PersonalDataFinding": {
+         "@id": "https://w3id.org/data-director/PersonalDataFinding"
+      },
       "TableField": {
          "@id": "https://w3id.org/data-director/TableField"
       },
@@ -21,6 +27,9 @@
       },
       "field_type": {
          "@id": "https://w3id.org/data-director/field_type"
+      },
+      "file_description": {
+         "@id": "http://purl.org/dc/terms/description"
       },
       "file_fields": {
          "@id": "https://w3id.org/data-director/file_fields",
@@ -38,11 +47,38 @@
       "file_pronom_ids": {
          "@id": "https://w3id.org/data-director/file_pronom_ids"
       },
+      "file_role": {
+         "@id": "https://w3id.org/data-director/file_role"
+      },
       "file_sha256": {
          "@id": "http://spdx.org/rdf/terms#checksumValue"
       },
       "file_size": {
          "@id": "http://www.w3.org/ns/dcat#byteSize"
+      },
+      "finding_column": {
+         "@id": "https://w3id.org/data-director/finding_column"
+      },
+      "finding_confidence": {
+         "@id": "https://w3id.org/data-director/finding_confidence"
+      },
+      "finding_detector": {
+         "@id": "https://w3id.org/data-director/finding_detector"
+      },
+      "finding_examined": {
+         "@id": "https://w3id.org/data-director/finding_examined"
+      },
+      "finding_file": {
+         "@id": "https://w3id.org/data-director/finding_file"
+      },
+      "finding_kind": {
+         "@id": "https://w3id.org/data-director/finding_kind"
+      },
+      "finding_proportion": {
+         "@id": "https://w3id.org/data-director/finding_proportion"
+      },
+      "finding_target": {
+         "@id": "https://w3id.org/data-director/finding_target"
       },
       "inventory_files": {
          "@id": "https://w3id.org/data-director/inventory_files",
@@ -58,6 +94,14 @@
          "@id": "http://www.w3.org/ns/prov#generatedAtTime",
          "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
       },
+      "inventory_parts": {
+         "@id": "https://w3id.org/data-director/inventory_parts",
+         "@type": "@id"
+      },
+      "inventory_personal_data": {
+         "@id": "https://w3id.org/data-director/inventory_personal_data",
+         "@type": "@id"
+      },
       "inventory_tool": {
          "@id": "http://www.w3.org/ns/prov#wasGeneratedBy"
       },
@@ -67,6 +111,29 @@
       "linkml": "https://w3id.org/linkml/",
       "name": {
          "@id": "https://w3id.org/data-director/name"
+      },
+      "part_folder": {
+         "@id": "https://w3id.org/data-director/part_folder"
+      },
+      "part_identified_with": {
+         "@id": "https://w3id.org/data-director/part_identified_with"
+      },
+      "part_limitations": {
+         "@id": "https://w3id.org/data-director/part_limitations"
+      },
+      "part_made_at": {
+         "@id": "http://www.w3.org/ns/prov#generatedAtTime",
+         "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+      },
+      "part_personal_data": {
+         "@id": "https://w3id.org/data-director/part_personal_data",
+         "@type": "@id"
+      },
+      "part_tool": {
+         "@id": "http://www.w3.org/ns/prov#wasGeneratedBy"
+      },
+      "part_tool_version": {
+         "@id": "https://w3id.org/data-director/part_tool_version"
       },
       "prov": "http://www.w3.org/ns/prov#",
       "schema": "http://schema.org/",

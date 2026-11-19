@@ -1,5 +1,5 @@
 // Chat: hold a conversation with one agent, a turn at a time. ?conversation_id=… reopens one.
-import { $, el, icon, statusIcon, uuid7, rememberInput, copyButton, fmtTime, shortId, statusPill, kvList, inspectLink, newRequest, postRun } from "./common.js";
+import { $, el, icon, statusIcon, uuid7, rememberInput, copyButton, fmtTime, shortId, statusPill, kvList, inspectLink, newRequest, postRun, getJson } from "./common.js";
 import { help } from "./help.js";
 import { agents, classSchema, loadRegistry, renderAgents, renderAgentDetail, renderClasses, renderSamples, fetchSample } from "./registry.js";
 import { inputForm } from "./inputform.js";
@@ -87,16 +87,21 @@ function envelopeCard(env, children = [], delegated = false) {
   }
   return card;
 }
-// A reply's choice question, read-only: the app shows it as choices, the workbench as a list with
-// each option's value, which a typed reply may name.
+// A reply's questions, read-only: the app puts them one at a time as form fields, the workbench
+// lists them, each with its key and kind and a choice question's option values.
+const QUESTION_KINDS = { short_text: "answer in a line", long_text: "answer in a few sentences" };
 function questionOf(payload) {
-  const q = payload?.schema_class === "Reply" ? payload.reply_question : null;
-  if (!q) return null;
-  const kind = q.question_multiple ? "choose one or more" : "choose one";
-  return el("div", { className: "reply-question" },
-    el("p", { textContent: `${q.question_prompt} (${kind}${q.question_other ? ", or answer in words" : ""})` }),
-    el("ul", {}, ...q.question_options.map((opt) => el("li", {},
-      `${opt.option_label} `, el("code", { textContent: opt.option_value, title: "option_value" })))));
+  const questions = payload?.schema_class === "Reply" ? payload.reply_questions ?? [] : [];
+  if (questions.length === 0) return null;
+  return el("ol", { className: "reply-question" }, ...questions.map((q) => {
+    const kind = q.question_kind === "choice"
+      ? `${q.question_multiple ? "choose one or more" : "choose one"}${q.question_other ? ", or answer in words" : ""}`
+      : QUESTION_KINDS[q.question_kind] ?? q.question_kind;
+    return el("li", {},
+      el("p", {}, `${q.question_prompt} (${kind}) `, el("code", { textContent: q.question_key, title: "question_key" })),
+      ...(q.question_options?.length ? [el("ul", {}, ...q.question_options.map((opt) => el("li", {},
+        `${opt.option_label} `, el("code", { textContent: opt.option_value, title: "option_value" }))))] : []));
+  }));
 }
 // The payload's top-level scalar fields; the full render is one click away in Inspect.
 function payloadSummary(payload) {
@@ -174,7 +179,7 @@ async function send() {
   }
 }
 async function loadConversations() {
-  const items = await (await fetch("/conversations")).json();
+  const items = await getJson("/conversations");
   const list = $("conversations"); list.replaceChildren();
   if (!items.length) list.append(el("li", { className: "muted", textContent: "None yet." }));
   for (const c of items) {

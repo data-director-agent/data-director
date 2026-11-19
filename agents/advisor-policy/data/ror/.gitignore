@@ -1,0 +1,4 @@
+# Built by `uv run dd-ror fetch` from the pinned dump (manifest.json); not committed.
+registry.jsonl
+*.part
+archives/

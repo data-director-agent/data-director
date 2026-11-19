@@ -22,9 +22,11 @@ Skills. Every lookup is therefore a child run that the harness governs, stores a
 If the orchestrator needs to know something new, such as a registry, a funder's policy or a PID
 service, write or extend an agent that serves the step and let the orchestrator delegate to it.
 An agent may use an MCP server itself. Do not give the orchestrator the tool.
-`tests/test_orchestrator_only_delegates.py` fails, in CI, if the Messages API request carries
-anything but delegation tools, or if the package gains a dependency or an import beyond
-`dd_sdk`, `anthropic` and the standard library.
+`tests/test_orchestrator_only_delegates.py` fails, in CI, if the request to the model carries
+anything but delegation tools, through Claude's adapter or the OpenAI-compatible one, or if the
+package gains a dependency or an import beyond `dd_sdk` and the standard library. The model is
+called through the SDK's model seam (`dd_sdk.model`), whose tool calls are the same for every
+provider.
 
 The system prompt (`system_prompt.md`) holds the model to the same limit. It keeps apart four
 kinds of knowledge:
@@ -95,12 +97,16 @@ Read at start-up by `factory.build`. A bad value stops the service with one line
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `ANTHROPIC_API_KEY` / `ANTHROPIC_API_KEY_FILE` | none: required | The model key, which only this process holds. |
-| `DD_MODEL_ID` | `claude-sonnet-5-5` | The model it calls. |
-| `DD_ORCHESTRATOR_EFFORT` | `high` | `low`, `medium`, `high`, `xhigh` or `max`. |
+| `DD_MODEL_PROVIDER` | `anthropic` | `anthropic`, `openai`, `gemini` or `openai-compatible` ([Choose a provider](../../docs/guide/operations/ai-models.md#choose-a-provider)). The model must support tool calling. |
+| `DD_MODEL_BASE_URL` | unset | The endpoint, for `openai-compatible` only. |
+| `ANTHROPIC_API_KEY` / `ANTHROPIC_API_KEY_FILE` | none: required without the broker | The model key, which only this process holds. Another provider's key has its own variable, such as `OPENAI_API_KEY`; a local endpoint may need none. |
+| `DD_MODEL_BROKER_URL` | unset | The [model broker](../../docs/guide/operations/model-broker.md), if the agent calls through it in place of the provider. It then holds no provider key. |
+| `DD_MODEL_BROKER_CREDENTIAL` / `DD_MODEL_BROKER_CREDENTIAL_FILE` | none: required with the broker | The agent's own broker credential. |
+| `DD_MODEL_ID` | `claude-sonnet-5-5` with Anthropic; required otherwise | The model it calls. |
+| `DD_ORCHESTRATOR_EFFORT` | `high` with Anthropic; none otherwise | `low`, `medium`, `high`, `xhigh` or `max` for Claude; `low`, `medium` or `high` for any other provider. |
 | `DD_ORCHESTRATOR_HISTORY` | `20` | Earlier turns sent to the model. `0` sends only the current message. |
 | `DD_ORCHESTRATOR_MAX_DELEGATIONS` | `4` | Tool calls allowed in one turn. |
-| `DD_TITLE_MODEL_ID` | `claude-haiku-5-5` | The model that titles a conversation on its first turn. |
+| `DD_TITLE_MODEL_ID` | `claude-haiku-5-5` with Anthropic; `DD_MODEL_ID` otherwise | The model, from the same provider, that titles a conversation on its first turn. |
 | `DD_TITLE_MODEL` | unset | `none` makes no title call; the conversation is named by its first message. |
 
 In development these go in `config/local/agents/orchestrator-model.env` (`config/examples/agents/orchestrator-model.env`), with the key in `config/local/credentials/`.
@@ -113,7 +119,8 @@ The orchestrator defaults to a mid-sized model, which balances the quality of it
 the cost and latency of each turn. Two consequences follow:
 
 - **Capability.** A smaller model may route ambiguous requests less reliably, and a larger one
-  costs more. Set `DD_MODEL_ID` to suit.
+  costs more. Set `DD_MODEL_ID` to suit. A model on another provider, a local one especially,
+  must call tools reliably to delegate at all; which combinations have been checked is #833.
 - **Data retention.** Some models require the provider to retain data, and are not available to
   an organisation under zero data retention, which gets an error on every turn. Check the
   chosen model against the institution's agreement.

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import getpass
 import re
+import secrets
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -12,11 +13,13 @@ from urllib.parse import urlsplit
 from ddtool import paths
 from ddtool.common import (
     EXAMPLE_PRINCIPAL,
+    MODEL_BY_DEFAULT,
     DevError,
     ensure_local_tree,
     prepare_sources,
     prepare_web,
     read_env,
+    remove_env,
     run,
     shown,
     tool_problems,
@@ -33,6 +36,17 @@ FAIRSHARING_AGENTS = (
     ("advisor-standards", "DD_STANDARDS_RETRIEVAL"),
     ("advisor-policy", "DD_POLICY_RETRIEVAL"),
 )
+# The database of Docker Compose's `postgres` profile (compose.yaml). Its locations name no host:
+# libpq takes the host, the port and the password file from PGHOST, PGPORT and PGPASSFILE, which
+# Compose sets for its containers and app.env for `dd.py start` (docs/specs/storage.md).
+DB_USER = "dd"
+DB_NAME = "dd"
+DB_LOCATION = f"postgresql://{DB_USER}@/{DB_NAME}"
+DB_PASSWORD = "postgres-password"  # read by the `db` service (POSTGRES_PASSWORD_FILE)
+DB_PASSFILE = "pgpass"  # read by libpq in the app, the workbench and `db-migrate`
+DB_HOST_PORT = "5432"  # compose.yaml's default DD_DB_HOST_PORT
+STORAGE_VARS = ("DD_RUNS_DIR", "DD_PROJECTS_DIR")
+DB_VARS = (*STORAGE_VARS, "PGHOST", "PGPORT", "PGPASSFILE")
 ORCID_ID = re.compile(r"^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$")
 
 
@@ -68,7 +82,7 @@ class Prompter:
     def secret(self, question: str) -> str:
         return "" if self.accept_defaults else self.ask_secret(f"{question}: ").strip()
 
-    def yes(self, question: str, default: bool) -> bool:
+    def yes(self, question: str, *, default: bool) -> bool:
         if self.accept_defaults:
             return default
         answer = self.ask(f"{question} [{'Y/n' if default else 'y/N'}]: ").strip().lower()
@@ -114,11 +128,7 @@ def key_file(agent: str) -> Path:
 def write_key(agent: str, key: str, changes: Changes, extra: dict[str, str] | None = None) -> None:
     """Store `key` as the agent's credential file, and name it in the agent's own settings."""
     path = key_file(agent)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.touch(mode=0o600)
-    path.chmod(0o600)
-    path.write_text(key + "\n", encoding="utf-8")
-    changes.note(path)
+    private_file(path, key + "\n", changes)
     env_file = paths.AGENT_ENV_DIR / f"{agent}.env"
     update_env(
         env_file,
@@ -138,9 +148,11 @@ def ask_model_key(prompt: Prompter, changes: Changes) -> bool:
     current = read_key("orchestrator-model")
     print(
         "\nAn Anthropic API key (optional). Without one, the home page talks to orchestrator.stub, a\n"
-        "rule-based agent, and everything else works. With one, the model-backed orchestrator can\n"
-        f"hold the conversation. Create a key at {KEYS_URL}. It is stored only in the files of\n"
-        "the agents that use it (config/local/credentials/), which git ignores."
+        "rule-based agent, and the advisors answer by rule alone, so everything still works. With\n"
+        "one, the model-backed orchestrator can hold the conversation, and each advisor can use the\n"
+        "model to tailor its advice, which sends it the facts it works from. Create a key at\n"
+        f"{KEYS_URL}. It is stored only in the files of the agents that use it\n"
+        "(config/local/credentials/), which git ignores."
     )
     shown = f"Enter keeps {mask(current)}" if current else "Enter skips"
     key = prompt.secret(f"Anthropic API key ({shown})") or current
@@ -148,8 +160,13 @@ def ask_model_key(prompt: Prompter, changes: Changes) -> bool:
         return False
     if key != current:
         write_key("orchestrator-model", key, changes)
-    if prompt.yes("Let the standards advisor use the model to explain its advice too?", True):
-        write_key("advisor-standards", key, changes, {"DD_STANDARDS_EXPLAINER": "anthropic"})
+    if prompt.yes(
+        "Let the advisors use the model too? Each model-backed advisor is given its own copy of "
+        "the key",
+        default=True,
+    ):
+        for agent, switch in MODEL_BY_DEFAULT.items():
+            write_key(agent, key, changes, {switch: "model"})
     return True
 
 
@@ -181,6 +198,57 @@ def ask_fairsharing(prompt: Prompter, changes: Changes) -> None:
         changes.note(own)
 
 
+def private_file(path: Path, text: str, changes: Changes) -> None:
+    """Write `text` to `path`, readable only by its owner."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.touch(mode=0o600)
+    path.chmod(0o600)
+    path.write_text(text, encoding="utf-8")
+    changes.note(path)
+
+
+def uses_postgres() -> bool:
+    current = read_env(paths.APP_ENV)
+    return any(current.get(var, "").startswith("postgresql://") for var in STORAGE_VARS)
+
+
+def ask_postgres(prompt: Prompter, changes: Changes) -> None:
+    """Ask whether to keep runs and projects in the `postgres` profile's database, and write its
+    password and the app's locations if so; if not, put the app back on files."""
+    print(
+        "\nWhere runs and projects are kept. By default, in files (in volumes under Docker Compose).\n"
+        "They can be kept in PostgreSQL instead, as a deployment with more than one instance does:\n"
+        "Docker Compose runs it with `--profile postgres`, so nothing is installed on this machine."
+    )
+    if not prompt.yes("Keep runs and projects in PostgreSQL?", default=uses_postgres()):
+        if remove_env(paths.APP_ENV, DB_VARS):
+            changes.note(paths.APP_ENV)
+            print("  Runs and projects are kept in files again; the database volume is kept.")
+        return
+    password_file = paths.CREDENTIALS_DIR / DB_PASSWORD
+    # Never a new one: the database keeps the password it was first started with.
+    password = password_file.read_text(encoding="utf-8").strip() if password_file.is_file() else ""
+    if not password:
+        password = secrets.token_urlsafe(32)
+        private_file(password_file, password + "\n", changes)
+    passfile = paths.CREDENTIALS_DIR / DB_PASSFILE
+    # host:port:database:user:password, any host and port: `db` in Compose, localhost outside it.
+    entry = f"*:*:{DB_NAME}:{DB_USER}:{password}\n"
+    if not passfile.is_file() or passfile.read_text(encoding="utf-8") != entry:
+        private_file(passfile, entry, changes)
+    update_env(
+        paths.APP_ENV,
+        dict.fromkeys(STORAGE_VARS, DB_LOCATION)
+        | {"PGHOST": "localhost", "PGPORT": DB_HOST_PORT, "PGPASSFILE": str(passfile)},
+        "# Written by `uv run scripts/dd.py setup`; read by the app (`dd.py start`, Docker Compose).",
+    )
+    changes.note(paths.APP_ENV)
+    print(
+        "  Start it with:  docker compose --profile postgres up --build\n"
+        "  or, for `dd.py start`:  docker compose --profile postgres up -d db db-migrate"
+    )
+
+
 def use_model_orchestrator(changes: Changes) -> None:
     """Name the model-backed orchestrator in `config/local/deployment.yaml`, which `apply` turns
     into the profile (scripts/ddtool/deployment.py)."""
@@ -194,7 +262,7 @@ def use_model_orchestrator(changes: Changes) -> None:
         changes.note(path)
 
 
-def setup(prompt: Prompter, install: bool = True) -> int:
+def setup(prompt: Prompter, *, install: bool = True) -> int:
     problems = tool_problems() if install else []
     for problem in problems:
         print(f"missing: {problem}")
@@ -203,10 +271,11 @@ def setup(prompt: Prompter, install: bool = True) -> int:
         changes.note(created)
     ask_principal(prompt, changes)
     if ask_model_key(prompt, changes) and prompt.yes(
-        "Make the model-backed orchestrator the one the home page talks to?", True
+        "Make the model-backed orchestrator the one the home page talks to?", default=True
     ):
         use_model_orchestrator(changes)
     ask_fairsharing(prompt, changes)
+    ask_postgres(prompt, changes)
     print("\nWrote " + ", ".join(str(p.relative_to(paths.ROOT)) for p in changes.written) + ".")
     print()
     if apply(System(), Place.dev()) != 0:

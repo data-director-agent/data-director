@@ -126,3 +126,13 @@ def test_the_five_agent_list_fails(tmp_path: Path) -> None:
     found = cd.compose_list_problems(compose=five)
     for name in ("advisor-files", "advisor-metadata", "advisor-documentation"):
         assert any(f"no {name}," in problem for problem in found), found
+
+
+def test_the_image_stack_is_checked_too(tmp_path: Path) -> None:
+    """docker/compose.image.yaml runs the published image; drift there is named by that file."""
+    assert cd.compose_service_problems(compose=cd.COMPOSE_IMAGE) == []
+    image = tmp_path / "docker" / "compose.image.yaml"
+    image.parent.mkdir()
+    image.write_text(COMPOSE.split("  orchestrator-stub:")[0], encoding="utf-8")
+    found = cd.compose_service_problems(write(tmp_path, "agents.yaml", COMPOSE_LIST), image)
+    assert any("compose.image.yaml" in p and "orchestrator-stub" in p for p in found), found

@@ -1,0 +1,12 @@
+/*
+ * Starting a project (NewProjectDialog.tsx): the name field, then Create project and Cancel.
+ */
+
+@layer components {
+  .new-project-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin-block-start: var(--space-4);
+  }
+}

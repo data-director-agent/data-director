@@ -25,7 +25,9 @@ records the last released version of each package.
   release, marked as a pre-release.
 - If the merge released `sdk`, `harness` or `inventory`, the workflow then builds that package and publishes
   it to [TestPyPI](https://test.pypi.org/) (see below). If it released `inventory`, that package is
-  also published to PyPI. No other package is published.
+  also published to PyPI. No other package is published to an index.
+- If the merge released `app`, the workflow publishes the container image, tagged with the app's
+  version (see [Publishing the container image](#publishing-the-container-image)).
 
 ## Publishing to TestPyPI
 
@@ -67,6 +69,21 @@ Set-up, once, by a maintainer:
 A PyPI release cannot be replaced, only yanked, and its name cannot be reused. The sdk and harness
 stay on TestPyPI only; publishing them to PyPI is a separate decision, after the contract reaches
 1.0 or sooner (TODO(#260, #277)).
+
+## Publishing the container image
+
+`.github/workflows/images.yml` builds `ghcr.io/data-director-agent/data-director` (the app and
+every in-tree agent, from `docker/release.Dockerfile`) for `linux/amd64` and `linux/arm64`, and
+smoke-tests each platform before anything is pushed. A push to `main` publishes it as `edge`;
+the `images` job of `release.yaml` calls the same workflow when a release includes the app, and
+tags it with the app's version. One image serves every package, so its tag follows the app's
+version, and every package's version is in its `org.data-director.package-versions` label. It is
+pushed with `GITHUB_TOKEN` and needs no secret. [Container images](deploy/README.md#container-images)
+says how to run it.
+
+Set-up, once, by a maintainer: after the first push, make the
+[package](https://github.com/orgs/data-director-agent/packages/container/package/data-director)
+public, and check that it is linked to this repository.
 
 ## Version numbers
 
@@ -118,7 +135,10 @@ of its own.
 - `release.yaml` calls `.github/workflows/zenodo.yml` when merging the release pull request
   creates at least one release. One merge makes one version, however many packages it released.
 - `zenodo.yml` zips the merge commit with `git archive` and runs `scripts/zenodo.py release`, which
-  makes a new version, replaces its file with the zip and publishes it.
+  makes a new version, replaces its file with the zip and publishes it. The merge commit is the one
+  release-please tagged the releases on (the `release_sha` output of `release.yaml`), which is not
+  always the commit that started the run: when two pushes land on `main` together, the run for the
+  earlier one can create the releases.
 - The record's metadata comes from `CITATION.cff`: title, abstract, authors, keywords, licence and
   references. The description also records the commit and every package's version from
   `.release-please-manifest.json`. Correct the metadata there, not in Zenodo, since the next
@@ -128,6 +148,11 @@ of its own.
 - If the job fails, run **Zenodo** from the Actions tab with the release commit as `ref`. It
   carries on with a draft the failed run left; once a version is published, running it again
   publishes another, so check Zenodo first.
+- If the job says `ZENODO_TOKEN is not set`, the secret is missing from the `zenodo` environment
+  (Settings, Environments, zenodo). Add it there and run **Zenodo** again. If Zenodo answers
+  `403 Permission denied` (or 401), it does not accept the token: make a new one, with the scopes
+  `deposit:write` and `deposit:actions`, from the Zenodo account that owns the record, and replace
+  the secret.
 
 `uv run scripts/zenodo.py release --archive <zip> --dry-run` prints the metadata without calling
 Zenodo.

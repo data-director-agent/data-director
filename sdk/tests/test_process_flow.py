@@ -124,6 +124,8 @@ def test_every_phase_and_step_has_wording_for_researchers_free_of_requirement_id
         for step in phase.steps:
             assert step.label, step.id
             assert not any(r in step.label for r in REQUIREMENTS), step.id
+            assert step.prompt, step.id
+            assert not any(r in step.prompt for r in REQUIREMENTS), step.id
 
 
 def test_progress_from_an_entry_keeps_earlier_work_and_marks_each_step() -> None:
@@ -172,3 +174,13 @@ def test_the_suggestion_passes_optional_and_out_of_scope_steps_and_ends_when_all
         s.id: "done" for p in PHASES for s in p.steps if not s.optional and not s.out_of_scope
     }
     assert suggested_next(progress(start, required, []), start) is None
+
+
+def test_with_no_entry_point_only_a_started_step_is_suggested() -> None:
+    # Where the researcher is is not known, so no Phase 1 step is put to them.
+    assert suggested_next(progress(None, {}, []), None) is None
+    states = {"setup.documentation": "done"}
+    assert suggested_next(progress(None, states, []), None) is None
+    states = {"preparation.metadata": "started"}
+    begun = suggested_next(progress(None, states, []), None)
+    assert begun is not None and begun.step.id == "preparation.metadata"

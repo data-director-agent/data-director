@@ -17,26 +17,67 @@
       "principal_id": "https://orcid.org/0000-0002-1825-0097",
       "principal_kind": "person"
     },
+    "deleted": null,
     "documents": {
       "approved": 0,
       "proposed": 0,
       "rejected": 0
     },
+    "intake": "pending",
     "inventory": {
       "added_at": "2026-01-01T00:00:00Z",
       "digest": "0000000000000000000000000000000000000000000000000000000000000003",
       "file_count": 1,
-      "inventory_made_at": "2026-01-01T00:00:00Z"
+      "inventory_made_at": "2026-01-01T00:00:00Z",
+      "part_count": null,
+      "revises": null
     },
     "progress": {
+      "decisions": [
+        {
+          "answer_labels": null,
+          "answer_values": null,
+          "asked": false,
+          "before": "setup.dmp-create",
+          "prompt": "Do you have a Data Management Plan for this project?",
+          "question_id": "intake.dmp"
+        },
+        {
+          "answer_labels": null,
+          "answer_values": null,
+          "asked": false,
+          "before": "governance.sensitive-data-identify",
+          "prompt": "Does the data include personal or otherwise sensitive information?",
+          "question_id": "intake.sensitive"
+        },
+        {
+          "answer_labels": null,
+          "answer_values": null,
+          "asked": false,
+          "before": "repository.mandated",
+          "prompt": "Has a funder, journal or institution said where the data must go?",
+          "question_id": "intake.repository-mandated"
+        }
+      ],
       "entry": null,
+      "entry_source": null,
+      "reasons": {
+        "preparation.files": {
+          "at": "2026-01-01T00:00:00Z",
+          "event": "inventory_added",
+          "source": "produced",
+          "state": "done"
+        }
+      },
       "steps": {
         "preparation.files": "done"
       },
-      "suggested": "setup.documentation"
+      "suggested": null
     },
     "project_id": "01900000-0000-7000-8000-000000000002",
     "repository": null,
-    "title": null
+    "restore_days": 30,
+    "title": null,
+    "title_source": null
   }
 ]

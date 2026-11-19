@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 
@@ -6,7 +6,7 @@ import { App } from "../../App";
 import reference from "../../../fixtures/agents.json";
 import several from "../../../fixtures/agents-several.json";
 import { type Directory, normalise, normaliseAgent } from "../../manifest/normalise";
-import type { RawAgentsResponse } from "../../manifest/types";
+import type { RawAgentsResponse, RawManifestEntry } from "../../manifest/types";
 import { DEVELOPMENT, WithSession, fakeSessionApi } from "../../test/session";
 import { AgentDetail } from "../agent/AgentDetail";
 import { AgentDirectory } from "./AgentDirectory";
@@ -38,7 +38,8 @@ describe("CapabilitiesPanel", () => {
     render(<AgentDetail agent={agent("advisor.quality")} />);
     expect(screen.queryByRole("tab")).toBeNull();
     expect(screen.queryByRole("button")).toBeNull();
-    expect(screen.queryByText(/contract/i)).toBeNull();
+    // What the card declares is there for whoever needs to inspect it, but folded away.
+    expect(screen.getByText(/contract/i)).not.toBeVisible();
     expect(screen.queryByRole("heading", { name: /grounds its results/ })).toBeNull();
   });
 
@@ -55,9 +56,10 @@ describe("CapabilitiesPanel", () => {
   it("does not call an agent deterministic when its card says nothing about models", () => {
     const raw = severalAgents.agents.find((a) => a.agent_id === "advisor.standards");
     if (!raw) throw new Error("no advisor.standards in the fixture");
-    const card = { ...raw };
+    // The app always sends `models`; an agent card need not carry it, and is read the same way.
+    const card: Omit<RawManifestEntry, "models"> & { models?: RawManifestEntry["models"] } = { ...raw };
     delete card.models;
-    render(<CapabilitiesPanel agent={normaliseAgent(card)} />);
+    render(<CapabilitiesPanel agent={normaliseAgent(card as RawManifestEntry)} />);
     expect(screen.getByText(/does not say whether it uses an AI model/)).toBeVisible();
     expect(screen.queryByText(/deterministic/)).toBeNull();
   });
@@ -153,7 +155,7 @@ describe("AgentDirectory", () => {
 
     it("pins it first, apart from the agents behind the scenes, and selects it", async () => {
       const { container } = render(<AgentDirectory directory={withOrchestrator} />);
-      const [front, behind] = screen.getAllByRole("group");
+      const [front, behind] = within(screen.getByRole("listbox")).getAllByRole("group");
       expect(front).toHaveAccessibleName("You talk to");
       expect(behind).toHaveAccessibleName("Works behind the scenes");
       const option = screen.getByRole("option", { name: /^Data Director/ });
@@ -185,7 +187,7 @@ describe("AgentDirectory", () => {
 
   it("keeps the list flat without an orchestrator", () => {
     render(<AgentDirectory directory={{ ...directory, orchestratorId: null }} />);
-    expect(screen.queryByRole("group")).toBeNull();
+    expect(within(screen.getByRole("listbox")).queryByRole("group")).toBeNull();
     expect(screen.queryByText("Orchestrator")).toBeNull();
     expect(screen.queryByText(/talk to/)).toBeNull();
   });

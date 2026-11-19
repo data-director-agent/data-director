@@ -7,12 +7,17 @@ and changelog entry. The title therefore takes the form
     type(scope)!: summary
 
 where `type` is one of `TYPES`, `(scope)` and `!` (a breaking change) are optional, and the
-summary is lower case, has no closing full stop and fits in `MAX_TITLE` characters. A branch name
+summary has no closing full stop and fits in `MAX_TITLE` characters. A branch name
 is lower-case words joined by hyphens, optionally grouped with slashes (`ci-faster`,
 `harness/run-store`), in at most `MAX_BRANCH` characters.
 
-    uv run python scripts/check_names.py --title "feat(app): history tab" --branch app-history
+    uv run python scripts/check_names.py --title "feat(app): Add a history tab" --branch app-history
 
+    uv run python scripts/check_names.py --message-file .git/COMMIT_EDITMSG
+
+`--message-file` checks the first line of a commit message as a title; it is what the
+`commit-msg` pre-commit hook runs, so a commit subject is a Conventional Commit before it is ever
+pushed. Merge, fixup, squash and amend commits are skipped, as they never reach `main` as written.
 Either option may be left out. Pull requests from Dependabot's and release-please's branches are
 exempt: their titles and branch names are fixed by the tool. It prints one line per problem and
 exits 1 if there is any.
@@ -23,6 +28,7 @@ from __future__ import annotations
 import argparse
 import re
 import sys
+from pathlib import Path
 
 # The Conventional Commits types this repository uses (the Angular set). release-please makes a
 # release for `feat` and `fix`, and for any type with `!`.
@@ -54,8 +60,6 @@ EXEMPT_BRANCHES = ("dependabot/", "release-please--")
 TITLE = re.compile(r"(?P<type>[a-z]+)(?:\((?P<scope>[^)]*)\))?(?P<breaking>!)?: (?P<summary>.*)")
 SCOPE = re.compile(r"[a-z0-9]+(?:[-.][a-z0-9]+)*")
 BRANCH = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*(?:/[a-z0-9]+(?:-[a-z0-9]+)*)*")
-# A capitalised ordinary word ("Add", "Fix"); acronyms and names such as "CI" or "GitHub" pass.
-CAPITALISED = re.compile(r"[A-Z][a-z]+")
 
 
 def title_problems(title: str) -> list[str]:
@@ -75,8 +79,6 @@ def title_problems(title: str) -> list[str]:
     else:
         if summary != summary.strip():
             problems.append("the summary starts or ends with white space")
-        if CAPITALISED.fullmatch(summary.split()[0]):
-            problems.append(f"the summary starts with a capital ({summary.split()[0]!r})")
         if summary.endswith("."):
             problems.append("the summary ends with a full stop")
     if len(title) > MAX_TITLE:
@@ -97,16 +99,31 @@ def branch_problems(branch: str) -> list[str]:
     return problems
 
 
+# Subjects git writes itself, or that `git rebase --autosquash` folds away before merge.
+GENERATED_SUBJECTS = ("Merge ", "fixup! ", "squash! ", "amend! ")
+
+
+def message_problems(message: str) -> list[str]:
+    """What is wrong with the subject of commit message `message`; empty if nothing."""
+    subject = next((x for x in message.splitlines() if x and not x.startswith("#")), "")
+    if subject.startswith(GENERATED_SUBJECTS):
+        return []
+    return title_problems(subject)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--title", help="the pull request title")
     parser.add_argument("--branch", help="the pull request's head branch")
+    parser.add_argument("--message-file", help="a commit message file; its subject is the title")
     args = parser.parse_args(argv)
     if args.branch is not None and args.branch.startswith(EXEMPT_BRANCHES):
         return 0
     problems = []
     if args.title is not None:
         problems += title_problems(args.title)
+    if args.message_file is not None:
+        problems += message_problems(Path(args.message_file).read_text(encoding="utf-8"))
     if args.branch is not None:
         problems += branch_problems(args.branch)
     for problem in problems:

@@ -13,56 +13,24 @@ module is its only importer (docs/specs/dependencies.md).
 from __future__ import annotations
 
 import json
-import re
 from functools import cached_property
 from pathlib import Path
 
 from rank_bm25 import BM25Okapi
 
-from dd_agent_advisor_repository import registry
+from dd_agent_advisor_repository import dfg, registry
 from dd_agent_advisor_repository.records import DatabaseRecord, Re3dataRecord
-from dd_agent_advisor_repository.retrieve import (
-    Hit,
-    Query,
-    RegistryUnavailable,
-    SnapshotRef,
-)
+from dd_sdk.registry import Hit, Query, RegistryUnavailable, SnapshotRef
+from dd_sdk.registry.tokenise import STOP_WORDS
+from dd_sdk.registry.tokenise import fold as fold
+from dd_sdk.registry.tokenise import tokenise as shared_tokenise
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 FAIRSHARING_SNAPSHOT = DATA_DIR / "fairsharing" / "snapshot.jsonl"
 
-_TOKEN = re.compile(r"[a-z0-9]+")
-_STOP = frozenset(
-    [
-        "the",
-        "a",
-        "an",
-        "of",
-        "and",
-        "or",
-        "for",
-        "to",
-        "in",
-        "on",
-        "with",
-        "by",
-        "from",
-        "at",
-        "as",
-        "is",
-        "are",
-        "be",
-        "this",
-        "that",
-        "its",
-        "it",
-        "data",
-    ]
-)
-
 
 def tokenise(text: str) -> list[str]:
-    return [t for t in _TOKEN.findall(text.lower()) if t not in _STOP and len(t) > 1]
+    return shared_tokenise(text, STOP_WORDS | {"data"}, fold_plurals=True)
 
 
 def _lines(path: Path) -> list[dict[str, object]]:
@@ -144,7 +112,7 @@ class Re3dataRegistry:
     def credit(self) -> str:
         return self.pin.credit
 
-    def search(self, query: Query) -> list[Hit]:
+    def search(self, query: Query) -> list[Hit[Re3dataRecord]]:
         """Records that contain every word of the query, as re3data's own search requires, in
         BM25 order. A record matching only some words is not a hit: a ranking that counts any
         hit as a match must not be fed partial ones (#440)."""
@@ -163,6 +131,24 @@ class Re3dataRegistry:
 
     def fetch(self, re3data_id: str) -> Re3dataRecord | None:
         return self._by_id.get(re3data_id)
+
+    @cached_property
+    def _vocabulary(self) -> dict[str, str]:
+        return dfg.vocabulary(s for r in self.records for s in r.subjects)
+
+    @cached_property
+    def _by_subject(self) -> dict[str, list[Re3dataRecord]]:
+        index: dict[str, list[Re3dataRecord]] = {}
+        for r in sorted(self.records, key=lambda r: r.re3data_id):
+            for code in dfg.codes(r.subjects):
+                index.setdefault(code, []).append(r)
+        return index
+
+    def subjects(self) -> dict[str, str]:
+        return self._vocabulary
+
+    def with_subject(self, code: str) -> list[Re3dataRecord]:
+        return list(self._by_subject.get(code, []))
 
     def find(self, name: str) -> list[Re3dataRecord]:
         """As `find_by_name`, from indexes built once."""
@@ -183,5 +169,11 @@ class FairsharingSnapshot:
     def snapshot_ref(self) -> SnapshotRef:
         return _ref("fairsharing", self.path)
 
+    @cached_property
+    def _by_folded_id(self) -> dict[str, DatabaseRecord]:
+        return {fid.casefold(): r for fid, r in self.records.items()}
+
     def fetch(self, fairsharing_id: str) -> DatabaseRecord | None:
-        return self.records.get(fairsharing_id)
+        """Ignoring case, as FAIRsharing resolves its identifiers: re3data cites ESS-DIVE's
+        record as FAIRsharing.d6pe1f, which FAIRsharing writes FAIRsharing.d6Pe1f."""
+        return self.records.get(fairsharing_id) or self._by_folded_id.get(fairsharing_id.casefold())

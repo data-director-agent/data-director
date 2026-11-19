@@ -23,7 +23,7 @@ from typing import Any
 import httpx
 import pytest
 from starlette.testclient import TestClient
-from support import APP_URL, ORDA, configure_env, dist_dir, pin_export
+from support import APP_URL, JSON_HEADERS, ORDA, configure_env, dist_dir, pin_export
 
 from dd_agent_advisor_documentation.agent import build as build_documentation
 from dd_agent_advisor_files.agent import build as build_files
@@ -129,7 +129,7 @@ class Researcher:
     def __init__(self, client: TestClient, orchestrator: str) -> None:
         self.client = client
         self.orchestrator = orchestrator
-        started = client.post("/api/conversations")
+        started = client.post("/api/conversations", headers=JSON_HEADERS)
         assert started.status_code == 201, started.json()
         self.conversation_id: str = started.json()["conversation_id"]
         self.project_id: str = started.json()["project_id"]
@@ -145,9 +145,12 @@ class Researcher:
         }
         if choose is not None:
             assert self.latest is not None
-            body["choice_answer"] = {
+            (question,) = self.latest["payload"]["reply_questions"]
+            body["reply_answers"] = {
                 "answer_to": self.latest["invocation_id"],
-                "answer_values": [choose],
+                "given_answers": [
+                    {"answered_key": question["question_key"], "answer_values": [choose]}
+                ],
             }
         response = self.client.post(f"/api/conversations/{self.conversation_id}/turns", json=body)
         assert response.status_code == 200, response.json()
@@ -158,8 +161,8 @@ class Researcher:
 
     def offered(self) -> list[str]:
         assert self.latest is not None
-        question = self.latest["payload"].get("reply_question") or {}
-        return [option["option_value"] for option in question.get("question_options", [])]
+        questions = self.latest["payload"].get("reply_questions") or [{}]
+        return [option["option_value"] for option in questions[0].get("question_options", [])]
 
     def take_step(self, step: str) -> dict[str, Any]:
         """Choose `step` from what the orchestrator offers, skipping, as a researcher may, each
@@ -182,7 +185,7 @@ class Researcher:
         return response.json()
 
     def post(self, path: str, body: Any = None, status: int = 201) -> Any:
-        response = self.client.post(f"{self.project}{path}", json=body)
+        response = self.client.post(f"{self.project}{path}", json=body, headers=JSON_HEADERS)
         assert response.status_code == status, response.text
         return response.json()
 

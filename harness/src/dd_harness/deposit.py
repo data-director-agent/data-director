@@ -30,10 +30,8 @@ pySHACL runs, and every result is written, through `dd_harness.shacl`
 
 from __future__ import annotations
 
-import hashlib
 import json
 import tempfile
-import zipfile
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from datetime import datetime
@@ -44,16 +42,27 @@ from urllib.parse import quote
 from rdflib import BNode, Graph, Namespace, URIRef
 from rdflib import Literal as RdfLiteral
 from rdflib.namespace import RDF
-from rocrate.model import ContextEntity, DataEntity, Person
+from rocrate.model import Person
 from rocrate.rocrate import ROCrate
 
 from dd_harness.disclosure import disclose, ni, version_chain, version_id
+from dd_harness.package_crate import (
+    INCLUDED,
+    INCLUDED_IRI,
+    CrateFiles,
+    add_approval,
+    add_data_file,
+    add_run,
+    creative_work,
+    json_bytes,
+    produced_action,
+    zip_folder,
+)
 from dd_harness.projects import APPROVED, ProjectError
-from dd_harness.provenance import AGENT_BASE, VALIDATION_FILE
 from dd_harness.shacl import DD, SH, VIOLATION, WARNING, Result, Severity
 from dd_harness.shacl import report_jsonld as shacl_report
 from dd_harness.shacl import run as run_shacl
-from dd_harness.storage import ProjectStorage, RunStorage
+from dd_harness.storage import DepositSource, RunStorage
 from dd_sdk.contract.models import DocumentKind, Principal, now
 
 SCHEMA = Namespace("http://schema.org/")
@@ -92,17 +101,6 @@ REPORT_NAME = "validation-report.jsonld"
 LOG_NAME = "project-log.jsonl"
 STATEMENT_NAME = "use-of-generative-ai.md"
 PROVENANCE_NAME = "provenance.jsonld"
-# The files of a Process Run Crate, as the conductor keeps them (dd_harness.provenance).
-CRATE_FILES = (
-    "ro-crate-metadata.json",
-    "request.json",
-    "envelope.json",
-    "spans.jsonl",
-    VALIDATION_FILE,
-)
-RO_CRATE = "https://w3id.org/ro/crate"
-INCLUDED = "includedInPackage"
-INCLUDED_IRI = DD + "included_in_package"
 EXTENSIONS = {
     "application/json": "json",
     "application/ld+json": "jsonld",
@@ -110,8 +108,6 @@ EXTENSIONS = {
     "text/plain": "txt",
     "text/csv": "csv",
 }
-# A fixed time for every zip entry, so a package's bytes depend on its content alone.
-ZIP_TIME = (1980, 1, 1, 0, 0, 0)
 
 
 class PackageRefusedError(ProjectError):
@@ -166,7 +162,7 @@ class Package:
     validation: Validation
 
 
-def validate(projects: ProjectStorage, project_id: str) -> Validation:
+def validate(projects: DepositSource, project_id: str) -> Validation:
     """The validation of the project against the merged requirement set recorded for the
     repository chosen last. Reads the project log and writes nothing. Raises
     `UnknownProjectError` for an unknown project."""
@@ -209,7 +205,7 @@ def validate(projects: ProjectStorage, project_id: str) -> Validation:
 
 
 def check(
-    projects: ProjectStorage, project_id: str, *, acted_for: Principal, caused_by: str
+    projects: DepositSource, project_id: str, *, acted_for: Principal, caused_by: str
 ) -> tuple[Validation, str]:
     """Validate the project and keep the report in its log. Returns the validation and the
     report's digest."""
@@ -226,7 +222,7 @@ def check(
 
 
 def build_package(
-    projects: ProjectStorage,
+    projects: DepositSource,
     runs: RunStorage,
     project_id: str,
     *,
@@ -462,7 +458,7 @@ def _check_inventory(
         )
 
 
-def _requirements_digest(projects: ProjectStorage, project_id: str) -> str | None:
+def _requirements_digest(projects: DepositSource, project_id: str) -> str | None:
     chosen = [e for e in projects.events(project_id) if e["event"] == "repository_chosen"]
     return str(chosen[-1]["digest"]) if chosen else None
 
@@ -497,7 +493,7 @@ def _file_iri(project_id: str, path: str) -> str:
 
 
 def _package(
-    projects: ProjectStorage, runs: RunStorage, project_id: str, validation: Validation
+    projects: DepositSource, runs: RunStorage, project_id: str, validation: Validation
 ) -> tuple[bytes, dict[str, Any]]:
     """The package's bytes, and what the project log says of it."""
     requirements = projects.requirements(project_id) or {}
@@ -512,29 +508,8 @@ def _package(
         crate.metadata.extra_terms[INCLUDED] = INCLUDED_IRI
         root = crate.root_dataset
         _describe_root(crate, record, validation.made_at)
-
-        def put(name: str, content: bytes, media_type: str, title: str, about: str) -> Any:
-            source = work / name.replace("/", "__")
-            source.write_bytes(content)
-            return crate.add_file(
-                source,
-                dest_path=name,
-                properties={
-                    "name": title,
-                    "description": about,
-                    "encodingFormat": media_type,
-                    "contentSize": str(len(content)),
-                    "sha256": hashlib.sha256(content).hexdigest(),
-                },
-            )
-
-        people: dict[str, Any] = {}
-
-        def person(principal: Mapping[str, Any]) -> Any:
-            key = principal["principal_id"]
-            if key not in people:
-                people[key] = crate.add(Person(crate, key, properties={"name": principal["name"]}))
-            return people[key]
+        files = CrateFiles(crate, work)
+        put, person = files.put, files.person
 
         included_runs: list[str] = []
         documents = []
@@ -555,7 +530,7 @@ def _package(
             entity["identifier"] = version_id(document["document_id"], version["version"])
             entity["version"] = str(version["version"])
             if version.get("conforms_to"):
-                entity["conformsTo"] = _creative_work(
+                entity["conformsTo"] = creative_work(
                     crate, version["conforms_to"], version["conforms_to"]
                 )
             # Each version the approved one came from: the run that drafted it or the person who
@@ -569,23 +544,8 @@ def _package(
                     if link is version
                     else {"@id": version_id(document["document_id"], link["version"])}
                 )
-                _produced(crate, made, document, link, person)
-            decision = version["decision"]
-            approval = crate.add(
-                ContextEntity(
-                    crate,
-                    f"#approval-{document['document_id']}-v{version['version']}",
-                    properties={
-                        "@type": "AssessAction",
-                        "name": f"Approval of {_kind_name(kind)} version {version['version']}",
-                        "actionStatus": {"@id": "http://schema.org/CompletedActionStatus"},
-                        "endTime": decision["decided_at"],
-                        **({"description": decision["reason"]} if decision.get("reason") else {}),
-                    },
-                )
-            )
-            approval["agent"] = person(decision["decided_by"])
-            approval["object"] = entity
+                produced_action(crate, made, document, link, person)
+            add_approval(files, document, version, entity, _kind_name(kind))
             documents.append(
                 {
                     "document_id": document["document_id"],
@@ -597,18 +557,18 @@ def _package(
 
         attached: dict[str, bytes] = {}
         for invocation_id in included_runs:
-            attached |= _add_run(crate, runs, invocation_id)
+            attached |= add_run(crate, runs, invocation_id)
 
         put(
             INVENTORY_NAME,
-            _json(inventory),
+            json_bytes(inventory),
             "application/json",
             "Inventory of the data files",
             "The FileInventory the data files are described from (docs/specs/projects.md).",
         )
         put(
             REQUIREMENTS_NAME,
-            _json(requirements),
+            json_bytes(requirements),
             "application/json",
             f"Requirements of {requirements.get('repository_name', 'the repository')}",
             "The merged requirement set the project was validated against, naming each set "
@@ -616,11 +576,11 @@ def _package(
         )
         put(
             REPORT_NAME,
-            _json(validation.report_jsonld()),
+            json_bytes(validation.report_jsonld()),
             "application/ld+json",
             "Validation report",
             "The SHACL Validation Report of the project against its repository's requirements.",
-        )["conformsTo"] = _creative_work(crate, str(SH), "Shapes Constraint Language (SHACL)")
+        )["conformsTo"] = creative_work(crate, str(SH), "Shapes Constraint Language (SHACL)")
         put(
             LOG_NAME,
             "".join(
@@ -641,21 +601,21 @@ def _package(
         )
         put(
             PROVENANCE_NAME,
-            _json(disclosure.prov_jsonld()),
+            json_bytes(disclosure.prov_jsonld()),
             "application/ld+json",
             "Provenance of the approved documents",
             "The PROV-O graph of each approved version and how it came about.",
-        )["conformsTo"] = _creative_work(crate, "http://www.w3.org/ns/prov#", "PROV-O")
+        )["conformsTo"] = creative_work(crate, "http://www.w3.org/ns/prov#", "PROV-O")
 
         for entry in inventory.get("inventory_files") or []:
-            _add_data_file(crate, entry)
+            add_data_file(crate, entry)
 
         root["mentions"] = [e for e in crate.contextual_entities if e.type == "AssessAction"]
         crate.write(out)
         for name, data in attached.items():
             (out / name).parent.mkdir(parents=True, exist_ok=True)
             (out / name).write_bytes(data)
-        content = _zip(out)
+        content = zip_folder(out)
     about = {
         "requirements_digest": validation.requirements_digest,
         "documents": documents,
@@ -703,158 +663,4 @@ def _describe_root(crate: ROCrate, record: Mapping[str, Any], made_at: datetime)
         licence = licences[0]
         if not licence.startswith(("http://", "https://")):
             licence = f"https://spdx.org/licenses/{licence}"
-        root["license"] = _creative_work(crate, licence, licence)
-
-
-def _produced(
-    crate: ROCrate,
-    made: Any,
-    document: Mapping[str, Any],
-    version: Mapping[str, Any],
-    person: Any,
-) -> None:
-    """The action that produced a version, `made`: the run that drafted it, or a person's
-    edit."""
-    drafted_by = version.get("drafted_by")
-    if drafted_by:
-        action_id = f"#run-{drafted_by['invocation_id']}"
-        agent = crate.add(
-            ContextEntity(
-                crate,
-                AGENT_BASE + drafted_by["agent_id"],
-                properties={
-                    "@type": "SoftwareApplication",
-                    "name": drafted_by["agent_id"],
-                    "url": AGENT_BASE + drafted_by["agent_id"],
-                    "version": drafted_by["agent_version"],
-                },
-            )
-        )
-        properties = {
-            "@type": "CreateAction",
-            "name": f"Run {drafted_by['invocation_id']}",
-            "identifier": drafted_by["invocation_id"],
-        }
-        action = crate.get(action_id) or crate.add(ContextEntity(crate, action_id, properties))
-        action["instrument"] = agent
-        action["agent"] = person(version["added_by"])
-    else:
-        action_id = f"#edit-{document['document_id']}-v{version['version']}"
-        action = crate.add(
-            ContextEntity(
-                crate,
-                action_id,
-                properties={
-                    "@type": "CreateAction",
-                    "name": f"Edit making version {version['version']}",
-                    "endTime": version["added_at"],
-                },
-            )
-        )
-        action["agent"] = person(version["added_by"])
-        revises = version.get("revises")
-        if revises:
-            action["object"] = {"@id": version_id(revises["document_id"], revises["version"])}
-    results = [r for r in _as_list(action.get("result")) if r is not None]
-    action["result"] = [*results, made] if results else made
-
-
-def _add_run(crate: ROCrate, runs: RunStorage, invocation_id: str) -> dict[str, bytes]:
-    """The Process Run Crate of a run behind an approved version, as an attached crate. Returns
-    its files, each by its path in the package, to be written beside the crate."""
-    files = {
-        f"runs/{invocation_id}/{name}": data
-        for name in CRATE_FILES
-        if (data := runs.get_artifact(invocation_id, f"crate/{name}")) is not None
-    }
-    action = crate.get(f"#run-{invocation_id}")
-    if f"runs/{invocation_id}/ro-crate-metadata.json" not in files:
-        # The run kept no crate (DD_WRITE_CRATE=0): it is named, and nothing is made up for it.
-        if action is not None:
-            action["description"] = "This run kept no Process Run Crate."
-        return {}
-    descriptor = crate.add(
-        DataEntity(
-            crate,
-            f"runs/{invocation_id}/ro-crate-metadata.json",
-            properties={
-                "@type": "File",
-                "name": f"RO-Crate metadata of run {invocation_id}",
-                "encodingFormat": "application/ld+json",
-                "contentSize": str(len(files[f"runs/{invocation_id}/ro-crate-metadata.json"])),
-            },
-        )
-    )
-    dataset = crate.add(
-        DataEntity(
-            crate,
-            f"runs/{invocation_id}/",
-            properties={
-                "@type": "Dataset",
-                "name": f"Process Run Crate of run {invocation_id}",
-                "description": "The record of the run, written by the harness after it ended.",
-                "conformsTo": _creative_work(crate, RO_CRATE, "RO-Crate"),
-                "subjectOf": descriptor,
-            },
-        )
-    )
-    if action is not None:
-        action["subjectOf"] = dataset
-    return files
-
-
-def _add_data_file(crate: ROCrate, entry: Mapping[str, Any]) -> None:
-    """A data file the inventory describes, marked as not in the package: the researcher adds it
-    at deposit, and its digest shows it is the file described."""
-    properties: dict[str, Any] = {
-        "@type": "File",
-        "name": entry["file_path"],
-        "contentSize": str(entry["file_size"]),
-        "sha256": entry["file_sha256"],
-        "localPath": entry["file_path"],
-        INCLUDED: False,
-        "description": "Not in the package: the researcher adds this file at deposit.",
-    }
-    if entry.get("file_media_type"):
-        properties["encodingFormat"] = entry["file_media_type"]
-    crate.add(DataEntity(crate, f"#file/{quote(entry['file_path'])}", properties=properties))
-
-
-def _creative_work(crate: ROCrate, iri: str, name: str) -> Any:
-    """A specification, licence or vocabulary an entity conforms to, named in the crate."""
-    found = crate.get(iri)
-    if found is None:
-        found = crate.add(
-            ContextEntity(crate, iri, properties={"@type": "CreativeWork", "name": name})
-        )
-    return found
-
-
-def _as_list(value: Any) -> list[Any]:
-    if value is None:
-        return []
-    return value if isinstance(value, list) else [value]
-
-
-def _json(document: Any) -> bytes:
-    return json.dumps(document, indent=2, ensure_ascii=False, sort_keys=True).encode("utf-8")
-
-
-def _zip(folder: Path) -> bytes:
-    """The folder as a zip, with an entry for each folder as well as each file, in path order and
-    with a fixed time."""
-    with tempfile.SpooledTemporaryFile() as buffer:
-        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
-            for path in sorted(folder.rglob("*")):
-                name = path.relative_to(folder).as_posix()
-                if path.is_dir():
-                    info = zipfile.ZipInfo(name + "/", ZIP_TIME)
-                    info.external_attr = (0o40755 << 16) | 0x10
-                    archive.writestr(info, b"")
-                    continue
-                info = zipfile.ZipInfo(name, ZIP_TIME)
-                info.compress_type = zipfile.ZIP_DEFLATED
-                info.external_attr = 0o644 << 16
-                archive.writestr(info, path.read_bytes())
-        buffer.seek(0)
-        return buffer.read()
+        root["license"] = creative_work(crate, licence, licence)

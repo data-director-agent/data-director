@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% from "_macros.html" import person %}
+{% block title %}Projects{% endblock %}
+{% block heading %}Projects{% endblock %}
+{% block content %}
+{% for error in usage.errors %}<div class="banner bad" role="alert">{{ error }}</div>{% endfor %}
+<p class="muted">{{ usage.projects | length | number }} project{{ "s" if usage.projects | length != 1 }}, newest first.</p>
+<div class="table-wrap">
+<table>
+  <thead><tr>
+    <th scope="col">Project</th><th scope="col">Created by</th><th scope="col">Created</th>
+    <th scope="col" class="num">Conversations</th><th scope="col">Documents</th><th scope="col">Repository</th>
+  </tr></thead>
+  <tbody>
+  {% for p in usage.projects %}
+    {% set by = p.created_by or {} %}
+    <tr>
+      <td><a href="/projects/{{ p.project_id }}">{{ p.title or "Untitled project" }}</a></td>
+      <td>{{ person(by.name, by.principal_id) }}</td>
+      <td class="nowrap">{{ p.at | when }}</td>
+      <td class="num">{{ p.conversation_count }}</td>
+      <td>{% set d = p.documents or {} %}{{ d.approved or 0 }} approved · {{ d.proposed or 0 }} proposed{% if d.rejected %} · {{ d.rejected }} rejected{% endif %}</td>
+      <td>{{ p.repository.repository_name if p.repository else "—" }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="6" class="empty">No projects.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

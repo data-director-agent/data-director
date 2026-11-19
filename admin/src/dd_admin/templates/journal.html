@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}{{ unit }}{% endblock %}
+{% block heading %}Journal: <span class="mono">{{ unit }}</span>{% endblock %}
+{% block content %}
+<p><a href="/operations">← Operations</a> · the last lines, newest last. More on the VM: <code>journalctl -u {{ unit }} -f</code></p>
+<pre class="log">{{ text or "Nothing logged." }}</pre>
+{% endblock %}

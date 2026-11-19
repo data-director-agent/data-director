@@ -1,5 +1,5 @@
 /*
- * The banner: brand, main navigation and the dark mode switch, the same on every page so that
+ * The banner: brand, main navigation and tools, the same on every page so that
  * nothing in it moves. Each link carries a Lucide icon before its label (`.app-icon`). Its rows depend on the viewport's width only, never on its content.
  */
 
@@ -36,6 +36,8 @@
   }
 
   .app-footer {
+    margin-top: var(--space-6);
+    background: var(--color-surface);
     border-top: var(--border-width) solid var(--color-border-subtle);
     color: var(--color-text-muted);
     font-size: var(--font-size-small);
@@ -44,9 +46,19 @@
   .app-footer-inner {
     max-width: var(--page-width);
     margin-inline: auto;
-    padding: var(--space-3) var(--page-gutter);
-    display: grid;
-    gap: var(--space-1);
+    padding: var(--space-5) var(--page-gutter);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4) var(--space-6);
+  }
+
+  .app-footer-partners {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-4);
   }
 
   .app-footer-support {
@@ -55,9 +67,61 @@
     font-weight: var(--font-weight-heavy);
   }
 
-  .app-footer-about,
-  .app-footer-build {
+  .app-footer-logos {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
     margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  /* The logos are drawn for a light ground, so each sits on a white plate in either theme. */
+  .app-footer-logo-link {
+    display: flex;
+    align-items: center;
+    padding: var(--space-2) var(--space-3);
+    background: var(--color-logo-plate);
+    border: var(--border-width) solid var(--color-border-subtle);
+    border-radius: var(--radius);
+  }
+
+  .app-footer-logo-link:hover {
+    border-color: var(--color-border);
+  }
+
+  .app-footer-logo {
+    display: block;
+    height: 2.75rem;
+    width: auto;
+  }
+
+  .app-footer-details {
+    display: grid;
+    gap: var(--space-1);
+    max-width: 38rem;
+  }
+
+  .app-footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-weight: var(--font-weight-heavy);
+  }
+
+  .app-footer-about,
+  .app-footer-meta {
+    margin: 0;
+  }
+
+  .app-footer-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-3);
   }
 
   .app-footer a {
@@ -83,6 +147,16 @@
     font-size: var(--font-size-h3);
   }
 
+  .app-brand-link {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .app-brand-link:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
   .app-tools {
     grid-area: tools;
     align-self: center;
@@ -96,6 +170,9 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
+
+    /* A target is at least 24px tall (WCAG 2.2 2.5.8), whatever the font size. */
+    min-block-size: var(--space-5);
     white-space: nowrap;
   }
 
@@ -147,10 +224,6 @@
   .app-nav-link[aria-current="page"] {
     color: var(--color-link);
     box-shadow: inset 0 calc(-1 * var(--focus-width)) 0 var(--color-link);
-  }
-
-  .theme-switch {
-    white-space: nowrap;
   }
 
   /* Medium: the brand and the tools on one row, the navigation on a row of its own beneath. */

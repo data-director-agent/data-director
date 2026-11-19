@@ -20,11 +20,17 @@ sources:
     built: true
     id_field: re3data_id
     sha256: 37e4ce9d248a72765357d5d14d966f7ac55eb9b9cd2160f442f305fe17acfcbd
-  - snapshot_refs: ["fairsharing:snapshot:2026-10-29", "fairsharing:snapshot:2026-10-29 (stale)"]
+  - snapshot_refs: ["fairsharing:snapshot:2026-11-10", "fairsharing:snapshot:2026-11-10 (stale)"]
     path: ../agents/advisor-repository/data/fairsharing/snapshot.jsonl
     id_field: fairsharing_id
-    sha256: cca3c0b34ec9510002308fe2b6309ba8f9e8e158070bcdafb9facc7aefff3a87
+    sha256: 11981403cfb20816fb1557d3308e88b6a35e31df90f2948349281bdbb016c7b5
   - snapshot_refs: ["fairsharing-policy:snapshot:2026-10-29", "fairsharing-policy:snapshot:2026-10-29 (stale)"]
     path: ../agents/advisor-policy/data/fairsharing/snapshot.jsonl
     id_field: fairsharing_id
     sha256: 828c6229b341ba4864c3af414f9a6be5b8bc32fcc0393babea187a6012a0426f
+  - snapshot_refs: ["ror:dump:v2.15", "ror:dump:v2.15 (stale)"]
+    path: ../agents/advisor-policy/data/ror/registry.jsonl
+    # Built from the pinned ROR dump, not committed (agents/advisor-policy/data/ror/SOURCE.md).
+    built: true
+    id_field: id
+    sha256: 30919b36894f3d2e43afd7fc533b25500e51f9fbdbfe8482fd76fa8a20a2afbb

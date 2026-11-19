@@ -1,0 +1,469 @@
+"""The broker's HTTP interface for agents (docs/specs/model-accounts.md).
+
+`POST /anthropic/v1/messages` takes an Anthropic Messages API request from an agent, and
+`POST /{provider}/chat/completions` an OpenAI Chat Completions request for `openai`, `gemini` or
+`openai-compatible` (`dd_broker.chat_completions`). The path names the provider the agent's card
+declares; the broker serves that provider or refuses, and never substitutes another
+(invariant 12). In order, the broker:
+
+1. authenticates the agent by its own broker credential (`x-api-key` or `Authorization: Bearer`);
+2. verifies the model grant in `X-DD-Model-Grant` for that agent (`dd_broker.grants`);
+3. refuses a model the grant does not allow, and a streamed request;
+4. chooses who pays, from the grant's account alone:
+
+   | Grant's account | The person has a key | The person has none |
+   |---|---|---|
+   | `own` | their key | refused, `model-account-missing` |
+   | `own-or-deployment` | their key | the deployment's key |
+   | `deployment` | the deployment's key | the deployment's key |
+
+   A person's own account serves only the provider the path names, and only if the grant allows
+   that provider; otherwise the call is refused, `account-unsupported`.
+5. forwards the call, to the person's provider for their own key, or for the deployment's to its
+   base URL (the LiteLLM gateway when one is configured) or else the provider's own endpoint;
+6. returns the provider's answer unchanged, with `X-DD-Model-Account` (`own` or `deployment`) and
+   `X-DD-Model-Provider`, and adds the tokens to the person's counts.
+
+A refusal or a provider error is reduced to a status and a reason code (`dd_broker.reasons`). The
+broker never returns or logs a provider's error text, a request body, a key or a grant, and keeps
+no prompt and no reply. A rejected or limited own key never falls back to the deployment's key:
+that would silently change who pays (invariant 10).
+
+`GET`, `PUT` and `DELETE /enrolment/account` are the enrolment interface for the browser
+(`dd_broker.enrolment`).
+"""
+
+from __future__ import annotations
+
+import contextlib
+import json
+import logging
+from collections.abc import AsyncIterator, Callable, Collection, Mapping
+from dataclasses import dataclass, field
+from types import ModuleType
+from typing import Any
+
+import httpx
+from starlette.applications import Starlette
+from starlette.concurrency import run_in_threadpool
+from starlette.requests import Request
+from starlette.responses import JSONResponse, Response
+from starlette.routing import Route
+
+from dd_broker import anthropic, chat_completions, enrolment, gateway, upstream
+from dd_broker.agents import AgentCredentials
+from dd_broker.grants import (
+    GrantVerifier,
+    HarnessKeys,
+    TicketVerifier,
+    VerifiedGrant,
+    fetch_file,
+    fetch_url,
+)
+from dd_broker.guard import (
+    BaseUrlRefused,
+    Resolver,
+    Target,
+    check_base_url,
+    origin,
+    system_resolver,
+)
+from dd_broker.reasons import ACCESS, SERVICE, Reason, Refused
+from dd_broker.seal import SealError
+from dd_broker.settings import BrokerSettings
+from dd_broker.store import OwnAccount, Store
+from dd_sdk.model_grant import (
+    HEADER_ACCOUNT,
+    HEADER_GRANT,
+    HEADER_PROVIDER,
+    HEADER_REASON,
+    Account,
+    Payer,
+)
+from dd_sdk.security_log import SecurityEvent, emit
+
+log = logging.getLogger("dd_broker")
+
+# Anthropic's error types, by status, so an agent's Anthropic client raises its usual exception.
+_ERROR_TYPES = {
+    400: "invalid_request_error",
+    401: "authentication_error",
+    403: "permission_error",
+    404: "not_found_error",
+    429: "rate_limit_error",
+    500: "api_error",
+    502: "api_error",
+    503: "api_error",
+    529: "overloaded_error",
+}
+
+
+@dataclass
+class Broker:
+    store: Store
+    verifier: GrantVerifier
+    tickets: TicketVerifier
+    agents: AgentCredentials
+    # The deployment's key for each provider it pays for, by provider name.
+    deployment_keys: Mapping[str, str] = field(default_factory=dict, repr=False)
+    deployment_base_url: str | None = None
+    allowed_base_urls: Collection[str] = ()
+    private_base_urls: Collection[str] = ()
+    resolve: Resolver = system_resolver
+    transport: httpx.AsyncBaseTransport | None = None
+
+    @classmethod
+    def open(cls, settings: BrokerSettings) -> Broker:
+        fetch = (
+            fetch_url(settings.harness_jwks_url)
+            if settings.harness_jwks_url
+            else fetch_file(settings.harness_jwks_file)  # type: ignore[arg-type]
+        )
+        store = Store(settings.store, settings.key_encryption_key)
+        keys = HarnessKeys(fetch)
+        return cls(
+            store=store,
+            verifier=GrantVerifier(keys, settings.subject_key),
+            tickets=TicketVerifier(keys, settings.subject_key, store),
+            agents=settings.agents,
+            deployment_keys=settings.deployment_keys,
+            deployment_base_url=settings.deployment_base_url,
+            allowed_base_urls=settings.allowed_base_urls,
+            private_base_urls=settings.private_base_urls,
+        )
+
+
+@dataclass(frozen=True)
+class _Payment:
+    payer: Payer
+    provider: str
+    target: Target
+    key: str = field(repr=False)
+
+
+def presented_credential(headers: Mapping[str, str]) -> str | None:
+    """The agent's broker credential, from `x-api-key` or `Authorization: Bearer`: whichever its
+    provider client sends (the Anthropic client sends the second since version 2)."""
+    if key := headers.get("x-api-key"):
+        return key
+    scheme, _, value = (headers.get("authorization") or "").partition(" ")
+    return value.strip() or None if scheme.lower() == "bearer" else None
+
+
+def refusal(status: int, reason: Reason) -> JSONResponse:
+    """A refusal in Anthropic's error shape, so an agent's Anthropic client raises its usual
+    exception."""
+    error_type = _ERROR_TYPES.get(status, "api_error")
+    return JSONResponse(
+        {"type": "error", "error": {"type": error_type, "message": reason.value}},
+        status_code=status,
+        headers={HEADER_REASON: reason.value},
+    )
+
+
+def chat_refusal(status: int, reason: Reason) -> JSONResponse:
+    """A refusal in the Chat Completions error shape, so an agent's OpenAI client raises its
+    usual exception."""
+    return JSONResponse(
+        {
+            "error": {
+                "message": reason.value,
+                "type": _ERROR_TYPES.get(status, "api_error"),
+                "param": None,
+                "code": reason.value,
+            }
+        },
+        status_code=status,
+        headers={HEADER_REASON: reason.value},
+    )
+
+
+@dataclass(frozen=True)
+class _Format:
+    """One request format the broker forwards: the module that sends and counts its calls
+    (`send`, `usage`), and how a refusal is shaped."""
+
+    forwarding: ModuleType
+    refuse: Callable[[int, Reason], JSONResponse]
+
+
+_MESSAGES = _Format(anthropic, refusal)
+_CHAT = _Format(chat_completions, chat_refusal)
+
+
+def provider_endpoint(provider: str) -> str | None:
+    """A provider's own endpoint, or None if it has none (an OpenAI-compatible endpoint)."""
+    if provider == anthropic.PROVIDER:
+        return anthropic.BASE_URL
+    return chat_completions.PROVIDERS[provider].base_url
+
+
+def _own_account(broker: Broker, grant: VerifiedGrant) -> OwnAccount | None:
+    """The person's own account, or None if they have none."""
+    try:
+        return broker.store.account(grant.pseudonym)
+    except SealError:
+        log.error("a sealed key does not open; check the key-encryption key")
+        raise Refused(500, Reason.BROKER_ERROR) from None
+
+
+# Where the model seam asks which provider and model serve a model its card declares.
+ROUTE_PATH = "/route"
+
+
+def _route(broker: Broker, grant: VerifiedGrant, provider: str, model: str) -> tuple[str, str]:
+    """The provider and model that serve `model`, which the card declares for `provider`
+    (docs/specs/model-accounts.md, The route). The model the grant's map names for the person's
+    own provider, when their account is with another provider than the declared one and the grant
+    may use it; otherwise the declared provider and model. Decided from the grant and the person's
+    account alone."""
+    if not grant.allows(model):
+        raise Refused(403, Reason.MODEL_NOT_GRANTED)
+    claims = grant.claims
+    if claims.model_map and claims.account in (Account.OWN, Account.OWN_OR_DEPLOYMENT):
+        own = _own_account(broker, grant)
+        if own is not None and own.provider != provider and own.provider in claims.providers:
+            served = claims.model_map.get(own.provider, {}).get(model)
+            if served is not None:
+                return own.provider, served
+    return provider, model
+
+
+def _choose(
+    broker: Broker, grant: VerifiedGrant, provider: str, *, mapped: bool = False
+) -> _Payment:
+    """Who pays for a call to `provider`, the provider the request's path names. A `mapped` call,
+    to a model the grant allows only through its model map, is paid for by the person's own
+    account with that provider or by no one: the deployment never pays for one."""
+    account = grant.claims.account
+    if account in (Account.OWN, Account.OWN_OR_DEPLOYMENT):
+        own = _own_account(broker, grant)
+        if own is not None and own.provider != provider:
+            # An account with another provider than the path names is no account for this call:
+            # its key is never used and its provider never serves the call (invariant 12). Who
+            # pays is then what the grant says for a person with none.
+            own = None
+        if own is not None:
+            if own.provider not in grant.claims.providers:
+                # An account the profile does not allow is never used, and the deployment does not
+                # pay in its place.
+                raise Refused(403, Reason.ACCOUNT_UNSUPPORTED)
+            return _Payment(Payer.OWN, own.provider, _own_target(broker, grant, own), own.key)
+        if account is Account.OWN or mapped:
+            raise Refused(403, Reason.MODEL_ACCOUNT_MISSING)
+    if mapped:
+        # Only a grant that may use a person's own account carries a map.
+        raise Refused(403, Reason.MODEL_NOT_GRANTED)
+    return _deployment_payment(broker, provider, grant.claims.agent)
+
+
+def _own_target(broker: Broker, grant: VerifiedGrant, own: OwnAccount) -> Target:
+    """Where a call paid for by the person's own account `own` goes."""
+    if own.base_url:
+        try:
+            # The profile's allow-list, carried by the grant, and the operator's must both
+            # name the origin.
+            if origin(own.base_url) not in grant.claims.base_urls:
+                raise BaseUrlRefused("the base URL is not one the profile allows")
+            return check_base_url(
+                own.base_url,
+                broker.allowed_base_urls,
+                private=broker.private_base_urls,
+                resolve=broker.resolve,
+            )
+        except BaseUrlRefused:
+            raise Refused(403, Reason.BASE_URL_REFUSED) from None
+    endpoint = provider_endpoint(own.provider)
+    if endpoint is None:
+        # An OpenAI-compatible account is stored with its base URL; one without is
+        # not an account the broker can serve.
+        raise Refused(403, Reason.ACCOUNT_UNSUPPORTED)
+    return Target(url=endpoint)
+
+
+def _deployment_payment(broker: Broker, provider: str, agent: str) -> _Payment:
+    """A call to `provider` made by `agent` and paid for by the deployment's own account."""
+    key = broker.deployment_keys.get(provider)
+    if not key:
+        raise Refused(503, Reason.DEPLOYMENT_ACCOUNT_UNAVAILABLE)
+    if broker.deployment_base_url:
+        target = gateway.target(broker.deployment_base_url, provider, agent)
+        return _Payment(Payer.DEPLOYMENT, provider, target, key)
+    endpoint = provider_endpoint(provider)
+    if endpoint is None:
+        # The deployment pays for an OpenAI-compatible endpoint only through its gateway.
+        raise Refused(503, Reason.DEPLOYMENT_ACCOUNT_UNAVAILABLE)
+    return _Payment(Payer.DEPLOYMENT, provider, Target(url=endpoint), key)
+
+
+async def _call(
+    broker: Broker,
+    client: httpx.AsyncClient,
+    request: Request,
+    provider: str,
+    form: _Format,
+) -> Response:
+    agent = broker.agents.authenticate(presented_credential(request.headers))
+    if agent is None:
+        raise Refused(401, Reason.AGENT_UNAUTHENTICATED)
+    grant = await run_in_threadpool(
+        broker.verifier.verify, request.headers.get(HEADER_GRANT), agent
+    )
+    try:
+        body: Any = json.loads(await request.body())
+    except ValueError:
+        raise Refused(400, Reason.REQUEST_INVALID) from None
+    if not isinstance(body, dict) or not isinstance(body.get("model"), str):
+        raise Refused(400, Reason.REQUEST_INVALID)
+    if body.get("stream"):
+        # No agent streams today; serving a stream is a later change.
+        raise Refused(400, Reason.STREAMING_UNSUPPORTED)
+    # A model the card declares is allowed on any path. One the grant's model map names for this
+    # path's provider is allowed only on the person's own account with that provider.
+    mapped = not grant.allows(body["model"])
+    if mapped and not grant.claims.mapped(provider, body["model"]):
+        raise Refused(403, Reason.MODEL_NOT_GRANTED)
+    payment = await run_in_threadpool(lambda: _choose(broker, grant, provider, mapped=mapped))
+    try:
+        answer = await form.forwarding.send(
+            client, payment.target, payment.key, body, request.headers
+        )
+    except httpx.HTTPError as exc:
+        raise upstream.unreachable(exc, payment.payer, payment.provider) from None
+    document = upstream.answered(answer, payment.payer, payment.provider, body["model"])
+    reported = document.get("model")
+    served: str = reported if isinstance(reported, str) else body["model"]
+    input_tokens, output_tokens = form.forwarding.usage(document)
+    await run_in_threadpool(
+        lambda: broker.store.add_usage(
+            grant.pseudonym,
+            payer=payment.payer,
+            provider=payment.provider,
+            model=served,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+        )
+    )
+    log.info(
+        "call agent=%s payer=%s provider=%s model=%s",
+        agent,
+        payment.payer.value,
+        payment.provider,
+        served,
+    )
+    return Response(
+        content=answer.content,
+        status_code=200,
+        media_type="application/json",
+        headers={HEADER_ACCOUNT: payment.payer.value, HEADER_PROVIDER: payment.provider},
+    )
+
+
+def route_refusal(status: int, reason: Reason) -> JSONResponse:
+    """A refusal of a route request: the reason code alone, in `X-DD-Reason` and the body."""
+    return JSONResponse(
+        {"error": reason.value}, status_code=status, headers={HEADER_REASON: reason.value}
+    )
+
+
+async def _answer_route(broker: Broker, request: Request) -> Response:
+    agent = broker.agents.authenticate(presented_credential(request.headers))
+    if agent is None:
+        raise Refused(401, Reason.AGENT_UNAUTHENTICATED)
+    grant = await run_in_threadpool(
+        broker.verifier.verify, request.headers.get(HEADER_GRANT), agent
+    )
+    try:
+        body: Any = json.loads(await request.body())
+    except ValueError:
+        raise Refused(400, Reason.REQUEST_INVALID) from None
+    if (
+        not isinstance(body, dict)
+        or set(body) != {"provider", "model"}
+        or not isinstance(body["model"], str)
+        or body["provider"] not in (anthropic.PROVIDER, *chat_completions.PROVIDERS)
+    ):
+        raise Refused(400, Reason.REQUEST_INVALID)
+    provider, model = await run_in_threadpool(
+        lambda: _route(broker, grant, body["provider"], body["model"])
+    )
+    log.info(
+        "route agent=%s routed=%s", agent, (provider, model) != (body["provider"], body["model"])
+    )
+    # The answer names a provider and a model, never anything about the account.
+    return JSONResponse({"provider": provider, "model": model})
+
+
+def record_refusal(reason: Reason) -> None:
+    """A refused call is a security event when it is about who may call (`reasons.ACCESS`).
+    It names no one: a refused grant is not to be believed about whom it is for."""
+    if reason in ACCESS:
+        emit(
+            SecurityEvent.BROKER_CALL_REFUSED,
+            outcome="failure",
+            service=SERVICE,
+            reason=reason.value,
+        )
+
+
+def build_app(broker: Broker) -> Starlette:
+    clients: list[httpx.AsyncClient] = []
+
+    @contextlib.asynccontextmanager
+    async def lifespan(app: Starlette) -> AsyncIterator[None]:
+        async with httpx.AsyncClient(transport=broker.transport) as client:
+            clients.append(client)
+            yield
+            clients.clear()
+
+    async def serve(request: Request, provider: str, form: _Format) -> Response:
+        try:
+            return await _call(broker, clients[0], request, provider, form)
+        except Refused as refused:
+            log.info("refused reason=%s status=%d", refused.reason.value, refused.status)
+            record_refusal(refused.reason)
+            return form.refuse(refused.status, refused.reason)
+
+    async def messages(request: Request) -> Response:
+        return await serve(request, anthropic.PROVIDER, _MESSAGES)
+
+    async def completions(request: Request) -> Response:
+        provider = request.path_params["provider"]
+        if provider not in chat_completions.PROVIDERS:
+            return chat_refusal(404, Reason.ACCOUNT_UNSUPPORTED)
+        return await serve(request, provider, _CHAT)
+
+    async def account(request: Request) -> Response:
+        return await enrolment.account(
+            enrolment.Enrolment(
+                broker.store,
+                broker.tickets,
+                broker.allowed_base_urls,
+                broker.private_base_urls,
+                broker.resolve,
+            ),
+            clients[0],
+            request,
+        )
+
+    async def route(request: Request) -> Response:
+        try:
+            return await _answer_route(broker, request)
+        except Refused as refused:
+            log.info("refused reason=%s status=%d", refused.reason.value, refused.status)
+            record_refusal(refused.reason)
+            return route_refusal(refused.status, refused.reason)
+
+    async def healthz(request: Request) -> Response:
+        return JSONResponse({"status": "ok"})
+
+    return Starlette(
+        routes=[
+            Route("/anthropic/v1/messages", messages, methods=["POST"]),
+            Route("/{provider}" + chat_completions.COMPLETIONS_PATH, completions, methods=["POST"]),
+            Route(enrolment.ACCOUNT_PATH, account, methods=["GET", "PUT", "DELETE"]),
+            Route(ROUTE_PATH, route, methods=["POST"]),
+            Route("/healthz", healthz, methods=["GET"]),
+        ],
+        lifespan=lifespan,
+    )

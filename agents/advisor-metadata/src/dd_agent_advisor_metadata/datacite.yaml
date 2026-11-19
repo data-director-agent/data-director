@@ -1,30 +1,58 @@
 # advisor.metadata's rule table: how a DataCite property is written in DataCite's JSON form, the
-# form of the DataCite REST API's attributes (docs/specs/deposit.md). A mock's table (docs/specs/agents.md); the
-# real librarian replaces it, TODO(#357).
+# form of the DataCite REST API's attributes (docs/specs/deposit.md), and what the researcher is
+# asked about it. Controlled vocabularies and other schemas are TODO(#703).
 #
 # `value` is the key that holds the value in each entry of a property whose value is a list of
 # objects. A property in the requirements that this table does not name is written as null.
-# `filled` gives a value the mock writes itself, because it holds for whatever the project
+# `filled` gives a value the librarian writes itself, because it holds for whatever the project
 # deposits: the resource is a dataset.
+#
+# `ask` is the question put to the researcher for a value left null; a property with none is
+# asked about by its name. `suggest: true` marks the properties a model may suggest a value for,
+# beside the question and never in the record (docs/specs/drafting.md, invariant 7): what the
+# dataset's files can make likely. Never who made it, when, under what rights or with whose money,
+# which only the researcher can say, and never an entry from a named vocabulary (TODO(#703)).
 titles:
   value: title
+  ask: What is the dataset's title?
+  suggest: true
 creators:
   value: name
+  ask: Who created the dataset? Give one creator's name, family name first.
 contributors:
   value: name
+  ask: Who else contributed to the dataset? Give one contributor's name, family name first.
 subjects:
   value: subject
+  ask: What is the dataset about? Give a keyword or subject.
+  suggest: true
 descriptions:
   value: description
+  ask: Describe the dataset.
+  suggest: true
 dates:
   value: date
+  ask: Give the date, as YYYY-MM-DD.
 rightsList:
   value: rights
+  ask: Under what licence or rights statement is the dataset shared?
 fundingReferences:
   value: funderName
+  ask: Which organisation funded the work that produced the dataset?
 relatedIdentifiers:
   value: relatedIdentifier
+  ask: Give the identifier, such as a DOI, of a related publication or dataset.
 geoLocations:
   value: geoLocationPlace
+  ask: Where were the data collected? Name the place.
+publisher:
+  ask: Who publishes the dataset? This is usually the repository.
+publicationYear:
+  ask: In what year will the dataset be published?
+language:
+  ask: What is the main language of the dataset, as a language code such as en?
+  suggest: true
+version:
+  ask: What version of the dataset is this?
 types.resourceTypeGeneral:
   filled: Dataset

@@ -27,10 +27,14 @@ mkdir -p "$unit_dir" "$app/deploy" "$app/.venv/bin" "$root/usr/lib/systemd"
 system_units=/usr/lib/systemd/system
 [ -d "$system_units" ] || system_units=/lib/systemd/system
 cp -r "$system_units" "$root/usr/lib/systemd/"
+# Some runner images ship symlinks to units that are not installed (the dracut-*.service ones on
+# Ubuntu 26.04), which verify reports as a failure to open. They are the host's problem, not ours.
+find "$root/usr/lib/systemd/system" -xtype l -delete
 cp -r "$units_src"/. "$unit_dir"/
 
-# Every executable a unit starts, as a stand-in; the agent template's is per instance.
-grep -rhoE '^Exec[A-Za-z]*=[-@+!:]*/opt/data-director/current/[^ ]+' "$unit_dir" |
+# Every executable a unit starts from the release or from what install.sh installs as root, as a
+# stand-in; the agent template's is per instance.
+grep -rhoE '^Exec[A-Za-z]*=[-@+!:]*(/opt/data-director/current|/usr/local/lib/data-director)/[^ ]+' "$unit_dir" |
   sed -E 's/^[^=]*=[-@+!:]*//' | sed 's/%i/example-hello/' | sort -u |
   while IFS= read -r exe; do
     mkdir -p "$root$(dirname "$exe")"
@@ -48,10 +52,16 @@ grep -rhoE '^Exec[A-Za-z]*=[-@+!:]*/[^ ]+' "$unit_dir" | sed -E 's/^[^=]*=[-@+!:
     chmod +x "$root$exe"
   done
 
-# The service user, so that User= resolves.
+# The service users, so that User= resolves: the deployment's, and the model broker's own.
 mkdir -p "$root/etc"
-echo "datadirector:x:900:900::/opt/data-director:/usr/sbin/nologin" >"$root/etc/passwd"
-echo "datadirector:x:900:" >"$root/etc/group"
+{
+  echo "datadirector:x:900:900::/opt/data-director:/usr/sbin/nologin"
+  echo "data-director-broker:x:901:901::/var/lib/data-director-model-broker:/usr/sbin/nologin"
+} >"$root/etc/passwd"
+{
+  echo "datadirector:x:900:"
+  echo "data-director-broker:x:901:"
+} >"$root/etc/group"
 
 # Plain units, then the template through an instance: verify does not instantiate on its own.
 units=()

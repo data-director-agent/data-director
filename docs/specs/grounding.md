@@ -18,6 +18,12 @@ Neither check judges whether a model's rationale is faithful to its input or to 
 retrieved. That is a question for [evaluation](evaluation.md). Neither verifies a derivation
 badge: that is the agent's declaration of how a value was made ([Agents](agents.md)).
 
+An agent that lets a model state what a retrieved record says checks it in its own code before
+the value reaches the payload: `advisor.policy` keeps a model's obligation only with a quote it
+finds, word for word, in the record it cites, and records `derivation: model` beside it. That
+check shows the record contains the words; it does not show the model read them rightly, which
+is again a question for evaluation.
+
 This spec covers grounding modes, evidence and its canonicalisations, the linter and the source
 check. The rule-by-rule description, with examples, is
 [`harness/docs/grounding.md`](../../harness/docs/grounding.md). The envelope and the `Grounded`
@@ -54,7 +60,8 @@ mixin are in [Contract](contract.md); the `dd.*` span attributes the rules read 
    in `dd_sdk.evidence` and a contract violation in an envelope.
 7. A registered canonicalisation never changes the bytes it produces. Changing what a hash
    covers means registering a new name and keeping the old one, so that stored runs still
-   verify. No test pins the bytes of each name yet; review is the only guard.
+   verify. `sdk/tests/test_evidence_properties.py` pins each name's digest of a fixed record and
+   checks its bytes against a reference written out in the test, for generated documents.
 8. A payload states an external identity once, in `grounded_on`. It carries no descriptive copy
    of the record it cites. What a reader is shown about a cited record is the `content` of the
    evidence item with the same source id and content hash (`dd_sdk.evidence.resolve`).
@@ -79,6 +86,18 @@ mixin are in [Contract](contract.md); the `dd.*` span attributes the rules read 
     separately (`grounding.txt`, `sources.txt`) and never combined into one.
 14. Both checks run offline over a stored run as well as in the conductor, and give the same
     verdict.
+15. A record read through the harness's tool gateway ([Agents](agents.md)) is recorded by the
+    conductor: its source id, its content hash under the canonicalisation the deployment names
+    for that server, and when the gateway returned it. For such a source, G1–G3 read the
+    conductor's record, not the agent's `retrieval` spans, and an agent's own span citing it
+    counts for nothing. Only a structured tool result, a record in the tool's declared output
+    schema with its identifier, is recorded; free text from a tool grounds nothing. The records
+    are the envelope's `tool_retrievals`, which only the conductor fills, and evidence naming a
+    `tool:` source must be one of them (`dd_harness.gateway`, `dd_sdk.contract.validate`). G1
+    compares the agent's `chat` spans with the time the gateway returned the first record, by the
+    harness's clock; an agent on another host whose clock runs ahead could fail G1 although it
+    waited. The source check does not look such a record up again: its hash is the conductor's
+    own, computed from what the server returned.
 
 ## Boundaries and contracts
 
@@ -88,7 +107,8 @@ relies on:
 | Fact | Recorded by |
 |---|---|
 | grounding mode, input hash, the `invoke_agent` span, `delegations` and each child's envelope hash | the conductor |
-| `retrieval` and `chat` spans and their timing, `grounded_on`, evidence, derivation badges | the agent |
+| each record returned through the tool gateway, its hash and when | the conductor |
+| `retrieval` spans for sources the agent reads itself, `chat` spans and their timing, `grounded_on`, evidence, derivation badges | the agent |
 
 An agent runs as a separate service and sends its spans back with its result
 ([Transport and tracing](transport.md)), so a `retrieval` span is the agent's statement that it
@@ -99,7 +119,8 @@ read a record, not the harness's observation of it. Hence:
   it does show that what the reader sees about a cited record is the source's own projection of
   it;
 - the input rules (R2) and delegation rules (D1, D2) are sound, because they compare the agent's
-  citations with hashes the conductor computed;
+  citations with hashes the conductor computed. So are G1–G3 for a source read through the tool
+  gateway (invariant 15);
 - R1 and N1 show only that the agent reported no retrieval or no model call.
 
 Documentation, the conformance register and the linter's docstring must not describe
@@ -122,9 +143,23 @@ shown as verified. Each
 deployment (the workbench, the app) supplies its own list of copies; the harness itself holds
 none by default, so a test conductor reports synthetic sources as unresolved, not failed.
 
+Some sources have no copy to pin: a web page an agent reads is whatever the page says when it is
+fetched. The policy advisor reads each policy's own page or PDF (`policy-text:live:<date>`) and
+cites it by its address, with the whole text it read as the evidence `content` under
+`dd-json-document-v1`, together with the SHA-256 of the bytes fetched. E1 holds for it; the source
+check reports it as unresolved. What a model says the text states is kept only with a quote the
+agent has found in that text, so a reader can check each against the evidence.
+
 A new retrieving agent with a packaged or snapshot source adds one entry to its deployment's
 list of copies. An agent whose records need their own projection registers a canonicalisation
-in `dd_sdk.evidence`; it does not invent a name in its own package. A new grounding mode is an
+in `dd_sdk.evidence`; it does not invent a name in its own package. An MCP server used as a
+source names such a canonicalisation, and its pinned copy, in the deployment's list of servers,
+so its records are hashed under a registered name, and the conductor, not the agent, records the
+hash. The registered names are `json-sorted-utf8-v1` (the FAIRsharing projection),
+`dd-input-json-v1`, `dd-json-document-v1`, `dd-envelope-json-v1` and `dd-spdx-licence-v1`, an SPDX
+licence record projected to `licenseId`, `name`, `isOsiApproved`, `isFsfLibre`,
+`isDeprecatedLicenseId` and `seeAlso` (sorted), each null when absent and the licence text left
+out; a server serving SPDX records names it in the deployment's list of servers. A new grounding mode is an
 entry in the linter's rule table and a contract enum value, and is a change to this spec.
 
 ## Rationale
@@ -184,9 +219,10 @@ callback and no change to retrieving agents.
 
 ## Open questions
 
-- TODO(#246): route retrieval through the harness, as delegation is, so that the conductor and
-  not the agent records when each record was read. Until then G1 checks only the agent's own
-  timeline.
+- TODO(#1143): a source read through the tool gateway is recorded by the conductor (invariant
+  15). The sources agents read themselves today (FAIRsharing, re3data, ROR, Crossref, policy
+  pages) still report their own retrievals, so G1 checks only the agent's own timeline for them
+  until each moves behind an MCP server.
 - TODO(#246): a resolver for the standards advisor's `live` route, which needs FAIRsharing
   credentials and network access. Live runs are unresolved.
 - TODO(#246): whether an unresolved item in `retrieval` mode should be a violation under some

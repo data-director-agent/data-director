@@ -51,6 +51,12 @@
       "gap_file": {
          "@id": "https://w3id.org/data-director/gap_file"
       },
+      "gap_part": {
+         "@id": "https://w3id.org/data-director/gap_part"
+      },
+      "gap_property": {
+         "@id": "https://w3id.org/data-director/gap_property"
+      },
       "gap_section": {
          "@id": "https://w3id.org/data-director/gap_section"
       },

@@ -16,7 +16,7 @@ import yaml
 from dd_agent_advisor_documentation.agent import DocumentationEditor
 from dd_agent_advisor_files.agent import FileArchivist
 from dd_agent_advisor_metadata.agent import MetadataLibrarian
-from dd_agent_orchestrator_stub.agent import DirectorStub
+from dd_agent_orchestrator_stub.agent import ENTRY_KEY, NEXT_STEP_KEY, DirectorStub
 from dd_harness.conductor import Conductor
 from dd_harness.deposit import PackageRefusedError, build_package
 from dd_harness.projects import APPROVED, Decision, ProjectStore
@@ -25,14 +25,16 @@ from dd_harness.sources import RecordsFile, Sources
 from dd_harness.store import RunStore
 from dd_harness.testing import TEST_PRINCIPAL, file_inventory, make_conductor, request
 from dd_sdk.contract.models import (
-    ChoiceAnswer,
     ConversationTurn,
     Envelope,
     Message,
     OutcomeStatus,
+    QuestionAnswer,
     Reply,
+    ReplyAnswers,
     TurnRole,
 )
+from dd_sdk.intake import ENTRY
 
 
 class Researcher:
@@ -48,8 +50,12 @@ class Researcher:
         answer = None
         if choose is not None:
             assert self.last is not None
-            answer = ChoiceAnswer(answer_to=self.last.invocation_id, answer_values=[choose])
-        message = Message(message_text=text, history=list(self.history), choice_answer=answer)
+            # The stub reads a step by its question's key, whether or not the last reply asked.
+            answer = ReplyAnswers(
+                answer_to=self.last.invocation_id,
+                given_answers=[QuestionAnswer(answered_key=NEXT_STEP_KEY, answer_values=[choose])],
+            )
+        message = Message(message_text=text, history=list(self.history), reply_answers=answer)
         req = request("orchestrator.stub", message).model_copy(
             update={"conversation_id": self.conversation_id}
         )
@@ -75,8 +81,8 @@ class Researcher:
 
     def offered(self) -> list[str]:
         assert self.last is not None
-        question = self.reply(self.last).reply_question
-        return [o.option_value for o in question.question_options] if question else []
+        questions = self.reply(self.last).reply_questions or []
+        return [o.option_value for q in questions for o in q.question_options or []]
 
 
 @pytest.fixture
@@ -268,4 +274,34 @@ def test_outside_a_project_the_stub_still_asks_where_the_researcher_is(
 ) -> None:
     researcher = Researcher(conductor_over(tmp_path, projects), conversation_id=None)  # type: ignore[arg-type]
     researcher.say("hello")
+    assert researcher.offered() == ["1", "2", "3"]
+
+
+def asked_keys(env: Envelope) -> list[str]:
+    return [q.question_key for q in Researcher.reply(env).reply_questions or []]
+
+
+def test_a_project_whose_intake_gave_an_entry_point_is_not_asked_for_it_again(
+    tmp_path: Path, projects: ProjectStore
+) -> None:
+    """The intake's answer is the project's entry point, so a first turn naming no task offers
+    the next step from it instead of asking where the researcher is (invariant 15, #669)."""
+    project = projects.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    projects.answer_intake(project, ENTRY, ["2"], acted_for=TEST_PRINCIPAL, caused_by="test")
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    researcher = Researcher(conductor_over(tmp_path, projects), conversation)
+    env = researcher.say("hello")
+    assert asked_keys(env) == [NEXT_STEP_KEY]
+    assert researcher.offered()[0] == "governance.policies"
+    assert "Where are you with your research data?" not in Researcher.reply(env).reply_text
+
+
+def test_a_project_with_no_entry_point_is_asked_for_one_on_its_first_turn(
+    tmp_path: Path, projects: ProjectStore
+) -> None:
+    project = projects.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    researcher = Researcher(conductor_over(tmp_path, projects), conversation)
+    env = researcher.say("hello")
+    assert asked_keys(env) == [ENTRY_KEY]
     assert researcher.offered() == ["1", "2", "3"]

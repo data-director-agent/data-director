@@ -6,7 +6,7 @@
     "git_revision": "d7b48718438fc761553eaecbaa30b23da93f60e9",
     "ranking_sha256": "10f0eb50aa9ff44bee678b0e134cad4d8ad4240f77c7c1aaf47217f75663f8f6",
     "snapshot_sha256": "969642eed642d2f4cbb0e6999878cb3bf2480734c0bbab4fcd3db212ecdbcdf1",
-    "spec_version": "0.2.0"
+    "spec_version": "0.3.0"
   },
   "scores": {
     "soil-baseline": {

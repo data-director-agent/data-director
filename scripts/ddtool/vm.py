@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import urllib.request
 from dataclasses import dataclass, field
@@ -29,6 +30,11 @@ class Vm:
     etc: Path = Path("/etc/data-director")
     unit_dir: Path = Path("/etc/systemd/system")
     root: Path = Path("/opt/data-director")
+    # The service user's home, and the stores kept in files (deploy/README.md, "Layout on the VM").
+    state: Path = Path("/var/lib/data-director")
+    # Where backups go unless backup.env says otherwise, and where install.sh puts backup.sh.
+    backups: Path = Path("/var/backups/data-director")
+    lib: Path = Path("/usr/local/lib/data-director")
     nginx_enabled: Path = Path("/etc/nginx/sites-enabled")
     nginx_available: Path = Path("/etc/nginx/sites-available")
     sudoers: Path = Path("/etc/sudoers.d/data-director")
@@ -67,6 +73,14 @@ class Vm:
     @property
     def deploy_env(self) -> Path:
         return self.etc / "deploy.env"
+
+    @property
+    def workbench_env(self) -> Path:
+        return self.etc / "workbench.env"
+
+    @property
+    def backup_env(self) -> Path:
+        return self.etc / "backup.env"
 
     def agent_env(self, name: str) -> Path:
         return self.etc / "agents" / f"{name}.env"
@@ -139,6 +153,15 @@ class System:
 
     def read(self, path: Path) -> str:
         return path.read_text(encoding="utf-8")
+
+    def disk(self, path: Path) -> tuple[int, int] | None:
+        """The size of the file system that holds `path` and the bytes free on it, or None if
+        `path` cannot be reached."""
+        try:
+            usage = shutil.disk_usage(path)
+        except OSError:
+            return None
+        return usage.total, usage.free
 
 
 def systemctl_show(system: System, units: list[str], props: list[str]) -> dict[str, dict[str, str]]:

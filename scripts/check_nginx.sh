@@ -2,8 +2,9 @@
 # Set up deploy/nginx/data-director.conf as deploy/install.sh does, in front of stand-ins for
 # the app on 127.0.0.1:7860 and the workbench on 127.0.0.1:8000, and check that the proxy does
 # what the config says: HTTP redirected to HTTPS, TLS 1.3 alone, HSTS, no password of its own (the
-# app and the workbench sign people in), /a2a and the agent card closed, the forwarded headers set,
-# the body size limit, and port 8443 reaching the workbench and nothing else. The "NGINX reverse proxy" job in
+# app and the workbench sign people in), /a2a, the agent card and /server-status closed, the forwarded headers set,
+# the body size limit, port 8443 reaching the workbench and nothing else, and /broker/enrolment/
+# alone reaching the model broker on 127.0.0.1:8300. The "NGINX reverse proxy" job in
 # .github/workflows/ci.yml runs it.
 #
 # It changes /etc/nginx and /etc/letsencrypt, so run it as root on a throwaway Debian or Ubuntu
@@ -55,11 +56,13 @@ class Echo(BaseHTTPRequestHandler):
 
 workbench = HTTPServer(("127.0.0.1", 8000), Echo)
 threading.Thread(target=workbench.serve_forever, daemon=True).start()
+broker = HTTPServer(("127.0.0.1", 8300), Echo)
+threading.Thread(target=broker.serve_forever, daemon=True).start()
 HTTPServer(("127.0.0.1", 7860), Echo).serve_forever()
 PY
 upstream=$!
 trap 'kill "$upstream"' EXIT
-bash "$src/deploy/wait-for-ports.sh" 10 7860 8000
+bash "$src/deploy/wait-for-ports.sh" 10 7860 8000 8300
 
 nginx -t
 if [[ -s /run/nginx.pid ]] && kill -0 "$(cat /run/nginx.pid)" 2>/dev/null; then
@@ -85,6 +88,8 @@ expect 308 "http:// redirected" http://127.0.0.1/
 expect 200 "/ passed to the app, with no password" "$url/"
 expect 404 "/a2a" "$url/a2a"
 expect 404 "/.well-known/agent-card.json" "$url/.well-known/agent-card.json"
+expect 404 "/server-status" "$url/server-status"
+expect 404 "/server-status?auto" "$url/server-status?auto"
 expect 413 "a body over 2 MB" \
   -H 'Content-Type: application/json' --data-binary @<(head -c 3000000 /dev/zero | tr '\0' a) \
   "$url/"
@@ -92,6 +97,8 @@ expect 200 "another host name, answered by this site and not the packaged one" -
 expect 000 "TLS 1.2" --tls-max 1.2 "$url/"
 curl -sk -o /dev/null -D - "$url/" | grep -qi '^Strict-Transport-Security: max-age=63072000' ||
   fail "no HSTS header"
+curl -sk -o /dev/null -D - "$url/" | grep -qi "^Content-Security-Policy: frame-ancestors 'none'" ||
+  fail "the app may be framed"
 
 headers=$(curl -sk "$url/")
 grep -qi '^X-Forwarded-Proto: https' <<<"$headers" || fail "X-Forwarded-Proto not passed to the app"
@@ -102,17 +109,29 @@ if curl -s -H 'Host: elsewhere.example' http://127.0.0.1/ | grep -qi 'welcome to
   fail "the packaged default site still answers"
 fi
 
+# The model broker's enrolment interface, and nothing else of the broker's.
+headers=$(curl -sk "$url/broker/enrolment/account")
+grep -q '^Upstream: 8300' <<<"$headers" || fail "/broker/enrolment/ does not reach the broker"
+grep -q '^Upstream: 7860' <<<"$(curl -sk "$url/broker/anthropic/v1/messages")" ||
+  fail "a broker path other than /enrolment/ is passed to the broker"
+expect 413 "an enrolment body over 4 kB" \
+  -H 'Content-Type: application/json' --data-binary @<(head -c 8000 /dev/zero | tr '\0' a) \
+  "$url/broker/enrolment/account"
+
 # The workbench, on port 8443.
 workbench=https://127.0.0.1:8443
 expect 200 "8443 passed to the workbench, with no password" "$workbench/"
 expect 404 "8443 /a2a" "$workbench/a2a"
 expect 404 "8443 /.well-known/agent-card.json" "$workbench/.well-known/agent-card.json"
+expect 404 "8443 /server-status" "$workbench/server-status"
 expect 000 "8443 TLS 1.2" --tls-max 1.2 "$workbench/"
 expect 308 "http:// to 8443 redirected" http://127.0.0.1:8443/viewer/
 [[ $(curl -s -o /dev/null -w '%{redirect_url}' http://127.0.0.1:8443/viewer/?x=1) == https://127.0.0.1:8443/viewer/?x=1 ]] ||
   fail "http:// to 8443 not redirected to the same path on https://"
 curl -sk -o /dev/null -D - "$workbench/" | grep -qi '^Strict-Transport-Security: max-age=63072000' ||
   fail "no HSTS header on 8443"
+curl -sk -o /dev/null -D - "$workbench/" | grep -qi "^Content-Security-Policy: frame-ancestors 'none'" ||
+  fail "the workbench may be framed"
 headers=$(curl -sk "$workbench/")
 grep -q '^Upstream: 8000' <<<"$headers" || fail "port 8443 does not reach the workbench"
 grep -qi '^X-Forwarded-Proto: https' <<<"$headers" || fail "X-Forwarded-Proto not passed to the workbench"

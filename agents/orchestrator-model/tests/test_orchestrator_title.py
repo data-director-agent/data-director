@@ -5,20 +5,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import pytest
 
 from dd_agent_example_hello.agent import HelloWorld
 from dd_agent_orchestrator_model.agent import ModelOrchestrator
-from dd_agent_orchestrator_model.model import ModelTurn
-from dd_agent_orchestrator_model.title import (
-    TITLE_PROMPT,
-    TitleError,
-    TitleTurn,
-    clean,
-    title_prompt,
-)
+from dd_agent_orchestrator_model.title import TITLE_PROMPT, clean, title_prompt
 from dd_harness.conductor import Conductor
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import Derived, describe
@@ -31,6 +24,7 @@ from dd_sdk.contract.models import (
     Reply,
     TurnRole,
 )
+from dd_sdk.model import ModelRequest, ModelResponse, Usage, message_json
 from dd_sdk.prompts import prompt_digest
 
 MODEL = "claude-test"
@@ -42,33 +36,33 @@ class OneReply:
     """The reply model, answering "Hello." without delegating."""
 
     model_id: str = MODEL
+    provider: str = "fake"
+    hosting: Literal["hosted", "local"] = "hosted"
 
-    def turn(self, messages: Any, tools: Any, *, use_tools: bool) -> ModelTurn:
-        return ModelTurn(
-            text="Hello.",
-            tool_calls=[],
-            stop_reason="end_turn",
-            content=[{"type": "text", "text": "Hello."}],
-            model_id=MODEL,
-            input_tokens=100,
-            output_tokens=10,
-        )
+    def send(self, request: ModelRequest) -> ModelResponse:
+        return ModelResponse("Hello.", model_id=MODEL, usage=Usage(100, 10))
 
 
 @dataclass
 class ScriptedTitler:
-    """Answers with `text`, or raises `error`, and keeps each prompt it is sent."""
+    """A title model (`dd_sdk.model.Model`) that answers with `text`, or raises `error`, and keeps
+    each prompt it is sent."""
 
     text: str = "Greeting Ada"
     error: Exception | None = None
+    refused: bool = False
     model_id: str = TITLE_MODEL
+    provider: str = "anthropic"
+    hosting: Literal["hosted", "local"] = "hosted"
     sent: list[dict[str, Any]] = field(default_factory=list)
 
-    def turn(self, prompt: dict[str, Any]) -> TitleTurn:
-        self.sent.append(prompt)
+    def send(self, request: ModelRequest) -> ModelResponse:
+        self.sent.append(
+            {"system": request.system, "messages": [message_json(m) for m in request.messages]}
+        )
         if self.error is not None:
             raise self.error
-        return TitleTurn(self.text, self.model_id, input_tokens=50, output_tokens=5)
+        return ModelResponse(self.text, self.refused, self.model_id, Usage(50, 5))
 
 
 def invoke(
@@ -125,12 +119,13 @@ def test_a_later_turn_carries_no_title(runs_dir: Path) -> None:
 @pytest.mark.parametrize(
     "titler",
     [
-        ScriptedTitler(error=TitleError("the Messages API failed")),
+        ScriptedTitler(error=ConnectionError("the Messages API failed")),
+        ScriptedTitler(refused=True),
         ScriptedTitler(error=RuntimeError("anything else")),
         ScriptedTitler(text="  \n"),
         None,
     ],
-    ids=["api-error", "unexpected-error", "empty", "turned-off"],
+    ids=["api-error", "refused", "unexpected-error", "empty", "turned-off"],
 )
 def test_without_a_title_the_turn_still_succeeds(runs_dir: Path, titler: Any) -> None:
     _, env = invoke(runs_dir, titler)

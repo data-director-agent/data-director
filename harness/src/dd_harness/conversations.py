@@ -11,30 +11,36 @@ without rebuilding it. `version_changes` marks where an agent's version differs 
 that agent had earlier in the same conversation, which is what a developer needs to see when an
 agent is rebuilt mid-conversation.
 
-A summary's `title` is derived like everything else: the first turn's
-`Reply.conversation_title`, which a model-backed orchestrator writes (docs/specs/contract.md),
-with `title_source` `model`; otherwise the start of the first turn's message, with `title_source`
-`message`. The harness calls no model to make one.
+A summary's `title` is derived like everything else, from the first turn that did not fail (a
+turn that failed, such as one the model provider could not answer, names nothing; if every turn
+failed, the first): that turn's `Reply.conversation_title`, which a model-backed orchestrator
+writes (docs/specs/contract.md), with `title_source` `model`; otherwise the start of its message,
+with `title_source` `message`. The harness calls no model to make one.
 
-A reply may ask a choice question (`Reply.reply_question`). `history` writes the question after the
-reply's text, so a conversational agent sees on a later turn what it asked; `answer_problem` is how
-the caller checks a researcher's `ChoiceAnswer` against that question before sending the turn.
+A reply may ask a series of questions (`Reply.reply_questions`): choices, or answers in the
+researcher's own words. `history` writes the questions after the reply's text, so a conversational
+agent sees on a later turn what it asked; `answer_problem` is how the caller checks a researcher's
+`ReplyAnswers` against those questions before sending the turn.
 
-TODO(#524): the file backend scans every envelope on each call; the database backend is to answer
-with an indexed query (docs/specs/storage.md).
+The run storage lists conversations a page at a time, for the readers allowed to see them
+(`RunStorage.list_conversations`, docs/specs/storage.md, "Listing"); this module adds each one's
+title, reading the first turn of each conversation on the page.
 """
 
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
 from typing import Any
 
+from dd_harness.answers import question_answer_problem
+from dd_harness.listing import Page, Readable
 from dd_harness.storage import RunStorage
 from dd_sdk.contract.models import (
-    ChoiceAnswer,
-    ChoiceQuestion,
     ConversationTurn,
+    OutcomeStatus,
+    Question,
+    QuestionKind,
+    ReplyAnswers,
     TurnRole,
     to_document,
 )
@@ -45,36 +51,35 @@ ELLIPSIS = "…"
 
 
 def list_conversations(
-    store: RunStorage, *, include: Callable[[dict[str, Any]], bool] | None = None
-) -> list[dict[str, Any]]:
-    """One summary per conversation, most recently active first; with `include`, only the
-    conversations whose first turn's envelope it accepts."""
-    summaries: dict[str, dict[str, Any]] = {}
-    first_turns: dict[str, dict[str, Any]] = {}
-    for envelope in store.iter_envelopes():
-        conversation_id = envelope.get("conversation_id")
-        if not conversation_id or envelope.get("parent_invocation_id"):
-            continue
-        summary = summaries.get(conversation_id)
-        if summary is None:
-            summary = summaries[conversation_id] = {
-                "conversation_id": conversation_id,
-                # The conductor gives every turn of a conversation the same project, if any.
-                "project_id": envelope.get("project_id"),
-                "agent_id": envelope["agent_id"],
-                "turns": 0,
-                "started_at": envelope["completed_at"],
-            }
-            first_turns[conversation_id] = envelope
-        summary["turns"] += 1
-        summary["last_completed_at"] = envelope["completed_at"]
-        summary["last_status"] = envelope["outcome"]["status"]
-    for conversation_id, envelope in first_turns.items():
-        if include is not None and not include(envelope):
-            del summaries[conversation_id]
-            continue
-        summaries[conversation_id].update(title_of(store, envelope))
-    return sorted(summaries.values(), key=lambda s: str(s["last_completed_at"]), reverse=True)
+    store: RunStorage,
+    *,
+    readable: Readable | None = None,
+    limit: int,
+    before: str | None = None,
+) -> Page:
+    """A page of conversation summaries, most recently active first, each with its title; with
+    `readable`, only the conversations whose first turn it includes."""
+    page = store.list_conversations(readable=readable, limit=limit, before=before)
+    items = []
+    for summary in page.items:
+        first_turn = store.get(summary["first_invocation_id"])
+        if first_turn and failed(first_turn):
+            first_turn = first_standing_turn(store, summary["conversation_id"]) or first_turn
+        title = title_of(store, first_turn) if first_turn else untitled(summary)
+        items.append({**summary, **title})
+    return Page(items, page.next)
+
+
+def failed(envelope: dict[str, Any]) -> bool:
+    return (envelope.get("outcome") or {}).get("status") == OutcomeStatus.FAILED.value
+
+
+def first_standing_turn(store: RunStorage, conversation_id: str) -> dict[str, Any] | None:
+    """The conversation's first turn that did not fail, or None if every turn failed."""
+    for envelope in store.iter_envelopes(conversation_id=conversation_id):
+        if not envelope.get("parent_invocation_id") and not failed(envelope):
+            return envelope
+    return None
 
 
 def title_of(store: RunStorage, first_turn: dict[str, Any]) -> dict[str, str]:
@@ -89,6 +94,11 @@ def title_of(store: RunStorage, first_turn: dict[str, Any]) -> dict[str, str]:
     else:
         text = str(document.get("schema_class", ""))
     return {"title": shorten(text) or first_turn["agent_id"], "title_source": "message"}
+
+
+def untitled(summary: dict[str, Any]) -> dict[str, str]:
+    """The title of a conversation whose first turn cannot be read: its agent."""
+    return {"title": summary["agent_id"], "title_source": "message"}
 
 
 def shorten(text: str, limit: int = MESSAGE_TITLE_MAX) -> str:
@@ -194,9 +204,9 @@ def history(turns: list[dict[str, Any]]) -> list[ConversationTurn]:
         payload = envelope.get("payload") or {}
         reply = payload.get("reply_text") if payload.get("schema_class") == "Reply" else None
         text = str(reply or envelope["outcome"]["statement"])
-        question = reply_question(envelope)
-        if question is not None:
-            text = f"{text}\n\n{question_text(question)}"
+        questions = reply_questions(envelope)
+        if questions:
+            text = f"{text}\n\n{questions_text(questions)}"
         out.append(
             ConversationTurn(
                 role=TurnRole.AGENT,
@@ -209,51 +219,59 @@ def history(turns: list[dict[str, Any]]) -> list[ConversationTurn]:
     return out
 
 
-def reply_question(envelope: dict[str, Any]) -> ChoiceQuestion | None:
-    """The choice question a turn's `Reply` asks, or None."""
+def reply_questions(envelope: dict[str, Any]) -> list[Question]:
+    """The questions a turn's `Reply` asks, in order; empty if it asks none."""
     payload = envelope.get("payload") or {}
-    if payload.get("schema_class") != "Reply" or not payload.get("reply_question"):
-        return None
-    return ChoiceQuestion.model_validate(payload["reply_question"])
+    if payload.get("schema_class") != "Reply":
+        return []
+    return [Question.model_validate(q) for q in payload.get("reply_questions") or []]
 
 
-def question_text(question: ChoiceQuestion) -> str:
-    """A choice question as plain text, as history presents it to an agent."""
+_KIND_TEXT = {
+    QuestionKind.SHORT_TEXT: "(To be answered in a line of the researcher's own words.)",
+    QuestionKind.LONG_TEXT: "(To be answered in the researcher's own words, at any length.)",
+}
+
+
+def questions_text(questions: list[Question]) -> str:
+    """The questions a reply asked as plain text, as history presents them to an agent."""
+    blocks = [_question_text(q) for q in questions]
+    if len(blocks) == 1:
+        return blocks[0]
+    lead = f"(The researcher was asked these {len(blocks)} questions, one at a time.)"
+    return "\n\n".join([lead, *(f"{n}. {b}" for n, b in enumerate(blocks, start=1))])
+
+
+def _question_text(question: Question) -> str:
     lines = [question.question_prompt]
-    lines += [f"- {o.option_label}" for o in question.question_options]
+    if question.question_kind is not QuestionKind.CHOICE:
+        return "\n".join([*lines, _KIND_TEXT[question.question_kind]])
+    lines += [f"- {o.option_label}" for o in question.question_options or []]
     if question.question_other:
         lines.append("- or something else, in the researcher's own words")
     choose = "one or more" if question.question_multiple else "one"
     return "\n".join([*lines, f"(The researcher was offered these to choose {choose}.)"])
 
 
-def answer_problem(conversation: dict[str, Any] | None, answer: ChoiceAnswer) -> str | None:
-    """Why `answer` cannot be sent as the next turn of `conversation`, or None if it can.
+def answer_problem(conversation: dict[str, Any] | None, answers: ReplyAnswers) -> str | None:
+    """Why `answers` cannot be sent as the next turn of `conversation`, or None if they can.
 
-    An answer names the latest turn, whose reply asked a choice question. Its values are options
-    of that question, at most one unless several may be chosen; text in place of an option only
-    where the question allows it; and something is chosen or said.
+    The answers name the latest turn, whose reply asked questions, and each answers one of those
+    questions; a question may be skipped. A choice answer's values are options of its question,
+    at most one unless several may be chosen, with words in place of an option only where the
+    question allows it; a text answer is words alone, within its kind's length; and every answer
+    chooses or says something.
     """
     turns = (conversation or {}).get("turns") or []
-    if not turns or turns[-1]["invocation_id"] != answer.answer_to:
-        return "the answer does not name the latest turn of the conversation"
-    question = reply_question(turns[-1]["envelope"])
-    if question is None:
-        return "the latest turn asked no choice question"
-    offered = {o.option_value for o in question.question_options}
-    unknown = [v for v in answer.answer_values if v not in offered]
-    if unknown:
-        return f"not an option of the question: {', '.join(unknown)}"
-    if len(set(answer.answer_values)) != len(answer.answer_values):
-        return "an option is chosen more than once"
-    other = (answer.answer_other or "").strip()
-    if answer.answer_other is not None and not other:
-        return "the answer in the researcher's own words is empty"
-    if other and not question.question_other:
-        return "the question takes only its options"
-    chosen = len(answer.answer_values) + (1 if other else 0)
-    if chosen == 0:
-        return "nothing is chosen"
-    if chosen > 1 and not question.question_multiple:
-        return "the question takes one answer"
+    if not turns or turns[-1]["invocation_id"] != answers.answer_to:
+        return "the answers do not name the latest turn of the conversation"
+    asked = {q.question_key: q for q in reply_questions(turns[-1]["envelope"])}
+    if not asked:
+        return "the latest turn asked no question"
+    for answer in answers.given_answers:
+        question = asked.get(answer.answered_key)
+        if question is None:
+            return f"not a question the latest turn asked: {answer.answered_key}"
+        if problem := question_answer_problem(question, answer):
+            return f"{answer.answered_key}: {problem}"
     return None

@@ -1,23 +1,26 @@
 """advisor.documentation: the Documentation Editor persona (docs/specs/agents.md), the drafter
 of the project's README and data dictionary (docs/specs/drafting.md).
 
-Serves `setup.documentation` and `preparation.documentation` (R5). Given a `DraftRequest` for a
-`readme` or a `data_dictionary`, it drafts a project document (docs/specs/projects.md) from the
-project's inventory: the files and the tables' fields are drafted, and what only the researcher
-knows, such as the methods and each field's definition, unit and missing value codes, is marked
-for them. Each value in the data dictionary is marked with where it came from: inferred from the
-inventory, supplied by the researcher, or unknown.
+Serves `preparation.documentation` (R5), not `setup.documentation` (no inventory yet, #1017).
+Given a `DraftRequest` for a `readme` or a `data_dictionary`, it drafts a project document
+(docs/specs/projects.md) from the project's inventory: the files and the tables' fields are
+drafted, and what only the researcher knows, such as the methods and each field's definition,
+unit and missing value codes, is marked for them. Each value in the data dictionary is marked
+with where it came from: inferred from the inventory, supplied by the researcher, or unknown.
 
-When a model is configured, it may suggest an answer to a data dictionary's questions about a
-field's definition or unit (`prose.py`, `suggest`). The suggestion is offered with the question
-(`suggested_answer`) and never placed in a cell: the dictionary is drafted by rule before the model
-is asked, and a suggestion becomes `supplied` only when the researcher records it, or a correction
-of it, as their answer (docs/specs/drafting.md, invariant 7).
+When a model is configured, which it is by default (`factory.py`), it may suggest an answer to a
+data dictionary's questions about a field's definition or unit, and to the questions of the README
+sections `readme.yaml` marks `suggest` (`prose.py`, `suggest`). The suggestion is offered with the
+question (`suggested_answer`) and never placed in the document: the draft is made by rule before
+the model is asked, and a suggestion becomes `supplied` only when the researcher records it, or a
+correction of it, as their answer (docs/specs/drafting.md, invariant 7). Only for suggestions is
+the model also given the documents the researcher attached (`project_documents`, `with_documents`),
+and only then is it asked about the README's Methods (`suggest: documents`, `sections.py`).
 
-A README also takes, as given, the title, creators, funding, abstract and licence of the
-project's approved metadata record, when the request carries one in DataCite's JSON form, and
-cites the dataset by its creators and title. These are supplied content: a person approved them
-(docs/specs/drafting.md, invariant 2).
+A README also takes, as given, the title, creators, dates of data collection, geographic
+location, funding, abstract and licence of the project's approved metadata record, when the
+request carries one in DataCite's JSON form, and cites the dataset by its creators and title.
+These are supplied content: a person approved them (docs/specs/drafting.md, invariant 2).
 
 The README's sections are those of `readme.yaml`. When a model is configured (`factory.py`), a
 writer (`prose.py`) adds a short paragraph of prose to the sections that have facts to draft from,
@@ -33,7 +36,8 @@ replaces in `revises`; a regenerated data dictionary keeps the values the resear
 version.
 
 Every gap is asked (docs/specs/drafting.md): the version carries one `DocumentQuestion` for each
-README section left for the researcher and each `unknown` data dictionary cell. A README gap is an
+README section left for the researcher, or each part of one asked part by part, and each
+`unknown` data dictionary cell. A README gap is an
 italic placeholder followed by `<!-- dd:gap <question-id> -->`. A question's identifier is derived
 from its gap, so the same gap is asked under the same identifier in every version. An answer in
 the request's `draft_answers` is placed, as given, in the gap it answers and marked `supplied`.
@@ -46,12 +50,8 @@ import hashlib
 import io
 import json
 from collections.abc import Mapping, Sequence
-from datetime import UTC, datetime
 from enum import StrEnum
-from pathlib import Path
-from typing import Any, NamedTuple
-
-import yaml
+from typing import Any
 
 from dd_agent_advisor_documentation.prose import (
     Ask,
@@ -59,8 +59,20 @@ from dd_agent_advisor_documentation.prose import (
     Suggestions,
     TemplateWriter,
     Writer,
+    count,
+    how_suggested,
+    with_documents,
 )
-from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
+from dd_agent_advisor_documentation.sections import RECORD_GENERAL, Section, load_sections
+from dd_sdk.agent import (
+    AgentResult,
+    AgentSpec,
+    Derived,
+    RunContext,
+    abstain,
+    input_evidence,
+    input_ref,
+)
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     ApprovedMetadataRecord,
@@ -71,33 +83,18 @@ from dd_sdk.contract.models import (
     DocumentQuestion,
     DraftAnswer,
     DraftRequest,
-    EvidenceItem,
     FileInventory,
     GroundingMode,
-    GroundingRef,
     InvocationRequest,
     Outcome,
     OutcomeStatus,
     ReasonCode,
     RepositoryRequirements,
 )
-from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
+from dd_sdk.model import Usage
 
-README = Path(__file__).with_name("readme.yaml")
 # The key under which a writer is given the approved metadata record's values.
 RECORD_FACTS = "approved_metadata_record"
-# The project facts a README section may be drafted from (readme.yaml explains each).
-SOURCES = frozenset(
-    {
-        "files",
-        "tables",
-        "licences",
-        "record_general",
-        "record_abstract",
-        "record_rights",
-        "record_citation",
-    }
-)
 # The metadata record's schema the editor reads: DataCite's, in the JSON form of its REST API's
 # attributes, as advisor.metadata drafts it.
 DATACITE = "http://datacite.org/schema/kernel-4"
@@ -154,58 +151,19 @@ LIMITATIONS = (
 )
 
 
-class Section(NamedTuple):
-    heading: str
-    ask: str
-    # The project facts it is drafted from, in order; empty: the researcher writes it all.
-    sources: tuple[str, ...] = ()
-    # The fact that, when it gives anything, says all the section asks, so no gap is left.
-    complete_from: str | None = None
-
-
-def load_sections(path: Path = README) -> list[Section]:
-    with path.open(encoding="utf-8") as fh:
-        table = yaml.safe_load(fh)
-    sections = []
-    for entry in table:
-        given = entry.get("from")
-        sources = (given,) if isinstance(given, str) else tuple(given or ())
-        complete_from = entry.get("complete_from")
-        for source in sources:
-            if source not in SOURCES:
-                raise ValueError(
-                    f"{path}: section {entry['heading']!r} drafts from unknown {source!r}"
-                )
-        if complete_from is not None and complete_from not in sources:
-            raise ValueError(
-                f"{path}: section {entry['heading']!r} is completed from {complete_from!r}, "
-                "which it is not drafted from"
-            )
-        sections.append(
-            Section(
-                str(entry["heading"]),
-                " ".join(str(entry["ask"]).split()),
-                sources,
-                complete_from,
-            )
-        )
-    if not sections:
-        raise ValueError(f"{path}: no sections")
-    return sections
-
-
 class DocumentationEditor:
     spec = AgentSpec(
         agent_id="advisor.documentation",
-        version="0.3.0a1",
+        version="0.6.0a1",
         title="Documentation Editor",
+        icon="✍️",
         description=(
-            "Drafts a project's README or data dictionary from its file inventory and its "
-            "approved metadata record: the files, the tables' fields and the record's title, "
-            "creators, abstract and licence are drafted, with prose written by a model where one "
-            "is configured, and the methods, definitions, units and missing value codes are "
-            "marked and asked of the researcher, with a model's suggested definition or unit "
-            "offered beside a question, never written into the document."
+            "Drafts a project's README or data dictionary from its file inventory and its approved "
+            "metadata record: the files, the tables' fields and the record's title, creators, "
+            "dates of collection, location, funding, abstract and licence are drafted, with prose "
+            "written by a model where one is configured, and the methods, definitions, units and "
+            "missing value codes are marked and asked of the researcher, with a model's suggested "
+            "answer offered beside a question, never written into the document."
         ),
         action_class="advise",
         accepts=(ClassSchema.of(DraftRequest),),
@@ -219,7 +177,7 @@ class DocumentationEditor:
                 Derivation.MODEL, recorded_in="suggestion_derivation"
             ),
         },
-        serves=("setup.documentation", "preparation.documentation"),
+        serves=("preparation.documentation",),
     )
 
     def __init__(self, sections: list[Section] | None = None, writer: Writer | None = None) -> None:
@@ -231,14 +189,14 @@ class DocumentationEditor:
         assert isinstance(asked, DraftRequest)  # the conductor checked spec.accepts
         kind = asked.document_kind
         if kind not in TITLES:
-            return _abstain(
+            return abstain(
                 ReasonCode.OUTSIDE_AGENT_SCOPE,
                 "The Documentation Editor drafts a README or a data dictionary, not a "
                 f"{kind.value}.",
             )
         inventory = asked.inventory
         if inventory is None or not inventory.inventory_files:
-            return _abstain(
+            return abstain(
                 ReasonCode.INSUFFICIENT_INPUT,
                 "Add the project's file inventory first: the draft is made from it.",
             )
@@ -251,6 +209,23 @@ class DocumentationEditor:
             text, questions, statement, prose = self._readme(
                 inventory, asked.requirements, record, answers, ctx
             )
+            # The README is drafted first, so nothing the model suggests can reach its text.
+            suggestable = {
+                s.heading: s.ask
+                for s in self.sections
+                if s.suggestable(has_documents=bool(asked.project_documents))
+            }
+            questions, suggested = self._suggest(
+                with_documents(_facts(inventory, asked.requirements, record), asked),
+                [
+                    Ask(q.question_id, section=q.gap_section, asks=suggestable[q.gap_section])
+                    for q in questions
+                    if q.gap_section in suggestable and q.gap_part is None
+                ],
+                questions,
+                ctx,
+            )
+            statement += f" {how_suggested(suggested, TITLES[kind])}"
             if asked.metadata_record is None:
                 statement += (
                     " It was given no approved metadata record, so it drafts from the inventory "
@@ -267,7 +242,7 @@ class DocumentationEditor:
         else:
             fields = sum(len(f.file_fields) for f in inventory.inventory_files)
             if not fields:
-                return _abstain(
+                return abstain(
                     ReasonCode.INSUFFICIENT_INPUT,
                     "The inventory lists no table with fields, so there is no data dictionary to "
                     "draft.",
@@ -275,23 +250,34 @@ class DocumentationEditor:
             # The dictionary is drafted by rule first, so nothing the model says can reach a cell.
             text, questions, counts = _dictionary(inventory, asked.current_version, answers)
             record, _ = _record(asked.metadata_record)
-            questions, suggested = self._suggest(inventory, record, questions, ctx)
+            questions, suggested = self._suggest(
+                with_documents(_facts(inventory, None, record), asked),
+                [
+                    Ask(q.question_id, q.gap_file, q.gap_field, q.gap_column)
+                    for q in questions
+                    if q.gap_file is not None
+                    and q.gap_field is not None
+                    and q.gap_column is not None
+                ],
+                questions,
+                ctx,
+            )
             statement = (
                 f"A data dictionary of {fields} fields, drafted by rule (a model fills no cell), "
                 f"each value marked with where it came from: {counts[Source.INFERRED]} inferred "
                 f"from the inventory, {counts[Source.SUPPLIED]} supplied by you and "
                 f"{counts[Source.UNKNOWN]} unknown. It asks "
-                f"{_count(len(questions), 'question')}, one for each unknown value. "
-                f"{_how_suggested(suggested)}"
+                f"{count(len(questions), 'question')}, one for each unknown value. "
+                f"{how_suggested(suggested, TITLES[kind])}"
             )
 
         current = asked.current_version
         if current is not None:
             statement += f" It replaces version {current.version_ref.version} of the document."
-        ref = GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)
-        # A README's model writes prose and a data dictionary's suggests answers: one, not both.
-        calls = prose.calls or suggested.calls
-        usage = prose.usage if prose.calls else suggested.usage
+        ref = input_ref(ctx)
+        # A README's model may write prose and suggest answers: two calls, recorded together.
+        logs = [log for log in (prose.calls, suggested.calls) if log is not None]
+        usage = _sum(prose.usage, suggested.usage)
         return AgentResult(
             outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement=f"{statement} {LIMITATIONS}"),
             payload=Document(
@@ -304,38 +290,25 @@ class DocumentationEditor:
                 document_questions=questions,
                 grounded_on=[ref],
             ),
-            evidence=[
-                EvidenceItem(
-                    source_id=ctx.input_ref,
-                    retrieved_at=datetime.now(UTC),
-                    hash_algorithm=HASH_ALGORITHM,
-                    canonicalisation=INPUT_CANONICALISATION,
-                    content_hash=ctx.input_hash,
-                )
-            ],
+            evidence=[input_evidence(ctx)],
             model_id=prose.model_id or suggested.model_id,
             input_tokens=usage.input_tokens,
             output_tokens=usage.output_tokens,
-            model_calls=calls.calls if calls else (),
-            prompts=calls.prompts if calls else {},
+            model_calls=tuple(c for log in logs for c in log.calls),
+            prompts={k: v for log in logs for k, v in log.prompts.items()},
         )
 
     def _suggest(
         self,
-        inventory: FileInventory,
-        record: Mapping[str, Any] | None,
+        facts: Mapping[str, Any],
+        asks: Sequence[Ask],
         questions: list[DocumentQuestion],
         ctx: RunContext,
     ) -> tuple[list[DocumentQuestion], Suggestions]:
         """The questions, each with the writer's suggested answer where it made one. The writer is
-        given the facts a README is drafted from, never the answers, a field's description or an
-        earlier version (docs/specs/drafting.md)."""
-        asks = [
-            Ask(q.question_id, q.gap_file, q.gap_field, q.gap_column)
-            for q in questions
-            if q.gap_file is not None and q.gap_field is not None and q.gap_column is not None
-        ]
-        suggested = self.writer.suggest(_facts(inventory, None, record), asks, ctx)
+        given the facts the draft is made from and the documents the researcher attached, never
+        the answers, a field's description or an earlier version (docs/specs/drafting.md)."""
+        suggested = self.writer.suggest(facts, asks, ctx)
         return [
             q.model_copy(
                 update={
@@ -389,6 +362,33 @@ class DocumentationEditor:
                 parts.append(answer)
                 answered += 1
                 continue
+            if section.parts:
+                # Each part is its own gap and question. An answer to the section as a whole,
+                # recorded before it was asked part by part, is placed above and asks nothing.
+                given = _record_general(record)
+                answered_parts = 0
+                for part in section.parts:
+                    if part.given_by and given[part.given_by]:
+                        continue
+                    part_id = _question_id({"section": section.heading, "part": part.label})
+                    answer = answers.get(part_id)
+                    if answer is not None:
+                        parts.append(f"- **{part.label}:** {answer}")
+                        answered_parts += 1
+                        continue
+                    placeholder = PLACEHOLDER.format(ask=part.ask)
+                    marker = GAP_MARKER.format(question_id=part_id)
+                    parts.append(f"- **{part.label}:** {placeholder}\n{marker}")
+                    questions.append(
+                        DocumentQuestion(
+                            question_id=part_id,
+                            question_prompt=f"{part.label}: {part.ask}",
+                            gap_section=section.heading,
+                            gap_part=part.label,
+                        )
+                    )
+                answered += bool(answered_parts)
+                continue
             if section.complete_from in bodies:
                 complete += 1
                 continue
@@ -404,7 +404,7 @@ class DocumentationEditor:
         statement = (
             f"A README of {len(self.sections)} sections, {drafted} of them drafted from the "
             f"project's facts ({complete} in full), and {answered} written from your answers. "
-            f"{_how_written(prose)} It leaves {_count(len(questions), 'gap')} for you to write, "
+            f"{_how_written(prose)} It leaves {count(len(questions), 'gap')} for you to write, "
             "each marked and asked as a question."
         )
         return "\n\n".join(parts) + "\n", questions, statement, prose
@@ -420,14 +420,14 @@ def _how_written(prose: Prose) -> str:
             f"({prose.model_id})."
         )
     said = (
-        f"A model ({prose.model_id}) wrote {_count(prose.written, 'paragraph')} of prose from "
+        f"A model ({prose.model_id}) wrote {count(prose.written, 'paragraph')} of prose from "
         "those facts alone"
         if prose.written
         else f"A model ({prose.model_id}) was asked for prose but its draft added none"
     )
     if prose.dropped:
         said += (
-            f"; {_count(len(prose.dropped), 'paragraph')} it wrote "
+            f"; {count(len(prose.dropped), 'paragraph')} it wrote "
             f"{'was' if len(prose.dropped) == 1 else 'were'} not used ("
             + "; ".join(prose.dropped)
             + ")"
@@ -435,29 +435,14 @@ def _how_written(prose: Prose) -> str:
     return said + ". Check the prose before you approve it."
 
 
-def _how_suggested(suggested: Suggestions) -> str:
-    """What the statement says about the suggested answers."""
-    if suggested.model_id is None:
-        return "No model is configured, so it suggests no answers."
-    if suggested.unused:
-        return f"It suggests no answers, because {suggested.unused} ({suggested.model_id})."
-    n = len(suggested.answers)
-    said = (
-        f"A model ({suggested.model_id}) suggested an answer to "
-        f"{_count(n, 'question')}, offered beside the question and not written into the "
-        "dictionary: a suggestion becomes yours only when you save it, or a correction of it, as "
-        "your answer"
-        if n
-        else f"A model ({suggested.model_id}) was asked to suggest answers but offered none"
-    )
-    if suggested.dropped:
-        said += (
-            f"; {_count(len(suggested.dropped), 'suggestion')} it made "
-            f"{'was' if len(suggested.dropped) == 1 else 'were'} not offered ("
-            + "; ".join(suggested.dropped)
-            + ")"
-        )
-    return said + "."
+def _sum(*usages: Usage) -> Usage:
+    """The tokens of several calls: unknown only if no call reports them."""
+
+    def total(counts: list[int | None]) -> int | None:
+        known = [n for n in counts if n is not None]
+        return sum(known) if known else None
+
+    return Usage(total([u.input_tokens for u in usages]), total([u.output_tokens for u in usages]))
 
 
 def _facts(
@@ -505,6 +490,8 @@ def _facts(
             "title": _title(record),
             "creators": _creators(record),
             "funders": _values(record, "fundingReferences", "funderName"),
+            "dates_collected": _collected(record),
+            "geographic_locations": _values(record, "geoLocations", "geoLocationPlace"),
             "abstract": _from_record("record_abstract", record),
             "licence": _from_record("record_rights", record),
             "publication_year": str(year) if isinstance(year, int | str) and str(year) else None,
@@ -533,17 +520,6 @@ def _drafted(
             for f in inventory.inventory_files
         ]
         return _table(("File", "Format", "Size (bytes)"), rows)
-    if source == "tables":
-        tables = [
-            f"`{f.file_path}`:\n\n"
-            + _table(
-                ("Field", "Type", "Format"),
-                [(f"`{c.name}`", c.field_type or "", c.field_format or "") for c in f.file_fields],
-            )
-            for f in inventory.inventory_files
-            if f.file_fields
-        ]
-        return "\n\n".join(tables) or None
     if source == "licences":
         if requirements is None or not requirements.licences:
             return None
@@ -612,20 +588,37 @@ def _creators(record: Mapping[str, Any]) -> list[str]:
     return names
 
 
+def _record_general(record: Mapping[str, Any] | None) -> dict[str, str]:
+    """The record's general values by key (RECORD_GENERAL), each "" when the record lacks it."""
+    if record is None:
+        return dict.fromkeys(RECORD_GENERAL, "")
+    return {
+        "title": _title(record) or "",
+        "creators": "; ".join(_creators(record)),
+        "collected": "; ".join(_collected(record)),
+        "location": "; ".join(_values(record, "geoLocations", "geoLocationPlace")),
+        "funding": "; ".join(_values(record, "fundingReferences", "funderName")),
+    }
+
+
+def _collected(record: Mapping[str, Any]) -> list[str]:
+    """The record's dates of data collection: its `dates` of type `Collected`, as it writes them."""
+    entries = record.get("dates")
+    collected = [
+        e
+        for e in (entries if isinstance(entries, list) else [])
+        if isinstance(e, dict) and e.get("dateType") == "Collected"
+    ]
+    return _values({"dates": collected}, "dates", "date")
+
+
 def _from_record(source: str, record: Mapping[str, Any]) -> str | None:
     """A section's text from the approved metadata record, its values placed as given."""
     title = _title(record)
     creators = _creators(record)
     if source == "record_general":
-        lines = [
-            (label, value)
-            for label, value in (
-                ("Title", title),
-                ("Creators", "; ".join(creators)),
-                ("Funding", "; ".join(_values(record, "fundingReferences", "funderName"))),
-            )
-            if value
-        ]
+        given = _record_general(record)
+        lines = [(label, given[key]) for key, label in RECORD_GENERAL.items() if given[key]]
         return "\n".join(f"- **{label}:** {value}" for label, value in lines) or None
     if source == "record_abstract":
         entries = record.get("descriptions")
@@ -761,16 +754,6 @@ def _answers(given: Sequence[DraftAnswer]) -> dict[str, str]:
     """The recorded answers by the question they answer. A blank answer leaves its gap open; of
     two answers to one question, the later in the list wins."""
     return {a.answered_question: a.answer_text for a in given if a.answer_text.strip()}
-
-
-def _count(n: int, noun: str) -> str:
-    return f"{n} {noun}" if n == 1 else f"{n} {noun}s"
-
-
-def _abstain(reason: ReasonCode, statement: str) -> AgentResult:
-    return AgentResult(
-        outcome=Outcome(status=OutcomeStatus.ABSTAINED, reason_code=reason, statement=statement)
-    )
 
 
 def build() -> DocumentationEditor:

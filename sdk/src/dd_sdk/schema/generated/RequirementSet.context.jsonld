@@ -79,6 +79,9 @@
       "title": {
          "@id": "http://purl.org/dc/terms/title"
       },
+      "unconfirmed": {
+         "@id": "https://w3id.org/data-director/unconfirmed"
+      },
       "url": {
          "@id": "http://schema.org/url",
          "@type": "@id"
