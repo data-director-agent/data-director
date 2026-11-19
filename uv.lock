@@ -1142,6 +1142,7 @@ name = "data-director-agent-advisor-documentation"
 version = "0.3.0a1"
 source = { editable = "agents/advisor-documentation" }
 dependencies = [
+    { name = "data-director-inventory" },
     { name = "data-director-sdk" },
     { name = "pydantic" },
     { name = "pyyaml" },
@@ -1164,6 +1165,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "data-director-harness", marker = "extra == 'eval'", editable = "harness" },
+    { name = "data-director-inventory", editable = "inventory" },
     { name = "data-director-sdk", editable = "sdk" },
     { name = "data-director-sdk", extras = ["anthropic", "openai"], marker = "extra == 'model'", editable = "sdk" },
     { name = "data-director-workbench", extras = ["eval"], marker = "extra == 'eval'", editable = "workbench" },
@@ -1237,6 +1239,7 @@ name = "data-director-agent-advisor-files"
 version = "0.2.0a1"
 source = { editable = "agents/advisor-files" }
 dependencies = [
+    { name = "data-director-inventory" },
     { name = "data-director-sdk" },
     { name = "pydantic" },
     { name = "pyyaml" },
@@ -1249,6 +1252,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "data-director-inventory", editable = "inventory" },
     { name = "data-director-sdk", editable = "sdk" },
     { name = "pydantic", specifier = ">=2.14.1,<3" },
     { name = "pyyaml", specifier = ">=6.0" },
@@ -1287,6 +1291,7 @@ name = "data-director-agent-advisor-metadata"
 version = "0.2.0a1"
 source = { editable = "agents/advisor-metadata" }
 dependencies = [
+    { name = "data-director-inventory" },
     { name = "data-director-sdk" },
     { name = "pydantic" },
     { name = "pyyaml" },
@@ -1299,6 +1304,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "data-director-inventory", editable = "inventory" },
     { name = "data-director-sdk", editable = "sdk" },
     { name = "pydantic", specifier = ">=2.14.1,<3" },
     { name = "pyyaml", specifier = ">=6.0" },
@@ -1699,6 +1705,7 @@ dependencies = [
     { name = "frictionless" },
     { name = "opf-fido" },
     { name = "presidio-analyzer" },
+    { name = "pyyaml" },
     { name = "tldextract" },
 ]
 
@@ -1717,6 +1724,7 @@ requires-dist = [
     { name = "frictionless", specifier = ">=5.18,<6" },
     { name = "opf-fido", specifier = "==1.6.1" },
     { name = "presidio-analyzer", specifier = "==2.2.366" },
+    { name = "pyyaml", specifier = ">=6.0" },
     { name = "spacy", marker = "extra == 'pii-ner'", specifier = ">=3.8,<4" },
     { name = "tldextract", specifier = ">=5.3.1,<6" },
 ]

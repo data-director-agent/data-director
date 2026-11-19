@@ -20,7 +20,6 @@ from inspect_ai.scorer import CORRECT, INCORRECT, NOANSWER, Score, Scorer, Targe
 from inspect_ai.solver import TaskState
 
 from dd_agent_advisor_documentation.agent import (
-    GAP_MARKER,
     SOURCE_SUFFIX,
     VALUE_COLUMNS,
     Source,
@@ -28,6 +27,7 @@ from dd_agent_advisor_documentation.agent import (
     _facts,
     _record,
 )
+from dd_agent_advisor_documentation.gaps import GAP_MARKER
 from dd_agent_advisor_documentation.prose import _NAMED, _NOT_PROSE
 from dd_agent_advisor_documentation.sections import SOURCES as FACT_SOURCES
 from dd_agent_advisor_documentation.sections import load_sections

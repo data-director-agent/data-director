@@ -18,6 +18,12 @@ record (`suggest.py`); the record's text is the rule's either way. Where the dat
 is asked in two steps: whether the location may be published, and at what precision, and only
 then the place (`location.py`, #1073).
 
+The formats and sizes leave out the files the File Archivist's rules (`dd_inventory.hints`) mark
+as a system file, an empty file or a byte-for-byte copy (of a set of copies, one is counted), and
+the statement names them with the reason, and names the files whose names suggest free text,
+coordinates, someone else's material or terms, on which a person must decide before deposit
+(#1072).
+
 It reads the DataCite JSON form from `datacite.yaml`. It consults no source, uses no controlled
 vocabulary and maps nothing between schemas (R6), so its grounding mode is `input_only` and it
 cites only its input. Regenerating a record drafts it afresh, and names the version it replaces
@@ -43,6 +49,7 @@ from dd_agent_advisor_metadata.questions import (
     place,
 )
 from dd_agent_advisor_metadata.suggest import Ask, Suggester, Suggestions, TemplateSuggester
+from dd_inventory.hints import DepositHints, Hint, deposit_hints
 from dd_sdk.agent import (
     AgentResult,
     AgentSpec,
@@ -176,20 +183,22 @@ class MetadataLibrarian:
                 f"The librarian drafts DataCite records only, not {requirements.conforms_to}.",
             )
 
-        record, filled = self._record(requirements, asked.inventory)
+        inventory, hinted = _kept(asked.inventory)
+        record, filled = self._record(requirements, inventory)
         filled += _from_researchers(record, asked.researchers)
         found = gaps(record)
         open_gaps = place(record, found, answers_by_question(asked.draft_answers))
         pairs, withheld = self._ask(open_gaps, asked)
-        questions, suggested = self._questions(pairs, _facts(requirements, asked.inventory), ctx)
+        questions, suggested = self._questions(pairs, _facts(requirements, inventory), ctx)
         required = sum(f.obligation == Obligation.REQUIRED for f in requirements.fields)
         statement = (
             f"A DataCite record for {requirements.repository_name} with the "
             f"{len(requirements.fields)} properties it asks for ({required} required), drafted "
             f"by rule. Filled: {', '.join(filled) or 'nothing'}"
             f"{_placed(len(found) - len(open_gaps))}. It asks "
-            f"{_count(len(questions), 'question')} about the values left null. "
-            f"{''.join(s + ' ' for s in withheld)}{_how_suggested(suggested)}"
+            f"{_count(len(questions), 'question')} about the values left null."
+            f"{_hinted_statement(hinted)} {''.join(s + ' ' for s in withheld)}"
+            f"{_how_suggested(suggested)}"
         )
         current = asked.current_version
         if current is not None:
@@ -308,6 +317,44 @@ class MetadataLibrarian:
                 del record["formats"]
         record["schemaVersion"] = requirements.conforms_to
         return record, filled
+
+
+def _kept(
+    inventory: FileInventory | None,
+) -> tuple[FileInventory | None, DepositHints]:
+    """The inventory without the files a record would rarely describe, and the hints that say
+    which files those are and which a person must decide on (#1072)."""
+    if inventory is None:
+        return None, DepositHints()
+    hinted = deposit_hints(f.model_dump(mode="json") for f in inventory.inventory_files)
+    if not hinted.leave_out:
+        return inventory, hinted
+    kept = [f for f in inventory.inventory_files if f.file_path not in hinted.leave_out]
+    return inventory.model_copy(update={"inventory_files": kept}), hinted
+
+
+def _hinted_statement(hinted: DepositHints) -> str:
+    """What the statement says, after a space, of the files the formats and sizes leave out and
+    of those a person must decide on; empty when there are none."""
+
+    def named(files: Mapping[str, Sequence[Hint]]) -> str:
+        return "; ".join(
+            f"{path} ({', '.join(dict.fromkeys(h.kind.value for h in hints))})"
+            for path, hints in files.items()
+        )
+
+    said = ""
+    if hinted.leave_out:
+        said += (
+            f" The formats and sizes leave out {_count(len(hinted.leave_out), 'file')} rarely "
+            f"deposited: {named(hinted.leave_out)}."
+        )
+    if hinted.decide:
+        said += (
+            f" A person must decide before deposit on {_count(len(hinted.decide), 'file')} they "
+            f"count: {named(hinted.decide)}."
+        )
+    return said
 
 
 def _from_researchers(record: dict[str, Any], researchers: list[ResearcherRecord]) -> list[str]:

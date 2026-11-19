@@ -1,8 +1,9 @@
-# What the File Archivist asks a person to look at, judged from names in the inventory alone (#449).
-# The inventory never holds file contents, so these are prompts for a person, never findings: a file
-# with no check may still hold personal data, sensitive locations or someone else's material
-# (docs/specs/personal-data.md). Kept in step with inventory/browser/src/hints.ts, which the app
-# uses to mark the same files; neither package may import the other.
+# What a person should look at before deposit, judged from names in the inventory alone (#449), read
+# by `hints.py`: the File Archivist lists every hint, and the drafters leave out or ask about the
+# files they mark (#1072). The inventory never holds file contents, so these are prompts for a
+# person, never findings: a file with no check may still hold personal data, sensitive locations or
+# someone else's material (docs/specs/personal-data.md). Kept in step with
+# inventory/browser/src/hints.ts, which the app uses to mark the same files.
 #
 # Each kind is checked in this order. `words` are matched as whole lower-case words of the part
 # named by `in`: `folders` (each folder in the path), `file` (the file name) or `fields` (a table's

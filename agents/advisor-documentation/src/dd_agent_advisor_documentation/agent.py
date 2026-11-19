@@ -31,6 +31,9 @@ data dictionary cell or rephrases an answer. The editor reads no file and consul
 its grounding mode is `input_only` and it cites only its input. `document_derivation` records
 `model` when the version has prose a model wrote, and `template` otherwise.
 
+A file rarely deposited is left out of the draft and the facts a model is given, and one a person
+must decide on is asked about (`hinted.py`, #1072).
+
 Regenerating a document drafts it afresh from the project's facts, and names the version it
 replaces in `revises`; a regenerated data dictionary keeps the values the researcher gave in that
 version.
@@ -46,13 +49,15 @@ the request's `draft_answers` is placed, as given, in the gap it answers and mar
 from __future__ import annotations
 
 import csv
-import hashlib
 import io
 import json
 from collections.abc import Mapping, Sequence
 from enum import StrEnum
 from typing import Any
 
+from dd_agent_advisor_documentation.gaps import GAP_MARKER, PLACEHOLDER
+from dd_agent_advisor_documentation.gaps import question_id as _question_id
+from dd_agent_advisor_documentation.hinted import hinted_files, hinted_statement, without
 from dd_agent_advisor_documentation.prose import (
     Ask,
     Prose,
@@ -64,6 +69,7 @@ from dd_agent_advisor_documentation.prose import (
     with_documents,
 )
 from dd_agent_advisor_documentation.sections import RECORD_GENERAL, Section, load_sections
+from dd_inventory.hints import DepositHints, deposit_hints
 from dd_sdk.agent import (
     AgentResult,
     AgentSpec,
@@ -98,12 +104,6 @@ RECORD_FACTS = "approved_metadata_record"
 # The metadata record's schema the editor reads: DataCite's, in the JSON form of its REST API's
 # attributes, as advisor.metadata drafts it.
 DATACITE = "http://datacite.org/schema/kernel-4"
-# How the draft marks what the researcher writes. A person's edit replaces it.
-PLACEHOLDER = "_To be written by the researcher: {ask}_"
-# What follows a placeholder: the question that asks for it. Not shown in the rendered README.
-GAP_MARKER = "<!-- dd:gap {question_id} -->"
-# How many hexadecimal digits of the gap's SHA-256 a question identifier keeps.
-QUESTION_ID_DIGITS = 16
 # The data dictionary's columns: a row is keyed by its file and field, and each value is followed
 # by a column saying where it came from (Source).
 KEY_COLUMNS = ("file", "field")
@@ -201,13 +201,15 @@ class DocumentationEditor:
                 "Add the project's file inventory first: the draft is made from it.",
             )
 
+        hinted = deposit_hints(f.model_dump(mode="json") for f in inventory.inventory_files)
+        inventory = without(inventory, hinted)
         answers = _answers(asked.draft_answers)
         prose = Prose()
         suggested = Suggestions()
         if kind == DocumentKind.README:
             record, unread = _record(asked.metadata_record)
             text, questions, statement, prose = self._readme(
-                inventory, asked.requirements, record, answers, ctx
+                inventory, asked.requirements, record, answers, hinted, ctx
             )
             # The README is drafted first, so nothing the model suggests can reach its text.
             suggestable = {
@@ -225,6 +227,7 @@ class DocumentationEditor:
                 questions,
                 ctx,
             )
+            statement += hinted_statement(hinted, "README")
             statement += f" {how_suggested(suggested, TITLES[kind])}"
             if asked.metadata_record is None:
                 statement += (
@@ -267,7 +270,8 @@ class DocumentationEditor:
                 f"each value marked with where it came from: {counts[Source.INFERRED]} inferred "
                 f"from the inventory, {counts[Source.SUPPLIED]} supplied by you and "
                 f"{counts[Source.UNKNOWN]} unknown. It asks "
-                f"{count(len(questions), 'question')}, one for each unknown value. "
+                f"{count(len(questions), 'question')}, one for each unknown value."
+                f"{hinted_statement(hinted, 'data dictionary')} "
                 f"{how_suggested(suggested, TITLES[kind])}"
             )
 
@@ -327,6 +331,7 @@ class DocumentationEditor:
         requirements: RepositoryRequirements | None,
         record: Mapping[str, Any] | None,
         answers: Mapping[str, str],
+        hinted: DepositHints,
         ctx: RunContext,
     ) -> tuple[str, list[DocumentQuestion], str, Prose]:
         drafted_from = [
@@ -356,6 +361,8 @@ class DocumentationEditor:
             if bodies and (paragraph := prose.sections.get(section.heading)):
                 parts.append(paragraph)
             parts.extend(bodies.values())
+            if "files" in section.sources:
+                parts.extend(hinted_files(section.heading, hinted, answers, questions))
             question_id = _question_id({"section": section.heading})
             answer = answers.get(question_id)
             if answer is not None:
@@ -740,14 +747,6 @@ def _earlier_rows(current: CurrentVersion | None) -> dict[tuple[str, str], dict[
     if not reader.fieldnames or not set(KEY_COLUMNS) <= set(reader.fieldnames):
         return {}
     return {(row["file"], row["field"]): row for row in reader}
-
-
-def _question_id(target: Mapping[str, str]) -> str:
-    """A question's identifier, derived from the gap it targets and never from its position, so
-    that the same gap has the same identifier in every version (docs/specs/drafting.md)."""
-    canonical = json.dumps(target, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
-    digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
-    return f"q-{digest[:QUESTION_ID_DIGITS]}"
 
 
 def _answers(given: Sequence[DraftAnswer]) -> dict[str, str]:

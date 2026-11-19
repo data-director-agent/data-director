@@ -4,9 +4,9 @@
  * never a finding: a file with none may still hold personal data, sensitive locations or someone
  * else's material (docs/specs/personal-data.md).
  *
- * The rules are a copy of the File Archivist's
- * (`agents/advisor-files/src/dd_agent_advisor_files/hints.yaml`), so that the app marks the files
- * the adviser lists; neither package may import the other, so change both together.
+ * The rules are a copy of `inventory/src/dd_inventory/hints.yaml`, which the File Archivist and the
+ * drafters read (`dd_inventory.hints`), so that the app marks the files the advisers list; a
+ * browser bundle cannot read the Python package's file, so change both together.
  */
 
 import type { FileInventory, InventoryFile } from "./types";

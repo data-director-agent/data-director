@@ -16,10 +16,11 @@ from dd_agent_advisor_documentation.agent import (
     VALUE_COLUMNS,
     DocumentationEditor,
     Source,
-    _question_id,
 )
+from dd_agent_advisor_documentation.gaps import question_id as _question_id
 from dd_agent_advisor_documentation.sections import load_sections
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
+from dd_inventory.hints import deposit_hints
 from dd_sdk.agent import describe
 from dd_sdk.contract.models import (
     CurrentVersion,
@@ -73,9 +74,12 @@ def test_drafts_a_readme_from_the_inventory_and_marks_the_rest(runs_dir: Path) -
         "How to cite",
         "Software requirements",
     ]
-    # One placeholder per section, and one per part in a section asked part by part.
+    # One placeholder per section, one per part in a section asked part by part, and one per
+    # file a person must decide on (#1072).
     sections = load_sections()
-    assert text.count("_To be written by the researcher:") == sum(
+    assert asked.inventory is not None
+    decide = deposit_hints(f.model_dump(mode="json") for f in asked.inventory.inventory_files)
+    assert text.count("_To be written by the researcher:") == len(decide.decide) + sum(
         len(s.parts) or 1 for s in sections
     )
     assert asked.inventory is not None
@@ -233,6 +237,13 @@ def test_the_card_names_the_persona_and_its_steps() -> None:
     json.dumps(entry)
 
 
+def decided_paths() -> set[str]:
+    """The files of the soil survey's inventory that a person must decide on."""
+    inventory = sample("soil-survey.readme.draft.json").inventory
+    assert inventory is not None
+    return set(deposit_hints(f.model_dump(mode="json") for f in inventory.inventory_files).decide)
+
+
 def asked_with(name: str, *answers: tuple[str, str]) -> DraftRequest:
     given = [DraftAnswer(answered_question=q, answer_text=a) for q, a in answers]
     return sample(name).model_copy(update={"draft_answers": given})
@@ -249,7 +260,11 @@ def test_every_readme_gap_is_marked_and_asked_once(runs_dir: Path) -> None:
     targets = [
         (s.heading, p.label if p else None) for s in load_sections() for p in s.parts or (None,)
     ]
-    assert [(q.gap_section, q.gap_part) for q in questions] == targets
+    # A file a person must decide on is asked as a part of Files (#1072), before Files itself.
+    files = [(q.gap_section, q.gap_part) for q in questions if q.gap_part in decided_paths()]
+    asked = [(q.gap_section, q.gap_part) for q in questions if q.gap_part not in decided_paths()]
+    assert asked == targets
+    assert {section for section, _ in files} == {"Files"}
     assert f"leaves {len(questions)} gaps" in env.outcome.statement
 
 
@@ -573,3 +588,85 @@ def test_a_malformed_readme_template_is_refused(
     path.write_text(json.dumps([section]), encoding="utf-8")
     with pytest.raises(ValueError, match=why):
         load_sections(path)
+
+
+def with_flagged_files(name: str) -> DraftRequest:
+    """The soil survey's request, its inventory with a copy of its readings, a system file and a
+    file from someone else (#1072)."""
+    asked = sample(name)
+    assert asked.inventory is not None
+    files = asked.inventory.inventory_files
+    readings = next(f for f in files if f.file_path == "data/readings.csv")
+    extra = [
+        readings.model_copy(update={"file_path": "data/old/readings (copy).csv"}),
+        readings.model_copy(
+            update={
+                "file_path": "data/Thumbs.db",
+                "file_sha256": "0" * 64,
+                "file_media_type": "application/vnd.microsoft.windows.thumbnail-cache",
+                "file_fields": [],
+            }
+        ),
+        readings.model_copy(
+            update={"file_path": "reference/station_hourly.csv", "file_sha256": "1" * 64}
+        ),
+    ]
+    inventory = asked.inventory.model_copy(update={"inventory_files": [*files, *extra]})
+    return asked.model_copy(update={"inventory": inventory})
+
+
+LEFT_OUT = ("data/old/readings (copy).csv", "data/Thumbs.db")
+DECIDED = "reference/station_hourly.csv"
+
+
+def files_section(text: str) -> str:
+    return text.split("## Files", 1)[1].split("\n## ", 1)[0]
+
+
+def table_paths(section: str) -> list[str]:
+    return re.findall(r"^\| `([^`]+)` \|", section, flags=re.MULTILINE)
+
+
+@pytest.mark.requirement("R5")
+def test_a_readme_lists_the_files_it_leaves_out_and_asks_about_the_rest(runs_dir: Path) -> None:
+    env, _ = draft(runs_dir, with_flagged_files("soil-survey.readme.draft.json"))
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    document = env.payload_as(Document)
+    section = files_section(document.document_text)
+    in_table = table_paths(section)
+    for path in LEFT_OUT:
+        # Not in the file table, but named under Files and in the statement: nothing unsaid.
+        assert path not in in_table
+        assert f"`{path}`" in section
+        assert path in env.outcome.statement
+    assert "data/readings.csv" in in_table
+    # A file a person must decide on stays in the table, and is asked about under Files.
+    assert DECIDED in in_table
+    asked = [q for q in document.document_questions if q.gap_part == DECIDED]
+    assert [q.gap_section for q in asked] == ["Files"]
+    assert f"<!-- dd:gap {asked[0].question_id} -->" in section
+    assert DECIDED in env.outcome.statement
+
+
+def test_an_answer_about_a_file_to_decide_on_is_placed_and_not_asked_again(
+    runs_dir: Path,
+) -> None:
+    asked = with_flagged_files("soil-survey.readme.draft.json")
+    env, _ = draft(runs_dir, asked)
+    (question,) = [q for q in env.payload_as(Document).document_questions if q.gap_part == DECIDED]
+    given = [DraftAnswer(answered_question=question.question_id, answer_text="Left out.")]
+    env, _ = draft(runs_dir, asked.model_copy(update={"draft_answers": given}))
+    document = env.payload_as(Document)
+    assert f"- **{DECIDED}:** Left out." in files_section(document.document_text)
+    assert question.question_id not in {q.question_id for q in document.document_questions}
+
+
+def test_a_data_dictionary_has_no_rows_for_the_files_it_leaves_out(runs_dir: Path) -> None:
+    env, _ = draft(runs_dir, with_flagged_files("soil-survey.data-dictionary.draft.json"))
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    rows = list(csv.DictReader(io.StringIO(env.payload_as(Document).document_text)))
+    files = {row["file"] for row in rows}
+    assert "data/readings.csv" in files and DECIDED in files
+    assert not files & set(LEFT_OUT)
+    assert "data/old/readings (copy).csv" in env.outcome.statement
+    assert DECIDED in env.outcome.statement

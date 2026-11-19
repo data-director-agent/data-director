@@ -149,3 +149,34 @@ def test_the_card_names_the_persona_and_its_steps() -> None:
     assert not entry["description"].startswith("Mock.")
     assert entry["serves"] == ["preparation.metadata-standard", "preparation.metadata"]
     json.dumps(entry)
+
+
+def test_formats_and_sizes_leave_out_the_files_rarely_deposited_and_say_so(
+    runs_dir: Path,
+) -> None:
+    """A copy, a system file and a file from someone else are added to the inventory (#1072)."""
+    asked = sample()
+    assert asked.inventory is not None
+    files = asked.inventory.inventory_files
+    first = files[0]
+    thumbnails = "application/vnd.microsoft.windows.thumbnail-cache"
+    extra = [
+        first.model_copy(update={"file_path": "old/" + first.file_path}),
+        first.model_copy(
+            update={
+                "file_path": "data/Thumbs.db",
+                "file_sha256": "0" * 64,
+                "file_media_type": thumbnails,
+            }
+        ),
+        first.model_copy(update={"file_path": "reference/station.csv", "file_sha256": "1" * 64}),
+    ]
+    inventory = asked.inventory.model_copy(update={"inventory_files": [*files, *extra]})
+    env, _ = draft(runs_dir, asked.model_copy(update={"inventory": inventory}))
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    record = json.loads(env.payload_as(Document).document_text)
+    kept = [*files, extra[2]]
+    assert record["sizes"] == [f"{len(kept)} files", f"{sum(f.file_size for f in kept)} bytes"]
+    assert thumbnails not in record["formats"]
+    for path in ("old/" + first.file_path, "data/Thumbs.db", "reference/station.csv"):
+        assert path in env.outcome.statement

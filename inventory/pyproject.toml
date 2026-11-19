@@ -39,6 +39,8 @@ dependencies = [
   "presidio-analyzer==2.2.366",
   # The e-mail recogniser's validation, given only its bundled public-suffix list (personal.py).
   "tldextract>=5.3.1,<6",
+  # The rules of the hints for a person (hints.yaml).
+  "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]

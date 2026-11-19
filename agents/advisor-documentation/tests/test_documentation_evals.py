@@ -166,10 +166,10 @@ def test_with_a_model_the_suggestions_and_prose_are_scored_and_no_cell_is_writte
     assert model.sent, "the fake model was called"
 
     dictionary = scores(log, "hallam-dictionary")
-    # T_air's unit and definition (in both phase 1 files), vwc's and Batt's units agree with the
-    # crib sheet; SM's unit, suggested twice, does not.
+    # T_air's unit and definition, vwc's and Batt's units agree with the crib sheet; SM's unit
+    # does not. The phase 1 file's copy under data/old/ is left out of the dictionary (#1072).
     suggested = dictionary["suggestions_match_gold"]
-    assert suggested.value == pytest.approx(7 / 9)
+    assert suggested.value == pytest.approx(4 / 5)
     assert all(" SM unit" in p for p in (suggested.metadata or {})["problems"])
     # The model suggested answers, and still no cell holds a value no source accounts for.
     assert dictionary["no_model_value_in_cell"].value == "C"
