@@ -123,10 +123,13 @@ suggests some of those values beside their questions
    `project_decisions` are the facts a person decided about it ([Projects](projects.md),
    invariant 28): which files go in, whether sensitive fields or files may be published and how,
    its funders, the repositories required and its licence. A drafter treats each as supplied.
-   What a check agent only proposed never reaches a drafter. How each drafter uses them (leaving
-   an excluded file out of the README's Files table, the data dictionary and the metadata
-   record's formats and sizes, listing it with its reason; asking whether a location may be
-   published before asking for it) is TODO(#1072) and TODO(#1073).
+   What a check agent only proposed never reaches a drafter. The Metadata Librarian asks whether
+   a location may be published, and at what precision, before it asks for the place, and takes
+   the project's `sensitivity` decisions about locations as that answer: it asks for the place
+   at the coarsest precision decided, or leaves it empty and asks no more when every location is
+   withheld, saying so in its statement (`agents/advisor-metadata/tests/test_metadata_location.py`).
+   How each drafter leaves an excluded file out of the README's Files table, the data dictionary
+   and the metadata record's formats and sizes, listing it with its reason, is TODO(#1072).
 
 ## Boundaries and contracts
 

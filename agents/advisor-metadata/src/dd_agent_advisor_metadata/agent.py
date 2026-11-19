@@ -14,7 +14,9 @@ their grants as funding references, wherever the repository asks for those prope
 Each value it leaves null is a gap with a question (`questions.py`), and an answer the researcher
 recorded to it is placed as given (docs/specs/drafting.md). Where a model is configured
 (`factory.py`), it suggests values for some questions, beside the question and never in the
-record (`suggest.py`); the record's text is the rule's either way.
+record (`suggest.py`); the record's text is the rule's either way. Where the data were collected
+is asked in two steps: whether the location may be published, and at what precision, and only
+then the place (`location.py`, #1073).
 
 It reads the DataCite JSON form from `datacite.yaml`. It consults no source, uses no controlled
 vocabulary and maps nothing between schemas (R6), so its grounding mode is `input_only` and it
@@ -32,6 +34,7 @@ from typing import Any
 
 import yaml
 
+from dd_agent_advisor_metadata import location
 from dd_agent_advisor_metadata.questions import (
     Gap,
     answers_by_question,
@@ -91,12 +94,13 @@ SCHEME_URIS = {"ROR": "https://ror.org", "GRID": "https://www.grid.ac", "ISNI": 
 @dataclass(frozen=True, slots=True)
 class Form:
     """How one DataCite property is written: the key of its value in a list entry, or a value
-    the librarian fills itself; the question asked about a value left null, and whether a model
-    may suggest one."""
+    the librarian fills itself; the question asked about a value left null, the question asked
+    first about whether it may be published at all, and whether a model may suggest one."""
 
     value: str | None = None
     filled: str | None = None
     ask: str | None = None
+    publish: str | None = None
     suggest: bool = False
 
 
@@ -105,12 +109,12 @@ def load_form(path: Path = DATACITE_FORM) -> dict[str, Form]:
         table = yaml.safe_load(fh)
     form = {}
     for prop, entry in table.items():
-        unknown = set(entry) - {"value", "filled", "ask", "suggest"}
+        unknown = set(entry) - {"value", "filled", "ask", "publish", "suggest"}
         if unknown:
             raise ValueError(f"{path}: {prop} has unknown keys {sorted(unknown)}")
         if "value" in entry and "filled" in entry:
             raise ValueError(f"{path}: {prop} has a value key or a filled value, not both")
-        if "filled" in entry and {"ask", "suggest"} & set(entry):
+        if "filled" in entry and {"ask", "publish", "suggest"} & set(entry):
             raise ValueError(f"{path}: {prop} is filled, so nothing is asked or suggested")
         form[str(prop)] = Form(**entry)
     return form
@@ -176,17 +180,16 @@ class MetadataLibrarian:
         filled += _from_researchers(record, asked.researchers)
         found = gaps(record)
         open_gaps = place(record, found, answers_by_question(asked.draft_answers))
-        questions, suggested = self._questions(
-            open_gaps, _facts(requirements, asked.inventory), ctx
-        )
+        pairs, withheld = self._ask(open_gaps, asked)
+        questions, suggested = self._questions(pairs, _facts(requirements, asked.inventory), ctx)
         required = sum(f.obligation == Obligation.REQUIRED for f in requirements.fields)
         statement = (
             f"A DataCite record for {requirements.repository_name} with the "
             f"{len(requirements.fields)} properties it asks for ({required} required), drafted "
             f"by rule. Filled: {', '.join(filled) or 'nothing'}"
             f"{_placed(len(found) - len(open_gaps))}. It asks "
-            f"{_count(len(questions), 'question')}, one for each value left null. "
-            f"{_how_suggested(suggested)}"
+            f"{_count(len(questions), 'question')} about the values left null. "
+            f"{''.join(s + ' ' for s in withheld)}{_how_suggested(suggested)}"
         )
         current = asked.current_version
         if current is not None:
@@ -215,18 +218,54 @@ class MetadataLibrarian:
             prompts=dict(suggested.calls.prompts) if suggested.calls else {},
         )
 
-    def _questions(
-        self, open_gaps: Sequence[Gap], facts: Mapping[str, Any], ctx: RunContext
-    ) -> tuple[list[DocumentQuestion], Suggestions]:
-        """A question for each open gap, with the suggester's value where it offered one. The
-        suggester is given the facts the record is drafted from and the questions on properties
-        the rule table lets it suggest, never an answer or an earlier version
-        (docs/specs/drafting.md, invariant 7)."""
+    def _ask(
+        self, open_gaps: Sequence[Gap], asked: DraftRequest
+    ) -> tuple[list[tuple[Gap, DocumentQuestion]], list[str]]:
+        """The question asked about each open gap, and a sentence for each value left null and
+        not asked about because a person decided it is withheld. A value the rule table asks
+        `publish` about is asked for only once a person decided it may be published
+        (`location.py`)."""
         prompts = {prop: form.ask for prop, form in self.form.items()}
-        questions = [ask(gap, prompts) for gap in open_gaps]
+        answers = answers_by_question(asked.draft_answers)
+        located = location.located_fields(asked.inventory)
+        by_project = location.decided(asked.project_decisions, located)
+        pairs: list[tuple[Gap, DocumentQuestion]] = []
+        withheld: dict[str, None] = {}
+        for gap in open_gaps:
+            publish = self.form.get(gap.prop, Form()).publish
+            question = ask(gap, prompts)
+            if publish is None:
+                pairs.append((gap, question))
+                continue
+            decision = by_project or location.answered(answers.get(location.asks_first(gap)))
+            if decision is None:
+                first = DocumentQuestion(
+                    question_id=location.asks_first(gap),
+                    question_prompt=location.first_question(located, publish),
+                    gap_property=location.entry_path(gap),
+                )
+                pairs.append((gap, first))
+            elif decision.withheld:
+                withheld[location.withheld_sentence(decision)] = None
+            else:
+                prompt = location.second_question(decision, question.question_prompt)
+                pairs.append((gap, question.model_copy(update={"question_prompt": prompt})))
+        return pairs, list(withheld)
+
+    def _questions(
+        self,
+        pairs: Sequence[tuple[Gap, DocumentQuestion]],
+        facts: Mapping[str, Any],
+        ctx: RunContext,
+    ) -> tuple[list[DocumentQuestion], Suggestions]:
+        """The questions, with the suggester's value where it offered one. The suggester is
+        given the facts the record is drafted from and the questions on properties the rule
+        table lets it suggest, never an answer or an earlier version (docs/specs/drafting.md,
+        invariant 7)."""
+        questions = [q for _, q in pairs]
         asks = [
             Ask(q.question_id, gap.path, gap.prop, q.question_prompt, gap.qualifier)
-            for gap, q in zip(open_gaps, questions, strict=True)
+            for gap, q in pairs
             if self.form.get(gap.prop, Form()).suggest and not gap.names_a_vocabulary
         ]
         suggested = self.suggester.suggest(facts, asks, ctx) if asks else Suggestions()
