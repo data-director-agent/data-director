@@ -69,6 +69,7 @@ CASES = [
     ("advisor.repository", "repository-needs.json", "succeeded"),
     ("advisor.repository", "repository-mandated.json", "succeeded"),
     ("advisor.repository", "repository-asked-about.json", "succeeded"),
+    ("advisor.repository", "repository-in-plan.json", "succeeded"),
     ("advisor.ethics", "ethics-context.json", "succeeded"),
     ("advisor.files", "soil-survey.inventory.json", "succeeded"),
     ("advisor.dmp", "dmp-commitments.json", "succeeded"),

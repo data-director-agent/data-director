@@ -25,6 +25,7 @@ class CandidateBasis(StrEnum):
     ASKED_ABOUT = "asked_about"
     RECOMMENDED = "recommended"
     CHOSEN = "chosen"
+    IN_PLAN = "in_plan"
 
 
 class Answer(StrEnum):

@@ -9,7 +9,8 @@ needs they do not meet; with none it shortlists. A repository the researcher onl
 about (`RepositoryNeeds.asked_about`) is not a mandate: it is described alongside the shortlist,
 never instead of it, and never marked mandated (#1167). The researcher chooses (TODO(#199)). In a
 project, decided required repositories are mandated too, and the repository the researcher chose
-is described when nothing else is asked (`given.py`).
+is described when nothing else is asked, and a repository a confirmed sharing commitment of the
+data management plan names is described beside the shortlist, not mandated (`given.py`, #1233).
 
 Grounding invariant: retrieval precedes any model call, and the model never determines which
 repositories are offered or any judgement about them. A candidate names its records once, in
@@ -21,7 +22,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from dd_agent_advisor_repository import assess, choose, given, rank
+from dd_agent_advisor_repository import aliases, assess, choose, given, rank
 from dd_agent_advisor_repository.classes import (
     RepositoryCandidate,
     RepositoryNeeds,
@@ -62,6 +63,9 @@ class _Retrieved:
         # Each name given (mandated or asked about) that several records bear, with their
         # identifiers.
         self.ambiguous: dict[str, list[str]] = {}
+        # Each name given that re3data does not list, read through `aliases.yaml`, with the
+        # identifier of the record it led to.
+        self.aliased: dict[str, str] = {}
 
     def summary(self) -> str:
         refs = [self.re3data_ref.as_string()]
@@ -81,6 +85,11 @@ def _lookup(
             found = [by_id] if by_id is not None else []
         else:
             found = source.find(ref.name)
+            if not found and (alias := aliases.re3data_id(ref.name)) is not None:
+                by_alias = source.fetch(alias)
+                found = [by_alias] if by_alias is not None else []
+                if found:
+                    got.aliased[ref.name] = alias
         if len(found) != 1:
             named.not_found.append(ref.name)
             if found:
@@ -213,22 +222,30 @@ class RepositoryAgent:
     # --- retrieval ------------------------------------------------------------------------
 
     def _from_re3data(
-        self, needs: RepositoryNeeds, source: Repositories, got: _Retrieved
+        self, project: given.Given, source: Repositories, got: _Retrieved
     ) -> tuple[choose.Named, rank.Matches, dict[str, Re3dataRecord]]:
         """The records of the repositories named, mandated or asked about, and the shortlist's
         hits (by text and by the themes' DFG subjects) with the generalist repositories. A
         mandated repository replaces the shortlist; one the researcher asked about does not, and
-        a repository both mandated and asked about is mandated. With no theme, kind of data or
-        affiliation there is nothing to shortlist on. A name that several records bear is not
-        found, and noted in `got`: the researcher is asked for the identifier rather than given
-        a guess."""
+        a repository both mandated and asked about is mandated. One a confirmed plan commitment
+        names is described like one asked about, and one both is described as the plan's. With
+        no theme, kind of data or affiliation there is nothing to shortlist on. A name that
+        several records bear is not found, and noted in `got`: the researcher is asked for the
+        identifier rather than given a guess."""
+        needs = project.needs
         named = choose.Named()
         named.mandated = _lookup(needs.mandated, source, got, named)
         mandated_ids = {r.re3data_id for r in named.mandated}
+        named.in_plan = [
+            r
+            for r in _lookup(project.in_plan, source, got, named)
+            if r.re3data_id not in mandated_ids
+        ]
+        described = mandated_ids | {r.re3data_id for r in named.in_plan}
         named.asked_about = [
             r
             for r in _lookup(needs.asked_about, source, got, named)
-            if r.re3data_id not in mandated_ids
+            if r.re3data_id not in described
         ]
         if needs.mandated or not rank.queries(needs):
             return named, rank.Matches(), {}
@@ -278,8 +295,9 @@ class RepositoryAgent:
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
         assert isinstance(request.input, RepositoryNeeds)  # the conductor checked spec.accepts
         # What people in the project decided takes precedence over what the caller wrote.
-        needs, only_chosen = given.with_project(request.input)
-        if not (needs.mandated or needs.asked_about or rank.queries(needs)):
+        project = given.with_project(request.input)
+        needs = project.needs
+        if not (needs.mandated or project.in_plan or needs.asked_about or rank.queries(needs)):
             return abstain(
                 ReasonCode.INSUFFICIENT_INPUT,
                 "The needs name no repository, no theme or kind of data, and no affiliation, so "
@@ -289,18 +307,21 @@ class RepositoryAgent:
         source = self.repositories
         try:
             got = _Retrieved(source.snapshot_ref())
-            named, matches, hits = self._from_re3data(needs, source, got)
+            named, matches, hits = self._from_re3data(project, source, got)
         except RegistryUnavailable as exc:
             return abstain(
                 ReasonCode.REGISTRY_UNAVAILABLE,
                 f"re3data could not be read: {exc}. This is not an empty result.",
             )
-        self._collect([*named.mandated, *named.asked_about, *hits.values()], got, ctx)
+        self._collect(
+            [*named.mandated, *named.in_plan, *named.asked_about, *hits.values()], got, ctx
+        )
 
         # The shortlist's queries; none when a mandate replaces the shortlist.
         shortlisted = [] if needs.mandated else [q.describe() for q in rank.queries(needs)]
         searched = SearchedSummary(
             queries=[f"mandated: {r.name!r}" for r in needs.mandated]
+            + [f"in the data management plan: {r.name!r}" for r in project.in_plan]
             + [f"asked about: {r.name!r}" for r in needs.asked_about]
             + shortlisted,
             snapshot_ref=got.summary(),
@@ -308,7 +329,7 @@ class RepositoryAgent:
         )
 
         ranked = rank.rank(matches, hits, needs) if hits else []
-        chosen = choose.choose(named, ranked, only_chosen)
+        chosen = choose.choose(named, ranked, project.only_chosen)
         if not chosen:
             return choose.abstention(named, got, len(hits), shortlisted, source)
         searched = searched.model_copy(update={"candidates_qualifying": len(chosen)})

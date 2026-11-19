@@ -1,0 +1,10 @@
+# Names a researcher or a plan may give a repository that re3data's record does not list, each
+# with the re3data record it names and where the name comes from (`aliases.py`, #1233). Consulted
+# only when re3data's own names and aliases find nothing; the candidate is still grounded on the
+# re3data record, and the outcome says the name was read through this list. Keep it short and
+# curated: add a name only with a source that ties it to the record.
+aliases:
+  - names: ["ReShare", "UK Data Service ReShare", "UKDS ReShare"]
+    re3data_id: r3d100010230  # UK Data Service
+    source: https://reshare.ukdataservice.ac.uk/
+    note: ReShare is the UK Data Service's self-deposit repository.

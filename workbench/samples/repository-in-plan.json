@@ -1,0 +1,20 @@
+{
+  "schema_class": "RepositoryNeeds",
+  "themes": [
+    "social sciences"
+  ],
+  "data_kinds": [
+    "survey data",
+    "interview transcripts"
+  ],
+  "country": "GBR",
+  "project_decisions": [
+    {
+      "fact_kind": "sharing_commitment",
+      "fact_subject": "interview transcripts",
+      "commitment_repository": "ReShare",
+      "commitment_quote": "Anonymised interview transcripts will be deposited in ReShare.",
+      "commitment_document": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ]
+}

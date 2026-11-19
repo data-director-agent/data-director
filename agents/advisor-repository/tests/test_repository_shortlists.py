@@ -25,6 +25,7 @@ from dd_agent_advisor_repository.classes import (
 )
 from dd_agent_advisor_repository.snapshot import FairsharingSnapshot, Re3dataRegistry
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
+from dd_sdk.contract.facts import ProjectFact
 from dd_sdk.contract.models import OutcomeStatus
 
 NEEDS = Path(__file__).parent / "data" / "needs"
@@ -37,7 +38,10 @@ GESIS = "r3d100012496"
 LEEDS = "r3d100011945"  # Research Data Leeds Repository
 NOMAD = "r3d100011583"
 ORDA = "r3d100012124"
+QDR = "r3d100011038"  # Qualitative Data Repository
 PANGAEA = "r3d100010134"
+UKDA = "r3d100010215"  # UK Data Archive
+UKDS = "r3d100010230"  # UK Data Service
 ZENODO = "r3d100010468"
 
 
@@ -74,6 +78,9 @@ def load(name: str) -> RepositoryNeeds:
         # D: cylinder flow simulation (EPSRC). No fluid dynamics repository is in re3data's
         # snapshot, so the generalists are the right answer, not atmospheric or social science.
         ("cylinder-flow.json", {ZENODO}, {CEDA, GESIS, CSD, ENA}),
+        # #1233: survey and interview data in the social sciences. The UK Data Service ranks on
+        # its theme, beside the other social-science archives, not only the generalists.
+        ("survey-interviews-uk.json", {UKDS, UKDA, GESIS, QDR}, {EIDC, NOMAD, CSD}),
     ],
 )
 def test_a_workshop_shortlist_keeps_to_the_datasets_discipline(
@@ -102,6 +109,29 @@ def test_a_repository_the_researcher_names_is_not_mandated_and_keeps_the_shortli
     assert options.candidates[0].basis == CandidateBasis.ASKED_ABOUT
     assert all(c.basis != CandidateBasis.MANDATED for c in options.candidates)
     assert NOMAD in ids
+
+
+@pytest.mark.requirement("R1")
+@pytest.mark.parametrize("name", ["ReShare", "UK Data Service ReShare", "ukds reshare"])
+def test_a_plan_naming_reshare_describes_the_uk_data_service_beside_the_shortlist(
+    runs_dir: Path, re3data: Re3dataRegistry, name: str
+) -> None:
+    """#1233: a confirmed plan named ReShare, which re3data does not list as a name, and the
+    shortlist offered only generalists without mentioning the UK Data Service."""
+    plan = ProjectFact(
+        fact_kind="sharing_commitment",
+        fact_subject="interview transcripts",
+        commitment_repository=name,
+        commitment_quote=f"Data will be deposited in {name}.",
+        commitment_document="0" * 64,
+    )
+    needs = load("cylinder-flow.json").model_copy(update={"project_decisions": [plan]})
+    ids, options, statement = shortlist(runs_dir, re3data, needs)
+    assert ids[0] == UKDS
+    assert options.candidates[0].basis == CandidateBasis.IN_PLAN
+    assert ZENODO in ids
+    assert not options.not_found
+    assert f"{name!r} is not a name re3data gives any record; it was read as {UKDS}" in statement
 
 
 def test_a_discipline_match_is_listed_before_the_generalists(
