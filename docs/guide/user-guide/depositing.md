@@ -15,7 +15,20 @@ In the project's **Deposit** tab:
 1. Choose **Check the project**. The project is checked against what the repository you chose
    asks for. Anything listed under *Must be fixed before packaging* stops the package; fix it and
    check again.
-2. Choose **Build the package**, then **Download the package**.
+2. Under *Decide before packaging*, decide each file the check lists. A file is listed when its
+   name suggests something a person should look at before it is shared, such as field notes,
+   coordinates, material from someone else or an agreement, or when the inventory command found
+   possible personal data in it. For each, say whether you checked it and will deposit it as it
+   is, will leave it out, or will deposit a changed copy, such as a redacted one; you may add a
+   note. Data Director does not change your files: leaving a file out or changing it is up to you
+   when you deposit.
+3. Confirm that the ethics approvals that apply are in place, that data protection advice has
+   been taken where the data concern living people, and that you may share any material from
+   others. Your decisions and your confirmation are kept with your name and the time, and go into
+   the package. A file that is not listed has not been cleared: the check reads names, not
+   contents, and says what it did not look at.
+4. Choose **Build the package**, then **Download the package**. It can be built once nothing must
+   be fixed and nothing waits for your decision.
 
 The **Repository** tab shows the repository you chose and the fields its form asks for.
 

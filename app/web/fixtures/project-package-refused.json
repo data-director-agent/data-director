@@ -1,11 +1,12 @@
 {
-  "detail": "the project is not valid for deposit: Zenodo requires a metadata record, and none has been approved.",
+  "detail": "the project is not ready for deposit: Zenodo requires a metadata record, and none has been approved.; Confirm that ethics approval, data protection advice and the rights to any third-party material have been checked before packaging.",
   "status": 409,
   "title": "No package was built",
   "type": "https://w3id.org/data-director/problems/package-refused",
   "validation": {
     "conforms": false,
     "project_id": "01900000-0000-7000-8000-000000000001",
+    "ready": false,
     "report": {
       "@context": {
         "dd": "https://w3id.org/data-director/",
@@ -14,11 +15,16 @@
         "xsd": "http://www.w3.org/2001/XMLSchema#"
       },
       "@type": "sh:ValidationReport",
+      "dd:not_checked": [
+        "Data Director read the inventory's folder, file and field names, sizes and digests, never the files' contents: a file not listed may still hold personal data, sensitive locations or someone else's material.",
+        "No personal-data detector ran on this inventory, so no values in the files were checked for direct identifiers. Making the inventory again with dd-inventory runs one."
+      ],
       "dd:project": {
         "@id": "urn:uuid:01900000-0000-7000-8000-000000000001"
       },
+      "dd:ready_to_package": false,
       "dd:requirements": {
-        "@id": "ni:///sha-256;0000000000000000000000000000000000000000004"
+        "@id": "ni:///sha-256;0000000000000000000000000000000000000000005"
       },
       "dd:validated_at": {
         "@type": "xsd:dateTime",
@@ -51,11 +57,47 @@
           "sh:sourceConstraintComponent": {
             "@id": "https://w3id.org/data-director/RequiredDocumentConstraintComponent"
           }
+        },
+        {
+          "@type": "sh:ValidationResult",
+          "sh:focusNode": {
+            "@id": "urn:uuid:01900000-0000-7000-8000-000000000001"
+          },
+          "sh:resultMessage": "Confirm that ethics approval, data protection advice and the rights to any third-party material have been checked before packaging.",
+          "sh:resultSeverity": {
+            "@id": "sh:Warning"
+          },
+          "sh:sourceConstraintComponent": {
+            "@id": "https://w3id.org/data-director/DepositConfirmationConstraintComponent"
+          }
         }
       ]
     },
     "report_digest": "0000000000000000000000000000000000000000000000000000000000000002",
     "requirements_digest": "0000000000000000000000000000000000000000000000000000000000000003",
+    "review": {
+      "confirmation": null,
+      "inventory_digest": "0000000000000000000000000000000000000000000000000000000000000004",
+      "items": [],
+      "not_checked": [
+        "Data Director read the inventory's folder, file and field names, sizes and digests, never the files' contents: a file not listed may still hold personal data, sensitive locations or someone else's material.",
+        "No personal-data detector ran on this inventory, so no values in the files were checked for direct identifiers. Making the inventory again with dd-inventory runs one."
+      ],
+      "statements": [
+        {
+          "id": "ethics_approval",
+          "text": "The ethics approvals that apply to these data are in place, and depositing them is within what they allow."
+        },
+        {
+          "id": "data_protection",
+          "text": "Data protection advice has been taken for any data about living people, or the data hold none."
+        },
+        {
+          "id": "third_party_rights",
+          "text": "Material from others may be shared on the terms it came with, and every agreement the data come under is still in force and allows the deposit."
+        }
+      ]
+    },
     "validated_at": "2026-01-01T00:00:00Z",
     "violations": [
       {

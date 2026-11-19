@@ -10,8 +10,13 @@ overrides, then `suggested.yaml`), so a researcher can choose one on the project
 `POST /api/projects/{id}/validation` validates the project against the requirements recorded
 for the repository chosen last and keeps the report; `POST /api/projects/{id}/package` does the
 same and, only if the project is valid, builds the deposit package, answering `409` with the
-validation when it is not; `GET /api/projects/{id}/packages/{digest}` is a package the project
-log records as built, as a zip. `GET /api/projects/{id}/disclosure` says how each approved
+validation when it is not, or while an item waits on a person's decision;
+`GET /api/projects/{id}/packages/{digest}` is a package the project log records as built, as a zip.
+`GET /api/projects/{id}/review` is what a person must decide and confirm before packaging;
+`PUT /api/projects/{id}/review/items/{item_id}` records the signed-in person's decision on one
+item, and `PUT /api/projects/{id}/review/confirmation` their confirmation of the checks before
+deposit, each answering with the review as it then stands (docs/specs/deposit.md, "The pause
+before packaging"). `GET /api/projects/{id}/disclosure` says how each approved
 document came about and what generative AI was used, as a statement and as a PROV-O graph
 (docs/specs/disclosure.md).
 """
@@ -20,13 +25,14 @@ from __future__ import annotations
 
 from typing import Any, ClassVar, Literal
 
-from pydantic import ConfigDict
+from pydantic import ConfigDict, Field
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import Route
 
 from dd_app import contract_shapes as contract
+from dd_app.deposit import DepositReviews
 from dd_app.project_service import PackageRefusedError, RepositoriesUnavailableError
 from dd_app.routes.common import (
     Deps,
@@ -42,6 +48,7 @@ from dd_app.routes.common import (
     respond,
     signed_in,
 )
+from dd_harness.deposit_review import NOTE_MAX_LENGTH, ItemDecision, UnknownItemError
 from dd_harness.project_access import Action
 from dd_harness.projects import ProjectError
 from dd_harness.requirements import RequirementsError
@@ -50,6 +57,8 @@ from dd_sdk.contract.models import Principal
 from dd_sdk.contract.problem import PROBLEM_BASE
 
 REPOSITORY_REFUSED = "Data Director could not record this repository"
+DECISION_REFUSED = "Data Director could not record this decision"
+CONFIRMATION_REFUSED = "Data Director could not record this confirmation"
 
 
 class RepositoryMatch(ResponseBody):
@@ -84,17 +93,79 @@ class ValidationResult(ResponseBody):
     path: str | None
 
 
+class ItemDecisionMade(ResponseBody):
+    """The decision a person made on an item, and who made it when."""
+
+    decision: Literal["keep", "leave_out", "change"]
+    note: str | None
+    decided_by: contract.Principal
+    decided_at: str
+
+
+class ReviewItem(ResponseBody):
+    """A file a person must decide about before packaging, and why: a name-level hint or a
+    personal-data finding from the inventory."""
+
+    item_id: str
+    source: Literal["name", "finding"]
+    kind: str
+    path: str
+    question: str
+    """What the person should check, in the harness's words."""
+    matched: str | None
+    column: str | None
+    related_paths: list[str]
+    file_sha256: str | None
+    decision: ItemDecisionMade | None
+    """The decision that stands for this item, or null while it waits on a person."""
+
+
+class ConfirmationStatement(ResponseBody):
+    """One statement a person confirms before a deposit."""
+
+    id: str
+    text: str
+
+
+class ChecksConfirmed(ResponseBody):
+    """A person's confirmation of the checks before deposit, against the current inventory."""
+
+    statements: list[ConfirmationStatement]
+    confirmed_by: contract.Principal
+    confirmed_at: str
+
+
+class DepositReview(ResponseBody):
+    """What a person must decide and confirm before the project is packaged. No item means that
+    nothing was flagged in what was checked, never that the data are safe: `not_checked` says
+    what was not."""
+
+    inventory_digest: str | None
+    items: list[ReviewItem]
+    confirmation: ChecksConfirmed | None
+    """The confirmation that stands for the current inventory, or null."""
+    statements: list[ConfirmationStatement]
+    """What the confirmation states, each of which must be confirmed."""
+    not_checked: list[str]
+
+
 class Validation(ResponseBody):
     """A project's validation against its chosen repository's requirements, as the harness made
-    it and kept it in the project log. A violation stops the package; a warning does not."""
+    it and kept it in the project log. A violation stops the package; a warning does not; an
+    item undecided or the checks unconfirmed hold it until a person clears them."""
 
     project_id: str
     conforms: bool
+    ready: bool
+    """Whether a package may be built: no violation, and nothing waits on a person."""
     validated_at: str
     report_digest: str | None
     requirements_digest: str | None
     violations: list[ValidationResult]
     warnings: list[ValidationResult]
+    """Warnings that do not wait on a person; those that do are the `review`'s."""
+    review: DepositReview | None
+    """What a person must decide and confirm; null when no repository has been chosen."""
     report: dict[str, Any]
     """The W3C SHACL Validation Report, in JSON-LD."""
 
@@ -173,6 +244,25 @@ class Disclosure(ResponseBody):
     prov: dict[str, Any]
 
 
+class DecideItem(RequestBody):
+    """A person's decision on one item, with a note if they give one."""
+
+    refusal: ClassVar[str] = (
+        "`decision` is keep, leave_out or change, and `note` is text if it is given."
+    )
+
+    decision: Literal["keep", "leave_out", "change"]
+    note: str | None = Field(default=None, max_length=NOTE_MAX_LENGTH)
+
+
+class ConfirmChecks(RequestBody):
+    """A person's confirmation of every statement, by its identifier."""
+
+    refusal: ClassVar[str] = "`confirmed` lists the identifier of every statement confirmed."
+
+    confirmed: list[str]
+
+
 class ChooseRepository(RequestBody):
     """The repository, by its re3data identifier alone."""
 
@@ -196,6 +286,9 @@ def routes(deps: Deps) -> list[Route]:
         Route(f"{project}/validation", contribute(validate_project), methods=["POST"]),
         Route(f"{project}/package", contribute(package_project), methods=["POST"]),
         Route(f"{project}/packages/{{digest}}", read(get_package), methods=["GET"]),
+        Route(f"{project}/review", read(get_review), methods=["GET"]),
+        Route(f"{project}/review/items/{{item_id}}", contribute(decide_item), methods=["PUT"]),
+        Route(f"{project}/review/confirmation", contribute(confirm_checks), methods=["PUT"]),
         Route("/api/repositories", signed_in(deps, search_repositories), methods=["GET"]),
     ]
 
@@ -337,3 +430,54 @@ async def get_disclosure(request: Request, _: Principal, deps: Deps) -> Response
     project_id = request.path_params["project_id"]
     found = await run_in_threadpool(deps.projects.disclosure, project_id)
     return respond(Disclosure, {**found.to_document(), "prov": found.prov_jsonld()})
+
+
+async def get_review(request: Request, _: Principal, deps: Deps) -> Response:
+    project_id = request.path_params["project_id"]
+    found = await run_in_threadpool(DepositReviews(deps.governance).review, project_id)
+    return respond(DepositReview, found)
+
+
+async def decide_item(request: Request, person: Principal, deps: Deps) -> Response:
+    """The signed-in person's decision on an item the deposit check lists now; `404` for an item
+    it does not list."""
+    project_id, item_id = request.path_params["project_id"], request.path_params["item_id"]
+    body = await parse_body(request, DecideItem, DECISION_REFUSED)
+    if isinstance(body, Response):
+        return body
+    try:
+        found = await run_in_threadpool(
+            lambda: DepositReviews(deps.governance).decide(
+                project_id,
+                item_id,
+                ItemDecision(body.decision),
+                body.note,
+                acted_for=person,
+                caused_by=f"PUT {request.url.path}",
+            )
+        )
+    except UnknownItemError as exc:
+        return problem(404, "review-item-not-found", DECISION_REFUSED, str(exc))
+    except ProjectError as exc:
+        return project_refused(exc, project_id, DECISION_REFUSED)
+    return respond(DepositReview, found)
+
+
+async def confirm_checks(request: Request, person: Principal, deps: Deps) -> Response:
+    """The signed-in person's confirmation of every statement before deposit."""
+    project_id = request.path_params["project_id"]
+    body = await parse_body(request, ConfirmChecks, CONFIRMATION_REFUSED)
+    if isinstance(body, Response):
+        return body
+    try:
+        found = await run_in_threadpool(
+            lambda: DepositReviews(deps.governance).confirm(
+                project_id,
+                body.confirmed,
+                acted_for=person,
+                caused_by=f"PUT {request.url.path}",
+            )
+        )
+    except ProjectError as exc:
+        return project_refused(exc, project_id, CONFIRMATION_REFUSED)
+    return respond(DepositReview, found)

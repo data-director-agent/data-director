@@ -304,8 +304,8 @@ sequenceDiagram
     C->>L: document_version_added (proposed)
     R->>App: approve, or edit and approve
     App->>L: document_version_added (the edit), document_version_decided
-    R->>App: validate, then package
-    App->>L: project_validated, package_built
+    R->>App: validate, decide each marked file and confirm, then package
+    App->>L: project_validated, deposit_item_decided, deposit_checks_confirmed, package_built
     App-->>R: the package, by its digest
 ```
 
@@ -316,11 +316,13 @@ sequenceDiagram
 | Draft | Chooses a drafting step the orchestrator offers. The orchestrator delegates a `DraftRequest`, and the conductor fills it with the project's inventory, requirements and latest approved record. | `POST /api/conversations/{id}/turns` | `advisor.metadata` (metadata record), `advisor.documentation` (README, data dictionary) | `document_version_added`, naming the run that drafted it |
 | Check and approve | Approves each version, or edits it and approves the edit, with a reason. | `POST /api/projects/{id}/documents/{document_id}/decisions` | The harness | `document_version_added` for an edit, `document_version_decided` |
 | Validate | Checks the project against the repository's requirements. | `POST /api/projects/{id}/validation` | The harness (SHACL) | `project_validated` |
+| Decide before packaging | Decides each file the check marks (field notes, coordinates, someone else's material, an agreement, a possible identifier) and confirms ethics approval, data protection advice and third-party rights. | `PUT /api/projects/{id}/review/items/{item_id}`, `PUT /api/projects/{id}/review/confirmation` | The harness | `deposit_item_decided`, `deposit_checks_confirmed` |
 | Package | Builds the package and downloads it. | `POST /api/projects/{id}/package` | The harness | `package_built` |
 
 The package's audit trail is the project log itself (`project-log.jsonl`), and, in its root
 `ro-crate-metadata.json`, a `CreateAction` for each run behind an approved version, with that
-run's crate under `runs/`, and an `AssessAction` for each decision, made by the researcher
+run's crate under `runs/`, and an `AssessAction` for each decision, on a document or before
+packaging, made by the researcher
 ([Deposit](specs/deposit.md)). Nothing in the loop deposits: the researcher uploads the package
 and their files to the repository themselves.
 

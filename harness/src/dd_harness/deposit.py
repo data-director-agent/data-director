@@ -11,14 +11,17 @@ requirement set recorded for the repository chosen last:
   SHACL shapes generated from the fields and run by pySHACL;
 - that the record's licence is one the set lists, when it lists any;
 - that every inventory entry has an accepted media type and is within the size limits, and the
-  inventory as a whole within the item size, when the set states them.
+  inventory as a whole within the item size, when the set states them;
+- as warnings, each item a person must decide before packaging, and the checks they must confirm
+  (`dd_harness.deposit_review`).
 
 Every result, whichever check made it, is written in the W3C SHACL Validation Report vocabulary,
 as one report (docs/specs/contract.md). The project is valid when the report has no
 `sh:Violation`; warnings, including those from resolving the repository choice, do not block.
+It is ready to package when it is valid and nothing waits on a person (`dd_harness.deposit_report`).
 
 `check` validates and keeps the report in the project log. `build_package` does the same, and,
-only from a valid report, writes the package: one zip whose root `ro-crate-metadata.json`
+only from a report ready to package, writes the package: one zip whose root `ro-crate-metadata.json`
 describes the dataset. It holds each document's latest approved version, the inventory, the merged
 set, the validation report, the project log, the disclosure of generative AI and the Process Run
 Crate of each run behind an approved version. It holds no data file: each is described, with its
@@ -33,7 +36,6 @@ from __future__ import annotations
 import json
 import tempfile
 from collections.abc import Iterator, Mapping
-from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Final
@@ -45,28 +47,40 @@ from rdflib.namespace import RDF
 from rocrate.model import Person
 from rocrate.rocrate import ROCrate
 
-from dd_harness.disclosure import disclose, ni, version_chain, version_id
+from dd_harness import deposit_review
+from dd_harness.deposit_report import Package, PackageRefusedError, Validation
+from dd_harness.deposit_report import project_iri as _project_iri
+from dd_harness.disclosure import disclose, version_chain, version_id
 from dd_harness.package_crate import (
     INCLUDED,
     INCLUDED_IRI,
     CrateFiles,
     add_approval,
     add_data_file,
+    add_review,
     add_run,
     creative_work,
     json_bytes,
     produced_action,
     zip_folder,
 )
-from dd_harness.projects import APPROVED, ProjectError
+from dd_harness.projects import APPROVED
 from dd_harness.shacl import DD, SH, VIOLATION, WARNING, Result, Severity
-from dd_harness.shacl import report_jsonld as shacl_report
 from dd_harness.shacl import run as run_shacl
 from dd_harness.storage import DepositSource, RunStorage
 from dd_sdk.contract.models import DocumentKind, Principal, now
 
 SCHEMA = Namespace("http://schema.org/")
-__all__ = ["VIOLATION", "WARNING", "Result", "Severity"]  # kept here for deposit's callers
+# Kept here for deposit's callers.
+__all__ = [
+    "VIOLATION",
+    "WARNING",
+    "Package",
+    "PackageRefusedError",
+    "Result",
+    "Severity",
+    "Validation",
+]
 
 # The constraint component a result that pySHACL did not make names: the check that made it.
 DOCUMENT_CHECK = DD + "RequiredDocumentConstraintComponent"
@@ -110,58 +124,6 @@ EXTENSIONS = {
 }
 
 
-class PackageRefusedError(ProjectError):
-    """The project is not valid against its repository's requirements, so no package is built.
-    The validation, with every violation, is in `validation`; it is kept in the project log."""
-
-    def __init__(self, validation: Validation) -> None:
-        reasons = "; ".join(r.message for r in validation.violations)
-        super().__init__(f"the project is not valid for deposit: {reasons}")
-        self.validation = validation
-
-
-@dataclass(frozen=True)
-class Validation:
-    """The validation of a project against the merged requirement set recorded for it."""
-
-    project_id: str
-    made_at: datetime
-    # The digest of the merged requirement set checked against, or None if none was chosen.
-    requirements_digest: str | None
-    results: tuple[Result, ...]
-
-    @property
-    def conforms(self) -> bool:
-        return not self.violations
-
-    @property
-    def violations(self) -> tuple[Result, ...]:
-        return tuple(r for r in self.results if r.severity == VIOLATION)
-
-    @property
-    def warnings(self) -> tuple[Result, ...]:
-        return tuple(r for r in self.results if r.severity == WARNING)
-
-    def report_jsonld(self) -> dict[str, Any]:
-        """The SHACL Validation Report, in JSON-LD."""
-        about: dict[str, Any] = {
-            "dd:project": {"@id": _project_iri(self.project_id)},
-            "dd:validated_at": {"@value": self.made_at.isoformat(), "@type": "xsd:dateTime"},
-        }
-        if self.requirements_digest is not None:
-            about["dd:requirements"] = {"@id": ni(self.requirements_digest)}
-        return shacl_report(self.results, **about)
-
-
-@dataclass(frozen=True)
-class Package:
-    """A deposit package, as the project log keeps it."""
-
-    digest: str
-    content: bytes
-    validation: Validation
-
-
 def validate(projects: DepositSource, project_id: str) -> Validation:
     """The validation of the project against the merged requirement set recorded for the
     repository chosen last. Reads the project log and writes nothing. Raises
@@ -201,7 +163,9 @@ def validate(projects: DepositSource, project_id: str) -> Validation:
         )
     else:
         results += _check_inventory(project_id, inventory, requirements)
-    return Validation(project_id, made_at, digest, tuple(results))
+    review = deposit_review.review(projects, project_id)
+    results += review.results(project_id)
+    return Validation(project_id, made_at, digest, tuple(results), review)
 
 
 def check(
@@ -229,15 +193,15 @@ def build_package(
     acted_for: Principal,
     caused_by: str,
 ) -> Package:
-    """Validate the project, keep the report, and, if it has no violation, build the deposit
-    package and keep it in the project log by its digest.
+    """Validate the project, keep the report, and, if it has no violation and nothing waits on
+    a person, build the deposit package and keep it in the project log by its digest.
 
-    Raises `PackageRefusedError`, with the report kept, if the project is not valid, and
+    Raises `PackageRefusedError`, with the report kept, if the project is not ready, and
     `UnknownProjectError` for an unknown project."""
     validation, report_digest = check(
         projects, project_id, acted_for=acted_for, caused_by=caused_by
     )
-    if not validation.conforms:
+    if not validation.ready:
         raise PackageRefusedError(validation)
     content, about = _package(projects, runs, project_id, validation)
     digest = projects.record_package(
@@ -481,10 +445,6 @@ def _kind_name(kind: str) -> str:
     }.get(kind, kind.replace("_", " "))
 
 
-def _project_iri(project_id: str) -> str:
-    return f"urn:uuid:{project_id}"
-
-
 def _file_iri(project_id: str, path: str) -> str:
     return f"urn:uuid:{project_id}#file/{quote(path)}"
 
@@ -609,6 +569,8 @@ def _package(
 
         for entry in inventory.get("inventory_files") or []:
             add_data_file(crate, entry)
+        review = validation.review.to_document() if validation.review else {"items": []}
+        add_review(files, review)
 
         root["mentions"] = [e for e in crate.contextual_entities if e.type == "AssessAction"]
         crate.write(out)
@@ -621,6 +583,7 @@ def _package(
         "documents": documents,
         "runs": included_runs,
         "file_count": len(inventory.get("inventory_files") or []),
+        "decided_items": [i["item_id"] for i in review["items"] if i.get("decision")],
     }
     return content, about
 

@@ -162,6 +162,8 @@ activity `prov:used` the entity.
 | `fact_proposed` | `dd:FactProposal` | Generates the proposed fact, a `prov:Entity` with `dd:factKind` and `dd:factSubject`, which `prov:wasGeneratedBy` the run that proposed it. |
 | `fact_decided` | `dd:FactDecision` | Uses the proposal, where it names one; generates the fact that stands, with `dd:decision` confirmed, changed or rejected, and the reason as `schema:description`. A rejection invalidates the fact it removes (`prov:wasInvalidatedBy`). |
 | `project_validated` | `dd:ProjectValidation` | Uses the inventory, the merged set and the versions validated; generates the report, named by its digest, with `dd:conforms`. |
+| `deposit_item_decided` | `dd:DepositItemDecision` | Uses the inventory, named by its digest; the item's file as `schema:about`, `dd:decision` keep, leave out or change, and the note as `schema:description`. |
+| `deposit_checks_confirmed` | `dd:DepositChecksConfirmation` | Uses the inventory, named by its digest; the statements confirmed as `schema:description`. |
 | `package_built` | `dd:PackageBuild` | Uses each version, the report, the merged set and the runs it holds; generates the package, named by its digest. |
 
 **Runs and what happens within them.**

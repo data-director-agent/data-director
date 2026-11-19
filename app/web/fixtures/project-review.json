@@ -1,0 +1,64 @@
+{
+  "confirmation": null,
+  "inventory_digest": "0000000000000000000000000000000000000000000000000000000000000001",
+  "items": [
+    {
+      "column": null,
+      "decision": null,
+      "file_sha256": "0000000000000000000000000000000000000000000000000000000000000002",
+      "item_id": "6e84593e3ada76b7755a5a67",
+      "kind": "duplicate",
+      "matched": null,
+      "path": "data/cores.csv",
+      "question": "It has the same digest as another file, so the two are byte-for-byte copies. Keep one.",
+      "related_paths": [
+        "fieldnotes/day1.txt"
+      ],
+      "source": "name"
+    },
+    {
+      "column": null,
+      "decision": null,
+      "file_sha256": "0000000000000000000000000000000000000000000000000000000000000002",
+      "item_id": "09bcd990e0f0bfd99294d8c0",
+      "kind": "free_text",
+      "matched": "fieldnotes",
+      "path": "fieldnotes/day1.txt",
+      "question": "Its name suggests free text, which often holds names, telephone numbers, access codes or instructions. Read it before it is shared, and decide whether to leave it out or share a redacted copy.",
+      "related_paths": [],
+      "source": "name"
+    },
+    {
+      "column": null,
+      "decision": null,
+      "file_sha256": "0000000000000000000000000000000000000000000000000000000000000002",
+      "item_id": "98bd0429ae9eeb0f849420de",
+      "kind": "duplicate",
+      "matched": null,
+      "path": "fieldnotes/day1.txt",
+      "question": "It has the same digest as another file, so the two are byte-for-byte copies. Keep one.",
+      "related_paths": [
+        "data/cores.csv"
+      ],
+      "source": "name"
+    }
+  ],
+  "not_checked": [
+    "Data Director read the inventory's folder, file and field names, sizes and digests, never the files' contents: a file not listed may still hold personal data, sensitive locations or someone else's material.",
+    "No personal-data detector ran on this inventory, so no values in the files were checked for direct identifiers. Making the inventory again with dd-inventory runs one."
+  ],
+  "statements": [
+    {
+      "id": "ethics_approval",
+      "text": "The ethics approvals that apply to these data are in place, and depositing them is within what they allow."
+    },
+    {
+      "id": "data_protection",
+      "text": "Data protection advice has been taken for any data about living people, or the data hold none."
+    },
+    {
+      "id": "third_party_rights",
+      "text": "Material from others may be shared on the terms it came with, and every agreement the data come under is still in force and allows the deposit."
+    }
+  ]
+}

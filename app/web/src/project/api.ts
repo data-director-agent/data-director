@@ -16,6 +16,7 @@ import type { DocumentQuestion } from "../api/contract";
 import type {
   BuiltPackage,
   DeletedProject,
+  DepositReview,
   Disclosure,
   DocumentVersion,
   ProjectDetails,
@@ -36,6 +37,7 @@ export type { DocumentQuestion } from "../api/contract";
 export type {
   BuiltPackage,
   DeletedProject,
+  DepositReview,
   Disclosure,
   DocumentVersion,
   IntakeQuestion,
@@ -46,6 +48,7 @@ export type {
   ProjectSummary,
   RepositoryMatch,
   RepositorySearch,
+  ReviewItem,
   ReviewRules,
   SavedInventory,
   Validation,
@@ -55,6 +58,8 @@ export type {
 /** The state of a document's version, as the harness records it. */
 export type VersionState = DocumentVersion["state"];
 export type Verdict = "approved" | "rejected";
+/** What a person decided about a file the deposit check marked. */
+export type ItemDecision = "keep" | "leave_out" | "change";
 
 /** One answer as the shell sends it, to a question the latest version asks. */
 export interface GivenAnswer {
@@ -179,6 +184,10 @@ export interface ProjectApi {
   validate(projectId: string): Promise<Validation>;
   /** Validates the project and, if it is valid, builds its deposit package; else `PackageRefused`. */
   buildPackage(projectId: string): Promise<BuiltPackage>;
+  /** Record the person's decision on an item the deposit check lists; answers with the review. */
+  decideItem(projectId: string, itemId: string, decision: ItemDecision, note?: string): Promise<DepositReview>;
+  /** Record the person's confirmation of every statement before deposit; answers with the review. */
+  confirmChecks(projectId: string, confirmed: string[]): Promise<DepositReview>;
   /** What the signed-in person's own public ORCID record offers; nothing is kept. */
   orcidRecord(signal?: AbortSignal): Promise<ResearcherRecord>;
   /** The ORCID facts the project's researchers kept, which agents in the project are given. */
@@ -332,6 +341,13 @@ export const httpProjectApi: ProjectApi = {
   },
   async buildPackage(projectId) {
     return parse(await fetch(`${projectPath(projectId)}/package`, bodiless("POST")));
+  },
+  async decideItem(projectId, itemId, decision, note) {
+    const path = `${projectPath(projectId)}/review/items/${encodeURIComponent(itemId)}`;
+    return parse(await fetch(path, put(note ? { decision, note } : { decision })));
+  },
+  async confirmChecks(projectId, confirmed) {
+    return parse(await fetch(`${projectPath(projectId)}/review/confirmation`, put({ confirmed })));
   },
   async orcidRecord(signal) {
     return parse(await fetch("/api/researcher/orcid", signal ? { signal } : {}));

@@ -6,7 +6,8 @@ which files may need converting before deposit. It never converts, renames or de
 
 It also lists the files a person should look at before deposit (#449): those whose folder, file or
 field names suggest free text, coordinates, someone else's material or terms, operating-system
-files, empty files and byte-for-byte copies, by the rules in `hints.yaml`. The inventory holds no
+files, empty files and byte-for-byte copies, by the rules in `dd_sdk.inventory_hints`, which the
+harness's deposit check reads too. The inventory holds no
 contents, so each is a prompt for a person, never a finding, and a file it does not list may still
 hold personal data (docs/specs/personal-data.md).
 
@@ -24,9 +25,7 @@ is TODO(#354).
 
 from __future__ import annotations
 
-import re
 from collections import defaultdict
-from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
@@ -39,7 +38,7 @@ from dd_agent_advisor_files.classes import (
     FormatAssessment,
     JudgedBy,
 )
-from dd_sdk import summary
+from dd_sdk import inventory_hints, summary
 from dd_sdk.agent import (
     AgentResult,
     AgentSpec,
@@ -60,10 +59,9 @@ from dd_sdk.contract.models import (
     OutcomeStatus,
     ReasonCode,
 )
+from dd_sdk.inventory_hints import RULES, Rule
 
 FORMATS = Path(__file__).with_name("formats.yaml")
-HINTS = Path(__file__).with_name("hints.yaml")
-WORD = re.compile(r"[a-z]+")
 UNKNOWN = "unknown"
 # Says nothing about a format, so it is never looked up.
 OCTET_STREAM = "application/octet-stream"
@@ -107,39 +105,6 @@ def load_formats(path: Path = FORMATS) -> dict[str, Format]:
     }
 
 
-@dataclass(frozen=True)
-class Hint:
-    """One kind of check in `hints.yaml`."""
-
-    kind: CheckKind
-    question: str
-    within: frozenset[str] = frozenset()
-    words: frozenset[str] = frozenset()
-    names: frozenset[str] = frozenset()
-    prefixes: tuple[str, ...] = ()
-
-
-def load_hints(path: Path = HINTS) -> tuple[Hint, ...]:
-    with path.open(encoding="utf-8") as fh:
-        table = yaml.safe_load(fh)
-    return tuple(
-        Hint(
-            kind=CheckKind(kind),
-            question=" ".join(str(row["question"]).split()),
-            within=frozenset(row.get("in", ())),
-            words=frozenset(str(w).lower() for w in row.get("words", ())),
-            names=frozenset(str(n).lower() for n in row.get("names", ())),
-            prefixes=tuple(str(p).lower() for p in row.get("prefixes", ())),
-        )
-        for kind, row in table.items()
-    )
-
-
-def _words(*names: str) -> Iterator[str]:
-    for name in names:
-        yield from WORD.findall(name.lower())
-
-
 class FileArchivist:
     spec = AgentSpec(
         agent_id="advisor.files",
@@ -177,11 +142,11 @@ class FileArchivist:
     def __init__(
         self,
         formats: dict[str, Format] | None = None,
-        hints: tuple[Hint, ...] | None = None,
+        hints: tuple[Rule, ...] = RULES,
         summariser: summary.Summariser | None = None,
     ) -> None:
         self.formats = formats if formats is not None else load_formats()
-        self.hints = hints if hints is not None else load_hints()
+        self.hints = hints
         self.summariser = summariser or summary.TemplateSummariser()
         self.by_media_type: dict[str, Format] = {}
         self.by_puid: dict[str, Format] = {}
@@ -230,29 +195,24 @@ class FileArchivist:
         return summary.with_calls(result, self.summariser.model_id, explanation)
 
     def _checks(self, files: list[InventoryFile]) -> list[FileCheck]:
-        copies: dict[str, list[str]] = defaultdict(list)
-        for file in files:
-            if file.file_sha256 and file.file_size:
-                copies[file.file_sha256].append(file.file_path)
+        by_path: dict[str, list[FileCheck]] = defaultdict(list)
+        for hint in inventory_hints.hints(files, self.hints):
+            by_path[hint.path].append(
+                FileCheck(
+                    path=hint.path,
+                    kind=CheckKind(hint.kind.value),
+                    matched=hint.matched,
+                    question=hint.question,
+                    related_paths=list(hint.related_paths),
+                )
+            )
         checks = []
         for file in files:
-            for hint in self.hints:
-                check = self._check(hint, file, copies)
-                if check is not None:
-                    checks.append(check)
+            checks += by_path.get(file.file_path, [])
             mismatch = self._mismatch(self._assess(file))
             if mismatch is not None:
                 checks.append(mismatch)
         return checks
-
-    def _check(
-        self, hint: Hint, file: InventoryFile, copies: dict[str, list[str]]
-    ) -> FileCheck | None:
-        if hint.kind == CheckKind.EMPTY:
-            return _empty(hint, file)
-        if hint.kind == CheckKind.DUPLICATE:
-            return _duplicate(hint, file, copies)
-        return _named(hint, file)
 
     def _mismatch(self, file: FileAssessment) -> FileCheck | None:
         """Content-based identification and the extension name different formats."""
@@ -303,47 +263,6 @@ class FileArchivist:
             judged_by=judged_by,
             pronom_id=puid,
         )
-
-
-def _empty(hint: Hint, file: InventoryFile) -> FileCheck | None:
-    if file.file_size == 0:
-        return FileCheck(path=file.file_path, kind=hint.kind, question=hint.question)
-    return None
-
-
-def _duplicate(hint: Hint, file: InventoryFile, copies: dict[str, list[str]]) -> FileCheck | None:
-    others = [p for p in copies.get(file.file_sha256 or "", ()) if p != file.file_path]
-    if others:
-        return FileCheck(
-            path=file.file_path,
-            kind=hint.kind,
-            question=hint.question,
-            related_paths=others,
-        )
-    return None
-
-
-def _named(hint: Hint, file: InventoryFile) -> FileCheck | None:
-    """A check whose file's name, or a word in its folders, name or fields, the hint names."""
-    path = PurePosixPath(file.file_path)
-    name = path.name.lower()
-    if name in hint.names or (bool(hint.prefixes) and name.startswith(hint.prefixes)):
-        return FileCheck(
-            path=file.file_path, kind=hint.kind, matched=path.name, question=hint.question
-        )
-    places: list[str] = []
-    if "folders" in hint.within:
-        places += path.parts[:-1]
-    if "file" in hint.within:
-        places.append(path.name)
-    if "fields" in hint.within:
-        places += [f.name for f in file.file_fields]
-    for word in _words(*places):
-        if word in hint.words:
-            return FileCheck(
-                path=file.file_path, kind=hint.kind, matched=word, question=hint.question
-            )
-    return None
 
 
 def _statement(checks: list[FileCheck], closed: int, total: int) -> str:

@@ -189,6 +189,11 @@ class Researcher:
         assert response.status_code == status, response.text
         return response.json()
 
+    def put(self, path: str, body: Any) -> Any:
+        response = self.client.put(f"{self.project}{path}", json=body, headers=JSON_HEADERS)
+        assert response.status_code == 200, response.text
+        return response.json()
+
     def decide(self, document: dict[str, Any], **decision: Any) -> Any:
         (latest,) = [v for v in document["versions"] if v["state"] == "proposed"]
         return self.post(
@@ -257,10 +262,20 @@ def test_a_researcher_goes_from_their_files_to_a_deposit_package(
     assert len(record["versions"]) == 2
     assert json.loads(record["versions"][-1]["text"]) == json.loads(edited)
 
-    # 5. Validate against ORDA.
+    # 5. Validate against ORDA. It is valid, and waits for the researcher to decide each file the
+    # check marks and to confirm the checks before deposit.
     validation = researcher.post("/validation")
     assert validation["conforms"], validation["violations"]
     assert validation["violations"] == []
+    assert not validation["ready"]
+    review = validation["review"]
+    for item in review["items"]:
+        researcher.put(f"/review/items/{item['item_id']}", {"decision": "keep"})
+    confirmed = [s["id"] for s in review["statements"]]
+    review = researcher.put("/review/confirmation", {"confirmed": confirmed})
+    assert review["confirmation"] is not None
+    assert all(i["decision"] for i in review["items"])
+    assert researcher.post("/validation")["ready"]
 
     # 6. Package, and download it by its digest.
     built = researcher.post("/package")
@@ -297,7 +312,7 @@ def test_a_researcher_goes_from_their_files_to_a_deposit_package(
 
     # Every decision is in the crate, made by the researcher; the edit's reason goes with it.
     assessments = [e for e in crate.values() if e["@type"] == "AssessAction"]
-    assert len(assessments) == len(documents)
+    assert len(assessments) == len(documents) + len(review["items"]) + 1
     assert {crate[a["agent"]["@id"]]["name"] for a in assessments} == {TEST_PRINCIPAL.name}
     assert REASON in {a.get("description") for a in assessments}
 

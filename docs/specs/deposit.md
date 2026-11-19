@@ -47,6 +47,11 @@ What is built:
 - the DataCite and ORDA sets;
 - validation and the package (`dd_harness.deposit`, `dd-harness project validate` and
   `dd-harness project package`);
+- the pause before packaging, *The pause before packaging* below: what a person must decide and
+  confirm before a package is built (`dd_harness.deposit_review`; `dd-harness project review`,
+  `decide-item` and `confirm-checks`; in the app, `GET /api/projects/{id}/review` and
+  `PUT /api/projects/{id}/review/items/{item_id}` and `.../review/confirmation`, drawn in the
+  Deposit panel under *Decide before packaging*);
 - validating and building the package in the app, which calls `dd_harness.deposit` in process
   and draws its results ([The app](app.md)): `POST /api/projects/{id}/validation` checks the
   project and keeps the report; `POST /api/projects/{id}/package` builds the package, or answers
@@ -110,6 +115,26 @@ TODO(#394, #200).
 10. **The default RO-Crate package passes the RO-Crate validator** at its REQUIRED level, against
     the RO-Crate version `rocrate` writes (`test_the_package_passes_the_ro_crate_validator`).
     Every other format states what it conforms to (*Packagers and transports*).
+
+Invariants 20 to 22 hold for the pause before packaging
+(`harness/tests/test_deposit_review.py`, `app/tests/test_deposit_package.py`).
+
+20. **No package while something waits on a person.** A project is ready to package when its
+    report has no violation and nothing waits on a person: every item the deposit check lists has
+    a decision that stands, and the checks before deposit are confirmed for the inventory the
+    project holds. Each open item, and a missing confirmation, is a `sh:Warning` of the report, so
+    the report keeps SHACL's meaning of conforming, and `build_package` refuses the package until
+    they are cleared. The pause is cleared by a person's decision, never by a violation that no
+    decision can lift.
+21. **A decision is a person's, never an agent's.** A decision on an item and the confirmation
+    are recorded only through a way in that names the person signed in (the app's routes, or the
+    command for the operator's principal), as `deposit_item_decided` and
+    `deposit_checks_confirmed` events naming who and when. Nothing a run returns decides or
+    confirms anything, and the conductor has no path to either.
+22. **The decisions and the confirmation travel with the package.** The package's project log
+    holds their events, its root `ro-crate-metadata.json` holds an `AssessAction` for each
+    decision that stands and one for the confirmation, each naming the person and the time, and
+    `package_built` names the items decided (`decided_items`).
 
 Invariants 11 to 15 hold for depositing through an API, which is not built yet; each names the
 issue that will build and test it.
@@ -181,7 +206,9 @@ TODO(#401).
 - the record's licence is one the set lists, when it lists any;
 - every inventory entry has an accepted media type and is within the file size limit, and the
   inventory's files together within the item size, when they are stated. A limit on the number of
-  files in an item is not in the class, TODO(#385).
+  files in an item is not in the class, TODO(#385);
+- as warnings, each item a person must decide before packaging, and the confirmation of the
+  checks before deposit when it is missing (*The pause before packaging*).
 
 A project with no repository chosen, or no inventory, has a violation that says so.
 
@@ -221,6 +248,71 @@ The whole provenance graph of the project is to replace the disclosure graph as 
 with the root crate's actions named by the same IRIs ([Provenance](provenance.md), TODO(#803)). The harness keeps the package by the SHA-256 of its bytes and records it in
 the project log with a `package_built` event, which names the report, the merged set, each
 document version and each run it holds.
+
+### The pause before packaging
+
+C2 asks that the tool pause the sharing workflow where possible identifiers are flagged or
+detected, alert the person and give guidance, and that it ask them to confirm that ethics
+approvals are in place before any deposit proceeds. The deposit check does both, from what the
+project already holds, and records what the person decides (`dd_harness.deposit_review`).
+
+**What it reads.** The inventory the project holds now, and nothing an agent said. Each item is
+one of:
+
+- a **name-level hint** (`source: name`): a file whose folder, file or field names, size or digest
+  call for a person to look, by the rule table in `dd_sdk.inventory_hints` that the File Archivist
+  reads too: free text, coordinates, a folder of someone else's material, terms or an agreement,
+  an operating-system file, an empty file, and a byte-for-byte copy
+  ([Personal data](personal-data.md), "Name-level hints");
+- a **personal-data finding** (`source: finding`): each entry of the inventory's
+  `inventory_personal_data`, which `dd-inventory` writes ([Personal data](personal-data.md)).
+
+The harness works the hints out itself from the stored inventory, rather than reading what
+`advisor.files` or the ethics adviser returned: an adviser's run may not have happened, may be of
+an older inventory, and would make the check depend on an agent, against invariant 8. The rule
+table moved from the File Archivist into `dd_sdk` so that the adviser and the harness read one
+copy; the app's inventory view keeps its own in TypeScript. When #471 decides whether hints
+become findings of the `file name` and `field name` kinds, the check reads them from the
+inventory and the table leaves the harness's path. The rights adviser's third-party question
+and the ethics adviser's sensitivity flags are not read: both rest on what their caller declares.
+
+**An item and its identity.** An item names its source, its kind (a hint's kind, or a finding's
+`PersonalDataKind`), the file, the column where a finding names one, what called for it, and the
+question to put to the person, in the harness's words. It is identified by its source, kind,
+file, column and the file's SHA-256, so a decision stands for that file as it was described: a
+new inventory in which the file changed lists it again, undecided.
+
+**A decision.** The person chooses one of `keep` (checked: deposited as it is), `leave_out` (left
+out of the deposit) or `change` (a changed copy, such as a redacted or generalised one, is
+deposited instead), with an optional note of at most 2,000 characters. The decision is recorded
+as a `deposit_item_decided` event carrying the item as the check described it, the decision, the
+note and the inventory's digest; the latest decision on an item stands. Data Director changes no
+file: leaving a file out, or depositing a changed copy, is done by the person at deposit, and the
+package still describes the files the inventory lists. A decision on an item the check does not
+list now is refused.
+
+**The confirmation.** Once per inventory, the person confirms three statements together: that the
+ethics approvals that apply are in place and allow the deposit, that data protection advice has
+been taken for data about living people or there are none, and that third-party material may be
+shared and every agreement the data come under is in force and allows it
+(`dd_harness.deposit_review.CONFIRMATIONS`). It is recorded as a `deposit_checks_confirmed` event
+carrying the statements' words and the inventory's digest, and stands until the inventory
+changes. It is asked of every project, including one with nothing to decide.
+
+**In the report.** Each open item is a `sh:Warning` whose source constraint component is
+`dd:PersonDecisionConstraintComponent` and whose focus is the file; a missing confirmation is one
+whose component is `dd:DepositConfirmationConstraintComponent` and whose focus is the project.
+The report also carries `dd:ready_to_package` and `dd:not_checked`, what the review did not
+check. The app draws the items, the decisions that stand and the confirmation from the review it
+sends beside the validation, and leaves those warnings out of *Worth fixing* so that they are not
+shown twice.
+
+**Wording.** No item means that nothing was flagged in what was checked, never that the data are
+safe ([Personal data](personal-data.md), invariant 10). `not_checked` always says that the files'
+contents were not read, and says whether a personal-data detector ran: an inventory without
+`inventory_personal_data`, such as one made before findings existed, says that none ran; an empty
+list says what the detector did not look at. The panel says the project is ready to package only
+when nothing waits on a person.
 
 ### Packagers and transports
 
@@ -398,6 +490,12 @@ DataCite; moving it is TODO(#22).
 - **The person's own token**, because the item is the researcher's, the repository's own rules
   about who may deposit where then apply unchanged, and no one token opens every researcher's
   items.
+- **A pause cleared by a decision**, because C2 asks the tool to pause and refer, not to decide:
+  a violation would stop a project whose researcher has looked and decided, and a warning alone
+  would let the package be built with nothing decided. A decision recorded with who and when is
+  what a reviewer of the package needs to see.
+- **Signals from the inventory, not from advisers' runs**, because validity is the harness's
+  (invariant 8), and the inventory the project holds now is what is packaged.
 - **A draft, not a published item**, because a draft can be corrected or deleted, the data files
   still have to be added by someone who holds them, and publishing mints an identifier that cannot
   be withdrawn.
@@ -438,6 +536,17 @@ DataCite; moving it is TODO(#22).
   what the sets say.
 - **A JSON Schema per standard or repository.** Its errors would have to be translated into the
   SHACL vocabulary, or the validation format changed.
+- **Reading the latest `preparation.files` and `governance.*` outcomes by process-flow step.**
+  The check would depend on whether, and on which inventory, an adviser ran, and an agent's
+  output would decide what a person is asked.
+- **A third copy of the hint rules in the harness.** Two Python copies would drift; the table is
+  in `dd_sdk` instead.
+- **Open items as violations.** A violation is lifted only by changing the project, so a file the
+  researcher has checked and kept would stop the package for good.
+- **A decision per file rather than per item.** A file can be marked for two reasons, such as
+  free text that is also a copy, and each calls for its own answer.
+- **Leaving out or redacting a file for the researcher.** Data Director flags and never fixes
+  ([Personal data](personal-data.md), invariant 4), and it does not hold the files.
 - **A validator agent.** Validity would become an agent's claim about its own input, and the
   package would travel in an envelope.
 - **A folder with a crate inside.** The folder's layout and the crate would be two descriptions of

@@ -6,6 +6,7 @@
     "size": 1
   },
   "project_id": "01900000-0000-7000-8000-000000000001",
+  "ready": true,
   "report": {
     "@context": {
       "dd": "https://w3id.org/data-director/",
@@ -14,11 +15,16 @@
       "xsd": "http://www.w3.org/2001/XMLSchema#"
     },
     "@type": "sh:ValidationReport",
+    "dd:not_checked": [
+      "Data Director read the inventory's folder, file and field names, sizes and digests, never the files' contents: a file not listed may still hold personal data, sensitive locations or someone else's material.",
+      "No personal-data detector ran on this inventory, so no values in the files were checked for direct identifiers. Making the inventory again with dd-inventory runs one."
+    ],
     "dd:project": {
       "@id": "urn:uuid:01900000-0000-7000-8000-000000000001"
     },
+    "dd:ready_to_package": true,
     "dd:requirements": {
-      "@id": "ni:///sha-256;0000000000000000000000000000000000000000006"
+      "@id": "ni:///sha-256;0000000000000000000000000000000000000000007"
     },
     "dd:validated_at": {
       "@type": "xsd:dateTime",
@@ -107,6 +113,51 @@
   },
   "report_digest": "0000000000000000000000000000000000000000000000000000000000000004",
   "requirements_digest": "0000000000000000000000000000000000000000000000000000000000000005",
+  "review": {
+    "confirmation": {
+      "confirmed_at": "2026-01-01T00:00:00Z",
+      "confirmed_by": {
+        "assurance": "asserted",
+        "name": "Josiah Carberry",
+        "principal_id": "https://orcid.org/0000-0002-1825-0097",
+        "principal_kind": "person"
+      },
+      "statements": [
+        {
+          "id": "ethics_approval",
+          "text": "The ethics approvals that apply to these data are in place, and depositing them is within what they allow."
+        },
+        {
+          "id": "data_protection",
+          "text": "Data protection advice has been taken for any data about living people, or the data hold none."
+        },
+        {
+          "id": "third_party_rights",
+          "text": "Material from others may be shared on the terms it came with, and every agreement the data come under is still in force and allows the deposit."
+        }
+      ]
+    },
+    "inventory_digest": "0000000000000000000000000000000000000000000000000000000000000006",
+    "items": [],
+    "not_checked": [
+      "Data Director read the inventory's folder, file and field names, sizes and digests, never the files' contents: a file not listed may still hold personal data, sensitive locations or someone else's material.",
+      "No personal-data detector ran on this inventory, so no values in the files were checked for direct identifiers. Making the inventory again with dd-inventory runs one."
+    ],
+    "statements": [
+      {
+        "id": "ethics_approval",
+        "text": "The ethics approvals that apply to these data are in place, and depositing them is within what they allow."
+      },
+      {
+        "id": "data_protection",
+        "text": "Data protection advice has been taken for any data about living people, or the data hold none."
+      },
+      {
+        "id": "third_party_rights",
+        "text": "Material from others may be shared on the terms it came with, and every agreement the data come under is still in force and allows the deposit."
+      }
+    ]
+  },
   "validated_at": "2026-01-01T00:00:00Z",
   "violations": [],
   "warnings": [

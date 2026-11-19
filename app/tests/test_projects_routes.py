@@ -222,6 +222,7 @@ def test_every_project_route_answers_someone_elses_project_as_one_that_does_not_
         "digest": "a" * 64,
         "step_id": "anything",
         "question_id": "intake.entry",
+        "item_id": "0" * 24,
     }
 
     checked = []

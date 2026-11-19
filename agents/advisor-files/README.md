@@ -42,7 +42,7 @@ consults no source, so its grounding mode is `input_only` and it cites only its 
 The inventory never holds contents, so the problems a dataset most often hides (personal data in
 field notes, the coordinates of a sensitive site, a file under someone else's licence) cannot be
 found from it (#449). It lists instead the files whose names, size or digest call for a
-person to look, by the rules in `hints.yaml`:
+person to look, by the rules in `dd_sdk.inventory_hints`, which the harness's deposit check reads too:
 
 | Kind | Called for by |
 |---|---|

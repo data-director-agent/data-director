@@ -14,8 +14,10 @@ No `.env` file is read.
 `choose-repository` by re3data identifier, reading the repository's name and declared standards
 from the re3data export `DD_SOURCES_CONFIG` pins and its requirement sets from `DD_REPOSITORIES_DIR`
 (docs/specs/deposit.md),
-`validate` against the requirements recorded for the repository chosen, `package` to build the
-deposit package from a valid project and the runs under `DD_RUNS_DIR`, `delete` and `restore`
+`validate` against the requirements recorded for the repository chosen, `review`, `decide-item` and
+`confirm-checks` for what a person decides before packaging (`dd_harness.deposit_cli`), `package`
+to build the deposit package from a ready project and the runs under `DD_RUNS_DIR`, `delete` and
+`restore`
 (which hide a project and bring it back within `DD_PROJECT_RESTORE_DAYS`, removing nothing), and
 `events`.
 
@@ -39,6 +41,7 @@ from starlette.applications import Starlette
 from dd_harness import gateway
 from dd_harness.conductor import Conductor
 from dd_harness.deposit import PackageRefusedError, Validation, build_package, check
+from dd_harness.deposit_cli import add_commands as add_deposit_commands
 from dd_harness.gateway.config import ToolConfigError
 from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
 from dd_harness.model_grants import jwks_routes
@@ -224,7 +227,7 @@ def cmd_project_package(args: argparse.Namespace) -> int:
         )
     except PackageRefusedError as exc:
         _write_results(exc.validation)
-        sys.stderr.write("dd-harness: no package was built: the project is not valid for deposit\n")
+        sys.stderr.write("dd-harness: no package was built: the project is not ready for deposit\n")
         return 1
     _write_results(package.validation)
     if args.output:
@@ -435,6 +438,7 @@ def _add_project_commands(sub: Any) -> None:
     p.add_argument("project_id")
     p.add_argument("-o", "--output", help="also write the package's zip to this file")
     p.set_defaults(func=cmd_project_package)
+    add_deposit_commands(project)
     p = project.add_parser(
         "choose-entry", help="record the Blueprint entry point the researcher is at (1, 2 or 3)"
     )

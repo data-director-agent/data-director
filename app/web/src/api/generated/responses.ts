@@ -24,7 +24,9 @@ export type AppResponse =
   | BuiltPackage
   | CheckReport
   | Checks
+  | ChecksConfirmed
   | ChosenRepository
+  | ConfirmationStatement
   | Conversation
   | ConversationDeleted
   | ConversationSummary
@@ -33,6 +35,7 @@ export type AppResponse =
   | DeletedConversation
   | DeletedProject
   | DeployedProfile
+  | DepositReview
   | Derivation
   | DisclosedDocument
   | DisclosedDraft
@@ -54,6 +57,7 @@ export type AppResponse =
   | HistoryEntry
   | IntakeQuestion
   | IntakeState
+  | ItemDecisionMade
   | OutcomeStatus
   | PackageLink
   | PackageRefusedProblem
@@ -82,6 +86,7 @@ export type AppResponse =
   | RecordedAnswer
   | RepositoryMatch
   | RepositorySearch
+  | ReviewItem
   | ReviewRules
   | RunResult
   | RunRow
@@ -160,6 +165,10 @@ export interface BuiltPackage {
   package: PackageLink;
   project_id: string;
   /**
+   * Whether a package may be built: no violation, and nothing waits on a person.
+   */
+  ready: boolean;
+  /**
    * The W3C SHACL Validation Report, in JSON-LD.
    */
   report: {
@@ -167,8 +176,15 @@ export interface BuiltPackage {
   };
   report_digest: string | null;
   requirements_digest: string | null;
+  /**
+   * What a person must decide and confirm; null when no repository has been chosen.
+   */
+  review: DepositReview | null;
   validated_at: string;
   violations: ValidationResult[];
+  /**
+   * Warnings that do not wait on a person; those that do are the `review`'s.
+   */
   warnings: ValidationResult[];
 }
 /**
@@ -184,6 +200,70 @@ export interface PackageLink {
    * In bytes.
    */
   size: number;
+}
+/**
+ * What a person must decide and confirm before the project is packaged. No item means that
+ * nothing was flagged in what was checked, never that the data are safe: `not_checked` says
+ * what was not.
+ */
+export interface DepositReview {
+  /**
+   * The confirmation that stands for the current inventory, or null.
+   */
+  confirmation: ChecksConfirmed | null;
+  inventory_digest: string | null;
+  items: ReviewItem[];
+  not_checked: string[];
+  /**
+   * What the confirmation states, each of which must be confirmed.
+   */
+  statements: ConfirmationStatement[];
+}
+/**
+ * A person's confirmation of the checks before deposit, against the current inventory.
+ */
+export interface ChecksConfirmed {
+  confirmed_at: string;
+  confirmed_by: Principal;
+  statements: ConfirmationStatement[];
+}
+/**
+ * One statement a person confirms before a deposit.
+ */
+export interface ConfirmationStatement {
+  id: string;
+  text: string;
+}
+/**
+ * A file a person must decide about before packaging, and why: a name-level hint or a
+ * personal-data finding from the inventory.
+ */
+export interface ReviewItem {
+  column: string | null;
+  /**
+   * The decision that stands for this item, or null while it waits on a person.
+   */
+  decision: ItemDecisionMade | null;
+  file_sha256: string | null;
+  item_id: string;
+  kind: string;
+  matched: string | null;
+  path: string;
+  /**
+   * What the person should check, in the harness's words.
+   */
+  question: string;
+  related_paths: string[];
+  source: "name" | "finding";
+}
+/**
+ * The decision a person made on an item, and who made it when.
+ */
+export interface ItemDecisionMade {
+  decided_at: string;
+  decided_by: Principal;
+  decision: "keep" | "leave_out" | "change";
+  note: string | null;
 }
 /**
  * One result of a validation: what is missing, in the harness's words.
@@ -788,11 +868,16 @@ export interface PackageRefusedProblem {
 }
 /**
  * A project's validation against its chosen repository's requirements, as the harness made
- * it and kept it in the project log. A violation stops the package; a warning does not.
+ * it and kept it in the project log. A violation stops the package; a warning does not; an
+ * item undecided or the checks unconfirmed hold it until a person clears them.
  */
 export interface Validation {
   conforms: boolean;
   project_id: string;
+  /**
+   * Whether a package may be built: no violation, and nothing waits on a person.
+   */
+  ready: boolean;
   /**
    * The W3C SHACL Validation Report, in JSON-LD.
    */
@@ -801,8 +886,15 @@ export interface Validation {
   };
   report_digest: string | null;
   requirements_digest: string | null;
+  /**
+   * What a person must decide and confirm; null when no repository has been chosen.
+   */
+  review: DepositReview | null;
   validated_at: string;
   violations: ValidationResult[];
+  /**
+   * Warnings that do not wait on a person; those that do are the `review`'s.
+   */
   warnings: ValidationResult[];
 }
 /**

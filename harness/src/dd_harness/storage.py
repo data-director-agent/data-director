@@ -376,8 +376,8 @@ class ProjectDocuments(ProjectRecord, Protocol):
 
 
 class ProjectDeposits(ProjectRecord, Protocol):
-    """The validation reports and deposit packages a project keeps
-    (`dd_harness.projects.deposits`)."""
+    """The validation reports, the decisions and confirmation made before packaging, and the
+    deposit packages a project keeps (`dd_harness.projects.deposits`)."""
 
     def record_validation(
         self,
@@ -390,6 +390,28 @@ class ProjectDeposits(ProjectRecord, Protocol):
         caused_by: str,
     ) -> str:
         """Keep a SHACL Validation Report of the project; returns its digest."""
+        ...
+
+    def record_item_decision(
+        self,
+        project_id: str,
+        decision: Mapping[str, Any],
+        *,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> None:
+        """Keep a person's decision on an item the deposit check asked them to decide."""
+        ...
+
+    def record_confirmation(
+        self,
+        project_id: str,
+        confirmation: Mapping[str, Any],
+        *,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> None:
+        """Keep a person's confirmation that the checks before deposit were made."""
         ...
 
     def record_package(

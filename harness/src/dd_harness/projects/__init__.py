@@ -15,7 +15,8 @@ area, each a `ProjectRules` (`rules`) over that log:
 - `documents`: drafts, edits, decisions and answers (checked in themselves by `decisions`), and
   what is read from them;
 - `facts`: the facts check agents propose and people decide;
-- `deposits`: validation reports and deposit packages.
+- `deposits`: validation reports, the decisions and confirmation a person makes before
+  packaging, and deposit packages.
 
 `Projects` is every area together: the `ProjectStorage` every backend gives its callers, while a
 caller names only the area Protocols it uses (`dd_harness.storage`). `ProjectStore` is the rules
@@ -71,6 +72,8 @@ from dd_harness.projects.rules import (
     CONVERSATION_RESTORED,
     CONVERSATION_STARTED,
     DEFAULT_RESTORE_PERIOD,
+    DEPOSIT_CHECKS_CONFIRMED,
+    DEPOSIT_ITEM_DECIDED,
     DIGEST,
     DOCUMENT_CHANGE_REFUSED,
     DOCUMENT_QUESTION_ANSWERED,
@@ -111,6 +114,8 @@ __all__ = [
     "CONVERSATION_RESTORED",
     "CONVERSATION_STARTED",
     "DEFAULT_RESTORE_PERIOD",
+    "DEPOSIT_CHECKS_CONFIRMED",
+    "DEPOSIT_ITEM_DECIDED",
     "DIGEST",
     "DOCUMENTATION_ADDED",
     "DOCUMENTATION_MAX_BYTES",

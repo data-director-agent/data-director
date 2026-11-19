@@ -52,14 +52,15 @@ with #611, and the quasi-identifier check with #612. This spec is the design the
 **Name-level hints, until then (#449).** The File Archivist (`advisor.files`) and the app's
 inventory view mark files whose folder, file or field names, size or digest call for a person to
 look: free text, coordinates, a folder of someone else's material, terms or an agreement, an
-operating-system file, an empty file and a byte-for-byte copy. Both work them out from an
-inventory as it stands, by one rule table kept in two copies
-(`agents/advisor-files/src/dd_agent_advisor_files/hints.yaml` and
+operating-system file, an empty file and a byte-for-byte copy. The harness's deposit check works
+out the same hints and asks a person to decide each before packaging ([Deposit](deposit.md), "The
+pause before packaging", #987). All three work them out from an inventory as it stands, by one rule
+table kept in two copies (`dd_sdk.inventory_hints`, which the adviser and the harness share, and
 `inventory/browser/src/hints.ts`), so nothing is added to `FileInventory` and the contract does not
-change. A hint is not a finding: it reads no value, it is stored nowhere but in the adviser's
-payload, and it keeps invariants 4 and 10 (a prompt for a person, and no hint is never clearance).
-Third-party material, operating-system files and copies are not personal data; they are listed
-here because the same pause before deposit covers them. Whether the hints become findings of the
+change. A hint is not a finding: it reads no value, it is not stored in the inventory, and it keeps
+invariants 4 and 10 (a prompt for a person, and no hint is never clearance). Third-party material,
+operating-system files and copies are not personal data; they are listed here because the same
+pause before deposit covers them. Whether the hints become findings of the
 `file name` and `field name` kinds when findings land, or stay beside them, TODO(#471).
 
 ## Threat model
@@ -128,8 +129,9 @@ here because the same pause before deposit covers them. Whether the hints become
 member ([System and boundaries](system.md)). The findings list, the per-field summaries and their
 check are slots of the core `FileInventory` and `TableField`, a fixed format, so adding them
 changes the [Contract](contract.md) and bumps the contract version as an additive change (#471,
-#611). What the harness, agents and the app do with findings (the pause and the referral to a
-data steward that C2 asks for, and hints to the ethics adviser) is #471's.
+#611). The pause before deposit that C2 asks for reads findings from the inventory
+([Deposit](deposit.md), "The pause before packaging"); the referral to a data steward and hints to
+the ethics adviser are #471's.
 
 **The detector.** Microsoft [Presidio](https://github.com/microsoft/presidio) (`presidio-analyzer`)
 is a required dependency of the command, behind one module, `dd_inventory.personal`, and a
@@ -245,8 +247,10 @@ What the command and the app say about a result, in substance:
 
 The app says these (`PERSONAL_DATA_TEXT` in `@data-director/inventory`), with a third for an
 inventory made without the check, under **Possible personal data** in the inventory's view,
-before the inventory is added and after. The next steps C2 asks for, the pause and the referral
-to a person, are #471's and #987's.
+before the inventory is added and after. The pause C2 asks for is the deposit check's: each
+finding is an item a person decides before packaging, and the check says what it did not look at
+in the same terms ([Deposit](deposit.md), "The pause before packaging"). The referral to a data
+steward is #471's.
 
 ## Rationale
 

@@ -78,7 +78,7 @@
       },
       "FileCheck": {
          "additionalProperties": false,
-         "description": "A file a person should look at before deposit, and why, judged from names, size and digest in the inventory alone (hints.yaml). A prompt for a person, never a finding about the file's contents, which are never read.",
+         "description": "A file a person should look at before deposit, and why, judged from names, size and digest in the inventory alone (dd_sdk.inventory_hints). A prompt for a person, never a finding about the file's contents, which are never read.",
          "properties": {
             "path": {
                "description": "The file's path in the inventory (file_path).",
@@ -96,7 +96,7 @@
                ]
             },
             "question": {
-               "description": "What a person should check, from hints.yaml.",
+               "description": "What a person should check, from dd_sdk.inventory_hints.",
                "type": "string"
             },
             "related_paths": {
@@ -172,7 +172,7 @@
          ]
       },
       "checks": {
-         "description": "The files a person should look at, in the inventory's order and, for each file, in the order of hints.yaml. Empty when no name, size or digest called for one, which says nothing about what the files hold.",
+         "description": "The files a person should look at, in the inventory's order and, for each file, in the order of the rules in dd_sdk.inventory_hints. Empty when no name, size or digest called for one, which says nothing about what the files hold.",
          "items": {
             "$ref": "#/$defs/FileCheck"
          },
