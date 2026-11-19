@@ -22,6 +22,7 @@ from dd_agent_advisor_documentation.sections import load_sections
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_inventory.hints import deposit_hints
 from dd_sdk.agent import describe
+from dd_sdk.contract.facts import FactKind, FileDecision, ProjectFact
 from dd_sdk.contract.models import (
     CurrentVersion,
     Derivation,
@@ -670,3 +671,39 @@ def test_a_data_dictionary_has_no_rows_for_the_files_it_leaves_out(runs_dir: Pat
     assert not files & set(LEFT_OUT)
     assert "data/old/readings (copy).csv" in env.outcome.statement
     assert DECIDED in env.outcome.statement
+
+
+def file_decision(path: str, decision: FileDecision) -> ProjectFact:
+    return ProjectFact(
+        fact_kind=FactKind.FILE_INCLUSION,
+        fact_subject=path,
+        fact_file_path=path,
+        file_decision=decision,
+    )
+
+
+@pytest.mark.parametrize(
+    "name", ["soil-survey.readme.draft.json", "soil-survey.data-dictionary.draft.json"]
+)
+def test_a_files_decision_stands_over_its_hints(runs_dir: Path, name: str) -> None:
+    # The project decided to leave out a file to decide on, and to keep a system file.
+    decisions = [
+        file_decision(DECIDED, FileDecision.EXCLUDE),
+        file_decision("data/Thumbs.db", FileDecision.INCLUDE),
+    ]
+    asked = with_flagged_files(name)
+    env, _ = draft(runs_dir, asked.model_copy(update={"project_decisions": decisions}))
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    document = env.payload_as(Document)
+    if name.endswith("readme.draft.json"):
+        section = files_section(document.document_text)
+        drafted = set(table_paths(section))
+        assert f"`{DECIDED}`" in section
+    else:
+        rows = csv.DictReader(io.StringIO(document.document_text))
+        drafted = {row["file"] for row in rows}
+    assert DECIDED not in drafted
+    assert DECIDED in env.outcome.statement
+    assert not [q for q in document.document_questions if q.gap_part == DECIDED]
+    if name.endswith("readme.draft.json"):
+        assert "data/Thumbs.db" in drafted

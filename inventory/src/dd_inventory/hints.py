@@ -82,6 +82,8 @@ class DepositHints:
 
     leave_out: dict[str, list[Hint]] = field(default_factory=dict)
     decide: dict[str, list[Hint]] = field(default_factory=dict)
+    # The files a person decided to leave out, whatever their hints, in the inventory's order.
+    excluded: tuple[str, ...] = ()
 
 
 def load_rules(text: str | None = None) -> tuple[Rule, ...]:
@@ -116,23 +118,34 @@ def file_hints(
 
 
 def deposit_hints(
-    inventory_files: Iterable[Mapping[str, Any]], rules: Sequence[Rule] | None = None
+    inventory_files: Iterable[Mapping[str, Any]],
+    rules: Sequence[Rule] | None = None,
+    decided: Mapping[str, bool] | None = None,
 ) -> DepositHints:
     """The files a draft proposes to leave out, and those a person must decide on (#1072).
 
     A system file, an empty file or a copy is left out, except that of a set of copies one is kept:
     the one nearest the top of the folders, then with the shortest path, then the first listed. A
     file left out is not also asked about. Nothing is dropped unsaid: a drafter lists each file
-    left out with its hints."""
+    left out with its hints.
+
+    `decided` is what a person decided about a file, by path: `True` to include it, `False` to
+    leave it out. A decision stands over the hints: an included file is neither left out nor
+    asked about, and an excluded one is listed in `excluded` alone."""
+    decided = decided or {}
     listed = list(inventory_files)
     hints = file_hints(listed, rules)
     kept = _kept_copies(listed)
     by_path: dict[str, list[Hint]] = defaultdict(list)
     for hint in hints:
         by_path[hint.path].append(hint)
-    result = DepositHints()
+    result = DepositHints(
+        excluded=tuple(f["file_path"] for f in listed if decided.get(f["file_path"]) is False)
+    )
     for f in listed:
         path = f["file_path"]
+        if path in decided:
+            continue
         found = by_path.get(path, [])
         leave = [
             h

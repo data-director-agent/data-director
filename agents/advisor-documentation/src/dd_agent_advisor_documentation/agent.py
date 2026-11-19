@@ -57,7 +57,7 @@ from typing import Any
 
 from dd_agent_advisor_documentation.gaps import GAP_MARKER, PLACEHOLDER
 from dd_agent_advisor_documentation.gaps import question_id as _question_id
-from dd_agent_advisor_documentation.hinted import hinted_files, hinted_statement, without
+from dd_agent_advisor_documentation.hinted import hinted_files, hinted_statement, kept
 from dd_agent_advisor_documentation.prose import (
     Ask,
     Prose,
@@ -69,7 +69,7 @@ from dd_agent_advisor_documentation.prose import (
     with_documents,
 )
 from dd_agent_advisor_documentation.sections import RECORD_GENERAL, Section, load_sections
-from dd_inventory.hints import DepositHints, deposit_hints
+from dd_inventory.hints import DepositHints
 from dd_sdk.agent import (
     AgentResult,
     AgentSpec,
@@ -201,8 +201,7 @@ class DocumentationEditor:
                 "Add the project's file inventory first: the draft is made from it.",
             )
 
-        hinted = deposit_hints(f.model_dump(mode="json") for f in inventory.inventory_files)
-        inventory = without(inventory, hinted)
+        inventory, hinted = kept(inventory, asked.project_decisions)
         answers = _answers(asked.draft_answers)
         prose = Prose()
         suggested = Suggestions()

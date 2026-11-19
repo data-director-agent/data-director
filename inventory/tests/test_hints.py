@@ -91,3 +91,19 @@ def test_a_file_left_out_is_not_also_asked_about() -> None:
 def test_no_hint_no_change() -> None:
     hinted = deposit_hints([entry("data/readings.csv", 10, "a", "site")])
     assert not hinted.leave_out and not hinted.decide
+
+
+def test_a_persons_decision_stands_over_the_hints() -> None:
+    decided = {
+        "data/Thumbs.db": True,  # a system file a person chose to keep
+        "reference/station_hourly.csv": False,  # a file to decide on, now left out
+        "analysis/plot.R": False,  # a file with no hint, left out
+    }
+    hinted = deposit_hints(FILES, decided=decided)
+    assert hinted.excluded == ("reference/station_hourly.csv", "analysis/plot.R")
+    for path in decided:
+        assert path not in hinted.leave_out
+        assert path not in hinted.decide
+    # Files no one decided on are drafted from their hints, as before.
+    assert "data/empty.csv" in hinted.leave_out
+    assert "calibration/sites.csv" in hinted.decide

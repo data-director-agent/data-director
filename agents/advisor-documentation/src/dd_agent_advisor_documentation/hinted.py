@@ -9,11 +9,12 @@ them, so nothing is left out unsaid.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 
 from dd_agent_advisor_documentation.gaps import GAP_MARKER, PLACEHOLDER, question_id
 from dd_agent_advisor_documentation.prose import count
-from dd_inventory.hints import DepositHints, Hint, HintKind
+from dd_inventory.hints import DepositHints, Hint, HintKind, deposit_hints
+from dd_sdk.contract.facts import FactKind, FileDecision, ProjectFact
 from dd_sdk.contract.models import DocumentQuestion, FileInventory
 
 # What a README says above the files it proposes to leave out, and those a person decides on.
@@ -25,14 +26,44 @@ DECIDE_HEADING = (
     "**Decide before deposit.** These files are in the table above, but their names suggest "
     "that a person must decide whether, and how, they are deposited:"
 )
+EXCLUDED_HEADING = (
+    "**Left out by the project's decision.** A person in the project decided to leave these "
+    "files out, so they are not in the table above:"
+)
 DECIDE_ASK = "{reasons} Say whether it is deposited as it is, changed, or left out."
 
 
+def decided_files(decisions: Iterable[ProjectFact]) -> dict[str, bool]:
+    """The project's decisions on which files go in, by path: `True` to include a file, `False`
+    to leave it out (docs/specs/drafting.md, invariant 9)."""
+    return {
+        f.fact_file_path: f.file_decision == FileDecision.INCLUDE
+        for f in decisions
+        if f.fact_kind == FactKind.FILE_INCLUSION
+        and f.fact_file_path is not None
+        and f.file_decision in (FileDecision.INCLUDE, FileDecision.EXCLUDE)
+    }
+
+
+def kept(
+    inventory: FileInventory, decisions: Iterable[ProjectFact]
+) -> tuple[FileInventory, DepositHints]:
+    """The inventory a draft is made from, and its hints, with the project's decisions on which
+    files go in standing over them."""
+    hinted = deposit_hints(
+        (f.model_dump(mode="json") for f in inventory.inventory_files),
+        decided=decided_files(decisions),
+    )
+    return without(inventory, hinted), hinted
+
+
 def without(inventory: FileInventory, hinted: DepositHints) -> FileInventory:
-    """The inventory without the files the draft proposes to leave out."""
-    if not hinted.leave_out:
+    """The inventory without the files the draft proposes to leave out, or a person decided
+    to."""
+    out = set(hinted.leave_out) | set(hinted.excluded)
+    if not out:
         return inventory
-    kept = [f for f in inventory.inventory_files if f.file_path not in hinted.leave_out]
+    kept = [f for f in inventory.inventory_files if f.file_path not in out]
     return inventory.model_copy(update={"inventory_files": kept})
 
 
@@ -57,6 +88,9 @@ def hinted_files(
     """The Files section's lists of the files left out and of those a person decides on, each
     of the latter asked as a part of the section (#1072)."""
     out: list[str] = []
+    if hinted.excluded:
+        lines = [f"- `{path}`" for path in hinted.excluded]
+        out.append(EXCLUDED_HEADING + "\n\n" + "\n".join(lines))
     if hinted.leave_out:
         lines = [f"- `{path}`: {_reasons(hints)}" for path, hints in hinted.leave_out.items()]
         out.append(LEFT_OUT_HEADING + "\n\n" + "\n".join(lines))
@@ -94,6 +128,11 @@ def hinted_statement(hinted: DepositHints, document: str) -> str:
     """What the statement says, after a space, of the files left out and of those a person
     decides on; empty when there are none."""
     said = ""
+    if hinted.excluded:
+        said += (
+            f" It leaves {count(len(hinted.excluded), 'file')} out of the {document}, as the "
+            f"project decided: {'; '.join(hinted.excluded)}."
+        )
     if hinted.leave_out:
         said += (
             f" It leaves {count(len(hinted.leave_out), 'file')} out of the {document}, as files "

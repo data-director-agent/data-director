@@ -14,6 +14,7 @@ from dd_agent_advisor_metadata.agent import DATACITE, MetadataLibrarian
 from dd_harness import orcid
 from dd_harness.testing import SAMPLE_ID, TEST_PRINCIPAL, make_conductor, request, sample_record
 from dd_sdk.agent import describe
+from dd_sdk.contract.facts import FactKind, FileDecision, ProjectFact
 from dd_sdk.contract.models import (
     CurrentVersion,
     Document,
@@ -180,3 +181,22 @@ def test_formats_and_sizes_leave_out_the_files_rarely_deposited_and_say_so(
     assert thumbnails not in record["formats"]
     for path in ("old/" + first.file_path, "data/Thumbs.db", "reference/station.csv"):
         assert path in env.outcome.statement
+
+
+def test_formats_and_sizes_leave_out_a_file_the_project_decided_to(runs_dir: Path) -> None:
+    asked = sample()
+    assert asked.inventory is not None
+    files = asked.inventory.inventory_files
+    out = files[0].file_path
+    decision = ProjectFact(
+        fact_kind=FactKind.FILE_INCLUSION,
+        fact_subject=out,
+        fact_file_path=out,
+        file_decision=FileDecision.EXCLUDE,
+    )
+    env, _ = draft(runs_dir, asked.model_copy(update={"project_decisions": [decision]}))
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    record = json.loads(env.payload_as(Document).document_text)
+    kept = files[1:]
+    assert record["sizes"] == [f"{len(kept)} files", f"{sum(f.file_size for f in kept)} bytes"]
+    assert out in env.outcome.statement

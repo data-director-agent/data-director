@@ -41,6 +41,7 @@ from typing import Any
 import yaml
 
 from dd_agent_advisor_metadata import location
+from dd_agent_advisor_metadata.kept import count, hinted_statement, kept
 from dd_agent_advisor_metadata.questions import (
     Gap,
     answers_by_question,
@@ -49,7 +50,6 @@ from dd_agent_advisor_metadata.questions import (
     place,
 )
 from dd_agent_advisor_metadata.suggest import Ask, Suggester, Suggestions, TemplateSuggester
-from dd_inventory.hints import DepositHints, Hint, deposit_hints
 from dd_sdk.agent import (
     AgentResult,
     AgentSpec,
@@ -183,7 +183,7 @@ class MetadataLibrarian:
                 f"The librarian drafts DataCite records only, not {requirements.conforms_to}.",
             )
 
-        inventory, hinted = _kept(asked.inventory)
+        inventory, hinted = kept(asked.inventory, asked.project_decisions)
         record, filled = self._record(requirements, inventory)
         filled += _from_researchers(record, asked.researchers)
         found = gaps(record)
@@ -196,8 +196,8 @@ class MetadataLibrarian:
             f"{len(requirements.fields)} properties it asks for ({required} required), drafted "
             f"by rule. Filled: {', '.join(filled) or 'nothing'}"
             f"{_placed(len(found) - len(open_gaps))}. It asks "
-            f"{_count(len(questions), 'question')} about the values left null."
-            f"{_hinted_statement(hinted)} {''.join(s + ' ' for s in withheld)}"
+            f"{count(len(questions), 'question')} about the values left null."
+            f"{hinted_statement(hinted)} {''.join(s + ' ' for s in withheld)}"
             f"{_how_suggested(suggested)}"
         )
         current = asked.current_version
@@ -319,44 +319,6 @@ class MetadataLibrarian:
         return record, filled
 
 
-def _kept(
-    inventory: FileInventory | None,
-) -> tuple[FileInventory | None, DepositHints]:
-    """The inventory without the files a record would rarely describe, and the hints that say
-    which files those are and which a person must decide on (#1072)."""
-    if inventory is None:
-        return None, DepositHints()
-    hinted = deposit_hints(f.model_dump(mode="json") for f in inventory.inventory_files)
-    if not hinted.leave_out:
-        return inventory, hinted
-    kept = [f for f in inventory.inventory_files if f.file_path not in hinted.leave_out]
-    return inventory.model_copy(update={"inventory_files": kept}), hinted
-
-
-def _hinted_statement(hinted: DepositHints) -> str:
-    """What the statement says, after a space, of the files the formats and sizes leave out and
-    of those a person must decide on; empty when there are none."""
-
-    def named(files: Mapping[str, Sequence[Hint]]) -> str:
-        return "; ".join(
-            f"{path} ({', '.join(dict.fromkeys(h.kind.value for h in hints))})"
-            for path, hints in files.items()
-        )
-
-    said = ""
-    if hinted.leave_out:
-        said += (
-            f" The formats and sizes leave out {_count(len(hinted.leave_out), 'file')} rarely "
-            f"deposited: {named(hinted.leave_out)}."
-        )
-    if hinted.decide:
-        said += (
-            f" A person must decide before deposit on {_count(len(hinted.decide), 'file')} they "
-            f"count: {named(hinted.decide)}."
-        )
-    return said
-
-
 def _from_researchers(record: dict[str, Any], researchers: list[ResearcherRecord]) -> list[str]:
     """Fill the creators, subjects and funding references the repository asks for from what the
     project's researchers kept of their ORCID records; returns the properties filled. A property
@@ -458,12 +420,8 @@ def _facts(requirements: RepositoryRequirements, inventory: FileInventory | None
     }
 
 
-def _count(n: int, noun: str) -> str:
-    return f"{n} {noun}" if n == 1 else f"{n} {noun}s"
-
-
 def _placed(n: int) -> str:
-    return f", and {_count(n, 'answer')} you recorded" if n else ""
+    return f", and {count(n, 'answer')} you recorded" if n else ""
 
 
 def _how_suggested(suggested: Suggestions) -> str:
@@ -473,12 +431,12 @@ def _how_suggested(suggested: Suggestions) -> str:
     if suggested.unused is not None:
         return f"No suggestion is offered: {suggested.unused}."
     sentence = (
-        f"A model suggested {_count(len(suggested.answers), 'value')}, offered beside its "
+        f"A model suggested {count(len(suggested.answers), 'value')}, offered beside its "
         "question and never written into the record."
     )
     if suggested.dropped:
         sentence += (
-            f" {_count(len(suggested.dropped), 'suggestion')} not offered: "
+            f" {count(len(suggested.dropped), 'suggestion')} not offered: "
             + "; ".join(suggested.dropped)
             + "."
         )
