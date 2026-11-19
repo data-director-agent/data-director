@@ -10,7 +10,7 @@ import pytest
 import dd_agent_advisor_linking
 from dd_agent_advisor_linking.agent import LinkingAdviser, orcid_checksum_ok
 from dd_agent_advisor_linking.classes import LinkCandidates, RelatedIdentifiers
-from dd_agent_advisor_linking.resolve import SERVERS
+from dd_agent_advisor_linking.resolve import ROUTES
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import describe
 from dd_sdk.contract.models import GroundingMode, OutcomeStatus, ReasonCode
@@ -78,7 +78,7 @@ def test_the_card_names_the_persona_and_its_steps() -> None:
     entry = describe(LinkingAdviser.spec)
     assert entry["title"] == "Linking Adviser"
     assert not entry["description"].startswith("Mock.")
-    assert {t["server"] for t in entry["tools"]} == set(SERVERS)
+    assert {t["server"] for t in entry["tools"]} == {s for r in ROUTES for s in r.servers}
     assert entry["serves"] == ["deposit.links", "post.links"]
     json.dumps(entry)
 

@@ -12,9 +12,10 @@ import httpx
 import pytest
 from ror_fixture import FIXTURE, INACTIVE, NERC, NERC_JO, NERC_SD, UKRI, build_fixture
 
-from dd_agent_advisor_policy import ror, ror_records
+from dd_agent_advisor_policy import ror
 from dd_agent_advisor_policy.classes import Actor, ActorRole
 from dd_agent_advisor_policy.resolve import Ambiguous, Resolved, Unknown, names, resolve
+from dd_mcp_pid import ror_records
 from dd_sdk.registry import RegistryUnavailable
 
 API_RECORD = Path(__file__).with_name("data") / "ror-02b5d8509.api.json"

@@ -18,6 +18,8 @@ dd-advisor-linking = "dd_agent_advisor_linking.factory:main"
 [dependency-groups]
 dev = [
   "data-director-harness",
+  # The PID resolver's servers, which the gateway tests serve in process.
+  "data-director-mcp-pid",
 ]
 
 [tool.hatch.build.targets.wheel]

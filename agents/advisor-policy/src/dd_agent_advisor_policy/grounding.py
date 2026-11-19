@@ -6,7 +6,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from dd_agent_advisor_policy.retrieve import SourceRecord
-from dd_agent_advisor_policy.ror_records import Organisation
+from dd_mcp_pid.ror_records import Organisation
 from dd_sdk.contract.models import EvidenceItem, GroundingRef
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, HASH_ALGORITHM, content_hash
 

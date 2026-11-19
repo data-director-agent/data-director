@@ -1,7 +1,7 @@
 # advisor.linking
 
 **Alpha** (`0.2.0a1`, [Agents](../../docs/specs/agents.md)). It checks the form of identifiers and,
-where the deployment grants it a DOI source, looks DOIs up. A model writes only a summary beside
+where the deployment grants it lookup tools, looks DOIs, ORCID iDs and ROR ids up. A model writes only a summary beside
 its findings.
 
 The Linking Adviser helps a researcher link a dataset to the publications, people, organisations,
@@ -26,8 +26,9 @@ one `RelatedLink` per identifier, with:
 - `relation`: a suggested DataCite relationType (`IsSupplementTo` for a DOI), absent where the
   adviser cannot tell;
 - `valid`: whether the identifier is well formed for its scheme;
-- `resolved`, `title` and `resource_type`: for a DOI looked up, whether it was found and, if so,
-  the record's title and type; `resolved` is absent where no lookup was made;
+- `resolved`, `title` and `resource_type`: for a DOI, ORCID iD or ROR id looked up, whether it
+  was found and, if so, what it names: a DOI's title and type, a person's name, or an
+  organisation's name and type; `resolved` is absent where no lookup was made;
 - `message`: what to check or how to record it, or why a lookup failed.
 
 It also gives a `summary` (below) and lists, in `limitations`, what it did not do.
@@ -41,19 +42,28 @@ it matches no other scheme, has no spaces or colons and contains a digit; anythi
 `unknown`. With no identifiers it abstains (`insufficient_input`). This part is exact and uses no
 source.
 
-## Resolving DOIs
+## Resolving DOIs, ORCID iDs and ROR ids
 
 Which sources exist is the deployment's choice: it lists the MCP servers it runs, and its profile
-grants them to `advisor.linking` (`tool_servers`). The adviser declares the servers `crossref` and
-`datacite`, each with the tool `get_doi`; of those the gateway lists for the invocation, it calls
-the first that offers `get_doi`, with `{"doi": "<bare DOI>"}`. The tool returns one structured
-record with a `title` and a `type`, and the harness records it. The adviser puts those on the link
-and cites the record in `grounded_on` and in the evidence (`dd_sdk.tools.ToolRecord`). The code is
-in `resolve.py`. No such server is in this repository.
+grants them to `advisor.linking` (`tool_servers`). In this repository they are the PID resolver's
+([`mcp-pid/README.md`](../../mcp-pid/README.md)); in development, `pid_resolver: true` in
+`deployment.yaml` runs and grants them. The adviser declares, for each scheme, the servers to ask
+in order and the one tool each offers:
+
+| Scheme | Asked of | Tool | Puts on the link |
+|---|---|---|---|
+| DOI | `datacite`, then `crossref` | `get_doi` | the title and resource type |
+| ORCID iD | `orcid` | `get_orcid` | the person's public name, and `Person` |
+| ROR id | `ror` | `get_organisation` | the organisation's name and its first ROR type |
+
+Each tool answers `{"records": [...]}`: one record when found, none when not. A DOI DataCite did
+not register is asked of Crossref. The harness records each record; the adviser cites the one each
+link was resolved against in `grounded_on` and in the evidence (`dd_sdk.tools.ToolRecord`). The
+code is in `resolve.py`.
 
 A lookup that errors, fails or finds nothing is never raised: the link says `resolved: false`, with
-the reason in `message`. With no grant, or no such tool listed, no DOI is looked up and
-`limitations` says so.
+the reason in `message`. A scheme with no granted tool is checked by form only, and `limitations`
+names it.
 
 Its grounding mode is `retrieval`. A run that looked nothing up cites its input, which the adviser
 reads itself and records with its own retrieval span, since the rules for `retrieval` accept
@@ -61,13 +71,11 @@ nothing without one.
 
 ## What it does not do
 
-- It resolves ORCID iDs, ROR ids and grant numbers by form only, so a well-formed one may not
-  exist or may name something else; `limitations` says so on every run.
-- It does not look up names, funders or relations in ORCID, ROR or funder services, and its
-  relation suggestions are defaults by scheme.
+- It checks grant numbers by form only, so a well-formed one may not exist or may belong to
+  another funder; `limitations` says so on every run. Resolving them is TODO(#953).
+- It does not look up funders or the relations between works, and its relation suggestions are
+  defaults by scheme.
 - It recognises no other identifier, such as an arXiv id or an accession number.
-
-Resolving those identifiers is TODO(#360).
 
 ## Summary
 

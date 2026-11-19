@@ -182,7 +182,7 @@ roster for #353 found:
 | `advisor.rights`, `advisor.metadata` | Model-backed alpha, choosing from a closed set (rights) or suggesting beside a value (metadata). |
 | `advisor.fairness` | Model-backed alpha for its recommendations only; little gain until it retrieves. |
 | `advisor.quality` | Stays rule-based in its findings; it overlaps the FAIR Assessor (#18). Since every advisor became model-backed by default, a model writes a summary beside them (`dd_sdk.summary`). |
-| `advisor.linking`, `advisor.files` | Identifier syntax, checksums and format lookup are exact and stay in rules. Their next step is retrieval (#360, #354); `advisor.linking` has taken it for DOIs, through the tool gateway. Since every advisor became model-backed by default, each is a model-backed alpha whose model only writes a summary beside the rules' findings (`dd_sdk.summary`). |
+| `advisor.linking`, `advisor.files` | Identifier syntax, checksums and format lookup are exact and stay in rules. Their next step is retrieval (#360, #354); `advisor.linking` has taken it for DOIs, ORCID iDs and ROR ids, through the tool gateway and the PID resolver (`mcp-pid/`), the first MCP server in this repository. Since every advisor became model-backed by default, each is a model-backed alpha whose model only writes a summary beside the rules' findings (`dd_sdk.summary`). |
 | `orchestrator.stub`, `example.hello` | Stay deterministic by design. |
 
 Each in-tree agent's state now. This table is the one place a state is written down:

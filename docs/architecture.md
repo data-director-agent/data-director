@@ -99,6 +99,7 @@ Solid arrows are calls at run time; dotted arrows are imports.
 | `app/` | The Data Director that people use (alpha). A Starlette server (`dd_app`) over the conductor, and a React shell (`app/web`) drawn from each agent's manifest. | [`app/README.md`](../app/README.md), [The app](specs/app.md) |
 | `workbench/` | The test bed for people who write agents: a CLI, the Inspect and Chat pages, and evaluation. Not part of a deployment. | [`workbench/README.md`](../workbench/README.md) |
 | `inventory/` | `dd-inventory`, the command a researcher runs where their data live. It writes the inventory of a dataset's files (paths, sizes, digests, PRONOM formats, table fields) and needs no other part of Data Director. | [`inventory/README.md`](../inventory/README.md), [Projects](specs/projects.md) |
+| `mcp-pid/` | The PID resolver: an MCP server, one per registry, that resolves DOIs through DataCite and Crossref, ORCID iDs through ORCID and ROR identifiers through a pinned ROR dump. The tool gateway pins its tools and records what agents read from it. It needs no other part of Data Director. | [`mcp-pid/README.md`](../mcp-pid/README.md), [Agents](specs/agents.md#tools-mcp-servers-and-agent-skills) |
 
 ### The dependency rules
 

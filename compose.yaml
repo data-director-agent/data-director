@@ -327,6 +327,32 @@ services:
       - model-broker:/var/lib/model-broker
     restart: unless-stopped
 
+  # The PID resolver (mcp-pid/README.md): the MCP servers the Linking Adviser resolves DOIs, ORCID
+  # iDs and ROR ids through, granted when config/local/deployment.yaml sets pid_resolver: true.
+  # It asks DataCite, Crossref, ORCID and ROR, sending only identifiers, and reads ROR from the
+  # registry `dd-sources prepare` builds. Reached only inside the network, like the agents.
+  mcp-pid:
+    <<: *python
+    depends_on:
+      deps:
+        condition: service_completed_successfully
+    command: uv run --no-sync dd-mcp-pid serve --host 0.0.0.0 --port 8310
+    environment:
+      <<: *python-env
+      DD_PID_ROR_REGISTRY: /workspace/agents/advisor-policy/data/ror/registry.jsonl
+      # The name the app reaches it by; any other Host header is refused.
+      DD_PID_HOSTS: mcp-pid
+    healthcheck:
+      test:
+        - CMD
+        - /venv/bin/python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8310/healthz')"
+      interval: 5s
+      timeout: 5s
+      retries: 24
+    restart: unless-stopped
+
   # Builds the shell once: the app will not start without app/web/dist.
   web-build:
     build:
@@ -353,6 +379,9 @@ services:
         condition: service_completed_successfully
         required: false
       <<: *agents-healthy
+      # The gateway lists its servers once, at start-up.
+      mcp-pid:
+        condition: service_healthy
     command: uv run --no-sync data-director
     # The volumes below, unless config/local/app.env names other locations.
     env_file:
@@ -376,6 +405,9 @@ services:
       # `dd.py setup` names the profile it writes by its path on the host; this is the same
       # file where the checkout is mounted.
       DD_PROFILE: /workspace/config/local/profile.yaml
+      # The PID resolver's servers as the app reaches them in the network. Granted to an agent
+      # only by the profile, which `apply` writes from deployment.yaml (pid_resolver).
+      DD_TOOLS_CONFIG: /workspace/docker/tools.yaml
     volumes:
       - .:/workspace
       - venv:/venv
@@ -428,6 +460,9 @@ services:
       # `dd.py setup` names the profile it writes by its path on the host; this is the same
       # file where the checkout is mounted.
       DD_PROFILE: /workspace/config/local/profile.yaml
+      # The PID resolver's servers as the app reaches them in the network. Granted to an agent
+      # only by the profile, which `apply` writes from deployment.yaml (pid_resolver).
+      DD_TOOLS_CONFIG: /workspace/docker/tools.yaml
     env_file:
       - docker/storage.env
       - path: config/local/app.env

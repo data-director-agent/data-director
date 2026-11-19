@@ -126,11 +126,6 @@ clones = 1
 lines = 7
 
 [[pair]]
-files = ["agents/advisor-policy/src/dd_agent_advisor_policy/policy_text.py", "agents/advisor-policy/src/dd_agent_advisor_policy/ror.py"]
-clones = 1
-lines = 10
-
-[[pair]]
 files = ["agents/advisor-policy/src/dd_agent_advisor_policy/ror.py", "agents/advisor-repository/src/dd_agent_advisor_repository/registry.py"]
 clones = 1
 lines = 11
