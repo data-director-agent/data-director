@@ -5,13 +5,19 @@ Answers OpenAI-style  POST /v1/chat/completions  and
 with a fixed reply. Like a real provider it reports usage of 10 input tokens and
 min(50, max_tokens) output tokens, so the gateway's real cost-calculation and
 budget code paths are exercised. Standard library only.
+
+FAKE_LATENCY_MS, if set, delays each reply by that many milliseconds, so a load test
+(loadtest/) sees something like a real model's wait rather than an instant answer.
 """
 
 import json
+import os
+import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 IN_TOKENS, MAX_OUT_TOKENS = 10, 50
+LATENCY_S = int(os.environ.get("FAKE_LATENCY_MS", "0")) / 1000
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -29,6 +35,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         length = int(self.headers.get("Content-Length", 0))
         req = json.loads(self.rfile.read(length) or b"{}")
+        if LATENCY_S:
+            time.sleep(LATENCY_S)
         model = req.get("model", "fake")
         out = min(
             MAX_OUT_TOKENS,

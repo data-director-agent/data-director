@@ -125,6 +125,7 @@ nav:
       - Setting up: developer-guide/setup.md
       - Writing an agent: developer-guide/writing-an-agent.md
       - Reviewing a model-backed agent: developer-guide/reviewing-a-model-backed-agent.md
+      - Load testing: /loadtest/README.md
       - Documentation: developer-guide/documentation.md
       - Contributing: /CONTRIBUTING.md
       - Working in the repository: /AGENTS.md

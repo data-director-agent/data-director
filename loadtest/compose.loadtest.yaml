@@ -1,0 +1,67 @@
+# Overlay for load testing (loadtest/README.md): a fake model that answers at a steady, chosen
+# latency, and every model-backed agent pointed at it, so a run costs nothing and measures Data
+# Director rather than a provider. Use with compose.yaml:
+#
+#   docker compose -f compose.yaml -f loadtest/compose.loadtest.yaml --profile postgres --profile llm up --build -d
+#
+# FAKE_LATENCY_MS (default 1500) sets how long the fake model takes to answer each call.
+#
+# The agents keep their default provider, Anthropic; the Anthropic client sends its calls to
+# ANTHROPIC_BASE_URL when the agent names no endpoint of its own. The key is a placeholder: the
+# fake model accepts any. The app converses with orchestrator.model only if config/local/ says so
+# (README.md, "Setting up").
+
+x-fake-model: &fake-model
+  DD_MODEL_PROVIDER: anthropic
+  DD_MODEL_BROKER_URL: ""
+  ANTHROPIC_BASE_URL: http://fake-llm:8080
+  ANTHROPIC_API_KEY: load-test-not-a-key
+  # Blank, so a real key configured in config/local/ is neither refused beside this one nor used.
+  ANTHROPIC_API_KEY_FILE: ""
+
+services:
+  fake-llm:
+    image: python:3.14-slim
+    command: python /fake_upstream.py
+    environment:
+      FAKE_LATENCY_MS: ${FAKE_LATENCY_MS:-1500}
+    volumes:
+      - ./deploy/llm-gateway/scripts/testing/fake_upstream.py:/fake_upstream.py:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/')"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  orchestrator-model:
+    environment: *fake-model
+    depends_on: &needs-fake-llm
+      fake-llm:
+        condition: service_healthy
+  advisor-dmp:
+    environment: *fake-model
+    depends_on: *needs-fake-llm
+  advisor-documentation:
+    environment: *fake-model
+    depends_on: *needs-fake-llm
+  advisor-ethics:
+    environment: *fake-model
+    depends_on: *needs-fake-llm
+  advisor-fairness:
+    environment: *fake-model
+    depends_on: *needs-fake-llm
+  advisor-metadata:
+    environment: *fake-model
+    depends_on: *needs-fake-llm
+  advisor-policy:
+    environment: *fake-model
+    depends_on: *needs-fake-llm
+  advisor-repository:
+    environment: *fake-model
+    depends_on: *needs-fake-llm
+  advisor-rights:
+    environment: *fake-model
+    depends_on: *needs-fake-llm
+  advisor-standards:
+    environment: *fake-model
+    depends_on: *needs-fake-llm
