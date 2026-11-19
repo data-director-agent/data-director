@@ -53,8 +53,9 @@ services:
     command: dd-advisor-standards serve --host 0.0.0.0 --port 8105 --public-url http://advisor-standards:8105
     environment:
       PORT: "8105"
-      # As for the documentation advisor below: its model is on by default and this stack gives it
-      # no key, so it runs with `template` unless the shell exports DD_STANDARDS_EXPLAINER=model.
+      # Every advisor's model is on by default and this stack gives it no key, so each runs with
+      # `template` unless the shell exports its setting as `model` (and the key). Set it in the
+      # shell, not in agents.env: `environment` wins over `env_file`.
       DD_STANDARDS_EXPLAINER: ${DD_STANDARDS_EXPLAINER:-template}
 
   advisor-policy:
@@ -62,8 +63,7 @@ services:
     command: dd-advisor-policy serve --host 0.0.0.0 --port 8108 --public-url http://advisor-policy:8108
     environment:
       PORT: "8108"
-      # As for the documentation advisor below: its model is on by default and this stack gives it
-      # no key, so it runs with `template` unless the shell exports DD_POLICY_ADVISOR=model.
+      # As for the standards advisor above.
       DD_POLICY_ADVISOR: ${DD_POLICY_ADVISOR:-template}
 
   advisor-repository:
@@ -71,8 +71,7 @@ services:
     command: dd-advisor-repository serve --host 0.0.0.0 --port 8109 --public-url http://advisor-repository:8109
     environment:
       PORT: "8109"
-      # As for the documentation advisor: its model is on by default and this stack gives it no
-      # key, so it runs with `template` unless the shell exports DD_REPOSITORY_EXPLAINER=model.
+      # As for the standards advisor above.
       DD_REPOSITORY_EXPLAINER: ${DD_REPOSITORY_EXPLAINER:-template}
 
   advisor-ethics:
@@ -80,8 +79,7 @@ services:
     command: dd-advisor-ethics serve --host 0.0.0.0 --port 8111 --public-url http://advisor-ethics:8111
     environment:
       PORT: "8111"
-      # As for the documentation advisor: its model is on by default and this stack gives it no
-      # key, so it runs with `template` unless the shell exports DD_ETHICS_READER=model.
+      # As for the standards advisor above.
       DD_ETHICS_READER: ${DD_ETHICS_READER:-template}
 
   advisor-files:
@@ -98,8 +96,7 @@ services:
     command: dd-advisor-dmp serve --host 0.0.0.0 --port 8112 --public-url http://advisor-dmp:8112
     environment:
       PORT: "8112"
-      # As for the documentation advisor: its model is on by default and this stack gives it no
-      # key, so it runs with `template` unless the shell exports DD_DMP_MATCHER=model.
+      # As for the standards advisor above.
       DD_DMP_MATCHER: ${DD_DMP_MATCHER:-template}
 
   advisor-metadata:
@@ -107,8 +104,7 @@ services:
     command: dd-advisor-metadata serve --host 0.0.0.0 --port 8113 --public-url http://advisor-metadata:8113
     environment:
       PORT: "8113"
-      # As for the documentation advisor: its model is on by default and this stack gives it no
-      # key, so it runs with `template` unless the shell exports DD_METADATA_SUGGESTER=model.
+      # As for the standards advisor above.
       DD_METADATA_SUGGESTER: ${DD_METADATA_SUGGESTER:-template}
 
   advisor-documentation:
@@ -116,9 +112,7 @@ services:
     command: dd-advisor-documentation serve --host 0.0.0.0 --port 8114 --public-url http://advisor-documentation:8114
     environment:
       PORT: "8114"
-      # Its model is on by default and this stack gives it no key, so it runs with `template`
-      # unless the shell exports DD_DOCUMENTATION_WRITER=model and the key. Set it in the shell,
-      # not in agents.env: `environment` wins over `env_file`.
+      # As for the standards advisor above.
       DD_DOCUMENTATION_WRITER: ${DD_DOCUMENTATION_WRITER:-template}
 
   advisor-rights:
@@ -126,8 +120,7 @@ services:
     command: dd-advisor-rights serve --host 0.0.0.0 --port 8115 --public-url http://advisor-rights:8115
     environment:
       PORT: "8115"
-      # As for the documentation advisor: its model is on by default and this stack gives it no
-      # key, so it runs with `template` unless the shell exports DD_RIGHTS_INTERPRETER=model.
+      # As for the standards advisor above.
       DD_RIGHTS_INTERPRETER: ${DD_RIGHTS_INTERPRETER:-template}
 
   advisor-linking:
@@ -144,8 +137,7 @@ services:
     command: dd-advisor-fairness serve --host 0.0.0.0 --port 8117 --public-url http://advisor-fairness:8117
     environment:
       PORT: "8117"
-      # As for the documentation advisor: its model is on by default and this stack gives it no
-      # key, so it runs with `template` unless the shell exports DD_FAIRNESS_WRITER=model.
+      # As for the standards advisor above.
       DD_FAIRNESS_WRITER: ${DD_FAIRNESS_WRITER:-template}
 
   orchestrator-stub:

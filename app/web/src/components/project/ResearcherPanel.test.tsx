@@ -4,7 +4,8 @@ import { axe } from "jest-axe";
 
 import offeredFixture from "../../../fixtures/orcid-record.json";
 import keptFixture from "../../../fixtures/project-researchers.json";
-import { type ProjectApi, ProjectApiContext, type ResearcherRecord } from "../../project/api";
+import { type ProjectApi, ProjectApiContext } from "../../project/api";
+import type { ResearcherRecord } from "../../project/researcher";
 import { SessionApiContext } from "../../session/api";
 import { DEVELOPMENT, fakeSessionApi } from "../../test/session";
 import { ResearcherPanel } from "./ResearcherPanel";

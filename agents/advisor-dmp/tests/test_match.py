@@ -226,14 +226,14 @@ def test_the_call_and_its_prompt_are_recorded(runs_dir: Path) -> None:
     assert env.telemetry.input_tokens == 100 and env.telemetry.output_tokens == 40
 
 
-def test_the_template_matcher_declares_no_model() -> None:
+def test_the_factory_runs_the_template_when_set_to_it_and_declares_no_model() -> None:
     agent = factory.build({factory.SWITCH: "template"})
     assert isinstance(agent.matcher, TemplateMatcher)
     assert describe(agent.spec)["models"] == []
 
 
-def test_the_model_is_on_by_default_and_says_how_to_turn_it_off() -> None:
-    with pytest.raises(ConfigError, match="DD_DMP_MATCHER=template"):
+def test_the_model_matcher_is_on_by_default_and_says_how_to_run_without_it() -> None:
+    with pytest.raises(ConfigError, match=f"{factory.SWITCH}=template"):
         factory.build({})
 
 

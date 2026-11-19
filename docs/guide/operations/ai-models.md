@@ -1,52 +1,48 @@
 # AI models
 
-Every advisor calls an AI model by default, and each can run without one. An operator decides
-whether they do, which provider and model they call, and whose key pays for it. This page covers those
-decisions. [Policy and identity](../../specs/policy-and-identity.md) records why the key is handled as it is.
+Data Director's advisors and its model-backed orchestrator can call an AI model, and most do by
+default. An operator decides whether they do, which provider and model they call, and whose key
+pays for it. This page covers those decisions.
+[Policy and identity](../../specs/policy-and-identity.md) records why the key is handled as it is.
 
 ## Which agents call a model
 
-| Agent | Calls a model | Default model | Needs a key |
+Every advisor except three calls a model unless its setting says `template`. The orchestrator calls
+one only while `deployment.yaml` names it.
+
+| Agent | Setting | What the model does | Default model |
 |---|---|---|---|
-| `orchestrator.model` | Always. It writes the replies in the app's conversation, and names each new conversation. | `claude-sonnet-5-5`, and `claude-haiku-5-5` for the name | Yes: it does not start without one, except on a local endpoint. |
-| `advisor.standards` | By default: it explains each standard its ranking picked, notes doubts about a pick, and adds standards it finds by searching FAIRsharing, each checked by the agent. `DD_STANDARDS_EXPLAINER=template` turns the model off. | `claude-sonnet-5-5` | Yes, unless set to `template` or on a local endpoint, as for `advisor.documentation`. Its model must support tool calls. |
-| `advisor.policy` | By default: it reads the policy records found, searches Open Policy Finder, Crossref and FAIRsharing for more, and states each obligation with a quote from its record. `DD_POLICY_ADVISOR=template` (or its older name, `DD_POLICY_EXPLAINER`) turns the model off. | `claude-sonnet-5-5` | Yes, unless set to `template` or on a local endpoint, as for `advisor.documentation`. Its model must support tool calls. |
-| `advisor.repository` | By default: it writes each candidate repository's rationale. `DD_REPOSITORY_EXPLAINER=template` turns the model off. | `claude-sonnet-5-5` | Yes, unless set to `template` or on a local endpoint, as for `advisor.documentation`. |
-| `advisor.documentation` | By default: it writes a README's prose and suggests answers to a draft's questions. `DD_DOCUMENTATION_WRITER=template` turns the model off. | `claude-sonnet-5-5` | Yes, unless set to `template` or on a local endpoint: it does not start without one. Locally, `dd.py start` runs it with `template` when it has no key. On a VM, `apply` is refused until it has a key or is set to `template`. `docker/compose.image.yaml` runs it with `template` unless the shell sets `model`. |
-| `advisor.dmp` | By default: it reads what its rules leave over, to pair renamed outputs and reconcile two names for one licence or repository. `DD_DMP_MATCHER=template` turns the model off. | `claude-sonnet-5-5` | Yes, unless set to `template` or on a local endpoint, as for `advisor.documentation`. |
-| `advisor.rights` | By default: it reads a reuse wish in the researcher's own words as the licence table's reuse values, and tailors questions about third-party content or a mandate. It chooses only from its own table. `DD_RIGHTS_INTERPRETER=template` turns the model off. | `claude-sonnet-5-5` | Yes, unless set to `template` or on a local endpoint, as for `advisor.documentation`. |
-| `advisor.fairness` | By default: it tailors the retrofit recommendation for each check a published record does not meet, from the record's metadata as given. Whether a check is met stays by rule. `DD_FAIRNESS_WRITER=template` turns the model off. | `claude-sonnet-5-5` | Yes, unless set to `template` or on a local endpoint, as for `advisor.documentation`. |
-| `advisor.ethics` | By default: it reads a dataset's field names, adding sensitivity flags and questions but never removing a keyword flag. `DD_ETHICS_READER=template` turns the model off. | `claude-sonnet-5-5` | Yes, unless set to `template` or on a local endpoint, as for `advisor.documentation`. |
-| `advisor.metadata` | By default: it suggests a title, description, keywords and language beside the metadata record's questions, never in the record. `DD_METADATA_SUGGESTER=template` turns the model off. | `claude-sonnet-5-5` | Yes, unless set to `template` or on a local endpoint, as for `advisor.documentation`. |
-| `advisor.files`, `advisor.linking`, `advisor.quality` | By default: each writes a short summary beside its rules' findings, which it cannot change. `DD_FILES_SUMMARISER`, `DD_LINKING_SUMMARISER` and `DD_QUALITY_SUMMARISER`, set to `template`, turn the model off. | `claude-sonnet-5-5` | Yes, unless set to `template` or on a local endpoint, as for `advisor.documentation`. |
-| `example.hello`, `orchestrator.stub` | Never. | none | No. |
+| `orchestrator.model` | `orchestrator: model` in `deployment.yaml` (off: `stub`) | Writes the replies in the app's conversation and routes to the advisors. Names each new conversation with a second, smaller model. | `claude-sonnet-5-5`, and `claude-haiku-5-5` for the name |
+| `advisor.standards` | `DD_STANDARDS_EXPLAINER` | Explains each standard its ranking picked, notes doubts about a pick, and adds standards it finds by searching FAIRsharing, each checked by the agent. Its model must support tool calls. | `claude-sonnet-5-5` |
+| `advisor.policy` | `DD_POLICY_ADVISOR` (older name `DD_POLICY_EXPLAINER`) | Reads the policy records found, searches Open Policy Finder, Crossref and FAIRsharing for more, and states each obligation with a quote from its record. Its model must support tool calls. | `claude-sonnet-5-5` |
+| `advisor.repository` | `DD_REPOSITORY_EXPLAINER` | Writes the rationale for each repository its rules ranked. | `claude-sonnet-5-5` |
+| `advisor.documentation` | `DD_DOCUMENTATION_WRITER` | Writes a README's prose and suggests answers to a draft's questions. | `claude-sonnet-5-5` |
+| `advisor.dmp` | `DD_DMP_MATCHER` | Reads what its rules leave over, to pair renamed outputs and reconcile two names for one licence or repository, and reads an attached plan's commitments for the researcher to confirm. | `claude-sonnet-5-5` |
+| `advisor.rights` | `DD_RIGHTS_INTERPRETER` | Reads a reuse wish in the researcher's own words as the licence table's reuse values, and tailors questions about third-party content or a mandate. It chooses only from its own table. | `claude-sonnet-5-5` |
+| `advisor.fairness` | `DD_FAIRNESS_WRITER` | Tailors the retrofit recommendation for each check a published record does not meet, from the record's metadata as given. Whether a check is met stays by rule. | `claude-sonnet-5-5` |
+| `advisor.ethics` | `DD_ETHICS_READER` | Reads a dataset's field names for sensitive data the keyword table missed. It can add flags and questions, never remove a keyword flag. | `claude-sonnet-5-5` |
+| `advisor.metadata` | `DD_METADATA_SUGGESTER` | Suggests values beside a metadata record's questions. It never writes a value into the record. | `claude-sonnet-5-5` |
+| `advisor.files` | `DD_FILES_SUMMARISER` | Writes a short summary beside the rules' findings about a file inventory. It cannot add, remove or change a finding. | `claude-sonnet-5-5` |
+| `advisor.linking` | `DD_LINKING_SUMMARISER` | Writes a short summary beside the rules' findings about the identifiers given. It cannot add, remove or change a finding. | `claude-sonnet-5-5` |
+| `advisor.quality` | `DD_QUALITY_SUMMARISER` | Writes a short summary beside the rules' completeness findings about a metadata record. It cannot add, remove or change a finding. | `claude-sonnet-5-5` |
+| `example.hello`, `orchestrator.stub` | none | Never calls a model; neither is a sub-agent. | none |
 
-A new `deployment.yaml` names `orchestrator: stub`, the agent a researcher converses with. Every
-advisor calls its model by default, so once each has a key a default installation sends a model
-provider:
+For each advisor in the table, the setting is `model` unless you set it to `template`. `template`
+needs no key, calls no model and sends nothing to a provider. Whichever you choose, the agent's rules
+decide what is exact, and a model's reply is checked before it is used.
 
-- a project's facts, when the documentation advisor drafts a document;
-- the project's funders, journals, disciplines and kinds of data, with the policy records found,
-  when the policy advisor checks policies;
-- a dataset profile's title, description, keywords, themes and field names, with the FAIRsharing
-  records found, when the standards advisor recommends standards;
-- the needs given and the registry records found, when the repository advisor recommends
-  repositories;
-- the plan's commitments and the outputs planned, when the DMP advisor compares them;
-- the researcher's own words for the reuse wanted and any mandated licence, when the rights
-  advisor lists licences;
-- a published record's metadata as given, when the FAIR advisor recommends what to retrofit;
-- the field names a caller sends, when the ethics advisor flags them, which the profile's
-  `hosted_models` does not cover (TODO(#40), `agents/advisor-ethics/README.md`);
-- the chosen repository's requirements and the inventory's structure, when the metadata advisor
-  drafts a record;
-- each file's path, format and check, each identifier with what was found for it, or a metadata
-  record with its completeness findings, when the files, linking or quality advisor summarises.
+A model-backed agent does not start without a model key, unless it calls through the
+[model broker](model-broker.md) or its endpoint is local. With no key, start-up stops with
+`no model key … (DD_POLICY_ADVISOR is model by default: set DD_POLICY_ADVISOR=template to run
+without a model)`, naming that advisor's own setting.
 
-Set the agent's switch to `template` in its own settings file to send nothing. Without a key,
-`dd.py start` runs each with `template`; on a VM, `apply` is refused until each has a key or is
-set to `template`; `docker/compose.image.yaml` runs each with `template` unless the shell sets
-`model`.
+A default installation therefore sends a project's facts to a model provider as soon as each advisor
+has a key. What each one sends is under [What a provider receives](#what-a-provider-receives). To send
+nothing from an advisor, set its setting to `template` in the agent's own settings file, for example
+`DD_STANDARDS_EXPLAINER=template` in `/etc/data-director/agents/advisor-standards.env`. The
+`deployment.yaml` of a new installation names `orchestrator: stub`, the agent a researcher converses
+with, so the orchestrator is the one model you turn on yourself,
+[below](#turn-on-the-model-backed-orchestrator).
 
 `anthropic`, the older value of these settings, still works and means `model` with the
 Anthropic provider. The default model applies to Anthropic only; with any other provider,
@@ -54,8 +50,8 @@ Anthropic provider. The default model applies to Anthropic only; with any other 
 
 ## Choose a provider
 
-The orchestrator and the advisers above can call any provider below, set in the agent's own
-settings file with no code change.
+The orchestrator and the advisors above that call a model can call any provider below, set in the
+agent's own settings file with no code change.
 
 | `DD_MODEL_PROVIDER` | What it calls | Sends to | Key | Declared as |
 |---|---|---|---|---|
@@ -100,7 +96,7 @@ so a server on the institution's network that you want treated as local must be 
 address. A model the agent reaches on loopback runs on the same host, and no project content
 leaves it.
 
-For example, an explainer on a local Ollama server:
+For example, an advisor on a local Ollama server:
 
 ```bash
 DD_STANDARDS_EXPLAINER=model
@@ -119,7 +115,7 @@ DD_MODEL_ID=<an OpenAI model>
 
 with its key given by `sudo data-director secret set advisor-standards openai-api-key`.
 
-The quality of an explainer's or writer's text depends on the model. Which provider and model
+The quality of an advisor's text depends on the model. Which provider and model
 combinations have been evaluated is not yet recorded (#833); after changing provider, read a few
 runs' output before relying on it.
 
@@ -140,6 +136,37 @@ steward, and to the institution's data protection officer, before turning any of
   media types and field names and types, and the FAIRsharing records found: their names, types,
   statuses, subjects and descriptions. FAIRsharing receives the words its model searches for. It
   never sends data values.
+- **The policy advisor** sends the project's funders, journals, disciplines and kinds of data, and
+  the policy records found. Open Policy Finder, Crossref and FAIRsharing receive the words its model
+  searches for.
+- **The documentation advisor** sends the facts a README is written from: each file's path, format
+  and size, each table's field names, types and formats, the counts and total size, the metadata
+  record's title, creators, funders, abstract, licence and publication year, and the chosen
+  repository's name and licences. It never sends the data, a field's description, the researcher's
+  answers or an earlier version.
+- **The repository advisor** sends registry text and the researcher's stated needs, never research
+  data.
+- **The metadata advisor** sends the chosen repository's name and requirements and the inventory's
+  structure: each file's path, media type and size, and its fields' names, types and formats. It
+  never sends the data, a description a person wrote, the researchers' ORCID records, an answer or
+  an earlier version.
+- **The DMP advisor** sends only what its rules left over: the outputs missing from or unplanned in
+  the plan, and the values that differ. Nothing it matched exactly is sent. It also sends an attached
+  plan's text, to read its commitments for the researcher to confirm.
+- **The rights advisor** sends the researcher's words for the reuse wanted (only when its rules did
+  not understand them), a mandated licence, whether there is third-party content, and its licence
+  table. It never sends whether the data are sensitive.
+- **The fairness advisor** sends the published record's metadata as the researcher gave it:
+  identifier, title, description, licence, keywords, creators and their identifiers, formats,
+  related identifiers and access protocol.
+- **The ethics advisor** sends the dataset's field names and whether it involves people. Field names
+  of a sensitive dataset can themselves say something about the people in it, and the profile's
+  `hosted_models` rule does not yet cover this input (TODO(#40)). Set `DD_ETHICS_READER=template`,
+  or use a local model, if a hosted provider must not see them.
+- **The files, linking and quality advisors** each send what their rules found beside the input
+  they were given: each file's path, format and check, each identifier with what was found for it,
+  or a metadata record with its completeness findings. The model writes one summary and cannot
+  change a finding.
 
 The provider's retention terms govern what happens next. Some models require the provider to keep
 data, and an organisation under a zero-data-retention agreement gets an error on every turn from
@@ -215,11 +242,14 @@ provider it is configured for: a person's account with another provider counts a
 calls. The shipped profiles keep own accounts off, so every model call uses the keys described
 here.
 
-## Give the standards advisor its key
+## Give the advisors their keys
 
-The standards advisor's model is on by default, so it needs only its key.
+Each advisor's model is on by default, so each needs a key, a broker credential or `template`.
+`sudo data-director apply` refuses to turn on an advisor that has none of the three, and says which
+command fixes it. `sudo data-director doctor` reports the same.
 
-1. Optionally, configure the advisor in `/etc/data-director/agents/advisor-standards.env`:
+1. Optionally, configure an advisor in its own file, `/etc/data-director/agents/<name>.env`
+   (for example `advisor-standards.env`):
 
    ```bash
    # DD_STANDARDS_MAX_LOOKUPS=<the most searches its model may make in one run; 4 by default>
@@ -227,7 +257,11 @@ The standards advisor's model is on by default, so it needs only its key.
    # DD_MODEL_PROVIDER=<another provider; see "Choose a provider">
    ```
 
-2. From your clone of the repository, give it its key:
+   An advisor needs no setting to use its model. To run one without a model, set its switch from
+   [the table](#which-agents-call-a-model) to `template` here, for example
+   `DD_ETHICS_READER=template`.
+
+2. Give each advisor that calls a model its own key, from your clone of the repository:
 
    ```bash
    sudo data-director secret set advisor-standards anthropic-api-key
@@ -235,14 +269,36 @@ The standards advisor's model is on by default, so it needs only its key.
    ```
 
    The command keeps the key in a file only root can read, has systemd hand it to this agent
-   alone (every agent runs as `datadirector`), and restarts the advisor.
+   alone (every agent runs as `datadirector`), and restarts the advisor. Repeat it for each of
+   `advisor-standards`, `advisor-policy`, `advisor-repository`, `advisor-documentation`,
+   `advisor-dmp`, `advisor-rights`, `advisor-fairness`, `advisor-ethics` and `advisor-metadata`
+   that you have not set to `template`.
 
-The other advisors' models are on by default too, so each needs only its key, under its own name
-(for example `advisor-repository`). The policy advisor needs only its
-key, under its own name (`advisor-policy`); `DD_POLICY_MAX_LOOKUPS` limits the searches its model
-may make in one run (6 by default). It also searches Jisc Open Policy Finder when given a free
-key: `sudo data-director secret set advisor-policy open-policy-finder-api-key`. The app
-runs no agent in its own process, so there is nothing to change in the app ([The app](../../specs/app.md)).
+3. Apply and check:
+
+   ```bash
+   sudo data-director apply
+   sudo data-director doctor
+   ```
+
+**Through the model broker instead.** If the [model broker](model-broker.md) pays for the calls, an
+advisor holds a broker credential in place of a key. In each advisor's own file set
+`DD_MODEL_BROKER_URL=http://127.0.0.1:8300`, leave out any provider key, and make the credentials
+for every advisor that calls a model, in one command:
+
+```bash
+sudo deploy/broker-credentials.sh advisor-standards advisor-policy advisor-repository advisor-documentation advisor-dmp advisor-rights advisor-fairness advisor-ethics advisor-metadata orchestrator-model
+```
+
+Name every agent that calls through the broker each time (leave out `orchestrator-model` if you
+run the stub orchestrator): a run replaces the whole list, and an agent left out loses its access.
+Then restart the broker, as [its guide](model-broker.md#on-a-vm) says, and run
+`sudo data-director apply`.
+
+The policy advisor's `DD_POLICY_MAX_LOOKUPS` limits the searches its model may make in one run (6
+by default). It also searches Jisc Open Policy Finder when given a free key:
+`sudo data-director secret set advisor-policy open-policy-finder-api-key`. The app runs no agent
+in its own process, so there is nothing to change in the app ([The app](../../specs/app.md)).
 
 ## Turn on the model-backed orchestrator
 
@@ -317,12 +373,12 @@ names the variable or path and never the key. The unit is not restarted on that 
 | Message begins | Cause |
 |---|---|
 | `set ANTHROPIC_API_KEY or ANTHROPIC_API_KEY_FILE, not both` | Both variables are set. |
-| `no model key` | Neither variable is set. |
+| `no model key` | Neither variable is set. For an advisor left on its default, the message ends with the setting that runs it without a model (`DD_…=template`). |
 | `ANTHROPIC_API_KEY_FILE=… is relative and CREDENTIALS_DIRECTORY is not set` | A relative path outside a systemd unit that loads the credential. |
 | `ANTHROPIC_API_KEY_FILE: cannot read …` / `… is empty` | The file is missing, unreadable or empty. |
 | `no model key` on the VM, after a key was put in place by hand | `data-director apply` (or `install.sh`) left the key out of the drop-in because it is not a non-empty regular file (a directory, say), and said so. `sudo data-director secret list` shows it as a `PROBLEM`. |
 | `DD_TITLE_MODEL=…`, or an unknown `DD_STANDARDS_*` value | An unrecognised setting. |
-| `DD_…_EXPLAINER=anthropic but DD_MODEL_PROVIDER is not` | The older value names Anthropic; set `model` to use another provider. |
+| `DD_…=anthropic but DD_MODEL_PROVIDER is not` | The older value names Anthropic; set `model` to use another provider. |
 | `DD_MODEL_PROVIDER=…: expected one of …` | An unknown provider. |
 | `DD_MODEL_ID is required with DD_MODEL_PROVIDER=…` | Only Anthropic has a default model. |
 | `… is set but DD_MODEL_PROVIDER is …` | A key for a provider other than the configured one. Remove it. |

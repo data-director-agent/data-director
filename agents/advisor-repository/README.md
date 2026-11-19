@@ -35,6 +35,12 @@ funder, journal or institution imposes. A repository the researcher merely names
 it. If the shortlist also ranks it, it keeps its score and `ranked_by`. The app shows it as
 "You asked about this", never as "Mandated".
 
+In a project, a repository that a sharing commitment of the data management plan names, once the
+researcher has confirmed the commitment, is described the same way with the basis `in_plan`: a
+plan's choice is not a mandate (#1233). The app shows it as "In your plan". A name re3data does
+not list, such as "ReShare" for the UK Data Service's self-deposit repository, is read through the
+short, sourced list in `aliases.yaml`, and the statement says so.
+
 `RepositoryOptions` holds one candidate per repository. A candidate names its records only in
 `grounded_on`: its re3data record, cited by the record's own DOI, and the FAIRsharing database
 record that re3data cross-references, when there is one. What the reader is shown about the repository is the
@@ -50,7 +56,7 @@ evidence `content` of those records ([Evidence and grounding](../../docs/specs/g
   sentence per ranking signal, such as `Matches the theme "hydrology" (1 of 2 given).` Empty
   for a mandated one, and for one asked about that the shortlist did not rank.
 
-Mandated names, and names asked about, with no single re3data record are listed in `not_found`.
+Mandated names, and names in the plan or asked about, with no single re3data record are listed in `not_found`.
 
 ## How it decides
 
@@ -116,16 +122,16 @@ repository or makes a judgement:
   carries no weight, because Figure 3 says paid certification must not outweigh free
   evaluation.
 - **Credit.** Every statement ends by crediting re3data and naming the export it read.
-- **Explanation.** A model is the default; `DD_REPOSITORY_EXPLAINER=template` turns it off. The model
-  writes the rationale only, from `system_prompt.md`, and is sent registry text and the needs,
-  never research data.
+- **Explanation.** By default a model writes the rationale; `DD_REPOSITORY_EXPLAINER=template`
+  writes it from a template and needs no key. The model writes the rationale only, from
+  `system_prompt.md`, and is sent registry text and the needs, never research data.
 
 ## Configuration
 
 - `DD_REPOSITORY_RETRIEVAL`: how FAIRsharing's database records are read: `snapshot` (the
   default) or `live`. The live route is public and needs no account; when it fails the agent falls
   back to the snapshot, marked stale. re3data is always read from the pinned registry.
-- `DD_REPOSITORY_EXPLAINER`: `model` (the default) or `template`, with the provider, model and
+- `DD_REPOSITORY_EXPLAINER`: `model` (the default) or `template`, which needs no key, with the provider, model and
   key as for the standards advisor ([AI models](../../docs/guide/operations/ai-models.md)) ([Policy and identity](../../docs/specs/policy-and-identity.md)).
 
 ## Sources

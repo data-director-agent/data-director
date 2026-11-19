@@ -6,13 +6,8 @@
  * other. A deployment that names no folder, as the shared one does, offers none of this.
  */
 
+import type { About, FolderListing, ServerFolderRoots } from "../api/generated/responses";
 import { json } from "../http";
-
-export interface FolderListing {
-  root: string;
-  path: string;
-  folders: string[];
-}
 
 export interface ServerFolders {
   /** Whether this deployment describes folders on its own machine. Asked once; kept. */
@@ -32,7 +27,7 @@ async function offersFolders(fetcher: Fetch): Promise<boolean> {
   try {
     const response = await fetcher("/api/about");
     if (!response.ok) return false;
-    const about = (await response.json()) as { server_folders?: unknown };
+    const about = (await response.json()) as Partial<About>;
     return about.server_folders === true;
   } catch {
     return false;
@@ -45,7 +40,7 @@ export function makeServerFolders(fetcher: Fetch = (...args) => fetch(...args)):
   return {
     available: () => (available ??= offersFolders(fetcher)),
     async roots(signal) {
-      const found = await json<{ roots: string[] }>(await fetcher("/api/folders", init(signal)));
+      const found = await json<ServerFolderRoots>(await fetcher("/api/folders", init(signal)));
       return found.roots;
     },
     async list(root, path, signal) {

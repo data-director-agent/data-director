@@ -36,21 +36,23 @@ KEY_VARS = tuple(v for key in PROVIDER_KEYS.values() for v in (key, f"{key}_FILE
 # Agents that stop at start-up without a model key, so `start` skips them when they have none.
 MODEL_BACKED = {"orchestrator-model"}
 # Agents whose model is on unless their own setting says `template`, by that setting: every
-# advisor (docs/specs/agents.md, Model-backed personas). Left unset with no key, `start` runs them
-# with `template`; a deployment on a VM is refused until they have a key or are set to `template`.
+# advisor that can call a model (each package's `factory.SWITCH`, which
+# `scripts/tests/test_dev_script.py` checks this against). Left unset with no key, `start` runs
+# them with `template`; a deployment on a VM is refused until they have a key, call through the
+# model broker, or are set to `template`.
 MODEL_BY_DEFAULT = {
-    "advisor-dmp": "DD_DMP_MATCHER",
+    "advisor-standards": "DD_STANDARDS_EXPLAINER",
+    "advisor-policy": "DD_POLICY_ADVISOR",
+    "advisor-repository": "DD_REPOSITORY_EXPLAINER",
     "advisor-documentation": "DD_DOCUMENTATION_WRITER",
-    "advisor-ethics": "DD_ETHICS_READER",
-    "advisor-fairness": "DD_FAIRNESS_WRITER",
+    "advisor-dmp": "DD_DMP_MATCHER",
     "advisor-files": "DD_FILES_SUMMARISER",
     "advisor-linking": "DD_LINKING_SUMMARISER",
-    "advisor-metadata": "DD_METADATA_SUGGESTER",
-    "advisor-policy": "DD_POLICY_ADVISOR",
     "advisor-quality": "DD_QUALITY_SUMMARISER",
-    "advisor-repository": "DD_REPOSITORY_EXPLAINER",
     "advisor-rights": "DD_RIGHTS_INTERPRETER",
-    "advisor-standards": "DD_STANDARDS_EXPLAINER",
+    "advisor-fairness": "DD_FAIRNESS_WRITER",
+    "advisor-ethics": "DD_ETHICS_READER",
+    "advisor-metadata": "DD_METADATA_SUGGESTER",
 }
 NODE_MAJOR = 22  # the oldest Node the shell's toolchain supports (README, "Quick start")
 APP_PORT = 7860  # dd_app's default (DD_APP_PORT)

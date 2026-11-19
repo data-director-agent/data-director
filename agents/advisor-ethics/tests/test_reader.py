@@ -161,7 +161,7 @@ def test_the_prompt_forbids_deciding_how_data_are_handled() -> None:
     assert "anonymisation" in SYSTEM_PROMPT
 
 
-def test_the_template_reader_declares_no_model() -> None:
+def test_the_factory_runs_the_template_reader_when_set_to_it_and_declares_no_model() -> None:
     agent = build({"DD_ETHICS_READER": "template"})
     assert isinstance(agent.reader, TemplateReader)
     assert agent.spec.models == ()
@@ -169,9 +169,12 @@ def test_the_template_reader_declares_no_model() -> None:
         build({"DD_ETHICS_READER": "oracle"})
 
 
-def test_the_model_is_on_by_default_and_says_how_to_turn_it_off() -> None:
+def test_the_model_reader_is_on_by_default_and_says_how_to_run_without_it() -> None:
     with pytest.raises(ConfigError, match="DD_ETHICS_READER=template"):
         build({})
+    agent = build({"ANTHROPIC_API_KEY": "k"})
+    assert isinstance(agent.reader, ModelReader)
+    assert agent.spec.models
 
 
 def test_the_factory_declares_a_configured_model() -> None:

@@ -3,6 +3,8 @@ setting, and the checks `start` and `doctor` make before running anything."""
 
 from __future__ import annotations
 
+import importlib
+import importlib.util
 import os
 import re
 import shutil
@@ -14,6 +16,8 @@ from pathlib import Path
 
 import pytest
 import yaml
+
+from dd_sdk.credentials import ConfigError
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -105,16 +109,48 @@ def test_the_key_goes_only_to_the_agents_that_use_it(repo: Path) -> None:
     assert common.read_env(agents / "orchestrator-model.env") == {
         "ANTHROPIC_API_KEY_FILE": "orchestrator-model-anthropic-api-key"
     }
-    for advisor in common.MODEL_BY_DEFAULT:
-        assert common.read_env(agents / f"{advisor}.env") == {
-            "ANTHROPIC_API_KEY_FILE": f"{advisor}-anthropic-api-key"
+    # Every advisor whose model is on by default is given the key and says so.
+    for agent, switch in common.MODEL_BY_DEFAULT.items():
+        assert common.read_env(agents / f"{agent}.env") == {
+            switch: "model",
+            "ANTHROPIC_API_KEY_FILE": f"{agent}-anthropic-api-key",
         }
-        assert (credentials / f"{advisor}-anthropic-api-key").read_text().strip() == KEY
+        assert (credentials / f"{agent}-anthropic-api-key").read_text().strip() == KEY
     assert (credentials / "orchestrator-model-anthropic-api-key").read_text().strip() == KEY
     for path in (local / "app.env", local / "agents.env", agents / "orchestrator-model.env"):
         assert KEY not in path.read_text()
     for path in (*credentials.iterdir(), agents / "orchestrator-model.env", local / "app.env"):
         assert stat.S_IMODE(path.stat().st_mode) == 0o600
+
+
+def test_declining_the_advisors_gives_the_key_to_the_orchestrator_alone(repo: Path) -> None:
+    setup(scripted("", "", KEY, "n", "y", ""), install=False)
+    local = repo / "config" / "local"
+    assert sorted(p.name for p in (local / "credentials").glob("*anthropic-api-key")) == [
+        "orchestrator-model-anthropic-api-key"
+    ]
+    assert not (local / "agents" / "advisor-standards.env").exists()
+
+
+def test_the_tooling_lists_every_advisor_whose_model_is_on_by_default() -> None:
+    """`MODEL_BY_DEFAULT` is what `start`, `apply` and `doctor` read; each agent's factory is what
+    decides. An advisor left out would run without its key being asked for, or checked."""
+    advisors = sorted(p.name for p in (ROOT / "agents").glob("advisor-*"))
+    on_by_default = {}
+    for name in advisors:
+        module = f"dd_agent_{name.replace('-', '_')}.factory"
+        if importlib.util.find_spec(module) is None:
+            continue  # an advisor that never calls a model has no factory
+        factory = importlib.import_module(module)
+        switch = getattr(factory, "SWITCH", None)
+        if switch is None:
+            continue
+        try:
+            factory.build({})
+        except ConfigError as error:
+            if f"{switch}=template" in str(error):
+                on_by_default[name] = switch
+    assert on_by_default == common.MODEL_BY_DEFAULT
 
 
 def test_a_key_makes_the_model_orchestrator_the_home_pages_with_a_new_version(repo: Path) -> None:

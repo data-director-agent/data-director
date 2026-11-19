@@ -7,15 +7,15 @@
   reads the committed copy; `live` asks FAIRsharing's public route, which needs no account, and
   falls back to the snapshot, marked stale, when it fails. re3data is always read from the
   registry built from its pinned export (`registry.py`, `dd-sources prepare`).
-- `DD_REPOSITORY_EXPLAINER`: `template` or `model` (default), which has a model write the rationale
-  (`anthropic`, its older name, still works).
-- With `model`: `DD_MODEL_PROVIDER` (`anthropic` by default), `DD_MODEL_ID` (Claude Sonnet 5.5
-  by default for Anthropic), `DD_MODEL_BASE_URL` and the provider's key, read at start-up
-  (`dd_sdk.model_provider`, docs/specs/policy-and-identity.md).
+- `DD_REPOSITORY_EXPLAINER`: `model` (default), which has a model write the rationale
+  (`anthropic`, its older name, still works), or `template`, which writes it from a template and
+  needs no key.
+- The model's provider, id and key: as for every advisor (docs/guide/operations/ai-models.md).
 
 An unknown value, or an unusable model setting, is a configuration error
-(`ConfigError`), and `dd-advisor-repository serve` stops at start-up. With
-the model explainer the spec declares the model it sends data to (`AgentSpec.models`).
+(`ConfigError`), and `dd-advisor-repository serve` stops at start-up: with the setting unset and
+no model key, the error says to set `DD_REPOSITORY_EXPLAINER=template` to run without a model.
+With the model explainer the spec declares the model it sends data to (`AgentSpec.models`).
 """
 
 from __future__ import annotations
@@ -23,7 +23,6 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import Literal
 
 from dd_agent_advisor_repository.agent import RepositoryAgent
 from dd_agent_advisor_repository.explain import (
@@ -40,11 +39,10 @@ from dd_sdk.model import declared
 from dd_sdk.model_provider import optional_model
 
 SWITCH = "DD_REPOSITORY_EXPLAINER"
-DEFAULT: Literal["template", "model"] = "model"
 
 
 def build_explainer(env: Mapping[str, str]) -> Explainer:
-    model = optional_model(env, SWITCH, default_model=DEFAULT_MODEL, default=DEFAULT)
+    model = optional_model(env, SWITCH, default_model=DEFAULT_MODEL)
     return TemplateExplainer() if model is None else ModelExplainer(model)
 
 

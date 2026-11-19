@@ -38,8 +38,8 @@ registry lists an agent built against an incompatible one as **incompatible**.
 | `orchestrator-model/` | `orchestrator.model` | `Message` | `delegation` | `Reply` | `dd-orchestrator-model`, port 8107 | The model-backed orchestrator (#21): Claude decides which agents to ask, from the manifest the harness publishes, and writes the reply. It has no tools except those delegations: no MCP server, web search or Skills ([Orchestration](../docs/specs/orchestration.md)). Needs a model key (`orchestrator-model/README.md`). |
 | `advisor-standards/` | `advisor.standards` | `DatasetProfile` | `retrieval` | `Recommendations` | `dd-advisor-standards`, port 8105 | **Alpha.** The Standards Librarian: recommends vocabularies, ontologies and formats from FAIRsharing (committed snapshot, or live with the snapshot as fallback). Ranking rules choose first; a model (on by default) explains each pick, notes doubts and adds records it found with its own searches, each checked by the agent, never removing a rule pick. Configured by `DD_STANDARDS_*` (`advisor-standards/src/dd_agent_advisor_standards/README.md`). |
 | `advisor-policy/` | `advisor.policy` | `PolicyContext` | `retrieval` | `PolicyChecks` | `dd-advisor-policy`, port 8108 | **Alpha.** Phase 2: checks what funder, journal and institutional data and open access policies ask, from FAIRsharing's and Jisc Open Policy Finder's records, with a model (on by default) that searches for more and quotes each obligation from its record, and flags where they differ; also names any repository they require for Phase 3 (`advisor-policy/README.md`). |
-| `advisor-repository/` | `advisor.repository` | `RepositoryNeeds` | `retrieval` | `RepositoryOptions` | `dd-advisor-repository`, port 8109 | **Alpha.** Phase 3: recommends repositories from the whole of re3data (a pinned monthly export), or describes the mandated ones, with PIDs, access, costs and certification as re3data and FAIRsharing record them; a model (on by default; `DD_REPOSITORY_EXPLAINER=template` turns it off) writes each candidate's rationale (`advisor-repository/README.md`). |
-| `advisor-ethics/` | `advisor.ethics` | `SensitivityContext` | `input_only` | `SensitivityFlags` | `dd-advisor-ethics`, port 8111 | **Alpha.** Flags field names that suggest sensitive data, by keyword and by a model (on by default; `DD_ETHICS_READER=template` turns it off) that may add flags but never remove one; asks what must be confirmed about consent and embargo; never decides how the data are treated (`advisor-ethics/README.md`). |
+| `advisor-repository/` | `advisor.repository` | `RepositoryNeeds` | `retrieval` | `RepositoryOptions` | `dd-advisor-repository`, port 8109 | **Alpha.** Phase 3: recommends repositories from the whole of re3data (a pinned monthly export), or describes the mandated ones, with PIDs, access, costs and certification as re3data and FAIRsharing record them (`advisor-repository/README.md`). |
+| `advisor-ethics/` | `advisor.ethics` | `SensitivityContext` | `input_only` | `SensitivityFlags` | `dd-advisor-ethics`, port 8111 | **Alpha.** Flags field names that suggest sensitive data, by keyword and, by default (`DD_ETHICS_READER=template` turns it off), a model that may add flags but never remove one; asks what must be confirmed about consent and embargo; never decides how the data are treated (`advisor-ethics/README.md`). |
 | `advisor-files/` | `advisor.files` | `FileInventory` | `input_only` | `FormatAssessment` | `dd-advisor-files`, port 8110 | **Alpha.** Lists each file of a project's inventory with the format its media type or extension suggests and whether that format is open, and the files whose names, size or digest call for a person to look before deposit, without reading any file. Its model, on by default (`DD_FILES_SUMMARISER=template` turns it off), writes a summary beside those findings and changes none. |
 | `advisor-dmp/` | `advisor.dmp` | `DmpCommitments` | `input_only` | `DmpDiscrepancies` | `dd-advisor-dmp`, port 8112 | **Alpha.** Compares what a data management plan committed to share with what is planned at publication, and flags each difference for human review without enforcing it. Its matcher model, on by default (`DD_DMP_MATCHER=template` turns it off), reads only what the rules leave over: it may merge a missing and an unplanned output into one renamed flag, or reconcile two names for one licence or repository, each shown with its reason. It reads no plan itself yet (#701). |
 | `advisor-fairness/` | `advisor.fairness` | `PublishedRecord` | `input_only` | `FairnessReport` | `dd-advisor-fairness`, port 8117 | **Alpha.** Checks a published dataset's metadata against a short list of FAIR-related presence checks and recommends what to retrofit, without retrieving anything or giving a FAIRness evaluation. Its writer model, on by default (`DD_FAIRNESS_WRITER=template` turns it off), tailors each recommendation to the record; whether a check is met stays by rule (`advisor-fairness/README.md`). Resolving the record and running F-UJI is #704; discovering related datasets is #954. |
@@ -104,6 +104,39 @@ walks the whole of the recipe below with no domain logic in the way, and is comm
 the numbered steps. It is also the check on the claim in the last line of this file.
 `example.hello` has no reason to fail other than the harness. If adding an agent ever needs an
 edit to the conductor, linter, CLI, transports or viewer, this agent will show it.
+
+## Build for reuse
+
+An agent is the contract-bound layer over work that should stand without it. Before writing
+domain logic into an agent, decide which part is reusable by anyone, and build that part as its
+own asset ([System and boundaries](../docs/specs/system.md)):
+
+| The work is | Build it as | Repository |
+|---|---|---|
+| A lookup of or action on an external service or dataset | An MCP server, or a plain Python library | `mcp-<name>`, or a descriptive name |
+| Know-how, a checklist or a procedure a model follows | An Agent Skill (`SKILL.md` with optional scripts and references) | `skills` |
+| A formal artefact (vocabulary snapshot, profile, schema, evaluation set) | Versioned data with its own licence and provenance | descriptive name |
+| Answering a question under the contract, with grounding and evidence | An A2A agent | `agent-<name>`, or here |
+
+The agent then calls the library or MCP server, loads the skill's instructions into its prompt,
+and adds the contract: its classes, its grounding mode and the evidence for what it retrieved.
+Rules that keep this true:
+
+- Agent logic that needs no `dd_sdk` import sits in a module, or a separate package, that does
+  not import it, so the agent file stays thin. `advisor-standards/` is the nearest example: its
+  `fairsharing/` subpackage is a client that almost never imports `dd_sdk`, though it is still
+  inside the agent's package rather than published on its own (TODO(#280)).
+- An agent may use MCP servers and Agent Skills; it must still hash what it retrieved through
+  them and cite it (step 3 below), so a tool's answer is evidence like any other. An orchestrator
+  has no such tools of its own ([Orchestration](../docs/specs/orchestration.md)).
+- Use open standards for every interface: A2A, MCP, Agent Skills, JSON Schema, LinkML. Do not add
+  an agent-only protocol or a private config format where one of these serves.
+- Keep an agent to one question. Compose agents by delegation, not by one agent absorbing
+  another's logic.
+- An agent imports no other agent and nothing outside `sdk/` among workspace members, and reads
+  no path outside its directory, so that it can move to its own repository by copying it.
+- Give the package a README that says what it does, what it depends on, its licence and its
+  version, and say in it which parts are reusable without the contract.
 
 ## Adding an agent
 
@@ -188,9 +221,10 @@ edit to the conductor, linter, CLI, transports or viewer, this agent will show i
    by its version. Bump it to an ordinary `0.1.0`-style version once it is no longer experimental.
 
    An advisor moving from a mock to a model (a model-backed alpha) declares `input_only`, drops
-   the "Mock." prefix and keeps a `template` writer that calls no model, though its model is on by
-   default. The barebones start is `dd_sdk.summary`: a model's summary beside the rules'
-   findings (`advisor-quality/`). Build it to the
+   the "Mock." prefix and defaults to its model, with a `template` writer that calls no model for an
+   operator to select; add its setting to `MODEL_BY_DEFAULT` in `scripts/ddtool/common.py`, which
+   `scripts/tests/test_dev_script.py` checks. The barebones start is `dd_sdk.summary`: a model's
+   summary beside the rules' findings (`advisor-quality/`). Build it to the
    conventions in [Model-backed personas](../docs/specs/agents.md#model-backed-personas): a
    deterministic shell around the model, checked structured output, a recorder for each value a
    model may write, a fake client in its tests, and an evaluation set before it leaves alpha.

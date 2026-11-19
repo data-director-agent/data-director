@@ -149,6 +149,9 @@ export function RepositoryShortlist({
                 )}
                 {repository.basis === "asked_about" && (
                   <span className="status">You asked about this</span>
+                )}
+                {repository.basis === "in_plan" && (
+                  <span className="status">In your plan</span>
                 )}{" "}
                 {chosen && <span className="status status-ok">Chosen</span>}
                 <br />

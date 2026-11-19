@@ -1,8 +1,8 @@
 # advisor.metadata
 
 **Alpha** (`0.2.0a1`), a model-backed alpha (docs/specs/agents.md, invariant 14), and the drafter
-of a project's metadata record (#200). Its model is on by default, and only suggests values
-beside the record's questions (#698).
+of a project's metadata record (#200). Its model is on by default (`DD_METADATA_SUGGESTER=template` turns it off), and it only
+suggests values beside the record's questions (#698).
 
 The Metadata Librarian drafts a metadata record for a dataset, for the researcher to review before
 submission (R2). It serves two steps of the Blueprint's process flow (§8.2):

@@ -4,12 +4,12 @@ The rules in `checks.yaml` decide whether each check is met (`agent.py`); a writ
 the checks that are not, and returns one recommendation for each, in order. It cannot change
 whether a check is met, drop a check or add one.
 
-`TemplateWriter` is the default (`DD_FAIRNESS_WRITER` unset or `template`, `factory.py`): each
-recommendation is the rule table's own text. `ModelWriter` calls whichever model the agent's
-settings name through the SDK's model seam (`dd_sdk.model`, `dd_sdk.model_provider`), so this
-package imports no model provider's SDK (docs/specs/dependencies.md). It is sent the record as the
-researcher gave it and the unmet checks with their template text, and replies against a schema
-(`WriterReply`).
+`ModelWriter` is the default (`DD_FAIRNESS_WRITER` unset or `model`, `factory.py`);
+`TemplateWriter` (`DD_FAIRNESS_WRITER=template`) needs no key, and each recommendation is the rule
+table's own text. `ModelWriter` calls whichever model the agent's settings name through the SDK's
+model seam (`dd_sdk.model`, `dd_sdk.model_provider`), so this package imports no model provider's
+SDK (docs/specs/dependencies.md). It is sent the record as the researcher gave it and the unmet
+checks with their template text, and replies against a schema (`WriterReply`).
 
 What the model returns is checked before it is used (`check`): a recommendation for a check that
 was not sent, an empty or overlong one, or one naming an identifier or address the record does not

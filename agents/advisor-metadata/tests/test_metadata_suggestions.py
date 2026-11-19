@@ -198,14 +198,17 @@ def test_an_invented_identifier_or_an_unasked_question_is_dropped() -> None:
 
 
 def test_the_template_build_suggests_nothing_and_needs_no_key() -> None:
-    agent = build({"DD_METADATA_SUGGESTER": "template"})
+    agent = build({SWITCH: "template"})
     assert isinstance(agent.suggester, TemplateSuggester)
     assert agent.spec.models == ()
 
 
-def test_the_model_is_on_by_default_and_says_how_to_turn_it_off() -> None:
-    with pytest.raises(ConfigError, match="DD_METADATA_SUGGESTER=template"):
+def test_the_model_suggester_is_on_by_default_and_says_how_to_run_without_it() -> None:
+    with pytest.raises(ConfigError, match=f"{SWITCH}=template"):
         build({})
+    agent = build({"ANTHROPIC_API_KEY": "sk-test"})
+    assert isinstance(agent.suggester, ModelSuggester)
+    assert agent.spec.models
 
 
 def test_the_model_suggester_is_declared_on_the_card() -> None:

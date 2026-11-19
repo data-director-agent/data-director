@@ -10,7 +10,7 @@ lines = 761
 
 [[file]]
 path = "agents/orchestrator-model/src/dd_agent_orchestrator_model/agent.py"
-lines = 586
+lines = 585
 
 [[file]]
 path = "app/src/dd_app/governance.py"
@@ -19,10 +19,6 @@ lines = 679
 [[file]]
 path = "app/web/src/components/inventory/InventoryView.tsx"
 lines = 649
-
-[[file]]
-path = "app/web/src/project/api.ts"
-lines = 721
 
 [[file]]
 path = "harness/src/dd_harness/deposit.py"

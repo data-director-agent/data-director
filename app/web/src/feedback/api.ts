@@ -8,18 +8,12 @@
 
 import { createContext, useContext } from "react";
 
+import type { About, FiledIssue } from "../api/generated/responses";
 import { json } from "../http";
 
-export type FeedbackKind = "bug" | "feature" | "other";
+export type { About, FiledIssue } from "../api/generated/responses";
 
-export interface About {
-  app_version: string | null;
-  harness_version: string | null;
-  commit: string | null;
-  feedback_enabled: boolean;
-  /** The operator's privacy notice for this instance, or null if it has set none. */
-  privacy_notice_url: string | null;
-}
+export type FeedbackKind = "bug" | "feature" | "other";
 
 export interface Report {
   kind: FeedbackKind;
@@ -29,11 +23,6 @@ export interface Report {
   run?: string;
   conversation?: string;
   include_context: boolean;
-}
-
-export interface FiledIssue {
-  url: string;
-  number: number;
 }
 
 export interface FeedbackApi {

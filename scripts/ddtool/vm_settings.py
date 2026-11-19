@@ -9,11 +9,11 @@ from pathlib import Path
 from ddtool.common import (
     KEY_VARS,
     MODEL_BACKED,
-    MODEL_BY_DEFAULT,
     PROVIDER_KEYS,
     Agent,
     DevError,
     compare_profile,
+    model_on_by_default,
 )
 from ddtool.deployment import Place, plan
 from ddtool.model_access import file_label, vm_model_access
@@ -64,9 +64,7 @@ class SettingsChecks(Checks):
         """Why agent `name`, which runs with its own settings `own`, lacks the model credentials
         it starts with, and the fix; None if it calls no model or has them."""
         provider = own.get("DD_MODEL_PROVIDER") or "anthropic"
-        uses_model = name in MODEL_BACKED or own.get(
-            MODEL_BY_DEFAULT.get(name, ""), "model" if name in MODEL_BY_DEFAULT else "template"
-        ) in ("model", "anthropic")
+        uses_model = name in MODEL_BACKED or model_on_by_default(name, own)
         if not uses_model:
             return None
         # The secret's name gives the variable the agent reads it from (deploy/credentials.sh).

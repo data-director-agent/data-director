@@ -38,6 +38,7 @@ import type { ProcessFlow, ProjectProgress } from "../../flow/types";
 import { type Directory, normalise } from "../../manifest/normalise";
 import type { RawAgentsResponse, RawManifestEntry } from "../../manifest/types";
 import runFixture from "../../../fixtures/run-succeeded.json";
+import { conversationSummary, projectProgress, savedInventory } from "../../test/api";
 import { type RunApi, RunApiContext, RunRefused } from "../../run/api";
 import type { Problem, RunResult } from "../../run/types";
 import { cassetteTransport, RunTransportContext, type RunTransport } from "../../run/transport";
@@ -757,15 +758,13 @@ describe("ConversationHome", () => {
     localStorage.setItem("dd-project", projectId);
     const list = () =>
       Promise.resolve([
-        {
+        conversationSummary({
           conversation_id: "c9",
           agent_id: "orchestrator.stub",
           title: "Depositing a soil survey",
-          title_source: "model" as const,
           turns: 2,
-          started_at: "2026-01-01T09:30:00Z",
           project_id: projectId,
-        },
+        }),
       ]);
     renderHome(withOrchestrator(), fakeApi({ list }));
     await userEvent.click(
@@ -811,15 +810,13 @@ describe("ConversationHome", () => {
       localStorage.setItem("dd-project", projectId);
       const list = () =>
         Promise.resolve([
-          {
+          conversationSummary({
             conversation_id: "c9",
             agent_id: "orchestrator.stub",
             title: "Depositing a soil survey",
-            title_source: "model" as const,
             turns: 2,
-            started_at: "2026-01-01T09:30:00Z",
             project_id: projectId,
-          },
+          }),
         ]);
       renderHome(withOrchestrator(), fakeApi({ list }));
       await userEvent.click(await screen.findByRole("button", { name: /^Depositing a soil survey / }));
@@ -854,15 +851,7 @@ describe("ConversationHome", () => {
       conversation_id: string,
       title: string,
       project_id: string,
-    ) => ({
-      conversation_id,
-      project_id,
-      agent_id: "orchestrator.stub",
-      title,
-      title_source: "model" as const,
-      turns: 1,
-      started_at: "2026-01-01T09:30:00Z",
-    });
+    ) => conversationSummary({ conversation_id, project_id, agent_id: "orchestrator.stub", title });
     const list = () =>
       Promise.resolve([
         summary("c9", "Soil survey", LOGGERS.project_id),
@@ -1103,12 +1092,12 @@ describe("ConversationHome", () => {
     it("links to the conversation's project and says what inventory it holds", async () => {
       const held: Conversation = {
         ...CONVERSATION,
-        inventory: {
+        inventory: savedInventory({
           digest: "d",
           file_count: 42,
           inventory_made_at: "2026-11-01T09:00:00Z",
           added_at: "x",
-        },
+        }),
       };
       const get = vi
         .fn()
@@ -1412,11 +1401,11 @@ describe("ConversationHome", () => {
       if (!found) throw new Error(`no step ${id} in the fixture`);
       return found.label;
     };
-    const AT_ENTRY_TWO: ProjectProgress = {
+    const AT_ENTRY_TWO: ProjectProgress = projectProgress({
       entry: 2,
       steps: { "preparation.files": "done" },
       suggested: "governance.policies",
-    };
+    });
 
     function withProgress(overrides: Partial<ProjectApi> = {}): ProjectApi {
       return {
@@ -1460,14 +1449,16 @@ describe("ConversationHome", () => {
     it("records a step marked, or the entry point chosen, and draws what the server reads back", async () => {
       localStorage.setItem("dd-project", LOGGERS.project_id);
       const markStep = vi.fn(() =>
-        Promise.resolve<ProjectProgress>({
-          entry: 2,
-          steps: {
-            "preparation.files": "done",
-            "governance.policies": "skipped",
-          },
-          suggested: "governance.sensitive-data-identify",
-        }),
+        Promise.resolve(
+          projectProgress({
+            entry: 2,
+            steps: {
+              "preparation.files": "done",
+              "governance.policies": "skipped",
+            },
+            suggested: "governance.sensitive-data-identify",
+          }),
+        ),
       );
       const chooseEntry = vi.fn(() =>
         Promise.resolve<ProjectProgress>({ ...AT_ENTRY_TWO, entry: 3 }),
@@ -1508,12 +1499,7 @@ describe("ConversationHome", () => {
 
     it("suggests nothing for Phase 1 while no entry point is recorded", async () => {
       localStorage.setItem("dd-project", LOGGERS.project_id);
-      const unknown: ProjectProgress = {
-        entry: null,
-        entry_source: null,
-        steps: {},
-        suggested: null,
-      };
+      const unknown: ProjectProgress = projectProgress();
       renderHome(
         withOrchestrator(),
         fakeApi(),
@@ -1654,12 +1640,7 @@ describe("ConversationHome", () => {
         fakeApi(),
         FLOW,
         withProgress({
-          progress: () =>
-            Promise.resolve<ProjectProgress>({
-              entry: null,
-              steps: {},
-              suggested: null,
-            }),
+          progress: () => Promise.resolve(projectProgress()),
         }),
       );
       const phases = await screen.findByRole("navigation", {

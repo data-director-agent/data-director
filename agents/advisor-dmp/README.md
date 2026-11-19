@@ -43,7 +43,7 @@ Rules first:
   both sides give them, and each difference is listed.
 - It abstains with `insufficient_input` when no committed outputs are given.
 
-Then, with a matcher model configured (`DD_DMP_MATCHER=model`), the model is given only what the
+Then, with the matcher model on (the default; `DD_DMP_MATCHER=template` turns it off), the model is given only what the
 rules left over: the missing and unplanned outputs, and the differing values. Nothing the rules
 matched exactly is sent, nor the plan's identifier. It may propose:
 
@@ -64,7 +64,7 @@ It reads only its input, so its grounding mode is `input_only` and it cites only
 
 | Setting | Values |
 |---|---|
-| `DD_DMP_MATCHER` | `model` (default): a model reads what the rules leave over (`anthropic` names the same with the Anthropic provider). `template`: rules only, no model, no key. The model and its key are set as for every agent ([AI models](../../docs/guide/operations/ai-models.md)). |
+| `DD_DMP_MATCHER` | `model` (default): a model reads what the rules leave over (`anthropic` names the same with the Anthropic provider); with no key and no broker credential the agent stops at start-up and says to set `template`. `template`: rules only, no model, no key. The model and its key are set as for every agent ([AI models](../../docs/guide/operations/ai-models.md)). |
 
 ## What it does not do
 

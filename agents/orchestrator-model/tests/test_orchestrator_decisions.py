@@ -5,6 +5,7 @@ researcher chose has not been chosen."""
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -15,7 +16,13 @@ from dd_agent_orchestrator_model.agent import conversation
 from dd_agent_orchestrator_model.prompt import SYSTEM_PROMPT
 from dd_harness.projects import FactVerdict
 from dd_harness.testing import TEST_PRINCIPAL
-from dd_sdk.contract.models import ChosenRepository, Message, OutcomeStatus, ProjectFact
+from dd_sdk.contract.models import (
+    ChosenRepository,
+    DocumentationSummary,
+    Message,
+    OutcomeStatus,
+    ProjectFact,
+)
 
 pytestmark = pytest.mark.requirement("DD-CONVERSATION")
 
@@ -118,3 +125,49 @@ def test_a_decision_in_the_project_reaches_the_model_on_a_later_turn(tmp_path: P
 
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     assert LICENCE["licence_id"] in model.sent[1]["messages"][-1]["content"]
+
+
+PLAN = DocumentationSummary(
+    documentation_name="DMP.docx",
+    documentation_digest="d" * 64,
+    documentation_media_type="text/markdown",
+    documentation_size=100,
+    documentation_added_at=datetime(2026, 11, 19, tzinfo=UTC),
+)
+
+
+def test_an_attached_plan_not_yet_read_is_said_to_be_unread() -> None:
+    """#1233: a plan attached but not read must not leave a generalist shortlist unexplained."""
+    message = Message(
+        message_text="Where should I deposit?",
+        project_title_by_researcher=True,
+        project_title="P",
+        project_documentation=[PLAN],
+    )
+    text = current(message)
+    assert '"DMP.docx"' in text
+    assert "no attached plan has been read for a repository" in text
+    assert "Data Management Plan check" in text
+
+
+def test_once_a_commitment_is_confirmed_the_plan_is_not_said_to_be_unread() -> None:
+    message = Message(
+        message_text="Where should I deposit?",
+        project_title_by_researcher=True,
+        project_title="P",
+        project_documentation=[PLAN],
+        project_decisions=[ProjectFact.model_validate(FACTS[-1])],
+    )
+    text = current(message)
+    assert '"DMP.docx"' in text
+    assert "not been read" not in text
+
+
+def test_without_documents_there_is_no_documents_note() -> None:
+    bare = Message(message_text="Hello", project_title_by_researcher=True, project_title="P")
+    assert "attached to the project" not in current(bare)
+
+
+def test_the_prompt_says_an_unread_plan_is_unread() -> None:
+    assert "the plan has not been read for a repository" in SYSTEM_PROMPT
+    assert "described as the plan's" in SYSTEM_PROMPT

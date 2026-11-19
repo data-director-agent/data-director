@@ -17,7 +17,51 @@
 # the merge queue, the weekly run or a run started by hand.
 #
 #   git diff --name-only main... | bash scripts/ci_changes.sh
+#
+# With --release, for a pull request from release-please's branch, a change that only bumps
+# versions (the changelogs, the manifest, `version` lines in pyproject.toml, uv.lock and the app's
+# package files) sets every output to false: no code changed, and the merge queue runs every job on
+# the result before it reaches main. The paths and the lines changed decide, not the branch name, so
+# anything else on that branch falls through to the rules below. Run it where HEAD^1..HEAD is what
+# the pull request changes (a pull request's merge commit).
 set -euo pipefail
+
+# Whether every line of `git diff` for a file, other than its header, changes only a version.
+only_version_lines() {
+  local pattern="$1" file="$2" line
+  while IFS= read -r line; do
+    [[ "$line" =~ $pattern ]] || return 1
+  done < <(git -c core.quotepath=off diff -U0 --no-renames HEAD^1 HEAD -- "$file" | grep -E '^[+-]' | grep -vE '^(\+\+\+|---) ')
+}
+
+# Whether the paths in $1 (one per line) only bump versions.
+is_version_bump() {
+  local f any=false
+  while IFS= read -r f; do
+    case "$f" in
+      "") continue ;;
+      CHANGELOG.md | */CHANGELOG.md | .release-please-manifest.json) ;;
+      pyproject.toml | */pyproject.toml | uv.lock)
+        only_version_lines '^[+-]version = "[^"]*"$' "$f" || return 1 ;;
+      app/web/package.json | app/web/package-lock.json)
+        only_version_lines '^[+-] *"version": "[^"]*",?$' "$f" || return 1 ;;
+      *) return 1 ;;
+    esac
+    any=true
+  done <<< "$1"
+  [ "$any" = true ]
+}
+
+if [ "${1:-}" = --release ]; then
+  paths=$(cat)
+  if is_version_bump "$paths"; then
+    echo "release: only versions change" >&2
+    for output in python web inventory deploy gateway docs; do echo "$output=false"; done
+    echo "codeql=[]"
+    exit 0
+  fi
+  exec bash "$0" <<< "$paths"
+fi
 
 if [ "${1:-}" = --all ]; then
   echo "python=true"
@@ -52,6 +96,9 @@ while IFS= read -r f; do
       python=true deploy=true ;;
     # app/tests writes app/web/fixtures and checks that they are current.
     app/web/fixtures/*) python=true web=true ;;
+    # The shell's API types are generated from the app's response models; the "mypy and
+    # generated schemas" job checks that they are current.
+    app/web/src/api/generated/*) python=true web=true ;;
     # The inventory library's readme is also on the documentation site.
     inventory/browser/README.md) web=true docs=true ;;
     # How to make an inventory, which the user guide renders too (docs/hooks_inventory.py).
