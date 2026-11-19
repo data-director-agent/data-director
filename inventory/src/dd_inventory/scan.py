@@ -310,6 +310,7 @@ def _describe(
             limitations.append(f"The fields of {relative} could not be inferred: {exc}")
         else:
             entry["file_fields"] = table.fields
+            limitations += table.limitations(str(relative))
             if check is not None:
                 check.table(str(relative), table)
     return entry

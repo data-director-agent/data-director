@@ -131,6 +131,20 @@ def test_a_table_whose_fields_cannot_be_inferred_is_listed_and_said_so(
     assert any("data/broken.csv" in note for note in made["inventory_limitations"])
 
 
+def test_missing_value_markers_do_not_make_a_number_a_string(dataset: Path) -> None:
+    # #1070: `NA` gaps in a numeric column, and a column empty for the whole sample.
+    rows = ["ts,rh,pm25"] + [f"{i},{'NA' if i % 7 == 0 else 50.5},," for i in range(1100)]
+    rows += [f"{i},51.5,{i / 10}" for i in range(1100, 1200)]
+    (dataset / "data" / "loggers.csv").write_text("\n".join(rows) + "\n", encoding="utf-8")
+    made = make_inventory(dataset)
+    types_ = {f["name"]: f["field_type"] for f in _by_path(made)["data/loggers.csv"]["file_fields"]}
+    assert types_["rh"] == "number"
+    assert types_["pm25"] == "any"
+    said = [n for n in made["inventory_limitations"] if "data/loggers.csv" in n]
+    assert any("`NA`" in n for n in said)
+    assert any("`pm25`" in n for n in said)
+
+
 def test_hidden_files_and_links_are_skipped_and_counted(dataset: Path) -> None:
     (dataset / ".DS_Store").write_bytes(b"\x00")
     (dataset / ".git").mkdir()
