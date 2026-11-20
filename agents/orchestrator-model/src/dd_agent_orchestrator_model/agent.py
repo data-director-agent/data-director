@@ -15,7 +15,9 @@ The model is sent the last `history_turns` turns of `Message.history`, oldest fi
 current message. Every turn is still covered by the input hash; what was sent follows from the
 input and the setting. When the conductor says the project holds an inventory
 (`Message.project_inventory`, docs/specs/projects.md), the current message opens with a note of it
-from the harness, so the model neither asks for one nor copies one into an agent's input. In a
+from the harness, so the model neither asks for one nor copies one into an agent's input; it says
+too how many files the inventory it replaced listed, and another note gives the latest version of
+each drafted document and whether it follows the current inventory (#1280). In a
 project, a second note says which entry point the researcher chose, which steps the project log
 shows started, done or skipped, and the step `suggested_next` names (docs/specs/orchestration.md):
 the model keeps no place in the flow of its own, and the prompt stays the same on every run.

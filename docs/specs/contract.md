@@ -192,6 +192,14 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
     `GivenProjectRepository` ([Projects](projects.md), invariants 6 and 8;
     [Orchestration](orchestration.md), invariant 21; #1168). Adding them raised the contract
     version to 0.17.0.
+29. A `Message` may carry `project_drafts`, one `DraftSummary` per document drafted in the
+    project: its kind, its latest version's number and state, and whether that version was drafted
+    after the project's inventory was last added (`drafted_since_inventory`), never its text. An
+    `InventorySummary` may say when the inventory was added (`inventory_added_at`) and how many
+    files the inventory it replaced listed (`inventory_revised_from_file_count`). Only the
+    conductor fills them in a project ([Projects](projects.md), invariant 6;
+    [Orchestration](orchestration.md), invariant 22; #1280). Adding them raised the contract
+    version to 0.18.0.
 
 ## Boundaries and contracts
 
