@@ -54,6 +54,16 @@ DATA = HERE / "data"
 CONFIG_VARIABLES = ("DD_DOCUMENTATION_WRITER", "DD_MODEL_PROVIDER", "DD_MODEL_ID")
 # What a base takes from its request: the rest is the case's to set.
 BASE_KEYS = ("inventory", "requirements", "metadata_record")
+# The version a README case redrafts, unless the case is `first`: the note the first run left
+# when it asked what the README needs (docs/specs/drafting.md), so that the case scores the
+# README itself.
+ASKED_FIRST = {
+    "version_ref": {"document_id": "01900000-0000-7000-8000-000000000001", "version": 1},
+    "document_title": "README",
+    "media_type": "text/markdown",
+    "document_text": "# README\n\n_This is not the README yet._\n",
+    "version_state": "proposed",
+}
 
 
 def _read(name: str) -> dict[str, Any]:
@@ -93,6 +103,8 @@ def load_cases(path: Path = CASES) -> list[dict[str, Any]]:
                 {"answered_question": a["question_id"], "answer_text": a["text"]} for a in answers
             ],
         }
+        if case["kind"] == "readme" and not case.get("first"):
+            request["current_version"] = ASKED_FIRST
         case["answers"] = answers
         case["input"] = request
         case["gold"] = spec.get("gold", {}).get(case["base"], {})

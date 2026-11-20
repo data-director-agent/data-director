@@ -1,10 +1,13 @@
 """Writers: the README's prose, drafted from the project's facts (docs/specs/drafting.md).
 
 A writer is given the facts the README is drafted from and the sections it may write about, and
-returns a short paragraph for some of them and an overview of the dataset. It writes nothing else:
-the gaps, their questions, the tables and the values placed from the metadata record are drafted
-by rule in `agent.py`, so a writer cannot close a gap, change a value or rephrase an answer. It is
-never given the researcher's answers or an earlier version.
+returns a short paragraph for some of them and an overview of the dataset. Once the researcher has
+answered a section, the writer is also given their answers (`researcher_answers`, by heading), the
+project's decisions and the documents they attached, and may write that section's paragraph from
+them; the paragraph then takes the place of the answer as given. It writes nothing else: the gaps,
+their questions, the tables and the values placed from the metadata record are drafted by rule in
+`agent.py`, so a writer cannot close a gap or change a value. It is never given an earlier
+version.
 
 `ModelWriter` is the default (`DD_DOCUMENTATION_WRITER` unset or `model`, `factory.py`) and calls
 whichever model the agent's settings name through the SDK's model seam (`dd_sdk.model`,
@@ -30,11 +33,12 @@ A suggestion is offered with the question and never placed in the document
 (docs/specs/drafting.md, invariant 7). It is given the same facts as the prose and checked as
 strictly (`check_suggestions`); `TemplateWriter` suggests nothing.
 
-Only a suggestion is also given the documents the researcher attached to the project
+A suggestion is also given the documents the researcher attached to the project
 (`with_documents`), the latest first and at most `MAX_DOCUMENTS` characters of them, so that what
 their field notes or protocol say can be offered as an answer for them to confirm. Their text is
 the researcher's, given as data and never as instructions, and a suggestion may name what it
-gives. The prose is never given them: a paragraph is written into the draft unasked.
+gives. The prose is given them only alongside the researcher's answers, to write the sections they
+answered: never to write a section no one has answered.
 """
 
 from __future__ import annotations
@@ -288,7 +292,7 @@ def prompt(facts: Mapping[str, Any], sections: Sequence[str]) -> str:
 
 # What a paragraph may not contain: Markdown structure, HTML (the gap markers among it), and the
 # template's placeholder, any of which would let prose pass for something it is not.
-_NOT_PROSE = re.compile(r"^\s*(#|\||[-*+]\s|\d+[.)]\s|>)|<|To be written by", re.MULTILINE)
+_NOT_PROSE = re.compile(r"^\s*(#|\||[-*+]\s|\d+[.)]\s|>)|<|Still needed:", re.MULTILINE)
 # What a paragraph may name only if the facts contain it, as written.
 _NAMED = (
     re.compile(r"https?://\S+?(?=[.,;:)]?(?:\s|$))"),  # a link
@@ -368,9 +372,7 @@ def suggestion_prompt(facts: Mapping[str, Any], asks: Sequence[Ask]) -> str:
 
 
 # What a suggestion may not contain: Markdown structure, HTML, a line break or the placeholder.
-_NOT_A_SUGGESTION = re.compile(
-    r"^\s*(#|\||[-*+]\s|\d+[.)]\s|>)|<|\n|To be written by", re.MULTILINE
-)
+_NOT_A_SUGGESTION = re.compile(r"^\s*(#|\||[-*+]\s|\d+[.)]\s|>)|<|\n|Still needed:", re.MULTILINE)
 
 
 def check_suggestions(

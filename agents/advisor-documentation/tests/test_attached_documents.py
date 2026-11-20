@@ -26,6 +26,7 @@ from dd_agent_advisor_documentation.prose import (
 from dd_sdk.contract.models import (
     Derivation,
     Document,
+    DraftAnswer,
     DraftRequest,
     OutcomeStatus,
     ProjectDocument,
@@ -82,7 +83,10 @@ def test_a_suggestion_may_come_from_an_attached_document_and_is_never_written(
     assert document.document_derivation == Derivation.TEMPLATE
 
 
-def test_the_readme_prose_is_never_given_attached_documents(runs_dir: Path) -> None:
+def test_the_readme_prose_is_given_attached_documents_only_with_an_answer(
+    runs_dir: Path,
+) -> None:
+    """Attached documents may inform a section the researcher answered, never one no one has."""
     asked = with_notes(sample(README))
     client = StubClient({}, suggestions={})
     env, _ = draft(runs_dir, client, asked)
@@ -90,6 +94,15 @@ def test_the_readme_prose_is_never_given_attached_documents(runs_dir: Path) -> N
     by_system = {s["system"]: s["messages"][0]["content"] for s in client.sent}
     assert NOTES not in by_system[SYSTEM_PROMPT]
     assert DOCUMENTS in facts_sent(by_system[SUGGEST_README_PROMPT])
+
+    # Once the researcher answers Methods, the prose is given their documents to write it from.
+    template = template_draft(runs_dir, asked)
+    (methods,) = [q for q in template.document_questions if q.gap_section == "Methods"]
+    answer = DraftAnswer(answered_question=methods.question_id, answer_text="As my notes say.")
+    client = StubClient({}, suggestions={})
+    draft(runs_dir, client, asked.model_copy(update={"draft_answers": [answer]}))
+    by_system = {s["system"]: s["messages"][0]["content"] for s in client.sent}
+    assert NOTES in by_system[SYSTEM_PROMPT]
 
 
 def test_without_attached_documents_the_model_is_given_none(runs_dir: Path) -> None:

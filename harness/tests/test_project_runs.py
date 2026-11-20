@@ -424,6 +424,7 @@ def test_a_message_in_a_project_is_told_what_its_inventory_is(
         "inventory_tool": "dd-inventory",
         "inventory_tool_version": "0.1.0",
         "inventory_made_at": "2026-10-30T00:00:00Z",
+        "inventory_added_at": added["at"],
         # The kinds of files, so that the orchestrator need not ask for them (#1287).
         "inventory_formats": [
             {
@@ -797,6 +798,115 @@ def test_a_redraft_is_the_next_version_of_the_document_and_is_given_the_decision
     assert [v["version"] for v in document["versions"]] == [1, 2]
     assert document["versions"][1]["revises"] == given["version_ref"]
     assert document["versions"][1]["state"] == PROPOSED
+
+
+def told(conductor: Conductor, conversation: str, runs: Path) -> dict[str, Any]:
+    """What a `Message` in `conversation` is given from its project."""
+    env = conductor.invoke(
+        in_conversation(request("stub.abstain", message()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+    return stored_input(runs, env.invocation_id)
+
+
+def latest_versions(projects: ProjectStore, project: str) -> list[tuple[str, int]]:
+    return [(d["document_kind"], d["versions"][-1]["version"]) for d in projects.documents(project)]
+
+
+@pytest.mark.requirement("C13.3")
+def test_a_message_is_told_the_inventory_was_revised_and_which_drafts_follow_it(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """After a researcher leaves files out in Edit inventory, which adds a new inventory without
+    them, the next turn is told how many files the replaced inventory listed, and that the draft
+    made before it does not follow it until it is drafted again (#1280)."""
+    runs = tmp_path / "runs"
+    conductor = conductor_over(runs, projects, AbstainingStub(), DocumentStub())
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    assert "project_drafts" not in told(conductor, conversation, runs)
+    drafted(conductor, conversation)
+    assert told(conductor, conversation, runs)["project_drafts"] == [
+        {
+            "document_kind": "readme",
+            "version": 1,
+            "version_state": "proposed",
+            "drafted_since_inventory": True,
+        }
+    ]
+
+    projects.add_inventory(
+        project, as_doc(inventory("a.csv")), acted_for=TEST_PRINCIPAL, caused_by="test"
+    )
+    given = told(conductor, conversation, runs)
+    assert given["project_inventory"]["inventory_file_count"] == 1
+    assert given["project_inventory"]["inventory_revised_from_file_count"] == 2
+    assert given["project_drafts"][0]["drafted_since_inventory"] is False
+
+    redraft = drafted(conductor, conversation)
+    assert "files=1" in redraft.payload_as(Document).document_text
+    assert told(conductor, conversation, runs)["project_drafts"] == [
+        {
+            "document_kind": "readme",
+            "version": 2,
+            "version_state": "proposed",
+            "drafted_since_inventory": True,
+        }
+    ]
+
+
+@pytest.mark.requirement("C13.3")
+@pytest.mark.parametrize("redrafts", [0, 1, 3])
+def test_a_message_is_never_told_of_a_version_older_than_the_latest(
+    tmp_path: Path, projects: ProjectStore, project: str, redrafts: int
+) -> None:
+    """Every turn's context names the latest version of every drafted document, never an earlier
+    one, however many times each was drafted, edited or decided (#1280)."""
+    runs = tmp_path / "runs"
+    conductor = conductor_over(runs, projects, AbstainingStub(), DocumentStub())
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    drafted(conductor, conversation, DocumentKind.DATA_DICTIONARY)
+    for _ in range(redrafts + 1):
+        drafted(conductor, conversation)
+    readme = next(d for d in projects.documents(project) if d["document_kind"] == "readme")
+    latest = readme["versions"][-1]
+    projects.decide(
+        project,
+        Decision(readme["document_id"], latest["version"], latest["digest"], REJECTED, "No."),
+        acted_for=TEST_PRINCIPAL,
+        caused_by="test",
+    )
+
+    given = told(conductor, conversation, runs)["project_drafts"]
+    assert [(d["document_kind"], d["version"]) for d in given] == latest_versions(projects, project)
+    assert given[1] == {
+        "document_kind": "readme",
+        "version": redrafts + 1,
+        "version_state": "rejected",
+        "drafted_since_inventory": True,
+    }
+
+
+@pytest.mark.requirement("C13.3")
+def test_a_caller_may_not_say_which_drafts_a_project_holds(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    runs = tmp_path / "runs"
+    conductor = conductor_over(runs, projects, AbstainingStub())
+    forged = OpenInput.model_validate(
+        {
+            **message().model_dump(mode="json"),
+            "project_drafts": [
+                {"document_kind": "readme", "version": 9, "version_state": "approved"}
+            ],
+        }
+    )
+    in_project = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    for conversation in (in_project, None):
+        env = conductor.invoke(
+            request("stub.abstain", forged).model_copy(update={"conversation_id": conversation}),
+            acting_for=TEST_PRINCIPAL,
+        )
+        assert "project_drafts" not in stored_input(runs, env.invocation_id)
 
 
 @pytest.mark.requirement("C13.3")

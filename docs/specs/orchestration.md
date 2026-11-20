@@ -280,6 +280,19 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     decided, since a profile may keep `decisions` from a hosted model ([Projects](projects.md),
     invariant 8). (#1168; `agents/orchestrator-model/tests/test_orchestrator_decisions.py`;
     `harness/tests/test_project_repository_given.py`)
+22. **The model speaks of the latest draft, and of the inventory as it now is.** A drafted
+    document reaches the model within a turn as the drafter's result, and in later turns only as
+    its own earlier replies, which describe the version it saw then. So, in a project, the
+    inventory note says when the inventory replaced an earlier one and how many files that one
+    listed (`InventorySummary.inventory_revised_from_file_count`), as when a researcher leaves
+    files out in Edit inventory, without naming what was left out; and a note gives the latest
+    version of each drafted document, its state, and whether it was drafted since the inventory
+    was last added (`Message.project_drafts`). Both are derived from the project record on every
+    turn. The prompt tells the model that such a revision has taken effect, and to say which
+    files a draft lists only from a draft's text in this turn's results, never from its memory
+    of an earlier version. (#1280;
+    `agents/orchestrator-model/tests/test_orchestrator_inventory_revision.py`;
+    `harness/tests/test_project_runs.py`)
 
 ## Boundaries and contracts
 

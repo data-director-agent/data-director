@@ -229,6 +229,7 @@ in one write.
 | `document_title`, `conforms_to` | As the `Document` gave them, if it did. |
 | `revises` | `{document_id, version}` of the version it replaces or was edited from, if any. |
 | `drafted_by` | For an agent's version only: `agent_id`, `agent_version`, `invocation_id` and `document_derivation`. |
+| `stage` | `questions` for an agent's version that only asks what it needs before the document is written (`document_stage`, [Drafting documents](../../docs/specs/drafting.md)); such a version cannot be decided. Absent for a draft, which the fold reads as `draft`. |
 | `questions` | For an agent's version that asks any: its `document_questions` as the `Document` gave them ([Drafting documents](../../docs/specs/drafting.md)). A person's version asks none. |
 
 `document_version_decided` also gives `document_id`, `version`, `digest`, `decision`
@@ -256,7 +257,9 @@ their kind and subject has followed, the latest for each.
 
 `document_change_refused` records a decision, edit or answer refused because it named no document
 of the project (`document-not-found`), not the latest version (`version-not-latest`), a version
-already decided (`version-decided`), another text (`digest-mismatch`) or a question the latest
+already decided (`version-decided`), a decision on a version that only asks questions before
+its document is written (`version-not-a-draft`, docs/specs/drafting.md), another text
+(`digest-mismatch`) or a question the latest
 version does not ask (`question-not-asked`), or a decision on a fact that named a proposal the
 project does not hold (`proposal-not-found`) or changed a proposal's kind or subject
 (`fact-not-proposed`), which gives the `proposal` named. It gives `document_id` and `version` as sent, the

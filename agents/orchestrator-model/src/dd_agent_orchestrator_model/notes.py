@@ -1,6 +1,7 @@
 """Notes from the harness about the project, which open the current message (`agent.py`): what
-the project is called, what people in it chose or decided, and which documents are attached
-and whether a plan among them has been read for a repository (docs/specs/orchestration.md).
+its inventory is and whether it replaced an earlier one, what the project is called, what people
+in it chose or decided, which documents are attached and whether a plan among them has been read
+for a repository, and the latest version of each drafted document (docs/specs/orchestration.md).
 
 Each note is written from the slots the conductor fills on a `Message` (docs/specs/projects.md),
 never from the conversation, so it is current on every turn, however new or long the
@@ -11,41 +12,13 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
-from datetime import UTC
+from datetime import UTC, datetime
 
 from dd_agent_orchestrator_model.own_tools import NAME_TOOL
 from dd_sdk.contract.facts import FactKind, InventoryFormat, ProjectFact
-from dd_sdk.contract.models import Message
+from dd_sdk.contract.models import DraftSummary, Message
 
 LEAD = "[From the harness, not the researcher] "
-
-
-def inventory_note(message: Message) -> str | None:
-    """What the harness says of the project's inventory, or None if the project holds none: how
-    many files, what kinds and how many tables, so that the model states the kinds of data for the
-    researcher to confirm instead of asking for them (#1287)."""
-    held = message.project_inventory
-    if held is None:
-        return None
-    made = held.inventory_made_at.astimezone(UTC).strftime("%Y-%m-%d %H:%M UTC")
-    note = (
-        LEAD + "The project holds an inventory of the dataset: "
-        f"{_files(held.inventory_file_count)}, made {made} by {held.inventory_tool} "
-        f"{held.inventory_tool_version}."
-    )
-    if held.inventory_formats:
-        kinds = "; ".join(_format(group) for group in held.inventory_formats)
-        note += f" By media type: {kinds}."
-    if held.inventory_table_count == 1:
-        note += " 1 file is a table whose fields it lists."
-    elif held.inventory_table_count:
-        note += f" {held.inventory_table_count} files are tables whose fields it lists."
-    if held.inventory_limitations:
-        note += " Its limitations: " + "; ".join(held.inventory_limitations) + "."
-    return (
-        note + " The harness puts it into the input of any agent that takes an inventory: leave "
-        "`inventory` out, and send an empty input to an agent that takes only an inventory."
-    )
 
 
 def _files(count: int) -> str:
@@ -61,7 +34,54 @@ def _format(group: InventoryFormat) -> str:
 
 def record_notes(message: Message) -> tuple[str | None, ...]:
     """The notes written from the project record, in the order they open the message."""
-    return name_note(message), decisions_note(message), documents_note(message)
+    return (
+        name_note(message),
+        decisions_note(message),
+        documents_note(message),
+        drafts_note(message),
+    )
+
+
+def _when(at: datetime) -> str:
+    return at.astimezone(UTC).strftime("%Y-%m-%d %H:%M UTC")
+
+
+def inventory_note(message: Message) -> str | None:
+    """What the harness says of the project's inventory, or None if the project holds none: how
+    many files, what kinds and how many tables, so that the model states the kinds of data for the
+    researcher to confirm instead of asking for them (#1287). When it replaced an earlier one, as
+    when the researcher leaves files out in Edit inventory, the note says so and how many files
+    the earlier one listed, so the model does not tell the researcher that what they changed has
+    not taken effect (#1280)."""
+    held = message.project_inventory
+    if held is None:
+        return None
+    note = (
+        LEAD + "The project holds an inventory of the dataset: "
+        f"{_files(held.inventory_file_count)}, made {_when(held.inventory_made_at)} by "
+        f"{held.inventory_tool} {held.inventory_tool_version}."
+    )
+    if held.inventory_revised_from_file_count is not None:
+        added = f" at {_when(held.inventory_added_at)}" if held.inventory_added_at else ""
+        note += (
+            f" It was added{added} in place of an earlier inventory of "
+            f"{_files(held.inventory_revised_from_file_count)}, as when the researcher leaves "
+            "files out in Edit inventory: that change has taken effect, and a draft made since "
+            "follows this inventory."
+        )
+    if held.inventory_formats:
+        kinds = "; ".join(_format(group) for group in held.inventory_formats)
+        note += f" By media type: {kinds}."
+    if held.inventory_table_count == 1:
+        note += " 1 file is a table whose fields it lists."
+    elif held.inventory_table_count:
+        note += f" {held.inventory_table_count} files are tables whose fields it lists."
+    if held.inventory_limitations:
+        note += " Its limitations: " + "; ".join(held.inventory_limitations) + "."
+    return (
+        note + " The harness puts it into the input of any agent that takes an inventory: leave "
+        "`inventory` out, and send an empty input to an agent that takes only an inventory."
+    )
 
 
 def name_note(message: Message) -> str | None:
@@ -121,6 +141,35 @@ def documents_note(message: Message) -> str | None:
         "a plan, say so when you report a shortlist, and offer the Data Management Plan check, "
         "which reads the plan and proposes its commitments for the researcher to confirm."
     )
+
+
+def drafts_note(message: Message) -> str | None:
+    """The latest version of each document drafted in the project, its state and whether it was
+    drafted since the inventory was last added, so the model speaks of the latest version and not
+    of what it said of an earlier one (#1280). None when nothing is drafted."""
+    drafts = message.project_drafts or []
+    if not drafts:
+        return None
+    said = "; ".join(_draft(d) for d in drafts)
+    return LEAD + (
+        f"From the project record, the latest version of each drafted document: {said}. Only "
+        "the latest version counts: what you said of an earlier version may no longer hold. A "
+        "document an agent drafts in this turn is newer than this record. Say which files a "
+        "draft lists only from its text in an agent's result in this turn; otherwise say which "
+        "version is the latest and offer to draft it again."
+    )
+
+
+def _draft(draft: DraftSummary) -> str:
+    said = f"{draft.document_kind.value} v{draft.version} ({draft.version_state.value}"
+    if draft.drafted_since_inventory is True:
+        said += ", drafted from the current inventory"
+    elif draft.drafted_since_inventory is False:
+        said += (
+            ", drafted before the current inventory was added, so it may list files that "
+            "inventory no longer lists: offer to draft it again"
+        )
+    return said + ")"
 
 
 def _fact(fact: ProjectFact) -> str:

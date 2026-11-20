@@ -53,6 +53,7 @@
             }
           ],
           "revises": null,
+          "stage": "draft",
           "state": "proposed",
           "text": "# Untitled dataset\n\nDrafted by a stub.\n",
           "version": 1

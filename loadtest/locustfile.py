@@ -11,6 +11,11 @@ Run it as README.md says. Settings, all optional:
 - LOADTEST_AGENT: the agent turns are sent to; by default the profile's orchestrator.
 - LOADTEST_TURNS: turns per conversation before a user starts another (default 5).
 - LOADTEST_WAIT_MIN / LOADTEST_WAIT_MAX: think time between tasks, in seconds (default 2 and 8).
+- LOADTEST_LISTERS: the weight of `Lister`, a user that only hammers the list routes with no
+  think time (default 0: none). With the researchers' weight at 1, `LOADTEST_LISTERS=3` makes
+  three in four users listers. Turn p95 should hold while they swamp the listings (#1258); the
+  app sheds listings beyond `DD_APP_LISTING_QUEUE` with a 503, which a lister counts as `shed`
+  and not as a failure.
 - LOADTEST_MAX_P95_MS: the highest 95th-percentile turn time that passes (default 10000).
 - LOADTEST_MAX_ERROR_RATIO: the highest share of failed requests that passes (default 0.01).
 """
@@ -31,7 +36,7 @@ from locust.env import Environment
 from prompts import PROMPTS, SALUTATION
 from shapes import StagedShape
 
-__all__ = ["Researcher", "StagedShape"]
+__all__ = ["Lister", "Researcher", "StagedShape"]
 
 JSON = {"Content-Type": "application/json", "Accept": "application/json"}
 TURN = "/api/conversations/[id]/turns"
@@ -178,6 +183,23 @@ class Researcher(HttpUser):
     def start_run(self) -> None:
         body = {"agent_id": "example.hello", "input": SALUTATION}
         self.client.post("/api/runs", data=json.dumps(body), headers=JSON)
+
+
+class Lister(HttpUser):
+    """Keeps the list routes busy with no think time, to show that turns still complete while
+    listings are slow (#1258). Off unless LOADTEST_LISTERS is above 0."""
+
+    host = "http://127.0.0.1:7860"
+    weight = int(_float("LOADTEST_LISTERS", 0))
+    wait_time = between(0, 0.5)
+
+    @task
+    def list_everything(self) -> None:
+        for path in ("/api/projects", "/api/conversations", "/api/runs"):
+            with self.client.get(path, headers=JSON, catch_response=True) as response:
+                if response.status_code == 503 and response.headers.get("Retry-After"):
+                    response.request_meta["name"] = f"{path} shed"
+                    response.success()
 
 
 def _report(name: str, started: float, failure: str | None) -> None:

@@ -44,6 +44,15 @@ rules:
     mention_input: { schema_class: DatasetProfile, title: "{rest}", keywords: ["{rest}"] }
     example: standards for soil chemistry
 
+  # What the README card's "Write the README" button says once its questions are answered
+  # (docs/specs/drafting.md): the conductor fills the request, answers and all, from the project.
+  - name: readme
+    agent_id: advisor.documentation
+    pattern: '^(?:please\s+)?(?:write|draft)\s+the\s+readme\b.*$'
+    input: { schema_class: DraftRequest, document_kind: readme }
+    mention_input: { schema_class: DraftRequest, document_kind: readme }
+    example: write the README from my answers
+
   - name: quality
     agent_id: advisor.quality
     pattern: '^review\s+(?:the\s+)?metadata\s+(?:for|of)\s+(?P<title>.+?)[.?!]*$'

@@ -1645,6 +1645,7 @@ name = "data-director-app"
 version = "0.3.0a8"
 source = { editable = "app" }
 dependencies = [
+    { name = "anyio" },
     { name = "data-director-harness" },
     { name = "data-director-inventory" },
     { name = "data-director-sdk" },
@@ -1671,6 +1672,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "anyio", specifier = ">=4.15" },
     { name = "data-director-harness", editable = "harness" },
     { name = "data-director-inventory", editable = "inventory" },
     { name = "data-director-sdk", editable = "sdk" },
@@ -2578,8 +2580,8 @@ name = "httpcore2"
 version = "2.16.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "h11" },
-    { name = "truststore" },
+    { name = "h11", marker = "sys_platform != 'emscripten'" },
+    { name = "truststore", marker = "sys_platform != 'emscripten'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/c0/61/afa9d6b7452f9eca73f73d45324eb0bb52f098fd5e6049bf6b8263be9b4e/httpcore2-2.16.0.tar.gz", hash = "sha256:c72cd0413563b17e1cd8354677dff887466f8ec2551679759e93126534428643", size = 69886, upload-time = "2026-10-21T07:09:45.31Z" }
 wheels = [
