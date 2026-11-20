@@ -424,6 +424,15 @@ def test_a_message_in_a_project_is_told_what_its_inventory_is(
         "inventory_tool": "dd-inventory",
         "inventory_tool_version": "0.1.0",
         "inventory_made_at": "2026-10-30T00:00:00Z",
+        # The kinds of files, so that the orchestrator need not ask for them (#1287).
+        "inventory_formats": [
+            {
+                "format_media_type": "text/csv",
+                "format_pronom_ids": ["x-fmt/18"],
+                "format_file_count": 2,
+            }
+        ],
+        "inventory_table_count": 0,
     }
 
 

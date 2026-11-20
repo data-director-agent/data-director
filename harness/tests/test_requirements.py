@@ -57,20 +57,37 @@ def test_without_an_override_the_declared_standard_applies_and_the_researcher_is
 
 
 def test_the_merged_set_says_where_to_deposit_and_what_is_unconfirmed(tmp_path: Path) -> None:
-    """The person depositing by hand is told where the repository is and what its sets leave
-    open; only an override says where to deposit, since a standard's url describes the standard."""
+    """The person depositing by hand is told where the repository is, what its sets leave open and
+    where their values came from; only an override says where to deposit, since a standard's url
+    describes the standard."""
     root = write(
         tmp_path / "repositories",
-        ("standards", standard(url="https://datacite.org/", unconfirmed=["A", "B"])),
-        ("overrides", override(url="https://orda.example/", unconfirmed=["B", "C"])),
+        (
+            "standards",
+            standard(
+                url="https://datacite.org/",
+                unconfirmed=["A", "B"],
+                guidance=["https://a.example/", "https://b.example/"],
+            ),
+        ),
+        (
+            "overrides",
+            override(
+                url="https://orda.example/",
+                unconfirmed=["B", "C"],
+                guidance=["https://b.example/", "https://c.example/"],
+            ),
+        ),
     )
     requirements = load_requirements(root)
     ours = requirements.resolve(ORDA, "ORDA", ["Dublin Core"]).requirements()
     assert ours["repository_url"] == "https://orda.example/"
     assert ours["unconfirmed"] == ["A", "B", "C"]
+    assert ours["guidance"] == ["https://a.example/", "https://b.example/", "https://c.example/"]
     other = requirements.resolve(ELSEWHERE, "Elsewhere", ["DataCite Metadata Schema"])
     assert "repository_url" not in other.requirements()
     assert other.requirements()["unconfirmed"] == ["A", "B"]
+    assert other.requirements()["guidance"] == ["https://a.example/", "https://b.example/"]
 
 
 @pytest.mark.parametrize(

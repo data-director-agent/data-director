@@ -113,4 +113,6 @@ class ConversationDeletion:
             ),
             None,
         )
-        return conversations.title_of(store, first)["title"] if first else None
+        if first is None:
+            return None
+        return conversations.title_of(first, store.get_request(first["invocation_id"]))["title"]

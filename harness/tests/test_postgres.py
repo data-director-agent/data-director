@@ -293,6 +293,72 @@ def test_a_store_reuses_its_connections_across_calls(locate: Locate) -> None:
     assert connections(application) == kept
 
 
+def test_a_borrow_makes_no_round_trip(locate: Locate) -> None:
+    """The pool does not check a connection as it is borrowed (nothing is sent), and a store
+    still reads back what it kept."""
+    store = postgres.PostgresRunStore(locate("runs"))
+    envelope = stored_envelope()
+    store.append(envelope)
+    sent: list[str] = []
+    real = psycopg.Connection.execute
+
+    def counting(self: Any, query: Any, *args: Any, **kwargs: Any) -> Any:
+        sent.append(str(query))
+        return real(self, query, *args, **kwargs)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(psycopg.Connection, "execute", counting)
+        with store._pool.connection():
+            pass
+        assert sent == []
+        assert store.get(envelope["invocation_id"]) == envelope
+    assert len(sent) == 1
+
+
+def test_a_connection_the_server_dropped_is_recovered(locate: Locate) -> None:
+    application = f"dd_test_{uuid.uuid4().hex[:12]}"
+    store = postgres.PostgresRunStore(named(locate("runs"), application))
+    envelope = stored_envelope()
+    store.append(envelope)
+    dropped = [pid for pid, _ in connections(application)]
+    assert dropped
+    with psycopg.connect(DATABASE, autocommit=True) as admin:
+        for pid in dropped:
+            admin.execute("select pg_terminate_backend(%s)", (pid,))
+    assert store.get(envelope["invocation_id"]) == envelope
+    second = stored_envelope()
+    store.append(second)
+    assert store.has(second["invocation_id"])
+
+
+def test_a_runs_artifacts_are_written_in_one_transaction(locate: Locate) -> None:
+    store = postgres.PostgresRunStore(locate("runs"))
+    envelope = stored_envelope()
+    store.append(envelope)
+    run_id = envelope["invocation_id"]
+    store.put_artifact(run_id, "last.txt", b"kept")
+    statements: list[str] = []
+    real = psycopg.Cursor.executemany
+
+    def counting(self: Any, query: Any, *args: Any, **kwargs: Any) -> Any:
+        statements.append(str(query))
+        return real(self, query, *args, **kwargs)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(psycopg.Cursor, "executemany", counting)
+        store.put_artifacts(run_id, {"a.txt": b"1", "b.txt": b"2", "crate/c.txt": b"3"})
+    assert len(statements) == 1
+    with pytest.raises(FileExistsError):
+        store.put_artifacts(run_id, {"d.txt": b"4", "last.txt": b"again"})
+    with pytest.raises(ValueError):
+        store.put_artifacts(run_id, {"d.txt": b"4", "../escape": b"x"})
+    with pytest.raises(KeyError):
+        store.put_artifacts(stored_envelope()["invocation_id"], {"d.txt": b"4"})
+    assert store.get_artifact(run_id, "d.txt") is None
+    assert store.get_artifact(run_id, "last.txt") == b"kept"
+    assert store.get_artifact(run_id, "crate/c.txt") == b"3"
+
+
 def test_a_store_keeps_no_more_connections_than_its_pool_size(locate: Locate) -> None:
     """Two sections held at once fill a pool of two; a third call waits for one of them rather
     than opening a connection of its own."""

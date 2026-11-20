@@ -2,92 +2,30 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 
-import disclosureFixture from "../../../fixtures/project-disclosure.json";
 import answersFixture from "../../../fixtures/project-answers.json";
-import fixture from "../../../fixtures/project-documents.json";
-import repositoryFixture from "../../../fixtures/repository-chosen.json";
-import suggestedFixture from "../../../fixtures/repositories-suggested.json";
 import {
   DecisionConflict,
-  type Disclosure,
   type ProjectApi,
   type ProjectDocuments,
   type ProjectSummary,
-  type RepositoryRequirements,
-  type RepositorySearch,
   ProjectApiContext,
   digestOf,
 } from "../../project/api";
 import { type ConversationApi, ConversationApiContext } from "../../conversation/api";
 import type { ConversationSummary } from "../../conversation/types";
-import { conversationSummary, projectDetails, projectProgress, projectSummary } from "../../test/api";
+import { conversationSummary, projectSummary } from "../../test/api";
+import {
+  DICTIONARY,
+  DRAFT,
+  PROJECT,
+  README,
+  at,
+  decided,
+  fakeProjectApi,
+} from "../../test/projectApi";
 import { ProjectPage } from "./ProjectPage";
 
-// What the server says (app/tests/test_document_decisions.py): a README proposed, and a data
-// dictionary already approved.
-const PROJECT = fixture as ProjectDocuments;
-// The disclosure the server gives (app/tests/test_document_decisions.py): a README a model drafted
-// and a person approved as it stood, and a metadata record awaiting a decision.
-const DISCLOSURE = disclosureFixture as Disclosure;
-// ORDA, chosen by its re3data identifier (app/tests/test_repository_choice.py).
-const REPOSITORY = repositoryFixture as RepositoryRequirements;
-// ORDA and Zenodo, suggested before a search (app/tests/test_repository_search.py).
-const SUGGESTED = suggestedFixture as RepositorySearch;
-
-function at<T>(items: T[], index: number): T {
-  const item = items[index];
-  if (item === undefined) throw new Error(`the fixture has no item ${index}`);
-  return item;
-}
-
-const README = at(PROJECT.documents, 0);
-const DICTIONARY = at(PROJECT.documents, 1);
-const DRAFT = at(README.versions, 0);
-
-/** `PROJECT` after the README's version 1 is given `state`, as the server would answer. */
-function decided(state: "approved" | "rejected", reason: string | null = null): ProjectDocuments {
-  const decision = { reason, decided_by: DRAFT.added_by, decided_at: DRAFT.added_at };
-  return {
-    ...PROJECT,
-    documents: [{ ...README, versions: [{ ...DRAFT, state, decision }] }, DICTIONARY],
-    decided: { document_id: README.document_id, version: 1 },
-  };
-}
-
-function fakeApi(overrides: Partial<ProjectApi> = {}): ProjectApi {
-  return {
-    projects: () => Promise.resolve([]),
-    create: () => Promise.reject(new Error("no project created in these tests")),
-    rename: () => Promise.resolve(projectDetails()),
-    remove: () => Promise.reject(new Error("no project deleted in these tests")),
-    restore: () => Promise.reject(new Error("no project restored in these tests")),
-    deletedProjects: () => Promise.resolve([]),
-    documents: () => Promise.resolve(PROJECT),
-    disclosure: () => Promise.resolve(DISCLOSURE),
-    decide: () => Promise.resolve(decided("approved")),
-    answer: () => Promise.resolve(PROJECT),
-    inventory: () => Promise.resolve(null),
-    saveInventory: () => Promise.reject(new Error("not saved in this test")),
-    repository: () => Promise.resolve(REPOSITORY),
-    progress: () => Promise.resolve(projectProgress()),
-    chooseEntry: () => Promise.resolve(projectProgress()),
-    markStep: () => Promise.resolve(projectProgress()),
-    intake: () => Promise.reject(new Error("no intake in these tests")),
-    answerIntake: () => Promise.reject(new Error("no intake in these tests")),
-    dismissIntake: () => Promise.reject(new Error("no intake in these tests")),
-    validate: () => Promise.reject(new Error("not checked in this test")),
-    buildPackage: () => Promise.reject(new Error("not built in this test")),
-    decideItem: () => Promise.reject(new Error("nothing decided in this test")),
-    confirmChecks: () => Promise.reject(new Error("nothing confirmed in this test")),
-    chooseRepository: () => Promise.reject(new Error("no repository in these tests")),
-    searchRepositories: () => Promise.resolve(SUGGESTED),
-    orcidRecord: () => Promise.reject(new Error("no ORCID record in these tests")),
-    researchers: () => Promise.resolve([]),
-    keepResearcher: () => Promise.reject(new Error("nothing kept in these tests")),
-    withdrawResearcher: () => Promise.resolve([]),
-    ...overrides,
-  };
-}
+const fakeApi = fakeProjectApi;
 
 function fakeConversations(
   list: ConversationApi["list"] = () => Promise.resolve([]),
@@ -526,87 +464,27 @@ describe("ProjectPage", () => {
     expect(within(article).queryByRole("group")).not.toBeInTheDocument();
   });
 
-  it("shows how generative AI was used as the list's last entry", async () => {
-    const { container } = renderPage(fakeApi(), "doc=disclosure");
-    expect(await screen.findByRole("heading", { name: "Use of generative AI" })).toBeVisible();
-    expect(screen.queryByRole("article")).not.toBeInTheDocument();
-    expect(await axe(container)).toHaveNoViolations();
-  });
-
-  it("opens the project's facts from the list, for a person to decide what agents proposed", async () => {
-    const offered = { proposals: [], decisions: [] };
-    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response(JSON.stringify(offered)))));
-    try {
-      renderPage(fakeApi(), "doc=facts");
-      const panel = await screen.findByRole("region", { name: "Project facts" });
-      expect(await within(panel).findByText(/No agent has proposed anything/)).toBeVisible();
-      expect(screen.getByRole("link", { name: /Project facts/ })).toHaveAttribute("aria-current");
-    } finally {
-      vi.unstubAllGlobals();
-    }
-  });
-
-  it("shows the repository chosen and what it asks for", async () => {
-    const { container } = renderPage(fakeApi(), "doc=repository");
-    const panel = await screen.findByRole("region", { name: "Repository" });
-    expect(await within(panel).findByRole("link", { name: /^ORDA/ })).toHaveAttribute(
-      "href",
-      "https://www.re3data.org/repository/r3d100012124",
+  it.each([
+    ["researchers", "researchers"],
+    ["facts", "facts"],
+    ["repository", "repository"],
+    ["disclosure", "ai-use"],
+    ["deposit", "deposit"],
+  ])("sends an old link to the %s panel on to its tab", async (doc, tab) => {
+    history.replaceState(null, "", `/projects/${PROJECT.project_id}?doc=${doc}`);
+    renderPage(fakeApi(), `doc=${doc}`);
+    await vi.waitFor(() =>
+      expect(location.pathname).toBe(`/projects/${PROJECT.project_id}/${tab}`),
     );
-    expect(within(panel).getByText("orda@v3")).toBeVisible();
-    expect(
-      within(panel).getByRole("heading", { name: "Metadata the record must have" }),
-    ).toBeVisible();
-    expect(within(panel).getByText("Title")).toBeVisible();
-    expect(screen.getByRole("link", { name: "Repository", current: "page" })).toBeInTheDocument();
-    expect(await axe(container)).toHaveNoViolations();
+    expect(location.search).toBe("");
   });
 
-  it("says how to choose a repository when none has been", async () => {
-    renderPage(fakeApi({ repository: () => Promise.resolve(null) }), "doc=repository");
-    expect(await screen.findByText(/No repository has been chosen yet/)).toBeVisible();
-  });
-
-  it("chooses a suggested repository on the page and shows what it asks for", async () => {
-    const user = userEvent.setup();
-    const choose = vi.fn<ProjectApi["chooseRepository"]>().mockResolvedValue(REPOSITORY);
-    const { container } = renderPage(
-      fakeApi({ repository: () => Promise.resolve(null), chooseRepository: choose }),
-      "doc=repository",
-    );
-    const box = await screen.findByRole("combobox", { name: "Find a repository" });
-    expect(screen.getByRole("button", { name: "Choose repository" })).toBeDisabled();
-    await user.click(box);
-    const options = await screen.findAllByRole("option");
-    expect(options.map((o) => o.textContent)).toEqual(
-      SUGGESTED.repositories.map((r) => expect.stringContaining(r.name) as unknown),
-    );
-    expect(await axe(container)).toHaveNoViolations();
-    await user.click(at(options, 0));
-    await user.click(screen.getByRole("button", { name: "Choose repository" }));
-    expect(choose).toHaveBeenCalledWith(PROJECT.project_id, at(SUGGESTED.repositories, 0).re3data_id);
-    const panel = screen.getByRole("region", { name: "Repository" });
-    expect(await within(panel).findByText("orda@v3")).toBeVisible();
-    expect(within(panel).getByRole("button", { name: "Change repository" })).toBeVisible();
-  });
-
-  it("searches re3data with what is typed", async () => {
-    const user = userEvent.setup();
-    const search = vi.fn<ProjectApi["searchRepositories"]>((query) =>
-      Promise.resolve({
-        ...SUGGESTED,
-        query,
-        suggested: !query,
-        repositories: query ? SUGGESTED.repositories.slice(1) : SUGGESTED.repositories,
-      }),
-    );
-    renderPage(fakeApi({ searchRepositories: search }), "doc=repository");
-    await user.click(await screen.findByRole("button", { name: "Change repository" }));
-    await user.type(screen.getByRole("combobox", { name: "Find a repository" }), "zen");
-    await vi.waitFor(() => expect(search).toHaveBeenLastCalledWith("zen", expect.anything()));
-    const options = await screen.findAllByRole("option");
-    expect(options).toHaveLength(1);
-    expect(at(options, 0)).toHaveTextContent(at(SUGGESTED.repositories, 1).name);
+  it("lists only documents beside the reader; the rest are tabs", async () => {
+    renderPage(fakeApi());
+    await readme();
+    const list = screen.getByRole("navigation", { name: "Documents" });
+    expect(within(list).queryByRole("link", { name: "Repository" })).toBeNull();
+    expect(within(list).queryByText("About the documents")).toBeNull();
   });
 
   it("reaches the repository even before any document is drafted", async () => {
@@ -614,17 +492,6 @@ describe("ProjectPage", () => {
     renderPage(fakeApi({ documents: () => Promise.resolve(empty) }));
     expect(await screen.findByText(/No document has been drafted/)).toBeVisible();
     expect(screen.getByRole("link", { name: "Repository" })).toBeVisible();
-  });
-
-  it("offers the deposit package after the statement", async () => {
-    const { container } = renderPage(fakeApi(), "doc=deposit");
-    expect(await screen.findByRole("heading", { name: "Deposit package" })).toBeVisible();
-    expect(screen.getByRole("link", { name: "Deposit package" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
-    expect(screen.getByRole("button", { name: "Check the project" })).toBeVisible();
-    expect(await axe(container)).toHaveNoViolations();
   });
 
   it("offers the next document to review once one is decided", async () => {

@@ -15,7 +15,7 @@ backend.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator, Mapping, Sequence
+from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
 from datetime import timedelta
 from typing import Any, Protocol
 
@@ -119,6 +119,8 @@ class RunStorage(Protocol):
         """The stored request, or None."""
         ...
 
+    def get_many(self, ids: Collection[str], part: str = "envelope") -> dict[str, Any]: ...
+
     def get_prompts(self, invocation_id: str) -> dict[str, Any]:
         """The prompts a stored run sent, keyed by digest; empty if it sent none."""
         ...
@@ -131,6 +133,11 @@ class RunStorage(Protocol):
         """Keep `data` as the run's artifact `name`, a relative path such as `spans.jsonl` or
         `crate/ro-crate-metadata.json`. Raises `KeyError` for a run not stored, `ValueError` for
         a malformed name and `FileExistsError` for an artifact already kept."""
+        ...
+
+    def put_artifacts(self, invocation_id: str, artifacts: Mapping[str, bytes]) -> None:
+        """Keep every artifact of `artifacts`, by name, or none of them: a database backend does so
+        in one transaction. Raises what `put_artifact` raises, and keeps nothing when it does."""
         ...
 
     def get_artifact(self, invocation_id: str, name: str) -> bytes | None:

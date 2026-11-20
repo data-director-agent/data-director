@@ -210,3 +210,25 @@ def test_a_conversation_whose_start_is_still_being_written_is_found_once_it_is(
     with path.open("a", encoding="utf-8") as fh:
         fh.write(line[20:])
     assert log.project_of("c-1") == project_id
+
+
+def test_the_file_run_store_keeps_a_batch_of_artifacts_whole_or_none(tmp_path: Path) -> None:
+    from dd_harness.testing.storage import NOWHERE, stored_envelope
+
+    store = RunStore(tmp_path)
+    envelope = stored_envelope()
+    run_id = envelope["invocation_id"]
+    batch = {"spans.jsonl": b"{}", "crate/m.json": b"{}"}
+    with pytest.raises(KeyError):
+        store.put_artifacts(run_id, batch)
+    with pytest.raises(KeyError):
+        store.put_artifacts(NOWHERE, batch)
+    store.append(envelope)
+    store.put_artifact(run_id, "grounding.txt", b"kept")
+    with pytest.raises(FileExistsError):
+        store.put_artifacts(run_id, {"sources.txt": b"x", "grounding.txt": b"again"})
+    with pytest.raises(ValueError):
+        store.put_artifacts(run_id, {"sources.txt": b"x", "../escape": b"x"})
+    assert store.get_artifact(run_id, "sources.txt") is None
+    store.put_artifacts(run_id, batch)
+    assert [store.get_artifact(run_id, name) for name in batch] == list(batch.values())

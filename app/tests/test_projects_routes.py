@@ -103,6 +103,47 @@ def test_a_person_sees_the_projects_they_started_with_what_each_holds(
     )
 
 
+def test_the_projects_list_reads_the_run_store_once_whatever_the_number_of_projects(
+    in_projects: tuple[Governance, Any], monkeypatch: pytest.MonkeyPatch
+):
+    governance, app = in_projects
+    client = TestClient(app)
+    for n in range(3):
+        conversation_id = start(client)
+        assert turn(client, conversation_id, f"Question {n}").status_code == 200
+    store = governance.conductor.store
+    reads: list[str] = []
+    for name in (
+        "iter_envelopes",
+        "list_conversations",
+        "list_runs",
+        "get",
+        "get_request",
+        "get_many",
+    ):
+        real = getattr(store, name)
+
+        def counted(*args: Any, _name: str = name, _real: Any = real, **kwargs: Any) -> Any:
+            reads.append(_name)
+            return _real(*args, **kwargs)
+
+        monkeypatch.setattr(store, name, counted)
+
+    response = client.get("/api/projects")
+
+    assert response.status_code == 200
+    assert sorted(c["title"] for p in response.json() for c in p["conversations"]) == [
+        "Question 0",
+        "Question 1",
+        "Question 2",
+    ]
+    # One scan for the listing, and the titles in one read each, not one per conversation.
+    assert reads.count("list_conversations") == 1
+    assert reads.count("iter_envelopes") == 1  # The file store's own scan, made by that listing.
+    assert "get" not in reads and "get_request" not in reads
+    assert reads.count("get_many") <= 2
+
+
 def test_a_person_creates_a_project_with_no_conversation(in_projects: tuple[Governance, Any]):
     """Docs/specs/app.md, rule 27: **New project** creates the project on its own, for the person
     signed in, and it is listed before it holds anything."""

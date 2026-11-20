@@ -32,7 +32,7 @@ MODEL = "claude-test"
 BROKER = "http://broker.test:8790"
 # Distinctive enough that finding it anywhere means it leaked.
 SENTINEL = "dd-broker-sentinel-3b8e61c0d94f2a75"
-OVERVIEW = "Soil nitrate readings from three survey sites, one row per sample."
+OVERVIEW = "Soil nitrate readings from the survey sites, one row per sample."
 ENV = {
     "DD_DOCUMENTATION_WRITER": "anthropic",
     "DD_MODEL_ID": MODEL,

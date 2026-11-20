@@ -37,6 +37,7 @@ import { Button } from "../ui/Button";
 import { formatNumber } from "../../format";
 import { BeforePackaging } from "./BeforePackaging";
 import { DepositToRepository } from "./DepositToRepository";
+import { Unconfirmed } from "./Unconfirmed";
 
 const HEADING_ID = "deposit-heading";
 const NEXT_ID = "deposit-next";
@@ -195,18 +196,7 @@ export function NextSteps({ choice }: { choice: RepositoryRequirements | null })
         </li>
         <li>Review the item and publish it from the repository.</li>
       </ol>
-      {unconfirmed.length > 0 && (
-        <div className="callout status-warn">
-          <p>
-            <strong>Not yet confirmed for {name}:</strong>
-          </p>
-          <ul>
-            {unconfirmed.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <Unconfirmed items={unconfirmed} name={name} />
       <p>
         <a href={DEPOSIT_GUIDE}>Depositing your data, step by step, in the user guide</a>
       </p>
