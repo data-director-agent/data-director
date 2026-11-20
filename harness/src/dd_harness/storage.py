@@ -15,7 +15,7 @@ backend.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator, Mapping, Sequence
+from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
 from datetime import timedelta
 from typing import Any, Protocol
 
@@ -117,6 +117,8 @@ class RunStorage(Protocol):
     def get_request(self, invocation_id: str) -> dict[str, Any] | None:
         """The stored request, or None."""
         ...
+
+    def get_many(self, ids: Collection[str], part: str = "envelope") -> dict[str, Any]: ...
 
     def get_prompts(self, invocation_id: str) -> dict[str, Any]:
         """The prompts a stored run sent, keyed by digest; empty if it sent none."""

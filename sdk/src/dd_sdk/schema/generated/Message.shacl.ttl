@@ -116,17 +116,17 @@ dd:Affiliation a sh:NodeShape ;
             sh:order 2 ;
             sh:path dd:organisation_name ],
         [ sh:datatype xsd:string ;
-            sh:description "The scheme of organisation_identifier, in ORCID's words, such as ROR, GRID or RINGGOLD. Present exactly when organisation_identifier is." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 4 ;
-            sh:path dd:organisation_identifier_scheme ],
-        [ sh:datatype xsd:string ;
             sh:description "The researcher's role or degree." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 6 ;
             sh:path dd:role_title ],
+        [ sh:datatype xsd:string ;
+            sh:description "The scheme of organisation_identifier, in ORCID's words, such as ROR, GRID or RINGGOLD. Present exactly when organisation_identifier is." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dd:organisation_identifier_scheme ],
         [ sh:datatype xsd:string ;
             sh:description "ORCID's identifier for the item within the record, by which a researcher chose to keep it." ;
             sh:maxCount 1 ;
@@ -296,11 +296,41 @@ dd:DraftSummary a sh:NodeShape ;
             sh:path dd:document_kind ] ;
     sh:targetClass dd:DraftSummary .
 
+dd:InventoryFormat a sh:NodeShape ;
+    rdfs:comment "The files of one media type in a project's inventory, without their paths: the conductor fills one per media type into an InventorySummary, so that the agent knows what kinds of files the dataset holds without asking (docs/specs/projects.md, #1287)." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:integer ;
+            sh:description "How many of the inventory's files are in the group." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:format_file_count ],
+        [ sh:datatype xsd:string ;
+            sh:description "Every PRONOM unique identifier (PUID) the group's files matched, sorted." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:format_pronom_ids ],
+        [ sh:datatype xsd:string ;
+            sh:description "The media type (MIME type) of the group's files. Absent, the group is of the files whose media type could not be told." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:format_media_type ] ;
+    sh:targetClass dd:InventoryFormat .
+
 dd:InventorySummary a sh:NodeShape ;
     rdfs:comment "What the inventory a project holds is, without its files: the conductor fills it into a Message so that the agent knows the project has one (docs/specs/projects.md)." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
+    sh:property [ sh:datatype xsd:integer ;
+            sh:description "How many of the inventory's files are tables whose fields it lists." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 9 ;
+            sh:path dd:inventory_table_count ],
+        [ sh:datatype xsd:string ;
             sh:description "The version of the command that made the inventory." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -327,6 +357,11 @@ dd:InventorySummary a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
             sh:path prov:wasGeneratedBy ],
+        [ sh:class dd:InventoryFormat ;
+            sh:description "The inventory's files grouped by media type, the group with the most bytes first, as the app's inventory view groups them. Absent, the summary was made without them." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 8 ;
+            sh:path dd:inventory_formats ],
         [ sh:datatype xsd:string ;
             sh:description "The inventory's dd-input-json-v1 hash, by which the project keeps it." ;
             sh:maxCount 1 ;
@@ -535,7 +570,14 @@ dd:ResearcherFunding a sh:NodeShape ;
     rdfs:comment "One grant or award on an ORCID record, with its funder." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:integer ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The grant's or award's title." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:funding_title ],
+        [ sh:datatype xsd:integer ;
             sh:description "The year it ended; absent while it continues." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -584,14 +626,7 @@ dd:ResearcherFunding a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 7 ;
-            sh:path dd:start_year ],
-        [ sh:datatype xsd:string ;
-            sh:description "The grant's or award's title." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path dd:funding_title ] ;
+            sh:path dd:start_year ] ;
     sh:targetClass dd:ResearcherFunding .
 
 dd:ResearcherLink a sh:NodeShape ;

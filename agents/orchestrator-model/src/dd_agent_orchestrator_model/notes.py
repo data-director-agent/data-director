@@ -15,10 +15,21 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 
 from dd_agent_orchestrator_model.own_tools import NAME_TOOL
-from dd_sdk.contract.facts import FactKind, ProjectFact
+from dd_sdk.contract.facts import FactKind, InventoryFormat, ProjectFact
 from dd_sdk.contract.models import DraftSummary, Message
 
 LEAD = "[From the harness, not the researcher] "
+
+
+def _files(count: int) -> str:
+    return "1 file" if count == 1 else f"{count} files"
+
+
+def _format(group: InventoryFormat) -> str:
+    named = group.format_media_type or "media type not told"
+    if group.format_pronom_ids:
+        named += " (PRONOM " + ", ".join(group.format_pronom_ids) + ")"
+    return f"{named}, {_files(group.format_file_count)}"
 
 
 def record_notes(message: Message) -> tuple[str | None, ...]:
@@ -31,19 +42,17 @@ def record_notes(message: Message) -> tuple[str | None, ...]:
     )
 
 
-def _files(count: int) -> str:
-    return "1 file" if count == 1 else f"{count} files"
-
-
 def _when(at: datetime) -> str:
     return at.astimezone(UTC).strftime("%Y-%m-%d %H:%M UTC")
 
 
 def inventory_note(message: Message) -> str | None:
-    """What the harness says of the project's inventory, or None if the project holds none. When
-    it replaced an earlier one, as when the researcher leaves files out in Edit inventory, the note
-    says so and how many files the earlier one listed, so the model does not tell the researcher
-    that what they changed has not taken effect (#1280)."""
+    """What the harness says of the project's inventory, or None if the project holds none: how
+    many files, what kinds and how many tables, so that the model states the kinds of data for the
+    researcher to confirm instead of asking for them (#1287). When it replaced an earlier one, as
+    when the researcher leaves files out in Edit inventory, the note says so and how many files
+    the earlier one listed, so the model does not tell the researcher that what they changed has
+    not taken effect (#1280)."""
     held = message.project_inventory
     if held is None:
         return None
@@ -60,6 +69,13 @@ def inventory_note(message: Message) -> str | None:
             "files out in Edit inventory: that change has taken effect, and a draft made since "
             "follows this inventory."
         )
+    if held.inventory_formats:
+        kinds = "; ".join(_format(group) for group in held.inventory_formats)
+        note += f" By media type: {kinds}."
+    if held.inventory_table_count == 1:
+        note += " 1 file is a table whose fields it lists."
+    elif held.inventory_table_count:
+        note += f" {held.inventory_table_count} files are tables whose fields it lists."
     if held.inventory_limitations:
         note += " Its limitations: " + "; ".join(held.inventory_limitations) + "."
     return (

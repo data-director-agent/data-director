@@ -77,7 +77,7 @@ conversation with a hosted orchestrator does not stop once a fact is decided.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any, Protocol
 
 from dd_harness.progress import ENTRY_BY_RESEARCHER
@@ -377,7 +377,34 @@ def summarise(
     }
     if held.get("inventory_limitations"):
         summary["inventory_limitations"] = list(held["inventory_limitations"])
+    files = held.get("inventory_files") or []
+    summary["inventory_formats"] = formats(files)
+    summary["inventory_table_count"] = sum(1 for file in files if file.get("file_fields"))
     return summary
+
+
+def formats(files: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """`files` grouped by media type, as `InventoryFormat`s, the group with the most bytes first:
+    the grouping of the app's inventory view (`inventory/browser/src/summary.ts`), so that an agent
+    is told the kinds of files a researcher sees there (#1287)."""
+    groups: dict[str | None, dict[str, Any]] = {}
+    for file in files:
+        group = groups.setdefault(
+            file.get("file_media_type"), {"count": 0, "bytes": 0, "ids": set()}
+        )
+        group["count"] += 1
+        group["bytes"] += file.get("file_size") or 0
+        group["ids"].update(file.get("file_pronom_ids") or [])
+    ordered = sorted(groups.items(), key=lambda kv: (-kv[1]["bytes"], -kv[1]["count"]))
+    found = []
+    for media_type, group in ordered:
+        entry: dict[str, Any] = {"format_file_count": group["count"]}
+        if media_type is not None:
+            entry["format_media_type"] = media_type
+        if group["ids"]:
+            entry["format_pronom_ids"] = sorted(group["ids"])
+        found.append(entry)
+    return found
 
 
 def _current(

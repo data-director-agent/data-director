@@ -191,7 +191,7 @@ async def list_runs(request: Request, reader: Principal, deps: Deps) -> Response
     except PagingError as exc:
         return refused(str(exc), "Data Director could not list the runs")
     page = await run_in_threadpool(lambda: deps.reads.runs(reader, **paging))
-    return respond_page(request, page, RunRow)
+    return await run_in_threadpool(respond_page, request, page, RunRow)
 
 
 async def get_run(request: Request, reader: Principal, deps: Deps) -> Response:

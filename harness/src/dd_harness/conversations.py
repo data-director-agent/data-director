@@ -24,7 +24,8 @@ agent sees on a later turn what it asked; `answer_problem` is how the caller che
 
 The run storage lists conversations a page at a time, for the readers allowed to see them
 (`RunStorage.list_conversations`, docs/specs/storage.md, "Listing"); this module adds each one's
-title, reading the first turn of each conversation on the page.
+title, reading the first turn and request of the conversations on the page in one call each
+(`RunStorage.get_many`).
 """
 
 from __future__ import annotations
@@ -60,12 +61,23 @@ def list_conversations(
     """A page of conversation summaries, most recently active first, each with its title; with
     `readable`, only the conversations whose first turn it includes."""
     page = store.list_conversations(readable=readable, limit=limit, before=before)
-    items = []
+    # Each first turn and each request is read in one call, not one read per conversation.
+    firsts = store.get_many([c["first_invocation_id"] for c in page.items])
+    turns: dict[str, dict[str, Any] | None] = {}
     for summary in page.items:
-        first_turn = store.get(summary["first_invocation_id"])
+        first_turn = firsts.get(summary["first_invocation_id"])
         if first_turn and failed(first_turn):
             first_turn = first_standing_turn(store, summary["conversation_id"]) or first_turn
-        title = title_of(store, first_turn) if first_turn else untitled(summary)
+        turns[summary["conversation_id"]] = first_turn
+    asking = [t["invocation_id"] for t in turns.values() if t is not None and not model_title(t)]
+    requests = store.get_many(asking, "request")
+    items = []
+    for summary in page.items:
+        first_turn = turns[summary["conversation_id"]]
+        if first_turn is None:
+            title = untitled(summary)
+        else:
+            title = title_of(first_turn, requests.get(first_turn["invocation_id"]))
         items.append({**summary, **title})
     return Page(items, page.next)
 
@@ -82,13 +94,20 @@ def first_standing_turn(store: RunStorage, conversation_id: str) -> dict[str, An
     return None
 
 
-def title_of(store: RunStorage, first_turn: dict[str, Any]) -> dict[str, str]:
-    """A conversation's `title` and `title_source`, from its first turn's envelope."""
+def model_title(first_turn: dict[str, Any]) -> str | None:
+    """The `conversation_title` a model-backed orchestrator wrote in a turn's reply, if any."""
     payload = first_turn.get("payload") or {}
     if payload.get("schema_class") == "Reply" and payload.get("conversation_title"):
-        return {"title": str(payload["conversation_title"]), "title_source": "model"}
-    request = store.get_request(first_turn["invocation_id"]) or {}
-    document = request.get("input") or {}
+        return str(payload["conversation_title"])
+    return None
+
+
+def title_of(first_turn: dict[str, Any], request: dict[str, Any] | None) -> dict[str, str]:
+    """A conversation's `title` and `title_source`, from its first turn's envelope and, when a
+    model wrote no title, its request (None if it was not stored)."""
+    if (named := model_title(first_turn)) is not None:
+        return {"title": named, "title_source": "model"}
+    document = (request or {}).get("input") or {}
     if document.get("schema_class") == "Message":
         text = str(document.get("message_text", ""))
     else:

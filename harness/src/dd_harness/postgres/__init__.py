@@ -40,15 +40,8 @@ import psycopg
 from psycopg import errors, sql
 from psycopg.types.json import Json
 
-from dd_harness.listing import (
-    Page,
-    Readable,
-    check_limit,
-    is_turn,
-    paged,
-    position,
-    principal_of,
-)
+from dd_harness.listing import Page, Readable, check_limit, is_turn, paged, position, principal_of
+from dd_harness.postgres.batch import BatchReads
 from dd_harness.postgres.naming import logs_naming_query, projects_naming_query
 from dd_harness.postgres.pool import DEFAULT_POOL_SIZE as DEFAULT_POOL_SIZE
 from dd_harness.postgres.pool import Pooled, recovering
@@ -151,7 +144,7 @@ def _open(location: str) -> str:
     return where
 
 
-class PostgresRunStore(Pooled):
+class PostgresRunStore(BatchReads):
     """Runs kept in PostgreSQL. A run, its request, its prompts and its class schemas are stored
     in one transaction (invariant 4)."""
 

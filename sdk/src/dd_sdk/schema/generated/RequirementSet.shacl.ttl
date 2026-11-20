@@ -20,10 +20,6 @@ dd:RequirementSet a sh:NodeShape ;
             sh:nodeKind sh:IRI ;
             sh:order 4 ;
             sh:path schema1:url ],
-        [ sh:description "The pages the set's values were taken from, so that a steward can check them." ;
-            sh:nodeKind sh:IRI ;
-            sh:order 15 ;
-            sh:path dd:guidance ],
         [ sh:datatype xsd:integer ;
             sh:description "An override only: the largest file the repository accepts, in bytes." ;
             sh:maxCount 1 ;
@@ -88,6 +84,10 @@ dd:RequirementSet a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 14 ;
             sh:path dd:licences ],
+        [ sh:description "The pages the set's values were taken from, so that a steward can check them; in a merged set, the standard's first, then the override's." ;
+            sh:nodeKind sh:IRI ;
+            sh:order 15 ;
+            sh:path dd:guidance ],
         [ sh:description "The URI of the metadata schema. An override names the standard's set it builds on." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;

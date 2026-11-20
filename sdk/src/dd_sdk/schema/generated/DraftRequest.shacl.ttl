@@ -96,17 +96,17 @@ dd:Affiliation a sh:NodeShape ;
             sh:order 2 ;
             sh:path dd:organisation_name ],
         [ sh:datatype xsd:string ;
-            sh:description "The scheme of organisation_identifier, in ORCID's words, such as ROR, GRID or RINGGOLD. Present exactly when organisation_identifier is." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 4 ;
-            sh:path dd:organisation_identifier_scheme ],
-        [ sh:datatype xsd:string ;
             sh:description "The researcher's role or degree." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 6 ;
             sh:path dd:role_title ],
+        [ sh:datatype xsd:string ;
+            sh:description "The scheme of organisation_identifier, in ORCID's words, such as ROR, GRID or RINGGOLD. Present exactly when organisation_identifier is." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dd:organisation_identifier_scheme ],
         [ sh:datatype xsd:string ;
             sh:description "ORCID's identifier for the item within the record, by which a researcher chose to keep it." ;
             sh:maxCount 1 ;
@@ -673,6 +673,10 @@ dd:RepositoryRequirements a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 11 ;
             sh:path dd:warnings ],
+        [ sh:description "The pages the set's values were taken from, so that a steward can check them; in a merged set, the standard's first, then the override's." ;
+            sh:nodeKind sh:IRI ;
+            sh:order 14 ;
+            sh:path dd:guidance ],
         [ sh:datatype xsd:string ;
             sh:description "An override only: the licences the repository offers, each an SPDX identifier or the URL of the repository's own terms." ;
             sh:nodeKind sh:Literal ;
@@ -741,7 +745,14 @@ dd:ResearcherFunding a sh:NodeShape ;
     rdfs:comment "One grant or award on an ORCID record, with its funder." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:integer ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The grant's or award's title." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:funding_title ],
+        [ sh:datatype xsd:integer ;
             sh:description "The year it ended; absent while it continues." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -790,14 +801,7 @@ dd:ResearcherFunding a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 7 ;
-            sh:path dd:start_year ],
-        [ sh:datatype xsd:string ;
-            sh:description "The grant's or award's title." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path dd:funding_title ] ;
+            sh:path dd:start_year ] ;
     sh:targetClass dd:ResearcherFunding .
 
 dd:ResearcherLink a sh:NodeShape ;

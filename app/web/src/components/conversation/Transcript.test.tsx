@@ -287,12 +287,13 @@ describe("Transcript, as a conversation", () => {
     expect((await axe(container)).violations).toEqual([]);
   });
 
-  it("heads a reply with the agent's name, and its id and version beneath", () => {
+  it("heads a reply with the agent's name alone, not its version or model", () => {
     render(<Transcript conversation={conversation} agents={agents} onToggleRun={() => {}} />);
     const agentPart = turns()[0]?.querySelector(".turn-agent") as HTMLElement;
     const speaker = agentPart.querySelector(".turn-speaker") as HTMLElement;
     expect(speaker.querySelector(".turn-speaker-name")).toHaveTextContent("Data Director");
-    expect(within(speaker.querySelector(".turn-speaker-details") as HTMLElement).getByText(exact)).toBeVisible();
+    expect(within(agentPart).queryByText(exact)).toBeNull();
+    expect(within(agentPart).queryByText(/Language model/)).toBeNull();
     const personPart = turns()[0]?.querySelector(".turn-person") as HTMLElement;
     expect(personPart.querySelector(".turn-speaker-name")).toHaveTextContent("You");
   });
@@ -305,11 +306,11 @@ describe("Transcript, as a conversation", () => {
     expect(icon).toHaveAttribute("aria-hidden", "true");
   });
 
-  it("names an agent the directory does not list by its id and version, once", () => {
+  it("names an agent the directory does not list by its id, once", () => {
     render(<Transcript conversation={conversation} agents={[]} onToggleRun={() => {}} />);
     const agentPart = turns()[0]?.querySelector(".turn-agent") as HTMLElement;
-    expect(within(agentPart).getAllByText(exact)).toHaveLength(1);
-    expect(agentPart.querySelector(".turn-speaker-details")).toBeNull();
+    expect(within(agentPart).getAllByText(first.agent_id)).toHaveLength(1);
+    expect(within(agentPart).queryByText(exact)).toBeNull();
   });
 
   it("heads a delegated run with the agent's name", () => {

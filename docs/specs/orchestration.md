@@ -43,6 +43,8 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
    conversation's project: a `Message`'s `project_inventory` names the inventory the project
    holds, and `orchestrator.model` opens the current message with a note of it, so it neither
    asks for the inventory again nor copies one into an agent's input ([Projects](projects.md)).
+   The note gives the inventory's media types and tables, so the model states the kinds of data
+   for the researcher to confirm instead of asking what the files are (#1287).
 4. **A turn follows the latest.** A turn names the turn it follows, and one that does not follow
    the conversation's latest stored turn, or that arrives while another turn of the conversation
    is running, is refused before anything runs. So a message resent after a dropped connection

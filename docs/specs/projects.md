@@ -98,9 +98,12 @@ intended design, and each part says where it is not built yet.
    documents of the kind asked for ([Drafting documents](drafting.md), invariant 6). A plain `FileInventory` input is the
    project's inventory when it holds one, so an orchestrator sends an empty one. A `Message`'s
    `project_inventory` says what the project's inventory is (its digest, file count, tool and
-   date, and its limitations, when it was added and how many files the one it replaced listed)
-   without its files, so an orchestrator knows the researcher has given one, and that a revision
-   such as files left out in Edit inventory has taken effect; outside a project, or in one with no inventory, it is removed, so a caller can
+   date, its limitations, its files grouped by media type with their PRONOM identifiers, how
+   many are tables, when it was added and how many files the one it replaced listed) without its
+   files' paths, so an orchestrator knows the researcher has given one and what kinds of files it
+   lists, and asks the researcher to confirm them rather than to name them (#1287), and that a
+   revision such as files left out in Edit inventory has taken effect; outside a project, or in one
+   with no inventory, it is removed, so a caller can
    never claim one. Its `project_entry` and `project_progress` say which entry point the
    researcher chose and which steps of the process flow the log shows started, done or skipped,
    derived on every turn and removed outside a project ([Orchestration](orchestration.md),

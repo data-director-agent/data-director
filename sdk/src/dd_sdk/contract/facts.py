@@ -184,6 +184,14 @@ class VersionState(StrEnum):
     REJECTED = "rejected"
 
 
+class InventoryFormat(Frozen):
+    """The files of one media type in a project's inventory, without their paths."""
+
+    format_media_type: str | None = None
+    format_pronom_ids: list[str] = Field(default_factory=list)
+    format_file_count: int
+
+
 class InventorySummary(Frozen):
     """What the inventory a project holds is, without its files (docs/specs/projects.md)."""
 
@@ -196,6 +204,8 @@ class InventorySummary(Frozen):
     # When it was added to the project, and how many files the inventory it replaced listed.
     inventory_added_at: datetime | None = None
     inventory_revised_from_file_count: int | None = None
+    inventory_formats: list[InventoryFormat] = Field(default_factory=list)
+    inventory_table_count: int | None = None
 
 
 class DraftSummary(Frozen):

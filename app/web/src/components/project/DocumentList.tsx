@@ -1,27 +1,17 @@
 /**
  * The project's documents, grouped by the state of each one's latest version, those waiting for
- * a decision first, then the researcher facts kept from ORCID, the repository chosen, the statement of how generative AI was used and
- * the deposit package. Each entry is a link, so it can be opened in a new tab and left with Back;
- * the open one is marked as the current page.
+ * a decision first. Each entry is a link, so it can be opened in a new tab and left with Back; the
+ * open one is marked as the current page. What is about the project rather than one document (the
+ * researchers, its facts, the repository, the use of generative AI and the deposit package) has a
+ * tab of its own (`ProjectNav`).
  */
 
-import {
-  BookOpen,
-  Braces,
-  ClipboardList,
-  FileText,
-  Landmark,
-  ListChecks,
-  type LucideIcon,
-  Package,
-  Sparkles,
-  Table,
-  UserRound,
-} from "lucide-react";
+import { BookOpen, Braces, ClipboardList, FileText, type LucideIcon, Table } from "lucide-react";
 
 import type { ProjectDocument, VersionState } from "../../project/api";
 import { documentName } from "../../project/name";
 import { Link } from "../../route";
+import type { PanelTab } from "./ProjectPanelPage";
 
 const ICONS: Record<string, LucideIcon> = {
   readme: BookOpen,
@@ -36,13 +26,15 @@ const GROUPS: { state: VersionState; heading: string }[] = [
   { state: "rejected", heading: "Rejected" },
 ];
 
-export const DISCLOSURE = "disclosure";
-export const REPOSITORY = "repository";
-export const DEPOSIT = "deposit";
-export const RESEARCHERS = "researchers";
-export const FACTS = "facts";
-/** The entries that are not documents, each opening a panel of its own. */
-export const PANELS: readonly string[] = [RESEARCHERS, FACTS, REPOSITORY, DISCLOSURE, DEPOSIT];
+/** The entries that were once listed here and are now tabs, by their old `?doc=` id, so that an
+ * old link still lands on them. */
+export const FORMER_PANELS: Readonly<Record<string, PanelTab>> = {
+  researchers: "researchers",
+  facts: "facts",
+  repository: "repository",
+  disclosure: "ai-use",
+  deposit: "deposit",
+};
 
 /** The state of a document's latest version. */
 export function stateOf(document: ProjectDocument): VersionState | undefined {
@@ -83,7 +75,7 @@ export function DocumentList({
   hrefFor,
 }: {
   documents: ProjectDocument[];
-  /** The open document's id, or one of `PANELS`. */
+  /** The open document's id. */
   selected: string | null;
   hrefFor: (id: string) => string;
 }) {
@@ -112,41 +104,6 @@ export function DocumentList({
           </section>
         );
       })}
-      <section className="document-group">
-        <h2 className="document-group-heading">About the documents</h2>
-        <ul className="plain-list">
-          <Entry
-            to={hrefFor(RESEARCHERS)}
-            icon={UserRound}
-            label="Researchers"
-            current={selected === RESEARCHERS}
-          />
-          <Entry
-            to={hrefFor(FACTS)}
-            icon={ListChecks}
-            label="Project facts"
-            current={selected === FACTS}
-          />
-          <Entry
-            to={hrefFor(REPOSITORY)}
-            icon={Landmark}
-            label="Repository"
-            current={selected === REPOSITORY}
-          />
-          <Entry
-            to={hrefFor(DISCLOSURE)}
-            icon={Sparkles}
-            label="Use of generative AI"
-            current={selected === DISCLOSURE}
-          />
-          <Entry
-            to={hrefFor(DEPOSIT)}
-            icon={Package}
-            label="Deposit package"
-            current={selected === DEPOSIT}
-          />
-        </ul>
-      </section>
     </nav>
   );
 }

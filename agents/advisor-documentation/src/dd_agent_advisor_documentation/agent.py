@@ -53,6 +53,7 @@ from collections.abc import Mapping, Sequence
 from enum import StrEnum
 from typing import Any
 
+from dd_agent_advisor_documentation.counts import counted
 from dd_agent_advisor_documentation.prose import (
     Ask,
     Prose,
@@ -479,9 +480,7 @@ def _facts(
         for f in inventory.inventory_files
     ]
     facts: dict[str, Any] = {
-        "file_count": len(files),
-        "total_size_bytes": sum(f.file_size for f in inventory.inventory_files),
-        "table_count": sum(1 for f in inventory.inventory_files if f.file_fields),
+        **counted(inventory),
         "files": files,
     }
     if record is not None:
