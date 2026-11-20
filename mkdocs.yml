@@ -106,6 +106,7 @@ nav:
       - What is recorded: user-guide/records.md
       - Depositing your data: user-guide/depositing.md
       - Giving feedback: user-guide/feedback.md
+      - Alpha usage agreement: user-guide/usage-agreement.md
   - Operations:
       - operations/index.md
       - AI models: operations/ai-models.md
