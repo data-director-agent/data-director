@@ -18,15 +18,14 @@ from __future__ import annotations
 
 import json
 import sqlite3
-import threading
 import time
-from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
 from dd_deposit_broker.seal import Sealed, seal, unseal
+from dd_sdk.sqlite_store import LockedSqlite
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS accounts (
@@ -103,30 +102,12 @@ class PendingAuthorisation:
 
 class Store:
     def __init__(
-        self,
-        path: Path,
-        key_encryption_key: bytes,
-        *,
-        now: Callable[[], float] = time.time,
+        self, path: Path, key_encryption_key: bytes, *, now: Callable[[], float] = time.time
     ) -> None:
         self.path = path
         self._kek = key_encryption_key
-        self._lock = threading.Lock()
         self._now = now
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with self._connect() as db:
-            db.execute("PRAGMA journal_mode=WAL")
-            db.executescript(_SCHEMA)
-
-    @contextmanager
-    def _connect(self) -> Iterator[sqlite3.Connection]:
-        with self._lock:
-            db = sqlite3.connect(self.path)
-            try:
-                with db:
-                    yield db
-            finally:
-                db.close()
+        self._connect = LockedSqlite(path, _SCHEMA).connect
 
     def put(
         self, pseudonym: str, base_url: str, tokens: Tokens, *, method: str, label: str

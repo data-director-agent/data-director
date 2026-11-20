@@ -32,7 +32,7 @@ from dotenv import dotenv_values
 
 from dd_harness.conductor import Conductor
 from dd_harness.deposit_broker import DepositBroker
-from dd_harness.deposit_grants import DepositGrantMinter
+from dd_harness.deposit_broker import from_env as deposit_broker_from_env
 from dd_harness.identity import (
     Authenticator,
     BearerTokenAuthenticator,
@@ -82,40 +82,12 @@ def load_env_file(path: Path, environ: MutableMapping[str, str] = os.environ) ->
     return True
 
 
-# The settings a harness that deposits through the deposit broker needs, beside the model grants'
-# signing key and pseudonym secret (docs/specs/deposit.md, Depositing through an API).
-DEPOSIT_BROKER_URL = "DD_DEPOSIT_BROKER_URL"
-DEPOSIT_BROKER_SUBJECT_KEY = "DD_DEPOSIT_BROKER_SUBJECT_KEY"
-
-
 def deposit_broker(env: Mapping[str, str], grants: GrantMinter | None) -> DepositBroker | None:
-    """The deposit broker the harness asks for drafts, or None if the deployment deposits only by
-    hand.
-
-    `DD_DEPOSIT_BROKER_URL` is the broker's loopback address and `DD_DEPOSIT_BROKER_SUBJECT_KEY`
-    its public P-256 key (as `NAME` or `NAME_FILE`). Both, or neither; and the grants are signed
-    with the model grants' key and pseudonym secret, so those must be set too."""
-    url = env.get(DEPOSIT_BROKER_URL) or None
-    has_key = bool(
-        env.get(DEPOSIT_BROKER_SUBJECT_KEY) or env.get(f"{DEPOSIT_BROKER_SUBJECT_KEY}_FILE")
-    )
-    if url is None and not has_key:
-        return None
-    if url is None or not has_key:
-        raise SettingsError(
-            f"depositing through an API needs {DEPOSIT_BROKER_URL} and "
-            f"{DEPOSIT_BROKER_SUBJECT_KEY}; one is unset"
-        )
-    if grants is None:
-        raise SettingsError(
-            "depositing through an API signs its grants with the model grants' key: "
-            f"set {', '.join(MODEL_GRANT_SETTINGS)}"
-        )
+    """The deposit broker the harness asks for drafts (`dd_harness.deposit_broker.from_env`)."""
     try:
-        minter = DepositGrantMinter.from_material(grants, api_key(env, DEPOSIT_BROKER_SUBJECT_KEY))
-        return DepositBroker(url, minter)
+        return deposit_broker_from_env(env, grants, MODEL_GRANT_SETTINGS)
     except (ConfigError, GrantKeyError, ValueError) as exc:
-        raise SettingsError(str(exc).replace("the broker's", "the deposit broker's")) from None
+        raise SettingsError(str(exc)) from None
 
 
 def grant_minter(env: Mapping[str, str]) -> GrantMinter | None:

@@ -64,7 +64,7 @@ from dd_harness.package_crate import (
     produced_action,
     zip_folder,
 )
-from dd_harness.projects import APPROVED, RO_CRATE
+from dd_harness.projects import APPROVED
 from dd_harness.shacl import DD, SH, VIOLATION, WARNING, Result, Severity
 from dd_harness.shacl import run as run_shacl
 from dd_harness.storage import DepositSource, RunStorage
@@ -579,7 +579,6 @@ def _package(
             (out / name).write_bytes(data)
         content = zip_folder(out)
     about = {
-        "format": RO_CRATE,
         "requirements_digest": validation.requirements_digest,
         "documents": documents,
         "runs": included_runs,

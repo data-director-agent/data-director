@@ -115,6 +115,7 @@ nav:
       - The data-director command: operations/commands.md
       - The admin service: operations/admin.md
       - The model broker: operations/model-broker.md
+      - The deposit broker: operations/deposit-broker.md
       - Deploying to a VM: /deploy/README.md
       - LLM gateway: /deploy/llm-gateway/README.md
       - LLM gateway background: /deploy/llm-gateway/background.md
@@ -165,6 +166,8 @@ nav:
           - /admin/README.md
       - Model broker:
           - /broker/README.md
+      - Deposit broker:
+          - /deposit-broker/README.md
       - Inventory:
           - /inventory/README.md
           - Inventory library (TypeScript): /inventory/browser/README.md
@@ -202,6 +205,7 @@ nav:
       - App: /app/CHANGELOG.md
       - Admin: /admin/CHANGELOG.md
       - Model broker: /broker/CHANGELOG.md
+      - Deposit broker: /deposit-broker/CHANGELOG.md
       - Inventory: /inventory/CHANGELOG.md
       - Agents:
           - /agents/*/CHANGELOG.md

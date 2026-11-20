@@ -15,16 +15,13 @@ Enrolment (`dd_broker.enrolment`) calls `put`, `label` and `remove`.
 
 from __future__ import annotations
 
-import sqlite3
-import threading
-from collections.abc import Iterator
-from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from pathlib import Path
 
 from dd_broker.seal import Sealed, seal, unseal
 from dd_sdk.model_grant import Payer
+from dd_sdk.sqlite_store import LockedSqlite
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS accounts (
@@ -86,21 +83,7 @@ class Store:
     def __init__(self, path: Path, key_encryption_key: bytes) -> None:
         self.path = path
         self._kek = key_encryption_key
-        self._lock = threading.Lock()
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with self._connect() as db:
-            db.execute("PRAGMA journal_mode=WAL")
-            db.executescript(_SCHEMA)
-
-    @contextmanager
-    def _connect(self) -> Iterator[sqlite3.Connection]:
-        with self._lock:
-            db = sqlite3.connect(self.path)
-            try:
-                with db:
-                    yield db
-            finally:
-                db.close()
+        self._connect = LockedSqlite(path, _SCHEMA).connect
 
     def put(
         self,

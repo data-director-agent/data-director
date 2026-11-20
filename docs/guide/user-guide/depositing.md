@@ -1,12 +1,14 @@
 # Depositing your data
 
-The Data Director gets your project ready to deposit. It does not deposit it for you. Once it has
-built the deposit package, you publish your data in the repository you chose, by hand, using the
-metadata you approved. This page explains how.
+The Data Director gets your project ready to deposit. Once it has built the deposit package, you
+publish your data in the repository you chose, using the metadata you approved. Where the
+deployment can, it first creates a **draft** in the repository for you, with your own account
+there ([Depositing a draft to Zenodo](#depositing-a-draft-to-zenodo)); otherwise you create the item
+by hand. This page explains both.
 
-Data Director does not deposit, register a DOI or release an embargo. The repository does those
-when you publish the item there. Depositing through a repository's own interface, after you
-approve it, is planned (TODO(#383)).
+Data Director does not publish, register a DOI, upload your data files or release an embargo. The
+repository does those when you publish the item there. Depositing a draft to Figshare (ORDA) is
+planned (TODO(#383)).
 
 ## Before you start
 
@@ -62,6 +64,35 @@ repository you chose.
 4. **Keep the package.** Store it with the project's records, or attach it to the item.
 5. **Review and publish.** Check the item's preview, set any access restriction or embargo the
    repository offers, and publish it. The repository registers the DOI.
+
+## Depositing a draft to Zenodo
+
+Where the deployment deposits to Zenodo for you, the **Deposit** tab shows *Deposit a draft to
+Zenodo* once the package is built.
+
+1. **Connect your Zenodo account, once.** On the **Settings** page, open *Repository accounts*.
+   Choose *Connect your Zenodo sandbox account*, sign in at Zenodo, and approve. Data Director asks
+   only to create drafts, never to publish. If the deployment offers no sign-in, create a personal
+   token in Zenodo under *Applications*, with only the `deposit:write` scope, and paste it there
+   instead. Your account is kept encrypted by the deployment's deposit broker; the rest of Data
+   Director never sees it, and you can disconnect it at any time.
+2. **Approve the deposit.** On the **Deposit** tab, choose *Create a draft in Zenodo*. Your choice
+   is recorded with your name and the time. Data Director creates a draft holding the approved
+   metadata and the package, and links to it. It names any part of the metadata record Zenodo's
+   form has no place for, such as funding, which you can add in Zenodo.
+3. **Finish in Zenodo.** Open the draft, upload your data files, check it, and publish it, or
+   delete it. Data Director does neither.
+
+If no draft is made, the tab says why: most often, that your account is not connected yet. Nothing
+is published either way, and you can try again.
+
+### Practising on a test deployment
+
+A test deployment, such as the alpha server, deposits to the **Zenodo sandbox**,
+`sandbox.zenodo.org`, and says so beside the deposit. The sandbox is a test copy of Zenodo: its
+records and DOIs are not real, and it is emptied from time to time. It needs its own account,
+separate from any account on `zenodo.org`; create one at `sandbox.zenodo.org` before you connect it.
+You can publish a sandbox draft to see what happens, without making a real record.
 
 ## ORDA
 

@@ -1701,7 +1701,7 @@ version = "0.1.0a0"
 source = { editable = "deposit-broker" }
 dependencies = [
     { name = "cryptography" },
-    { name = "data-director-sdk" },
+    { name = "data-director-sdk", extra = ["brokers"] },
     { name = "httpx" },
     { name = "joserfc" },
     { name = "starlette" },
@@ -1711,7 +1711,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "cryptography", specifier = ">=45" },
-    { name = "data-director-sdk", editable = "sdk" },
+    { name = "data-director-sdk", extras = ["brokers"], editable = "sdk" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "joserfc", specifier = ">=1.0" },
     { name = "starlette", specifier = ">=1.8.0" },
@@ -1875,7 +1875,7 @@ version = "0.1.0a0"
 source = { editable = "broker" }
 dependencies = [
     { name = "cryptography" },
-    { name = "data-director-sdk" },
+    { name = "data-director-sdk", extra = ["brokers"] },
     { name = "httpx" },
     { name = "joserfc" },
     { name = "starlette" },
@@ -1891,7 +1891,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "cryptography", specifier = ">=45" },
-    { name = "data-director-sdk", editable = "sdk" },
+    { name = "data-director-sdk", extras = ["brokers"], editable = "sdk" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "joserfc", specifier = ">=1.0" },
     { name = "starlette", specifier = ">=1.8.0" },
@@ -1924,6 +1924,9 @@ dependencies = [
 anthropic = [
     { name = "anthropic" },
 ]
+brokers = [
+    { name = "joserfc" },
+]
 openai = [
     { name = "openai" },
 ]
@@ -1939,6 +1942,7 @@ requires-dist = [
     { name = "anthropic", marker = "extra == 'anthropic'", specifier = ">=1.15.0,<2.9" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "httpx2", marker = "extra == 'tools'", specifier = ">=2.13" },
+    { name = "joserfc", marker = "extra == 'brokers'", specifier = ">=1.0" },
     { name = "jsonschema", specifier = ">=4.23" },
     { name = "mcp", marker = "extra == 'tools'", specifier = ">=2.3,<3" },
     { name = "mcp-types", marker = "extra == 'tools'", specifier = ">=2.3,<3" },
@@ -1950,7 +1954,7 @@ requires-dist = [
     { name = "uvicorn", specifier = ">=0.30" },
     { name = "watchfiles", specifier = ">=1.0" },
 ]
-provides-extras = ["anthropic", "openai", "tools"]
+provides-extras = ["anthropic", "openai", "tools", "brokers"]
 
 [[package]]
 name = "data-director-workbench"

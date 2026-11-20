@@ -15,7 +15,7 @@ from test_deposit_package import RECORD, chosen, normalised, ready, store, valid
 
 from dd_app.app import Links, build_app
 from dd_app.governance import Governance
-from dd_app.routes.deposit import DepositRefusedProblem, Deposits, DepositShown
+from dd_app.routes.drafts import DepositRefusedProblem, Deposits, DepositShown
 from dd_app.routes.session import RepositoryTicket
 from dd_harness.projects import DEPOSIT_APPROVED, DEPOSIT_RECORDED
 from dd_harness.storage import ProjectStorage

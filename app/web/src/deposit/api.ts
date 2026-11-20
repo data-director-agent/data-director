@@ -20,6 +20,7 @@ import type {
   Deposits,
   RepositoryTicket,
 } from "../api/generated/responses";
+import { ticketed } from "../api/ticketed";
 import { checkSignedIn } from "../session/api";
 
 export type { DepositShown, Deposits } from "../api/generated/responses";
@@ -138,15 +139,8 @@ async function broker(
   signal?: AbortSignal,
 ): Promise<Response> {
   const issued = await ticket();
-  const response = await fetch(`${issued.deposit_broker_url}/connect/account?${query}`, {
-    ...(signal ? { signal } : {}),
-    method,
-    headers: {
-      authorization: `Bearer ${issued.ticket}`,
-      ...(body === undefined ? {} : JSON_HEADERS),
-    },
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-  });
+  const url = `${issued.deposit_broker_url}/connect/account?${query}`;
+  const response = await ticketed(url, issued.ticket, method, body, signal);
   if (!response.ok) {
     throw new RepositoryAccountRefused(response.headers.get(REASON_HEADER) ?? "broker-error");
   }

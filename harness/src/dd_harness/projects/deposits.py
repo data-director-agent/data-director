@@ -122,7 +122,9 @@ class DepositRecords(ProjectRules):
         digest = hashlib.sha256(package).hexdigest()
         self._keep_blob(project_id, digest, package)
         detail = {key: value for key, value in about.items() if key not in ENVELOPE_KEYS}
-        self._append(project_id, PACKAGE_BUILT, acted_for, caused_by, {**detail, "digest": digest})
+        # The RO-Crate package unless `about` names another format (invariant 19).
+        detail = {"format": RO_CRATE, **detail, "digest": digest}
+        self._append(project_id, PACKAGE_BUILT, acted_for, caused_by, detail)
         return digest
 
     def package(self, project_id: str, digest: str) -> bytes | None:

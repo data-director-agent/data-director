@@ -33,8 +33,6 @@ Other settings:
 
 from __future__ import annotations
 
-import base64
-import binascii
 import json
 import os
 from collections.abc import Mapping
@@ -47,7 +45,8 @@ from joserfc.jwk import ECKey
 from dd_deposit_broker import zenodo
 from dd_deposit_broker.seal import KEY_ENCRYPTION_KEY_BYTES
 from dd_deposit_broker.tokens import subject_key
-from dd_sdk.credentials import ConfigError, api_key
+from dd_sdk.credentials import ConfigError, api_key, key_encryption_key
+from dd_sdk.harness_tokens import jwks_source
 
 KEY_ENCRYPTION_KEY = "DD_DEPOSIT_BROKER_KEY_ENCRYPTION_KEY"
 SUBJECT_KEY = "DD_DEPOSIT_BROKER_SUBJECT_KEY"
@@ -82,16 +81,15 @@ class DepositBrokerSettings:
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> DepositBrokerSettings:
         env = os.environ if env is None else env
-        kek = _key_encryption_key(env)
         try:
             subject = subject_key(_secret(env, SUBJECT_KEY))
         except ValueError as exc:
             raise SettingsError(f"{SUBJECT_KEY}: {exc}") from None
-        jwks_url, jwks_file = _text(env, HARNESS_JWKS_URL), _text(env, HARNESS_JWKS_FILE)
-        if bool(jwks_url) == bool(jwks_file):
-            raise SettingsError(f"set one of {HARNESS_JWKS_URL} or {HARNESS_JWKS_FILE}")
-        if jwks_url and urlsplit(jwks_url).scheme not in {"http", "https"}:
-            raise SettingsError(f"{HARNESS_JWKS_URL} is not an http(s) URL")
+        try:
+            kek = key_encryption_key(env, KEY_ENCRYPTION_KEY, KEY_ENCRYPTION_KEY_BYTES)
+            jwks_url, jwks_file = jwks_source(env, HARNESS_JWKS_URL, HARNESS_JWKS_FILE)
+        except ConfigError as exc:
+            raise SettingsError(str(exc)) from None
         store = _text(env, STORE)
         if not store:
             raise SettingsError(f"set {STORE} to the deposit broker's SQLite file")
@@ -107,14 +105,15 @@ class DepositBrokerSettings:
             store=Path(store),
             allowed=allowed,
             oauth_clients=clients,
-            harness_jwks_url=jwks_url or None,
-            harness_jwks_file=Path(jwks_file) if jwks_file else None,
+            harness_jwks_url=jwks_url,
+            harness_jwks_file=jwks_file,
             public_url=public_url,
             app_url=app_url,
         )
 
 
 def _secret(env: Mapping[str, str], name: str) -> str:
+    """A secret as `name` or `name_FILE`; a problem stops start-up naming the setting alone."""
     try:
         return api_key(env, name)
     except ConfigError as exc:
@@ -122,7 +121,9 @@ def _secret(env: Mapping[str, str], name: str) -> str:
 
 
 def _text(env: Mapping[str, str], name: str) -> str:
-    return (env.get(name) or "").strip()
+    """A plain setting, blank when unset."""
+    value = env.get(name)
+    return value.strip() if value else ""
 
 
 def _https(env: Mapping[str, str], name: str) -> str | None:
@@ -133,19 +134,6 @@ def _https(env: Mapping[str, str], name: str) -> str | None:
     if parts.scheme != "https" or not parts.hostname or parts.query or parts.fragment:
         raise SettingsError(f"{name} is not a plain https URL")
     return value.rstrip("/")
-
-
-def _key_encryption_key(env: Mapping[str, str]) -> bytes:
-    try:
-        kek = base64.b64decode(_secret(env, KEY_ENCRYPTION_KEY), validate=True)
-    except binascii.Error, ValueError:
-        raise SettingsError(f"{KEY_ENCRYPTION_KEY} is not base64") from None
-    if len(kek) != KEY_ENCRYPTION_KEY_BYTES:
-        raise SettingsError(
-            f"{KEY_ENCRYPTION_KEY} is not {KEY_ENCRYPTION_KEY_BYTES} bytes "
-            f"(make one with: openssl rand -base64 {KEY_ENCRYPTION_KEY_BYTES})"
-        )
-    return kek
 
 
 def base_url(value: str) -> str:

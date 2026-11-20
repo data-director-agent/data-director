@@ -12,6 +12,7 @@
 import { createContext, useContext } from "react";
 
 import type { Ticket } from "../api/generated/responses";
+import { ticketed } from "../api/ticketed";
 import { checkSignedIn } from "../session/api";
 
 export interface AccountLabel {
@@ -125,15 +126,8 @@ async function broker(
   signal?: AbortSignal,
 ): Promise<Response> {
   const issued = await ticket(signal);
-  const response = await fetch(`${issued.broker_url}/enrolment/account`, {
-    ...(signal ? { signal } : {}),
-    method,
-    headers: {
-      authorization: `Bearer ${issued.ticket}`,
-      ...(body === undefined ? {} : JSON_HEADERS),
-    },
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-  });
+  const url = `${issued.broker_url}/enrolment/account`;
+  const response = await ticketed(url, issued.ticket, method, body, signal);
   if (!response.ok) {
     const refused = (await response
       .json()

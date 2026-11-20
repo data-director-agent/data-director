@@ -60,6 +60,7 @@ from dd_app.routes import (
     conversations,
     deposit,
     documents,
+    drafts,
     facts,
     folders,
     materials,
@@ -109,6 +110,7 @@ AREAS = (
     documents,
     facts,
     deposit,
+    drafts,
 )
 
 

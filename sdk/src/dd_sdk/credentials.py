@@ -20,6 +20,8 @@ in that provider's request format. Otherwise the agent calls the provider with i
 
 from __future__ import annotations
 
+import base64
+import binascii
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -59,6 +61,21 @@ def api_key(env: Mapping[str, str], name: str = "ANTHROPIC_API_KEY") -> str:
     if not key:
         raise ConfigError(f"{file_var}: {path} is empty")
     return key
+
+
+def key_encryption_key(env: Mapping[str, str], name: str, size: int = 32) -> bytes:
+    """A service's key-encryption key, which seals people's own keys or tokens at rest: `size`
+    random bytes in base64, as `name` or `name_FILE` (`api_key`). Raises `ConfigError`, naming the
+    variable and never the key."""
+    try:
+        kek = base64.b64decode(api_key(env, name), validate=True)
+    except binascii.Error, ValueError:
+        raise ConfigError(f"{name} is not base64") from None
+    if len(kek) != size:
+        raise ConfigError(
+            f"{name} is not {size} bytes (make one with: openssl rand -base64 {size})"
+        )
+    return kek
 
 
 @dataclass(frozen=True)

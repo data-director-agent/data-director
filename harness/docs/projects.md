@@ -23,7 +23,7 @@ Every event has these members:
 
 | Member | What it is |
 |---|---|
-| `event` | What happened: `project_created`, `project_renamed`, `project_deleted`, `project_restored`, `conversation_started`, `conversation_deleted`, `conversation_restored`, `inventory_added`, `researcher_added`, `researcher_withdrawn`, `repository_chosen`, `document_version_added`, `document_version_decided`, `document_question_answered`, `document_change_refused`, `fact_proposed`, `fact_decided`, `project_validated` or `package_built`. |
+| `event` | What happened: `project_created`, `project_renamed`, `project_deleted`, `project_restored`, `conversation_started`, `conversation_deleted`, `conversation_restored`, `inventory_added`, `researcher_added`, `researcher_withdrawn`, `repository_chosen`, `document_version_added`, `document_version_decided`, `document_question_answered`, `document_change_refused`, `fact_proposed`, `fact_decided`, `project_validated`, `package_built`, `deposit_item_decided`, `deposit_checks_confirmed`, `deposit_approved`, `deposit_recorded` or `deposit_failed`. |
 | `event_id` | A UUIDv7, so events sort in the order they happened. |
 | `project_id` | The project. |
 | `at` | When, in UTC. |
@@ -129,8 +129,23 @@ conforms. It also gives:
 | `documents` | Each approved version it holds, as `document_id`, `document_kind`, `version` and `digest`. |
 | `runs` | The `invocation_id` of each run behind those versions. |
 | `file_count` | How many data files it describes, none of which it holds. |
+| `format` | `ro-crate`; a package whose event names no format is one too. |
+
+A platform's item rendered for a deposit through an API is kept as a package too: its
+`package_built` gives `format` (such as `zenodo-deposit`), `media_type`, `derived_from` (the
+RO-Crate package's digest) and `unplaced`, the record's properties the mapping could not place.
 
 `ProjectStore.package(project_id, digest)` reads back a package the log records.
+
+`deposit_approved` records a person's approval to deposit a package through a repository's API
+(`dd_harness.deposit_api`, [Deposit](../../docs/specs/deposit.md), invariant 12): `digest` and
+`format` (the RO-Crate package), `item_digest` and `item_format` (the rendered item), `re3data_id`,
+`repository_name`, `transport`, `base_url`, `target` if any, and `sandbox`. A second approval of a
+package for the same repository is refused while the first has no outcome or made a draft
+(`DepositInProgressError`). Its outcome is `deposit_recorded`, with `approval` (the approval's
+`event_id`), the same names, `deposit_id`, `draft_url`, `doi` if the repository reported one, and
+`unplaced`; or `deposit_failed`, with `approval`, the same names, `status` and `reason`, a code
+from `dd_sdk.deposit_grant.DepositReason`. No event holds a token.
 
 Who may do what in a project is read from this log by `dd_harness.project_access`, the one access
 check the conductor and the app use ([Projects](../../docs/specs/projects.md), invariant 17):

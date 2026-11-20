@@ -31,6 +31,7 @@ from dd_harness.project_log import ProjectLog as ProjectLog
 from dd_harness.project_log import ProjectSection as ProjectSection
 from dd_harness.requirements import Requirements
 from dd_harness.sources import Sources
+from dd_harness.storage_deposits import DepositApprovals
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     DocumentKind,
@@ -384,7 +385,7 @@ class ProjectDocuments(ProjectRecord, Protocol):
         ...
 
 
-class ProjectDeposits(ProjectRecord, Protocol):
+class ProjectDeposits(ProjectRecord, DepositApprovals, Protocol):
     """The validation reports, the decisions and confirmation made before packaging, and the
     deposit packages a project keeps (`dd_harness.projects.deposits`)."""
 
@@ -437,30 +438,6 @@ class ProjectDeposits(ProjectRecord, Protocol):
 
     def package(self, project_id: str, digest: str) -> bytes | None:
         """The bytes of a package the log records as built, or None."""
-        ...
-
-    def approve_deposit(
-        self,
-        project_id: str,
-        approval: Mapping[str, Any],
-        *,
-        acted_for: Principal,
-        caused_by: str,
-    ) -> dict[str, Any]:
-        """Record a person's approval to deposit a package; refuses a second approval of a
-        package already deposited, or being deposited, in the repository."""
-        ...
-
-    def record_deposit_outcome(
-        self,
-        project_id: str,
-        outcome: Mapping[str, Any],
-        *,
-        recorded: bool,
-        acted_for: Principal,
-        caused_by: str,
-    ) -> dict[str, Any]:
-        """Record how an approved deposit ended: `deposit_recorded` or `deposit_failed`."""
         ...
 
 

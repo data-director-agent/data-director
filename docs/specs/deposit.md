@@ -19,8 +19,8 @@ Deposit-ready means that a person can upload the package. The harness may also d
 them: after the researcher approves it, it creates a **draft** item in the chosen repository through
 the repository's API, with the person's own credential, and records where it went. The researcher
 then adds the data files and publishes the item in the repository's own interface. How this works,
-for Figshare, Zenodo and Dataverse alike, is in *Depositing through an API* below; none of it is
-built yet, TODO(#383).
+for Figshare, Zenodo and Dataverse alike, is in *Depositing through an API* below. Zenodo is
+built (#648), to the Zenodo sandbox; Figshare is TODO(#383) and Dataverse TODO(#852).
 
 One project can be rendered into any number of packages, and how a package reaches a repository
 is a separate choice. A **packager** renders a project and its merged requirement set into the
@@ -29,8 +29,9 @@ platform, into a repository: a platform's API connector, SWORD v2, or a person u
 Packagers and transports are pluggable and configured apart, as *Packagers and transports* below
 describes. The RO-Crate zip is the default package and the record of truth that every other format
 wraps, travels with or names. SWORD v2 is a protocol, not a format: it carries a package in a
-packaging such as BagIt, so it is a transport and the bag is a packager's output. Only the
-RO-Crate packager and the manual transport are built; the interface and registry are TODO(#870).
+packaging such as BagIt, so it is a transport and the bag is a packager's output. The RO-Crate
+packager, the manual transport and the `zenodo` transport are built, with the transport registry
+(`dd_sdk.transports`); a registry of packagers is TODO(#870).
 
 Out of scope: publishing an item through an API, and minting or reserving a persistent identifier
 (R7, TODO(#322)); uploading data files, which the platform never holds ([Projects](projects.md));
@@ -60,7 +61,17 @@ What is built:
 - what to do after downloading the package: the Deposit panel lists the manual steps for the
   chosen repository, naming its form's fields by their `form_label`, linking to its
   `repository_url` and listing its `unconfirmed` items, all read from the merged set; the user
-  guide's *Depositing your data* covers the same steps.
+  guide's *Depositing your data* covers the same steps;
+- depositing a draft to Zenodo through its API, *Depositing through an API* below: the override's
+  `deposit` block (`RequirementSet.deposit`, `Requirements.connector`), the `dd.transports`
+  registry and the Zenodo item's mapping (`dd_harness.transports.zenodo`), the profile's
+  `deposit_transports`, the deposit grant (`dd_sdk.deposit_grant`, `dd_harness.deposit_grants`),
+  approval and outcome (`dd_harness.deposit_api`; `deposit_approved`, `deposit_recorded` and
+  `deposit_failed`), the deposit broker that holds each person's token
+  (`deposit-broker/`, [The deposit broker](../guide/operations/deposit-broker.md)), and in the app
+  `GET` and `POST /api/projects/{id}/deposits`, `POST /api/repository-account/ticket`, the Deposit
+  panel's *Deposit a draft* and the Settings page's *Repository accounts*
+  (`harness/tests/test_deposit_api.py`, `deposit-broker/tests/`, `app/tests/test_deposit_draft.py`).
 
 A researcher chooses a repository in the app, either from an advisor's shortlist or on the
 project's page from the deployment's suggestions or a search of the pinned re3data export
@@ -139,30 +150,32 @@ Invariants 20 to 22 hold for the pause before packaging
     decision that stands and one for the confirmation, each naming the person and the time, and
     `package_built` names the items decided (`decided_items`).
 
-Invariants 11 to 15 hold for depositing through an API, which is not built yet; each names the
-issue that will build and test it.
+Invariants 11 to 15 hold for depositing through an API. They are built and tested for Zenodo
+(`harness/tests/test_deposit_api.py`, `deposit-broker/tests/`); each names the issue that builds
+them for the other transports.
 
 11. **A connector is configuration, never code for one repository.** A repository is reachable
     through a transport when its override names the transport, the format it carries, a base URL
     and a target. Each transport has one implementation, shared by every repository that uses it;
     adding a repository of a known transport is a new override, not new code (invariant 1).
-    TODO(#383, #648, #857, #872).
+    TODO(#383, #857, #872).
 12. **No deposit without a person's recorded approval.** The harness deposits only on a
     `deposit_approved` event that a person made, naming the package by its digest and the
     repository it goes to, and only a package the log records as built from a valid report
-    (invariant 9). No agent deposits, and no agent's output starts one. TODO(#383).
+    (invariant 9). No agent deposits, and no agent's output starts one.
 13. **The credential reaches no record.** A person's repository token appears in no project log
     event, run, trace, prompt, Process Run Crate, package, error message or app response, and the
-    app and the harness never hold it at rest. TODO(#383).
+    app and the harness never hold it at rest.
 14. **A deposit creates a draft and never publishes.** Nothing the harness sends publishes an item,
-    mints a persistent identifier or makes a file public. TODO(#383).
+    mints a persistent identifier or makes a file public.
 15. **Every deposit ends in one outcome event, manual or automatic.** A `deposit_recorded` event
     names the package digest, the repository and the draft's URL, whether the harness made it or a
     person reported it, so the two read alike; a failed attempt is a `deposit_failed` event, not an
-    exception. TODO(#647, #383).
+    exception. A person reporting a manual deposit is TODO(#647).
 
-Invariants 16 to 19 hold for packagers and transports. Only the RO-Crate packager and the manual
-transport exist; each invariant names the issue that will build and test the rest.
+Invariants 16 to 19 hold for packagers and transports. The RO-Crate packager, the manual transport
+and the `zenodo` transport with its item exist; each invariant names the issue that will build and
+test the rest.
 
 16. **The RO-Crate package is the record of truth.** Every other format is built from the same
     valid report and either holds the RO-Crate package, travels with it, or names it by its digest.
@@ -345,7 +358,7 @@ as `derived_from`. What stays fixed across formats, and how each format carries 
 |---|---|---|---|---|
 | `ro-crate` | `application/zip` | RO-Crate, at its REQUIRED level (invariant 10) | holds them | built |
 | `bagit` | `application/zip` | BagIt (RFC 8493), with the RO-Crate zip as its payload | holds the RO-Crate package | TODO(#871) |
-| a platform's item (`figshare-item`, `zenodo-deposit`, `dataverse-dataset`) | `application/json` | the platform's API, as far as its mapping's tests show | travels with the RO-Crate package, sent as one file of the draft | TODO(#383, #648, #857) |
+| a platform's item (`figshare-item`, `zenodo-deposit`, `dataverse-dataset`) | `application/json` | the platform's API, as far as its mapping's tests show | travels with the RO-Crate package, sent as one file of the draft | `zenodo-deposit` built; others TODO(#383, #857) |
 | `deposit-sheet` | decided with TODO(#644) | no machine format; it is read by a person | names the RO-Crate package and the report by digest; the person uploads the package with it | TODO(#644) |
 
 A rendered platform item is a package like any other: derived from the approved DataCite record,
@@ -359,7 +372,7 @@ these pairs are accepted (invariant 18):
 |---|---|---|---|
 | `manual` | `ro-crate`, and `deposit-sheet` beside it | any repository, with or without an override | `ro-crate` built; sheet TODO(#644) |
 | `sword2` | `bagit` | Dataverse, DSpace, EPrints, where they offer SWORD v2 | TODO(#869, #871, #872) |
-| `figshare`, `zenodo`, `dataverse` | that platform's item, with `ro-crate` | ORDA, Zenodo, a Dataverse installation | TODO(#383, #648, #857) |
+| `figshare`, `zenodo`, `dataverse` | that platform's item, with `ro-crate` | ORDA, Zenodo, a Dataverse installation | `zenodo` built; others TODO(#383, #857) |
 
 Which repositories offer SWORD v2, with which packagings, how each keeps a deposit in progress
 rather than published, and how each authenticates, are for the spike to settle, TODO(#869). Until
@@ -382,8 +395,7 @@ becomes of a package built before the project changed is TODO(#649).
 
 ### Depositing through an API
 
-None of this section is built yet. Figshare, starting with ORDA, is TODO(#383); Zenodo is
-TODO(#648); Dataverse is TODO(#852); SWORD v2, a transport shared by every repository that offers
+Zenodo is built (#648). Figshare, starting with ORDA, is TODO(#383); Dataverse is TODO(#852); SWORD v2, a transport shared by every repository that offers
 it, is TODO(#872). A platform's API and SWORD v2 are both transports (*Packagers and
 transports*); what follows holds for each.
 
@@ -396,13 +408,16 @@ gives:
 - `base_url`: the installation's API root, such as `https://api.figshare.com/v2`, Zenodo's own
   or its sandbox, or one Dataverse installation's;
 - `target`: where the item is created, in the kind's own terms: a Figshare group, a Zenodo
-  community, a Dataverse collection's alias. Optional where the kind has a default.
+  community, a Dataverse collection's alias. Optional where the kind has a default;
+- `sandbox`: whether `base_url` is the platform's test installation, whose items and identifiers
+  are not real. The app says so beside the deposit.
 
 The block holds no credential. A standard's set has no `deposit` block, so a repository without an
 override is deposited to by hand. What varies between installations of one kind, such as a
 Dataverse installation's required fields and controlled subjects, belongs in its override's fields
-and in the kind's mapping, never in code for that installation, TODO(#854, #856). The keys are
-added to `RequirementSet` with the first connector, and refused until then (invariant 2).
+and in the kind's mapping, never in code for that installation, TODO(#854, #856). A pair the table
+above does not allow, or a `deposit` block in a standard's set, stops start-up (invariant 2). The
+deployment's Zenodo override deposits to the sandbox; moving to Zenodo itself is TODO(#648).
 
 **Each API kind renders the approved DataCite record.** The kind's mapping turns the record into
 the item metadata its API takes, through the same field table validation reads: one mapping for
@@ -431,8 +446,18 @@ repository-wide write access. The token is kept as a person's own model key is
 ([A person's own model account](model-accounts.md)): the person gives it to a service outside the
 app and the harness, through a form that service serves. That service makes the repository's API
 calls itself, as the broker makes model calls, on a short-lived grant the harness mints for one
-approved deposit; the harness never sees the token. Whether the service is the model broker or a
-sibling of it, and the grant's format, are decided with the first connector, TODO(#383). A person who has given no
+approved deposit; the harness never sees the token. The service is the **deposit broker**, a
+sibling of the model broker with its own user, store, keys and audience
+([The deposit broker](../guide/operations/deposit-broker.md)). The person connects their account
+there by signing in at the repository (OAuth, asking only for the scope that creates drafts, which
+for Zenodo is `deposit:write` and cannot publish) or by pasting a personal token, which the broker
+checks first. The grant (`dd_sdk.deposit_grant`) is a JWT the harness signs with its model-grant
+key, for the deposit broker's audience alone, naming the person by their sealed pseudonym, the
+repository, the transport, the API root, the target, the digests of the package and the rendered
+item, and the approval event; the broker accepts each once, within five minutes, and only with the
+bytes whose digests it names. The broker calls only the API roots its operator allows, so a
+practice deployment cannot reach a production repository by a change to an override alone. A
+person who has given no
 token for the repository is told so and deposits by hand; nothing falls back to a deployment's
 token. No agent ever holds a token (Blueprint P4).
 
