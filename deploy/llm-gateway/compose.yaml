@@ -7,7 +7,7 @@
 
 services:
   litellm:
-    image: ghcr.io/berriai/litellm:1.110.0@sha256:4295b064b22eb88f9530e616afc812edd47048891ba64896bfc3fa74e2b883c3   # read release notes before bumping
+    image: ghcr.io/berriai/litellm:1.110.2@sha256:ef798594ca3db8d81bad2e1439f536f49b71fe095ee9f20416f5e149b4e22035   # read release notes before bumping
     # By hand, the settings and secrets are in .env. On a VM, data-director-llm-gateway.service
     # passes them in its environment instead, from root's files (deploy/README.md), so .env is
     # optional and the ones the gateway needs are named here.
