@@ -673,6 +673,10 @@ dd:RepositoryRequirements a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 11 ;
             sh:path dd:warnings ],
+        [ sh:description "The pages the set's values were taken from, so that a steward can check them; in a merged set, the standard's first, then the override's." ;
+            sh:nodeKind sh:IRI ;
+            sh:order 14 ;
+            sh:path dd:guidance ],
         [ sh:datatype xsd:string ;
             sh:description "An override only: the licences the repository offers, each an SPDX identifier or the URL of the repository's own terms." ;
             sh:nodeKind sh:Literal ;

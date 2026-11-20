@@ -605,13 +605,24 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   indented), and its Source tab shows the stored text exactly, since that is what a decision names
   by its digest and what the deposit package holds. Its Versions tab shows each version's
   decision and the lines it changed from the one before. While a person edits, the preview shows
-  their version. The list ends with the repository chosen, the statement of how generative AI
-  was used and the deposit package, and these are listed before any document is drafted. The
-  repository entry (`GET /api/projects/{id}/repository`) shows the repository chosen last, the
-  requirement sets by version, the warnings, and the documents and metadata they ask for, as
-  the harness resolved them. It also offers a way to choose one there (below); with none chosen
-  it says so, and that a shortlist can be asked for in the project's conversations. Whether a package meets them is the deposit check's to say. The
-  deposit package entry checks the project against its chosen repository's
+  their version. The list holds documents only.
+- **A project's pages are tabs.** Beneath the breadcrumb, each of a project's pages is a tab with
+  an address of its own: Documents (`/projects/{id}`), Researchers (`/researchers`), Project facts
+  (`/facts`), Repository (`/repository`), Use of generative AI (`/ai-use`), Deposit package
+  (`/deposit`) and the Journey map (`/journey`), each under `/projects/{id}`, then the project's
+  Conversations. Each is there before any document is drafted. A link to one of the first five
+  from when they were entries in the documents list (`?doc=repository` and the like) is sent on
+  to its tab, replacing the history entry (`app/web/src/components/project/ProjectPanelPage.test.tsx`).
+  The Repository tab (`GET /api/projects/{id}/repository`) shows the repository chosen last, as
+  the harness resolved it from the pinned re3data export and the deployment's requirement sets,
+  with nothing looked up live: its re3data record and, from its override, where to deposit; the
+  requirement sets by version; what it accepts (media types, the largest file and item, licences),
+  each only where a set states it; what Data Director assumes (that the package is checked against
+  those sets alone and deposited by hand), with the warnings and the sets' `unconfirmed` items;
+  the documents and metadata they ask for; and the sets' `guidance`, the pages the values came
+  from. It also offers a way to choose one there (below); with none chosen it says so, and that a
+  shortlist can be asked for in the project's conversations. Whether a package meets them is the
+  deposit check's to say. The Deposit package tab checks the project against its chosen repository's
   requirements ([Deposit](deposit.md)) when the person asks, and lists what must be fixed and
   what is worth fixing, each in the harness's words. It offers to build the package only after
   a check the project passed, and then a link to download the zip by its digest. A decision made
@@ -647,8 +658,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   it, as a new choice, and the last one counts. An identifier the export does not hold is refused
   with nothing recorded (`app/tests/test_repository_choice.py`,
   `app/web/src/components/conversation/RepositoryShortlist.test.tsx`).
-- **A repository can also be chosen on the project's page, without a shortlist.** The repository
-  entry's combo box offers the deployment's suggestions until something is typed: the
+- **A repository can also be chosen on the project's Repository tab, without a shortlist.** The
+  tab's combo box offers the deployment's suggestions until something is typed: the
   repositories it has an override for, then those `suggested.yaml` lists
   (`app/config/repositories/README.md`). Typing searches the pinned re3data export
   (`GET /api/repositories?q=…`) by name or additional name, or by the repository's own
@@ -656,7 +667,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   one, since it names an organisation, not a repository. The same text always finds the same
   repositories, in the same order. **Choose repository** sends only the re3data identifier, as a
   shortlist's card does, and the last choice counts (`app/tests/test_repository_search.py`,
-  `app/web/src/components/project/ProjectPage.test.tsx`).
+  `app/web/src/components/project/ProjectPanelPage.test.tsx`).
 - **The phases** come from the SDK's process flow, served by the app and joined in the shell to
   each manifest's `serves` ([Orchestration](orchestration.md)), so the shell keeps no copy of the
   flow. The shell shows them as "Your data journey", in a researcher's words: each phase has a

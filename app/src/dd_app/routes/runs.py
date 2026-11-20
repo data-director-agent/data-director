@@ -196,7 +196,7 @@ async def list_runs(request: Request, reader: Principal, deps: Deps) -> Response
     )
     if isinstance(page, Response):
         return page
-    return respond_page(request, page, RunRow)
+    return await run_in_threadpool(respond_page, request, page, RunRow)
 
 
 async def get_run(request: Request, reader: Principal, deps: Deps) -> Response:

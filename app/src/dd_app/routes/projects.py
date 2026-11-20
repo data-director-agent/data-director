@@ -192,7 +192,7 @@ async def list_projects(request: Request, reader: Principal, deps: Deps) -> Resp
     )
     if isinstance(page, Response):
         return page
-    return respond_page(request, page, ProjectSummary)
+    return await run_in_threadpool(respond_page, request, page, ProjectSummary)
 
 
 async def list_deleted_projects(request: Request, owner: Principal, deps: Deps) -> Response:
@@ -201,7 +201,7 @@ async def list_deleted_projects(request: Request, owner: Principal, deps: Deps) 
     except PagingError as exc:
         return refused(str(exc), "Data Director could not list the deleted projects")
     page = await run_in_threadpool(lambda: deps.reads.deleted_projects_for(owner, **paging))
-    return respond_page(request, page, DeletedProject)
+    return await run_in_threadpool(respond_page, request, page, DeletedProject)
 
 
 async def create_project(request: Request, person: Principal, deps: Deps) -> Response:

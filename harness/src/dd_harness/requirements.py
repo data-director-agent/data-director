@@ -119,6 +119,9 @@ class Resolved:
         merged["unconfirmed"] = list(
             dict.fromkeys(item for s in self.sets for item in s.requirement_set.unconfirmed)
         )
+        merged["guidance"] = list(
+            dict.fromkeys(page for s in self.sets for page in s.requirement_set.guidance)
+        )
         # A standard's url describes the standard, not where to deposit.
         if override is not None and override.requirement_set.url is not None:
             merged["repository_url"] = override.requirement_set.url

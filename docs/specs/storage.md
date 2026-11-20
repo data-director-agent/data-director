@@ -48,7 +48,7 @@ It does not cover what a run or a project contains ([Contract](contract.md), [Pr
    `sources.txt`, `validation-report.jsonld` when the payload's class carries shapes
    ([Contract](contract.md)) and, unless `DD_WRITE_CRATE=0`, the Process Run Crate as one artifact per file
    under `crate/`. An artifact belongs to a stored run, is written once, and is read back byte for
-   byte. Its name is a relative path of plain segments and cannot name the run's own files, in
+   byte. A run's artifacts are kept together, in one transaction where the backend has them, so a failure keeps none. Its name is a relative path of plain segments and cannot name the run's own files, in
    every backend, including those whose keys could hold any string.
 6. **A class schema is kept once under its digest**, and its bytes never change
    ([Contract](contract.md)).
@@ -307,8 +307,9 @@ connection's `search_path`, which a location may choose with
   `DD_RUNS_DIR` and `DD_PROJECTS_DIR` name one database, a harness process may hold twice that,
   and each process its own, which the server's `max_connections` must allow. When every
   connection is borrowed, a call waits for one to come back, for up to 30 seconds, and then
-  raises. A connection is checked as it is borrowed, so one the server dropped is replaced, not
-  handed out. A project's exclusive section holds one connection for its transaction. `close`
+  raises. A borrow makes no round trip: a connection the server dropped is found when it is used,
+  and the pool replaces it. A read that meets one is repeated once on another connection; a write
+  is not, since one that failed while committing may have been kept. A project's exclusive section holds one connection for its transaction. `close`
   releases the pool, as does the store being collected or the process ending; a store is opened
   in the process that uses it, never carried across a `fork`. The migration commands open a
   connection of their own.
