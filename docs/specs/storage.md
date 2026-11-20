@@ -140,6 +140,11 @@ conversations a page at a time, for the reader allowed to see them (`dd_harness.
   projects alone), and the access check decides from those logs alone
   (`dd_harness.project_access.readable_logs`). The number of reads a listing makes of the project
   store does not grow with the number of projects; a database answers it in one query.
+- **Titles.** A conversation's title is read from its first turn and, when no model wrote one,
+  its request. `dd_harness.conversations.list_conversations` reads those of a whole page with
+  `RunStorage.get_many`, one call for the envelopes and one for the requests, not a read per
+  conversation. `GET /api/projects` lists every conversation the person may read in one call to
+  `list_conversations`, so it scans the run store once, whatever the number of projects.
 - **Deleted conversations.** A `Readable` may also name conversations to leave out, the deleted
   ones in the projects the reader may read ([Projects](projects.md), invariant 29;
   `dd_harness.project_access.hidden_in`, from the same logs). A run or a conversation in one of them is

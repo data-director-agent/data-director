@@ -168,6 +168,14 @@ class ProjectFact(Frozen):
         return self
 
 
+class InventoryFormat(Frozen):
+    """The files of one media type in a project's inventory, without their paths."""
+
+    format_media_type: str | None = None
+    format_pronom_ids: list[str] = Field(default_factory=list)
+    format_file_count: int
+
+
 class InventorySummary(Frozen):
     """What the inventory a project holds is, without its files (docs/specs/projects.md)."""
 
@@ -177,6 +185,8 @@ class InventorySummary(Frozen):
     inventory_tool_version: str
     inventory_made_at: datetime
     inventory_limitations: list[str] = Field(default_factory=list)
+    inventory_formats: list[InventoryFormat] = Field(default_factory=list)
+    inventory_table_count: int | None = None
 
 
 class ChosenRepository(Frozen):

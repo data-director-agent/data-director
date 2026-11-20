@@ -2,8 +2,8 @@
  * The transcript: an ordered list of turns, each the person's message and the agent's reply. The
  * person's part sits on a surface at the end edge, the agent's at the start edge beside a rule, so
  * the two differ by surface and position as well as by their labels (WCAG 1.4.1). Each reply is
- * headed by the agent's name from its card, with `agent_id@agent_version` beneath it; a change of
- * version since an earlier turn is marked (docs/specs/orchestration.md), and each delegated child
+ * headed by the agent's name from its card alone: its version and models are on the agent page. An
+ * agent updated since an earlier turn is noted in plain words (docs/specs/orchestration.md), and each delegated child
  * is a card that opens its run, with its evidence, in place. Abstained, referred and failed
  * replies use the run view's outcome wording, not a generic error. A reply that failed, as when
  * the model provider did not answer, says so in plain words, keeps the agent's own text behind a
@@ -113,7 +113,7 @@ function ChildCard({
   const regionId = `run-${child.invocation_id}`;
   return (
     <li className="callout child-card" {...(selected ? { "aria-current": "true" as const } : {})}>
-      <Speaker agents={agents} agentId={child.agent_id} agentVersion={child.agent_version} />
+      <Speaker agents={agents} agentId={child.agent_id} />
       <p>
         <span className={`status status-${tone}`}>{label}</span>
         {waiting && (
@@ -279,13 +279,16 @@ export function Transcript({
             {conversation.version_changes
               .filter((c) => c.turn_index === turn.turn_index)
               .map((c) => (
-                <p key={`${c.agent_id}-${c.to}`} className="callout status-warn">
-                  {nameOf(agents, c.agent_id) !== c.agent_id && `${nameOf(agents, c.agent_id)}, `}
-                  <code>{c.agent_id}</code>, changed version from <code>{c.from}</code> to{" "}
-                  <code>{c.to}</code> since an earlier turn.
+                <p key={`${c.agent_id}-${c.to}`} className="callout muted">
+                  {nameOf(agents, c.agent_id) === c.agent_id ? (
+                    <code>{c.agent_id}</code>
+                  ) : (
+                    nameOf(agents, c.agent_id)
+                  )}{" "}
+                  was updated since an earlier turn, so its replies may differ.
                 </p>
               ))}
-            <Speaker agents={agents} agentId={turn.agent_id} agentVersion={turn.agent_version} />
+            <Speaker agents={agents} agentId={turn.agent_id} />
             <div className="markdown">
               <Markdown>{replyText(conversation, turn)}</Markdown>
             </div>
@@ -341,7 +344,7 @@ export function Transcript({
                 />
               ))}
             {turn.children.length > 0 && (
-              <ul aria-label={`Agents ${turn.agent_id} delegated to`} className="plain-list">
+              <ul aria-label={`Agents ${nameOf(agents, turn.agent_id)} delegated to`} className="plain-list">
                 {turn.children.map((child) => (
                   <ChildCard
                     key={child.invocation_id}

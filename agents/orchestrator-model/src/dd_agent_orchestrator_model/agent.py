@@ -64,10 +64,9 @@ import json
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from datetime import UTC
 from typing import Any
 
-from dd_agent_orchestrator_model.notes import record_notes
+from dd_agent_orchestrator_model.notes import inventory_note, record_notes
 from dd_agent_orchestrator_model.own_tools import ENTRY_TOOL as ENTRY_TOOL
 from dd_agent_orchestrator_model.own_tools import ENTRY_TOOL_DEFINITION as ENTRY_TOOL_DEFINITION
 from dd_agent_orchestrator_model.own_tools import NAME_TOOL as NAME_TOOL
@@ -241,25 +240,6 @@ def conversation(message: Message, history_turns: int) -> list[dict[str, Any]]:
     text = "\n\n".join([*notes, message.message_text])
     messages.append({"role": "user", "content": text})
     return messages
-
-
-def inventory_note(message: Message) -> str | None:
-    """What the harness says of the project's inventory, or None if the project holds none."""
-    held = message.project_inventory
-    if held is None:
-        return None
-    files = "1 file" if held.inventory_file_count == 1 else f"{held.inventory_file_count} files"
-    made = held.inventory_made_at.astimezone(UTC).strftime("%Y-%m-%d %H:%M UTC")
-    note = (
-        "[From the harness, not the researcher] The project holds an inventory of the dataset: "
-        f"{files}, made {made} by {held.inventory_tool} {held.inventory_tool_version}."
-    )
-    if held.inventory_limitations:
-        note += " Its limitations: " + "; ".join(held.inventory_limitations) + "."
-    return (
-        note + " The harness puts it into the input of any agent that takes an inventory: leave "
-        "`inventory` out, and send an empty input to an agent that takes only an inventory."
-    )
 
 
 def progress_note(message: Message) -> str | None:

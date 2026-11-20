@@ -11,12 +11,52 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
+from datetime import UTC
 
 from dd_agent_orchestrator_model.own_tools import NAME_TOOL
-from dd_sdk.contract.facts import FactKind, ProjectFact
+from dd_sdk.contract.facts import FactKind, InventoryFormat, ProjectFact
 from dd_sdk.contract.models import Message
 
 LEAD = "[From the harness, not the researcher] "
+
+
+def inventory_note(message: Message) -> str | None:
+    """What the harness says of the project's inventory, or None if the project holds none: how
+    many files, what kinds and how many tables, so that the model states the kinds of data for the
+    researcher to confirm instead of asking for them (#1287)."""
+    held = message.project_inventory
+    if held is None:
+        return None
+    made = held.inventory_made_at.astimezone(UTC).strftime("%Y-%m-%d %H:%M UTC")
+    note = (
+        LEAD + "The project holds an inventory of the dataset: "
+        f"{_files(held.inventory_file_count)}, made {made} by {held.inventory_tool} "
+        f"{held.inventory_tool_version}."
+    )
+    if held.inventory_formats:
+        kinds = "; ".join(_format(group) for group in held.inventory_formats)
+        note += f" By media type: {kinds}."
+    if held.inventory_table_count == 1:
+        note += " 1 file is a table whose fields it lists."
+    elif held.inventory_table_count:
+        note += f" {held.inventory_table_count} files are tables whose fields it lists."
+    if held.inventory_limitations:
+        note += " Its limitations: " + "; ".join(held.inventory_limitations) + "."
+    return (
+        note + " The harness puts it into the input of any agent that takes an inventory: leave "
+        "`inventory` out, and send an empty input to an agent that takes only an inventory."
+    )
+
+
+def _files(count: int) -> str:
+    return "1 file" if count == 1 else f"{count} files"
+
+
+def _format(group: InventoryFormat) -> str:
+    named = group.format_media_type or "media type not told"
+    if group.format_pronom_ids:
+        named += " (PRONOM " + ", ".join(group.format_pronom_ids) + ")"
+    return f"{named}, {_files(group.format_file_count)}"
 
 
 def record_notes(message: Message) -> tuple[str | None, ...]:
