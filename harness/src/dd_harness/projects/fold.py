@@ -24,6 +24,9 @@ from dd_harness.projects.rules import (
 PROPOSED: Final = "proposed"
 APPROVED: Final = "approved"
 REJECTED: Final = "rejected"
+# A version's stage (docs/specs/drafting.md): only a draft can be decided. An event that records
+# no stage is of a draft.
+DRAFT_STAGE: Final = "draft"
 
 
 def text_digest(text: str) -> str:
@@ -86,6 +89,7 @@ def _add_version(documents: dict[str, dict[str, Any]], event: dict[str, Any]) ->
             "revises": event.get("revises"),
             "drafted_by": event.get("drafted_by"),
             "questions": event.get("questions", []),
+            "stage": event.get("stage", DRAFT_STAGE),
             "added_by": event["acted_for"],
             "added_at": event["at"],
             "state": PROPOSED,
@@ -116,6 +120,12 @@ def check_latest(
     elif deciding and latest["state"] != PROPOSED:
         refusal = Refusal.DECIDED
         detail = f"Version {version} has already been {latest['state']}."
+    elif deciding and latest["stage"] != DRAFT_STAGE:
+        refusal = Refusal.NOT_A_DRAFT
+        detail = (
+            f"Version {version} only asks what the drafter needs before it writes the document: "
+            "answer its questions and ask for the document to be drafted."
+        )
     elif digest is not None and digest != latest["digest"]:
         refusal = Refusal.DIGEST
         detail = f"The text sent as shown is not the text of version {version}."

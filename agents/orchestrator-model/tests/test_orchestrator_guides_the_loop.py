@@ -238,6 +238,15 @@ def test_the_model_leads_from_the_files_to_a_package(
         say("Here are a README and a data dictionary to check."),
     )
     assert delegated_agents(env) == ["advisor.documentation", "advisor.documentation"]
+    # The README asks first; once the researcher asks for it, it is written
+    # (docs/specs/drafting.md).
+    env = researcher.say(
+        "Write the README now",
+        call(("advisor_documentation", {"document_kind": "readme"})),
+        say("Here is the README to check."),
+    )
+    (readme,) = [d for d in projects.documents(project) if d["document_kind"] == "readme"]
+    assert [v["stage"] for v in readme["versions"]] == ["questions", "draft"]
     approve_every_proposed(projects, project)
     assert projects.progress(project)["steps"]["preparation.documentation"] == "done"
 

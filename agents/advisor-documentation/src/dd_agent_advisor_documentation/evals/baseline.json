@@ -1,16 +1,16 @@
 {
   "identity": {
     "agent_id": "advisor.documentation",
-    "cases_sha256": "2e253820e2021ac622583d7d4cbc0affe5ef54b12adb2f2606e569474471c22a",
+    "cases_sha256": "64b8721d7bf31987ca0d2719da26e76c509e3caded52df31d41e97daca54197f",
     "configuration": {},
     "data_sha256": {
       "hallam-moor.inventory.json": "43ee4cb1b7b801092c4cfcd733fa84577ade88a98c4a9b394072aea40e49c6fd",
       "hallam-moor.metadata-record.json": "3f8c74624f9dce6f1450d7900e90e18b4526f0a6cbcc135c96cd878164c2b0f6",
       "soil-survey.readme-with-record.draft.json": "c9ba7601f5bcbef5879972fcb1f2fbeb18f71a7d687b5eb71e9d1b2093d84874"
     },
-    "git_revision": "bc7357351583f248d1e974846407c44d4e24da5c",
+    "git_revision": "559b4db2cb37195ef3b8ba62c0078dd8cbc144bb",
     "readme_template_sha256": "9f67be1be7fa848f6ba4ac1d84aa9e5af987a9283b3a56ba1c5ec9a4ce736b5f",
-    "spec_version": "0.6.0a1"
+    "spec_version": "0.7.0a1"
   },
   "scores": {
     "hallam-dictionary": {
@@ -144,6 +144,21 @@
       "no_unsupported_claim": null,
       "outcome_matches": 1.0,
       "required_sections_present": 1.0,
+      "stopped_correctly": 1.0,
+      "suggestions_match_gold": null,
+      "unknown_cells_asked": null
+    },
+    "hallam-readme-first": {
+      "answers_placed_supplied": null,
+      "every_cell_sourced": null,
+      "every_gap_marked_and_asked": 1.0,
+      "expected_content_present": 1.0,
+      "grounding_passed": 1.0,
+      "inferred_types_match_gold": null,
+      "no_model_value_in_cell": null,
+      "no_unsupported_claim": null,
+      "outcome_matches": 1.0,
+      "required_sections_present": null,
       "stopped_correctly": 1.0,
       "suggestions_match_gold": null,
       "unknown_cells_asked": null

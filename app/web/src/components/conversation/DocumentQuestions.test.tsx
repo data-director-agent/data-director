@@ -44,7 +44,11 @@ const UNANSWERED: ProjectDocument = {
   versions: [{ ...VERSION, questions: Array.from({ length: ASKING }, (_, n) => cell(n + 1)) }],
 };
 
-function renderQuestions(document: ProjectDocument, answer: ProjectApi["answer"]) {
+function renderQuestions(
+  document: ProjectDocument,
+  answer: ProjectApi["answer"],
+  onWrite?: (message: string) => void,
+) {
   const onAnswered = vi.fn();
   const api: ProjectApi = { ...httpProjectApi, answer };
   const view = render(
@@ -55,6 +59,7 @@ function renderQuestions(document: ProjectDocument, answer: ProjectApi["answer"]
         version={first(document.versions)}
         name="README"
         onAnswered={onAnswered}
+        {...(onWrite ? { onWrite } : {})}
       />
     </ProjectApiContext.Provider>,
   );
@@ -157,6 +162,34 @@ describe("DocumentQuestions", () => {
     expect(answer).toHaveBeenCalledWith(ANSWERED.project_id, README.document_id, VERSION.version, [
       { answered_question: suggested.question_id, answer_text: "mg/kg dry weight" },
     ]);
+  });
+
+  it("on a version that asks first, saves the answers typed and then asks for the README", async () => {
+    const answer = vi.fn().mockResolvedValue(ANSWERED);
+    const onWrite = vi.fn();
+    renderQuestions(UNANSWERED, answer, onWrite);
+    expect(screen.getByRole("button", { name: "Write the README" })).toBeEnabled();
+    await userEvent.type(screen.getByRole("textbox", { name: "What unit is field_1 in?" }), "kg");
+    await userEvent.click(screen.getByRole("button", { name: "Save and write the README" }));
+    expect(answer).toHaveBeenCalledTimes(1);
+    expect(onWrite).toHaveBeenCalledWith("Write the README from my answers.");
+  });
+
+  it("does not ask for the README when the answers were not recorded", async () => {
+    const answer = vi.fn().mockRejectedValue(new Error("offline"));
+    const onWrite = vi.fn();
+    renderQuestions(UNANSWERED, answer, onWrite);
+    await userEvent.type(screen.getByRole("textbox", { name: "What unit is field_1 in?" }), "kg");
+    await userEvent.click(screen.getByRole("button", { name: "Save and write the README" }));
+    expect(onWrite).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent(/not recorded/);
+  });
+
+  it("offers to write the README once every question is answered", async () => {
+    const onWrite = vi.fn();
+    renderQuestions(README, vi.fn(), onWrite);
+    await userEvent.click(screen.getByRole("button", { name: "Write the README" }));
+    expect(onWrite).toHaveBeenCalledWith("Write the README from my answers.");
   });
 
   it("asks nothing once every question is answered", () => {

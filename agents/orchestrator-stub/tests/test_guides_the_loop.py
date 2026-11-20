@@ -217,6 +217,14 @@ def test_the_stub_leads_from_the_files_to_a_package(
     env = researcher.say("Write a README and a data dictionary", choose="preparation.documentation")
     assert delegated_agents(env) == {"advisor.documentation"}
     assert len(env.delegations) == 2
+    # The README asks first: its first version is a note with questions, which cannot be
+    # approved. The researcher asks for the README, which is then written (docs/specs/drafting.md).
+    (readme,) = [d for d in projects.documents(project) if d["document_kind"] == "readme"]
+    assert readme["versions"][-1]["stage"] == "questions"
+    env = researcher.say("Write the README from my answers")
+    assert delegated_agents(env) == {"advisor.documentation"}
+    (readme,) = [d for d in projects.documents(project) if d["document_kind"] == "readme"]
+    assert [v["stage"] for v in readme["versions"]] == ["questions", "draft"]
     approve_every_proposed(projects, project)
     assert projects.progress(project)["steps"]["preparation.documentation"] == "done"
 

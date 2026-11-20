@@ -363,6 +363,17 @@
                "$ref": "#/$defs/Derivation",
                "description": "How document_text came about."
             },
+            "document_stage": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/DocumentStage"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "How far the version has got (docs/specs/drafting.md): `questions` when the drafter is asking the researcher what it needs before it writes the document, so that document_text is only a note and the version cannot be approved; `draft` when it is the document itself. Absent means `draft`."
+            },
             "revises": {
                "anyOf": [
                   {
@@ -495,6 +506,15 @@
          ],
          "title": "DocumentQuestion",
          "type": "object"
+      },
+      "DocumentStage": {
+         "description": "How far a version of a project document has got (docs/specs/drafting.md).",
+         "enum": [
+            "questions",
+            "draft"
+         ],
+         "title": "DocumentStage",
+         "type": "string"
       },
       "DocumentVersionRef": {
          "additionalProperties": false,

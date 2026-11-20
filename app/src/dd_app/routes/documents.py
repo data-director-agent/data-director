@@ -75,6 +75,9 @@ class DocumentVersion(ResponseBody):
     """The run that drafted it; null for a person's edit."""
     questions: list[contract.DocumentQuestion]
     """What the version asks the researcher, one question per gap."""
+    stage: Literal["questions", "draft"]
+    """`questions` for a note that asks what the drafter needs before it writes the document,
+    which cannot be decided on; `draft` for the document itself (docs/specs/drafting.md)."""
     added_by: contract.Principal
     added_at: str
     state: Literal["proposed", "approved", "rejected"]

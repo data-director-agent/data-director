@@ -31,7 +31,13 @@ from dd_harness.testing import (
     make_conductor,
     request,
 )
-from dd_sdk.contract.models import DocumentKind, DocumentVersionRef, Envelope, Principal
+from dd_sdk.contract.models import (
+    DocumentKind,
+    DocumentVersionRef,
+    Envelope,
+    OpenPayload,
+    Principal,
+)
 
 DECIDER = Principal(principal_id="https://orcid.org/0000-0002-1825-0097", name="Josiah Carberry")
 
@@ -127,6 +133,34 @@ def test_a_plain_approval_needs_no_reason_and_is_final(
     assert refused.value.refusal is Refusal.DECIDED
     assert latest(store, project)["state"] == APPROVED
     assert store.events(project)[-1]["event"] == DOCUMENT_CHANGE_REFUSED
+
+
+def test_a_version_that_only_asks_questions_cannot_be_decided(
+    store: ProjectStore, project: str, draft: Envelope
+) -> None:
+    """A `questions` version is a note asking what the drafter needs before it writes the
+    document (docs/specs/drafting.md): there is nothing yet to approve or reject."""
+    asking = draft.model_copy(
+        update={
+            "payload": OpenPayload.model_validate(
+                {**draft.to_document()["payload"], "document_stage": "questions"}
+            )
+        }
+    )
+    store.record_draft(project, asking)
+    assert latest(store, project)["stage"] == "questions"
+    for verdict in (APPROVED, REJECTED):
+        with pytest.raises(ChangeRefusedError) as refused:
+            decide(store, project, verdict=verdict, reason="Not yet.")
+        assert refused.value.refusal is Refusal.NOT_A_DRAFT
+    assert latest(store, project)["state"] == PROPOSED
+    assert store.events(project)[-1]["event"] == DOCUMENT_CHANGE_REFUSED
+
+    # A draft is recorded as one, with no stage in its event.
+    other = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    store.record_draft(other, draft)
+    assert latest(store, other)["stage"] == "draft"
+    assert "stage" not in store.events(other)[-1]
 
 
 @pytest.mark.requirement("C13.3")

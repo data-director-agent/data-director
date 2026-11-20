@@ -15,7 +15,7 @@
  */
 
 import { Copy, Download } from "lucide-react";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useId, useRef, useState } from "react";
 import { Tab, TabList, TabPanel, Tabs } from "react-aria-components";
 
 import type {
@@ -202,17 +202,38 @@ export function DocumentReader({
       </Tabs>
       <QuestionList document={document} version={version} headingId={`${headingId}-questions`} />
       {isLatest && version.state === "proposed" && (
-        <DecisionForm
-          key={`${version.document_id}:${version.version}`}
-          projectId={projectId}
-          name={name}
-          version={version}
-          rules={rules}
-          onDecided={decided}
-          onStale={refused}
-          onEditing={onEditing}
-        />
+        <Deciding name={name} version={version}>
+          <DecisionForm
+            key={`${version.document_id}:${version.version}`}
+            projectId={projectId}
+            name={name}
+            version={version}
+            rules={rules}
+            onDecided={decided}
+            onStale={refused}
+            onEditing={onEditing}
+          />
+        </Deciding>
       )}
     </article>
+  );
+}
+
+/** The decision form for a draft; for a version that only asks questions, why there is none. */
+function Deciding({
+  name,
+  version,
+  children,
+}: {
+  name: string;
+  version: DocumentVersion;
+  children: ReactNode;
+}) {
+  if (version.stage !== "questions") return <>{children}</>;
+  return (
+    <p className="callout">
+      This version is not the {name} yet: it asks what the drafter needs before writing it. Answer
+      its questions on its card in the conversation, then ask for the {name} to be written.
+    </p>
   );
 }

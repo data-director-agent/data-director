@@ -10,13 +10,17 @@
  * It is shown beside the box, which it never fills by itself: the researcher copies it in with
  * "Use suggestion", may change it, and it is recorded only when they save.
  *
+ * On a version at the `questions` stage, which asks before the document is written, the form also
+ * offers to write the document: it saves any answers typed, then asks in the conversation for the
+ * document to be drafted (`onWrite`).
+ *
  * Only the latest version's questions can be answered. Once saved, the answered questions leave
  * the list, a status says so, and the next ones are shown.
  */
 
 import "./ChoiceQuestion.css";
 
-import { Save } from "lucide-react";
+import { PenLine, Save } from "lucide-react";
 import { type FormEvent, useId, useState } from "react";
 
 import {
@@ -64,6 +68,7 @@ export function DocumentQuestions({
   version,
   name,
   onAnswered,
+  onWrite,
 }: {
   projectId: string;
   document: ProjectDocument;
@@ -73,6 +78,8 @@ export function DocumentQuestions({
   name: string;
   /** Called with the project's documents as the server read them back after the answers. */
   onAnswered: (value: ProjectDocuments) => void;
+  /** For a `questions` version: asks in the conversation for the document to be written. */
+  onWrite?: (message: string) => void;
 }) {
   const id = useId();
   const api = useProjectApi();
@@ -82,6 +89,23 @@ export function DocumentQuestions({
   const [saving, setSaving] = useState(false);
   const [said, setSaid] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
+
+  const writeMessage = `Write the ${name} from my answers.`;
+
+  if (open.length === 0 && onWrite) {
+    return (
+      <p>
+        {said && (
+          <span role="status" className="hint">
+            {said}{" "}
+          </span>
+        )}
+        <Button icon={PenLine} onPress={() => onWrite(writeMessage)}>
+          Write the {name}
+        </Button>
+      </p>
+    );
+  }
 
   if (open.length === 0) {
     return said ? (
@@ -98,29 +122,44 @@ export function DocumentQuestions({
     .filter((a) => a.answer_text !== "");
   const others = open.length - shown.length;
 
+  /** Saves the answers typed, if any, then asks for the document to be written. */
+  async function write() {
+    if (saving || !onWrite) return;
+    if (given.length > 0 && !(await save())) return;
+    onWrite(writeMessage);
+  }
+
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (given.length === 0 || saving) return;
+    await save();
+  }
+
+  /** Records the answers typed; whether they were recorded. */
+  async function save(): Promise<boolean> {
     setSaving(true);
     setFailed(null);
     try {
       const value = await api.answer(projectId, document.document_id, version.version, given);
       const n = given.length;
+      const recorded = `Recorded ${n} ${n === 1 ? "answer" : "answers"}.`;
       setSaid(
-        `Recorded ${n} ${n === 1 ? "answer" : "answers"}. Ask for a new draft to put ${
-          n === 1 ? "it" : "them"
-        } into the ${name}.`,
+        onWrite
+          ? `${recorded} Answer more, or write the ${name} now.`
+          : `${recorded} Ask for a new draft to put ${n === 1 ? "it" : "them"} into the ${name}.`,
       );
       const sent = new Set(given.map((a) => a.answered_question));
       setWords((was) => Object.fromEntries(Object.entries(was).filter(([q]) => !sent.has(q))));
       setStart(0);
       onAnswered(value);
+      return true;
     } catch (e: unknown) {
       setFailed(
         e instanceof DecisionConflict
           ? `Your answers were not recorded: ${e.message} Read the latest version and answer again.`
           : `Your answers were not recorded: ${errorMessage(e)}`,
       );
+      return false;
     } finally {
       setSaving(false);
     }
@@ -136,7 +175,11 @@ export function DocumentQuestions({
         </legend>
         <p className="hint">
           Only you know these. Answer any you can; leave the rest blank. Your answers are kept in
-          the project and put into the next draft as you wrote them.
+          the project
+          {onWrite
+            ? `, and the ${name} is written from them`
+            : " and put into the next draft as you wrote them"}
+          .
         </p>
         {shown.map((q) => (
           <div className="field" key={q.question_id}>
@@ -175,6 +218,13 @@ export function DocumentQuestions({
         <Button type="submit" icon={Save} isDisabled={given.length === 0 || saving}>
           Save answers
         </Button>{" "}
+        {onWrite && (
+          <>
+            <Button icon={PenLine} onPress={() => void write()} isDisabled={saving}>
+              {given.length > 0 ? "Save and write" : "Write"} the {name}
+            </Button>{" "}
+          </>
+        )}
         {others > 0 && (
           <Button
             variant="quiet"

@@ -50,8 +50,9 @@ import hashlib
 import io
 import json
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
 from dd_agent_advisor_documentation.counts import counted
 from dd_agent_advisor_documentation.prose import (
@@ -64,7 +65,16 @@ from dd_agent_advisor_documentation.prose import (
     how_suggested,
     with_documents,
 )
-from dd_agent_advisor_documentation.sections import RECORD_GENERAL, Section, load_sections
+from dd_agent_advisor_documentation.record import (
+    _collected,
+    _creators,
+    _from_record,
+    _record,
+    _record_general,
+    _title,
+    _values,
+)
+from dd_agent_advisor_documentation.sections import Section, load_sections
 from dd_sdk.agent import (
     AgentResult,
     AgentSpec,
@@ -76,7 +86,6 @@ from dd_sdk.agent import (
 )
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
-    ApprovedMetadataRecord,
     CurrentVersion,
     Derivation,
     Document,
@@ -94,13 +103,16 @@ from dd_sdk.contract.models import (
 )
 from dd_sdk.model import Usage
 
+# How far a version has got (`document_stage`): a note that asks first, or the document itself.
+type Stage = Literal["questions", "draft"]
 # The key under which a writer is given the approved metadata record's values.
 RECORD_FACTS = "approved_metadata_record"
-# The metadata record's schema the editor reads: DataCite's, in the JSON form of its REST API's
-# attributes, as advisor.metadata drafts it.
-DATACITE = "http://datacite.org/schema/kernel-4"
+# The keys under which the README's writer is given the researcher's answers, by section heading,
+# and the project's decisions, once the researcher has answered a section.
+RESEARCHER_ANSWERS = "researcher_answers"
+PROJECT_DECISIONS = "project_decisions"
 # How the draft marks what the researcher writes. A person's edit replaces it.
-PLACEHOLDER = "_To be written by the researcher: {ask}_"
+PLACEHOLDER = "_Still needed: {ask}_"
 # What follows a placeholder: the question that asks for it. Not shown in the rendered README.
 GAP_MARKER = "<!-- dd:gap {question_id} -->"
 # How many hexadecimal digits of the gap's SHA-256 a question identifier keeps.
@@ -155,7 +167,7 @@ LIMITATIONS = (
 class DocumentationEditor:
     spec = AgentSpec(
         agent_id="advisor.documentation",
-        version="0.6.0a1",
+        version="0.7.0a1",
         title="Documentation Editor",
         icon="✍️",
         description=(
@@ -202,14 +214,12 @@ class DocumentationEditor:
                 "Add the project's file inventory first: the draft is made from it.",
             )
 
-        answers = _answers(asked.draft_answers)
         prose = Prose()
+        stage: Stage = "draft"
         suggested = Suggestions()
         if kind == DocumentKind.README:
             record, unread = _record(asked.metadata_record)
-            text, questions, statement, prose = self._readme(
-                inventory, asked.requirements, record, answers, ctx
-            )
+            text, questions, statement, prose, stage = self._readme(asked, record, ctx)
             # The README is drafted first, so nothing the model suggests can reach its text.
             suggestable = {
                 s.heading: s.ask
@@ -249,7 +259,9 @@ class DocumentationEditor:
                     "draft.",
                 )
             # The dictionary is drafted by rule first, so nothing the model says can reach a cell.
-            text, questions, counts = _dictionary(inventory, asked.current_version, answers)
+            text, questions, counts = _dictionary(
+                inventory, asked.current_version, _answers(asked.draft_answers)
+            )
             record, _ = _record(asked.metadata_record)
             questions, suggested = self._suggest(
                 with_documents(_facts(inventory, None, record), asked),
@@ -287,6 +299,7 @@ class DocumentationEditor:
                 media_type=MEDIA_TYPES[kind],
                 document_text=text,
                 document_derivation=Derivation.MODEL if prose.written else Derivation.TEMPLATE,
+                document_stage=stage,
                 revises=current.version_ref if current else None,
                 document_questions=questions,
                 grounded_on=[ref],
@@ -323,13 +336,12 @@ class DocumentationEditor:
         ], suggested
 
     def _readme(
-        self,
-        inventory: FileInventory,
-        requirements: RepositoryRequirements | None,
-        record: Mapping[str, Any] | None,
-        answers: Mapping[str, str],
-        ctx: RunContext,
-    ) -> tuple[str, list[DocumentQuestion], str, Prose]:
+        self, asked: DraftRequest, record: Mapping[str, Any] | None, ctx: RunContext
+    ) -> tuple[str, list[DocumentQuestion], str, Prose, Stage]:
+        """The README, or, before it is first written, the note that asks what it needs."""
+        inventory, requirements = asked.inventory, asked.requirements
+        assert inventory is not None  # run checked it
+        answers = _answers(asked.draft_answers)
         drafted_from = [
             {
                 source: body
@@ -338,77 +350,183 @@ class DocumentationEditor:
             }
             for section in self.sections
         ]
-        # The writer may write about a section only if it has facts to draft from, and is given
-        # only those facts: never the answers, nor an earlier version (docs/specs/drafting.md).
+        outline = [
+            _outline(section, bodies, record, answers)
+            for section, bodies in zip(self.sections, drafted_from, strict=True)
+        ]
+        questions = [q for planned in outline for q in planned.questions]
+        title = (_title(record) if record is not None else None) or "README"
+        answered = sum(bool(p.answer or p.answered_parts) for p in outline)
+        if asked.current_version is None and questions and not answered:
+            # Ask first: no README is shown until the researcher has had the chance to answer.
+            note = _questions_note(title, outline, inventory, record, asked)
+            statement = (
+                f"It asks {count(len(questions), 'question')} before it writes the README, about "
+                f"{_listed([p.section.heading for p in outline if p.questions])}. Once they are "
+                "answered, drafting the README again writes it from the answers. This version "
+                "is a note, not the README, and cannot be approved."
+            )
+            return note, questions, statement, Prose(), "questions"
+
+        # The writer may write about a section that has facts to draft from or an answer to write
+        # from, and is given only those: never an earlier version (docs/specs/drafting.md).
+        offered = [p.section.heading for p in outline if p.bodies or p.answer]
         prose = self.writer.write(
-            _facts(inventory, requirements, record),
-            [s.heading for s, bodies in zip(self.sections, drafted_from, strict=True) if bodies],
-            ctx,
+            _prose_facts(inventory, requirements, record, asked, outline), offered, ctx
         )
-        title = _title(record) if record is not None else None
-        parts = [f"# {title or 'README'}"]
+        parts = [f"# {title}"]
         if prose.overview:
             parts.append(prose.overview)
-        questions: list[DocumentQuestion] = []
-        drafted = answered = complete = 0
-        for section, bodies in zip(self.sections, drafted_from, strict=True):
-            drafted += bool(bodies)
-            parts.append(f"## {section.heading}")
-            if bodies and (paragraph := prose.sections.get(section.heading)):
+        complete = rewritten = 0
+        for planned in outline:
+            parts.append(f"## {planned.section.heading}")
+            paragraph = prose.sections.get(planned.section.heading)
+            if paragraph:
                 parts.append(paragraph)
-            parts.extend(bodies.values())
-            question_id = _question_id({"section": section.heading})
-            answer = answers.get(question_id)
-            if answer is not None:
-                parts.append(answer)
+            parts.extend(planned.bodies.values())
+            if planned.answer is not None:
+                # A model's paragraph written from the answer takes its place; else the answer
+                # is placed as given.
+                rewritten += bool(paragraph)
+                if not paragraph:
+                    parts.append(planned.answer)
+                continue
+            parts.extend(planned.lines)
+            complete += planned.complete
+        statement = (
+            f"A README of {len(self.sections)} sections, "
+            f"{sum(bool(p.bodies) for p in outline)} of them drafted from the project's facts "
+            f"({complete} in full), and {answered} written from your answers"
+            + (f" ({rewritten} of them in a model's words)" if rewritten else "")
+            + f". {_how_written(prose)} It leaves {count(len(questions), 'gap')} for you to "
+            "fill, each marked and asked as a question."
+        )
+        return "\n\n".join(parts) + "\n", questions, statement, prose, "draft"
+
+
+@dataclass(frozen=True)
+class Outlined:
+    """One README section as the rules draft it, before any prose: its bodies from the facts,
+    the researcher's answer to it as a whole, its part lines and gap, and the questions asked."""
+
+    section: Section
+    bodies: Mapping[str, str]
+    answer: str | None = None
+    lines: tuple[str, ...] = ()
+    questions: tuple[DocumentQuestion, ...] = ()
+    answered_parts: int = 0
+    complete: bool = False
+
+
+def _outline(
+    section: Section,
+    bodies: Mapping[str, str],
+    record: Mapping[str, Any] | None,
+    answers: Mapping[str, str],
+) -> Outlined:
+    """A section's gaps and questions, decided by rule (docs/specs/drafting.md, invariant 5)."""
+    question_id = _question_id({"section": section.heading})
+    answer = answers.get(question_id)
+    if answer is not None:
+        return Outlined(section, bodies, answer=answer)
+    if section.parts:
+        # Each part is its own gap and question. An answer to the section as a whole, recorded
+        # before it was asked part by part, is placed above and asks nothing.
+        given = _record_general(record)
+        lines: list[str] = []
+        questions: list[DocumentQuestion] = []
+        answered = 0
+        for part in section.parts:
+            if part.given_by and given[part.given_by]:
+                continue
+            part_id = _question_id({"section": section.heading, "part": part.label})
+            part_answer = answers.get(part_id)
+            if part_answer is not None:
+                lines.append(f"- **{part.label}:** {part_answer}")
                 answered += 1
                 continue
-            if section.parts:
-                # Each part is its own gap and question. An answer to the section as a whole,
-                # recorded before it was asked part by part, is placed above and asks nothing.
-                given = _record_general(record)
-                answered_parts = 0
-                for part in section.parts:
-                    if part.given_by and given[part.given_by]:
-                        continue
-                    part_id = _question_id({"section": section.heading, "part": part.label})
-                    answer = answers.get(part_id)
-                    if answer is not None:
-                        parts.append(f"- **{part.label}:** {answer}")
-                        answered_parts += 1
-                        continue
-                    placeholder = PLACEHOLDER.format(ask=part.ask)
-                    marker = GAP_MARKER.format(question_id=part_id)
-                    parts.append(f"- **{part.label}:** {placeholder}\n{marker}")
-                    questions.append(
-                        DocumentQuestion(
-                            question_id=part_id,
-                            question_prompt=f"{part.label}: {part.ask}",
-                            gap_section=section.heading,
-                            gap_part=part.label,
-                        )
-                    )
-                answered += bool(answered_parts)
-                continue
-            if section.complete_from in bodies:
-                complete += 1
-                continue
-            placeholder = PLACEHOLDER.format(ask=section.ask)
-            parts.append(f"{placeholder}\n{GAP_MARKER.format(question_id=question_id)}")
+            marker = GAP_MARKER.format(question_id=part_id)
+            lines.append(f"- **{part.label}:** {PLACEHOLDER.format(ask=part.ask)}\n{marker}")
             questions.append(
                 DocumentQuestion(
-                    question_id=question_id,
-                    question_prompt=f"For the README's {section.heading} section: {section.ask}",
+                    question_id=part_id,
+                    question_prompt=f"{part.label}: {part.ask}",
                     gap_section=section.heading,
+                    gap_part=part.label,
                 )
             )
-        statement = (
-            f"A README of {len(self.sections)} sections, {drafted} of them drafted from the "
-            f"project's facts ({complete} in full), and {answered} written from your answers. "
-            f"{_how_written(prose)} It leaves {count(len(questions), 'gap')} for you to write, "
-            "each marked and asked as a question."
-        )
-        return "\n\n".join(parts) + "\n", questions, statement, prose
+        return Outlined(section, bodies, None, tuple(lines), tuple(questions), answered)
+    if section.complete_from in bodies:
+        return Outlined(section, bodies, complete=True)
+    marker = GAP_MARKER.format(question_id=question_id)
+    question = DocumentQuestion(
+        question_id=question_id,
+        question_prompt=f"For the README's {section.heading} section: {section.ask}",
+        gap_section=section.heading,
+    )
+    return Outlined(
+        section,
+        bodies,
+        lines=(f"{PLACEHOLDER.format(ask=section.ask)}\n{marker}",),
+        questions=(question,),
+    )
+
+
+def _questions_note(
+    title: str,
+    outline: Sequence[Outlined],
+    inventory: FileInventory,
+    record: Mapping[str, Any] | None,
+    asked: DraftRequest,
+) -> str:
+    """What a `questions` version says in place of the README: what is asked, and what the README
+    will be written from. It has no gaps: its questions are on the version."""
+    tables = sum(1 for f in inventory.inventory_files if f.file_fields)
+    known = [count(len(inventory.inventory_files), "file")]
+    if tables:
+        known.append(count(tables, "table"))
+    if record is not None:
+        known.append("the approved metadata record")
+    if asked.project_documents:
+        known.append(f"{count(len(asked.project_documents), 'document')} you attached")
+    asking = _listed([p.section.heading for p in outline if p.questions])
+    return (
+        f"# {title}\n\n"
+        "_This is not the README yet._ Before writing it, the Documentation Editor needs what only "
+        f"you can say about {asking}. Answer the questions below, then ask for the README to be "
+        f"drafted: it will be written from your answers and from {_listed(known)}. Anything you "
+        "leave unanswered is marked in the README as still needed.\n"
+    )
+
+
+def _listed(items: Sequence[str]) -> str:
+    """`items` as an English list: "a", "a and b", "a, b and c"."""
+    if len(items) < 2:
+        return "".join(items)
+    return ", ".join(items[:-1]) + " and " + items[-1]
+
+
+def _prose_facts(
+    inventory: FileInventory,
+    requirements: RepositoryRequirements | None,
+    record: Mapping[str, Any] | None,
+    asked: DraftRequest,
+    outline: Sequence[Outlined],
+) -> dict[str, Any]:
+    """What the writer is told for the README's prose: the facts, and, when the researcher has
+    answered a section, their answers by heading, the project's decisions and the documents they
+    attached, so that the section can be written from them (docs/specs/drafting.md, invariant 4).
+    """
+    facts = _facts(inventory, requirements, record)
+    given = {p.section.heading: p.answer for p in outline if p.answer is not None}
+    if not given:
+        return facts
+    facts[RESEARCHER_ANSWERS] = given
+    if asked.project_decisions:
+        facts[PROJECT_DECISIONS] = [
+            d.model_dump(mode="json", exclude_none=True) for d in asked.project_decisions
+        ]
+    return with_documents(facts, asked)
 
 
 def _how_written(prose: Prose) -> str:
@@ -525,133 +643,6 @@ def _drafted(
         offered = ", ".join(f"`{licence}`" for licence in requirements.licences)
         return f"{requirements.repository_name} offers these licences: {offered}."
     return None
-
-
-def _record(given: ApprovedMetadataRecord | None) -> tuple[dict[str, Any] | None, str | None]:
-    """The approved metadata record's properties, or None and, if there was a record, why it was
-    not read."""
-    if given is None:
-        return None, None
-    unread = "The approved metadata record was not used: "
-    if given.conforms_to != DATACITE:
-        return None, unread + f"the editor reads only DataCite records ({DATACITE})."
-    try:
-        properties = json.loads(given.document_text)
-    except json.JSONDecodeError:
-        return None, unread + "its text is not JSON."
-    if not isinstance(properties, dict):
-        return None, unread + "its text is not a JSON object of DataCite properties."
-    return properties, None
-
-
-def _values(record: Mapping[str, Any], prop: str, key: str) -> list[str]:
-    """Each non-empty `key` of the entries of a DataCite property whose value is a list of
-    objects. A placeholder the metadata mock left (null, or blank) is not a value."""
-    entries = record.get(prop)
-    if not isinstance(entries, list):
-        return []
-    return [
-        value.strip()
-        for entry in entries
-        if isinstance(entry, dict) and isinstance(value := entry.get(key), str) and value.strip()
-    ]
-
-
-def _title(record: Mapping[str, Any]) -> str | None:
-    """The record's main title: its first title with no `titleType`, else its first title."""
-    entries = record.get("titles")
-    if not isinstance(entries, list):
-        return None
-    main = [e for e in entries if isinstance(e, dict) and not e.get("titleType")]
-    titles = _values({"titles": main}, "titles", "title") or _values(record, "titles", "title")
-    return titles[0] if titles else None
-
-
-def _creators(record: Mapping[str, Any]) -> list[str]:
-    """Each creator's name, or else their family and given names, as the record writes them."""
-    entries = record.get("creators")
-    if not isinstance(entries, list):
-        return []
-    names = []
-    for entry in entries:
-        if not isinstance(entry, dict):
-            continue
-        name = entry.get("name")
-        if isinstance(name, str) and name.strip():
-            names.append(name.strip())
-            continue
-        parts = [entry.get("familyName"), entry.get("givenName")]
-        given = [p.strip() for p in parts if isinstance(p, str) and p.strip()]
-        if given:
-            names.append(", ".join(given))
-    return names
-
-
-def _record_general(record: Mapping[str, Any] | None) -> dict[str, str]:
-    """The record's general values by key (RECORD_GENERAL), each "" when the record lacks it."""
-    if record is None:
-        return dict.fromkeys(RECORD_GENERAL, "")
-    return {
-        "title": _title(record) or "",
-        "creators": "; ".join(_creators(record)),
-        "collected": "; ".join(_collected(record)),
-        "location": "; ".join(_values(record, "geoLocations", "geoLocationPlace")),
-        "funding": "; ".join(_values(record, "fundingReferences", "funderName")),
-    }
-
-
-def _collected(record: Mapping[str, Any]) -> list[str]:
-    """The record's dates of data collection: its `dates` of type `Collected`, as it writes them."""
-    entries = record.get("dates")
-    collected = [
-        e
-        for e in (entries if isinstance(entries, list) else [])
-        if isinstance(e, dict) and e.get("dateType") == "Collected"
-    ]
-    return _values({"dates": collected}, "dates", "date")
-
-
-def _from_record(source: str, record: Mapping[str, Any]) -> str | None:
-    """A section's text from the approved metadata record, its values placed as given."""
-    title = _title(record)
-    creators = _creators(record)
-    if source == "record_general":
-        given = _record_general(record)
-        lines = [(label, given[key]) for key, label in RECORD_GENERAL.items() if given[key]]
-        return "\n".join(f"- **{label}:** {value}" for label, value in lines) or None
-    if source == "record_abstract":
-        entries = record.get("descriptions")
-        abstracts = [
-            e
-            for e in entries or []
-            if isinstance(e, dict) and e.get("descriptionType") == "Abstract"
-        ]
-        found = _values({"descriptions": abstracts}, "descriptions", "description")
-        return found[0] if found else None
-    if source == "record_rights":
-        entries = record.get("rightsList")
-        rights = []
-        for entry in entries if isinstance(entries, list) else []:
-            if not isinstance(entry, dict):
-                continue
-            name, uri = entry.get("rights"), entry.get("rightsUri") or entry.get("rightsURI")
-            name = name.strip() if isinstance(name, str) else ""
-            uri = uri.strip() if isinstance(uri, str) else ""
-            if name or uri:
-                rights.append(f"{name} (<{uri}>)" if name and uri else name or f"<{uri}>")
-        return ("Licence: " + "; ".join(rights) + ".") if rights else None
-    if source == "record_citation":
-        if not (creators and title):
-            return None
-        year = record.get("publicationYear")
-        when = f" ({year})" if isinstance(year, int | str) and str(year).strip() else ""
-        return f"{_closed('; '.join(creators) + when)} {_closed(title)}"
-    return None
-
-
-def _closed(text: str) -> str:
-    """`text` ending with a full stop, unless it already ends a sentence."""
-    return text if text.endswith((".", "?", "!")) else text + "."
 
 
 def _format(media_type: str | None, pronom_ids: list[str]) -> str:

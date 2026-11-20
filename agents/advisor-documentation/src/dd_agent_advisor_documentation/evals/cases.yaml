@@ -18,6 +18,10 @@
 #   not_asked             README gaps that should not be asked, because the record or an answer
 #                         gives them
 #
+# A README case is drafted as a project's second run, after the note in which the first run asked
+# what the README needs (docs/specs/drafting.md), unless it says `first: true`: then it is the first
+# run, which asks before it writes.
+#
 # gold: per base, per field name, the true values from the facilitator's crib sheet, for the
 # scorers that compare against them (scorers.py):
 #   type               the field's type, in the inventory's vocabulary (string, number, integer,
@@ -199,6 +203,17 @@ cases:
         - General information/Geographic location
         - General information/Funding
         - Description
+
+  - id: hallam-readme-first
+    base: hallam-moor
+    kind: readme
+    defect: none
+    first: true
+    expect:
+      status: succeeded
+      present: ["# Microclimate and soil moisture on a restored upland moor"]
+      asked: [Methods, Variables, Access and licence, How to cite, Software requirements, Files]
+      not_asked: [General information/Title, General information/Funding]
 
   - id: hallam-readme-no-record
     base: hallam-moor

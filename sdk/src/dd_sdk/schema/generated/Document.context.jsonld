@@ -36,6 +36,9 @@
          "@id": "https://w3id.org/data-director/document_questions",
          "@type": "@id"
       },
+      "document_stage": {
+         "@id": "https://w3id.org/data-director/document_stage"
+      },
       "document_text": {
          "@id": "https://w3id.org/data-director/document_text"
       },
