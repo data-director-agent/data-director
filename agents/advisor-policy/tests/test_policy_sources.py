@@ -169,11 +169,14 @@ def test_the_snapshot_finds_a_policy_by_name() -> None:
 
 def test_the_factory_defaults_to_the_snapshot_and_the_model_advisor() -> None:
     agent = factory.build({"ANTHROPIC_API_KEY": "k"})
-    assert isinstance(agent.policies, PolicySnapshot)
+    assert isinstance(agent.sources.policies, PolicySnapshot)
     assert isinstance(agent.explainer, ModelAdvisor)
     assert agent.explainer.max_lookups == 6
-    assert isinstance(agent.organisations, RorDump) and agent.organisations_fallback is None
-    assert isinstance(agent.crossref, CrossrefJournals) and agent.opf is None
+    assert (
+        isinstance(agent.sources.organisations, RorDump)
+        and agent.sources.organisations_fallback is None
+    )
+    assert isinstance(agent.sources.crossref, CrossrefJournals) and agent.sources.opf is None
     [model] = agent.spec.models
     assert model.model == agent.explainer.model_id and model.tools
 
@@ -195,9 +198,9 @@ def test_the_older_switch_still_turns_the_model_off() -> None:
 
 
 def test_open_policy_finder_is_searched_only_with_a_key(tmp_path: Path) -> None:
-    assert factory.build(TEMPLATE).opf is None
+    assert factory.build(TEMPLATE).sources.opf is None
     assert isinstance(
-        factory.build({**TEMPLATE, "OPEN_POLICY_FINDER_API_KEY": "k"}).opf, OpenPolicyFinder
+        factory.build({**TEMPLATE, "OPEN_POLICY_FINDER_API_KEY": "k"}).sources.opf, OpenPolicyFinder
     )
     (tmp_path / "opf").write_text("k\n", encoding="utf-8")
     agent = factory.build(
@@ -207,21 +210,21 @@ def test_open_policy_finder_is_searched_only_with_a_key(tmp_path: Path) -> None:
             "CREDENTIALS_DIRECTORY": str(tmp_path),
         }
     )
-    assert isinstance(agent.opf, OpenPolicyFinder)
+    assert isinstance(agent.sources.opf, OpenPolicyFinder)
 
 
 def test_crossref_can_be_turned_off_and_the_lookups_limited() -> None:
     agent = factory.build(
         {"ANTHROPIC_API_KEY": "k", "DD_POLICY_CROSSREF": "off", "DD_POLICY_MAX_LOOKUPS": "0"}
     )
-    assert agent.crossref is None
+    assert agent.sources.crossref is None
     assert isinstance(agent.explainer, ModelAdvisor) and agent.explainer.max_lookups == 0
 
 
 def test_live_ror_falls_back_to_the_built_dump() -> None:
     agent = factory.build({**TEMPLATE, "DD_POLICY_ROR": "live"})
-    assert isinstance(agent.organisations, RorLive)
-    assert isinstance(agent.organisations_fallback, RorDump)
+    assert isinstance(agent.sources.organisations, RorLive)
+    assert isinstance(agent.sources.organisations_fallback, RorDump)
 
 
 def test_live_retrieval_needs_an_account_and_falls_back_to_the_snapshot() -> None:
@@ -235,8 +238,8 @@ def test_live_retrieval_needs_an_account_and_falls_back_to_the_snapshot() -> Non
             "FAIRSHARING_PASSWORD": "pw",
         }
     )
-    assert isinstance(agent.policies, PolicyLive)
-    assert isinstance(agent.fallback, PolicySnapshot)
+    assert isinstance(agent.sources.policies, PolicyLive)
+    assert isinstance(agent.sources.fallback, PolicySnapshot)
 
 
 def test_the_password_may_be_a_credential_file(tmp_path: Path) -> None:
@@ -250,7 +253,7 @@ def test_the_password_may_be_a_credential_file(tmp_path: Path) -> None:
             "CREDENTIALS_DIRECTORY": str(tmp_path),
         }
     )
-    assert isinstance(agent.policies, PolicyLive) and agent.policies.signed_in
+    assert isinstance(agent.sources.policies, PolicyLive) and agent.sources.policies.signed_in
 
 
 def test_the_anthropic_explainer_declares_its_model() -> None:

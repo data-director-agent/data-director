@@ -32,13 +32,9 @@ from __future__ import annotations
 
 from dd_agent_advisor_policy import assess, given, reading, report, search
 from dd_agent_advisor_policy.classes import PolicyChecks, PolicyContext
-from dd_agent_advisor_policy.crossref import CrossrefJournals
 from dd_agent_advisor_policy.explain import Explainer, Explanation, Item, TemplateExplainer
 from dd_agent_advisor_policy.extract import Extractor, NoExtractor
-from dd_agent_advisor_policy.opf import OpenPolicyFinder
 from dd_agent_advisor_policy.policy_text import Pages
-from dd_agent_advisor_policy.retrieve import Policies
-from dd_agent_advisor_policy.ror import Organisations
 from dd_agent_advisor_policy.tools import Lookups
 from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext, Setting, abstain, setting
 from dd_sdk.contract.classes import ClassSchema
@@ -100,25 +96,18 @@ class PolicyAgent:
         },
     )
 
-    def __init__(  # noqa: PLR0913
+    def __init__(
         self,
-        policies: Policies,
+        sources: search.Sources,
         explainer: Explainer | None = None,
-        fallback: Policies | None = None,
-        organisations: Organisations | None = None,
-        organisations_fallback: Organisations | None = None,
-        opf: OpenPolicyFinder | None = None,
-        crossref: CrossrefJournals | None = None,
+        *,
         pages: Pages | None = None,
         extractor: Extractor | None = None,
     ) -> None:
-        self.policies = policies
-        self.fallback = fallback
+        """`sources` are the registries searched; `pages` fetches each policy's own text, which
+        `extractor` reads."""
+        self.sources = sources
         self.explainer = explainer or TemplateExplainer()
-        self.organisations = organisations
-        self.organisations_fallback = organisations_fallback
-        self.opf = opf
-        self.crossref = crossref
         self.pages = pages
         self.extractor = extractor or NoExtractor()
 
@@ -133,7 +122,7 @@ class PolicyAgent:
                 "to look up.",
             )
         # --- the first search: fixed rules over each registry --------------------------------
-        found = search.first_search(list(context.actors), self._sources())
+        found = search.first_search(list(context.actors), self.sources)
         if isinstance(found, AgentResult):
             return found
         found.emit_spans(ctx)
@@ -157,16 +146,6 @@ class PolicyAgent:
             report.model_use(explanation, texts, self.explainer.model_id, self.extractor.model_id),
         ).result()
 
-    def _sources(self) -> search.Sources:
-        return search.Sources(
-            policies=self.policies,
-            fallback=self.fallback,
-            organisations=self.organisations,
-            organisations_fallback=self.organisations_fallback,
-            opf=self.opf,
-            crossref=self.crossref,
-        )
-
     def _advise(
         self, context: PolicyContext, found: search.FirstSearch, ctx: RunContext
     ) -> tuple[Explanation, report.Advised]:
@@ -188,9 +167,9 @@ class PolicyAgent:
             for record in records
         ]
         lookups = Lookups(
-            policies=self.fallback if found.snapshot_ref.stale else self.policies,
-            opf=self.opf,
-            crossref=self.crossref,
+            policies=self.sources.fallback if found.snapshot_ref.stale else self.sources.policies,
+            opf=self.sources.opf,
+            crossref=self.sources.crossref,
             records=dict(found.records),
             blocked=frozenset(found.blocked),
         )

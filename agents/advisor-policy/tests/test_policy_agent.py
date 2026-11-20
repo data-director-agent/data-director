@@ -25,6 +25,7 @@ from dd_agent_advisor_policy.policy_text import PolicyText, html_text
 from dd_agent_advisor_policy.records import Clause, PolicyRecord, Relation
 from dd_agent_advisor_policy.ror import RorDump
 from dd_agent_advisor_policy.ror_records import Organisation
+from dd_agent_advisor_policy.search import Sources
 from dd_agent_advisor_policy.snapshot import PolicySnapshot
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import describe
@@ -123,7 +124,7 @@ class FakePolicies:
 
 
 def invoke(runs_dir: Path, context: PolicyContext, advisor: PolicyAgent | None = None) -> Envelope:
-    conductor = make_conductor(runs_dir, advisor or PolicyAgent(FakePolicies()))
+    conductor = make_conductor(runs_dir, advisor or PolicyAgent(Sources(FakePolicies())))
     env = conductor.invoke(request("advisor.policy", context), acting_for=TEST_PRINCIPAL)
     if env.outcome.status == OutcomeStatus.SUCCEEDED:
         assert conductor.grounding_reports[env.invocation_id].passed
@@ -249,7 +250,9 @@ def test_no_relation_is_not_evidence_of_no_mandate(runs_dir: Path) -> None:
 UNRECORDED_FUNDER = Actor(role=ActorRole.FUNDER, name="Nowhere Research Council")
 
 
-@pytest.mark.parametrize("advisor", [PolicyAgent(FakePolicies()), PolicyAgent(PolicySnapshot())])
+@pytest.mark.parametrize(
+    "advisor", [PolicyAgent(Sources(FakePolicies())), PolicyAgent(Sources(PolicySnapshot()))]
+)
 def test_a_funder_with_no_record_is_not_said_to_mandate_nothing(
     runs_dir: Path, advisor: PolicyAgent
 ) -> None:
@@ -257,7 +260,7 @@ def test_a_funder_with_no_record_is_not_said_to_mandate_nothing(
     # not read as "this funder requires no repository".
     funder = UNRECORDED_FUNDER
     sheffield = Actor(role=ActorRole.INSTITUTION, name="University of Sheffield")
-    other = TESTING if isinstance(advisor.policies, FakePolicies) else sheffield
+    other = TESTING if isinstance(advisor.sources.policies, FakePolicies) else sheffield
     env = invoke(runs_dir, PolicyContext(actors=[funder, other]), advisor)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     assert env.payload_as(PolicyChecks).no_record == [funder.name]
@@ -295,13 +298,13 @@ def test_actors_with_no_record_are_listed_or_abstain_when_none_has_one(runs_dir:
 
 @pytest.mark.requirement("DD-OUTCOME")
 def test_an_unreachable_registry_is_not_an_empty_result(runs_dir: Path) -> None:
-    env = invoke(runs_dir, CONTEXT, PolicyAgent(FakePolicies(down=True)))
+    env = invoke(runs_dir, CONTEXT, PolicyAgent(Sources(FakePolicies(down=True))))
     assert env.outcome.status == OutcomeStatus.ABSTAINED
     assert env.outcome.reason_code == ReasonCode.REGISTRY_UNAVAILABLE
 
 
 def test_a_failed_live_route_falls_back_to_the_snapshot_marked_stale(runs_dir: Path) -> None:
-    advisor = PolicyAgent(FakePolicies(down=True), fallback=PolicySnapshot())
+    advisor = PolicyAgent(Sources(FakePolicies(down=True), fallback=PolicySnapshot()))
     context = PolicyContext(
         actors=[
             Actor(role=ActorRole.FUNDER, name="Economic and Social Research Council"),
@@ -380,7 +383,7 @@ def nerc_only(dump: RorDump) -> FakeOrganisations:
 def test_an_acronym_resolved_in_ror_matches_by_the_funders_full_name(
     runs_dir: Path, dump: RorDump
 ) -> None:
-    advisor = PolicyAgent(RecordingPolicies(), organisations=nerc_only(dump))
+    advisor = PolicyAgent(Sources(RecordingPolicies(), organisations=nerc_only(dump)))
     env = invoke(
         runs_dir, PolicyContext(actors=[Actor(role=ActorRole.FUNDER, name="NERC")]), advisor
     )
@@ -407,7 +410,7 @@ def test_an_ambiguous_acronym_asks_which_organisation_and_searches_nothing_for_i
     runs_dir: Path, dump: RorDump
 ) -> None:
     policies = RecordingPolicies()
-    advisor = PolicyAgent(policies, organisations=dump)
+    advisor = PolicyAgent(Sources(policies, organisations=dump))
     nerc = Actor(role=ActorRole.FUNDER, name="NERC")
     env = invoke(runs_dir, PolicyContext(actors=[nerc, TESTING]), advisor)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
@@ -432,7 +435,7 @@ def test_an_ambiguous_acronym_asks_which_organisation_and_searches_nothing_for_i
 def test_the_researchers_choice_of_ror_identifier_settles_the_question(
     runs_dir: Path, dump: RorDump
 ) -> None:
-    advisor = PolicyAgent(RecordingPolicies(), organisations=dump)
+    advisor = PolicyAgent(Sources(RecordingPolicies(), organisations=dump))
     nerc = Actor(role=ActorRole.FUNDER, name="NERC", ror_id="https://ror.org/02b5d8509")
     env = invoke(runs_dir, PolicyContext(actors=[nerc]), advisor)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
@@ -446,7 +449,7 @@ def test_the_researchers_choice_of_ror_identifier_settles_the_question(
 def test_a_name_unknown_to_ror_and_fairsharing_stays_without_a_record(
     runs_dir: Path, dump: RorDump
 ) -> None:
-    advisor = PolicyAgent(RecordingPolicies(), organisations=dump)
+    advisor = PolicyAgent(Sources(RecordingPolicies(), organisations=dump))
     nowhere = Actor(role=ActorRole.FUNDER, name="Ministry of Nowhere")
     env = invoke(runs_dir, PolicyContext(actors=[nowhere, TESTING]), advisor)
     checks = env.payload_as(PolicyChecks)
@@ -460,7 +463,7 @@ def test_a_name_unknown_to_ror_and_fairsharing_stays_without_a_record(
 def test_a_funder_identified_in_ror_with_no_policy_record_still_carries_its_identifier(
     runs_dir: Path, dump: RorDump
 ) -> None:
-    advisor = PolicyAgent(FakePolicies(), organisations=nerc_only(dump))
+    advisor = PolicyAgent(Sources(FakePolicies(), organisations=nerc_only(dump)))
     nerc = Actor(role=ActorRole.FUNDER, name="NERC")
     env = invoke(runs_dir, PolicyContext(actors=[nerc]), advisor)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
@@ -475,8 +478,8 @@ def test_without_ror_funders_are_searched_by_the_name_given_and_the_statement_sa
 ) -> None:
     unbuilt = RorDump(tmp_path / "registry.jsonl", tmp_path / "manifest.json")
     for advisor in (
-        PolicyAgent(FakePolicies(), organisations=unbuilt),
-        PolicyAgent(FakePolicies(), organisations=FakeOrganisations([], down=True)),
+        PolicyAgent(Sources(FakePolicies(), organisations=unbuilt)),
+        PolicyAgent(Sources(FakePolicies(), organisations=FakeOrganisations([], down=True))),
     ):
         env = invoke(runs_dir, CONTEXT, advisor)
         assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
@@ -490,9 +493,11 @@ def test_a_failed_live_ror_route_falls_back_to_the_dump_marked_stale(
     runs_dir: Path, dump: RorDump
 ) -> None:
     advisor = PolicyAgent(
-        RecordingPolicies(),
-        organisations=FakeOrganisations([], down=True),
-        organisations_fallback=nerc_only(dump),
+        Sources(
+            RecordingPolicies(),
+            organisations=FakeOrganisations([], down=True),
+            organisations_fallback=nerc_only(dump),
+        )
     )
     env = invoke(
         runs_dir, PolicyContext(actors=[Actor(role=ActorRole.FUNDER, name="NERC")]), advisor
@@ -559,7 +564,7 @@ def reader(*reads: Read) -> ModelExtractor:
 def test_a_policys_own_text_is_read_and_only_quotes_found_in_it_are_kept(runs_dir: Path) -> None:
     pages = FakePages()
     advisor = PolicyAgent(
-        FakePolicies([FUNDER_WITH_PAGE]), pages=pages, extractor=reader(QUOTED, INVENTED)
+        Sources(FakePolicies([FUNDER_WITH_PAGE])), pages=pages, extractor=reader(QUOTED, INVENTED)
     )
     env = invoke(runs_dir, PolicyContext(actors=[SRC]), advisor)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
@@ -587,7 +592,7 @@ def test_a_policys_own_text_is_read_and_only_quotes_found_in_it_are_kept(runs_di
 
 def test_where_the_text_and_the_record_differ_both_are_shown(runs_dir: Path) -> None:
     advisor = PolicyAgent(
-        FakePolicies([FUNDER_WITH_PAGE]),
+        Sources(FakePolicies([FUNDER_WITH_PAGE])),
         pages=FakePages(),
         extractor=reader(SRC_DEPOSIT_DIFFERS),
     )
@@ -599,7 +604,7 @@ def test_where_the_text_and_the_record_differ_both_are_shown(runs_dir: Path) -> 
 
 def test_a_policy_url_is_read_for_an_actor_with_no_record(runs_dir: Path) -> None:
     unknown = Actor(role=ActorRole.FUNDER, name="Unlisted Council", policy_url=PAGE_URL)
-    advisor = PolicyAgent(FakePolicies([]), pages=FakePages(), extractor=reader(QUOTED))
+    advisor = PolicyAgent(Sources(FakePolicies([])), pages=FakePages(), extractor=reader(QUOTED))
     env = invoke(runs_dir, PolicyContext(actors=[unknown]), advisor)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     checks = env.payload_as(PolicyChecks)
@@ -610,7 +615,7 @@ def test_a_policy_url_is_read_for_an_actor_with_no_record(runs_dir: Path) -> Non
 
 def test_a_page_that_cannot_be_fetched_is_reported_beside_its_record(runs_dir: Path) -> None:
     advisor = PolicyAgent(
-        FakePolicies([FUNDER_WITH_PAGE]), pages=FakePages({}), extractor=reader(QUOTED)
+        Sources(FakePolicies([FUNDER_WITH_PAGE])), pages=FakePages({}), extractor=reader(QUOTED)
     )
     env = invoke(runs_dir, PolicyContext(actors=[SRC]), advisor)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
@@ -624,7 +629,7 @@ def test_without_a_model_no_page_is_fetched_and_the_statement_says_so(runs_dir: 
     env = invoke(
         runs_dir,
         PolicyContext(actors=[SRC]),
-        PolicyAgent(FakePolicies([FUNDER_WITH_PAGE]), pages=pages),
+        PolicyAgent(Sources(FakePolicies([FUNDER_WITH_PAGE])), pages=pages),
     )
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     assert pages.fetched == [] and env.payload_as(PolicyChecks).readings == []
@@ -639,7 +644,9 @@ def test_a_profile_can_turn_reading_the_text_off(runs_dir: Path, tmp_path: Path)
         encoding="utf-8",
     )
     pages = FakePages()
-    advisor = PolicyAgent(FakePolicies([FUNDER_WITH_PAGE]), pages=pages, extractor=reader(QUOTED))
+    advisor = PolicyAgent(
+        Sources(FakePolicies([FUNDER_WITH_PAGE])), pages=pages, extractor=reader(QUOTED)
+    )
     env = make_conductor(runs_dir, advisor, profile=profile).invoke(
         request("advisor.policy", PolicyContext(actors=[SRC])), acting_for=TEST_PRINCIPAL
     )

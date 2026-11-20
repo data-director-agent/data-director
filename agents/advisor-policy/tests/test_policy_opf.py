@@ -30,6 +30,7 @@ from dd_agent_advisor_policy.classes import (
 )
 from dd_agent_advisor_policy.records import PolicyRecord
 from dd_agent_advisor_policy.ror import RorDump
+from dd_agent_advisor_policy.search import Sources
 from dd_sdk.contract.models import Derivation, OutcomeStatus
 from dd_sdk.evidence import verify
 
@@ -58,7 +59,7 @@ def nerc_only(dump: RorDump) -> FakeOrganisations:
 def test_nerc_with_no_fairsharing_record_is_found_in_open_policy_finder(
     runs_dir: Path, dump: RorDump
 ) -> None:
-    advisor = PolicyAgent(FakePolicies(), organisations=nerc_only(dump), opf=opf())
+    advisor = PolicyAgent(Sources(FakePolicies(), organisations=nerc_only(dump), opf=opf()))
     env = invoke(runs_dir, PolicyContext(actors=[NERC_ACTOR]), advisor)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     checks = env.payload_as(PolicyChecks)
@@ -83,7 +84,9 @@ def test_nerc_with_no_fairsharing_record_is_found_in_open_policy_finder(
 
 @pytest.mark.requirement("DD-GROUNDED-PAYLOAD")
 def test_an_elsevier_journal_reaches_its_publishers_policy(runs_dir: Path) -> None:
-    advisor = PolicyAgent(FakePolicies([*ALL, ELSEVIER_POLICY]), opf=opf(), crossref=crossref())
+    advisor = PolicyAgent(
+        Sources(FakePolicies([*ALL, ELSEVIER_POLICY]), opf=opf(), crossref=crossref())
+    )
     env = invoke(runs_dir, PolicyContext(actors=[STOTEN_ACTOR]), advisor)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     checks = env.payload_as(PolicyChecks)
@@ -102,7 +105,7 @@ def test_an_elsevier_journal_reaches_its_publishers_policy(runs_dir: Path) -> No
 
 
 def test_without_open_policy_finder_crossref_still_reaches_the_publisher(runs_dir: Path) -> None:
-    advisor = PolicyAgent(FakePolicies([*ALL, ELSEVIER_POLICY]), crossref=crossref())
+    advisor = PolicyAgent(Sources(FakePolicies([*ALL, ELSEVIER_POLICY]), crossref=crossref()))
     env = invoke(runs_dir, PolicyContext(actors=[STOTEN_ACTOR]), advisor)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     checks = env.payload_as(PolicyChecks)
@@ -114,7 +117,7 @@ def test_without_open_policy_finder_crossref_still_reaches_the_publisher(runs_di
 
 def test_a_journal_given_by_issn_is_read_by_it(runs_dir: Path) -> None:
     seen: list[httpx.Request] = []
-    advisor = PolicyAgent(FakePolicies(), opf=opf(opf_handler(seen)))
+    advisor = PolicyAgent(Sources(FakePolicies(), opf=opf(opf_handler(seen))))
     actor = Actor(role=ActorRole.JOURNAL, name="STOTEN", issn="0048-9697")
     checks = invoke(runs_dir, PolicyContext(actors=[actor]), advisor).payload_as(PolicyChecks)
     assert [p.grounded_on[0].source_id for p in checks.policies] == [STOTEN_OPF]
@@ -131,7 +134,7 @@ def test_an_ambiguous_journal_title_asks_which_and_is_not_searched(runs_dir: Pat
     }
     policies = FakePolicies()
     advisor = PolicyAgent(
-        policies, opf=opf(opf_handler(extra={("publication", "journal of ecology"): twin}))
+        Sources(policies, opf=opf(opf_handler(extra={("publication", "journal of ecology"): twin})))
     )
     ecology = Actor(role=ActorRole.JOURNAL, name="Journal of Ecology")
     env = invoke(runs_dir, PolicyContext(actors=[ecology, TESTING]), advisor)
@@ -147,7 +150,7 @@ def test_an_ambiguous_journal_title_asks_which_and_is_not_searched(runs_dir: Pat
 
 @pytest.mark.requirement("DD-OUTCOME")
 def test_an_unknown_journal_title_stays_without_a_record(runs_dir: Path) -> None:
-    advisor = PolicyAgent(FakePolicies(), opf=opf(), crossref=crossref())
+    advisor = PolicyAgent(Sources(FakePolicies(), opf=opf(), crossref=crossref()))
     nothing = Actor(role=ActorRole.JOURNAL, name="Journal of Nothing")
     checks = invoke(runs_dir, PolicyContext(actors=[nothing, TESTING]), advisor).payload_as(
         PolicyChecks
@@ -158,9 +161,11 @@ def test_an_unknown_journal_title_stays_without_a_record(runs_dir: Path) -> None
 
 def test_open_policy_finder_down_is_noted_and_fairsharing_still_answers(runs_dir: Path) -> None:
     advisor = PolicyAgent(
-        FakePolicies([*ALL, ELSEVIER_POLICY]),
-        opf=opf(opf_handler(status=500)),
-        crossref=crossref(crossref_handler()),
+        Sources(
+            FakePolicies([*ALL, ELSEVIER_POLICY]),
+            opf=opf(opf_handler(status=500)),
+            crossref=crossref(crossref_handler()),
+        )
     )
     env = invoke(runs_dir, PolicyContext(actors=[STOTEN_ACTOR]), advisor)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement

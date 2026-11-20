@@ -48,7 +48,9 @@ from dd_agent_advisor_policy.extract import Extractor, ModelExtractor, NoExtract
 from dd_agent_advisor_policy.live import PolicyLive
 from dd_agent_advisor_policy.opf import OpenPolicyFinder
 from dd_agent_advisor_policy.policy_text import PolicyPages
+from dd_agent_advisor_policy.retrieve import Policies
 from dd_agent_advisor_policy.ror import RorDump, RorLive
+from dd_agent_advisor_policy.search import Sources
 from dd_agent_advisor_policy.snapshot import PolicySnapshot
 from dd_sdk import serve
 from dd_sdk.credentials import ConfigError, api_key
@@ -112,47 +114,51 @@ def build_crossref(env: Mapping[str, str]) -> CrossrefJournals | None:
     return CrossrefJournals() if choice == "live" else None
 
 
+def build_policies(env: Mapping[str, str]) -> tuple[Policies, Policies | None]:
+    """FAIRsharing's policy records, from `DD_POLICY_RETRIEVAL`: the pinned snapshot, or the live
+    search with the snapshot standing in when it is down."""
+    choice = env.get("DD_POLICY_RETRIEVAL", "snapshot")
+    if choice == "snapshot":
+        return PolicySnapshot(), None
+    if choice != "live":
+        raise ConfigError(f"DD_POLICY_RETRIEVAL={choice!r}: expected snapshot or live")
+    login = env.get("FAIRSHARING_LOGIN")
+    if not (login and (env.get("FAIRSHARING_PASSWORD") or env.get("FAIRSHARING_PASSWORD_FILE"))):
+        raise ConfigError(
+            "DD_POLICY_RETRIEVAL=live: FAIRsharing search needs FAIRSHARING_LOGIN and "
+            "FAIRSHARING_PASSWORD (or FAIRSHARING_PASSWORD_FILE)"
+        )
+    # Read as a credential, so the password may be a file under $CREDENTIALS_DIRECTORY.
+    password = api_key(env, "FAIRSHARING_PASSWORD")
+    return PolicyLive(login=login, password=password), PolicySnapshot()
+
+
+def ror_choice(env: Mapping[str, str]) -> str:
+    choice = env.get("DD_POLICY_ROR", "snapshot")
+    if choice not in ("snapshot", "live"):
+        raise ConfigError(f"DD_POLICY_ROR={choice!r}: expected snapshot or live")
+    return choice
+
+
 def build(env: Mapping[str, str] | None = None) -> PolicyAgent:
     """The factory `main` serves. `env` defaults to the process environment."""
     env = os.environ if env is None else env
     explainer = build_explainer(env)
-    ror_choice = env.get("DD_POLICY_ROR", "snapshot")
-    if ror_choice not in ("snapshot", "live"):
-        raise ConfigError(f"DD_POLICY_ROR={ror_choice!r}: expected snapshot or live")
+    ror = ror_choice(env)
     opf, crossref = build_opf(env), build_crossref(env)
-    choice = env.get("DD_POLICY_RETRIEVAL", "snapshot")
-    if choice == "snapshot":
-        agent = PolicyAgent(PolicySnapshot(), explainer, opf=opf, crossref=crossref)
-    elif choice == "live":
-        login = env.get("FAIRSHARING_LOGIN")
-        if not (
-            login and (env.get("FAIRSHARING_PASSWORD") or env.get("FAIRSHARING_PASSWORD_FILE"))
-        ):
-            raise ConfigError(
-                "DD_POLICY_RETRIEVAL=live: FAIRsharing search needs FAIRSHARING_LOGIN and "
-                "FAIRSHARING_PASSWORD (or FAIRSHARING_PASSWORD_FILE)"
-            )
-        # Read as a credential, so the password may be a file under $CREDENTIALS_DIRECTORY.
-        password = api_key(env, "FAIRSHARING_PASSWORD")
-        agent = PolicyAgent(
-            PolicyLive(login=login, password=password),
-            explainer,
-            fallback=PolicySnapshot(),
-            opf=opf,
-            crossref=crossref,
-        )
-    else:
-        raise ConfigError(f"DD_POLICY_RETRIEVAL={choice!r}: expected snapshot or live")
-    if ror_choice == "live":
-        agent.organisations, agent.organisations_fallback = RorLive(), RorDump()
-    else:
-        agent.organisations = RorDump()
-    agent.pages = PolicyPages()
-    agent.extractor = build_extractor(env, explainer)
+    policies, fallback = build_policies(env)
+    sources = Sources(
+        policies=policies,
+        fallback=fallback,
+        organisations=RorLive() if ror == "live" else RorDump(),
+        organisations_fallback=RorDump() if ror == "live" else None,
+        opf=opf,
+        crossref=crossref,
+    )
+    extractor = build_extractor(env, explainer)
+    agent = PolicyAgent(sources, explainer, pages=PolicyPages(), extractor=extractor)
     models = [
-        m.model
-        for m in (explainer, agent.extractor)
-        if isinstance(m, ModelAdvisor | ModelExtractor)
+        m.model for m in (explainer, extractor) if isinstance(m, ModelAdvisor | ModelExtractor)
     ]
     uses = tuple(dict.fromkeys(declared(m) for m in models))
     if uses:

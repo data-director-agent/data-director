@@ -23,6 +23,7 @@ from dd_agent_advisor_policy.classes import (
     Strength,
 )
 from dd_agent_advisor_policy.records import Clause, PolicyRecord
+from dd_agent_advisor_policy.search import Sources
 from dd_sdk.contract.models import Derivation, OutcomeStatus
 from dd_sdk.model import (
     ModelCallError,
@@ -106,7 +107,7 @@ class ScriptedModel:
 def advisor(model: ScriptedModel, **kwargs: Any) -> PolicyAgent:
     max_lookups = kwargs.pop("max_lookups", 6)
     agent = PolicyAgent(
-        kwargs.pop("policies", FakePolicies()), ModelAdvisor(model, max_lookups), **kwargs
+        Sources(kwargs.pop("policies", FakePolicies()), **kwargs), ModelAdvisor(model, max_lookups)
     )
     agent.spec = replace(agent.spec, models=(declared(model),))
     return agent
