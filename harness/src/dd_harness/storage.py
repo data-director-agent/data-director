@@ -15,7 +15,7 @@ backend.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator, Mapping, Sequence
+from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
 from datetime import timedelta
 from typing import Any, Protocol
 
@@ -116,6 +116,12 @@ class RunStorage(Protocol):
 
     def get_request(self, invocation_id: str) -> dict[str, Any] | None:
         """The stored request, or None."""
+        ...
+
+    def get_many(self, invocation_ids: Collection[str], part: str = "envelope") -> dict[str, Any]:
+        """The stored `part` (`"envelope"` or `"request"`) of each run named, keyed by its
+        `invocation_id`, in one call; a run that is not stored, has no such part or is named
+        by a malformed identifier is left out. A database answers it in one query."""
         ...
 
     def get_prompts(self, invocation_id: str) -> dict[str, Any]:

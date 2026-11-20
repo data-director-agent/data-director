@@ -151,6 +151,13 @@ def check_a_run_is_written_once(make: MakeRunStorage) -> None:
     assert store.get(run_id) == envelope
     assert store.get_request(run_id) == {"agent_id": "stub.storage", "input": {"n": 1}}
     assert [e["invocation_id"] for e in store.iter_envelopes()] == [run_id]
+    # Many are read in one call; a run not stored, or named by a malformed identifier, is left out.
+    named = [run_id, stored_envelope()["invocation_id"], "../escape"]
+    assert store.get_many(named) == {run_id: envelope}
+    assert store.get_many(named, "request") == {
+        run_id: {"agent_id": "stub.storage", "input": {"n": 1}}
+    }
+    assert store.get_many([]) == {}
     # Reopened, as after a restart, the store holds the same run.
     assert make("runs").get(run_id) == envelope
 

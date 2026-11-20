@@ -34,7 +34,7 @@ import os
 import re
 import tempfile
 import threading
-from collections.abc import Iterable, Iterator, Mapping
+from collections.abc import Collection, Iterable, Iterator, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -135,6 +135,17 @@ class RunStore:
 
     def get_request(self, invocation_id: str) -> dict[str, Any] | None:
         return _read_json(self._read(invocation_id, "request.json"))
+
+    def get_many(self, invocation_ids: Collection[str], part: str = "envelope") -> dict[str, Any]:
+        """The stored `part` of each run named, left out where there is none."""
+        if part not in ("envelope", "request"):
+            raise ValueError(f"not a part of a run: {part!r}")
+        found: dict[str, Any] = {}
+        for invocation_id in invocation_ids:
+            document = _read_json(self._read(invocation_id, f"{part}.json"))
+            if document is not None:
+                found[invocation_id] = document
+        return found
 
     def get_prompts(self, invocation_id: str) -> dict[str, Any]:
         """The prompts a stored run sent, keyed by digest; empty if it sent none."""
