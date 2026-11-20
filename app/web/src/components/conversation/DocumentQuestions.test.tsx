@@ -185,6 +185,13 @@ describe("DocumentQuestions", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/not recorded/);
   });
 
+  it("offers to write the README once every question is answered", async () => {
+    const onWrite = vi.fn();
+    renderQuestions(README, vi.fn(), onWrite);
+    await userEvent.click(screen.getByRole("button", { name: "Write the README" }));
+    expect(onWrite).toHaveBeenCalledWith("Write the README from my answers.");
+  });
+
   it("asks nothing once every question is answered", () => {
     renderQuestions(README, vi.fn());
     expect(screen.queryByRole("group")).toBeNull();
