@@ -207,7 +207,16 @@ class ProjectLifecycle(ProjectRecord, Protocol):
     def projects_naming(self, principal_id: str) -> list[str]:
         """The projects whose log may give the principal a role, in the order created
         (`ProjectLog.projects_naming`): a superset of the projects they have a role in, which
-        `dd_harness.project_access.readable_projects` narrows by reading each one's log."""
+        `dd_harness.project_access.readable_projects` narrows by reading their logs."""
+        ...
+
+    def logs_naming(self, principal_id: str) -> dict[str, list[dict[str, Any]]]:
+        """The log of each project `projects_naming` gives, by project in the order created,
+        read at once (`ProjectLog.logs_naming`)."""
+        ...
+
+    def summary_of(self, project_id: str, events: list[dict[str, Any]]) -> dict[str, Any]:
+        """`summary` of the project whose log, already read, is `events`."""
         ...
 
     def summary(self, project_id: str) -> dict[str, Any]:

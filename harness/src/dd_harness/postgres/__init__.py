@@ -24,7 +24,8 @@ Listing runs and conversations reads one page from an index, whatever the size o
 the transaction that stores each turn. `runs_query` and `conversations_query` build the SQL a
 listing runs, so a test can ask the database how it plans it. Each project event's
 `names_principal` is the principal whose role it may change, indexed, so that the projects a
-person may read are found without reading every log (`projects_naming`, `projects_naming_query`).
+person may read are found without reading every log (`projects_naming`, `projects_naming_query`),
+and their logs read in one query (`logs_naming`, `logs_naming_query`).
 """
 
 from __future__ import annotations
@@ -50,6 +51,7 @@ from dd_harness.listing import (
     position,
     principal_of,
 )
+from dd_harness.postgres.naming import logs_naming_query, projects_naming_query
 from dd_harness.role_events import names
 from dd_harness.settings import SettingsError, redact_location
 from dd_harness.store import DIGEST, RUN_ID, artifact_segments
@@ -472,18 +474,6 @@ def _page_query(
     return query, params
 
 
-def projects_naming_query(principal_id: str) -> tuple[str, dict[str, Any]]:
-    """The SQL `projects_naming` runs, and its parameters: the projects with an event naming the
-    principal, read from `project_events_by_principal` alone, in the order created. A project's
-    first event is its creation, appended in the transaction that creates its row, so the place
-    of the first event naming a principal orders the projects as they were created."""
-    query = (
-        "select project_id from project_events where names_principal = %(principal)s"
-        " group by project_id order by min(seq)"
-    )
-    return query, {"principal": principal_id}
-
-
 class PostgresSection:
     """A project's exclusive section: a transaction holding the lock on the project's row."""
 
@@ -598,6 +588,15 @@ class PostgresProjectLog(_Pooled):
         with self._pool.connection() as conn:
             rows = conn.execute(query, params).fetchall()
         return [project_id for (project_id,) in rows]
+
+    def logs_naming(self, principal_id: str) -> dict[str, list[dict[str, Any]]]:
+        query, params = logs_naming_query(principal_id)
+        with self._pool.connection() as conn:
+            rows = conn.execute(query, params).fetchall()
+        found: dict[str, list[dict[str, Any]]] = {}
+        for project_id, event in rows:
+            found.setdefault(project_id, []).append(event)
+        return found
 
     def where(self) -> str:
         """The database, without a credential."""

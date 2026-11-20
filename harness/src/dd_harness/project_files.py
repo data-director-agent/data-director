@@ -152,14 +152,18 @@ class FileProjectLog:
         )
 
     def projects_naming(self, principal_id: str) -> list[str]:
+        return list(self.logs_naming(principal_id))
+
+    def logs_naming(self, principal_id: str) -> dict[str, list[dict[str, Any]]]:
         # With no index, every log is read, as listing runs scans `invocations.jsonl`; a
         # deployment that outgrows that keeps its projects in the database, where it is an
         # indexed query.
-        return [
-            project_id
-            for project_id in self.project_ids()
-            if any(names(event) == principal_id for event in self.events(project_id))
-        ]
+        found = {}
+        for project_id in self.project_ids():
+            events = self.events(project_id)
+            if any(names(event) == principal_id for event in events):
+                found[project_id] = events
+        return found
 
     def _require(self, project_id: str) -> None:
         if not self.exists(project_id):

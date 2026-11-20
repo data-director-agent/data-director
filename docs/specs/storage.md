@@ -134,13 +134,15 @@ conversations a page at a time, for the reader allowed to see them (`dd_harness.
 - **Reader.** A `Readable` names a principal and the projects they may read: a run in one of those
   projects is included, and a run in no project if it acted for the principal. A conversation is
   judged on its first turn. Which projects a person may read is decided from the project log
-  ([Projects](projects.md)), without reading every log: the backend names the projects whose log
-  may give the person a role (`ProjectLog.projects_naming`, from the principal each event names in
-  `dd_harness.role_events`), and the access check reads only those logs to confirm it
-  (`dd_harness.project_access.readable_projects`).
+  ([Projects](projects.md)), without reading every log: the backend reads, in one read, the logs
+  of the projects whose log may give the person a role (`ProjectLog.logs_naming`, from the
+  principal each event names in `dd_harness.role_events`; `projects_naming` names the same
+  projects alone), and the access check decides from those logs alone
+  (`dd_harness.project_access.readable_logs`). The number of reads a listing makes of the project
+  store does not grow with the number of projects; a database answers it in one query.
 - **Deleted conversations.** A `Readable` may also name conversations to leave out, the deleted
   ones in the projects the reader may read ([Projects](projects.md), invariant 29;
-  `dd_harness.project_access.hidden_conversations`). A run or a conversation in one of them is
+  `dd_harness.project_access.hidden_in`, from the same logs). A run or a conversation in one of them is
   not listed; a run in no conversation is. The leaving out is part of the query, so a page still
   holds as many as it asks for.
 - **Projects.** `GET /api/projects` lists the projects a person may read, the one created last

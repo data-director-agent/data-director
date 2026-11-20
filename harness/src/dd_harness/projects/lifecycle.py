@@ -173,6 +173,11 @@ class Lifecycle(ProjectRules):
         """The projects whose log may give the principal a role, the one created first first."""
         return self.log.projects_naming(principal_id)
 
+    def logs_naming(self, principal_id: str) -> dict[str, list[dict[str, Any]]]:
+        """The log of each project whose log may give the principal a role, by project, the one
+        created first first, read at once."""
+        return self.log.logs_naming(principal_id)
+
     def summary(self, project_id: str) -> dict[str, Any]:
         """What a list of projects shows of one: its latest title and who gave it (`title_source`:
         `researcher`, `model`, or None while it has none), who created it and when, the latest
@@ -182,7 +187,11 @@ class Lifecycle(ProjectRules):
         until when it may be restored (`deleted`, else None), and for how many days after a
         deletion it may be (`restore_days`, 0 if deletion is final). Raises
         `UnknownProjectError`."""
-        events = self.events(project_id)
+        return self.summary_of(project_id, self.events(project_id))
+
+    def summary_of(self, project_id: str, events: list[dict[str, Any]]) -> dict[str, Any]:
+        """`summary` of the project whose log, already read, is `events`, so that a listing
+        that has read its projects' logs at once does not read each again."""
         created = events[0]
         title, title_source = _title(events)
         states = {PROPOSED: 0, APPROVED: 0, REJECTED: 0}
