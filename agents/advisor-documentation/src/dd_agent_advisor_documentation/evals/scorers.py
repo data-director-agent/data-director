@@ -287,12 +287,15 @@ def _gap_name(q: Mapping[str, Any]) -> str:
 
 @scorer(metrics=[mean_applicable()])
 def required_sections_present() -> Scorer:
-    """The README has every section of `readme.yaml`, in order."""
+    """The README has every section of `readme.yaml`, in order. Does not apply to a note that
+    asks before the README is written."""
 
     async def score(state: TaskState, target: Target) -> Score:
         document = readme_of(state)
         if document is None:
             return _not_applicable("not a README")
+        if document.get("document_stage") == "questions":
+            return _not_applicable("a note that asks first, not the README")
         headings = re.findall(r"^## (.+)$", document["document_text"], re.MULTILINE)
         wanted = [s.heading for s in load_sections()]
         ok = [h for h in headings if h in wanted] == wanted
