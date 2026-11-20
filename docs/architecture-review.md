@@ -68,6 +68,11 @@ Consequences:
 - **Handlers reach past `Governance` to the store.** There are 26 uses of `governance.projects` and
   32 direct `store` calls. That makes `Governance` a facade with holes in it.
 
+Addressed by #975 and #974: each area's handlers are a module of `dd_app.routes`, and the project
+rules they call are `dd_app.project_service`, one class per area. `Governance` keeps the turn and
+who may read what; what a reader is answered with is `dd_app.reads`, and what the deployment is,
+`dd_app.deployment_view`. Neither class needs a `PLR0904` marker.
+
 ### 2. `Projects` is a god class, and `ProjectStorage` a wide interface
 
 `harness/src/dd_harness/projects.py:360` mixes nine areas:
@@ -291,7 +296,7 @@ shrink.
 
 | Check | Limit | How the existing excess is recorded |
 |---|---|---|
-| Ruff `PLR0904` (Python outside tests; #1056) | 20 public methods in a class | `# noqa: PLR0904` on `Governance` and `ProjectService` in `dd_app` |
+| Ruff `PLR0904` (Python outside tests; #1056) | 20 public methods in a class | `# noqa: PLR0904` on `Governance` and `ProjectService` in `dd_app`, removed when both were split (#974) |
 | dependency-cruiser `no-circular` in `sdk/browser` and `inventory/browser` (#1059), as `app/web` has | no import cycle in `src/` | none: neither package has one |
 | Import Linter `acyclic_siblings` over every member (#1055) | no cycle between a package's modules | the 6 cycles that exist, as `ignore_imports` entries; a stale entry fails (TODO(#1066)) |
 | Import Linter `layers` in `dd_harness` and `dd_app` (#1055) | server, transport, conductor and pipeline, storage, then the checks; app, routes, project service, then governance | one `ignore_imports` entry in `dd_app`: `responses` imports `app` inside a function (TODO(#1066)) |

@@ -48,10 +48,12 @@ from starlette.staticfiles import StaticFiles
 from dd_app import feedback, folder_scan
 from dd_app.about import about
 from dd_app.config import WEB_DIST, settings_from_env
+from dd_app.deployment_view import DeploymentView
 from dd_app.governance import Governance
 from dd_app.model_accounts import broker_path
 from dd_app.privacy import notice_url
 from dd_app.project_service import ProjectService
+from dd_app.reads import Reads
 from dd_app.routes import (
     conversation_deletion,
     conversations,
@@ -159,7 +161,9 @@ def build_app(
     links = links or Links()
     deps = Deps(
         governance=governance,
-        projects=ProjectService(governance),
+        projects=ProjectService.over(governance),
+        reads=Reads(governance),
+        deployment=DeploymentView(governance),
         web_dist=web_dist,
         identity=dict(build) if build is not None else about(),
         feedback=feedback or Feedback(),

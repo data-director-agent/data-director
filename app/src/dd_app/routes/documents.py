@@ -152,7 +152,9 @@ def routes(deps: Deps) -> list[Route]:
 
 async def get_documents(request: Request, _: Principal, deps: Deps) -> Response:
     project_id = request.path_params["project_id"]
-    return respond(ProjectDocuments, await run_in_threadpool(deps.projects.documents, project_id))
+    return respond(
+        ProjectDocuments, await run_in_threadpool(deps.projects.documents.documents, project_id)
+    )
 
 
 async def decide(request: Request, decider: Principal, deps: Deps) -> Response:
@@ -166,7 +168,7 @@ async def decide(request: Request, decider: Principal, deps: Deps) -> Response:
         return refused(str(exc), DECISION_REFUSED)
     try:
         decided = await run_in_threadpool(
-            lambda: deps.projects.decide(
+            lambda: deps.projects.documents.decide(
                 project_id, decision, acted_for=decider, caused_by=caused_by(request)
             )
         )
@@ -187,7 +189,7 @@ async def answer(request: Request, answerer: Principal, deps: Deps) -> Response:
         return refused(str(exc), ANSWERS_REFUSED)
     try:
         answered = await run_in_threadpool(
-            lambda: deps.projects.answer(
+            lambda: deps.projects.documents.answer(
                 project_id,
                 document_id,
                 version,

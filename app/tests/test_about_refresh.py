@@ -4,13 +4,16 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 import pytest
 from starlette.testclient import TestClient
 from support import configure_env, dist_dir, new_governance
 
+from dd_app.about_refresh import ABOUT_REFRESH_INTERVAL_S
 from dd_app.app import build_app
-from dd_app.governance import ABOUT_REFRESH_INTERVAL_S, Governance
+from dd_app.deployment_view import DeploymentView
+from dd_app.governance import Governance
 
 
 class CountingRegistry:
@@ -36,6 +39,11 @@ class Clock:
         return self.now
 
 
+def about(governance: Governance) -> dict[str, Any]:
+    """What `GET /api/about` answers with."""
+    return DeploymentView(governance).deployment()
+
+
 @pytest.fixture
 def governance(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[Governance]:
     configure_env(monkeypatch, tmp_path)
@@ -52,7 +60,7 @@ def registry(governance: Governance) -> CountingRegistry:
 @pytest.fixture
 def clock(governance: Governance) -> Clock:
     fake = Clock()
-    governance.clock = fake
+    governance.about_refresh.clock = fake
     return fake
 
 
@@ -60,31 +68,31 @@ def test_a_run_of_requests_refreshes_once(
     governance: Governance, registry: CountingRegistry, clock: Clock
 ) -> None:
     for _ in range(50):
-        assert governance.deployment()["unavailable"] == ["late"]
+        assert about(governance)["unavailable"] == ["late"]
     assert registry.refreshes == 1
 
 
 def test_it_refreshes_again_once_the_interval_has_passed(
     governance: Governance, registry: CountingRegistry, clock: Clock
 ) -> None:
-    governance.deployment()
+    about(governance)
     clock.now += ABOUT_REFRESH_INTERVAL_S - 1
-    governance.deployment()
+    about(governance)
     assert registry.refreshes == 1
     clock.now += 1
-    governance.deployment()
+    about(governance)
     assert registry.refreshes == 2
 
 
 def test_an_agent_that_became_available_is_reported_within_one_interval(
     governance: Governance, registry: CountingRegistry, clock: Clock
 ) -> None:
-    assert governance.deployment()["unavailable"] == ["late"]
+    assert about(governance)["unavailable"] == ["late"]
     registry.up = True
     clock.now += ABOUT_REFRESH_INTERVAL_S - 1
-    assert governance.deployment()["unavailable"] == ["late"]
+    assert about(governance)["unavailable"] == ["late"]
     clock.now += 1
-    assert governance.deployment()["unavailable"] == []
+    assert about(governance)["unavailable"] == []
 
 
 def test_a_request_during_a_refresh_does_not_wait_for_it(
@@ -94,10 +102,10 @@ def test_a_request_during_a_refresh_does_not_wait_for_it(
 
     def slow_refresh() -> None:
         registry.refreshes += 1
-        seen.append(governance.deployment()["unavailable"])  # a second request, mid-refresh
+        seen.append(about(governance)["unavailable"])  # a second request, mid-refresh
 
     registry.refresh = slow_refresh  # type: ignore[method-assign]
-    governance.deployment()
+    about(governance)
     assert registry.refreshes == 1
     assert seen == [["late"]]
 

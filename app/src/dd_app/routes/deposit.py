@@ -295,7 +295,7 @@ def routes(deps: Deps) -> list[Route]:
 
 async def get_repository(request: Request, _: Principal, deps: Deps) -> Response:
     project_id = request.path_params["project_id"]
-    found = await run_in_threadpool(deps.projects.requirements, project_id)
+    found = await run_in_threadpool(deps.projects.deposit.requirements, project_id)
     if found is None:
         return problem(
             404,
@@ -307,17 +307,17 @@ async def get_repository(request: Request, _: Principal, deps: Deps) -> Response
 
 
 async def choose_repository(request: Request, person: Principal, deps: Deps) -> Response:
-    """The researcher's choice of repository (`ProjectService.choose_repository`). Answers with
+    """The researcher's choice of repository (`Deposit.choose_repository`). Answers with
     the requirements it resolved to."""
     project_id = request.path_params["project_id"]
-    if not deps.projects.offers_repositories:
+    if not deps.projects.deposit.offers_repositories:
         return _repositories_unavailable("This server has no repository requirement sets.")
     body = await parse_body(request, ChooseRepository, REPOSITORY_REFUSED)
     if isinstance(body, Response):
         return body
     try:
         chosen = await run_in_threadpool(
-            lambda: deps.projects.choose_repository(
+            lambda: deps.projects.deposit.choose_repository(
                 project_id, body.re3data_id, acted_for=person, caused_by=f"PUT {request.url.path}"
             )
         )
@@ -355,7 +355,7 @@ async def search_repositories(request: Request, _: Principal, deps: Deps) -> Res
     names, or, without `q`, those the deployment suggests (docs/specs/deposit.md)."""
     query = request.query_params.get("q", "").strip()
     try:
-        found = await run_in_threadpool(deps.projects.search_repositories, query)
+        found = await run_in_threadpool(deps.projects.deposit.search_repositories, query)
     except SourceConfigError as exc:
         return problem(503, "re3data-unavailable", "Repositories cannot be searched", str(exc))
     return respond(RepositorySearch, found)
@@ -364,7 +364,7 @@ async def search_repositories(request: Request, _: Principal, deps: Deps) -> Res
 async def validate_project(request: Request, acting_for: Principal, deps: Deps) -> Response:
     project_id = request.path_params["project_id"]
     validation = await run_in_threadpool(
-        lambda: deps.projects.validate(
+        lambda: deps.projects.deposit.validate(
             project_id, acted_for=acting_for, caused_by=f"POST {request.url.path}"
         )
     )
@@ -375,12 +375,14 @@ async def package_project(request: Request, acting_for: Principal, deps: Deps) -
     project_id = request.path_params["project_id"]
     try:
         built, validation = await run_in_threadpool(
-            lambda: deps.projects.package(
+            lambda: deps.projects.deposit.package(
                 project_id, acted_for=acting_for, caused_by=f"POST {request.url.path}"
             )
         )
     except PackageRefusedError as exc:
-        refused = await run_in_threadpool(deps.projects.validation_view, project_id, exc.validation)
+        refused = await run_in_threadpool(
+            deps.projects.deposit.validation_view, project_id, exc.validation
+        )
         return respond(
             PackageRefusedProblem,
             {
@@ -409,7 +411,7 @@ async def package_project(request: Request, acting_for: Principal, deps: Deps) -
 
 async def get_package(request: Request, _: Principal, deps: Deps) -> Response:
     project_id, digest = request.path_params["project_id"], request.path_params["digest"]
-    content = await run_in_threadpool(deps.projects.package_content, project_id, digest)
+    content = await run_in_threadpool(deps.projects.deposit.package_content, project_id, digest)
     if content is None:
         return problem(
             404,
@@ -428,7 +430,7 @@ async def get_package(request: Request, _: Principal, deps: Deps) -> Response:
 
 async def get_disclosure(request: Request, _: Principal, deps: Deps) -> Response:
     project_id = request.path_params["project_id"]
-    found = await run_in_threadpool(deps.projects.disclosure, project_id)
+    found = await run_in_threadpool(deps.projects.deposit.disclosure, project_id)
     return respond(Disclosure, {**found.to_document(), "prov": found.prov_jsonld()})
 
 

@@ -10,6 +10,7 @@ import pytest
 from support import a_file_inventory, configure_env, new_governance
 
 from dd_app.governance import Governance
+from dd_app.reads import Reads
 from dd_harness.project_files import FileProjectLog
 from dd_harness.projects import Projects
 from dd_harness.testing import TEST_PRINCIPAL, CountingLog
@@ -44,9 +45,9 @@ def _reads(governance: Governance, root: Path, count: int) -> dict[str, dict[str
         project_id, conversation_id, acted_for=TEST_PRINCIPAL, caused_by="test"
     )
     listings: dict[str, Callable[[], object]] = {
-        "projects": lambda: governance.projects_for(TEST_PRINCIPAL, limit=200),
-        "conversations": lambda: governance.conversations(TEST_PRINCIPAL),
-        "runs": lambda: governance.runs(TEST_PRINCIPAL),
+        "projects": lambda: Reads(governance).projects_for(TEST_PRINCIPAL, limit=200),
+        "conversations": lambda: Reads(governance).conversations(TEST_PRINCIPAL),
+        "runs": lambda: Reads(governance).runs(TEST_PRINCIPAL),
     }
     found = {}
     for name, listing in listings.items():
@@ -67,4 +68,4 @@ def test_a_listing_reads_the_project_store_as_often_for_many_projects_as_for_few
         "conversations": {"logs_naming": 1},
         "runs": {"logs_naming": 1},
     }
-    assert len(governance.projects_for(TEST_PRINCIPAL, limit=200).items) == 15
+    assert len(Reads(governance).projects_for(TEST_PRINCIPAL, limit=200).items) == 15

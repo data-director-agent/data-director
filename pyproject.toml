@@ -285,8 +285,9 @@ name = "the app is wired, routed, then governed"
 type = "layers"
 containers = ["dd_app"]
 # `app` builds the application, `routes` hold the handlers, `project_service` the project rules
-# they call, and `governance` the one way to the harness (docs/specs/app.md).
-layers = ["app", "routes", "project_service", "governance"]
+# they call, `reads` what a reader is answered with and `deployment_view` what the deployment is,
+# and `governance` the one way to the harness, which says who may do what (docs/specs/app.md).
+layers = ["app", "routes", "project_service | reads | deployment_view", "governance"]
 # `response_models` finds every response model by importing the app inside the function, so the
 # lower layers reach `app` through `responses` (TODO(#1066): move it out of `responses`).
 ignore_imports = [
