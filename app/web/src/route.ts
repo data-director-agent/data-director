@@ -48,9 +48,32 @@ export function homePath({
   return text ? `/?${text}` : "/";
 }
 
+/** A project's pages, each a tab (docs/specs/app.md): its documents at `/projects/{id}`, and each
+ * other at `/projects/{id}/{tab}`. */
+export const PROJECT_TABS = [
+  "documents",
+  "researchers",
+  "facts",
+  "repository",
+  "ai-use",
+  "deposit",
+  "journey",
+] as const;
+export type ProjectTab = (typeof PROJECT_TABS)[number];
+
+export function isProjectTab(value: string): value is ProjectTab {
+  return (PROJECT_TABS as readonly string[]).includes(value);
+}
+
+/** A project's page: its documents, or the tab given. */
+export function projectTabPath(projectId: string, tab: ProjectTab = "documents"): string {
+  const base = `/projects/${encodeURIComponent(projectId)}`;
+  return tab === "documents" ? base : `${base}/${tab}`;
+}
+
 /** A project's journey map, with a step open (`?step=`) when one is given. */
 export function journeyPath(projectId: string, step?: string | null): string {
-  const base = `/projects/${encodeURIComponent(projectId)}/journey`;
+  const base = projectTabPath(projectId, "journey");
   return step ? `${base}?step=${encodeURIComponent(step)}` : base;
 }
 

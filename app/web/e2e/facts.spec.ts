@@ -30,7 +30,7 @@ for (const width of [1280, 320]) {
       sent.push(route.request().postDataJSON());
       return route.fulfill({ status: 201, json: decided });
     });
-    await page.goto(`/projects/${project.project_id}?doc=facts`);
+    await page.goto(`/projects/${project.project_id}/facts`);
 
     const panel = page.getByRole("region", { name: "Project facts" });
     const duplicate = panel.getByRole("article", { name: /readings \(copy\)\.csv/ });

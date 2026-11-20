@@ -18,8 +18,9 @@ The shell names no agent. It shows every agent the harness has registered, each 
 - **History**: its stored runs, each of which reopens in the same view.
 
 The app opens on a conversation with the orchestrator, the agent whose grounding mode is
-`delegation` ([The app](../docs/specs/app.md)). Each reply and each delegated child is labelled `agent_id@agent_version`,
-a child opens its run, and past conversations reopen. Without a permitted orchestrator the page
+`delegation` ([The app](../docs/specs/app.md)). Each reply and each delegated child is headed by the agent's name;
+its version and model are on the agent page, a child opens its run, which shows
+`agent_id@agent_version`, and past conversations reopen. Without a permitted orchestrator the page
 says so and links to the pages above, which are one step away (#131).
 
 The app works in one project at a time. The workspace header names the active project and

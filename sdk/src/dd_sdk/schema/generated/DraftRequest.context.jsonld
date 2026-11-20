@@ -288,6 +288,10 @@
          "@id": "https://w3id.org/data-director/fundings",
          "@type": "@id"
       },
+      "guidance": {
+         "@id": "https://w3id.org/data-director/guidance",
+         "@type": "@id"
+      },
       "identifier_type": {
          "@id": "https://w3id.org/data-director/identifier_type"
       },

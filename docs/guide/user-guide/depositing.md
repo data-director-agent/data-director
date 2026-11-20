@@ -30,7 +30,9 @@ In the project's **Deposit** tab:
 4. Choose **Build the package**, then **Download the package**. It can be built once nothing must
    be fixed and nothing waits for your decision.
 
-The **Repository** tab shows the repository you chose and the fields its form asks for.
+The **Repository** tab shows the repository you chose and the fields its form asks for. It also
+says what the repository accepts, what Data Director assumes about it and what is not yet
+confirmed, and links to the pages that information was taken from.
 
 ## What the package is for
 

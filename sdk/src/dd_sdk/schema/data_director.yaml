@@ -506,6 +506,7 @@ classes:
       - warnings
       - unconfirmed
       - repository_url
+      - guidance
     slot_usage:
       re3data_id:
         description: The repository's re3data identifier, such as r3d100012124.
@@ -1979,7 +1980,9 @@ slots:
       the repository's own terms.
     multivalued: true
   guidance:
-    description: The pages the set's values were taken from, so that a steward can check them.
+    description: >-
+      The pages the set's values were taken from, so that a steward can check them; in a merged
+      set, the standard's first, then the override's.
     range: uri
     multivalued: true
   unconfirmed:

@@ -2746,6 +2746,17 @@
                   "string",
                   "null"
                ]
+            },
+            "guidance": {
+               "description": "The pages the set's values were taken from, so that a steward can check them; in a merged set, the standard's first, then the override's.",
+               "items": {
+                  "format": "uri",
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
             }
          },
          "required": [
@@ -2919,7 +2930,7 @@
                ]
             },
             "guidance": {
-               "description": "The pages the set's values were taken from, so that a steward can check them.",
+               "description": "The pages the set's values were taken from, so that a steward can check them; in a merged set, the standard's first, then the override's.",
                "items": {
                   "format": "uri",
                   "type": "string"
