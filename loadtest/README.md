@@ -76,7 +76,7 @@ Then run `loadtest/collect.sh` alongside Locust. It writes `loadtest/out/contain
 1. In `agents.env`, add `ANTHROPIC_BASE_URL=http://127.0.0.1:8080`.
 2. Add `ANTHROPIC_API_KEY=load-test-not-a-key` to the own file, `agents/<name>.env`, of each model-backed agent:
    - `orchestrator-model`
-   - `advisor-dmp`, `advisor-documentation`, `advisor-ethics`, `advisor-fairness`, `advisor-metadata`, `advisor-policy`, `advisor-repository`, `advisor-rights`, `advisor-standards`
+   - `advisor-dmp`, `advisor-documentation`, `advisor-ethics`, `advisor-fairness`, `advisor-files`, `advisor-linking`, `advisor-metadata`, `advisor-policy`, `advisor-quality`, `advisor-repository`, `advisor-rights`, `advisor-standards`
 
    The key must go in each agent's own file: `dd.py` refuses a key in the shared `agents.env`.
 3. Optionally set `orchestrator: model` in `deployment.yaml`.
@@ -131,7 +131,7 @@ This lets a run gate CI.
 
 ## Reading the results
 
-- **Model time:** each turn's time includes `FAKE_LATENCY_MS` once for every model call. `orchestrator.model` makes two calls per reply, so with 1500 ms a turn cannot take less than about 1.6 s. The time above that floor is Data Director's.
+- **Model time:** each turn's time includes `FAKE_LATENCY_MS` once for every model call. `orchestrator.model` makes one call per reply, and one more for the title on a conversation's first turn. So with 1500 ms a turn cannot take less than about 1.6 s, or about 3.1 s for a first turn. The time above that floor is Data Director's. A `step` run with `FAKE_LATENCY_MS=0` measures that time on its own.
 - **The knee:** with `--csv-full-history`, plot `step_stats_history.csv`, turn p50 and p95 against `User Count`. The knee is where `Requests/s` stops rising while latency starts to.
 - **409 `turn conflict`:** turns contending for a conversation. It should not happen, because each user has its own conversation.
 - **Where to look first:**
@@ -159,6 +159,44 @@ The test machine:
 Turns stayed close to the model floor up to about 40 users. Throughput then levelled off at about 2.5 turns a second, and at 80 users latency rose fourfold. Nothing failed. The list routes slowed as well: `GET /api/projects` averaged 0.9 s and reached 4 s as conversations and projects accumulated.
 
 These figures describe that machine only. Repeat the measurement on the deployment's own hardware, with PostgreSQL, before quoting a capacity.
+
+## With PostgreSQL
+
+The test machine:
+- the Docker Compose route, with `--profile postgres` and runs and projects in PostgreSQL;
+- `orchestrator.model`;
+- `step` with the default 180 s steps, once at `FAKE_LATENCY_MS=1500` and once at `0`, each from empty tables;
+- an 8-core WSL2 machine, with Locust on the same machine.
+
+| Users | Turn p50 / p95, 1500 ms | Turn p50 / p95, 0 ms | `GET /api/projects` p50, 1500 ms |
+|---|---|---|---|
+| 5 | 2.8 s / 3.6 s | 0.45 s / 0.64 s | 0.41 s |
+| 10 | 2.1 s / 3.5 s | 0.53 s / 0.84 s | 0.52 s |
+| 20 | 11 s / 11 s | 15 s / 15 s | 54 s |
+| 80 | 19 s / 22 s | 29 s / 29 s | 217 s |
+
+The knee was between 10 and 20 users, with or without the model's wait. Throughput then fell rather than levelling off, from 3.2 requests a second at 10 users to 0.4 at 20 and 40. Both runs failed the p95 threshold. With an instant model, a turn took about 0.45 s of Data Director's own time.
+
+A 20-minute `soak` at 7 users with `FAKE_LATENCY_MS=1500` had no failures. Turns held steady at 2.3 s p50 and 3.5 s p95, and the app's memory stayed between 570 and 760 MiB. The list routes did not hold steady: `GET /api/projects` rose from 0.2 s to several seconds as the stored projects grew to about 130.
+
+Profiling located the cause (#1255):
+- Every listing works out what the person may read by reading each of their projects' event logs, one query at a time (#1256).
+- At 20 users and over, those listings held most of the app's worker threads, so turns queued behind them.
+- PostgreSQL itself spent only seconds executing statements. The time went on round trips and on Python in the app.
+
+Fixing #1256 and its neighbours (#1032, #1035, #1037) should move the knee, and should come before quoting a capacity.
+
+## Profiling
+
+To see where the app spends its time during a run, attach [py-spy](https://github.com/benfred/py-spy) to its process. Under Docker Compose this needs the `SYS_PTRACE` capability: add `cap_add: [SYS_PTRACE]` to the `app` service in an overlay of your own, then run py-spy as root in the container:
+
+```bash
+docker exec -u root data-director-app-1 sh -c 'for p in /proc/[0-9]*; do [ "$(cat $p/comm)" = data-director ] && pid=${p#/proc/}; done; UV_CACHE_DIR=/tmp/uvc uvx py-spy dump --pid $pid'
+```
+
+- `py-spy record --duration 60 --format speedscope -o app.json` gives a profile to open in [speedscope](https://www.speedscope.app). `--idle` also shows threads waiting on locks or the database.
+- `py-spy dump` shows what every thread is doing at that moment, including which routes hold the thread pool.
+- For PostgreSQL, start `db` with `-c shared_preload_libraries=pg_stat_statements`, run `create extension pg_stat_statements`, and read the view after the run.
 
 ## Limits
 
