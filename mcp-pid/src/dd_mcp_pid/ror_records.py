@@ -1,8 +1,10 @@
-"""ROR's records as the policy advisor keeps them (`ror.py`): an organisation cut to what
+"""ROR's records as this server and the policy advisor keep them: an organisation cut to what
 identifying it needs, mapped from a ROR v2 record as the dump and the API both give it, and how a
-name or an identifier is matched against it.
+name or an identifier is matched against it. No integers are kept, so a record hashes the same
+however it travels.
 
-Like `ror.py`, this module does not use the Data Director contract (docs/specs/system.md).
+Framework-neutral (docs/specs/system.md): the policy advisor's `ror` module builds its pinned
+registry from these records, and `dd_mcp_pid.ror` reads them.
 """
 
 from __future__ import annotations

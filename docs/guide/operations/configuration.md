@@ -48,6 +48,12 @@ servers:
     tools_sha256: "<64 hexadecimal digits>" # from `dd-harness tools pins`, quoted
 ```
 
+In development, `pid_resolver: true` in `deployment.yaml` sets this up for you: `apply` names
+`app/config/tools.yaml` here and grants the Linking Adviser its servers, and `dd.py start` (or
+Docker Compose, with `docker/tools.yaml`) runs the PID resolver, an MCP server that resolves
+DOIs, ORCID iDs and ROR identifiers ([`mcp-pid/README.md`](../../../mcp-pid/README.md)). A VM
+refuses the setting until the server has a unit there.
+
 The harness needs its `gateway` extra (`data-director-harness[gateway]`) for this file, and an
 agent that calls tools needs the SDK's `tools` extra. A server whose tools have changed is
 unavailable until you review them and pin the new digest: `dd-harness tools pins` prints each

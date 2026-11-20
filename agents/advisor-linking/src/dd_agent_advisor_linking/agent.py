@@ -6,9 +6,10 @@ form (R7) and suggests how to record it in DataCite metadata (R11). It produces 
 for the researcher to review; registering the links stays with the researcher and the repository.
 
 The adviser matches each identifier against `schemes.yaml` and checks an ORCID iD's checksum. Where
-the harness grants it a DOI-lookup tool, it also looks each well-formed DOI up through the tool
-gateway (`resolve.py`) and cites the record it found. ORCID iDs, ROR ids and grant numbers are
-checked by form only; resolving them is TODO(#360). Each link is decided by rule; a summariser
+the harness grants it lookup tools, it also looks each well-formed DOI, ORCID iD and ROR id up
+through the tool gateway (`resolve.py`: DataCite then Crossref, ORCID, ROR) and cites the record it
+found. Grant numbers are checked by form only; resolving them is TODO(#953). Each link is decided
+by rule; a summariser
 (`dd_sdk.summary`) then writes a short summary beside them: a model's by default, the rules' own
 with `DD_LINKING_SUMMARISER=template` (`factory.py`).
 """
@@ -49,22 +50,23 @@ SCHEMES = Path(__file__).with_name("schemes.yaml")
 UNKNOWN = "unknown"
 
 LIMITATIONS = (
-    "ORCID iDs, ROR ids and grant numbers are checked by form only and were not resolved, so a "
-    "well-formed one may not exist or may name something else.",
-    "It does not look up names, funders or relations in ORCID, ROR or funder services.",
+    "Grant numbers are checked by form only and were not resolved, so a well-formed one may not "
+    "exist or may belong to another funder.",
+    "It does not look up funders, grants or the relations between works; a resolved record says "
+    "what an identifier names, not how it relates to the dataset.",
     "Its relation suggestions are defaults by scheme, not read from what the identifier names.",
     "It recognises DOIs, ORCID iDs, ROR ids and grant numbers only; other identifiers, such as "
     "arXiv ids, software heritage ids or accession numbers, are reported as unknown.",
     "Its summary is written by a model from the findings alone unless the template is chosen; "
     "the links above it are the adviser's findings, not the summary.",
 )
-DOIS_NOT_RESOLVED = (
-    "DOIs were checked by form only and not resolved: no DOI-lookup tool was available, so a "
-    "well-formed DOI may not exist or may name something else."
+NOT_RESOLVED = (
+    "{schemes} were checked by form only and not resolved: no lookup tool for them was "
+    "available, so a well-formed one may not exist or may name something else."
 )
-DOIS_RESOLVED = (
-    "DOIs were looked up through the tool gateway where a record was found; one marked not "
-    "resolved was not found or could not be looked up, and is recorded by form only."
+RESOLVED = (
+    "{schemes} were looked up through the tool gateway; one marked not resolved was not found or "
+    "could not be looked up, and is recorded by form only."
 )
 INVALID_ORCID = (
     "The final character is not the ORCID checksum of the other digits: check the iD for a typing "
@@ -74,6 +76,10 @@ UNKNOWN_MESSAGE = (
     "Not recognised as a DOI, ORCID iD, ROR id or grant number. Give it in one of those forms, or "
     "record it by hand."
 )
+
+
+def _joined(labels: list[str]) -> str:
+    return labels[0] if len(labels) == 1 else f"{', '.join(labels[:-1])} and {labels[-1]}"
 
 
 @dataclass(frozen=True)
@@ -118,10 +124,10 @@ class LinkingAdviser:
         icon="🔗",
         description=(
             "Recognises DOIs, ORCID iDs, ROR ids and grant numbers, checks their form, gives "
-            "their canonical https form and suggests how to record each link. Looks DOIs up "
-            "through the tool gateway where one is granted; the other identifiers are checked by "
-            "form only, and summarises what to do. The researcher and the repository register "
-            "the links."
+            "their canonical https form and suggests how to record each link. Looks DOIs, ORCID "
+            "iDs and ROR ids up through the tool gateway where it is granted; grant numbers are "
+            "checked by form only. Summarises what to do. The researcher and the repository "
+            "register the links."
         ),
         action_class="advise",
         accepts=(ClassSchema.of(LinkCandidates),),
@@ -160,12 +166,12 @@ class LinkingAdviser:
             )
 
         links = [self._link(g) for g in given]
-        server = resolve.doi_server(ctx.tools)
+        routes = resolve.available(ctx.tools)
         records: list[ToolRecord] = []
-        if ctx.tools is not None and server is not None:
+        if ctx.tools is not None and routes:
             lookups = [
-                resolve.lookup(ctx.tools, server, link)
-                if link.scheme == "doi" and link.valid
+                resolve.lookup(ctx.tools, routes[link.scheme], link)
+                if link.valid and link.scheme in routes
                 else resolve.Lookup(link)
                 for link in links
             ]
@@ -183,6 +189,8 @@ class LinkingAdviser:
             f"{found} through the tool gateway. The researcher reviews each link before "
             "it is registered."
         )
+        looked_up = [r.label for r in resolve.ROUTES if r.scheme in routes]
+        form_only = [r.label for r in resolve.ROUTES if r.scheme not in routes]
         told = summary.Findings(
             {"links": [link.model_dump(mode="json", exclude_none=True) for link in links]},
             statement,
@@ -194,7 +202,11 @@ class LinkingAdviser:
                 links=links,
                 summary=summarised.text,
                 summary_derivation=summarised.derivation,
-                limitations=[DOIS_RESOLVED if server else DOIS_NOT_RESOLVED, *LIMITATIONS],
+                limitations=[
+                    *([RESOLVED.format(schemes=_joined(looked_up))] if looked_up else []),
+                    *([NOT_RESOLVED.format(schemes=_joined(form_only))] if form_only else []),
+                    *LIMITATIONS,
+                ],
                 grounded_on=[r.ref() for r in records] or [input_ref(ctx)],
             ),
             evidence=[r.evidence() for r in records] or [input_evidence(ctx)],

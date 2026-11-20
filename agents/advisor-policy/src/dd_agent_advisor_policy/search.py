@@ -27,7 +27,7 @@ from dd_agent_advisor_policy.records import PolicyRecord
 from dd_agent_advisor_policy.resolve import Ambiguous, Resolution, Resolved, Unknown, names, resolve
 from dd_agent_advisor_policy.retrieve import Policies, SourceRecord
 from dd_agent_advisor_policy.ror import Organisations
-from dd_agent_advisor_policy.ror_records import Organisation
+from dd_mcp_pid.ror_records import Organisation
 from dd_sdk.agent import AgentResult, RunContext, abstain
 from dd_sdk.contract.models import ReasonCode
 from dd_sdk.registry import RegistryUnavailable, SnapshotRef

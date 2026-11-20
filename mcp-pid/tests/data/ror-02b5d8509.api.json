@@ -1,0 +1,152 @@
+{
+  "locations": [
+    {
+      "geonames_id": 2636389,
+      "geonames_details": {
+        "continent_code": "EU",
+        "continent_name": "Europe",
+        "country_code": "GB",
+        "country_name": "United Kingdom",
+        "country_subdivision_code": "ENG",
+        "country_subdivision_name": "England",
+        "lat": 51.55797,
+        "lng": -1.78116,
+        "name": "Swindon"
+      }
+    }
+  ],
+  "established": 1965,
+  "external_ids": [
+    {
+      "type": "fundref",
+      "all": [
+        "501100000270",
+        "501100002758",
+        "501100019151"
+      ],
+      "preferred": "501100000270"
+    },
+    {
+      "type": "grid",
+      "all": [
+        "grid.8682.4"
+      ],
+      "preferred": "grid.8682.4"
+    },
+    {
+      "type": "isni",
+      "all": [
+        "0000 0000 9478 1573"
+      ],
+      "preferred": null
+    },
+    {
+      "type": "wikidata",
+      "all": [
+        "Q4272261"
+      ],
+      "preferred": null
+    }
+  ],
+  "id": "https://ror.org/02b5d8509",
+  "domains": [],
+  "links": [
+    {
+      "type": "website",
+      "value": "https://www.ukri.org/councils/nerc/"
+    },
+    {
+      "type": "wikipedia",
+      "value": "http://en.wikipedia.org/wiki/Natural_Environment_Research_Council"
+    }
+  ],
+  "names": [
+    {
+      "value": "NERC",
+      "types": [
+        "acronym"
+      ],
+      "lang": null
+    },
+    {
+      "value": "Natural Environment Research Council",
+      "types": [
+        "ror_display",
+        "label"
+      ],
+      "lang": "en"
+    }
+  ],
+  "relationships": [
+    {
+      "label": "British Antarctic Survey",
+      "type": "child",
+      "id": "https://ror.org/01rhff309"
+    },
+    {
+      "label": "British Geological Survey",
+      "type": "child",
+      "id": "https://ror.org/04a7gbp98"
+    },
+    {
+      "label": "British Oceanographic Data Centre",
+      "type": "child",
+      "id": "https://ror.org/03102fn17"
+    },
+    {
+      "label": "Centre for the Observation and Modelling of Earthquakes, Volcanoes and Tectonics",
+      "type": "child",
+      "id": "https://ror.org/047d2d387"
+    },
+    {
+      "label": "Environmental Information Data Centre",
+      "type": "child",
+      "id": "https://ror.org/04xw4m193"
+    },
+    {
+      "label": "National Centre for Atmospheric Science",
+      "type": "child",
+      "id": "https://ror.org/01wwwe276"
+    },
+    {
+      "label": "National Centre for Earth Observation",
+      "type": "child",
+      "id": "https://ror.org/0375jbm11"
+    },
+    {
+      "label": "NERC Environmental Omics Facility",
+      "type": "child",
+      "id": "https://ror.org/036g3b009"
+    },
+    {
+      "label": "UK Research and Innovation",
+      "type": "parent",
+      "id": "https://ror.org/001aqnf71"
+    },
+    {
+      "label": "Plymouth Marine Laboratory",
+      "type": "related",
+      "id": "https://ror.org/05av9mn02"
+    },
+    {
+      "label": "Centre for Environmental Data Analysis",
+      "type": "related",
+      "id": "https://ror.org/04j4kad11"
+    }
+  ],
+  "status": "active",
+  "types": [
+    "government",
+    "funder"
+  ],
+  "admin": {
+    "created": {
+      "date": "2018-11-14",
+      "schema_version": "1.0"
+    },
+    "last_modified": {
+      "date": "2024-12-11",
+      "schema_version": "2.1"
+    }
+  }
+}

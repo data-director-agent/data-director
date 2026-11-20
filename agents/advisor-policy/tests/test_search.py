@@ -15,7 +15,7 @@ from dd_agent_advisor_policy import discover, search
 from dd_agent_advisor_policy.classes import Actor, ActorRole
 from dd_agent_advisor_policy.records import PolicyRecord
 from dd_agent_advisor_policy.resolve import Ambiguous, Resolved, Unknown
-from dd_agent_advisor_policy.ror_records import Organisation
+from dd_mcp_pid.ror_records import Organisation
 from dd_sdk.agent import AgentResult
 from dd_sdk.contract.models import OutcomeStatus, ReasonCode
 from dd_sdk.registry import Query, RegistryUnavailable, SnapshotRef

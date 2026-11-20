@@ -22,9 +22,10 @@ A name is matched exactly, ignoring case and spacing, against every name ROR rec
 organisation; only active organisations are matched by name. No alias table is kept here: every
 name comes from ROR.
 
-This module does not use the Data Director contract: it is the part of the agent that would be
-useful without it (docs/specs/system.md). Moving it to a library of its own, which the Linking
-Adviser could share, is TODO(#360). This module and `live.py` are the importers of `httpx`
+Reading the registry and the API is shared with the PID resolver server (`dd_mcp_pid.ror`, which
+the Linking Adviser reads ROR through); this module adds the pin, the build from a dump and the
+snapshot each answer is labelled with. It does not use the Data Director contract
+(docs/specs/system.md). This module and `live.py` are the importers of `httpx`
 (docs/specs/dependencies.md).
 """
 
@@ -47,14 +48,9 @@ from typing import IO, Any, Protocol, runtime_checkable
 import httpx
 from pydantic import ValidationError
 
-from dd_agent_advisor_policy.ror_records import (
-    ACTIVE,
-    ROR_URL,
-    Organisation,
-    from_ror_json,
-    normalise,
-    ror_url,
-)
+from dd_mcp_pid import ror as shared
+from dd_mcp_pid.http import Http, UnavailableError
+from dd_mcp_pid.ror_records import Organisation, from_ror_json
 from dd_sdk.registry import RegistryUnavailable, SnapshotRef, pinned
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data" / "ror"
@@ -62,7 +58,7 @@ MANIFEST = DATA_DIR / "manifest.json"
 REGISTRY = DATA_DIR / "registry.jsonl"
 ARCHIVES = DATA_DIR / "archives"
 
-API_BASE = "https://api.ror.org/v2/organizations"
+API_BASE = shared.API_BASE
 # The Zenodo concept record under which ROR publishes every dump, newest first.
 ZENODO_RECORDS = "https://zenodo.org/api/records"
 ZENODO_CONCEPT = "6347574"
@@ -70,7 +66,6 @@ CITATION = "Research Organization Registry (ROR) data dump. https://doi.org/10.5
 LICENCE = "CC0 1.0 (ROR data); see SOURCE.md"
 FETCH_COMMAND = "uv run dd-ror fetch"
 TIMEOUT_S = 120.0
-LIVE_TIMEOUT_S = 20.0
 # The label of evidence from each copy: the registry, then which copy answered.
 REGISTRY_LABEL = "ror"
 
@@ -352,35 +347,18 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 class RorDump:
-    """The registry built from the pinned dump. Lines are parsed only when a name or an
-    identifier picks them out, so the whole registry is never held as objects."""
+    """The registry built from the pinned dump (`dd_mcp_pid.ror.RorIndex`), used only when it
+    matches its pin."""
 
     def __init__(self, path: Path = REGISTRY, manifest: Path = MANIFEST) -> None:
         self.path = path
         self.manifest = manifest
 
     @cached_property
-    def _lines(self) -> list[str]:
+    def _index(self) -> shared.RorIndex:
         if (found := problem(self.path, self.manifest)) is not None:
             raise RegistryUnavailable(found)
-        with self.path.open(encoding="utf-8") as fh:
-            return [line for line in fh if line.strip()]
-
-    @cached_property
-    def _index(self) -> tuple[dict[str, list[int]], dict[str, int]]:
-        by_name: dict[str, list[int]] = {}
-        by_id: dict[str, int] = {}
-        for i, line in enumerate(self._lines):
-            doc = json.loads(line)
-            by_id[doc["id"]] = i
-            if doc.get("status") != ACTIVE:
-                continue
-            for name in {normalise(n["value"]) for n in doc.get("names") or []}:
-                by_name.setdefault(name, []).append(i)
-        return by_name, by_id
-
-    def _at(self, i: int) -> Organisation:
-        return Organisation.model_validate(json.loads(self._lines[i]))
+        return shared.RorIndex(self.path)
 
     def snapshot_ref(self) -> SnapshotRef:
         try:
@@ -390,33 +368,27 @@ class RorDump:
         return SnapshotRef(label=pin.label, fetched_at=pin.fetched_at)
 
     def find(self, name: str) -> list[Organisation]:
-        by_name, _ = self._index
-        return sorted((self._at(i) for i in by_name.get(normalise(name), [])), key=lambda o: o.id)
+        try:
+            return self._index.find(name)
+        except UnavailableError as exc:
+            raise RegistryUnavailable(str(exc)) from None
 
     def get(self, ror_id: str) -> Organisation | None:
-        url = ror_url(ror_id)
-        _, by_id = self._index
-        return self._at(by_id[url]) if url and url in by_id else None
+        try:
+            return self._index.get(ror_id)
+        except UnavailableError as exc:
+            raise RegistryUnavailable(str(exc)) from None
 
 
 class RorLive:
-    """ROR's REST API. Any transport failure raises `RegistryUnavailable`; the agent then falls
-    back to the dump and marks it stale."""
+    """ROR's REST API (`dd_mcp_pid.ror.RorApi`). Any transport failure raises
+    `RegistryUnavailable`; the agent then falls back to the dump and marks it stale."""
 
     def __init__(self, client: httpx.Client | None = None, now: datetime | None = None) -> None:
-        self._client = client
+        # No retry: a failure falls back to the dump at once (`search.py`).
+        http = Http("ROR", headers={"User-Agent": USER_AGENT}, pauses=(), given=client)
+        self._api = shared.RorApi(http)
         self._now = now
-
-    def _http(self) -> httpx.Client:
-        if self._client is None:
-            self._client = httpx.Client(timeout=LIVE_TIMEOUT_S, headers={"User-Agent": USER_AGENT})
-        return self._client
-
-    def _get(self, url: str, params: dict[str, str] | None = None) -> httpx.Response:
-        try:
-            return self._http().get(url, params=params)
-        except httpx.HTTPError as exc:
-            raise RegistryUnavailable(f"ROR: {exc}") from None
 
     def snapshot_ref(self) -> SnapshotRef:
         now = self._now or datetime.now(UTC)
@@ -426,27 +398,13 @@ class RorLive:
         )
 
     def find(self, name: str) -> list[Organisation]:
-        resp = self._get(API_BASE, {"query": name})
-        if resp.status_code != 200:
-            raise RegistryUnavailable(f"ROR: HTTP {resp.status_code} for a search")
         try:
-            items = resp.json().get("items") or []
-            found = [from_ror_json(item) for item in items]
-        except (ValueError, KeyError, TypeError, AttributeError, ValidationError) as exc:
-            raise RegistryUnavailable(f"ROR: an answer that cannot be read ({exc})") from None
-        unique = {o.id: o for o in found if o.active and o.matches(name)}
-        return [unique[k] for k in sorted(unique)]
+            return self._api.find(name)
+        except UnavailableError as exc:
+            raise RegistryUnavailable(str(exc)) from None
 
     def get(self, ror_id: str) -> Organisation | None:
-        url = ror_url(ror_id)
-        if url is None:
-            return None
-        resp = self._get(f"{API_BASE}/{url.removeprefix(ROR_URL)}")
-        if resp.status_code == 404:
-            return None
-        if resp.status_code != 200:
-            raise RegistryUnavailable(f"ROR: HTTP {resp.status_code} for {url}")
         try:
-            return from_ror_json(resp.json())
-        except (ValueError, KeyError, TypeError, ValidationError) as exc:
-            raise RegistryUnavailable(f"ROR: an answer that cannot be read ({exc})") from None
+            return self._api.get(ror_id)
+        except UnavailableError as exc:
+            raise RegistryUnavailable(str(exc)) from None

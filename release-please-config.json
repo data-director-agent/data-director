@@ -116,6 +116,13 @@
         "inventory/tests",
         "inventory/browser"
       ]
+    },
+    "mcp-pid": {
+      "component": "mcp-pid",
+      "release-type": "python",
+      "exclude-paths": [
+        "mcp-pid/tests"
+      ]
     }
   }
 }

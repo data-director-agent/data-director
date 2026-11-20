@@ -1,0 +1,82 @@
+"""`dd-mcp-pid serve`: run the server (README.md).
+
+Settings, from the environment:
+
+- `DD_PID_ROR`: `dump` (the default) reads ROR from the built registry and asks ROR's API only
+  when the registry cannot be read; `live` asks the API only.
+- `DD_PID_ROR_REGISTRY`: the built registry (`registry.jsonl`). In the Data Director it is the
+  policy advisor's, built by `uv run dd-sources prepare`.
+- `DD_PID_ROR_SNAPSHOT`: which dump the registry was built from, as said in answers (such as
+  `ROR dump v2.15`).
+- `DD_PID_HOSTS`: comma-separated names clients reach the server by, beyond loopback (such as a
+  container's service name).
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+from collections.abc import Mapping, Sequence
+from pathlib import Path
+
+import uvicorn
+
+from dd_mcp_pid.app import LOOPBACK, create_app
+from dd_mcp_pid.dois import Crossref, DataCite
+from dd_mcp_pid.orcid import Orcid
+from dd_mcp_pid.ror import RorApi, RorIndex
+from dd_mcp_pid.tools import (
+    Registry,
+    RorSources,
+    doi_registry,
+    orcid_registry,
+    ror_registry,
+)
+
+DEFAULT_PORT = 8310
+
+
+class SettingsError(Exception):
+    """A setting has a value the server cannot use. The message names it."""
+
+
+def ror_sources(env: Mapping[str, str]) -> RorSources:
+    mode = env.get("DD_PID_ROR", "dump").strip().lower() or "dump"
+    if mode == "live":
+        return RorSources(index=None, api=RorApi())
+    if mode != "dump":
+        raise SettingsError(f"DD_PID_ROR must be dump or live, not {mode!r}")
+    registry = env.get("DD_PID_ROR_REGISTRY", "").strip()
+    index = RorIndex(Path(registry)) if registry else None
+    label = env.get("DD_PID_ROR_SNAPSHOT", "").strip() or "ROR dump"
+    return RorSources(index=index, api=RorApi(), index_label=label)
+
+
+def registries(env: Mapping[str, str]) -> list[Registry]:
+    return [
+        doi_registry("DataCite", DataCite()),
+        doi_registry("Crossref", Crossref()),
+        orcid_registry(Orcid()),
+        ror_registry(ror_sources(env)),
+    ]
+
+
+def hosts(env: Mapping[str, str]) -> list[str]:
+    extra = [h.strip() for h in env.get("DD_PID_HOSTS", "").split(",") if h.strip()]
+    return [*LOOPBACK, *extra]
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """Console script `dd-mcp-pid`."""
+    parser = argparse.ArgumentParser(prog="dd-mcp-pid", description=__doc__.split("\n")[0])
+    sub = parser.add_subparsers(dest="command", required=True)
+    serve = sub.add_parser("serve", help="serve the registries' MCP servers over HTTP")
+    serve.add_argument("--host", default="127.0.0.1")
+    serve.add_argument("--port", type=int, default=DEFAULT_PORT)
+    args = parser.parse_args(argv)
+    try:
+        app = create_app(registries(os.environ), hosts(os.environ))
+    except SettingsError as exc:
+        parser.error(str(exc))
+    uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+    return 0
