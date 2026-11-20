@@ -7,7 +7,7 @@ metadata record is given only what a person has decided, never a proposal. So yo
 
 ## Deciding a proposal
 
-1. Open the project's page and choose **Project facts** in the list.
+1. Open the project's page and choose the **Project facts** tab.
 2. Under **Proposed by agents**, each proposal says what it would decide, why the agent proposed
    it, and which agent did.
 3. Choose one of:

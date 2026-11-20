@@ -24,6 +24,25 @@ describe("ProjectNav", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("gives each of the project's panels a tab of its own", () => {
+    render(<ProjectNav projectId="p 1" name="Moorland" current="repository" />);
+    const tabs = screen.getByRole("navigation", { name: "Project" });
+    const paths = {
+      Researchers: "/projects/p%201/researchers",
+      "Project facts": "/projects/p%201/facts",
+      Repository: "/projects/p%201/repository",
+      "Use of generative AI": "/projects/p%201/ai-use",
+      "Deposit package": "/projects/p%201/deposit",
+    };
+    for (const [name, href] of Object.entries(paths)) {
+      expect(within(tabs).getByRole("link", { name })).toHaveAttribute("href", href);
+    }
+    expect(within(tabs).getByRole("link", { name: "Repository" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+  });
+
   it("marks Documents on the documents page, and names the project generically until known", () => {
     render(<ProjectNav projectId="p" name={null} current="documents" />);
     expect(screen.getByText("This project")).toBeInTheDocument();

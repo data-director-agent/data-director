@@ -7,7 +7,7 @@ fill these in for you.
 
 ## Choosing what to keep
 
-1. Open the project's page and choose **Researchers** in the list.
+1. Open the project's page and choose the **Researchers** tab.
 2. Select **Bring in facts from your ORCID record**. Data Director reads your public record from
    ORCID. Nothing is kept yet.
 3. Tick what you want agents in this project to use: your name, other names, biography, keywords,

@@ -204,8 +204,3 @@ lines = 25
 files = ["harness/src/dd_harness/transport/a2a.py", "sdk/src/dd_sdk/serve.py"]
 clones = 1
 lines = 18
-
-[[pair]]
-files = ["sdk/src/dd_sdk/contract/models.py", "sdk/src/dd_sdk/contract/models.py"]
-clones = 1
-lines = 7
