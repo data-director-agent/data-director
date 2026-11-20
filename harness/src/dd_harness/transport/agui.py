@@ -388,7 +388,7 @@ def agui_routes(  # noqa: C901
 
     async def replay_run(request: Request) -> Response:
         invocation_id = request.path_params["invocation_id"]
-        envelope = conductor.store.get(invocation_id)
+        envelope = await asyncio.to_thread(conductor.store.get, invocation_id)
         if envelope is None:
             return JSONResponse({"error": f"no run {invocation_id}"}, status_code=404)
         thread_id = envelope.get("conversation_id") or "replay"

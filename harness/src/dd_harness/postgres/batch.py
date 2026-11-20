@@ -7,20 +7,20 @@ from typing import Any
 
 from psycopg import sql
 
+from dd_harness.postgres.pool import Pooled, recovering
 from dd_harness.store import RUN_ID
 
 PARTS = ("envelope", "request")
 
 
-class BatchReads:
-    """`get_many` for a store that holds a connection pool in `_pool`."""
+class BatchReads(Pooled):
+    """`get_many` for a store that holds a connection pool."""
 
-    _pool: Any
-
-    def get_many(self, invocation_ids: Collection[str], part: str = "envelope") -> dict[str, Any]:
+    @recovering
+    def get_many(self, ids: Collection[str], part: str = "envelope") -> dict[str, Any]:
         if part not in PARTS:
             raise ValueError(f"not a part of a run: {part!r}")
-        named = sorted({i for i in invocation_ids if RUN_ID.fullmatch(i)})
+        named = sorted({i for i in ids if RUN_ID.fullmatch(i)})
         if not named:
             return {}
         query = sql.SQL(

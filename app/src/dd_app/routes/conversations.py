@@ -291,7 +291,7 @@ async def start_conversation(request: Request, acting_for: Principal, deps: Deps
         return no_project(str(project_id))
     except ProjectDeletedError:
         return project_deleted(str(project_id))
-    found = deps.reads.conversation(conversation_id, acting_for) or {}
+    found = await run_in_threadpool(deps.reads.conversation, conversation_id, acting_for) or {}
     return respond(
         Started,
         {"conversation_id": conversation_id, "project_id": found.get("project_id")},
@@ -328,7 +328,7 @@ async def _take_turn(
     why. Anything else, raised, has failed or been dropped."""
     try:
         envelope = await deps.governance.turn(conversation_id, body.turn(), acting_for)
-        checks = deps.reads.checks(envelope.invocation_id)
+        checks = await run_in_threadpool(deps.reads.checks, envelope.invocation_id)
         answer = {"envelope": envelope.to_document(), "checks": checks}
         return respond(RunResult, answer), "answered"
     except UnknownConversationError:
@@ -353,7 +353,7 @@ async def list_conversations(request: Request, reader: Principal, deps: Deps) ->
     except PagingError as exc:
         return refused(str(exc), "Data Director could not list the conversations")
     page = await run_in_threadpool(lambda: deps.reads.conversations(reader, **paging))
-    return respond_page(request, page, ConversationSummary)
+    return await run_in_threadpool(respond_page, request, page, ConversationSummary)
 
 
 async def get_conversation(request: Request, reader: Principal, deps: Deps) -> Response:
