@@ -52,8 +52,10 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
    its card does not declare `delegation` grounding, the home page says which and links to the
    agent directory. Neither the shell nor the server chooses another agent. The reference
    profile, not code, names the default (`app/web/src/components/conversation/ConversationHome.test.tsx`).
-6. **Every delegated child is labelled `agent_id@agent_version`** and opens its run inside its
-   own card in the conversation, at every width, drawn by the run view's components.
+6. **The conversation names agents; their run identifies them exactly.** Each reply and each
+   delegated child is headed by the agent's name, not its version or model, which are on the
+   agent page. Every delegated child opens its run inside its own card in the conversation, at
+   every width, drawn by the run view's components, and the run shows `agent_id@agent_version`.
 7. **What is undeclared is shown as undeclared.** A limit, reliability or data-handling
    statement an agent has not declared is shown as "Not declared"; a reliability nobody has
    evaluated is shown as unsubstantiated. The shell never fills one with a default.
