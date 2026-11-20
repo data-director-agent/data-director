@@ -13,7 +13,7 @@ import pytest
 
 from dd_agent_advisor_documentation import factory
 from dd_agent_advisor_documentation.prose import SYSTEM_PROMPT, ModelWriter
-from dd_agent_advisor_documentation.testing import prose_reply, suggestion_reply
+from dd_agent_advisor_documentation.testing import prose_reply, redraft, suggestion_reply
 from dd_harness.testing import TEST_PRINCIPAL, GrantKeys, make_conductor, request
 from dd_sdk.agent import describe
 from dd_sdk.contract.models import (
@@ -90,8 +90,10 @@ def test_the_grant_and_the_credential_reach_no_stored_record(runs_dir: Path) -> 
     )
     keys = GrantKeys()
     conductor = make_conductor(runs_dir, built, crate=True, model_grants=keys.minter())
-    asked = DraftRequest.model_validate_json(
-        (SAMPLES / "soil-survey.readme.draft.json").read_text(encoding="utf-8")
+    asked = redraft(
+        DraftRequest.model_validate_json(
+            (SAMPLES / "soil-survey.readme.draft.json").read_text(encoding="utf-8")
+        )
     )
 
     env = conductor.invoke(request("advisor.documentation", asked), acting_for=TEST_PRINCIPAL)

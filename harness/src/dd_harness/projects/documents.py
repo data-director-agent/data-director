@@ -81,6 +81,10 @@ class Documents(ProjectRules):
                     "document_title": document.document_title,
                     "media_type": document.media_type,
                     "conforms_to": document.conforms_to,
+                    # Recorded only for a version that is not the document itself.
+                    "stage": document.document_stage
+                    if document.document_stage != "draft"
+                    else None,
                     "revises": document.revises.model_dump(mode="json")
                     if document.revises
                     else None,

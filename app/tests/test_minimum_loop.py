@@ -195,7 +195,9 @@ class Researcher:
         return response.json()
 
     def decide(self, document: dict[str, Any], **decision: Any) -> Any:
-        (latest,) = [v for v in document["versions"] if v["state"] == "proposed"]
+        # The latest version: a README's first, which only asked questions, is never decided.
+        latest = document["versions"][-1]
+        assert latest["state"] == "proposed"
         return self.post(
             f"/documents/{document['document_id']}/decisions",
             {
@@ -209,6 +211,10 @@ class Researcher:
 
 def delegated(envelope: dict[str, Any]) -> list[dict[str, Any]]:
     return list(envelope.get("delegations") or [])
+
+
+# What the researcher answers the README's first question with.
+WROTE = "Written by the researcher on the README's card."
 
 
 @pytest.mark.requirement("R4.2", "R5", "R10.2", "C13.3")
@@ -248,6 +254,23 @@ def test_a_researcher_goes_from_their_files_to_a_deposit_package(
     assert {d["versions"][-1]["drafted_by"]["invocation_id"] for d in documents.values()} == set(
         drafting_runs
     )
+
+    # The README asks first (docs/specs/drafting.md): the researcher answers a question on its
+    # card, asks for the README, and it is written from the answer.
+    asking = documents["readme"]["versions"][-1]
+    assert asking["stage"] == "questions" and asking["questions"]
+    answer = {"answered_question": asking["questions"][0]["question_id"], "answer_text": WROTE}
+    answered = client.post(
+        f"{researcher.project}/documents/{documents['readme']['document_id']}/answers",
+        json={"version": asking["version"], "answers": [answer]},
+    )
+    assert answered.status_code == 201, answered.text
+    children = delegated(researcher.say("Write the README from my answers."))
+    assert [c["delegated_status"] for c in children] == ["succeeded"]
+    drafting_runs[children[0]["delegated_invocation_id"]] = children[0]["delegated_agent_id"]
+    documents = {d["document_kind"]: d for d in researcher.get("/documents")["documents"]}
+    written = documents["readme"]["versions"][-1]
+    assert written["stage"] == "draft" and WROTE in written["text"]
 
     # 4. Approve: the README and data dictionary as drafted, the record after an edit.
     for kind in ("readme", "data_dictionary"):

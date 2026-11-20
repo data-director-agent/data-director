@@ -188,6 +188,7 @@ export function Transcript({
   documents = null,
   onAnswer,
   onDocumentAnswered,
+  onDocumentWrite,
   chosenRepository = null,
   onRepositoryChosen,
   project,
@@ -213,6 +214,8 @@ export function Transcript({
   /** Takes the project's documents after the researcher answers a draft's questions; without
    * it, no draft's questions can be answered. */
   onDocumentAnswered?: (value: ProjectDocuments) => void;
+  /** Sends a message asking for a document whose card asked questions first to be written. */
+  onDocumentWrite?: (message: string) => void;
   /** The re3data identifier of the repository the project chose last, if any. */
   chosenRepository?: string | null;
   /** Takes the requirements a repository the researcher chose from a shortlist resolved to;
@@ -320,6 +323,7 @@ export function Transcript({
                     drafted={d}
                     idPrefix={`drafted-${turn.invocation_id}-${d.document.document_id}-${d.version.version}`}
                     {...(onDocumentAnswered ? { onAnswered: onDocumentAnswered } : {})}
+                    {...(onDocumentWrite && pending === null ? { onWrite: onDocumentWrite } : {})}
                   />
                 ))}
               </ul>

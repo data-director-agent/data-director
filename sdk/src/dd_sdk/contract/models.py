@@ -544,9 +544,9 @@ class Document(Grounded):
     conforms_to: str | None = None
     document_text: str
     document_derivation: Derivation
+    document_stage: Literal["questions", "draft"] | None = None
     revises: DocumentVersionRef | None = None
-    # One question for each gap the version leaves (docs/specs/drafting.md).
-    document_questions: list[DocumentQuestion] = Field(default_factory=list)
+    document_questions: list[DocumentQuestion] = Field(default_factory=list)  # drafting.md
 
     @model_validator(mode="after")
     def _question_ids_are_unique(self) -> Document:

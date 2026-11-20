@@ -1,6 +1,6 @@
 # advisor.documentation
 
-**Alpha** (`0.3.0a1`): the Documentation Editor persona of the agent roster
+**Alpha** (`0.7.0a1`): the Documentation Editor persona of the agent roster
 (docs/specs/agents.md), and the drafter of a project's README and data dictionary
 ([Drafting documents](../../docs/specs/drafting.md)). It is likely to change shape.
 
@@ -13,13 +13,31 @@ are collected: a project has a file inventory only once its data exist, so the e
 nothing to draft from. That step has no agent yet; a planning mode that needs no inventory is
 #1017.
 
+## Ask first, then write
+
+The first time a README is drafted for a project, with no answers recorded yet, the editor does
+not return a README full of gaps. It returns a short note (`document_stage` `questions`) saying
+what it needs from the researcher and what it already has, with one question for each gap. The
+harness refuses to approve or reject such a version. On the app's card, the researcher answers
+what they can and presses **Write the README**, which saves their answers and asks, in the
+conversation, for the README to be drafted. That run, and every later one, writes the README
+(`document_stage` `draft`) from the project's facts and the recorded answers; a gap still open
+reads `_Still needed: …_`.
+
+When a model is configured, it writes each section the researcher answered as a whole in its own
+words, from their answer together with the project's decisions and the documents they attached,
+keeping every value the answer gives. A paragraph that names a number, link, identifier or
+code-formatted name that none of these gives is not used, and the answer is placed as given. On
+the template path, answers are placed as given. Answers to the parts of General information (the
+title, creators, dates, place and funding) are always placed as given.
+
 ## Input and output
 
 It accepts the core `DraftRequest` and returns the core `Document`, so its drafts become project
 documents ([Projects](../../docs/specs/projects.md)). A request names the `document_kind`:
 
-- `readme`: a Markdown README with the sections of `readme.yaml`. Each section shows, in italics,
-  what the researcher should write in it. The **Files** section lists the inventory's files with
+- `readme`: a Markdown README with the sections of `readme.yaml`. Each gap shows, in italics,
+  what is still needed in it. The **Files** section lists the inventory's files with
   their formats and sizes. **Variables** does not repeat the tables' fields: it asks the
   researcher to point to the data dictionary, which describes them, and to give any abbreviations
   or conventions shared across the tables. **Access and licence** lists the licences the chosen
@@ -93,26 +111,28 @@ does not do.
 
 ## Prose written by a model
 
-A model writes only the README's connecting prose (`prose.py`, prompted by `system_prompt.md`).
-The gaps, their questions, the tables, the values placed from the metadata record and the
-researcher's answers are drafted by rule either way, so a model cannot close a gap, change a value
-or rephrase an answer, and a draft with prose has exactly the gaps and questions of the template
-draft.
+A model writes only the README's prose (`prose.py`, prompted by `system_prompt.md`): the
+connecting prose around the facts, and the sections the researcher answered as a whole. The gaps,
+their questions, the tables and the values placed from the metadata record are drafted by rule
+either way, so a model cannot close a gap or change a value, and a draft with prose has exactly
+the gaps and questions of the template draft.
 
 - **What it is given.** The sections it may write for, which are only those with facts to draft
-  from (not Methods or Software requirements), and the facts: each file's path, format and size,
+  from or an answer from the researcher, and the facts: each file's path, format and size,
   each table's field names, types and formats, the counts of files and tables and the total size,
   the metadata record's title, creators, funders, abstract, licence and publication year, and the
-  chosen repository's name and licences. It is never given the data, a field's description, the
-  researcher's answers or an earlier version.
+  chosen repository's name and licences. Once a section has been answered, it is also given the
+  answers by heading (`researcher_answers`), the project's decisions and the documents the
+  researcher attached. It is never given the data, a field's description, an answer to a part of
+  General information or an earlier version.
 - **How it replies.** The model's reply is constrained to a schema (`ProseReply` in `prose.py`):
   an `overview` and a list of `sections`, each a heading and a paragraph, any of them null. The
   provider holds the model to it; a reply from an endpoint that does not, and that does not match
   once a Markdown fence around it is removed, is not used.
 - **What is checked.** Each paragraph is used only if it is plain prose (no headings, lists,
   tables or HTML) of at most 1,200 characters, and every number, link, DOI, email address,
-  ORCID iD and code-formatted name in it occurs in the facts as given. A paragraph that fails is
-  dropped and its section drafted as the template drafts it; the statement says which and why.
+  ORCID iD and code-formatted name in it occurs in what it was given. A paragraph that fails is
+  dropped and its section drafted as the template drafts it, with any answer placed as given; the statement says which and why.
   The check catches a made-up identifier or count, not a misleading sentence built from true
   facts, so a person still reads the prose before approving it.
 - **How a version is marked.** `document_derivation` is `model` when the version has any prose a

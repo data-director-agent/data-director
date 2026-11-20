@@ -50,6 +50,7 @@ class Refusal(StrEnum):
     NOT_LATEST = "version-not-latest"
     DECIDED = "version-decided"
     DIGEST = "digest-mismatch"
+    NOT_A_DRAFT = "version-not-a-draft"  # a `questions` version (docs/specs/drafting.md)
     NOT_ASKED = "question-not-asked"
     NO_PROPOSAL = "proposal-not-found"
     NOT_PROPOSED = "fact-not-proposed"
