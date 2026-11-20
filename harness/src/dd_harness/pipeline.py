@@ -357,11 +357,13 @@ def store_run(conductor: RunHost, run: RunState) -> None:
     store.append(run.doc, run.request_doc, checked, run.prompts)
     run_id = envelope.invocation_id
     spans = conductor._spans(run.trace_id)
-    store.put_artifact(run_id, SPANS, spans)
-    store.put_artifact(run_id, GROUNDING, (run.report.summary() + "\n").encode())
-    store.put_artifact(run_id, SOURCES, (run.source_report.summary() + "\n").encode())
+    artifacts = {
+        SPANS: spans,
+        GROUNDING: (run.report.summary() + "\n").encode(),
+        SOURCES: (run.source_report.summary() + "\n").encode(),
+    }
     if run.shapes_report is not None:
-        store.put_artifact(run_id, VALIDATION, run.shapes_report)
+        artifacts[VALIDATION] = run.shapes_report
     if conductor.write_crate:
         crate = process_run_crate(
             run.doc,
@@ -371,8 +373,8 @@ def store_run(conductor: RunHost, run: RunState) -> None:
             run.shapes_report,
             conductor.profile.model_footprint,
         )
-        for name, data in crate.items():
-            store.put_artifact(run_id, f"{CRATE}/{name}", data)
+        artifacts.update({f"{CRATE}/{name}": data for name, data in crate.items()})
+    store.put_artifacts(run_id, artifacts)  # one transaction in a database
 
 
 # Once the run's span has ended, in order.
