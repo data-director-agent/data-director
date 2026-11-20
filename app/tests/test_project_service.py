@@ -28,46 +28,50 @@ def governance(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[Gove
 
 @pytest.fixture
 def service(governance: Governance) -> ProjectService:
-    return ProjectService(governance)
+    return ProjectService.over(governance)
 
 
 def test_a_project_is_deleted_only_by_its_name(service: ProjectService) -> None:
-    project = service.create("Soil cores", acted_for=TEST_PRINCIPAL)["project_id"]
+    project = service.lifecycle.create("Soil cores", acted_for=TEST_PRINCIPAL)["project_id"]
     with pytest.raises(TitleMismatchError):
-        service.delete(project, "Soil", acted_for=TEST_PRINCIPAL, caused_by="test")
-    assert service.governance.is_deleted(project) is False
+        service.lifecycle.delete(project, "Soil", acted_for=TEST_PRINCIPAL, caused_by="test")
+    assert service.lifecycle.governance.is_deleted(project) is False
 
-    deleted = service.delete(project, "  Soil cores ", acted_for=TEST_PRINCIPAL, caused_by="test")
+    deleted = service.lifecycle.delete(
+        project, "  Soil cores ", acted_for=TEST_PRINCIPAL, caused_by="test"
+    )
     assert deleted["deleted"] is not None
-    assert service.governance.projects is not None
-    assert service.governance.projects.events(project)[-1]["event"] == PROJECT_DELETED
+    assert service.lifecycle.governance.projects is not None
+    assert service.lifecycle.governance.projects.events(project)[-1]["event"] == PROJECT_DELETED
 
 
 def test_a_project_with_no_title_is_deleted_by_its_identifier(service: ProjectService) -> None:
-    project = service.create(None, acted_for=TEST_PRINCIPAL)["project_id"]
+    project = service.lifecycle.create(None, acted_for=TEST_PRINCIPAL)["project_id"]
     with pytest.raises(TitleMismatchError):
-        service.delete(project, "", acted_for=TEST_PRINCIPAL, caused_by="test")
-    service.delete(project, project, acted_for=TEST_PRINCIPAL, caused_by="test")
-    assert service.governance.is_deleted(project) is True
+        service.lifecycle.delete(project, "", acted_for=TEST_PRINCIPAL, caused_by="test")
+    service.lifecycle.delete(project, project, acted_for=TEST_PRINCIPAL, caused_by="test")
+    assert service.lifecycle.governance.is_deleted(project) is True
 
 
 def test_a_repository_choice_resolves_against_the_pinned_export(service: ProjectService) -> None:
-    project = service.create(None, acted_for=TEST_PRINCIPAL)["project_id"]
-    chosen = service.choose_repository(project, ORDA, acted_for=TEST_PRINCIPAL, caused_by="test")
+    project = service.lifecycle.create(None, acted_for=TEST_PRINCIPAL)["project_id"]
+    chosen = service.deposit.choose_repository(
+        project, ORDA, acted_for=TEST_PRINCIPAL, caused_by="test"
+    )
     assert chosen is not None
-    assert chosen == service.requirements(project)
+    assert chosen == service.deposit.requirements(project)
 
 
 def test_no_repository_is_chosen_without_requirement_sets(service: ProjectService) -> None:
-    project = service.create(None, acted_for=TEST_PRINCIPAL)["project_id"]
-    service.governance.requirements = None
+    project = service.lifecycle.create(None, acted_for=TEST_PRINCIPAL)["project_id"]
+    service.lifecycle.governance.requirements = None
     with pytest.raises(RepositoriesUnavailableError):
-        service.choose_repository(project, ORDA, acted_for=TEST_PRINCIPAL, caused_by="test")
-    assert service.requirements(project) is None
+        service.deposit.choose_repository(project, ORDA, acted_for=TEST_PRINCIPAL, caused_by="test")
+    assert service.deposit.requirements(project) is None
 
 
 def test_a_server_that_keeps_no_projects_knows_none(service: ProjectService) -> None:
-    service.governance.projects = None
-    assert service.keeps_projects is False
+    service.lifecycle.governance.projects = None
+    assert service.lifecycle.keeps_projects is False
     with pytest.raises(UnknownProjectError):
-        service.progress("01900000-0000-7000-8000-000000000001")
+        service.progress.progress("01900000-0000-7000-8000-000000000001")

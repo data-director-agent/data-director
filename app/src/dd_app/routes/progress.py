@@ -158,7 +158,9 @@ def routes(deps: Deps) -> list[Route]:
 
 async def get_progress(request: Request, _: Principal, deps: Deps) -> Response:
     project_id = request.path_params["project_id"]
-    return respond(ProjectProgress, await run_in_threadpool(deps.projects.progress, project_id))
+    return respond(
+        ProjectProgress, await run_in_threadpool(deps.projects.progress.progress, project_id)
+    )
 
 
 async def choose_entry(request: Request, person: Principal, deps: Deps) -> Response:
@@ -169,7 +171,7 @@ async def choose_entry(request: Request, person: Principal, deps: Deps) -> Respo
         return body
     try:
         progress = await run_in_threadpool(
-            lambda: deps.projects.choose_entry(
+            lambda: deps.projects.progress.choose_entry(
                 project_id, body.entry, acted_for=person, caused_by=caused_by(request)
             )
         )
@@ -187,7 +189,7 @@ async def mark_step(request: Request, person: Principal, deps: Deps) -> Response
         return body
     try:
         progress = await run_in_threadpool(
-            lambda: deps.projects.mark_step(
+            lambda: deps.projects.progress.mark_step(
                 project_id, step_id, body.mark, acted_for=person, caused_by=caused_by(request)
             )
         )
@@ -198,7 +200,9 @@ async def mark_step(request: Request, person: Principal, deps: Deps) -> Response
 
 async def get_intake(request: Request, _: Principal, deps: Deps) -> Response:
     project_id = request.path_params["project_id"]
-    return respond(ProjectIntake, await run_in_threadpool(deps.projects.intake, project_id))
+    return respond(
+        ProjectIntake, await run_in_threadpool(deps.projects.progress.intake, project_id)
+    )
 
 
 async def answer_intake(request: Request, person: Principal, deps: Deps) -> Response:
@@ -212,7 +216,7 @@ async def answer_intake(request: Request, person: Principal, deps: Deps) -> Resp
         return body
     try:
         intake = await run_in_threadpool(
-            lambda: deps.projects.answer_intake(
+            lambda: deps.projects.progress.answer_intake(
                 project_id,
                 question_id,
                 body.answer_values,
@@ -232,7 +236,7 @@ async def dismiss_intake(request: Request, person: Principal, deps: Deps) -> Res
     with where the intake then stands."""
     project_id = request.path_params["project_id"]
     intake = await run_in_threadpool(
-        lambda: deps.projects.dismiss_intake(
+        lambda: deps.projects.progress.dismiss_intake(
             project_id, acted_for=person, caused_by=caused_by(request)
         )
     )

@@ -97,7 +97,7 @@ def routes(deps: Deps) -> list[Route]:
 
 async def get_facts(request: Request, _: Principal, deps: Deps) -> Response:
     project_id = request.path_params["project_id"]
-    return respond(ProjectFacts, await run_in_threadpool(deps.projects.facts, project_id))
+    return respond(ProjectFacts, await run_in_threadpool(deps.projects.facts.facts, project_id))
 
 
 async def decide_fact(request: Request, decider: Principal, deps: Deps) -> Response:
@@ -117,7 +117,7 @@ async def decide_fact(request: Request, decider: Principal, deps: Deps) -> Respo
             )
     try:
         decided = await run_in_threadpool(
-            lambda: deps.projects.decide_fact(
+            lambda: deps.projects.facts.decide_fact(
                 project_id,
                 FactVerdict(body.verdict),
                 proposal=body.proposal,
@@ -138,7 +138,7 @@ def _kind(
     """The kind of fact a decision is about: the fact's own, or its proposal's."""
     if fact is not None and fact.get("fact_kind") is not None:
         return str(fact["fact_kind"])
-    return None if proposal is None else deps.projects.proposed_kind(project_id, proposal)
+    return None if proposal is None else deps.projects.facts.proposed_kind(project_id, proposal)
 
 
 def _change_refused(exc: ProjectError, project_id: str) -> Response:

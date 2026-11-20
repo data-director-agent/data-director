@@ -178,7 +178,7 @@ async def check_document(request: Request, _: Principal, __: Deps) -> Response:
 
 async def get_inventory(request: Request, _: Principal, deps: Deps) -> Response:
     project_id = request.path_params["project_id"]
-    found = await run_in_threadpool(deps.projects.inventory, project_id)
+    found = await run_in_threadpool(deps.projects.materials.inventory, project_id)
     if found is None:
         return problem(
             404, "inventory-not-found", "No inventory", f"Project {project_id!r} has none."
@@ -193,7 +193,7 @@ async def add_inventory(request: Request, person: Principal, deps: Deps) -> Resp
         return body
     try:
         held = await run_in_threadpool(
-            lambda: deps.projects.add_inventory(
+            lambda: deps.projects.materials.add_inventory(
                 project_id, body.inventory, acted_for=person, caused_by=f"POST {request.url.path}"
             )
         )
@@ -206,14 +206,16 @@ async def list_documentation(request: Request, _: Principal, deps: Deps) -> Resp
     project_id = request.path_params["project_id"]
     return respond(
         list[contract.DocumentationSummary],
-        await run_in_threadpool(deps.projects.documentation, project_id),
+        await run_in_threadpool(deps.projects.materials.documentation, project_id),
     )
 
 
 async def get_documentation(request: Request, _: Principal, deps: Deps) -> Response:
     project_id, digest = request.path_params["project_id"], request.path_params["digest"]
     if "original" in request.query_params:
-        source = await run_in_threadpool(deps.projects.documentation_source, project_id, digest)
+        source = await run_in_threadpool(
+            deps.projects.materials.documentation_source, project_id, digest
+        )
         if source is None:
             return problem(
                 404,
@@ -222,7 +224,7 @@ async def get_documentation(request: Request, _: Principal, deps: Deps) -> Respo
                 f"Project {project_id!r} holds no file its document {digest!r} was read from.",
             )
         return Response(source[0], media_type=source[1])
-    found = await run_in_threadpool(deps.projects.documentation_text, project_id, digest)
+    found = await run_in_threadpool(deps.projects.materials.documentation_text, project_id, digest)
     if found is None:
         return problem(
             404,
@@ -261,7 +263,7 @@ async def list_researchers(request: Request, _: Principal, deps: Deps) -> Respon
     project_id = request.path_params["project_id"]
     return respond(
         list[contract.ResearcherRecord],
-        await run_in_threadpool(deps.projects.researchers, project_id),
+        await run_in_threadpool(deps.projects.materials.researchers, project_id),
     )
 
 
@@ -277,7 +279,9 @@ async def keep_researcher(request: Request, person: Principal, deps: Deps) -> Re
 
     def keep() -> list[dict[str, Any]]:
         chosen = orcid.select(read_orcid(person, deps), body.keep)
-        return deps.projects.keep_researcher(project_id, chosen, acted_for=person, caused_by=cause)
+        return deps.projects.materials.keep_researcher(
+            project_id, chosen, acted_for=person, caused_by=cause
+        )
 
     try:
         return respond(
@@ -297,7 +301,7 @@ async def withdraw_researcher(request: Request, person: Principal, deps: Deps) -
     project_id = request.path_params["project_id"]
     try:
         standing = await run_in_threadpool(
-            lambda: deps.projects.withdraw_researcher(
+            lambda: deps.projects.materials.withdraw_researcher(
                 project_id, acted_for=person, caused_by=caused_by(request)
             )
         )

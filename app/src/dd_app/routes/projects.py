@@ -200,7 +200,7 @@ async def list_deleted_projects(request: Request, owner: Principal, deps: Deps) 
 async def create_project(request: Request, person: Principal, deps: Deps) -> Response:
     """A project of its own, with no conversation (docs/specs/app.md, rule 27). Whom it is
     created for is whom the authenticator names, never the body."""
-    if not deps.projects.keeps_projects:
+    if not deps.projects.lifecycle.keeps_projects:
         return problem(
             404, "project-not-found", "No such project", "This server keeps no projects."
         )
@@ -209,7 +209,7 @@ async def create_project(request: Request, person: Principal, deps: Deps) -> Res
         return body
     try:
         created = await run_in_threadpool(
-            lambda: deps.projects.create(body.title, acted_for=person)
+            lambda: deps.projects.lifecycle.create(body.title, acted_for=person)
         )
     except ProjectError as exc:
         return refused(str(exc), CREATE_REFUSED)
@@ -217,14 +217,14 @@ async def create_project(request: Request, person: Principal, deps: Deps) -> Res
 
 
 async def delete_project(request: Request, person: Principal, deps: Deps) -> Response:
-    """Delete the project once the person has typed its name (`ProjectService.delete`)."""
+    """Delete the project once the person has typed its name (`Lifecycle.delete`)."""
     project_id = request.path_params["project_id"]
     body = await parse_body(request, DeleteProject, DELETE_REFUSED)
     if isinstance(body, Response):
         return body
     try:
         deleted = await run_in_threadpool(
-            lambda: deps.projects.delete(
+            lambda: deps.projects.lifecycle.delete(
                 project_id, body.title, acted_for=person, caused_by=caused_by(request)
             )
         )
@@ -241,7 +241,7 @@ async def restore_project(request: Request, person: Principal, deps: Deps) -> Re
     project_id = request.path_params["project_id"]
     try:
         restored = await run_in_threadpool(
-            lambda: deps.projects.restore(
+            lambda: deps.projects.lifecycle.restore(
                 project_id, acted_for=person, caused_by=caused_by(request)
             )
         )
@@ -259,7 +259,7 @@ async def rename_project(request: Request, person: Principal, deps: Deps) -> Res
         return body
     try:
         renamed = await run_in_threadpool(
-            lambda: deps.projects.rename(
+            lambda: deps.projects.lifecycle.rename(
                 project_id, body.title, acted_for=person, caused_by=caused_by(request)
             )
         )

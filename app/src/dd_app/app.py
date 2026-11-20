@@ -159,7 +159,7 @@ def build_app(
     links = links or Links()
     deps = Deps(
         governance=governance,
-        projects=ProjectService(governance),
+        projects=ProjectService.over(governance),
         web_dist=web_dist,
         identity=dict(build) if build is not None else about(),
         feedback=feedback or Feedback(),

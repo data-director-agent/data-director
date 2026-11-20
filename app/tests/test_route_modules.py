@@ -32,7 +32,7 @@ def deps(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[Deps]:
     for governance in new_governance():
         yield Deps(
             governance=governance,
-            projects=ProjectService(governance),
+            projects=ProjectService.over(governance),
             web_dist=dist_dir(tmp_path),
             identity={},
         )
