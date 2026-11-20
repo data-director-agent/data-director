@@ -34,6 +34,9 @@ from dd_harness.project_access import deleted_projects, readable_projects, role_
 from dd_harness.projects import (
     APPROVED,
     CONVERSATION_STARTED,
+    DEPOSIT_APPROVED,
+    DEPOSIT_FAILED,
+    DEPOSIT_RECORDED,
     DOCUMENT_CHANGE_REFUSED,
     DOCUMENT_QUESTION_ANSWERED,
     DOCUMENT_VERSION_DECIDED,
@@ -47,6 +50,7 @@ from dd_harness.projects import (
     REJECTED,
     ChangeRefusedError,
     Decision,
+    DepositInProgressError,
     ProjectDeletedError,
     ProjectError,
     Projects,
@@ -940,6 +944,45 @@ def check_a_report_and_a_package_are_kept_by_digest(make: MakeProjectStorage) ->
         )
 
 
+def check_a_package_is_approved_for_deposit_once(make: MakeProjectStorage) -> None:
+    """A package approved for a repository is not approved again while that deposit has no
+    outcome, nor after it made a draft; after a failure it may be (docs/specs/deposit.md,
+    invariants 12 and 15). Each outcome names its approval, and a second store reads both."""
+    store = make("projects")
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
+    named = {"digest": "a" * 64, "re3data_id": "r3d100010468", "transport": "zenodo"}
+    first = store.approve_deposit(project_id, named, acted_for=TEST_PRINCIPAL, caused_by="check")
+    with _raises(DepositInProgressError, "a second approval while the first has no outcome"):
+        store.approve_deposit(project_id, named, acted_for=TEST_PRINCIPAL, caused_by="check")
+    store.record_deposit_outcome(
+        project_id,
+        {"approval": first["event_id"], **named, "status": 503, "reason": "x"},
+        recorded=False,
+        acted_for=TEST_PRINCIPAL,
+        caused_by="check",
+    )
+    second = store.approve_deposit(project_id, named, acted_for=TEST_PRINCIPAL, caused_by="check")
+    store.record_deposit_outcome(
+        project_id,
+        {"approval": second["event_id"], **named, "draft_url": "https://example.org/d/1"},
+        recorded=True,
+        acted_for=TEST_PRINCIPAL,
+        caused_by="check",
+    )
+    with _raises(DepositInProgressError, "an approval of a package already deposited"):
+        store.approve_deposit(project_id, named, acted_for=TEST_PRINCIPAL, caused_by="check")
+    other = {**named, "re3data_id": "r3d100012124"}
+    store.approve_deposit(project_id, other, acted_for=TEST_PRINCIPAL, caused_by="check")
+    kinds = [e["event"] for e in make("projects").events(project_id)]
+    assert kinds[1:] == [
+        DEPOSIT_APPROVED,
+        DEPOSIT_FAILED,
+        DEPOSIT_APPROVED,
+        DEPOSIT_RECORDED,
+        DEPOSIT_APPROVED,
+    ]
+
+
 def check_answers_stand_until_answered_again(make: MakeProjectStorage) -> None:
     """A person answers the latest version's questions. An answer to another version, or to a
     question it does not ask, is refused and recorded; a malformed one records nothing. The
@@ -1048,6 +1091,7 @@ PROJECT_STORAGE_CHECKS: dict[str, Callable[[MakeProjectStorage], None]] = {
         check_the_metadata_record_is_the_one_approved_last
     ),
     "a report and a package are kept by digest": check_a_report_and_a_package_are_kept_by_digest,
+    "a package is approved for deposit once": check_a_package_is_approved_for_deposit_once,
     "answers stand until answered again": check_answers_stand_until_answered_again,
     **DOCUMENTATION_CHECKS,
     **FACT_STORAGE_CHECKS,

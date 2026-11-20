@@ -313,6 +313,12 @@ dd:ProjectFact a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
+            sh:description "The licence decided, as an SPDX identifier or a URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 14 ;
+            sh:path dd:licence_id ],
+        [ sh:datatype xsd:string ;
             sh:description "The kind of check that raised the fact, in the checking agent's words, such as duplicate, system_file or third_party. Kept as it was given; the core does not enumerate it." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -430,13 +436,7 @@ dd:ProjectFact a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 15 ;
-            sh:path dd:commitment_repository ],
-        [ sh:datatype xsd:string ;
-            sh:description "The licence decided, as an SPDX identifier or a URL." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 14 ;
-            sh:path dd:licence_id ] ;
+            sh:path dd:commitment_repository ] ;
     sh:targetClass dd:ProjectFact .
 
 dd:QuestionAnswer a sh:NodeShape ;

@@ -15,6 +15,8 @@ Import everything from here; the modules are an internal arrangement:
   as the broker would (docs/specs/model-accounts.md).
 - `identity`: `FakeIdentityProvider`, an OpenID Connect provider in memory
   (docs/specs/policy-and-identity.md).
+- `deposit_broker`: `FakeDepositBroker`, the deposit broker in memory, which checks a deposit
+  grant as the real one does and makes a draft or refuses as a test says (docs/specs/deposit.md).
 - `orcid`: `FakeOrcidRegistry`, ORCID's public API in memory, and `sample_record`, the public
   record it serves (docs/specs/projects.md).
 - `storage`: `check_run_storage`, `check_project_log` and `check_project_rules`, the conformance
@@ -45,6 +47,7 @@ from dd_harness.testing.classes import (
 )
 from dd_harness.testing.counting import CountingLog
 from dd_harness.testing.deposit import clear_review
+from dd_harness.testing.deposit_broker import FakeDepositBroker
 from dd_harness.testing.doubles import (
     SPECS,
     STUB_QUESTION,
@@ -124,6 +127,7 @@ __all__ = [
     "CountingLog",
     "DocumentStub",
     "FactStub",
+    "FakeDepositBroker",
     "FakeIdentityProvider",
     "FakeOrcidRegistry",
     "GrantKeys",

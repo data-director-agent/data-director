@@ -206,6 +206,17 @@ class RequirementField(Frozen):
     form_label: str | None = None
 
 
+class DepositConnector(Frozen):
+    """How the harness deposits a draft to one repository through its API: an override's
+    `deposit` block (docs/specs/deposit.md). It holds no credential."""
+
+    transport: str = Field(pattern=r"^[a-z0-9][a-z0-9-]*$")
+    format: str = Field(pattern=r"^[a-z0-9][a-z0-9-]*$")
+    base_url: str = Field(pattern=r"^https://")
+    target: str | None = None
+    sandbox: bool | None = None
+
+
 class RequirementSet(Frozen):
     """A metadata standard's requirements, or one repository's override of them
     (docs/specs/deposit.md)."""
@@ -227,6 +238,7 @@ class RequirementSet(Frozen):
     licences: list[str] | None = None
     guidance: list[str] = Field(default_factory=list)
     unconfirmed: list[str] = Field(default_factory=list)
+    deposit: DepositConnector | None = None
 
 
 class RequirementSetUse(Frozen):

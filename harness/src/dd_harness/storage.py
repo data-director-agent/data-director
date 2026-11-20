@@ -439,6 +439,30 @@ class ProjectDeposits(ProjectRecord, Protocol):
         """The bytes of a package the log records as built, or None."""
         ...
 
+    def approve_deposit(
+        self,
+        project_id: str,
+        approval: Mapping[str, Any],
+        *,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> dict[str, Any]:
+        """Record a person's approval to deposit a package; refuses a second approval of a
+        package already deposited, or being deposited, in the repository."""
+        ...
+
+    def record_deposit_outcome(
+        self,
+        project_id: str,
+        outcome: Mapping[str, Any],
+        *,
+        recorded: bool,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> dict[str, Any]:
+        """Record how an approved deposit ended: `deposit_recorded` or `deposit_failed`."""
+        ...
+
 
 class ProjectStorage(
     ProjectLifecycle,

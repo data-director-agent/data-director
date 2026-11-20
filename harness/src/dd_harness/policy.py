@@ -41,6 +41,7 @@ PROFILE_KEYS = frozenset(
         "tool_servers",
         "remote_tool_content",
         "attached_documents",
+        "deposit_transports",
     }
 )
 # Whether people may attach documents to a project (docs/specs/projects.md, Documentation).
@@ -270,6 +271,16 @@ def _models(provider: str, written: Any) -> tuple[OwnModel, ...]:
     return tuple(models)
 
 
+def _deposit_transports(value: Any) -> frozenset[str]:
+    """The transports a profile offers for depositing through an API. `manual` may be listed and
+    is always offered; whether a listed one is installed is checked when a deposit is approved."""
+    if value is None:
+        return frozenset()
+    if not isinstance(value, list) or not all(isinstance(v, str) and v for v in value):
+        raise TypeError("deposit_transports must list transport names")
+    return frozenset(value) - {"manual"}
+
+
 @dataclass(frozen=True)
 class Profile:
     profile_id: str
@@ -301,6 +312,9 @@ class Profile:
     remote_tool_content: frozenset[str] = DEFAULT_REMOTE_TOOL_CONTENT
     # Whether people may attach documents to a project, one of ATTACHED_DOCUMENTS.
     attached_documents: str = "allowed"
+    # The transports the harness may deposit a draft through, beside the manual one that every
+    # deployment offers (docs/specs/deposit.md, invariant 17). None unless written.
+    deposit_transports: frozenset[str] = frozenset()
 
     @property
     def refuses_documents(self) -> bool:
@@ -353,6 +367,7 @@ class Profile:
                     data, "remote_tool_content", DEFAULT_REMOTE_TOOL_CONTENT
                 ),
                 attached_documents=str(documents),
+                deposit_transports=_deposit_transports(data.get("deposit_transports")),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise PolicyError(f"profile {source!r} is malformed: {exc}") from exc
