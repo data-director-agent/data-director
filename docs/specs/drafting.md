@@ -76,8 +76,8 @@ suggests some of those values beside their questions
    (`agents/advisor-documentation/tests/test_documentation_agent.py`).
 6. **An answer is supplied only when a person recorded it.** A person answers the latest version's
    questions in the app, on the draft's card in the conversation or on the project's documents
-   page. Each answer is a `document_question_answered` event that names the person it acted for, as any other event does
-   ([Projects](projects.md), `harness/docs/projects.md`); an answer to another version, or to a
+   page. Each answer is a `document_question_answered` event that names the person it acted for,
+   as any other event does ([Projects](projects.md), `harness/docs/projects.md`); an answer to another version, or to a
    question that version does not ask, is refused. When a document of that kind is drafted
    again, the conductor puts into the `DraftRequest`'s `draft_answers` the latest answer recorded
    to each question of the project's documents of that kind, replacing any a caller sent, as it
