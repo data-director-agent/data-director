@@ -31,6 +31,7 @@ from dd_app.routes.common import (
     ResponseBody,
     caused_by,
     in_project,
+    listed,
     parse_body,
     problem,
     project_deleted,
@@ -184,7 +185,13 @@ async def list_projects(request: Request, reader: Principal, deps: Deps) -> Resp
         paging = page_params(request)
     except PagingError as exc:
         return refused(str(exc), "Data Director could not list the projects")
-    page = await run_in_threadpool(lambda: deps.reads.projects_for(reader, **paging))
+    page = await listed(
+        deps,
+        lambda: deps.reads.projects_for(reader, **paging),
+        "Data Director could not list the projects",
+    )
+    if isinstance(page, Response):
+        return page
     return await run_in_threadpool(respond_page, request, page, ProjectSummary)
 
 

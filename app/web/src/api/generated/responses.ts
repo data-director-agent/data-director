@@ -706,6 +706,11 @@ export interface DocumentVersion {
    */
   questions: DocumentQuestion[];
   revises: DocumentVersionRef | null;
+  /**
+   * `questions` for a note that asks what the drafter needs before it writes the document,
+   * which cannot be decided on; `draft` for the document itself (docs/specs/drafting.md).
+   */
+  stage: "questions" | "draft";
   state: "proposed" | "approved" | "rejected";
   text: string;
   version: number;

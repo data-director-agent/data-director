@@ -75,6 +75,16 @@ researcher checks the inventory and adds it ([Projects](../../specs/projects.md)
 command). Unset, the app describes no folder of its own. The app refuses to start when it is set
 and `DD_APP_HOST` is not a loopback address, so a shared deployment never sets it.
 
+How many listings the app runs at once is set in the app's environment, so that slow listings
+cannot take the threads a turn needs (#1258). `GET /api/projects`, `/api/conversations` and
+`/api/runs` run in a pool of their own: `DD_APP_LISTING_THREADS` is the most that run at once
+(whole number, 8 if unset) and `DD_APP_LISTING_QUEUE` the most that may wait for one (16 if
+unset, 0 for none). Past both, a listing is answered `503` with a `listing-busy` problem and a
+`Retry-After` of `DD_APP_LISTING_RETRY_S` seconds (2 if unset), at once rather than after a long
+wait. Turns and run starts use the shared pool of 40 threads, which listings no longer touch. Raise
+`DD_APP_LISTING_THREADS` only if the database and the CPU have room; each listing thread competes
+with turns for the same process. The app refuses to start if one is not a whole number in range.
+
 Raise the profile's `version` on every change. Each stored run records the profile and version it
 was held to, with the digest of its bytes, so a later reader can tell which rules applied. A
 request cannot name a profile; only the operator chooses it

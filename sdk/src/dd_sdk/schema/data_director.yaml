@@ -852,6 +852,7 @@ classes:
       - conforms_to
       - document_text
       - document_derivation
+      - document_stage
       - revises
       - document_questions
 
@@ -1548,6 +1549,13 @@ slots:
     description: How document_text came about.
     range: Derivation
     required: true
+  document_stage:
+    description: >-
+      How far the version has got (docs/specs/drafting.md): `questions` when the drafter is asking
+      the researcher what it needs before it writes the document, so that document_text is only a
+      note and the version cannot be approved; `draft` when it is the document itself. Absent
+      means `draft`.
+    range: DocumentStage
   revises:
     description: >-
       The version this document replaces, when an agent regenerates it. Absent for a new document,
@@ -2386,6 +2394,16 @@ enums:
         description: A region or bounding box, such as a county or national park.
       country:
         description: The country alone.
+
+  DocumentStage:
+    description: How far a version of a project document has got (docs/specs/drafting.md).
+    permissible_values:
+      questions:
+        description: >-
+          The drafter asks the researcher what it needs before it writes the document; the text
+          is a note, not the document, and cannot be approved.
+      draft:
+        description: The document itself, ready for a person to approve or reject.
 
   VersionState:
     description: >-
