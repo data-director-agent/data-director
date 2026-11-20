@@ -11,7 +11,7 @@ import pytest
 
 from dd_harness.project_access import (
     conversation_deleted,
-    hidden_conversations,
+    hidden_in,
     may_delete_conversation,
 )
 from dd_harness.projects import (
@@ -57,7 +57,7 @@ def test_a_deleted_conversation_is_hidden_until_it_is_restored(projects: Project
     assert events[: len(before)] == before
     assert events[-1]["event"] == CONVERSATION_DELETED
     assert conversation_deleted(projects, project_id, conversation_id)
-    assert hidden_conversations(projects, [project_id]) == {conversation_id}
+    assert hidden_in([projects.events(project_id)]) == {conversation_id}
     assert projects.summary(project_id)["conversation_count"] == 1
     (listed,) = projects.deleted_conversations(project_id)
     assert (listed["conversation_id"], listed["started_by"]) == (
@@ -75,7 +75,7 @@ def test_a_deleted_conversation_is_hidden_until_it_is_restored(projects: Project
     )
     assert projects.events(project_id)[-1]["event"] == CONVERSATION_RESTORED
     assert not conversation_deleted(projects, project_id, conversation_id)
-    assert hidden_conversations(projects, [project_id]) == frozenset()
+    assert hidden_in([projects.events(project_id)]) == frozenset()
     assert projects.deleted_conversations(project_id) == []
     assert projects.summary(project_id)["conversation_count"] == 2
     assert not conversation_deleted(projects, project_id, kept)

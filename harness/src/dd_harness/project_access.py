@@ -165,12 +165,6 @@ def hidden_in(logs: Iterable[Iterable[Mapping[str, Any]]]) -> frozenset[str]:
     )
 
 
-def hidden_conversations(store: ProjectLifecycle, project_ids: Iterable[str]) -> frozenset[str]:
-    """The deleted conversations of the projects `project_ids`, which a listing leaves out. A
-    listing that has the logs already uses `hidden_in`."""
-    return hidden_in(store.events(project_id) for project_id in project_ids)
-
-
 def conversation_deleted(store: ProjectLifecycle, project_id: str, conversation_id: str) -> bool:
     """Whether the conversation `conversation_id` in the project `project_id` is deleted."""
     return conversation_id in conversation_deletions(store.events(project_id))

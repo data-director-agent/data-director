@@ -67,9 +67,9 @@ deletion (`dd_harness.projects.conversation_deletions`). `delete_conversation` r
 `RestoreRefusedError` as `restore` does, over the same `restore_period`. `deleted_conversations`
 lists those that stand, and a summary's `conversation_count` leaves them out. Who may delete one is
 `project_access.may_delete_conversation`: whoever started it while they may contribute, and an
-owner. `project_access.hidden_conversations` names the deleted ones in a set of projects, which a
-`Readable` leaves out of every listing ([Projects](../../docs/specs/projects.md), invariants 29
-to 31).
+owner. `project_access.hidden_in` names the deleted ones in the logs of the projects a person may
+read, already read in one query (`readable_logs`), which a `Readable` leaves out of every listing
+([Projects](../../docs/specs/projects.md), invariants 29 to 31).
 
 `inventory_added` also gives:
 
