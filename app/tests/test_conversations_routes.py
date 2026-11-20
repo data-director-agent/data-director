@@ -31,6 +31,7 @@ from dd_app.governance import (
     TurnConflictError,
     UnknownConversationError,
 )
+from dd_app.reads import Reads
 from dd_app.routes.conversations import Conversation
 from dd_app.routes.runs import RunResult
 from dd_app.turn_body import Turn
@@ -426,8 +427,8 @@ def test_a_conversation_and_its_delegations_are_its_starters_alone(
     governance, _app = request.getfixturevalue(fixture)
     conversation_id = governance.start_conversation(OTHER)
     # Not yet given a turn: its starter may read it, nobody else.
-    assert governance.conversation(conversation_id, OTHER) is not None
-    assert governance.conversation(conversation_id, TEST_PRINCIPAL) is None
+    assert Reads(governance).conversation(conversation_id, OTHER) is not None
+    assert Reads(governance).conversation(conversation_id, TEST_PRINCIPAL) is None
     with pytest.raises(UnknownConversationError):
         asyncio.run(
             governance.turn(
@@ -443,18 +444,18 @@ def test_a_conversation_and_its_delegations_are_its_starters_alone(
     (child,) = envelope["delegations"]
 
     # The delegated child is the starter's, as its parent is.
-    assert {r["invocation_id"] for r in governance.runs(OTHER).items} == {
+    assert {r["invocation_id"] for r in Reads(governance).runs(OTHER).items} == {
         envelope["invocation_id"],
         child["delegated_invocation_id"],
     }
-    assert governance.runs(TEST_PRINCIPAL).items == []
+    assert Reads(governance).runs(TEST_PRINCIPAL).items == []
     for invocation_id in (envelope["invocation_id"], child["delegated_invocation_id"]):
-        assert governance.stored_run(invocation_id, OTHER) is not None
-        assert governance.stored_run(invocation_id, TEST_PRINCIPAL) is None
-    listed = governance.conversations(OTHER).items
+        assert Reads(governance).stored_run(invocation_id, OTHER) is not None
+        assert Reads(governance).stored_run(invocation_id, TEST_PRINCIPAL) is None
+    listed = Reads(governance).conversations(OTHER).items
     assert [c["conversation_id"] for c in listed] == [conversation_id]
-    assert governance.conversations(TEST_PRINCIPAL).items == []
-    assert governance.conversation(conversation_id, TEST_PRINCIPAL) is None
+    assert Reads(governance).conversations(TEST_PRINCIPAL).items == []
+    assert Reads(governance).conversation(conversation_id, TEST_PRINCIPAL) is None
     with pytest.raises(UnknownConversationError):
         asyncio.run(
             governance.turn(
@@ -463,4 +464,4 @@ def test_a_conversation_and_its_delegations_are_its_starters_alone(
                 TEST_PRINCIPAL,
             )
         )
-    assert len(governance.runs(OTHER).items) == 2
+    assert len(Reads(governance).runs(OTHER).items) == 2

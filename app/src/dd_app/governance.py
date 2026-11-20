@@ -14,23 +14,21 @@ from __future__ import annotations
 import asyncio
 import re
 import threading
-import time
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from typing import Any
 
+from dd_app.about_refresh import AboutRefresh
 from dd_app.attached import keep_attached
 from dd_app.config import DEFAULT_PROJECTS_DIR, DEFAULT_REPOSITORIES_DIR
 from dd_app.documentation_check import accept
-from dd_app.policy_view import policy_view
-from dd_app.principals import principal_summary
+from dd_app.run_checks import stored_checks
 from dd_app.turn_body import AttachedDocument, Turn
 from dd_app.turn_lock import hold_turn
 from dd_harness import conversations, project_access
 from dd_harness.conductor import Conductor
 from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
-from dd_harness.listing import Page, Readable, check_limit
+from dd_harness.listing import Readable
 from dd_harness.observe import RunObserver
 from dd_harness.policy import check_attached_document
 from dd_harness.project_access import Action, Role
@@ -44,8 +42,7 @@ from dd_harness.settings import (
     projects_dir,
     repositories_dir,
 )
-from dd_harness.storage import GROUNDING, SOURCES, ProjectStorage
-from dd_harness.transport.paging import PAGE_SIZE, PAGE_SIZE_MAX
+from dd_harness.storage import ProjectStorage
 from dd_harness.turn_locks import ConversationLocks, LocalConversationLocks
 from dd_sdk.contract.models import (
     UUID7_PATTERN,
@@ -55,7 +52,6 @@ from dd_sdk.contract.models import (
     new_invocation_id,
 )
 
-RUN_ID = re.compile(r"[0-9A-Za-z-]{1,64}")
 CONVERSATION_ID = re.compile(UUID7_PATTERN)
 # What a turn says when the researcher attached an inventory and wrote nothing, so that the
 # history reads as what happened (docs/specs/app.md).
@@ -67,11 +63,6 @@ BOTH_ONLY_TEXT = "I have attached an inventory of my dataset's files and a docum
 # The cause recorded for a project a person creates on purpose (`POST /api/projects`), which is
 # listed before it holds anything (docs/specs/app.md, rule 27).
 CREATED_BY_ROUTE = "POST /api/projects"
-# What `GET /api/projects` says of each conversation in a project.
-LISTED_CONVERSATION = ("conversation_id", "title", "started_at", "last_completed_at", "turns")
-# How long `GET /api/about`, which is open to anyone, waits between retries of the agents still
-# missing: a caller with no session must not make the server read their cards on every request.
-ABOUT_REFRESH_INTERVAL_S = 30.0
 
 
 def _attached_text(
@@ -96,16 +87,7 @@ class TurnConflictError(Exception):
         self.detail = detail
 
 
-def _report(stored: bytes | None) -> dict[str, Any] | None:
-    """A check's stored summary (`GroundingReport.summary`, `SourceReport.summary`), which says
-    `FAILED` when the check failed."""
-    if stored is None:
-        return None
-    summary = stored.decode("utf-8").strip()
-    return {"passed": "FAILED" not in summary, "summary": summary}
-
-
-@dataclass  # noqa: PLR0904
+@dataclass
 class Governance:
     """The conductor, and the authenticator that says whom each request's runs act for.
 
@@ -133,13 +115,9 @@ class Governance:
     # so it is this process's alone. There is no conversation store (docs/specs/orchestration.md):
     # once a turn is stored the store holds the conversation, and an id never used is forgotten.
     _started: dict[str, str] = field(default_factory=dict, repr=False)
-    # How often `deployment` may retry the missing agents, and the clock it reads (a test's own).
-    about_refresh_interval_s: float = ABOUT_REFRESH_INTERVAL_S
-    clock: Callable[[], float] = field(default=time.monotonic, repr=False)
-    # When `deployment` last refreshed, held while it does so: a request that finds it held
-    # answers from what the registry last saw instead of waiting.
-    _about_refreshed_at: float | None = field(default=None, repr=False)
-    _about_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    # How often `GET /api/about` may retry the missing agents (`DeploymentView.deployment`): one
+    # throttle for the process, whichever request asks.
+    about_refresh: AboutRefresh = field(default_factory=AboutRefresh, repr=False)
 
     @classmethod
     def create(
@@ -184,7 +162,10 @@ class Governance:
         """
         envelope = await self.invoke(InvocationRequest(agent_id=agent_id, input=input), acting_for)
         document = envelope.to_document()
-        return {"envelope": document, "checks": self.checks(envelope.invocation_id)}
+        return {
+            "envelope": document,
+            "checks": stored_checks(self.conductor.store, envelope.invocation_id),
+        }
 
     def start_conversation(self, acting_for: Principal, project_id: str | None = None) -> str:
         """A new conversation's identifier (`POST /api/conversations`). The server mints it, so a
@@ -279,7 +260,7 @@ class Governance:
                 "still needed."
             )
         try:
-            found = await asyncio.to_thread(self._conversation, conversation_id)
+            found = await asyncio.to_thread(self.stored_conversation, conversation_id)
             # Someone else's conversation is answered as one that does not exist (#153).
             if found is None or not await asyncio.to_thread(
                 self.may_read_conversation, conversation_id, acting_for
@@ -414,115 +395,10 @@ class Governance:
         hidden = project_access.hidden_conversations(self.projects, project_ids)
         return Readable(reader.principal_id, project_ids, hidden)
 
-    def conversations(
-        self, reader: Principal, *, limit: int = PAGE_SIZE, before: str | None = None
-    ) -> Page:
-        """A page of the stored conversations `reader` may read, most recently active first
-        (`GET /api/conversations`). One started but given no turn yet is not listed."""
-        return conversations.list_conversations(
-            self.conductor.store, readable=self.readable(reader), limit=limit, before=before
-        )
-
-    def projects_for(
-        self, principal: Principal, *, limit: int = PAGE_SIZE, before: str | None = None
-    ) -> Page:
-        """A page of the projects `principal` may read, the one created last first
-        (`GET /api/projects`): each project's summary, with the conversations started in it that
-        have a turn, most recently active first, so that the shell can name a project the app
-        created untitled. A project the app created for a conversation, with nothing in it yet (no
-        conversation with a turn, no inventory and no document), is not listed, as a conversation
-        with no turn is not; one a person created with `POST /api/projects` is. The
-        cursor is the last listed project; one that names no project the person may read names
-        an empty page."""
-        check_limit(limit)
-        if self.projects is None:
-            return Page([])
-        newest_first = list(reversed(project_access.readable_projects(self.projects, principal)))
-        if before is not None:
-            if before not in newest_first:
-                return Page([])
-            newest_first = newest_first[newest_first.index(before) + 1 :]
-        found: list[dict[str, Any]] = []
-        every = self._every_conversation(self.readable(principal))
-        for project_id in newest_first:
-            summary = self.projects.summary(project_id)
-            listed = [
-                {key: c.get(key) for key in LISTED_CONVERSATION}
-                for c in every
-                if c.get("project_id") == project_id
-            ]
-            if (
-                not listed
-                and summary["inventory"] is None
-                and not any(summary["documents"].values())
-                and self.projects.events(project_id)[0]["caused_by"] != CREATED_BY_ROUTE
-            ):
-                continue
-            if len(found) == limit:
-                return Page(found, found[-1]["project_id"])
-            found.append({**summary, "conversations": listed})
-        return Page(found)
-
-    def deleted_projects_for(
-        self, owner: Principal, *, limit: int = PAGE_SIZE, before: str | None = None
-    ) -> Page:
-        """A page of the deleted projects `owner` may still restore, the one deleted last first
-        (`GET /api/projects/deleted`, docs/specs/projects.md, invariant 23): each project's
-        summary, whose `deleted` says when, by whom and until when. One whose restore period is
-        over is not listed, since the app can no longer restore it. The cursor is the last
-        listed project."""
-        check_limit(limit)
-        if self.projects is None:
-            return Page([])
-        now = datetime.now(UTC)
-        summaries = [
-            self.projects.summary(project_id)
-            for project_id in project_access.deleted_projects(self.projects, owner)
-        ]
-        restorable = sorted(
-            (
-                s
-                for s in summaries
-                if datetime.fromisoformat(s["deleted"]["restorable_until"]) > now
-            ),
-            key=lambda s: s["deleted"]["at"],
-            reverse=True,
-        )
-        if before is not None:
-            ids = [s["project_id"] for s in restorable]
-            if before not in ids:
-                return Page([])
-            restorable = restorable[ids.index(before) + 1 :]
-        if len(restorable) > limit:
-            return Page(restorable[:limit], restorable[limit - 1]["project_id"])
-        return Page(restorable)
-
-    def _every_conversation(self, readable: Readable) -> list[dict[str, Any]]:
-        """Every conversation `readable` includes, most recently active first, read a page at a
-        time: as many as the reader has, whatever the size of the store."""
-        found: list[dict[str, Any]] = []
-        before: str | None = None
-        while True:
-            page = conversations.list_conversations(
-                self.conductor.store, readable=readable, limit=PAGE_SIZE_MAX, before=before
-            )
-            found.extend(page.items)
-            if page.next is None:
-                return found
-            before = page.next
-
-    def conversation(self, conversation_id: str, reader: Principal) -> dict[str, Any] | None:
-        """A conversation as `dd_harness.conversations` derives it (`GET /api/conversations/{id}`),
-        or None, also when `reader` may not read it, so that a refusal does not reveal whether it
-        exists. One started but given no turn yet has no turns."""
-        if not CONVERSATION_ID.fullmatch(conversation_id):
-            return None
-        found = self._conversation(conversation_id)
-        if found is None or not self.may_read_conversation(conversation_id, reader):
-            return None
-        return found
-
-    def _conversation(self, conversation_id: str) -> dict[str, Any] | None:
+    def stored_conversation(self, conversation_id: str) -> dict[str, Any] | None:
+        """A conversation as `dd_harness.conversations` derives it, with what its project holds
+        now, whoever asks: `Reads.conversation` is the one a reader is answered with. One started
+        but given no turn yet has no turns; one that does not exist is None."""
         found = conversations.get_conversation(self.conductor.store, conversation_id)
         project_id = self.projects.project_of(conversation_id) if self.projects else None
         if found is None and (conversation_id in self._started or project_id is not None):
@@ -542,114 +418,3 @@ class Governance:
             # (docs/specs/orchestration.md).
             found["progress"] = summary["progress"]
         return found
-
-    def runs(self, reader: Principal, *, limit: int = PAGE_SIZE, before: str | None = None) -> Page:
-        """A page of the stored runs `reader` may read, newest first (`GET /api/runs`)."""
-        return self.conductor.store.list_runs(
-            readable=self.readable(reader), limit=limit, before=before
-        )
-
-    def stored_run(self, invocation_id: str, reader: Principal) -> dict[str, Any] | None:
-        """A stored run as `run` returned it, with its request (`GET /api/runs/{id}`), or None,
-        also when `reader` may not read it, so that a refusal does not reveal whether it exists.
-
-        Only an identifier made of letters, digits and hyphens names a run, so no path outside
-        the store can be read.
-        """
-        if not RUN_ID.fullmatch(invocation_id):
-            return None
-        store = self.conductor.store
-        envelope = store.get(invocation_id)
-        if envelope is None or not self.may_read_run(envelope, reader):
-            return None
-        return {
-            "envelope": envelope,
-            "request": store.get_request(invocation_id),
-            "checks": self.checks(invocation_id),
-        }
-
-    def checks(self, invocation_id: str) -> dict[str, Any]:
-        """What the grounding linter and the source check reported on a run, from the summaries
-        the conductor stores beside it. The conductor runs both over every envelope it stores,
-        even one the gate refused; a report the run does not have is None."""
-        store = self.conductor.store
-        return {
-            "grounding": _report(store.get_artifact(invocation_id, GROUNDING)),
-            "sources": _report(store.get_artifact(invocation_id, SOURCES)),
-        }
-
-    def agents(self, acting_for: Principal) -> dict[str, Any]:
-        """What the shell's capabilities panel is drawn from (`GET /api/agents`).
-
-        Each registered agent's manifest, as its card declares it, beside what this deployment's
-        profile assigns it: the action class, and whether that class needs approval
-        (docs/specs/policy-and-identity.md). An agent the profile does not list is shown with
-        `assigned_action_class: null`; the gate refuses it. The profile and `acting_for`, the
-        caller's principal, are named so the page can say whose rules apply and whom runs act for,
-        and the profile's `orchestrator` so the home page converses with that agent and no other
-        (docs/specs/app.md).
-        """
-        profile = self.conductor.profile
-        self.conductor.registry.refresh()  # an agent started since the app was is found now
-        listing = self.conductor.registry.listing()
-        for entry in listing["agents"]:
-            assigned = profile.agents.get(entry["agent_id"])
-            entry["assigned_action_class"] = assigned
-            entry["requires_approval"] = (
-                assigned is not None and assigned in profile.actions_requiring_approval
-            )
-        return {
-            **listing,
-            "profile": {
-                "ref": profile.ref,
-                "digest": profile.digest,
-                "orchestrator": profile.orchestrator,
-                "attached_documents": profile.attached_documents,
-            },
-            "acting_for": principal_summary(acting_for),
-        }
-
-    def _refresh_about(self) -> None:
-        """Retry the agents still missing, unless that was done within the interval or is being
-        done now."""
-        if not self._about_lock.acquire(blocking=False):
-            return
-        try:
-            now = self.clock()
-            last = self._about_refreshed_at
-            if last is not None and now - last < self.about_refresh_interval_s:
-                return
-            # Stamped first, so a refresh that fails is not retried at once either.
-            self._about_refreshed_at = now
-            self.conductor.registry.refresh()
-        finally:
-            self._about_lock.release()
-
-    def policy(self) -> dict[str, Any]:
-        """The rules the policy gate holds every run to (`GET /api/policy`), for the policy page."""
-        return policy_view(self.conductor)
-
-    def deployment(self) -> dict[str, Any]:
-        """What this deployment runs, for an operator's check (`GET /api/about`, open to all).
-
-        The profile the conductor holds runs to, and which configured agents it reaches. An agent
-        is named by its entry in the agent configuration, never with its address or the reason it
-        is missing: the answer is public, and a reason can carry an internal address.
-
-        The answer is open to callers with no session, so it retries the missing agents at most
-        once every `about_refresh_interval_s`, and otherwise answers from what the registry last
-        saw (#726). A request that arrives while another is refreshing does not wait for it.
-        """
-        profile = self.conductor.profile
-        registry = self.conductor.registry
-        self._refresh_about()
-        return {
-            "profile": {
-                "id": profile.profile_id,
-                "version": profile.version,
-                "digest": profile.digest,
-                "orchestrator": profile.orchestrator,
-            },
-            "unavailable": sorted(registry.unavailable),
-            "incompatible": sorted(registry.incompatible),
-        }

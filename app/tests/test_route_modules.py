@@ -14,7 +14,9 @@ from starlette.responses import Response
 from starlette.testclient import TestClient
 from support import JSON_HEADERS, configure_env, dist_dir, new_governance
 
+from dd_app.deployment_view import DeploymentView
 from dd_app.project_service import ProjectService
+from dd_app.reads import Reads
 from dd_app.routes import conversations, progress, projects, runs
 from dd_app.routes.common import RUN_REFUSED, Deps, RequestBody
 from dd_app.routes.conversations import SendTurn, StartConversation
@@ -33,6 +35,8 @@ def deps(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[Deps]:
         yield Deps(
             governance=governance,
             projects=ProjectService.over(governance),
+            reads=Reads(governance),
+            deployment=DeploymentView(governance),
             web_dist=dist_dir(tmp_path),
             identity={},
         )

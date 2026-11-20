@@ -26,7 +26,7 @@ from starlette.routing import Route
 
 from dd_app import contract_shapes as contract
 from dd_app.documentation_check import DocumentationHeldError
-from dd_app.governance import Governance, TurnConflictError, UnknownConversationError
+from dd_app.governance import TurnConflictError, UnknownConversationError
 from dd_app.routes.common import (
     RUN_REFUSED,
     Deps,
@@ -251,7 +251,7 @@ class Conversation(ResponseBody):
 
 
 def routes(deps: Deps) -> list[Route]:
-    streams = TurnStreams(deps.governance)
+    streams = TurnStreams(deps.governance, deps.reads)
     return [
         Route("/api/conversations", signed_in(deps, start_conversation), methods=["POST"]),
         Route("/api/conversations", signed_in(deps, list_conversations), methods=["GET"]),
@@ -291,7 +291,7 @@ async def start_conversation(request: Request, acting_for: Principal, deps: Deps
         return no_project(str(project_id))
     except ProjectDeletedError:
         return project_deleted(str(project_id))
-    found = governance.conversation(conversation_id, acting_for) or {}
+    found = deps.reads.conversation(conversation_id, acting_for) or {}
     return respond(
         Started,
         {"conversation_id": conversation_id, "project_id": found.get("project_id")},
@@ -305,13 +305,12 @@ async def send_turn(request: Request, acting_for: Principal, deps: Deps) -> Resp
     body = await parse_body(request, SendTurn, RUN_REFUSED)
     if isinstance(body, Response):
         return body
-    governance = deps.governance
-    if await run_in_threadpool(governance.conversation, conversation_id, acting_for) is None:
+    if await run_in_threadpool(deps.reads.conversation, conversation_id, acting_for) is None:
         return no_conversation(conversation_id)
     started = time.monotonic()
     outcome = "failed or dropped"
     try:
-        response, outcome = await _take_turn(governance, conversation_id, body, acting_for)
+        response, outcome = await _take_turn(deps, conversation_id, body, acting_for)
         return response
     finally:
         log.info(
@@ -323,13 +322,13 @@ async def send_turn(request: Request, acting_for: Principal, deps: Deps) -> Resp
 
 
 async def _take_turn(
-    governance: Governance, conversation_id: str, body: SendTurn, acting_for: Principal
+    deps: Deps, conversation_id: str, body: SendTurn, acting_for: Principal
 ) -> tuple[Response, str]:
     """The answer to one turn sent as JSON, and the outcome to log: answered, or refused for
     why. Anything else, raised, has failed or been dropped."""
     try:
-        envelope = await governance.turn(conversation_id, body.turn(), acting_for)
-        checks = governance.checks(envelope.invocation_id)
+        envelope = await deps.governance.turn(conversation_id, body.turn(), acting_for)
+        checks = deps.reads.checks(envelope.invocation_id)
         answer = {"envelope": envelope.to_document(), "checks": checks}
         return respond(RunResult, answer), "answered"
     except UnknownConversationError:
@@ -353,13 +352,13 @@ async def list_conversations(request: Request, reader: Principal, deps: Deps) ->
         paging = page_params(request)
     except PagingError as exc:
         return refused(str(exc), "Data Director could not list the conversations")
-    page = await run_in_threadpool(lambda: deps.governance.conversations(reader, **paging))
+    page = await run_in_threadpool(lambda: deps.reads.conversations(reader, **paging))
     return respond_page(request, page, ConversationSummary)
 
 
 async def get_conversation(request: Request, reader: Principal, deps: Deps) -> Response:
     conversation_id = request.path_params["conversation_id"]
-    found = await run_in_threadpool(deps.governance.conversation, conversation_id, reader)
+    found = await run_in_threadpool(deps.reads.conversation, conversation_id, reader)
     if found is None:
         return no_conversation(conversation_id)
     return respond(Conversation, found)

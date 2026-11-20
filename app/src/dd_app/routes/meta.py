@@ -251,11 +251,11 @@ async def get_process_flow(request: Request, _: Principal, deps: Deps) -> Respon
 
 async def get_policy(request: Request, _: Principal, deps: Deps) -> Response:
     # It refreshes the registry, which reaches agents over the network.
-    return respond(Policy, await run_in_threadpool(deps.governance.policy))
+    return respond(Policy, await run_in_threadpool(deps.deployment.policy))
 
 
 async def get_about(request: Request, deps: Deps) -> Response:
-    deployment = await run_in_threadpool(deps.governance.deployment)
+    deployment = await run_in_threadpool(deps.deployment.deployment)
     return respond(
         About,
         {
@@ -324,10 +324,10 @@ def _context(report: feedback.Report, reporter: Principal, deps: Deps) -> list[s
     context: list[str] = []
     if not report.include_context:
         return context
-    if report.run and (stored := deps.governance.stored_run(report.run, reporter)) is not None:
+    if report.run and (stored := deps.reads.stored_run(report.run, reporter)) is not None:
         context += feedback.run_context(stored)
     if report.conversation:
-        found = deps.governance.conversation(report.conversation, reporter)
+        found = deps.reads.conversation(report.conversation, reporter)
         if found is not None:
             context += feedback.conversation_context(found)
     return context

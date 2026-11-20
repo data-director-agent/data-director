@@ -13,10 +13,6 @@ path = "agents/orchestrator-model/src/dd_agent_orchestrator_model/agent.py"
 lines = 585
 
 [[file]]
-path = "app/src/dd_app/governance.py"
-lines = 655
-
-[[file]]
 path = "app/web/src/components/inventory/InventoryView.tsx"
 lines = 649
 

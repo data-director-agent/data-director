@@ -19,6 +19,7 @@ from starlette.responses import Response
 
 from dd_app import feedback
 from dd_app.config import EXAMPLES_DIR
+from dd_app.deployment_view import DeploymentView
 from dd_app.folder_scan import FolderRoots
 from dd_app.github_auth import TokenSource
 from dd_app.governance import Governance
@@ -27,6 +28,7 @@ from dd_app.problems import no_conversation as no_conversation
 from dd_app.problems import problem as problem
 from dd_app.problems import refused as refused
 from dd_app.project_service import ProjectService
+from dd_app.reads import Reads
 from dd_app.responses import ResponseBody as ResponseBody
 from dd_app.responses import respond as respond
 from dd_app.responses import respond_page as respond_page
@@ -64,6 +66,8 @@ class Deps:
 
     governance: Governance
     projects: ProjectService
+    reads: Reads
+    deployment: DeploymentView
     web_dist: Path
     # The build's identity (version and commit), as `GET /api/about` names it.
     identity: Mapping[str, str | None]

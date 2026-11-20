@@ -172,7 +172,7 @@ def routes(deps: Deps) -> list[Route]:
 
 async def agents(request: Request, acting_for: Principal, deps: Deps) -> Response:
     # Off the event loop: refreshing the registry reads agent cards, which blocks.
-    return respond(RawAgentsResponse, await run_in_threadpool(deps.governance.agents, acting_for))
+    return respond(RawAgentsResponse, await run_in_threadpool(deps.deployment.agents, acting_for))
 
 
 async def start_run(request: Request, acting_for: Principal, deps: Deps) -> Response:
@@ -190,13 +190,13 @@ async def list_runs(request: Request, reader: Principal, deps: Deps) -> Response
         paging = page_params(request)
     except PagingError as exc:
         return refused(str(exc), "Data Director could not list the runs")
-    page = await run_in_threadpool(lambda: deps.governance.runs(reader, **paging))
+    page = await run_in_threadpool(lambda: deps.reads.runs(reader, **paging))
     return respond_page(request, page, RunRow)
 
 
 async def get_run(request: Request, reader: Principal, deps: Deps) -> Response:
     invocation_id = request.path_params["invocation_id"]
-    run = await run_in_threadpool(deps.governance.stored_run, invocation_id, reader)
+    run = await run_in_threadpool(deps.reads.stored_run, invocation_id, reader)
     if run is None:
         return problem(404, "run-not-found", "No such run", f"No run {invocation_id!r}.")
     return respond(StoredRun, run)

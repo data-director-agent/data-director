@@ -16,6 +16,7 @@ from starlette.responses import JSONResponse, Response
 
 from dd_app.governance import Governance, TurnConflictError, UnknownConversationError
 from dd_app.problems import no_conversation, problem, refused
+from dd_app.reads import Reads
 from dd_app.turn_body import Turn, parse_turn
 from dd_harness.observe import RunObserver
 from dd_harness.transport.agui import REFUSALS, RunsInFlight, sse, stream_run
@@ -32,8 +33,9 @@ class TurnStreams:
     """The turns streaming now, by whom each acts for and its AG-UI `runId`, so that a turn may be
     cancelled while its stream is open (docs/specs/transport.md, Cancelling)."""
 
-    def __init__(self, governance: Governance) -> None:
+    def __init__(self, governance: Governance, reads: Reads) -> None:
         self.governance = governance
+        self.reads = reads
         self.in_flight = RunsInFlight()
 
     async def stream(self, request: Request, acting_for: Principal) -> Response:
@@ -50,10 +52,7 @@ class TurnStreams:
         if isinstance(given, Response):
             return given
         run_id, sent = given
-        if (
-            await run_in_threadpool(self.governance.conversation, conversation_id, acting_for)
-            is None
-        ):
+        if await run_in_threadpool(self.reads.conversation, conversation_id, acting_for) is None:
             return no_conversation(conversation_id)
         try:
             cancellation = self.in_flight.open(acting_for, run_id)

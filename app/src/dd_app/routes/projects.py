@@ -184,7 +184,7 @@ async def list_projects(request: Request, reader: Principal, deps: Deps) -> Resp
         paging = page_params(request)
     except PagingError as exc:
         return refused(str(exc), "Data Director could not list the projects")
-    page = await run_in_threadpool(lambda: deps.governance.projects_for(reader, **paging))
+    page = await run_in_threadpool(lambda: deps.reads.projects_for(reader, **paging))
     return respond_page(request, page, ProjectSummary)
 
 
@@ -193,7 +193,7 @@ async def list_deleted_projects(request: Request, owner: Principal, deps: Deps) 
         paging = page_params(request)
     except PagingError as exc:
         return refused(str(exc), "Data Director could not list the deleted projects")
-    page = await run_in_threadpool(lambda: deps.governance.deleted_projects_for(owner, **paging))
+    page = await run_in_threadpool(lambda: deps.reads.deleted_projects_for(owner, **paging))
     return respond_page(request, page, DeletedProject)
 
 
