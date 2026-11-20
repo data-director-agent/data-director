@@ -357,12 +357,14 @@ describe("ConversationHome", () => {
     const transcript = await screen.findByRole("list", {
       name: "Conversation",
     });
+    // Each agent is named, never shown by its version or model.
     expect(
-      within(transcript).getAllByText("orchestrator.stub@0.1.0"),
-    ).toHaveLength(2);
-    expect(
-      within(transcript).getAllByText("example.hello@0.1.1a1"),
-    ).toHaveLength(2);
+      within(transcript).getAllByText("Friendly Greeter"),
+    ).toHaveLength(4);
+    for (const heading of transcript.querySelectorAll(".turn-speaker")) {
+      expect(heading).not.toHaveTextContent("@");
+    }
+    expect(within(transcript).queryByText(/Language model/)).toBeNull();
     expect(announcements()).toHaveTextContent(
       /orchestrator\.stub.*Succeeded/,
     );
@@ -668,7 +670,7 @@ describe("ConversationHome", () => {
     });
   });
 
-  it("marks a version change between turns", async () => {
+  it("says in plain words that an agent was updated between turns", async () => {
     const changed: Conversation = {
       ...CONVERSATION,
       version_changes: [
@@ -686,7 +688,9 @@ describe("ConversationHome", () => {
     );
     await userEvent.type(screen.getByRole("textbox"), "hi");
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
-    expect(await screen.findByText(/changed version from/)).toBeVisible();
+    const note = await screen.findByText(/was updated since an earlier turn/);
+    expect(note).toBeVisible();
+    expect(note).not.toHaveTextContent("0.2.0");
   });
 
   it("uses the run view's wording for an abstained turn", async () => {
@@ -1840,7 +1844,7 @@ describe("ConversationHome", () => {
         timeout: 3000,
       });
       const transcript = screen.getByRole("list", { name: "Conversation" });
-      expect(within(transcript).getAllByText("orchestrator.stub@0.1.0").length).toBeGreaterThan(0);
+      expect(transcript.querySelectorAll(".turn-agent .turn-speaker-name").length).toBeGreaterThan(0);
       expect(screen.getByRole("textbox")).toHaveFocus();
     });
 

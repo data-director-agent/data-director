@@ -72,18 +72,24 @@ def build_app(  # noqa: C901
             paging = page_params(request)
         except PagingError as exc:
             return JSONResponse({"error": str(exc)}, status_code=400)
-        return page_response(request, conductor.store.list_runs(**paging))
+        page = await asyncio.to_thread(lambda: conductor.store.list_runs(**paging))
+        return page_response(request, page)
 
     async def conversations_index(request: Request) -> Response:
         try:
             paging = page_params(request)
         except PagingError as exc:
             return JSONResponse({"error": str(exc)}, status_code=400)
-        return page_response(request, conversations.list_conversations(conductor.store, **paging))
+        page = await asyncio.to_thread(
+            lambda: conversations.list_conversations(conductor.store, **paging)
+        )
+        return page_response(request, page)
 
     async def conversation(request: Request) -> Response:
         conversation_id = request.path_params["conversation_id"]
-        found = conversations.get_conversation(conductor.store, conversation_id)
+        found = await asyncio.to_thread(
+            conversations.get_conversation, conductor.store, conversation_id
+        )
         if found is None:
             return JSONResponse({"error": f"no conversation {conversation_id}"}, status_code=404)
         return JSONResponse(found)
@@ -92,7 +98,7 @@ def build_app(  # noqa: C901
         """A class schema a stored run was checked against, by its digest
         (docs/specs/contract.md)."""
         digest = request.path_params["digest"]
-        found = conductor.store.get_schema(digest)
+        found = await asyncio.to_thread(conductor.store.get_schema, digest)
         if found is None:
             return JSONResponse({"error": f"no class schema {digest}"}, status_code=404)
         return JSONResponse(found)

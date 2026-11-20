@@ -89,7 +89,7 @@ async def list_deleted(request: Request, person: Principal, deps: Deps) -> Respo
         return refused(str(exc), "Data Director could not list the deleted conversations")
     deletion = ConversationDeletion(deps.governance)
     page = await run_in_threadpool(lambda: deletion.deleted_for(person, **paging))
-    return respond_page(request, page, DeletedConversation)
+    return await run_in_threadpool(respond_page, request, page, DeletedConversation)
 
 
 async def delete_conversation(request: Request, person: Principal, deps: Deps) -> Response:

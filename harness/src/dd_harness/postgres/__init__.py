@@ -31,27 +31,21 @@ and their logs read in one query (`logs_naming`, `logs_naming_query`).
 from __future__ import annotations
 
 import re
-import weakref
 from collections.abc import Iterable, Iterator, Mapping
 from contextlib import contextmanager
 from importlib.resources import files
-from typing import Any, Self
+from typing import Any
 
 import psycopg
 from psycopg import errors, sql
 from psycopg.types.json import Json
-from psycopg_pool import ConnectionPool
 
-from dd_harness.listing import (
-    Page,
-    Readable,
-    check_limit,
-    is_turn,
-    paged,
-    position,
-    principal_of,
-)
+from dd_harness.listing import Page, Readable, check_limit, is_turn, paged, position, principal_of
+from dd_harness.postgres.batch import BatchReads
 from dd_harness.postgres.naming import logs_naming_query, projects_naming_query
+from dd_harness.postgres.pool import DEFAULT_POOL_SIZE as DEFAULT_POOL_SIZE
+from dd_harness.postgres.pool import Pooled, recovering
+from dd_harness.postgres.pool import connect as _pool
 from dd_harness.role_events import names
 from dd_harness.settings import SettingsError, redact_location
 from dd_harness.store import DIGEST, RUN_ID, artifact_segments
@@ -67,8 +61,6 @@ _CONVERSATION_STARTED = "conversation_started"
 _RUN_ORDER_LOCK = 0x6464_7275_6E73  # "ddruns"
 # Taken while the schema is migrated, so two commands never apply the same file.
 _MIGRATE_LOCK = 0x6464_6D69_6772  # "ddmigr"
-# The most connections one store keeps, unless `DD_POSTGRES_POOL_SIZE` says otherwise.
-DEFAULT_POOL_SIZE = 10
 
 
 def migrations() -> list[tuple[int, str, str]]:
@@ -152,50 +144,7 @@ def _open(location: str) -> str:
     return where
 
 
-type Pool = ConnectionPool[psycopg.Connection[Any]]
-
-
-def _pool(owner: object, location: str, where: str, size: int) -> Pool:
-    """A pool of at most `size` connections to `location`, closed when `owner` is collected or the
-    process ends. Each connection is checked as it is borrowed, so one the server dropped (a
-    restart) is replaced rather than handed out. The pool is named by `where`, which holds no
-    credential, so its log records hold none either."""
-    if size < 1:
-        raise ValueError(f"a pool holds at least one connection, not {size}")
-    pool: Pool = ConnectionPool(
-        location,
-        min_size=1,
-        max_size=size,
-        open=True,
-        check=ConnectionPool.check_connection,
-        name=where,
-    )
-    weakref.finalize(owner, pool.close)
-    return pool
-
-
-class _Pooled:
-    """What both stores share: a pool, released by `close` or at the end of a `with` block."""
-
-    _pool: Pool
-
-    @property
-    def pool_size(self) -> int:
-        """The most connections the store keeps open at once."""
-        return self._pool.max_size
-
-    def close(self) -> None:
-        """Close the store's connections. A call after this raises."""
-        self._pool.close()
-
-    def __enter__(self) -> Self:
-        return self
-
-    def __exit__(self, *exc: object) -> None:
-        self.close()
-
-
-class PostgresRunStore(_Pooled):
+class PostgresRunStore(BatchReads):
     """Runs kept in PostgreSQL. A run, its request, its prompts and its class schemas are stored
     in one transaction (invariant 4)."""
 
@@ -203,6 +152,7 @@ class PostgresRunStore(_Pooled):
         self._where = _open(location)
         self._pool = _pool(self, location, self._where, pool_size)
 
+    @recovering
     def has(self, invocation_id: str) -> bool:
         if not RUN_ID.fullmatch(invocation_id):
             return False
@@ -265,6 +215,7 @@ class PostgresRunStore(_Pooled):
         for (envelope,) in rows:
             yield envelope
 
+    @recovering
     def list_runs(
         self, *, readable: Readable | None = None, limit: int, before: str | None = None
     ) -> Page:
@@ -289,6 +240,7 @@ class PostgresRunStore(_Pooled):
             limit,
         )
 
+    @recovering
     def list_conversations(
         self, *, readable: Readable | None = None, limit: int, before: str | None = None
     ) -> Page:
@@ -336,6 +288,7 @@ class PostgresRunStore(_Pooled):
     def get_prompts(self, invocation_id: str) -> dict[str, Any]:
         return self._column(invocation_id, "prompts") or {}
 
+    @recovering
     def _column(self, invocation_id: str, column: str) -> dict[str, Any] | None:
         if not RUN_ID.fullmatch(invocation_id):
             return None
@@ -346,6 +299,7 @@ class PostgresRunStore(_Pooled):
             row = conn.execute(query, (invocation_id,)).fetchone()
         return None if row is None else row[0]
 
+    @recovering
     def get_schema(self, digest: str) -> dict[str, Any] | None:
         if not DIGEST.fullmatch(digest):
             return None
@@ -355,20 +309,25 @@ class PostgresRunStore(_Pooled):
             ).fetchone()
         return None if row is None else row[0]
 
-    def put_artifact(self, invocation_id: str, name: str, data: bytes) -> None:
-        if not RUN_ID.fullmatch(invocation_id) or artifact_segments(name) is None:
-            raise ValueError(f"not an artifact name: {name!r}")
+    def put_artifacts(self, invocation_id: str, artifacts: Mapping[str, bytes]) -> None:
+        for name in artifacts:
+            if not RUN_ID.fullmatch(invocation_id) or artifact_segments(name) is None:
+                raise ValueError(f"not an artifact name: {name!r}")
         try:
-            with self._pool.connection() as conn, conn.transaction():
-                conn.execute(
+            with self._pool.connection() as conn, conn.transaction(), conn.cursor() as cur:
+                cur.executemany(
                     "insert into run_artifacts (invocation_id, name, data) values (%s, %s, %s)",
-                    (invocation_id, name, data),
+                    [(invocation_id, name, data) for name, data in artifacts.items()],
                 )
         except errors.ForeignKeyViolation as exc:
             raise KeyError(invocation_id) from exc
         except errors.UniqueViolation as exc:
-            raise FileExistsError(f"{invocation_id}: artifact {name} is already kept") from exc
+            raise FileExistsError(f"{invocation_id}: an artifact is already kept") from exc
 
+    def put_artifact(self, invocation_id: str, name: str, data: bytes) -> None:
+        self.put_artifacts(invocation_id, {name: data})
+
+    @recovering
     def get_artifact(self, invocation_id: str, name: str) -> bytes | None:
         if not RUN_ID.fullmatch(invocation_id) or artifact_segments(name) is None:
             return None
@@ -488,7 +447,7 @@ class PostgresSection:
         _append(self._conn, self._project_id, events)
 
 
-class PostgresProjectLog(_Pooled):
+class PostgresProjectLog(Pooled):
     """Each project's log and blobs in PostgreSQL."""
 
     def __init__(self, location: str, *, pool_size: int = DEFAULT_POOL_SIZE) -> None:
@@ -508,12 +467,14 @@ class PostgresProjectLog(_Pooled):
         except errors.UniqueViolation as exc:
             raise FileExistsError(f"project {project_id} exists") from exc
 
+    @recovering
     def exists(self, project_id: str) -> bool:
         if not _PROJECT_ID.fullmatch(project_id):
             return False
         with self._pool.connection() as conn:
             return _exists(conn, project_id)
 
+    @recovering
     def events(self, project_id: str) -> list[dict[str, Any]]:
         if not _PROJECT_ID.fullmatch(project_id):
             raise KeyError(project_id)
@@ -552,6 +513,7 @@ class PostgresProjectLog(_Pooled):
         except errors.ForeignKeyViolation as exc:
             raise KeyError(project_id) from exc
 
+    @recovering
     def blob(self, project_id: str, digest: str) -> bytes | None:
         if not _PROJECT_ID.fullmatch(project_id) or not DIGEST.fullmatch(digest):
             return None
@@ -562,6 +524,7 @@ class PostgresProjectLog(_Pooled):
             ).fetchone()
         return None if row is None else bytes(row[0])
 
+    @recovering
     def project_of(self, conversation_id: str) -> str | None:
         found = self._conversations.get(conversation_id)
         if found is not None:
@@ -578,17 +541,20 @@ class PostgresProjectLog(_Pooled):
         self._conversations[conversation_id] = project_id
         return project_id
 
+    @recovering
     def project_ids(self) -> list[str]:
         with self._pool.connection() as conn:
             rows = conn.execute("select project_id from projects order by created").fetchall()
         return [project_id for (project_id,) in rows]
 
+    @recovering
     def projects_naming(self, principal_id: str) -> list[str]:
         query, params = projects_naming_query(principal_id)
         with self._pool.connection() as conn:
             rows = conn.execute(query, params).fetchall()
         return [project_id for (project_id,) in rows]
 
+    @recovering
     def logs_naming(self, principal_id: str) -> dict[str, list[dict[str, Any]]]:
         query, params = logs_naming_query(principal_id)
         with self._pool.connection() as conn:

@@ -80,6 +80,16 @@
       "schema_org": "funding"
     }
   ],
+  "guidance": [
+    "https://datacite-metadata-schema.readthedocs.io/en/4.6/properties/overview/",
+    "https://www.re3data.org/schema",
+    "https://www.sheffield.ac.uk/library/research-data-management/orda",
+    "https://www.sheffield.ac.uk/media/121509/download?attachment",
+    "https://www.sheffield.ac.uk/media/107776/download?attachment",
+    "https://info.figshare.com/user-guide/figshare-metadata-schema-overview/",
+    "https://api.datacite.org/dois?client-id=bl.shef",
+    "https://www.re3data.org/repository/r3d100012124"
+  ],
   "licences": [
     "CC-BY-4.0",
     "CC0-1.0",

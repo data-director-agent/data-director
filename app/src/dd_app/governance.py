@@ -179,7 +179,9 @@ class Governance:
         document = envelope.to_document()
         return {
             "envelope": document,
-            "checks": stored_checks(self.conductor.store, envelope.invocation_id),
+            "checks": await asyncio.to_thread(
+                stored_checks, self.conductor.store, envelope.invocation_id
+            ),
         }
 
     def start_conversation(self, acting_for: Principal, project_id: str | None = None) -> str:

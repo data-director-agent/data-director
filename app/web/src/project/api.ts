@@ -130,6 +130,7 @@ export interface RepositoryRequirements {
   unconfirmed?: string[];
   /** Where the repository is, from its override; absent without one. */
   repository_url?: string;
+  guidance?: string[]; // The pages the sets' values came from, the standard's first.
 }
 
 export interface ProjectApi {

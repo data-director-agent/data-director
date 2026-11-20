@@ -34,7 +34,7 @@ import os
 import re
 import tempfile
 import threading
-from collections.abc import Iterable, Iterator, Mapping
+from collections.abc import Collection, Iterable, Iterator, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -136,6 +136,17 @@ class RunStore:
     def get_request(self, invocation_id: str) -> dict[str, Any] | None:
         return _read_json(self._read(invocation_id, "request.json"))
 
+    def get_many(self, ids: Collection[str], part: str = "envelope") -> dict[str, Any]:
+        """The stored `part` of each run named, left out where there is none."""
+        if part not in ("envelope", "request"):
+            raise ValueError(f"not a part of a run: {part!r}")
+        found: dict[str, Any] = {}
+        for invocation_id in ids:
+            document = _read_json(self._read(invocation_id, f"{part}.json"))
+            if document is not None:
+                found[invocation_id] = document
+        return found
+
     def get_prompts(self, invocation_id: str) -> dict[str, Any]:
         """The prompts a stored run sent, keyed by digest; empty if it sent none."""
         return _read_json(self._read(invocation_id, PROMPTS_NAME)) or {}
@@ -158,6 +169,32 @@ class RunStore:
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("xb") as fh:
             fh.write(data)
+
+    def put_artifacts(self, invocation_id: str, artifacts: Mapping[str, bytes]) -> None:
+        """Keep every artifact, or none: each name is checked, and none may be kept already,
+        before the first is written; one that fails to write is removed with the rest."""
+        paths = []
+        for name in artifacts:
+            path = self._artifact_path(invocation_id, name)
+            if path is None:
+                raise ValueError(f"not an artifact name: {name!r}")
+            paths.append(path)
+        if not self.has(invocation_id):
+            raise KeyError(invocation_id)
+        for name, path in zip(artifacts, paths, strict=True):
+            if path.exists():
+                raise FileExistsError(f"{invocation_id}: artifact {name} is already kept")
+        written: list[Path] = []
+        try:
+            for path, data in zip(paths, artifacts.values(), strict=True):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                with path.open("xb") as fh:
+                    written.append(path)
+                    fh.write(data)
+        except BaseException:
+            for path in written:
+                path.unlink(missing_ok=True)
+            raise
 
     def get_artifact(self, invocation_id: str, name: str) -> bytes | None:
         """The artifact kept as `<invocation_id>/<name>`, or None. A malformed name names

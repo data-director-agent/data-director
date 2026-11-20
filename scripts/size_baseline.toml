@@ -6,11 +6,11 @@
 
 [[file]]
 path = "agents/advisor-documentation/src/dd_agent_advisor_documentation/agent.py"
-lines = 761
+lines = 760
 
 [[file]]
 path = "agents/orchestrator-model/src/dd_agent_orchestrator_model/agent.py"
-lines = 585
+lines = 565
 
 [[file]]
 path = "app/web/src/components/inventory/InventoryView.tsx"
@@ -22,11 +22,11 @@ lines = 629
 
 [[file]]
 path = "harness/src/dd_harness/postgres/__init__.py"
-lines = 635
+lines = 601
 
 [[file]]
 path = "harness/src/dd_harness/testing/storage.py"
-lines = 1198
+lines = 1196
 
 [[file]]
 path = "scripts/blueprint/convert.py"
@@ -34,4 +34,4 @@ lines = 584
 
 [[file]]
 path = "sdk/src/dd_sdk/contract/models.py"
-lines = 746
+lines = 742
