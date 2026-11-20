@@ -32,7 +32,7 @@ from __future__ import annotations
 
 import re
 import weakref
-from collections.abc import Collection, Iterable, Iterator, Mapping
+from collections.abc import Iterable, Iterator, Mapping
 from contextlib import contextmanager
 from importlib.resources import files
 from typing import Any, Self
@@ -42,15 +42,8 @@ from psycopg import errors, sql
 from psycopg.types.json import Json
 from psycopg_pool import ConnectionPool
 
-from dd_harness.listing import (
-    Page,
-    Readable,
-    check_limit,
-    is_turn,
-    paged,
-    position,
-    principal_of,
-)
+from dd_harness.listing import Page, Readable, check_limit, is_turn, paged, position, principal_of
+from dd_harness.postgres.batch import BatchReads
 from dd_harness.postgres.naming import logs_naming_query, projects_naming_query
 from dd_harness.role_events import names
 from dd_harness.settings import SettingsError, redact_location
@@ -195,7 +188,7 @@ class _Pooled:
         self.close()
 
 
-class PostgresRunStore(_Pooled):
+class PostgresRunStore(_Pooled, BatchReads):
     """Runs kept in PostgreSQL. A run, its request, its prompts and its class schemas are stored
     in one transaction (invariant 4)."""
 
@@ -332,19 +325,6 @@ class PostgresRunStore(_Pooled):
 
     def get_request(self, invocation_id: str) -> dict[str, Any] | None:
         return self._column(invocation_id, "request")
-
-    def get_many(self, invocation_ids: Collection[str], part: str = "envelope") -> dict[str, Any]:
-        if part not in ("envelope", "request"):
-            raise ValueError(f"not a part of a run: {part!r}")
-        named = sorted({i for i in invocation_ids if RUN_ID.fullmatch(i)})
-        if not named:
-            return {}
-        query = sql.SQL(
-            "select invocation_id, {} from runs where invocation_id = any(%s::text[])"
-        ).format(sql.Identifier(part))
-        with self._pool.connection() as conn:
-            rows = conn.execute(query, (named,)).fetchall()
-        return {invocation_id: document for invocation_id, document in rows if document is not None}
 
     def get_prompts(self, invocation_id: str) -> dict[str, Any]:
         return self._column(invocation_id, "prompts") or {}

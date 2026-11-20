@@ -62,6 +62,7 @@ from dd_harness.testing.documents import DOCUMENTATION_CHECKS
 from dd_harness.testing.doubles import STUB_QUESTION, DocumentStub
 from dd_harness.testing.fact_storage import FACT_STORAGE_CHECKS
 from dd_harness.testing.fixtures import TEST_PRINCIPAL, document_request, request
+from dd_harness.testing.run_batches import RUN_BATCH_CHECKS
 from dd_harness.testing.serving import make_conductor
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
@@ -151,13 +152,6 @@ def check_a_run_is_written_once(make: MakeRunStorage) -> None:
     assert store.get(run_id) == envelope
     assert store.get_request(run_id) == {"agent_id": "stub.storage", "input": {"n": 1}}
     assert [e["invocation_id"] for e in store.iter_envelopes()] == [run_id]
-    # Many are read in one call; a run not stored, or named by a malformed identifier, is left out.
-    named = [run_id, stored_envelope()["invocation_id"], "../escape"]
-    assert store.get_many(named) == {run_id: envelope}
-    assert store.get_many(named, "request") == {
-        run_id: {"agent_id": "stub.storage", "input": {"n": 1}}
-    }
-    assert store.get_many([]) == {}
     # Reopened, as after a restart, the store holds the same run.
     assert make("runs").get(run_id) == envelope
 
@@ -299,7 +293,7 @@ def check_runs_are_listed_newest_first_a_page_at_a_time(make: MakeRunStorage) ->
     assert make("runs").list_runs(limit=50).items == store.list_runs(limit=50).items
 
 
-def check_conversations_are_listed_by_their_latest_turn(make: MakeRunStorage) -> None:
+def check_conversations_listed_by_latest_turn(make: MakeRunStorage) -> None:
     store = make("runs")
     first, second, delegated_only = (new_invocation_id() for _ in range(3))
     opening = stored_envelope(first)
@@ -331,7 +325,7 @@ def check_conversations_are_listed_by_their_latest_turn(make: MakeRunStorage) ->
     assert make("runs").list_conversations(limit=50).items == listed()
 
 
-def check_a_listing_includes_what_its_reader_may_read(make: MakeRunStorage) -> None:
+def check_a_listing_holds_what_a_reader_may_read(make: MakeRunStorage) -> None:
     store = make("runs")
     me, them = "https://orcid.org/0000-0000-0000-0001", "https://orcid.org/0000-0000-0000-0002"
     mine, theirs = new_invocation_id(), new_invocation_id()
@@ -393,13 +387,10 @@ RUN_STORAGE_CHECKS: dict[str, Callable[[MakeRunStorage], None]] = {
     "runs are listed newest first a page at a time": (
         check_runs_are_listed_newest_first_a_page_at_a_time
     ),
-    "conversations are listed by their latest turn": (
-        check_conversations_are_listed_by_their_latest_turn
-    ),
-    "a listing includes what its reader may read": (
-        check_a_listing_includes_what_its_reader_may_read
-    ),
+    "conversations are listed by their latest turn": check_conversations_listed_by_latest_turn,
+    "a listing includes what its reader may read": check_a_listing_holds_what_a_reader_may_read,
     "a malformed cursor names an empty page": check_a_malformed_cursor_names_an_empty_page,
+    **RUN_BATCH_CHECKS,
 }
 
 

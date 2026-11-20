@@ -22,11 +22,11 @@ lines = 629
 
 [[file]]
 path = "harness/src/dd_harness/postgres/__init__.py"
-lines = 635
+lines = 628
 
 [[file]]
 path = "harness/src/dd_harness/testing/storage.py"
-lines = 1236
+lines = 1234
 
 [[file]]
 path = "scripts/blueprint/convert.py"
