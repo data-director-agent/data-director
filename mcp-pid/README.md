@@ -67,7 +67,7 @@ Settings, all from the environment:
 `GET /healthz` answers when the server is up.
 
 A client lists each path as its own MCP server. The Data Director's tool configuration is
-[`config/examples/tools.yaml`](../config/examples/tools.yaml).
+[`app/config/tools.yaml`](../app/config/tools.yaml), and Docker Compose's [`docker/tools.yaml`](../docker/tools.yaml).
 
 ## Not yet
 

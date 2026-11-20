@@ -167,6 +167,8 @@ nav:
       - Inventory:
           - /inventory/README.md
           - Inventory library (TypeScript): /inventory/browser/README.md
+      - PID resolver:
+          - /mcp-pid/README.md
       - Agents:
           - Working on an agent: /agents/AGENTS.md
           - /agents/README.md
