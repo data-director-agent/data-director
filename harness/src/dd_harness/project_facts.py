@@ -32,7 +32,12 @@ Three core classes are filled. Within a project:
   from what a researcher chose to supply rather than ask for them. They are the project's
   researchers, not whom the run acts for: every run in the project is given the same. Its
   `project_repository` is the repository a researcher chose last (`repository_chosen`), by name
-  and re3data identifier, so that an orchestrator knows one is chosen and which (#1168).
+  and re3data identifier, so that an orchestrator knows one is chosen and which (#1168). Its
+  `project_inventory` says too when the inventory was added and how many files the one it
+  replaced listed, and its `project_drafts` give the latest version of each drafted document,
+  its state and whether it was drafted since the inventory was last added, without its text
+  (`dd_harness.project_drafts`), so that an orchestrator says what the latest version holds, not
+  what it said of an earlier one (#1280).
 
 A `DraftRequest`'s and a `Message`'s `project_decisions` are the facts people in the project
 decided about it (`dd_harness.projects.facts`): its funders, the repositories a funder or
@@ -56,13 +61,14 @@ requirements are the repository's, not the project's, and a `Message`'s entry po
 say only which steps of the process flow have gone how far; they are neither. Nor is a project's
 title: a name a researcher typed, or a model wrote from what was said in the conversation, which
 the model is sent anyway. Nor is a `Message`'s `project_documentation`: it holds a document's
-file name, as a researcher gave it in the conversation, and never its text. Researcher facts
-are `researcher`: public, but personal, so they go to a hosted model only where the profile says.
-They, and the text of attached documents, add to what an agent is given and no agent needs them,
-so where the profile keeps their class from an agent the conductor leaves them out (`leave_out`)
-rather than refusing the run; a metadata record, a version or answers withheld still refuse it,
-since the conductor classes what is left again. Decided facts
-are `decisions`: structured values about the project, which go to a hosted model unless the
+file name, as a researcher gave it in the conversation, and never its text. Nor are its
+`project_drafts`: each is a document's kind, version number and state, never its text.
+Researcher facts are `researcher`: public, but personal, so they go to a hosted model only where
+the profile says. They, and the text of attached documents, add to what an agent is given and
+no agent needs them, so where the profile keeps their class from an agent the conductor leaves
+them out (`leave_out`) rather than refusing the run; a metadata record, a version or answers
+withheld still refuse it, since the conductor classes what is left again. Decided facts are
+`decisions`: structured values about the project, which go to a hosted model unless the
 profile says otherwise; so is the repository a researcher chose, a decision too. Without them a
 drafter would draft as if nothing had been decided, so where the profile keeps them from a drafter
 the run is refused; a `Message`'s are left out instead, and so is its chosen repository, so that a
@@ -75,6 +81,7 @@ from collections.abc import Mapping
 from typing import Any, Protocol
 
 from dd_harness.progress import ENTRY_BY_RESEARCHER
+from dd_harness.project_drafts import drafts, revision
 from dd_harness.projects import TITLE_BY_RESEARCHER
 from dd_harness.storage import (
     ProjectDocuments,
@@ -109,6 +116,7 @@ MESSAGE_PROJECT_SLOTS = (
     "project_researchers",
     "project_decisions",
     "project_repository",
+    "project_drafts",
 )
 
 # The classes of project content (docs/specs/projects.md, invariant 8).
@@ -212,6 +220,8 @@ def give(
                 "project_decisions": store.decisions(project_id),
                 # Left out until a researcher chooses one.
                 "project_repository": chosen(summary["repository"]),
+                # Left out while the project holds no drafted document.
+                "project_drafts": drafts(store.events(project_id)) or None,
             },
         )
     elif schema_class == DRAFT_REQUEST:
@@ -363,6 +373,7 @@ def summarise(
         "inventory_tool": held["inventory_tool"],
         "inventory_tool_version": held["inventory_tool_version"],
         "inventory_made_at": held["inventory_made_at"],
+        **revision(store.events(project_id)),
     }
     if held.get("inventory_limitations"):
         summary["inventory_limitations"] = list(held["inventory_limitations"])

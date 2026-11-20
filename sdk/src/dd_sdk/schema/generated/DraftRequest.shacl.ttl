@@ -471,6 +471,12 @@ dd:ProjectFact a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
+            sh:description "The licence decided, as an SPDX identifier or a URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 14 ;
+            sh:path dd:licence_id ],
+        [ sh:datatype xsd:string ;
             sh:description "The kind of check that raised the fact, in the checking agent's words, such as duplicate, system_file or third_party. Kept as it was given; the core does not enumerate it." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -588,13 +594,7 @@ dd:ProjectFact a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 15 ;
-            sh:path dd:commitment_repository ],
-        [ sh:datatype xsd:string ;
-            sh:description "The licence decided, as an SPDX identifier or a URL." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 14 ;
-            sh:path dd:licence_id ] ;
+            sh:path dd:commitment_repository ] ;
     sh:targetClass dd:ProjectFact .
 
 dd:RepositoryRequirements a sh:NodeShape ;
@@ -1022,7 +1022,14 @@ dd:PersonalDataFinding a sh:NodeShape ;
     rdfs:comment "Where the inventory command found what may be personal data, and how sure it is (docs/specs/personal-data.md). It never holds a matched value, any part of one, an offset into a file, a row number or an example: a kind, a place, bands and the detector only. A finding is a prompt for a person, never a decision." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:description "What the detector took the data to be." ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The detector, its version and its configuration, such as the recognisers that ran, so that a reader knows what was looked for." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path dd:finding_detector ],
+        [ sh:description "What the detector took the data to be." ;
             sh:in ( "email address" "phone number" "NHS number" "National Insurance number" "postcode" "passport number" "driving licence number" "bank account number" "payment card number" "IP address" "person name" "direct identifier" "indirect identifier" "special category" "location" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -1064,13 +1071,6 @@ dd:PersonalDataFinding a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 7 ;
-            sh:path dd:finding_examined ],
-        [ sh:datatype xsd:string ;
-            sh:description "The detector, its version and its configuration, such as the recognisers that ran, so that a reader knows what was looked for." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 6 ;
-            sh:path dd:finding_detector ] ;
+            sh:path dd:finding_examined ] ;
     sh:targetClass dd:PersonalDataFinding .
 
