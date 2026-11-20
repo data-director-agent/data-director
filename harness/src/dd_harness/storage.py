@@ -132,6 +132,11 @@ class RunStorage(Protocol):
         a malformed name and `FileExistsError` for an artifact already kept."""
         ...
 
+    def put_artifacts(self, invocation_id: str, artifacts: Mapping[str, bytes]) -> None:
+        """Keep every artifact of `artifacts`, by name, or none of them: a database backend does so
+        in one transaction. Raises what `put_artifact` raises, and keeps nothing when it does."""
+        ...
+
     def get_artifact(self, invocation_id: str, name: str) -> bytes | None:
         """The run's artifact `name`, or None if there is none."""
         ...
