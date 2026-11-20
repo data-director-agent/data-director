@@ -171,7 +171,7 @@ describe("DocumentQuestions", () => {
     expect(screen.getByRole("button", { name: "Write the README" })).toBeEnabled();
     await userEvent.type(screen.getByRole("textbox", { name: "What unit is field_1 in?" }), "kg");
     await userEvent.click(screen.getByRole("button", { name: "Save and write the README" }));
-    expect(answer).toHaveBeenCalledOnce();
+    expect(answer).toHaveBeenCalledTimes(1);
     expect(onWrite).toHaveBeenCalledWith("Write the README from my answers.");
   });
 
