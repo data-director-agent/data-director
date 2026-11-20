@@ -34,6 +34,7 @@ from dd_harness.testing import (
     reply_over,
     request,
 )
+from dd_harness.testing.tools import ToolsPersona, fake_gateway, tools_profile
 from dd_harness.transport.agui import Cancellation, RunsInFlight, agui_routes, stream_run
 from dd_sdk import security_log
 from dd_sdk.agent import AgentResult, RunContext
@@ -373,6 +374,12 @@ class _Recording:
     def child_failed(self, invocation_id: str, agent_id: str, message: str) -> None:
         self._note("child failed", agent_id)
 
+    def tool_started(self, call_id: str, name: str) -> None:
+        self._note("tool started", name)
+
+    def tool_finished(self, call_id: str, name: str, *, ok: bool) -> None:
+        self._note("tool finished", f"{name} {ok}")
+
 
 @pytest.fixture
 def scripted(runs_dir: Path) -> Iterator[Callable[[], tuple[Conductor, InvocationRequest]]]:
@@ -526,3 +533,20 @@ def test_a_broken_observer_of_a_child_changes_nothing_about_either_run(runs_dir:
     )
     assert envelope.outcome.status.value == "succeeded"
     assert [d.delegated_status.value for d in envelope.delegations] == ["succeeded"]
+
+
+@pytest.mark.requirement("DD-TOOL-GATEWAY")
+def test_a_tool_call_streams_inside_the_agent_stage_by_name_only(runs_dir: Path) -> None:
+    profile = tools_profile(runs_dir.parent, {"fake.tools": ["spdx"]})
+    conductor = make_conductor(runs_dir, ToolsPersona(), profile=profile, gateway=fake_gateway())
+    events = _run(conductor, request("fake.tools", message("CC-BY-4.0")))
+    assert _check_shape(events)["outcome"]["status"] == "succeeded"
+    types = [e["type"] for e in events]
+    started, ended = types.index("TOOL_CALL_START"), types.index("TOOL_CALL_END")
+    agent_started = events.index({"type": "STEP_STARTED", "stepName": "agent"})
+    agent_finished = events.index({"type": "STEP_FINISHED", "stepName": "agent"})
+    assert agent_started < started < ended < agent_finished
+    assert events[started]["toolCallName"] == "spdx.get_licence"
+    assert events[started]["toolCallId"] == events[ended]["toolCallId"]
+    # Neither the call's arguments nor what it returned travel.
+    assert "CC-BY-4.0" not in json.dumps([events[started], events[ended]])

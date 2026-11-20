@@ -18,6 +18,9 @@ agent what it recorded in the result's `_meta` (`dd_sdk.tools.RECORDS_META`), ov
 anything a server put there. Text a tool returns is passed on and recorded as nothing.
 
 Each call is an `execute_tool` span in the invocation's trace, a child of its `invoke_agent` span.
+A grant issued with the run's `Watch` also tells the run's observer each call as it starts and as
+it finishes, by the tool's gateway name only, so that a person watching the run sees its tools
+used while the agent works (docs/specs/app.md, "Run events to the browser").
 """
 
 from __future__ import annotations
@@ -40,6 +43,7 @@ from opentelemetry.trace import NonRecordingSpan, SpanContext, Tracer
 
 from dd_harness.gateway.config import ToolServer, tools_digest
 from dd_harness.gateway.upstream import Upstream
+from dd_harness.observe import Watch
 from dd_sdk.agent import AgentSpec
 from dd_sdk.contract.models import ToolRetrieval, tool_source_id
 from dd_sdk.evidence import content_hash
@@ -74,6 +78,8 @@ class ToolGrant:
     parent: SpanContext | None
     records: list[ToolRetrieval] = field(default_factory=list)
     in_flight: int = 0
+    # The run's watch, told each call by name; none for a run nobody watches.
+    watch: Watch | None = None
 
 
 @dataclass
@@ -150,8 +156,11 @@ class Gateway:
         servers: Mapping[str, frozenset[str]],
         tracer: Tracer,
         parent: SpanContext | None,
+        watch: Watch | None = None,
     ) -> ToolGrant:
-        grant = ToolGrant(secrets.token_urlsafe(32), agent_id, dict(servers), tracer, parent)
+        grant = ToolGrant(
+            secrets.token_urlsafe(32), agent_id, dict(servers), tracer, parent, watch=watch
+        )
         with self._lock:
             self._grants[grant.token] = grant
         return grant
@@ -196,6 +205,22 @@ class Gateway:
         return grant
 
     async def _forward(
+        self, grant: ToolGrant, pinned: Pinned, tool: str, arguments: Mapping[str, Any]
+    ) -> CallToolResult:
+        name = gateway_name(pinned.server.name, tool)
+        call_id = secrets.token_hex(8)
+        if grant.watch is not None:
+            grant.watch.tool_started(call_id, name)
+        ok = False
+        try:
+            result = await self._answered(grant, pinned, tool, arguments)
+            ok = not result.is_error
+            return result
+        finally:
+            if grant.watch is not None:
+                grant.watch.tool_finished(call_id, name, ok=ok)
+
+    async def _answered(
         self, grant: ToolGrant, pinned: Pinned, tool: str, arguments: Mapping[str, Any]
     ) -> CallToolResult:
         parent = otel_context.attach(

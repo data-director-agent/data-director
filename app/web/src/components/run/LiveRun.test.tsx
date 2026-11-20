@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 
@@ -63,5 +63,65 @@ describe("LiveRun", () => {
     // The run carries on.
     expect(screen.getByRole("button", { name: "Cancel the run" })).toBeVisible();
     expect(await axe(container)).toHaveNoViolations();
+  });
+});
+
+describe("LiveRun while the agent works", () => {
+  const plan = parseCassette(succeededStream).slice(0, 2);
+  const agentRunning = [
+    ...plan,
+    { type: "STEP_STARTED", stepName: "gate" },
+    { type: "STEP_FINISHED", stepName: "gate" },
+    { type: "STEP_STARTED", stepName: "input" },
+    { type: "STEP_FINISHED", stepName: "input" },
+    { type: "STEP_STARTED", stepName: "agent" },
+  ];
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("draws the agent's children and tool calls under its stage", async () => {
+    const { container } = draw(
+      partway([
+        ...agentRunning,
+        { type: "SUBAGENT_STARTED", subagentRunId: "c", name: "advisor.quality" },
+        { type: "TOOL_CALL_START", toolCallId: "a", toolCallName: "spdx.get_licence" },
+        { type: "TOOL_CALL_END", toolCallId: "a" },
+      ]),
+    );
+    const done = within(stage("Agent") as HTMLElement).getByRole("list", {
+      name: "What the agent has done",
+    });
+    expect(done).toHaveTextContent("Asking advisor.quality…");
+    expect(done).toHaveTextContent("Used spdx.get_licence");
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("shows only the latest few, and counts the rest", () => {
+    const calls = Array.from({ length: 8 }, (_, i) => ({
+      type: "TOOL_CALL_START",
+      toolCallId: `t${i}`,
+      toolCallName: `tool.n${i}`,
+    }));
+    draw(partway([...agentRunning, ...calls]));
+    expect(screen.getByText("and 3 earlier")).toBeVisible();
+    expect(screen.queryByText("tool.n2")).toBeNull();
+    expect(screen.getByText("tool.n7")).toBeVisible();
+  });
+
+  it("counts the running stage's time, and says it is still working once the stream is quiet", () => {
+    vi.useFakeTimers();
+    draw(partway(agentRunning));
+    expect(stage("Agent")).toHaveTextContent("Running · 0:00");
+    expect(screen.queryByText(/Still working/)).toBeNull();
+    act(() => vi.advanceTimersByTime(21_000));
+    expect(stage("Agent")).toHaveTextContent("Running · 0:21");
+    expect(screen.getByText(/Still working/)).toBeVisible();
+  });
+
+  it("stops counting once the run has ended", () => {
+    draw(reduceAll(parseCassette(succeededStream)));
+    expect(stage("Agent")).not.toHaveTextContent("·");
   });
 });

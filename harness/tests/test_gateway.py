@@ -10,12 +10,15 @@ import json
 from pathlib import Path
 
 import pytest
+from opentelemetry import trace
+from opentelemetry.trace import Tracer
 
 from dd_harness import grounding
 from dd_harness import sources as source_check
 from dd_harness.conductor import Conductor
 from dd_harness.gateway.config import ToolConfigError, load_servers
 from dd_harness.gateway.core import ToolCallError
+from dd_harness.observe import NullObserver, Watch
 from dd_harness.policy import PolicyError, load_profile, withheld
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, message
 from dd_harness.testing.tools import (
@@ -162,6 +165,75 @@ def test_a_grant_expires_with_its_invocation(tmp_path: Path) -> None:
     assert c.gateway is not None
     with pytest.raises(ToolCallError, match="expired"):
         asyncio.run(c.gateway.call(tokens[0], "spdx.get_licence", {"id": "MIT"}))
+
+
+class _Tools(NullObserver):
+    """Notes each tool call it is told of; raises after noting, if asked to."""
+
+    def __init__(self, fail: bool = False) -> None:
+        self.told: list[tuple[str, str, str]] = []
+        self.fail = fail
+
+    def _note(self, what: str, call_id: str, detail: str) -> None:
+        self.told.append((what, call_id, detail))
+        if self.fail:
+            raise RuntimeError("a broken watcher")
+
+    def tool_started(self, call_id: str, name: str) -> None:
+        self._note("started", call_id, name)
+
+    def tool_finished(self, call_id: str, name: str, *, ok: bool) -> None:
+        self._note("finished", call_id, f"{name} {ok}")
+
+
+def test_a_run_s_observer_is_told_each_tool_call_by_name(tmp_path: Path) -> None:
+    c = conductor(tmp_path, ToolsPersona())
+    watcher = _Tools()
+    request = InvocationRequest(agent_id="fake.tools", input=message("CC-BY-4.0"))
+    envelope = c.invoke(request, acting_for=TEST_PRINCIPAL, observer=watcher)
+    assert envelope.outcome.status == OutcomeStatus.SUCCEEDED
+    (started, finished) = watcher.told
+    assert started[0::2] == ("started", "spdx.get_licence")
+    assert finished[0::2] == ("finished", "spdx.get_licence True")
+    assert started[1] == finished[1]  # one call, one id
+
+
+def test_a_tool_that_fails_is_told_as_finished_not_ok(tmp_path: Path) -> None:
+    gateway = fake_gateway()
+    gateway.connect()
+
+    class Down:
+        async def call_tool(self, *args: object) -> object:
+            raise ConnectionError("down")
+
+    gateway.upstream = Down()  # type: ignore[assignment]
+    watcher = _Tools()
+    grant = gateway.issue(
+        "fake.tools",
+        {"spdx": frozenset({"get_licence"})},
+        _tracer(),
+        None,
+        watch=Watch(watcher, None),
+    )
+    result = asyncio.run(gateway.call(grant.token, "spdx.get_licence", {"id": "MIT"}))
+    assert result.is_error
+    assert [(what, detail) for what, _, detail in watcher.told] == [
+        ("started", "spdx.get_licence"),
+        ("finished", "spdx.get_licence False"),
+    ]
+
+
+def test_a_broken_observer_changes_nothing_about_a_tool_call(tmp_path: Path) -> None:
+    c = conductor(tmp_path, ToolsPersona())
+    request = InvocationRequest(agent_id="fake.tools", input=message("CC-BY-4.0"))
+    envelope = c.invoke(request, acting_for=TEST_PRINCIPAL, observer=_Tools(fail=True))
+    assert envelope.outcome.status == OutcomeStatus.SUCCEEDED
+    assert [r.source_id for r in envelope.tool_retrievals] == ["tool:spdx/CC-BY-4.0"]
+
+
+def _tracer() -> Tracer:
+    """A tracer for a grant used outside a run."""
+    return trace.get_tracer("test")
 
 
 def test_an_agents_own_span_for_a_tool_source_counts_for_nothing(tmp_path: Path) -> None:

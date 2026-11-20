@@ -10,7 +10,8 @@
  *   not reached: a run referred at the policy gate goes straight to the checks.
  * - A reply's text is shown whole: `TEXT_MESSAGE_*` content is kept until the message ends. Until
  *   #159 settles streamed replies, the text comes with the envelope instead.
- * - Tool calls and subagent events are entries in the log only; reasoning is counted, not shown.
+ * - Tool calls and subagent events are entries in the log, from which the run view draws what the
+ *   agent is doing (`agentActivity`); reasoning is counted, not shown.
  * - A type or `CUSTOM` name the shell does not know is counted, as is an event that arrives after
  *   the run has ended. A malformed event is counted and logged, and the run carries on.
  * - The end of the stream is not an event: `streamEnded` says a run that had not finished was

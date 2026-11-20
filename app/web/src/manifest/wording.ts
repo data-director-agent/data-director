@@ -112,3 +112,12 @@ export const STAGE_STATE: Record<
   finished: { label: "Done", tone: "ok" },
   "not-reached": { label: "Not reached", tone: "plain" },
 };
+
+/** What the run view says of the agent's activity while its stage runs (`AgentActivity`). */
+export const AGENT_ACTIVITY = {
+  subagent: { running: "Asking", done: "Asked", failed: "Could not ask" },
+  tool: { running: "Using", done: "Used", failed: "Could not use" },
+  /** Said once the stream has been quiet for a while; it claims nothing it does not know. */
+  quiet: "Still working: some questions take a minute or two.",
+  earlier: (n: number) => `and ${n} earlier`,
+} as const;
