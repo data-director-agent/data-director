@@ -32,6 +32,7 @@ members = [
     "data-director-app",
     "data-director-harness",
     "data-director-inventory",
+    "data-director-mcp-pid",
     "data-director-model-broker",
     "data-director-sdk",
     "data-director-workbench",
@@ -1053,6 +1054,7 @@ dependencies = [
     { name = "data-director-app" },
     { name = "data-director-harness", extra = ["serve"] },
     { name = "data-director-inventory" },
+    { name = "data-director-mcp-pid" },
     { name = "data-director-model-broker" },
     { name = "data-director-sdk" },
     { name = "data-director-workbench" },
@@ -1117,6 +1119,7 @@ requires-dist = [
     { name = "data-director-app", editable = "app" },
     { name = "data-director-harness", extras = ["serve"], editable = "harness" },
     { name = "data-director-inventory", editable = "inventory" },
+    { name = "data-director-mcp-pid", editable = "mcp-pid" },
     { name = "data-director-model-broker", editable = "broker" },
     { name = "data-director-sdk", editable = "sdk" },
     { name = "data-director-workbench", editable = "workbench" },
@@ -1342,6 +1345,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "data-director-harness" },
+    { name = "data-director-mcp-pid" },
 ]
 
 [package.metadata]
@@ -1352,7 +1356,10 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-dev = [{ name = "data-director-harness", editable = "harness" }]
+dev = [
+    { name = "data-director-harness", editable = "harness" },
+    { name = "data-director-mcp-pid", editable = "mcp-pid" },
+]
 
 [[package]]
 name = "data-director-agent-advisor-metadata"
@@ -1384,6 +1391,7 @@ name = "data-director-agent-advisor-policy"
 version = "0.1.0a2"
 source = { editable = "agents/advisor-policy" }
 dependencies = [
+    { name = "data-director-mcp-pid" },
     { name = "data-director-sdk" },
     { name = "httpx" },
     { name = "pydantic" },
@@ -1403,6 +1411,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "data-director-mcp-pid", editable = "mcp-pid" },
     { name = "data-director-sdk", editable = "sdk" },
     { name = "data-director-sdk", extras = ["anthropic", "openai"], marker = "extra == 'model'", editable = "sdk" },
     { name = "httpx", specifier = ">=0.28" },
@@ -1796,6 +1805,43 @@ provides-extras = ["pii-ner"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "data-director-sdk", editable = "sdk" }]
+
+[[package]]
+name = "data-director-mcp-pid"
+version = "0.1.0a0"
+source = { editable = "mcp-pid" }
+dependencies = [
+    { name = "anyio" },
+    { name = "httpx" },
+    { name = "mcp" },
+    { name = "mcp-types" },
+    { name = "pydantic" },
+    { name = "starlette" },
+    { name = "uvicorn" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "data-director-harness", extra = ["gateway"] },
+    { name = "data-director-sdk" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "anyio", specifier = ">=4" },
+    { name = "httpx", specifier = ">=0.28" },
+    { name = "mcp", specifier = ">=2.3,<2.4" },
+    { name = "mcp-types", specifier = ">=2.3,<2.4" },
+    { name = "pydantic", specifier = ">=2.14.1,<3" },
+    { name = "starlette", specifier = ">=0.40" },
+    { name = "uvicorn", specifier = ">=0.30" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "data-director-harness", extras = ["gateway"], editable = "harness" },
+    { name = "data-director-sdk", editable = "sdk" },
+]
 
 [[package]]
 name = "data-director-model-broker"

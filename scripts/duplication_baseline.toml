@@ -121,11 +121,6 @@ clones = 1
 lines = 7
 
 [[pair]]
-files = ["agents/advisor-policy/src/dd_agent_advisor_policy/policy_text.py", "agents/advisor-policy/src/dd_agent_advisor_policy/ror.py"]
-clones = 1
-lines = 10
-
-[[pair]]
 files = ["agents/advisor-policy/src/dd_agent_advisor_policy/ror.py", "agents/advisor-repository/src/dd_agent_advisor_repository/registry.py"]
 clones = 1
 lines = 11
@@ -204,11 +199,6 @@ lines = 8
 files = ["harness/src/dd_harness/remote.py", "sdk/src/dd_sdk/delegate.py"]
 clones = 2
 lines = 25
-
-[[pair]]
-files = ["harness/src/dd_harness/testing/storage.py", "harness/src/dd_harness/testing/storage.py"]
-clones = 3
-lines = 27
 
 [[pair]]
 files = ["harness/src/dd_harness/transport/a2a.py", "sdk/src/dd_sdk/serve.py"]

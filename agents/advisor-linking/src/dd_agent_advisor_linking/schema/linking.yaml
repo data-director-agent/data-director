@@ -103,13 +103,18 @@ slots:
     required: true
   resolved:
     description: >-
-      Whether a DOI was found through the tool gateway. Absent when no lookup was made; false when
-      it was made and found nothing or failed, with the reason in message.
+      Whether the identifier (a DOI, ORCID iD or ROR id) was found through the tool gateway. Absent
+      when no lookup was made; false when it was made and found nothing or failed, with the reason
+      in message.
     range: boolean
   title:
-    description: The title of the record a resolved DOI names, as the source gives it.
+    description: >-
+      What a resolved identifier names, as the source gives it: a DOI's title, a person's public
+      name or an organisation's name.
   resource_type:
-    description: The type of the record a resolved DOI names, as the source gives it.
+    description: >-
+      The type of what a resolved identifier names, as the source gives it: a DOI's resource type,
+      Person for an ORCID iD, or an organisation's first ROR type.
   message:
     description: What the researcher should check or do with the identifier.
     required: true

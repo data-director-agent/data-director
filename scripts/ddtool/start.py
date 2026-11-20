@@ -1,4 +1,8 @@
-"""`dd.py start`: run the agents, the app and the shell's dev server; Ctrl-C stops them all."""
+"""`dd.py start`: run the agents, the app and the shell's dev server; Ctrl-C stops them all.
+
+With `pid_resolver: true` in deployment.yaml it runs the PID resolver (mcp-pid) first, since the
+app lists the gateway's servers once, when it starts.
+"""
 
 from __future__ import annotations
 
@@ -13,7 +17,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 
-from ddtool import paths
+from ddtool import paths, pid_resolver
 from ddtool.common import (
     APP_PORT,
     EXAMPLE_PRINCIPAL,
@@ -119,6 +123,15 @@ class Stack:
                     os.killpg(service.proc.pid, signal.SIGKILL)
 
 
+def start_pid_resolver(stack: Stack, env: dict[str, str]) -> None:
+    port = pid_resolver.PORT
+    service = Service("mcp-pid", ["uv", "run", "dd-mcp-pid", "serve", "--port", str(port)], env)
+    stack.start(service)
+    if not stack.wait_for(service, f"http://127.0.0.1:{port}/healthz"):
+        raise DevError("the PID resolver did not start; its output is above")
+    stack.say(service.name, f"ready at http://127.0.0.1:{port} (DataCite, Crossref, ORCID, ROR)")
+
+
 def start(*, agents_only: bool, web: bool, reload: bool = True) -> int:  # noqa: C901, PLR0912, PLR0915
     ensure_local_tree()
     agents = load_agents()
@@ -127,7 +140,8 @@ def start(*, agents_only: bool, web: bool, reload: bool = True) -> int:  # noqa:
     place = Place.dev()
     if apply(System(), place) != 0:
         raise DevError(f"{shown(place.deployment)} asks for what cannot run; see above")
-    running = {a.name for a in load_deployment(place.deployment, agents).runs(agents)}
+    deployment = load_deployment(place.deployment, agents)
+    running = {a.name for a in deployment.runs(agents)}
     base = workspace_env()
     app = app_env()
     # An app that signs people in acts for no operator, and refuses one (docs/specs/policy-and-identity.md).
@@ -141,8 +155,10 @@ def start(*, agents_only: bool, web: bool, reload: bool = True) -> int:  # noqa:
         )
     if omitted := profile_omissions({**os.environ, **app}):
         print(f"Note: {omissions_note(omitted)}.")
-    ports = [a.port for a in agents] + (
-        [] if agents_only else [APP_PORT] + ([WEB_PORT] if web else [])
+    ports = (
+        [a.port for a in agents]
+        + ([pid_resolver.PORT] if deployment.pid_resolver else [])
+        + ([] if agents_only else [APP_PORT] + ([WEB_PORT] if web else []))
     )
     if taken := [p for p in ports if not port_free(p)]:
         raise DevError(
@@ -156,6 +172,8 @@ def start(*, agents_only: bool, web: bool, reload: bool = True) -> int:  # noqa:
     stack = Stack()
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))  # stop the stack as Ctrl-C does
     try:
+        if deployment.pid_resolver:
+            start_pid_resolver(stack, base | pid_resolver.server_env())
         started: list[tuple[Agent, Service]] = []
         for agent in agents:
             env = base | agent_env(agent)

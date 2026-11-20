@@ -9,9 +9,11 @@ Today the log makes one owner, the principal who created the project (`project_c
 membership events that add members, change roles and remove them are TODO(#389): they extend
 `roles` and `dd_harness.role_events.names`, and nothing that calls `may` changes.
 
-`readable_projects` finds the projects a principal may read without reading every project's log:
-the backend names the projects whose log may give them a role (`ProjectLifecycle.projects_naming`,
-an index in a database), and only those logs are read here to confirm it.
+`readable_logs` finds the projects a principal may read without reading every project's log:
+the backend reads, at once, the logs of the projects whose log may give them a role
+(`ProjectLifecycle.logs_naming`, one query over an index in a database), and those logs alone
+decide it here. `readable_projects`, `deleted_projects` and `hidden_in` are each one read too, so
+what a listing asks of the store does not grow with the number of projects.
 
 A caller that refuses a principal with no role answers as for a project that does not exist, so
 that a refusal does not reveal whether it does; one that refuses a member an owner's action says
@@ -23,7 +25,7 @@ role, so that they may restore it, and finds it in `deleted_projects`.
 
 A conversation in a project may be deleted and restored by whoever started it, while they may
 still contribute to the project, and by an owner (invariant 30): `may_delete_conversation`.
-`hidden_conversations` gives the deleted conversations of the projects a principal may read, which
+`hidden_in` gives the deleted conversations of the logs of the projects a principal may read, which
 every listing leaves out (`dd_harness.listing.Readable`).
 """
 
@@ -33,6 +35,7 @@ from collections.abc import Iterable, Mapping
 from enum import StrEnum
 from typing import Any, Protocol
 
+from dd_harness.listing import Readable
 from dd_harness.projects import PROJECT_CREATED, conversation_deletions, deletion
 from dd_harness.storage import ProjectConversations, ProjectLifecycle
 from dd_sdk.contract.models import Principal
@@ -103,28 +106,32 @@ def may(store: ProjectLifecycle, project_id: str, principal: Principal, action: 
     return allowed(role_of(store, project_id, principal), action)
 
 
+def readable_logs(store: ProjectLifecycle, principal: Principal) -> dict[str, list[dict[str, Any]]]:
+    """The log of each project `principal` may read, by project, the one created first first,
+    deleted ones left out. Only the logs of the projects that name them are read, in one read, so
+    the cost follows their projects, not the store's, and the number of reads follows neither."""
+    return {
+        project_id: events
+        for project_id, events in store.logs_naming(principal.principal_id).items()
+        if deletion(events) is None and allowed(_role(events, principal), Action.READ)
+    }
+
+
 def readable_projects(store: ProjectLifecycle, principal: Principal) -> list[str]:
-    """The projects `principal` may read, the one created first first, deleted ones left out.
-    Only the logs of the projects that name them are read, so the cost follows their projects,
-    not the store's."""
-    found = []
-    for project_id in store.projects_naming(principal.principal_id):
-        events = store.events(project_id)
-        if deletion(events) is None and allowed(_role(events, principal), Action.READ):
-            found.append(project_id)
-    return found
+    """The projects `principal` may read, the one created first first, deleted ones left out
+    (`readable_logs`)."""
+    return list(readable_logs(store, principal))
 
 
 def deleted_projects(store: ProjectLifecycle, principal: Principal) -> list[str]:
     """The deleted projects `principal` may restore, the one created first first: those they
     own (docs/specs/projects.md, invariant 23). Whether each may still be restored is in its
-    summary's `deleted`."""
-    found = []
-    for project_id in store.projects_naming(principal.principal_id):
-        events = store.events(project_id)
-        if deletion(events) is not None and allowed(_role(events, principal), Action.MANAGE):
-            found.append(project_id)
-    return found
+    summary's `deleted`. One read, as for `readable_logs`."""
+    return [
+        project_id
+        for project_id, events in store.logs_naming(principal.principal_id).items()
+        if deletion(events) is not None and allowed(_role(events, principal), Action.MANAGE)
+    ]
 
 
 class ConversationAccess(ProjectLifecycle, ProjectConversations, Protocol):
@@ -143,13 +150,25 @@ def may_delete_conversation(
     return starter == principal.principal_id and allowed(role, Action.CONTRIBUTE)
 
 
-def hidden_conversations(store: ProjectLifecycle, project_ids: Iterable[str]) -> frozenset[str]:
-    """The deleted conversations of the projects `project_ids`, which a listing leaves out."""
+def readable_from(reader: Principal, logs: Mapping[str, list[dict[str, Any]]]) -> Readable:
+    """What a listing includes for `reader`, from the logs of the projects they may read
+    (`readable_logs`): runs in those projects but not in their deleted conversations, and runs
+    in no project that acted for them."""
+    return Readable(reader.principal_id, frozenset(logs), hidden_in(logs.values()))
+
+
+def hidden_in(logs: Iterable[Iterable[Mapping[str, Any]]]) -> frozenset[str]:
+    """The deleted conversations of the projects whose logs, already read, are `logs`, which a
+    listing leaves out."""
     return frozenset(
-        conversation_id
-        for project_id in project_ids
-        for conversation_id in conversation_deletions(store.events(project_id))
+        conversation_id for events in logs for conversation_id in conversation_deletions(events)
     )
+
+
+def hidden_conversations(store: ProjectLifecycle, project_ids: Iterable[str]) -> frozenset[str]:
+    """The deleted conversations of the projects `project_ids`, which a listing leaves out. A
+    listing that has the logs already uses `hidden_in`."""
+    return hidden_in(store.events(project_id) for project_id in project_ids)
 
 
 def conversation_deleted(store: ProjectLifecycle, project_id: str, conversation_id: str) -> bool:

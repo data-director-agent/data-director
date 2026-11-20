@@ -50,10 +50,19 @@ services:
   advisor-fairness:
     environment: *fake-model
     depends_on: *needs-fake-llm
+  advisor-files:
+    environment: *fake-model
+    depends_on: *needs-fake-llm
+  advisor-linking:
+    environment: *fake-model
+    depends_on: *needs-fake-llm
   advisor-metadata:
     environment: *fake-model
     depends_on: *needs-fake-llm
   advisor-policy:
+    environment: *fake-model
+    depends_on: *needs-fake-llm
+  advisor-quality:
     environment: *fake-model
     depends_on: *needs-fake-llm
   advisor-repository:

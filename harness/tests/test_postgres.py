@@ -530,3 +530,31 @@ def test_finding_a_persons_projects_reads_their_projects_not_the_store(blank: Lo
         (n["Actual Rows"] + n.get("Rows Removed by Filter", 0)) * n["Actual Loops"] for n in tables
     )
     assert read <= 2 * theirs, (read, nodes)
+
+
+def test_reading_a_persons_project_logs_reads_their_projects_not_the_store(blank: Locate) -> None:
+    """The logs of the projects whose log names a principal are read in one query, from the
+    indexes, reading entries in proportion to their projects' events, never to the store (#1257)."""
+    location = blank("projects")
+    kit.at_version_one(location)
+    _many_projects(location, 20000)
+    postgres.migrate(location)
+    with psycopg.connect(location, autocommit=True) as conn:
+        conn.execute("analyze")
+    theirs = 20000 // 50
+    logs = postgres.PostgresProjectLog(location).logs_naming("principal-7")
+    assert list(logs) == [_project(i) for i in range(7, 20001, 50)]
+    assert {len(events) for events in logs.values()} == {4}
+    assert all(events[0]["event"] == "project_created" for events in logs.values())
+    sql, params = postgres.logs_naming_query("principal-7")
+    with psycopg.connect(location) as conn:
+        row = conn.execute(f"explain (analyze, format json) {sql}", params).fetchone()
+    assert row is not None
+    nodes = list(_scans(row[0][0]["Plan"]))
+    tables = [n for n in nodes if n.get("Relation Name")]
+    assert tables, "the plan reads no table"
+    assert not [n for n in tables if n["Node Type"] == "Seq Scan"], tables
+    read = sum(
+        (n["Actual Rows"] + n.get("Rows Removed by Filter", 0)) * n["Actual Loops"] for n in tables
+    )
+    assert read <= 6 * theirs, (read, nodes)

@@ -25,8 +25,8 @@ from dd_agent_advisor_policy.grounding import org_evidence, org_ref, record_evid
 from dd_agent_advisor_policy.reading import TextReadings
 from dd_agent_advisor_policy.records import PolicyRecord
 from dd_agent_advisor_policy.retrieve import SourceRecord
-from dd_agent_advisor_policy.ror_records import Organisation
 from dd_agent_advisor_policy.search import FirstSearch
+from dd_mcp_pid.ror_records import Organisation
 from dd_sdk.agent import AgentResult, abstain
 from dd_sdk.contract.models import Derivation, EvidenceItem, Outcome, OutcomeStatus, ReasonCode
 

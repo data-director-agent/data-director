@@ -337,9 +337,9 @@ class Governance:
     # by the principal it acted for. Ownership is read from what the run store and the project logs
     # already record, never from a second record that could disagree with them. A delegated child
     # carries its parent's `acting_for` and `project_id`, so it belongs where its parent does.
-    # The run store lists what a reader may read (`readable`); the projects they may read are
-    # found from the projects whose logs name them (`project_access.readable_projects`), so
-    # neither reads every project's log.
+    # The run store lists what a reader may read (`readable`), decided from the logs of the projects
+    # that name them, read at once (`project_access.readable_logs`): no listing reads every
+    # project's log, or makes a read per project.
 
     def role(self, project_id: str, principal: Principal) -> Role | None:
         """`principal`'s role in the project `project_id`, as the harness's access check reads it
@@ -391,9 +391,8 @@ class Governance:
         their deleted conversations, and runs in no project that acted for them."""
         if self.projects is None:
             return Readable(reader.principal_id, None)
-        project_ids = frozenset(project_access.readable_projects(self.projects, reader))
-        hidden = project_access.hidden_conversations(self.projects, project_ids)
-        return Readable(reader.principal_id, project_ids, hidden)
+        logs = project_access.readable_logs(self.projects, reader)
+        return project_access.readable_from(reader, logs)
 
     def stored_conversation(self, conversation_id: str) -> dict[str, Any] | None:
         """A conversation as `dd_harness.conversations` derives it, with what its project holds

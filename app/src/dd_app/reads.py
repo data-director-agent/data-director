@@ -54,17 +54,16 @@ class Reads:
         check_limit(limit)
         if self.governance.projects is None:
             return Page([])
-        newest_first = list(
-            reversed(project_access.readable_projects(self.governance.projects, principal))
-        )
+        logs = project_access.readable_logs(self.governance.projects, principal)
+        newest_first = list(reversed(logs))
         if before is not None:
             if before not in newest_first:
                 return Page([])
             newest_first = newest_first[newest_first.index(before) + 1 :]
         found: list[dict[str, Any]] = []
-        every = self._every_conversation(self.governance.readable(principal))
+        every = self._every_conversation(project_access.readable_from(principal, logs))
         for project_id in newest_first:
-            summary = self.governance.projects.summary(project_id)
+            summary = self.governance.projects.summary_of(project_id, logs[project_id])
             listed = [
                 {key: c.get(key) for key in LISTED_CONVERSATION}
                 for c in every
@@ -74,7 +73,7 @@ class Reads:
                 not listed
                 and summary["inventory"] is None
                 and not any(summary["documents"].values())
-                and self.governance.projects.events(project_id)[0]["caused_by"] != CREATED_BY_ROUTE
+                and logs[project_id][0]["caused_by"] != CREATED_BY_ROUTE
             ):
                 continue
             if len(found) == limit:

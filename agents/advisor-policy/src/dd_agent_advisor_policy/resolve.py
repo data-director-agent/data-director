@@ -24,7 +24,7 @@ from dataclasses import dataclass
 
 from dd_agent_advisor_policy.classes import Actor, ActorRole
 from dd_agent_advisor_policy.ror import Organisations
-from dd_agent_advisor_policy.ror_records import FUNDER, Organisation
+from dd_mcp_pid.ror_records import FUNDER, Organisation
 
 # Names of a resolved organisation searched in FAIRsharing, at most.
 MAX_NAMES = 6

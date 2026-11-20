@@ -24,10 +24,10 @@ from dd_agent_advisor_policy.extract import Extraction, ModelExtractor, Read, fo
 from dd_agent_advisor_policy.policy_text import PolicyText, html_text
 from dd_agent_advisor_policy.records import Clause, PolicyRecord, Relation
 from dd_agent_advisor_policy.ror import RorDump
-from dd_agent_advisor_policy.ror_records import Organisation
 from dd_agent_advisor_policy.search import Sources
 from dd_agent_advisor_policy.snapshot import PolicySnapshot
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
+from dd_mcp_pid.ror_records import Organisation
 from dd_sdk.agent import describe
 from dd_sdk.contract.models import Envelope, OutcomeStatus, ReasonCode
 from dd_sdk.evidence import verify

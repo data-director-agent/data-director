@@ -1,0 +1,25 @@
+# The MCP servers the harness's tool gateway calls (DD_TOOLS_CONFIG; docs/guide/operations/configuration.md).
+# The PID resolver (mcp-pid/README.md), one server per registry, as `dd.py start` runs it when deployment.yaml sets pid_resolver: true.
+# A changed tool list is refused until it is reviewed and pinned again: `uv run dd-harness tools pins`
+# prints each digest, and mcp-pid/tests/test_pid_gateway.py fails if these pins drift from the server.
+servers:
+  - name: datacite
+    url: http://127.0.0.1:8310/datacite/mcp
+    id_field: doi
+    canonicalisation: dd-json-document-v1
+    tools_sha256: "920097bf478e88bd6f1f88e84ac2e8ccc21aee98937575da994f84f20b98d750"
+  - name: crossref
+    url: http://127.0.0.1:8310/crossref/mcp
+    id_field: doi
+    canonicalisation: dd-json-document-v1
+    tools_sha256: "b47aa55c099b63cc12745ed75d966f34aef9dd47bf030da0bebf285f2ab3ec38"
+  - name: orcid
+    url: http://127.0.0.1:8310/orcid/mcp
+    id_field: orcid
+    canonicalisation: dd-json-document-v1
+    tools_sha256: "c0fbc9fd3d01812a5a423e5844c371ff6cdb788dca0e525a8c3451df9d5092dc"
+  - name: ror
+    url: http://127.0.0.1:8310/ror/mcp
+    id_field: id
+    canonicalisation: dd-json-document-v1
+    tools_sha256: "79f2cbc5468494b2b67f614247c4141df8ca14ebb89ee93bf27fed8d44a2ec52"

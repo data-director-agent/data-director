@@ -21,7 +21,10 @@ Import everything from here; the modules are an internal arrangement:
   checks any storage backend must pass, and `check_project_storage`, which the last runs over the
   project rules (docs/specs/storage.md); each check is also named in `RUN_STORAGE_CHECKS`,
   `PROJECT_LOG_CHECKS` and `PROJECT_STORAGE_CHECKS`. `check_shared_record` (`SHARED_RECORD_CHECKS`)
-  holds two logs over one record to one another, which a backend serving several instances passes.
+  holds two logs over one record to one another, which a backend serving several instances passes;
+  it is in `shared_record`.
+- `counting`: `CountingLog`, a project log that counts the reads and changes asked of it, so a
+  test can show that a listing's reads do not grow with the number of projects.
 - `turn_locks`: `check_conversation_locks` (`CONVERSATION_LOCK_CHECKS`), the conformance checks
   a backend of each conversation's turn lock must pass (docs/specs/storage.md, "Turn locks").
 - `replay`: `check_a_log_replays_as_it_folds`, which holds a backend's project log to folding the
@@ -40,6 +43,7 @@ from dd_harness.testing.classes import (
     ProbeRecord,
     ProbeReview,
 )
+from dd_harness.testing.counting import CountingLog
 from dd_harness.testing.deposit import clear_review
 from dd_harness.testing.doubles import (
     SPECS,
@@ -83,16 +87,15 @@ from dd_harness.testing.serving import (
     make_conductor,
     send_to_harness,
 )
+from dd_harness.testing.shared_record import SHARED_RECORD_CHECKS, check_shared_record
 from dd_harness.testing.storage import (
     PROJECT_LOG_CHECKS,
     PROJECT_STORAGE_CHECKS,
     RUN_STORAGE_CHECKS,
-    SHARED_RECORD_CHECKS,
     check_project_log,
     check_project_rules,
     check_project_storage,
     check_run_storage,
-    check_shared_record,
     file_inventory,
     file_inventory_of_parts,
 )
@@ -118,6 +121,7 @@ __all__ = [
     "AbstainingStub",
     "Behaviour",
     "Chat",
+    "CountingLog",
     "DocumentStub",
     "FactStub",
     "FakeIdentityProvider",

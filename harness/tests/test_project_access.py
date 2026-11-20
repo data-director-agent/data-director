@@ -12,14 +12,17 @@ from dd_harness.project_access import (
     Role,
     allowed,
     deleted_projects,
+    hidden_in,
     may,
+    readable_logs,
     readable_projects,
     role_of,
     roles,
 )
-from dd_harness.projects import ProjectStore
+from dd_harness.project_files import FileProjectLog
+from dd_harness.projects import Projects, ProjectStore, UnknownProjectError
 from dd_harness.role_events import names
-from dd_harness.testing import TEST_PRINCIPAL
+from dd_harness.testing import TEST_PRINCIPAL, CountingLog
 from dd_sdk.contract.models import Principal
 
 SOMEONE_ELSE = Principal(principal_id="https://orcid.org/0000-0002-1694-233X", name="Someone Else")
@@ -91,3 +94,46 @@ def test_a_deleted_project_is_hidden_from_all_but_its_owner(projects: ProjectSto
     assert may(projects, project_id, TEST_PRINCIPAL, Action.MANAGE)
     assert role_of(projects, project_id, SOMEONE_ELSE) is None
     assert deleted_projects(projects, SOMEONE_ELSE) == []
+
+
+def _counted(root: Path) -> tuple[Projects, CountingLog]:
+    log = CountingLog(FileProjectLog(root))
+    return Projects(log.as_log()), log
+
+
+@pytest.mark.parametrize("count", [1, 20])
+def test_deciding_what_a_person_may_read_is_one_read_whatever_their_projects(
+    tmp_path: Path, count: int
+) -> None:
+    """Issue #1257: the projects a person may read, their deleted projects and their deleted
+    conversations are each decided from one read of the store, not one per project."""
+    projects, log = _counted(tmp_path / "projects")
+    mine = [projects.create(acted_for=TEST_PRINCIPAL, caused_by="test") for _ in range(count)]
+    conversation_id = projects.start_conversation(
+        mine[0], acted_for=TEST_PRINCIPAL, caused_by="test"
+    )
+    projects.delete_conversation(
+        mine[0], conversation_id, acted_for=TEST_PRINCIPAL, caused_by="test"
+    )
+    gone = projects.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    projects.delete(gone, acted_for=TEST_PRINCIPAL, caused_by="test")
+    projects.create(acted_for=SOMEONE_ELSE, caused_by="test")
+    log.calls.clear()
+    logs = readable_logs(projects, TEST_PRINCIPAL)
+    assert list(logs) == readable_projects(projects, TEST_PRINCIPAL) == mine
+    assert hidden_in(logs.values()) == {conversation_id}
+    assert deleted_projects(projects, TEST_PRINCIPAL) == [gone]
+    assert log.calls == {"logs_naming": 3}
+
+
+def test_reading_a_projects_log_asks_nothing_else(tmp_path: Path) -> None:
+    """A read of a project's events is one read: no `exists` before it (#1257). An unknown or
+    malformed project still raises."""
+    projects, log = _counted(tmp_path / "projects")
+    project_id = projects.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    log.calls.clear()
+    projects.events(project_id)
+    assert log.calls == {"events": 1}
+    for unknown in ("01900000-0000-7000-8000-000000000000", "../elsewhere", ""):
+        with pytest.raises(UnknownProjectError):
+            projects.events(unknown)

@@ -89,3 +89,10 @@ class ProjectLog(Protocol):
         order created: the projects whose log may give them a role. A database answers from an
         index, so the cost follows the principal's projects, not the store's."""
         ...
+
+    def logs_naming(self, principal_id: str) -> dict[str, list[dict[str, Any]]]:
+        """Every event of each project `projects_naming` gives, oldest first, by project in the
+        order created: what deciding the principal's access to all their projects reads, in one
+        read. A database answers in one query, so the number of queries does not grow with the
+        principal's projects."""
+        ...

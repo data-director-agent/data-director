@@ -20,6 +20,12 @@ disabled: []
 # does not cover an instance (docs/guide/operations/privacy.md).
 # privacy_notice: https://example.ac.uk/data-director/privacy
 
+# Whether the Linking Adviser resolves DOIs, ORCID iDs and ROR ids through the PID resolver, which
+# asks DataCite, Crossref, ORCID and ROR, sending only the identifiers (mcp-pid/README.md). Off,
+# it checks their form only. Development only for now: `dd.py start` (or Docker Compose) runs the
+# server, and `apply` refuses it on a VM.
+# pid_resolver: true
+
 # Whether people may pay for model calls with their own AI provider account, copied into the
 # profile as written. Leave it out and the deployment pays. It needs the model broker and the
 # grant secrets first (docs/guide/operations/model-broker.md); the app stops at start-up without
