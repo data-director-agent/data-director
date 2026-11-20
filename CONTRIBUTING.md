@@ -97,7 +97,7 @@ locally from the repository root:
 | Container image (`.github/workflows/images.yml`, its own workflow) | `docker build -f docker/release.Dockerfile --build-arg REVISION="$(git rev-parse HEAD)" -t data-director:smoke . && python3 scripts/smoke_image.py --image data-director:smoke --revision "$(git rev-parse HEAD)"` |
 | Workbench viewer in a browser | `uv run playwright install chromium && uv run pytest workbench/browser_tests` |
 | App shell (three jobs: checks, Vitest, Playwright) | in `app/web`: `npm ci && npm run lint && npm run typecheck && npm run build && npm test && npm run e2e` |
-| Links and citation file | `lychee --offline --include-fragments '**/*.md'`, `uvx cffconvert --validate`, `uv run scripts/check_citation.py`, `scripts/check_todos.py` and `scripts/check_boundaries.py` |
+| Links and citation file | `lychee --offline --include-fragments '**/*.md'`, `uvx cffconvert --validate`, `uv run scripts/check_citation.py`, `scripts/check_todos.py`, `scripts/check_boundaries.py` and `scripts/check_codeowners.py` |
 | Workflows | `uvx zizmor .github`, [actionlint](https://github.com/rhysd/actionlint) and `python3 scripts/check_ci_gate.py`; every `uses:` is pinned to a full commit SHA with the version as a trailing comment (`# v1.2.3`) |
 | NGINX site | `sudo bash scripts/check_nginx.sh` (installs nginx; CI runs it on a clean runner) |
 | LiteLLM gateway and model broker | in `deploy/llm-gateway`, with Docker: `scripts/testing/ci_env.sh && docker compose -f compose.yaml -f compose.test.yaml up -d --wait && scripts/smoke_test.sh && scripts/testing/broker_e2e.sh`, then `docker compose -f compose.yaml -f compose.test.yaml down -v` (a fake provider: no keys, nothing billed) |
