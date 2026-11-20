@@ -67,6 +67,8 @@ Start the stack with the overlay:
 FAKE_LATENCY_MS=1500 docker compose -f compose.yaml -f loadtest/compose.loadtest.yaml --profile postgres --profile llm up --build -d
 ```
 
+The overlay points every model-backed agent at the fake model, `advisor-*` as well as `orchestrator-model`, and blanks `ANTHROPIC_API_KEY_FILE` and `DD_MODEL_BROKER_URL`. A real key in `config/local/` is therefore never used, and a load test makes no provider calls. `scripts/tests/test_loadtest_overlay.py` fails if a model-backed agent in `compose.yaml` is missing from the overlay.
+
 Then run `loadtest/collect.sh` alongside Locust. It writes `loadtest/out/containers.csv`.
 
 ### On the host, without Docker
