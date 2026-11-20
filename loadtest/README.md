@@ -67,6 +67,8 @@ Start the stack with the overlay:
 FAKE_LATENCY_MS=1500 docker compose -f compose.yaml -f loadtest/compose.loadtest.yaml --profile postgres --profile llm up --build -d
 ```
 
+The overlay points every model-backed agent at the fake model, so a run makes no provider calls even with a real key in `config/local/`. Its placeholder key and blank `ANTHROPIC_API_KEY_FILE` override the key that `dd.py setup` names in each agent's own file. `scripts/tests/test_loadtest_overlay.py` checks this for every agent that `dd.py setup` can give a key (`MODEL_BACKED` and `MODEL_BY_DEFAULT` in `scripts/ddtool/common.py`). Add any new model-backed agent to both the overlay and that list.
+
 Then run `loadtest/collect.sh` alongside Locust. It writes `loadtest/out/containers.csv`.
 
 ### On the host, without Docker
