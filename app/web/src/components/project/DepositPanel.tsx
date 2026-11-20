@@ -16,9 +16,10 @@
  * to package, and offers the build, only once nothing waits (docs/specs/deposit.md, "The pause
  * before packaging"). After each decision it checks the project again.
  *
- * Once a package is built, the panel says what the researcher does next to deposit by hand, since
- * Data Director does not deposit (TODO(#383)). The field labels, the repository's address and what
- * is not yet confirmed come from the chosen repository's requirements, never from this file.
+ * Once a package is built, the panel offers to create a draft in the repository with the person's
+ * own account, where the deployment deposits to it (`DepositToRepository`), and says what the
+ * researcher does next to deposit by hand. The field labels, the repository's address and what is
+ * not yet confirmed come from the chosen repository's requirements, never from this file.
  */
 
 import { Download, ListChecks, Package } from "lucide-react";
@@ -35,6 +36,7 @@ import {
 import { Button } from "../ui/Button";
 import { formatNumber } from "../../format";
 import { BeforePackaging } from "./BeforePackaging";
+import { DepositToRepository } from "./DepositToRepository";
 
 const HEADING_ID = "deposit-heading";
 const NEXT_ID = "deposit-next";
@@ -355,6 +357,11 @@ export function DepositPanel({ projectId, revision }: { projectId: string; revis
           <p className="hint">
             SHA-256 <code className="deposit-digest">{shown.built.package.digest}</code>
           </p>
+          <DepositToRepository
+            projectId={projectId}
+            digest={shown.built.package.digest}
+            revision={revision}
+          />
           <NextSteps choice={choice} />
         </>
       )}
