@@ -59,7 +59,8 @@ What is built:
   a package the project log records as built (`app/tests/test_deposit_package.py`);
 - what to do after downloading the package: the Deposit panel lists the manual steps for the
   chosen repository, naming its form's fields by their `form_label`, linking to its
-  `repository_url` and listing its `unconfirmed` items, all read from the merged set; the user
+  `repository_url` and listing its `unconfirmed` items, all read from the merged set, which also
+  carries every set's `guidance` (the standard's first) for the Repository tab to cite; the user
   guide's *Depositing your data* covers the same steps.
 
 A researcher chooses a repository in the app, either from an advisor's shortlist or on the

@@ -192,7 +192,7 @@ test("a project's document is rejected with the keyboard alone, at 320px, and th
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
 
-test("a suggested repository is chosen on the project's page with the keyboard alone, at 320px", async ({
+test("a suggested repository is chosen on the project's Repository tab with the keyboard alone, at 320px", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 640 });
@@ -215,7 +215,12 @@ test("a suggested repository is chosen on the project's page with the keyboard a
         });
   });
   await page.route("/api/repositories*", (route) => route.fulfill({ json: suggested }));
+  // An old link to the panel lands on the tab.
   await page.goto(`/projects/${project.project_id}?doc=repository`);
+  await expect(page).toHaveURL(`/projects/${project.project_id}/repository`);
+  await expect(
+    page.getByRole("navigation", { name: "Project" }).getByRole("link", { name: "Repository" }),
+  ).toHaveAttribute("aria-current", "page");
   const box = page.getByRole("combobox", { name: "Find a repository" });
   // Checked with the list closed: while it is open, react-aria hides the rest of the page.
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
@@ -231,6 +236,7 @@ test("a suggested repository is chosen on the project's page with the keyboard a
 
   const panel = page.getByRole("region", { name: "Repository" });
   await expect(panel.getByText("orda@v3")).toBeVisible();
+  await expect(panel.getByRole("heading", { name: "What Data Director assumes" })).toBeVisible();
   expect(sent).toEqual([{ re3data_id: suggested.repositories[0]?.re3data_id }]);
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

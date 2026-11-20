@@ -13,6 +13,7 @@ import { PolicyPage } from "./components/policy/PolicyPage";
 import { ProfilePage } from "./components/profile/ProfilePage";
 import { ProjectLanding } from "./components/project/ProjectLanding";
 import { ProjectPage } from "./components/project/ProjectPage";
+import { ProjectPanelPage } from "./components/project/ProjectPanelPage";
 import { ProjectsPage } from "./components/project/ProjectsPage";
 import { SettingsPage } from "./components/settings/SettingsPage";
 import { PageHeader } from "./components/frame/PageHeader";
@@ -22,7 +23,7 @@ import { SignedOutPage } from "./components/session/SignedOutPage";
 import { SignInPage } from "./components/session/SignInPage";
 import { ActiveProjectProvider } from "./project/active";
 import { RunActivityProvider } from "./run/activity";
-import { useLocation } from "./route";
+import { type ProjectTab, isProjectTab, useLocation } from "./route";
 import { type Directory, normalise } from "./manifest/normalise";
 import type { RawAgentsResponse } from "./manifest/types";
 import {
@@ -33,11 +34,11 @@ import {
 } from "./session/api";
 
 // The person's projects: `/projects`; a project's documents: `/projects/{project_id}`
-// (docs/specs/projects.md); its journey map: `/projects/{project_id}/journey`. `/project` and
+// (docs/specs/projects.md); its other tabs, such as its repository or journey map:
+// `/projects/{project_id}/{tab}` (`PROJECT_TABS`). `/project` and
 // `/journey`, in the main navigation, open the current project's page or journey map, or the list
 // of projects (asking which project's, for the map) when none is current.
 const PROJECT_PREFIX = "/projects/";
-const JOURNEY_SUFFIX = "/journey";
 
 type Load<T> = { state: "loading" } | { state: "failed"; message: string } | { state: "loaded"; value: T };
 
@@ -52,19 +53,24 @@ export async function fetchDirectory(signal?: AbortSignal): Promise<Directory> {
   return normalise((await response.json()) as RawAgentsResponse);
 }
 
-/** A project's page, or its journey map, from the path; neither when the path is another. */
-function projectRoute(path: string): { projectId: string | null; onJourney: boolean } {
-  if (!path.startsWith(PROJECT_PREFIX)) return { projectId: null, onJourney: false };
+/** A project and which of its tabs, from the path; no project when the path is another. A path
+ * whose last part is not a tab is all project id, which `hasPage` refuses if it has a `/`. */
+function projectRoute(path: string): { projectId: string | null; tab: ProjectTab } {
+  if (!path.startsWith(PROJECT_PREFIX)) return { projectId: null, tab: "documents" };
   const rest = path.slice(PROJECT_PREFIX.length);
-  const onJourney = rest.endsWith(JOURNEY_SUFFIX);
-  return { projectId: onJourney ? rest.slice(0, -JOURNEY_SUFFIX.length) : rest, onJourney };
+  const cut = rest.lastIndexOf("/");
+  const last = rest.slice(cut + 1);
+  if (cut > 0 && last !== "documents" && isProjectTab(last)) {
+    return { projectId: rest.slice(0, cut), tab: last };
+  }
+  return { projectId: rest, tab: "documents" };
 }
 
 /** The main navigation's entry that `path` is under. A project's journey map is under Journey
  * map; its other pages, the list of projects and `/project` are under Projects (`/project`). */
 function navCurrent(path: string): string {
-  const { projectId, onJourney } = projectRoute(path);
-  if (path === "/journey" || (projectId && onJourney)) return "/journey";
+  const { projectId, tab } = projectRoute(path);
+  if (path === "/journey" || (projectId && tab === "journey")) return "/journey";
   if (path === "/project" || path === "/projects" || projectId) return "/project";
   const pages = [
     "/activity",
@@ -77,6 +83,13 @@ function navCurrent(path: string): string {
     "/signed-out",
   ];
   return pages.includes(path) ? path : "/";
+}
+
+/** The page for one of a project's tabs. */
+function projectPage(projectId: string, tab: ProjectTab, query: string) {
+  if (tab === "journey") return <JourneyPage projectId={projectId} query={query} />;
+  if (tab === "documents") return <ProjectPage projectId={projectId} query={query} />;
+  return <ProjectPanelPage key={`${projectId}/${tab}`} projectId={projectId} tab={tab} />;
 }
 
 /** Whether the shell has a page at `path`; anything else is answered with the not-found page. */
@@ -112,7 +125,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
   const onAgents = path === "/agents";
   const onFeedback = path === "/feedback";
   const onPolicy = path === "/policy";
-  const { projectId, onJourney } = projectRoute(path);
+  const { projectId, tab } = projectRoute(path);
   const current = navCurrent(path);
 
   useEffect(() => {
@@ -181,8 +194,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
     if (!hasPage(path)) return <NotFoundPage path={path} />;
     const sessionPage = SESSION_PAGES[path];
     if (sessionPage) return sessionPage(session.value, query ?? "");
-    if (projectId && onJourney) return <JourneyPage projectId={projectId} query={query ?? ""} />;
-    if (projectId) return <ProjectPage projectId={projectId} query={query ?? ""} />;
+    if (projectId) return projectPage(projectId, tab, query ?? "");
     if (state.state === "loading") return <p role="status">Loading the agents…</p>;
     if (state.state === "failed") {
       return (
