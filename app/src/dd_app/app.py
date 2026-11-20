@@ -50,6 +50,7 @@ from dd_app.about import about
 from dd_app.config import WEB_DIST, settings_from_env
 from dd_app.deployment_view import DeploymentView
 from dd_app.governance import Governance
+from dd_app.listing_limit import ListingConfigError, ListingLimiter
 from dd_app.model_accounts import broker_path
 from dd_app.privacy import notice_url
 from dd_app.project_service import ProjectService
@@ -164,6 +165,7 @@ def build_app(
         projects=ProjectService.over(governance),
         reads=Reads(governance),
         deployment=DeploymentView(governance),
+        listing=ListingLimiter.from_env(),
         web_dist=web_dist,
         identity=dict(build) if build is not None else about(),
         feedback=feedback or Feedback(),
@@ -260,7 +262,7 @@ def main() -> int:
         security_log.configure()
         webbrowser.open(f"{base_url}/")
         uvicorn.run(app, host=host, port=port)
-    except (ShellNotBuiltError, ConfigError) as exc:
+    except (ShellNotBuiltError, ConfigError, ListingConfigError) as exc:
         sys.exit(f"data-director: {exc}")
     finally:
         governance.conductor.close()

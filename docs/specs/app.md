@@ -462,6 +462,12 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
 
 - **Depends on** the harness (`dd_harness`) and the SDK only. Workspace-level dependency rules
   are in [System and boundaries](system.md).
+- **Listings have threads of their own.** `GET /api/projects`, `/api/conversations` and
+  `/api/runs` read and filter stored work before they page, so their cost grows with what is
+  stored. They run in a pool of `DD_APP_LISTING_THREADS` threads (8), with `DD_APP_LISTING_QUEUE`
+  more allowed to wait (16); past that a listing is answered `503` with a `listing-busy` problem
+  and `Retry-After`. A turn or a run start, which uses the shared pool, is never queued behind a
+  listing (#1258; [configuration](../guide/operations/configuration.md)).
 - **Turn locks.** A conversation's turn holds the conversation's lock from reading its history
   until the turn is stored, and a turn that finds it held is refused with `TurnConflictError`
   before anything runs (orchestration invariant 4). The lock is the run store's
