@@ -123,6 +123,11 @@ Other settings:
 - `LOADTEST_AGENT`: the agent turns go to. The default is the profile's orchestrator.
 - `LOADTEST_TURNS`: turns per conversation before starting a new one (default 5).
 - `LOADTEST_WAIT_MIN` and `LOADTEST_WAIT_MAX`: think time in seconds.
+- `LOADTEST_LISTERS`: the weight of `Lister`, a user that only lists projects, conversations and
+  runs with no think time (default 0, none). `LOADTEST_LISTERS=3` makes three users in four
+  listers. Run `step` with it to check that turns hold their time while listings are swamped
+  (#1258): the app answers listings beyond `DD_APP_LISTING_QUEUE` with a `503`, which a lister
+  reports as `… shed` and not as a failure.
 - `--host`: another app. The default is `http://127.0.0.1:7860`.
 
 Locust exits with code 1 in either case:

@@ -11,6 +11,8 @@ requires-python = ">=3.14"
 license = "MIT"
 authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
 dependencies = [
+  # Capacity limiter for the listing routes (dd_app.listing_limit).
+  "anyio>=4.15",
   "data-director-harness>=0.2.0a0",
   # Describing a folder on a local install (dd_app.folder_scan).
   "data-director-inventory>=0.1.0a4",
