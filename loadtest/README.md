@@ -180,11 +180,22 @@ The knee was between 10 and 20 users, with or without the model's wait. Throughp
 A 20-minute `soak` at 7 users with `FAKE_LATENCY_MS=1500` had no failures. Turns held steady at 2.3 s p50 and 3.5 s p95, and the app's memory stayed between 570 and 760 MiB. The list routes did not hold steady: `GET /api/projects` rose from 0.2 s to several seconds as the stored projects grew to about 130.
 
 Profiling located the cause (#1255):
-- Every listing works out what the person may read by reading each of their projects' event logs, one query at a time (#1256).
+- Every listing worked out what the person may read by reading each of their projects' event logs, one query at a time (#1257).
 - At 20 users and over, those listings held most of the app's worker threads, so turns queued behind them.
 - PostgreSQL itself spent only seconds executing statements. The time went on round trips and on Python in the app.
 
-Fixing #1256 and its neighbours (#1032, #1035, #1037) should move the knee, and should come before quoting a capacity.
+The figures above were measured before #1257 was fixed. A listing now reads the logs of the projects that name the person in one query. A single-user probe measured the list routes against PostgreSQL 16, before and after that change. It created projects with `POST /api/projects`, then timed 20 requests of each route at each count, on a 4-core container with the app on the host:
+
+| Projects stored | `GET /api/projects` p50, before | after | Statements per request, before | after |
+|---|---|---|---|---|
+| 0 or 1 | 3 ms | 3 ms | 3 | 2 |
+| 30 | 81 ms | 6 ms | 303 | 2 |
+| 120 | 248 ms | 10 ms | 927 | 2 |
+| 150 | 291 ms | 10 ms | 1,107 | 2 |
+
+`GET /api/conversations` and `GET /api/runs` went from 155 ms and 602 statements to 5 ms and 2 statements at 150 projects. Each probe project has a short log. The time still grows a little with the events read, but the number of statements does not.
+
+A rerun of `step` with PostgreSQL will show how far the knee has moved. Do that, and fix the neighbouring issues (#1032, #1035, #1037), before quoting a capacity.
 
 ## Profiling
 
