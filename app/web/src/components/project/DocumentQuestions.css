@@ -1,0 +1,16 @@
+/* A draft's open questions: framed as a reply's question is, on the draft's card in the
+   conversation and beneath the question list on the project's documents page. */
+
+@layer components {
+  .document-questions {
+    margin-block: var(--space-3);
+    padding: var(--space-3);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+  }
+
+  .document-questions textarea {
+    width: 100%;
+  }
+}

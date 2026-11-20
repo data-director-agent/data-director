@@ -1,8 +1,9 @@
 /**
  * One document in the project's reader: its name and state, who drafted it, and its text in three
  * tabs (a preview read by its media type, the stored text exactly, and its versions), then the
- * questions the version asks the researcher, with any answers recorded, then the form to decide on
- * it while its latest version is undecided.
+ * questions the version asks the researcher, with any answers recorded, and, on the latest version,
+ * the form to answer those still open (the same form as the draft's card in the conversation), then
+ * the form to decide on it while its latest version is undecided.
  *
  * The preview is for reading. A decision names the stored text by its digest, which is what the
  * Source tab shows and what the deposit package will hold. While the person edits, the preview
@@ -32,6 +33,7 @@ import { DecisionForm } from "./DecisionForm";
 import { Provenance, State } from "./DocumentFacts";
 import { DocumentHistory } from "./DocumentHistory";
 import { DocumentPreview } from "./DocumentPreview";
+import { DocumentQuestions } from "./DocumentQuestions";
 import { QuestionList } from "./QuestionList";
 
 export function DocumentReader({
@@ -41,6 +43,7 @@ export function DocumentReader({
   rules,
   hrefFor,
   onDecided,
+  onAnswered,
   onStale,
 }: {
   projectId: string;
@@ -51,6 +54,8 @@ export function DocumentReader({
   /** The address of a version of this document; with no version, its latest. */
   hrefFor: (version?: DocumentVersion) => string;
   onDecided: (value: ProjectDocuments, said: string) => void;
+  /** Called with the project's documents as the server read them back after answers were recorded. */
+  onAnswered: (value: ProjectDocuments) => void;
   /** Reads the project again; answers why it could not, or null once it has. */
   onStale: () => Promise<string | null>;
 }) {
@@ -200,7 +205,21 @@ export function DocumentReader({
           </TabPanel>
         )}
       </Tabs>
-      <QuestionList document={document} version={version} headingId={`${headingId}-questions`} />
+      <QuestionList
+        document={document}
+        version={version}
+        canAnswer={isLatest}
+        headingId={`${headingId}-questions`}
+      />
+      {isLatest && (
+        <DocumentQuestions
+          projectId={projectId}
+          document={document}
+          version={version}
+          name={name}
+          onAnswered={onAnswered}
+        />
+      )}
       {isLatest && version.state === "proposed" && (
         <DecisionForm
           key={`${version.document_id}:${version.version}`}

@@ -11,10 +11,6 @@
     background: var(--color-surface);
   }
 
-  .document-questions textarea {
-    width: 100%;
-  }
-
   /* Each option is a card: the whole of it is the click target, not just the small control. */
   .choice-option {
     position: relative;

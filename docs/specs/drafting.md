@@ -75,8 +75,8 @@ suggests some of those values beside their questions
    version's `document_questions` whose target names it
    (`agents/advisor-documentation/tests/test_documentation_agent.py`).
 6. **An answer is supplied only when a person recorded it.** A person answers the latest version's
-   questions in the app, on the draft's card in the conversation. Each answer is a
-   `document_question_answered` event that names the person it acted for, as any other event does
+   questions in the app, on the draft's card in the conversation or on the project's documents
+   page. Each answer is a `document_question_answered` event that names the person it acted for, as any other event does
    ([Projects](projects.md), `harness/docs/projects.md`); an answer to another version, or to a
    question that version does not ask, is refused. When a document of that kind is drafted
    again, the conductor puts into the `DraftRequest`'s `draft_answers` the latest answer recorded
@@ -160,7 +160,8 @@ researcher. The app shows the latest version's open questions on the draft's car
 conversation, three at a time, or more to keep one section's parts together, each as a text box
 labelled by the question and described by what it fills and by any suggestion, which the researcher may copy into the box but which never fills
 it by itself, and lists every question with its answer, or its suggestion while unanswered, on
-the project's documents page ([The app](app.md)). It sends the answers to
+the project's documents page, which puts the same form beneath the latest version's questions
+([The app](app.md)). It sends the answers to
 `POST /api/projects/{id}/documents/{document_id}/answers`, which records them for the person
 signed in and never takes a name from the body. The harness records each answer and fills the
 answers into the next `DraftRequest`. No agent writes an answer.

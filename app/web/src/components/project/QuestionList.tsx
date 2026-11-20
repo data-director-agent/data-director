@@ -1,8 +1,8 @@
 /**
- * What a version asks the researcher, read-only, on the project's documents page
- * (docs/specs/drafting.md): each question, what it fills, and the answer recorded for it, if any.
- * Questions are answered on the draft's card in the conversation; an answer is put into the next
- * draft, not into this version. Whether a question is answered is said in words, never by colour.
+ * What a version asks the researcher, on the project's documents page (docs/specs/drafting.md):
+ * each question, what it fills, and the answer recorded for it, if any. The latest version's open
+ * questions are answered in the form beneath this list or on the draft's card in the conversation;
+ * an earlier version's are not. An answer is put into the next draft, not into this version. Whether a question is answered is said in words, never by colour.
  * A model's suggested answer is shown as a suggestion until a person records an answer.
  */
 
@@ -12,10 +12,13 @@ import { questionTarget } from "../../project/api";
 export function QuestionList({
   document,
   version,
+  canAnswer,
   headingId,
 }: {
   document: ProjectDocument;
   version: DocumentVersion;
+  /** Whether this is the latest version, whose open questions the form beneath answers. */
+  canAnswer: boolean;
   headingId: string;
 }) {
   if (version.questions.length === 0) return null;
@@ -25,8 +28,10 @@ export function QuestionList({
     <section className="question-list" aria-labelledby={headingId}>
       <h3 id={headingId}>Questions for the researcher</h3>
       <p className="hint">
-        {answered} of {version.questions.length} answered. Answer them on the draft in the
-        conversation; the answers go into the next draft, as you wrote them.
+        {answered} of {version.questions.length} answered.{" "}
+        {canAnswer
+          ? "Answer them below or on the draft in the conversation; the answers go into the next draft, as you wrote them."
+          : "These were asked of an earlier version; answer the latest version's questions instead."}
       </p>
       <ul>
         {version.questions.map((q) => {

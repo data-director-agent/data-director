@@ -20,8 +20,8 @@ import { Link } from "../../route";
 import { DocumentText } from "../run/result/DocumentText";
 import { documentName } from "../../project/name";
 import { STATES } from "../project/DocumentFacts";
+import { DocumentQuestions } from "../project/DocumentQuestions";
 import { Button } from "../ui/Button";
-import { DocumentQuestions } from "./DocumentQuestions";
 
 export function DocumentCard({
   projectId,
