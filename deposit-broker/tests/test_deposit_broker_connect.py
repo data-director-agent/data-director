@@ -30,14 +30,14 @@ def running(tmp_path: Path) -> Running:
     return make_broker(tmp_path)
 
 
-def callback(running: Running, cookie: str, **params: str):  # type: ignore[no-untyped-def]
+def callback(running: Running, cookie: str, **params: str):
     """The repository sending the browser back, with `cookie` as the browser holds it."""
     running.client.cookies.clear()
     running.client.cookies.set(COOKIE, cookie)
     return running.client.get("/connect/zenodo/callback", params=params, follow_redirects=False)
 
 
-def start(running: Running, ticket: str | None = None, base_url: str = SANDBOX):  # type: ignore[no-untyped-def]
+def start(running: Running, ticket: str | None = None, base_url: str = SANDBOX):
     return running.client.post(
         "/connect/zenodo/start",
         content=f"ticket={ticket or running.harness.ticket()}&base_url={base_url}",

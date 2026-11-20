@@ -6,6 +6,7 @@ from typing import Any
 
 from dd_app import deposit
 from dd_app.project_service._area import Area, RepositoriesUnavailableError
+from dd_harness import deposit_api
 from dd_harness.deposit import Package, Validation, build_package, check
 from dd_harness.disclosure import Disclosure, disclose
 from dd_harness.requirements import Requirements
@@ -103,3 +104,49 @@ class Deposit(Area):
     def disclosure(self, project_id: str) -> Disclosure:
         store: ProjectDocuments = self._store
         return disclose(store, self.governance.conductor.store, project_id)
+
+    # --- Depositing through an API (docs/specs/deposit.md) -----------------------------------
+
+    def connection(self, project_id: str) -> deposit_api.Connection | None:
+        """How the project's repository is deposited to, or None if it chose none."""
+        store: DepositSource = self._store
+        requirements = self.governance.requirements
+        if requirements is None:
+            return None
+        return deposit_api.connection(
+            store,
+            project_id,
+            requirements=requirements,
+            offered=self.governance.conductor.profile.deposit_transports,
+            transports=self.governance.transports,
+            broker=self.governance.deposit_broker,
+        )
+
+    def deposits(self, project_id: str) -> list[dict[str, Any]]:
+        """Each deposit approved in the project, oldest first, as the app shows it."""
+        store: DepositSource = self._store
+        return [deposit_api.summary(d) for d in deposit_api.deposits(store, project_id)]
+
+    def deposit(
+        self, project_id: str, digest: str, *, acted_for: Principal, caused_by: str
+    ) -> dict[str, Any]:
+        """Approve the deposit of a package, as `acted_for`, and make the draft; the deposit as
+        the app shows it. Raises `DepositRefusedError` or `DepositInProgressError`."""
+        store: DepositSource = self._store
+        outcome = deposit_api.approve_and_deposit(
+            store,
+            project_id,
+            digest,
+            requirements=self._requirements(),
+            offered=self.governance.conductor.profile.deposit_transports,
+            transports=self.governance.transports,
+            broker=self.governance.deposit_broker,
+            acted_for=acted_for,
+            caused_by=caused_by,
+        )
+        (shown,) = [
+            deposit_api.summary(d)
+            for d in deposit_api.deposits(store, project_id)
+            if d["approval"]["event_id"] == outcome["approval"]
+        ]
+        return shown

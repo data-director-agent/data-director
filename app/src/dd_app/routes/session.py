@@ -91,6 +91,19 @@ class RawSession(ResponseBody):
     """Whether a person may add their own model account (docs/specs/model-accounts.md)."""
     model_account_providers: list[RawModelAccountProvider]
     """The providers a person's own account may be with; empty unless `model_accounts`."""
+    repository_accounts: bool
+    """Whether a person may connect their own repository account, to deposit a draft through
+    the repository's API (docs/specs/deposit.md)."""
+
+
+class RepositoryTicket(ResponseBody):
+    """A single-use ticket for the deposit broker, and where the browser takes it to connect,
+    read or disconnect the person's own repository account (`POST /api/repository-account/ticket`).
+    """
+
+    ticket: str
+    deposit_broker_url: str
+    expires_at: str
 
 
 class Ticket(ResponseBody):
@@ -108,6 +121,11 @@ def routes(deps: Deps) -> list[Route]:
         Route(
             "/api/model-account/ticket",
             signed_in(deps, model_account_ticket),
+            methods=["POST"],
+        ),
+        Route(
+            "/api/repository-account/ticket",
+            signed_in(deps, repository_account_ticket),
             methods=["POST"],
         ),
         Route("/api/sign-in", bind(deps, begin_sign_in), methods=["GET"]),
@@ -132,6 +150,7 @@ async def get_session(request: Request, deps: Deps) -> Response:
     accounts = {
         "model_accounts": deps.model_accounts,
         "model_account_providers": deps.model_account_providers or [],
+        "repository_accounts": deps.repository_accounts,
     }
     sign_in = deps.sign_in
     if sign_in is None:
@@ -175,6 +194,31 @@ async def model_account_ticket(request: Request, acting_for: Principal, deps: De
     return respond(
         Ticket,
         {"ticket": ticket, "broker_url": deps.model_broker_path, "expires_at": _timestamp(expires)},
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+async def repository_account_ticket(
+    request: Request, acting_for: Principal, deps: Deps
+) -> Response:
+    # The ticket names the person only by their pseudonym, sealed to the deposit broker. Their
+    # repository token goes between the browser, the repository and the broker, never here.
+    broker = deps.governance.deposit_broker
+    if broker is None or deps.deposit_broker_path is None:
+        return problem(
+            404,
+            "repository-accounts-unavailable",
+            "Repository accounts are not offered here",
+            "This deployment does not deposit through a repository's API.",
+        )
+    ticket, expires = broker.minter.ticket(acting_for=acting_for)
+    return respond(
+        RepositoryTicket,
+        {
+            "ticket": ticket,
+            "deposit_broker_url": deps.deposit_broker_path,
+            "expires_at": _timestamp(expires),
+        },
         headers={"Cache-Control": "no-store"},
     )
 

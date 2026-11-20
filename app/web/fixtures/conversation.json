@@ -139,7 +139,7 @@
             "schema_class": "Greeting"
           },
           "payload_schema": "0000000000000000000000000000000000000000000000000000000000000009",
-          "policy_bundle_ref": "profile:data-director-app@v9",
+          "policy_bundle_ref": "profile:data-director-app@v10",
           "policy_digest": "0000000000000000000000000000000000000000000000000000000000000010",
           "project_id": "01900000-0000-7000-8000-000000000006",
           "requires_human_review": true,
@@ -211,7 +211,7 @@
           "schema_class": "Reply"
         },
         "payload_schema": "0000000000000000000000000000000000000000000000000000000000000014",
-        "policy_bundle_ref": "profile:data-director-app@v9",
+        "policy_bundle_ref": "profile:data-director-app@v10",
         "policy_digest": "0000000000000000000000000000000000000000000000000000000000000010",
         "project_id": "01900000-0000-7000-8000-000000000006",
         "requires_human_review": true,
@@ -276,7 +276,7 @@
             "schema_class": "Greeting"
           },
           "payload_schema": "0000000000000000000000000000000000000000000000000000000000000009",
-          "policy_bundle_ref": "profile:data-director-app@v9",
+          "policy_bundle_ref": "profile:data-director-app@v10",
           "policy_digest": "0000000000000000000000000000000000000000000000000000000000000010",
           "project_id": "01900000-0000-7000-8000-000000000006",
           "requires_human_review": true,
@@ -348,7 +348,7 @@
           "schema_class": "Reply"
         },
         "payload_schema": "0000000000000000000000000000000000000000000000000000000000000014",
-        "policy_bundle_ref": "profile:data-director-app@v9",
+        "policy_bundle_ref": "profile:data-director-app@v10",
         "policy_digest": "0000000000000000000000000000000000000000000000000000000000000010",
         "project_id": "01900000-0000-7000-8000-000000000006",
         "requires_human_review": true,

@@ -54,6 +54,7 @@ from dd_app.model_accounts import broker_path
 from dd_app.privacy import notice_url
 from dd_app.project_service import ProjectService
 from dd_app.reads import Reads
+from dd_app.repository_accounts import deposit_broker_path
 from dd_app.routes import (
     conversation_deletion,
     conversations,
@@ -83,6 +84,7 @@ from dd_harness.sources import SourceConfigError
 from dd_harness.transport.a2a import a2a_routes
 from dd_sdk import security_log
 from dd_sdk.credentials import ConfigError
+from dd_sdk.transports import TransportError
 
 # Where people reach the app, which the provider sends them back to (dd_harness.signin).
 PUBLIC_URL_VARIABLE = "DD_APP_PUBLIC_URL"
@@ -130,6 +132,9 @@ class Links:
     model_broker_path: str | None = None
     privacy_notice_url: str | None = None
     folder_roots: folder_scan.FolderRoots | None = None
+    # Where the browser reaches the deposit broker (`dd_app.repository_accounts`); with it and a
+    # harness that has a deposit broker, a person may connect their own repository account.
+    deposit_broker_path: str | None = None
 
 
 def build_app(
@@ -173,6 +178,9 @@ def build_app(
         model_account_providers=_model_account_providers(governance, links.model_broker_path),
         privacy_notice_url=links.privacy_notice_url,
         folder_roots=links.folder_roots,
+        deposit_broker_path=links.deposit_broker_path
+        if governance.deposit_broker is not None
+        else None,
     )
     callback = governance.conductor.harness_url
     # No authenticator: delegation callbacks only, so the app is no other way in
@@ -241,6 +249,7 @@ def main() -> int:
         SourceConfigError,
         RequirementsError,
         ConfigError,
+        TransportError,
     ) as exc:
         sys.exit(f"data-director: {exc}")
     feedback_repo = os.environ.get(feedback.REPO_VARIABLE) or feedback.DEFAULT_REPO
@@ -253,6 +262,7 @@ def main() -> int:
                 broker_path(os.environ),
                 notice_url(os.environ),
                 folder_scan.from_env(os.environ, host, LOOPBACK),
+                deposit_broker_path(os.environ),
             ),
         )
         if host not in LOOPBACK and sign_in is None:

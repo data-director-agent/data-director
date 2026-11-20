@@ -91,7 +91,7 @@ def store(governance: Governance) -> ProjectStorage:
 @pytest.fixture
 def chosen(client: TestClient, store: ProjectStorage) -> str:
     """A project with an inventory and Zenodo chosen through the server, and no document.
-    Zenodo has no override, so it is checked against DataCite with a warning."""
+    Zenodo is checked against DataCite and the deployment's override for it."""
     project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test", title="Soil")
     store.add_inventory(
         project_id, file_inventory("data/cores.csv"), acted_for=TEST_PRINCIPAL, caused_by="test"

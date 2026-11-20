@@ -41,7 +41,7 @@ def running(tmp_path: Path) -> Running:
     return running
 
 
-def post(running: Running, grant: str | None, payload: dict[str, str] | None = None):  # type: ignore[no-untyped-def]
+def post(running: Running, grant: str | None, payload: dict[str, str] | None = None):
     headers = {HEADER_GRANT: grant} if grant else {}
     return running.client.post(DEPOSITS_PATH, json=payload or body(), headers=headers)
 

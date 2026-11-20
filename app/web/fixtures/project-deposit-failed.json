@@ -1,0 +1,11 @@
+{
+  "approved_at": "2026-01-01T00:00:00Z",
+  "approved_by": "Josiah Carberry",
+  "digest": "0000000000000000000000000000000000000000000000000000000000000001",
+  "reason": "account-missing",
+  "repository_name": "Zenodo",
+  "sandbox": true,
+  "state": "failed",
+  "status": 403,
+  "transport": "zenodo"
+}
