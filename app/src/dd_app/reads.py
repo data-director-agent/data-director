@@ -16,10 +16,12 @@ from dd_app.governance import CONVERSATION_ID, CREATED_BY_ROUTE, Governance
 from dd_app.run_checks import stored_checks
 from dd_harness import conversations, project_access
 from dd_harness.listing import Page, Readable, check_limit
-from dd_harness.transport.paging import PAGE_SIZE, PAGE_SIZE_MAX
+from dd_harness.transport.paging import PAGE_SIZE
 from dd_sdk.contract.models import Principal
 
 RUN_ID = re.compile(r"[0-9A-Za-z-]{1,64}")
+# A page too large to fill: asking for it at once reads the store once, not once a page.
+EVERY = 10**9
 # What `GET /api/projects` says of each conversation in a project.
 LISTED_CONVERSATION = ("conversation_id", "title", "started_at", "last_completed_at", "turns")
 
@@ -116,21 +118,11 @@ class Reads:
         return Page(restorable)
 
     def _every_conversation(self, readable: Readable) -> list[dict[str, Any]]:
-        """Every conversation `readable` includes, most recently active first, read a page at a
-        time: as many as the reader has, whatever the size of the store."""
-        found: list[dict[str, Any]] = []
-        before: str | None = None
-        while True:
-            page = conversations.list_conversations(
-                self.governance.conductor.store,
-                readable=readable,
-                limit=PAGE_SIZE_MAX,
-                before=before,
-            )
-            found.extend(page.items)
-            if page.next is None:
-                return found
-            before = page.next
+        """Every conversation `readable` includes, most recently active first, from one scan of
+        the run store: as many as the reader has, whatever the size of the store."""
+        return conversations.list_conversations(
+            self.governance.conductor.store, readable=readable, limit=EVERY
+        ).items
 
     def conversation(self, conversation_id: str, reader: Principal) -> dict[str, Any] | None:
         """A conversation as `dd_harness.conversations` derives it (`GET /api/conversations/{id}`),

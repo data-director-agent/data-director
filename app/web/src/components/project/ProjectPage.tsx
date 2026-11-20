@@ -1,9 +1,10 @@
 /**
  * A project's documents (docs/specs/projects.md), as a list beside a reader: the list groups the
  * documents by state, those waiting for a decision first, and the reader shows the one chosen,
- * with the form to decide on it while it is undecided. The researcher facts kept from ORCID, the
- * repository chosen, the statement of how generative AI was used and the deposit package are the
- * list's last entries.
+ * with the form to decide on it while it is undecided. The researchers, the project's facts, the
+ * repository chosen, the statement of how generative AI was used and the deposit package each
+ * have a tab of their own (`ProjectPanelPage`); an old link to one of them here (`?doc=repository`
+ * and the like) is sent on to its tab.
  *
  * What is open is in the address (`?doc=<id>`, and `&v=<n>` for an earlier version), so that it
  * can be linked and left with Back. With nothing chosen, the first document waiting for a decision
@@ -38,29 +39,15 @@ import {
   useProjectApi,
 } from "../../project/api";
 import { deletionName, documentName, projectName } from "../../project/name";
-import { Link } from "../../route";
+import { Link, navigate, projectTabPath } from "../../route";
 import { AddInventory } from "../inventory/AddInventory";
 import { PageHeader } from "../frame/PageHeader";
-import { DisclosurePanel } from "./DisclosurePanel";
-import { DepositPanel } from "./DepositPanel";
-import {
-  DEPOSIT,
-  DISCLOSURE,
-  DocumentList,
-  FACTS,
-  PANELS,
-  REPOSITORY,
-  RESEARCHERS,
-  stateOf,
-} from "./DocumentList";
+import { DocumentList, FORMER_PANELS, stateOf } from "./DocumentList";
 import { DeleteProject } from "./DeleteProject";
 import { DocumentReader } from "./DocumentReader";
-import { FactsPanel } from "./FactsPanel";
 import { ProjectConversations } from "./ProjectConversations";
 import { ProjectNav } from "./ProjectNav";
 import { ProjectRename } from "./ProjectRename";
-import { RepositoryPanel } from "./RepositoryPanel";
-import { ResearcherPanel } from "./ResearcherPanel";
 
 type Load =
   | { state: "loading" }
@@ -88,8 +75,6 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
     next: string | null;
     on: string | null;
   } | null>(null);
-  // Counts what the page has read, so that the disclosure is read again after a decision.
-  const [revision, setRevision] = useState(0);
   const { setProjectId } = useActiveProject();
   const readable = load.state === "loaded";
 
@@ -99,6 +84,12 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
 
   const params = new URLSearchParams(query);
   const asked = params.get("doc");
+  const moved = asked === null ? undefined : FORMER_PANELS[asked];
+
+  // What was once a panel here is a tab now: an old link lands on it, and Back skips this one.
+  useEffect(() => {
+    if (moved) navigate(projectTabPath(projectId, moved), true);
+  }, [moved, projectId]);
   const shown = versionOf(params.get("v"));
   const base = `/projects/${encodeURIComponent(projectId)}`;
   const hrefFor = (id: string, version?: number) =>
@@ -143,7 +134,6 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
       api.documents(projectId).then(
         (value) => {
           setLoad({ state: "loaded", value });
-          setRevision((n) => n + 1);
           return null;
         },
         (error: unknown) => message(error),
@@ -158,7 +148,6 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
         stateOf(document) === "proposed" && document.document_id !== value.decided?.document_id,
     );
     setDecision({ said, next: next ? next.document_id : null, on: asked });
-    setRevision((n) => n + 1);
   };
 
   const content = () => {
@@ -174,16 +163,9 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
     const fallback = documents.find((document) => stateOf(document) === "proposed") ?? documents[0];
     const chosen = asked ?? fallback?.document_id ?? null;
     const document = documents.find((d) => d.document_id === chosen);
-    const unknown = chosen !== null && !PANELS.includes(chosen) && !document;
+    const unknown = chosen !== null && !document;
 
     const reader = () => {
-      if (chosen === RESEARCHERS) return <ResearcherPanel projectId={projectId} />;
-      if (chosen === FACTS) return <FactsPanel projectId={projectId} revision={revision} />;
-      if (chosen === DISCLOSURE)
-        return <DisclosurePanel projectId={projectId} revision={revision} />;
-      if (chosen === REPOSITORY)
-        return <RepositoryPanel projectId={projectId} revision={revision} />;
-      if (chosen === DEPOSIT) return <DepositPanel projectId={projectId} revision={revision} />;
       if (chosen === null) {
         return (
           <p>

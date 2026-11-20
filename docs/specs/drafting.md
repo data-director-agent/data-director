@@ -69,9 +69,12 @@ suggests some of those values beside their questions
    the answer the researcher gave it, never in a section with neither, and a draft with prose has
    the same gaps and questions as the template's. The drafter uses a paragraph only if every
    number, link, identifier and code-formatted name in it is in what the model was given
-   (`agents/advisor-documentation/tests/test_prose.py`). That check catches an invented value,
-   not a misleading sentence or a dropped one, so the person approving the version still reads
-   the prose.
+   (`agents/advisor-documentation/tests/test_prose.py`). Counts are worked out by rule: the input
+   gives the number of files, tables and folders, of files at the top level and of files in each
+   folder, and a paragraph that states another count of files, folders or tables, in digits or
+   in words, or another number of files at the top level, is not used. That check catches an
+   invented value, not a misleading sentence or a dropped one, so the person approving the
+   version still reads the prose.
 5. **Every gap is marked and asked.** A README gap is an italic placeholder saying what is needed,
    followed by the HTML comment `<!-- dd:gap <question-id> -->`, which the rendered README does not
    show; it reads `_Still needed: …_`, saying what is needed. A README section that asks several

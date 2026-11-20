@@ -206,18 +206,10 @@ class RequirementField(Frozen):
     form_label: str | None = None
 
 
-class RequirementSet(Frozen):
-    """A metadata standard's requirements, or one repository's override of them
-    (docs/specs/deposit.md)."""
+class _Requirements(Frozen):
+    """What a requirement set and a merged choice of repository both state."""
 
-    schema_class: Literal["RequirementSet"] = "RequirementSet"
-    requirement_set_id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]*$")
-    version: int
-    title: str
-    url: str | None = None
     conforms_to: str
-    re3data_names: list[str] = Field(default_factory=list)
-    re3data_id: str | None = Field(default=None, pattern=r"^r3d[0-9]{9}$")
     fields: list[RequirementField] = Field(default_factory=list)
     required_documents: list[DocumentKind] = Field(default_factory=list)
     recommended_documents: list[DocumentKind] = Field(default_factory=list)
@@ -229,27 +221,31 @@ class RequirementSet(Frozen):
     unconfirmed: list[str] = Field(default_factory=list)
 
 
+class RequirementSet(_Requirements):
+    """A metadata standard's requirements, or one repository's override of them
+    (docs/specs/deposit.md)."""
+
+    schema_class: Literal["RequirementSet"] = "RequirementSet"
+    requirement_set_id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]*$")
+    version: int
+    title: str
+    url: str | None = None
+    re3data_names: list[str] = Field(default_factory=list)
+    re3data_id: str | None = Field(default=None, pattern=r"^r3d[0-9]{9}$")
+
+
 class RequirementSetUse(Frozen):
     ref: str = Field(pattern=r"^[a-z0-9][a-z0-9-]*@v[0-9]+$")
     sha256: str = Field(pattern=SHA256_PATTERN)
 
 
-class RepositoryRequirements(Frozen):
+class RepositoryRequirements(_Requirements):
     """The merged requirements of the repository a researcher chose (docs/specs/deposit.md)."""
 
     re3data_id: str = Field(pattern=r"^r3d[0-9]{9}$")
     repository_name: str
-    conforms_to: str
     requirement_sets: list[RequirementSetUse]
-    fields: list[RequirementField] = Field(default_factory=list)
-    required_documents: list[DocumentKind] = Field(default_factory=list)
-    recommended_documents: list[DocumentKind] = Field(default_factory=list)
-    media_types: list[str] = Field(default_factory=list)
-    max_file_size: int | None = None
-    max_item_size: int | None = None
-    licences: list[str] | None = None
     warnings: list[str] = Field(default_factory=list)
-    unconfirmed: list[str] = Field(default_factory=list)
     repository_url: str | None = None
 
 

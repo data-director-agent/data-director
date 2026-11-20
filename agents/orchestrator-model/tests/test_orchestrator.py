@@ -25,6 +25,7 @@ from dd_agent_orchestrator_model.agent import (
 from dd_agent_orchestrator_model.prompt import SYSTEM_PROMPT
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import describe
+from dd_sdk.contract.facts import InventoryFormat
 from dd_sdk.contract.models import (
     ConversationTurn,
     Derivation,
@@ -480,3 +481,37 @@ def test_questions_beside_a_delegation_are_refused_and_the_delegation_runs(
     assert hello["is_error"] is False
     assert asked["is_error"] is True and "alone" in asked["content"]
     assert env.payload_as(Reply).reply_questions is not None
+
+
+def test_the_model_is_told_the_kinds_of_files_the_inventory_lists() -> None:
+    """With the kinds of files in the note, the model states them for the researcher to confirm
+    instead of asking what the files are (#1287); without them, it is told only the count."""
+    bare = InventorySummary(
+        inventory_digest="a" * 64,
+        inventory_file_count=13,
+        inventory_tool="dd-inventory",
+        inventory_tool_version="0.1.0",
+        inventory_made_at=datetime(2026, 11, 1, 9, tzinfo=UTC),
+    )
+    held = bare.model_copy(
+        update={
+            "inventory_formats": [
+                InventoryFormat(
+                    format_media_type="text/csv",
+                    format_pronom_ids=["x-fmt/18"],
+                    format_file_count=9,
+                ),
+                InventoryFormat(format_media_type="text/plain", format_file_count=4),
+            ],
+            "inventory_table_count": 9,
+        }
+    )
+    (sent,) = conversation(Message(message_text="now", project_inventory=held), history_turns=0)
+    note = sent["content"].split("\n\n")[0]
+    assert "text/csv" in note
+    assert "x-fmt/18" in note
+    assert "text/plain" in note
+    (sent,) = conversation(Message(message_text="now", project_inventory=bare), history_turns=0)
+    note = sent["content"].split("\n\n")[0]
+    assert "13 files" in note
+    assert "text/csv" not in note

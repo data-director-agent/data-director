@@ -20,7 +20,10 @@ the draft is the template's.
 
 What the model writes is checked before it is used (`check`). A paragraph is dropped, and the
 section drafted as the template drafts it, if it is not plain prose, or if it names a number, a
-link, an email address, an identifier or a code-formatted name that the facts do not contain.
+link, an email address, an identifier or a code-formatted name that the facts do not contain,
+or a count of files, folders or tables that is not one the facts give (`counts.py`). The counts,
+those at the top level and in each folder among them, are worked out by rule and given in the
+facts, so the model need not add anything up.
 
 A writer may also suggest answers to a draft's questions (`suggest`): for a data dictionary's
 unknown definition or unit, what the field's name and the dataset's facts make likely, such as that
@@ -49,6 +52,7 @@ from typing import Any, Protocol
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
+from dd_agent_advisor_documentation.counts import check_counts
 from dd_sdk.agent import RunContext
 from dd_sdk.contract.models import DraftRequest
 from dd_sdk.model import Model, ModelOutputError, call
@@ -313,7 +317,7 @@ def check(reply: ProseReply, facts: Mapping[str, Any], sections: Sequence[str]) 
         why = (
             "written twice"
             if heading in kept
-            else _unusable(heading, paragraph, offered, known, MAX_PARAGRAPH)
+            else _unusable(heading, paragraph, offered, facts, known, MAX_PARAGRAPH)
         )
         if why:
             dropped.append(f"{heading}: {why}")
@@ -324,15 +328,20 @@ def check(reply: ProseReply, facts: Mapping[str, Any], sections: Sequence[str]) 
 
 
 def _unusable(
-    heading: str, paragraph: str, offered: set[str], known: str, longest: int
+    heading: str,
+    paragraph: str,
+    offered: set[str],
+    facts: Mapping[str, Any],
+    known: str,
+    longest: int,
 ) -> str | None:
     """Why a paragraph cannot be used, or None if it can."""
     if heading not in offered:
         return "not a section it was asked to write"
-    return _unchecked(paragraph, known, longest)
+    return _unchecked(paragraph, facts, known, longest)
 
 
-def _unchecked(paragraph: str, known: str, longest: int) -> str | None:
+def _unchecked(paragraph: str, facts: Mapping[str, Any], known: str, longest: int) -> str | None:
     """Why a paragraph of prose fails the checks, or None if it passes them."""
     if len(paragraph) > longest:
         return "too long"
@@ -343,7 +352,7 @@ def _unchecked(paragraph: str, known: str, longest: int) -> str | None:
             named = match.group(match.lastindex or 0)
             if named not in known:
                 return f"names {named!r}, which the facts do not give"
-    return None
+    return check_counts(paragraph, facts)
 
 
 def suggestion_prompt(facts: Mapping[str, Any], asks: Sequence[Ask]) -> str:
@@ -381,7 +390,7 @@ def check_suggestions(
         why = (
             "suggested twice"
             if question_id in kept
-            else _unsuggestable(question_id, answer, asked, known)
+            else _unsuggestable(question_id, answer, asked, facts, known)
         )
         if why:
             dropped.append(f"{question_id}: {why}")
@@ -391,7 +400,11 @@ def check_suggestions(
 
 
 def _unsuggestable(
-    question_id: str, answer: str, asked: Mapping[str, Ask], known: str
+    question_id: str,
+    answer: str,
+    asked: Mapping[str, Ask],
+    facts: Mapping[str, Any],
+    known: str,
 ) -> str | None:
     """Why a suggestion cannot be offered, or None if it can."""
     ask = asked.get(question_id)
@@ -400,7 +413,7 @@ def _unsuggestable(
     if ask.section is not None:
         # A README section's suggestion is prose, checked as the prose is: every number, link,
         # identifier and code-formatted name it gives must be in the facts.
-        return _unchecked(answer, known, MAX_SECTION_SUGGESTION)
+        return _unchecked(answer, facts, known, MAX_SECTION_SUGGESTION)
     if len(answer) > MAX_SUGGESTION:
         return "too long"
     if _NOT_A_SUGGESTION.search(answer.strip()):
