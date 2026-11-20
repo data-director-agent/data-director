@@ -17,13 +17,17 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def services(path: str) -> dict[str, Any]:
-    return yaml.safe_load((ROOT / path).read_text(encoding="utf-8"))["services"]
+    document: dict[str, Any] = yaml.safe_load((ROOT / path).read_text(encoding="utf-8"))
+    found: dict[str, Any] = document["services"]
+    return found
 
 
 BASE = services("compose.yaml")
 OVERLAY = services("loadtest/compose.loadtest.yaml")
 # The model-backed agents: the orchestrator and every adviser. The stub and the example call no model.
-MODEL_BACKED = sorted(name for name in BASE if name == "orchestrator-model" or name.startswith("advisor-"))
+MODEL_BACKED = sorted(
+    name for name in BASE if name == "orchestrator-model" or name.startswith("advisor-")
+)
 
 
 def test_the_roster_of_model_backed_agents_is_found() -> None:
