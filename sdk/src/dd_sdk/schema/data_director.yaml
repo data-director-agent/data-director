@@ -254,6 +254,18 @@ classes:
       - inventory_tool_version
       - inventory_made_at
       - inventory_limitations
+      - inventory_formats
+      - inventory_table_count
+
+  InventoryFormat:
+    description: >-
+      The files of one media type in a project's inventory, without their paths: the conductor
+      fills one per media type into an InventorySummary, so that the agent knows what kinds of
+      files the dataset holds without asking (docs/specs/projects.md, #1287).
+    slots:
+      - format_media_type
+      - format_pronom_ids
+      - format_file_count
 
   ChosenRepository:
     description: >-
@@ -1768,6 +1780,27 @@ slots:
   inventory_limitations:
     description: What the inventory left out or could not do, such as files it skipped.
     multivalued: true
+  inventory_formats:
+    description: >-
+      The inventory's files grouped by media type, the group with the most bytes first, as the
+      app's inventory view groups them. Absent, the summary was made without them.
+    range: InventoryFormat
+    multivalued: true
+    inlined_as_list: true
+  inventory_table_count:
+    description: How many of the inventory's files are tables whose fields it lists.
+    range: integer
+  format_media_type:
+    description: >-
+      The media type (MIME type) of the group's files. Absent, the group is of the files whose
+      media type could not be told.
+  format_pronom_ids:
+    description: Every PRONOM unique identifier (PUID) the group's files matched, sorted.
+    multivalued: true
+  format_file_count:
+    description: How many of the inventory's files are in the group.
+    range: integer
+    required: true
   inventory_parts:
     description: >-
       The scans the inventory is made of, when it is made of more than one folder. Absent, the
