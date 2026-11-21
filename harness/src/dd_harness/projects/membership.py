@@ -22,6 +22,7 @@ import re
 from collections.abc import Iterable, Mapping
 from typing import Any, Final, Literal
 
+from dd_harness.orcid import ORCID_ID
 from dd_harness.projects.rules import (
     MEMBER_ADDED,
     MEMBER_REMOVED,
@@ -39,6 +40,19 @@ MEMBER: Final = "member"
 type MemberRole = Literal["owner", "member"]
 MEMBER_ROLES: Final = (OWNER, MEMBER)
 _IRI = re.compile(IRI_PATTERN)
+ORCID_IRI: Final = "https://orcid.org/{}"
+
+
+def principal_identifier(given: str) -> str:
+    """The principal identifier a person gave for a member: a bare ORCID iD (such as
+    `0000-0002-1825-0097`) as its `https://orcid.org/` IRI, anything else as given, trimmed."""
+    given = given.strip()
+    return ORCID_IRI.format(given) if ORCID_ID.fullmatch(given) else given
+
+
+def is_last_owner(roles: Mapping[str, MemberRole], member_id: str) -> bool:
+    """Whether `member_id` is the project's only owner, whom no one may remove or demote."""
+    return roles.get(member_id) == OWNER and sum(r == OWNER for r in roles.values()) == 1
 
 
 def member_roles(events: Iterable[Mapping[str, Any]]) -> dict[str, MemberRole]:
@@ -86,7 +100,7 @@ def _check_member_id(member_id: str) -> None:
 
 
 def _refuse_last_owner(roles: Mapping[str, MemberRole], member_id: str, doing: str) -> None:
-    if roles.get(member_id) == OWNER and sum(r == OWNER for r in roles.values()) == 1:
+    if is_last_owner(roles, member_id):
         raise MembershipRefusedError(
             MembershipRefusal.LAST_OWNER,
             f"a project always has an owner, so its last owner cannot be {doing}",

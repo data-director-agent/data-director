@@ -33,7 +33,7 @@ import type { RunState } from "../../run/reduce";
 import { useResource } from "../../useResource";
 import type { Carried } from "./useAttachments";
 import type { AwaitedDrafts } from "./useProjectDocuments";
-import { body, refusedInStream, replyAnnouncement, sendFailure } from "./turnMessages";
+import { body, refusedInStream, replyAnnouncement, sendFailure, streamRefusal } from "./turnMessages";
 import { useTurnStream } from "./useTurnStream";
 
 export { replyAnnouncement, sendFailure } from "./turnMessages";
@@ -286,7 +286,7 @@ export function useConversationTurns(options: TurnsOptions): Turns {
       id ??= await start();
       setConversationId(id);
       const run = await turn.stream(id, body(orchestratorId, message, follows, carried, answer));
-      if (refusedInStream(run)) throw new Error(run.error ?? "the turn was refused");
+      if (refusedInStream(run)) throw streamRefusal(run);
       // The turn has run: from here a failure is in showing the reply, not in sending it, so the
       // message must not come back to the box to be sent twice (#337).
       ended = run;

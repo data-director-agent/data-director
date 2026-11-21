@@ -261,7 +261,11 @@ async def stream_run(
         try:
             envelope = run.result()
         except refusals as exc:
-            yield RunErrorEvent(type=EventType.RUN_ERROR, message=str(exc))
+            # A refusal may name which it is (`code`, a Problem Details slug), so that a client
+            # can tell, say, a turn that no longer follows the latest from any other.
+            yield RunErrorEvent(
+                type=EventType.RUN_ERROR, message=str(exc), code=getattr(exc, "code", None)
+            )
             return
         if not sent_start:
             sent_start = True

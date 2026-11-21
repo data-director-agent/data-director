@@ -108,9 +108,10 @@ done for you, with ORCID named as the one that vouched for who you are. Data Dir
 for your iD and your name only; select your name in the banner to see them on your profile page. Where nobody signs in, the banner says so, and every run is
 recorded as acting for the person who set up the deployment.
 
-Where people sign in, each person sees only their own runs, conversations and projects. A
-project's documents, inventory and progress can be read only by the person who created it, even by
-someone else who has its address; sharing a project with colleagues from the app is TODO(#391).
+Where people sign in, each person sees only their own runs, conversations and projects, and the
+projects they are a member of. A project's documents, inventory, progress and conversations can be
+read only by its members, even by someone else who has its address. See
+[Working on a project with others](members.md).
 
 If you report a problem from the app, the report includes what you type and, only if you agree,
 the identifiers of the run and conversation. It never includes your inputs or results.

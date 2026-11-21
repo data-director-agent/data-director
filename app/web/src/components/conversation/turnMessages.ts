@@ -66,3 +66,16 @@ export function body(
 export function refusedInStream(state: RunState): boolean {
   return state.phase === "error" && state.runId === null;
 }
+
+/** Why the server refused a turn in its stream, as an error to raise: `TurnConflict` when the
+ * conversation has moved on (`turn-conflict`), so that the page reads it again and keeps what
+ * the person typed (#391); otherwise the server's words. */
+export function streamRefusal(state: RunState): Error {
+  const detail = state.error ?? "the turn was refused";
+  if (state.errorCode === TURN_CONFLICT) {
+    return new TurnConflict({ type: TURN_CONFLICT, title: "The conversation has moved on", detail });
+  }
+  return new Error(detail);
+}
+
+const TURN_CONFLICT = "turn-conflict";

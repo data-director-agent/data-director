@@ -53,6 +53,7 @@ export function homePath({
 export const PROJECT_TABS = [
   "documents",
   "researchers",
+  "members",
   "facts",
   "repository",
   "ai-use",

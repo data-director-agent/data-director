@@ -16,21 +16,19 @@ import sys
 from typing import Any
 
 from dd_harness import project_access
-from dd_harness.orcid import ORCID_ID
 from dd_harness.project_access import Action
-from dd_harness.projects import MEMBER, MEMBER_ROLES, ProjectError, UnknownProjectError
+from dd_harness.projects import (
+    MEMBER,
+    MEMBER_ROLES,
+    ProjectError,
+    UnknownProjectError,
+    principal_identifier,
+)
 from dd_harness.settings import principal_from_env, project_storage, projects_dir
 from dd_harness.storage import ProjectStorage
 from dd_sdk.contract.models import Principal
 
 CAUSED_BY = "dd-harness project {command}"
-ORCID_IRI = "https://orcid.org/{}"
-
-
-def member_id(given: str) -> str:
-    """The principal identifier `given` names: a bare ORCID iD as its IRI, else as given."""
-    given = given.strip()
-    return ORCID_IRI.format(given) if ORCID_ID.fullmatch(given) else given
 
 
 def _refused(project_id: str) -> ProjectError:
@@ -58,7 +56,7 @@ def cmd_member_add(args: argparse.Namespace) -> int:
     store, principal = _managed(args.project_id)
     store.add_member(
         args.project_id,
-        member_id(args.member),
+        principal_identifier(args.member),
         args.role,
         acted_for=principal,
         caused_by=CAUSED_BY.format(command="member-add"),
@@ -70,7 +68,7 @@ def cmd_member_role(args: argparse.Namespace) -> int:
     store, principal = _managed(args.project_id)
     store.change_role(
         args.project_id,
-        member_id(args.member),
+        principal_identifier(args.member),
         args.role,
         acted_for=principal,
         caused_by=CAUSED_BY.format(command="member-role"),
@@ -80,7 +78,7 @@ def cmd_member_role(args: argparse.Namespace) -> int:
 
 def cmd_member_remove(args: argparse.Namespace) -> int:
     store, principal = project_storage(projects_dir()), principal_from_env()
-    member = member_id(args.member)
+    member = principal_identifier(args.member)
     if not project_access.may_remove_member(store, args.project_id, principal, member):
         raise _refused(args.project_id)
     store.remove_member(

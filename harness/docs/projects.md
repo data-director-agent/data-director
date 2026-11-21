@@ -302,8 +302,6 @@ until a person approves one. The conductor gives it to every drafter in the proj
 
 ## Not yet built
 
-- Membership has no routes or page in the app yet, only the rules and `dd-harness project
-  member-add`, `member-role`, `member-remove` and `members`, TODO(#391).
 - A drafter is not yet given the text of a document a researcher attached; only an
   orchestrator is told, without its text, that the project holds it.
 - How long a project is kept once it can no longer be restored, and what erasing one removes,

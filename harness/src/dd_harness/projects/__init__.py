@@ -77,7 +77,9 @@ from dd_harness.projects.membership import (
     OWNER,
     MemberRole,
     Membership,
+    is_last_owner,
     member_roles,
+    principal_identifier,
 )
 from dd_harness.projects.repository import RepositoryChoice
 from dd_harness.projects.researchers import Researchers
@@ -215,8 +217,10 @@ __all__ = [
     "check_documentation",
     "conversation_deletions",
     "deletion",
+    "is_last_owner",
     "member_roles",
     "package_format",
+    "principal_identifier",
     "read_document_file",
     "reason_required",
     "review_rules",

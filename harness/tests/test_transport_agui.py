@@ -550,3 +550,27 @@ def test_a_tool_call_streams_inside_the_agent_stage_by_name_only(runs_dir: Path)
     assert events[started]["toolCallId"] == events[ended]["toolCallId"]
     # Neither the call's arguments nor what it returned travel.
     assert "CC-BY-4.0" not in json.dumps([events[started], events[ended]])
+
+
+class _NamedRefusalError(ValueError):
+    """A caller's refusal that names which it is."""
+
+    code = "some-refusal"
+
+
+@pytest.mark.parametrize(
+    ("refusal", "code"),
+    [(_NamedRefusalError("named"), "some-refusal"), (ValueError("plain"), None)],
+)
+def test_a_refusal_names_its_code_in_run_error(refusal: Exception, code: str | None) -> None:
+    async def start(*_: Any) -> Any:
+        raise refusal
+
+    async def collect() -> list[Any]:
+        return [
+            e async for e in stream_run(start, thread_id="t1", run_id="r1", refusals=(ValueError,))
+        ]
+
+    (event,) = asyncio.run(collect())
+    assert event.type == "RUN_ERROR"
+    assert event.code == code

@@ -79,6 +79,8 @@ export type AppResponse =
   | ProjectDocuments
   | ProjectFacts
   | ProjectIntake
+  | ProjectMember
+  | ProjectMembers
   | ProjectProgress
   | ProjectSummary
   | RawAgentsResponse
@@ -93,6 +95,7 @@ export type AppResponse =
   | RepositoryTicket
   | ReviewItem
   | ReviewRules
+  | Role
   | RunResult
   | RunRow
   | SavedInventory
@@ -109,6 +112,7 @@ export type AppResponse =
 export type StepState = "started" | "done" | "skipped";
 export type OutcomeStatus = "succeeded" | "abstained" | "referred" | "failed" | "suspended";
 export type IntakeState = "pending" | "complete" | "dismissed";
+export type Role = "owner" | "member";
 
 /**
  * The build, what the deployment runs and what it offers (`GET /api/about`, open to all).
@@ -1223,6 +1227,53 @@ export interface ProjectIntake {
   progress: ProjectProgress;
   questions: IntakeQuestion[];
   state: IntakeState;
+}
+/**
+ * One member of a project.
+ */
+export interface ProjectMember {
+  /**
+   * Whether this member is the person asking.
+   */
+  is_you: boolean;
+  /**
+   * The identifier the member signs in with, such as their ORCID iD as a URL.
+   */
+  member_id: string;
+  /**
+   * When they became a member: the project's creation, for its creator.
+   */
+  member_since: string;
+  /**
+   * Whether the person asking may remove this member (or leave, for themselves).
+   */
+  removable: boolean;
+  /**
+   * The name the member kept from their own ORCID record in this project; left out while they
+   * have kept none. The project keeps no other name for a member.
+   */
+  researcher_name?: string;
+  role: Role;
+  /**
+   * Whether the person asking may change this member's role: an owner, and not of the last
+   * owner.
+   */
+  role_changeable: boolean;
+}
+/**
+ * A project's members, the creator first, and what the person asking may do.
+ */
+export interface ProjectMembers {
+  /**
+   * Whether the person asking may leave: a member, or an owner who is not the last.
+   */
+  may_leave: boolean;
+  /**
+   * Whether the person asking may add members and change their roles: an owner.
+   */
+  may_manage: boolean;
+  members: ProjectMember[];
+  your_role: Role | null;
 }
 /**
  * One project the person may read, as `GET /api/projects` lists it and

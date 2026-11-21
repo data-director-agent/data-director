@@ -48,7 +48,7 @@ access check `dd_harness.project_access`, which reads each principal's role from
 use by the conductor before a run in a project and by every route of the app's server under
 `/api/projects/{project_id}`; membership, whose events an owner appends to add, re-role and
 remove members by principal identifier (`dd_harness.projects.membership`, `dd-harness project
-member-add`), with the app's members page TODO(#391); the app
+member-add`) and from the project's Members tab (`/api/projects/{project_id}/members`); the app
 starting each conversation in a project of its own and adding an inventory attached to a turn;
 researcher facts a person keeps from their own public ORCID record, given to the project's
 agents (invariant 27); the inventory command; and the core
@@ -479,8 +479,12 @@ folder is added to an inventory without parts, the researcher names the folder i
 and its paths, and what they stated about them, move under that name. `dd-inventory` given
 several folders makes an inventory of one part per folder. Replacing the whole inventory with
 another remains possible.
-A page for a project's members, and keeping what a person typed when a turn or edit is
-refused as stale, are TODO(#391).
+A project's members are on its Members tab (`GET`, `POST`, `PATCH` and `DELETE
+/api/projects/{project_id}/members`, `app/tests/test_project_members.py`), which offers only what
+the server says the person may do ([The app](app.md), rule 32). A turn refused as stale keeps what
+the person typed and reads the conversation again, whether refused before its stream opens or in
+it (`RUN_ERROR` with `code: turn-conflict`). Keeping what a person typed when a document edit is
+refused as stale is not built yet: the reader shows the new version and the edit is lost.
 
 **The inventory command** `dd-inventory` is a workspace member of its own that depends on no other
 member, not even the contract ([System and boundaries](system.md)); its tests check its output
@@ -704,7 +708,9 @@ store, and writes to neither ([Disclosure](disclosure.md)).
   No email address is asked for or held for a member. Researcher facts are public, but
   personal: they go to a hosted model only where the profile lists `researcher` (invariant 8),
   and withdrawing them stops them being given but does not erase them from the log, TODO(#156). Members see each other's words and work,
-  and the user guide must say so where a member is added, TODO(#391).
+  each turn with its sender's name, and the Members tab and the user guide
+  ([Working on a project with others](../guide/user-guide/members.md)) say so where a member is
+  added.
 - **Disclosure.** A refusal to a non-member does not reveal whether a project exists, and a
   deleted project is refused to anyone but an owner in the same way (invariant 23).
 - **Durability.** An event is flushed to disk before the call returns, and a blob is written aside

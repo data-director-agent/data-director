@@ -1,0 +1,6 @@
+{
+  "detail": "a project always has an owner, so its last owner cannot be removed",
+  "status": 409,
+  "title": "Data Director could not change the project's members",
+  "type": "https://w3id.org/data-director/problems/last-owner"
+}

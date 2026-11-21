@@ -9,12 +9,12 @@ from pathlib import Path
 
 import pytest
 
-from dd_harness import member_cli
 from dd_harness.project_access import (
     Action,
     Role,
     may,
     may_delete_conversation,
+    may_leave,
     may_remove_member,
     readable_projects,
     role_of,
@@ -30,6 +30,7 @@ from dd_harness.projects import (
     ProjectError,
     ProjectStore,
     UnknownProjectError,
+    principal_identifier,
 )
 from dd_harness.role_events import names
 from dd_harness.server import main
@@ -296,8 +297,24 @@ def operator(monkeypatch: pytest.MonkeyPatch, projects: ProjectStore) -> Project
 
 
 def test_a_bare_orcid_id_names_its_iri() -> None:
-    assert member_cli.member_id(" 0000-0002-1694-233X ") == COLLEAGUE.principal_id
-    assert member_cli.member_id(COLLEAGUE.principal_id) == COLLEAGUE.principal_id
+    assert principal_identifier(" 0000-0002-1694-233X ") == COLLEAGUE.principal_id
+    assert principal_identifier(COLLEAGUE.principal_id) == COLLEAGUE.principal_id
+
+
+def test_a_member_may_leave_and_the_last_owner_may_not(
+    projects: ProjectStore, project_id: str
+) -> None:
+    assert not may_leave(projects, project_id, TEST_PRINCIPAL)
+    assert not may_leave(projects, project_id, COLLEAGUE)
+    projects.add_member(
+        project_id, COLLEAGUE.principal_id, acted_for=TEST_PRINCIPAL, caused_by="test"
+    )
+    assert may_leave(projects, project_id, COLLEAGUE)
+    assert not may_leave(projects, project_id, TEST_PRINCIPAL)
+    projects.change_role(
+        project_id, COLLEAGUE.principal_id, "owner", acted_for=TEST_PRINCIPAL, caused_by="test"
+    )
+    assert may_leave(projects, project_id, TEST_PRINCIPAL)
 
 
 def test_an_operator_who_owns_a_project_manages_its_members_from_the_command_line(

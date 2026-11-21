@@ -36,7 +36,7 @@ from enum import StrEnum
 from typing import Any, Protocol
 
 from dd_harness.listing import Readable
-from dd_harness.projects import conversation_deletions, deletion, member_roles
+from dd_harness.projects import conversation_deletions, deletion, is_last_owner, member_roles
 from dd_harness.storage import ProjectConversations, ProjectLifecycle
 from dd_sdk.contract.models import Principal
 
@@ -141,6 +141,14 @@ def may_remove_member(
     return allowed(role, Action.MANAGE) or (
         role is not None and member_id == principal.principal_id
     )
+
+
+def may_leave(store: ProjectLifecycle, project_id: str, principal: Principal) -> bool:
+    """Whether `principal` may leave the project `project_id`: a member may, and an owner may
+    unless they are its last (docs/specs/projects.md, Roles)."""
+    if role_of(store, project_id, principal) is None:
+        return False
+    return not is_last_owner(member_roles(store.events(project_id)), principal.principal_id)
 
 
 class ConversationAccess(ProjectLifecycle, ProjectConversations, Protocol):
