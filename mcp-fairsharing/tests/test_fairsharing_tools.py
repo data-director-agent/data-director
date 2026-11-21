@@ -11,14 +11,14 @@ from fs_support import RECORD_ID, client, registry, seen
 from jsonschema import Draft202012Validator
 
 from dd_mcp_fairsharing.client import record_id
-from dd_mcp_fairsharing.tools import Registry, fairsharing_registry
+from dd_mcp_fairsharing.tools import Tools
 
 
-def records(reg: Registry, tool: str, arguments: dict[str, Any]) -> list[dict[str, Any]]:
+def records(reg: Tools, tool: str, arguments: dict[str, Any]) -> list[dict[str, Any]]:
     result = reg.call(tool, arguments)
     assert not result.is_error, result.content
     assert result.structured_content is not None
-    schema = next(t.output_schema for t in reg.tools if t.name == tool)
+    schema = next(t.output_schema for t in reg.listed if t.name == tool)
     assert schema is not None
     Draft202012Validator(schema).validate(result.structured_content)
     found: list[dict[str, Any]] = result.structured_content["records"]
@@ -26,7 +26,7 @@ def records(reg: Registry, tool: str, arguments: dict[str, Any]) -> list[dict[st
 
 
 def test_every_tool_declares_input_and_output_schemas() -> None:
-    for tool in registry().tools:
+    for tool in registry().listed:
         Draft202012Validator.check_schema(tool.input_schema)
         assert tool.output_schema is not None
         Draft202012Validator.check_schema(tool.output_schema)
@@ -57,7 +57,7 @@ def test_a_record_needs_no_account() -> None:
 
 def test_an_unknown_identifier_has_no_records() -> None:
     assert records(registry(), "get_record", {"id": "FAIRsharing.zzzzzz"}) == []
-    gone = fairsharing_registry(client(lambda _r: httpx.Response(404)))
+    gone = Tools(client(lambda _r: httpx.Response(404)))
     assert records(gone, "get_record", {"id": RECORD_ID}) == []
 
 
@@ -100,7 +100,7 @@ def test_an_input_of_the_wrong_kind_is_an_error(tool: str, arguments: dict[str, 
 
 
 def test_a_failing_service_is_an_error_not_a_miss() -> None:
-    down = fairsharing_registry(client(lambda _r: httpx.Response(503)))
+    down = Tools(client(lambda _r: httpx.Response(503)))
     assert down.call("get_record", {"id": RECORD_ID}).is_error
 
 

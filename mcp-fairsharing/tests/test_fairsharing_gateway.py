@@ -31,7 +31,7 @@ def listed_servers(base_url: str) -> list[ToolServer]:
             id_field="id",
             canonicalisation=DOCUMENT_CANONICALISATION,
             tools_sha256=tools_digest(
-                t.model_dump(mode="json", by_alias=True, exclude_none=True) for t in reg.tools
+                t.model_dump(mode="json", by_alias=True, exclude_none=True) for t in reg.listed
             ),
         )
     ]
@@ -47,7 +47,7 @@ def _free_port() -> int:
 def base_url() -> Iterator[str]:
     port = _free_port()
     config = uvicorn.Config(
-        create_app([registry()]), host="127.0.0.1", port=port, log_level="warning"
+        create_app(registry()), host="127.0.0.1", port=port, log_level="warning"
     )
     server = uvicorn.Server(config)
     thread = threading.Thread(target=server.run, daemon=True)

@@ -15,15 +15,12 @@ import os
 import re
 from typing import Any
 
-import httpx
-
 from dd_mcp_fairsharing.http import Http, UnavailableError
 from dd_mcp_fairsharing.records import PUBLIC_RECORD_URL, Record, from_api_json, from_public_json
 
 API_BASE = "https://api.fairsharing.org"
 SIGN_IN = f"{API_BASE}/users/sign_in"
 SEARCH = f"{API_BASE}/search/fairsharing_records"
-JSON = {"Accept": "application/json"}
 MAX_LIMIT = 25
 
 _IDENTIFIER = re.compile(
@@ -51,7 +48,7 @@ class Fairsharing:
     def __init__(
         self, http: Http | None = None, login: str | None = None, password: str | None = None
     ) -> None:
-        self.http = http or Http("FAIRsharing", headers=JSON)
+        self.http = http or Http()
         self._login = login or os.environ.get("FAIRSHARING_LOGIN")
         self._password = password or os.environ.get("FAIRSHARING_PASSWORD")
         self._jwt: str | None = None
@@ -62,7 +59,7 @@ class Fairsharing:
 
     def get(self, ident: str) -> Record | None:
         """The record, or None when FAIRsharing has no such identifier."""
-        resp = self.http.get(PUBLIC_RECORD_URL.format(id=ident))
+        resp = self.http.request("GET", PUBLIC_RECORD_URL.format(id=ident))
         if resp.status_code == 404:
             return None
         if resp.status_code != 200:
@@ -77,12 +74,9 @@ class Fairsharing:
             return self._jwt
         if not self.can_search:
             raise NoAccountError("FAIRsharing: search needs an account, and this server has none")
-        try:
-            resp = self.http.client().post(
-                SIGN_IN, json={"user": {"login": self._login, "password": self._password}}
-            )
-        except httpx.HTTPError as exc:
-            raise UnavailableError(f"FAIRsharing sign-in: {type(exc).__name__}") from None
+        resp = self.http.request(
+            "POST", SIGN_IN, json={"user": {"login": self._login, "password": self._password}}
+        )
         if resp.status_code != 200:
             raise UnavailableError(f"FAIRsharing sign-in: HTTP {resp.status_code}")
         body = self.http.json(resp)
@@ -102,12 +96,9 @@ class Fairsharing:
         if record_type:
             params["record_type"] = record_type
         token = self._token()
-        try:
-            resp = self.http.client().post(
-                SEARCH, params=params, headers={"Authorization": f"Bearer {token}"}
-            )
-        except httpx.HTTPError as exc:
-            raise UnavailableError(f"FAIRsharing search: {type(exc).__name__}") from None
+        resp = self.http.request(
+            "POST", SEARCH, params=params, headers={"Authorization": f"Bearer {token}"}
+        )
         if resp.status_code == 401:
             self._jwt = None  # expired: sign in afresh on the next call
         if resp.status_code != 200:

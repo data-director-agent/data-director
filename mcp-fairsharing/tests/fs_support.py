@@ -13,7 +13,7 @@ import httpx
 
 from dd_mcp_fairsharing.client import Fairsharing
 from dd_mcp_fairsharing.http import Http
-from dd_mcp_fairsharing.tools import Registry, fairsharing_registry
+from dd_mcp_fairsharing.tools import Tools
 
 DATA = Path(__file__).with_name("data")
 RECORD_ID = "FAIRsharing.abc123"
@@ -48,14 +48,9 @@ def served(request: httpx.Request) -> httpx.Response:
 def client(
     handler: Callable[[httpx.Request], httpx.Response] = served, *, account: bool = True
 ) -> Fairsharing:
-    http = Http(
-        "FAIRsharing",
-        headers={"Accept": "application/json"},
-        transport=httpx.MockTransport(handler),
-        sleep=lambda _s: None,
-    )
+    http = Http(transport=httpx.MockTransport(handler), sleep=lambda _s: None)
     return Fairsharing(http, *(LOGIN if account else ("", "")))
 
 
-def registry(*, account: bool = True) -> Registry:
-    return fairsharing_registry(client(account=account))
+def registry(*, account: bool = True) -> Tools:
+    return Tools(client(account=account))

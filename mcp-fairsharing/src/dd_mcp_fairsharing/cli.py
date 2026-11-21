@@ -18,7 +18,7 @@ import uvicorn
 
 from dd_mcp_fairsharing.app import LOOPBACK, create_app
 from dd_mcp_fairsharing.client import Fairsharing
-from dd_mcp_fairsharing.tools import fairsharing_registry
+from dd_mcp_fairsharing.tools import Tools
 
 DEFAULT_PORT = 8311
 
@@ -38,6 +38,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=DEFAULT_PORT)
     args = parser.parse_args(argv)
-    app = create_app([fairsharing_registry(Fairsharing())], hosts(os.environ))
+    app = create_app(Tools(Fairsharing()), hosts(os.environ))
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
     return 0

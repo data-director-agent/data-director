@@ -13,8 +13,6 @@ by `id`, and holds no integers.
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from dataclasses import dataclass
 from typing import Any
 
 from mcp_types import CallToolResult, TextContent, Tool
@@ -128,83 +126,62 @@ SEARCH_RECORDS = Tool(
 )
 
 
-def found(records: list[dict[str, Any]], summary: str) -> CallToolResult:
+def _answer(message: str, records: list[dict[str, Any]] | None = None) -> CallToolResult:
+    """`message` with `records` (possibly none) as structured content, or, with no list, as an
+    error."""
     return CallToolResult(
-        content=[TextContent(type="text", text=summary)],
-        structured_content={"records": records},
+        content=[TextContent(type="text", text=message)],
+        structured_content=None if records is None else {"records": records},
+        is_error=records is None,
     )
 
 
-def text(message: str, *, error: bool = False) -> CallToolResult:
-    return CallToolResult(content=[TextContent(type="text", text=message)], is_error=error)
+class Tools:
+    """The FAIRsharing server's tools, and how each call is answered."""
 
+    name = "fairsharing"
 
-type Handler = Callable[[dict[str, Any]], CallToolResult]
-
-
-@dataclass(frozen=True)
-class Registry:
-    """One MCP server's worth: its name, its tools and how each is answered."""
-
-    name: str
-    tools: tuple[Tool, ...]
-    handlers: dict[str, Handler]
+    def __init__(self, client: Fairsharing) -> None:
+        self.client = client
+        self.listed = (GET_RECORD, SEARCH_RECORDS)
 
     def call(self, tool: str, arguments: dict[str, Any]) -> CallToolResult:
-        handler = self.handlers.get(tool)
+        handler = {"get_record": self._get, "search_records": self._search}.get(tool)
         if handler is None:
-            return text(f"{self.name} has no tool {tool!r}", error=True)
+            return _answer(f"fairsharing has no tool {tool!r}")
         try:
             return handler(arguments)
         except NoAccountError as exc:
-            return text(f"{exc}. Use get_record with an identifier instead.", error=True)
+            return _answer(f"{exc}. Use get_record with an identifier instead.")
         except UnavailableError as exc:
-            return text(f"{exc}. Try again later.", error=True)
+            return _answer(f"{exc}. Try again later.")
 
+    def _get(self, arguments: dict[str, Any]) -> CallToolResult:
+        given = arguments.get("id")
+        ident = record_id(given) if isinstance(given, str) else None
+        if ident is None:
+            return _answer(
+                "Not a FAIRsharing identifier: give FAIRsharing.xxxxx, its DOI, a fairsharing.org "
+                "URL or a numeric id."
+            )
+        record = self.client.get(ident)
+        if record is None:
+            return _answer(f"FAIRsharing has no record {ident}.", [])
+        return _answer(f"FAIRsharing: {_summary(record)}.", [record.document()])
 
-def _arg(arguments: dict[str, Any], name: str) -> str:
-    value = arguments.get(name)
-    return value if isinstance(value, str) else ""
+    def _search(self, arguments: dict[str, Any]) -> CallToolResult:
+        words = " ".join(str(arguments.get("query") or "").split())
+        limit = arguments.get("limit", 10)
+        if not words:
+            return _answer("Give some words to search for.")
+        if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+            return _answer(f"limit must be a whole number from 1 to {MAX_LIMIT}.")
+        kind = str(arguments.get("record_type") or "").strip() or None
+        found = self.client.search(words, kind, limit)
+        listed = "; ".join(_summary(r) for r in found) or "none"
+        message = f"FAIRsharing: {len(found)} record(s) for {words!r}: {listed}."
+        return _answer(message, [r.document() for r in found])
 
 
 def _summary(record: Record) -> str:
     return f"{record.id} ({record.record_type or 'record'}): {record.name}"
-
-
-def fairsharing_registry(client: Fairsharing) -> Registry:
-    """The `fairsharing` server."""
-
-    def get_record(arguments: dict[str, Any]) -> CallToolResult:
-        ident = record_id(_arg(arguments, "id"))
-        if ident is None:
-            return text(
-                "Not a FAIRsharing identifier: give FAIRsharing.xxxxx, its DOI, a "
-                "fairsharing.org URL or a numeric id.",
-                error=True,
-            )
-        record = client.get(ident)
-        if record is None:
-            return found([], f"FAIRsharing has no record {ident}.")
-        return found([record.document()], f"FAIRsharing: {_summary(record)}.")
-
-    def search_records(arguments: dict[str, Any]) -> CallToolResult:
-        query = " ".join(_arg(arguments, "query").split())
-        if not query:
-            return text("Give some words to search for.", error=True)
-        raw_limit = arguments.get("limit", 10)
-        if isinstance(raw_limit, bool) or not isinstance(raw_limit, int) or raw_limit < 1:
-            return text(f"limit must be a whole number from 1 to {MAX_LIMIT}.", error=True)
-        limit = raw_limit
-        record_type = _arg(arguments, "record_type").strip() or None
-        records = client.search(query, record_type, limit)
-        listed = "; ".join(_summary(r) for r in records) or "none"
-        return found(
-            [r.document() for r in records],
-            f"FAIRsharing: {len(records)} record(s) for {query!r}: {listed}.",
-        )
-
-    return Registry(
-        "fairsharing",
-        (GET_RECORD, SEARCH_RECORDS),
-        {"get_record": get_record, "search_records": search_records},
-    )

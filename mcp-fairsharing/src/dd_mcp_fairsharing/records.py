@@ -21,42 +21,37 @@ LICENCE = "FAIRsharing content is CC BY-SA 4.0; attribution: https://fairsharing
 
 
 class Record(BaseModel):
+    """What a client cites: identified by `id`, with no integers."""
+
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     id: str
-    """`FAIRsharing.xxxxx` (from the DOI suffix) where the record has a DOI, else the numeric id.
-    This is the field a client identifies the record by."""
-    doi: str | None = None
+    """`FAIRsharing.xxxxx` where the record has a DOI (its suffix), else the numeric id."""
     name: str
-    abbreviation: str | None = None
-    registry: str | None = None
-    record_type: str | None = None
-    status: str | None = None
-    description: str | None = None
-    homepage: str | None = None
-    subjects: list[str] = Field(default_factory=list)
-    domains: list[str] = Field(default_factory=list)
     url: str
     licence: str = LICENCE
+    doi: str | None = None
+    abbreviation: str | None = None
+    homepage: str | None = None
+    description: str | None = None
+    status: str | None = None
+    registry: str | None = None
+    record_type: str | None = None
+    subjects: list[str] = Field(default_factory=list)
+    domains: list[str] = Field(default_factory=list)
 
     def document(self) -> dict[str, Any]:
         return self.model_dump(mode="json")
 
 
-def _id(doi: str | None, numeric: str) -> str:
-    return doi.removeprefix(DOI_PREFIX) if doi and doi.startswith(DOI_PREFIX) else numeric
-
-
-def _labels(items: Any) -> list[str]:
-    if not isinstance(items, list):
-        return []
-    out: list[str] = []
-    for item in items:
-        if isinstance(item, dict) and item.get("label"):
-            out.append(str(item["label"]))
-        elif isinstance(item, str):
-            out.append(item)
-    return out
+def _labels(tags: Any) -> list[str]:
+    """The labels in a list of tags, each either a string or an object with a `label`."""
+    wanted = tags if isinstance(tags, list) else []
+    return [
+        str(label)
+        for tag in wanted
+        if (label := tag.get("label") if isinstance(tag, dict) else tag)
+    ]
 
 
 def _text(value: Any) -> str | None:
@@ -73,20 +68,20 @@ def _record(
     record_type: Any,
 ) -> Record:
     doi = _text(meta.get("doi"))
-    ident = _id(doi, numeric)
+    ident = doi.removeprefix(DOI_PREFIX) if doi and doi.startswith(DOI_PREFIX) else numeric
     return Record(
         id=ident,
-        doi=doi,
+        url=PUBLIC_RECORD_URL.format(id=ident),
         name=str(meta.get("name") or top.get("name") or ""),
+        doi=doi,
         abbreviation=_text(meta.get("abbreviation") or top.get("abbreviation")),
+        homepage=_text(meta.get("homepage")),
+        description=_text(meta.get("description")),
+        status=_text(meta.get("status")),
         registry=_text(registry),
         record_type=_text(record_type),
-        status=_text(meta.get("status")),
-        description=_text(meta.get("description")),
-        homepage=_text(meta.get("homepage")),
         subjects=_labels(tags.get("subjects")),
         domains=_labels(tags.get("domains")),
-        url=PUBLIC_RECORD_URL.format(id=ident),
     )
 
 
@@ -95,9 +90,8 @@ def from_public_json(data: dict[str, Any]) -> Record | None:
     meta = data.get("metadata") or {}
     if not (data.get("name") or meta.get("name")):
         return None
-    numeric = str(data.get("id") or meta.get("identifier") or "")
     return _record(
-        numeric,
+        str(data.get("id") or meta.get("identifier") or ""),
         meta,
         data,
         data.get("tags") or {},
