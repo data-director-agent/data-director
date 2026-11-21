@@ -6,6 +6,7 @@ import { createContext, useContext } from "react";
 
 import { checkSignedIn } from "../session/api";
 import type { ProcessFlow } from "./types";
+import { serverAnswered } from "../status";
 
 export interface FlowApi {
   get(signal?: AbortSignal): Promise<ProcessFlow>;
@@ -15,7 +16,7 @@ export const httpFlowApi: FlowApi = {
   async get(signal) {
     const response = await fetch("/api/process-flow", signal ? { signal } : {});
     checkSignedIn(response);
-    if (!response.ok) throw new Error(`the server answered ${response.status}`);
+    if (!response.ok) throw new Error(serverAnswered(response.status));
     return (await response.json()) as ProcessFlow;
   },
 };

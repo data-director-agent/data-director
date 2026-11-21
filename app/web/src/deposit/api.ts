@@ -22,6 +22,7 @@ import type {
 } from "../api/generated/responses";
 import { ticketed } from "../api/ticketed";
 import { checkSignedIn } from "../session/api";
+import { serverAnswered } from "../status";
 
 export type { DepositShown, Deposits } from "../api/generated/responses";
 
@@ -128,7 +129,7 @@ async function ticket(): Promise<RepositoryTicket> {
     headers: JSON_HEADERS,
   });
   checkSignedIn(response);
-  if (!response.ok) throw new Error(`the server answered ${response.status}`);
+  if (!response.ok) throw new Error(serverAnswered(response.status));
   return (await response.json()) as RepositoryTicket;
 }
 
@@ -169,7 +170,7 @@ export const httpDepositApi: DepositApi = {
   async deposits(projectId, signal) {
     const response = await fetch(depositsPath(projectId), signal ? { signal } : {});
     checkSignedIn(response);
-    if (!response.ok) throw new Error(`the server answered ${response.status}`);
+    if (!response.ok) throw new Error(serverAnswered(response.status));
     return (await response.json()) as Deposits;
   },
   async deposit(projectId, digest) {
@@ -182,7 +183,7 @@ export const httpDepositApi: DepositApi = {
     if (response.status === 409) {
       throw new DepositRefused((await response.json()) as DepositRefusedProblem);
     }
-    if (!response.ok) throw new Error(`the server answered ${response.status}`);
+    if (!response.ok) throw new Error(serverAnswered(response.status));
     return (await response.json()) as DepositShown;
   },
   async options(signal) {

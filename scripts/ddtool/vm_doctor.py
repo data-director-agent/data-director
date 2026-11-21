@@ -98,6 +98,12 @@ class Doctor(SettingsChecks):
                     f"{branch}'s tip {short(tip_sha)} is not live yet ({short(sha)} is): it waits "
                     "for CI or the next pass"
                 )
+        if system.exists(vm.paused):
+            until = system.read(vm.paused).strip() if system.readable(vm.paused) else ""
+            report.note(
+                f"deployments are paused until {until or 'the pause is removed'}: "
+                f'sudo rm {vm.paused} to lift it (deploy/README.md, "Holding deployments back")'
+            )
         for unit in ("data-director-deploy.timer", "data-director-restart.path"):
             if not is_active(system, unit):
                 report.problem(f"{unit} is not active, so releases stop", self.install)

@@ -200,3 +200,37 @@ def test_force_deploys_the_tip_without_asking_ci(vm: Vm) -> None:
     assert done.returncode == 0, done.stderr
     assert vm.live() == tip
     assert not vm.asked.exists()
+
+
+@pytest.mark.parametrize("until", ["", "2999-01-01T00:00Z", "next workshop"])
+def test_a_pause_holds_deployments_back(vm: Vm, until: str) -> None:
+    vm.answer({vm.commits[-1]: "success"})
+    (vm.root / "deploy.paused").write_text(until + "\n")
+
+    done = vm.deploy()
+
+    assert done.returncode == 0, done.stderr
+    assert vm.live() == vm.commits[0]
+    assert not vm.asked.exists()
+    assert (vm.root / "deploy.paused").exists()
+
+
+def test_a_pause_whose_time_has_passed_is_lifted(vm: Vm) -> None:
+    tip = vm.commits[-1]
+    vm.answer({tip: "success"})
+    (vm.root / "deploy.paused").write_text("2000-01-01T00:00Z\n")
+
+    done = vm.deploy()
+
+    assert done.returncode == 0, done.stderr
+    assert vm.live() == tip
+    assert not (vm.root / "deploy.paused").exists()
+
+
+def test_force_deploys_through_a_pause(vm: Vm) -> None:
+    (vm.root / "deploy.paused").write_text("")
+
+    done = vm.deploy("--force")
+
+    assert done.returncode == 0, done.stderr
+    assert vm.live() == vm.commits[-1]

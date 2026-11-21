@@ -22,6 +22,8 @@ Group=datadirector
 WorkingDirectory=/opt/data-director/current
 # The workbench's own run store, apart from the app's.
 Environment=DD_RUNS_DIR=/var/lib/data-director/workbench-runs
+# Who is signed in to the workbench, apart from the app's, kept across a restart (#900).
+Environment=DD_SESSIONS_FILE=/var/lib/data-director/workbench-sessions/sessions.db
 # The ORCID client's secret. The workbench uses the app's client, registered with a second redirect
 # URI; systemd hands each unit its own copy of the credential.
 LoadCredential=orcid-client-secret:/etc/data-director/credentials/app/orcid-client-secret
@@ -36,10 +38,10 @@ TimeoutStartSec=90
 TimeoutStopSec=30
 SyslogIdentifier=data-director-workbench
 
-# Hardening: the workbench writes only its run store.
+# Hardening: the workbench writes only its run store and its sessions.
 NoNewPrivileges=yes
 ProtectSystem=strict
-ReadWritePaths=/var/lib/data-director/workbench-runs
+ReadWritePaths=/var/lib/data-director/workbench-runs /var/lib/data-director/workbench-sessions
 ProtectHome=yes
 PrivateTmp=yes
 PrivateDevices=yes
