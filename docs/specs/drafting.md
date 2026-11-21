@@ -46,7 +46,13 @@ suggests some of those values beside their questions
    missing-value codes with rounded counts). It opens no file. A data dictionary's missing-value
    codes are inferred from them; a writer may describe a field with them but never says what a
    code means, nor calls a range's bounds the minimum and maximum
-   ([Personal data and disclosure control](personal-data.md), #571, #611).
+   ([Personal data and disclosure control](personal-data.md), #571, #611). A data dictionary's
+   `unit_code` is also inferred: it is worked out by rule (`dd-units`) from the unit the field
+   is given, whoever gave it, as its [UCUM](https://ucum.org) code, or `n/a` for a field given
+   no unit. The rule reads only that unit, accepts a UCUM name, print symbol or code as a person
+   writes it ("micrometres", "°C", "mg/L"), never guesses between two units that share a name,
+   and leaves the cell `unknown` when it cannot tell. The researcher checks the code when they
+   review the version, and the outcome's statement names the first few codes for them to check.
 2. **Supplied means given by a person.** A value is supplied when it comes from a field
    description in the inventory, from the project's approved metadata record (the version a
    person approved last, [Projects](projects.md), invariant 6), from a person's edit of an earlier
@@ -54,9 +60,9 @@ suggests some of those values beside their questions
    record as the record gives it, and leaves a gap where the record holds only a placeholder.
 3. **A data dictionary marks every value's source, and a model fills no cell.** Each value is
    followed by its source: `inferred`, `supplied` or `unknown`, and there is no other value. An
-   `unknown` cell is empty. A model never writes a cell's value: the dictionary is drafted by rule
-   before a model is asked anything, and a model-backed draft's text is the template's, byte for
-   byte (`agents/advisor-documentation/tests/test_documentation_agent.py`,
+   `unknown` cell is empty. A model never writes a cell's value, a unit code included: the
+   dictionary is drafted by rule before a model is asked anything, and a model-backed draft's
+   text is the template's, byte for byte (`agents/advisor-documentation/tests/test_documentation_agent.py`,
    `agents/advisor-documentation/tests/test_suggestions.py`). The evaluation scores it for every
    case (`no_model_value_in_cell`), and its tests run it with a fake model too
    (`agents/advisor-documentation/tests/test_documentation_evals.py`).
@@ -91,7 +97,10 @@ suggests some of those values beside their questions
    gap has exactly one question in the version's `document_questions` whose target names it, so a
    study of many runs is asked as many questions as one of two
    (`agents/advisor-documentation/tests/test_documentation_agent.py`,
-   `agents/advisor-documentation/tests/test_shared_columns.py`, #1317).
+   `agents/advisor-documentation/tests/test_shared_columns.py`, #1317). A `unit_code` follows its
+   file's unit, so files share its gap only if they give the same unit, and one whose `unit` is still `unknown` is
+   not asked, because it is worked out once the unit is given (invariant 1). Its question appears only if the rule cannot read the
+   unit given (`agents/advisor-documentation/tests/test_unit_codes.py`).
 6. **An answer is supplied only when a person recorded it.** A person answers the latest version's
    questions in the app, on the draft's card in the conversation or on the project's documents
    page. Each answer is a `document_question_answered` event that names the person it acted for,
@@ -252,6 +261,13 @@ as any other answer is.
   model fill the rows.
 - **Answers recorded by the harness.** Only an answer the harness recorded, against the person it
   acted for, can honestly be called `supplied`. A model's reading of a chat reply cannot.
+- **A unit code worked out, not asked.** A UCUM code is a fact about the unit the researcher
+  already gave, not new knowledge, and few researchers know UCUM's spelling of their unit
+  (`um`, `Cel`, `[ppm]`). Asking for it would add a question for every measured field (#891).
+  Worked out by a rule that refuses what it cannot tell, and marked `inferred`, it is checked as
+  the type and format are: by the person reviewing the version, who can edit it, after which
+  it is theirs, `supplied`. An earlier code the rule worked out from an earlier unit is not
+  taken as an edit, so a changed unit gets a fresh code.
 - **Gap identifiers, not headings.** A person may rename or reorder a README's sections. A gap that
   carries its question's identifier still matches its answer, and the app and the evaluation can
   count gaps without parsing prose.
@@ -269,6 +285,9 @@ as any other answer is.
   the inventory alone, as it does for a project with no approved record, and says so. The record's
   sections are then gaps, which is what they would be with no record.
 
+- **Asking for every unit code, with the rule's code as a suggestion.** It keeps every code a
+  person's answer, but doubles the unit questions for codes most researchers would accept
+  unread. The rule's code is shown in the version they approve instead.
 - **A fourth source value, `suggested`.** It would put a model's guess in a data dictionary that is
   published as the researcher's, marked only by a column a reader may never look at.
 - **The orchestrator passing answers to the drafter.** A `DraftRequest` slot filled by the

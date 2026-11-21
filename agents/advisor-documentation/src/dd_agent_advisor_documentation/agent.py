@@ -6,7 +6,8 @@ Given a `DraftRequest` for a `readme` or a `data_dictionary`, it drafts a projec
 (docs/specs/projects.md) from the project's inventory: the files and the tables' fields are
 drafted, and what only the researcher knows, such as the methods and each field's definition,
 unit and missing value codes, is marked for them. Each value in the data dictionary is marked
-with where it came from: inferred from the inventory, supplied by the researcher, or unknown.
+with where it came from: inferred from the inventory or worked out by rule (a unit's UCUM code,
+`dictionary.py`), supplied by the researcher, or unknown.
 
 When a model is configured, which it is by default (`factory.py`), it may suggest an answer to a
 data dictionary's questions about a field's definition or unit, and to the questions of the README
@@ -53,9 +54,10 @@ from dd_agent_advisor_documentation.counts import counted
 from dd_agent_advisor_documentation.dictionary import (
     Source,
     _answers,
-    _question_id,
-    dictionary,
+    draft_dictionary,
+    unit_codes_statement,
 )
+from dd_agent_advisor_documentation.dictionary import question_id as _question_id
 from dd_agent_advisor_documentation.prose import (
     Ask,
     Prose,
@@ -123,14 +125,15 @@ MEDIA_TYPES = {DocumentKind.README: "text/markdown", DocumentKind.DATA_DICTIONAR
 LIMITATIONS = (
     "It does not open the files, so it says nothing about their contents beyond what the "
     "inventory records. It infers no definitions, units or missing value codes, and does not "
-    "read an earlier README or the reason given for a decision on an earlier version."
+    "read an earlier README or the reason given for a decision on an earlier version. A UCUM "
+    "unit code is worked out by rule only from a unit you gave."
 )
 
 
 class DocumentationEditor:
     spec = AgentSpec(
         agent_id="advisor.documentation",
-        version="0.7.0a1",
+        version="0.8.0a1",
         title="Documentation Editor",
         icon="✍️",
         description=(
@@ -223,9 +226,10 @@ class DocumentationEditor:
                     "draft.",
                 )
             # The dictionary is drafted by rule first, so nothing the model says can reach a cell.
-            text, questions, counts = dictionary(
+            drafted = draft_dictionary(
                 inventory, asked.current_version, _answers(asked.draft_answers)
             )
+            text, questions, counts = drafted.text, drafted.questions, drafted.counts
             record, _ = _record(asked.metadata_record)
             questions, suggested = self._suggest(
                 with_documents(_facts(inventory, None, record), asked),
@@ -242,10 +246,11 @@ class DocumentationEditor:
             statement = (
                 f"A data dictionary of {fields} fields, drafted by rule (a model fills no cell), "
                 f"each value marked with where it came from: {counts[Source.INFERRED]} inferred "
-                f"from the inventory, {counts[Source.SUPPLIED]} supplied by you and "
-                f"{counts[Source.UNKNOWN]} unknown. It asks "
-                f"{count(len(questions), 'question')}, one for each unknown value, or for each "
-                "column several files share. "
+                f"from the inventory or worked out by rule, {counts[Source.SUPPLIED]} supplied by "
+                f"you and {counts[Source.UNKNOWN]} unknown. It asks "
+                f"{count(len(questions), 'question')}, one for each unknown value it can ask "
+                "about yet, or for each column several files share. "
+                f"{unit_codes_statement(drafted.unit_codes)} "
                 f"{how_suggested(suggested, TITLES[kind])}"
             )
 

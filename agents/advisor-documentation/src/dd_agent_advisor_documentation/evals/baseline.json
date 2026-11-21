@@ -8,9 +8,9 @@
       "hallam-moor.metadata-record.json": "3f8c74624f9dce6f1450d7900e90e18b4526f0a6cbcc135c96cd878164c2b0f6",
       "soil-survey.readme-with-record.draft.json": "c9ba7601f5bcbef5879972fcb1f2fbeb18f71a7d687b5eb71e9d1b2093d84874"
     },
-    "git_revision": "559b4db2cb37195ef3b8ba62c0078dd8cbc144bb",
+    "git_revision": "1afe2fc534b9ea217e62c9e312b5bb0b96649640",
     "readme_template_sha256": "9f67be1be7fa848f6ba4ac1d84aa9e5af987a9283b3a56ba1c5ec9a4ce736b5f",
-    "spec_version": "0.7.0a1"
+    "spec_version": "0.8.0a1"
   },
   "scores": {
     "hallam-dictionary": {

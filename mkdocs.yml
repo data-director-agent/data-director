@@ -186,6 +186,8 @@ nav:
           - Inventory library (TypeScript): /inventory/browser/README.md
       - PID resolver:
           - /mcp-pid/README.md
+      - Units library:
+          - /units/README.md
       - FAIRsharing server:
           - /mcp-fairsharing/README.md
       - Agents:
