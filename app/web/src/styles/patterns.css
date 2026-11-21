@@ -188,9 +188,14 @@ dl.facts dd {
   border-radius: var(--radius);
 }
 
-/* Agent replies are Markdown; raw HTML in them is not rendered. */
+/* Agent replies, and messages that send answers, are Markdown; raw HTML in them is not rendered. */
 .markdown > :first-child {
   margin-top: 0;
+}
+
+/* In the person's surface, where a message that sends answers is Markdown too, nothing trails. */
+.turn-person .markdown > :last-child {
+  margin-bottom: 0;
 }
 
 .markdown pre {

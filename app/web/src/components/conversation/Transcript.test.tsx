@@ -70,6 +70,22 @@ describe("Transcript", () => {
     expect(onRetry).toHaveBeenCalledWith(conversation.inputs[last.invocation_id]?.message_text ?? "");
   });
 
+  it("shows a message that sends answers as Markdown, and a typed one as typed", () => {
+    const conversation = withReply("Fine.");
+    const [first, second] = conversation.turns;
+    if (!first || !second) throw new Error("the fixture has fewer than two turns");
+    const typed = "**Not bold**";
+    conversation.inputs[first.invocation_id] = { message_text: typed };
+    conversation.inputs[second.invocation_id] = {
+      message_text: "**Which repository?**\n\nZenodo",
+      reply_answers: { answer_to: first.invocation_id, given_answers: [{ answered_key: "r", answer_values: ["z"] }] },
+    };
+    const { container } = render(<Transcript conversation={conversation} agents={[]} onToggleRun={() => {}} />);
+    const people = container.querySelectorAll(".turn-person");
+    expect(within(people[0] as HTMLElement).getByText(typed)).toBeVisible();
+    expect(people[1]?.querySelector(".markdown strong")?.textContent).toBe("Which repository?");
+  });
+
   it("offers to try again only on a latest turn that failed", () => {
     render(<Transcript conversation={withReply("Fine.")} agents={[]} onToggleRun={() => {}} onRetry={() => {}} />);
     expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();

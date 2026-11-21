@@ -16,7 +16,8 @@
  *
  * A reply that asks a choice question shows it beneath the reply: as choices on the latest turn,
  * disabled while a message is being sent, and read-only with the answer marked on every earlier
- * turn.
+ * turn. A message that sends answers is shown as the Markdown they were sent in, each question with
+ * its answer; a typed message is shown as typed.
  */
 
 import "./Transcript.css";
@@ -31,7 +32,7 @@ import type {
   InventorySummary,
 } from "../../conversation/inventory";
 import { type ReplyAnswers, replyOwnText, replyQuestions } from "../../conversation/question";
-import type { Conversation, ConversationTurn } from "../../conversation/types";
+import type { Conversation, ConversationTurn, TurnInputs } from "../../conversation/types";
 import {
   type ProjectDocument,
   type ProjectDocuments,
@@ -58,6 +59,18 @@ import type { LiveRun } from "./useConversationTurns";
 import { RepositoryShortlist } from "./RepositoryShortlist";
 import { RunDetail } from "./RunDetail";
 import { iconOf, nameOf, senderOf, Speaker } from "./Speaker";
+
+/** The person's message: as typed, or, when it sends answers to a reply's questions, the Markdown
+ * the answers were put in (`answersText`), each question with its answer. */
+function PersonMessage({ input }: { input: TurnInputs | null | undefined }) {
+  const text = input?.message_text;
+  if (!input?.reply_answers || !text) return <p>{text}</p>;
+  return (
+    <div className="markdown">
+      <Markdown>{text}</Markdown>
+    </div>
+  );
+}
 
 function replyText(conversation: Conversation, turn: ConversationTurn): string {
   // A Reply's own text: the history adds the question after it, which is shown as choices.
@@ -263,7 +276,7 @@ export function Transcript({
         <li key={turn.invocation_id} className="turn">
           <div className="turn-person">
             <Speaker person={senderOf(turn.envelope, viewer)} />
-            <p>{conversation.inputs[turn.invocation_id]?.message_text}</p>
+            <PersonMessage input={conversation.inputs[turn.invocation_id]} />
             {given && (
               <p>
                 <InventoryChip
