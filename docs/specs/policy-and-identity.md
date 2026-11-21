@@ -17,8 +17,8 @@ named. This spec covers four things that make that true:
 
 It does not cover who may see or continue a project or a conversation ([Projects](projects.md)),
 the app's process boundary ([The app](app.md)), or how a delegation grant is issued
-([Orchestration](orchestration.md)). Roles beyond "a signed-in person is a researcher" are not
-settled; see Open questions. The profile's keys and how to edit them are described for stewards in
+([Orchestration](orchestration.md)). Deployment roles (researcher, steward, administrator), and
+what a steward may see and do, are in [Data stewards](stewardship.md). The profile's keys and how to edit them are described for stewards in
 [`workbench/profiles/README.md`](../../workbench/profiles/README.md); where each setting and key
 file lives is in the [operations guide](../guide/operations/configuration.md) and
 [AI models](../guide/operations/ai-models.md).
@@ -186,16 +186,16 @@ Each sign-in callback and the bearer authenticator verify a token with the one f
 (`DD_WORKBENCH_ADMINS`). The flow refuses anyone else after verifying their token and before
 opening a session, and every request is checked against the list, so an admin taken off it is
 refused at once. Once more than one issuer is accepted, the list holds principal identifiers,
-not only iDs (TODO(#936)). TODO(#154): the list stands in for an administrator role until people
-have roles.
+not only iDs (TODO(#936)). The list stands in for the administrator role, which the profile's
+`administrators` key replaces ([Data stewards](stewardship.md), invariant 1), TODO(#154).
 
 **The admin service.** The admin service (`admin/`) shows an operator every person's runs and
 projects, and the deployment's settings with secret values hidden. It has no sign-in of its own:
 it listens on the VM's loopback only, NGINX does not serve it, and it refuses a request whose
 `Host` is not a loopback name. Whoever can open an SSH session to the VM can reach it, through a
 tunnel, and could read the same stores and files there already; SSH access is its credential. It
-reads and never writes, and acts for nobody: it starts no run. TODO(#154): when people have roles,
-decide whether the administrator role signs in to it.
+reads and never writes, and acts for nobody: it starts no run. A deployment role does not sign in
+to it ([Data stewards](stewardship.md)).
 
 **Signing in.** The app is the relying party and a confidential client running the
 authorisation-code flow. The flow and the sessions are the harness's (`dd_harness.signin`,
@@ -220,7 +220,7 @@ choice today becomes each provider's configuration, read from its discovery docu
 the signing algorithms (asymmetric only; `none` and shared-secret algorithms are always refused)
 and the client authentication method. Only `openid` is requested from any provider. Groups,
 affiliation or entitlement claims an institutional provider may assert are not acted on until
-people have roles (TODO(#154)). The implementation is TODO(#936).
+the profile maps them to steward teams ([Data stewards](stewardship.md), invariant 1), TODO(#936). The implementation is TODO(#936).
 
 **A person's public ORCID record** is read only when that person asks, from ORCID's public API,
 which needs no credential and returns only what the holder made public, and only for their own
@@ -387,9 +387,8 @@ decides which endpoint serves it, and a person's endpoint is not known at start-
 - TODO(#16, #72, #73): the approval half of the gate: suspend a referred run, record an approval
   bound to the input hash and the profile digest, and resume it as a new invocation; and an
   action-level review gate in the app.
-- TODO(#372, #373): escalation to a data steward as a record the harness keeps, routed by the
-  profile, and what a steward may do in a researcher's project.
-- TODO(#154): roles (researcher, steward, administrator), and per-user or per-group profiles.
+- TODO(#154): per-user or per-group profiles. Deployment roles themselves are settled in
+  [Data stewards](stewardship.md).
 - TODO(#936): accepting several issuers, and the principal form above for those that are not
   ORCID.
 - TODO(#937): an explicit act of linking a person's principals from two providers, with both

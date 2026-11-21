@@ -1,16 +1,16 @@
 # UX flows: asking a data steward for help, and stewards stepping in
 
-*Draft for discussion. Written under umbrella issue #370. It is a design input to the spec (#372), not a decision: nothing here is settled until the spec is merged.*
+*Settled by the [Data stewards](../specs/stewardship.md) spec, which decides where this document and the spec once differed. Written under umbrella issue #370. Flows E to H were added when the spec was written. How each screen looks is still for its build issue.*
 
 ## Purpose and status
 
-The Data Director supports data stewards; it does not replace them (Blueprint §3.3), and it exists partly because their help is scarce (the Support Gap, §3.1.1). When it cannot or must not go on, it hands over to a person. Today a `referred` run ends at a dead end and a steward has no way to see a researcher's project. This document sketches the experience for three people:
+The Data Director supports data stewards; it does not replace them (Blueprint §3.3), and it exists partly because their help is scarce (the Support Gap, §3.1.1). When it cannot or must not go on, it hands over to a person. Today a `referred` run ends at a dead end and a steward has no way to see a researcher's project; the spec says what is to change. This document describes the experience for three people:
 
 - the **researcher**, who wants help or is told the system cannot give it;
 - the **agent** (in practice the orchestrator, or an agent's `referred` or `abstained` outcome), which can offer to flag a question;
 - the **data steward**, who receives matters and may step into a project.
 
-It follows the issues under #370: the spec (#372), the overview (#232), the researcher's side (#375), the steward's workspace (#376), notifications (#378) and roles (#154). Anything undecided is marked as a to-do naming the issue that will settle it, such as TODO(#372), following AGENTS.md. Where a flow needs an answer to be read end to end, the draft states a *proposed default* next to the marker; the default is a suggestion for that issue, not a decision.
+It follows the issues under #370: roles (#154), the escalation record (#373), steward actions (#374), the researcher's side (#375), the steward's workspace (#376), notifications (#378), the overviews (#232, #1307), deposit readiness (#1306) and team working (#1308). What remains undecided is marked as a to-do naming the issue that will settle it, following AGENTS.md. Stewards' own documentation is the [Data Steward's Guide](../guide/steward-guide/index.md).
 
 ## Design principles
 
@@ -29,17 +29,17 @@ These apply [`best-practices.md`](best-practices.md) to this feature.
 | Term | Meaning in this document |
 |---|---|
 | Data steward | The Blueprint's *data support professional*: data stewards, librarians and others who support researchers with their data (§2). This document uses "steward" for short. |
-| Escalation | A record attached to a project that hands a matter to a steward (#372). |
+| Escalation | A record in a project's log that hands a matter to a steward team ([Data stewards](../specs/stewardship.md), invariant 4). |
 | Mandatory review | A review the Blueprint requires before a step may proceed. The researcher cannot decline it; see Flow B. |
 | Steward's view | The project as a steward sees it: the researcher's own project view, plainly marked, with the escalation beside it. |
 | Pause | A steward's hold on a project so no further consequential step runs until lifted (P4, human-on-the-loop). |
 | In the loop, on the loop | P4's two kinds of oversight. *In the loop*: a person must approve before the step proceeds. *On the loop*: steps proceed while a person monitors and can intervene. |
 
-The Blueprint gives data support professionals a wider role than this document covers. They are secondary users who may also configure, deploy and run the tool (§2), and §4.1 lists uses for them alone, such as monitoring compliance and managing data access, as well as an overview of data practices within a research community. This document covers only their part in escalation.
+The Blueprint gives data support professionals a wider role than this document covers. They are secondary users who may also configure, deploy and run the tool (§2), and §4.1 lists uses for them alone, such as monitoring compliance and managing data access, as well as an overview of data practices within a research community. This document covers their part in escalation and in a project (Flows A to E and H), their overviews (Flow F) and how a team shares the work (Flow G). Owning the policy profile is described in the [steward's guide](../guide/steward-guide/policy-and-profile.md).
 
 ### Escalation states
 
-Proposed states, TODO(#372): `open`, `taken`, `waiting for researcher`, `resolved`, `handed back` and `withdrawn`. An escalation moves between them as follows; any move not listed is not allowed.
+The states ([Data stewards](../specs/stewardship.md), invariant 4) are `open`, `taken`, `waiting for researcher`, `resolved`, `handed back` and `withdrawn`. An escalation moves between them as follows; any move not listed is not allowed.
 
 | From | To | When |
 |---|---|---|
@@ -52,7 +52,7 @@ Proposed states, TODO(#372): `open`, `taken`, `waiting for researcher`, `resolve
 | `taken`, `waiting for researcher` | `resolved` | The steward resolves it, with a note. |
 | `taken`, `waiting for researcher` | `handed back` | The steward hands it back, with a note. |
 | `open`, `taken`, `waiting for researcher` | `withdrawn` | The researcher withdraws it. |
-| `resolved`, `handed back` | `open` | The researcher re-opens it, with a note. Proposed default: re-opening is allowed and keeps the history; the alternative is a new escalation linked to the old one. TODO(#372) |
+| `resolved`, `handed back` | `open` | The researcher re-opens it, with a note. Re-opening keeps the history. |
 
 `withdrawn` is final. The researcher's status line (see "What the researcher sees") follows the current state, so it stops saying "Waiting for you to reply" as soon as the researcher replies.
 
@@ -61,15 +61,15 @@ Proposed states, TODO(#372): `open`, `taken`, `waiting for researcher`, `resolve
 The researcher can ask at any point in a project, not only after something goes wrong.
 
 1. **Entry point.** A persistent, labelled control in the project, "Ask a data steward", reachable by keyboard from every project page.
-2. **Compose.** A short note box (what do you need help with?) and a summary of what will be shared: the project's title, its recent conversation and runs, and the matter in question. The researcher can see the list before sending. The exact default scope is undecided, TODO(#372, #232).
+2. **Compose.** A short note box (what do you need help with?) and a summary of what will be shared: the project's title, its recent conversation and runs, and the matter in question. The summary says plainly that, while the escalation is open, the steward team can open the whole project, and that every look is recorded and shown to the researcher. What the researcher saw is recorded with the escalation ([Data stewards](../specs/stewardship.md), invariants 3 and 4).
 3. **Confirm.** "Send to a data steward". The researcher is told who will receive it in general terms (the steward team, or the team the profile routes it to) and roughly what happens next.
-4. **Waiting.** The project shows an open escalation in a visible but unobtrusive place (the side bar and a marker in the conversation): its state, its age, the note sent and an **expected response time**. Proposed default: the profile sets the expected time, and the researcher is told plainly when it has passed; TODO(#378). The researcher can carry on working, and the agents' help stays available while the escalation waits, so the researcher is never blocked on a steward for anything an agent can do. The researcher can also **withdraw** it. Withdrawing does not lift a pause the steward has applied, and a steward's run already in progress finishes and is recorded. The steward keeps access to the project until they lift the pause, so they are never locked out of their own hold; the researcher sees that the pause remains and who can lift it. Proposed default, TODO(#372).
+4. **Waiting.** The project shows an open escalation in a visible but unobtrusive place (the side bar and a marker in the conversation): its state, its age, the note sent and an **expected response time**. Proposed default: the profile sets the expected time, and the researcher is told plainly when it has passed; TODO(#378). The researcher can carry on working, and the agents' help stays available while the escalation waits, so the researcher is never blocked on a steward for anything an agent can do. The researcher can also **withdraw** it. Withdrawing does not lift a pause the steward has applied, and a steward's run already in progress finishes and is recorded. The steward's team keeps access to the project until the pause is lifted, so it is never locked out of its own hold; the researcher sees that the pause remains and who can lift it ([Data stewards](../specs/stewardship.md), invariant 8).
 5. **Reply.** The steward's reply appears inside the project's conversation, marked plainly as from a named person ("Steward: Name"), and the researcher is notified (Flow D). The researcher can reply in the same place, which moves the escalation back to `taken`.
-6. **Close.** The steward resolves or hands back with a note. The researcher sees the outcome and can say they disagree or re-open it (see "Escalation states"). Whether re-opening is allowed or a new escalation is raised is undecided, TODO(#372).
+6. **Close.** The steward resolves or hands back with a note. The researcher sees the outcome and can say they disagree or re-open it (see "Escalation states"). Re-opening keeps the escalation's history.
 
 Empty and failure states: if the profile names no steward route, the control says so instead of failing silently, and points to the institution's usual contact if the profile supplies one. If a steward does not take the escalation within a time the profile sets, the researcher is told and it is routed again, TODO(#378).
 
-Stewards are scarce. The Blueprint's premise is that skilled support is limited, uneven and often unavailable at short notice (§3.1.1), so these flows must not recreate the bottleneck the tool is meant to relieve. Besides the expected response time and the agents' continued help, §13.2 suggests a first-pass review by another AI agent before human review, to manage volume. Whether an escalation gets such a first pass, and how its result is shown to the steward and the researcher, is undecided, TODO(#372).
+Stewards are scarce. The Blueprint's premise is that skilled support is limited, uneven and often unavailable at short notice (§3.1.1), so these flows must not recreate the bottleneck the tool is meant to relieve. Besides the expected response time and the agents' continued help, §13.2 suggests a first-pass review by another AI agent before human review, to manage volume. Whether an escalation gets such a first pass, and how its result is shown to the steward and the researcher, is a spike, TODO(#1310).
 
 ## Flow B: the agent offers to flag a question
 
@@ -81,7 +81,7 @@ There are three triggers, one pattern: **explain, offer, confirm.**
 | An agent abstains or cannot help | No source supports an answer | The abstain card, with the reason, then an offer to ask a steward | In the loop: the researcher decides whether to escalate |
 | The orchestrator suggests it | The researcher's questions keep returning to something no agent covers | A message in the orchestrator's voice suggesting a steward, with a button | In the loop: the researcher decides whether to escalate |
 
-The "Loop (P4)" column is a proposed classification, TODO(#372).
+The "Loop (P4)" column is the classification P4 asks to be documented per workflow.
 
 The pattern:
 
@@ -98,7 +98,7 @@ Two cases differ slightly:
 
 ### Mandatory review
 
-The Blueprint makes human review compulsory in several places. Each trigger below stops the step until the named person has reviewed it; where that person is a steward, "Not now" cannot bypass the review. The reviewer column is a proposed default: which role reviews what is set by the deployment's governance agreement and profile (§5.1), TODO(#154, #372).
+The Blueprint makes human review compulsory in several places. Each trigger below stops the step until the named person has reviewed it; where that person is a steward, "Not now" cannot bypass the review. The reviewer column gives the defaults; the deployment's profile sets the reviewer of each, from its governance agreement (§5.1) ([Data stewards](../specs/stewardship.md), invariant 9), TODO(#374).
 
 | Trigger | Blueprint | Proposed reviewer | What stays stopped |
 |---|---|---|---|
@@ -125,9 +125,9 @@ A single place listing escalations routed to the signed-in steward:
 
 Beside the queue, a list of projects the steward may see, with owner, current phase, recent runs and outcomes (including abstentions and referrals), and anything awaiting human review. Which projects appear is decided by the harness from the profile.
 
-Whether a steward may see any project in scope or only one with an open escalation is undecided, TODO(#232, #372). The draft proposes escalation-only by default, because the overview discloses a person's work (C2, P4). Under that default the overview lists the same projects as the queue, adding the project details beside each escalation; it is a separate view only where a deployment turns on the broader setting.
+By default a steward sees only a project with an escalation routed to their team, because the overview discloses a person's work (C2, P4). Under that default the overview lists the same projects as the queue, adding the project details beside each escalation. It is a separate view only where the profile sets `stewardship.visibility: scope`, and then lists the projects whose owners chose the team as their support team ([Data stewards](../specs/stewardship.md), invariant 3).
 
-A less intrusive alternative to a per-project overview is the aggregate one in §4.1: an "overview of data practices within a research community", such as the metadata standards and repositories most used, without showing any one person's work. Whether stewards get that view first, or instead of the per-project one, is undecided, TODO(#232).
+A less intrusive alternative to a per-project overview is the aggregate one in §4.1: an "overview of data practices within a research community", such as the metadata standards and repositories most used, without showing any one person's work. Stewards get it as well as the per-project list, not instead of it (Flow F, TODO(#1307)).
 
 Showing the overview is itself a read. Each project listed is recorded as viewed by that steward (#374), and appears in the researcher's list of who has looked, in the same way as opening the project.
 
@@ -140,7 +140,7 @@ Showing the overview is itself a read. Each project listed is recorded as viewed
 
 ### What a steward can do
 
-The closed list proposed in #372. The shell shows only the actions the harness reports as permitted, each with its own explanation. A refused action is explained, not hidden.
+The closed list in [Data stewards](../specs/stewardship.md), invariant 6. The shell shows only the actions the harness reports as permitted, each with its own explanation. A refused action is explained, not hidden.
 
 | Action | Experience | Loop (P4) |
 |---|---|---|
@@ -148,24 +148,67 @@ The closed list proposed in #372. The shell shows only the actions the harness r
 | Write to the researcher | Reply in the conversation, marked as a person. | Neither: no step proceeds |
 | Clear a gated action | Approve or refuse a step the policy gate referred to a steward (a §5.1 policy exception), with a reason required. Clearing the gate does not approve the content; see "Who approves what". | In the loop |
 | Propose an edit to the researcher's documents | The existing document-version flow ([Projects](../specs/projects.md), #196): the steward's edit becomes a proposed version, marked as theirs, which the researcher accepts or rejects. | In the loop (the researcher decides) |
-| Run an agent in the project | The same run controls, labelled as run by the steward. Whose authority a steward's run acts for is undecided, TODO(#154, #372). | In the loop for any consequential step, as for the researcher's own runs |
-| Pause the project | A single labelled control; the researcher sees the project is paused, by whom and why. Lifting it is as prominent as applying it. The steward keeps access until they lift it, even if the researcher withdraws the escalation (Flow A, step 4). | On the loop: the steward monitors and intervenes |
+| Run an agent in the project | The same run controls, labelled as run by the steward. The run acts for the steward, with the project as context, and its drafts are proposed versions the researcher decides. | In the loop for any consequential step, as for the researcher's own runs |
+| Pause the project | A single labelled control; the researcher sees the project is paused, by whom and why. Lifting it is as prominent as applying it. The steward's team keeps access until it is lifted, even if the researcher withdraws the escalation (Flow A, step 4). | On the loop: the steward monitors and intervenes |
+| Note on a deposit item; co-approve a deposit | See Flow E. | In the loop where the profile requires co-approval |
 | Resolve or hand back | A note to the researcher is required; the state change is announced. | Neither: closes the escalation |
 
-The "Loop (P4)" column is a proposed classification, TODO(#372).
+The "Loop (P4)" column is the classification P4 asks to be documented per workflow.
 
-Every action is checked by policy and recorded (#374). Where a steward changes a result, the researcher sees what changed and by whom, and can disagree (see Flow A, step 6). A steward's contributions are recorded with a CRediT role (for example *Data curation*) and identified by ORCID where the steward has one, not only as a "decider" (P5). Which CRediT roles apply to which actions is undecided, TODO(#372).
+Every action is checked by policy and recorded (#374). Where a steward changes a result, the researcher sees what changed and by whom, and can disagree (see Flow A, step 6). A steward's contributions are recorded with a CRediT role (for example *Data curation*) and identified by ORCID where the steward has one, not only as a "decider" (P5). *Data curation* applies to an edit, a run or a note, and *Validation* to clearing a gate, a review or a co-approval ([Data stewards](../specs/stewardship.md), invariant 12).
 
 ### Who approves what
 
-The Blueprint keeps two kinds of approval apart: the researcher approves their own outputs (R2; §8, "the researcher is responsible for the final data submission"), while an accountable institutional role resolves policy exceptions (§5.1). Proposed default: a steward **clears the gated action**, and the researcher still **approves the content**, unless the deployment's written governance agreement (§5.1) gives the steward that authority. Whether a steward may ever decide on a researcher's documents directly, and on whose authority a steward's edits, decisions and runs act, is undecided, TODO(#154, #372).
+The Blueprint keeps two kinds of approval apart: the researcher approves their own outputs (R2; §8, "the researcher is responsible for the final data submission"), while an accountable institutional role resolves policy exceptions (§5.1). A steward **clears the gated action**, and the researcher still **approves the content** and the deposit. A steward never decides on a researcher's documents. A profile may add a steward's co-approval before deposit, but never removes the researcher's (Flow E; [Data stewards](../specs/stewardship.md), invariant 7). A steward's edits, runs and decisions act for the steward and are recorded as theirs.
 
 ## Flow D: notifications (#378)
 
-- **Steward:** told when an escalation is routed to them. After that, the steward who has taken it (or the routed team, while nobody has) is told when the researcher replies, withdraws, re-opens or disagrees with an outcome, so nobody has to watch the queue to find out. Email first (likely default); a deployment may instead send to its own helpdesk, with the harness record staying authoritative, TODO(#372).
+- **Steward:** told when an escalation is routed to them. After that, the steward who has taken it (or the routed team, while nobody has) is told when the researcher replies, withdraws, re-opens or disagrees with an outcome, so nobody has to watch the queue to find out. Email first (likely default); a deployment may instead send to its own helpdesk, with the harness record staying authoritative, TODO(#378).
 - **Researcher:** told when a steward replies, hands back or resolves.
 - **Content:** a link and a short subject only, never research content or personal data beyond what is needed.
 - **Choice:** each person chooses what they are told about, including which of the events above.
+
+## Flow E: getting a project ready to deposit (#1306)
+
+Stewards often help most just before deposit, when the Blueprint's mandatory reviews fall due (C2, C15, R8). A steward with access to the project works through its deposit tab beside the researcher.
+
+1. **The same tab, read-only.** Under the banner, the steward sees what the researcher sees on the deposit tab: the validation report, each item the check flagged before packaging, the three confirmations (ethics approval, data protection advice, third-party rights) and the package, if built. The steward cannot decide an item or make a confirmation; those are the researcher's ([Deposit](../specs/deposit.md)).
+2. **Notes against items.** The steward can add a note to a flagged item or a failed validation rule ("this field note names a participant's village"). The note appears beside the item for the researcher, marked with the steward's name, and is recorded.
+3. **Proposed fixes.** Where the fix is in a document, the steward proposes an edit (Flow C) and the note links to it.
+4. **Co-approval, where the profile requires it.** With `stewardship.deposit_co_approval` on, once the researcher has approved the package the deposit tab shows "Waiting for a data steward to co-approve", and the steward sees **Co-approve** with the package's digest and a required reason, and **Ask for changes**, which writes to the researcher. A new package needs a new co-approval. The researcher's approval is never replaced: co-approval adds a check (§5.1) and the researcher still deposits.
+5. **A steward who is a member of the project** cannot co-approve it (Flow G).
+
+| Step | Loop (P4) |
+|---|---|
+| Notes and proposed fixes | Neither: the researcher decides |
+| Co-approval | In the loop: the deposit waits for it |
+
+## Flow F: the steward's overviews (#232, #1307)
+
+A steward has up to three views beyond the queue, each from the harness and none showing more than policy allows:
+
+- **The team's projects** (#232), only where the profile sets `visibility: scope`: projects whose owners chose the team as their support team, with phase, recent outcomes and anything awaiting a review. Listing a project is a read and is recorded, as opening it is.
+- **The community overview** (#1307, §4.1): counts across the team's scope, such as the repositories and metadata standards chosen, referrals and abstentions by reason, and escalation volume, age and time to resolution. It names no project or person, and suppresses small counts. Viewing it records nothing on any project because it reads none.
+- **Compliance signals** (#1307, §4.1 "monitor compliance"): how many projects are stopped at each mandatory review, so the team sees where researchers get stuck without opening their work.
+
+## Flow G: working as a team (#1308)
+
+Stewards are scarce and are sometimes away (§3.1.1), so escalations belong to a team, not to one person.
+
+- **Release** hands an escalation back to the team's queue, with an optional note. **Reassign** gives it to a named colleague in the same team. **Transfer** moves it to another team, with a required note, and the researcher sees the new team's name.
+- **Cover.** Any member of a team can lift a pause another member applied, so a hold never outlives a steward's availability.
+- **Conflict of interest.** A steward who is a member or owner of a project acts there only as a member: they cannot take its escalation, clear its gates, pause it or co-approve its deposit. The queue shows such an escalation without the **Take** action, with the reason.
+- Each move appears in the project's log for the researcher.
+
+## Flow H: pause and resume (#374)
+
+**The steward.** **Pause project** opens a dialogue with a required reason, which the researcher will see, and a reminder of what a pause stops: every step that is not advice, and the deposit. The project then shows "Paused by you" with **Lift pause** beside it.
+
+**The researcher.** The project's status line reads:
+
+> Paused by Name (Library Research Data Team) on 14 November: "Please wait while we check the consent forms." Advice and conversation still work. Only the data stewards can lift this pause.
+
+A step the pause stops ends with a card naming the pause and its reason, never a bare failure; the researcher can write to the steward from it. When the pause is lifted, the status line says so and by whom, and the stopped steps can be started again. A pause never lifts itself.
 
 ## What the researcher sees, in one place
 
@@ -175,27 +218,23 @@ On a project with an escalation, a single status line answers "what is happening
 
 The project also lists who has viewed it as a steward, and any steward actions, in the project's log (the project log already records decisions and membership events, [Projects](../specs/projects.md)).
 
-## Open questions carried from the issues
+## Open questions
 
-These are not decided here. Each is owned by the issue shown.
+The rest is decided in the spec. Each question below is owned by the issue shown.
 
 | Question | Owner |
 |---|---|
-| Roles, and where a role comes from (profile mapping of principals or groups) | #154 |
-| May a steward open any project in scope, or only one with an open escalation? Does the researcher consent, or is it a condition of using the deployment? | #232, #372 |
-| Which stewards see which escalations: all, or by department, faculty or kind of matter; and, for a project that spans several institutions, whose steward receives it (§5.1 asks for an inter-institutional agreement) | #372 |
-| Whose authority a steward's runs, edits and decisions act for; whether the role is recorded on them | #154, #372 |
-| Which mandatory reviews go to a steward and which to the researcher | #154, #372 |
-| Whether an escalation gets a first-pass AI review before a steward sees it (§13.2) | #372 |
-| Does an `abstained` outcome raise an escalation, or only offer one? (This draft: offer only.) | #372 |
-| Does an escalation lapse or re-escalate after a time? | #16, #378 |
-| Can an escalation go to an institution's helpdesk, and is the harness record then authoritative? | #372 |
+| Mapping identity-provider group claims to steward teams | #936 |
+| For a project that spans several institutions, whose steward team receives it (§5.1 asks for an inter-institutional agreement) | #371 |
+| Whether an escalation gets a first-pass AI review before a steward sees it (§13.2) | #1310 |
+| Does an escalation lapse or re-escalate after a time? | #378 |
+| Can an escalation go to an institution's helpdesk, and is the harness record then authoritative? | #378 |
 | Where mail settings and secrets live | #225 |
-| Steward visibility by default, and how escalation and suspension (pause) should work, to be agreed with the RDA working group (Blueprint §13.1 names this the key community governance question) | #232, #371 |
+| What happens to a project whose owners have all left | #1309 |
+| Whether these defaults (escalation-only visibility, a pause that never lapses) hold up with working teams and the RDA working group (Blueprint §13.1 names escalation and suspension the key community governance question) | #371 |
 
 ## Suggested next steps
 
 1. Use the discovery task (#371) to test these flows with real RDM teams: how do they receive and handle requests today?
-2. Fold the settled parts into the spec (#372), and link this document from it.
-3. Turn each flow into screens when the spec is Proposed: the researcher's request and agent offer (#375) first, then the steward's workspace (#376).
-4. Treat escalation records as evidence. Why agents abstain or refer, and how stewards resolve those cases, feeds the Measurability constraint (C16) and the Blueprint's evaluation (§10), and shows whether the tool is eroding in-house expertise (§5.5). Pause and its use are also implementation evidence to take back to the RDA working group on §13.1.
+2. Turn each flow into screens: the researcher's request and agent offer (#375) first, then the steward's workspace (#376).
+3. Treat escalation records as evidence. Why agents abstain or refer, and how stewards resolve those cases, feeds the Measurability constraint (C16) and the Blueprint's evaluation (§10), and shows whether the tool is eroding in-house expertise (§5.5). Pause and its use are also implementation evidence to take back to the RDA working group on §13.1.

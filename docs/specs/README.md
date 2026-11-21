@@ -46,6 +46,7 @@ which gets one line that points to the code.
 | [A person's own model account](model-accounts.md) | The model broker, enrolling a person's own key, the model grant, and recording whose account paid. |
 | [The app](app.md) | The browser shell, the app's process boundary and problem reports. |
 | [Interface languages](languages.md) | The interface's text in more than one language: catalogues, codes that are never translated, the person's choice, reviewed translations and text the shell did not write. |
+| [Data stewards](stewardship.md) | Deployment roles, escalation to a data steward, what a steward may see and do in a researcher's project, pause and the mandatory reviews. |
 | [Projects](projects.md) | Projects, file inventories, documents and their versions, proposed changes and approval, sharing. |
 | [Personal data and disclosure control](personal-data.md) | Detecting direct identifiers where the inventory is made, disclosure control for the summary values it computes, and quasi-identifier risk referred to a person. |
 | [The intake against §8](intake-reading.md) | A reading of the project intake's questions, entry points and the steps an answer skips against Blueprint §8, and the decisions it settled. |

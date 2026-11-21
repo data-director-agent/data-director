@@ -130,7 +130,7 @@ member ([System and boundaries](system.md)). The findings list, the per-field su
 check are slots of the core `FileInventory` and `TableField`, a fixed format, so adding them
 changes the [Contract](contract.md) and bumps the contract version as an additive change (#471,
 #611). The pause before deposit that C2 asks for reads findings from the inventory
-([Deposit](deposit.md), "The pause before packaging"); the referral to a data steward and hints to
+([Deposit](deposit.md), "The pause before packaging"); the referral to a data steward ([Data stewards](stewardship.md), invariant 9) and hints to
 the ethics adviser are #471's.
 
 **The detector.** Microsoft [Presidio](https://github.com/microsoft/presidio) (`presidio-analyzer`)

@@ -107,6 +107,17 @@ nav:
       - Depositing your data: user-guide/depositing.md
       - Giving feedback: user-guide/feedback.md
       - Alpha usage agreement: user-guide/usage-agreement.md
+  - Data Steward's Guide:
+      - steward-guide/index.md
+      - Becoming a steward: steward-guide/becoming-a-steward.md
+      - The policy and the profile: steward-guide/policy-and-profile.md
+      - Referrals and reviews: steward-guide/referrals-and-reviews.md
+      - Escalations: steward-guide/escalations.md
+      - Working in a project: steward-guide/working-in-a-project.md
+      - Deposit readiness: steward-guide/deposit-readiness.md
+      - Overviews: steward-guide/overviews.md
+      - Notifications: steward-guide/notifications.md
+      - Good practice: steward-guide/good-practice.md
   - Operations:
       - operations/index.md
       - AI models: operations/ai-models.md
