@@ -190,20 +190,20 @@ def test_the_evaluation_catches_what_the_editors_own_guards_stop(
 ) -> None:
     """With the editor's guards switched off, the evaluation scores the faults they stop: prose
     naming a count the facts do not give, and a unit written into a cell as if inferred."""
-    from dd_agent_advisor_documentation import agent, prose
+    from dd_agent_advisor_documentation import dictionary, prose
 
     def keep_everything(reply: ProseReply, facts: object, sections: object) -> prose.Prose:
         kept = {p.section: p.paragraph for p in reply.sections if p.paragraph}
         return prose.Prose(reply.overview, kept)
 
-    def guessed_unit(column: str, given: str, before: object) -> tuple[str, agent.Source]:
+    def guessed_unit(column: str, given: str, before: object) -> tuple[str, dictionary.Source]:
         if column == "unit":
-            return "°C", agent.Source.INFERRED
+            return "°C", dictionary.Source.INFERRED
         return cell(column, given, before)  # type: ignore[arg-type]
 
-    cell = agent._cell
+    cell = dictionary._cell
     monkeypatch.setattr(prose, "check", keep_everything)
-    monkeypatch.setattr(agent, "_cell", guessed_unit)
+    monkeypatch.setattr(dictionary, "_cell", guessed_unit)
     invented = FakeModel(
         lambda r: (
             prose_reply({"overview": "The dataset has 999 files."})

@@ -63,16 +63,22 @@ documents ([Projects](../../docs/specs/projects.md)). A request names the `docum
   licence and Software requirements sections, beside the questions
   ([Suggested answers](#suggested-answers)).
 - `data_dictionary`: a CSV with one row per field of each table in the inventory, keyed by `file`
-  and `field`. Each of the values `type`, `format`, `description`, `unit` and `missing_values` is
-  followed by a column saying where it came from (`type_source`, …), so that a person can check
-  it:
-  - `inferred`: read from the data by `dd-inventory`, which infers a field's type and format;
+  and `field`. Each of the values `type`, `format`, `description`, `unit`, `unit_code` and
+  `missing_values` is followed by a column saying where it came from (`type_source`, …), so that
+  a person can check it:
+  - `inferred`: read from the data by `dd-inventory`, which infers a field's type and format, or
+    worked out by rule, as a unit code is;
   - `supplied`: given by the researcher, either as a description in the inventory or as a value
     in the version being regenerated;
   - `unknown`: no one has said yet, and the cell is empty.
 
   The editor infers no units or missing value codes, so those are `unknown` until the researcher
-  fills them in. A data dictionary is always drafted by rule: a model fills no cell. Where a
+  fills them in. Once a field has a unit, its `unit_code` is worked out by rule as the unit's
+  [UCUM](https://ucum.org) code, with [`dd-units`](../../units/README.md): "micrometres" becomes
+  `um` and "mg per litre" `mg/L`, and a field with no unit gets `n/a`. The statement names the
+  first few codes for the researcher to check. A unit code is not asked while its unit is
+  unknown, and is asked only when the rule cannot read the unit given, such as "mg/kg, dry
+  weight" or "pint" (US or British). A data dictionary is always drafted by rule: a model fills no cell. Where a
   model is configured, it may suggest a field's definition or unit, offered with that cell's
   question and never written into it ([Suggested answers](#suggested-answers)).
 

@@ -11,13 +11,14 @@ from pathlib import Path
 
 import pytest
 
-from dd_agent_advisor_documentation.agent import (
+from dd_agent_advisor_documentation.agent import DocumentationEditor
+from dd_agent_advisor_documentation.dictionary import (
     DICTIONARY_COLUMNS,
     VALUE_COLUMNS,
-    DocumentationEditor,
     Source,
-    _question_id,
+    asks_about,
 )
+from dd_agent_advisor_documentation.dictionary import question_id as _question_id
 from dd_agent_advisor_documentation.sections import load_sections
 from dd_agent_advisor_documentation.testing import redraft
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
@@ -345,6 +346,8 @@ def test_an_answer_to_a_whole_section_of_parts_is_still_placed(runs_dir: Path) -
 
 @pytest.mark.requirement("R5")
 def test_every_unknown_dictionary_cell_is_asked_once(runs_dir: Path) -> None:
+    """Every unknown cell is asked once, but a unit code, which is not asked until its unit is
+    given."""
     env, _ = draft(runs_dir, sample("soil-survey.data-dictionary.draft.json"))
     document = env.payload_as(Document)
     rows = list(csv.DictReader(io.StringIO(document.document_text)))
@@ -352,8 +355,10 @@ def test_every_unknown_dictionary_cell_is_asked_once(runs_dir: Path) -> None:
         (r["file"], r["field"], c)
         for r in rows
         for c in VALUE_COLUMNS
-        if r[f"{c}_source"] == Source.UNKNOWN
+        if r[f"{c}_source"] == Source.UNKNOWN and asks_about(c, r)
     ]
+    waiting = [r for r in rows if r["unit_source"] == Source.UNKNOWN]
+    assert waiting and all(r["unit_code_source"] == Source.UNKNOWN for r in waiting)
     asked = [(q.gap_file, q.gap_field, q.gap_column) for q in document.document_questions]
     assert asked == unknown and unknown
     assert f"asks {len(unknown)} questions" in env.outcome.statement

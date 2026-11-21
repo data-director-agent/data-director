@@ -18,6 +18,7 @@ fixes what the word "harness" names.
 | `agents/<name>/` | `data-director-agent-<name>` | One package and one A2A service per agent ([Agents](agents.md)). |
 | `inventory/` | `data-director-inventory` | The command a researcher runs where their data live to describe a dataset's files ([Projects](projects.md)). |
 | `mcp-pid/` | `data-director-mcp-pid` | The PID resolver: a framework-neutral MCP server that resolves DOIs (DataCite, Crossref), ORCID iDs and ROR identifiers to records an agent cites through the tool gateway ([Agents](agents.md#tools-mcp-servers-and-agent-skills)). Imports no other member. |
+| `units/` | `data-director-units` | Turns a unit as a person writes it into a UCUM code, by rule; the Documentation Editor fills a data dictionary's unit codes with it ([Drafting documents](drafting.md)). Imports no other member. |
 
 Beside the Python members, `inventory/browser/` is `@data-director/inventory`, a TypeScript
 library that reads a `FileInventory`: it parses, summarises, arranges the files as folders,
