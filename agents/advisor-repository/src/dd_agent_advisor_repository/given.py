@@ -3,7 +3,7 @@
 In a project the conductor gives `RepositoryNeeds` the facts people decided
 (`project_decisions`) and the repository the researcher chose (`project_repository`). A
 person's decision takes precedence over what the caller wrote: each decided required repository
-is mandated, whether or not the caller named it. The repository a confirmed sharing commitment of
+is mandated, whether or not the caller named it. Each repository a confirmed sharing commitment of
 the data management plan names is described beside the shortlist, as one the plan names: a plan's
 choice is not a mandate (#1233). The chosen repository is described only when nothing else is
 asked (no mandate, nothing asked about or named by the plan, nothing to search for), where the
@@ -44,6 +44,7 @@ def with_project(needs: RepositoryNeeds) -> Given:
             if not any(_same(decided, ref) for ref in mandated):
                 mandated.append(decided)
         elif fact.fact_kind == FactKind.SHARING_COMMITMENT and fact.commitment_repository:
+            # A plan that commits one output to several repositories gives a commitment for each.
             planned = RepositoryRef(name=fact.commitment_repository)
             if not any(_same(planned, ref) for ref in in_plan):
                 in_plan.append(planned)

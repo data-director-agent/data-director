@@ -192,18 +192,20 @@ def check(
     calls: ModelCallLog,
 ) -> Reading:
     """The commitments of a reply that may be proposed, as `sharing_commitment` facts, and why
-    any others were not."""
-    kept: dict[str, ProjectFact] = {}
+    any others were not. A plan that commits one output to several repositories gives a
+    commitment for each; only the same output in the same repository is named twice (#1334)."""
+    kept: dict[tuple[str, str], ProjectFact] = {}
     dropped: list[str] = []
     for c in reply.commitments:
         why = _unusable(c, documents)
-        if why is None and c.output.strip().casefold() in kept:
+        key = (c.output.strip().casefold(), (_value(c.repository) or "").casefold())
+        if why is None and key in kept:
             why = "named twice"
         if why:
             dropped.append(f"{c.output.strip() or '(no output)'}: {why}")
             continue
         document = documents[c.document - 1]
-        kept[c.output.strip().casefold()] = ProjectFact(
+        kept[key] = ProjectFact(
             fact_kind=FactKind.SHARING_COMMITMENT,
             fact_subject=c.output.strip(),
             commitment_repository=_value(c.repository),
@@ -216,7 +218,7 @@ def check(
             ),
         )
     return Reading(
-        proposals=tuple(kept.values()),
+        proposals=_by_destination(list(kept.values())),
         dropped=tuple(dropped),
         vague=reply.vague and not kept,
         model_id=model_id,
@@ -225,6 +227,26 @@ def check(
         usage=usage,
         calls=calls,
     )
+
+
+def _by_destination(facts: list[ProjectFact]) -> tuple[ProjectFact, ...]:
+    """The facts, each kept apart from another on the same output by its repository in its
+    subject, since a project holds one fact per kind and subject: "Audio masters (Archive)"."""
+    outputs = [f.fact_subject.casefold() for f in facts]
+    return tuple(
+        f.model_copy(update={"fact_subject": f"{f.fact_subject} ({f.commitment_repository})"})
+        if f.commitment_repository and outputs.count(f.fact_subject.casefold()) > 1
+        else f
+        for f in facts
+    )
+
+
+def _output(fact: ProjectFact) -> str:
+    """The output a commitment is on, without the repository `_by_destination` added."""
+    suffix = f" ({fact.commitment_repository})"
+    if fact.commitment_repository and fact.fact_subject.endswith(suffix):
+        return fact.fact_subject.removesuffix(suffix)
+    return fact.fact_subject
 
 
 def _unusable(c: ReadCommitment, documents: Sequence[ProjectDocument]) -> str | None:
@@ -250,7 +272,7 @@ def confirmed(commitments: DmpCommitments) -> list[SharingCommitment]:
     on each, as the person left it, never what was only proposed."""
     return [
         SharingCommitment(
-            output=f.fact_subject,
+            output=_output(f),
             repository=f.commitment_repository,
             access=f.commitment_access,
             licence=f.commitment_licence,

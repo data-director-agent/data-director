@@ -193,6 +193,7 @@ nav:
           - Standards evaluations: /agents/advisor-standards/src/dd_agent_advisor_standards/evals/README.md
           - Policy advisor: /agents/advisor-policy/README.md
           - Repository advisor: /agents/advisor-repository/README.md
+          - Repository evaluation: /agents/advisor-repository/src/dd_agent_advisor_repository/evals/README.md
           - DMP advisor: /agents/advisor-dmp/README.md
           - DMP evaluation: /agents/advisor-dmp/src/dd_agent_advisor_dmp/evals/README.md
           - Documentation advisor: /agents/advisor-documentation/README.md

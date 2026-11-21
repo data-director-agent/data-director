@@ -75,8 +75,19 @@ classes:
     slots:
       - schema_class
       - candidates
+      - unlisted
       - not_found
       - searched
+
+  UnlistedRepository:
+    description: >-
+      A repository named in the needs, mandated, in the data management plan or asked about, that
+      re3data does not list, such as many an institution's own repository or a local archive. It
+      is shown with the reason it was named, so the researcher still sees it, but nothing is said
+      about it: there is no record to read its terms, fees or identifiers from.
+    slots:
+      - name
+      - basis
 
   RepositoryCandidate:
     description: >-
@@ -171,6 +182,14 @@ slots:
 
   candidates:
     range: RepositoryCandidate
+    multivalued: true
+    inlined_as_list: true
+  unlisted:
+    description: >-
+      The repositories named (mandated, in the data management plan or asked about) that re3data
+      lists under no name, each with the reason it was named. A name that several records bear is
+      not here but in not_found, with a request for the identifier.
+    range: UnlistedRepository
     multivalued: true
     inlined_as_list: true
   not_found:

@@ -11,6 +11,8 @@ List each output the plan commits to share: a dataset, a collection of files, so
 - `document`: the number of the document the commitment is in.
 - `quote`: the plan's own words the commitment rests on, copied exactly from that document, one sentence or a few. Do not paraphrase, shorten inside, or join passages: the quote is checked against the text, and one that is not found there is not shown.
 
+If the plan names more than one repository for the same output, such as an institutional repository and a copy offered to a partner archive, list a commitment for each repository, with the same output, quote and document.
+
 List only what the plan commits to. Do not infer a repository, access level or licence it does not state, and do not list data it says will not be shared, or will be destroyed, as a commitment to share. If the plan states no commitment to share anything, give an empty list. If it speaks of sharing only in terms too general to name an output, give an empty list and set `vague` to true.
 
 Your reply is constrained to a schema: give the commitments in `commitments`, and `vague` as true or false.

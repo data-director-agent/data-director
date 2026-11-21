@@ -9,10 +9,10 @@ import {
   type RepositoryRequirements,
   httpProjectApi,
 } from "../../project/api";
-import { shortlistOf } from "../../project/shortlist";
+import { shortlistOf, unlistedOf } from "../../project/shortlist";
 import { shortlistRun } from "../../test/shortlist";
 import { RunRefused } from "../../run/api";
-import { RepositoryShortlist } from "./RepositoryShortlist";
+import { RepositoryShortlist, feeWording } from "./RepositoryShortlist";
 
 // What the server says after ORDA is chosen (app/tests/test_repository_choice.py).
 const ORDA_CHOSEN = fixture as RepositoryRequirements;
@@ -22,6 +22,7 @@ function renderShortlist(
   chooseRepository: ProjectApi["chooseRepository"],
   chosenId: string | null = null,
   shortlist = shortlistOf(shortlistRun()),
+  extra: { unlisted?: ReturnType<typeof unlistedOf>; planAttached?: boolean } = {},
 ) {
   const onChosen = vi.fn();
   const api: ProjectApi = { ...httpProjectApi, chooseRepository };
@@ -30,6 +31,7 @@ function renderShortlist(
       <RepositoryShortlist
         projectId={PROJECT}
         shortlist={shortlist}
+        {...extra}
         chosenId={chosenId}
         idPrefix="shortlist-test"
         onChosen={onChosen}
@@ -59,6 +61,37 @@ describe("RepositoryShortlist", () => {
     const [, zenodo] = screen.getAllByRole("listitem");
     expect(zenodo).toHaveTextContent("In your plan");
     expect(zenodo).not.toHaveTextContent("Mandated");
+  });
+
+  it("shows a plan's repository re3data does not list as the plan's, with nothing to choose (#1334)", async () => {
+    const { container } = renderShortlist(vi.fn<ProjectApi["chooseRepository"]>(), null, undefined, {
+      unlisted: unlistedOf(shortlistRun()),
+    });
+    const archive = screen.getAllByRole("listitem").at(-1);
+    expect(archive).toHaveTextContent("Netherbrook Local Studies Archive");
+    expect(archive).toHaveTextContent("In your plan");
+    expect(screen.queryByRole("button", { name: /Netherbrook/ })).not.toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("gives a fee re3data does not state as one to check, never as none (#1334)", () => {
+    renderShortlist(vi.fn<ProjectApi["chooseRepository"]>());
+    const [orda, zenodo] = screen.getAllByRole("listitem");
+    expect(orda).toHaveTextContent(feeWording("unstated") ?? "missing");
+    expect(zenodo).toHaveTextContent(feeWording("yes") ?? "missing");
+  });
+
+  it("says a plan's repositories need its commitments confirmed when none is shown (#1334)", () => {
+    renderShortlist(vi.fn<ProjectApi["chooseRepository"]>(), null, undefined, { planAttached: true });
+    expect(screen.getByText(/once you confirm its sharing commitments/)).toBeVisible();
+  });
+
+  it("does not ask for the plan's commitments once its repositories are shown", () => {
+    renderShortlist(vi.fn<ProjectApi["chooseRepository"]>(), null, undefined, {
+      planAttached: true,
+      unlisted: unlistedOf(shortlistRun()),
+    });
+    expect(screen.queryByText(/once you confirm its sharing commitments/)).not.toBeInTheDocument();
   });
 
   it("sends only the re3data identifier and shows what the choice resolved to", async () => {
