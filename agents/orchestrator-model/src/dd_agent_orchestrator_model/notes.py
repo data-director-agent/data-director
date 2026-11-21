@@ -11,14 +11,16 @@ conversation is. A value a person typed, such as a name, is quoted, so the model
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime
-from typing import Final
+from typing import Any, Final
 
-from dd_agent_orchestrator_model.own_tools import NAME_TOOL
+from dd_agent_orchestrator_model.own_tools import ENTRY_TOOL, NAME_TOOL
 from dd_agent_orchestrator_model.provisional import chose_provisional
 from dd_sdk.contract.facts import FactKind, InventoryFormat, ProjectFact
-from dd_sdk.contract.models import DraftSummary, Message
+from dd_sdk.contract.models import DraftSummary, GroundingMode, Message
+from dd_sdk.process_flow import entry as flow_entry
+from dd_sdk.process_flow import progress, suggested_next
 
 LEAD = "[From the harness, not the researcher] "
 
@@ -34,15 +36,55 @@ def _format(group: InventoryFormat) -> str:
     return f"{named}, {_files(group.format_file_count)}"
 
 
-def record_notes(message: Message) -> tuple[str | None, ...]:
-    """The notes written from the project record, in the order they open the message."""
+def record_notes(
+    message: Message, manifest: Sequence[Mapping[str, Any]] = ()
+) -> tuple[str | None, ...]:
+    """The notes written from the project record, in the order they open the message.
+    `manifest` is the harness's, from which the documents note says who reads attached text."""
     return (
         name_note(message),
         decisions_note(message),
-        documents_note(message),
+        documents_note(message, manifest),
         drafts_note(message),
         provisional_note(message),
     )
+
+
+def progress_note(message: Message) -> str | None:
+    """What the harness says of where the project is in the process flow, or None outside a
+    project. Names steps by id, as the prompt's flow does, and the suggested next step."""
+    if message.project_progress is None and message.project_entry is None:
+        return None
+    start = flow_entry(message.project_entry) if message.project_entry is not None else None
+    states = {p.step_id: p.step_state.value for p in message.project_progress or []}
+    if start is None:
+        where = (
+            "no entry point has been recorded, so where the researcher is is not known: if they "
+            f"have said, record it with {ENTRY_TOOL}; if not, ask which entry point applies"
+        )
+    elif message.project_entry_by_researcher is False:
+        where = (
+            f"you recorded entry point {start.number} ({start.text}) from what the researcher "
+            "said; they can change it"
+        )
+    else:
+        where = f"the researcher chose entry point {start.number} ({start.text})"
+    by_state = {
+        state: [step_id for step_id, s in states.items() if s == state]
+        for state in ("done", "started", "skipped")
+    }
+    shown = (
+        "; ".join(f"{state}: {', '.join(ids)}" for state, ids in by_state.items() if ids)
+        or "no step is started, done or skipped yet"
+    )
+    suggested = suggested_next(progress(start, states, []), start)
+    if suggested is not None:
+        nxt = f" Suggested next: [{suggested.step.id}]."
+    elif start is None:
+        nxt = " No step is suggested until the entry point is known."
+    else:
+        nxt = " Every step from the entry point is done or skipped."
+    return LEAD + f"For this project, {where}. The project record shows {shown}.{nxt}"
 
 
 def _when(at: datetime) -> str:
@@ -125,17 +167,52 @@ def decisions_note(message: Message) -> str | None:
     )
 
 
-def documents_note(message: Message) -> str | None:
-    """The documents attached to the project, by name, and, while no sharing commitment of a
-    data management plan is decided, that no attached plan has been read for a repository
-    (#1233): a repository shortlist does not read the documents, so without this the model may
-    offer generalists alone, and say nothing of the repository the plan names. None when no
-    document is attached."""
+def _persona(entry: Mapping[str, Any]) -> str:
+    title = str(entry.get("title") or "")
+    return f"the {title}" if title else str(entry.get("agent_id"))
+
+
+def _readers(manifest: Sequence[Mapping[str, Any]]) -> str:
+    """Which agents read the text of attached documents and for what, as each card declares
+    (`reads_attached`), and that every other agent cannot (#1326): so the model never lets the
+    researcher believe an agent that reads only web addresses, such as a policy check, used one.
+    Agents the orchestrator cannot ask, itself and other delegation agents, are left out."""
+    askable = [
+        e
+        for e in sorted(manifest, key=lambda e: str(e.get("agent_id")))
+        if e.get("grounding_mode") != GroundingMode.DELEGATION.value
+    ]
+    readers = [f"{_persona(e)} ({e['reads_attached']})" for e in askable if e.get("reads_attached")]
+    others = [_persona(e) for e in askable if not e.get("reads_attached")]
+    if not readers:
+        return (
+            " No agent in this deployment reads their text: each is told only their names. When "
+            "the researcher expects an agent to use one, say so, and ask for the text they want "
+            "used, or a web address."
+        )
+    said = " Their text is read only by " + "; ".join(readers) + "."
+    if others:
+        said += (
+            " Every other agent (" + ", ".join(others) + ") cannot read them. When the researcher "
+            "expects one of those to use a document, say so when you ask it, name the agents "
+            "that can read it, and ask for a web address or the words they want used."
+        )
+    return said
+
+
+def documents_note(message: Message, manifest: Sequence[Mapping[str, Any]] = ()) -> str | None:
+    """The documents attached to the project, by name; which agents read their text (`_readers`,
+    #1326); and, while no sharing commitment of a data management plan is decided, that no
+    attached plan has been read for a repository (#1233): a repository shortlist does not read the
+    documents, so without this the model may offer generalists alone, and say nothing of the
+    repository the plan names. None when no document is attached."""
     documents = message.project_documentation or []
     if not documents:
         return None
     names = ", ".join(json.dumps(d.documentation_name) for d in documents)
     note = LEAD + f"The researcher attached to the project: {names}."
+    if manifest:
+        note += _readers(manifest)
     if any(f.fact_kind == FactKind.SHARING_COMMITMENT for f in message.project_decisions or []):
         return note
     return note + (

@@ -1307,6 +1307,11 @@ export interface RawManifestEntry {
   icon: string;
   models: RawModelUse[];
   payload: string | null;
+  /**
+   * What it reads the text of attached documents for, completing "<title> reads its text …";
+   * empty when it does not read them (#1326).
+   */
+  reads_attached: string;
   requires_approval: boolean;
   schemas: {
     [k: string]: RawSchemaEntry;

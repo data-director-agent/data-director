@@ -39,6 +39,8 @@ export interface AgentSpec {
   modelsDeclared: boolean;
   /** The process flow steps it serves, which place it in the flow. Empty: none. */
   serves: string[];
+  /** What it reads the text of attached documents for ("to suggest answers…"). Empty: it does not. */
+  readsAttached: string;
   /** The Agent Skills it may load into its system prompt, each pinned by version and digest. Empty: none. */
   skills: RawSkillUse[];
   /** The MCP servers and tools it calls through the harness's tool gateway. Empty: none. */
@@ -81,6 +83,7 @@ export function specFromRaw(raw: RawAgentSpec): AgentSpec {
     models: (raw.models ?? []).map((m) => ({ ...m })),
     modelsDeclared: raw.models !== undefined,
     serves: [...(raw.serves ?? [])],
+    readsAttached: raw.reads_attached ?? "",
     skills: (raw.skills ?? []).map((s) => ({ ...s })),
     tools: (raw.tools ?? []).map((t) => ({ server: t.server, tools: [...t.tools] })),
   };
@@ -113,6 +116,7 @@ export function readAgentSpec(value: unknown): AgentSpec | null {
     ...(Array.isArray(value.serves) ? { serves: list(value.serves) } : {}),
     title: typeof value.title === "string" ? value.title : "",
     icon: typeof value.icon === "string" ? value.icon : "",
+    ...(typeof value.reads_attached === "string" ? { reads_attached: value.reads_attached } : {}),
     ...(Array.isArray(value.skills) ? { skills: value.skills.filter(isSkillUse) } : {}),
     ...(Array.isArray(value.tools) ? { tools: value.tools.filter(isToolUse) } : {}),
   });
