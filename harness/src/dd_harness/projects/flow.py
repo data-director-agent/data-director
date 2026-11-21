@@ -111,9 +111,9 @@ class Flow(ProjectRules):
     def progress(self, project_id: str) -> dict[str, Any]:
         """The entry point chosen and each step the log shows started, done or skipped. Raises
         `UnknownProjectError`."""
-        return flow.describe(self.events(project_id))
+        return flow.describe(self.events(project_id), self.serving())
 
     def intake(self, project_id: str) -> dict[str, Any]:
         """Where the project's intake stands, its questions with their current answers and the
         project's progress (`dd_harness.intake.describe`). Raises `UnknownProjectError`."""
-        return intake_rules.describe(self.events(project_id))
+        return intake_rules.describe(self.events(project_id), self.serving())

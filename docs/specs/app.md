@@ -345,7 +345,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
       chosen and keeps showing it once recorded; it changes no step.
     - `POST /api/projects/{id}/intake/{question_id}` records an answer (`{"answer_values": […]}`).
       It answers with the next question, or, once the intake is complete, with the phase the
-      project starts at and the suggested step, both from the project summary.
+      project starts at and the suggested step, both from the project summary. The suggested step
+      is one an enabled agent serves wherever its phase has one ([Orchestration](orchestration.md),
+      invariant 19), so **Start with …** does not open on a step Data Director cannot help with.
       Before the project's first turn, the card's ending then offers "Start with" the suggested
       step and "Not now". Start closes the card and sends the researcher's opening turn, which
       names that step, by the ordinary turn path, so the conversation begins with Data

@@ -220,7 +220,9 @@ class Projects(
     def snapshot(self, project_id: str) -> Projects:
         """The rules over the project `project_id` as its log reads now, read once however much
         is asked of it, for the reads of one invocation (`SnapshotLog`). It takes no change."""
-        return Projects(SnapshotLog(self.log, project_id), restore_period=self.restore_period)
+        snapshot = Projects(SnapshotLog(self.log, project_id), restore_period=self.restore_period)
+        snapshot.serving = self.serving
+        return snapshot
 
 
 class ProjectStore(Projects):

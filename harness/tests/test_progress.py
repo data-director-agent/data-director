@@ -174,6 +174,19 @@ def test_the_store_records_the_researchers_word_and_derives_progress(store: Proj
     assert store.summary(project)["progress"] == store.progress(project)
 
 
+def test_the_store_suggests_a_step_the_deployments_agents_serve(store: ProjectStore) -> None:
+    """With the deployment's agents given, the summary, the progress, the intake and a snapshot
+    all suggest the Phase 1 step an agent serves, not the one none does (#1377)."""
+    project = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    store.choose_entry(project, 1, acted_for=TEST_PRINCIPAL, caused_by="test")
+    assert store.progress(project)["suggested"] == "setup.documentation"
+    store.serving = lambda: [{"agent_id": "advisor.standards", "serves": ["setup.vocabularies"]}]
+    assert store.progress(project)["suggested"] == "setup.vocabularies"
+    assert store.summary(project)["progress"]["suggested"] == "setup.vocabularies"
+    assert store.intake(project)["progress"]["suggested"] == "setup.vocabularies"
+    assert store.snapshot(project).progress(project)["suggested"] == "setup.vocabularies"
+
+
 def test_each_state_has_the_reason_that_decided_it() -> None:
     events: list[dict[str, Any]] = [
         {"event": progress.ENTRY_CHOSEN, "entry": 1},
