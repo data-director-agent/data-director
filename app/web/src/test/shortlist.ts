@@ -23,11 +23,13 @@ export function shortlistRun(overrides: Partial<Envelope> = {}): Envelope {
         {
           basis: "mandated",
           rationale: "The University asks for its own repository.",
+          fee_required: "unstated",
           grounded_on: [{ source_id: ORDA, content_hash: "a".repeat(64) }],
         },
         {
           basis: "recommended",
           rationale: "A general repository that mints DataCite DOIs.",
+          fee_required: "yes",
           grounded_on: [
             { source_id: "FAIRsharing.wy4egf", content_hash: "b".repeat(64) },
             { source_id: ZENODO, content_hash: "c".repeat(64) },
@@ -35,7 +37,8 @@ export function shortlistRun(overrides: Partial<Envelope> = {}): Envelope {
         },
         { basis: "recommended", grounded_on: [{ source_id: "FAIRsharing.only", content_hash: "d".repeat(64) }] },
       ],
-      not_found: [],
+      unlisted: [{ name: "Netherbrook Local Studies Archive", basis: "in_plan" }],
+      not_found: ["Netherbrook Local Studies Archive"],
     },
     evidence: [
       {

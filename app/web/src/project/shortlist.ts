@@ -23,6 +23,18 @@ export interface ShortlistedRepository {
   /** Whether a policy mandates it or the advisor recommends it. */
   basis: string | null;
   rationale: string | null;
+  /** Whether re3data lists a deposit fee: `yes`, or `unstated`, since it has no value for none. */
+  feeRequired: string | null;
+}
+
+/**
+ * A repository named (mandated, in the data management plan or asked about) that re3data does
+ * not list, such as an institution's own repository (#1334). It has no record, so it cannot be
+ * chosen here and nothing is said about its terms; it is shown so that it is not lost.
+ */
+export interface UnlistedRepository {
+  name: string;
+  basis: string;
 }
 
 function isRef(value: unknown): value is GroundingRef {
@@ -57,6 +69,7 @@ function shortlisted(
     uri: item?.source_uri ?? null,
     basis: typeof candidate.basis === "string" ? candidate.basis : null,
     rationale: typeof candidate.rationale === "string" ? candidate.rationale : null,
+    feeRequired: typeof candidate.fee_required === "string" ? candidate.fee_required : null,
   };
 }
 
@@ -72,4 +85,13 @@ export function shortlistOf(envelope: Envelope): ShortlistedRepository[] {
     found.push(shortlisted(re3dataId, candidate, evidence.get(re3dataId)));
   }
   return found;
+}
+
+/** The repositories named that re3data does not list, in the run's order; empty if none. */
+export function unlistedOf(envelope: Envelope): UnlistedRepository[] {
+  const payload = envelope.payload;
+  if (!payload || payload.schema_class !== SHORTLIST_CLASS || !Array.isArray(payload.unlisted)) return [];
+  return (payload.unlisted as Record<string, unknown>[]).flatMap((entry) =>
+    typeof entry.name === "string" && typeof entry.basis === "string" ? [{ name: entry.name, basis: entry.basis }] : [],
+  );
 }

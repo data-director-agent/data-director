@@ -40,7 +40,7 @@ import {
   useProjectApi,
 } from "../../project/api";
 import { draftedBy } from "../../project/drafted";
-import { shortlistOf } from "../../project/shortlist";
+import { shortlistOf, unlistedOf } from "../../project/shortlist";
 import type { AgentView } from "../../manifest/normalise";
 import { Link } from "../../route";
 import type { Envelope } from "../../run/types";
@@ -173,8 +173,10 @@ function turnFacts(
     questions: replyQuestions(turn.envelope),
     latest: index === conversation.turns.length - 1,
     answers: next ? (conversation.inputs[next.invocation_id]?.reply_answers ?? null) : null,
+    // Any document attached by this turn may be the plan whose repositories the shortlist shows.
+    planAttached: (conversation.inputs[turn.invocation_id]?.project_documentation ?? []).length > 0,
     shortlists: [turn.envelope, ...turn.children]
-      .map((envelope) => ({ envelope, shortlist: shortlistOf(envelope) }))
+      .map((envelope) => ({ envelope, shortlist: shortlistOf(envelope), unlisted: unlistedOf(envelope) }))
       .filter(({ shortlist }) => shortlist.length > 0),
   };
 }
@@ -249,7 +251,7 @@ export function Transcript({
     // eslint-disable-next-line jsx-a11y/no-redundant-roles
     <ol className="transcript" role="list" aria-label="Conversation">
       {conversation?.turns.map((turn, index) => {
-        const { given, attachedDocuments, drafted, questions, latest, answers, shortlists } = turnFacts(
+        const { given, attachedDocuments, drafted, questions, latest, answers, planAttached, shortlists } = turnFacts(
           conversation,
           turn,
           index,
@@ -333,11 +335,13 @@ export function Transcript({
             )}
             {projectId &&
               onRepositoryChosen &&
-              shortlists.map(({ envelope, shortlist }) => (
+              shortlists.map(({ envelope, shortlist, unlisted }) => (
                 <RepositoryShortlist
                   key={`shortlist-${envelope.invocation_id}`}
                   projectId={projectId}
                   shortlist={shortlist}
+                  unlisted={unlisted}
+                  planAttached={planAttached}
                   chosenId={chosenRepository}
                   idPrefix={`shortlist-${envelope.invocation_id}`}
                   onChosen={onRepositoryChosen}

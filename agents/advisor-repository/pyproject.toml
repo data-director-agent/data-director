@@ -15,6 +15,9 @@ dependencies = ["data-director-sdk>=0.2.0a0", "httpx>=0.28", "pydantic>=2.14.1,<
 # The SDK's model adapters, which the model-backed writer or explainer calls through
 # (dd_sdk.model_provider): Claude, and any OpenAI-compatible endpoint.
 model = ["data-director-sdk[anthropic,openai]"]
+# The evaluation in `evals/` (docs/specs/evaluation.md): it sends each case through the harness's
+# conductor, through the workbench, and scores it with the workbench's Inspect AI scorers.
+eval = ["data-director-workbench[eval]"]
 
 [project.scripts]
 dd-advisor-repository = "dd_agent_advisor_repository.factory:main"
@@ -29,6 +32,10 @@ re3data = "dd_agent_advisor_repository.registry:SOURCE"
 dev = [
   "data-director-harness",
 ]
+
+[tool.deptry.per_rule_ignores]
+# Inspect AI comes with the workbench's `eval` extra, which the `eval` extra above names.
+DEP003 = ["inspect_ai"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dd_agent_advisor_repository"]

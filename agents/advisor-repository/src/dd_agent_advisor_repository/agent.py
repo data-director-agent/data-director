@@ -24,11 +24,13 @@ from datetime import UTC, datetime
 
 from dd_agent_advisor_repository import aliases, assess, choose, given, rank
 from dd_agent_advisor_repository.classes import (
+    CandidateBasis,
     RepositoryCandidate,
     RepositoryNeeds,
     RepositoryOptions,
     RepositoryRef,
     SearchedSummary,
+    UnlistedRepository,
 )
 from dd_agent_advisor_repository.explain import Explainer, Item, Rationale, TemplateExplainer
 from dd_agent_advisor_repository.records import DatabaseRecord, Re3dataRecord
@@ -74,10 +76,15 @@ class _Retrieved:
 
 
 def _lookup(
-    refs: list[RepositoryRef], source: Repositories, got: _Retrieved, named: choose.Named
+    refs: list[RepositoryRef],
+    source: Repositories,
+    got: _Retrieved,
+    named: choose.Named,
+    basis: CandidateBasis,
 ) -> list[Re3dataRecord]:
     """The records of the repositories `refs` names, each once; the names not found go to
-    `named.not_found` (`_from_re3data`)."""
+    `named.not_found`, and those re3data lists under no name also to `named.unlisted`, with the
+    `basis` they were named on (`_from_re3data`)."""
     records: list[Re3dataRecord] = []
     for ref in refs:
         if ref.re3data_id:
@@ -94,6 +101,8 @@ def _lookup(
             named.not_found.append(ref.name)
             if found:
                 got.ambiguous[ref.name] = [n.re3data_id for n in found]
+            elif not ref.re3data_id:
+                named.unlisted.append(UnlistedRepository(name=ref.name, basis=basis))
             continue
         if found[0].re3data_id not in {r.re3data_id for r in records}:
             records.append(found[0])
@@ -234,17 +243,17 @@ class RepositoryAgent:
         identifier rather than given a guess."""
         needs = project.needs
         named = choose.Named()
-        named.mandated = _lookup(needs.mandated, source, got, named)
+        named.mandated = _lookup(needs.mandated, source, got, named, CandidateBasis.MANDATED)
         mandated_ids = {r.re3data_id for r in named.mandated}
         named.in_plan = [
             r
-            for r in _lookup(project.in_plan, source, got, named)
+            for r in _lookup(project.in_plan, source, got, named, CandidateBasis.IN_PLAN)
             if r.re3data_id not in mandated_ids
         ]
         described = mandated_ids | {r.re3data_id for r in named.in_plan}
         named.asked_about = [
             r
-            for r in _lookup(needs.asked_about, source, got, named)
+            for r in _lookup(needs.asked_about, source, got, named, CandidateBasis.ASKED_ABOUT)
             if r.re3data_id not in described
         ]
         if needs.mandated or not rank.queries(needs):
@@ -330,6 +339,8 @@ class RepositoryAgent:
 
         ranked = rank.rank(matches, hits, needs) if hits else []
         chosen = choose.choose(named, ranked, project.only_chosen)
+        # A succeeded payload must rest on a record retrieved (docs/specs/grounding.md, G2), so
+        # with nothing chosen the advisor abstains, naming any repository re3data does not list.
         if not chosen:
             return choose.abstention(named, got, len(hits), shortlisted, source)
         searched = searched.model_copy(update={"candidates_qualifying": len(chosen)})
@@ -357,6 +368,7 @@ class RepositoryAgent:
             outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement=statement),
             payload=RepositoryOptions(
                 candidates=candidates,
+                unlisted=named.unlisted,
                 not_found=named.not_found,
                 searched=searched,
                 grounded_on=grounded_on,
