@@ -23,7 +23,7 @@ from typing import Any
 
 from dd_sdk.agent import RunContext
 from dd_sdk.contract.models import CONVERSATION_TITLE_MAX
-from dd_sdk.model import Model, call
+from dd_sdk.model import CallOptions, Model, call
 from dd_sdk.prompts import ModelCallLog
 
 log = logging.getLogger(__name__)
@@ -83,8 +83,7 @@ def titled(model: Model, message_text: str, ctx: RunContext, calls: ModelCallLog
             ctx,
             system=prompt["system"],
             messages=prompt["messages"],
-            max_tokens=TITLE_MAX_TOKENS,
-            calls=calls,
+            options=CallOptions(max_tokens=TITLE_MAX_TOKENS, calls=calls),
         )
     except Exception as exc:  # noqa: BLE001 — a title is never worth failing the turn for
         log.warning("no conversation title: %s", exc)

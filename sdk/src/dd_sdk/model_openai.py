@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
 from dd_sdk import model_account
@@ -173,41 +174,56 @@ def _tool_call(call: Any) -> tuple[ToolCall, dict[str, Any]]:
     return ToolCall(call.id, function.name, given), back
 
 
+@dataclass(frozen=True)
+class OpenAIEndpoint:
+    """Where an `OpenAIModel` sends its calls: `base_url`, with the `api_key` if the endpoint needs
+    one. `brokered` says that `base_url` is the model broker and `api_key` the agent's broker
+    credential (`openai_client`)."""
+
+    base_url: str
+    api_key: str | None = field(default=None, repr=False)
+    brokered: bool = False
+
+
+@dataclass(frozen=True)
+class OpenAIOptions:
+    """What an `OpenAIModel` asks of the endpoint. `max_tokens_field` is the request field that
+    caps the reply: OpenAI's own API wants `max_completion_tokens`, and most other servers
+    `max_tokens`. `effort`, if given, is sent as `reasoning_effort` (`EFFORTS`)."""
+
+    max_tokens_field: str = "max_tokens"
+    effort: str | None = None
+
+
 class OpenAIModel:
-    """A model behind an OpenAI-compatible endpoint. Give a `client` (tests) or a `base_url`, and
-    the `api_key` if the endpoint needs one.
+    """A model behind an OpenAI-compatible endpoint. Give a `client` (tests) or an `endpoint`.
 
     `provider` and `hosting` are what the agent's card declares (`dd_sdk.model.declared`).
-    `max_tokens_field` is the request field that caps the reply: OpenAI's own API wants
-    `max_completion_tokens`, and most other servers `max_tokens`. `effort`, if given, is sent as
-    `reasoning_effort` (`EFFORTS`). `brokered` says that `base_url` is the model broker and
-    `api_key` the agent's broker credential (`openai_client`). `tool_use` says the agent relies on
-    the model to call tools, which its card declares."""
+    `options` is what it asks of the endpoint (`OpenAIOptions`). `tool_use` says the agent relies
+    on the model to call tools, which its card declares."""
 
-    def __init__(  # noqa: PLR0913
+    def __init__(
         self,
         model_id: str,
         *,
         provider: str,
         hosting: Literal["hosted", "local"],
-        base_url: str | None = None,
-        api_key: str | None = None,
-        max_tokens_field: str = "max_tokens",
-        effort: str | None = None,
-        brokered: bool = False,
+        endpoint: OpenAIEndpoint | None = None,
         client: openai.OpenAI | None = None,
+        options: OpenAIOptions | None = None,
         tool_use: bool = False,
     ) -> None:
         if client is None:
-            if base_url is None:
-                raise ValueError("OpenAIModel needs a client or a base_url")
-            client = openai_client(base_url, api_key, brokered=brokered)
+            if endpoint is None:
+                raise ValueError("OpenAIModel needs a client or an endpoint")
+            client = openai_client(endpoint.base_url, endpoint.api_key, brokered=endpoint.brokered)
         self._client = client
+        options = options or OpenAIOptions()
         self.model_id = model_id
         self.provider = provider
         self.hosting: Literal["hosted", "local"] = hosting
-        self.effort = effort
-        self._max_tokens_field = max_tokens_field
+        self.effort = options.effort
+        self._max_tokens_field = options.max_tokens_field
         self.tool_use = tool_use
 
     def _messages(self, request: ModelRequest) -> list[dict[str, Any]]:

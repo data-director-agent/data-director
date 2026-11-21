@@ -49,7 +49,7 @@ from dd_sdk.model import Model, ModelCallError
 from dd_sdk.model_anthropic import EFFORTS as CLAUDE_EFFORTS
 from dd_sdk.model_anthropic import AnthropicModel, ToolLoopOptions
 from dd_sdk.model_openai import EFFORTS as OPENAI_EFFORTS
-from dd_sdk.model_openai import OpenAIModel
+from dd_sdk.model_openai import OpenAIEndpoint, OpenAIModel, OpenAIOptions
 from dd_sdk.model_route import Builder, RoutedModel
 
 PROVIDER = "DD_MODEL_PROVIDER"
@@ -186,11 +186,8 @@ def _routed_builder(
             model_id,
             provider=name,
             hosting="hosted",
-            base_url=endpoint.base_url,
-            api_key=endpoint.api_key,
-            max_tokens_field=provider.max_tokens_field,
-            effort=kept,
-            brokered=True,
+            endpoint=OpenAIEndpoint(endpoint.base_url, endpoint.api_key, brokered=True),
+            options=OpenAIOptions(provider.max_tokens_field, kept),
             tool_use=tool_use,
         )
 
@@ -254,15 +251,13 @@ def _declared_model(
                 f"{COMPATIBLE} call goes"
             )
         endpoint = model_endpoint(env, name, provider.key)
+        assert endpoint.base_url is not None
         return OpenAIModel(
             model_id,
             provider=name,
             hosting="hosted",
-            base_url=endpoint.base_url,
-            api_key=endpoint.api_key,
-            max_tokens_field=provider.max_tokens_field,
-            effort=effort,
-            brokered=True,
+            endpoint=OpenAIEndpoint(endpoint.base_url, endpoint.api_key, brokered=True),
+            options=OpenAIOptions(provider.max_tokens_field, effort),
             tool_use=tool_use,
         )
     if name == COMPATIBLE:
@@ -272,10 +267,8 @@ def _declared_model(
         model_id,
         provider=name,
         hosting="hosted",
-        base_url=provider.base_url,
-        api_key=api_key(env, provider.key),
-        max_tokens_field=provider.max_tokens_field,
-        effort=effort,
+        endpoint=OpenAIEndpoint(provider.base_url, api_key(env, provider.key)),
+        options=OpenAIOptions(provider.max_tokens_field, effort),
         tool_use=tool_use,
     )
 
@@ -308,9 +301,8 @@ def _compatible_model(
         model_id,
         provider=_endpoint_name(base_url),
         hosting=hosting,
-        base_url=base_url,
-        api_key=key,
-        effort=effort,
+        endpoint=OpenAIEndpoint(base_url, key),
+        options=OpenAIOptions(effort=effort),
         tool_use=tool_use,
     )
 

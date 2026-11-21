@@ -182,6 +182,18 @@ def message_json(message: ModelMessage) -> dict[str, Any]:
 
 
 @dataclass(frozen=True)
+class CallOptions:
+    """What `call` is asked besides the prompt: `max_tokens` for the reply, the `calls` log to
+    record in (else a new log for the model's provider), and the `tools` the model is offered, which
+    it may call unless `tool_choice` is `none`."""
+
+    max_tokens: int = DEFAULT_MAX_TOKENS
+    calls: ModelCallLog | None = None
+    tools: Sequence[ToolSpec] = ()
+    tool_choice: ToolChoice = "auto"
+
+
+@dataclass(frozen=True)
 class ModelRequest:
     """What an adapter is asked to send: the system prompt, the messages, the class the reply
     must be an instance of, if the agent gave one, and the tools the model is offered, if any."""
@@ -268,10 +280,7 @@ def call(
     system: str,
     messages: Sequence[ModelMessage],
     schema: None = None,
-    max_tokens: int = DEFAULT_MAX_TOKENS,
-    calls: ModelCallLog | None = None,
-    tools: Sequence[ToolSpec] = (),
-    tool_choice: ToolChoice = "auto",
+    options: CallOptions | None = None,
 ) -> ModelReply: ...
 
 
@@ -283,24 +292,18 @@ def call[T: BaseModel](
     system: str,
     messages: Sequence[ModelMessage],
     schema: type[T],
-    max_tokens: int = DEFAULT_MAX_TOKENS,
-    calls: ModelCallLog | None = None,
-    tools: Sequence[ToolSpec] = (),
-    tool_choice: ToolChoice = "auto",
+    options: CallOptions | None = None,
 ) -> ModelReply[T]: ...
 
 
-def call[T: BaseModel](  # noqa: PLR0913
+def call[T: BaseModel](
     model: Model,
     ctx: RunContext,
     *,
     system: str,
     messages: Sequence[ModelMessage],
     schema: type[T] | None = None,
-    max_tokens: int = DEFAULT_MAX_TOKENS,
-    calls: ModelCallLog | None = None,
-    tools: Sequence[ToolSpec] = (),
-    tool_choice: ToolChoice = "auto",
+    options: CallOptions | None = None,
 ) -> ModelReply[T]:
     """Make one model call and record it.
 
@@ -310,7 +313,15 @@ def call[T: BaseModel](  # noqa: PLR0913
     given and the reply is not an instance of it, and `ModelCallError` (from the adapter) if the
     provider did not answer, after the span has recorded it.
     """
-    request = ModelRequest(system, tuple(messages), schema, max_tokens, tuple(tools), tool_choice)
+    options = options or CallOptions()
+    request = ModelRequest(
+        system,
+        tuple(messages),
+        schema,
+        options.max_tokens,
+        tuple(options.tools),
+        options.tool_choice,
+    )
     # What is sent, kept by digest with the run (docs/specs/disclosure.md), in the neutral form.
     # Sampling parameters and the schema are not part of the prompt; the tools are.
     sent: dict[str, Any] = {
@@ -319,8 +330,8 @@ def call[T: BaseModel](  # noqa: PLR0913
     }
     if request.tools:
         sent["tools"] = [t.to_json() for t in request.tools]
-        sent["tool_choice"] = tool_choice
-    log = calls if calls is not None else ModelCallLog(model.provider)
+        sent["tool_choice"] = options.tool_choice
+    log = options.calls if options.calls is not None else ModelCallLog(model.provider)
     with chat_span(ctx.tracer, model.model_id) as span:
         called_at = now()
         response = model.send(request)

@@ -31,7 +31,7 @@ from dd_agent_advisor_dmp.classes import DmpCommitments, SharingCommitment
 from dd_agent_advisor_dmp.match import _unfenced
 from dd_sdk.agent import RunContext
 from dd_sdk.contract.facts import FactKind, ProjectDocument, ProjectFact
-from dd_sdk.model import Model, ModelCallError, ModelOutputError, Usage, call
+from dd_sdk.model import CallOptions, Model, ModelCallError, ModelOutputError, Usage, call
 from dd_sdk.prompts import ModelCallLog
 
 READ_PROMPT = Path(__file__).with_name("read_prompt.md").read_text(encoding="utf-8").strip()
@@ -123,7 +123,12 @@ class ModelReader:
         messages = [{"role": "user", "content": prompt(given, cut)}]
         try:
             reply = call(
-                self.model, ctx, system=READ_PROMPT, messages=messages, schema=ReadReply, calls=log
+                self.model,
+                ctx,
+                system=READ_PROMPT,
+                messages=messages,
+                schema=ReadReply,
+                options=CallOptions(calls=log),
             )
         except ModelCallError as error:
             return _unused(f"the model could not be reached ({error})", self.model_id, names, log)

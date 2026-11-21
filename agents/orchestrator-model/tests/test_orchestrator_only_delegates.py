@@ -37,7 +37,7 @@ from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.contract.models import Message, OutcomeStatus
 from dd_sdk.model import Model
 from dd_sdk.model_anthropic import FALLBACK_BETA, AnthropicModel, ToolLoopOptions
-from dd_sdk.model_openai import OpenAIModel, openai_client
+from dd_sdk.model_openai import OpenAIModel, OpenAIOptions, openai_client
 
 PACKAGE = Path(__file__).resolve().parents[1]
 SOURCE = PACKAGE / "src" / "dd_agent_orchestrator_model"
@@ -149,7 +149,11 @@ def _openai() -> tuple[Model, list[dict[str, Any]]]:
     http_client = openai.DefaultHttpxClient(transport=httpx.MockTransport(endpoint))
     client = openai_client("http://localhost:11434/v1", None, http_client=http_client)
     model = OpenAIModel(
-        "local-model", provider="localhost:11434", hosting="local", effort="low", client=client
+        "local-model",
+        provider="localhost:11434",
+        hosting="local",
+        options=OpenAIOptions(effort="low"),
+        client=client,
     )
     return model, endpoint.requests
 
