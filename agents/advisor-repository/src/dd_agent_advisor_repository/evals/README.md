@@ -29,9 +29,8 @@ re3data lists neither, as it does not list many an institution's or a local arch
 
 - **plan unconfirmed**: the smoke test as run (#1325). The plan was attached but its commitments
   not confirmed, so nothing of it reaches the advisor, which shortlists from re3data alone.
-- **plan confirmed**: one confirmed commitment per destination.
-- **plan in one commitment**: both destinations in one commitment, as the plan's single sentence
-  gives them.
+- **plan confirmed**: one confirmed commitment per destination, each with the repository in its
+  subject, as the plan checker reads one sentence that names both.
 - **plan without a shortlist**: the confirmed commitments and nothing to search for. A succeeded
   payload must rest on a record retrieved (grounding rule G2), and re3data lists neither
   repository, so the advisor stops, but must name the plan's repositories in what it says.

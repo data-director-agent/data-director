@@ -15,16 +15,11 @@ import pytest
 from dd_agent_advisor_dmp.agent import DmpChecker
 from dd_agent_advisor_dmp.classes import DmpCommitments, DmpDiscrepancies, SharingCommitment
 from dd_agent_advisor_dmp.match import ModelMatcher
-from dd_agent_advisor_dmp.read_plan import MAX_PLAN, READ_PROMPT, ModelReader, fitted
+from dd_agent_advisor_dmp.read_plan import MAX_PLAN, ModelReader, confirmed, fitted
 from dd_harness.conductor import Conductor
 from dd_harness.projects import FactVerdict, ProjectStore
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
-from dd_sdk.contract.facts import (
-    COMMITMENT_REPOSITORIES_SEPARATOR,
-    FactKind,
-    ProjectDocument,
-    commitment_repositories,
-)
+from dd_sdk.contract.facts import FactKind, ProjectDocument
 from dd_sdk.contract.models import Envelope, GroundingMode, OutcomeStatus, ReasonCode
 from dd_sdk.model import declared
 from dd_sdk.testing import FakeModel
@@ -127,22 +122,25 @@ def test_a_commitment_whose_quote_is_not_in_the_plan_is_not_proposed(runs_dir: P
     assert len(payload.dropped) == 1 and "Code" in payload.dropped[0]
 
 
-def test_a_commitment_to_several_repositories_keeps_each(runs_dir: Path) -> None:
-    """A plan that deposits an output in one repository and offers a copy to another is read as
-    one commitment naming both, in the form the core schema gives (#1334)."""
+def test_a_commitment_to_several_repositories_is_one_for_each(runs_dir: Path) -> None:
+    """A plan that deposits an output in one repository and offers a copy to another gives a
+    commitment for each, kept apart by repository; only a repeat of both is named twice (#1334).
+    What a person confirms is compared as the output the plan names."""
     text = (
         "Audio masters will be deposited in the Wharfedale Research Data Repository and a copy "
         "offered to the Netherbrook Local Studies Archive."
     )
     both = ["Wharfedale Research Data Repository", "Netherbrook Local Studies Archive"]
-    assert COMMITMENT_REPOSITORIES_SEPARATOR in READ_PROMPT
-    read = reply(
-        [commitment("Audio masters", text, repository=COMMITMENT_REPOSITORIES_SEPARATOR.join(both))]
-    )
+    read = reply([commitment("Audio masters", text, repository=name) for name in [*both, both[0]]])
     env = run(runs_dir, checker(FakeModel(read)), DmpCommitments(project_documents=[plan(text)]))
 
-    [fact] = env.payload_as(DmpDiscrepancies).proposed_facts
-    assert commitment_repositories(fact.commitment_repository) == both
+    payload = env.payload_as(DmpDiscrepancies)
+    facts = payload.proposed_facts
+    assert [f.commitment_repository for f in facts] == both
+    assert len({f.fact_subject for f in facts}) == len(both)
+    assert len(payload.dropped) == 1
+    decided = confirmed(DmpCommitments(project_decisions=facts))
+    assert [(c.output, c.repository) for c in decided] == [("Audio masters", r) for r in both]
 
 
 @pytest.mark.parametrize("vague", [False, True], ids=["none-found", "too-vague"])

@@ -37,9 +37,9 @@ it. If the shortlist also ranks it, it keeps its score and `ranked_by`. The app 
 
 In a project, a repository that a sharing commitment of the data management plan names, once the
 researcher has confirmed the commitment, is described the same way with the basis `in_plan`: a
-plan's choice is not a mandate (#1233). A commitment may name several repositories, separated by
-`; `, as when a plan deposits an output in the institution's repository and offers a copy to a
-partner archive; each is described (#1334). The app shows it as "In your plan". A name re3data does
+plan's choice is not a mandate (#1233). A plan that names several repositories for one output, as when it deposits the output in the
+institution's repository and offers a copy to a partner archive, gives a commitment for each, and
+each is described (#1334). The app shows it as "In your plan". A name re3data does
 not list, such as "ReShare" for the UK Data Service's self-deposit repository, is read through the
 short, sourced list in `aliases.yaml`, and the statement says so.
 

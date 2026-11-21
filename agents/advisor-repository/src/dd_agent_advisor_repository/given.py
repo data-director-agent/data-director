@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from dd_agent_advisor_repository import rank
 from dd_agent_advisor_repository.classes import CandidateBasis, RepositoryNeeds, RepositoryRef
 from dd_agent_advisor_repository.records import Re3dataRecord
-from dd_sdk.contract.facts import FactKind, commitment_repositories
+from dd_sdk.contract.facts import FactKind
 
 
 @dataclass(frozen=True)
@@ -43,12 +43,11 @@ def with_project(needs: RepositoryNeeds) -> Given:
             decided = RepositoryRef(name=fact.fact_repository_name, re3data_id=fact.fact_re3data_id)
             if not any(_same(decided, ref) for ref in mandated):
                 mandated.append(decided)
-        elif fact.fact_kind == FactKind.SHARING_COMMITMENT:
-            # A plan may commit one output to several repositories (#1334).
-            for name in commitment_repositories(fact.commitment_repository):
-                planned = RepositoryRef(name=name)
-                if not any(_same(planned, ref) for ref in in_plan):
-                    in_plan.append(planned)
+        elif fact.fact_kind == FactKind.SHARING_COMMITMENT and fact.commitment_repository:
+            # A plan that commits one output to several repositories gives a commitment for each.
+            planned = RepositoryRef(name=fact.commitment_repository)
+            if not any(_same(planned, ref) for ref in in_plan):
+                in_plan.append(planned)
     # A repository the plan names that is also mandated is described as mandated.
     in_plan = [ref for ref in in_plan if not any(_same(ref, m) for m in mandated)]
     only_chosen = None

@@ -131,22 +131,6 @@ FACT_NEEDS: dict[FactKind, tuple[str, ...]] = {
 }
 
 
-# Between the repositories of a sharing commitment whose plan names more than one for the output,
-# such as an institution's repository and a copy offered to a partner archive (#1334).
-COMMITMENT_REPOSITORIES_SEPARATOR = "; "
-
-
-def commitment_repositories(value: str | None) -> list[str]:
-    """Each repository a sharing commitment's `commitment_repository` names, in order."""
-    if not value:
-        return []
-    return [
-        name.strip()
-        for name in value.split(COMMITMENT_REPOSITORIES_SEPARATOR.strip())
-        if name.strip()
-    ]
-
-
 class ProjectFact(Frozen):
     """One fact about a project that an agent proposes and a person decides
     (docs/specs/projects.md). `fact_kind` says which value slots apply; the last decision on a

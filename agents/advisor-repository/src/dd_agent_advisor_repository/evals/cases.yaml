@@ -41,16 +41,13 @@ quote: &quote >-
   Archive, the local authority archive for the valley.
 
 plan:
-  # One commitment per destination, as a reader that separates them gives it.
+  # One commitment per destination, each with the repository in its subject, as the plan checker
+  # reads the plan's single sentence (dd_agent_advisor_dmp.read_plan).
   separate:
-    - subject: Audio masters, transcripts and image archive
+    - subject: Audio masters, transcripts and image archive (Wharfedale Research Data Repository)
       repository: Wharfedale Research Data Repository
-    - subject: Audio masters, transcripts and image archive (copy offered)
+    - subject: Audio masters, transcripts and image archive (Netherbrook Local Studies Archive)
       repository: Netherbrook Local Studies Archive
-  # Both destinations in one commitment, as the plan's single sentence gives them.
-  one-commitment:
-    - subject: Audio masters, transcripts and image archive
-      repository: Wharfedale Research Data Repository; Netherbrook Local Studies Archive
 
 cases:
   # The smoke test as run: the plan attached but not confirmed, so nothing of it reaches the
@@ -62,14 +59,6 @@ cases:
   - id: dataset-f-plan-confirmed
     base: dataset-f
     commitments: separate
-    expect:
-      status: succeeded
-      shortlist: true
-      in_plan: [Wharfedale Research Data Repository, Netherbrook Local Studies Archive]
-
-  - id: dataset-f-plan-one-commitment
-    base: dataset-f
-    commitments: one-commitment
     expect:
       status: succeeded
       shortlist: true

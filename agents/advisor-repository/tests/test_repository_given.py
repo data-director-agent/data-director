@@ -16,11 +16,7 @@ from dd_agent_advisor_repository.classes import (
     RepositoryOptions,
     RepositoryRef,
 )
-from dd_sdk.contract.facts import (
-    COMMITMENT_REPOSITORIES_SEPARATOR,
-    ChosenRepository,
-    ProjectFact,
-)
+from dd_sdk.contract.facts import ChosenRepository, ProjectFact
 from dd_sdk.contract.models import OutcomeStatus
 
 pytestmark = pytest.mark.requirement("R1")
@@ -61,11 +57,11 @@ def test_a_caller_may_still_ask_for_a_shortlist_after_a_choice(runs_dir: Path) -
     assert bases == {CandidateBasis.RECOMMENDED}
 
 
-def commitment(repository: str | None) -> ProjectFact:
+def commitment(repository: str | None, subject: str = "survey responses") -> ProjectFact:
     """A sharing commitment of the data management plan, as the researcher confirmed it."""
     return ProjectFact(
         fact_kind="sharing_commitment",
-        fact_subject="survey responses",
+        fact_subject=subject,
         commitment_repository=repository,
         commitment_quote="We will deposit the survey responses in the repository named.",
         commitment_document="0" * 64,
@@ -144,11 +140,11 @@ def test_a_plan_repository_re3data_does_not_list_is_shown_as_the_plans(runs_dir:
     assert {c.basis for c in options.candidates} == {CandidateBasis.RECOMMENDED}
 
 
-def test_each_repository_one_commitment_names_is_the_plans(runs_dir: Path) -> None:
-    """A plan that deposits an output in one repository and offers a copy to another names both
-    in one commitment (`commitment_repositories`, #1334)."""
-    both = commitment(COMMITMENT_REPOSITORIES_SEPARATOR.join(["Acme Data Cloud", "Nowhere"]))
-    env = invoke(runs_dir, NEEDS.model_copy(update={"project_decisions": [both]}))
+def test_each_repository_the_plan_names_for_one_output_is_the_plans(runs_dir: Path) -> None:
+    """A plan that deposits an output in one repository and offers a copy to another gives a
+    commitment for each (#1334)."""
+    both = [commitment(r, f"survey responses ({r})") for r in ["Acme Data Cloud", "Nowhere"]]
+    env = invoke(runs_dir, NEEDS.model_copy(update={"project_decisions": both}))
     options = env.payload_as(RepositoryOptions)
     assert cited(options)[0] == ("r3d100000003", CandidateBasis.IN_PLAN)
     assert [(u.name, u.basis) for u in options.unlisted] == [("Nowhere", CandidateBasis.IN_PLAN)]
