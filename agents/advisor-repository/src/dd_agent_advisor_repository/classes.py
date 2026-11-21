@@ -11,7 +11,15 @@ from typing import Literal
 
 from pydantic import Field
 
-from dd_sdk.contract.models import ChosenRepository, Derivation, Frozen, Grounded, ProjectFact
+from dd_sdk.contract.models import (
+    REPOSITORY_ID_PATTERN,
+    ChosenRepository,
+    Derivation,
+    Frozen,
+    Grounded,
+    InstitutionRepository,
+    ProjectFact,
+)
 
 
 class AccessNeed(StrEnum):
@@ -37,6 +45,12 @@ class Answer(StrEnum):
 class RepositoryRef(Frozen):
     name: str
     re3data_id: str | None = Field(default=None, pattern=r"^r3d\d+$")
+    # The identifier of the registry that lists it, re3data's or DataCite's, where known.
+    repository_id: str | None = Field(default=None, pattern=REPOSITORY_ID_PATTERN)
+
+    @property
+    def identifier(self) -> str | None:
+        return self.repository_id or self.re3data_id
 
 
 class Affiliation(Frozen):
@@ -56,6 +70,8 @@ class RepositoryNeeds(Frozen):
     # Filled by the conductor in a project (`GivenProjectDecisions`, `GivenProjectRepository`).
     project_decisions: list[ProjectFact] = Field(default_factory=list)
     project_repository: ChosenRepository | None = None
+    # Filled by the conductor from the profile (`GivenInstitutionRepositories`).
+    institution_repositories: list[InstitutionRepository] = Field(default_factory=list)
 
 
 class RepositoryCandidate(Grounded):

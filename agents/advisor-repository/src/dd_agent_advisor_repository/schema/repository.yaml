@@ -41,6 +41,7 @@ classes:
     mixins:
       - GivenProjectDecisions
       - GivenProjectRepository
+      - GivenInstitutionRepositories
     slots:
       - schema_class
       - themes
@@ -58,6 +59,7 @@ classes:
     slots:
       - name
       - re3data_id
+      - repository_id
 
   Affiliation:
     description: The researcher's institution, matched against the institutions a registry lists.

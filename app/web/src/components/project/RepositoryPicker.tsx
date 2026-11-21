@@ -38,9 +38,9 @@ type Found =
   | { state: "loaded"; suggested: boolean; repositories: RepositoryMatch[] };
 
 function detail(repository: RepositoryMatch): string {
-  return [repository.additional_names[0], repository.url, repository.re3data_id]
-    .filter(Boolean)
-    .join(" · ");
+  const registered =
+    repository.registry === "datacite" ? `DataCite ${repository.repository_id}` : repository.repository_id;
+  return [repository.additional_names[0], repository.url, registered].filter(Boolean).join(" · ");
 }
 
 export function RepositoryPicker({
@@ -87,7 +87,7 @@ export function RepositoryPicker({
     setPending(true);
     setError(null);
     try {
-      onChosen(await api.chooseRepository(projectId, selected.re3data_id));
+      onChosen(await api.chooseRepository(projectId, selected.repository_id));
     } catch (e) {
       setError(`Data Director could not record ${selected.name} as your repository: ${errorMessage(e)}`);
     } finally {
@@ -105,9 +105,9 @@ export function RepositoryPicker({
           setQuery(value);
           if (selected !== null && value !== selected.name) setSelected(null);
         }}
-        selectedKey={selected?.re3data_id ?? null}
+        selectedKey={selected?.repository_id ?? null}
         onSelectionChange={(key) => {
-          const match = repositories.find((r) => r.re3data_id === key) ?? null;
+          const match = repositories.find((r) => r.repository_id === key) ?? null;
           setSelected(match);
           if (match !== null) setQuery(match.name);
         }}
@@ -136,13 +136,13 @@ export function RepositoryPicker({
                   ? "Searching…"
                   : found.state === "failed"
                     ? `Repositories cannot be searched: ${found.message}`
-                    : "No repository in re3data matches that."}
+                    : "No repository in re3data or DataCite matches that."}
               </p>
             )}
           >
             {(repository) => (
               <ListBoxItem
-                id={repository.re3data_id}
+                id={repository.repository_id}
                 textValue={repository.name}
                 className="repository-picker-option"
               >
@@ -157,8 +157,8 @@ export function RepositoryPicker({
       </ComboBox>
       <p id={hintId} className="hint">
         {found.state === "loaded" && found.suggested
-          ? "Suggested by this deployment. Type a name, a re3data identifier (r3d…), its re3data DOI or the repository’s web address to search re3data."
-          : "Searching re3data by name, re3data identifier (r3d…), re3data DOI or web address."}
+          ? "Suggested by this deployment. Type a name, a re3data identifier (r3d…), its re3data DOI or the repository’s web address to search re3data, and DataCite for repositories re3data does not list."
+          : "Searching re3data, and DataCite for repositories re3data does not list, by name, identifier, re3data DOI or web address."}
       </p>
       {found.state === "failed" && (
         <div role="alert" className="callout status-danger">

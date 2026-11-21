@@ -6,7 +6,8 @@
 - `DD_REPOSITORY_RETRIEVAL`: how FAIRsharing's database records are read. `snapshot` (default)
   reads the committed copy; `live` asks FAIRsharing's public route, which needs no account, and
   falls back to the snapshot, marked stale, when it fails. re3data is always read from the
-  registry built from its pinned export (`registry.py`, `dd-sources prepare`).
+  registry built from its pinned export (`registry.py`, `dd-sources prepare`), and the
+  repositories it does not list from DataCite's committed snapshot (`datacite.py`).
 - `DD_REPOSITORY_EXPLAINER`: `model` (default), which has a model write the rationale
   (`anthropic`, its older name, still works), or `template`, which writes it from a template and
   needs no key.
@@ -25,6 +26,7 @@ from collections.abc import Mapping
 from dataclasses import replace
 
 from dd_agent_advisor_repository.agent import RepositoryAgent
+from dd_agent_advisor_repository.datacite import DataciteRegistry, Registries
 from dd_agent_advisor_repository.explain import (
     DEFAULT_MODEL,
     Explainer,
@@ -51,11 +53,12 @@ def build(env: Mapping[str, str] | None = None) -> RepositoryAgent:
     env = os.environ if env is None else env
     explainer = build_explainer(env)
     choice = env.get("DD_REPOSITORY_RETRIEVAL", "snapshot")
+    repositories = Registries(Re3dataRegistry(), DataciteRegistry())
     if choice == "snapshot":
-        agent = RepositoryAgent(Re3dataRegistry(), FairsharingSnapshot(), explainer)
+        agent = RepositoryAgent(repositories, FairsharingSnapshot(), explainer)
     elif choice == "live":
         agent = RepositoryAgent(
-            Re3dataRegistry(),
+            repositories,
             FairsharingLive(),
             explainer,
             databases_fallback=FairsharingSnapshot(),

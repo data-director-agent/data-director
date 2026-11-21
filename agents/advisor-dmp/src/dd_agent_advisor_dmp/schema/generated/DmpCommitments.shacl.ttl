@@ -15,16 +15,16 @@ dmp:DmpCommitments a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path <https://w3id.org/data-director/schema_class> ],
-        [ sh:class <https://w3id.org/data-director/ProjectFact> ;
-            sh:description "The facts a person in the project decided (ProjectFact), the last decision on each subject, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project decided any. A drafter treats each as supplied." ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 5 ;
-            sh:path <https://w3id.org/data-director/project_decisions> ],
         [ sh:class <https://w3id.org/data-director/ProjectDocument> ;
             sh:description "The documents the project holds, with their text, in the order they were added. In a project the conductor fills them and a caller leaves them out; outside a project, the caller sends them, as it does the other facts." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 4 ;
             sh:path <https://w3id.org/data-director/project_documents> ],
+        [ sh:class <https://w3id.org/data-director/ProjectFact> ;
+            sh:description "The facts a person in the project decided (ProjectFact), the last decision on each subject, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project decided any. A drafter treats each as supplied." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 5 ;
+            sh:path <https://w3id.org/data-director/project_decisions> ],
         [ sh:class dmp:SharingCommitment ;
             sh:description "What the data management plan committed to share." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
@@ -47,7 +47,14 @@ dmp:DmpCommitments a sh:NodeShape ;
     rdfs:comment "One document a researcher attached to a project, with its text: the conductor fills one per document into a DraftRequest so that a drafter's model may suggest answers from it (docs/specs/projects.md). Its text is the researcher's, untrusted, and given as data." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:integer ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The file name the researcher attached the document under, without any folder." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/documentation_name> ],
+        [ sh:datatype xsd:integer ;
             sh:description "The size of the document's UTF-8 text, in bytes." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -88,14 +95,7 @@ dmp:DmpCommitments a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
             sh:path <https://w3id.org/data-director/documentation_digest> ;
-            sh:pattern "^[0-9a-f]{64}$" ],
-        [ sh:datatype xsd:string ;
-            sh:description "The file name the researcher attached the document under, without any folder." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path <https://w3id.org/data-director/documentation_name> ] ;
+            sh:pattern "^[0-9a-f]{64}$" ] ;
     sh:targetClass <https://w3id.org/data-director/ProjectDocument> .
 
 <https://w3id.org/data-director/ProjectFact> a sh:NodeShape ;

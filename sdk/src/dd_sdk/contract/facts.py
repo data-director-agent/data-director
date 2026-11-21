@@ -1,9 +1,10 @@
-"""Pydantic mirrors of the facts a project gives agents (schema/data_director.yaml,
-docs/specs/projects.md): what researchers kept from their own public ORCID records
-(`ResearcherRecord`), the facts people decided about the project (`ProjectFact`), the repository
-a researcher chose (`ChosenRepository`), what its inventory is (`InventorySummary`), and the
-documents a researcher attached (`DocumentationSummary`, and `ProjectDocument` with its text).
-`dd_sdk.contract.models` re-exports the classes its own classes use."""
+"""Pydantic mirrors of the facts a project, or the deployment, gives agents
+(schema/data_director.yaml, docs/specs/projects.md): what researchers kept from their own public
+ORCID records (`ResearcherRecord`), the facts people decided about the project (`ProjectFact`),
+the repository a researcher chose (`ChosenRepository`), what its inventory is
+(`InventorySummary`), the documents a researcher attached (`DocumentationSummary`, and
+`ProjectDocument` with its text), and the repositories the profile names as its institution's
+(`InstitutionRepository`). `dd_sdk.contract.models` re-exports the classes its own classes use."""
 
 from __future__ import annotations
 
@@ -12,7 +13,13 @@ from enum import StrEnum
 
 from pydantic import Field, model_validator
 
-from dd_sdk.contract.base import SHA256_PATTERN, Frozen
+from dd_sdk.contract.base import (
+    RE3DATA_ID_PATTERN,
+    REPOSITORY_ID_PATTERN,
+    SHA256_PATTERN,
+    Frozen,
+    backfill_repository_id,
+)
 
 
 class AffiliationKind(StrEnum):
@@ -142,7 +149,7 @@ class ProjectFact(Frozen):
     fact_funder_ror: str | None = None
     fact_crossref_funder_id: str | None = None
     fact_repository_name: str | None = None
-    fact_re3data_id: str | None = Field(default=None, pattern=r"^r3d[0-9]{9}$")
+    fact_re3data_id: str | None = Field(default=None, pattern=RE3DATA_ID_PATTERN)
     fact_required_by: list[str] = Field(default_factory=list)
     fact_file_path: str | None = Field(default=None, pattern=r"^[^/]")
     file_decision: FileDecision | None = None
@@ -221,10 +228,17 @@ class DraftSummary(Frozen):
 
 class ChosenRepository(Frozen):
     """The repository a researcher chose for the project, as the conductor gives it
-    (docs/specs/projects.md). The last choice stands."""
+    (docs/specs/projects.md). The last choice stands. `chosen_repository_id` is its re3data
+    identifier where re3data lists it, else its DataCite repository identifier; a choice recorded
+    before there was one names only `chosen_re3data_id`, which then gives it."""
 
     chosen_repository_name: str
-    chosen_re3data_id: str = Field(pattern=r"^r3d[0-9]{9}$")
+    chosen_repository_id: str = Field(pattern=REPOSITORY_ID_PATTERN)
+    chosen_re3data_id: str | None = Field(default=None, pattern=RE3DATA_ID_PATTERN)
+
+    _backfill = model_validator(mode="before")(
+        backfill_repository_id("chosen_repository_id", "chosen_re3data_id")
+    )
 
 
 class DocumentationSummary(Frozen):
@@ -244,3 +258,20 @@ class ProjectDocument(DocumentationSummary):
     (docs/specs/projects.md). The text is the researcher's and untrusted."""
 
     documentation_text: str
+
+
+class InstitutionRepository(Frozen):
+    """One repository the deployment's profile names as its institution's
+    (`institution_repositories`, docs/specs/policy-and-identity.md), as the conductor gives it to
+    an agent whose input mixes in `GivenInstitutionRepositories`. It names a registry's record by
+    `repository_id` and adds only what the deployment vouches for that no registry holds;
+    `profile_ref` is the reference of the profile, under which an agent cites those facts."""
+
+    repository_id: str = Field(pattern=REPOSITORY_ID_PATTERN)
+    profile_ref: str = Field(pattern=r"^profile:\S+@v[0-9]+$")
+    institution_name: str | None = None
+    institution_ror: str | None = None
+    data_access_types: list[str] = Field(default_factory=list)
+    data_licences: list[str] = Field(default_factory=list)
+    fee_required: bool | None = None
+    guidance: list[str] = Field(default_factory=list)

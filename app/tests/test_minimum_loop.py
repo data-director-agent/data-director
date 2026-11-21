@@ -234,7 +234,7 @@ def test_a_researcher_goes_from_their_files_to_a_deposit_package(
     assert researcher.get("/inventory")["inventory_files"] == inventory["inventory_files"]
 
     # 2. Choose ORDA; its requirements are the deployment's DataCite set with ORDA's override.
-    response = client.put(f"{researcher.project}/repository", json={"re3data_id": ORDA})
+    response = client.put(f"{researcher.project}/repository", json={"repository_id": ORDA})
     assert response.status_code == 201, response.json()
     assert response.json()["re3data_id"] == ORDA
 

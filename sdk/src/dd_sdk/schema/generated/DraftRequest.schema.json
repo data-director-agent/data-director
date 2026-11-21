@@ -1006,10 +1006,21 @@
          "additionalProperties": false,
          "description": "The requirements of the repository a researcher chose: its standard's set with the repository's override, if there is one, merged on top (ADR-0038 decision 2). The harness makes it when the choice is recorded, keeps it among the project's blobs, gives it to the drafters and checks the project against it. Not a set of the deployment's configuration, so it has no requirement_set_id of its own; requirement_sets names the sets it was merged from.",
          "properties": {
+            "repository_id": {
+               "description": "The repository's identifier, re3data's or DataCite's. A set kept before repositories had an identifier of their own names only re3data_id, which then gives it.",
+               "pattern": "^(r3d[0-9]{9}|[a-z0-9]+\\.[a-z0-9.-]+)$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
             "re3data_id": {
-               "description": "The repository's re3data identifier, such as r3d100012124.",
+               "description": "The repository's re3data identifier, such as r3d100012124, where it has one.",
                "pattern": "^r3d[0-9]{9}$",
-               "type": "string"
+               "type": [
+                  "string",
+                  "null"
+               ]
             },
             "repository_name": {
                "description": "What the researcher calls the repository chosen, such as ORDA.",
@@ -1132,7 +1143,6 @@
             }
          },
          "required": [
-            "re3data_id",
             "repository_name",
             "conforms_to",
             "requirement_sets"

@@ -264,15 +264,15 @@ class ProjectRepository(ProjectRecord, Protocol):
     def choose_repository(
         self,
         project_id: str,
-        re3data_id: str,
+        repository_id: str,
         *,
         registry: Sources,
         requirements: Requirements,
         acted_for: Principal,
         caused_by: str,
     ) -> str:
-        """Record the repository chosen by its re3data identifier; returns the merged
-        requirement set's digest."""
+        """Record the repository chosen by its re3data or DataCite identifier; returns the
+        merged requirement set's digest."""
         ...
 
     def requirements(self, project_id: str) -> dict[str, Any] | None:

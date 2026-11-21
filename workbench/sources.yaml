@@ -20,6 +20,10 @@ sources:
     built: true
     id_field: re3data_id
     sha256: 37e4ce9d248a72765357d5d14d966f7ac55eb9b9cd2160f442f305fe17acfcbd
+  - snapshot_refs: ["datacite:repositories:2026-11-21"]
+    path: ../agents/advisor-repository/data/datacite/repositories.jsonl
+    id_field: datacite_id
+    sha256: 5a03284b3b0d882f829e4ed7ebef59b00fcb63f25b9fb0414b25dca8206cd121
   - snapshot_refs: ["fairsharing:snapshot:2026-11-10", "fairsharing:snapshot:2026-11-10 (stale)"]
     path: ../agents/advisor-repository/data/fairsharing/snapshot.jsonl
     id_field: fairsharing_id

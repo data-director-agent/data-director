@@ -19,6 +19,7 @@ from pathlib import Path
 from rank_bm25 import BM25Okapi
 
 from dd_agent_advisor_repository import dfg, registry
+from dd_agent_advisor_repository.classes import Affiliation
 from dd_agent_advisor_repository.records import DatabaseRecord, Re3dataRecord
 from dd_sdk.registry import Hit, Query, RegistryUnavailable, SnapshotRef
 from dd_sdk.registry.tokenise import STOP_WORDS
@@ -155,6 +156,12 @@ class Re3dataRegistry:
         wanted = name.casefold().strip()
         found = self._by_name.get(wanted) or self._by_any_name.get(wanted, [])
         return sorted(found, key=lambda r: r.re3data_id)
+
+    def institutional(self, affiliation: Affiliation | None) -> list[Re3dataRecord]:  # noqa: ARG002
+        return []
+
+    def snapshot_of(self, record: Re3dataRecord) -> SnapshotRef:  # noqa: ARG002
+        return self.snapshot_ref()
 
 
 class FairsharingSnapshot:

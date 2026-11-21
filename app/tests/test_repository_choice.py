@@ -55,14 +55,14 @@ def test_a_choice_resolves_from_re3data_and_the_last_one_counts(
     assert none.status_code == 404
     assert none.json()["type"].endswith("/repository-not-chosen")
 
-    zenodo = client.put(path, json={"re3data_id": ZENODO})
+    zenodo = client.put(path, json={"repository_id": ZENODO})
     assert zenodo.status_code == 201
     assert zenodo.json()["repository_name"] == "Zenodo"
     # The deployment has an override for Zenodo, so there is nothing to warn of.
     assert [s["ref"] for s in zenodo.json()["requirement_sets"]] == ["datacite-4@v1", "zenodo@v1"]
     assert zenodo.json()["warnings"] == []
 
-    orda = client.put(path, json={"re3data_id": ORDA})
+    orda = client.put(path, json={"repository_id": ORDA})
     assert orda.status_code == 201
     chosen = orda.json()
     assert chosen["re3data_id"] == ORDA
@@ -73,20 +73,20 @@ def test_a_choice_resolves_from_re3data_and_the_last_one_counts(
     check_fixture("repository-chosen.json", chosen, model=contract.RepositoryRequirements)
 
     events = [e for e in store.events(project) if e["event"] == REPOSITORY_CHOSEN]
-    assert [e["re3data_id"] for e in events] == [ZENODO, ORDA]
+    assert [e["repository_id"] for e in events] == [ZENODO, ORDA]
     assert all(e["caused_by"] == f"PUT {path}" for e in events)
     assert all(e["acted_for"]["principal_id"] == TEST_PRINCIPAL.principal_id for e in events)
     assert events[-1]["snapshot_ref"] == EXPORT
-    assert store.summary(project)["repository"]["re3data_id"] == ORDA
+    assert store.summary(project)["repository"]["repository_id"] == ORDA
 
 
 @pytest.mark.parametrize(
     ("body", "detail"),
     [
-        ({"re3data_id": "r3d100099999"}, "holds no repository r3d100099999"),
-        ({"re3data_id": "orda"}, "not a re3data identifier"),
-        ({"name": "ORDA"}, "`re3data_id`"),
-        ([ORDA], "`re3data_id`"),
+        ({"repository_id": "r3d100099999"}, "holds a repository r3d100099999"),
+        ({"repository_id": "orda"}, "neither a re3data identifier"),
+        ({"name": "ORDA"}, "`repository_id`"),
+        ([ORDA], "`repository_id`"),
     ],
 )
 def test_what_is_not_a_repository_re3data_holds_is_refused_and_records_nothing(
@@ -104,14 +104,14 @@ def test_an_unknown_project_or_an_unbuilt_export_is_answered_as_such(
 ) -> None:
     unknown = "0" * 8 + "-0000-7000-8000-" + "0" * 12
     assert (
-        client.put(f"/api/projects/{unknown}/repository", json={"re3data_id": ORDA}).status_code
+        client.put(f"/api/projects/{unknown}/repository", json={"repository_id": ORDA}).status_code
         == 404
     )
     assert client.get(f"/api/projects/{unknown}/repository").status_code == 404
 
     project = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
     governance.conductor.sources = type(governance.conductor.sources)()
-    refused = client.put(f"/api/projects/{project}/repository", json={"re3data_id": ORDA})
+    refused = client.put(f"/api/projects/{project}/repository", json={"repository_id": ORDA})
     assert refused.status_code == 503
     assert "pins no re3data export" in refused.json()["detail"]
     assert len(store.events(project)) == 1

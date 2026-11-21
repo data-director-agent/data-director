@@ -21,8 +21,10 @@ from dd_harness.content_classes import CONTENT_CLASSES as CONTENT_CLASSES
 from dd_harness.content_classes import DEFAULT_HOSTED_MODELS, DEFAULT_REMOTE_TOOL_CONTENT, classes
 from dd_harness.content_classes import tool_servers as granted_servers
 from dd_harness.footprint import FootprintTable
+from dd_harness.institution_repositories import parse as institution_repositories
 from dd_harness.profile_model_accounts import ModelAccounts
 from dd_sdk.agent import Setting
+from dd_sdk.contract.models import InstitutionRepository
 
 # The whole vocabulary. A key outside it is refused: a key nothing enforces would tell a steward
 # a rule is in force when it is not (docs/specs/policy-and-identity.md).
@@ -42,6 +44,7 @@ PROFILE_KEYS = frozenset(
         "remote_tool_content",
         "attached_documents",
         "deposit_transports",
+        "institution_repositories",
     }
 )
 # Whether people may attach documents to a project (docs/specs/projects.md, Documentation).
@@ -101,6 +104,9 @@ class Profile:
     # The transports the harness may deposit a draft through, beside the manual one that every
     # deployment offers (docs/specs/deposit.md, invariant 17). None unless written.
     deposit_transports: frozenset[str] = frozenset()
+    # The repositories the deployment names as its institution's, by a registry's identifier,
+    # with what it vouches for of each (dd_harness.institution_repositories). None unless written.
+    institution_repositories: tuple[InstitutionRepository, ...] = ()
 
     @property
     def refuses_documents(self) -> bool:
@@ -154,6 +160,10 @@ class Profile:
                 ),
                 attached_documents=str(documents),
                 deposit_transports=_deposit_transports(data.get("deposit_transports")),
+                institution_repositories=institution_repositories(
+                    data.get("institution_repositories"),
+                    f"profile:{data['profile_id']}@v{int(data.get('version', 1))}",
+                ),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise PolicyError(f"profile {source!r} is malformed: {exc}") from exc

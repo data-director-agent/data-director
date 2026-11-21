@@ -91,7 +91,7 @@ class Connection:
     """How the project's repository is deposited to: through `connector`, or by hand when it is
     None, and why not through an API when it could be."""
 
-    re3data_id: str
+    repository_id: str
     repository_name: str
     connector: DepositConnector | None
     unavailable: Refusal | None = None
@@ -114,10 +114,10 @@ def connection(
     chosen = projects.requirements(project_id)
     if chosen is None:
         return None
-    re3data_id, name = chosen["re3data_id"], chosen["repository_name"]
-    connector = requirements.connector(re3data_id)
+    repository_id, name = chosen["repository_id"], chosen["repository_name"]
+    connector = requirements.connector(repository_id)
     if connector is None:
-        return Connection(re3data_id, name, None, Refusal.BY_HAND)
+        return Connection(repository_id, name, None, Refusal.BY_HAND)
     unavailable = None
     if connector.transport not in offered:
         unavailable = Refusal.NOT_OFFERED
@@ -125,7 +125,7 @@ def connection(
         unavailable = Refusal.NOT_INSTALLED
     elif broker is None:
         unavailable = Refusal.NO_BROKER
-    return Connection(re3data_id, name, connector, unavailable)
+    return Connection(repository_id, name, connector, unavailable)
 
 
 _REFUSED = {
@@ -215,7 +215,7 @@ def approve_and_deposit(  # noqa: PLR0913
         "format": RO_CRATE,
         "item_digest": item_digest,
         "item_format": transport.format,
-        "re3data_id": found.re3data_id,
+        "repository_id": found.repository_id,
         "repository_name": found.repository_name,
         "transport": connector.transport,
     }
@@ -232,7 +232,7 @@ def approve_and_deposit(  # noqa: PLR0913
     )
     grant = broker.minter.mint(
         acting_for=acted_for,
-        repository=found.re3data_id,
+        repository=found.repository_id,
         connector=connector,
         package_digest=digest,
         item_digest=item_digest,

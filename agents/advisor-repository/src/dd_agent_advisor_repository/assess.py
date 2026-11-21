@@ -42,7 +42,24 @@ def commercial(record: Re3dataRecord) -> Answer:
 
 
 def fee_required(record: Re3dataRecord) -> Answer:
+    """re3data has no value for "no fee", so a fee it does not list is unstated; a deployment
+    may vouch for either answer about its own repository (`institution.Vouched`)."""
+    vouched = getattr(record, "fee_vouched", None)
+    if vouched is not None:
+        return Answer.YES if vouched else Answer.NO
     return Answer.YES if "feeRequired" in record.data_upload_restrictions else Answer.UNSTATED
+
+
+def provenance(record: Re3dataRecord) -> list[str]:
+    """What, beside the registry's own fields, says the repository is a real data repository
+    of an institution: how many datasets DataCite holds for it, and the deployment's word."""
+    said = []
+    if (datasets := getattr(record, "dataset_count", None)) is not None:
+        said.append(f"Has registered {datasets} datasets with DataCite DOIs.")
+    if (entry := getattr(record, "entry", None)) is not None:
+        whose = f"{entry.institution_name}'s" if entry.institution_name else "the institution's"
+        said.append(f"Named in the deployment's profile as {whose} repository.")
+    return said
 
 
 def in_country(record: Re3dataRecord, country: str | None) -> Institution | None:
@@ -138,6 +155,7 @@ def assess(  # noqa: C901, PLR0912
     home = affiliated(record, needs.affiliation)
     if home is not None:
         out.meets.append(f"Operated by {home.name}, the researcher's institution.")
+    out.meets += provenance(record)
     if "closed" in record.data_upload_types:
         out.misses.append("Deposits are closed.")
     if "institutional membership" in record.data_upload_restrictions:
@@ -151,17 +169,17 @@ def assess(  # noqa: C901, PLR0912
     systems = [s for s in record.pid_systems if s.lower() != "none"]
     if pids == Answer.YES:
         out.meets.append(
-            f"Assigns persistent identifiers ({', '.join(systems)}); re3data does not say "
-            "whether this is automatic."
+            f"Assigns persistent identifiers ({', '.join(systems)}); {record.registry} does not "
+            "say whether this is automatic."
         )
     elif pids == Answer.NO:
-        out.misses.append("re3data lists no persistent identifier system.")
+        out.misses.append(f"{record.registry} lists no persistent identifier system.")
     else:
         out.misses.append("Persistent identifier assignment is not stated.")
 
     # Costs.
     if fee_required(record) == Answer.YES:
-        out.notes.append("A deposit fee may be charged; re3data gives no amount.")
+        out.notes.append(f"A deposit fee may be charged; {record.registry} gives no amount.")
     if "feeRequired" in record.data_access_restrictions:
         out.notes.append("Some data may be available to users only for a fee.")
     for supplier in record.institutions:
@@ -174,7 +192,7 @@ def assess(  # noqa: C901, PLR0912
         out.notes.append(
             f"Certification listed: {', '.join(named)}."
             if named
-            else "re3data lists a certificate without naming it."
+            else f"{record.registry} lists a certificate without naming it."
         )
 
     # What FAIRsharing's curators add.

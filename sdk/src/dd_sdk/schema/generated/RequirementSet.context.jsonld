@@ -75,6 +75,9 @@
       "recommended_documents": {
          "@id": "https://w3id.org/data-director/recommended_documents"
       },
+      "repository_id": {
+         "@id": "https://w3id.org/data-director/repository_id"
+      },
       "required_documents": {
          "@id": "https://w3id.org/data-director/required_documents"
       },

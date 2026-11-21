@@ -266,9 +266,9 @@ def test_a_project_records_the_repository_chosen_and_the_record_it_was_read_from
         choose(ORDA, "0" * 8 + "-0000-7000-8000-" + "0" * 12)
 
     # An identifier the export does not hold, or one that is not an identifier, changes nothing.
-    with pytest.raises(RequirementsError, match="holds no repository r3d100099999"):
+    with pytest.raises(RequirementsError, match="holds a repository r3d100099999"):
         choose("r3d100099999")
-    with pytest.raises(RequirementsError, match="not a re3data identifier"):
+    with pytest.raises(RequirementsError, match="neither a re3data identifier"):
         choose("orda")
     assert len(store.events(project_id)) == 3
 
@@ -354,9 +354,9 @@ def test_the_command_records_a_choice_from_re3data_and_warns_of_what_is_not_chec
     assert event["repository_name"] == "Elsewhere"
     assert event["snapshot_ref"] == EXPORT
     assert event["caused_by"] == "dd-harness project choose-repository"
-    with pytest.raises(SystemExit, match="not a re3data identifier"):
+    with pytest.raises(SystemExit, match="neither a re3data identifier"):
         server.main([*choose[:4], "orda"])
-    with pytest.raises(SystemExit, match="holds no repository r3d100099999"):
+    with pytest.raises(SystemExit, match="holds a repository r3d100099999"):
         server.main([*choose[:4], "r3d100099999"])
     assert server.main([*choose[:4], ORDA]) == 0
     out, err = capsys.readouterr()

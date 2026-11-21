@@ -69,7 +69,7 @@ export function offeredPrompts(
 
 /** The repository chosen for the project, if one has been. */
 export function chosenRepository(project: ProjectSummary | null): string | null {
-  return project?.repository?.re3data_id ?? null;
+  return project?.repository?.repository_id ?? null;
 }
 
 /** Whether `runId` is one of the runs in the conversation's transcript. */

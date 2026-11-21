@@ -233,19 +233,19 @@ dmp:Discrepancy a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 4 ;
             sh:path dmp:message ],
+        [ sh:description "How the discrepancy was found: lexical, by the agent's rule matching names and comparing text, or model, by a model pairing a renamed output." ;
+            sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 5 ;
+            sh:path dmp:discrepancy_derivation ],
         [ sh:datatype xsd:string ;
             sh:description "What differs: missing (committed, not planned), unplanned (planned, not committed), renamed (a committed output a model paired with a planned one of another name; committed and planned give the two names), repository, access or licence." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
-            sh:path dmp:aspect ],
-        [ sh:description "How the discrepancy was found: lexical, by the agent's rule matching names and comparing text, or model, by a model pairing a renamed output." ;
-            sh:in ( "template" "model" "lexical" "registry" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 5 ;
-            sh:path dmp:discrepancy_derivation ] ;
+            sh:path dmp:aspect ] ;
     sh:targetClass dmp:Discrepancy .
 
 dmp:Reconciliation a sh:NodeShape ;
@@ -253,6 +253,12 @@ dmp:Reconciliation a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
+            sh:description "The model's short reason for a pairing or a reconciliation. Present exactly when a model found it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dmp:reason ],
+        [ sh:datatype xsd:string ;
             sh:description "What the plan committed to for this aspect, if anything." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -277,12 +283,6 @@ dmp:Reconciliation a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
-            sh:path dmp:planned ],
-        [ sh:datatype xsd:string ;
-            sh:description "The model's short reason for a pairing or a reconciliation. Present exactly when a model found it." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 4 ;
-            sh:path dmp:reason ] ;
+            sh:path dmp:planned ] ;
     sh:targetClass dmp:Reconciliation .
 

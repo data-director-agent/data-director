@@ -13,6 +13,7 @@ import { useEffect, useRef } from "react";
 import type { BuiltPackage, RepositoryRequirements } from "../../project/api";
 import { DepositToRepository } from "./DepositToRepository";
 import { Unconfirmed } from "./Unconfirmed";
+import { registryRecord } from "../../project/registry";
 
 const BUILT_ID = "deposit-built";
 const NEXT_ID = "deposit-next";
@@ -48,8 +49,7 @@ function FieldLabels({
 export function NextSteps({ choice }: { choice: RepositoryRequirements | null }) {
   const name = choice?.repository_name ?? "the repository you chose";
   const where = choice
-    ? (choice.repository_url ??
-      `https://www.re3data.org/repository/${encodeURIComponent(choice.re3data_id)}`)
+    ? (choice.repository_url ?? registryRecord(choice.repository_id).url)
     : null;
   const labelled = choice?.fields.some((f) => f.form_label) ?? false;
   const unlabelled = [

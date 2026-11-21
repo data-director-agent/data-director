@@ -9,7 +9,12 @@ policy:PolicyChecks a sh:NodeShape ;
     rdfs:comment "The policy advisor payload. The policies matched to each actor, what each asks, where they differ, and the actors with no policy record. Conflicts are flagged for human review; the agent does not resolve them." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:class policy:AmbiguousActor ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "Actors for which no policy record was found in the registries searched. A registry in not_searched was not asked." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path policy:no_record ],
+        [ sh:class policy:AmbiguousActor ;
             sh:description "Funders or journals whose name could mean more than one. The researcher should say which; their policies were not looked up." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 9 ;
@@ -69,12 +74,7 @@ policy:PolicyChecks a sh:NodeShape ;
             sh:description "What this alpha does not yet do." ;
             sh:nodeKind sh:Literal ;
             sh:order 11 ;
-            sh:path policy:limitations ],
-        [ sh:datatype xsd:string ;
-            sh:description "Actors for which no policy record was found in the registries searched. A registry in not_searched was not asked." ;
-            sh:nodeKind sh:Literal ;
-            sh:order 4 ;
-            sh:path policy:no_record ] ;
+            sh:path policy:limitations ] ;
     sh:targetClass policy:PolicyChecks .
 
 policy:AmbiguousActor a sh:NodeShape ;
@@ -180,7 +180,12 @@ policy:Obligation a sh:NodeShape ;
     rdfs:comment "What a policy record says about one kind of obligation. Read from a curated field by a fixed rule (derivation registry), or stated by a model with a quote from the record that the agent found in it, word for word, before keeping it (derivation model)." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
+    sh:property [ sh:in ( "deposit" "data_availability_statement" "repository" "standard" "embargo" "licence" "timing" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 0 ;
+            sh:path policy:kind ],
+        [ sh:datatype xsd:string ;
             sh:description "The value FAIRsharing's curators recorded, such as \"suggested\" or \"no\", kept so that an unstated strength does not hide what the record says." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -212,12 +217,7 @@ policy:Obligation a sh:NodeShape ;
             sh:in ( "data" "publication" ) ;
             sh:maxCount 1 ;
             sh:order 3 ;
-            sh:path policy:scope ],
-        [ sh:in ( "deposit" "data_availability_statement" "repository" "standard" "embargo" "licence" "timing" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 0 ;
-            sh:path policy:kind ] ;
+            sh:path policy:scope ] ;
     sh:targetClass policy:Obligation .
 
 policy:PolicyConflict a sh:NodeShape ;
@@ -247,7 +247,12 @@ policy:PolicyReading a sh:NodeShape ;
     rdfs:comment "What a model read in one policy's own text, fetched from the address its policy record names or the researcher gave. Grounded on the text, and on the policy record it was reached from, if any. Each obligation kept quotes the text word for word, and the code has found the quote in it; what was dropped, and why, is in dropped. A person confirms each against the policy." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:class <https://w3id.org/data-director/GroundingRef> ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "What the model said that was not kept, and why, such as a quote not found in the text." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path policy:dropped ],
+        [ sh:class <https://w3id.org/data-director/GroundingRef> ;
             sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
             sh:minCount 1 ;
             sh:nodeKind sh:BlankNodeOrIRI ;
@@ -279,12 +284,7 @@ policy:PolicyReading a sh:NodeShape ;
         [ sh:class policy:StatedObligation ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 3 ;
-            sh:path policy:stated ],
-        [ sh:datatype xsd:string ;
-            sh:description "What the model said that was not kept, and why, such as a quote not found in the text." ;
-            sh:nodeKind sh:Literal ;
-            sh:order 4 ;
-            sh:path policy:dropped ] ;
+            sh:path policy:stated ] ;
     sh:targetClass policy:PolicyReading .
 
 policy:RepositoryRef a sh:NodeShape ;
@@ -292,18 +292,18 @@ policy:RepositoryRef a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path schema1:name ],
+        [ sh:datatype xsd:string ;
             sh:description "The re3data identifier, e.g. r3d100010230." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
             sh:path policy:re3data_id ;
-            sh:pattern "^r3d\\d+$" ],
-        [ sh:datatype xsd:string ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path schema1:name ] ;
+            sh:pattern "^r3d\\d+$" ] ;
     sh:targetClass policy:RepositoryRef .
 
 policy:ResolvedFunder a sh:NodeShape ;
@@ -395,11 +395,6 @@ policy:StatedObligation a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
             sh:path policy:quote ],
-        [ sh:in ( "deposit" "data_availability_statement" "repository" "standard" "embargo" "licence" "timing" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 0 ;
-            sh:path policy:kind ],
         [ sh:datatype xsd:string ;
             sh:description "What the policy asks, in brief, e.g. \"within two years of the end of the grant\" or \"CC BY 4.0\"." ;
             sh:maxCount 1 ;
@@ -411,7 +406,12 @@ policy:StatedObligation a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 1 ;
-            sh:path policy:strength ] ;
+            sh:path policy:strength ],
+        [ sh:in ( "deposit" "data_availability_statement" "repository" "standard" "embargo" "licence" "timing" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 0 ;
+            sh:path policy:kind ] ;
     sh:targetClass policy:StatedObligation .
 
 <https://w3id.org/data-director/GroundingRef> a sh:NodeShape ;

@@ -10,7 +10,12 @@ repository:RepositoryNeeds a sh:NodeShape ;
     rdfs:comment "What a dataset needs of a repository. With mandated repositories, the agent describes them; with none, it shortlists. Repositories the researcher asked about are described either way, alongside the shortlist when there is one. The mandate and the access constraint come from Phase 2 (governance), usually by way of the orchestrator. In a project the conductor also gives the facts people decided and the repository the researcher chose: a decided required repository is described as mandated, a repository that a confirmed sharing commitment of the data management plan names is described alongside the shortlist (never as mandated), and the chosen one is described when nothing else is asked." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:class repository:RepositoryRef ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "What the data is, each in one to three words, e.g. interview transcripts, survey microdata or time series. A repository matches a kind only if its record has every word, so a long description (e.g. environmental data logger time series) matches none." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path repository:data_kinds ],
+        [ sh:class repository:RepositoryRef ;
             sh:description "Only repositories that a funder, journal or institutional policy requires: as a policy result found them in Phase 2, or as the researcher states such a policy requires them. A repository the researcher merely names, prefers or asks about belongs in asked_about. Naming an institution, or being funded by a funder, does not make its repository mandated. A mandated repository replaces the shortlist." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 4 ;
@@ -49,6 +54,11 @@ repository:RepositoryNeeds a sh:NodeShape ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 5 ;
             sh:path repository:asked_about ],
+        [ sh:class <https://w3id.org/data-director/InstitutionRepository> ;
+            sh:description "The repositories the deployment's profile names as its institution's, filled by the conductor from the profile and never by the caller. Absent when the profile names none." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 10 ;
+            sh:path <https://w3id.org/data-director/institution_repositories> ],
         [ sh:class <https://w3id.org/data-director/ProjectFact> ;
             sh:description "The facts a person in the project decided (ProjectFact), the last decision on each subject, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project decided any. A drafter treats each as supplied." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
@@ -60,12 +70,7 @@ repository:RepositoryNeeds a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 7 ;
             sh:path repository:country ;
-            sh:pattern "^[A-Z]{3}$" ],
-        [ sh:datatype xsd:string ;
-            sh:description "What the data is, each in one to three words, e.g. interview transcripts, survey microdata or time series. A repository matches a kind only if its record has every word, so a long description (e.g. environmental data logger time series) matches none." ;
-            sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path repository:data_kinds ] ;
+            sh:pattern "^[A-Z]{3}$" ] ;
     sh:targetClass repository:RepositoryNeeds .
 
 schema1:Organization a sh:NodeShape ;
@@ -73,39 +78,98 @@ schema1:Organization a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
-            sh:description "The organisation's ROR identifier." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path repository:ror ],
-        [ sh:datatype xsd:string ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
-            sh:path schema1:name ] ;
+            sh:path schema1:name ],
+        [ sh:datatype xsd:string ;
+            sh:description "The organisation's ROR identifier." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path repository:ror ] ;
     sh:targetClass schema1:Organization .
 
 <https://w3id.org/data-director/ChosenRepository> a sh:NodeShape ;
-    rdfs:comment "The repository a researcher chose to deposit the project's data in, from the shortlist, by its re3data identifier: the conductor fills it into a Message, and into the input of an agent that mixes in GivenProjectRepository, so that the agent knows a repository is chosen and which (docs/specs/projects.md). The last choice stands until a researcher chooses again." ;
+    rdfs:comment "The repository a researcher chose to deposit the project's data in, from the shortlist, by the identifier of the registry that lists it: the conductor fills it into a Message, and into the input of an agent that mixes in GivenProjectRepository, so that the agent knows a repository is chosen and which (docs/specs/projects.md). The last choice stands until a researcher chooses again." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
+            sh:description "The chosen repository's identifier: its re3data identifier, such as r3d100010468, where re3data lists it, else its DataCite repository identifier, such as bl.york. The conductor always gives it; a caller that sends only chosen_re3data_id has it given from that." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <https://w3id.org/data-director/chosen_repository_id> ;
+            sh:pattern "^(r3d[0-9]{9}|[a-z0-9]+\\.[a-z0-9.-]+)$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The chosen repository's re3data identifier, such as r3d100010468, where it has one." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path <https://w3id.org/data-director/chosen_re3data_id> ;
+            sh:pattern "^r3d[0-9]{9}$" ],
+        [ sh:datatype xsd:string ;
             sh:description "The chosen repository's name, as the pinned re3data export gives it." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
-            sh:path <https://w3id.org/data-director/chosen_repository_name> ],
+            sh:path <https://w3id.org/data-director/chosen_repository_name> ] ;
+    sh:targetClass <https://w3id.org/data-director/ChosenRepository> .
+
+<https://w3id.org/data-director/InstitutionRepository> a sh:NodeShape ;
+    rdfs:comment "One repository the deployment's profile names as its institution's (the profile's institution_repositories, docs/specs/policy-and-identity.md). It names a registry's record by repository_id and adds only what the deployment vouches for that no registry holds: the conductor fills it into the input of an agent that mixes in GivenInstitutionRepositories." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The institution whose repository it is, where the registry names another operator, such as a consortium or a platform." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path <https://w3id.org/data-director/institution_name> ],
+        [ sh:description "Whether the registry lists a fee as a condition of depositing data." ;
+            sh:in ( "yes" "no" "unstated" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 6 ;
+            sh:path repository:fee_required ],
         [ sh:datatype xsd:string ;
-            sh:description "The chosen repository's re3data identifier, such as r3d100010468." ;
+            sh:description "The reference of the profile that vouches for the facts, as profile:<id>@v<version>; an agent cites them under it." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
-            sh:path <https://w3id.org/data-director/chosen_re3data_id> ;
-            sh:pattern "^r3d[0-9]{9}$" ] ;
-    sh:targetClass <https://w3id.org/data-director/ChosenRepository> .
+            sh:path <https://w3id.org/data-director/profile_ref> ;
+            sh:pattern "^profile:\\S+@v[0-9]+$" ],
+        [ sh:description "The pages the deployment checked the facts it vouches for against." ;
+            sh:nodeKind sh:IRI ;
+            sh:order 7 ;
+            sh:path <https://w3id.org/data-director/guidance> ],
+        [ sh:datatype xsd:string ;
+            sh:description "A repository's identifier in the registry that lists it: its re3data identifier, such as r3d100012124, where re3data lists it, else its DataCite repository identifier, such as bl.york. An override names it in place of re3data_id for a repository re3data does not list." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/repository_id> ;
+            sh:pattern "^(r3d[0-9]{9}|[a-z0-9]+\\.[a-z0-9.-]+)$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The access the repository offers, as re3data names it (open, embargoed, restricted, closed)." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path <https://w3id.org/data-director/data_access_types> ],
+        [ sh:description "That institution's ROR identifier, as a URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 3 ;
+            sh:path <https://w3id.org/data-director/institution_ror> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The licences the repository offers for data, as SPDX identifiers or URLs." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path <https://w3id.org/data-director/data_licences> ] ;
+    sh:targetClass <https://w3id.org/data-director/InstitutionRepository> .
 
 <https://w3id.org/data-director/ProjectFact> a sh:NodeShape ;
     rdfs:comment "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, the licence, or an output a data management plan committed to share (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because." ;
@@ -254,6 +318,13 @@ repository:RepositoryRef a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
             sh:path repository:re3data_id ;
-            sh:pattern "^r3d\\d+$" ] ;
+            sh:pattern "^r3d\\d+$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "A repository's identifier in the registry that lists it: its re3data identifier, such as r3d100012124, where re3data lists it, else its DataCite repository identifier, such as bl.york. An override names it in place of re3data_id for a repository re3data does not list." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path <https://w3id.org/data-director/repository_id> ;
+            sh:pattern "^(r3d[0-9]{9}|[a-z0-9]+\\.[a-z0-9.-]+)$" ] ;
     sh:targetClass repository:RepositoryRef .
 

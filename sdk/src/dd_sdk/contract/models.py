@@ -17,6 +17,8 @@ from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, SerializeAsA
 
 # `base` and `inventory` hold the rest of the core's mirrors; their names are this module's too.
 from dd_sdk.contract import inventory, questions
+from dd_sdk.contract.base import RE3DATA_ID_PATTERN as RE3DATA_ID_PATTERN
+from dd_sdk.contract.base import REPOSITORY_ID_PATTERN as REPOSITORY_ID_PATTERN
 from dd_sdk.contract.base import SHA256_PATTERN as SHA256_PATTERN
 from dd_sdk.contract.base import Frozen as Frozen
 from dd_sdk.contract.deposit import DepositConnector as DepositConnector
@@ -28,6 +30,7 @@ from dd_sdk.contract.facts import DocumentationSummary as DocumentationSummary
 from dd_sdk.contract.facts import DocumentKind as DocumentKind
 from dd_sdk.contract.facts import DraftSummary as DraftSummary
 from dd_sdk.contract.facts import ExternalIdentifier as ExternalIdentifier
+from dd_sdk.contract.facts import InstitutionRepository as InstitutionRepository
 from dd_sdk.contract.facts import InventorySummary as InventorySummary
 from dd_sdk.contract.facts import ProjectDocument as ProjectDocument
 from dd_sdk.contract.facts import ProjectFact as ProjectFact
@@ -36,6 +39,10 @@ from dd_sdk.contract.facts import ResearcherLink as ResearcherLink
 from dd_sdk.contract.facts import ResearcherRecord as ResearcherRecord
 from dd_sdk.contract.facts import ResearcherWork as ResearcherWork
 from dd_sdk.contract.facts import VersionState as VersionState
+from dd_sdk.contract.requirements import RepositoryRequirements as RepositoryRequirements
+from dd_sdk.contract.requirements import RequirementField as RequirementField
+from dd_sdk.contract.requirements import RequirementSet as RequirementSet
+from dd_sdk.contract.requirements import RequirementSetUse as RequirementSetUse
 from dd_sdk.contract.retrieval import TOOL_SOURCE_PREFIX as TOOL_SOURCE_PREFIX
 from dd_sdk.contract.retrieval import EvidenceItem as EvidenceItem
 from dd_sdk.contract.retrieval import ToolRetrieval as ToolRetrieval
@@ -169,64 +176,6 @@ class QuestionKind(StrEnum):
 class TurnRole(StrEnum):
     USER = "user"
     AGENT = "agent"
-
-
-# --- Requirement sets -------------------------------------------------------------------------
-# What a deposit must or should have (docs/specs/deposit.md): the deployment's configuration, which
-# the harness loads and merges for the repository a researcher chose. Not an input or a payload of
-# any agent.
-
-
-class RequirementField(Frozen):
-    property: str
-    qualifier: dict[str, Any] | None = None
-    schema_org: str
-    obligation: Obligation
-    form_label: str | None = None
-
-
-class _Requirements(Frozen):
-    """What a requirement set and a merged choice of repository both state."""
-
-    conforms_to: str
-    fields: list[RequirementField] = Field(default_factory=list)
-    required_documents: list[DocumentKind] = Field(default_factory=list)
-    recommended_documents: list[DocumentKind] = Field(default_factory=list)
-    media_types: list[str] = Field(default_factory=list)
-    max_file_size: int | None = None
-    max_item_size: int | None = None
-    licences: list[str] | None = None
-    guidance: list[str] = Field(default_factory=list)
-    unconfirmed: list[str] = Field(default_factory=list)
-    deposit: DepositConnector | None = None
-
-
-class RequirementSet(_Requirements):
-    """A metadata standard's requirements, or one repository's override of them
-    (docs/specs/deposit.md)."""
-
-    schema_class: Literal["RequirementSet"] = "RequirementSet"
-    requirement_set_id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]*$")
-    version: int
-    title: str
-    url: str | None = None
-    re3data_names: list[str] = Field(default_factory=list)
-    re3data_id: str | None = Field(default=None, pattern=r"^r3d[0-9]{9}$")
-
-
-class RequirementSetUse(Frozen):
-    ref: str = Field(pattern=r"^[a-z0-9][a-z0-9-]*@v[0-9]+$")
-    sha256: str = Field(pattern=SHA256_PATTERN)
-
-
-class RepositoryRequirements(_Requirements):
-    """The merged requirements of the repository a researcher chose (docs/specs/deposit.md)."""
-
-    re3data_id: str = Field(pattern=r"^r3d[0-9]{9}$")
-    repository_name: str
-    requirement_sets: list[RequirementSetUse]
-    warnings: list[str] = Field(default_factory=list)
-    repository_url: str | None = None
 
 
 # --- Inputs -----------------------------------------------------------------------------------

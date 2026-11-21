@@ -44,7 +44,7 @@ function renderShortlist(
 describe("RepositoryShortlist", () => {
   it("marks a repository the researcher asked about as such, never as mandated (#1167)", () => {
     const shortlist = shortlistOf(shortlistRun()).map((r) =>
-      r.re3dataId === "r3d100010468" ? { ...r, basis: "asked_about" } : r,
+      r.repositoryId === "r3d100010468" ? { ...r, basis: "asked_about" } : r,
     );
     renderShortlist(vi.fn<ProjectApi["chooseRepository"]>(), null, shortlist);
     const [orda, zenodo] = screen.getAllByRole("listitem");
@@ -55,7 +55,7 @@ describe("RepositoryShortlist", () => {
 
   it("marks a repository the researcher's plan names as such, never as mandated (#1233)", () => {
     const shortlist = shortlistOf(shortlistRun()).map((r) =>
-      r.re3dataId === "r3d100010468" ? { ...r, basis: "in_plan" } : r,
+      r.repositoryId === "r3d100010468" ? { ...r, basis: "in_plan" } : r,
     );
     renderShortlist(vi.fn<ProjectApi["chooseRepository"]>(), null, shortlist);
     const [, zenodo] = screen.getAllByRole("listitem");
@@ -133,7 +133,7 @@ describe("RepositoryShortlist", () => {
   it("marks the repository already chosen and shows the warnings of a new choice", async () => {
     const zenodo: RepositoryRequirements = {
       ...ORDA_CHOSEN,
-      re3data_id: "r3d100010468",
+      repository_id: "r3d100010468",
       repository_name: "Zenodo",
       requirement_sets: [{ ref: "datacite-4@v1", sha256: "e".repeat(64) }],
       warnings: ["the deployment has no override for Zenodo"],

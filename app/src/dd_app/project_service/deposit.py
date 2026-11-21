@@ -6,7 +6,7 @@ from typing import Any
 
 from dd_app import deposit
 from dd_app.project_service._area import Area, RepositoriesUnavailableError
-from dd_harness import deposit_api
+from dd_harness import deposit_api, institution_repositories
 from dd_harness.deposit import Package, Validation, build_package, check
 from dd_harness.disclosure import Disclosure, disclose
 from dd_harness.requirements import Requirements
@@ -34,15 +34,15 @@ class Deposit(Area):
         return store.requirements(project_id)
 
     def choose_repository(
-        self, project_id: str, re3data_id: str, *, acted_for: Principal, caused_by: str
+        self, project_id: str, repository_id: str, *, acted_for: Principal, caused_by: str
     ) -> dict[str, Any] | None:
-        """The researcher's choice, by its re3data identifier alone: its name and declared
-        standards come from the pinned re3data export, resolved against the deployment's
+        """The researcher's choice, by its re3data or DataCite identifier alone: its name and
+        declared standards come from the pinned registry, resolved against the deployment's
         requirement sets. A change is a new choice, and the last one counts."""
         store, requirements = self._store, self._requirements()
         store.choose_repository(
             project_id,
-            re3data_id,
+            repository_id,
             registry=self.governance.conductor.sources,
             requirements=requirements,
             acted_for=acted_for,
@@ -56,13 +56,16 @@ class Deposit(Area):
         return self.governance.requirements
 
     def search_repositories(self, query: str) -> dict[str, Any]:
-        """Those the pinned re3data export holds that `query` names, or, without one, those the
-        deployment suggests (its overrides, then `suggested.yaml`)."""
-        sources, requirements = self.governance.conductor.sources, self.governance.requirements
+        """Those the pinned registries hold that `query` names, or, without one, those the
+        deployment suggests: the repositories its profile names as its institution's, then its
+        overrides, then `suggested.yaml`."""
+        conductor, requirements = self.governance.conductor, self.governance.requirements
+        sources = conductor.sources
         if query:
             found = sources.find_repositories(query, limit=REPOSITORY_SEARCH_LIMIT)
         else:
-            found = sources.repositories(requirements.suggested if requirements else ())
+            ours = institution_repositories.ids(conductor.profile)
+            found = sources.repositories([*ours, *(requirements.suggested if requirements else ())])
         return {
             "snapshot_ref": sources.re3data_export_ref(),
             "query": query,

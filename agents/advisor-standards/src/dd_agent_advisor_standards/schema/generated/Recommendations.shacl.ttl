@@ -41,18 +41,17 @@ standards:Recommendation a sh:NodeShape ;
     rdfs:comment "One recommended resource for one target. The resource is named only in grounded_on; its name, status and DOI are in the cited evidence item's content (docs/specs/grounding.md)." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
+    sh:property [ sh:description "Who chose the record: lexical, by the ranking rules over the first search, or model, by a model from the records retrieved in the run, its own searches included." ;
+            sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:maxCount 1 ;
+            sh:order 6 ;
+            sh:path standards:selection_derivation ],
+        [ sh:datatype xsd:string ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
             sh:path standards:rationale ],
-        [ sh:datatype xsd:string ;
-            sh:description "A model's doubt that a record the rules chose suits the dataset. The recommendation is kept; a person decides." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 7 ;
-            sh:path standards:concern ],
         [ sh:datatype xsd:string ;
             sh:description "dataset, or field:<name> for a field-level recommendation." ;
             sh:maxCount 1 ;
@@ -65,6 +64,12 @@ standards:Recommendation a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
             sh:path standards:score ],
+        [ sh:datatype xsd:string ;
+            sh:description "A model's doubt that a record the rules chose suits the dataset. The recommendation is kept; a person decides." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path standards:concern ],
         [ sh:class <https://w3id.org/data-director/GroundingRef> ;
             sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
             sh:minCount 1 ;
@@ -89,12 +94,7 @@ standards:Recommendation a sh:NodeShape ;
         [ sh:in ( "template" "model" "lexical" "registry" ) ;
             sh:maxCount 1 ;
             sh:order 5 ;
-            sh:path standards:classification_derivation ],
-        [ sh:description "Who chose the record: lexical, by the ranking rules over the first search, or model, by a model from the records retrieved in the run, its own searches included." ;
-            sh:in ( "template" "model" "lexical" "registry" ) ;
-            sh:maxCount 1 ;
-            sh:order 6 ;
-            sh:path standards:selection_derivation ] ;
+            sh:path standards:classification_derivation ] ;
     sh:targetClass standards:Recommendation .
 
 standards:SearchedSummary a sh:NodeShape ;

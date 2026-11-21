@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import re
 import xml.etree.ElementTree as ET
-from typing import Any
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -25,6 +25,7 @@ from dd_sdk.evidence import DOCUMENT_CANONICALISATION, content_hash
 # A record's page, for one that has no DOI. re3data gives most records a DOI under 10.17616.
 RE3DATA_RECORD_URL = "https://www.re3data.org/repository/{id}"
 FAIRSHARING_RECORD_URL = "https://fairsharing.org/{id}"
+DATACITE_RECORD_URL = "https://api.datacite.org/repositories/{id}"
 FAIRSHARING_DOI_PREFIX = "10.25504/"
 
 _NS = {"r3d": "http://www.re3data.org/schema/4-0"}
@@ -56,6 +57,7 @@ def _sorted(values: list[str]) -> list[str]:
 
 class Re3dataRecord(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
+    registry: ClassVar[str] = "re3data"
 
     re3data_id: str
     doi: str | None = None
@@ -102,6 +104,11 @@ class Re3dataRecord(BaseModel):
     @classmethod
     def _sort_institutions(cls, values: list[Institution]) -> list[Institution]:
         return sorted(values, key=lambda i: (i.name, i.country or "", i.type or "", i.ror or ""))
+
+    @property
+    def identifier(self) -> str:
+        """The identifier a candidate is cited and chosen by (`DataciteRecord.identifier`)."""
+        return self.re3data_id
 
     @property
     def source_uri(self) -> str:
@@ -166,6 +173,116 @@ class DatabaseRecord(BaseModel):
 
     def content_hash(self) -> str:
         return content_hash(self.document(), DOCUMENT_CANONICALISATION)
+
+
+class Member(BaseModel):
+    """The DataCite member, or consortium organisation, that registers a repository's DOIs."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    name: str | None = None
+    # As DataCite gives it: a ROR URL.
+    ror: str | None = None
+    # ISO 3166-1 alpha-2, as DataCite gives it.
+    country: str | None = None
+    # DataCite's organizationType: academicInstitution, researchInstitution, governmentAgency, ...
+    organization_type: str | None = None
+
+
+# The member types that make a repository's operator non-profit, in re3data's terms; any other
+# (a publisher, a service provider) is left unstated, since it may be either.
+_NON_PROFIT = frozenset(
+    {"academicInstitution", "researchInstitution", "governmentAgency", "nationalInstitution"}
+)
+
+
+class DataciteRecord(BaseModel):
+    """A repository as DataCite registers it: one that mints DataCite DOIs, has published at
+    least one dataset with them, and that re3data does not list (`datacite.py`). It answers the
+    same questions as a re3data record, through the same names, from the few facts DataCite
+    holds; the rest are left empty, so they read as unstated."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    registry: ClassVar[str] = "DataCite"
+
+    datacite_id: str
+    name: str
+    alternate_name: str | None = None
+    url: str | None = None
+    repository_types: list[str] = Field(default_factory=list)
+    software: str | None = None
+    certificates: list[str] = Field(default_factory=list)
+    opendoar: str | None = None
+    # How many DOIs of resource type Dataset the repository has registered when it was fetched.
+    dataset_count: int
+    prefixes: list[str] = Field(default_factory=list)
+    member: Member
+
+    @field_validator("repository_types", "certificates", "prefixes")
+    @classmethod
+    def _sort(cls, values: list[str]) -> list[str]:
+        return _sorted(values)
+
+    # --- the names a re3data record answers by (assess.py, rank.py) ---------------------------
+
+    @property
+    def identifier(self) -> str:
+        return self.datacite_id
+
+    @property
+    def source_uri(self) -> str:
+        return DATACITE_RECORD_URL.format(id=self.datacite_id)
+
+    @property
+    def additional_names(self) -> list[str]:
+        return [self.alternate_name] if self.alternate_name else []
+
+    @property
+    def types(self) -> list[str]:
+        return self.repository_types
+
+    @property
+    def institutions(self) -> list[Institution]:
+        """The member, as the repository's operator. Its country is left out: DataCite writes it
+        in two letters, re3data in three."""
+        if not self.member.name:
+            return []
+        kind = "non-profit" if self.member.organization_type in _NON_PROFIT else None
+        ror = bare_ror(self.member.ror) if self.member.ror else None
+        return [
+            Institution(name=self.member.name, type=kind, responsibilities=["general"], ror=ror)
+        ]
+
+    @property
+    def pid_systems(self) -> list[str]:
+        """DOI: every repository kept has registered DataCite DOIs for its datasets."""
+        return ["DOI"]
+
+    # What DataCite does not record: empty, so each reads as unstated, as a silent re3data field.
+    description: ClassVar[None] = None
+    doi: ClassVar[None] = None
+    fairsharing_id: ClassVar[None] = None
+    subjects: ClassVar[list[str]] = []
+    keywords: ClassVar[list[str]] = []
+    content_types: ClassVar[list[str]] = []
+    data_access_types: ClassVar[list[str]] = []
+    data_access_restrictions: ClassVar[list[str]] = []
+    data_upload_types: ClassVar[list[str]] = []
+    data_upload_restrictions: ClassVar[list[str]] = []
+    data_licences: ClassVar[list[str]] = []
+    metadata_standards: ClassVar[list[str]] = []
+
+    def document(self) -> dict[str, Any]:
+        return self.model_dump(mode="json")
+
+    def content_hash(self) -> str:
+        return content_hash(self.document(), DOCUMENT_CANONICALISATION)
+
+    def subject_names(self) -> list[str]:
+        return []
+
+    def names(self) -> set[str]:
+        return {n.casefold().strip() for n in (self.name, *self.additional_names)}
 
 
 # --- re3data XML (schema 4.0) ------------------------------------------------------------------

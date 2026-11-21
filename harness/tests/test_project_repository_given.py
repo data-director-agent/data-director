@@ -65,6 +65,7 @@ def choose(projects: ProjectStore, project: str, root: Path) -> dict[str, Any]:
     recorded = projects.summary(project)["repository"]
     return {
         "chosen_repository_name": recorded["repository_name"],
+        "chosen_repository_id": ORDA,
         "chosen_re3data_id": ORDA,
     }
 

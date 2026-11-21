@@ -273,7 +273,8 @@ def chosen(recorded: Mapping[str, Any] | None) -> dict[str, Any] | None:
         return None
     return {
         "chosen_repository_name": recorded["repository_name"],
-        "chosen_re3data_id": recorded["re3data_id"],
+        "chosen_repository_id": recorded["repository_id"],
+        **({"chosen_re3data_id": recorded["re3data_id"]} if recorded.get("re3data_id") else {}),
     }
 
 

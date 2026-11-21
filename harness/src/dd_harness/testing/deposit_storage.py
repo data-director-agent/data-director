@@ -81,7 +81,7 @@ def check_a_package_is_approved_for_deposit_once(make: MakeProjectStorage) -> No
     invariants 12 and 15). Each outcome names its approval, and a second store reads both."""
     store = make("projects")
     project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
-    named = {"digest": "a" * 64, "re3data_id": "r3d100010468", "transport": "zenodo"}
+    named = {"digest": "a" * 64, "repository_id": "r3d100010468", "transport": "zenodo"}
     first = store.approve_deposit(project_id, named, acted_for=TEST_PRINCIPAL, caused_by="check")
     with _raises(DepositInProgressError, "a second approval while the first has no outcome"):
         store.approve_deposit(project_id, named, acted_for=TEST_PRINCIPAL, caused_by="check")
@@ -102,7 +102,7 @@ def check_a_package_is_approved_for_deposit_once(make: MakeProjectStorage) -> No
     )
     with _raises(DepositInProgressError, "an approval of a package already deposited"):
         store.approve_deposit(project_id, named, acted_for=TEST_PRINCIPAL, caused_by="check")
-    other = {**named, "re3data_id": "r3d100012124"}
+    other = {**named, "repository_id": "r3d100012124"}
     store.approve_deposit(project_id, other, acted_for=TEST_PRINCIPAL, caused_by="check")
     kinds = [e["event"] for e in make("projects").events(project_id)]
     assert kinds[1:] == [
