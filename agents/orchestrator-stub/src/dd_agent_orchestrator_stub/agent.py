@@ -16,13 +16,13 @@ that answered.
 A message no rule matches may name one of the Blueprint's three entry points (§8.1): before data
 collection, data collected and being prepared for sharing, or ready to deposit. The reply then lists
 every step from that entry's phase to the last, with the agents whose manifest entry serves the
-step, and says "no agent yet" with the step's requirement where none does
-(docs/specs/orchestration.md). On a first turn that names neither a rule nor an entry, and only
-when the project has no entry point (a researcher outside a project has none), it asks which
-entry applies, as a choice question (`Reply.reply_questions`, keyed `entry`) whose values are the
-entry numbers; a `Message.reply_answers` choosing one is read before any rule. Otherwise it reads
-only the current message: `Message.history` is covered by the input hash, and used only to tell a
-first turn.
+step, and says that no agent can help with it yet where none does. A reply names no requirement
+ID: those are for traceability, not for researchers (docs/specs/orchestration.md, invariant 14).
+On a first turn that names neither a rule nor an entry, and only when the project has no entry
+point (a researcher outside a project has none), it asks which entry applies, as a choice
+question (`Reply.reply_questions`, keyed `entry`) whose values are the entry numbers; a
+`Message.reply_answers` choosing one is read before any rule. Otherwise it reads only the current
+message: `Message.history` is covered by the input hash, and used only to tell a first turn.
 
 In a project, the conductor says which entry point the researcher chose and how far each step has
 gone (`Message.project_entry`, `Message.project_progress`), derived from the project log on every
@@ -98,6 +98,9 @@ from dd_sdk.process_flow import (
 
 ENTRY_KEY = "entry"
 NEXT_STEP_KEY = "next-step"
+# What a reply says of a step no agent serves: in plain words, with no requirement ID
+# (docs/specs/orchestration.md, invariant 14).
+NO_AGENT = "no agent can help with this yet"
 
 
 def chosen(message: Message, key: str) -> str | None:
@@ -351,7 +354,6 @@ class DirectorStub:
                 lines.append(f"Phase {phase.number}, {phase.title}:")
             step = planned.step
             label = step.text + (" (optional)" if step.optional else "")
-            requirements = ", ".join(step.requirements) or "no Blueprint requirement"
             state = {"done": "[done] ", "started": "[started] ", "skipped": "[skipped] "}.get(
                 planned.state, ""
             )
@@ -364,9 +366,9 @@ class DirectorStub:
                     else names.get(a, a)
                     for a in planned.agent_ids
                 )
-                lines.append(f"- {state}{label} ({requirements}): {asks}.")
+                lines.append(f"- {state}{label}: {asks}.")
             else:
-                lines.append(f"- {state}{label}: no agent yet ({requirements}).")
+                lines.append(f"- {state}{label}: {NO_AGENT}.")
         suggested = suggested_next(steps, start)
         if suggested is not None:
             lines.append(
@@ -392,7 +394,6 @@ class DirectorStub:
             p for p in progress(None, states_of(message), manifest) if p.step.id == step_id
         )
         step = planned.step
-        requirements = ", ".join(step.requirements) or "no Blueprint requirement"
         if step.out_of_scope:
             return _template_reply(
                 f"{step.text}: out of scope for now.",
@@ -401,8 +402,8 @@ class DirectorStub:
             )
         if not planned.agent_ids:
             return _template_reply(
-                f"{step.text}: no agent yet ({requirements}). The work is yours; mark the step "
-                "done or skipped in your project when it is.",
+                f"{step.text}: {NO_AGENT}. The work is yours; when it is done, mark the step "
+                "done in your project.",
                 f"Chosen step {step_id} has no agent; no agent was asked.",
                 ctx,
             )
@@ -428,8 +429,7 @@ class DirectorStub:
             names = self._names(manifest)
             who = "; ".join(names.get(a, a) for a in planned.agent_ids)
             return _template_reply(
-                f"{step.text} ({requirements}): ask {who} directly, with "
-                f"'@{planned.agent_ids[0]} <what you need>'.",
+                f"{step.text}: ask {who} directly, with '@{planned.agent_ids[0]} <what you need>'.",
                 f"Chosen step {step_id} needs the researcher's words; no agent was asked.",
                 ctx,
             )

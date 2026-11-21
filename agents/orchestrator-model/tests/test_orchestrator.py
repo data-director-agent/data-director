@@ -40,7 +40,7 @@ from dd_sdk.contract.models import (
     StepState,
     TurnRole,
 )
-from dd_sdk.flow_prompt import describe_flow
+from dd_sdk.flow_prompt import REQUIREMENT_ID, describe_flow
 from dd_sdk.model import (
     ModelCallError,
     ModelRequest,
@@ -176,9 +176,11 @@ def test_a_tool_says_which_steps_its_agent_serves(runs_dir: Path) -> None:
     invoke(conductor(runs_dir, model))
     tools = {t["name"]: t for t in model.sent[0]["tools"]}
     assert tools["advisor_standards"]["description"].endswith(
-        "Serves step(s) setup.vocabularies, preparation.formats. Those steps apply R3."
+        "Serves step(s) setup.vocabularies, preparation.formats."
     )
     assert "Serves" not in tools["example_hello"]["description"]
+    # No requirement ID reaches the model, so it has none to repeat (invariant 14).
+    assert not any(REQUIREMENT_ID.search(t["description"]) for t in tools.values())
 
 
 def test_a_tool_serving_steps_that_name_no_requirement_says_only_the_steps() -> None:
@@ -188,8 +190,9 @@ def test_a_tool_serving_steps_that_name_no_requirement_says_only_the_steps() -> 
 
 
 def test_the_prompt_carries_every_entry_point_and_phase_and_names_no_agent() -> None:
-    assert describe_flow() in SYSTEM_PROMPT
-    assert "no agent yet (R5)" in SYSTEM_PROMPT
+    assert describe_flow(requirements=False) in SYSTEM_PROMPT
+    # Requirement IDs are for traceability: the prompt shows the model none (invariant 14).
+    assert not REQUIREMENT_ID.search(SYSTEM_PROMPT)
     assert "example.hello" not in SYSTEM_PROMPT and "advisor.standards" not in SYSTEM_PROMPT
 
 

@@ -127,9 +127,17 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     `plan` and the app shell's phase tracker make the same join; no orchestrator or page keeps a
     map of its own. (`test_an_agent_is_planned_at_the_steps_it_names_and_no_other`;
     `app/web/src/flow/serving.test.ts`)
-14. **A step with no agent is named, with its requirement** ("no agent yet", and for example R5),
-    or with the note that the Blueprint names none. An orchestrator never skips such a step or
-    does it itself. (`test_entry_two_lists_phases_two_to_six_with_the_agents_and_the_gaps`)
+14. **A step with no agent is named as one no agent can help with yet, in plain words.** An
+    orchestrator never skips such a step or does it itself. What a researcher reads names no
+    requirement ID, step id or agent id and does not mention the Blueprint: those are for
+    traceability (`serves`, rationales, traces, `docs/requirements.yaml`). The model-backed
+    orchestrator is shown no requirement ID at all, in its prompt's flow or its tools'
+    descriptions, so it has none to repeat; asked for a step with no agent, it says what the step
+    is for, gives general background, does not send the researcher to an agent that serves a
+    different step, and offers steps that have one as a choice question.
+    (`test_entry_two_lists_phases_two_to_six_with_the_agents_and_the_gaps`;
+    `test_the_flow_for_a_researcher_facing_model_names_no_requirement`;
+    `test_the_prompt_carries_every_entry_point_and_phase_and_names_no_agent`)
 15. **On a first turn that names no task, an orchestrator asks which entry point applies**, then
     follows the phases from that entry. In a project whose entry point is already known
     (`project_entry`, from the intake of invariant 20 or the phase tracker), it does not ask
