@@ -13,6 +13,9 @@
       "SearchedSummary": {
          "@id": "https://w3id.org/data-director/agents/repository/SearchedSummary"
       },
+      "UnlistedRepository": {
+         "@id": "https://w3id.org/data-director/agents/repository/UnlistedRepository"
+      },
       "assigns_pids": {
          "@id": "https://w3id.org/data-director/agents/repository/assigns_pids"
       },
@@ -51,6 +54,9 @@
       },
       "misses": {
          "@id": "https://w3id.org/data-director/agents/repository/misses"
+      },
+      "name": {
+         "@id": "http://schema.org/name"
       },
       "not_found": {
          "@id": "https://w3id.org/data-director/agents/repository/not_found"
@@ -92,6 +98,10 @@
          "@id": "https://w3id.org/data-director/source_id"
       },
       "spdx": "http://spdx.org/rdf/terms#",
+      "unlisted": {
+         "@id": "https://w3id.org/data-director/agents/repository/unlisted",
+         "@type": "@id"
+      },
       "xsd": "http://www.w3.org/2001/XMLSchema#"
    }
 }

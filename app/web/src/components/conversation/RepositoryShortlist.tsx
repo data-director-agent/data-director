@@ -13,7 +13,10 @@ import { Check } from "lucide-react";
 import { useState } from "react";
 
 import { type RepositoryRequirements, useProjectApi } from "../../project/api";
-import type { ShortlistedRepository } from "../../project/shortlist";
+import type {
+  ShortlistedRepository,
+  UnlistedRepository,
+} from "../../project/shortlist";
 import { errorMessage } from "../../run/api";
 import { Button } from "../ui/Button";
 
@@ -81,15 +84,41 @@ export function RepositoryRequirementsView({
   );
 }
 
+/** Why a repository is on the card, where it is not simply recommended. */
+function Basis({ basis }: { basis: string | null }) {
+  if (basis === "mandated")
+    return <span className="status status-warn">Mandated</span>;
+  if (basis === "asked_about")
+    return <span className="status">You asked about this</span>;
+  if (basis === "in_plan") return <span className="status">In your plan</span>;
+  return null;
+}
+
+/** What re3data says of a deposit fee. It has no value for "no fee", so one it does not list is
+ * one the repository has not stated, never one it does not charge (#1334). */
+export function feeWording(fee: string | null): string | null {
+  if (fee === "yes")
+    return "A deposit fee is listed; re3data gives no amount, so check it with the repository.";
+  if (fee === "unstated")
+    return "Deposit fee: not stated by the repository, check with them.";
+  return null;
+}
+
 export function RepositoryShortlist({
   projectId,
   shortlist,
+  unlisted = [],
+  planAttached = false,
   chosenId,
   idPrefix,
   onChosen,
 }: {
   projectId: string;
   shortlist: ShortlistedRepository[];
+  /** Repositories named that re3data does not list, shown as named and not to be chosen here. */
+  unlisted?: UnlistedRepository[];
+  /** Whether the researcher attached a document by this turn, which may be their plan. */
+  planAttached?: boolean;
   /** The repository the project chose last, if any. */
   chosenId: string | null;
   /** Unique within the page, for the card's ids. */
@@ -144,15 +173,7 @@ export function RepositoryShortlist({
             >
               <p>
                 <strong>{repository.name}</strong>{" "}
-                {repository.basis === "mandated" && (
-                  <span className="status status-warn">Mandated</span>
-                )}
-                {repository.basis === "asked_about" && (
-                  <span className="status">You asked about this</span>
-                )}
-                {repository.basis === "in_plan" && (
-                  <span className="status">In your plan</span>
-                )}{" "}
+                <Basis basis={repository.basis} />{" "}
                 {chosen && <span className="status status-ok">Chosen</span>}
                 <br />
                 <span className="hint">
@@ -165,6 +186,9 @@ export function RepositoryShortlist({
                 </span>
               </p>
               {repository.rationale && <p>{repository.rationale}</p>}
+              {feeWording(repository.feeRequired) && (
+                <p className="hint">{feeWording(repository.feeRequired)}</p>
+              )}
               {!chosen && (
                 <Button
                   size="small"
@@ -179,7 +203,30 @@ export function RepositoryShortlist({
             </li>
           );
         })}
+        {unlisted.map((repository) => (
+          <li key={`unlisted-${repository.name}`}>
+            <p>
+              <strong>{repository.name}</strong>{" "}
+              <Basis basis={repository.basis} />
+              <br />
+              <span className="hint">
+                Not listed in re3data, so nothing is shown of its terms, fees
+                or identifiers: check them with the repository.
+              </span>
+            </p>
+          </li>
+        ))}
       </ul>
+      {planAttached &&
+        !unlisted.some((r) => r.basis === "in_plan") &&
+        !shortlist.some((r) => r.basis === "in_plan") && (
+          <p className="hint">
+            If a document you attached is your data management plan, the
+            repositories it names are shown here as &ldquo;In your plan&rdquo;
+            once you confirm its sharing commitments on the project&apos;s
+            documents page.
+          </p>
+        )}
       {error && (
         <p role="alert" className="callout status-danger">
           {error}

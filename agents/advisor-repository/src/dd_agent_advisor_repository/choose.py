@@ -14,6 +14,7 @@ from dd_agent_advisor_repository.classes import (
     CandidateBasis,
     RepositoryCandidate,
     RepositoryNeeds,
+    UnlistedRepository,
 )
 from dd_agent_advisor_repository.records import Re3dataRecord
 from dd_agent_advisor_repository.retrieve import Repositories
@@ -51,6 +52,8 @@ class Named:
         self.in_plan: list[Re3dataRecord] = []
         self.asked_about: list[Re3dataRecord] = []
         self.not_found: list[str] = []
+        # Those of `not_found` that re3data lists under no name, with why each was named.
+        self.unlisted: list[UnlistedRepository] = []
 
 
 def choose(named: Named, ranked: list[rank.Ranked], only_chosen: str | None = None) -> list[Chosen]:
@@ -74,17 +77,46 @@ def choose(named: Named, ranked: list[rank.Ranked], only_chosen: str | None = No
     return chosen
 
 
+_NAMED_BY = {
+    CandidateBasis.MANDATED: "mandated",
+    CandidateBasis.IN_PLAN: "named by the researcher's data management plan",
+    CandidateBasis.ASKED_ABOUT: "asked about by the researcher",
+}
+
+
+def unlisted(named: Named) -> str:
+    """A sentence for each reason repositories were named that re3data does not list, or
+    nothing. They are still the researcher's options; only their terms are not on record."""
+    return "".join(
+        f" {label.capitalize()}, but not listed in re3data: "
+        f"{', '.join(u.name for u in named.unlisted if u.basis == basis)}. Nothing is said about "
+        "their terms, fees or persistent identifiers, since re3data holds no record of them: "
+        "check with each repository."
+        for basis, label in _NAMED_BY.items()
+        if any(u.basis == basis for u in named.unlisted)
+    )
+
+
+def _unresolved(named: Named) -> list[str]:
+    """The names given that re3data lists, but not as exactly one record."""
+    listed = {u.name for u in named.unlisted}
+    return [name for name in named.not_found if name not in listed]
+
+
 def abstention(
     named: Named, got: Retrieved, hits: int, shortlisted: list[str], source: Repositories
 ) -> AgentResult:
     """Nothing to offer: no repository named was found, and the shortlist, if one was sought,
-    retrieved nothing or nothing that qualified."""
+    retrieved nothing or nothing that qualified. A repository named that re3data does not list
+    is said to be one, not lost (#1334)."""
+    unresolved = _unresolved(named)
     missing = (
-        f"No re3data record was found for {', '.join(named.not_found)} ({got.summary()})."
+        f"No single re3data record was found for {', '.join(unresolved)} ({got.summary()})."
         f"{ambiguous(got.ambiguous)} Check the names, or give the re3data identifiers. "
-        if named.not_found
+        if unresolved
         else ""
     )
+    missing = (unlisted(named).strip() + " " if named.unlisted else "") + missing
     if not shortlisted:
         return abstain(ReasonCode.NO_CANDIDATES_RETRIEVED, missing + source.credit())
     if not hits:
@@ -156,9 +188,10 @@ def statement(
         "agent's list of other names for repositories."
         for name, rid in got.aliased.items()
     )
-    if named.not_found:
+    statement += unlisted(named)
+    if unresolved := _unresolved(named):
         statement += (
-            f" No record found for: {', '.join(named.not_found)}.{ambiguous(got.ambiguous)}"
+            f" No single record found for: {', '.join(unresolved)}.{ambiguous(got.ambiguous)}"
         )
     themes = [q.text for q in rank.queries(needs) if q.label == rank.THEME]
     on_theme = any(r.on_theme and r.fit == rank.DISCIPLINE for r in ranked)

@@ -18,7 +18,7 @@ evaluation score measures quality over a case set; a review records what one per
 within a stated scope at one commit. None of these is a claim that a requirement is met in
 general, and the report says so.
 
-Three agents have an evaluation so far. The Documentation Editor's
+Four agents have an evaluation so far. The Documentation Editor's
 (`agents/advisor-documentation/src/dd_agent_advisor_documentation/evals/`) takes its labels from
 the crib sheet of a synthetic workshop dataset, Dataset A of `data-director-agent/sample-data`, and
 runs the template path. The standards advisor's also runs its template path, the ranking rules
@@ -31,7 +31,11 @@ dataset for the same task (TODO(#22)). The Data Management Plan Checker's
 complete, partial and vague, whose commitments are labelled by construction, and compares the
 commitments a researcher confirmed. Reading a plan needs a model, so its committed baseline
 measures only the comparison and that the template path declines to read; a fake-model test shows
-the reading scorers work (#962). A set of machine-actionable plans is to join it (TODO(#701)).
+the reading scorers work (#962). A set of machine-actionable plans is to join it (TODO(#701)). The repository advisor's
+(`agents/advisor-repository/src/dd_agent_advisor_repository/evals/`) takes Dataset F of the same
+sample data, an oral-history archive whose plan names two repositories re3data does not list, and
+asks whether a confirmed plan's repositories reach the researcher as the plan's, beside the
+shortlist or without one (#1334). It runs over the full pinned re3data registry, which CI builds.
 
 ## Invariants
 

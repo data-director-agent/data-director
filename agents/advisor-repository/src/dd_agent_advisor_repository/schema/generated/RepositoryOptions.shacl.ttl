@@ -1,6 +1,7 @@
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix repository: <https://w3id.org/data-director/agents/repository/> .
+@prefix schema1: <http://schema.org/> .
 @prefix sh: <http://www.w3.org/ns/shacl#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
@@ -12,12 +13,22 @@ repository:RepositoryOptions a sh:NodeShape ;
             sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
             sh:minCount 1 ;
             sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 4 ;
+            sh:order 5 ;
             sh:path <https://w3id.org/data-director/grounded_on> ],
+        [ sh:datatype xsd:string ;
+            sh:description "Mandated repositories, and repositories the data management plan names or the researcher asked about, for which no single registry record was found." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path repository:not_found ],
+        [ sh:class repository:UnlistedRepository ;
+            sh:description "The repositories named (mandated, in the data management plan or asked about) that re3data lists under no name, each with the reason it was named. A name that several records bear is not here but in not_found, with a request for the identifier." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 2 ;
+            sh:path repository:unlisted ],
         [ sh:class repository:SearchedSummary ;
             sh:maxCount 1 ;
             sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 3 ;
+            sh:order 4 ;
             sh:path repository:searched ],
         [ sh:datatype xsd:string ;
             sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
@@ -26,11 +37,6 @@ repository:RepositoryOptions a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path <https://w3id.org/data-director/schema_class> ],
-        [ sh:datatype xsd:string ;
-            sh:description "Mandated repositories, and repositories the data management plan names or the researcher asked about, for which no single registry record was found." ;
-            sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path repository:not_found ],
         [ sh:class repository:RepositoryCandidate ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 1 ;
@@ -63,17 +69,17 @@ repository:RepositoryCandidate a sh:NodeShape ;
             sh:minCount 1 ;
             sh:order 3 ;
             sh:path repository:commercial ],
-        [ sh:datatype xsd:float ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path repository:score ],
         [ sh:datatype xsd:string ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 9 ;
             sh:path repository:rationale ],
+        [ sh:datatype xsd:float ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path repository:score ],
         [ sh:datatype xsd:string ;
             sh:description "Why a recommended repository is on the shortlist and in its place, one sentence per ranking signal: the themes and kinds of data it matches, whether it is a generalist, run by the researcher's institution, or lacks the access the data needs. Empty when mandated, and for a repository in the plan or asked about that the shortlist did not rank." ;
             sh:nodeKind sh:Literal ;
@@ -133,6 +139,23 @@ repository:SearchedSummary a sh:NodeShape ;
             sh:order 3 ;
             sh:path repository:candidates_qualifying ] ;
     sh:targetClass repository:SearchedSummary .
+
+repository:UnlistedRepository a sh:NodeShape ;
+    rdfs:comment "A repository named in the needs, mandated, in the data management plan or asked about, that re3data does not list, such as many an institution's own repository or a local archive. It is shown with the reason it was named, so the researcher still sees it, but nothing is said about it: there is no record to read its terms, fees or identifiers from." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:in ( "mandated" "asked_about" "in_plan" "recommended" "chosen" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 1 ;
+            sh:path repository:basis ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path schema1:name ] ;
+    sh:targetClass repository:UnlistedRepository .
 
 <https://w3id.org/data-director/GroundingRef> a sh:NodeShape ;
     rdfs:comment "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (docs/specs/grounding.md). The linter matches every GroundingRef against a retrieval span on both fields." ;

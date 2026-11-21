@@ -163,6 +163,51 @@ def test_once_a_commitment_is_confirmed_the_plan_is_not_said_to_be_unread() -> N
     assert "not been read" not in text
 
 
+READERS = [
+    {"agent_id": "orchestrator", "grounding_mode": "delegation", "title": "Director"},
+    {
+        "agent_id": "advisor.documentation",
+        "grounding_mode": "input_only",
+        "title": "Documentation Editor",
+        "reads_attached": "to suggest answers to a README's questions",
+    },
+    {"agent_id": "advisor.policy", "grounding_mode": "retrieval", "title": "Policy Adviser"},
+]
+
+
+def test_the_documents_note_says_which_agents_read_attached_text_and_which_cannot() -> None:
+    """#1326: the Policy Adviser reads only web addresses, so the model must not imply it used an
+    attached policy."""
+    message = Message(
+        message_text="Check my funder's policy",
+        project_title_by_researcher=True,
+        project_title="P",
+        project_documentation=[PLAN],
+    )
+    text = conversation(message, 0, READERS)[-1]["content"]
+    assert (
+        "Their text is read only by the Documentation Editor "
+        "(to suggest answers to a README's questions)." in text
+    )
+    assert "Every other agent (the Policy Adviser) cannot read them." in text
+    assert "Director" not in text
+
+
+def test_when_no_agent_reads_attached_text_the_note_says_so() -> None:
+    message = Message(
+        message_text="Check my funder's policy",
+        project_title_by_researcher=True,
+        project_title="P",
+        project_documentation=[PLAN],
+    )
+    text = conversation(message, 0, READERS[2:])[-1]["content"]
+    assert "No agent in this deployment reads their text" in text
+
+
+def test_the_prompt_says_never_to_imply_an_agent_used_a_document_it_cannot_read() -> None:
+    assert "Never imply that an agent used a document it cannot read" in SYSTEM_PROMPT
+
+
 def test_without_documents_there_is_no_documents_note() -> None:
     bare = Message(message_text="Hello", project_title_by_researcher=True, project_title="P")
     assert "attached to the project" not in current(bare)

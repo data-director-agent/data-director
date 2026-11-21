@@ -1,0 +1,36 @@
+{
+  "identity": {
+    "agent_id": "advisor.repository",
+    "aliases_sha256": "b0d81e1e25cc0e706a73433564c6919d9a02f51fba5db69b8576a0f0d71b31e6",
+    "cases_sha256": "c386d47fa58a47101f956769191b2f94474eb3c40309e42bb0ef037376218ee3",
+    "configuration": {},
+    "git_revision": "70029fa095e0d67429eac418e86c819409ab6276",
+    "ranking_sha256": "f8d18f3e623a7b3cf981b2b15835dbc3d9d226ed4809cd1d290954936d1aac3f",
+    "re3data_snapshot_sha256": "37e4ce9d248a72765357d5d14d966f7ac55eb9b9cd2160f442f305fe17acfcbd",
+    "spec_version": "0.1.0-alpha"
+  },
+  "scores": {
+    "dataset-f-plan-confirmed": {
+      "grounding_passed": 1.0,
+      "outcome_matches": 1.0,
+      "plan_repositories_shown": 1.0,
+      "shortlist_kept": 1.0,
+      "stopped_correctly": 1.0
+    },
+    "dataset-f-plan-unconfirmed": {
+      "grounding_passed": 1.0,
+      "outcome_matches": 1.0,
+      "plan_repositories_shown": null,
+      "shortlist_kept": 1.0,
+      "stopped_correctly": 1.0
+    },
+    "dataset-f-plan-without-shortlist": {
+      "grounding_passed": 1.0,
+      "outcome_matches": 1.0,
+      "plan_repositories_shown": 1.0,
+      "shortlist_kept": null,
+      "stopped_correctly": 1.0
+    }
+  },
+  "task": "repository_shortlist"
+}

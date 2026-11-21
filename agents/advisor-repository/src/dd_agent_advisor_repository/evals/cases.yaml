@@ -1,0 +1,75 @@
+# The repository advisor's evaluation cases (docs/specs/evaluation.md; #1334).
+#
+# SOURCE. Dataset F of data-director-agent/sample-data ("Mill Voices", an oral-history archive),
+# at commit d350ea6. The themes and kinds of data are read from its inventory and its data
+# management plan (`grant/dmp.md`), whose section 4 says: audio masters, transcripts and the
+# image archive "will be deposited in the Wharfedale Research Data Repository and a copy offered
+# to the Netherbrook Local Studies Archive". Both are fictional, so re3data lists neither, as
+# re3data does not list many an institution's or a local archive's repository. The depositor is
+# affiliated with the fictional Wharfedale University. Every name is the dataset's own invention.
+#
+# bases: the needs each case starts from, as `RepositoryNeeds` without `project_decisions`.
+# plan: the sharing commitments of the plan, as a researcher confirmed them. Each is sent as a
+#   `sharing_commitment` project fact, as the conductor gives confirmed ones in a project; outside
+#   a project it leaves them as sent (dd_harness.project_facts).
+#
+# cases:
+#   id, base     the case and the needs it starts from
+#   commitments  which of `plan`'s commitment sets are confirmed (none if absent)
+#   expect:
+#     status, reason_code   the outcome (reason_code optional)
+#     in_plan               each repository the plan names, which the researcher must see as
+#                           "In your plan", whether or not re3data lists it: in the payload, or
+#                           named in the statement where the advisor stops
+#     shortlist             true where a shortlist is still expected beside what the plan names:
+#                           a plan's repository adds to the shortlist and removes nothing
+
+bases:
+  dataset-f:
+    themes: [oral history]
+    data_kinds: [audio recordings, interview transcripts, photographs]
+    access: open
+    affiliation: {name: Wharfedale University}
+    country: GBR
+  # The same plan with nothing to search for: no theme, kind of data or affiliation given, as when
+  # a researcher asks only about the repositories their plan names.
+  plan-only: {}
+
+quote: &quote >-
+  At the end of the project, audio masters, transcripts and the image archive will be deposited
+  in the Wharfedale Research Data Repository and a copy offered to the Netherbrook Local Studies
+  Archive, the local authority archive for the valley.
+
+plan:
+  # One commitment per destination, each with the repository in its subject, as the plan checker
+  # reads the plan's single sentence (dd_agent_advisor_dmp.read_plan).
+  separate:
+    - subject: Audio masters, transcripts and image archive (Wharfedale Research Data Repository)
+      repository: Wharfedale Research Data Repository
+    - subject: Audio masters, transcripts and image archive (Netherbrook Local Studies Archive)
+      repository: Netherbrook Local Studies Archive
+
+cases:
+  # The smoke test as run: the plan attached but not confirmed, so nothing of it reaches the
+  # advisor, which shortlists from re3data alone.
+  - id: dataset-f-plan-unconfirmed
+    base: dataset-f
+    expect: {status: succeeded, shortlist: true}
+
+  - id: dataset-f-plan-confirmed
+    base: dataset-f
+    commitments: separate
+    expect:
+      status: succeeded
+      shortlist: true
+      in_plan: [Wharfedale Research Data Repository, Netherbrook Local Studies Archive]
+
+  # A succeeded payload must rest on a record retrieved (docs/specs/grounding.md, G2), and re3data
+  # lists neither repository, so the advisor stops; the plan's repositories must still be named.
+  - id: dataset-f-plan-without-shortlist
+    base: plan-only
+    commitments: separate
+    expect:
+      status: abstained
+      reason_code: no_candidates_retrieved
+      in_plan: [Wharfedale Research Data Repository, Netherbrook Local Studies Archive]

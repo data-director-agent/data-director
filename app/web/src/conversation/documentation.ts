@@ -13,6 +13,7 @@
  */
 
 import { RunRefused, json } from "../http";
+import { type AgentView, agentName } from "../manifest/normalise";
 
 /** The media types a project keeps as documentation, by the file extensions that name them. */
 const MEDIA_TYPES: Record<string, string> = {
@@ -199,4 +200,36 @@ function toBase64(bytes: Uint8Array): string {
     binary += String.fromCharCode(...bytes.subarray(at, at + 0x8000));
   }
   return btoa(binary);
+}
+
+/** An agent that reads the text of an attached document, and what it reads it for. */
+export interface DocumentReader {
+  name: string;
+  /** Completes "<name> reads its text …" ("to suggest answers…"). */
+  readsAttached: string;
+}
+
+/** The agents that read an attached document's text, and the names of those that do not. */
+export interface DocumentReaders {
+  readers: DocumentReader[];
+  others: string[];
+}
+
+/** Who in this deployment reads an attached document's text, as each agent's card declares
+ * (`reads_attached`, #1326), and the names of the other agents, which are told only its name, type
+ * and size. Only agents the profile permits count; the orchestrator is left out of both, since
+ * the conversation, not an agent, is where the researcher attaches it. */
+export function documentReaders(
+  agents: readonly Pick<AgentView, "id" | "title" | "readsAttached" | "gate">[],
+  orchestratorId: string | null,
+): DocumentReaders {
+  // A persona is named as a researcher would say it ("the Policy Adviser"); an agent without one by its id.
+  const named = (a: Pick<AgentView, "id" | "title">) => (a.title ? `the ${a.title}` : agentName(a));
+  const enabled = agents.filter((a) => a.gate.kind !== "not-permitted" && a.id !== orchestratorId);
+  return {
+    readers: enabled
+      .filter((a) => a.readsAttached)
+      .map((a) => ({ name: named(a), readsAttached: a.readsAttached })),
+    others: enabled.filter((a) => !a.readsAttached).map(named),
+  };
 }

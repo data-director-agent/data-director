@@ -107,6 +107,12 @@ class AgentSpec:
     # docs/specs/agents.md). The profile grants servers; a call to one not declared here is
     # refused. Empty: it calls none.
     tools: tuple[ToolUse, ...] = ()
+    # What the agent does with the text of the documents a researcher attaches to a project, as a
+    # phrase completing "<title> reads its text …" ("to suggest answers to a README's
+    # questions"), so that a client can say, when a document is attached, which agents read it
+    # (#1326, docs/specs/agents.md). Empty: the agent does not read attached documents, even if
+    # an input class it accepts is given them.
+    reads_attached: str = ""
 
     def __post_init__(self) -> None:
         unknown = sorted(set(self.serves) - STEPS)
@@ -143,6 +149,13 @@ class AgentSpec:
         if len(set(servers)) != len(servers):
             raise SpecError(f"agent {self.agent_id!r} declares a tool server twice")
         check_icon(self.agent_id, self.icon)
+        if self.reads_attached and not any(
+            "project_documents" in (c.json_schema.get("properties") or {}) for c in self.accepts
+        ):
+            raise SpecError(
+                f"agent {self.agent_id!r} says it reads attached documents, but no class it "
+                "accepts is given them (project_documents, docs/specs/projects.md)"
+            )
 
     def default_settings(self) -> dict[str, str]:
         """Each setting's default: what applies where the profile sets none."""
@@ -197,6 +210,7 @@ def describe(spec: AgentSpec) -> dict[str, Any]:
         "serves": list(spec.serves),
         "title": spec.title,
         "icon": spec.icon,
+        "reads_attached": spec.reads_attached,
         "settings": {
             name: {
                 "choices": list(s.choices),
@@ -257,6 +271,10 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
     if not isinstance(serves, list | tuple):
         raise SpecError(f"agent {agent_id!r}: serves is not a list")
     title, icon = _persona(agent_id, entry)
+    # `reads_attached` may be absent: a card written before #1326 reads no attached document.
+    reads_attached = entry.get("reads_attached") or ""
+    if not isinstance(reads_attached, str):
+        raise SpecError(f"agent {agent_id!r}: reads_attached is not a string")
     # `settings` may be absent: a card written before docs/specs/policy-and-identity.md offers none.
     try:
         settings = {
@@ -291,6 +309,7 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
         settings=settings,
         skills=skills,
         tools=tools,
+        reads_attached=reads_attached,
     )
 
 

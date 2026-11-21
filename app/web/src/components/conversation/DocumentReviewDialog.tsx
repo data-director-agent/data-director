@@ -16,6 +16,10 @@
  *
  * A message carries one document, so where one is already attached the dialog says, before the
  * researcher decides, that attaching this one replaces it (#1170).
+ *
+ * Which agents read its text is said here, from what each agent's card declares
+ * (`documentReaders`), and so are the agents that do not, so that nobody attaches a policy
+ * believing an agent that reads only web addresses will use it (#1326).
  */
 
 import "./DocumentReviewDialog.css";
@@ -28,10 +32,31 @@ import {
   checkDocument,
   DOCUMENT_GUIDE,
   type DocumentCheck,
+  type DocumentReader,
+  type DocumentReaders,
   describeSize,
   findingWords,
 } from "../../conversation/documentation";
 import { ReviewDialog } from "../ui/ReviewDialog";
+
+/** "A, B and C". */
+function listed(names: readonly string[]): string {
+  return names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+}
+
+/** `text` with its first letter capitalised, to start a sentence. */
+function opening(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** Which agents read the document's text and for what, and which are told only of it. */
+function whoReads(readers: readonly DocumentReader[], others: readonly string[]): string {
+  const told = "told only its name, type and size, and cannot use its text";
+  if (readers.length === 0) return `No agent in this deployment reads its text: each is ${told}.`;
+  const reading = listed(readers.map((r, i) => `${r.name} reads ${i === 0 ? "its text" : "it"} ${r.readsAttached}`));
+  if (others.length === 0) return `${opening(reading)}.`;
+  return `${opening(reading)}. ${opening(listed(others))} ${others.length === 1 ? "is" : "are"} ${told}.`;
+}
 
 type Checked = { state: "checking" } | { state: "failed"; why: string } | ({ state: "done" } & DocumentCheck);
 
@@ -60,6 +85,7 @@ export function DocumentReviewDialog({
   replaces,
   onAttach,
   onDiscard,
+  readers = { readers: [], others: [] },
   check = checkDocument,
 }: {
   /** The document read from the file, not yet attached; null when there is none to check. */
@@ -68,6 +94,8 @@ export function DocumentReviewDialog({
   replaces?: string | undefined;
   onAttach: (attached: AttachedDocument) => void;
   onDiscard: () => void;
+  /** The agents that read its text and the other agents, by name (`documentReaders`). */
+  readers?: DocumentReaders;
   /** How the text is checked; the server's check unless a test gives another. */
   check?: typeof checkDocument;
 }) {
@@ -109,11 +137,9 @@ export function DocumentReviewDialog({
             )}
             <p>
               <strong>{pending.name}</strong> ({describeSize(pending.size)}) will be stored in the
-              project, where anyone working on the project can read it. The Documentation Editor
-              reads its text to suggest answers to a README's or data dictionary's questions,
-              which you then confirm or correct; other agents are told only its name, type and
-              size. Its text goes to an AI model hosted outside your institution only if this
-              deployment allows that.
+              project, where anyone working on the project can read it.{" "}
+              {whoReads(readers.readers, readers.others)} Its text goes to an AI model hosted
+              outside your institution only if this deployment allows that.
             </p>
             <p>
               Attach documents <em>about</em> your data, such as a protocol or a codebook, never

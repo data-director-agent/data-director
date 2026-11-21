@@ -56,6 +56,12 @@ policy:PolicyContext a sh:NodeShape ;
             sh:order 14 ;
             sh:path <https://w3id.org/data-director/licence_id> ],
         [ sh:datatype xsd:string ;
+            sh:description "For a sharing commitment, the repository the plan committed to share the output in, as the plan names it; absent where it names none. A plan that names several for one output gives a sharing commitment for each." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 15 ;
+            sh:path <https://w3id.org/data-director/commitment_repository> ],
+        [ sh:datatype xsd:string ;
             sh:description "The kind of check that raised the fact, in the checking agent's words, such as duplicate, system_file or third_party. Kept as it was given; the core does not enumerate it." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -167,13 +173,7 @@ policy:PolicyContext a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 18 ;
-            sh:path <https://w3id.org/data-director/commitment_quote> ],
-        [ sh:datatype xsd:string ;
-            sh:description "For a sharing commitment, the repository the plan committed to share the output in, as the plan names it; absent where it names none." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 15 ;
-            sh:path <https://w3id.org/data-director/commitment_repository> ] ;
+            sh:path <https://w3id.org/data-director/commitment_quote> ] ;
     sh:targetClass <https://w3id.org/data-director/ProjectFact> .
 
 policy:Actor a sh:NodeShape ;

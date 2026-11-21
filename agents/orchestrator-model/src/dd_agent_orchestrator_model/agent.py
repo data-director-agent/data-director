@@ -64,11 +64,11 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from dd_agent_orchestrator_model.notes import inventory_note, record_notes
+from dd_agent_orchestrator_model.notes import inventory_note, progress_note, record_notes
 from dd_agent_orchestrator_model.own_tools import ENTRY_TOOL as ENTRY_TOOL
 from dd_agent_orchestrator_model.own_tools import ENTRY_TOOL_DEFINITION as ENTRY_TOOL_DEFINITION
 from dd_agent_orchestrator_model.own_tools import NAME_TOOL as NAME_TOOL
@@ -115,8 +115,7 @@ from dd_sdk.model import (
     ToolSpec,
     call,
 )
-from dd_sdk.process_flow import entry as flow_entry
-from dd_sdk.process_flow import progress, requirements_of, suggested_next
+from dd_sdk.process_flow import requirements_of
 from dd_sdk.prompts import ModelCallLog
 
 AGENT_ID = "orchestrator.model"
@@ -215,7 +214,9 @@ def _integral(value: Any) -> Any:
     return value
 
 
-def conversation(message: Message, history_turns: int) -> list[dict[str, Any]]:
+def conversation(
+    message: Message, history_turns: int, manifest: Sequence[Mapping[str, Any]] = ()
+) -> list[dict[str, Any]]:
     """The messages sent to the model: the last `history_turns` turns, then the current one.
 
     An agent turn becomes an assistant message. Turns before the first user turn in the window
@@ -235,53 +236,13 @@ def conversation(message: Message, history_turns: int) -> list[dict[str, Any]]:
         for n in (
             inventory_note(message),
             progress_note(message),
-            *record_notes(message),
+            *record_notes(message, manifest),
         )
         if n
     ]
     text = "\n\n".join([*notes, message.message_text])
     messages.append({"role": "user", "content": text})
     return messages
-
-
-def progress_note(message: Message) -> str | None:
-    """What the harness says of where the project is in the process flow, or None outside a
-    project. Names steps by id, as the prompt's flow does, and the suggested next step."""
-    if message.project_progress is None and message.project_entry is None:
-        return None
-    start = flow_entry(message.project_entry) if message.project_entry is not None else None
-    states = {p.step_id: p.step_state.value for p in message.project_progress or []}
-    if start is None:
-        where = (
-            "no entry point has been recorded, so where the researcher is is not known: if they "
-            f"have said, record it with {ENTRY_TOOL}; if not, ask which entry point applies"
-        )
-    elif message.project_entry_by_researcher is False:
-        where = (
-            f"you recorded entry point {start.number} ({start.text}) from what the researcher "
-            "said; they can change it"
-        )
-    else:
-        where = f"the researcher chose entry point {start.number} ({start.text})"
-    by_state = {
-        state: [step_id for step_id, s in states.items() if s == state]
-        for state in ("done", "started", "skipped")
-    }
-    shown = (
-        "; ".join(f"{state}: {', '.join(ids)}" for state, ids in by_state.items() if ids)
-        or "no step is started, done or skipped yet"
-    )
-    suggested = suggested_next(progress(start, states, []), start)
-    if suggested is not None:
-        nxt = f" Suggested next: [{suggested.step.id}]."
-    elif start is None:
-        nxt = " No step is suggested until the entry point is known."
-    else:
-        nxt = " Every step from the entry point is done or skipped."
-    return (
-        f"[From the harness, not the researcher] For this project, {where}. The project record "
-        f"shows {shown}.{nxt}"
-    )
 
 
 @dataclass
@@ -414,7 +375,7 @@ class ModelOrchestrator:
         if may_enter:
             definitions.append(ENTRY_TOOL_DEFINITION)
         return _Turns(
-            messages=list(conversation(message, self.history_turns)),
+            messages=list(conversation(message, self.history_turns, manifest)),
             definitions=definitions,
             tools=tools,
             may_name=may_name,

@@ -36,11 +36,10 @@ replaces in `revises`; a regenerated data dictionary keeps the values the resear
 version.
 
 Every gap is asked (docs/specs/drafting.md): the version carries one `DocumentQuestion` for each
-README section left for the researcher, or each part of one asked part by part, and each
-`unknown` data dictionary cell. A README gap is an
-italic placeholder followed by `<!-- dd:gap <question-id> -->`. A question's identifier is derived
-from its gap, so the same gap is asked under the same identifier in every version. An answer in
-the request's `draft_answers` is placed, as given, in the gap it answers and marked `supplied`.
+README section, or part of one asked part by part, left for the researcher, and each `unknown` data
+dictionary cell. A README gap is an italic placeholder followed by `<!-- dd:gap <question-id> -->`.
+A question's identifier is derived from its gap, so the same gap is asked under the same identifier
+in every version. An answer in the request's `draft_answers` goes, as given, in its gap, `supplied`.
 """
 
 from __future__ import annotations
@@ -191,6 +190,7 @@ class DocumentationEditor:
             ),
         },
         serves=("preparation.documentation",),
+        reads_attached="to suggest answers to a draft's questions, for you to confirm or correct",
     )
 
     def __init__(self, sections: list[Section] | None = None, writer: Writer | None = None) -> None:

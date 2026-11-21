@@ -10,7 +10,7 @@ lines = 751
 
 [[file]]
 path = "agents/orchestrator-model/src/dd_agent_orchestrator_model/agent.py"
-lines = 567
+lines = 528
 
 [[file]]
 path = "app/web/src/components/inventory/InventoryView.tsx"

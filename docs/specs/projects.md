@@ -129,7 +129,9 @@ intended design, and each part says where it is not built yet.
    22; #1280). A `DraftRequest`'s `project_documents` are the documents a researcher attached, each with its
    text, replacing what the caller sent. An agent's own input class asks for the same by mixing
    in `GivenProjectDocuments` (`project_documents`), `GivenProjectDecisions`
-   (`project_decisions`) or `GivenProjectRepository` (`project_repository`): where the accepted schema on the agent's card declares the slot, the
+   (`project_decisions`) or `GivenProjectRepository` (`project_repository`); an agent that reads
+   the documents it is given also says so in its card's `reads_attached` ([Agents](agents.md),
+   invariant 12): where the accepted schema on the agent's card declares the slot, the
    conductor fills it as it fills a `DraftRequest`'s, by slot name and never by the class's name,
    and outside a project what the caller sent is kept, as for a `DraftRequest`
    (`dd_harness.project_facts.agent_slots`, `harness/tests/test_project_agent_inputs.py`,
@@ -343,7 +345,8 @@ intended design, and each part says where it is not built yet.
     whether a sensitive field or file may be published (`publish` or `generalise`, at a
     precision, `withhold`, or `undecided`), the licence, or a sharing commitment a data
     management plan makes (`sharing_commitment`: the output, where, how openly and under what
-    licence, with the plan's own words in `commitment_quote` and the digest of the attached
+    licence, one repository to a commitment, so that a plan naming several for one output gives
+    a commitment for each, its subject carrying the repository, with the plan's own words in `commitment_quote` and the digest of the attached
     document's text that holds them in `commitment_document`, both required). A succeeded run's proposals are
     `fact_proposed` events, one each, caused by the run and naming its agent, from a payload of
     any class (`dd_harness.project_effects`); they are checked before anything is written and

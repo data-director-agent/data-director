@@ -224,8 +224,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     `GET /api/projects/{id}/documentation/{digest}?original` serves the file a document was read
     from. A text or Markdown document is read in the browser, refused there if it is empty or over 256 KB,
     and first opened to be checked: a dialog shows its name, size and text, says that it will be
-    stored in the project, that the Documentation Editor reads its text to suggest answers and
-    other agents are told only its name, type and size ([Projects](projects.md)), and
+    stored in the project, which of the deployment's agents read its text and what for, as each
+    card's `reads_attached` declares, and that the others are told only its name, type and size
+    and cannot use its text ([Agents](agents.md), invariant 12; #1326), and
     that it must be about the data, never the data themselves nor anything that identifies a
     person. The dialog also shows what `POST /api/documentation/check` finds in the text:
     possible personal data, by the inventory command's detector, and secrets, by detect-secrets'

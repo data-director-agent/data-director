@@ -29,6 +29,7 @@
           "icon": "",
           "models": [],
           "payload": "Findings",
+          "reads_attached": "",
           "schemas": {
             "Findings": {
               "digest": "a7d5da442bfd094784f8c02c53cb504850438064740d4953d51eabc4fbdf116a",

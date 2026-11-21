@@ -37,6 +37,7 @@ export function AgentSpecView({ spec, withIdentity = false }: { spec: AgentSpec;
           ),
         ],
         ["serves", spec.serves.length ? <Chips key="serves" items={spec.serves} /> : null],
+        ["reads attached documents", spec.readsAttached || null],
         [
           "skills",
           spec.skills.length ? (

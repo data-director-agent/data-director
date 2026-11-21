@@ -93,6 +93,9 @@ class RawManifestEntry(ResponseBody):
     """The persona's name as a researcher sees it; empty for none."""
     icon: str
     """The persona's icon, one emoji; empty for none."""
+    reads_attached: str
+    """What it reads the text of attached documents for, completing "<title> reads its text …";
+    empty when it does not read them (#1326)."""
     settings: dict[str, AgentSetting]
     skills: list[contract.RawSkillUse]
     tools: list[contract.RawToolUse]

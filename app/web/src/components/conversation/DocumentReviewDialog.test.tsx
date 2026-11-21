@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 
-import type { AttachedDocument, DocumentCheck } from "../../conversation/documentation";
+import type { AttachedDocument, DocumentCheck, DocumentReaders } from "../../conversation/documentation";
 import { DocumentReviewDialog } from "./DocumentReviewDialog";
 
 const NOTES: AttachedDocument = {
@@ -166,6 +166,44 @@ describe("DocumentReviewDialog", () => {
       const shown = source(NOTES);
       expect(shown).not.toHaveTextContent("Word document");
       expect(shown).not.toHaveTextContent("PDF");
+    });
+  });
+
+  describe("says which agents read its text, and which do not (#1326)", () => {
+    const shown = (readers: DocumentReaders) => {
+      render(
+        <DocumentReviewDialog
+          pending={NOTES}
+          onAttach={vi.fn()}
+          onDiscard={vi.fn()}
+          readers={readers}
+          check={() => Promise.resolve(NOTHING)}
+        />,
+      );
+      return dialog();
+    };
+
+    it("naming each reader and what it reads it for, and the agents that cannot use it", () => {
+      const text = shown({
+        readers: [
+          { name: "the Documentation Editor", readsAttached: "to suggest answers to a README's questions" },
+          { name: "the Data Management Plan Checker", readsAttached: "to find a plan's commitments" },
+        ],
+        others: ["the Policy Adviser", "the Metadata Librarian"],
+      });
+      expect(text).toHaveTextContent(
+        "The Documentation Editor reads its text to suggest answers to a README's questions and " +
+          "the Data Management Plan Checker reads it to find a plan's commitments.",
+      );
+      expect(text).toHaveTextContent(
+        "The Policy Adviser and the Metadata Librarian are told only its name, type and size, and cannot use its text.",
+      );
+    });
+
+    it("saying so when no agent reads it", () => {
+      const text = shown({ readers: [], others: ["the Policy Adviser"] });
+      expect(text).toHaveTextContent("No agent in this deployment reads its text");
+      expect(text).not.toHaveTextContent("Documentation Editor");
     });
   });
 });
