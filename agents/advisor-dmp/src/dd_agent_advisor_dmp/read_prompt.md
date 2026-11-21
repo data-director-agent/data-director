@@ -5,7 +5,7 @@ You are given one or more documents the researcher attached, each with a number,
 List each output the plan commits to share: a dataset, a collection of files, software, code or models. For each, give:
 
 - `output`: the output, named as the plan names it.
-- `repository`: the repository it commits to share it in, as the plan names it, or null if it names none.
+- `repository`: the repository it commits to share it in, as the plan names it, or null if it names none. If the plan names more than one for the same output, such as an institutional repository and a copy offered to a partner archive, give each, separated by a semicolon and a space ("First Repository; Second Archive").
 - `access`: how openly, such as open, embargoed until a date, on request or restricted, in the plan's words, or null if it says nothing.
 - `licence`: the licence it commits to, as the plan names it, or null if it names none.
 - `document`: the number of the document the commitment is in.

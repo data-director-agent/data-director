@@ -343,7 +343,8 @@ intended design, and each part says where it is not built yet.
     whether a sensitive field or file may be published (`publish` or `generalise`, at a
     precision, `withhold`, or `undecided`), the licence, or a sharing commitment a data
     management plan makes (`sharing_commitment`: the output, where, how openly and under what
-    licence, with the plan's own words in `commitment_quote` and the digest of the attached
+    licence, every repository the plan names for the output in `commitment_repository`, separated
+    by `; `, with the plan's own words in `commitment_quote` and the digest of the attached
     document's text that holds them in `commitment_document`, both required). A succeeded run's proposals are
     `fact_proposed` events, one each, caused by the run and naming its agent, from a payload of
     any class (`dd_harness.project_effects`); they are checked before anything is written and

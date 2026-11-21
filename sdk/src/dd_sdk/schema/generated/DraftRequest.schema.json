@@ -941,7 +941,7 @@
                ]
             },
             "commitment_repository": {
-               "description": "For a sharing commitment, the repository the plan committed to share the output in, as the plan names it; absent where it names none.",
+               "description": "For a sharing commitment, the repository the plan committed to share the output in, as the plan names it; absent where it names none. Where the plan names more than one for the output, each is given, separated by \"; \".",
                "type": [
                   "string",
                   "null"

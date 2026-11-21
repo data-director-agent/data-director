@@ -2843,7 +2843,7 @@ _:c14n75 rdf:first rdf:type ;
 _:c14n76 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
 _:c14n77 sh:datatype xsd:string ;
-	sh:description "For a sharing commitment, the repository the plan committed to share the output in, as the plan names it; absent where it names none." ;
+	sh:description "For a sharing commitment, the repository the plan committed to share the output in, as the plan names it; absent where it names none. Where the plan names more than one for the output, each is given, separated by \"; \"." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 15 ;
