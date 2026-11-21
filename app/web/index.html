@@ -4,6 +4,15 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <!-- Fetch Inter with the app, so that the page is first drawn in it and does not reflow
+         when it arrives (#1328). The same file as main.tsx's import, so it is fetched once. -->
+    <link
+      rel="preload"
+      href="./node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
     <title>Data Director (alpha)</title>
   </head>
   <body>
