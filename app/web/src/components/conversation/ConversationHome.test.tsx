@@ -537,34 +537,18 @@ describe("ConversationHome", () => {
       ).toBeVisible();
     });
 
-    it("says how to make an inventory, and attaches the file chosen at the end", async () => {
+    it("offers Attach a file under the message box but not Make an inventory", async () => {
       await renderHome(withOrchestrator(), fakeApi());
-      await userEvent.click(
-        screen.getByRole("button", { name: "Make an inventory" }),
-      );
-      const dialog = await screen.findByRole("dialog", {
-        name: "Make an inventory",
-      });
+      const form = screen
+        .getByRole("textbox", { name: "What would you like to do?" })
+        .closest("form");
+      if (!form) throw new Error("the message box is in no form");
       expect(
-        within(dialog).getAllByText(/uvx data-director-inventory/).length,
-      ).toBeGreaterThan(0);
-      const input =
-        dialog.querySelector<HTMLInputElement>('input[type="file"]');
-      if (!input) throw new Error("no file input in the dialog");
-      await userEvent.upload(input, file(JSON.stringify(INVENTORY)));
-      await confirm();
-      expect(
-        await screen.findByText(/Inventory: 2 files, made 1 Nov 2026/),
+        within(form).getByRole("button", { name: "Attach a file" }),
       ).toBeVisible();
-      expect(screen.queryByRole("dialog")).toBeNull();
       expect(
-        screen.queryByRole("button", { name: "Make an inventory" }),
+        within(form).queryByRole("button", { name: "Make an inventory" }),
       ).toBeNull();
-      await waitFor(() =>
-        expect(
-          screen.getByRole("textbox", { name: "What would you like to do?" }),
-        ).toHaveFocus(),
-      );
     });
 
     it("says a gateway error may mean the message is still being answered, and reloads", async () => {
