@@ -6,6 +6,8 @@
       "doi": null,
       "name": "ORDA - The University of Sheffield Research Data Catalogue and Repository",
       "re3data_id": "r3d100012124",
+      "registry": "re3data",
+      "repository_id": "r3d100012124",
       "url": "https://orda.shef.ac.uk/"
     },
     {
@@ -13,6 +15,8 @@
       "doi": null,
       "name": "Zenodo",
       "re3data_id": "r3d100010468",
+      "registry": "re3data",
+      "repository_id": "r3d100010468",
       "url": "https://zenodo.org/"
     }
   ],

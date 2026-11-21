@@ -513,6 +513,9 @@
       "ref": {
          "@id": "https://w3id.org/data-director/ref"
       },
+      "repository_id": {
+         "@id": "https://w3id.org/data-director/repository_id"
+      },
       "repository_name": {
          "@id": "https://w3id.org/data-director/repository_name"
       },

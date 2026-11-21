@@ -237,7 +237,7 @@ test("a suggested repository is chosen on the project's Repository tab with the 
   const panel = page.getByRole("region", { name: "Repository" });
   await expect(panel.getByText("orda@v3")).toBeVisible();
   await expect(panel.getByRole("heading", { name: "What Data Director assumes" })).toBeVisible();
-  expect(sent).toEqual([{ re3data_id: suggested.repositories[0]?.re3data_id }]);
+  expect(sent).toEqual([{ repository_id: suggested.repositories[0]?.repository_id }]);
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );

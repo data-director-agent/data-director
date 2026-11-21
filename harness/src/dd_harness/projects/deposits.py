@@ -147,7 +147,7 @@ class DepositRecords(ProjectRules):
     ) -> dict[str, Any]:
         """Record a person's approval to deposit a package in a repository, as a
         `deposit_approved` event carrying `approval`, which names at least the package's
-        `digest` and the repository's `re3data_id`. Returns the event.
+        `digest` and the repository's `repository_id`. Returns the event.
 
         In the project's exclusive section, so two approvals of one package cannot both pass:
         raises `DepositInProgressError` if the log already records an approval of the package
@@ -162,7 +162,7 @@ class DepositRecords(ProjectRules):
                 if (
                     earlier["event"] != DEPOSIT_APPROVED
                     or earlier["digest"] != detail["digest"]
-                    or earlier["re3data_id"] != detail["re3data_id"]
+                    or _repository(earlier) != _repository(detail)
                 ):
                     continue
                 outcome = ended.get(earlier["event_id"])
@@ -197,3 +197,9 @@ class DepositRecords(ProjectRules):
         with self._section(project_id, allow_deleted=True) as section:
             section.append([event])
         return event
+
+
+def _repository(approval: Mapping[str, Any]) -> Any:
+    """The repository an approval names: an approval recorded before repositories had an
+    identifier of their own named re3data's."""
+    return approval.get("repository_id") or approval.get("re3data_id")

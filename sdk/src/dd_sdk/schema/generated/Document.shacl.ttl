@@ -154,21 +154,21 @@ dd:DocumentVersionRef a sh:NodeShape ;
     rdfs:comment "One version of a project document: the document the conductor minted an identifier for, and the version's number within it, counted from 1." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
+    sh:property [ sh:datatype xsd:integer ;
+            sh:description "The number of a version within its document, counted from 1." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:version ],
+        [ sh:datatype xsd:string ;
             sh:description "The identifier the conductor minted for the document, a UUIDv7." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path dd:document_id ;
-            sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ],
-        [ sh:datatype xsd:integer ;
-            sh:description "The number of a version within its document, counted from 1." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path dd:version ] ;
+            sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ] ;
     sh:targetClass dd:DocumentVersionRef .
 
 dd:GroundingRef a sh:NodeShape ;

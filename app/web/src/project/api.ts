@@ -109,12 +109,12 @@ export interface RequiredField {
 }
 
 /**
- * The requirements a chosen repository resolved to (docs/specs/deposit.md): the repository's
- * override, if the deployment has one, merged on its standard's set. Its name and declared
- * standards came from the pinned re3data export, not from anyone typing them.
+ * The requirements a chosen repository resolved to (docs/specs/deposit.md): its override, if any,
+ * merged on its standard's set. Its name and declared standards came from the pinned registry
+ * (re3data's, or DataCite's for one re3data does not list), not from anyone typing them.
  */
 export interface RepositoryRequirements {
-  re3data_id: string;
+  repository_id: string;
   repository_name: string;
   conforms_to: string;
   requirement_sets: { ref: string; sha256: string }[];
@@ -177,7 +177,7 @@ export interface ProjectApi {
   dismissIntake(projectId: string): Promise<ProjectIntake>;
   /** Choose a repository by its re3data identifier; answers with the requirements it resolved
    * to. A change is a new choice, and the last one counts. */
-  chooseRepository(projectId: string, re3dataId: string): Promise<RepositoryRequirements>;
+  chooseRepository(projectId: string, repositoryId: string): Promise<RepositoryRequirements>;
   /** Repositories in the pinned re3data export that `query` names by name, re3data identifier,
    * re3data DOI or URL; with an empty `query`, those the deployment suggests. */
   searchRepositories(query: string, signal?: AbortSignal): Promise<RepositorySearch>;
@@ -323,11 +323,11 @@ export const httpProjectApi: ProjectApi = {
   async dismissIntake(projectId) {
     return parse(await fetch(`${projectPath(projectId)}/intake/dismiss`, post({})));
   },
-  async chooseRepository(projectId, re3dataId) {
+  async chooseRepository(projectId, repositoryId) {
     return parse(
       await fetch(
         `${projectPath(projectId)}/repository`,
-        put({ re3data_id: re3dataId }),
+        put({ repository_id: repositoryId }),
       ),
     );
   },

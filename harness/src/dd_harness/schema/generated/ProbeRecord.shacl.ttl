@@ -9,6 +9,11 @@ doubles:ProbeRecord a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
+            sh:description "Keywords." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path doubles:keywords ],
+        [ sh:datatype xsd:string ;
             sh:description "Who made the thing the record describes." ;
             sh:nodeKind sh:Literal ;
             sh:order 4 ;
@@ -37,11 +42,6 @@ doubles:ProbeRecord a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
-            sh:path doubles:title ],
-        [ sh:datatype xsd:string ;
-            sh:description "Keywords." ;
-            sh:nodeKind sh:Literal ;
-            sh:order 5 ;
-            sh:path doubles:keywords ] ;
+            sh:path doubles:title ] ;
     sh:targetClass doubles:ProbeRecord .
 

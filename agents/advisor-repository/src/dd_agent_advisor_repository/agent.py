@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from dd_agent_advisor_repository import aliases, assess, choose, given, rank
+from dd_agent_advisor_repository import aliases, assess, choose, given, institution, rank
 from dd_agent_advisor_repository.classes import (
     CandidateBasis,
     RepositoryCandidate,
@@ -58,6 +58,8 @@ class _Retrieved:
     def __init__(self, re3data_ref: SnapshotRef) -> None:
         self.re3data_ref = re3data_ref
         self.repositories: dict[str, Re3dataRecord] = {}
+        # The copy each record was read from: re3data's export, or DataCite's snapshot.
+        self.refs: dict[str, SnapshotRef] = {}
         # Each FAIRsharing record with the copy that answered for it: the live route may fail
         # part-way through a run, after which the snapshot answers.
         self.databases: dict[str, tuple[DatabaseRecord, SnapshotRef]] = {}
@@ -71,6 +73,7 @@ class _Retrieved:
 
     def summary(self) -> str:
         refs = [self.re3data_ref.as_string()]
+        refs += sorted({r.as_string() for r in self.refs.values()} - set(refs))
         refs += sorted({ref.as_string() for _, ref in self.databases.values()})
         return "; ".join(refs)
 
@@ -87,8 +90,8 @@ def _lookup(
     `basis` they were named on (`_from_re3data`)."""
     records: list[Re3dataRecord] = []
     for ref in refs:
-        if ref.re3data_id:
-            by_id = source.fetch(ref.re3data_id)
+        if ref.identifier:
+            by_id = source.fetch(ref.identifier)
             found = [by_id] if by_id is not None else []
         else:
             found = source.find(ref.name)
@@ -100,11 +103,11 @@ def _lookup(
         if len(found) != 1:
             named.not_found.append(ref.name)
             if found:
-                got.ambiguous[ref.name] = [n.re3data_id for n in found]
-            elif not ref.re3data_id:
+                got.ambiguous[ref.name] = [n.identifier for n in found]
+            elif not ref.identifier:
                 named.unlisted.append(UnlistedRepository(name=ref.name, basis=basis))
             continue
-        if found[0].re3data_id not in {r.re3data_id for r in records}:
+        if found[0].identifier not in {r.identifier for r in records}:
             records.append(found[0])
     return records
 
@@ -124,14 +127,19 @@ def _shortlist(
         found = source.search(query)
         matches.add(query, found)
         for hit in found[:limit]:
-            hits.setdefault(hit.record.re3data_id, hit.record)
+            hits.setdefault(hit.record.identifier, hit.record)
     for theme in themes:
         filed = [r for c in matches.subjects[theme] for r in source.with_subject(c)]
         for found_record in rank.by_subject(theme, filed, matches):
-            hits.setdefault(found_record.re3data_id, found_record)
+            hits.setdefault(found_record.identifier, found_record)
     for rid in rank.generalists():
         if rid not in hits and (record := source.fetch(rid)) is not None:
             hits[rid] = record
+    # The researcher's institution's repositories that no search by theme finds: those re3data
+    # does not list, and those the profile names (`institution.py`). Ranking offers them beyond
+    # the cap, so they take no other repository's place (#441).
+    for record in source.institutional(needs.affiliation):
+        hits.setdefault(record.identifier, record)
     return matches, hits
 
 
@@ -157,8 +165,15 @@ def _candidate(
     item: Item, score: float | None, reasons: tuple[str, ...], rationale: Rationale
 ) -> RepositoryCandidate:
     grounded = [
-        GroundingRef(source_id=item.record.re3data_id, content_hash=item.record.content_hash())
+        GroundingRef(source_id=item.record.identifier, content_hash=item.record.content_hash())
     ]
+    if isinstance(item.record, institution.Vouched):
+        grounded.append(
+            GroundingRef(
+                source_id=institution.source_id(item.record.entry),
+                content_hash=item.record.vouched_hash(),
+            )
+        )
     if item.database is not None:
         grounded.append(
             GroundingRef(
@@ -179,6 +194,21 @@ def _candidate(
         rationale=rationale.text,
         rationale_derivation=rationale.derivation,
         grounded_on=grounded,
+    )
+
+
+def _vouched(repository: institution.Vouched, now: datetime) -> EvidenceItem:
+    """What the profile vouches for about a repository, cited under the profile's reference."""
+    entry = repository.entry
+    return EvidenceItem(
+        source_id=institution.source_id(entry),
+        source_uri=(entry.guidance or [repository.source_uri])[0],
+        retrieved_at=now,
+        snapshot_ref=entry.profile_ref,
+        hash_algorithm=HASH_ALGORITHM,
+        canonicalisation=DOCUMENT_CANONICALISATION,
+        content_hash=repository.vouched_hash(),
+        content=institution.document(entry),
     )
 
 
@@ -244,34 +274,43 @@ class RepositoryAgent:
         needs = project.needs
         named = choose.Named()
         named.mandated = _lookup(needs.mandated, source, got, named, CandidateBasis.MANDATED)
-        mandated_ids = {r.re3data_id for r in named.mandated}
+        mandated_ids = {r.identifier for r in named.mandated}
         named.in_plan = [
             r
             for r in _lookup(project.in_plan, source, got, named, CandidateBasis.IN_PLAN)
-            if r.re3data_id not in mandated_ids
+            if r.identifier not in mandated_ids
         ]
-        described = mandated_ids | {r.re3data_id for r in named.in_plan}
+        described = mandated_ids | {r.identifier for r in named.in_plan}
         named.asked_about = [
             r
             for r in _lookup(needs.asked_about, source, got, named, CandidateBasis.ASKED_ABOUT)
-            if r.re3data_id not in described
+            if r.identifier not in described
         ]
         if needs.mandated or not rank.queries(needs):
             return named, rank.Matches(), {}
         matches, hits = _shortlist(needs, source)
         return named, matches, hits
 
-    def _collect(self, records: list[Re3dataRecord], got: _Retrieved, ctx: RunContext) -> None:
+    def _collect(
+        self, records: list[Re3dataRecord], got: _Retrieved, ctx: RunContext, source: Repositories
+    ) -> None:
         """Keep the records retrieved, fetch the FAIRsharing records they cross-reference, and
         open one retrieval span per record: this is the evidence the linter matches on."""
         for record in records:
-            got.repositories[record.re3data_id] = record
+            got.repositories[record.identifier] = record
+            got.refs[record.identifier] = source.snapshot_of(record)
         for record in got.repositories.values():
             if record.fairsharing_id and record.fairsharing_id not in got.databases:
                 self._database(record.fairsharing_id, got)
         for rid, repository in got.repositories.items():
             with retrieval_span(ctx.tracer, rid, repository.content_hash()):
                 pass
+            # What the profile vouches for was given in the input, and is cited beside it.
+            if isinstance(repository, institution.Vouched):
+                with retrieval_span(
+                    ctx.tracer, institution.source_id(repository.entry), repository.vouched_hash()
+                ):
+                    pass
         # A FAIRsharing record by its own identifier, as the candidate cites it, not as re3data
         # wrote it (#741).
         for database, _ in got.databases.values():
@@ -313,7 +352,7 @@ class RepositoryAgent:
                 "there was nothing to look up.",
             )
 
-        source = self.repositories
+        source = institution.wrap(self.repositories, needs.institution_repositories)
         try:
             got = _Retrieved(source.snapshot_ref())
             named, matches, hits = self._from_re3data(project, source, got)
@@ -323,7 +362,7 @@ class RepositoryAgent:
                 f"re3data could not be read: {exc}. This is not an empty result.",
             )
         self._collect(
-            [*named.mandated, *named.in_plan, *named.asked_about, *hits.values()], got, ctx
+            [*named.mandated, *named.in_plan, *named.asked_about, *hits.values()], got, ctx, source
         )
 
         # The shortlist's queries; none when a mandate replaces the shortlist.
@@ -394,13 +433,15 @@ class RepositoryAgent:
                         source_id=rid,
                         source_uri=repository.source_uri,
                         retrieved_at=now,
-                        snapshot_ref=got.re3data_ref.as_string(),
+                        snapshot_ref=got.refs[rid].as_string(),
                         hash_algorithm=HASH_ALGORITHM,
                         canonicalisation=DOCUMENT_CANONICALISATION,
                         content_hash=repository.content_hash(),
                         content=repository.document(),
                     )
                 )
+            if isinstance(repository, institution.Vouched):
+                out.append(_vouched(repository, now))
         # Keyed by the record's own identifier, which the candidate grounds on: re3data may cite
         # it in another case (FAIRsharing.d6pe1f for FAIRsharing.d6Pe1f, #741).
         for _, (database, ref) in sorted(got.databases.items()):

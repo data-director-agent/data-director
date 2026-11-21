@@ -66,6 +66,7 @@ from opentelemetry.trace import SpanContext
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 from dd_harness import (
+    agent_input,
     grounding,
     model_accounts,
     pipeline,
@@ -384,10 +385,9 @@ class Conductor:
         if facts is None and self.projects is not None and in_project is not None:
             facts = self.projects.snapshot(in_project)
         sent = to_document(request.input)
-        # A profile that refuses attached documents has no agent given any (projects.md).
-        documents = not self.profile.refuses_documents
+        # What the project, and the profile, give the agent (`agent_input.give`).
         spec = self._spec_of(request.agent_id)  # an agent's own class may ask for facts by slot
-        filled = project_facts.give(facts, in_project, sent, documents=documents, spec=spec)
+        filled = agent_input.give(self.profile, facts, in_project, sent, spec)
         given = project_facts.given(facts, in_project, filled)
         # Researcher facts, a `Message`'s decided facts and a draft's attached documents that the
         # profile keeps from this agent's hosted model are left out, not refused

@@ -21,7 +21,7 @@ repository:RepositoryOptions a sh:NodeShape ;
             sh:order 3 ;
             sh:path repository:not_found ],
         [ sh:class repository:UnlistedRepository ;
-            sh:description "The repositories named (mandated, in the data management plan or asked about) that re3data lists under no name, each with the reason it was named. A name that several records bear is not here but in not_found, with a request for the identifier." ;
+            sh:description "The repositories named (mandated, in the data management plan or asked about) that neither re3data nor DataCite lists under any name, each with the reason it was named. A name that several records bear is not here but in not_found, with a request for the identifier." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 2 ;
             sh:path repository:unlisted ],
@@ -118,7 +118,12 @@ repository:SearchedSummary a sh:NodeShape ;
     rdfs:comment "What was looked for, so a reader can judge an abstention as well as a recommendation." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
+    sh:property [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path repository:candidates_qualifying ],
+        [ sh:datatype xsd:string ;
             sh:description "Which copies of the registries answered, e.g. re3data:export:2026-11." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -132,16 +137,11 @@ repository:SearchedSummary a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
-            sh:path repository:candidates_retrieved ],
-        [ sh:datatype xsd:integer ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 3 ;
-            sh:path repository:candidates_qualifying ] ;
+            sh:path repository:candidates_retrieved ] ;
     sh:targetClass repository:SearchedSummary .
 
 repository:UnlistedRepository a sh:NodeShape ;
-    rdfs:comment "A repository named in the needs, mandated, in the data management plan or asked about, that re3data does not list, such as many an institution's own repository or a local archive. It is shown with the reason it was named, so the researcher still sees it, but nothing is said about it: there is no record to read its terms, fees or identifiers from." ;
+    rdfs:comment "A repository named in the needs, mandated, in the data management plan or asked about, that neither re3data nor DataCite lists, such as a local archive that mints no DataCite DOIs. It is shown with the reason it was named, so the researcher still sees it, but nothing is said about it: there is no record to read its terms, fees or identifiers from." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:in ( "mandated" "asked_about" "in_plan" "recommended" "chosen" ) ;

@@ -183,21 +183,31 @@
       },
       "ChosenRepository": {
          "additionalProperties": false,
-         "description": "The repository a researcher chose to deposit the project's data in, from the shortlist, by its re3data identifier: the conductor fills it into a Message, and into the input of an agent that mixes in GivenProjectRepository, so that the agent knows a repository is chosen and which (docs/specs/projects.md). The last choice stands until a researcher chooses again.",
+         "description": "The repository a researcher chose to deposit the project's data in, from the shortlist, by the identifier of the registry that lists it: the conductor fills it into a Message, and into the input of an agent that mixes in GivenProjectRepository, so that the agent knows a repository is chosen and which (docs/specs/projects.md). The last choice stands until a researcher chooses again.",
          "properties": {
             "chosen_repository_name": {
                "description": "The chosen repository's name, as the pinned re3data export gives it.",
                "type": "string"
             },
+            "chosen_repository_id": {
+               "description": "The chosen repository's identifier: its re3data identifier, such as r3d100010468, where re3data lists it, else its DataCite repository identifier, such as bl.york. The conductor always gives it; a caller that sends only chosen_re3data_id has it given from that.",
+               "pattern": "^(r3d[0-9]{9}|[a-z0-9]+\\.[a-z0-9.-]+)$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
             "chosen_re3data_id": {
-               "description": "The chosen repository's re3data identifier, such as r3d100010468.",
+               "description": "The chosen repository's re3data identifier, such as r3d100010468, where it has one.",
                "pattern": "^r3d[0-9]{9}$",
-               "type": "string"
+               "type": [
+                  "string",
+                  "null"
+               ]
             }
          },
          "required": [
-            "chosen_repository_name",
-            "chosen_re3data_id"
+            "chosen_repository_name"
          ],
          "title": "ChosenRepository",
          "type": "object"
@@ -1311,6 +1321,24 @@
          "title": "FindingTarget",
          "type": "string"
       },
+      "GivenInstitutionRepositories": {
+         "additionalProperties": false,
+         "description": "Mixed into an agent's own input class when the agent reads the repositories the deployment's profile names as its institution's. The conductor fills institution_repositories by this name from the profile, in a project or not, and never needs to know the input class; whatever a caller sent there is replaced.",
+         "properties": {
+            "institution_repositories": {
+               "description": "The repositories the deployment's profile names as its institution's, filled by the conductor from the profile and never by the caller. Absent when the profile names none.",
+               "items": {
+                  "$ref": "#/$defs/InstitutionRepository"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            }
+         },
+         "title": "GivenInstitutionRepositories",
+         "type": "object"
+      },
       "GivenProjectDecisions": {
          "additionalProperties": false,
          "description": "Mixed into an agent's own input class when the agent reads the facts people decided about the project. In a project the conductor fills project_decisions by this name, as for a DraftRequest, and never needs to know the input class (docs/specs/projects.md, invariant 6); outside one, the caller sends them.",
@@ -1439,6 +1467,81 @@
             "schema_class"
          ],
          "title": "Input",
+         "type": "object"
+      },
+      "InstitutionRepository": {
+         "additionalProperties": false,
+         "description": "One repository the deployment's profile names as its institution's (the profile's institution_repositories, docs/specs/policy-and-identity.md). It names a registry's record by repository_id and adds only what the deployment vouches for that no registry holds: the conductor fills it into the input of an agent that mixes in GivenInstitutionRepositories.",
+         "properties": {
+            "repository_id": {
+               "description": "A repository's identifier in the registry that lists it: its re3data identifier, such as r3d100012124, where re3data lists it, else its DataCite repository identifier, such as bl.york. An override names it in place of re3data_id for a repository re3data does not list.",
+               "pattern": "^(r3d[0-9]{9}|[a-z0-9]+\\.[a-z0-9.-]+)$",
+               "type": "string"
+            },
+            "profile_ref": {
+               "description": "The reference of the profile that vouches for the facts, as profile:<id>@v<version>; an agent cites them under it.",
+               "pattern": "^profile:\\S+@v[0-9]+$",
+               "type": "string"
+            },
+            "institution_name": {
+               "description": "The institution whose repository it is, where the registry names another operator, such as a consortium or a platform.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "institution_ror": {
+               "description": "That institution's ROR identifier, as a URL.",
+               "format": "uri",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "data_access_types": {
+               "description": "The access the repository offers, as re3data names it (open, embargoed, restricted, closed).",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "data_licences": {
+               "description": "The licences the repository offers for data, as SPDX identifiers or URLs.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "charges_deposit_fee": {
+               "description": "Whether the repository charges a fee to deposit. Unlike re3data, a deployment may say it charges none.",
+               "type": [
+                  "boolean",
+                  "null"
+               ]
+            },
+            "guidance": {
+               "description": "The pages the deployment checked the facts it vouches for against.",
+               "items": {
+                  "format": "uri",
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "repository_id",
+            "profile_ref"
+         ],
+         "title": "InstitutionRepository",
          "type": "object"
       },
       "IntakeAnswer": {
@@ -2945,10 +3048,21 @@
          "additionalProperties": false,
          "description": "The requirements of the repository a researcher chose: its standard's set with the repository's override, if there is one, merged on top (ADR-0038 decision 2). The harness makes it when the choice is recorded, keeps it among the project's blobs, gives it to the drafters and checks the project against it. Not a set of the deployment's configuration, so it has no requirement_set_id of its own; requirement_sets names the sets it was merged from.",
          "properties": {
+            "repository_id": {
+               "description": "The repository's identifier, re3data's or DataCite's. A set kept before repositories had an identifier of their own names only re3data_id, which then gives it.",
+               "pattern": "^(r3d[0-9]{9}|[a-z0-9]+\\.[a-z0-9.-]+)$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
             "re3data_id": {
-               "description": "The repository's re3data identifier, such as r3d100012124.",
+               "description": "The repository's re3data identifier, such as r3d100012124, where it has one.",
                "pattern": "^r3d[0-9]{9}$",
-               "type": "string"
+               "type": [
+                  "string",
+                  "null"
+               ]
             },
             "repository_name": {
                "description": "What the researcher calls the repository chosen, such as ORDA.",
@@ -3071,7 +3185,6 @@
             }
          },
          "required": [
-            "re3data_id",
             "repository_name",
             "conforms_to",
             "requirement_sets"
@@ -3171,6 +3284,14 @@
             "re3data_id": {
                "description": "An override only: the repository's re3data identifier, such as r3d100012124.",
                "pattern": "^r3d[0-9]{9}$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "repository_id": {
+               "description": "A repository's identifier in the registry that lists it: its re3data identifier, such as r3d100012124, where re3data lists it, else its DataCite repository identifier, such as bl.york. An override names it in place of re3data_id for a repository re3data does not list.",
+               "pattern": "^(r3d[0-9]{9}|[a-z0-9]+\\.[a-z0-9.-]+)$",
                "type": [
                   "string",
                   "null"

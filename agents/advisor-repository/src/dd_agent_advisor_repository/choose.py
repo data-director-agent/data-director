@@ -63,16 +63,16 @@ def choose(named: Named, ranked: list[rank.Ranked], only_chosen: str | None = No
     reasons, so the researcher can compare it, but stays marked as the plan's or asked about
     rather than recommended. `only_chosen` is the identifier of a repository
     described only because the researcher chose it (`given.basis`)."""
-    by_id = {r.record.re3data_id: r for r in ranked}
+    by_id = {r.record.identifier: r for r in ranked}
     chosen: list[Chosen] = [(r, given.basis(r, only_chosen), None, ()) for r in named.mandated]
     described = [(r, CandidateBasis.IN_PLAN) for r in named.in_plan]
     described += [(r, CandidateBasis.ASKED_ABOUT) for r in named.asked_about]
     for record, basis in described:
-        hit = by_id.pop(record.re3data_id, None)
+        hit = by_id.pop(record.identifier, None)
         score, reasons = (hit.score, hit.reasons) if hit else (None, ())
         chosen.append((record, basis, score, reasons))
     for record in named.mandated:
-        by_id.pop(record.re3data_id, None)
+        by_id.pop(record.identifier, None)
     chosen += [(r.record, CandidateBasis.RECOMMENDED, r.score, r.reasons) for r in by_id.values()]
     return chosen
 
@@ -88,10 +88,10 @@ def unlisted(named: Named) -> str:
     """A sentence for each reason repositories were named that re3data does not list, or
     nothing. They are still the researcher's options; only their terms are not on record."""
     return "".join(
-        f" {label.capitalize()}, but not listed in re3data: "
+        f" {label.capitalize()}, but not listed in re3data or DataCite: "
         f"{', '.join(u.name for u in named.unlisted if u.basis == basis)}. Nothing is said about "
-        "their terms, fees or persistent identifiers, since re3data holds no record of them: "
-        "check with each repository."
+        "their terms, fees or persistent identifiers, since neither registry holds a record of "
+        "them: check with each repository."
         for basis, label in _NAMED_BY.items()
         if any(u.basis == basis for u in named.unlisted)
     )

@@ -17,6 +17,7 @@ from re3data_fixture import FIXTURE, build_fixture, session_registry
 
 from dd_agent_advisor_repository import assess, factory, registry
 from dd_agent_advisor_repository.classes import Affiliation, Answer
+from dd_agent_advisor_repository.datacite import DataciteRegistry, Registries
 from dd_agent_advisor_repository.explain import ModelExplainer, TemplateExplainer
 from dd_agent_advisor_repository.live import FairsharingLive
 from dd_agent_advisor_repository.records import from_fairsharing_json, from_re3data_xml
@@ -327,7 +328,10 @@ def test_downloads_name_the_project_not_a_person() -> None:
 
 def test_the_factory_reads_the_pinned_registry_and_runs_the_template_when_set_to_it() -> None:
     agent = factory.build({factory.SWITCH: "template"})
-    assert isinstance(agent.repositories, Re3dataRegistry)
+    # re3data, and the repositories it does not list from DataCite's snapshot (datacite.py).
+    assert isinstance(agent.repositories, Registries)
+    assert isinstance(agent.repositories.re3data, Re3dataRegistry)
+    assert isinstance(agent.repositories.datacite, DataciteRegistry)
     assert isinstance(agent.explainer, TemplateExplainer)
     assert agent.spec.models == ()
 
@@ -342,7 +346,7 @@ def test_the_model_explainer_is_on_by_default_and_says_how_to_run_without_it() -
 
 def test_live_retrieval_asks_fairsharing_and_keeps_its_snapshot_as_fallback() -> None:
     agent = factory.build({"DD_REPOSITORY_RETRIEVAL": "live", factory.SWITCH: "template"})
-    assert isinstance(agent.repositories, Re3dataRegistry)
+    assert isinstance(agent.repositories, Registries)
     assert isinstance(agent.databases, FairsharingLive)
     assert isinstance(agent.databases_fallback, FairsharingSnapshot)
 

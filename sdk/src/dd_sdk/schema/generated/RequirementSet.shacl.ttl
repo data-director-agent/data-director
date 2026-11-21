@@ -11,37 +11,31 @@ dd:RequirementSet a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
+            sh:description "What a person calls the standard or the repository." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dcterms:title ],
+        [ sh:datatype xsd:string ;
             sh:description "A standard's set only: the metadataStandardName values in re3data that select it." ;
             sh:nodeKind sh:Literal ;
             sh:order 6 ;
             sh:path dd:re3data_names ],
+        [ sh:description "The pages the set's values were taken from, so that a steward can check them; in a merged set, the standard's first, then the override's." ;
+            sh:nodeKind sh:IRI ;
+            sh:order 16 ;
+            sh:path dd:guidance ],
         [ sh:description "Where the standard or the repository is described." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:IRI ;
             sh:order 4 ;
             sh:path schema1:url ],
-        [ sh:datatype xsd:integer ;
-            sh:description "An override only: the largest file the repository accepts, in bytes." ;
-            sh:maxCount 1 ;
+        [ sh:datatype xsd:string ;
+            sh:description "An override only: the media types the repository accepts. Empty means any." ;
             sh:nodeKind sh:Literal ;
             sh:order 12 ;
-            sh:path dd:max_file_size ],
-        [ sh:class dd:DepositConnector ;
-            sh:description "An override only: the API the harness may deposit a draft through. Without it the repository is deposited to by hand." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 17 ;
-            sh:path dd:deposit ],
-        [ sh:datatype xsd:string ;
-            sh:description "What the set's sources leave open, each a short statement naming the issue that will settle it, such as \"Whether ORDA's form makes any other field mandatory (#385)\". Shown to the person depositing; in a merged set, the standard's first, then the override's." ;
-            sh:nodeKind sh:Literal ;
-            sh:order 16 ;
-            sh:path dd:unconfirmed ],
-        [ sh:class dd:RequirementField ;
-            sh:description "The metadata properties the set requires or recommends." ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 8 ;
-            sh:path dd:fields ],
+            sh:path dd:media_types ],
         [ sh:datatype xsd:string ;
             sh:description "An override only: the repository's re3data identifier, such as r3d100012124." ;
             sh:maxCount 1 ;
@@ -51,7 +45,7 @@ dd:RequirementSet a sh:NodeShape ;
             sh:pattern "^r3d[0-9]{9}$" ],
         [ sh:description "The document kinds that must have an approved version before a package is built." ;
             sh:in ( "metadata_record" "readme" "data_dictionary" "dmp" "other" ) ;
-            sh:order 9 ;
+            sh:order 10 ;
             sh:path dd:required_documents ],
         [ sh:datatype xsd:string ;
             sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
@@ -60,6 +54,11 @@ dd:RequirementSet a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path dd:schema_class ],
+        [ sh:datatype xsd:string ;
+            sh:description "An override only: the licences the repository offers, each an SPDX identifier or the URL of the repository's own terms." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 15 ;
+            sh:path dd:licences ],
         [ sh:datatype xsd:integer ;
             sh:description "The version of the set, raised on every change." ;
             sh:maxCount 1 ;
@@ -67,9 +66,14 @@ dd:RequirementSet a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
             sh:path dd:version ],
+        [ sh:class dd:RequirementField ;
+            sh:description "The metadata properties the set requires or recommends." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 9 ;
+            sh:path dd:fields ],
         [ sh:description "The document kinds whose absence is a warning." ;
             sh:in ( "metadata_record" "readme" "data_dictionary" "dmp" "other" ) ;
-            sh:order 10 ;
+            sh:order 11 ;
             sh:path dd:recommended_documents ],
         [ sh:datatype xsd:string ;
             sh:description "Identifies the requirement set, such as datacite-4 or orda." ;
@@ -79,46 +83,55 @@ dd:RequirementSet a sh:NodeShape ;
             sh:order 1 ;
             sh:path dd:requirement_set_id ;
             sh:pattern "^[a-z0-9][a-z0-9-]*$" ],
-        [ sh:datatype xsd:integer ;
-            sh:description "An override only: the largest deposit the repository accepts, in bytes." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 13 ;
-            sh:path dd:max_item_size ],
         [ sh:datatype xsd:string ;
-            sh:description "An override only: the licences the repository offers, each an SPDX identifier or the URL of the repository's own terms." ;
+            sh:description "What the set's sources leave open, each a short statement naming the issue that will settle it, such as \"Whether ORDA's form makes any other field mandatory (#385)\". Shown to the person depositing; in a merged set, the standard's first, then the override's." ;
             sh:nodeKind sh:Literal ;
-            sh:order 14 ;
-            sh:path dd:licences ],
-        [ sh:description "The pages the set's values were taken from, so that a steward can check them; in a merged set, the standard's first, then the override's." ;
-            sh:nodeKind sh:IRI ;
-            sh:order 15 ;
-            sh:path dd:guidance ],
+            sh:order 17 ;
+            sh:path dd:unconfirmed ],
         [ sh:description "The URI of the metadata schema. An override names the standard's set it builds on." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:IRI ;
             sh:order 5 ;
             sh:path dcterms:conformsTo ],
-        [ sh:datatype xsd:string ;
-            sh:description "An override only: the media types the repository accepts. Empty means any." ;
-            sh:nodeKind sh:Literal ;
-            sh:order 11 ;
-            sh:path dd:media_types ],
-        [ sh:datatype xsd:string ;
-            sh:description "What a person calls the standard or the repository." ;
+        [ sh:class dd:DepositConnector ;
+            sh:description "An override only: the API the harness may deposit a draft through. Without it the repository is deposited to by hand." ;
             sh:maxCount 1 ;
-            sh:minCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 18 ;
+            sh:path dd:deposit ],
+        [ sh:datatype xsd:integer ;
+            sh:description "An override only: the largest file the repository accepts, in bytes." ;
+            sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 3 ;
-            sh:path dcterms:title ] ;
+            sh:order 13 ;
+            sh:path dd:max_file_size ],
+        [ sh:datatype xsd:string ;
+            sh:description "A repository's identifier in the registry that lists it: its re3data identifier, such as r3d100012124, where re3data lists it, else its DataCite repository identifier, such as bl.york. An override names it in place of re3data_id for a repository re3data does not list." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 8 ;
+            sh:path dd:repository_id ;
+            sh:pattern "^(r3d[0-9]{9}|[a-z0-9]+\\.[a-z0-9.-]+)$" ],
+        [ sh:datatype xsd:integer ;
+            sh:description "An override only: the largest deposit the repository accepts, in bytes." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 14 ;
+            sh:path dd:max_item_size ] ;
     sh:targetClass dd:RequirementSet .
 
 dd:DepositConnector a sh:NodeShape ;
     rdfs:comment "An override only: how the harness deposits a draft to the repository through its API (docs/specs/deposit.md, Depositing through an API). It holds no credential: each researcher deposits with their own, held outside the app and the harness." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:description "The installation's API root, such as https://sandbox.zenodo.org/api." ;
+    sh:property [ sh:datatype xsd:boolean ;
+            sh:description "Whether base_url is the platform's test installation, whose items and identifiers are not real. The app says so beside the deposit." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dd:sandbox ],
+        [ sh:description "The installation's API root, such as https://sandbox.zenodo.org/api." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:IRI ;
@@ -146,13 +159,7 @@ dd:DepositConnector a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
-            sh:path dd:target ],
-        [ sh:datatype xsd:boolean ;
-            sh:description "Whether base_url is the platform's test installation, whose items and identifiers are not real. The app says so beside the deposit." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 4 ;
-            sh:path dd:sandbox ] ;
+            sh:path dd:target ] ;
     sh:targetClass dd:DepositConnector .
 
 dd:RequirementField a sh:NodeShape ;

@@ -15,8 +15,9 @@ load and that ORDA resolves as intended.
 
 ## Standards and overrides
 
-The researcher may choose any repository in [re3data](https://www.re3data.org/), usually from
-`advisor.repository`'s shortlist. Nobody has to write a file for it first. Its requirements come
+The researcher may choose any repository in [re3data](https://www.re3data.org/), or, for one
+re3data does not list, any data repository DataCite registers (such as many an institution's own),
+usually from `advisor.repository`'s shortlist. Nobody has to write a file for it first. Its requirements come
 from two kinds of set:
 
 - `standards/` holds one set per metadata standard: what any record in that standard needs.
@@ -42,9 +43,10 @@ SHA-256 of the file, so a later reader can tell which requirements a package was
 ## Suggested repositories
 
 `suggested.yaml` lists, by re3data identifier and in order, the repositories the app offers on a
-project's page before the researcher searches the pinned re3data export
-(`GET /api/repositories`). Every repository with an override is offered first, whether or not it
-is listed. An identifier the pinned export does not hold is left out, and one that is not a
+project's page before the researcher searches the pinned re3data export and DataCite snapshot
+(`GET /api/repositories`). The repositories the profile names as its institution's
+(`institution_repositories`) are offered first, then every repository with an override, whether
+or not it is listed. An identifier the pinned export does not hold is left out, and one that is not a
 re3data identifier stops start-up. The file is optional; without it only the overrides are
 offered.
 
@@ -58,6 +60,7 @@ offered.
 | `conforms_to` | The URI of the metadata schema. An override names the standard it builds on. |
 | `re3data_names` | Standards only: the names re3data uses for the standard. |
 | `re3data_id` | Overrides only: the repository's re3data record. |
+| `repository_id` | Overrides only, in place of `re3data_id` for a repository re3data does not list: its DataCite repository identifier, such as `bl.durham`. An override names its repository once. |
 | `fields` | The metadata a depositor supplies (below). |
 | `required_documents` | Document kinds that must be approved before a package is built: `metadata_record`, `readme`, `data_dictionary`, `dmp` or `other`. |
 | `recommended_documents` | Document kinds whose absence is a warning. |

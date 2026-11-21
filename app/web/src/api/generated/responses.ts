@@ -308,7 +308,11 @@ export interface Checks {
  */
 export interface ChosenRepository {
   chosen_at: string;
-  re3data_id: string;
+  re3data_id: string | null;
+  /**
+   * Its re3data identifier, or, for one re3data does not list, its DataCite one.
+   */
+  repository_id: string;
   repository_name: string;
   /**
    * What the choice does not check, for example that re3data does not list DataCite for it.
@@ -1437,18 +1441,24 @@ export interface RawSessionPrincipal {
   vouched_by?: string;
 }
 /**
- * What a search of the pinned re3data export shows of one repository.
+ * What a search of the pinned registries shows of one repository.
  */
 export interface RepositoryMatch {
   additional_names: string[];
   doi: string | null;
   name: string;
-  re3data_id: string;
+  re3data_id: string | null;
+  registry: "re3data" | "datacite";
+  /**
+   * Its re3data identifier, or, for one re3data does not list, its DataCite one.
+   */
+  repository_id: string;
   url: string | null;
 }
 /**
- * Repositories a researcher may choose: those the pinned re3data export holds that `query`
- * names, or, when `suggested`, those the deployment offers before a search.
+ * Repositories a researcher may choose: those the pinned re3data export, and DataCite
+ * snapshot, hold that `query` names, or, when `suggested`, those the deployment offers before a
+ * search: its institution's repositories first.
  */
 export interface RepositorySearch {
   query: string;

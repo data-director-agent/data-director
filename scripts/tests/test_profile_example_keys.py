@@ -96,3 +96,17 @@ def test_applying_again_keeps_the_version(tmp_path: Path) -> None:
     path, first = generated(tmp_path)
     _, second = generated(tmp_path, current=path.read_text())
     assert second == first
+
+
+def test_the_institutions_repositories_are_the_deployments_own(tmp_path: Path) -> None:
+    """`institution_repositories` names the instance's own institution's repositories, so it is
+    taken from deployment.yaml, as written, and never from the release's example."""
+    entry = {"repository_id": "r3d100012124", "charges_deposit_fee": False}
+    example = example_with(tmp_path, {"institution_repositories": [{"repository_id": "bl.york"}]})
+    _, without = generated(tmp_path, example=example)
+    assert "institution_repositories" not in without
+    text = yaml.safe_dump({"name": "dev", "institution_repositories": [entry]})
+    path, body = generated(tmp_path, text, example=example)
+    assert body["institution_repositories"] == [entry]
+    (loaded,) = load_profile(path).institution_repositories
+    assert loaded.repository_id == "r3d100012124"

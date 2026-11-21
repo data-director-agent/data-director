@@ -80,7 +80,9 @@ class DeleteProject(RequestBody):
 class ChosenRepository(ResponseBody):
     """The repository a project chose last, as its summary names it."""
 
-    re3data_id: str
+    repository_id: str
+    """Its re3data identifier, or, for one re3data does not list, its DataCite one."""
+    re3data_id: str | None
     repository_name: str
     warnings: list[str]
     """What the choice does not check, for example that re3data does not list DataCite for it."""

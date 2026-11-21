@@ -136,7 +136,7 @@ def test_an_approved_deposit_makes_a_draft_and_records_it(
     approval = next(e for e in events if e["event"] == DEPOSIT_APPROVED)
     # The approval names the person, the package, the repository and the connector as configured.
     assert approval["acted_for"]["principal_id"] == TEST_PRINCIPAL.principal_id
-    assert (approval["digest"], approval["re3data_id"]) == (digest, ORDA)
+    assert (approval["digest"], approval["repository_id"]) == (digest, ORDA)
     assert approval["base_url"] == "https://sandbox.zenodo.org/api"
     assert approval["sandbox"] is True
     assert outcome["approval"] == approval["event_id"]

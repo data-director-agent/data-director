@@ -7,6 +7,9 @@
       "ChosenRepository": {
          "@id": "https://w3id.org/data-director/ChosenRepository"
       },
+      "InstitutionRepository": {
+         "@id": "https://w3id.org/data-director/InstitutionRepository"
+      },
       "ProjectFact": {
          "@id": "https://w3id.org/data-director/ProjectFact"
       },
@@ -27,8 +30,14 @@
          "@id": "https://w3id.org/data-director/agents/repository/asked_about",
          "@type": "@id"
       },
+      "charges_deposit_fee": {
+         "@id": "https://w3id.org/data-director/charges_deposit_fee"
+      },
       "chosen_re3data_id": {
          "@id": "https://w3id.org/data-director/chosen_re3data_id"
+      },
+      "chosen_repository_id": {
+         "@id": "https://w3id.org/data-director/chosen_repository_id"
       },
       "chosen_repository_name": {
          "@id": "https://w3id.org/data-director/chosen_repository_name"
@@ -51,8 +60,14 @@
       "country": {
          "@id": "https://w3id.org/data-director/agents/repository/country"
       },
+      "data_access_types": {
+         "@id": "https://w3id.org/data-director/data_access_types"
+      },
       "data_kinds": {
          "@id": "https://w3id.org/data-director/agents/repository/data_kinds"
+      },
+      "data_licences": {
+         "@id": "https://w3id.org/data-director/data_licences"
       },
       "dcat": "http://www.w3.org/ns/dcat#",
       "dcterms": "http://purl.org/dc/terms/",
@@ -92,6 +107,21 @@
       "file_decision": {
          "@id": "https://w3id.org/data-director/file_decision"
       },
+      "guidance": {
+         "@id": "https://w3id.org/data-director/guidance",
+         "@type": "@id"
+      },
+      "institution_name": {
+         "@id": "https://w3id.org/data-director/institution_name"
+      },
+      "institution_repositories": {
+         "@id": "https://w3id.org/data-director/institution_repositories",
+         "@type": "@id"
+      },
+      "institution_ror": {
+         "@id": "https://w3id.org/data-director/institution_ror",
+         "@type": "@id"
+      },
       "licence_id": {
          "@id": "https://w3id.org/data-director/licence_id"
       },
@@ -105,6 +135,9 @@
       },
       "name": {
          "@id": "http://schema.org/name"
+      },
+      "profile_ref": {
+         "@id": "https://w3id.org/data-director/profile_ref"
       },
       "project_decisions": {
          "@id": "https://w3id.org/data-director/project_decisions",
@@ -122,6 +155,9 @@
          "@id": "https://w3id.org/data-director/agents/repository/re3data_id"
       },
       "repository": "https://w3id.org/data-director/agents/repository/",
+      "repository_id": {
+         "@id": "https://w3id.org/data-director/repository_id"
+      },
       "ror": {
          "@id": "https://w3id.org/data-director/agents/repository/ror"
       },

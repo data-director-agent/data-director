@@ -26,6 +26,7 @@ describe("ContextPanel", () => {
     const project: ProjectSummary = {
       ...listed,
       repository: {
+        repository_id: "r3d100010468",
         re3data_id: "r3d100010468",
         repository_name: "Zenodo",
         warnings: ["the deployment has no override for Zenodo"],

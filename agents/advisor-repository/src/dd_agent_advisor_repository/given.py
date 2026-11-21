@@ -54,20 +54,24 @@ def with_project(needs: RepositoryNeeds) -> Given:
     chosen = needs.project_repository
     if chosen is not None and not (mandated or in_plan or needs.asked_about or rank.queries(needs)):
         mandated.append(
-            RepositoryRef(name=chosen.chosen_repository_name, re3data_id=chosen.chosen_re3data_id)
+            RepositoryRef(
+                name=chosen.chosen_repository_name,
+                re3data_id=chosen.chosen_re3data_id,
+                repository_id=chosen.chosen_repository_id,
+            )
         )
-        only_chosen = chosen.chosen_re3data_id
+        only_chosen = chosen.chosen_repository_id
     return Given(needs.model_copy(update={"mandated": mandated}), in_plan, only_chosen)
 
 
 def basis(record: Re3dataRecord, only_chosen: str | None) -> CandidateBasis:
     """Why a named repository is described: chosen by the researcher, or mandated."""
-    if record.re3data_id == only_chosen:
+    if record.identifier == only_chosen:
         return CandidateBasis.CHOSEN
     return CandidateBasis.MANDATED
 
 
 def _same(a: RepositoryRef, b: RepositoryRef) -> bool:
-    if a.re3data_id and b.re3data_id:
-        return a.re3data_id == b.re3data_id
+    if a.identifier and b.identifier:
+        return a.identifier == b.identifier
     return a.name.casefold() == b.name.casefold()

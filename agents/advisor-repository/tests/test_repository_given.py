@@ -27,7 +27,11 @@ REQUIRED = ProjectFact(
     fact_repository_name="x",
     fact_re3data_id="r3d100000003",
 )
-CHOSEN = ChosenRepository(chosen_repository_name="x", chosen_re3data_id="r3d100000003")
+CHOSEN = ChosenRepository(
+    chosen_repository_name="x",
+    chosen_repository_id="r3d100000003",
+    chosen_re3data_id="r3d100000003",
+)
 
 
 def cited(options: RepositoryOptions) -> list[tuple[str, CandidateBasis]]:

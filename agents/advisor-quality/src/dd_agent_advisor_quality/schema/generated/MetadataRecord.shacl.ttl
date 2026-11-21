@@ -10,6 +10,12 @@ dcat:Dataset a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
+            sh:description "The record's own identifier, e.g. a DOI or a catalogue URI." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dcterms:identifier ],
+        [ sh:datatype xsd:string ;
             sh:description "The licence the record declares, as an IRI or SPDX identifier." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -39,12 +45,6 @@ dcat:Dataset a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
-            sh:path dcterms:description ],
-        [ sh:datatype xsd:string ;
-            sh:description "The record's own identifier, e.g. a DOI or a catalogue URI." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path dcterms:identifier ] ;
+            sh:path dcterms:description ] ;
     sh:targetClass dcat:Dataset .
 

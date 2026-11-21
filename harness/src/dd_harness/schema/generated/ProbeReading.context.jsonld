@@ -16,6 +16,9 @@
       "chosen_re3data_id": {
          "@id": "https://w3id.org/data-director/chosen_re3data_id"
       },
+      "chosen_repository_id": {
+         "@id": "https://w3id.org/data-director/chosen_repository_id"
+      },
       "chosen_repository_name": {
          "@id": "https://w3id.org/data-director/chosen_repository_name"
       },

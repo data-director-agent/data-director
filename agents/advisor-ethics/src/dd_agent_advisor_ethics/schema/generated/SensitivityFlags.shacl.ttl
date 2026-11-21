@@ -8,7 +8,16 @@ ethics:SensitivityFlags a sh:NodeShape ;
     rdfs:comment "The payload of advisor.ethics: fields that may hold sensitive data, for a person to review, and the questions the researcher must answer before sharing. It flags and never decides how sensitive data is treated (C2)." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:class <https://w3id.org/data-director/GroundingRef> ;
+    sh:property [ sh:class ethics:SensitivityQuestion ;
+            sh:description "What the researcher must answer or confirm, with the people who can help." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 2 ;
+            sh:path ethics:questions ],
+        [ sh:class ethics:SensitivityFlag ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 1 ;
+            sh:path ethics:flags ],
+        [ sh:class <https://w3id.org/data-director/GroundingRef> ;
             sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
             sh:minCount 1 ;
             sh:nodeKind sh:BlankNodeOrIRI ;
@@ -30,16 +39,7 @@ ethics:SensitivityFlags a sh:NodeShape ;
             sh:description "What this alpha does not yet do." ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
-            sh:path ethics:limitations ],
-        [ sh:class ethics:SensitivityQuestion ;
-            sh:description "What the researcher must answer or confirm, with the people who can help." ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 2 ;
-            sh:path ethics:questions ],
-        [ sh:class ethics:SensitivityFlag ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 1 ;
-            sh:path ethics:flags ] ;
+            sh:path ethics:limitations ] ;
     sh:targetClass ethics:SensitivityFlags .
 
 <https://w3id.org/data-director/GroundingRef> a sh:NodeShape ;
@@ -66,6 +66,13 @@ ethics:SensitivityFlag a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
+            sh:description "The field name, as given." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path ethics:field ],
+        [ sh:datatype xsd:string ;
             sh:description "The keyword in keywords.yaml that the field name matched. Present exactly when the flag is lexical." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -89,32 +96,25 @@ ethics:SensitivityFlag a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 4 ;
-            sh:path ethics:derivation ],
-        [ sh:datatype xsd:string ;
-            sh:description "The field name, as given." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path ethics:field ] ;
+            sh:path ethics:derivation ] ;
     sh:targetClass ethics:SensitivityFlag .
 
 ethics:SensitivityQuestion a sh:NodeShape ;
     rdfs:comment "One thing the researcher must answer or confirm before sharing, from the adviser's template or added by a model." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
+    sh:property [ sh:description "How the value came about, lexical (the keyword table), template or model." ;
+            sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 1 ;
+            sh:path ethics:derivation ],
+        [ sh:datatype xsd:string ;
             sh:description "The question, as put to the researcher." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
-            sh:path ethics:text ],
-        [ sh:description "How the value came about, lexical (the keyword table), template or model." ;
-            sh:in ( "template" "model" "lexical" "registry" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 1 ;
-            sh:path ethics:derivation ] ;
+            sh:path ethics:text ] ;
     sh:targetClass ethics:SensitivityQuestion .
 

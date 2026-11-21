@@ -12,6 +12,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Protocol, runtime_checkable
 
+from dd_agent_advisor_repository.classes import Affiliation
 from dd_agent_advisor_repository.records import DatabaseRecord, Re3dataRecord
 from dd_sdk.registry import Hit, Query, SnapshotRef
 
@@ -44,6 +45,16 @@ class Repositories(Protocol):
     def find(self, name: str) -> list[Re3dataRecord]:
         """The repositories named `name`, ignoring case (`find_by_name`): more than one when the
         name is ambiguous, and none rather than a guess."""
+        ...
+
+    def institutional(self, affiliation: Affiliation | None) -> list[Re3dataRecord]:
+        """The repositories of the researcher's institution that a search by theme would not
+        find: DataCite's (`datacite.Registries`); none from re3data alone, whose own are found by
+        the affiliation's query."""
+        ...
+
+    def snapshot_of(self, record: Re3dataRecord) -> SnapshotRef:
+        """The copy `record` was read from, which its evidence names."""
         ...
 
 

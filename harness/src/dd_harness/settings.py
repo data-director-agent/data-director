@@ -30,6 +30,7 @@ from urllib.request import url2pathname
 
 from dotenv import dotenv_values
 
+from dd_harness import institution_repositories
 from dd_harness.conductor import Conductor
 from dd_harness.deposit_broker import DepositBroker
 from dd_harness.deposit_broker import from_env as deposit_broker_from_env
@@ -440,12 +441,19 @@ def build_registry(settings: Settings, agents: Iterable[Registered] = ()) -> Reg
 
 
 def build_conductor(settings: Settings, *, agents: Iterable[Registered] = ()) -> Conductor:
+    profile = load_profile(settings.profile)  # a bad profile stops start-up, not a request
+    sources = Sources.from_config(settings.sources_config)
+    if unheld := sources.unheld(institution_repositories.ids(profile)):
+        raise SettingsError(
+            f"{settings.profile}: institution_repositories names {', '.join(unheld)}, which no "
+            "pinned registry holds (re3data's export or DataCite's snapshot); check the identifier"
+        )
     return Conductor(
         registry=build_registry(settings, agents),
         store=run_storage(settings.runs_dir, "DD_RUNS_DIR"),
-        profile=load_profile(settings.profile),  # a bad profile stops start-up, not a request
+        profile=profile,
         write_crate=settings.write_crate,
-        sources=Sources.from_config(settings.sources_config),
+        sources=sources,
         model_grants=settings.model_grants,
         gateway=_gateway(settings.tools_config),
     )

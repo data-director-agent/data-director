@@ -253,6 +253,12 @@ dmp:Reconciliation a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
+            sh:description "The model's short reason for a pairing or a reconciliation. Present exactly when a model found it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dmp:reason ],
+        [ sh:datatype xsd:string ;
             sh:description "What the plan committed to for this aspect, if anything." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -277,12 +283,6 @@ dmp:Reconciliation a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
-            sh:path dmp:planned ],
-        [ sh:datatype xsd:string ;
-            sh:description "The model's short reason for a pairing or a reconciliation. Present exactly when a model found it." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 4 ;
-            sh:path dmp:reason ] ;
+            sh:path dmp:planned ] ;
     sh:targetClass dmp:Reconciliation .
 
