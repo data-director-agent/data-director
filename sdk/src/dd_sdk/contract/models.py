@@ -16,7 +16,7 @@ from typing import Annotated, Any, Literal
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, SerializeAsAny, model_validator
 
 # `base` and `inventory` hold the rest of the core's mirrors; their names are this module's too.
-from dd_sdk.contract import inventory
+from dd_sdk.contract import inventory, questions
 from dd_sdk.contract.base import SHA256_PATTERN as SHA256_PATTERN
 from dd_sdk.contract.base import Frozen as Frozen
 from dd_sdk.contract.deposit import DepositConnector as DepositConnector
@@ -54,6 +54,10 @@ PersonalDataKind = inventory.PersonalDataKind
 ProportionBand = inventory.ProportionBand
 TableField = inventory.TableField
 inventory_part_problems = inventory.inventory_part_problems
+QUESTION_ID_PATTERN = questions.QUESTION_ID_PATTERN
+Derivation = questions.Derivation
+DocumentQuestion = questions.DocumentQuestion
+DraftAnswer = questions.DraftAnswer
 
 UUID7_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
 POLICY_BUNDLE_REF_PATTERN = r"^profile:[a-z0-9][a-z0-9.-]*@v[0-9]+$"
@@ -61,8 +65,6 @@ IRI_PATTERN = r"^[a-z][a-z0-9+.-]*:\S+$"
 VERSION_PATTERN = r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$"
 # One line of 1 to 80 characters (Reply.conversation_title).
 CONVERSATION_TITLE_PATTERN = r"^.{1,80}$"
-# A drafter's question about a gap, derived from the gap (docs/specs/drafting.md).
-QUESTION_ID_PATTERN = r"^q-[0-9a-f]{16}$"
 CONVERSATION_TITLE_MAX = 80
 # A project's title (Message.project_title), and a name a model gives one (Reply.new_project_title).
 PROJECT_TITLE_PATTERN = r"^.{1,200}$"
@@ -125,13 +127,6 @@ class ModelAccount(StrEnum):
 
     OWN = "own"
     DEPLOYMENT = "deployment"
-
-
-class Derivation(StrEnum):
-    TEMPLATE = "template"
-    MODEL = "model"
-    LEXICAL = "lexical"
-    REGISTRY = "registry"
 
 
 class EnergyMethod(StrEnum):
@@ -484,38 +479,6 @@ class DocumentVersionRef(Frozen):
     version: int = Field(ge=1)  # not in the schema (#333)
 
 
-class DocumentQuestion(Frozen):
-    """A drafter's question about one gap in its draft: a README section, a data dictionary cell
-    named by file, field and column, or a metadata record value (docs/specs/drafting.md)."""
-
-    question_id: str = Field(pattern=QUESTION_ID_PATTERN)
-    question_prompt: str
-    gap_section: str | None = None
-    # The part of the section, when the drafter asks a section part by part.
-    gap_part: str | None = None
-    gap_file: str | None = None
-    gap_field: str | None = None
-    gap_column: str | None = None
-    # A metadata record value, by its path in the record's JSON form, such as titles[0].title.
-    gap_property: str | None = None
-    # Offered with the question, never placed in the document (docs/specs/drafting.md).
-    suggested_answer: str | None = None
-    suggestion_derivation: Derivation | None = None
-
-    @model_validator(mode="after")
-    def _one_target(self) -> DocumentQuestion:
-        if (self.suggested_answer is None) != (self.suggestion_derivation is None):
-            raise ValueError("a suggested answer says how it was derived, and only then")
-        cell = (self.gap_file, self.gap_field, self.gap_column)
-        if self.gap_part is not None and self.gap_section is None:
-            raise ValueError("a question targets a part only within a README section")
-        if None in cell and any(c is not None for c in cell):
-            raise ValueError("a question targets a cell by file, field and column together")
-        if sum(t is not None for t in (self.gap_section, self.gap_file, self.gap_property)) != 1:
-            raise ValueError("a question targets one of a README section, a cell or a property")
-        return self
-
-
 class Document(Grounded):
     """A project document an agent drafts or regenerates, as text (docs/specs/projects.md)."""
 
@@ -562,13 +525,6 @@ class ApprovedMetadataRecord(Frozen):
     media_type: str
     conforms_to: str | None = None
     document_text: str
-
-
-class DraftAnswer(Frozen):
-    """A person's answer to one of the current version's questions, placed as given."""
-
-    answered_question: str = Field(pattern=QUESTION_ID_PATTERN)
-    answer_text: str
 
 
 class DraftRequest(Frozen):

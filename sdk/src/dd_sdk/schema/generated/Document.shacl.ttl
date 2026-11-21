@@ -78,7 +78,7 @@ dd:Document a sh:NodeShape ;
     sh:targetClass dd:Document .
 
 dd:DocumentQuestion a sh:NodeShape ;
-    rdfs:comment "A question a drafter asks the researcher about one gap in the version it drafted: a README section it could not write, a data dictionary cell it could not fill, or a metadata record property it left null. The target is either gap_section, with gap_part when the section is asked part by part, or gap_file, gap_field and gap_column together, or gap_property alone. question_id is derived from the target, so it is the same in every version that leaves the same gap (docs/specs/drafting.md). A question may offer a suggested_answer, with how it was derived (suggestion_derivation); a suggestion is never placed in the document, and becomes supplied only when a person records it as their answer." ;
+    rdfs:comment "A question a drafter asks the researcher about one gap in the version it drafted: a README section it could not write, a data dictionary cell it could not fill, or a metadata record property it left null. The target is either gap_section, with gap_part when the section is asked part by part, or gap_file, gap_field and gap_column together, or gap_property alone. A cell question about a column that several files share, by name, type and format, also lists in gap_files every file whose cell the answer fills. question_id is derived from the target, so it is the same in every version that leaves the same gap (docs/specs/drafting.md). A question may offer a suggested_answer, with how it was derived (suggestion_derivation); a suggestion is never placed in the document, and becomes supplied only when a person records it as their answer." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
@@ -88,11 +88,21 @@ dd:DocumentQuestion a sh:NodeShape ;
             sh:order 6 ;
             sh:path dd:gap_column ],
         [ sh:datatype xsd:string ;
-            sh:description "An answer the drafter suggests, offered to the person with the question and never placed in the document. It becomes supplied only when a person records it, or a correction of it, as their answer." ;
+            sh:description "Every file whose data dictionary cell the answer fills, gap_file among them, when the question asks once about a column that several files share by name, type and format. Absent when the question fills one cell." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path dd:gap_files ],
+        [ sh:datatype xsd:string ;
+            sh:description "The metadata record value the question would fill, as a path into the record's JSON form: property names joined by dots, with a list entry's position in brackets, such as titles[0].title." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 8 ;
-            sh:path dd:suggested_answer ],
+            sh:path dd:gap_property ],
+        [ sh:description "How suggested_answer came about. Present exactly when suggested_answer is." ;
+            sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:maxCount 1 ;
+            sh:order 10 ;
+            sh:path dd:suggestion_derivation ],
         [ sh:datatype xsd:string ;
             sh:description "The question, as a short line a person reads before the options." ;
             sh:maxCount 1 ;
@@ -101,22 +111,17 @@ dd:DocumentQuestion a sh:NodeShape ;
             sh:order 1 ;
             sh:path dd:question_prompt ],
         [ sh:datatype xsd:string ;
+            sh:description "An answer the drafter suggests, offered to the person with the question and never placed in the document. It becomes supplied only when a person records it, or a correction of it, as their answer." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 9 ;
+            sh:path dd:suggested_answer ],
+        [ sh:datatype xsd:string ;
             sh:description "The part of the README section the question would fill, such as Funding, when the drafter asks the section part by part. Present only with gap_section." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
             sh:path dd:gap_part ],
-        [ sh:description "How suggested_answer came about. Present exactly when suggested_answer is." ;
-            sh:in ( "template" "model" "lexical" "registry" ) ;
-            sh:maxCount 1 ;
-            sh:order 9 ;
-            sh:path dd:suggestion_derivation ],
-        [ sh:datatype xsd:string ;
-            sh:description "The metadata record value the question would fill, as a path into the record's JSON form: property names joined by dots, with a list entry's position in brackets, such as titles[0].title." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 7 ;
-            sh:path dd:gap_property ],
         [ sh:datatype xsd:string ;
             sh:description "The question's identifier within its document: q- and 16 lower-case hexadecimal digits, derived from the gap it targets." ;
             sh:maxCount 1 ;
