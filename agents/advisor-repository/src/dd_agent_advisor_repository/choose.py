@@ -88,10 +88,10 @@ def unlisted(named: Named) -> str:
     """A sentence for each reason repositories were named that re3data does not list, or
     nothing. They are still the researcher's options; only their terms are not on record."""
     return "".join(
-        f" {label.capitalize()}, but not listed in re3data: "
+        f" {label.capitalize()}, but not listed in re3data or DataCite: "
         f"{', '.join(u.name for u in named.unlisted if u.basis == basis)}. Nothing is said about "
-        "their terms, fees or persistent identifiers, since re3data holds no record of them: "
-        "check with each repository."
+        "their terms, fees or persistent identifiers, since neither registry holds a record of "
+        "them: check with each repository."
         for basis, label in _NAMED_BY.items()
         if any(u.basis == basis for u in named.unlisted)
     )

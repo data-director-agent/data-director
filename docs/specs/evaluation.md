@@ -32,10 +32,12 @@ complete, partial and vague, whose commitments are labelled by construction, and
 commitments a researcher confirmed. Reading a plan needs a model, so its committed baseline
 measures only the comparison and that the template path declines to read; a fake-model test shows
 the reading scorers work (#962). A set of machine-actionable plans is to join it (TODO(#701)). The repository advisor's
-(`agents/advisor-repository/src/dd_agent_advisor_repository/evals/`) takes Dataset F of the same
-sample data, an oral-history archive whose plan names two repositories re3data does not list, and
-asks whether a confirmed plan's repositories reach the researcher as the plan's, beside the
-shortlist or without one (#1334). It runs over the full pinned re3data registry, which CI builds.
+(`agents/advisor-repository/src/dd_agent_advisor_repository/evals/`) takes real repositories
+re3data does not list, Durham University's and the British Library's research repositories, which
+DataCite registers, and asks whether a confirmed plan's repositories reach the researcher as the
+plan's, to be chosen, beside the shortlist or without one (#1334), and whether a researcher's own
+institution's repository is offered, and only to its researchers (#1342). It runs over the full
+pinned re3data registry, which CI builds, and the committed DataCite snapshot.
 
 ## Invariants
 

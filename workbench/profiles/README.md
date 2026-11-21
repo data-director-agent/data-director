@@ -77,9 +77,18 @@ remote_tool_content:         # optional: the classes of project content an agent
 deposit_transports:          # optional: the APIs a person may deposit a draft through, by the
   - zenodo                   # transport an override's `deposit` block names. Without this key
                              # every repository is deposited to by hand (docs/specs/deposit.md)
+
+institution_repositories:    # optional: your institution's own repositories, each by its re3data
+  - repository_id: bl.durham # identifier or, for one re3data does not list, its DataCite one,
+    institution_name: Durham University       # with only what you vouch for that no registry
+    institution_ror: https://ror.org/01v29qb04 # holds: the institution, `data_access_types`,
+    charges_deposit_fee: false                # `data_licences`, `charges_deposit_fee` and the
+    guidance: [https://www.durham.ac.uk/research/research-data/]  # pages you checked. Offered
+                             # to its researchers and suggested first; one no pinned registry
+                             # holds stops start-up (docs/specs/deposit.md)
 ```
 
-Those fourteen keys are the whole vocabulary. A profile with any other key is refused when the
+Those fifteen keys are the whole vocabulary. A profile with any other key is refused when the
 workbench starts, so a misspelt or out-of-date key cannot look as if it were in force.
 
 ## How it is applied
@@ -200,8 +209,9 @@ the energy factors come from, since providers of hosted models do not publish th
 
 These arrive with the agent that enforces them, and not before:
 
-- approved repositories, for repository recommendation (R1). What each repository requires is
-  not a key here but a requirement set ([Deposit](../../docs/specs/deposit.md)); the approved list is #320;
+- approved repositories beyond the institution's own (`institution_repositories`), for
+  repository recommendation (R1). What each repository requires is not a key here but a
+  requirement set ([Deposit](../../docs/specs/deposit.md)); the approved list is #320;
 - accepted persistent identifier systems (R7);
 - which external registries agents may consult.
 

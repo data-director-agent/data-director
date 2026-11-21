@@ -211,8 +211,8 @@ export function RepositoryShortlist({
               <Basis basis={repository.basis} />
               <br />
               <span className="hint">
-                Not listed in re3data, so nothing is shown of its terms, fees
-                or identifiers: check them with the repository.
+                Not listed in re3data or DataCite, so nothing is shown of its
+                terms, fees or identifiers: check them with the repository.
               </span>
             </p>
           </li>

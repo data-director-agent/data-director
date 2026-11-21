@@ -663,17 +663,19 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   shows what the choice resolved to: the requirement sets used, the documents and metadata a
   deposit needs, and each warning of what is not checked ([Deposit](deposit.md)). The side bar
   names the repository chosen last, with its warnings; choosing another from a shortlist changes
-  it, as a new choice, and the last one counts. An identifier the export does not hold is refused
+  it, as a new choice, and the last one counts. An identifier no pinned registry holds is refused
   with nothing recorded (`app/tests/test_repository_choice.py`,
   `app/web/src/components/conversation/RepositoryShortlist.test.tsx`).
 - **A repository can also be chosen on the project's Repository tab, without a shortlist.** The
   tab's combo box offers the deployment's suggestions until something is typed: the
-  repositories it has an override for, then those `suggested.yaml` lists
-  (`app/config/repositories/README.md`). Typing searches the pinned re3data export
-  (`GET /api/repositories?q=…`) by name or additional name, or by the repository's own
-  identifiers: its re3data identifier, its re3data DOI or its URL. An institution's ROR is not
-  one, since it names an organisation, not a repository. The same text always finds the same
-  repositories, in the same order. **Choose repository** sends only the re3data identifier, as a
+  repositories its profile names as its institution's (`institution_repositories`), then those it
+  has an override for, then those `suggested.yaml` lists (`app/config/repositories/README.md`).
+  Typing searches the pinned re3data export and, for repositories re3data does not list, the
+  pinned DataCite snapshot (`GET /api/repositories?q=…`) by name or additional name, or by the
+  repository's own identifiers: its re3data or DataCite identifier, its re3data DOI or its URL.
+  Each match says which registry it is from (`registry`). An institution's ROR is not one, since
+  it names an organisation, not a repository. The same text always finds the same repositories,
+  in the same order. **Choose repository** sends only the identifier (`repository_id`), as a
   shortlist's card does, and the last choice counts (`app/tests/test_repository_search.py`,
   `app/web/src/components/project/ProjectPanelPage.test.tsx`).
 - **The phases** come from the SDK's process flow, served by the app and joined in the shell to

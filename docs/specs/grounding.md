@@ -70,7 +70,11 @@ mixin are in [Contract](contract.md); the `dd.*` span attributes the rules read 
    (`sdk/tests/test_contract.py`).
 10. The source check resolves each evidence item by its `snapshot_ref` to a copy pinned by
     SHA-256. S1: the copy holds a record with the item's source id. S2: that record, projected
-    under the item's canonicalisation, hashes to its `content_hash` (`harness/tests/test_sources.py`).
+    under the item's canonicalisation, hashes to its `content_hash` (`harness/tests/test_sources.py`). The
+    profile is such a copy of what it vouches for: an item citing `institution:<repository>`
+    under the profile's reference (`profile:<id>@v<version>`, pinned by the profile's digest,
+    which every run records) is resolved against the entry the loaded profile holds
+    (`dd_harness.institution_repositories`, `harness/tests/test_institution_repositories.py`).
 11. An item whose `snapshot_ref` has no listed copy is **unresolved**: reported, not a
     violation, and never counted as verified. In `input_only`, `none` and `delegation` modes,
     items citing `input:` or `invocation:` are skipped, because R2, D1 and D2 have already

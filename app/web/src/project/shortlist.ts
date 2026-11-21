@@ -30,9 +30,10 @@ export interface ShortlistedRepository {
 }
 
 /**
- * A repository named (mandated, in the data management plan or asked about) that re3data does
- * not list, such as an institution's own repository (#1334). It has no record, so it cannot be
- * chosen here and nothing is said about its terms; it is shown so that it is not lost.
+ * A repository named (mandated, in the data management plan or asked about) that neither re3data
+ * nor DataCite lists, such as a local archive that mints no DataCite DOIs (#1334, #1342). It has no
+ * record, so it cannot be chosen here and nothing is said about its terms; it is shown so that it
+ * is not lost.
  */
 export interface UnlistedRepository {
   name: string;

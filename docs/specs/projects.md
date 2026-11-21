@@ -120,7 +120,8 @@ intended design, and each part says where it is not built yet.
    (invariant 28), the last decision on each kind and subject, without anyone's words about why;
    what an agent only proposed is never given, and a `Message`'s are removed outside a project.
    A `Message`'s `project_repository` is the repository a researcher chose last, by its name and
-   re3data identifier, and is removed outside a project and until one is chosen, so a caller can
+   identifier (`chosen_repository_id`: re3data's, or DataCite's for one re3data does not list,
+   with `chosen_re3data_id` where it has one), and is removed outside a project and until one is chosen, so a caller can
    never claim one ([Orchestration](orchestration.md), invariant 21). A `Message`'s
    `project_drafts` give the latest version of each drafted document, its state and whether it
    was drafted after the inventory was last added, by the order of the log's events, never its

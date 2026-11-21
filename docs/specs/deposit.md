@@ -7,8 +7,15 @@ researcher chose. This spec covers how a repository's requirements are described
 repository resolves to them, what "validated" means, and what the deposit package is. The project
 that holds the inventory, the documents and the decisions is in [Projects](projects.md).
 
-A researcher may choose any repository listed in re3data, usually from `advisor.repository`'s
-shortlist, with no configuration written for it first. Almost no repository publishes its deposit
+A researcher may choose any repository listed in re3data, or, for one re3data does not list, any
+data repository DataCite registers, usually from `advisor.repository`'s shortlist, with no
+configuration written for it first. Many an institution's own repository is in DataCite and not in
+re3data (#1342). A repository is identified by the registry that lists it: by its re3data
+identifier (`r3d` and nine digits) where re3data lists it, else by its DataCite repository
+identifier (such as `bl.durham`), which always holds a dot, so the two never collide and nobody
+invents one (`REPOSITORY_ID_PATTERN`, `dd_sdk.contract.base`). A deployment may name its own
+institution's repositories in its profile (`institution_repositories`, [Policy and
+identity](policy-and-identity.md)), by those identifiers, and vouch for what no registry holds. Almost no repository publishes its deposit
 requirements in a form a machine can read, but re3data records the metadata standards each one
 uses, and most general-purpose repositories register DataCite DOIs. Requirements are therefore
 described per metadata standard, with optional overrides for the few repositories a deployment
@@ -41,10 +48,12 @@ What is built:
 
 - the `RequirementSet` class, loading and checking the sets, resolving a choice and recording it
   in the project (`dd_harness.requirements`, `dd-harness project choose-repository`). A choice
-  names only the repository's re3data identifier: its name and the metadata standards it declares
-  are read from the pinned re3data export, which the harness reads through `sources.yaml`
-  (`DD_SOURCES_CONFIG`, `dd_harness.sources`) and never from the agent's directory
-  ([System](system.md)). An identifier that export does not hold is refused;
+  names only the repository's identifier: its name and the metadata standards it declares are
+  read from the pinned re3data export, or, for a DataCite identifier, from the pinned DataCite
+  snapshot, which declares DataCite's standard since each repository in it registers DataCite
+  DOIs. The harness reads both through `sources.yaml` (`DD_SOURCES_CONFIG`, `dd_harness.sources`)
+  and never from the agent's directory ([System](system.md)). An identifier neither holds is
+  refused;
 - the DataCite and ORDA sets;
 - validation and the package (`dd_harness.deposit`, `dd-harness project validate` and
   `dd-harness project package`);
@@ -75,8 +84,8 @@ What is built:
   (`harness/tests/test_deposit_api.py`, `deposit-broker/tests/`, `app/tests/test_deposit_draft.py`).
 
 A researcher chooses a repository in the app, either from an advisor's shortlist or on the
-project's page from the deployment's suggestions or a search of the pinned re3data export
-(`GET /api/repositories`, `PUT /api/projects/{id}/repository`, [App](app.md)). Giving a drafter the merged set is
+project's page from the deployment's suggestions (its profile's own repositories first) or a
+search of the pinned re3data export and DataCite snapshot (`GET /api/repositories`, `PUT /api/projects/{id}/repository`, [App](app.md)). Giving a drafter the merged set is
 TODO(#394, #200).
 
 ## Invariants
@@ -85,7 +94,9 @@ TODO(#394, #200).
    steward can read and propose changes to, as an institutional profile is
    ([Policy and identity](policy-and-identity.md)). A new override is a new file, not new code.
 2. **A set is either a standard's set or a repository override, and says only what its kind may.**
-   A standard's set names its standard's re3data names; an override names one re3data repository
+   A standard's set names its standard's re3data names; an override names one repository, by its
+   re3data identifier in `re3data_id` or, for one re3data does not list, by its DataCite one in
+   `repository_id`, never both,
    and the standard it builds on, and alone may give media types, size limits, licences and deposit
    form labels. A key outside the class, a set of neither kind, or two sets that collide stops the
    harness before anything is recorded (`harness/tests/test_requirements.py`).
@@ -98,16 +109,19 @@ TODO(#394, #200).
    an override merged on its standard, never share a schema.org term, since a record's values are
    checked under their field's term and one field's value would pass for the other's; such sets
    are refused on load.
-5. **A choice resolves deterministically.** The override is the one for the repository's re3data
+5. **A choice resolves deterministically.** The override is the one for the repository's
    identifier. The standard is the one the override names, because a steward who wrote the
    override knows the repository better than its registry record (re3data lists only Dublin Core
    for ORDA, which registers DataCite DOIs); without an override, a set matching a standard the
    repository declares; else DataCite's, with a warning. A repository without an override gets a
    warning that its own form, formats, sizes and licences are not checked
    (`harness/tests/test_requirements.py`, `app/tests/test_repositories.py`).
-6. **A choice records exactly what it resolved to.** The project log names the re3data record the
-   repository's name and declared standards were read from, by its `snapshot_ref` (the latest
-   `re3data:export:YYYY-MM` pinned) and its content hash under `dd-json-document-v1`, the hash
+6. **A choice records exactly what it resolved to.** The project log names the repository by its
+   `repository_id`, and its `re3data_id` where it has one (a choice recorded before there was a
+   `repository_id` gives it from its `re3data_id`, as does a merged set kept then), and the
+   registry record the repository's name and declared standards were read from, by its
+   `snapshot_ref` (the latest `re3data:export:YYYY-MM` or `datacite:repositories:YYYY-MM-DD`
+   pinned) and its content hash under `dd-json-document-v1`, the hash
    evidence citing that record carries ([Grounding](grounding.md)). It names each set used by
    `<requirement_set_id>@v<version>` and the SHA-256 of its file, keeps the merged set by its
    digest, and records the warnings. The last choice counts (`harness/tests/test_projects.py`).
@@ -468,8 +482,8 @@ document version ([Projects](projects.md)): the app passes their request, and th
 that they may deposit in the project, that the package is the project's latest built from a valid
 report, and that its project has not changed since in a way that makes the package stale
 (TODO(#649)). It appends a `deposit_approved` event naming the principal, the package's format and
-digest (and, for a platform item, the RO-Crate package it travels with), the repository's re3data
-identifier and the connector's `transport`, `base_url` and `target` as configured at that
+digest (and, for a platform item, the RO-Crate package it travels with), the repository's
+identifier (`repository_id`; an approval recorded before there was one named `re3data_id`) and the connector's `transport`, `base_url` and `target` as configured at that
 moment, and then deposits. A profile may also require a data steward's co-approval of the same
 package digest, which never replaces the researcher's ([Data stewards](stewardship.md), invariant 7), TODO(#1306).
 
@@ -489,7 +503,11 @@ its DOI cannot, and some institutions pay for each DOI. So the harness stops at 
 researcher publishes in the repository's own interface. Publishing through the API, with its own
 approval and the fees it may incur, is TODO(#322).
 
-**Elsewhere.** Which repositories an institution approves, and preferring them, are TODO(#320).
+**Elsewhere.** A deployment's own institution's repositories are its profile's
+`institution_repositories` (#1342); which other repositories an institution approves, and
+preferring them, are TODO(#320). A repository that mints no DataCite DOIs and that re3data does
+not list cannot be chosen; OpenDOAR could list many such, once its licence is confirmed to allow a
+pinned copy.
 Fees and who pays for PIDs are TODO(#322) (R7). `advisor.quality` reads a record of DCAT terms, not
 DataCite; moving it is TODO(#22).
 

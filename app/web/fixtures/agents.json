@@ -543,7 +543,7 @@
   "incompatible": {},
   "profile": {
     "attached_documents": "allowed",
-    "digest": "f0270572f605f3b4f2161409a8b4609f12102e618a50c4669ac93a81b50ec603",
+    "digest": "ab725374b8da40037bf07df8be63675aafa873559965f2c5ac95d8c3cc988be7",
     "orchestrator": "orchestrator.stub",
     "ref": "profile:data-director-app@v10"
   },

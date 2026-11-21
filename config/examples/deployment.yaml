@@ -26,6 +26,19 @@ disabled: []
 # server, and `apply` refuses it on a VM.
 # pid_resolver: true
 
+# Your institution's own data repositories, offered to its researchers and suggested first on a
+# project's page, copied into the profile as written. Name each by its identifier in the registry
+# that lists it: its re3data identifier (r3d followed by nine digits), or, for one re3data does not
+# list, its DataCite repository identifier (search https://api.datacite.org/repositories?query=…).
+# Add only what no registry holds and you vouch for; a repository that neither registry, as
+# pinned, holds stops start-up (docs/guide/operations/configuration.md).
+# institution_repositories:
+#   - repository_id: r3d100012124        # ORDA, the University of Sheffield's
+#     institution_name: The University of Sheffield
+#     institution_ror: https://ror.org/05krs5044
+#     charges_deposit_fee: false
+#     guidance: [https://www.sheffield.ac.uk/library/research-data-management]
+
 # Whether people may pay for model calls with their own AI provider account, copied into the
 # profile as written. Leave it out and the deployment pays. It needs the model broker and the
 # grant secrets first (docs/guide/operations/model-broker.md); the app stops at start-up without
