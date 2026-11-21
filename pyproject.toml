@@ -12,6 +12,7 @@
 #   inventory/   data-director-inventory  the local command that inventories a dataset's files
 #   mcp-pid/     data-director-mcp-pid    an MCP server resolving DOIs, ORCID iDs and ROR identifiers
 #   units/       data-director-units      turns a unit a person writes into a UCUM code, by rule
+#   mcp-fairsharing/  data-director-mcp-fairsharing  an MCP server for FAIRsharing records
 
 [project]
 name = "data-director"
@@ -58,6 +59,7 @@ dependencies = [
   "data-director-inventory",
   "data-director-mcp-pid",
   "data-director-units",
+  "data-director-mcp-fairsharing",
 ]
 
 [project.urls]
@@ -114,7 +116,7 @@ mutation = [
 package = false
 
 [tool.uv.workspace]
-members = ["sdk", "harness", "workbench", "agents/*", "app", "admin", "broker", "deposit-broker", "inventory", "mcp-pid", "units"]
+members = ["sdk", "harness", "workbench", "agents/*", "app", "admin", "broker", "deposit-broker", "inventory", "mcp-pid", "mcp-fairsharing", "units"]
 
 [tool.uv.sources]
 data-director-sdk = { workspace = true }
@@ -142,6 +144,7 @@ data-director-deposit-broker = { workspace = true }
 data-director-inventory = { workspace = true }
 data-director-mcp-pid = { workspace = true }
 data-director-units = { workspace = true }
+data-director-mcp-fairsharing = { workspace = true }
 
 # Package direction (docs/specs/system.md, ADR-0031): `uv run lint-imports`. Imports a member
 # declares and the paths it reads are checked by scripts/check_boundaries.py.
@@ -157,6 +160,7 @@ root_packages = [
   "dd_inventory",
   "dd_mcp_pid",
   "dd_units",
+  "dd_mcp_fairsharing",
   "dd_agent_advisor_dmp",
   "dd_agent_advisor_documentation",
   "dd_agent_advisor_ethics",
@@ -285,7 +289,13 @@ forbidden_modules = ["dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", 
 name = "the units library imports no other member"
 type = "forbidden"
 source_modules = ["dd_units"]
-forbidden_modules = ["dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
+forbidden_modules = ["dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_fairsharing", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
+
+[[tool.importlinter.contracts]]
+name = "the FAIRsharing server imports no other member"
+type = "forbidden"
+source_modules = ["dd_mcp_fairsharing"]
+forbidden_modules = ["dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_units", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
 
 [[tool.importlinter.contracts]]
 name = "the inventory command imports no other member"
@@ -369,7 +379,7 @@ max-args = 7
 max-returns = 6
 
 [tool.ruff.lint.isort]
-known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_example_hello", "dd_agent_advisor_quality", "dd_agent_advisor_standards", "dd_agent_advisor_repository", "dd_agent_advisor_policy", "dd_agent_advisor_ethics", "dd_agent_advisor_files", "dd_agent_advisor_dmp", "dd_agent_advisor_metadata", "dd_agent_advisor_documentation", "dd_agent_advisor_rights", "dd_agent_advisor_linking", "dd_agent_advisor_fairness", "dd_agent_orchestrator_stub", "dd_agent_orchestrator_model", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_units"]
+known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_example_hello", "dd_agent_advisor_quality", "dd_agent_advisor_standards", "dd_agent_advisor_repository", "dd_agent_advisor_policy", "dd_agent_advisor_ethics", "dd_agent_advisor_files", "dd_agent_advisor_dmp", "dd_agent_advisor_metadata", "dd_agent_advisor_documentation", "dd_agent_advisor_rights", "dd_agent_advisor_linking", "dd_agent_advisor_fairness", "dd_agent_orchestrator_stub", "dd_agent_orchestrator_model", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_fairsharing", "dd_units"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/*" = ["ANN", "C90", "PLR09", "FBT", "S110"]
@@ -388,7 +398,7 @@ known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_example_hell
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-testpaths = ["sdk/tests", "harness/tests", "workbench/tests", "agents", "app/tests", "admin/tests", "broker/tests", "deposit-broker/tests", "inventory/tests", "mcp-pid/tests", "units/tests", "scripts/tests"]
+testpaths = ["sdk/tests", "harness/tests", "workbench/tests", "agents", "app/tests", "admin/tests", "broker/tests", "deposit-broker/tests", "inventory/tests", "mcp-pid/tests", "mcp-fairsharing/tests", "units/tests", "scripts/tests"]
 # Test directories are not packages, so every test module is imported by its basename: keep the
 # basenames unique across the workspace. Shared doubles live in `dd_harness.testing` and
 # `dd_agent_advisor_standards.testing`, not in a test directory.
@@ -419,7 +429,7 @@ markers = [
 # and the generated schema are not what is being measured.
 [tool.coverage.run]
 branch = true
-source_pkgs = ["dd_sdk", "dd_harness", "workbench", "dd_agent_example_hello", "dd_agent_advisor_quality", "dd_agent_advisor_standards", "dd_agent_advisor_repository", "dd_agent_advisor_policy", "dd_agent_advisor_ethics", "dd_agent_advisor_files", "dd_agent_advisor_dmp", "dd_agent_advisor_metadata", "dd_agent_advisor_documentation", "dd_agent_advisor_rights", "dd_agent_advisor_linking", "dd_agent_advisor_fairness", "dd_agent_orchestrator_stub", "dd_agent_orchestrator_model", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_units"]
+source_pkgs = ["dd_sdk", "dd_harness", "workbench", "dd_agent_example_hello", "dd_agent_advisor_quality", "dd_agent_advisor_standards", "dd_agent_advisor_repository", "dd_agent_advisor_policy", "dd_agent_advisor_ethics", "dd_agent_advisor_files", "dd_agent_advisor_dmp", "dd_agent_advisor_metadata", "dd_agent_advisor_documentation", "dd_agent_advisor_rights", "dd_agent_advisor_linking", "dd_agent_advisor_fairness", "dd_agent_orchestrator_stub", "dd_agent_orchestrator_model", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_fairsharing", "dd_units"]
 relative_files = true
 
 [tool.coverage.report]
@@ -438,7 +448,7 @@ python_version = "3.14"
 files = [
   "conftest.py", "sdk/src", "sdk/tests", "harness/src", "harness/tests", "harness/scripts", "workbench/src", "workbench/tests",
   "workbench/browser_tests", "workbench/scripts", "agents/*/src", "agents/*/tests", "agents/advisor-standards/scripts", "agents/advisor-repository/scripts", "agents/advisor-policy/scripts",
-  "app/src", "app/tests", "admin/src", "admin/tests", "broker/src", "broker/tests", "deposit-broker/src", "deposit-broker/tests", "inventory/src", "inventory/tests", "mcp-pid/src", "mcp-pid/tests", "units/src", "units/tests", "scripts",
+  "app/src", "app/tests", "admin/src", "admin/tests", "broker/src", "broker/tests", "deposit-broker/src", "deposit-broker/tests", "inventory/src", "inventory/tests", "mcp-pid/src", "mcp-pid/tests", "mcp-fairsharing/src", "mcp-fairsharing/tests", "units/src", "units/tests", "scripts",
 ]
 explicit_package_bases = true
 mypy_path = [
@@ -447,6 +457,7 @@ mypy_path = [
   "agents/advisor-ethics/src", "agents/advisor-dmp/src", "agents/advisor-documentation/src", "agents/advisor-fairness/src",
   "agents/advisor-files/src", "agents/advisor-linking/src", "agents/advisor-metadata/src", "agents/advisor-rights/src",
   "agents/orchestrator-stub/src", "agents/orchestrator-model/src", "app/src", "app/tests", "admin/src", "broker/src", "deposit-broker/src", "inventory/src", "mcp-pid/src", "units/src",
+  "agents/orchestrator-stub/src", "agents/orchestrator-model/src", "app/src", "app/tests", "admin/src", "broker/src", "deposit-broker/src", "inventory/src", "mcp-pid/src", "mcp-fairsharing/src",
   "harness/tests", "sdk/tests", "broker/tests", "deposit-broker/tests", "scripts/tests",
 ]
 strict = true

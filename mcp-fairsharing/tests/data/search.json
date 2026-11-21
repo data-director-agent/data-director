@@ -1,0 +1,20 @@
+{
+  "data": [
+    {
+      "id": "1234",
+      "attributes": {
+        "metadata": {
+          "doi": "10.25504/FAIRsharing.abc123",
+          "name": "Example Metadata Standard",
+          "abbreviation": "EMS",
+          "status": "ready",
+          "description": "A made-up record shaped like FAIRsharing's search answer, for tests."
+        },
+        "record_type": "model_and_format",
+        "fairsharing_registry": "Standard",
+        "subjects": ["Metadata"],
+        "domains": ["Data management"]
+      }
+    }
+  ]
+}

@@ -19,6 +19,7 @@ fixes what the word "harness" names.
 | `inventory/` | `data-director-inventory` | The command a researcher runs where their data live to describe a dataset's files ([Projects](projects.md)). |
 | `mcp-pid/` | `data-director-mcp-pid` | The PID resolver: a framework-neutral MCP server that resolves DOIs (DataCite, Crossref), ORCID iDs and ROR identifiers to records an agent cites through the tool gateway ([Agents](agents.md#tools-mcp-servers-and-agent-skills)). Imports no other member. |
 | `units/` | `data-director-units` | Turns a unit as a person writes it into a UCUM code, by rule; the Documentation Editor fills a data dictionary's unit codes with it ([Drafting documents](drafting.md)). Imports no other member. |
+| `mcp-fairsharing/` | `data-director-mcp-fairsharing` | The FAIRsharing server: a framework-neutral MCP server that looks up a FAIRsharing record, and searches the registry with an account, answering records an agent cites through the tool gateway. Imports no other member. The advisers do not use it yet (TODO(#280)). |
 | `metadata-records/` | `data-director-metadata-records` | Not built yet, TODO(#1358). The codecs and the definitions of metadata standards that write, read and check a metadata record in any standard ([Metadata standards](metadata-standards.md)). Speaks no Data Director contract and imports no other member. |
 
 Beside the Python members, `inventory/browser/` is `@data-director/inventory`, a TypeScript

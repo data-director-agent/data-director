@@ -128,7 +128,11 @@ intended design, and each part says where it is not built yet.
    was drafted after the inventory was last added, by the order of the log's events, never its
    text; they are no class of project content, and are removed outside a project and while
    nothing is drafted (`dd_harness.project_drafts`; [Orchestration](orchestration.md), invariant
-   22; #1280). A `DraftRequest`'s `project_documents` are the documents a researcher attached, each with its
+   22; #1280). A `Message`'s `project_intake` gives the researcher's current answers to the
+   intake's questions beside the entry question, with their prompts and the labels chosen, only
+   for questions asked from the project's entry point; it is removed outside a project and while
+   none is answered (`dd_harness.project_facts.intake_answers`; [Orchestration](orchestration.md),
+   invariant 20; #1374). A `DraftRequest`'s `project_documents` are the documents a researcher attached, each with its
    text, replacing what the caller sent. An agent's own input class asks for the same by mixing
    in `GivenProjectDocuments` (`project_documents`), `GivenProjectDecisions`
    (`project_decisions`) or `GivenProjectRepository` (`project_repository`); an agent that reads
