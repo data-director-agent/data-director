@@ -1,6 +1,6 @@
 /**
- * What the message box offers for attaching: the chip of what is attached, the button to attach
- * a file, and the note on what may be attached. Making an inventory is not offered here; the
+ * What the message box offers for attaching: the chip of what is attached and the button to attach
+ * a file. Making an inventory is not offered here; the
  * project's panel and page offer it (AddInventory.tsx). An inventory and a document
  * may each be attached once (docs/specs/app.md); a document only where the profile allows it
  * (`documents`, docs/specs/projects.md). The picker passes on every file chosen, so that those
@@ -65,21 +65,12 @@ export function ComposerAttach({
             ]}
             onSelect={onAttachFiles}
           >
-            <Button icon={Paperclip} isDisabled={busy} aria-describedby="attach-hint">
+            <Button icon={Paperclip} isDisabled={busy}>
               Attach a file
             </Button>
           </FileTrigger>
         )}
       </div>
-      <p id="attach-hint" className="hint">
-        Attach an inventory of your data files (.json), which holds their names, sizes, formats
-        and table column headings but not the data themselves
-        {documents
-          ? ", or a document about your data, such as a protocol, codebook or data management " +
-            "plan (.txt, .md, .docx or a PDF with text, up to 1 MB)"
-          : ". This deployment does not keep documents about your data"}
-        . Never attach the data themselves: your data are not uploaded.
-      </p>
     </>
   );
 }
