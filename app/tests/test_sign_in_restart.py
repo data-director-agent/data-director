@@ -71,12 +71,14 @@ def holding(browser: TestClient, session_id: str) -> TestClient:
     return browser
 
 
-def test_a_person_is_still_signed_in_after_a_restart(idp: FakeIdentityProvider, server: Server):
+def test_a_person_is_still_signed_in_after_a_restart(
+    idp: FakeIdentityProvider, server: Server
+) -> None:
     session_id = signed_in(idp, server())
     assert holding(server(), session_id).get("/api/agents").status_code == 200
 
 
-def test_signing_out_holds_across_a_restart(idp: FakeIdentityProvider, server: Server):
+def test_signing_out_holds_across_a_restart(idp: FakeIdentityProvider, server: Server) -> None:
     before = server()
     session_id = signed_in(idp, before)
     assert before.post("/api/sign-out", headers=JSON_HEADERS).status_code == 204
