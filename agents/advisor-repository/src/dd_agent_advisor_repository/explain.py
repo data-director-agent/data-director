@@ -19,8 +19,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
-from dd_agent_advisor_repository.assess import Assessment, fee_required
-from dd_agent_advisor_repository.classes import Answer, CandidateBasis, RepositoryNeeds
+from dd_agent_advisor_repository.assess import Assessment
+from dd_agent_advisor_repository.classes import CandidateBasis, RepositoryNeeds
 from dd_agent_advisor_repository.records import DatabaseRecord, Re3dataRecord
 from dd_sdk import explain
 from dd_sdk.agent import RunContext
@@ -82,18 +82,9 @@ def template_rationale(item: Item) -> str:
         else ""
     )
     return (
-        f"{lead}{kind}{subjects}{gaps} {FEE[fee_required(r)]} The researcher chooses; "
+        f"{lead}{kind}{subjects}{gaps} The researcher chooses; "
         "the repositories were found by registry search and ranking, not by a model."
     )
-
-
-# What the rationale says of a deposit fee. re3data can say a fee is required but never that none
-# is, so a fee it does not list is one the repository has not stated, not one it does not charge.
-FEE = {
-    Answer.YES: "A deposit fee is listed; re3data gives no amount, so ask the repository.",
-    Answer.NO: "No deposit fee is listed.",
-    Answer.UNSTATED: "Deposit fee: not stated by the repository, check with them.",
-}
 
 
 class TemplateExplainer(explain.TemplateExplainer[RepositoryNeeds, Item]):
@@ -133,7 +124,6 @@ class ModelExplainer(explain.ModelExplainer[RepositoryNeeds, Item]):
                 f"meets: {' '.join(a.meets) or '(none)'}; "
                 f"misses: {' '.join(a.misses) or '(none)'}; "
                 f"notes: {' '.join(a.notes) or '(none)'}; "
-                f"deposit fee: {FEE[fee_required(r)]}; "
                 f"registry description: {desc[:600]}"
             )
         return "\n".join(lines)

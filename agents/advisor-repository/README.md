@@ -193,7 +193,7 @@ from the export (`tests/data/SOURCE.md`), so they need no network.
 
 - re3data shows that a fee is required, but not how much, and does not say who pays. It has no
   value for "no fee", so a fee it does not list is reported as `unstated`, never `no`, and the
-  rationale says "not stated by the repository, check with them". PID costs are not covered.
+  app shows "not stated by the repository, check with them". PID costs are not covered.
   TODO(#322)
 - re3data names each certificate, with its dates, but only the names are kept, so a lapsed
   certificate is reported as if current. TODO(#485). Free quality evaluations are not consulted.
