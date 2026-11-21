@@ -18,7 +18,7 @@ import pytest
 import yaml
 from inspect_ai import eval as inspect_eval
 from inspect_ai.log import EvalLog
-from inspect_ai.scorer import Score
+from inspect_ai.scorer import NOANSWER, Score
 
 from dd_agent_advisor_documentation.agent import DocumentationEditor
 from dd_agent_advisor_documentation.evals import drafting
@@ -178,6 +178,11 @@ def test_with_a_model_the_suggestions_and_prose_are_scored_and_no_cell_is_writte
     readme = scores(log, "hallam-readme")
     assert readme["no_unsupported_claim"].value == "C"
     assert readme["every_gap_marked_and_asked"].value == 1.0
+
+    # The first run asks before it writes: a note, not a README, so its sections are not scored.
+    first = scores(log, "hallam-readme-first")
+    assert first["every_gap_marked_and_asked"].value == 1.0
+    assert first["required_sections_present"].value == NOANSWER
 
 
 def test_the_evaluation_catches_what_the_editors_own_guards_stop(

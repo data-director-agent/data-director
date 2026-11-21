@@ -108,7 +108,7 @@
           "agent_id": "example.hello",
           "agent_version": "0.1.1a1",
           "completed_at": "2026-01-01T00:00:00Z",
-          "contract_version": "0.17.1",
+          "contract_version": "0.18.1",
           "conversation_id": "01900000-0000-7000-8000-000000000001",
           "evidence": [
             {
@@ -161,7 +161,7 @@
         "agent_id": "orchestrator.stub",
         "agent_version": "0.1.0",
         "completed_at": "2026-01-01T00:00:00Z",
-        "contract_version": "0.17.1",
+        "contract_version": "0.18.1",
         "conversation_id": "01900000-0000-7000-8000-000000000001",
         "delegations": [
           {
@@ -245,7 +245,7 @@
           "agent_id": "example.hello",
           "agent_version": "0.1.1a1",
           "completed_at": "2026-01-01T00:00:00Z",
-          "contract_version": "0.17.1",
+          "contract_version": "0.18.1",
           "conversation_id": "01900000-0000-7000-8000-000000000001",
           "evidence": [
             {
@@ -298,7 +298,7 @@
         "agent_id": "orchestrator.stub",
         "agent_version": "0.1.0",
         "completed_at": "2026-01-01T00:00:00Z",
-        "contract_version": "0.17.1",
+        "contract_version": "0.18.1",
         "conversation_id": "01900000-0000-7000-8000-000000000001",
         "delegations": [
           {

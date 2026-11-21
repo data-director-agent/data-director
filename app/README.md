@@ -207,6 +207,13 @@ the example enables that the copy omits; add it to the copy, or delete the copy.
 The app stops at start-up, with one line, if a setting is unset or wrong, a file is missing or
 malformed, or the shell has not been built.
 
+### Keeping listings from starving turns
+
+`DD_APP_LISTING_THREADS` (8) is how many listings (`GET /api/projects`, `/api/conversations`,
+`/api/runs`) run at once, `DD_APP_LISTING_QUEUE` (16) how many may wait, and `DD_APP_LISTING_RETRY_S`
+(2) the `Retry-After` of the `503` a listing gets beyond that. Turns are unaffected by listings
+(#1258; [operations guide](../docs/guide/operations/configuration.md)).
+
 ### Who a run acts for: signing in
 
 With `DD_OIDC_ISSUER` set, people sign in with ORCID, and each run acts for the person who

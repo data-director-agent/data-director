@@ -13,6 +13,9 @@
       "DocumentationSummary": {
          "@id": "https://w3id.org/data-director/DocumentationSummary"
       },
+      "DraftSummary": {
+         "@id": "https://w3id.org/data-director/DraftSummary"
+      },
       "ExternalIdentifier": {
          "@id": "https://w3id.org/data-director/ExternalIdentifier"
       },
@@ -104,6 +107,9 @@
       "department": {
          "@id": "https://w3id.org/data-director/department"
       },
+      "document_kind": {
+         "@id": "https://w3id.org/data-director/document_kind"
+      },
       "documentation_added_at": {
          "@id": "https://w3id.org/data-director/documentation_added_at",
          "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
@@ -122,6 +128,9 @@
       },
       "documentation_source_media_type": {
          "@id": "https://w3id.org/data-director/documentation_source_media_type"
+      },
+      "drafted_since_inventory": {
+         "@id": "https://w3id.org/data-director/drafted_since_inventory"
       },
       "end_year": {
          "@id": "https://w3id.org/data-director/end_year"
@@ -211,6 +220,10 @@
       "identifier_value": {
          "@id": "https://w3id.org/data-director/identifier_value"
       },
+      "inventory_added_at": {
+         "@id": "https://w3id.org/data-director/inventory_added_at",
+         "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+      },
       "inventory_digest": {
          "@id": "https://w3id.org/data-director/inventory_digest"
       },
@@ -227,6 +240,9 @@
       "inventory_made_at": {
          "@id": "http://www.w3.org/ns/prov#generatedAtTime",
          "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+      },
+      "inventory_revised_from_file_count": {
+         "@id": "https://w3id.org/data-director/inventory_revised_from_file_count"
       },
       "inventory_table_count": {
          "@id": "https://w3id.org/data-director/inventory_table_count"
@@ -282,6 +298,10 @@
       },
       "project_documentation": {
          "@id": "https://w3id.org/data-director/project_documentation",
+         "@type": "@id"
+      },
+      "project_drafts": {
+         "@id": "https://w3id.org/data-director/project_drafts",
          "@type": "@id"
       },
       "project_entry": {
@@ -379,6 +399,12 @@
       },
       "turn_text": {
          "@id": "https://w3id.org/data-director/turn_text"
+      },
+      "version": {
+         "@id": "https://w3id.org/data-director/version"
+      },
+      "version_state": {
+         "@id": "https://w3id.org/data-director/version_state"
       },
       "work_identifiers": {
          "@id": "https://w3id.org/data-director/work_identifiers",

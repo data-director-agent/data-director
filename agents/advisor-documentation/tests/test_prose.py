@@ -11,7 +11,7 @@ from typing import Any
 
 import pytest
 
-from dd_agent_advisor_documentation.agent import DocumentationEditor
+from dd_agent_advisor_documentation.agent import RESEARCHER_ANSWERS, DocumentationEditor
 from dd_agent_advisor_documentation.factory import build
 from dd_agent_advisor_documentation.prose import (
     SUGGEST_PROMPT,
@@ -21,7 +21,7 @@ from dd_agent_advisor_documentation.prose import (
     ProseReply,
     check,
 )
-from dd_agent_advisor_documentation.testing import prose_reply, suggestion_reply
+from dd_agent_advisor_documentation.testing import prose_reply, redraft, suggestion_reply
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.contract.models import (
     Derivation,
@@ -47,6 +47,12 @@ FILES = "The tables `data/readings.csv` and `data/sites.tsv` both have a field n
 
 
 def sample(name: str) -> DraftRequest:
+    """A sample request; a README's as a project's second run makes it, so that the editor
+    writes the README rather than asking first (`first_sample` is the first run's)."""
+    return redraft(first_sample(name))
+
+
+def first_sample(name: str) -> DraftRequest:
     return DraftRequest.model_validate_json((SAMPLES / name).read_text(encoding="utf-8"))
 
 
@@ -231,9 +237,11 @@ def test_a_draft_with_no_usable_prose_is_a_template_version(
     assert why in env.outcome.statement
 
 
-def test_the_model_is_given_the_facts_and_never_the_answers_or_an_earlier_version(
+def test_the_model_is_given_the_facts_and_never_a_part_answer_or_an_earlier_version(
     runs_dir: Path,
 ) -> None:
+    """A part of General information is a value placed as given (a date, a name), so the model is
+    not given its answer; only a section answered as a whole is written in the model's words."""
     asked = sample("soil-survey.readme-with-record.draft.json")
     template = template_draft(runs_dir, asked)
     question = template.document_questions[0].question_id
@@ -245,7 +253,8 @@ def test_the_model_is_given_the_facts_and_never_the_answers_or_an_earlier_versio
     env, _ = draft(runs_dir, client, asked)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED
     assert secret in env.payload_as(Document).document_text
-    # One call for the prose, one for the suggested answers; neither is given the answers.
+    assert template.document_questions[0].gap_part is not None
+    # One call for the prose, one for the suggested answers; neither is given the answer.
     assert len(client.sent) == 2
     assert all(secret not in sent["messages"][0]["content"] for sent in client.sent)
     sent = client.sent[0]
@@ -259,6 +268,57 @@ def test_the_model_is_given_the_facts_and_never_the_answers_or_an_earlier_versio
     # The model was asked but wrote nothing usable: a template version, said so.
     assert env.payload_as(Document).document_derivation == Derivation.TEMPLATE
     assert "added none" in env.outcome.statement
+
+
+METHODS_ANSWER = "Cores were taken at 10 cm depth and dried at 40 C before sieving."
+METHODS_PROSE = (
+    "Soil cores were taken at a depth of 10 cm, then dried at 40 C and sieved before analysis."
+)
+
+
+def answered_methods(runs_dir: Path) -> DraftRequest:
+    asked = sample("soil-survey.readme.draft.json")
+    template = template_draft(runs_dir, asked)
+    (methods,) = [q for q in template.document_questions if q.gap_section == "Methods"]
+    answer = DraftAnswer(answered_question=methods.question_id, answer_text=METHODS_ANSWER)
+    return asked.model_copy(update={"draft_answers": [answer]})
+
+
+@pytest.mark.requirement("R5")
+def test_a_section_answered_is_written_by_the_model_from_the_answer(runs_dir: Path) -> None:
+    asked = answered_methods(runs_dir)
+    client = StubClient({"Methods": METHODS_PROSE})
+    env, _ = draft(runs_dir, client, asked)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    document = env.payload_as(Document)
+    assert section(document.document_text, "Methods").strip() == METHODS_PROSE
+    assert METHODS_ANSWER not in document.document_text
+    assert document.document_derivation == Derivation.MODEL
+    assert "Methods" not in {q.gap_section for q in document.document_questions}
+    # The model was offered Methods, and given the answer to write it from.
+    prose_call = next(s for s in client.sent if s["system"] == SYSTEM_PROMPT)
+    facts = json.loads(prose_call["messages"][0]["content"].split("Facts:\n", 1)[1])
+    assert facts[RESEARCHER_ANSWERS] == {"Methods": METHODS_ANSWER}
+    assert '"Methods"' in prose_call["messages"][0]["content"].split("Facts:", 1)[0]
+
+
+def test_a_paragraph_that_strays_from_the_answer_leaves_the_answer_as_given(
+    runs_dir: Path,
+) -> None:
+    asked = answered_methods(runs_dir)
+    strays = "Soil cores were taken at a depth of 15 cm and dried."
+    env, _ = draft(runs_dir, StubClient({"Methods": strays}), asked)
+    text = env.payload_as(Document).document_text
+    assert section(text, "Methods").strip() == METHODS_ANSWER
+    assert "15" in env.outcome.statement
+
+
+def test_with_no_section_answered_the_model_is_given_no_answers(runs_dir: Path) -> None:
+    client = StubClient({"overview": None})
+    draft(runs_dir, client)
+    prose_call = next(s for s in client.sent if s["system"] == SYSTEM_PROMPT)
+    facts = json.loads(prose_call["messages"][0]["content"].split("Facts:\n", 1)[1])
+    assert RESEARCHER_ANSWERS not in facts
 
 
 def test_each_call_and_its_prompt_are_recorded(runs_dir: Path) -> None:

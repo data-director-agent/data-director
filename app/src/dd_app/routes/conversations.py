@@ -32,6 +32,7 @@ from dd_app.routes.common import (
     Deps,
     RequestBody,
     ResponseBody,
+    listed,
     no_conversation,
     no_project,
     parse_body,
@@ -352,7 +353,13 @@ async def list_conversations(request: Request, reader: Principal, deps: Deps) ->
         paging = page_params(request)
     except PagingError as exc:
         return refused(str(exc), "Data Director could not list the conversations")
-    page = await run_in_threadpool(lambda: deps.reads.conversations(reader, **paging))
+    page = await listed(
+        deps,
+        lambda: deps.reads.conversations(reader, **paging),
+        "Data Director could not list the conversations",
+    )
+    if isinstance(page, Response):
+        return page
     return await run_in_threadpool(respond_page, request, page, ConversationSummary)
 
 

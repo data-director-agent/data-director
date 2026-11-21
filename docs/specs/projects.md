@@ -98,10 +98,12 @@ intended design, and each part says where it is not built yet.
    documents of the kind asked for ([Drafting documents](drafting.md), invariant 6). A plain `FileInventory` input is the
    project's inventory when it holds one, so an orchestrator sends an empty one. A `Message`'s
    `project_inventory` says what the project's inventory is (its digest, file count, tool and
-   date, its limitations, its files grouped by media type with their PRONOM identifiers, and how
-   many are tables) without its files' paths, so an orchestrator knows the researcher has given
-   one and what kinds of files it lists, and asks the researcher to confirm them rather than to
-   name them (#1287); outside a project, or in one with no inventory, it is removed, so a caller can
+   date, its limitations, its files grouped by media type with their PRONOM identifiers, how
+   many are tables, when it was added and how many files the one it replaced listed) without its
+   files' paths, so an orchestrator knows the researcher has given one and what kinds of files it
+   lists, and asks the researcher to confirm them rather than to name them (#1287), and that a
+   revision such as files left out in Edit inventory has taken effect; outside a project, or in one
+   with no inventory, it is removed, so a caller can
    never claim one. Its `project_entry` and `project_progress` say which entry point the
    researcher chose and which steps of the process flow the log shows started, done or skipped,
    derived on every turn and removed outside a project ([Orchestration](orchestration.md),
@@ -119,7 +121,12 @@ intended design, and each part says where it is not built yet.
    what an agent only proposed is never given, and a `Message`'s are removed outside a project.
    A `Message`'s `project_repository` is the repository a researcher chose last, by its name and
    re3data identifier, and is removed outside a project and until one is chosen, so a caller can
-   never claim one ([Orchestration](orchestration.md), invariant 21). A `DraftRequest`'s `project_documents` are the documents a researcher attached, each with its
+   never claim one ([Orchestration](orchestration.md), invariant 21). A `Message`'s
+   `project_drafts` give the latest version of each drafted document, its state and whether it
+   was drafted after the inventory was last added, by the order of the log's events, never its
+   text; they are no class of project content, and are removed outside a project and while
+   nothing is drafted (`dd_harness.project_drafts`; [Orchestration](orchestration.md), invariant
+   22; #1280). A `DraftRequest`'s `project_documents` are the documents a researcher attached, each with its
    text, replacing what the caller sent. An agent's own input class asks for the same by mixing
    in `GivenProjectDocuments` (`project_documents`), `GivenProjectDecisions`
    (`project_decisions`) or `GivenProjectRepository` (`project_repository`): where the accepted schema on the agent's card declares the slot, the

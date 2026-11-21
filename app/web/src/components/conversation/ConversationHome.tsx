@@ -252,6 +252,9 @@ export function ConversationHome({ directory }: { directory: Directory }) {
               onRetry={(message) =>
                 void turns.deliver(message, { inventory: null, document: null }, null)
               }
+              onDocumentWrite={(message) =>
+                void turns.deliver(message, { inventory: null, document: null }, null)
+              }
               {...projectHandlers(projectId, answered, reloadProjects)}
             />
           )}

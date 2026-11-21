@@ -19,6 +19,7 @@ from dd_agent_advisor_documentation.agent import (
     _question_id,
 )
 from dd_agent_advisor_documentation.sections import load_sections
+from dd_agent_advisor_documentation.testing import redraft
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import describe
 from dd_sdk.contract.models import (
@@ -38,9 +39,16 @@ from dd_sdk.contract.models import (
 )
 
 SAMPLES = Path(__file__).with_name("data")
+GAP = re.compile(r"<!-- dd:gap (q-[0-9a-f]{16}) -->")
 
 
 def sample(name: str) -> DraftRequest:
+    """A sample request; a README's as a project's second run makes it, so that the editor
+    writes the README rather than asking first (`first_sample` is the first run's)."""
+    return redraft(first_sample(name))
+
+
+def first_sample(name: str) -> DraftRequest:
     return DraftRequest.model_validate_json((SAMPLES / name).read_text(encoding="utf-8"))
 
 
@@ -60,7 +68,9 @@ def test_drafts_a_readme_from_the_inventory_and_marks_the_rest(runs_dir: Path) -
     assert document.document_kind == DocumentKind.README
     assert document.document_derivation == Derivation.TEMPLATE
     assert document.media_type == "text/markdown"
-    assert document.revises is None
+    assert document.document_stage == "draft"
+    assert asked.current_version is not None
+    assert document.revises == asked.current_version.version_ref
     text = document.document_text
     headings = [line[3:] for line in text.splitlines() if line.startswith("## ")]
     assert headings == [
@@ -75,9 +85,7 @@ def test_drafts_a_readme_from_the_inventory_and_marks_the_rest(runs_dir: Path) -
     ]
     # One placeholder per section, and one per part in a section asked part by part.
     sections = load_sections()
-    assert text.count("_To be written by the researcher:") == sum(
-        len(s.parts) or 1 for s in sections
-    )
+    assert text.count("_Still needed:") == sum(len(s.parts) or 1 for s in sections)
     assert asked.inventory is not None
     for f in asked.inventory.inventory_files:
         assert f"`{f.file_path}`" in text
@@ -88,6 +96,48 @@ def test_drafts_a_readme_from_the_inventory_and_marks_the_rest(runs_dir: Path) -
     assert asked.requirements is not None and asked.requirements.licences
     assert f"`{asked.requirements.licences[0]}`" in text
     assert "template path" in env.outcome.statement
+
+
+@pytest.mark.requirement("R5")
+def test_the_first_readme_run_asks_before_it_writes(runs_dir: Path) -> None:
+    """With nothing answered yet, the first run asks what the README needs and shows no README:
+    its version is a note with every gap's question, which cannot be approved."""
+    first = first_sample("soil-survey.readme.draft.json")
+    env, grounded = draft(runs_dir, first)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert grounded
+    asking = env.payload_as(Document)
+    assert asking.document_stage == "questions"
+    assert asking.revises is None
+    assert not re.search(r"^## ", asking.document_text, re.MULTILINE)
+    assert "dd:gap" not in asking.document_text
+    assert "_Still needed:" not in asking.document_text
+
+    # The second run writes the README, asking the same questions of the gaps still open.
+    env, _ = draft(runs_dir, redraft(first))
+    written = env.payload_as(Document)
+    assert written.document_stage == "draft"
+    assert [q.question_id for q in written.document_questions] == [
+        q.question_id for q in asking.document_questions
+    ]
+    assert len(GAP.findall(written.document_text)) == len(written.document_questions)
+
+
+def test_a_first_run_with_answers_writes_the_readme_at_once(runs_dir: Path) -> None:
+    first = first_sample("soil-survey.readme.draft.json")
+    env, _ = draft(runs_dir, first)
+    (question, *_) = env.payload_as(Document).document_questions
+    answered = first.model_copy(
+        update={
+            "draft_answers": [
+                DraftAnswer(answered_question=question.question_id, answer_text="Ada Lovelace.")
+            ]
+        }
+    )
+    env, _ = draft(runs_dir, answered)
+    written = env.payload_as(Document)
+    assert written.document_stage == "draft"
+    assert "Ada Lovelace." in written.document_text
 
 
 def test_drafts_a_data_dictionary_with_a_row_per_field(runs_dir: Path) -> None:
@@ -245,7 +295,7 @@ def test_every_readme_gap_is_marked_and_asked_once(runs_dir: Path) -> None:
     markers = re.findall(r"<!-- dd:gap (q-[0-9a-f]{16}) -->", document.document_text)
     questions = document.document_questions
     assert markers == [q.question_id for q in questions]
-    assert len(markers) == document.document_text.count("_To be written by the researcher:")
+    assert len(markers) == document.document_text.count("_Still needed:")
     targets = [
         (s.heading, p.label if p else None) for s in load_sections() for p in s.parts or (None,)
     ]
@@ -396,7 +446,7 @@ def test_a_readme_takes_what_the_approved_metadata_record_gives(runs_dir: Path) 
         q.gap_part for q in document.document_questions if q.gap_section == "General information"
     }
     assert "Title" not in parts and "Funding" in parts
-    assert "_To be written by the researcher:" in general
+    assert "_Still needed:" in general
 
     # The abstract says all the Description asks, so no gap is left there.
     assert section_of(text, "Description").startswith("Soil pH, moisture and organic carbon")

@@ -415,6 +415,17 @@ describe("ProjectPage", () => {
     expect(within(article).getByText("{not json")).toBeVisible();
   });
 
+  it("offers no decision on a README that only asks questions first", async () => {
+    const asking = {
+      ...PROJECT,
+      documents: [{ ...README, versions: [{ ...DRAFT, stage: "questions" as const }] }, DICTIONARY],
+    };
+    renderPage(fakeApi({ documents: () => Promise.resolve(asking) }));
+    const article = await readme();
+    expect(within(article).getByText(/not the README yet/)).toBeVisible();
+    expect(within(article).queryByLabelText("Approve version 1 as it is")).toBeNull();
+  });
+
   it("previews the person's edit before they approve it", async () => {
     const user = userEvent.setup();
     renderPage(fakeApi());
