@@ -24,7 +24,7 @@ In the project's **Deposit** tab:
    is, will leave it out, or will deposit a changed copy, such as a redacted one; you may add a
    note. Data Director does not change your files: leaving a file out or changing it is up to you
    when you deposit.
-3. Confirm that the ethics approvals that apply are in place, that data protection advice has
+3. Confirm that the ethics approvals and participants' consent that apply are in place, that data protection advice has
    been taken where the data concern living people, and that you may share any material from
    others. Your decisions and your confirmation are kept with your name and the time, and go into
    the package. A file that is not listed has not been cleared: the check reads names, not

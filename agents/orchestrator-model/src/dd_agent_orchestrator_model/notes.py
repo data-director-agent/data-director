@@ -13,8 +13,10 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 from datetime import UTC, datetime
+from typing import Final
 
 from dd_agent_orchestrator_model.own_tools import NAME_TOOL
+from dd_agent_orchestrator_model.provisional import chose_provisional
 from dd_sdk.contract.facts import FactKind, InventoryFormat, ProjectFact
 from dd_sdk.contract.models import DraftSummary, Message
 
@@ -39,6 +41,7 @@ def record_notes(message: Message) -> tuple[str | None, ...]:
         decisions_note(message),
         documents_note(message),
         drafts_note(message),
+        provisional_note(message),
     )
 
 
@@ -228,3 +231,19 @@ _SAYS: dict[FactKind, Callable[[ProjectFact], str]] = {
     FactKind.LICENCE: _licence,
     FactKind.SHARING_COMMITMENT: _commitment,
 }
+
+
+PROVISIONAL_NOTE: Final = (
+    LEAD + "The researcher chose to continue provisionally, for planning only, while participants' "
+    "consent and the ethics approval for sharing are not settled. Give the planning advice they "
+    "ask for, such as a repository shortlist, a README or a metadata record, and label each as "
+    "provisional: say that it depends on participants' consent and the ethics approval covering "
+    "sharing, and may change once those are settled. Building and depositing the package stay "
+    "blocked until the researcher confirms, in the deposit check before packaging, that consent "
+    "and ethics approval are in place: do not suggest either before then, and say why when asked."
+)
+
+
+def provisional_note(message: Message) -> str | None:
+    """The note that the researcher chose planning-only advice, or None if they did not."""
+    return PROVISIONAL_NOTE if chose_provisional(message) else None

@@ -1,5 +1,5 @@
 {
-  "detail": "the project is not ready for deposit: Zenodo requires a metadata record, and none has been approved.; Confirm that ethics approval, data protection advice and the rights to any third-party material have been checked before packaging.",
+  "detail": "the project is not ready for deposit: Zenodo requires a metadata record, and none has been approved.; Confirm that ethics approval and participants' consent, data protection advice and the rights to any third-party material have been checked before packaging: nothing is built or deposited until then.",
   "status": 409,
   "title": "No package was built",
   "type": "https://w3id.org/data-director/problems/package-refused",
@@ -63,7 +63,7 @@
           "sh:focusNode": {
             "@id": "urn:uuid:01900000-0000-7000-8000-000000000001"
           },
-          "sh:resultMessage": "Confirm that ethics approval, data protection advice and the rights to any third-party material have been checked before packaging.",
+          "sh:resultMessage": "Confirm that ethics approval and participants' consent, data protection advice and the rights to any third-party material have been checked before packaging: nothing is built or deposited until then.",
           "sh:resultSeverity": {
             "@id": "sh:Warning"
           },
@@ -86,7 +86,7 @@
       "statements": [
         {
           "id": "ethics_approval",
-          "text": "The ethics approvals that apply to these data are in place, and depositing them is within what they allow."
+          "text": "The ethics approvals and participants' consent that apply to these data are in place, and depositing them is within what they allow."
         },
         {
           "id": "data_protection",

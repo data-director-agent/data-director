@@ -141,7 +141,7 @@
       "statements": [
         {
           "id": "ethics_approval",
-          "text": "The ethics approvals that apply to these data are in place, and depositing them is within what they allow."
+          "text": "The ethics approvals and participants' consent that apply to these data are in place, and depositing them is within what they allow."
         },
         {
           "id": "data_protection",
@@ -162,7 +162,7 @@
     "statements": [
       {
         "id": "ethics_approval",
-        "text": "The ethics approvals that apply to these data are in place, and depositing them is within what they allow."
+        "text": "The ethics approvals and participants' consent that apply to these data are in place, and depositing them is within what they allow."
       },
       {
         "id": "data_protection",
