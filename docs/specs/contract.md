@@ -214,6 +214,12 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
     version to 0.19.0
     ([Personal data and disclosure control](personal-data.md), #611,
     `inventory/tests/test_summaries.py`).
+32. A `Message` may carry `project_intake`, one `IntakeAnswer` for each intake question beside
+    the entry question that the researcher answered and that is asked from the project's entry
+    point: its id, its prompt and the labels of the options chosen, "Not sure" included, which no
+    step state shows. Only the conductor fills it in a project ([Projects](projects.md), invariant
+    6; [Orchestration](orchestration.md), invariant 20; #1374). Adding it raised the contract
+    version to 0.20.0.
 
 ## Boundaries and contracts
 
