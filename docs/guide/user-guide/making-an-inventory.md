@@ -73,16 +73,23 @@ contact about anything you are unsure of.
 
 In the app, select **Make an inventory** under the message box on the conversation page. It offers
 two ways, each on its own tab: **In this browser**, which describes a folder and needs nothing
-installed, and **With the command**, which you run in a terminal. It opens on the browser. Use the browser unless your data are somewhere it cannot reach, or the dataset
-is very large (below).
+installed, and **With the command**, which you run in a terminal. It opens on the browser. Use the
+browser unless your data are somewhere it cannot reach, or the dataset is very large (below).
 
 ### Describing a folder in your browser
 
-**Make an inventory** opens on the **In this browser** tab. Select **Choose a folder…** and pick the folder that holds your dataset. Your browser reads the files and makes the
-inventory itself, running the same `dd-inventory` code as the command. None of your files is sent
-anywhere: the app attaches only the inventory, and only after you have checked it (below). You can
-also drop the folder onto the dashed box. If you look at the other tab while it works, it carries
-on.
+**Make an inventory** opens on the **In this browser** tab. Select **Choose a folder…** and pick the
+folder that holds your dataset. Your browser reads the files and makes the inventory itself,
+running the same `dd-inventory` code as the command. None of your files is sent anywhere: the app
+attaches only the inventory, and only after you have checked it (below). You can also drop the
+folder onto the box instead of selecting the button.
+
+While it works, the box says which stage it is at (fetching, starting and installing the scanner,
+then reading the files), shows a progress bar with the file being read and how many of the files
+are done, and offers **Cancel**. Nothing is attached if you cancel. If you look at the other tab
+while it works, it carries on. When it finishes, the inventory opens for you to check, as one
+made with the command does. If the browser cannot read what you chose, or the scan fails, it says
+why under the button and you can choose again.
 
 This works in current versions of Chrome, Edge, Firefox and Safari. Chrome and Edge ask whether to
 let the site **view** the files in the folder; allow it. Some other browsers ask whether to
@@ -94,9 +101,11 @@ inventory is otherwise the same, but it does not mention them, as one made in an
 with the command does.
 
 The first time, your browser fetches the scanner (about 16 MB), so allow a little longer; after
-that it keeps a copy. Describing a folder in the browser is slower than the command, by about
-three times, and a browser uses a lot of memory on very large files. Use the command instead, from the **With the command** tab or the **Use the command instead**
-button, when:
+that it keeps a copy. The scanner comes from your organisation's Data Director, and the box
+links to its **Licence notices**, which credit the open-source parts it contains. Describing a
+folder in the browser is slower than the command, by about three times, and a browser uses a lot
+of memory on very large files. Use the command instead, from the **With the command** tab or the
+**Use the command instead** button, when:
 
 - your data are on a server, a cluster or network storage that your browser cannot reach;
 - the dataset is very large, with files of several gigabytes or more.
@@ -105,6 +114,9 @@ If the folder you choose holds a file of 4 GB or more, the browser says so befor
 suggests the command. Your browser's memory grows while it reads a file that large, and if your
 computer runs short it may close the page, and the app with it. You can still go on with
 **Describe it here anyway**.
+
+One more difference: a browser does not tell the page that a file is a shortcut (a symbolic
+link), so the browser describes it as a file, where the command skips it and says so.
 
 An inventory made in the browser says so: the version of the tool that made it ends in
 `+pyodide`, followed by a version number.
@@ -188,8 +200,9 @@ inventory**. The project keeps the new version, and the earlier one stays in its
 If your files change, update the inventory with a new scan of the folder that changed. Under
 **Update with a new scan**, say under **Scan of** which folder it is. Then select **Choose a
 folder…** and pick the folder, or drop it there, as when you first made the inventory; or, if you
-made the new inventory with the command, choose its file as **New scan**. Only that folder is replaced, and nothing is kept until you select **Save as the project's
-inventory**. What you said about each file is carried over to the
+made the new inventory with the command, choose its file as **New scan**. While the browser
+describes the folder, you cannot change which folder the scan is of. Only that folder is
+replaced, and nothing is kept until you select **Save as the project's inventory**. What you said about each file is carried over to the
 new scan wherever the file is still there, and the app tells you which files are new, changed or
 gone. One thing cannot be carried over: anything you left out before was never kept, so it
 appears again in the new scan. Check the files marked **New in this scan** and leave them out
