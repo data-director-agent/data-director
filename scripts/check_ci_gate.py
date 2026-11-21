@@ -22,8 +22,7 @@ from pathlib import Path
 
 # workflow file -> (aggregate job id, jobs the aggregate deliberately leaves out).
 GATES: dict[str, tuple[str, frozenset[str]]] = {
-    # `conformance` is advisory (TODO(#458)): it reports and never blocks a merge.
-    ".github/workflows/ci.yml": ("ci-passed", frozenset({"conformance"})),
+    ".github/workflows/ci.yml": ("ci-passed", frozenset()),
     ".github/workflows/accessibility.yml": ("accessibility-passed", frozenset()),
 }
 

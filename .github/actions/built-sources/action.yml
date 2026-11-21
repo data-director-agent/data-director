@@ -5,8 +5,8 @@ description: >-
 runs:
   using: composite
   steps:
-    # The key changes only when some source's pin does, so each pin is downloaded once: by the
-    # `sources` job, which saves the cache that the jobs needing it then restore.
+    # The key changes only when some source's pin does, so each pin is downloaded once: the first
+    # job to miss the cache saves it, and every later job restores it.
     - name: Key the cache on every source's pin
       id: key
       shell: bash

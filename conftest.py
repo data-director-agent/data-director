@@ -8,13 +8,14 @@ Two things happen here that the conformance report depends on:
 - `pytest_json_runtest_metadata` copies the marker's identifiers into the pytest-json-report
   record, which is what scripts/conformance_report.py reads.
 
-With `--test-shard 2/3` the session runs one part of the suite (`_keep_shard`). It is an option,
-not an environment variable, so a test that starts pytest itself does not pass it on.
+With `--test-shard 2/3` the session runs one part of the suite (`_keep_shard`), the files dealt
+to it by their recorded durations (scripts/test_durations.py). It is an option, not an environment
+variable, so a test that starts pytest itself does not pass it on.
 """
 
 from __future__ import annotations
 
-import zlib
+import importlib.util
 from pathlib import Path
 from typing import Any
 
@@ -58,21 +59,36 @@ def _shard(config: pytest.Config) -> tuple[int, int] | None:
     return int(index), int(count)
 
 
+def _shard_rules() -> Any:
+    """scripts/test_durations.py, loaded by path: scripts/ is tooling, not an importable package."""
+    spec = importlib.util.spec_from_file_location(
+        "_test_durations", ROOT / "scripts" / "test_durations.py"
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def _keep_shard(config: pytest.Config, items: list[pytest.Item]) -> None:
     """Keep the test files that fall in this shard, so CI can run the suite as parallel jobs.
 
-    A file's shard is a stable hash of its path, so every file is in exactly one shard, a new
-    file joins one without a list to update, and each xdist worker selects the same tests.
+    Files with a recorded duration are dealt out so that the shards take about as long as each
+    other; any other file falls in a shard by a stable hash of its path, so a new file joins one
+    without a list to update. Every file is in exactly one shard, and each xdist worker selects
+    the same tests.
     """
     shard = _shard(config)
     if shard is None:
         return
     index, count = shard
+    rules = _shard_rules()
+    shards = rules.assign(rules.load(), count)
     keep: list[pytest.Item] = []
     drop: list[pytest.Item] = []
     for item in items:
         path = item.nodeid.partition("::")[0]
-        (keep if zlib.crc32(path.encode()) % count == index - 1 else drop).append(item)
+        (keep if rules.shard_of(path, shards, count) == index else drop).append(item)
     if drop:
         config.hook.pytest_deselected(items=drop)
         items[:] = keep
