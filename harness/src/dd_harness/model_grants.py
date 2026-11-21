@@ -119,6 +119,44 @@ def _import(material: str, what: str) -> RSAKey | ECKey:
 
 
 @dataclass(frozen=True)
+class GrantRequest:
+    """What one model grant is for: the invocation, the models and the account that pays."""
+
+    agent_id: str
+    invocation_id: str
+    models: Iterable[str]
+    account: Account
+    acting_for: Principal
+    lifetime_s: float
+    providers: Iterable[str] = ()
+    base_urls: Iterable[str] = ()
+    model_map: Mapping[str, Mapping[str, str]] | None = None
+
+
+def _checked(
+    request: GrantRequest,
+) -> tuple[list[str], list[str], list[str], dict[str, dict[str, str]]]:
+    """The grant's models, providers, origins and model map, de-duplicated, or `ValueError` if the
+    request breaks a rule of the account it names."""
+    allowed = list(dict.fromkeys(request.models))
+    if not allowed:
+        raise ValueError("a model grant needs at least one model")
+    own_providers = list(dict.fromkeys(request.providers))
+    own_base_urls = list(dict.fromkeys(request.base_urls))
+    deployment = request.account is Account.DEPLOYMENT
+    if deployment and (own_providers or own_base_urls):
+        raise ValueError("a grant the deployment pays for names no own account's provider")
+    if not deployment and not own_providers:
+        raise ValueError("a grant that may use a person's own account needs a provider")
+    mapped = {p: dict(m) for p, m in (request.model_map or {}).items() if m}
+    if mapped and deployment:
+        raise ValueError("the deployment never pays for a mapped call, so its grant maps none")
+    if any(p not in own_providers or not set(m) <= set(allowed) for p, m in mapped.items()):
+        raise ValueError("a model map maps only a granted model, for a granted provider")
+    return allowed, own_providers, own_base_urls, mapped
+
+
+@dataclass(frozen=True)
 class GrantMinter:
     """Mints the model grants the conductor sends to model-backed agents."""
 
@@ -150,50 +188,27 @@ class GrantMinter:
         )
         return digest.hexdigest()
 
-    def mint(  # noqa: PLR0913
-        self,
-        *,
-        agent_id: str,
-        invocation_id: str,
-        models: Iterable[str],
-        account: Account,
-        acting_for: Principal,
-        lifetime_s: float,
-        providers: Iterable[str] = (),
-        base_urls: Iterable[str] = (),
-        model_map: Mapping[str, Mapping[str, str]] | None = None,
-    ) -> str:
-        """A grant for one invocation of `agent_id` to call `models`, paid for as `account` says,
-        for `acting_for`. It expires `lifetime_s` from now, rounded down: no later than the
-        invocation's timeout. A grant that may use a person's own account names the `providers`
-        and `base_urls` (origins) the profile lets that account use; one the deployment pays for
-        names neither. Such a grant also carries the `model_map` for `models`, if the profile maps
-        any of them (docs/specs/model-accounts.md, The model map)."""
-        allowed = list(dict.fromkeys(models))
-        if not allowed:
-            raise ValueError("a model grant needs at least one model")
-        own_providers = list(dict.fromkeys(providers))
-        own_base_urls = list(dict.fromkeys(base_urls))
-        if account is Account.DEPLOYMENT and (own_providers or own_base_urls):
-            raise ValueError("a grant the deployment pays for names no own account's provider")
-        if account is not Account.DEPLOYMENT and not own_providers:
-            raise ValueError("a grant that may use a person's own account needs a provider")
-        mapped = {p: dict(m) for p, m in (model_map or {}).items() if m}
-        if mapped and account is Account.DEPLOYMENT:
-            raise ValueError("the deployment never pays for a mapped call, so its grant maps none")
-        if any(p not in own_providers or not set(m) <= set(allowed) for p, m in mapped.items()):
-            raise ValueError("a model map maps only a granted model, for a granted provider")
+    def mint(self, request: GrantRequest) -> str:
+        """A grant for one invocation of `request.agent_id` to call `request.models`, paid for as
+        `request.account` says, for `request.acting_for`. It expires `request.lifetime_s` from
+        now, rounded down: no later than the invocation's timeout. A grant that may use a person's
+        own account names the `providers` and `base_urls` (origins) the profile lets that account
+        use; one the deployment pays for names neither. Such a grant also carries the `model_map`
+        for `models`, if the profile maps any of them (docs/specs/model-accounts.md, The model
+        map)."""
+        allowed, own_providers, own_base_urls, mapped = _checked(request)
         issued_at = int(self.clock())
-        lifetime = max(1, math.floor(lifetime_s))
+        lifetime = max(1, math.floor(request.lifetime_s))
+        account = request.account
         claims = {
             CLAIM_AUDIENCE: BROKER_AUDIENCE,
             CLAIM_ISSUED_AT: issued_at,
             CLAIM_EXPIRES: issued_at + lifetime,
-            CLAIM_AGENT: agent_id,
-            CLAIM_INVOCATION: invocation_id,
+            CLAIM_AGENT: request.agent_id,
+            CLAIM_INVOCATION: request.invocation_id,
             CLAIM_MODELS: allowed,
             CLAIM_ACCOUNT: account.value,
-            CLAIM_SUBJECT: self._seal(self.pseudonym(acting_for)),
+            CLAIM_SUBJECT: self._seal(self.pseudonym(request.acting_for)),
         }
         if account is not Account.DEPLOYMENT:
             claims[CLAIM_PROVIDERS] = own_providers

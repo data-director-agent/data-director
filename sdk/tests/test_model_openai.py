@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 from dd_sdk.agent import RunContext
 from dd_sdk.model import ModelOutputError, Usage, call
-from dd_sdk.model_openai import OpenAIModel, openai_client
+from dd_sdk.model_openai import OpenAIModel, OpenAIOptions, openai_client
 
 pytest.importorskip("openai")
 
@@ -88,7 +88,7 @@ class Endpoint:
 
 def test_the_request_is_a_chat_completion_with_the_system_prompt_first(ctx: RunContext) -> None:
     endpoint = Endpoint(completion())
-    model = endpoint.model(max_tokens_field="max_completion_tokens")
+    model = endpoint.model(options=OpenAIOptions(max_tokens_field="max_completion_tokens"))
     reply = call(model, ctx, system="Be brief.", messages=[{"role": "user", "content": "Hi"}])
 
     assert str(endpoint.requests[-1].url) == f"{BASE}/chat/completions"

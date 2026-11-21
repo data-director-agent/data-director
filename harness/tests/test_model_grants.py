@@ -20,6 +20,7 @@ from dd_harness.model_grants import (
     JWKS_PATH,
     GrantKeyError,
     GrantMinter,
+    GrantRequest,
     broker_subject_key,
     jwks_routes,
     signing_key,
@@ -107,12 +108,14 @@ def delegating_model_backed(seen: list[RunContext], *targets: str) -> ScriptedAg
 
 def test_a_grant_has_the_shape_the_broker_checks(keys: GrantKeys) -> None:
     grant = keys.minter().mint(
-        agent_id="fake.none",
-        invocation_id="inv-1",
-        models=[MODEL, MODEL],
-        account=Account.DEPLOYMENT,
-        acting_for=TEST_PRINCIPAL,
-        lifetime_s=TIMEOUT_S + 0.9,
+        GrantRequest(
+            agent_id="fake.none",
+            invocation_id="inv-1",
+            models=[MODEL, MODEL],
+            account=Account.DEPLOYMENT,
+            acting_for=TEST_PRINCIPAL,
+            lifetime_s=TIMEOUT_S + 0.9,
+        )
     )
     opened = keys.open(grant)
 
@@ -135,12 +138,14 @@ def test_no_two_grants_carry_the_same_sealed_pseudonym(keys: GrantKeys) -> None:
 
     def mint() -> dict[str, Any]:
         grant = minter.mint(
-            agent_id="fake.none",
-            invocation_id="inv-1",
-            models=[MODEL],
-            account=Account.DEPLOYMENT,
-            acting_for=TEST_PRINCIPAL,
-            lifetime_s=TIMEOUT_S,
+            GrantRequest(
+                agent_id="fake.none",
+                invocation_id="inv-1",
+                models=[MODEL],
+                account=Account.DEPLOYMENT,
+                acting_for=TEST_PRINCIPAL,
+                lifetime_s=TIMEOUT_S,
+            )
         )
         return keys.open(grant).claims
 
@@ -388,25 +393,33 @@ def test_a_grant_for_an_own_account_names_its_providers(keys: GrantKeys) -> None
         "lifetime_s": TIMEOUT_S,
     }
     with pytest.raises(ValueError):
-        minter.mint(account=Account.OWN, **common)
+        minter.mint(GrantRequest(account=Account.OWN, **common))
     with pytest.raises(ValueError):
-        minter.mint(account=Account.DEPLOYMENT, providers=["anthropic"], **common)
+        minter.mint(GrantRequest(account=Account.DEPLOYMENT, providers=["anthropic"], **common))
     # The deployment never pays for a mapped call, and a map maps only what the grant allows.
     with pytest.raises(ValueError):
-        minter.mint(account=Account.DEPLOYMENT, model_map={"openai": {MODEL: "gpt-x"}}, **common)
-    with pytest.raises(ValueError):
         minter.mint(
-            account=Account.OWN,
-            providers=["anthropic"],
-            model_map={"openai": {MODEL: "x"}},
-            **common,
+            GrantRequest(
+                account=Account.DEPLOYMENT, model_map={"openai": {MODEL: "gpt-x"}}, **common
+            )
         )
     with pytest.raises(ValueError):
         minter.mint(
-            account=Account.OWN,
-            providers=["openai"],
-            model_map={"openai": {"other": "x"}},
-            **common,
+            GrantRequest(
+                account=Account.OWN,
+                providers=["anthropic"],
+                model_map={"openai": {MODEL: "x"}},
+                **common,
+            )
+        )
+    with pytest.raises(ValueError):
+        minter.mint(
+            GrantRequest(
+                account=Account.OWN,
+                providers=["openai"],
+                model_map={"openai": {"other": "x"}},
+                **common,
+            )
         )
 
 
@@ -752,12 +765,14 @@ def test_the_harness_publishes_its_public_keys_when_it_mints(keys: GrantKeys) ->
     assert response.json() == keys.minter().jwks()
     # A grant verifies against what was published, as the broker verifies it.
     grant = keys.minter().mint(
-        agent_id="fake.none",
-        invocation_id="inv-1",
-        models=[MODEL],
-        account=Account.DEPLOYMENT,
-        acting_for=TEST_PRINCIPAL,
-        lifetime_s=TIMEOUT_S,
+        GrantRequest(
+            agent_id="fake.none",
+            invocation_id="inv-1",
+            models=[MODEL],
+            account=Account.DEPLOYMENT,
+            acting_for=TEST_PRINCIPAL,
+            lifetime_s=TIMEOUT_S,
+        )
     )
     assert keys.open(grant, response.json()).claims["dd_agent"] == "fake.none"
 

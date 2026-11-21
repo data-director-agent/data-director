@@ -40,7 +40,7 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 
 from dd_agent_advisor_dmp.classes import SharingCommitment
 from dd_sdk.agent import RunContext
-from dd_sdk.model import Model, ModelCallError, ModelOutputError, Usage, call
+from dd_sdk.model import CallOptions, Model, ModelCallError, ModelOutputError, Usage, call
 from dd_sdk.prompts import ModelCallLog
 
 DEFAULT_MODEL = "claude-sonnet-5-5"
@@ -198,7 +198,7 @@ class ModelMatcher:
                 system=SYSTEM_PROMPT,
                 messages=messages,
                 schema=MatchReply,
-                calls=log,
+                options=CallOptions(calls=log),
             )
         except ModelCallError as error:
             return self._unused(f"the model could not be reached ({error})", log)

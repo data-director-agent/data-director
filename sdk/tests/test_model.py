@@ -13,7 +13,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from pydantic import BaseModel
 
 from dd_sdk.agent import RunContext
-from dd_sdk.model import ModelOutputError, Usage, call
+from dd_sdk.model import CallOptions, ModelOutputError, Usage, call
 from dd_sdk.model_anthropic import AnthropicModel
 from dd_sdk.prompts import ModelCallLog, prompt_digest
 from dd_sdk.testing import FakeModel
@@ -73,8 +73,8 @@ def test_a_call_returns_the_reply_and_records_it(
 def test_calls_in_one_run_share_a_log(ctx: RunContext) -> None:
     model = FakeModel(["first", "second"])
     log = ModelCallLog(model.provider)
-    first = call(model, ctx, system=SYSTEM, messages=MESSAGES, calls=log)
-    second = call(model, ctx, system=SYSTEM, messages=MESSAGES, calls=log)
+    first = call(model, ctx, system=SYSTEM, messages=MESSAGES, options=CallOptions(calls=log))
+    second = call(model, ctx, system=SYSTEM, messages=MESSAGES, options=CallOptions(calls=log))
 
     assert (first.text, second.text) == ("first", "second")
     assert first.calls is second.calls is log
@@ -134,7 +134,13 @@ def anthropic_model(client: StubClient) -> AnthropicModel:
 
 def test_the_anthropic_adapter_sends_the_messages_api_request(ctx: RunContext) -> None:
     client = StubClient("A soil survey.", model="claude-test-20261101")
-    reply = call(anthropic_model(client), ctx, system=SYSTEM, messages=MESSAGES, max_tokens=512)
+    reply = call(
+        anthropic_model(client),
+        ctx,
+        system=SYSTEM,
+        messages=MESSAGES,
+        options=CallOptions(max_tokens=512),
+    )
 
     [sent] = client.sent
     assert sent == {
