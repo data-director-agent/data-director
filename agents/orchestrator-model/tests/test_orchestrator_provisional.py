@@ -15,6 +15,7 @@ from dd_agent_orchestrator_model.provisional import (
     CONSENT_QUESTION,
     PROVISIONAL,
     WAIT,
+    chose_provisional,
 )
 from dd_harness.testing import TEST_PRINCIPAL, request
 from dd_sdk.contract.models import (
@@ -124,3 +125,26 @@ def test_the_choice_holds_on_later_turns(runs_dir: Path) -> None:
     )
 
     assert PROVISIONAL_NOTE in sent_text(model)
+
+
+@pytest.mark.parametrize("chosen_before", [False, True])
+def test_answers_to_other_questions_neither_make_nor_hide_the_choice(chosen_before: bool) -> None:
+    """An answer to another question is not the choice; nor does it hide one already made."""
+    label = next(
+        o.option_label
+        for o in CONSENT_QUESTION.question_options or []
+        if o.option_value == PROVISIONAL
+    )
+    history = [ConversationTurn(role=TurnRole.AGENT, turn_text=PAUSED)]
+    if chosen_before:
+        history.append(ConversationTurn(role=TurnRole.USER, turn_text=label))
+    message = Message(
+        message_text="2",
+        history=history,
+        reply_answers=ReplyAnswers(
+            answer_to="01890000-0000-7000-8000-000000000000",
+            given_answers=[QuestionAnswer(answered_key="entry", answer_values=["2"])],
+        ),
+    )
+
+    assert chose_provisional(message) is chosen_before
