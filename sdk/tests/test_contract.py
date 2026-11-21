@@ -955,6 +955,41 @@ def test_a_document_asks_about_its_gaps_and_a_draft_request_carries_answers() ->
     assert DraftRequest.model_validate(doc["input"]).draft_answers == [answer]
 
 
+def test_a_cell_question_may_fill_a_column_several_files_share() -> None:
+    """One question about a column that several files share names each file its answer fills,
+    its own cell's file among them (docs/specs/drafting.md, invariant 5)."""
+    shared = DocumentQuestion(
+        question_id="q-" + "5" * 16,
+        question_prompt="Unit?",
+        gap_file="run_1/forces.csv",
+        gap_field="Cd",
+        gap_column="unit",
+        gap_files=["run_1/forces.csv", "run_2/forces.csv"],
+    )
+    asking = Document(
+        document_kind=DocumentKind.DATA_DICTIONARY,
+        media_type="text/csv",
+        document_text="file,field\n",
+        document_derivation=Derivation.TEMPLATE,
+        document_questions=[shared],
+        grounded_on=[_input_ref()],
+    )
+    env = _succeeded(payload=asking, evidence=[_input_evidence()]).to_document()
+    validate.validate_envelope(env)
+    assert Document.model_validate(env["payload"]).document_questions == [shared]
+
+    for files in (["run_2/forces.csv"], ["run_1/forces.csv"] * 2):
+        with pytest.raises(ValueError, match="include the cell's file"):
+            shared.model_validate({**shared.model_dump(), "gap_files": files})
+    with pytest.raises(ValueError, match="include the cell's file"):
+        DocumentQuestion(
+            question_id="q-" + "5" * 16,
+            question_prompt="?",
+            gap_section="Files",
+            gap_files=["a.csv"],
+        )
+
+
 def test_a_requirement_set_is_a_standard_or_one_repositorys_override() -> None:
     """A deposit's requirements come from a metadata standard's set, with an optional override per
     repository merged on top (docs/specs/deposit.md). Both are one class, kept as the deployment's

@@ -31,7 +31,8 @@ import yaml
 from inspect_ai import Task, task
 from inspect_ai.dataset import MemoryDataset
 
-from dd_agent_advisor_documentation.agent import DocumentationEditor, _question_id
+from dd_agent_advisor_documentation.agent import DocumentationEditor
+from dd_agent_advisor_documentation.dictionary import _question_id
 from dd_agent_advisor_documentation.evals.defects import apply_defect
 from dd_agent_advisor_documentation.evals.scorers import (
     answers_placed_supplied,

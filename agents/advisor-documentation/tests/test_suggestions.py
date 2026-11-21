@@ -13,7 +13,8 @@ from pathlib import Path
 import pytest
 from test_prose import MODEL, StubClient, draft, sample, template_draft
 
-from dd_agent_advisor_documentation.agent import DocumentationEditor, Source
+from dd_agent_advisor_documentation.agent import DocumentationEditor
+from dd_agent_advisor_documentation.dictionary import Source
 from dd_agent_advisor_documentation.prose import (
     MAX_SUGGESTION,
     SUGGEST_PROMPT,
