@@ -7,7 +7,8 @@ import csv
 import io
 from pathlib import Path
 
-from dd_agent_advisor_documentation.agent import DocumentationEditor, Source
+from dd_agent_advisor_documentation.agent import DocumentationEditor
+from dd_agent_advisor_documentation.dictionary import Source
 from dd_agent_advisor_documentation.values import field_facts, missing_codes
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.contract.inventory import (
