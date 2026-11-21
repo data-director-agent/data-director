@@ -96,6 +96,12 @@ dd:Affiliation a sh:NodeShape ;
             sh:order 2 ;
             sh:path dd:organisation_name ],
         [ sh:datatype xsd:string ;
+            sh:description "The scheme of organisation_identifier, in ORCID's words, such as ROR, GRID or RINGGOLD. Present exactly when organisation_identifier is." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dd:organisation_identifier_scheme ],
+        [ sh:datatype xsd:string ;
             sh:description "The researcher's role or degree." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -108,12 +114,6 @@ dd:Affiliation a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path dd:put_code ],
-        [ sh:datatype xsd:string ;
-            sh:description "The scheme of organisation_identifier, in ORCID's words, such as ROR, GRID or RINGGOLD. Present exactly when organisation_identifier is." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 4 ;
-            sh:path dd:organisation_identifier_scheme ],
         [ sh:datatype xsd:string ;
             sh:description "The department within the organisation." ;
             sh:maxCount 1 ;
@@ -172,6 +172,24 @@ dd:ApprovedMetadataRecord a sh:NodeShape ;
             sh:path dd:document_text ] ;
     sh:targetClass dd:ApprovedMetadataRecord .
 
+dd:CategoryCount a sh:NodeShape ;
+    rdfs:comment "One category of a field and how many rows hold it, rounded." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:category_value ],
+        [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:category_count ] ;
+    sh:targetClass dd:CategoryCount .
+
 dd:CurrentVersion a sh:NodeShape ;
     rdfs:comment "The version of a project document that a drafter is to regenerate: the document's latest, its text, and its state with the reason a person gave for any decision on it (ADR-0036 decision 7). A drafter that regenerates it names version_ref in its payload's revises." ;
     sh:closed true ;
@@ -184,18 +202,18 @@ dd:CurrentVersion a sh:NodeShape ;
             sh:order 3 ;
             sh:path dd:document_text ],
         [ sh:datatype xsd:string ;
-            sh:description "The reason the person gave for their decision, in their words. Present for a rejection, and for an approval only if they gave one." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 5 ;
-            sh:path dd:decision_reason ],
-        [ sh:datatype xsd:string ;
             sh:description "The media type of document_text, such as text/markdown or application/json." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
             sh:path dcterms:format ],
+        [ sh:datatype xsd:string ;
+            sh:description "The reason the person gave for their decision, in their words. Present for a rejection, and for an approval only if they gave one." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dd:decision_reason ],
         [ sh:description "Whether a person has approved or rejected the version, or not yet decided." ;
             sh:in ( "proposed" "approved" "rejected" ) ;
             sh:maxCount 1 ;
@@ -217,6 +235,51 @@ dd:CurrentVersion a sh:NodeShape ;
             sh:path dcterms:title ] ;
     sh:targetClass dd:CurrentVersion .
 
+dd:DisclosureCheck a sh:NodeShape ;
+    rdfs:comment "What the disclosure check of a field's summary values did: the rules, their parameters, the tool and how many values it left out, never which (docs/specs/personal-data.md)." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:integer ;
+            sh:description "How many of the field's summary values were left out. Never which." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dd:check_suppressed ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:check_tool_version ],
+        [ sh:datatype xsd:integer ;
+            sh:description "The minimum frequency threshold k." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dd:check_threshold ],
+        [ sh:datatype xsd:integer ;
+            sh:description "The base counts were rounded to." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dd:check_rounding_base ],
+        [ sh:datatype xsd:string ;
+            sh:description "The rules applied, such as minimum threshold, k-th value range, p-ratio, nk dominance, zeros disclosive and rounding." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:check_rules ],
+        [ sh:datatype xsd:string ;
+            sh:description "The output checker that applied the rules, such as acro." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:check_tool ] ;
+    sh:targetClass dd:DisclosureCheck .
+
 dd:DraftAnswer a sh:NodeShape ;
     rdfs:comment "A person's answer to one question a version of the document asked (DocumentQuestion). The drafter places answer_text, as given, in the gap or cell the question names and marks it supplied (docs/specs/drafting.md)." ;
     sh:closed true ;
@@ -237,6 +300,52 @@ dd:DraftAnswer a sh:NodeShape ;
             sh:order 1 ;
             sh:path dd:answer_text ] ;
     sh:targetClass dd:DraftAnswer .
+
+dd:FieldSummary a sh:NodeShape ;
+    rdfs:comment "Summary values of one table field that the inventory command computed where the data live and passed through statistical disclosure control before writing (docs/specs/personal-data.md). A value that failed a rule is absent, never altered to pass; every count is at least the check's threshold and rounded to its base, and a range is never the raw minimum and maximum." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:class dd:CategoryCount ;
+            sh:description "The field's categories that at least k rows hold, with their counts. Rarer categories are left out and counted in check_suppressed." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 5 ;
+            sh:path dd:summary_categories ],
+        [ sh:class dd:MissingCodeCount ;
+            sh:description "Values the field holds that are often used for missing data (-99, -999, 999, 9999, NA, N/A, NaN, null, .), each held by at least k rows, with their counts." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 6 ;
+            sh:path dd:summary_missing_codes ],
+        [ sh:datatype xsd:integer ;
+            sh:description "How many rows were read to compute the summaries, rounded." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:summary_rows_read ],
+        [ sh:datatype xsd:float ;
+            sh:description "The mean of a numeric field's values, missing-value codes left out, written only when the threshold and dominance rules pass." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dd:summary_mean ],
+        [ sh:datatype xsd:integer ;
+            sh:description "How many of the rows read hold no value in the field, rounded." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:summary_null_count ],
+        [ sh:datatype xsd:string ;
+            sh:description "The lower bound of the field's values: the k-th smallest, so that at least k rows (the check's threshold) lie at or below it. A number or an ISO 8601 date or time, as text." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:summary_range_low ],
+        [ sh:datatype xsd:string ;
+            sh:description "The upper bound of the field's values, the k-th largest, as summary_range_low." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dd:summary_range_high ] ;
+    sh:targetClass dd:FieldSummary .
 
 dd:FileInventory a sh:NodeShape ;
     rdfs:comment "The facts about a dataset's files that the project holds in place of the files (docs/specs/projects.md): for each file its path, size, digest and format, and for a table its fields. Made by a command run where the data live; it never contains a file's content. advisor.files reads it." ;
@@ -410,6 +519,24 @@ dd:InventoryPart a sh:NodeShape ;
             sh:order 3 ;
             sh:path dd:part_identified_with ] ;
     sh:targetClass dd:InventoryPart .
+
+dd:MissingCodeCount a sh:NodeShape ;
+    rdfs:comment "A value that a field may use for missing data, such as -99 or NA, and how many rows hold it, rounded." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:missing_code ],
+        [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:missing_code_count ] ;
+    sh:targetClass dd:MissingCodeCount .
 
 dd:ProjectDocument a sh:NodeShape ;
     rdfs:comment "One document a researcher attached to a project, with its text: the conductor fills one per document into a DraftRequest so that a drafter's model may suggest answers from it (docs/specs/projects.md). Its text is the researcher's, untrusted, and given as data." ;
@@ -973,7 +1100,19 @@ dd:TableField a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
-            sh:path dcterms:description ] ;
+            sh:path dcterms:description ],
+        [ sh:class dd:DisclosureCheck ;
+            sh:description "The disclosure check the field's summary values passed. Present whenever field_summary is." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 5 ;
+            sh:path dd:field_disclosure_check ],
+        [ sh:class dd:FieldSummary ;
+            sh:description "The field's summary values (docs/specs/personal-data.md). Absent, no summaries were made: by an older command, in a runtime where they do not run, or with them turned off." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 4 ;
+            sh:path dd:field_summary ] ;
     sh:targetClass dd:TableField .
 
 dd:DocumentVersionRef a sh:NodeShape ;

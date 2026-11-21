@@ -1,8 +1,11 @@
 """Pydantic mirrors of the core classes of a dataset's file inventory: `FileInventory`, its files,
-parts and personal-data findings (docs/specs/projects.md, docs/specs/personal-data.md).
+parts, personal-data findings and field summaries (docs/specs/projects.md,
+docs/specs/personal-data.md).
 
-Kept apart from `models`, which re-exports every name here, so that neither grows past its size
-limit. As there, field names and enum values are the LinkML slot and permissible-value names.
+Kept apart from `models`, which re-exports every name here but the classes of a field's summary
+(`FieldSummary`, `CategoryCount`, `MissingCodeCount`, `DisclosureCheck`), imported from here, so
+that neither grows past its size limit. As there, field names and enum values are the LinkML
+slot and permissible-value names.
 """
 
 from __future__ import annotations
@@ -71,13 +74,51 @@ class FileRole(StrEnum):
     OTHER = "other"
 
 
+class CategoryCount(Frozen):
+    category_value: str
+    category_count: int
+
+
+class MissingCodeCount(Frozen):
+    missing_code: str
+    missing_code_count: int
+
+
+class FieldSummary(Frozen):
+    """A table field's summary values, each one that failed a disclosure rule left out
+    (docs/specs/personal-data.md)."""
+
+    summary_rows_read: int | None = None
+    summary_null_count: int | None = None
+    summary_range_low: str | None = None
+    summary_range_high: str | None = None
+    summary_mean: float | None = None
+    summary_categories: list[CategoryCount] = Field(default_factory=list)
+    summary_missing_codes: list[MissingCodeCount] = Field(default_factory=list)
+
+
+class DisclosureCheck(Frozen):
+    """What the disclosure check of a field's summary values did, never what it left out."""
+
+    check_tool: str
+    check_tool_version: str
+    check_rules: list[str] = Field(default_factory=list)
+    check_threshold: int
+    check_rounding_base: int
+    check_suppressed: int
+
+
 class TableField(Frozen):
-    """One field of a table, as a Frictionless Table Schema field descriptor."""
+    """One field of a table, as a Frictionless Table Schema field descriptor, with its summary
+    values when the inventory command made them."""
 
     name: str
     field_type: str | None = None
     field_format: str | None = None
     field_description: str | None = None
+    # Absent, no summaries were made (docs/specs/personal-data.md).
+    field_summary: FieldSummary | None = None
+    field_disclosure_check: DisclosureCheck | None = None
 
 
 class InventoryFile(Frozen):

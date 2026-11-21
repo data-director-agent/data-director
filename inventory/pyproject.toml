@@ -39,6 +39,12 @@ dependencies = [
   "presidio-analyzer==2.2.366",
   # The e-mail recogniser's validation, given only its bundled public-suffix list (personal.py).
   "tldextract>=5.3.1,<6",
+  # Statistical disclosure control of table fields' summary values (docs/specs/personal-data.md,
+  # summaries.py): the SACRO project's output checker, MIT. Native only; the browser bundle
+  # leaves it out and the inventory says no summaries were made.
+  "acro>=1.1,<2",
+  # The frames ACRO checks; installed by ACRO, declared because summaries.py imports it.
+  "pandas>=2.2,<4",
 ]
 
 [project.optional-dependencies]
