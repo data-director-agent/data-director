@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 
@@ -69,7 +69,8 @@ function renderQuestions(
 describe("DocumentQuestions", () => {
   it("puts a few questions at a time, each labelled and described by what it fills", async () => {
     const { container } = renderQuestions(UNANSWERED, vi.fn());
-    expect(screen.getByRole("group", { name: new RegExp(`${ASKING} questions`) })).toBeVisible();
+    expect(screen.getByRole("form", { name: new RegExp(`${ASKING} questions for you`) })).toBeVisible();
+    expect(screen.getByRole("group", { name: "Only you can answer these" })).toBeVisible();
     const boxes = screen.getAllByRole("textbox");
     expect(boxes).toHaveLength(QUESTIONS_AT_ONCE);
     expect(screen.getByRole("textbox", { name: "What unit is field_1 in?" })).toHaveAccessibleDescription(
@@ -152,32 +153,68 @@ describe("DocumentQuestions", () => {
     expect(screen.getByRole("status")).toHaveTextContent(/Recorded 1 answer/);
   });
 
-  it("offers a model's suggestion without filling the box, and saves it only when asked", async () => {
-    const suggested: DocumentQuestion = {
-      ...cell(1),
-      suggested_answer: "mg/kg",
+  it("puts a model's suggestions in their boxes, marked, and records them only when accepted", async () => {
+    const suggested = (n: number, unit: string): DocumentQuestion => ({
+      ...cell(n),
+      suggested_answer: unit,
       suggestion_derivation: "model",
-    };
+    });
     const document: ProjectDocument = {
       ...UNANSWERED,
-      versions: [{ ...VERSION, questions: [suggested, cell(2)] }],
+      versions: [
+        {
+          ...VERSION,
+          questions: [suggested(1, "mg/kg"), suggested(2, "cm"), suggested(3, "degC"), cell(4)],
+        },
+      ],
     };
     const answer = vi.fn<ProjectApi["answer"]>().mockResolvedValue(ANSWERED);
     const { container } = renderQuestions(document, answer);
-    const box = screen.getByRole("textbox", { name: suggested.question_prompt });
-    expect(box).toHaveValue("");
-    expect(box).toHaveAccessibleDescription(/mg\/kg/);
-    expect(screen.getByRole("button", { name: "Save answers" })).toBeDisabled();
-    expect(screen.getAllByRole("button", { name: /Use suggestion/ })).toHaveLength(1);
+    const check = screen.getByRole("group", { name: "Suggested answers to check (3)" });
+    expect(screen.getByRole("group", { name: "Only you can answer these (1)" })).toBeVisible();
+    const box = (n: number) => screen.getByRole("textbox", { name: `What unit is field_${n} in?` });
+    expect(box(1)).toHaveValue("mg/kg");
+    expect(box(1)).toHaveAccessibleDescription(/Suggested by a model/);
+    expect(box(4)).toHaveValue("");
     expect(await axe(container)).toHaveNoViolations();
 
-    await userEvent.click(screen.getByRole("button", { name: /Use suggestion/ }));
-    expect(box).toHaveValue("mg/kg");
-    await userEvent.type(box, " dry weight");
-    await userEvent.click(screen.getByRole("button", { name: "Save answers" }));
+    // Saving the researcher's own answers never sends a suggestion.
+    expect(screen.getByRole("button", { name: "Save answers" })).toBeDisabled();
+
+    await userEvent.type(box(1), " dry weight");
+    expect(box(1)).toHaveAccessibleDescription(/You changed a model's suggestion/);
+    await userEvent.clear(box(3));
+    await userEvent.click(within(check).getByRole("button", { name: "Accept 2 suggested answers" }));
     expect(answer).toHaveBeenCalledWith(ANSWERED.project_id, README.document_id, VERSION.version, [
-      { answered_question: suggested.question_id, answer_text: "mg/kg dry weight" },
+      { answered_question: cell(1).question_id, answer_text: "mg/kg dry weight" },
+      { answered_question: cell(2).question_id, answer_text: "cm" },
     ]);
+  });
+
+  it("puts a changed suggestion back when asked", async () => {
+    const document: ProjectDocument = {
+      ...UNANSWERED,
+      versions: [
+        { ...VERSION, questions: [{ ...cell(1), suggested_answer: "mg/kg", suggestion_derivation: "model" }] },
+      ],
+    };
+    renderQuestions(document, vi.fn());
+    const box = screen.getByRole("textbox", { name: "What unit is field_1 in?" });
+    await userEvent.clear(box);
+    expect(screen.getByRole("button", { name: "Accept 0 suggested answers" })).toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: /Put the suggestion back/ }));
+    expect(box).toHaveValue("mg/kg");
+  });
+
+  it("links each question to a new conversation about it", () => {
+    renderQuestions(UNANSWERED, vi.fn());
+    const link = screen.getByRole("link", {
+      name: "Talk this through in a new conversation: What unit is field_1 in?",
+    });
+    expect(link).toHaveAttribute(
+      "href",
+      `/?question=${encodeURIComponent(`${README.document_id}/${cell(1).question_id}`)}`,
+    );
   });
 
   it("on a version that asks first, saves the answers typed and then asks for the README", async () => {

@@ -112,8 +112,9 @@ suggests some of those values beside their questions
 7. **A model's suggestion is only ever offered.** A drafter may suggest an answer, for example that
    `age_yrs` is the participant's age in years. The suggestion appears in the question
    (`suggested_answer`, with `suggestion_derivation`), never in the document's text, and a version
-   with suggestions keeps the derivation of its text. It becomes `supplied` only when a person
-   confirms or corrects it, by recording an answer
+   with suggestions keeps the derivation of its text. The app puts it in the question's box, marked
+   as a model's, for the person to check. It becomes `supplied` only when a person confirms or
+   corrects it, by accepting or saving it as an answer
    (`agents/advisor-documentation/tests/test_suggestions.py`). The Documentation Editor suggests
    only a data dictionary field's definition and unit, never its type, format or missing-value
    codes; and an answer for the README sections its template marks `suggest` (Files, Variables,
@@ -193,11 +194,14 @@ sets one, TODO(#529).
 researcher that a draft has questions and where to answer them, offers to redraft once they have,
 and says that the draft came from a mock when it did; it never accepts a suggestion for the
 researcher. The app shows the latest version's open questions on the draft's card in the
-conversation, three at a time, or more to keep one section's parts together, each as a text box
-labelled by the question and described by what it fills and by any suggestion, which the researcher may copy into the box but which never fills
-it by itself, and lists every question with its answer, or its suggestion while unanswered, on
-the project's documents page, which puts the same form beneath the latest version's questions
-([The app](app.md)). It sends the answers to
+conversation and in the Questions section of the project's documents page, each as a text box
+labelled by the question and described by what it fills. Those a model suggested an answer for come
+first, all at once, each box starting with the suggestion and saying it came from a model; the
+researcher checks them, changes or clears any, and records them with one "Accept" button. Those
+with no suggestion follow three at a time, or more to keep one section's parts together, in blank
+boxes. Each question links to a new conversation to talk it through, but its answer is recorded
+only on the draft; the documents page folds the answered questions beneath the form, and lists an
+earlier version's questions read-only ([The app](app.md)). It sends the answers to
 `POST /api/projects/{id}/documents/{document_id}/answers`, which records them for the person
 signed in and never takes a name from the body. The harness records each answer and fills the
 answers into the next `DraftRequest`. No agent writes an answer.

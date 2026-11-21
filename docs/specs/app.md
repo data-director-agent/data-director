@@ -288,23 +288,31 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
 
 23. **A draft's questions are answered on its card or its documents page, in the researcher's own words.** While a
     drafted version is its document's latest, its card in the conversation puts the questions no
-    recorded answer has answered, three at a time, in a fieldset whose legend says how many
-    remain; each is a text box labelled by the question and described by what it fills, and blank
-    boxes are left as they are. A question's suggested answer is shown beside its box, says it came
-    from a model, and describes the box; it never fills the box by itself, and a "Use suggestion"
-    button copies it in for the researcher to keep or change before saving. Saving sends the answers to
+    recorded answer has answered in one form, titled with how many remain, in two groups. Those
+    with a model's suggested answer come first, all at once, in a fieldset "Suggested answers to
+    check": each box starts with the suggestion and is described by what it fills and by a line
+    saying a model suggested it, or, once changed, what the suggestion was, with a button to put it
+    back. One "Accept N suggested answers" button records every box not left blank, as it then
+    reads; nothing a model suggested is recorded until a person presses it. Those with no
+    suggestion follow, three at a time, in a fieldset "Only you can answer these", each a blank text
+    box labelled by the question and described by what it fills, saved with "Save answers", which
+    never sends a suggestion; blank boxes are left as they are. Each question links to a new
+    conversation ("Talk this through", `/?question={document_id}/{question_id}`) whose message box
+    holds, unsent, a request for help with it; the address then drops the question, and the answer
+    is still recorded on the draft. Saving sends the answers to
     `POST /api/projects/{id}/documents/{document_id}/answers`, whose body never names who answered:
     the server records them for the person signed in, refuses a malformed body with nothing
     recorded, and answers `409` for a version no longer the latest or a question it does not ask.
     The card then draws the documents the server read back and says in a status how many answers
-    were recorded. The project's documents page lists each version's questions with the answer
-    recorded, or says in words that none is, with the suggestion while it is unanswered, and
-    beneath the list of the latest version's questions puts the same form for those still open,
-    so that the researcher can answer where they read the draft; an earlier version's questions
-    are listed only ([Drafting documents](drafting.md),
+    were recorded. The project's documents page has one Questions section per version, saying how
+    many are answered: on the latest version it holds the same form, with the answered questions
+    folded beneath it, each with its answer; an earlier version's questions are listed only, each
+    with the answer recorded, or saying in words that none is, with the suggestion while it is
+    unanswered ([Drafting documents](drafting.md),
     `app/tests/test_document_answers.py`,
     `app/web/src/components/project/DocumentQuestions.test.tsx`,
-    `app/web/src/components/project/ProjectPage.test.tsx`, `e2e/shell.spec.ts`).
+    `app/web/src/components/project/ProjectPage.test.tsx`,
+    `app/web/src/components/conversation/useAskAbout.test.tsx`, `e2e/shell.spec.ts`).
 24. **Each person sees only their own runs and conversations.** A run or conversation in a project
     is readable by whoever may read the project ([Projects](projects.md), rule 17); one in no
     project by the principal it acted for, or for a conversation with no turn yet, the person who

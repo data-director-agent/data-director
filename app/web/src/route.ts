@@ -30,20 +30,24 @@ export function navigate(to: string, replace = false): void {
 }
 
 /** The conversation page's address: the open conversation (`?conversation=`), the run shown
- * (`?run=`) and a step of the journey to ask about (`?ask=`), each left out when none. */
+ * (`?run=`), a step of the journey to ask about (`?ask=`) and a draft's question to talk through
+ * (`?question=`, as `{document_id}/{question_id}`), each left out when none. */
 export function homePath({
   conversation,
   run,
   ask,
+  question,
 }: {
   conversation?: string | null;
   run?: string | null;
   ask?: string | null;
+  question?: string | null;
 }): string {
   const query = new URLSearchParams();
   if (conversation) query.set("conversation", conversation);
   if (run) query.set("run", run);
   if (ask) query.set("ask", ask);
+  if (question) query.set("question", question);
   const text = query.toString();
   return text ? `/?${text}` : "/";
 }
