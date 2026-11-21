@@ -81,17 +81,17 @@ code, and describe how you tested your change in the pull request description.
 
 Every pull request runs `.github/workflows/ci.yml`, which ends in one check, **CI passed**, that
 passes only when no job it waits for failed or was cancelled. A job skipped because a change does
-not touch what it checks counts as passed, and the advisory conformance job is not waited for and only warns when the file is stale.
+not touch what it checks counts as passed. A stale CONFORMANCE.md only raises a warning in the coverage job.
 `scripts/check_ci_gate.py` fails the Workflows job when a job is left out of the wait. Network
 steps that download (browsers, images) retry through `scripts/retry.sh`. Each job can be run
 locally from the repository root:
 
 | Job | Locally |
 |---|---|
-| Ruff (lint + format) | `uv run ruff check . && uv run ruff format --check .` |
+| Pre-commit hooks and Ruff | `uv run ruff check . && uv run ruff format --check . && pre-commit run --all-files` |
 | mypy | `uv run mypy` |
-| pytest | `uv run pytest --json-report --json-report-file=.report.json` (runs on every core; `-n0` for one process, to debug) |
-| CONFORMANCE.md is current | `uv run python scripts/conformance_report.py --check` (after pytest, which writes `.report.json`) |
+| pytest | `uv run pytest --json-report --json-report-file=.report.json` (runs on every core; `-n0` for one process, to debug; CI runs it as three shards, `--test-shard 1/3`, balanced by the durations in `scripts/test_durations.json`: when they drift apart, commit the map from the coverage job's `test-durations` artefact, or write it with `uv run --no-project --python 3.14 scripts/test_durations.py .report-*.json`) |
+| Coverage and CONFORMANCE.md (a stale file warns) | `uv run python scripts/conformance_report.py --check` (after pytest, which writes `.report.json`) |
 | Generated schemas up to date | `uv run dd-gen-schema && git diff --exit-code -- sdk/src/dd_sdk/schema/generated/` |
 | Generated API types up to date | in `app/web`: `npm run gen:api && git diff --exit-code -- src/api/generated/` |
 | Packages build and install alone | `uv build --all-packages -o dist && uv run python scripts/check_wheels.py dist` |

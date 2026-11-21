@@ -52,7 +52,7 @@ repos:
 
   - repo: local
     hooks:
-      # Ruff from uv.lock, so the hooks and the CI lint job always run the same version.
+      # Ruff from uv.lock, so the hooks and the CI hooks job always run the same version.
       - id: ruff-check
         name: ruff check
         entry: uv run --only-dev ruff check --fix --force-exclude
