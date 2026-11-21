@@ -16,7 +16,11 @@ from dd_agent_advisor_repository.classes import (
     RepositoryOptions,
     RepositoryRef,
 )
-from dd_sdk.contract.facts import ChosenRepository, ProjectFact
+from dd_sdk.contract.facts import (
+    COMMITMENT_REPOSITORIES_SEPARATOR,
+    ChosenRepository,
+    ProjectFact,
+)
 from dd_sdk.contract.models import OutcomeStatus
 
 pytestmark = pytest.mark.requirement("R1")
@@ -129,3 +133,33 @@ def test_an_unknown_plan_repository_is_not_found(runs_dir: Path) -> None:
     options = env.payload_as(RepositoryOptions)
     assert options.not_found == ["Nowhere"]
     assert CandidateBasis.IN_PLAN not in {c.basis for c in options.candidates}
+
+
+def test_a_plan_repository_re3data_does_not_list_is_shown_as_the_plans(runs_dir: Path) -> None:
+    """#1334: a repository re3data does not list, such as an institution's own, is still the
+    researcher's option, shown as the plan's beside the shortlist."""
+    env = invoke(runs_dir, NEEDS.model_copy(update={"project_decisions": [commitment("Nowhere")]}))
+    options = env.payload_as(RepositoryOptions)
+    assert [(u.name, u.basis) for u in options.unlisted] == [("Nowhere", CandidateBasis.IN_PLAN)]
+    assert {c.basis for c in options.candidates} == {CandidateBasis.RECOMMENDED}
+
+
+def test_each_repository_one_commitment_names_is_the_plans(runs_dir: Path) -> None:
+    """A plan that deposits an output in one repository and offers a copy to another names both
+    in one commitment (`commitment_repositories`, #1334)."""
+    both = commitment(COMMITMENT_REPOSITORIES_SEPARATOR.join(["Acme Data Cloud", "Nowhere"]))
+    env = invoke(runs_dir, NEEDS.model_copy(update={"project_decisions": [both]}))
+    options = env.payload_as(RepositoryOptions)
+    assert cited(options)[0] == ("r3d100000003", CandidateBasis.IN_PLAN)
+    assert [(u.name, u.basis) for u in options.unlisted] == [("Nowhere", CandidateBasis.IN_PLAN)]
+
+
+def test_without_a_shortlist_unlisted_plan_repositories_are_named_in_the_abstention(
+    runs_dir: Path,
+) -> None:
+    """A succeeded payload must rest on a record retrieved (docs/specs/grounding.md, G2), so with
+    only unlisted repositories to show the advisor abstains, but names them rather than losing
+    them."""
+    env = invoke(runs_dir, RepositoryNeeds(project_decisions=[commitment("Nowhere")]))
+    assert env.outcome.status == OutcomeStatus.ABSTAINED
+    assert "Nowhere" in env.outcome.statement

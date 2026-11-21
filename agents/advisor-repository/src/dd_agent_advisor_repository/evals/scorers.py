@@ -37,15 +37,22 @@ def shown_in_plan(options: dict[str, Any]) -> set[str]:
 
 @scorer(metrics=[mean_applicable()])
 def plan_repositories_shown() -> Scorer:
-    """The share of the repositories the plan names that the payload shows as the plan's. Does
-    not apply to a case whose plan names none or is not confirmed."""
+    """The share of the repositories the plan names that the payload shows as the plan's, or that
+    a stop names in its statement. Does not apply to a case whose plan names none or is not
+    confirmed."""
 
     async def score(state: TaskState, target: Target) -> Score:
         expected: list[str] = expectation_of(state).get("in_plan", [])
         if not expected:
             return Score(value=NOANSWER, explanation="no confirmed plan names a repository")
-        shown = shown_in_plan(payload(state))
-        missing = [name for name in expected if name.casefold() not in shown]
+        envelope = envelope_of(state)
+        if envelope["outcome"]["status"] == "succeeded":
+            shown = shown_in_plan(payload(state))
+            missing = [name for name in expected if name.casefold() not in shown]
+        else:
+            # A stop has no payload; the names must be in what the researcher is told.
+            said = str(envelope["outcome"].get("statement", "")).casefold()
+            missing = [name for name in expected if name.casefold() not in said]
         found = len(expected) - len(missing)
         return Score(
             value=found / len(expected),

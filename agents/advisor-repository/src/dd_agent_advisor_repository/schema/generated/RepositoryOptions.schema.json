@@ -179,6 +179,24 @@
          },
          "title": "SearchedSummary",
          "type": "object"
+      },
+      "UnlistedRepository": {
+         "additionalProperties": false,
+         "description": "A repository named in the needs, mandated, in the data management plan or asked about, that re3data does not list, such as many an institution's own repository or a local archive. It is shown with the reason it was named, so the researcher still sees it, but nothing is said about it: there is no record to read its terms, fees or identifiers from.",
+         "properties": {
+            "name": {
+               "type": "string"
+            },
+            "basis": {
+               "$ref": "#/$defs/CandidateBasis"
+            }
+         },
+         "required": [
+            "name",
+            "basis"
+         ],
+         "title": "UnlistedRepository",
+         "type": "object"
       }
    },
    "$id": "https://w3id.org/data-director/agents/repository/RepositoryOptions",
@@ -196,6 +214,16 @@
       "candidates": {
          "items": {
             "$ref": "#/$defs/RepositoryCandidate"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "unlisted": {
+         "description": "The repositories named (mandated, in the data management plan or asked about) that re3data lists under no name, each with the reason it was named. A name that several records bear is not here but in not_found, with a request for the identifier.",
+         "items": {
+            "$ref": "#/$defs/UnlistedRepository"
          },
          "type": [
             "array",

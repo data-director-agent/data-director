@@ -19,7 +19,8 @@
 #   expect:
 #     status, reason_code   the outcome (reason_code optional)
 #     in_plan               each repository the plan names, which the researcher must see as
-#                           "In your plan", whether or not re3data lists it
+#                           "In your plan", whether or not re3data lists it: in the payload, or
+#                           named in the statement where the advisor stops
 #     shortlist             true where a shortlist is still expected beside what the plan names:
 #                           a plan's repository adds to the shortlist and removes nothing
 
@@ -74,9 +75,12 @@ cases:
       shortlist: true
       in_plan: [Wharfedale Research Data Repository, Netherbrook Local Studies Archive]
 
+  # A succeeded payload must rest on a record retrieved (docs/specs/grounding.md, G2), and re3data
+  # lists neither repository, so the advisor stops; the plan's repositories must still be named.
   - id: dataset-f-plan-without-shortlist
     base: plan-only
     commitments: separate
     expect:
-      status: succeeded
+      status: abstained
+      reason_code: no_candidates_retrieved
       in_plan: [Wharfedale Research Data Repository, Netherbrook Local Studies Archive]

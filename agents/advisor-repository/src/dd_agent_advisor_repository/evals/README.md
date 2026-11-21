@@ -32,7 +32,9 @@ re3data lists neither, as it does not list many an institution's or a local arch
 - **plan confirmed**: one confirmed commitment per destination.
 - **plan in one commitment**: both destinations in one commitment, as the plan's single sentence
   gives them.
-- **plan without a shortlist**: the confirmed commitments and nothing to search for.
+- **plan without a shortlist**: the confirmed commitments and nothing to search for. A succeeded
+  payload must rest on a record retrieved (grounding rule G2), and re3data lists neither
+  repository, so the advisor stops, but must name the plan's repositories in what it says.
 
 ## Scores
 
@@ -44,7 +46,7 @@ is left out of its mean.
 | `outcome_matches` | every case | Is the status (and reason code, if the case names one) the expected one? |
 | `stopped_correctly` | every case | Did the advisor stop exactly when it should have? |
 | `grounding_passed` | every case | Did the grounding linter pass the run? |
-| `plan_repositories_shown` | a confirmed plan | What share of the repositories the plan names are shown as the plan's? |
+| `plan_repositories_shown` | a confirmed plan | What share of the repositories the plan names are shown as the plan's, or named where the advisor stops? |
 | `shortlist_kept` | a case with something to search for | Is a repository still recommended beside what the plan names? |
 
 ## The baseline

@@ -75,6 +75,11 @@ class RepositoryCandidate(Grounded):
     rationale_derivation: Derivation
 
 
+class UnlistedRepository(Frozen):
+    name: str
+    basis: CandidateBasis
+
+
 class SearchedSummary(Frozen):
     queries: list[str] = Field(default_factory=list)
     snapshot_ref: str | None = None
@@ -85,5 +90,6 @@ class SearchedSummary(Frozen):
 class RepositoryOptions(Grounded):
     schema_class: Literal["RepositoryOptions"] = "RepositoryOptions"
     candidates: list[RepositoryCandidate] = Field(default_factory=list)
+    unlisted: list[UnlistedRepository] = Field(default_factory=list)
     not_found: list[str] = Field(default_factory=list)
     searched: SearchedSummary | None = None

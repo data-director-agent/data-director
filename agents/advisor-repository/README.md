@@ -37,7 +37,9 @@ it. If the shortlist also ranks it, it keeps its score and `ranked_by`. The app 
 
 In a project, a repository that a sharing commitment of the data management plan names, once the
 researcher has confirmed the commitment, is described the same way with the basis `in_plan`: a
-plan's choice is not a mandate (#1233). The app shows it as "In your plan". A name re3data does
+plan's choice is not a mandate (#1233). A commitment may name several repositories, separated by
+`; `, as when a plan deposits an output in the institution's repository and offers a copy to a
+partner archive; each is described (#1334). The app shows it as "In your plan". A name re3data does
 not list, such as "ReShare" for the UK Data Service's self-deposit repository, is read through the
 short, sourced list in `aliases.yaml`, and the statement says so.
 
@@ -56,7 +58,13 @@ evidence `content` of those records ([Evidence and grounding](../../docs/specs/g
   sentence per ranking signal, such as `Matches the theme "hydrology" (1 of 2 given).` Empty
   for a mandated one, and for one asked about that the shortlist did not rank.
 
-Mandated names, and names in the plan or asked about, with no single re3data record are listed in `not_found`.
+Mandated names, and names in the plan or asked about, with no single re3data record are listed in
+`not_found`. Those re3data lists under no name, such as many an institution's own repository or a
+local archive, are also in `unlisted`, each with its basis, so that the researcher still sees them
+as "In your plan" or "You asked about this" (#1334). Nothing is said about their terms, fees or
+identifiers, since there is no record to read them from, and the statement says to check with the
+repository. A succeeded payload must rest on a record retrieved, so a run with nothing but such
+names to show abstains, and names them in its statement.
 
 ## How it decides
 
@@ -183,8 +191,10 @@ from the export (`tests/data/SOURCE.md`), so they need no network.
 
 ## Limits
 
-- re3data shows that a fee is required, but not how much, and does not say who pays. PID costs
-  are not covered. TODO(#322)
+- re3data shows that a fee is required, but not how much, and does not say who pays. It has no
+  value for "no fee", so a fee it does not list is reported as `unstated`, never `no`, and the
+  rationale says "not stated by the repository, check with them". PID costs are not covered.
+  TODO(#322)
 - re3data names each certificate, with its dates, but only the names are kept, so a lapsed
   certificate is reported as if current. TODO(#485). Free quality evaluations are not consulted.
   TODO(#323)
