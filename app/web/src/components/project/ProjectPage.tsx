@@ -150,6 +150,10 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
     setDecision({ said, next: next ? next.document_id : null, on: asked });
   };
 
+  // After answers: the page draws what the server read back; focus stays in the form, whose
+  // status says how many were recorded.
+  const answered = (value: ProjectDocuments) => setLoad({ state: "loaded", value });
+
   const content = () => {
     if (load.state === "loading") return <p role="status">Reading the project…</p>;
     if (load.state === "failed") {
@@ -190,6 +194,7 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
           rules={review}
           hrefFor={(version?: DocumentVersion) => hrefFor(document.document_id, version?.version)}
           onDecided={decided}
+          onAnswered={answered}
           onStale={refresh}
         />
       );

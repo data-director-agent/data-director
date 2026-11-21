@@ -185,6 +185,51 @@ describe("ProjectPage", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("answers the latest version's open questions on the page, with the conversation's form", async () => {
+    const answered = answersFixture as ProjectDocuments;
+    const document = at(answered.documents, 0);
+    const version = at(document.versions, 0);
+    const asked = at(version.questions, 0);
+    const unanswered = { ...answered, documents: [{ ...document, answers: [] }] };
+    const sent: unknown[] = [];
+    const api = fakeApi({
+      documents: () => Promise.resolve(unanswered),
+      answer: (...args) => {
+        sent.push(args);
+        return Promise.resolve(answered);
+      },
+    });
+    const { container } = renderPage(api);
+    const box = await screen.findByRole("textbox", { name: asked.question_prompt });
+    expect(await axe(container)).toHaveNoViolations();
+    await userEvent.type(box, "Soil cores");
+    await userEvent.click(screen.getByRole("button", { name: "Save answers" }));
+    expect(sent).toEqual([
+      [
+        PROJECT.project_id,
+        document.document_id,
+        version.version,
+        [{ answered_question: asked.question_id, answer_text: "Soil cores" }],
+      ],
+    ]);
+    const questions = await screen.findByRole("region", { name: "Questions for the researcher" });
+    expect(questions).toHaveTextContent(/1 of 1 answered/);
+    expect(screen.queryByRole("textbox", { name: asked.question_prompt })).not.toBeInTheDocument();
+    expect(await screen.findByText(/Recorded 1 answer/)).toBeVisible();
+  });
+
+  it("offers no answer boxes for an earlier version's questions", async () => {
+    const answered = answersFixture as ProjectDocuments;
+    const document = at(answered.documents, 0);
+    const first = at(document.versions, 0);
+    const second = { ...first, version: 2, questions: [], revises: { document_id: first.document_id, version: 1 } };
+    const twice = { ...answered, documents: [{ ...document, answers: [], versions: [first, second] }] };
+    renderPage(fakeApi({ documents: () => Promise.resolve(twice) }), `doc=${document.document_id}&v=1`);
+    const questions = await screen.findByRole("region", { name: "Questions for the researcher" });
+    expect(questions).toHaveTextContent(/asked of an earlier version/);
+    expect(screen.queryByRole("textbox", { name: at(first.questions, 0).question_prompt })).not.toBeInTheDocument();
+  });
+
   it("says so when the address names a document the project does not hold", async () => {
     renderPage(fakeApi(), "doc=nonesuch");
     expect(await screen.findByText(/That document is not in this project/)).toBeVisible();

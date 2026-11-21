@@ -1,6 +1,6 @@
 /**
- * A draft's open questions, on its card in the conversation (docs/specs/drafting.md,
- * docs/specs/app.md): what the drafter could not read from the project's facts, such as a field's
+ * A draft's open questions, on its card in the conversation and beneath the question list on the
+ * project's documents page (docs/specs/drafting.md, docs/specs/app.md): what the drafter could not read from the project's facts, such as a field's
  * definition, its unit or its missing-value codes. A few are shown at a time, each with a text box
  * labelled by the question and described by what it fills; the parts of one README section stay on
  * one page. The researcher answers any of them and saves; blank boxes are left as they are. The harness records each answer for the person signed
@@ -18,7 +18,7 @@
  * the list, a status says so, and the next ones are shown.
  */
 
-import "./ChoiceQuestion.css";
+import "./DocumentQuestions.css";
 
 import { PenLine, Save } from "lucide-react";
 import { type FormEvent, useId, useState } from "react";
@@ -166,7 +166,7 @@ export function DocumentQuestions({
   }
 
   return (
-    <form className="choice-question document-questions" onSubmit={(e) => void submit(e)} aria-labelledby={`${id}-legend`}>
+    <form className="document-questions" onSubmit={(e) => void submit(e)} aria-labelledby={`${id}-legend`}>
       <fieldset className="field" disabled={saving}>
         <legend id={`${id}-legend`}>
           {open.length === 1

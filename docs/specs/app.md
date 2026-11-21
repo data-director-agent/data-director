@@ -284,7 +284,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     it. The Governance row of the current state panel links to it (`app/tests/test_app.py`,
     `app/web/src/components/policy/PolicyPage.test.tsx`).
 
-23. **A draft's questions are answered on its card, in the researcher's own words.** While a
+23. **A draft's questions are answered on its card or its documents page, in the researcher's own words.** While a
     drafted version is its document's latest, its card in the conversation puts the questions no
     recorded answer has answered, three at a time, in a fieldset whose legend says how many
     remain; each is a text box labelled by the question and described by what it fills, and blank
@@ -296,10 +296,13 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     recorded, and answers `409` for a version no longer the latest or a question it does not ask.
     The card then draws the documents the server read back and says in a status how many answers
     were recorded. The project's documents page lists each version's questions with the answer
-    recorded, or says in words that none is, with the suggestion while it is unanswered
-    ([Drafting documents](drafting.md),
+    recorded, or says in words that none is, with the suggestion while it is unanswered, and
+    beneath the list of the latest version's questions puts the same form for those still open,
+    so that the researcher can answer where they read the draft; an earlier version's questions
+    are listed only ([Drafting documents](drafting.md),
     `app/tests/test_document_answers.py`,
-    `app/web/src/components/conversation/DocumentQuestions.test.tsx`, `e2e/shell.spec.ts`).
+    `app/web/src/components/project/DocumentQuestions.test.tsx`,
+    `app/web/src/components/project/ProjectPage.test.tsx`, `e2e/shell.spec.ts`).
 24. **Each person sees only their own runs and conversations.** A run or conversation in a project
     is readable by whoever may read the project ([Projects](projects.md), rule 17); one in no
     project by the principal it acted for, or for a conversation with no turn yet, the person who
