@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.1-alpha.4](https://github.com/data-director-agent/data-director/compare/agent-orchestrator-stub-v0.1.1-alpha.3...agent-orchestrator-stub-v0.1.1-alpha.4) (2026-11-21)
+
+
+### Features
+
+* **advisor-documentation:** Ask the researcher first, then write the README ([#1291](https://github.com/data-director-agent/data-director/issues/1291)) ([dcd5c6d](https://github.com/data-director-agent/data-director/commit/dcd5c6d7375daadf9018332374baf334b12b2d00))
+* Implement entry point intake handling to skip redundant questions ([#770](https://github.com/data-director-agent/data-director/issues/770)) ([10b3483](https://github.com/data-director-agent/data-director/commit/10b3483aefdd38fd15da6b6eefcbcd8aaa646ee6))
+* let agents ask a series of questions answered one at a time ([#739](https://github.com/data-director-agent/data-director/issues/739)) ([5332215](https://github.com/data-director-agent/data-director/commit/5332215e8f050dcf3b61fdccb11b63ad436e6d92))
+* **sdk:** give each agent persona an emoji icon ([#1100](https://github.com/data-director-agent/data-director/issues/1100)) ([60e69dd](https://github.com/data-director-agent/data-director/commit/60e69dde27deaea1ff14d60fd1a78ac89f83e71a))
+* **sdk:** share the agent kit and add a generator for new agents ([#1016](https://github.com/data-director-agent/data-director/issues/1016)) ([31aae2c](https://github.com/data-director-agent/data-director/commit/31aae2c52dc81c9818519f626a72b8f94be8a6f4))
+
+
+### Bug Fixes
+
+* **orchestration:** record the entry point Data Director works out ([#706](https://github.com/data-director-agent/data-director/issues/706)) ([7781b37](https://github.com/data-director-agent/data-director/commit/7781b3738ba64bdda89af7d225ba0e1d4a970438))
+
 ## [0.1.1-alpha.3](https://github.com/data-director-agent/data-director/compare/agent-orchestrator-stub-v0.1.1-alpha.2...agent-orchestrator-stub-v0.1.1-alpha.3) (2026-11-07)
 
 

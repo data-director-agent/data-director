@@ -6,6 +6,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -211,6 +212,16 @@ def test_open_policy_finder_is_searched_only_with_a_key(tmp_path: Path) -> None:
         }
     )
     assert isinstance(agent.sources.opf, OpenPolicyFinder)
+
+
+def test_without_an_open_policy_finder_key_start_up_warns(caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.WARNING, logger=factory.__name__):
+        factory.build(TEMPLATE)
+    assert any(factory.OPF_KEY in r.getMessage() for r in caplog.records)
+    caplog.clear()
+    with caplog.at_level(logging.WARNING, logger=factory.__name__):
+        factory.build({**TEMPLATE, factory.OPF_KEY: "k"})
+    assert not any(factory.OPF_KEY in r.getMessage() for r in caplog.records)
 
 
 def test_crossref_can_be_turned_off_and_the_lookups_limited() -> None:

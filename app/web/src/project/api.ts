@@ -386,11 +386,11 @@ export function openQuestions(document: ProjectDocument, version: DocumentVersio
   return version.questions.filter((q) => !answered.has(q.question_id));
 }
 
-/** What a question fills, in words: a README section or one part of it, a data dictionary cell, or a record value. */
+/** What a question fills, in words: a README section or one part of it, a data dictionary cell (in each file that shares its column), or a record value. */
 export function questionTarget(question: DocumentQuestion): string {
   if (question.gap_property) return `Property “${question.gap_property}”`;
   if (question.gap_section) return `Section “${question.gap_section}”${question.gap_part ? ` › ${question.gap_part}` : ""}`;
-  return `${question.gap_file ?? ""} › ${question.gap_field ?? ""} › ${question.gap_column ?? ""}`;
+  return `${question.gap_files ? `${question.gap_files.length} files, such as ` : ""}${question.gap_file ?? ""} › ${question.gap_field ?? ""} › ${question.gap_column ?? ""}`;
 }
 
 export const ProjectApiContext = createContext<ProjectApi>(httpProjectApi);

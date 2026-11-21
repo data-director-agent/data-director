@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "data-director-mcp-pid"
-version = "0.1.0-alpha.0"
+version = "0.1.0-alpha.1"
 description = "A read-only MCP server that resolves DOIs (DataCite, Crossref), ORCID iDs and ROR identifiers to small structured records"
 readme = "README.md"
 requires-python = ">=3.14"

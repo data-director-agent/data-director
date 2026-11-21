@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.14"
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform == 'win32'",
@@ -1273,7 +1273,7 @@ mutation = [{ name = "mutmut", specifier = ">=3.8.1" }]
 
 [[package]]
 name = "data-director-admin"
-version = "0.1.0a0"
+version = "0.1.0a1"
 source = { editable = "admin" }
 dependencies = [
     { name = "data-director-harness" },
@@ -1500,7 +1500,7 @@ dev = [{ name = "data-director-harness", editable = "harness" }]
 
 [[package]]
 name = "data-director-agent-advisor-policy"
-version = "0.1.0a2"
+version = "0.1.0a3"
 source = { editable = "agents/advisor-policy" }
 dependencies = [
     { name = "data-director-mcp-pid" },
@@ -1538,7 +1538,7 @@ dev = [{ name = "data-director-harness", editable = "harness" }]
 
 [[package]]
 name = "data-director-agent-advisor-quality"
-version = "0.1.1a1"
+version = "0.1.1a2"
 source = { editable = "agents/advisor-quality" }
 dependencies = [
     { name = "data-director-sdk" },
@@ -1563,7 +1563,7 @@ dev = [{ name = "data-director-harness", editable = "harness" }]
 
 [[package]]
 name = "data-director-agent-advisor-repository"
-version = "0.1.0a2"
+version = "0.1.0a3"
 source = { editable = "agents/advisor-repository" }
 dependencies = [
     { name = "data-director-sdk" },
@@ -1628,7 +1628,7 @@ dev = [{ name = "data-director-harness", editable = "harness" }]
 
 [[package]]
 name = "data-director-agent-advisor-standards"
-version = "0.1.1a3"
+version = "0.1.1a4"
 source = { editable = "agents/advisor-standards" }
 dependencies = [
     { name = "data-director-sdk" },
@@ -1668,7 +1668,7 @@ dev = [
 
 [[package]]
 name = "data-director-agent-example-hello"
-version = "0.1.1a2"
+version = "0.1.1a3"
 source = { editable = "agents/example-hello" }
 dependencies = [
     { name = "data-director-sdk" },
@@ -1687,7 +1687,7 @@ dev = [{ name = "data-director-harness", editable = "harness" }]
 
 [[package]]
 name = "data-director-agent-orchestrator-model"
-version = "0.1.1a4"
+version = "0.1.1a5"
 source = { editable = "agents/orchestrator-model" }
 dependencies = [
     { name = "data-director-sdk", extra = ["anthropic", "openai"] },
@@ -1718,7 +1718,7 @@ dev = [
 
 [[package]]
 name = "data-director-agent-orchestrator-stub"
-version = "0.1.1a3"
+version = "0.1.1a4"
 source = { editable = "agents/orchestrator-stub" }
 dependencies = [
     { name = "data-director-sdk" },
@@ -1755,7 +1755,7 @@ dev = [
 
 [[package]]
 name = "data-director-app"
-version = "0.3.0a8"
+version = "0.3.0a9"
 source = { editable = "app" }
 dependencies = [
     { name = "anyio" },
@@ -1812,7 +1812,7 @@ dev = [
 
 [[package]]
 name = "data-director-deposit-broker"
-version = "0.1.0a0"
+version = "0.1.0a1"
 source = { editable = "deposit-broker" }
 dependencies = [
     { name = "cryptography" },
@@ -1835,7 +1835,7 @@ requires-dist = [
 
 [[package]]
 name = "data-director-harness"
-version = "0.2.0a4"
+version = "0.2.0a5"
 source = { editable = "harness" }
 dependencies = [
     { name = "a2a-sdk", extra = ["http-server"] },
@@ -1915,7 +1915,7 @@ dev = [
 
 [[package]]
 name = "data-director-inventory"
-version = "0.1.0a4"
+version = "0.1.0a5"
 source = { editable = "inventory" }
 dependencies = [
     { name = "acro" },
@@ -1953,7 +1953,7 @@ dev = [{ name = "data-director-sdk", editable = "sdk" }]
 
 [[package]]
 name = "data-director-mcp-pid"
-version = "0.1.0a0"
+version = "0.1.0a1"
 source = { editable = "mcp-pid" }
 dependencies = [
     { name = "anyio" },
@@ -1990,7 +1990,7 @@ dev = [
 
 [[package]]
 name = "data-director-model-broker"
-version = "0.1.0a0"
+version = "0.1.0a1"
 source = { editable = "broker" }
 dependencies = [
     { name = "cryptography" },
@@ -2025,7 +2025,7 @@ dev = [
 
 [[package]]
 name = "data-director-sdk"
-version = "0.2.0a4"
+version = "0.2.0a5"
 source = { editable = "sdk" }
 dependencies = [
     { name = "a2a-sdk", extra = ["http-server"] },
@@ -2077,7 +2077,7 @@ provides-extras = ["anthropic", "openai", "tools", "brokers"]
 
 [[package]]
 name = "data-director-workbench"
-version = "0.2.0a5"
+version = "0.2.0a6"
 source = { editable = "workbench" }
 dependencies = [
     { name = "data-director-harness" },

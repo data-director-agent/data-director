@@ -106,6 +106,22 @@ describe("DocumentQuestions", () => {
     expect(screen.getAllByRole("textbox")).toHaveLength(1);
   });
 
+  it("says how many files a question about a shared column fills", () => {
+    const shared: DocumentQuestion = {
+      ...cell(1),
+      gap_file: "run_1/forces.csv",
+      gap_files: ["run_1/forces.csv", "run_2/forces.csv", "run_3/forces.csv"],
+    };
+    const document: ProjectDocument = {
+      ...UNANSWERED,
+      versions: [{ ...VERSION, questions: [shared] }],
+    };
+    renderQuestions(document, vi.fn());
+    expect(screen.getByRole("textbox", { name: "What unit is field_1 in?" })).toHaveAccessibleDescription(
+      /3 files, such as run_1\/forces\.csv › field_1 › unit/,
+    );
+  });
+
   it("names the metadata record value a question fills, with its suggestion", () => {
     const title: DocumentQuestion = {
       question_id: `q-${(200).toString(16).padStart(16, "0")}`,

@@ -11,10 +11,10 @@ from pathlib import Path
 
 import pytest
 
-from dd_agent_advisor_documentation.agent import (
+from dd_agent_advisor_documentation.agent import DocumentationEditor
+from dd_agent_advisor_documentation.dictionary import (
     DICTIONARY_COLUMNS,
     VALUE_COLUMNS,
-    DocumentationEditor,
     Source,
     _question_id,
 )
@@ -354,9 +354,14 @@ def test_every_unknown_dictionary_cell_is_asked_once(runs_dir: Path) -> None:
         for c in VALUE_COLUMNS
         if r[f"{c}_source"] == Source.UNKNOWN
     ]
-    asked = [(q.gap_file, q.gap_field, q.gap_column) for q in document.document_questions]
-    assert asked == unknown and unknown
-    assert f"asks {len(unknown)} questions" in env.outcome.statement
+    # A question about a column several files share asks for its cell in each of them.
+    asked = [
+        (file, q.gap_field, q.gap_column)
+        for q in document.document_questions
+        for file in q.gap_files or [q.gap_file or ""]
+    ]
+    assert sorted(asked) == sorted(unknown) and unknown
+    assert f"asks {len(document.document_questions)} questions" in env.outcome.statement
 
 
 def test_a_gap_is_asked_under_the_same_identifier_in_every_version(runs_dir: Path) -> None:

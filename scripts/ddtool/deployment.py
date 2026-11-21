@@ -5,7 +5,9 @@ Its keys are read and checked by ddtool.deployment_file. From it and the release
 `app/config/agents.yaml` and `profile.yaml.example`, `apply` writes:
 
 - the profile, `profile.yaml` beside `deployment.yaml`, with `DD_PROFILE` naming it in
-  `app.env`. Its `version` rises whenever its content changes, so each stored run names the
+  `app.env`. It is the release's `profile.yaml.example` with what `deployment.yaml` sets (name,
+  orchestrator, agents disabled, `model_accounts`) and the PID resolver's grant; every other key
+  of the example, such as `deposit_transports`, is carried as it stands. Its `version` rises whenever its content changes, so each stored run names the
   rules it ran under (docs/guide/operations/configuration.md);
 - `model_accounts`, if the file has it, in the profile as written; the app checks it when it
   starts (docs/specs/model-accounts.md). Without it the profile has none, so the deployment pays;
@@ -88,6 +90,37 @@ def agent_id(name: str) -> str:
     return name.replace("-", ".", 1)
 
 
+# The keys `apply` sets itself. Every other key of the release's profile example reaches the
+# generated profile as the example has it, so a key added to the example is not lost.
+OWNED_PROFILE_KEYS = frozenset(
+    {
+        "profile_id",
+        "version",
+        "description",
+        "agents",
+        "orchestrator",
+        "model_accounts",  # from deployment.yaml; the example's own is not carried
+        "tool_servers",  # from the PID resolver
+    }
+)
+LIST_PROFILE_KEYS = ("actions_requiring_approval", "hosted_models")
+
+
+def _carried(base: dict[str, Any], disabled: set[str]) -> dict[str, Any]:
+    """The example's keys that `apply` does not set: the profile's other policy. `agent_settings`
+    for an agent the profile no longer enables is left out, as the app would refuse the profile."""
+    carried = {k: v for k, v in base.items() if k not in OWNED_PROFILE_KEYS}
+    carried.setdefault("actions_requiring_approval", [])
+    for key in LIST_PROFILE_KEYS:
+        if key in carried:
+            carried[key] = list(carried[key] or [])
+    if isinstance(carried.get("agent_settings"), dict):
+        carried["agent_settings"] = {
+            k: v for k, v in carried["agent_settings"].items() if str(k) not in disabled
+        }
+    return carried
+
+
 def profile(
     deployment: Deployment,
     example: Path,
@@ -104,10 +137,8 @@ def profile(
         "description": f"{base.get('description', '')} Deployment {deployment.name}.".strip(),
         "agents": {k: v for k, v in dict(base.get("agents") or {}).items() if k not in disabled},
         "orchestrator": f"orchestrator.{deployment.orchestrator}",
-        "actions_requiring_approval": list(base.get("actions_requiring_approval") or []),
+        **_carried(base, disabled),
     }
-    if "hosted_models" in base:
-        body["hosted_models"] = list(base["hosted_models"] or [])
     if deployment.model_accounts is not None:
         body["model_accounts"] = deployment.model_accounts
     if tool_servers:

@@ -37,23 +37,25 @@ version.
 
 Every gap is asked (docs/specs/drafting.md): the version carries one `DocumentQuestion` for each
 README section, or part of one asked part by part, left for the researcher, and each `unknown` data
-dictionary cell. A README gap is an italic placeholder followed by `<!-- dd:gap <question-id> -->`.
+dictionary cell, or each column several files share by name, type and format (`dictionary.py`).
+A README gap is an italic placeholder followed by `<!-- dd:gap <question-id> -->`.
 A question's identifier is derived from its gap, so the same gap is asked under the same identifier
 in every version. An answer in the request's `draft_answers` goes, as given, in its gap, `supplied`.
 """
 
 from __future__ import annotations
 
-import csv
-import hashlib
-import io
-import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from enum import StrEnum
 from typing import Any, Literal
 
 from dd_agent_advisor_documentation.counts import counted
+from dd_agent_advisor_documentation.dictionary import (
+    Source,
+    _answers,
+    _question_id,
+    dictionary,
+)
 from dd_agent_advisor_documentation.prose import (
     Ask,
     Prose,
@@ -74,7 +76,7 @@ from dd_agent_advisor_documentation.record import (
     _values,
 )
 from dd_agent_advisor_documentation.sections import Section, load_sections
-from dd_agent_advisor_documentation.values import field_facts, missing_codes
+from dd_agent_advisor_documentation.values import field_facts
 from dd_sdk.agent import (
     AgentResult,
     AgentSpec,
@@ -86,12 +88,10 @@ from dd_sdk.agent import (
 )
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
-    CurrentVersion,
     Derivation,
     Document,
     DocumentKind,
     DocumentQuestion,
-    DraftAnswer,
     DraftRequest,
     FileInventory,
     GroundingMode,
@@ -115,44 +115,6 @@ PROJECT_DECISIONS = "project_decisions"
 PLACEHOLDER = "_Still needed: {ask}_"
 # What follows a placeholder: the question that asks for it. Not shown in the rendered README.
 GAP_MARKER = "<!-- dd:gap {question_id} -->"
-# How many hexadecimal digits of the gap's SHA-256 a question identifier keeps.
-QUESTION_ID_DIGITS = 16
-# The data dictionary's columns: a row is keyed by its file and field, and each value is followed
-# by a column saying where it came from (Source).
-KEY_COLUMNS = ("file", "field")
-VALUE_COLUMNS = ("type", "format", "description", "unit", "missing_values")
-SOURCE_SUFFIX = "_source"
-DICTIONARY_COLUMNS = KEY_COLUMNS + tuple(
-    column for value in VALUE_COLUMNS for column in (value, value + SOURCE_SUFFIX)
-)
-
-
-class Source(StrEnum):
-    """Where a value in the data dictionary came from, so that a person can check it."""
-
-    INFERRED = "inferred"  # read from the data by dd-inventory: a type, a format or a code
-    SUPPLIED = "supplied"  # given by the researcher: in the inventory or an earlier version
-    UNKNOWN = "unknown"  # no one has said yet: the cell is empty
-
-
-# How each inventory value came to be there. dd-inventory infers a field's type and format from
-# the table, and writes no description, so a description in the inventory was given by a person.
-INVENTORY_SOURCES = {
-    "type": Source.INFERRED,
-    "format": Source.INFERRED,
-    "description": Source.SUPPLIED,
-    "missing_values": Source.INFERRED,  # codes the inventory's summary found (values.py)
-}
-
-# What each data dictionary column asks of the researcher when it is unknown.
-CELL_ASKS = {
-    "type": "What type of value does `{field}` in `{file}` hold?",
-    "format": "In what format are the values of `{field}` in `{file}` written?",
-    "description": "What does `{field}` in `{file}` record?",
-    "unit": "In what unit is `{field}` in `{file}` measured? Say if it has none.",
-    "missing_values": "Which values of `{field}` in `{file}` mean that a value is missing?",
-}
-
 TITLES = {DocumentKind.README: "README", DocumentKind.DATA_DICTIONARY: "Data dictionary"}
 MEDIA_TYPES = {DocumentKind.README: "text/markdown", DocumentKind.DATA_DICTIONARY: "text/csv"}
 
@@ -261,7 +223,7 @@ class DocumentationEditor:
                     "draft.",
                 )
             # The dictionary is drafted by rule first, so nothing the model says can reach a cell.
-            text, questions, counts = _dictionary(
+            text, questions, counts = dictionary(
                 inventory, asked.current_version, _answers(asked.draft_answers)
             )
             record, _ = _record(asked.metadata_record)
@@ -282,7 +244,8 @@ class DocumentationEditor:
                 f"each value marked with where it came from: {counts[Source.INFERRED]} inferred "
                 f"from the inventory, {counts[Source.SUPPLIED]} supplied by you and "
                 f"{counts[Source.UNKNOWN]} unknown. It asks "
-                f"{count(len(questions), 'question')}, one for each unknown value. "
+                f"{count(len(questions), 'question')}, one for each unknown value, or for each "
+                "column several files share. "
                 f"{how_suggested(suggested, TITLES[kind])}"
             )
 
@@ -640,96 +603,6 @@ def _table(header: tuple[str, ...], rows: Sequence[tuple[str, ...]]) -> str:
         return "| " + " | ".join(c.replace("|", "\\|") for c in cells) + " |"
 
     return "\n".join([line(header), line(tuple("---" for _ in header)), *map(line, rows)])
-
-
-def _dictionary(
-    inventory: FileInventory, current: CurrentVersion | None, answers: Mapping[str, str]
-) -> tuple[str, list[DocumentQuestion], dict[Source, int]]:
-    """The data dictionary as CSV, one row per field, a question for each unknown value, and how
-    many values came from each source.
-
-    An answer the researcher recorded wins, then a value they gave in the current version, then the
-    inventory's, so that their answers and edits survive regenerating. The rows are the
-    inventory's fields: a field no longer in it is dropped.
-    """
-    earlier = _earlier_rows(current)
-    questions: list[DocumentQuestion] = []
-    counts = dict.fromkeys(Source, 0)
-    out = io.StringIO()
-    writer = csv.writer(out, lineterminator="\n")
-    writer.writerow(DICTIONARY_COLUMNS)
-    for f in inventory.inventory_files:
-        for c in f.file_fields:
-            given = {
-                "type": c.field_type,
-                "format": c.field_format,
-                "description": c.field_description,
-                "missing_values": missing_codes(c),
-            }
-            before = earlier.get((f.file_path, c.name), {})
-            row = [f.file_path, c.name]
-            for column in VALUE_COLUMNS:
-                question_id = _question_id({"file": f.file_path, "field": c.name, "column": column})
-                answer = answers.get(question_id)
-                if answer is not None:
-                    value, source = answer, Source.SUPPLIED
-                else:
-                    value, source = _cell(column, given.get(column) or "", before)
-                if source == Source.UNKNOWN:
-                    questions.append(
-                        DocumentQuestion(
-                            question_id=question_id,
-                            question_prompt=CELL_ASKS[column].format(
-                                field=c.name, file=f.file_path
-                            ),
-                            gap_file=f.file_path,
-                            gap_field=c.name,
-                            gap_column=column,
-                        )
-                    )
-                counts[source] += 1
-                row += [value, source.value]
-            writer.writerow(row)
-    return out.getvalue(), questions, counts
-
-
-def _cell(column: str, given: str, before: Mapping[str, str]) -> tuple[str, Source]:
-    """One value and its source: the researcher's earlier value, else the inventory's.
-
-    An earlier value that differs from the inventory's is taken as the researcher's, whatever the
-    earlier source column says: a person correcting a type in a spreadsheet seldom changes its
-    source too. The earlier source columns are therefore not read.
-    """
-    earlier = (before.get(column) or "").strip()
-    if earlier and earlier != given:
-        return earlier, Source.SUPPLIED
-    if given:
-        return given, INVENTORY_SOURCES.get(column, Source.SUPPLIED)
-    return "", Source.UNKNOWN
-
-
-def _earlier_rows(current: CurrentVersion | None) -> dict[tuple[str, str], dict[str, str]]:
-    """The current version's rows by (file, field), if it is a CSV data dictionary."""
-    if current is None or current.media_type != "text/csv" or not current.document_text:
-        return {}
-    reader = csv.DictReader(io.StringIO(current.document_text))
-    if not reader.fieldnames or not set(KEY_COLUMNS) <= set(reader.fieldnames):
-        return {}
-    return {(row["file"], row["field"]): row for row in reader}
-
-
-def _question_id(target: Mapping[str, str]) -> str:
-    """A question's identifier, derived from the gap it targets and never from its position, so
-    that the same gap has the same identifier in every version (docs/specs/drafting.md)."""
-    canonical = json.dumps(target, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
-    digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
-    return f"q-{digest[:QUESTION_ID_DIGITS]}"
-
-
-def _answers(given: Sequence[DraftAnswer]) -> dict[str, str]:
-    """The recorded answers by the question they answer. A blank answer leaves its gap open; of
-    two answers to one question, the later in the list wins."""
-    return {a.answered_question: a.answer_text for a in given if a.answer_text.strip()}
 
 
 def build() -> DocumentationEditor:

@@ -11,7 +11,8 @@ from pathlib import Path
 
 import pytest
 
-from dd_agent_advisor_documentation.agent import VALUE_COLUMNS, DocumentationEditor, Source
+from dd_agent_advisor_documentation.agent import DocumentationEditor
+from dd_agent_advisor_documentation.dictionary import VALUE_COLUMNS, Source
 from dd_harness.conductor import Conductor
 from dd_harness.projects import ProjectStore
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
