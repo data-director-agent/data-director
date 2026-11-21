@@ -59,7 +59,6 @@ export function Composer({
           documents={attachments.documents}
           busy={busy}
           onAttachFiles={(files) => void attachments.attachFiles(files)}
-          onAttachMade={(file) => void attachments.attachFromDialog(file)}
           onRemoveInventory={attachments.removeInventory}
           onRemoveDocument={attachments.removeDocument}
         />

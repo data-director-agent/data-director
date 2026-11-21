@@ -52,7 +52,6 @@ export interface Attachments extends Carried {
   attachFile(file: File | undefined): Promise<void>;
   /** Opens the first of `files` to be checked and says which of the others were not attached. */
   attachFiles(files: FileList | readonly File[] | null): Promise<void>;
-  attachFromDialog(file: File): Promise<void>;
   confirmInventory(checked: AttachedInventory): void;
   discardInventory(): void;
   confirmDocument(checked: AttachedDocument): void;
@@ -157,20 +156,6 @@ export function useAttachments(
     await attachFile(first);
   }
 
-  /**
-   * A file chosen at the end of the Make an inventory dialog. Once it is attached the dialog's
-   * button gives way to the chip, so focus goes to the message box rather than nowhere; if it is
-   * not an inventory, the dialog's button stays and takes the focus back.
-   */
-  async function attachFromDialog(file: File) {
-    setNotice(null);
-    await attachFile(file);
-    requestAnimationFrame(() => {
-      const active = globalThis.document.activeElement;
-      if (!active || active === globalThis.document.body) box.current?.focus();
-    });
-  }
-
   /** The checked inventory, without what the researcher left out, becomes the chip. */
   function confirmInventory(checked: AttachedInventory) {
     setPendingInventory(null);
@@ -251,7 +236,6 @@ export function useAttachments(
     dropping,
     attachFile,
     attachFiles,
-    attachFromDialog,
     confirmInventory,
     discardInventory,
     confirmDocument,

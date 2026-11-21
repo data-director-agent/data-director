@@ -71,8 +71,8 @@ contact about anything you are unsure of.
 
 <!-- making-an-inventory:summary -->
 
-In the app, select **Make an inventory** under the message box on the conversation page. It offers
-two ways, each on its own tab: **In this browser**, which describes a folder and needs nothing
+In the app, select **Make an inventory** in the **Project** panel beside the conversation, or on the
+project's page. It offers two ways, each on its own tab: **In this browser**, which describes a folder and needs nothing
 installed, and **With the command**, which you run in a terminal. It opens on the browser. Use the
 browser unless your data are somewhere it cannot reach, or the dataset is very large (below).
 
@@ -154,9 +154,9 @@ you are in, to make the inventory for you.
 ## Attaching it in the app
 
 On the conversation page, select **Attach a file** under the message box and choose
-`inventory.json`, or select **Choose inventory.json** at the end of the **With the command** tab of **Make an
-inventory**. You can
-also drop the file onto the message box.
+`inventory.json`. You can also drop the file onto the message box. To add it to the project from
+the **Project** panel instead, select **Choose inventory.json** at the end of the **With the
+command** tab of **Make an inventory**, or **Add an inventory**.
 
 The app then shows you everything the inventory holds, before anything is kept: the folders and
 files, their sizes and formats, and the column names of each table. That is all Data Director

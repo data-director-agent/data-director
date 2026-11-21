@@ -109,8 +109,15 @@
     margin-bottom: var(--space-2);
   }
 
+  /* A select is as wide as its longest option; let the label and the select shrink to the panel,
+     so the page does not scroll sideways at 320px. */
   .phase-strip-entry {
     font-size: var(--font-size-small);
+    max-inline-size: 100%;
+  }
+
+  .phase-strip-entry select {
+    max-inline-size: 100%;
   }
 
   .phase-bar-count {

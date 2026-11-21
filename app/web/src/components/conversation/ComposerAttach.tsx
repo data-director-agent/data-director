@@ -1,6 +1,7 @@
 /**
- * What the message box offers for attaching: the chip of what is attached, the buttons to attach
- * a file or make an inventory, and the note on what may be attached. An inventory and a document
+ * What the message box offers for attaching: the chip of what is attached, the button to attach
+ * a file, and the note on what may be attached. Making an inventory is not offered here; the
+ * project's panel and page offer it (AddInventory.tsx). An inventory and a document
  * may each be attached once (docs/specs/app.md); a document only where the profile allows it
  * (`documents`, docs/specs/projects.md). The picker passes on every file chosen, so that those
  * not attached can be named (#1170).
@@ -15,7 +16,6 @@ import {
   DOCUMENT_MEDIA_TYPES,
 } from "../../conversation/documentation";
 import type { AttachedInventory } from "../../conversation/inventory";
-import { MakeInventoryDialog } from "../inventory/MakeInventoryDialog";
 import { Button } from "../ui/Button";
 import { DocumentChip } from "./DocumentChip";
 import { InventoryChip } from "./InventoryChip";
@@ -26,7 +26,6 @@ export function ComposerAttach({
   documents,
   busy,
   onAttachFiles,
-  onAttachMade,
   onRemoveInventory,
   onRemoveDocument,
 }: {
@@ -35,7 +34,6 @@ export function ComposerAttach({
   documents: boolean;
   busy: boolean;
   onAttachFiles: (files: FileList | null) => void;
-  onAttachMade: (file: File) => void;
   onRemoveInventory: () => void;
   onRemoveDocument: () => void;
 }) {
@@ -72,7 +70,6 @@ export function ComposerAttach({
             </Button>
           </FileTrigger>
         )}
-        {!attached && <MakeInventoryDialog isDisabled={busy} onAttach={onAttachMade} />}
       </div>
       <p id="attach-hint" className="hint">
         Attach an inventory of your data files (.json), which holds their names, sizes, formats
