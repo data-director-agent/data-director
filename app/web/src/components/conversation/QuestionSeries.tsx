@@ -11,8 +11,9 @@
  * together. Any question may be skipped; at least one must be answered. A lone question is
  * answered and sent in place. On moving to another question the focus moves to its legend.
  *
- * Only the latest turn's questions can be answered. Sending them sends the answers in words as
- * the message, beside the answers themselves, which the harness checks against the questions. The
+ * Only the latest turn's questions can be answered. Sending them sends the answers in words, as
+ * Markdown that pairs each question with its answer (`answersText`), as the message, beside the
+ * answers themselves, which the harness checks against the questions. The
  * researcher may ignore them and type in the message box instead. Earlier questions are shown as
  * they were answered, marked with an icon and words, never by colour alone.
  */

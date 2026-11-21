@@ -175,7 +175,7 @@ describe("ConversationHome", () => {
         "c1",
         turnBody(
           "orchestrator.stub",
-          COLLECTED,
+          `**Where are you with your research data?**\n\n${COLLECTED}`,
           asked ?? null,
           null,
           {

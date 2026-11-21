@@ -53,7 +53,7 @@ describe("QuestionSeries, one question", () => {
     await userEvent.keyboard("{Enter}");
     expect(onAnswer).toHaveBeenCalledWith(
       { answer_to: ASKED_BY, given_answers: [{ answered_key: "repository", answer_values: ["figshare"] }] },
-      "Figshare",
+      `**${CHOICE.question_prompt}**\n\nFigshare`,
     );
   });
 
@@ -75,7 +75,7 @@ describe("QuestionSeries, one question", () => {
         answer_to: ASKED_BY,
         given_answers: [{ answered_key: "repository", answer_values: ["zenodo", "figshare"] }],
       },
-      "Zenodo; Figshare",
+      `**${CHOICE.question_prompt}**\n\n- Zenodo\n- Figshare`,
     );
   });
 
@@ -90,7 +90,7 @@ describe("QuestionSeries, one question", () => {
         answer_to: ASKED_BY,
         given_answers: [{ answered_key: "repository", answer_values: [], answer_words: "Our own repository" }],
       },
-      "Our own repository",
+      `**${CHOICE.question_prompt}**\n\nIn my own words: Our own repository`,
     );
   });
 
@@ -106,7 +106,7 @@ describe("QuestionSeries, one question", () => {
     await userEvent.click(screen.getByRole("button", { name: "Send answer" }));
     expect(onAnswer).toHaveBeenCalledWith(
       { answer_to: ASKED_BY, given_answers: [{ answered_key: "method", answer_values: [], answer_words: "By survey." }] },
-      "By survey.",
+      `**${METHOD.question_prompt}**\n\nBy survey.`,
     );
   });
 
@@ -166,7 +166,11 @@ describe("QuestionSeries, several questions", () => {
     };
     expect(onAnswer).toHaveBeenCalledWith(
       sent,
-      `${CHOICE.question_prompt} Zenodo\n${TITLE.question_prompt} Bird counts 2026`,
+      [
+        `**${CHOICE.question_prompt}**\n\nZenodo`,
+        `**${TITLE.question_prompt}**\n\nBird counts 2026`,
+        `**${METHOD.question_prompt}**\n\n_Skipped_`,
+      ].join("\n\n"),
     );
   });
 

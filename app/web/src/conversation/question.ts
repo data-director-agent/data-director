@@ -81,13 +81,53 @@ export function answerSaid(question: Question, answer: QuestionAnswer): string {
   return [...labels, ...(words ? [words] : [])].join("; ");
 }
 
-/** The answers in words, as the message the researcher sends: a lone answer as it is, and
- * several as one line each, after the question it answers. */
+// Characters that mark up text anywhere in a line, and the marks that open a block at its start.
+const INLINE_MARKS = /[\\`*_~[\]|<&]/g;
+const BLOCK_MARK = /^[#>+=-]/;
+const NUMBERED = /^(\d+)([.)])/;
+
+/** Text the researcher or an agent wrote as plain words, escaped so that Markdown shows it as it
+ * was written: a line break stays a line break, and a blank line starts a new paragraph. */
+function plainMarkdown(text: string): string {
+  return text
+    .trim()
+    .split(/\n\s*\n/)
+    .map((paragraph) =>
+      paragraph
+        .split("\n")
+        .map((line) =>
+          line.trim().replace(INLINE_MARKS, "\\$&").replace(BLOCK_MARK, "\\$&").replace(NUMBERED, "$1\\$2"),
+        )
+        .join("\\\n"),
+    )
+    .join("\n\n");
+}
+
+/** Text as one escaped line, whatever line breaks it held. */
+function oneLine(text: string): string {
+  return plainMarkdown(text.replace(/\s+/g, " "));
+}
+
+/** One answer as Markdown: several options chosen as a list, one as a line, and words as written. */
+function answerMarkdown(question: Question, answer: QuestionAnswer): string {
+  const labels = (question.question_options ?? [])
+    .filter((o) => answer.answer_values.includes(o.option_value))
+    .map((o) => oneLine(o.option_label));
+  const words = answer.answer_words?.trim();
+  if (question.question_kind !== "choice") return plainMarkdown(words ?? "");
+  const said = [...labels, ...(words ? [`In my own words: ${oneLine(words)}`] : [])];
+  return said.length === 1 ? (said[0] ?? "") : said.map((line) => `- ${line}`).join("\n");
+}
+
+/** The answers as the message the researcher sends, in Markdown, so that the agent reads, and the
+ * transcript shows, which answer goes with which question: each question asked, in bold, then its
+ * answer, or that it was skipped. */
 export function answersText(questions: Question[], answers: ReplyAnswers): string {
-  const said = answers.given_answers.flatMap((answer) => {
-    const question = questions.find((q) => q.question_key === answer.answered_key);
-    return question ? [{ question, text: answerSaid(question, answer) }] : [];
-  });
-  if (questions.length === 1 && said.length === 1) return said[0]?.text ?? "";
-  return said.map(({ question, text }) => `${question.question_prompt} ${text}`).join("\n");
+  return questions
+    .map((question) => {
+      const answer = answers.given_answers.find((a) => a.answered_key === question.question_key);
+      const said = answer ? answerMarkdown(question, answer) : "_Skipped_";
+      return `**${oneLine(question.question_prompt)}**\n\n${said}`;
+    })
+    .join("\n\n");
 }

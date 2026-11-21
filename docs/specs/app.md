@@ -268,7 +268,10 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     another question moves the focus to its legend, and to the list's heading at the end. On
     earlier turns the questions are read-only, each answer marked with an icon and words, never by
     colour alone, and a skipped question says so. A new reply that asks is announced in the polite
-    live region. Sending sends the answers in words as `message_text` beside `reply_answers`; the
+    live region. Sending sends the answers in words as `message_text` beside `reply_answers`:
+    Markdown, each question asked in bold followed by its answer (several options chosen as a list)
+    or by `_Skipped_`, with the question's and the researcher's words escaped so that they read as
+    written; the transcript renders such a message as Markdown, and a typed one as typed. The
     server refuses answers the harness's `answer_problem` rejects, and nothing runs. The message
     box stays usable, so the researcher may type instead (`app/tests/test_app.py`,
     `app/web/src/components/conversation/QuestionSeries.test.tsx`, `e2e/shell.spec.ts`).
