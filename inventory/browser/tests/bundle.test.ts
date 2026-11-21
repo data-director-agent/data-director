@@ -175,6 +175,29 @@ describe("parity", () => {
     expect(parityProblems(native, browser, "pyodide.314.0.8")).toEqual([]);
   });
 
+  it("leaves out summary values, which are made natively only", () => {
+    const fields = [{ name: "x", field_type: "number" }];
+    const nativeWith = {
+      ...native,
+      inventory_files: [
+        {
+          file_path: "a.csv",
+          file_fields: [
+            { ...fields[0], field_summary: { summary_mean: 1.5 }, field_disclosure_check: {} },
+          ],
+        },
+      ],
+      inventory_limitations: ["Summary values of table fields passed statistical disclosure control."],
+    };
+    const browser = {
+      ...native,
+      inventory_tool_version: `${String(native.inventory_tool_version)}+pyodide.314.0.8`,
+      inventory_files: [{ file_path: "a.csv", file_fields: fields }],
+      inventory_limitations: ["No summary values of table fields were made: not here."],
+    };
+    expect(parityProblems(nativeWith, browser, "pyodide.314.0.8")).toEqual([]);
+  });
+
   it("reports a missing runtime label and every other difference by path", () => {
     const browser = {
       ...native,

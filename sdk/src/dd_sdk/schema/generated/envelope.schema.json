@@ -136,6 +136,24 @@
          "title": "Assurance",
          "type": "string"
       },
+      "CategoryCount": {
+         "additionalProperties": false,
+         "description": "One category of a field and how many rows hold it, rounded.",
+         "properties": {
+            "category_value": {
+               "type": "string"
+            },
+            "category_count": {
+               "type": "integer"
+            }
+         },
+         "required": [
+            "category_value",
+            "category_count"
+         ],
+         "title": "CategoryCount",
+         "type": "object"
+      },
       "ChoiceOption": {
          "additionalProperties": false,
          "description": "One option of a choice question (a Question of kind choice).",
@@ -364,6 +382,50 @@
          ],
          "title": "Derivation",
          "type": "string"
+      },
+      "DisclosureCheck": {
+         "additionalProperties": false,
+         "description": "What the disclosure check of a field's summary values did: the rules, their parameters, the tool and how many values it left out, never which (docs/specs/personal-data.md).",
+         "properties": {
+            "check_tool": {
+               "description": "The output checker that applied the rules, such as acro.",
+               "type": "string"
+            },
+            "check_tool_version": {
+               "type": "string"
+            },
+            "check_rules": {
+               "description": "The rules applied, such as minimum threshold, k-th value range, p-ratio, nk dominance, zeros disclosive and rounding.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "check_threshold": {
+               "description": "The minimum frequency threshold k.",
+               "type": "integer"
+            },
+            "check_rounding_base": {
+               "description": "The base counts were rounded to.",
+               "type": "integer"
+            },
+            "check_suppressed": {
+               "description": "How many of the field's summary values were left out. Never which.",
+               "type": "integer"
+            }
+         },
+         "required": [
+            "check_tool",
+            "check_tool_version",
+            "check_threshold",
+            "check_rounding_base",
+            "check_suppressed"
+         ],
+         "title": "DisclosureCheck",
+         "type": "object"
       },
       "Document": {
          "additionalProperties": false,
@@ -1062,6 +1124,69 @@
          ],
          "title": "FactKind",
          "type": "string"
+      },
+      "FieldSummary": {
+         "additionalProperties": false,
+         "description": "Summary values of one table field that the inventory command computed where the data live and passed through statistical disclosure control before writing (docs/specs/personal-data.md). A value that failed a rule is absent, never altered to pass; every count is at least the check's threshold and rounded to its base, and a range is never the raw minimum and maximum.",
+         "properties": {
+            "summary_rows_read": {
+               "description": "How many rows were read to compute the summaries, rounded.",
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            },
+            "summary_null_count": {
+               "description": "How many of the rows read hold no value in the field, rounded.",
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            },
+            "summary_range_low": {
+               "description": "The lower bound of the field's values: the k-th smallest, so that at least k rows (the check's threshold) lie at or below it. A number or an ISO 8601 date or time, as text.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "summary_range_high": {
+               "description": "The upper bound of the field's values, the k-th largest, as summary_range_low.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "summary_mean": {
+               "description": "The mean of a numeric field's values, missing-value codes left out, written only when the threshold and dominance rules pass.",
+               "type": [
+                  "number",
+                  "null"
+               ]
+            },
+            "summary_categories": {
+               "description": "The field's categories that at least k rows hold, with their counts. Rarer categories are left out and counted in check_suppressed.",
+               "items": {
+                  "$ref": "#/$defs/CategoryCount"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "summary_missing_codes": {
+               "description": "Values the field holds that are often used for missing data (-99, -999, 999, 9999, NA, N/A, NaN, null, .), each held by at least k rows, with their counts.",
+               "items": {
+                  "$ref": "#/$defs/MissingCodeCount"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            }
+         },
+         "title": "FieldSummary",
+         "type": "object"
       },
       "FileDecision": {
          "description": "Whether a file of the inventory is to be deposited.",
@@ -1772,6 +1897,24 @@
             "message_text"
          ],
          "title": "Message",
+         "type": "object"
+      },
+      "MissingCodeCount": {
+         "additionalProperties": false,
+         "description": "A value that a field may use for missing data, such as -99 or NA, and how many rows hold it, rounded.",
+         "properties": {
+            "missing_code": {
+               "type": "string"
+            },
+            "missing_code_count": {
+               "type": "integer"
+            }
+         },
+         "required": [
+            "missing_code",
+            "missing_code_count"
+         ],
+         "title": "MissingCodeCount",
          "type": "object"
       },
       "ModelAccount": {
@@ -3449,6 +3592,28 @@
                   "string",
                   "null"
                ]
+            },
+            "field_summary": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/FieldSummary"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "The field's summary values (docs/specs/personal-data.md). Absent, no summaries were made: by an older command, in a runtime where they do not run, or with them turned off."
+            },
+            "field_disclosure_check": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/DisclosureCheck"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "The disclosure check the field's summary values passed. Present whenever field_summary is."
             }
          },
          "required": [
@@ -3734,5 +3899,5 @@
    ],
    "title": "data_director_core",
    "type": "object",
-   "version": "0.18.1"
+   "version": "0.19.0"
 }

@@ -40,10 +40,12 @@ suggests some of those values beside their questions
 
 1. **Inferred means read from the project's facts.** A drafter infers only what the file inventory
    and the chosen repository's requirements record: the files, their formats and sizes, the
-   tables, and each field's name, type and format. It opens no file. Per-field summary values,
-   such as ranges, counts or categories, are not inferred, because the inventory does not carry
-   them until the command applies disclosure control to them
-   ([Personal data and disclosure control](personal-data.md), #571).
+   tables, and each field's name, type and format, and the summary values the command wrote
+   after disclosure control (a range that leaves out the extremes, a mean, categories and
+   missing-value codes with rounded counts). It opens no file. A data dictionary's missing-value
+   codes are inferred from them; a writer may describe a field with them but never says what a
+   code means, nor calls a range's bounds the minimum and maximum
+   ([Personal data and disclosure control](personal-data.md), #571, #611).
 2. **Supplied means given by a person.** A value is supplied when it comes from a field
    description in the inventory, from the project's approved metadata record (the version a
    person approved last, [Projects](projects.md), invariant 6), from a person's edit of an earlier
@@ -266,9 +268,9 @@ as any other answer is.
 
 ## Non-functional requirements
 
-- **Privacy.** A drafter sees the inventory, never the data, and the inventory carries no summary
-  values until the command applies disclosure control to them
-  ([Personal data and disclosure control](personal-data.md), #571). Project content other than the
+- **Privacy.** A drafter sees the inventory, never the data, and the inventory carries only the
+  summary values that passed disclosure control on the researcher's computer
+  ([Personal data and disclosure control](personal-data.md), #571, #611). Project content other than the
   inventory reaches a hosted model only as the profile allows.
 - **Accessibility.** Questions are answered through the app's form controls, whose accessibility
   is set out in #529.

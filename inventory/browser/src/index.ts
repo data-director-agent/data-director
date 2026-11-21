@@ -75,6 +75,7 @@ export {
   withPart,
 } from "./parts";
 export { searchFiles } from "./search";
+export { fieldValues, hasSuppressed, suppressedText } from "./values";
 export { files, summarise, type FormatGroup, type InventorySummary, type TableSummary } from "./summary";
 export { folderTree, type FileNode, type FolderNode, type TreeNode } from "./tree";
 export {
@@ -86,6 +87,8 @@ export {
   type InventoryFile,
   type InventoryPart,
   type PersonalDataFinding,
+  type DisclosureCheck,
+  type FieldSummary,
   type TableField,
 } from "./types";
 export {

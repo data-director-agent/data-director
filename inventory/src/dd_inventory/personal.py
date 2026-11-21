@@ -269,6 +269,14 @@ class Check:
             )
         return said
 
+    def flagged_columns(self, relative: str) -> frozenset[str]:
+        """The columns of a table in whose values possible personal data were found."""
+        return frozenset(
+            f["finding_column"]
+            for f in self.findings
+            if f["finding_file"] == relative and f["finding_target"] == "column"
+        )
+
     def sorted_findings(self) -> list[dict[str, Any]]:
         def key(f: dict[str, Any]) -> tuple[str, ...]:
             return (

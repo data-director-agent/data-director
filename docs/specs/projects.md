@@ -58,8 +58,10 @@ intended design, and each part says where it is not built yet.
 
 1. **The project never holds a data file's content.** An inventory entry gives a path relative to
    the dataset's root folder, the size, the SHA-256 digest, the media type and every PRONOM
-   identifier matched with how it was found, and for a table its fields. An absolute path is
-   refused, since it would say where the data live. Enforced by the `FileInventory` schema and
+   identifier matched with how it was found, and for a table its fields, with the summary values
+   that passed disclosure control where the data live ([Personal data and disclosure
+   control](personal-data.md), #611). An absolute path is refused, since it would say where the
+   data live. Enforced by the `FileInventory` schema and
    `inventory/tests/test_inventory.py` (no content, no absolute path).
 2. **The log is append-only, and the harness is its only writer.** No event is changed or
    removed, including versions and decisions. The app reads the log and never writes it.
