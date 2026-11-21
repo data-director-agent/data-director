@@ -88,7 +88,9 @@ QUESTIONS_TOOL_DEFINITION = ToolSpec(
                                     "option_help": {
                                         "type": "string",
                                         "description": (
-                                            "Optional: one sentence telling this option apart."
+                                            "Optional: one sentence telling this option apart; "
+                                            "for an option an agent recommended, the agent's "
+                                            "reason for it."
                                         ),
                                     },
                                 },
