@@ -22,8 +22,17 @@
     align-items: start;
   }
 
+  /* The reader fills its column, so that a wide table such as a data dictionary has room. */
   .document-browser-reader {
     min-width: 0;
+  }
+
+  /* Prose in the reader keeps a readable measure; the tab bar and a table span the column. */
+  .document-reader-head,
+  .document-tab-panel .document-body,
+  .question-list,
+  .document-questions,
+  .decision-form {
     max-width: calc(var(--measure) + var(--space-6));
   }
 
@@ -250,6 +259,11 @@
 
   .document-table {
     margin-bottom: var(--space-4);
+  }
+
+  /* Column names stay on one line; a table wider than the column scrolls in its region. */
+  .document-table th {
+    white-space: nowrap;
   }
 
   .document-edit {

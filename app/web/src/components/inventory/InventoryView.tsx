@@ -40,41 +40,24 @@ import {
   NO_EDITS,
   searchFiles,
   summarise,
-  type EditAction,
   type FileHint,
   type FileInventory,
   type FileRole,
   type FolderNode,
-  type InventoryEdits,
   type InventoryFile,
-  type TableField,
-  type TableSummary,
   type TreeNode,
 } from "@data-director/inventory";
 import { createContext, useContext, useId, useMemo, useState } from "react";
-import { TableScroll } from "../ui/TableScroll";
 import { FormatStatus, HintBadges, HintList } from "./FileStatus";
+import { columns, Tables } from "./InventoryColumns";
+import { EditingContext, type Editing, type EditingState } from "./InventoryEditing";
 import { Formats } from "./InventoryFormats";
 import { FindingBadge, FindingsContext, findingsByPlace, InventoryCallout, PersonalData } from "./PersonalData";
 
 /** The most search results drawn at once; the rest are counted. */
 export const SHOWN = 200;
 
-/** What the researcher changed, and how to change it, while the view is editing. */
-export interface Editing {
-  edits: InventoryEdits;
-  dispatch: (action: EditAction) => void;
-  /** Files that are new since the inventory this one replaces, to be marked so. */
-  newPaths?: ReadonlySet<string> | undefined;
-}
-
-interface EditingState extends Editing {
-  /** The files as the command found them, by path: the choices a format is chosen from. */
-  found: ReadonlyMap<string, InventoryFile>;
-}
-
-/** The editing state, or null when the view is read-only. */
-const EditingContext = createContext<EditingState | null>(null);
+export type { Editing } from "./InventoryEditing";
 
 /** What a person should look at in each file, by path; a file with no entry has no hint. */
 const HintsContext = createContext<ReadonlyMap<string, FileHint[]>>(new Map());
@@ -398,10 +381,6 @@ function FolderRole({ node }: { node: FolderNode }) {
   );
 }
 
-function columns(count: number): string {
-  return count === 1 ? "1 column" : `${count} columns`;
-}
-
 function FileLine({ file, name }: { file: InventoryFile; name: string }) {
   const editing = useContext(EditingContext);
   const isNew = editing?.newPaths?.has(file.file_path) ?? false;
@@ -540,110 +519,5 @@ function FormatChoice({ file, id }: { file: InventoryFile; id: string }) {
         />
       </div>
     </fieldset>
-  );
-}
-
-/** An Include checkbox for the column `name` of the table at `path`. */
-function IncludeColumn({ path, name }: { path: string; name: string }) {
-  const editing = useContext(EditingContext);
-  if (!editing) return null;
-  const { omitted } = editing.edits;
-  const tableOmitted = isOmitted(path, omitted.paths);
-  const left = tableOmitted || (omitted.columns.get(path)?.has(name) ?? false);
-  return (
-    <input
-      type="checkbox"
-      className="inventory-include"
-      aria-label={`Include the column ${name} of ${path}`}
-      checked={!left}
-      disabled={tableOmitted}
-      onChange={(e) =>
-        editing.dispatch({
-          kind: e.currentTarget.checked ? "include-column" : "omit-column",
-          path,
-          column: name,
-        })
-      }
-    />
-  );
-}
-
-/** A column's description: a field while editing, its text otherwise. */
-function ColumnDescription({ path, field }: { path: string; field: TableField }) {
-  const editing = useContext(EditingContext);
-  if (!editing) return <>{field.field_description ?? ""}</>;
-  const left =
-    isOmitted(path, editing.edits.omitted.paths) ||
-    (editing.edits.omitted.columns.get(path)?.has(field.name) ?? false);
-  if (left) return null;
-  return (
-    <input
-      type="text"
-      className="inventory-column-description"
-      aria-label={`Describe the column ${field.name} of ${path}`}
-      maxLength={DESCRIPTION_LIMIT}
-      defaultValue={field.field_description ?? ""}
-      onBlur={(e) =>
-        editing.dispatch({ kind: "describe-column", path, column: field.name, text: e.currentTarget.value })
-      }
-    />
-  );
-}
-
-function Tables({ tables }: { tables: readonly TableSummary[] }) {
-  const editing = useContext(EditingContext) !== null;
-  if (tables.length === 0) return null;
-  const described = editing || tables.some((t) => t.fields.some((f) => f.field_description));
-  return (
-    <section aria-labelledby="inventory-tables">
-      <h3 id="inventory-tables">Tables</h3>
-      <p>
-        The columns of each table, with the type inferred from a sample of its rows. Column
-        headings are kept and shown to agents.
-      </p>
-      {tables.map((table) => (
-        <details key={table.path} className="inventory-table">
-          <summary>
-            <span className="inventory-file-name">{table.path}</span>{" "}
-            <span className="muted">{columns(table.fields.length)}</span>
-          </summary>
-          <TableScroll label={`Columns of ${table.path}`}>
-            <table className="data-table">
-              <caption className="visually-hidden">Columns of {table.path}</caption>
-              <thead>
-                <tr>
-                  {editing && <th scope="col">Include</th>}
-                  <th scope="col">Column</th>
-                  <th scope="col">Type</th>
-                  <th scope="col">Format</th>
-                  {described && <th scope="col">Description</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {table.fields.map((field, index) => (
-                  <tr key={`${index}-${field.name}`}>
-                    {editing && (
-                      <td>
-                        <IncludeColumn path={table.path} name={field.name} />
-                      </td>
-                    )}
-                    <td>
-                      <code>{field.name}</code>
-                    </td>
-                    <td>{field.field_type ?? <span className="muted">Not known</span>}</td>
-                    <td>{field.field_format ?? ""}</td>
-                    {described && (
-                      <td>
-                        <ColumnDescription path={table.path} field={field} />
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TableScroll>
-        </details>
-      ))}
-    </section>
   );
 }

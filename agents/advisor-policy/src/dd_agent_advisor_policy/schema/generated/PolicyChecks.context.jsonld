@@ -10,6 +10,9 @@
       "MatchedPolicy": {
          "@id": "https://w3id.org/data-director/agents/policy/MatchedPolicy"
       },
+      "NotSearched": {
+         "@id": "https://w3id.org/data-director/agents/policy/NotSearched"
+      },
       "Obligation": {
          "@id": "https://w3id.org/data-director/agents/policy/Obligation"
       },
@@ -100,6 +103,10 @@
       },
       "no_record": {
          "@id": "https://w3id.org/data-director/agents/policy/no_record"
+      },
+      "not_searched": {
+         "@id": "https://w3id.org/data-director/agents/policy/not_searched",
+         "@type": "@id"
       },
       "notes": {
          "@id": "https://w3id.org/data-director/agents/policy/notes"

@@ -150,6 +150,13 @@ class AmbiguousActor(Grounded):
     role: ActorRole
 
 
+class NotSearched(Frozen):
+    """A registry not asked in this run, and why."""
+
+    registry: PolicyRegistry
+    reason: str
+
+
 class SearchedSummary(Frozen):
     queries: list[str] = Field(default_factory=list)
     snapshot_ref: str | None = None
@@ -162,6 +169,7 @@ class PolicyChecks(Grounded):
     conflicts: list[PolicyConflict] = Field(default_factory=list)
     mandated_repositories: list[RepositoryRef] = Field(default_factory=list)
     no_record: list[str] = Field(default_factory=list)
+    not_searched: list[NotSearched] = Field(default_factory=list)
     readings: list[PolicyReading] = Field(default_factory=list)
     funders: list[ResolvedFunder] = Field(default_factory=list)
     journals: list[ResolvedJournal] = Field(default_factory=list)

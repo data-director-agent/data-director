@@ -219,5 +219,6 @@ nav:
       - Model broker: /broker/CHANGELOG.md
       - Deposit broker: /deposit-broker/CHANGELOG.md
       - Inventory: /inventory/CHANGELOG.md
+      - PID resolver: /mcp-pid/CHANGELOG.md
       - Agents:
           - /agents/*/CHANGELOG.md

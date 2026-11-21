@@ -48,8 +48,10 @@ const DISTRIBUTION = "data-director-inventory";
  * Left out of the bundle, with what only they need. Presidio declares spaCy, preshed and numpy,
  * but with pattern recognisers only it imports none of them but spaCy, which does not build for
  * Pyodide; the stand-in in `spacy-stub/` takes spaCy's place (docs/specs/personal-data.md).
+ * ACRO and pandas check table fields' summary values, which do not run under Pyodide: ACRO would
+ * add about 42 MB and 18 s before a scan, so the inventory says no summaries were made.
  */
-const PRUNED = ["spacy", "preshed", "numpy"];
+const PRUNED = ["spacy", "preshed", "numpy", "acro", "pandas"];
 const STUB = { name: "dd-inventory-spacy-stub", version: "1.0.0", dir: join(PACKAGE, "bundle", "spacy-stub") };
 
 const pyodideDir = dirname(createRequire(import.meta.url).resolve("pyodide/package.json"));

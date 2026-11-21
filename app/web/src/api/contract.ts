@@ -32,6 +32,8 @@ export interface DocumentQuestion {
   gap_file?: string;
   gap_field?: string;
   gap_column?: string;
+  /** Every file whose cell the answer fills, `gap_file` among them, when the column is one several files share. */
+  gap_files?: string[];
   gap_property?: string;
   /** A drafter's suggested answer, offered beside the question and never put into the draft. */
   suggested_answer?: string;

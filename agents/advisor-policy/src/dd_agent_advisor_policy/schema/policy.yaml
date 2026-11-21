@@ -68,6 +68,7 @@ classes:
       - conflicts
       - mandated_repositories
       - no_record
+      - not_searched
       - readings
       - funders
       - journals
@@ -190,6 +191,21 @@ classes:
       - actor
       - role
 
+  NotSearched:
+    description: >-
+      A registry that was not asked in this run, and why: it is not configured on this server, or
+      it could not be reached. A policy it holds was not found, which is not the same as there
+      being none.
+    slots:
+      - registry
+      - reason
+    slot_usage:
+      registry:
+        description: The registry that was not asked.
+      reason:
+        description: Why it was not asked.
+        required: true
+
   SearchedSummary:
     description: >-
       What was looked for, so a reader can judge an abstention as well as a match.
@@ -259,8 +275,17 @@ slots:
     multivalued: true
     inlined_as_list: true
   no_record:
-    description: Actors for which no FAIRsharing policy record was found.
+    description: >-
+      Actors for which no policy record was found in the registries searched. A registry in
+      not_searched was not asked.
     multivalued: true
+  not_searched:
+    description: >-
+      The registries that could not be asked in this run, each with the reason. Empty when every
+      registry the agent reads was asked.
+    range: NotSearched
+    multivalued: true
+    inlined_as_list: true
   readings:
     description: >-
       What a model read in each policy's own text, or why the text was not read. Each obligation

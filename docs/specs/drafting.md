@@ -41,10 +41,12 @@ suggests some of those values beside their questions
 
 1. **Inferred means read from the project's facts.** A drafter infers only what the file inventory
    and the chosen repository's requirements record: the files, their formats and sizes, the
-   tables, and each field's name, type and format. It opens no file. Per-field summary values,
-   such as ranges, counts or categories, are not inferred, because the inventory does not carry
-   them until the command applies disclosure control to them
-   ([Personal data and disclosure control](personal-data.md), #571).
+   tables, and each field's name, type and format, and the summary values the command wrote
+   after disclosure control (a range that leaves out the extremes, a mean, categories and
+   missing-value codes with rounded counts). It opens no file. A data dictionary's missing-value
+   codes are inferred from them; a writer may describe a field with them but never says what a
+   code means, nor calls a range's bounds the minimum and maximum
+   ([Personal data and disclosure control](personal-data.md), #571, #611).
 2. **Supplied means given by a person.** A value is supplied when it comes from a field
    description in the inventory, from the project's approved metadata record (the version a
    person approved last, [Projects](projects.md), invariant 6), from a person's edit of an earlier
@@ -82,9 +84,14 @@ suggests some of those values beside their questions
    separate things, such as General information's title,
    creators, dates and funding, is asked part by part: each part the facts do not
    give is its own gap, on a `- **<part>:**` line, with its own question. A data dictionary gap is
-   an `unknown` cell. Each gap has exactly one question in the
-   version's `document_questions` whose target names it
-   (`agents/advisor-documentation/tests/test_documentation_agent.py`).
+   an `unknown` cell, except that the `unknown` cells of a column several files share are one
+   gap: a column is shared when files hold a field of the same name, type and format, as a study
+   whose runs each write the same table does, and a field of the same name with another type or
+   format is a column of its own. The dictionary still has a row for each field of each file. Each
+   gap has exactly one question in the version's `document_questions` whose target names it, so a
+   study of many runs is asked as many questions as one of two
+   (`agents/advisor-documentation/tests/test_documentation_agent.py`,
+   `agents/advisor-documentation/tests/test_shared_columns.py`, #1317).
 6. **An answer is supplied only when a person recorded it.** A person answers the latest version's
    questions in the app, on the draft's card in the conversation or on the project's documents
    page. Each answer is a `document_question_answered` event that names the person it acted for,
@@ -95,7 +102,11 @@ suggests some of those values beside their questions
    puts in the inventory (`harness/tests/test_project_runs.py`). The answers stand until the
    person answers again, because a question's identifier is the same in every draft. The drafter
    places each answer, as given, in its gap or cell and marks it `supplied`, and asks that gap no
-   more (`agents/advisor-documentation/tests/test_answers_in_a_project.py`). In a README, a model
+   more (`agents/advisor-documentation/tests/test_answers_in_a_project.py`). An answer to a shared
+   column's question goes in that column's cell in each file that shares it. A person who wants one
+   file's cell to say something else edits that file's row: a value given for one file, by an edit
+   or by an answer to that file's own cell, stands for that file over the shared answer
+   (`agents/advisor-documentation/tests/test_shared_columns.py`). In a README, a model
    may write a section the researcher answered as a whole in its own words, keeping every value
    the answer gives (invariant 4); where it does not, or its paragraph fails the checks, the
    answer is placed as given. The recorded answer is what is `supplied`, and it stays on the
@@ -166,9 +177,12 @@ suggests some of those values beside their questions
 (`harness/docs/projects.md`). A question (`DocumentQuestion`) has an identifier, `q-` and 16
 hexadecimal digits, that is stable within the document across regenerations, so it is derived
 from what the question fills and never from its position; the Documentation Editor takes the
-digits from the SHA-256 of its target. It also has the text put to the person and its target: a
+digits from the SHA-256 of its target. A shared column's target is the field's name, type and
+format and the dictionary column, never the files, so leaving a file out or adding one keeps the
+question and its answer. It also has the text put to the person and its target: a
 README section (`gap_section`), with the part of it (`gap_part`) when the section is asked part by
-part, a data dictionary cell named by `gap_file`, `gap_field` and `gap_column`, or a metadata
+part, a data dictionary cell named by `gap_file`, `gap_field` and `gap_column`, with every file
+whose cell the answer fills in `gap_files` when the column is shared (invariant 5), or a metadata
 record value named by its path in the record's JSON form (`gap_property`, such as
 `titles[0].title`). A metadata record marks a gap by leaving its value `null`, since JSON has no
 comments. An answer (`DraftAnswer`) names the question it answers and gives the text. The
@@ -267,9 +281,9 @@ as any other answer is.
 
 ## Non-functional requirements
 
-- **Privacy.** A drafter sees the inventory, never the data, and the inventory carries no summary
-  values until the command applies disclosure control to them
-  ([Personal data and disclosure control](personal-data.md), #571). Project content other than the
+- **Privacy.** A drafter sees the inventory, never the data, and the inventory carries only the
+  summary values that passed disclosure control on the researcher's computer
+  ([Personal data and disclosure control](personal-data.md), #571, #611). Project content other than the
   inventory reaches a hosted model only as the profile allows.
 - **Accessibility.** Questions are answered through the app's form controls, whose accessibility
   is set out in #529.
