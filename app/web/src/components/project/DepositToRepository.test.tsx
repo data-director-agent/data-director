@@ -52,6 +52,8 @@ describe("DepositToRepository", () => {
       RECORDED.draft_url,
     );
     expect(screen.getByRole("status")).toHaveTextContent("A draft was made in Zenodo");
+    expect(screen.getByRole("status")).toHaveTextContent("Sandbox: not a real deposit");
+    expect(screen.getAllByText(/Sandbox: not a real deposit/).length).toBeGreaterThan(1);
     expect(screen.queryByRole("button", { name: /Create a draft/ })).not.toBeInTheDocument();
   });
 
