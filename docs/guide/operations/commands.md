@@ -12,7 +12,7 @@ development otherwise. `--target dev` or `--target vm` overrides that.
 
 `deployment.yaml` says what an instance runs: its name, the orchestrator the home page
 converses with (`stub` or `model`) and any agents it does not run. It is the one file to edit for
-that, and `apply` writes the rest from it: the profile, and on a VM the systemd units and each
+that, and `apply` writes the rest from it: the profile (the release's example with these choices, its other keys as they stand), and on a VM the systemd units and each
 agent's credentials. A commented example is in
 [`config/examples/deployment.yaml`](../../../config/examples/deployment.yaml).
 

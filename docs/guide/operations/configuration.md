@@ -29,7 +29,7 @@ These are policy, not secrets, and are safe to review and to keep under version 
 
 | File | Sets | Override |
 |---|---|---|
-| Institutional profile (`app/config/profile.yaml.example`; an instance runs the copy `apply` generates from it and `deployment.yaml`) | Which agents may run, the action class each is assigned, which classes need approval, and the agent the home page converses with. | `DD_PROFILE` |
+| Institutional profile (`app/config/profile.yaml.example`; an instance runs the copy `apply` generates: the example with what `deployment.yaml` sets, and every other key of the example, such as `deposit_transports`, as it stands) | Which agents may run, the action class each is assigned, which classes need approval, and the agent the home page converses with. | `DD_PROFILE` |
 | `app/config/agents.yaml` (an instance runs the copy `apply` generates from it, with `model_broker: true` on each agent that calls through the model broker) | Where each agent is, by URL, and which agents call through the model broker. | `DD_AGENTS_CONFIG` |
 | `app/config/sources.yaml` | The pinned source copies the source check resolves evidence against. | `DD_SOURCES_CONFIG` |
 

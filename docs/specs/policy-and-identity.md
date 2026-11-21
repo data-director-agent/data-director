@@ -147,7 +147,8 @@ whether any agent is given one a project already holds; [Projects](projects.md),
 `deposit_transports` (the transports a person may deposit a draft through, such as `zenodo`;
 without it every repository is deposited to by hand; [Deposit](deposit.md)). A setting is the agent's own
 option, chosen by the steward: the conductor checks it against the card and sends it, and the agent
-applies it. It is not a way to grant an agent anything the other keys withhold. A change to which orchestrator is
+applies it. It is not a way to grant an agent anything the other keys withhold. A deployment's generated profile is the release's example with the keys `deployment.yaml` sets, and carries every other key of the
+example as it stands. A change to which orchestrator is
 named raises the profile's version. Approved repositories (R1), persistent identifier systems
 (R7) and registry access return as keys only together with the agent or check that enforces them.
 `hosted_models` lists the classes of project content (`inventory`, `documentation`,
