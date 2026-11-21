@@ -1,0 +1,50 @@
+[build-system]
+requires = ["hatchling>=1.32.4"]
+build-backend = "hatchling.build"
+
+[project]
+name = "data-director-mcp-fairsharing"
+version = "0.1.0-alpha.0"
+description = "A read-only MCP server for FAIRsharing: look up a record by identifier, and search the registry with an account"
+readme = "README.md"
+requires-python = ">=3.14"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
+keywords = ["mcp", "fairsharing", "standards", "repositories", "policies", "research data"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering :: Information Analysis",
+  "Typing :: Typed",
+]
+
+# Framework-neutral (docs/specs/system.md): no workspace member is imported, so publishing this
+# server on its own is a copy. The MCP SDK is pinned like the PID resolver's.
+dependencies = [
+  "mcp>=2.3,<2.4",
+  "mcp-types>=2.3,<2.4",
+  "httpx>=0.28",
+  "pydantic>=2.14.1,<3",
+  "starlette>=0.40",
+  "uvicorn>=0.30",
+  "anyio>=4",
+]
+
+[project.scripts]
+dd-mcp-fairsharing = "dd_mcp_fairsharing.cli:main"
+
+[project.urls]
+Homepage = "https://data-director-agent.github.io/data-director/"
+Repository = "https://github.com/data-director-agent/data-director/tree/main/mcp-fairsharing"
+Issues = "https://github.com/data-director-agent/data-director/issues"
+
+# What this package's tests import from the workspace (docs/specs/system.md,
+# scripts/check_boundaries.py): the gateway and the SDK's evidence hashing.
+[dependency-groups]
+dev = ["data-director-harness[gateway]", "data-director-sdk"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dd_mcp_fairsharing"]
