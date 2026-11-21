@@ -130,7 +130,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     records the choice (`inventory/browser/tests/omit.test.ts`,
     `app/web/src/components/conversation/ConversationHome.test.tsx` and, with the same
     `app/web/fixtures/inventory-left-out.json`, `app/tests/test_app.py`). The checked inventory
-    shows as a chip, never as its text. Beside the attach button, **Make an inventory** opens a
+    shows as a chip, never as its text. **Make an inventory**, offered beside **Add an inventory** in
+    the project's panel and page and not under the message box, opens a
     dialog for a researcher who has none: one sentence on what an inventory is and that the data
     stay on their computer, then two routes as tabs, **In this browser** and **With the command**.
     Where the deployment serves the browser scanner's bundle at `inventory-bundle/`, the dialog
@@ -151,7 +152,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     bundle's `NOTICES.md`. The second route, the backup, is the command, for data on a server or a cluster or
     a very large dataset: a tab per operating system (the browser's own selected) with the
     commands that install uv and run `dd-inventory`, each with a copy button, and at the end the
-    file picker, whose file is attached as if chosen with the button. The command's text is
+    file picker, whose file is added to the project as if chosen with **Add an inventory**. The command's text is
     `@data-director/inventory`'s `making.json`, which the user guide's *Making an inventory* page
     renders too (`docs/hooks_inventory.py`), so the two cannot drift; the dialog names no agent and
     holds no policy (`MakeInventoryDialog.test.tsx`, `DescribeFolder.test.tsx`, and
@@ -632,9 +633,10 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   requirements ([Deposit](deposit.md)) when the person asks, and lists what must be fixed and
   what is worth fixing, each in the harness's words. It offers to build the package only after
   a check the project passed, and then a link to download the zip by its digest. A decision made
-  since the check withdraws that offer until the project is checked again. What a check or a
-  build did is said once in a live region that is in the panel from the start; focus stays on
-  the button pressed.
+  since the check withdraws that offer until the project is checked again. That a build is
+  running, and what a check or a build did, is said once in a live region that is in the panel
+  from the start. A check leaves focus on the button pressed; a build removes it, so focus moves
+  to the built package, or to the callout that says why there is none, which brings it into view.
 - **A project is named on its page.** The page's heading is the project's title, else its first
   conversation's, else when it was started. **Rename project** opens a dialog with the name to
   edit; saving sends it (`PUT /api/projects/{id}/title`), the server records it for the person

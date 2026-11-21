@@ -28,8 +28,8 @@
  * A message may attach a `dd-inventory` file, chosen with the Attach button, dropped on the form
  * or pasted, which shows as a chip and goes to the conversation's project, never into the text
  * (#443, docs/specs/app.md). A file read as an inventory is first opened to be checked, and is
- * attached, without whatever the researcher left out, only when they confirm (#472). Make an inventory, beside the button, opens a dialog that says how
- * to make one and ends by choosing it (#553).
+ * attached, without whatever the researcher left out, only when they confirm (#472). Making one is offered in the project's panel, not under the
+ * message box (AddInventory.tsx, #553).
  *
  * The same Attach a file button, or a drop, takes a supporting document as plain text or
  * Markdown, which is opened to be checked, attached as a chip only when the researcher confirms,

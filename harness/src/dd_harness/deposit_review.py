@@ -66,8 +66,8 @@ class ItemDecision(StrEnum):
 # What a person confirms before a deposit, by identifier, in the words they confirm.
 CONFIRMATIONS: Final = {
     "ethics_approval": (
-        "The ethics approvals that apply to these data are in place, and depositing them is "
-        "within what they allow."
+        "The ethics approvals and participants' consent that apply to these data are in place, "
+        "and depositing them is within what they allow."
     ),
     "data_protection": (
         "Data protection advice has been taken for any data about living people, or the data hold "
@@ -167,8 +167,9 @@ class Review:
             found.append(
                 Result(
                     WARNING,
-                    "Confirm that ethics approval, data protection advice and the rights to any "
-                    "third-party material have been checked before packaging.",
+                    "Confirm that ethics approval and participants' consent, data protection "
+                    "advice and the rights to any third-party material have been checked before "
+                    "packaging: nothing is built or deposited until then.",
                     f"urn:uuid:{project_id}",
                     CONFIRMATION_CHECK,
                 )

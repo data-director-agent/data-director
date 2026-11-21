@@ -72,8 +72,8 @@ def add_commands(project: Any) -> None:
     p.set_defaults(func=cmd_decide_item)
     p = project.add_parser(
         "confirm-checks",
-        help="confirm that ethics approval, data protection advice and third-party rights have "
-        "been checked",
+        help="confirm that ethics approval and consent, data protection advice and third-party "
+        "rights have been checked",
     )
     p.add_argument("project_id")
     p.set_defaults(func=cmd_confirm_checks)

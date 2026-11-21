@@ -10,7 +10,6 @@ function accepted(documents: boolean): string[] {
       documents={documents}
       busy={false}
       onAttachFiles={vi.fn()}
-      onAttachMade={vi.fn()}
       onRemoveInventory={vi.fn()}
       onRemoveDocument={vi.fn()}
     />,
@@ -37,7 +36,6 @@ describe("ComposerAttach", () => {
         documents
         busy={false}
         onAttachFiles={onAttachFiles}
-        onAttachMade={vi.fn()}
         onRemoveInventory={vi.fn()}
         onRemoveDocument={vi.fn()}
       />,
