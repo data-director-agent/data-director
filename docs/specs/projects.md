@@ -30,7 +30,7 @@ in [`inventory/README.md`](../../inventory/README.md).
 
 Out of scope: research data files, which are never uploaded or read by the platform; actions on
 anything outside the project, which no agent performs; a steward's route into a project, which is
-an escalation and a deployment role, not membership, TODO(#372).
+an escalation and a deployment role, not membership ([Data stewards](stewardship.md)).
 
 What is built: the project log with its creation (with an optional title), renaming (invariant
 20), deletion and restoration (invariants 22 to 25), inventory, repository choice and conversation-start events, and a summary of each project, reached through the
@@ -217,7 +217,8 @@ intended design, and each part says where it is not built yet.
     last owner. A deployment role never makes anyone a member. Not built yet, TODO(#389).
 17. **Access follows the project.** Whatever carries a `project_id` (conversations, runs,
     inventories, documents, decisions) is visible to the project's members and to no one else
-    except through a deployment role, TODO(#154, #372). A non-member is refused with status 404,
+    except a data steward whose visibility allows it ([Data stewards](stewardship.md), invariants 2 and 3),
+    TODO(#154). A non-member is refused with status 404,
     so that a refusal does not reveal whether the project exists; a member attempting an owner's
     action with 403. Enforced by `dd_harness.project_access` (`harness/tests/test_project_access.py`,
     `harness/tests/test_project_runs.py`) and the app's `in_project` route guard
@@ -541,7 +542,7 @@ decision on it, reason included, and naming that version in `revises`. The input
 `referred(policy_requires_approval)` is unchanged: approving such a run and resuming it is
 TODO(#16, #72).
 
-**Roles.** A project has two roles, separate from deployment roles (TODO(#154)):
+**Roles.** A project has two roles, separate from deployment roles ([Data stewards](stewardship.md)):
 
 | A person may | member | owner |
 |---|---|---|
@@ -574,8 +575,8 @@ TODO(#156).
 **Audit.** The project log is the audit trail of the project: versions name the run that drafted
 them (whose grounding, evidence and trace are in the run store) or the person who edited them;
 decisions name the decider, the digest and the reason; membership events are the record of who
-could see the project. Reading by a member is not recorded separately; reading by a steward is,
-TODO(#372). The grounding linter checks agent-drafted versions only; a person's edit carries no
+could see the project. Reading by a member is not recorded separately; reading by a steward is, as
+`steward_viewed` ([Data stewards](stewardship.md), invariant 3), TODO(#374). The grounding linter checks agent-drafted versions only; a person's edit carries no
 grounding, and the record names the person instead ([Evidence and grounding](grounding.md)). The
 disclosure of generative AI in a project's approved documents is read from this log and the run
 store, and writes to neither ([Disclosure](disclosure.md)).
@@ -705,5 +706,3 @@ store, and writes to neither ([Disclosure](disclosure.md)).
 - What erasing a project, a conversation or a version removes, and how provenance survives it,
   TODO(#156).
 - What a former member may have erased from a project, TODO(#156).
-- What a data steward may do in a researcher's project, and whether a deployment role may decide
-  on a version, TODO(#372, #154).

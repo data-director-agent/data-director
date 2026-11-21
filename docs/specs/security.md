@@ -66,7 +66,7 @@ The status column uses four values:
 
 | NIST SP 800-53 | Control in Data Director | Status | Evidence |
 |---|---|---|---|
-| AC-3, AC-6 | Project access is enforced by the harness: only owners and members reach a project's records. A deployment's roles (researcher, steward, administrator) are not yet defined. | Partial, TODO(#154) | `harness/src/dd_harness/project_access.py` and its tests |
+| AC-3, AC-6 | Project access is enforced by the harness: only owners and members reach a project's records. A deployment's roles (researcher, steward, administrator) are specified in [Data stewards](stewardship.md) but not built. | Partial, TODO(#154) | `harness/src/dd_harness/project_access.py` and its tests |
 | AC-17, SC-7 | Every service binds to loopback by default. NGINX is the only exposed edge. The admin service refuses a non-loopback `Host`. | Partial, TODO(#882) | `harness/src/dd_harness/server.py`, `deploy/systemd/`, `deploy/nginx/data-director.conf`, `admin/tests/test_admin.py` |
 | IA-2, IA-8 | A person signs in with ORCID through OpenID Connect. A program presents an ID token, checked with RS256 only. | Met | `harness/src/dd_harness/signin.py`, `harness/src/dd_harness/identity.py` and their tests |
 | IA-3, IA-9 | Calls between the harness and its agents are not authenticated in either direction. | Open, TODO(#17) | [Transport and tracing](transport.md) |
@@ -174,5 +174,5 @@ kept for different lengths of time. A failed sign-in has no invocation to belong
 - TODO(#886): store directories and files private to the service whatever the umask.
 - TODO(#887): operations guidance on encryption at rest and TLS to a remote PostgreSQL.
 - TODO(#17): authentication between the harness and its agents.
-- TODO(#154): roles a deployment defines, and what each may see and do, and the security events a
+- TODO(#154): building the deployment roles of [Data stewards](stewardship.md), and the security events a
   steward's or an administrator's actions raise.

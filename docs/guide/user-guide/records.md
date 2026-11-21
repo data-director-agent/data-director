@@ -124,7 +124,9 @@ Its table **What it does at each step** shows, for each step of the Blueprint, w
 Director does it with an agent (delegated), only with a data steward's approval (must approve),
 leaves it to a person (never delegated), or does not offer it, and whom it refers the step to. The
 **Governance** line of a project's current state links to it.
-A data steward sets the policy; it cannot be changed from the app.
+A data steward sets the policy; it cannot be changed from the app. What a data steward can see
+and do in your project, and how you are shown it, is in the
+[Data Steward's Guide](../steward-guide/working-in-a-project.md).
 
 ## How long records are kept
 

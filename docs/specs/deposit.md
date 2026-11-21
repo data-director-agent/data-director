@@ -445,8 +445,8 @@ report, and that its project has not changed since in a way that makes the packa
 (TODO(#649)). It appends a `deposit_approved` event naming the principal, the package's format and
 digest (and, for a platform item, the RO-Crate package it travels with), the repository's re3data
 identifier and the connector's `transport`, `base_url` and `target` as configured at that
-moment, and then deposits. Whether a profile may require a second person, such as a data
-steward, to approve a deposit is TODO(#372, #154).
+moment, and then deposits. A profile may also require a data steward's co-approval of the same
+package digest, which never replaces the researcher's ([Data stewards](stewardship.md), invariant 7), TODO(#1306).
 
 **The outcome is one event, manual or automatic.** A deposit that creates a draft appends a
 `deposit_recorded` event naming the approval it acted on, the package's format and digest, the

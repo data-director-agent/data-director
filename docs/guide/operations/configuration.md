@@ -88,7 +88,9 @@ with turns for the same process. The app refuses to start if one is not a whole 
 Raise the profile's `version` on every change. Each stored run records the profile and version it
 was held to, with the digest of its bytes, so a later reader can tell which rules applied. A
 request cannot name a profile; only the operator chooses it
-([profiles](../../../workbench/profiles/README.md)).
+([profiles](../../../workbench/profiles/README.md)). Who the data stewards are will be a profile
+key too, `stewardship`, which the stewards' team owns and the operator applies
+([Becoming a steward](../steward-guide/becoming-a-steward.md)); it is not enforced yet, TODO(#154).
 
 ## Who a run acts for
 

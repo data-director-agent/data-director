@@ -2,7 +2,8 @@
 
 For people who run, configure and operate Data Director at an institution: the research data
 management team, a service owner or a systems administrator. It is not for researchers who use the
-app (see the [user guide](../user-guide/index.md)) or for people who write agents (see the
+app (see the [user guide](../user-guide/index.md)), for data stewards who support them (see the
+[Data Steward's Guide](../steward-guide/index.md)) or for people who write agents (see the
 [developer guide](../developer-guide/index.md)).
 
 An operator decides four things that a user and a developer do not:

@@ -327,6 +327,15 @@ packaging, made by the researcher
 ([Deposit](specs/deposit.md)). Nothing in the loop deposits: the researcher uploads the package
 and their files to the repository themselves.
 
+A researcher can hand a matter to a data steward at any step, and a referred or stopped step offers
+to. The handover is an **escalation**, a record in the same project log (`escalation_opened` and
+the events that follow it), routed to a steward team the profile names. A steward whose
+visibility allows it opens the project through a path of its own beside membership, every look is
+recorded as `steward_viewed`, and what a steward does there (write to the researcher, propose an
+edit, run an agent, clear a gate, pause the project) is a log event naming the steward. The
+researcher still approves the content and the deposit. This is specified in
+[Data stewards](specs/stewardship.md) and not built yet, TODO(#154, #373, #374).
+
 ## 6. Configuration and deployment
 
 ### The deployment decides
