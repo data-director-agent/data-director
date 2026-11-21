@@ -1,28 +1,52 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 
+import flowFixture from "../../../fixtures/process-flow.json";
+import factsFixture from "../../../fixtures/project-facts.json";
+import documentsFixture from "../../../fixtures/project-documents.json";
 import projects from "../../../fixtures/projects.json";
-import type { ProjectSummary } from "../../project/api";
+import type { ProcessFlow, ProjectProgress } from "../../flow/types";
+import type { ProjectDocuments, ProjectSummary } from "../../project/api";
+import { type FactsApi, FactsApiContext, type ProjectFacts } from "../../project/facts";
 import { ContextPanel } from "./ContextPanel";
 
 // A project as the server lists it (app/tests/test_app.py), which has chosen no repository.
 const [listed] = projects as unknown as ProjectSummary[];
 if (!listed) throw new Error("the fixture lists no project");
+const PROJECT_ID = listed.project_id;
+const FLOW = flowFixture as unknown as ProcessFlow;
+const OFFERED = factsFixture as unknown as ProjectFacts;
+const NO_FACTS: ProjectFacts = { decisions: [], proposals: [] };
+const DOCUMENTS = (documentsFixture as unknown as ProjectDocuments).documents;
+const SETTLED: ProjectSummary = { ...listed, intake: "complete" };
 
-function repositoryRow(): HTMLElement {
-  const term = screen.getByText("Repository", { selector: "dt" });
-  const value = term.nextElementSibling;
-  if (!(value instanceof HTMLElement)) throw new Error("the repository row has no value");
-  return value;
+function renderPanel(props: Parameters<typeof ContextPanel>[0], facts: ProjectFacts = NO_FACTS) {
+  const api: FactsApi = {
+    facts: () => Promise.resolve(facts),
+    decideFact: () => Promise.reject(new Error("the pane decides nothing")),
+  };
+  return render(
+    <FactsApiContext.Provider value={api}>
+      <ContextPanel {...props} />
+    </FactsApiContext.Provider>,
+  );
+}
+
+function region(name: string | RegExp): HTMLElement {
+  return screen.getByRole("region", { name });
 }
 
 describe("ContextPanel", () => {
-  it("says how to choose a repository when none has been", () => {
-    render(<ContextPanel project={listed} />);
-    expect(repositoryRow()).toHaveTextContent(/None chosen yet/);
+  it("before a project, says the first message starts one and draws nothing of a project", () => {
+    renderPanel({});
+    expect(screen.getByRole("region", { name: "Project" })).toHaveTextContent(/first message starts a new project/);
+    expect(screen.queryByRole("region", { name: /^Waiting on you/ })).not.toBeInTheDocument();
+    expect(region("Guardrails")).toBeInTheDocument();
   });
 
-  it("names the repository chosen last, its warnings and how to change it", async () => {
+  it("puts what waits on the person first, each row with what to do about it", async () => {
+    const onAsk = vi.fn();
     const project: ProjectSummary = {
       ...listed,
       repository: {
@@ -33,14 +57,72 @@ describe("ContextPanel", () => {
         chosen_at: "2026-11-07T12:00:00Z",
       },
     };
-    const { container } = render(<ContextPanel project={project} />);
-    const row = repositoryRow();
-    expect(row).toHaveTextContent("Zenodo (re3data r3d100010468)");
-    expect(screen.getByRole("list", { name: "What this choice does not check" })).toHaveTextContent(
-      "the deployment has no override for Zenodo",
+    const { container } = renderPanel(
+      { projectId: PROJECT_ID, project, documents: { state: "loaded", documents: DOCUMENTS }, onAsk },
+      OFFERED,
     );
-    expect(row).toHaveTextContent("To change it, choose another from a shortlist.");
-    expect(row).not.toHaveTextContent("Not built yet");
+    const sections = screen.getAllByRole("heading", { level: 3 }).map((h) => h.id);
+    expect(sections[0]).toBe("waiting-heading");
+
+    const waiting = await screen.findByRole("list", { name: /^Waiting on you/ });
+    await within(waiting).findAllByRole("link", { name: "Decide" });
+    // The proposed document goes to its review; the approved one does not wait.
+    const reviews = within(waiting).getAllByRole("link", { name: "Review" });
+    expect(reviews).toHaveLength(1);
+    expect(reviews[0]).toHaveAttribute("href", expect.stringContaining("?doc="));
+    // One row per kind of fact proposed, to the facts page.
+    for (const link of within(waiting).getAllByRole("link", { name: "Decide" })) {
+      expect(link).toHaveAttribute("href", `/projects/${PROJECT_ID}/facts`);
+    }
+    // A repository warning is asked about in the conversation, not decided here.
+    await userEvent.click(within(waiting).getByRole("button", { name: "Ask why" }));
+    expect(onAsk).toHaveBeenCalledWith(expect.stringContaining("the deployment has no override for Zenodo"));
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("says when nothing waits on the person", async () => {
+    renderPanel({ projectId: PROJECT_ID, project: SETTLED, documents: { state: "loaded", documents: [] } });
+    const waiting = region(/^Waiting on you/);
+    expect(within(waiting).queryByRole("list")).not.toBeInTheDocument();
+    expect(await within(waiting).findByText(/Nothing waits on you/)).toBeVisible();
+  });
+
+  it("names the step suggested next and asks about it in the message box", async () => {
+    const onAsk = vi.fn();
+    const step = FLOW.phases[1]?.steps[0];
+    if (!step) throw new Error("the flow fixture has no step");
+    const progress: ProjectProgress = {
+      ...(listed.progress as ProjectProgress),
+      suggested: step.id,
+    };
+    renderPanel({ projectId: PROJECT_ID, project: SETTLED, flow: { state: "loaded", flow: FLOW }, progress, onAsk });
+    const where = region("Where we are");
+    expect(within(where).getByText("Suggested next").nextElementSibling).toHaveTextContent(step.label);
+    await userEvent.click(within(where).getByRole("button", { name: "Ask about the next step" }));
+    expect(onAsk).toHaveBeenCalledWith(expect.stringContaining(step.label));
+  });
+
+  it("shows what Data Director works from, each fact marked proposed, the unknown named together", async () => {
+    renderPanel({ projectId: PROJECT_ID, project: SETTLED }, OFFERED);
+    const working = region("What Data Director is working from");
+    const sensitivity = (await within(working).findByText("Sensitive data")).nextElementSibling;
+    expect(sensitivity).toHaveTextContent("Proposed");
+    // What nothing is known of is named in one row.
+    expect(within(working).getByText("Not known yet").nextElementSibling).toHaveTextContent("Funder");
+    expect(within(working).getByText("Repository chosen").nextElementSibling).toHaveTextContent(/None chosen yet/);
+    expect(within(working).getByRole("link", { name: "Check or change the facts" })).toHaveAttribute(
+      "href",
+      `/projects/${PROJECT_ID}/facts`,
+    );
+  });
+
+  it("draws the guardrails that are not built, each linked to its issues", () => {
+    renderPanel({});
+    const guardrails = region("Guardrails");
+    const badges = within(guardrails).getAllByText("Not built yet");
+    expect(badges.length).toBeGreaterThan(0);
+    for (const badge of badges) {
+      expect(within(badge.parentElement as HTMLElement).getAllByRole("link").length).toBeGreaterThan(0);
+    }
   });
 });

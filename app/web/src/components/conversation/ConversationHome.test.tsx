@@ -1050,25 +1050,20 @@ describe("ConversationHome", () => {
       ).toHaveTextContent("(out of scope for now)");
     });
 
-    it("draws what is not built of the project's state, linked to its issues", async () => {
+    it("draws what is not built of the project pane, linked to its issues", async () => {
       await renderHome(withOrchestrator(), fakeApi());
-      const state = screen.getByRole("region", { name: "Current state" });
-      const repository = within(state).getByText("Repository")
-        .nextElementSibling as HTMLElement;
-      expect(repository).toHaveTextContent(/None chosen yet/);
-      for (const label of ["Dataset", "Phase"]) {
-        const dd = within(state).getByText(label)
-          .nextElementSibling as HTMLElement;
-        expect(within(dd).getByText("Not built yet")).toBeVisible();
-        expect(within(dd).getAllByRole("link").length).toBeGreaterThan(0);
-      }
-      const governance = within(state).getByText("Governance")
-        .nextElementSibling as HTMLElement;
+      const panel = screen.getByRole("region", { name: "Project" });
+      const guardrails = within(panel).getByRole("region", { name: "Guardrails" });
       expect(
-        within(governance).getByRole("link", {
+        within(guardrails).getByRole("link", {
           name: "What Data Director may do at each step",
         }),
       ).toHaveAttribute("href", "/policy#policy-steps");
+      for (const badge of within(guardrails).getAllByText("Not built yet")) {
+        expect(
+          within(badge.parentElement as HTMLElement).getAllByRole("link").length,
+        ).toBeGreaterThan(0);
+      }
       expect(
         screen.queryByRole("region", { name: "Where this work stands" }),
       ).not.toBeInTheDocument();
@@ -1235,15 +1230,18 @@ describe("ConversationHome", () => {
       );
 
       const panel = screen.getByRole("region", { name: "Project" });
+      // The proposed README waits on the researcher, with a way to its review.
+      const waiting = within(panel).getByRole("list", { name: /^Waiting on you/ });
       expect(
-        within(panel).getByRole("heading", { name: "Documents · 1 to review" }),
-      ).toBeVisible();
-      const list = within(panel).getByRole("list", { name: /^Documents/ });
+        within(waiting).getByRole("link", { name: "Review" }),
+      ).toHaveAttribute(
+        "href",
+        `/projects/${drafted.project_id}?doc=${readme.document_id}`,
+      );
+      // Both documents were drafted by this conversation's runs, so they are listed as its own.
+      const list = within(panel).getByRole("list", { name: "From this conversation" });
       const rows = within(list).getAllByRole("listitem");
-      expect(rows.map((row) => row.textContent)).toEqual([
-        "README version 1 Proposed, not reviewed",
-        "Data dictionary version 1 Approved",
-      ]);
+      expect(rows).toHaveLength(2);
       expect(
         within(list).getByRole("link", { name: "README" }),
       ).toHaveAttribute(
@@ -1251,9 +1249,7 @@ describe("ConversationHome", () => {
         `/projects/${drafted.project_id}?doc=${readme.document_id}`,
       );
       expect(
-        within(panel).getByRole("link", {
-          name: "All documents in this project",
-        }),
+        within(panel).getByRole("link", { name: "All documents" }),
       ).toHaveAttribute("href", `/projects/${drafted.project_id}`);
       expect(await axe(container)).toHaveNoViolations();
     });

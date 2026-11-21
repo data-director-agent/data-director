@@ -1,30 +1,75 @@
-/* The project overview's current state: each field's name above its value. */
+/* The project pane beside the conversation: short sections, what waits on the person first. */
 
 @layer components {
-  .project-state {
-    margin: 0;
+  .pane-section {
+    padding: var(--space-3) 0;
+    border-top: var(--border-width) solid var(--color-border-subtle);
     font-size: var(--font-size-small);
   }
 
-  .project-state > div {
-    padding: var(--space-1) 0;
-    border-bottom: var(--border-width) solid var(--color-border-subtle);
+  .pane-section h3 {
+    margin: 0 0 var(--space-2);
   }
 
-  .project-state dt {
-    font-weight: var(--font-weight-strong);
+  .pane-section h4 {
+    margin: var(--space-2) 0 var(--space-1);
+    font-size: inherit;
   }
 
-  .project-state dd {
-    margin: 0;
+  .pane-section p {
+    margin: var(--space-1) 0;
   }
 
-  .documents-waiting {
+  /* What waits on the person is marked by a rule down its side, never by colour alone. */
+  .pane-waiting {
+    padding-left: var(--space-3);
+    border-left: var(--focus-width) solid var(--color-warn-fg);
+  }
+
+  .pane-count {
     font-weight: var(--font-weight-normal);
   }
 
-  .project-documents > li {
+  .pane-rows > li {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-2);
+    align-items: center;
+    justify-content: space-between;
     padding: var(--space-1) 0;
     border-bottom: var(--border-width) solid var(--color-border-subtle);
+  }
+
+  .pane-facts {
+    margin: 0;
+  }
+
+  .pane-facts > div {
+    padding: var(--space-1) 0;
+    border-bottom: var(--border-width) solid var(--color-border-subtle);
+  }
+
+  .pane-facts dt {
+    font-weight: var(--font-weight-strong);
+  }
+
+  .pane-facts dd {
+    margin: 0;
+  }
+
+  .pane-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-3);
+    align-items: center;
+  }
+
+  .pane-details > summary {
+    cursor: pointer;
+  }
+
+  .pane-details > summary > h3 {
+    display: inline;
+    margin: 0;
   }
 }

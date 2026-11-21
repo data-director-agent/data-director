@@ -1,100 +1,42 @@
 /**
- * Beside the conversation, an overview of the project the workspace is in (docs/specs/app.md):
- * where the project stands, the files attached to it (the inventory it holds) and the documents
- * agents have drafted in it, each with its latest version's state and a link to review it. Where it
- * stands names the repository chosen last, with any warning of what the choice does not check
- * (docs/specs/deposit.md); it is changed by choosing another from a shortlist in the transcript.
- * Its dataset, phase and open governance flags need a record of the project (#160), so each is
- * drawn as not built, linked to its issues, with no value standing in for it. A delegated run and
- * its evidence open in the transcript, beside the turn they support.
+ * Beside the conversation, what a person needs from the project while they talk to Data Director
+ * (docs/specs/app.md). It does not summarise the project: the project's pages show it in full.
+ * From the top:
+ *
+ * - what waits on the person, each with the one thing to do about it;
+ * - where the project stands, in one line, and the step suggested next;
+ * - what Data Director is working from: the facts that shape its answers and the repository chosen;
+ * - the files and documents, this conversation's first;
+ * - the guardrails, closed until opened.
+ *
+ * Deciding stays on the project's pages; a button here either goes there or puts a question in
+ * the message box, unsent. A delegated run and its evidence open in the transcript, beside the
+ * turn they support.
  */
 
 import "./ContextPanel.css";
 
-import { useMemo, useState } from "react";
-
-import { INVENTORY_GUIDE, type InventorySource } from "../../conversation/inventory";
 import type { Conversation } from "../../conversation/types";
-import { type ProjectSummary, type SavedInventory, useProjectApi } from "../../project/api";
-import { type DocumentsRead, documentHref, latestOf } from "../../project/drafted";
-import { Link } from "../../route";
-import { InventoryChip } from "../conversation/InventoryChip";
-import { AddInventory } from "../inventory/AddInventory";
-import { InventoryEditDialog } from "../inventory/InventoryEditDialog";
-import { documentName } from "../../project/name";
-import { STATES } from "../project/DocumentFacts";
-import { IssueLinks } from "../NotBuilt";
-import { registryRecord } from "../../project/registry";
-
-const NOT_BUILT: { label: string; issues: number[] }[] = [
-  { label: "Dataset", issues: [160] },
-  { label: "Phase", issues: [160] },
-];
-// TODO(#72, #39): a project's own governance flags have no single issue; the review gate and the
-// personal-data pause are the nearest. Until then the Governance row links to what this
-// deployment's policy delegates at each step (#448).
-const GOVERNANCE_ISSUES = [72, 39];
-
-/**
- * The project's documents, each with its latest version and that version's state, linked to its
- * place on the documents page, with how many wait for a decision in the heading.
- */
-function ProjectDocuments({ projectId, read }: { projectId: string; read: DocumentsRead }) {
-  const all = <Link to={`/projects/${encodeURIComponent(projectId)}`}>All documents in this project</Link>;
-  const rows =
-    read.state === "loaded"
-      ? read.documents.flatMap((document) => {
-          const latest = latestOf(document);
-          return latest ? [{ document, latest }] : [];
-        })
-      : [];
-  const waiting = rows.filter(({ latest }) => latest.state === "proposed").length;
-  return (
-    <section aria-labelledby="documents-heading">
-      <h3 id="documents-heading">
-        Documents
-        {waiting > 0 && (
-          <>
-            {" "}
-            <span className="documents-waiting">· {waiting} to review</span>
-          </>
-        )}
-      </h3>
-      {read.state === "loading" && <p>Reading the project&apos;s documents…</p>}
-      {read.state === "failed" && (
-        <p>
-          Data Director could not read the project&apos;s documents: {read.message}. {all}.
-        </p>
-      )}
-      {read.state === "loaded" &&
-        (rows.length === 0 ? (
-          <p>No documents drafted yet. When an agent drafts one, it is listed here for you to check.</p>
-        ) : (
-          <>
-            <ul className="plain-list project-documents" aria-labelledby="documents-heading">
-              {rows.map(({ document, latest }) => {
-                const { label, className } = STATES[latest.state];
-                return (
-                  <li key={document.document_id}>
-                    <Link to={documentHref(projectId, document.document_id)}>{documentName(document)}</Link>{" "}
-                    <span className="hint">version {latest.version}</span>{" "}
-                    <span className={`status ${className}`}>{label}</span>
-                  </li>
-                );
-              })}
-            </ul>
-            <p>{all}, to approve, edit or reject.</p>
-          </>
-        ))}
-    </section>
-  );
-}
+import type { ProjectProgress } from "../../flow/types";
+import type { ProjectSummary } from "../../project/api";
+import type { DocumentsRead } from "../../project/drafted";
+import type { FlowLoad } from "./PhaseTracker";
+import { useProjectFacts } from "./project-pane/facts";
+import { FilesAndDocuments } from "./project-pane/FilesAndDocuments";
+import { Guardrails } from "./project-pane/Guardrails";
+import { WaitingOnYou } from "./project-pane/WaitingOnYou";
+import { WhereWeAre } from "./project-pane/WhereWeAre";
+import { WorkingFrom } from "./project-pane/WorkingFrom";
 
 export function ContextPanel({
   projectId = null,
   project = null,
   conversation = null,
   documents = { state: "loading" },
+  flow = { state: "loading" },
+  progress,
+  refresh,
+  onAsk,
   onInventorySaved,
 }: {
   /** The project the workspace is in, or null before the first message starts one. */
@@ -104,128 +46,53 @@ export function ContextPanel({
   conversation?: Conversation | null;
   /** The project's documents, as the workspace last read them. */
   documents?: DocumentsRead;
+  /** The process flow, once read, and where the project is in it. */
+  flow?: FlowLoad;
+  progress?: ProjectProgress | undefined;
+  /** Changes when a turn settles, so that what the pane reads itself is read again. */
+  refresh?: unknown;
+  /** Puts `text` in the message box, unsent, for the person to send or change. */
+  onAsk?: ((text: string) => void) | undefined;
   /** Called once a revised inventory is saved, so that what reads the project reads it again. */
   onInventorySaved?: (() => void) | undefined;
 }) {
-  // An inventory saved here is newer than any read; otherwise the open conversation was read
-  // after the projects list, so it knows of a newer inventory.
-  const [saved, setSaved] = useState<{ projectId: string; inventory: SavedInventory } | null>(null);
-  const inventory =
-    saved && saved.projectId === projectId
-      ? saved.inventory
-      : conversation
-        ? conversation.inventory
-        : project?.inventory;
-  const projectApi = useProjectApi();
-  const source = useMemo<InventorySource | undefined>(
-    () => (projectId ? { load: (signal) => projectApi.inventory(projectId, signal) } : undefined),
-    [projectApi, projectId],
-  );
+  const facts = useProjectFacts(projectId, refresh);
   return (
-    <section aria-labelledby="context-heading" className="workspace-context">
+    <section aria-labelledby="context-heading" className="workspace-context project-pane">
+      {/* The workspace header names the project and links to its details, so this does not. */}
       <h2 id="context-heading">Project</h2>
-      {!projectId && (
+      {!projectId ? (
         <p>
-          Your first message starts a new project, which keeps the inventory you attach and the
-          documents agents draft for you.
+          Your first message starts a new project, which keeps the inventory you attach, the facts
+          you confirm and the documents agents draft for you.
         </p>
-      )}
-      <section aria-labelledby="state-heading">
-        <h3 id="state-heading">Current state</h3>
-        <dl className="project-state">
-          <div>
-            <dt>Repository</dt>
-            <dd>
-              {project?.repository ? (
-                <>
-                  {project.repository.repository_name}{" "}
-                  <span className="hint">
-                    ({registryRecord(project.repository.repository_id).registry}{" "}
-                    <code>{project.repository.repository_id}</code>)
-                  </span>
-                  {project.repository.warnings.length > 0 && (
-                    <ul className="plain-list" aria-label="What this choice does not check">
-                      {project.repository.warnings.map((w) => (
-                        <li key={w}>
-                          <span className="status status-warn">Warning</span> {w}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  <br />
-                  <span className="hint">To change it, choose another from a shortlist.</span>
-                </>
-              ) : (
-                <span className="hint">
-                  None chosen yet. Ask Data Director which repositories suit the dataset, then
-                  choose one from the shortlist.
-                </span>
-              )}
-            </dd>
-          </div>
-          {NOT_BUILT.map(({ label, issues }) => (
-            <div key={label}>
-              <dt>{label}</dt>
-              <dd>
-                <span className="status status-undeclared">Not built yet</span> (
-                <IssueLinks issues={issues} />)
-              </dd>
-            </div>
-          ))}
-          <div>
-            <dt>Governance</dt>
-            <dd>
-              <Link to="/policy#policy-steps">
-                What Data Director may do at each step
-              </Link>
-              <br />
-              <span className="hint">
-                Flags for this project are not built yet (
-                <IssueLinks issues={GOVERNANCE_ISSUES} />)
-              </span>
-            </dd>
-          </div>
-        </dl>
-      </section>
-      {projectId && (
+      ) : (
         <>
-          <section aria-labelledby="files-heading">
-            <h3 id="files-heading">Attached files</h3>
-            {inventory ? (
-              <p>
-                <InventoryChip
-                  fileCount={inventory.file_count}
-                  madeAt={inventory.inventory_made_at}
-                  source={source}
-                />{" "}
-                <InventoryEditDialog
-                  projectId={projectId}
-                  onSaved={(next) => {
-                    setSaved({ projectId, inventory: next });
-                    onInventorySaved?.();
-                  }}
-                />
-              </p>
-            ) : (
-              <p>
-                No inventory of the dataset&apos;s files yet. Add one so that agents can describe
-                the files. <a href={INVENTORY_GUIDE}>How do I make an inventory?</a>
-              </p>
-            )}
-            <p>
-              <AddInventory
-                projectId={projectId}
-                replacing={Boolean(inventory)}
-                onSaved={(next) => {
-                  setSaved({ projectId, inventory: next });
-                  onInventorySaved?.();
-                }}
-              />
-            </p>
-          </section>
-          <ProjectDocuments projectId={projectId} read={documents} />
+          <WaitingOnYou
+            projectId={projectId}
+            project={project}
+            documents={documents.state === "loaded" ? documents.documents : []}
+            facts={facts}
+            onAsk={onAsk}
+          />
+          <WhereWeAre
+            projectId={projectId}
+            flow={flow.state === "loaded" ? flow.flow : null}
+            progress={progress ?? null}
+            onAsk={onAsk}
+          />
+          <WorkingFrom projectId={projectId} repository={project?.repository} facts={facts} />
+          <FilesAndDocuments
+            projectId={projectId}
+            // The open conversation was read after the projects list, so it knows of a newer inventory.
+            inventory={conversation ? conversation.inventory : project?.inventory}
+            documents={documents}
+            conversation={conversation}
+            onInventorySaved={onInventorySaved}
+          />
         </>
       )}
+      <Guardrails />
     </section>
   );
 }

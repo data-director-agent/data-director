@@ -1,11 +1,16 @@
 import { type RefObject, useEffect, useRef, useState } from "react";
 
 import { locate } from "../../flow/journey";
-import type { ProcessFlow } from "../../flow/types";
+import type { FlowPhase, FlowStep, ProcessFlow } from "../../flow/types";
 import { type DocumentQuestion, questionTarget } from "../../project/api";
 import type { DocumentsRead } from "../../project/drafted";
 import { documentName } from "../../project/name";
 import { homePath, navigate, useLocation } from "../../route";
+
+/** The message that asks for help with a step, in the researcher's voice. */
+export function askAboutStep(found: { phase: FlowPhase; step: FlowStep }): string {
+  return `Can you help me with this step: ${found.step.label} (phase ${found.phase.number}, ${found.phase.name})?`;
+}
 
 /**
  * A step asked about from the journey map (`?ask=`) fills the message box, unsent, so that the
@@ -23,9 +28,7 @@ export function useAskAbout(
     setAskedAbout(askAbout);
     const found = locate(flow.flow, askAbout);
     if (found) {
-      setText(
-        `Can you help me with this step: ${found.step.label} (phase ${found.phase.number}, ${found.phase.name})?`,
-      );
+      setText(askAboutStep(found));
     }
   }
   const focus = useFocusOnceDrawn(box);

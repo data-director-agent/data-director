@@ -4,7 +4,7 @@
  * the transcript (see `ConversationHome`).
  */
 
-import { type ComponentProps } from "react";
+import { type ComponentProps, type RefObject } from "react";
 
 import { X } from "lucide-react";
 import { startablePrompts } from "../../flow/prompts";
@@ -213,4 +213,18 @@ export function workspaceReady({
   if (!quiet) return true;
   const landed = flow.state !== "loading" && past;
   return landed && (projectId === null || project.every(Boolean));
+}
+
+/**
+ * Puts a question asked from the project pane in the message box, unsent, after anything already
+ * being written, and focuses the box so the person can send or change it.
+ */
+export function askInBox(
+  question: string,
+  text: string,
+  setText: (text: string) => void,
+  box: RefObject<HTMLTextAreaElement | null>,
+): void {
+  setText(text.trim() ? `${text.trimEnd()}\n\n${question}` : question);
+  box.current?.focus();
 }

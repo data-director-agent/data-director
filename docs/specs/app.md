@@ -676,9 +676,10 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   delegated runs. The card names the document, its version and the state the project log records
   (and says when a later version has replaced it). It has a preview, closed at first, drawn as a
   run's result is, and a link that opens the document on the documents page (`?doc={id}`). The
-  new reply's announcement says what the turn drafted. The side bar lists every document of the
-  project with its latest version's state and says how many await a decision. A decision is made
-  only on the documents page.
+  new reply's announcement says what the turn drafted. The project pane lists the project's
+  documents with their latest versions' states, the conversation's own first, and a proposed
+  version waits on the researcher there with a link to its review. A decision is made only on the
+  documents page.
 - **A repository is chosen from the shortlist on the turn that made it.** A run whose payload is a
   `RepositoryOptions`, on the turn or among its delegated children, is a card on that turn listing
   each candidate by the re3data record it rests on: the `grounded_on` entry that is a re3data
@@ -687,8 +688,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   (`PUT /api/projects/{id}/repository`); the server records it for the person signed in, the
   harness reads the repository's name and declared standards from the pinned export, and the card
   shows what the choice resolved to: the requirement sets used, the documents and metadata a
-  deposit needs, and each warning of what is not checked ([Deposit](deposit.md)). The side bar
-  names the repository chosen last, with its warnings; choosing another from a shortlist changes
+  deposit needs, and each warning of what is not checked ([Deposit](deposit.md)). The project
+  pane names the repository chosen last; each of its warnings waits on the researcher there, to
+  be asked about in the conversation. Choosing another from a shortlist changes
   it, as a new choice, and the last one counts. An identifier no pinned registry holds is refused
   with nothing recorded (`app/tests/test_repository_choice.py`,
   `app/web/src/components/conversation/RepositoryShortlist.test.tsx`).
@@ -812,11 +814,22 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
 - **The conversation at the centre of a workspace.** Above it, whom the work acts for and whose
   policy applies, then the Blueprint's six phases as a strip, like a progress bar, that opens to
   each phase's steps and the agents serving them. On the left, the person's conversations, so
-  that another is one press away; on the right, an overview of the project: its current state
-  (dataset, phase, repository, governance flags), the files attached to it and its documents.
-  Only the repository is built; the dataset and phase await a record of where the project is
-  (#160). Governance links to what the policy delegates at each step; a project's own flags are
-  not built (#72, #39).
+  that another is one press away; on the right, the project pane.
+- **The project pane holds what a conversation needs, not a summary of the project.** The
+  project's pages show it in full, and the header and phase strip already name the project and
+  draw the journey, so the pane repeats none of them. From the top: what waits on the researcher
+  (documents to review, fact proposals to decide, repository warnings, unanswered setup
+  questions), each with the one thing to do about it; where the project stands, the step under way
+  and the one suggested next; what Data Director is working from, the facts that shape its answers
+  (funder, required repository, sensitive data, licence, sharing commitment), each marked
+  confirmed, proposed or not known, and the repository chosen; the inventory and documents, the
+  conversation's own first; and the guardrails, closed until opened. What waits comes first
+  because it is what a person must act on (`docs/ui/best-practices.md` §1, §2); the facts sit
+  beside the chat so that a wrong one is seen before an answer built on it is relied on (§4). The
+  pane decides nothing: a button goes to the project page where the decision is made, or puts a
+  question in the message box, unsent. Approval before an agent acts and the pause for personal
+  data are drawn as not built (#72, #39); the guardrails link to what the policy delegates at each
+  step.
   The activity log spans runs and conversations, so it is a page of its own in the main
   navigation. What the orchestrator is and how far to rely on it is on the agents page, not
   beside every conversation. Evidence belongs beside the claim it supports

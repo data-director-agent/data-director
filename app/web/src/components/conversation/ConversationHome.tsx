@@ -70,6 +70,7 @@ import { Composer } from "./Composer";
 import { EarlierConversations } from "./EarlierConversations";
 import {
   LinkedRun,
+  askInBox,
   NoConversation,
   OpenIntake,
   chosenRepository,
@@ -332,6 +333,10 @@ export function ConversationHome({ directory }: { directory: Directory }) {
             project={project}
             conversation={conversation}
             documents={documents}
+            flow={flow}
+            progress={progress.progress}
+            refresh={turnCount}
+            onAsk={(question) => askInBox(question, text, setText, box)}
             onInventorySaved={() => void reloadProjects()}
           />
         }
