@@ -6,6 +6,7 @@ import referredStream from "../../cassettes/referred.jsonl?raw";
 import runErrorStream from "../../cassettes/run-error.jsonl?raw";
 import succeededStream from "../../cassettes/succeeded.jsonl?raw";
 import { parseCassette as events } from "./cassette";
+import { parseEvent } from "./events";
 import { initialRunState, reduce, reduceAll, streamEnded, type RunState } from "./reduce";
 
 /** What the run view draws from a state, without the envelope's full contents. */
@@ -136,6 +137,13 @@ describe("each cassette reaches its expected state", () => {
       unrecognised: 0,
       malformed: 0,
     });
+  });
+
+  it("keeps the code a refusal names, and none for one that names none", () => {
+    const named = parseEvent({ type: "RUN_ERROR", message: "moved on", code: "turn-conflict" });
+    expect(reduce(initialRunState, named).errorCode).toBe("turn-conflict");
+    const plain = parseEvent({ type: "RUN_ERROR", message: "refused" });
+    expect(reduce(initialRunState, plain).errorCode).toBeNull();
   });
 
   it("run-error: an error with its message, and no steps", () => {

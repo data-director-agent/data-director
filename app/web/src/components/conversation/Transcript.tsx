@@ -43,6 +43,7 @@ import { draftedBy } from "../../project/drafted";
 import { shortlistOf, unlistedOf } from "../../project/shortlist";
 import type { AgentView } from "../../manifest/normalise";
 import { Link } from "../../route";
+import { useViewerId } from "../../session/viewer";
 import type { Envelope } from "../../run/types";
 import { Button } from "../ui/Button";
 import { Markdown } from "../ui/Markdown";
@@ -56,7 +57,7 @@ import { Pending } from "./Pending";
 import type { LiveRun } from "./useConversationTurns";
 import { RepositoryShortlist } from "./RepositoryShortlist";
 import { RunDetail } from "./RunDetail";
-import { iconOf, nameOf, Speaker } from "./Speaker";
+import { iconOf, nameOf, senderOf, Speaker } from "./Speaker";
 
 function replyText(conversation: Conversation, turn: ConversationTurn): string {
   // A Reply's own text: the history adds the question after it, which is shown as choices.
@@ -241,6 +242,7 @@ export function Transcript({
         : undefined;
   const current = conversation?.inventory?.digest;
   const projectApi = useProjectApi();
+  const viewer = useViewerId();
   const source = useMemo<InventorySource | undefined>(
     () => (projectId ? { load: (signal) => projectApi.inventory(projectId, signal) } : undefined),
     [projectApi, projectId],
@@ -260,7 +262,7 @@ export function Transcript({
         return (
         <li key={turn.invocation_id} className="turn">
           <div className="turn-person">
-            <Speaker />
+            <Speaker person={senderOf(turn.envelope, viewer)} />
             <p>{conversation.inputs[turn.invocation_id]?.message_text}</p>
             {given && (
               <p>

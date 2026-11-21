@@ -8,10 +8,11 @@ Deciding that is the access check's (`dd_harness.project_access.roles`), from th
 It is a module of its own, imported by the backends and by the access check, because the backends
 decide nothing and import none of the project rules.
 
-Today a project's creator is its only owner. The membership events that add, change and remove a
-member are TODO(#389): each names the member it is about, here and in `roles` together. The
-PostgreSQL backend orders a principal's projects by the first event naming them, which is the
-creation order only while a creation is the one event that names anyone; #389 keeps that order.
+A project's creator is named by `project_created`, and a member by each membership event
+(`member_added`, `member_role_changed`, `member_removed`), whose `member_id` names them. A
+removed member stays in the index, which is still a superset: the fold decides. A backend orders
+a principal's projects by when each project was created (its UUIDv7 `project_id`), not by when
+they were first named, so that a project someone was added to later sits where it was created.
 """
 
 from __future__ import annotations
@@ -19,13 +20,19 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-# `dd_harness.projects.PROJECT_CREATED`, which the backends do not import.
+# `dd_harness.projects.PROJECT_CREATED`; the backends do not import the rules.
 _PROJECT_CREATED = "project_created"
+# `dd_harness.projects.MEMBER_ADDED`, `MEMBER_ROLE_CHANGED` and `MEMBER_REMOVED`.
+_MEMBERSHIP = frozenset({"member_added", "member_role_changed", "member_removed"})
 
 
 def names(event: Mapping[str, Any]) -> str | None:
     """The `principal_id` whose role in the project `event` may change, or None."""
-    if event.get("event") == _PROJECT_CREATED:
+    kind = event.get("event")
+    if kind == _PROJECT_CREATED:
         found = (event.get("acted_for") or {}).get("principal_id")
-        return str(found) if found else None
-    return None
+    elif kind in _MEMBERSHIP:
+        found = event.get("member_id")
+    else:
+        return None
+    return str(found) if found else None

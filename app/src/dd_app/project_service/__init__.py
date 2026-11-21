@@ -23,6 +23,7 @@ from dd_app.project_service.deposit import REPOSITORY_SEARCH_LIMIT, Deposit
 from dd_app.project_service.drafts import Documents, Facts
 from dd_app.project_service.lifecycle import Lifecycle
 from dd_app.project_service.materials import Materials
+from dd_app.project_service.members import Members
 from dd_app.project_service.progress import Progress
 from dd_harness.deposit import PackageRefusedError
 
@@ -33,6 +34,7 @@ class ProjectService:
 
     lifecycle: Lifecycle
     materials: Materials
+    members: Members
     progress: Progress
     documents: Documents
     facts: Facts
@@ -43,6 +45,7 @@ class ProjectService:
         return cls(
             lifecycle=Lifecycle(governance),
             materials=Materials(governance),
+            members=Members(governance),
             progress=Progress(governance),
             documents=Documents(governance),
             facts=Facts(governance),
