@@ -97,6 +97,9 @@ class ProjectRules:
             raise ValueError("a restore period is not negative")
         self.log = log
         self.restore_period = restore_period
+        # The agents the deployment enables, by their manifest entries, so that the step suggested
+        # is one an agent serves (#1377); the app sets it from its conductor, and none by default.
+        self.serving: Callable[[], Sequence[Mapping[str, Any]]] = tuple
 
     def exists(self, project_id: str) -> bool:
         return bool(PROJECT_ID.fullmatch(project_id)) and self.log.exists(project_id)

@@ -286,16 +286,19 @@ def decisions(events: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
     return found
 
 
-def describe(events: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
+def describe(
+    events: Iterable[Mapping[str, Any]], manifest: Iterable[Mapping[str, Any]] = ()
+) -> dict[str, Any]:
     """The entry point and who recorded it, the step states and the step `suggested_next`
     names, as a project summary carries them and the app's phase tracker shows them, with why
     each step is in its state (`step_reasons`) and the intake's decision points (`decisions`),
-    which the journey map draws."""
+    which the journey map draws. `manifest` is the agents the deployment enables, so that the
+    suggestion is a step one of them serves where there is one (#1377)."""
     events = list(events)
     (chosen, source), reasons = entry_and_source(events), step_reasons(events)
     states = {k: v["state"] for k, v in reasons.items()}
     start = entry(chosen) if chosen is not None else None
-    suggested = suggested_next(progress(start, states, []), start)
+    suggested = suggested_next(progress(start, states, manifest), start)
     return {
         "entry": chosen,
         "entry_source": source,

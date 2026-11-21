@@ -162,6 +162,23 @@ def test_the_suggestion_is_the_first_open_step_from_the_entry_and_never_a_gate()
     assert begun is not None and begun.step.id == "preparation.metadata"
 
 
+def test_a_step_an_agent_serves_is_suggested_before_one_no_agent_does() -> None:
+    """Entry 1's first step has no agent (#1017), so a served step is put first (#1377); a step
+    begun still comes first, and with nothing served the first open step is suggested."""
+    start = entry(1)
+    manifest = [{"agent_id": "advisor.standards", "serves": ["setup.vocabularies"]}]
+    found = suggested_next(progress(start, {}, manifest), start)
+    assert found is not None and found.step.id == "setup.vocabularies"
+    begun = suggested_next(progress(start, {"setup.documentation": "started"}, manifest), start)
+    assert begun is not None and begun.step.id == "setup.documentation"
+    unserved = suggested_next(progress(start, {}, []), start)
+    assert unserved is not None and unserved.step.id == "setup.documentation"
+    # Never into a later phase: governance's first step has no agent here, and is still put first.
+    later = [{"agent_id": "advisor.files", "serves": ["preparation.files"]}]
+    held = suggested_next(progress(entry(2), {}, later), entry(2))
+    assert held is not None and held.step.id == "governance.policies"
+
+
 def test_the_suggestion_passes_optional_and_out_of_scope_steps_and_ends_when_all_are_done() -> None:
     start = entry(1)
     states = {"setup.documentation": "done", "setup.vocabularies": "done"}

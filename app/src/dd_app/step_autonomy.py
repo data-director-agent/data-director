@@ -12,6 +12,14 @@ from dd_harness.refusals import DATA_STEWARD
 from dd_sdk.process_flow import ENTRIES, plan
 
 
+def enabled_manifest(conductor: Conductor) -> list[dict[str, Any]]:
+    """The manifest entries of the agents the conductor's profile enables: those a step is
+    delegated to here, and so those whose steps the project's suggested step is drawn from
+    (#1377)."""
+    profile = conductor.profile
+    return [e for e in conductor.registry.manifest() if e["agent_id"] in profile.agents]
+
+
 def step_autonomy(conductor: Conductor) -> list[dict[str, Any]]:
     """How far each Blueprint step is delegated here, for the policy page (#448).
 
@@ -24,9 +32,7 @@ def step_autonomy(conductor: Conductor) -> list[dict[str, Any]]:
     """
     profile = conductor.profile
     conductor.registry.refresh()  # an agent started since the app was is found now
-    manifest = [
-        entry for entry in conductor.registry.manifest() if entry["agent_id"] in profile.agents
-    ]
+    manifest = enabled_manifest(conductor)
     steps = []
     for planned in plan(ENTRIES[0], manifest):
         step = planned.step

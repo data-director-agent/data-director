@@ -463,9 +463,12 @@ def _state(value: str | None) -> StepState:
 
 def suggested_next(steps: Iterable[ProgressStep], start: Entry | None) -> ProgressStep | None:
     """The step to suggest next: the first one from `start`'s phase that is neither done nor
-    skipped, in scope and not optional; a started step before an open one. Whether an agent
-    serves it does not matter: a step with no agent is suggested and named as having none. None
-    when all are done.
+    skipped, in scope and not optional; a started step before an open one; and, within the phase
+    of the first open step, one an agent serves before one no agent does, so that a researcher is
+    not first sent to a step nothing here can help with when the same phase has one it can
+    (#1377). The suggestion never leaves that phase for an agent: with none of its steps served,
+    as when `steps` were planned from no manifest, it is the first open one, named as having no
+    agent. None when all are done.
 
     With no `start`, where the researcher is is not known, so no open step is suggested: only a
     started one, from any phase, or None. Suggesting the first step of Phase 1 would tell a
@@ -482,4 +485,6 @@ def suggested_next(steps: Iterable[ProgressStep], start: Entry | None) -> Progre
     started = [s for s in candidates if s.state == "started"]
     if start is None:
         return next(iter(started), None)
-    return next(iter(started or candidates), None)
+    phase = candidates[0].phase.number if candidates else None
+    served = [s for s in candidates if s.agent_ids and s.phase.number == phase]
+    return next(iter(started or served or candidates), None)

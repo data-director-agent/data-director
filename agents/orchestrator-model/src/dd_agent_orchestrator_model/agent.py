@@ -236,7 +236,7 @@ def conversation(
         n
         for n in (
             inventory_note(message),
-            progress_note(message),
+            progress_note(message, manifest),
             *record_notes(message, manifest),
         )
         if n

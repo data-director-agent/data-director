@@ -15,7 +15,7 @@ backend.
 
 from __future__ import annotations
 
-from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
+from collections.abc import Collection, Iterable, Iterator, Mapping
 from datetime import timedelta
 from typing import Any, Protocol
 
@@ -24,7 +24,7 @@ from dd_harness.fact_storage import ProjectFacts as ProjectFacts
 from dd_harness.holding_storage import ProjectHoldings as ProjectHoldings
 from dd_harness.listing import Page, Readable
 from dd_harness.member_storage import ProjectMembership as ProjectMembership
-from dd_harness.progress import ENTRY_BY_RESEARCHER, EntrySource
+from dd_harness.progress_storage import ProjectProgress as ProjectProgress
 from dd_harness.project_decision import Decision
 from dd_harness.project_effects import ProjectEffects
 from dd_harness.project_errors import TitleSource
@@ -276,53 +276,6 @@ class ProjectRepository(ProjectRecord, Protocol):
 
     def requirements(self, project_id: str) -> dict[str, Any] | None:
         """The merged requirements of the repository chosen last, or None."""
-        ...
-
-
-class ProjectProgress(ProjectRecord, Protocol):
-    """A project's place in the process flow, and its intake (`dd_harness.projects.flow`)."""
-
-    def choose_entry(
-        self,
-        project_id: str,
-        entry: int,
-        *,
-        acted_for: Principal,
-        caused_by: str,
-        source: EntrySource = ENTRY_BY_RESEARCHER,
-    ) -> bool:
-        """Record the entry point chosen; False, recording nothing, for a model's once the
-        researcher has chosen one."""
-        ...
-
-    def mark_step(
-        self, project_id: str, step_id: str, mark: str, *, acted_for: Principal, caused_by: str
-    ) -> None:
-        """Record a step marked done, skipped or open."""
-        ...
-
-    def answer_intake(
-        self,
-        project_id: str,
-        question_id: str,
-        answer_values: Sequence[str],
-        *,
-        acted_for: Principal,
-        caused_by: str,
-    ) -> None:
-        """Record an answer to an intake question, checked against the question."""
-        ...
-
-    def dismiss_intake(self, project_id: str, *, acted_for: Principal, caused_by: str) -> None:
-        """Record the intake dismissed."""
-        ...
-
-    def progress(self, project_id: str) -> dict[str, Any]:
-        """The entry point chosen and the step states, derived from the log."""
-        ...
-
-    def intake(self, project_id: str) -> dict[str, Any]:
-        """Where the intake stands and its questions with their current answers."""
         ...
 
 

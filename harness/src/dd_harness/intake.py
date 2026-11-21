@@ -72,13 +72,15 @@ def state(events: Iterable[Mapping[str, Any]]) -> IntakeState:
     return PENDING if next_question(events) is not None else COMPLETE
 
 
-def describe(events: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
+def describe(
+    events: Iterable[Mapping[str, Any]], manifest: Iterable[Mapping[str, Any]] = ()
+) -> dict[str, Any]:
     """Where the intake stands, as the app's card reads it (docs/specs/app.md, rule 25): its
     state, the id of the next question (None once none is left), every question asked from the
     project's entry point, in order, each as a core `Question` with its current answer's values
     (None while it has none) and the notices its answers carry, keyed by answer value, and the
     project's progress, whose entry point and suggested step the card names once the intake is
-    complete."""
+    complete, a step an agent in `manifest` serves where there is one."""
     events = list(events)
     entry, answers = entry_chosen(events), intake_answers(events)
     following = next_question(events)
@@ -102,7 +104,7 @@ def describe(events: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
             for q in INTAKE
             if q.asked_at(entry)
         ],
-        "progress": describe_progress(events),
+        "progress": describe_progress(events, manifest),
     }
 
 
