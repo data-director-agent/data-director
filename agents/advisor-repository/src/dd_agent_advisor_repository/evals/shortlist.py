@@ -1,6 +1,7 @@
 """The repository advisor's evaluation, as an Inspect task: whether the repositories a confirmed
 data management plan names reach the researcher as the plan's, beside the shortlist or without
-one (#1334).
+one (#1334), and whether a researcher's own institution's repository is offered when re3data does
+not list it (#1342).
 
     uv run inspect eval ${SHORTLIST} --model none
     uv run inspect eval ${SHORTLIST} --model none \\
@@ -11,7 +12,7 @@ where `SHORTLIST` is `agents/advisor-repository/src/dd_agent_advisor_repository/
 By default the advisor is built in this process from its own environment variables
 (`factory.build`), with the template explainer unless `DD_REPOSITORY_EXPLAINER` asks for a model,
 and reached over in-memory A2A. It reads re3data from the registry built from the pinned export
-(`uv run dd-sources prepare`), and FAIRsharing from the committed snapshot.
+(`uv run dd-sources prepare`), and DataCite and FAIRsharing from their committed snapshots.
 
 Each case is sent as a caller outside a project would send it: the commitments a researcher
 confirmed in `project_decisions`. In a project the conductor fills them from the project's
@@ -20,7 +21,7 @@ decisions; outside one it leaves them as sent (`dd_harness.project_facts`).
 Whoever runs the evaluation is the principal each case is invoked for (`DD_PRINCIPAL_ID`,
 `DD_PRINCIPAL_NAME`; docs/specs/policy-and-identity.md). The run records the git revision, the
 advisor's version and configuration variables, and hashes of the cases, the ranking rules, the
-other names for repositories and the pinned re3data registry.
+other names for repositories, the pinned re3data registry and the DataCite snapshot.
 """
 
 from __future__ import annotations
@@ -35,9 +36,13 @@ import yaml
 from inspect_ai import Task, task
 from inspect_ai.dataset import MemoryDataset
 
-from dd_agent_advisor_repository import registry
+from dd_agent_advisor_repository import datacite, registry
 from dd_agent_advisor_repository.agent import RepositoryAgent
-from dd_agent_advisor_repository.evals.scorers import plan_repositories_shown, shortlist_kept
+from dd_agent_advisor_repository.evals.scorers import (
+    institution_repository_offered,
+    plan_repositories_shown,
+    shortlist_kept,
+)
 
 AGENT_ID = "advisor.repository"
 HERE = Path(__file__).parent
@@ -91,6 +96,7 @@ def identity(agents: str | None) -> dict[str, Any]:
         "re3data_snapshot_sha256": json.loads(registry.MANIFEST.read_text(encoding="utf-8"))[
             "snapshot_sha256"
         ],
+        "datacite_snapshot_sha256": datacite.Pin.load().sha256,
     }
     return task_identity(
         AGENT_ID,
@@ -137,6 +143,7 @@ def repository_shortlist(agents: str | None = None) -> Task:
             stopped_correctly(),
             grounding_passed(),
             plan_repositories_shown(),
+            institution_repository_offered(),
             shortlist_kept(),
         ],
         metadata={"identity": identity(agents)},

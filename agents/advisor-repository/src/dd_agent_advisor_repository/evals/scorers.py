@@ -1,5 +1,6 @@
 """The repository advisor's own scorers: whether the repositories a data management plan names
-reach the researcher as the plan's, and whether a shortlist is still made beside them.
+reach the researcher as the plan's, whether the researcher's own institution's repository is
+offered, and only to its researchers, and whether a shortlist is still made beside them.
 
 Each is a separate score, never blended with another. A scorer that does not apply to a case
 returns NOANSWER.
@@ -24,41 +25,59 @@ def payload(state: TaskState) -> dict[str, Any]:
     return found
 
 
-def shown_in_plan(options: dict[str, Any]) -> set[str]:
-    """The names of the repositories re3data does not list that the payload shows as the plan's
-    (`unlisted`, basis `in_plan`). The cases name only such repositories; one re3data lists is a
-    candidate, named only by its record (docs/specs/grounding.md)."""
+def cited(options: dict[str, Any], basis: str | None = None) -> set[str]:
+    """The registry identifiers of the candidates, of `basis` where given: each candidate is
+    named by its first grounding, its registry's record (docs/specs/grounding.md)."""
     return {
-        str(entry.get("name", "")).casefold()
-        for entry in options.get("unlisted", [])
-        if entry.get("basis") == IN_PLAN
+        str(c["grounded_on"][0]["source_id"])
+        for c in options.get("candidates", [])
+        if c.get("grounded_on") and (basis is None or c.get("basis") == basis)
     }
 
 
 @scorer(metrics=[mean_applicable()])
 def plan_repositories_shown() -> Scorer:
-    """The share of the repositories the plan names that the payload shows as the plan's, or that
-    a stop names in its statement. Does not apply to a case whose plan names none or is not
-    confirmed."""
+    """The share of the repositories the plan names, by registry identifier, that the payload
+    offers as the plan's, so that the researcher can choose them. Does not apply to a case whose
+    plan names none or is not confirmed."""
 
     async def score(state: TaskState, target: Target) -> Score:
         expected: list[str] = expectation_of(state).get("in_plan", [])
         if not expected:
             return Score(value=NOANSWER, explanation="no confirmed plan names a repository")
-        envelope = envelope_of(state)
-        if envelope["outcome"]["status"] == "succeeded":
-            shown = shown_in_plan(payload(state))
-            missing = [name for name in expected if name.casefold() not in shown]
-        else:
-            # A stop has no payload; the names must be in what the researcher is told.
-            said = str(envelope["outcome"].get("statement", "")).casefold()
-            missing = [name for name in expected if name.casefold() not in said]
+        shown = cited(payload(state), IN_PLAN)
+        missing = [rid for rid in expected if rid not in shown]
         found = len(expected) - len(missing)
         return Score(
             value=found / len(expected),
             answer=f"{found}/{len(expected)}",
             explanation="not shown: " + ", ".join(missing) if missing else "all shown",
             metadata={"missing": missing},
+        )
+
+    return score
+
+
+@scorer(metrics=[mean_applicable()])
+def institution_repository_offered() -> Scorer:
+    """The share of the case's expectations about institutions' own repositories that hold: each
+    of `institutional` is offered, and none of `not_offered` is. Does not apply to a case that
+    names neither."""
+
+    async def score(state: TaskState, target: Target) -> Score:
+        expect = expectation_of(state)
+        offered: list[str] = expect.get("institutional", [])
+        withheld: list[str] = expect.get("not_offered", [])
+        if not (offered or withheld):
+            return Score(value=NOANSWER, explanation="no institution's repository is expected")
+        found = cited(payload(state))
+        wrong = [rid for rid in offered if rid not in found] + [r for r in withheld if r in found]
+        total = len(offered) + len(withheld)
+        return Score(
+            value=(total - len(wrong)) / total,
+            answer=f"{total - len(wrong)}/{total}",
+            explanation="wrong: " + ", ".join(wrong) if wrong else "as expected",
+            metadata={"wrong": wrong},
         )
 
     return score
