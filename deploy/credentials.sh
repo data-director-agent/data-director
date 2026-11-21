@@ -20,9 +20,11 @@
 #   UNIT_DIR     where the drop-ins go, /etc/systemd/system
 #   AGENTS_DIR   deploy/agents in the release or clone: an agent is deployed if it has <agent>.env
 # credentials/app/ is the app's own. data-director-app.service loads orcid-client-secret itself;
-# the three secrets the harness signs model grants with (docs/guide/operations/model-broker.md) go
-# in data-director-app.service.d/model-grants.conf, written by sync_app_model_grants for those of
-# them that exist, so an app without them still starts.
+# the three secrets the harness signs model grants with (docs/guide/operations/model-broker.md), and
+# the deposit broker's public subject key (docs/guide/operations/deposit-broker.md), go in
+# data-director-app.service.d/model-grants.conf, written by sync_app_model_grants for those of them
+# that exist, so an app without them still starts.
+# credentials/deposit-broker/ is the deposit broker's, which its unit loads itself.
 # credentials/llm-gateway/ is the LiteLLM gateway's, which deploy/llm-gateway/scripts/systemd.sh
 # reads itself; it has no drop-in.
 
@@ -36,7 +38,7 @@ credential_variable() { # credential_variable SECRET
 }
 
 is_agent() { # is_agent NAME
-  [[ "$1" != app && "$1" != model-broker && "$1" != llm-gateway && "$1" =~ ^[a-z0-9-]+$ && -f "$AGENTS_DIR/$1.env" ]]
+  [[ "$1" != app && "$1" != model-broker && "$1" != deposit-broker && "$1" != llm-gateway && "$1" =~ ^[a-z0-9-]+$ && -f "$AGENTS_DIR/$1.env" ]]
 }
 
 # Why FILE cannot be used as a secret, or nothing if it can.
@@ -99,10 +101,10 @@ sync_agent_credentials() { # sync_agent_credentials AGENT
 }
 
 # The secrets in credentials/app/ that the harness signs model grants with, and their variables.
-APP_MODEL_GRANT_SECRETS=(model-grant-signing-key model-broker-subject-key pseudonym-secret)
-APP_MODEL_GRANT_VARIABLES=(DD_MODEL_GRANT_SIGNING_KEY_FILE DD_MODEL_BROKER_SUBJECT_KEY_FILE DD_PSEUDONYM_SECRET_FILE)
+APP_MODEL_GRANT_SECRETS=(model-grant-signing-key model-broker-subject-key pseudonym-secret deposit-broker-subject-key)
+APP_MODEL_GRANT_VARIABLES=(DD_MODEL_GRANT_SIGNING_KEY_FILE DD_MODEL_BROKER_SUBJECT_KEY_FILE DD_PSEUDONYM_SECRET_FILE DD_DEPOSIT_BROKER_SUBJECT_KEY_FILE)
 
-# Write the app's model-grant drop-in from those of the three secrets that exist, or remove it if
+# Write the app's model-grant drop-in from those of the secrets that exist, or remove it if
 # none does. Some but not all of them stops the app at start-up, naming the one it lacks.
 sync_app_model_grants() {
   local dir="$CREDENTIALS/app" dropin="$UNIT_DIR/data-director-app.service.d/model-grants.conf"
@@ -146,7 +148,7 @@ sync_all_credentials() {
   for dir in "$CREDENTIALS"/*/; do
     [[ -d "$dir" ]] || continue
     agent="$(basename "$dir")"
-    [[ "$agent" == app || "$agent" == model-broker || "$agent" == llm-gateway ]] && continue
+    [[ "$agent" == app || "$agent" == model-broker || "$agent" == deposit-broker || "$agent" == llm-gateway ]] && continue
     seen[$agent]=1
     if ! is_agent "$agent"; then
       echo "$CREDENTIALS/$agent: no deployed agent of that name (deploy/agents/$agent.env); its secrets are not loaded" >&2

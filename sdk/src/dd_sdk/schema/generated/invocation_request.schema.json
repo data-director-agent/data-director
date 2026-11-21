@@ -311,6 +311,49 @@
          "title": "Delegation",
          "type": "object"
       },
+      "DepositConnector": {
+         "additionalProperties": false,
+         "description": "An override only: how the harness deposits a draft to the repository through its API (docs/specs/deposit.md, Depositing through an API). It holds no credential: each researcher deposits with their own, held outside the app and the harness.",
+         "properties": {
+            "transport": {
+               "description": "The transport that moves the deposit, registered under the entry-point group dd.transports, such as zenodo.",
+               "pattern": "^[a-z0-9][a-z0-9-]*$",
+               "type": "string"
+            },
+            "format": {
+               "description": "The format the transport carries, from the pairs docs/specs/deposit.md allows, such as zenodo-deposit.",
+               "pattern": "^[a-z0-9][a-z0-9-]*$",
+               "type": "string"
+            },
+            "base_url": {
+               "description": "The installation's API root, such as https://sandbox.zenodo.org/api.",
+               "format": "uri",
+               "pattern": "^https://",
+               "type": "string"
+            },
+            "target": {
+               "description": "Where the draft is created, in the transport's own terms, such as a Zenodo community. Absent where the transport has a default.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "sandbox": {
+               "description": "Whether base_url is the platform's test installation, whose items and identifiers are not real. The app says so beside the deposit.",
+               "type": [
+                  "boolean",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "transport",
+            "format",
+            "base_url"
+         ],
+         "title": "DepositConnector",
+         "type": "object"
+      },
       "Derivation": {
          "description": "",
          "enum": [
@@ -362,6 +405,17 @@
             "document_derivation": {
                "$ref": "#/$defs/Derivation",
                "description": "How document_text came about."
+            },
+            "document_stage": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/DocumentStage"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "How far the version has got (docs/specs/drafting.md): `questions` when the drafter is asking the researcher what it needs before it writes the document, so that document_text is only a note and the version cannot be approved; `draft` when it is the document itself. Absent means `draft`."
             },
             "revises": {
                "anyOf": [
@@ -495,6 +549,15 @@
          ],
          "title": "DocumentQuestion",
          "type": "object"
+      },
+      "DocumentStage": {
+         "description": "How far a version of a project document has got (docs/specs/drafting.md).",
+         "enum": [
+            "questions",
+            "draft"
+         ],
+         "title": "DocumentStage",
+         "type": "string"
       },
       "DocumentVersionRef": {
          "additionalProperties": false,
@@ -695,6 +758,37 @@
             "document_kind"
          ],
          "title": "DraftRequest",
+         "type": "object"
+      },
+      "DraftSummary": {
+         "additionalProperties": false,
+         "description": "The latest version of one document drafted in a project, without its text: the conductor fills one per document into a Message so that the agent knows which version is current and whether it was drafted from the inventory the project holds now, rather than relying on what it said of an earlier version (docs/specs/projects.md).",
+         "properties": {
+            "document_kind": {
+               "$ref": "#/$defs/DocumentKind"
+            },
+            "version": {
+               "description": "The number of a version within its document, counted from 1.",
+               "type": "integer"
+            },
+            "version_state": {
+               "$ref": "#/$defs/VersionState",
+               "description": "Whether a person has approved or rejected the version, or not yet decided."
+            },
+            "drafted_since_inventory": {
+               "description": "Whether the version was drafted after the project's inventory was last added or revised, so that it reflects which files the inventory now lists. Absent when the project holds no inventory.",
+               "type": [
+                  "boolean",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "document_kind",
+            "version",
+            "version_state"
+         ],
+         "title": "DraftSummary",
          "type": "object"
       },
       "EnergyMethod": {
@@ -1416,6 +1510,21 @@
                   "null"
                ]
             },
+            "inventory_added_at": {
+               "description": "When the inventory was added to the project, as its latest; a revision, such as files left out in Edit inventory, is added anew.",
+               "format": "date-time",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "inventory_revised_from_file_count": {
+               "description": "How many files the inventory it replaced listed. Absent when it is the first the project holds.",
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            },
             "inventory_formats": {
                "description": "The inventory's files grouped by media type, the group with the most bytes first, as the app's inventory view groups them. Absent, the summary was made without them.",
                "items": {
@@ -1522,7 +1631,7 @@
       },
       "Message": {
          "additionalProperties": false,
-         "description": "One conversational turn addressed to an agent: the text of the turn and the conversation so far. The history is part of the input, so the input hash covers everything the agent saw. In a project that holds an inventory, the conductor adds what it is (docs/specs/projects.md); in any project, it adds the entry point chosen, the progress the project log shows and the project's title, if it has one (docs/specs/orchestration.md). It adds the researcher facts people in the project chose to keep from their public ORCID records, the facts they decided and the repository they chose (docs/specs/projects.md).",
+         "description": "One conversational turn addressed to an agent: the text of the turn and the conversation so far. The history is part of the input, so the input hash covers everything the agent saw. In a project that holds an inventory, the conductor adds what it is (docs/specs/projects.md); in any project, it adds the entry point chosen, the progress the project log shows and the project's title, if it has one (docs/specs/orchestration.md). It adds the researcher facts people in the project chose to keep from their public ORCID records, the facts they decided, the repository they chose and the latest version of each document drafted in it (docs/specs/projects.md).",
          "properties": {
             "schema_class": {
                "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -1646,6 +1755,16 @@
                   }
                ],
                "description": "The repository a researcher in the project chose last, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project has chosen one."
+            },
+            "project_drafts": {
+               "description": "The latest version of each document drafted in the conversation's project, without its text, in the order first drafted, filled by the conductor and never by the caller. Absent when the run is in no project, or its project holds no drafted document.",
+               "items": {
+                  "$ref": "#/$defs/DraftSummary"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
             }
          },
          "required": [
@@ -2949,6 +3068,17 @@
                   "array",
                   "null"
                ]
+            },
+            "deposit": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/DepositConnector"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "An override only: the API the harness may deposit a draft through. Without it the repository is deposited to by hand."
             }
          },
          "required": [
@@ -3507,5 +3637,5 @@
    ],
    "title": "data_director_core",
    "type": "object",
-   "version": "0.17.0"
+   "version": "0.18.1"
 }

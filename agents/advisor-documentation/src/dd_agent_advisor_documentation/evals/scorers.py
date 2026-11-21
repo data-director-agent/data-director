@@ -26,9 +26,9 @@ from dd_agent_advisor_documentation.agent import (
     Source,
     _drafted,
     _facts,
-    _record,
 )
 from dd_agent_advisor_documentation.prose import _NAMED, _NOT_PROSE
+from dd_agent_advisor_documentation.record import _record
 from dd_agent_advisor_documentation.sections import SOURCES as FACT_SOURCES
 from dd_agent_advisor_documentation.sections import load_sections
 from dd_sdk.contract.models import DraftRequest
@@ -287,12 +287,15 @@ def _gap_name(q: Mapping[str, Any]) -> str:
 
 @scorer(metrics=[mean_applicable()])
 def required_sections_present() -> Scorer:
-    """The README has every section of `readme.yaml`, in order."""
+    """The README has every section of `readme.yaml`, in order. Does not apply to a note that
+    asks before the README is written."""
 
     async def score(state: TaskState, target: Target) -> Score:
         document = readme_of(state)
         if document is None:
             return _not_applicable("not a README")
+        if document.get("document_stage") == "questions":
+            return _not_applicable("a note that asks first, not the README")
         headings = re.findall(r"^## (.+)$", document["document_text"], re.MULTILINE)
         wanted = [s.heading for s in load_sections()]
         ok = [h for h in headings if h in wanted] == wanted
@@ -315,6 +318,11 @@ def every_gap_marked_and_asked() -> Scorer:
             return _not_applicable("not a README")
         marked = set(GAP.findall(document["document_text"]))
         asked = {q["question_id"] for q in document.get("document_questions", [])}
+        if document.get("document_stage") == "questions":
+            # A note that asks before the README is written: it asks, and marks nothing.
+            problems = [f"{q}: marked in a note" for q in sorted(marked)]
+            problems += [] if asked else ["asks nothing"]
+            return _share(int(not problems), 1, problems, "notes")
         problems = [f"{q}: marked, not asked" for q in sorted(marked - asked)] + [
             f"{q}: asked, not marked" for q in sorted(asked - marked)
         ]
@@ -364,8 +372,15 @@ def no_unsupported_claim() -> Scorer:
         asked = request_of(state)
         record, _ = _record(asked.metadata_record)
         assert asked.inventory is not None  # a README was drafted, so there was an inventory
+        # Once the researcher has answered, the model is also given the answers, the decisions
+        # and the documents they attached, so what they name is supported too.
         known = json.dumps(
             _facts(asked.inventory, asked.requirements, record), ensure_ascii=False, sort_keys=True
+        ) + json.dumps(
+            [a.answer_text for a in asked.draft_answers]
+            + [d.documentation_text for d in asked.project_documents]
+            + [d.model_dump(mode="json") for d in asked.project_decisions],
+            ensure_ascii=False,
         )
         not_model = {" ".join(a.answer_text.split()) for a in asked.draft_answers} | {
             " ".join(body.split())
@@ -390,6 +405,17 @@ def no_unsupported_claim() -> Scorer:
         )
 
     return score
+
+
+def _written_from(answer: Mapping[str, Any], document: Mapping[str, Any]) -> bool:
+    """Whether a model wrote a README section from `answer` in its own words and kept every
+    number, link, identifier and code-formatted name the answer gives. Only an answer to a whole
+    section is written so; a part's is placed as given."""
+    if "part" in answer or document.get("document_derivation") != "model":
+        return False
+    text = document["document_text"]
+    named = [m.group(m.lastindex or 0) for p in _NAMED for m in p.finditer(answer["text"])]
+    return all(n in text for n in named)
 
 
 # --- Both kinds -------------------------------------------------------------------------------
@@ -418,7 +444,7 @@ def answers_placed_supplied() -> Scorer:
                     problems.append(f"{a['field']} {a['column']}: not placed as given")
                 elif row.get(a["column"] + SOURCE_SUFFIX) != Source.SUPPLIED:
                     problems.append(f"{a['field']} {a['column']}: not marked supplied")
-            elif a["text"] not in document["document_text"]:
+            elif a["text"] not in document["document_text"] and not _written_from(a, document):
                 problems.append(f"{a['section']}: not placed as given")
         return _share(len(answers) - len(problems), len(answers), problems, "answers")
 

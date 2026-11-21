@@ -20,7 +20,7 @@ dd:Document a sh:NodeShape ;
             sh:description "The version this document replaces, when an agent regenerates it. Absent for a new document, for which the conductor mints a document_id." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 7 ;
+            sh:order 8 ;
             sh:path prov:wasRevisionOf ],
         [ sh:datatype xsd:string ;
             sh:description "The content of the document, as text; a structured record is serialised." ;
@@ -29,17 +29,6 @@ dd:Document a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 5 ;
             sh:path dd:document_text ],
-        [ sh:class dd:DocumentQuestion ;
-            sh:description "The questions this version asks the researcher, one for each gap it leaves. A README marks each gap with the HTML comment <!-- dd:gap question_id -->; a data dictionary leaves the cell empty and its source unknown." ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 8 ;
-            sh:path dd:document_questions ],
-        [ sh:class dd:GroundingRef ;
-            sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 9 ;
-            sh:path dd:grounded_on ],
         [ sh:in ( "metadata_record" "readme" "data_dictionary" "dmp" "other" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -57,19 +46,35 @@ dd:Document a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path dd:schema_class ],
+        [ sh:class dd:GroundingRef ;
+            sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 10 ;
+            sh:path dd:grounded_on ],
         [ sh:datatype xsd:string ;
             sh:description "A short name a person can tell documents apart by, such as README for raw/." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
             sh:path dcterms:title ],
+        [ sh:description "How far the version has got (docs/specs/drafting.md): `questions` when the drafter is asking the researcher what it needs before it writes the document, so that document_text is only a note and the version cannot be approved; `draft` when it is the document itself. Absent means `draft`." ;
+            sh:in ( "questions" "draft" ) ;
+            sh:maxCount 1 ;
+            sh:order 7 ;
+            sh:path dd:document_stage ],
         [ sh:datatype xsd:string ;
             sh:description "The media type of document_text, such as text/markdown or application/json." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
-            sh:path dcterms:format ] ;
+            sh:path dcterms:format ],
+        [ sh:class dd:DocumentQuestion ;
+            sh:description "The questions this version asks the researcher, one for each gap it leaves. A README marks each gap with the HTML comment <!-- dd:gap question_id -->; a data dictionary leaves the cell empty and its source unknown." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 9 ;
+            sh:path dd:document_questions ] ;
     sh:targetClass dd:Document .
 
 dd:DocumentQuestion a sh:NodeShape ;

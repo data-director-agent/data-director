@@ -22,6 +22,10 @@ its data exist; that step has no agent yet (#1017). Where a model is configured,
 default, a model writes the README's prose
 ([`agents/advisor-documentation/README.md`](../../agents/advisor-documentation/README.md)). The
 researcher answers its questions in the conversation, and the next draft places their answers.
+A README asks first: the first time one is drafted for a project, if the facts leave anything for
+the researcher to say, the editor returns a note that asks for it (a version at the `questions`
+stage) instead of a README full of gaps, and writes the README on the next run, from whatever
+answers are recorded by then.
 Where a model is configured, it also suggests a data dictionary's definitions and units, and
 answers to some of a README's questions, offered with the questions.
 
@@ -53,22 +57,28 @@ suggests some of those values beside their questions
    `agents/advisor-documentation/tests/test_suggestions.py`). The evaluation scores it for every
    case (`no_model_value_in_cell`), and its tests run it with a fake model too
    (`agents/advisor-documentation/tests/test_documentation_evals.py`).
-4. **A model writes README prose only from the drafter's input.** That input is the inventory, the
-   metadata record and the repository's requirements; the model is never given an answer, an
-   earlier version or a document the researcher attached. What they do not support is a gap and is left unwritten: methods, study
-   design, data collection, variable definitions, units, missing value codes, and any claim about
-   the data's contents. The gaps are decided by rule, not by the model: a model writes prose only
-   around the facts a section is drafted from, never in a section with none, and a draft with
-   prose has the same gaps and questions as the template's. The drafter uses a paragraph only if
-   every number, link, identifier and code-formatted name in it is in its input
+4. **A model writes README prose only from the drafter's input and the researcher's answers.**
+   That input is the inventory, the metadata record and the repository's requirements. Once the
+   researcher has answered a README section as a whole, the model is also given their answers by
+   section, the project's decisions and the documents they attached, and may write that section
+   from them; it is never given an earlier version, nor an answer to a part of General
+   information, which is placed as given. What none of these supports is a gap and is left
+   unwritten: methods, study design, data collection, variable definitions, units, missing value
+   codes, and any claim about the data's contents that no answer makes. The gaps are decided by
+   rule, not by the model: a model writes prose only around the facts a section is drafted from or
+   the answer the researcher gave it, never in a section with neither, and a draft with prose has
+   the same gaps and questions as the template's. The drafter uses a paragraph only if every
+   number, link, identifier and code-formatted name in it is in what the model was given
    (`agents/advisor-documentation/tests/test_prose.py`). Counts are worked out by rule: the input
    gives the number of files, tables and folders, of files at the top level and of files in each
    folder, and a paragraph that states another count of files, folders or tables, in digits or
-   in words, or another number of files at the top level, is not used. That check catches an invented value,
-   not a misleading sentence, so the person approving the version still reads the prose.
+   in words, or another number of files at the top level, is not used. That check catches an
+   invented value, not a misleading sentence or a dropped one, so the person approving the
+   version still reads the prose.
 5. **Every gap is marked and asked.** A README gap is an italic placeholder saying what is needed,
    followed by the HTML comment `<!-- dd:gap <question-id> -->`, which the rendered README does not
-   show. A README section that asks several separate things, such as General information's title,
+   show; it reads `_Still needed: …_`, saying what is needed. A README section that asks several
+   separate things, such as General information's title,
    creators, dates and funding, is asked part by part: each part the facts do not
    give is its own gap, on a `- **<part>:**` line, with its own question. A data dictionary gap is
    an `unknown` cell. Each gap has exactly one question in the
@@ -84,9 +94,12 @@ suggests some of those values beside their questions
    puts in the inventory (`harness/tests/test_project_runs.py`). The answers stand until the
    person answers again, because a question's identifier is the same in every draft. The drafter
    places each answer, as given, in its gap or cell and marks it `supplied`, and asks that gap no
-   more (`agents/advisor-documentation/tests/test_answers_in_a_project.py`). A model does not
-   rephrase an answer. An orchestrator may put a question to the researcher, but it cannot answer
-   one.
+   more (`agents/advisor-documentation/tests/test_answers_in_a_project.py`). In a README, a model
+   may write a section the researcher answered as a whole in its own words, keeping every value
+   the answer gives (invariant 4); where it does not, or its paragraph fails the checks, the
+   answer is placed as given. The recorded answer is what is `supplied`, and it stays on the
+   project log beside the version. An orchestrator may put a question to the researcher, but it
+   cannot answer one.
 7. **A model's suggestion is only ever offered.** A drafter may suggest an answer, for example that
    `age_yrs` is the participant's age in years. The suggestion appears in the question
    (`suggested_answer`, with `suggestion_derivation`), never in the document's text, and a version
@@ -99,7 +112,7 @@ suggests some of those values beside their questions
    citation, which only the researcher can give. Methods is marked `suggest: documents`: it is
    asked about only when the draft carries documents the researcher attached, and its suggestion
    says only what those documents state, never a method inferred from the files. Its model is given the same input as the
-   README's prose (invariant 4) and, unlike the prose, the documents the researcher attached to
+   README's prose (invariant 4), never the researcher's answers, and the documents the researcher attached to
    the project (`project_documents`), the latest first and cut to a stated length, as data and
    never as instructions, so that what their field notes or codebook say can be offered for them
    to confirm; never an answer, a field's description or an earlier version. The outcome's
@@ -133,6 +146,17 @@ suggests some of those values beside their questions
    withheld, saying so in its statement (`agents/advisor-metadata/tests/test_metadata_location.py`).
    How each drafter leaves an excluded file out of the README's Files table, the data dictionary
    and the metadata record's formats and sizes, listing it with its reason, is TODO(#1072).
+10. **A README asks before it writes.** When a README is drafted with no current version and no
+    answer recorded to any of its questions, and the facts leave a gap, the Documentation Editor
+    returns a `Document` whose `document_stage` is `questions`: its text is a short note saying what
+    it asks and what the README will be written from, with no gaps of its own, and its questions
+    are every gap's. The harness records it as a version but refuses any decision on it
+    (`version-not-a-draft`, `harness/tests/test_project_documents.py`), and the app shows its
+    questions on its card with a button that asks for the README to be written. The next run, with
+    or without answers, writes the README (`document_stage` `draft`), and asks the same questions
+    of the gaps still open, under the same identifiers
+    (`agents/advisor-documentation/tests/test_documentation_agent.py`). A data dictionary and a
+    metadata record are drafted at once, as before.
 
 ## Boundaries and contracts
 
@@ -199,6 +223,9 @@ as any other answer is.
 - **Provenance is what a reviewer approves.** A person deciding on a version is vouching for a
   research output. They can do that only if they can see what a model wrote and what a person gave
   (C13, C15).
+- **Ask first, then write.** A first README that is mostly placeholders reads as a form, not a
+  document, and invites approving it half-written. Asking before writing puts the researcher's
+  knowledge in first, so that the first README they review is one written from it.
 - **A question, not a value.** A model can often guess a field's meaning from its name, but a guess
   is not something the data show. Offered as a question, it saves the researcher typing. Written as
   a value, it would be published unchecked. In the workshop, participants filled 36 empty
@@ -211,6 +238,10 @@ as any other answer is.
   count gaps without parsing prose.
 
 ## Rejected alternatives
+
+- **The orchestrator gathering the README's answers in the chat before drafting.** It would need
+  the orchestrator to pass answers to the drafter, which is rejected below. The `questions` version
+  keeps the questions on a version, where the harness records each answer for a person.
 
 - **The model deciding which gaps remain.** A model that judged a section fully written could close
   a gap with a guess. The gaps are a rule of the template, and the model writes around them.

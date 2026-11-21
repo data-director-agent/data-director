@@ -37,12 +37,12 @@
           "sh:focusNode": {
             "@id": "urn:uuid:01900000-0000-7000-8000-000000000001"
           },
-          "sh:resultMessage": "the deployment has no override for Zenodo: only DataCite Metadata Schema 4 is checked, not the repository's own form, formats, sizes or licences",
+          "sh:resultMessage": "Zenodo requires a metadata record, and none has been approved.",
           "sh:resultSeverity": {
-            "@id": "sh:Warning"
+            "@id": "sh:Violation"
           },
           "sh:sourceConstraintComponent": {
-            "@id": "https://w3id.org/data-director/RepositoryChoiceConstraintComponent"
+            "@id": "https://w3id.org/data-director/RequiredDocumentConstraintComponent"
           }
         },
         {
@@ -50,9 +50,9 @@
           "sh:focusNode": {
             "@id": "urn:uuid:01900000-0000-7000-8000-000000000001"
           },
-          "sh:resultMessage": "Zenodo requires a metadata record, and none has been approved.",
+          "sh:resultMessage": "Zenodo recommends a README, and none has been approved.",
           "sh:resultSeverity": {
-            "@id": "sh:Violation"
+            "@id": "sh:Warning"
           },
           "sh:sourceConstraintComponent": {
             "@id": "https://w3id.org/data-director/RequiredDocumentConstraintComponent"
@@ -109,9 +109,9 @@
     ],
     "warnings": [
       {
-        "component": "https://w3id.org/data-director/RepositoryChoiceConstraintComponent",
+        "component": "https://w3id.org/data-director/RequiredDocumentConstraintComponent",
         "focus": "urn:uuid:01900000-0000-7000-8000-000000000001",
-        "message": "the deployment has no override for Zenodo: only DataCite Metadata Schema 4 is checked, not the repository's own form, formats, sizes or licences",
+        "message": "Zenodo recommends a README, and none has been approved.",
         "path": null
       }
     ]

@@ -7,6 +7,10 @@
  * that there is one place where a decision is made, with its rules. While the version is its
  * document's latest, the card puts its open questions to the researcher, a few at a time
  * (`DocumentQuestions`, docs/specs/drafting.md).
+ *
+ * A version at the `questions` stage is not the document yet: the drafter asks what it needs
+ * before it writes it. Its card shows the questions open, with no preview and nothing to approve,
+ * and offers to write the document once they are answered.
  */
 
 import "./DocumentCard.css";
@@ -28,6 +32,7 @@ export function DocumentCard({
   drafted,
   idPrefix,
   onAnswered,
+  onWrite,
 }: {
   projectId: string;
   drafted: DraftedVersion;
@@ -36,6 +41,8 @@ export function DocumentCard({
   /** Called with the project's documents after the researcher answers; without it, the card
    * asks nothing. */
   onAnswered?: (value: ProjectDocuments) => void;
+  /** Asks in the conversation for the document to be written, for a `questions` version. */
+  onWrite?: (message: string) => void;
 }) {
   const { document, version, latest } = drafted;
   const [open, setOpen] = useState(false);
@@ -44,13 +51,22 @@ export function DocumentCard({
   const regionId = `${idPrefix}-preview`;
   const { label, className } = STATES[version.state];
   const by = version.drafted_by;
+  const asking = version.stage === "questions";
   return (
     <li className="callout document-card">
       <p className="document-card-title">
-        <FileText className="document-card-icon" size="1.25em" aria-hidden="true" />
+        <FileText
+          className="document-card-icon"
+          size="1.25em"
+          aria-hidden="true"
+        />
         <span>
           <strong>{name}</strong>, version {version.version}{" "}
-          <span className={`status ${className}`}>{label}</span>
+          {asking ? (
+            <span className="status">Questions first</span>
+          ) : (
+            <span className={`status ${className}`}>{label}</span>
+          )}
         </span>
       </p>
       <p className="hint">
@@ -63,9 +79,19 @@ export function DocumentCard({
             .
           </>
         )}
-        {latest.version !== version.version && <> Version {latest.version} is now the latest.</>}
+        {latest.version !== version.version && (
+          <> Version {latest.version} is now the latest.</>
+        )}
       </p>
-      <p>
+      {asking && (
+        <p>
+          Before writing the {name}, the drafter asks what only you can say.
+          Answer what you can, then ask for the {name} to be written: it is
+          written from your answers, and anything left unanswered is marked as
+          still needed.
+        </p>
+      )}
+      <p hidden={asking}>
         <Button
           size="small"
           icon={open ? ChevronUp : ChevronDown}
@@ -77,7 +103,9 @@ export function DocumentCard({
           <span className="visually-hidden">of {which}</span>
         </Button>{" "}
         <Link to={documentHref(projectId, document.document_id)}>
-          {latest.state === "proposed" ? "Review and approve" : "Open in the project's documents"}{" "}
+          {latest.state === "proposed"
+            ? "Review and approve"
+            : "Open in the project's documents"}{" "}
           <span className="visually-hidden">{name}</span>
         </Link>
       </p>
@@ -98,6 +126,7 @@ export function DocumentCard({
           version={version}
           name={name}
           onAnswered={onAnswered}
+          {...(asking && onWrite ? { onWrite } : {})}
         />
       )}
     </li>

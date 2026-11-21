@@ -1,0 +1,64 @@
+# The Data Director deposit broker (deposit-broker/README.md, docs/specs/deposit.md): it holds
+# people's own repository tokens, sealed, and creates draft deposits for the harness when it presents
+# a deposit grant. It is off until an operator turns depositing through an API on
+# (docs/guide/operations/deposit-broker.md); install.sh installs this unit but does not enable it.
+#
+# It runs as its own user, data-director-deposit-broker, which no other service shares, so that no
+# agent, the app or the harness can read its store or its credentials. Its secrets are root's files
+# in /etc/data-director/credentials/deposit-broker/, handed to it alone with LoadCredential=.
+[Unit]
+Description=Data Director deposit broker
+Documentation=https://github.com/data-director-agent/data-director/blob/main/docs/guide/operations/deposit-broker.md
+After=network-online.target
+Wants=network-online.target
+PartOf=data-director.target
+
+[Service]
+Type=exec
+User=data-director-deposit-broker
+Group=data-director-deposit-broker
+WorkingDirectory=/opt/data-director/current
+# /var/lib/data-director-deposit-broker, owned by the broker's user alone.
+StateDirectory=data-director-deposit-broker
+StateDirectoryMode=0700
+Environment=DD_DEPOSIT_BROKER_STORE=%S/data-director-deposit-broker/deposit-broker.sqlite3
+LoadCredential=key-encryption-key:/etc/data-director/credentials/deposit-broker/key-encryption-key
+LoadCredential=subject-key:/etc/data-director/credentials/deposit-broker/subject-key
+LoadCredential=oauth-clients:/etc/data-director/credentials/deposit-broker/oauth-clients
+Environment=DD_DEPOSIT_BROKER_KEY_ENCRYPTION_KEY_FILE=key-encryption-key
+Environment=DD_DEPOSIT_BROKER_SUBJECT_KEY_FILE=subject-key
+Environment=DD_DEPOSIT_BROKER_OAUTH_CLIENTS_FILE=oauth-clients
+# The harness's keys, the repositories it may call and where people reach it
+# (docs/guide/operations/deposit-broker.md).
+EnvironmentFile=-/etc/data-director/deposit-broker.env
+ExecStart=/opt/data-director/current/.venv/bin/dd-deposit-broker serve --host 127.0.0.1 --port 8310
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=30
+TimeoutStopSec=30
+SyslogIdentifier=data-director-deposit-broker
+
+# Hardening: it writes only its own state directory.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallFilter=@system-service
+SystemCallArchitectures=native
+UMask=0077
+
+[Install]
+WantedBy=data-director.target

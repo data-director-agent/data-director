@@ -42,6 +42,7 @@ on loopback alone and is reached through an SSH tunnel.
 | `systemd/data-director-workbench.service` | The workbench (`workbench serve`), on 127.0.0.1:8000, for admins only. Part of the target once `install.sh` enables it. |
 | `systemd/data-director-admin.service` | The admin service (`dd-admin serve`), on 127.0.0.1:8200 only, read-only. Part of the target; `install.sh` enables it. |
 | `systemd/data-director-model-broker.service` | The model broker (`dd-model-broker serve`), on 127.0.0.1:8300, as its own user `data-director-broker`. Installed but not enabled ([The model broker](#the-model-broker)). |
+| `systemd/data-director-deposit-broker.service` | The deposit broker (`dd-deposit-broker serve`), on 127.0.0.1:8310, as its own user `data-director-deposit-broker`. Installed but not enabled ([The deposit broker](../docs/guide/operations/deposit-broker.md)). |
 | `systemd/data-director-llm-gateway.service` | The [LiteLLM gateway](#the-litellm-gateway) and its database, in Docker, on 127.0.0.1:4000. Installed by `install.sh`, enabled only with `--gateway`; not part of the target. |
 | `llm-gateway/` | The LiteLLM gateway: its compose file, models, admin script and tests ([its README](llm-gateway/README.md)). |
 | `systemd/data-director-agent@.service` | One agent per instance, named as in `app/config/agents.yaml` (`@example-hello`, `@advisor-quality`, …): each agent `deployment.yaml` runs. |
@@ -83,11 +84,14 @@ process ([The app](../docs/specs/app.md)).
 | `/etc/data-director/agents/<name>.env` | One agent service's own settings (`DD_STANDARDS_*`, a model id). |
 | `/etc/data-director/credentials/` | Agents' secrets (`<agent>/<secret>`, put there by `secret.sh`) and the app's (`app/`), readable by root alone. Never put a key or secret in an `.env` file. |
 | `/etc/data-director/credentials/model-broker/` | The model broker's secrets, readable by root alone; systemd hands them to the broker's unit only. |
+| `/etc/data-director/credentials/deposit-broker/` | The deposit broker's secrets, readable by root alone: its key-encryption key, its subject key and its OAuth applications (`{}` until one is registered). |
 | `/etc/data-director/credentials/llm-gateway/` | The LiteLLM gateway's secrets, readable by root alone: its own three, which `install.sh --gateway` makes once, and the provider keys, which `secret.sh` puts there. |
 | `/etc/data-director/llm-gateway.env` | The LiteLLM gateway's settings (`config/examples/llm-gateway.env`). |
 | `/etc/data-director/llm-gateway.yaml` | The gateway's models, if the operator has written one; otherwise `config.yaml` as `install.sh` copied it. |
 | `/etc/data-director/model-broker.env` | The model broker's settings (`config/examples/model-broker.env`). |
 | `/var/lib/data-director-model-broker/` | The model broker's store of sealed keys and token counts, readable by its user alone. |
+| `/etc/data-director/deposit-broker.env` | The deposit broker's settings (`config/examples/deposit-broker.env`): the repository API roots it may call, the sandbox only by default. |
+| `/var/lib/data-director-deposit-broker/` | The deposit broker's store of people's sealed repository tokens, readable by its user alone. Not backed up: a person connects their account again. |
 | `/etc/data-director/admin.env` | The admin service's overrides, if any (optional; [docs/guide/operations/admin.md](../docs/guide/operations/admin.md)). |
 | `/etc/data-director/deploy.env` | `deploy.sh`'s settings. |
 | `/etc/data-director/backup.env` | `backup.sh`'s settings (`deploy/backup.env.example`). |
@@ -231,6 +235,15 @@ it in `/opt/data-director/python/`. A VM installed before that kept it in
 `/opt/data-director/python/` and restarts the services. `sudo data-director doctor` reports an
 enabled broker that cannot reach its Python.
 
+
+## The deposit broker
+
+The deposit broker (`deposit-broker/README.md`) lets a person deposit a draft in a repository
+through its API, with their own account there. `install.sh` creates its user, its credentials
+directory and its settings file, with the Zenodo sandbox as the only repository it may call, but
+does not enable it. [The deposit broker](../docs/guide/operations/deposit-broker.md) in the
+operations guide says how to turn it on. Its store is not backed up: a person whose token is lost
+connects their account again.
 ## The LiteLLM gateway
 
 The [LiteLLM gateway](llm-gateway/README.md) puts one endpoint in front of the model providers,

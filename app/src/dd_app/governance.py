@@ -27,6 +27,7 @@ from dd_app.turn_body import AttachedDocument, Turn
 from dd_app.turn_lock import hold_turn
 from dd_harness import conversations, project_access
 from dd_harness.conductor import Conductor
+from dd_harness.deposit_broker import DepositBroker
 from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
 from dd_harness.listing import Readable
 from dd_harness.observe import RunObserver
@@ -51,6 +52,7 @@ from dd_sdk.contract.models import (
     Principal,
     new_invocation_id,
 )
+from dd_sdk.transports import Transport, discover
 
 CONVERSATION_ID = re.compile(UUID7_PATTERN)
 # What a turn says when the researcher attached an inventory and wrote nothing, so that the
@@ -107,6 +109,11 @@ class Governance:
     # The requirement sets a chosen repository resolves to (docs/specs/deposit.md), from
     # `DD_REPOSITORIES_DIR`. None where the app lets nobody choose, as in a test that needs none.
     requirements: Requirements | None = None
+    # Where the harness asks for a draft after a person approves a deposit, with their own token
+    # (docs/specs/deposit.md); None where every repository is deposited to by hand. And the
+    # transports installed, by name, which the profile's `deposit_transports` choose from.
+    deposit_broker: DepositBroker | None = None
+    transports: Mapping[str, Transport] = field(default_factory=dict)
     # Each conversation's turn lock: the run store's, shared by app processes over one store, or,
     # built without one (a test), this process's alone (docs/specs/app.md, "Turn locks").
     turn_locks: ConversationLocks = field(default_factory=LocalConversationLocks, repr=False)
@@ -141,7 +148,15 @@ class Governance:
         projects = project_storage(projects_dir(DEFAULT_PROJECTS_DIR), "DD_PROJECTS_DIR")
         requirements = load_requirements(repositories_dir(DEFAULT_REPOSITORIES_DIR))
         locks = conversation_locks(settings.runs_dir, "DD_RUNS_DIR")
-        return cls(conductor, authenticator, projects, requirements, turn_locks=locks)
+        return cls(
+            conductor,
+            authenticator,
+            projects,
+            requirements,
+            deposit_broker=settings.deposit_broker,
+            transports=discover(),
+            turn_locks=locks,
+        )
 
     def __post_init__(self) -> None:
         # The conductor takes each run's project from the same logs the app reads.

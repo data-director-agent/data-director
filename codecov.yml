@@ -35,6 +35,8 @@ flag_management:
       paths: [admin/]
     - name: broker
       paths: [broker/]
+    - name: deposit-broker
+      paths: [deposit-broker/]
     - name: agents
       paths: [agents/]
     - name: inventory

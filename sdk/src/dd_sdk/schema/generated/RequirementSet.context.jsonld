@@ -4,11 +4,18 @@
       "Any": {
          "@id": "https://w3id.org/linkml/Any"
       },
+      "DepositConnector": {
+         "@id": "https://w3id.org/data-director/DepositConnector"
+      },
       "RequirementField": {
          "@id": "https://w3id.org/data-director/RequirementField"
       },
       "RequirementSet": {
          "@id": "https://w3id.org/data-director/RequirementSet"
+      },
+      "base_url": {
+         "@id": "https://w3id.org/data-director/base_url",
+         "@type": "@id"
       },
       "conforms_to": {
          "@id": "http://purl.org/dc/terms/conformsTo",
@@ -17,12 +24,19 @@
       "dcat": "http://www.w3.org/ns/dcat#",
       "dcterms": "http://purl.org/dc/terms/",
       "dd": "https://w3id.org/data-director/",
+      "deposit": {
+         "@id": "https://w3id.org/data-director/deposit",
+         "@type": "@id"
+      },
       "fields": {
          "@id": "https://w3id.org/data-director/fields",
          "@type": "@id"
       },
       "form_label": {
          "@id": "https://w3id.org/data-director/form_label"
+      },
+      "format": {
+         "@id": "https://w3id.org/data-director/format"
       },
       "guidance": {
          "@id": "https://w3id.org/data-director/guidance",
@@ -67,6 +81,9 @@
       "requirement_set_id": {
          "@id": "https://w3id.org/data-director/requirement_set_id"
       },
+      "sandbox": {
+         "@id": "https://w3id.org/data-director/sandbox"
+      },
       "schema": "http://schema.org/",
       "schema_class": {
          "@id": "https://w3id.org/data-director/schema_class"
@@ -76,8 +93,14 @@
       },
       "shex": "http://www.w3.org/ns/shex#",
       "spdx": "http://spdx.org/rdf/terms#",
+      "target": {
+         "@id": "https://w3id.org/data-director/target"
+      },
       "title": {
          "@id": "http://purl.org/dc/terms/title"
+      },
+      "transport": {
+         "@id": "https://w3id.org/data-director/transport"
       },
       "unconfirmed": {
          "@id": "https://w3id.org/data-director/unconfirmed"

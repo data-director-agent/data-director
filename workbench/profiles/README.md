@@ -73,9 +73,13 @@ remote_tool_content:         # optional: the classes of project content an agent
   - inventory                # `remote` server may be given. Without this key every class but
   - documentation            # `researcher` may (docs/specs/policy-and-identity.md)
   - decisions
+
+deposit_transports:          # optional: the APIs a person may deposit a draft through, by the
+  - zenodo                   # transport an override's `deposit` block names. Without this key
+                             # every repository is deposited to by hand (docs/specs/deposit.md)
 ```
 
-Those twelve keys are the whole vocabulary. A profile with any other key is refused when the
+Those thirteen keys are the whole vocabulary. A profile with any other key is refused when the
 workbench starts, so a misspelt or out-of-date key cannot look as if it were in force.
 
 ## How it is applied

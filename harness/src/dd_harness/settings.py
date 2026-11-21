@@ -31,6 +31,8 @@ from urllib.request import url2pathname
 from dotenv import dotenv_values
 
 from dd_harness.conductor import Conductor
+from dd_harness.deposit_broker import DepositBroker
+from dd_harness.deposit_broker import from_env as deposit_broker_from_env
 from dd_harness.identity import (
     Authenticator,
     BearerTokenAuthenticator,
@@ -78,6 +80,14 @@ def load_env_file(path: Path, environ: MutableMapping[str, str] = os.environ) ->
         if value is not None:
             environ.setdefault(key, value)
     return True
+
+
+def deposit_broker(env: Mapping[str, str], grants: GrantMinter | None) -> DepositBroker | None:
+    """The deposit broker the harness asks for drafts (`dd_harness.deposit_broker.from_env`)."""
+    try:
+        return deposit_broker_from_env(env, grants, MODEL_GRANT_SETTINGS)
+    except (ConfigError, GrantKeyError, ValueError) as exc:
+        raise SettingsError(str(exc)) from None
 
 
 def grant_minter(env: Mapping[str, str]) -> GrantMinter | None:
@@ -379,6 +389,9 @@ class Settings:
     # The deployment's list of MCP servers, which the tool gateway calls (docs/specs/agents.md,
     # Tools). None: no gateway, and no agent is granted a tool.
     tools_config: Path | None = None
+    # Where the harness asks for a draft in a repository, with the person's own token, after they
+    # approve a deposit (docs/specs/deposit.md). None: every repository is deposited to by hand.
+    deposit_broker: DepositBroker | None = None
 
     def principal(self) -> Principal:
         """The configured principal. Raises `IdentityError` if it is unset or malformed."""
@@ -396,6 +409,7 @@ class Settings:
     ) -> Settings:
         """The settings the environment names. A `DD_*` variable wins over the caller's default
         for that path; a path with neither raises `SettingsError`."""
+        grants = grant_minter(os.environ)
         return cls(
             runs_dir=_storage("DD_RUNS_DIR", runs_dir),
             profile=_path("DD_PROFILE", profile),
@@ -408,7 +422,8 @@ class Settings:
             principal_kind=os.environ.get("DD_PRINCIPAL_KIND") or PrincipalKind.PERSON.value,
             oidc_issuer=os.environ.get("DD_OIDC_ISSUER") or None,
             oidc_client_id=os.environ.get("DD_OIDC_CLIENT_ID") or None,
-            model_grants=grant_minter(os.environ),
+            model_grants=grants,
+            deposit_broker=deposit_broker(os.environ, grants),
             tools_config=Path(os.environ["DD_TOOLS_CONFIG"])
             if os.environ.get("DD_TOOLS_CONFIG")
             else tools_config,

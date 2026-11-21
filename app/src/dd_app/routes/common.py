@@ -23,6 +23,7 @@ from dd_app.deployment_view import DeploymentView
 from dd_app.folder_scan import FolderRoots
 from dd_app.github_auth import TokenSource
 from dd_app.governance import Governance
+from dd_app.listing_limit import ListingBusyError, ListingLimiter
 from dd_app.problems import ProblemDetails as ProblemDetails
 from dd_app.problems import no_conversation as no_conversation
 from dd_app.problems import problem as problem
@@ -82,13 +83,39 @@ class Deps:
     privacy_notice_url: str | None = None
     # The folders on this machine a local install may describe; None where it describes none.
     folder_roots: FolderRoots | None = None
+    # Where the browser reaches the deposit broker, when a person may connect their own
+    # repository account (docs/specs/deposit.md); None where they may not.
+    deposit_broker_path: str | None = None
     examples_dir: Path = EXAMPLES_DIR
+    # The worker threads the listing routes may hold, so that turns always have some (#1258).
+    listing: ListingLimiter = field(default_factory=ListingLimiter)
     started: float = field(default_factory=time.monotonic)
 
     @property
     def model_accounts(self) -> bool:
         """Whether a person may add their own model account here."""
         return self.model_account_providers is not None
+
+    @property
+    def repository_accounts(self) -> bool:
+        """Whether a person may connect their own repository account here."""
+        return self.deposit_broker_path is not None
+
+
+async def listed[T](deps: Deps, work: Callable[[], T], title: str) -> T | Response:
+    """What a listing route's `work` returns, run in the listing threads; when too many listings
+    are waiting, a `503` with `Retry-After` instead (#1258)."""
+    try:
+        return await deps.listing.run(work)
+    except ListingBusyError as exc:
+        busy = problem(
+            503,
+            "listing-busy",
+            title,
+            "Too many listings are running; try again shortly.",
+        )
+        busy.headers["Retry-After"] = str(exc.retry_after)
+        return busy
 
 
 def caused_by(request: Request) -> str:

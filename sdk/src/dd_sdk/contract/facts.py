@@ -168,6 +168,22 @@ class ProjectFact(Frozen):
         return self
 
 
+class DocumentKind(StrEnum):
+    METADATA_RECORD = "metadata_record"
+    README = "readme"
+    DATA_DICTIONARY = "data_dictionary"
+    DMP = "dmp"
+    OTHER = "other"
+
+
+class VersionState(StrEnum):
+    """The state of one version of a project document (docs/specs/projects.md)."""
+
+    PROPOSED = "proposed"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
 class InventoryFormat(Frozen):
     """The files of one media type in a project's inventory, without their paths."""
 
@@ -185,8 +201,22 @@ class InventorySummary(Frozen):
     inventory_tool_version: str
     inventory_made_at: datetime
     inventory_limitations: list[str] = Field(default_factory=list)
+    # When it was added to the project, and how many files the inventory it replaced listed.
+    inventory_added_at: datetime | None = None
+    inventory_revised_from_file_count: int | None = None
     inventory_formats: list[InventoryFormat] = Field(default_factory=list)
     inventory_table_count: int | None = None
+
+
+class DraftSummary(Frozen):
+    """The latest version of one document drafted in a project, without its text
+    (docs/specs/projects.md)."""
+
+    document_kind: DocumentKind
+    version: int
+    version_state: VersionState
+    # Absent when the project holds no inventory.
+    drafted_since_inventory: bool | None = None
 
 
 class ChosenRepository(Frozen):

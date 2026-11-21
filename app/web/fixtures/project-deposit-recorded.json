@@ -1,0 +1,12 @@
+{
+  "approved_at": "2026-01-01T00:00:00Z",
+  "approved_by": "Josiah Carberry",
+  "deposit_id": "1001",
+  "digest": "0000000000000000000000000000000000000000000000000000000000000001",
+  "draft_url": "https://sandbox.zenodo.org/deposit/1001",
+  "repository_name": "Zenodo",
+  "sandbox": true,
+  "state": "recorded",
+  "transport": "zenodo",
+  "unplaced": []
+}

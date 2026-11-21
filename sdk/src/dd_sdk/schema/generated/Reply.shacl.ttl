@@ -141,6 +141,12 @@ dd:Question a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 5 ;
             sh:path dd:question_multiple ],
+        [ sh:description "How the question is answered." ;
+            sh:in ( "choice" "short_text" "long_text" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 2 ;
+            sh:path dd:question_kind ],
         [ sh:datatype xsd:string ;
             sh:description "The question's identifier within its reply, which an answer names: a lower-case letter, then up to 39 lower-case letters, digits and hyphens." ;
             sh:maxCount 1 ;
@@ -148,12 +154,6 @@ dd:Question a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path dd:question_key ;
-            sh:pattern "^[a-z][a-z0-9-]{0,39}$" ],
-        [ sh:description "How the question is answered." ;
-            sh:in ( "choice" "short_text" "long_text" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 2 ;
-            sh:path dd:question_kind ] ;
+            sh:pattern "^[a-z][a-z0-9-]{0,39}$" ] ;
     sh:targetClass dd:Question .
 

@@ -19,10 +19,14 @@ from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, SerializeAsA
 from dd_sdk.contract import inventory
 from dd_sdk.contract.base import SHA256_PATTERN as SHA256_PATTERN
 from dd_sdk.contract.base import Frozen as Frozen
+from dd_sdk.contract.deposit import DepositConnector as DepositConnector
+from dd_sdk.contract.deposit import Obligation as Obligation
 from dd_sdk.contract.facts import Affiliation as Affiliation
 from dd_sdk.contract.facts import AffiliationKind as AffiliationKind
 from dd_sdk.contract.facts import ChosenRepository as ChosenRepository
 from dd_sdk.contract.facts import DocumentationSummary as DocumentationSummary
+from dd_sdk.contract.facts import DocumentKind as DocumentKind
+from dd_sdk.contract.facts import DraftSummary as DraftSummary
 from dd_sdk.contract.facts import ExternalIdentifier as ExternalIdentifier
 from dd_sdk.contract.facts import InventorySummary as InventorySummary
 from dd_sdk.contract.facts import ProjectDocument as ProjectDocument
@@ -31,6 +35,7 @@ from dd_sdk.contract.facts import ResearcherFunding as ResearcherFunding
 from dd_sdk.contract.facts import ResearcherLink as ResearcherLink
 from dd_sdk.contract.facts import ResearcherRecord as ResearcherRecord
 from dd_sdk.contract.facts import ResearcherWork as ResearcherWork
+from dd_sdk.contract.facts import VersionState as VersionState
 from dd_sdk.contract.retrieval import TOOL_SOURCE_PREFIX as TOOL_SOURCE_PREFIX
 from dd_sdk.contract.retrieval import EvidenceItem as EvidenceItem
 from dd_sdk.contract.retrieval import ToolRetrieval as ToolRetrieval
@@ -129,22 +134,6 @@ class Derivation(StrEnum):
     REGISTRY = "registry"
 
 
-class DocumentKind(StrEnum):
-    METADATA_RECORD = "metadata_record"
-    README = "readme"
-    DATA_DICTIONARY = "data_dictionary"
-    DMP = "dmp"
-    OTHER = "other"
-
-
-class VersionState(StrEnum):
-    """The state of one version of a project document (docs/specs/projects.md)."""
-
-    PROPOSED = "proposed"
-    APPROVED = "approved"
-    REJECTED = "rejected"
-
-
 class EnergyMethod(StrEnum):
     NOT_MEASURED = "not_measured"
     ESTIMATED = "estimated"
@@ -187,11 +176,6 @@ class TurnRole(StrEnum):
     AGENT = "agent"
 
 
-class Obligation(StrEnum):
-    REQUIRED = "required"
-    RECOMMENDED = "recommended"
-
-
 # --- Requirement sets -------------------------------------------------------------------------
 # What a deposit must or should have (docs/specs/deposit.md): the deployment's configuration, which
 # the harness loads and merges for the repository a researcher chose. Not an input or a payload of
@@ -219,6 +203,7 @@ class _Requirements(Frozen):
     licences: list[str] | None = None
     guidance: list[str] = Field(default_factory=list)
     unconfirmed: list[str] = Field(default_factory=list)
+    deposit: DepositConnector | None = None
 
 
 class RequirementSet(_Requirements):
@@ -302,8 +287,8 @@ class Message(Frozen):
     """One conversational turn and the conversation so far (docs/specs/orchestration.md). The
     conductor fills `project_inventory`, `project_entry`, `project_progress`, `project_title`,
     `project_title_by_researcher`, `project_entry_by_researcher`, `project_documentation`,
-    `project_researchers`, `project_decisions` and `project_repository` from the conversation's
-    project; a caller never does."""
+    `project_researchers`, `project_decisions`, `project_repository` and `project_drafts` from
+    the conversation's project; a caller never does."""
 
     schema_class: Literal["Message"] = "Message"
     message_text: str
@@ -319,6 +304,7 @@ class Message(Frozen):
     project_researchers: list[ResearcherRecord] | None = None
     project_decisions: list[ProjectFact] | None = None
     project_repository: ChosenRepository | None = None
+    project_drafts: list[DraftSummary] | None = None
 
 
 class OpenInput(Frozen):
@@ -540,9 +526,9 @@ class Document(Grounded):
     conforms_to: str | None = None
     document_text: str
     document_derivation: Derivation
+    document_stage: Literal["questions", "draft"] | None = None
     revises: DocumentVersionRef | None = None
-    # One question for each gap the version leaves (docs/specs/drafting.md).
-    document_questions: list[DocumentQuestion] = Field(default_factory=list)
+    document_questions: list[DocumentQuestion] = Field(default_factory=list)  # drafting.md
 
     @model_validator(mode="after")
     def _question_ids_are_unique(self) -> Document:

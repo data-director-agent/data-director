@@ -15,6 +15,8 @@ const API = process.env.DD_APP_URL ?? "http://127.0.0.1:7860";
 // The model broker's enrolment interface, at /broker/enrolment on the page's own origin as nginx
 // serves it (docs/specs/model-accounts.md, Enrolment). Only that path is passed on.
 const BROKER = process.env.DD_BROKER_URL ?? "http://127.0.0.1:8300";
+// The deposit broker's account interface, at /deposit-broker/connect likewise (docs/specs/deposit.md).
+const DEPOSIT_BROKER = process.env.DD_DEPOSIT_BROKER_URL ?? "http://127.0.0.1:8310";
 
 // The browser scanner (`@data-director/inventory`, README.md, Browser scanner). Its bundle is built
 // apart (`npm run bundle` in inventory/browser) and served, when built, at /inventory-bundle/ by
@@ -69,6 +71,10 @@ export default defineConfig({
       "/broker/enrolment/": {
         target: BROKER,
         rewrite: (path: string) => path.replace(/^\/broker/, ""),
+      },
+      "/deposit-broker/connect/": {
+        target: DEPOSIT_BROKER,
+        rewrite: (path: string) => path.replace(/^\/deposit-broker/, ""),
       },
     },
     fs: { allow: [searchForWorkspaceRoot(process.cwd()), INVENTORY, AGENT_VIEW] },

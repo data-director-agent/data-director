@@ -143,7 +143,9 @@ card offers, such as whether it reads a source live; invariant 22) and `model_fo
 prices and per-token energy factors the conductor estimates each run's model footprint from, with
 their source and date; [Disclosure](disclosure.md), invariant 8) and `attached_documents`
 (`allowed`, the default, or `refused`: whether people may attach documents to a project, and
-whether any agent is given one a project already holds; [Projects](projects.md), Documentation). A setting is the agent's own
+whether any agent is given one a project already holds; [Projects](projects.md), Documentation) and
+`deposit_transports` (the transports a person may deposit a draft through, such as `zenodo`;
+without it every repository is deposited to by hand; [Deposit](deposit.md)). A setting is the agent's own
 option, chosen by the steward: the conductor checks it against the card and sends it, and the agent
 applies it. It is not a way to grant an agent anything the other keys withhold. A change to which orchestrator is
 named raises the profile's version. Approved repositories (R1), persistent identifier systems

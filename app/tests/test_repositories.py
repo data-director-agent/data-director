@@ -90,8 +90,8 @@ def test_the_other_nerc_eds_centres_build_on_datacite(
 
 def test_any_other_repository_is_checked_against_its_standard_with_a_warning() -> None:
     resolved = load_requirements(REPOSITORIES).resolve(
-        "r3d100010468", "Zenodo", ["DataCite Metadata Schema", "Dublin Core"]
+        "r3d100000001", "Elsewhere", ["DataCite Metadata Schema", "Dublin Core"]
     )
     assert [s.ref.split("@")[0] for s in resolved.sets] == ["datacite-4"]
     (warning,) = resolved.warnings
-    assert "no override for Zenodo" in warning
+    assert "no override for Elsewhere" in warning

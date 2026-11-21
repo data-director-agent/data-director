@@ -82,11 +82,11 @@
   ],
   "profile": {
     "description": "Reference profile for the Data Director app; enables every in-tree agent, requires approval for writes.",
-    "digest": "108dd28b01741b8cd0a10531f6fb758df13d08f7483afc489352921c558a195b",
+    "digest": "f0270572f605f3b4f2161409a8b4609f12102e618a50c4669ac93a81b50ec603",
     "id": "data-director-app",
     "orchestrator": "orchestrator.stub",
-    "ref": "profile:data-director-app@v9",
-    "version": 9
+    "ref": "profile:data-director-app@v10",
+    "version": 10
   },
   "steps": [
     {

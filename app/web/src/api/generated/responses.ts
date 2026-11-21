@@ -35,7 +35,11 @@ export type AppResponse =
   | DeletedConversation
   | DeletedProject
   | DeployedProfile
+  | DepositConnection
+  | DepositRefusedProblem
   | DepositReview
+  | DepositShown
+  | Deposits
   | Derivation
   | DisclosedDocument
   | DisclosedDraft
@@ -86,6 +90,7 @@ export type AppResponse =
   | RecordedAnswer
   | RepositoryMatch
   | RepositorySearch
+  | RepositoryTicket
   | ReviewItem
   | ReviewRules
   | RunResult
@@ -577,6 +582,79 @@ export interface DocumentCounts {
   rejected: number;
 }
 /**
+ * How the project's repository is deposited to: through its API here, when `available`, or
+ * by hand, and why not through the API (`unavailable`, a reason code).
+ */
+export interface DepositConnection {
+  available: boolean;
+  base_url: string | null;
+  repository_name: string;
+  /**
+   * Whether the API is the platform's test installation, whose items and DOIs are not real.
+   */
+  sandbox: boolean;
+  /**
+   * The transport its override names, such as zenodo; null when it names none.
+   */
+  transport: string | null;
+  unavailable: string | null;
+}
+/**
+ * Nothing was approved or sent: `refusal` says why, as a code; `draft_url` names the
+ * earlier draft when the package was already deposited.
+ */
+export interface DepositRefusedProblem {
+  detail: string;
+  draft_url?: string;
+  refusal: string;
+  status: number;
+  title: string;
+  /**
+   * The problem's kind: a URI under the deployment's problem base, ending in its slug.
+   */
+  type: string;
+}
+/**
+ * One deposit a person approved, and its outcome.
+ */
+export interface DepositShown {
+  approved_at: string;
+  approved_by: string | null;
+  deposit_id?: string;
+  /**
+   * The RO-Crate package deposited.
+   */
+  digest: string;
+  doi?: string;
+  /**
+   * Where the draft is in the repository, once it was made.
+   */
+  draft_url?: string;
+  /**
+   * Why it failed, as a reason code.
+   */
+  reason?: string;
+  repository_name: string;
+  sandbox: boolean;
+  state: "pending" | "recorded" | "failed";
+  status?: number;
+  transport: string;
+  /**
+   * The metadata record's properties the repository's form had no place for.
+   */
+  unplaced?: string[];
+}
+/**
+ * Whether the project can be deposited to through an API here, and each deposit approved.
+ */
+export interface Deposits {
+  /**
+   * Null when no repository has been chosen.
+   */
+  connection: DepositConnection | null;
+  deposits: DepositShown[];
+}
+/**
  * How an agent derives one field of its payload.
  */
 export interface Derivation {
@@ -706,6 +784,11 @@ export interface DocumentVersion {
    */
   questions: DocumentQuestion[];
   revises: DocumentVersionRef | null;
+  /**
+   * `questions` for a note that asks what the drafter needs before it writes the document,
+   * which cannot be decided on; `draft` for the document itself (docs/specs/drafting.md).
+   */
+  stage: "questions" | "draft";
   state: "proposed" | "approved" | "rejected";
   text: string;
   version: number;
@@ -1276,6 +1359,11 @@ export interface RawSession {
   model_accounts: boolean;
   principal: RawSessionPrincipal | null;
   /**
+   * Whether a person may connect their own repository account, to deposit a draft through
+   * the repository's API (docs/specs/deposit.md).
+   */
+  repository_accounts: boolean;
+  /**
    * False on a development server, where every run acts for the operator.
    */
   signs_in: boolean;
@@ -1314,6 +1402,15 @@ export interface RepositorySearch {
    */
   snapshot_ref: string;
   suggested: boolean;
+}
+/**
+ * A single-use ticket for the deposit broker, and where the browser takes it to connect,
+ * read or disconnect the person's own repository account (`POST /api/repository-account/ticket`).
+ */
+export interface RepositoryTicket {
+  deposit_broker_url: string;
+  expires_at: string;
+  ticket: string;
 }
 /**
  * A run that has ended, as `POST /api/runs` or a conversation's turn answers it.

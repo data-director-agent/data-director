@@ -40,6 +40,10 @@ dependencies = [
 [project.scripts]
 dd-harness = "dd_harness.server:main"
 
+# The transports that send a deposit through a platform's API (docs/specs/deposit.md).
+[project.entry-points."dd.transports"]
+zenodo = "dd_harness.transports.zenodo:TRANSPORT"
+
 [project.optional-dependencies]
 # `dd-harness serve` (#55). An extra, so a way in that serves itself (the workbench) or embeds
 # the conductor as a library (the app) does not need it.

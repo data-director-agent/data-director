@@ -1,0 +1,11 @@
+{
+  "connection": {
+    "available": true,
+    "base_url": "https://sandbox.zenodo.org/api",
+    "repository_name": "Zenodo",
+    "sandbox": true,
+    "transport": "zenodo",
+    "unavailable": null
+  },
+  "deposits": []
+}

@@ -52,15 +52,17 @@ grep -rhoE '^Exec[A-Za-z]*=[-@+!:]*/[^ ]+' "$unit_dir" | sed -E 's/^[^=]*=[-@+!:
     chmod +x "$root$exe"
   done
 
-# The service users, so that User= resolves: the deployment's, and the model broker's own.
+# The service users, so that User= resolves: the deployment's, and each broker's own.
 mkdir -p "$root/etc"
 {
   echo "datadirector:x:900:900::/opt/data-director:/usr/sbin/nologin"
   echo "data-director-broker:x:901:901::/var/lib/data-director-model-broker:/usr/sbin/nologin"
+  echo "data-director-deposit-broker:x:902:902::/var/lib/data-director-deposit-broker:/usr/sbin/nologin"
 } >"$root/etc/passwd"
 {
   echo "datadirector:x:900:"
   echo "data-director-broker:x:901:"
+  echo "data-director-deposit-broker:x:902:"
 } >"$root/etc/group"
 
 # Plain units, then the template through an instance: verify does not instantiate on its own.
