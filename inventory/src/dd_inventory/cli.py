@@ -13,8 +13,10 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 from dd_inventory.scan import make_inventory, make_inventory_of, tool_version
+from dd_inventory.summaries import ROUNDING_BASE, THRESHOLD, SummaryRules
 
 EXIT_OK, EXIT_USAGE = 0, 2
 
@@ -24,7 +26,8 @@ def main(argv: list[str] | None = None) -> int:
         prog="dd-inventory",
         description=(
             "Describe the files under ROOT (paths, sizes, SHA-256 digests, PRONOM formats and "
-            "table fields) as a Data Director FileInventory. No file content is written."
+            "table fields, with summary values that pass disclosure control) as a Data "
+            "Director FileInventory. No file content is written."
         ),
     )
     parser.add_argument(
@@ -55,6 +58,29 @@ def main(argv: list[str] | None = None) -> int:
             "do not look for possible personal data; the inventory then says that no detector ran"
         ),
     )
+    parser.add_argument(
+        "--no-summaries",
+        dest="summarise",
+        action="store_false",
+        help="do not write summary values (range, mean, counts) of table fields",
+    )
+    parser.add_argument(
+        "--threshold",
+        type=int,
+        default=THRESHOLD,
+        metavar="K",
+        help=(
+            f"the fewest rows that must share a summary value for it to be written; at least "
+            f"{THRESHOLD}, the default"
+        ),
+    )
+    parser.add_argument(
+        "--rounding",
+        type=int,
+        default=ROUNDING_BASE,
+        metavar="BASE",
+        help=f"round summary counts to this base; at least {ROUNDING_BASE}, the default",
+    )
     parser.add_argument("--version", action="version", version=f"%(prog)s {tool_version()}")
     args = parser.parse_args(argv)
 
@@ -68,7 +94,12 @@ def main(argv: list[str] | None = None) -> int:
             return usage(f"{root} is not a folder")
     if args.names is not None and len(args.names) != len(args.roots):
         return usage("give --as once for each folder, or not at all")
-    detector = {} if args.detect else {"detector": None}
+    try:
+        rules = SummaryRules(threshold=args.threshold, rounding_base=args.rounding)
+    except ValueError as exc:
+        return usage(str(exc))
+    detector: dict[str, Any] = {} if args.detect else {"detector": None}
+    detector["summaries"] = rules if args.summarise else None
     if len(args.roots) == 1 and args.names is None:
         inventory = make_inventory(args.roots[0], **detector)
     else:

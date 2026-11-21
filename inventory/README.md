@@ -14,6 +14,8 @@ and writes a `FileInventory`, a JSON document of the core contract, that gives f
   Table Schema inferred from a sample of rows, reading empty cells and `NA`, `N/A`, `NaN` and
   `null` as missing values, and saying in its limitations which markers it met and which fields
   had no value to type;
+- for each field of such a table, summary values that passed statistical disclosure control:
+  rows read, empty cells, a range, a mean, categories and missing-value codes (below);
 - where it found possible personal data, and never what (below).
 
 The inventory holds facts about the files and never their content. Research data are not
@@ -62,6 +64,22 @@ says no detector ran. Presidio installs spaCy, which the command does not use; t
 $ uv run dd-inventory path/to/dataset --no-detect -o inventory.json
 ```
 
+Summary values let an agent describe a table's fields without seeing the data. They are made on
+the researcher's computer, from up to 100,000 rows of each table, and written only if they pass
+statistical disclosure control with [ACRO](https://github.com/AI-SDC/ACRO), the SACRO project's
+output checker (MIT) ([Personal data and disclosure control](https://github.com/data-director-agent/data-director/blob/main/docs/specs/personal-data.md)):
+every count is held by at least *k* rows (10 by default) and rounded to base 5; a range is the
+*k*-th smallest and *k*-th largest values, never the minimum and maximum; a mean is left out if
+one or two values dominate it; and a column where possible personal data were found gets no
+categories. A value that fails is left out, never altered, and each field's
+`field_disclosure_check` says how many. `--threshold` and `--rounding` tighten the rules and
+refuse lower values; `--no-summaries` leaves them out. Summaries do not run in the browser, where
+ACRO would add about 42 MB and 18 s before a scan, and the inventory says so.
+
+```console
+$ uv run dd-inventory path/to/dataset --threshold 20 -o inventory.json
+```
+
 `evals/compare_detectors.py` compares detectors on the synthetic evaluation set in
 `tests/data/disclosure/evaluation/`: recall by kind, false positives on ordinary metadata, CPU
 time and what each adds. Its result, and why the default runs pattern recognisers only, is in
@@ -96,5 +114,6 @@ what it writes against the contract's `FileInventory` schema.
 | `scan.py` | Walks the folder, digests each file and assembles the inventory. |
 | `identify.py` | The one module that calls fido, with the extension fallback. |
 | `tables.py` | Infers a table's fields with Frictionless, keeping the sampled values for the check. |
+| `summaries.py` | Computes table fields' summary values and checks them with ACRO, the one module that imports it. |
 | `personal.py` | Looks for possible personal data with Presidio and the keyword table (`keywords.json`, a copy of advisor.ethics's). |
 | `cli.py` | The `dd-inventory` command. |

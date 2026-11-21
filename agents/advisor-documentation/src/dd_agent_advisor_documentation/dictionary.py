@@ -18,6 +18,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
 
+from dd_agent_advisor_documentation.values import missing_codes
 from dd_sdk.contract.models import (
     CurrentVersion,
     DocumentQuestion,
@@ -41,7 +42,7 @@ DICTIONARY_COLUMNS = KEY_COLUMNS + tuple(
 class Source(StrEnum):
     """Where a value in the data dictionary came from, so that a person can check it."""
 
-    INFERRED = "inferred"  # read from the data by dd-inventory: a type or a format
+    INFERRED = "inferred"  # read from the data by dd-inventory: a type, a format or a code
     SUPPLIED = "supplied"  # given by the researcher: in the inventory or an earlier version
     UNKNOWN = "unknown"  # no one has said yet: the cell is empty
 
@@ -52,6 +53,7 @@ INVENTORY_SOURCES = {
     "type": Source.INFERRED,
     "format": Source.INFERRED,
     "description": Source.SUPPLIED,
+    "missing_values": Source.INFERRED,  # codes the inventory's summary found (values.py)
 }
 
 # What each data dictionary column asks of the researcher when it is unknown, of the field
@@ -130,6 +132,7 @@ def dictionary(
                 "type": c.field_type,
                 "format": c.field_format,
                 "description": c.field_description,
+                "missing_values": missing_codes(c),
             }
             before = earlier.get((f.file_path, c.name), {})
             row = [f.file_path, c.name]

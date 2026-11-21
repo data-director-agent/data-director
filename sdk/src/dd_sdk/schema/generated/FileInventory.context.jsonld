@@ -1,6 +1,15 @@
 {
    "@context": {
       "@vocab": "https://w3id.org/data-director/",
+      "CategoryCount": {
+         "@id": "https://w3id.org/data-director/CategoryCount"
+      },
+      "DisclosureCheck": {
+         "@id": "https://w3id.org/data-director/DisclosureCheck"
+      },
+      "FieldSummary": {
+         "@id": "https://w3id.org/data-director/FieldSummary"
+      },
       "FileInventory": {
          "@id": "https://w3id.org/data-director/FileInventory"
       },
@@ -10,11 +19,38 @@
       "InventoryPart": {
          "@id": "https://w3id.org/data-director/InventoryPart"
       },
+      "MissingCodeCount": {
+         "@id": "https://w3id.org/data-director/MissingCodeCount"
+      },
       "PersonalDataFinding": {
          "@id": "https://w3id.org/data-director/PersonalDataFinding"
       },
       "TableField": {
          "@id": "https://w3id.org/data-director/TableField"
+      },
+      "category_count": {
+         "@id": "https://w3id.org/data-director/category_count"
+      },
+      "category_value": {
+         "@id": "https://w3id.org/data-director/category_value"
+      },
+      "check_rounding_base": {
+         "@id": "https://w3id.org/data-director/check_rounding_base"
+      },
+      "check_rules": {
+         "@id": "https://w3id.org/data-director/check_rules"
+      },
+      "check_suppressed": {
+         "@id": "https://w3id.org/data-director/check_suppressed"
+      },
+      "check_threshold": {
+         "@id": "https://w3id.org/data-director/check_threshold"
+      },
+      "check_tool": {
+         "@id": "https://w3id.org/data-director/check_tool"
+      },
+      "check_tool_version": {
+         "@id": "https://w3id.org/data-director/check_tool_version"
       },
       "dcat": "http://www.w3.org/ns/dcat#",
       "dcterms": "http://purl.org/dc/terms/",
@@ -22,8 +58,16 @@
       "field_description": {
          "@id": "http://purl.org/dc/terms/description"
       },
+      "field_disclosure_check": {
+         "@id": "https://w3id.org/data-director/field_disclosure_check",
+         "@type": "@id"
+      },
       "field_format": {
          "@id": "https://w3id.org/data-director/field_format"
+      },
+      "field_summary": {
+         "@id": "https://w3id.org/data-director/field_summary",
+         "@type": "@id"
       },
       "field_type": {
          "@id": "https://w3id.org/data-director/field_type"
@@ -109,6 +153,12 @@
          "@id": "https://w3id.org/data-director/inventory_tool_version"
       },
       "linkml": "https://w3id.org/linkml/",
+      "missing_code": {
+         "@id": "https://w3id.org/data-director/missing_code"
+      },
+      "missing_code_count": {
+         "@id": "https://w3id.org/data-director/missing_code_count"
+      },
       "name": {
          "@id": "https://w3id.org/data-director/name"
       },
@@ -142,6 +192,30 @@
       },
       "shex": "http://www.w3.org/ns/shex#",
       "spdx": "http://spdx.org/rdf/terms#",
+      "summary_categories": {
+         "@id": "https://w3id.org/data-director/summary_categories",
+         "@type": "@id"
+      },
+      "summary_mean": {
+         "@id": "https://w3id.org/data-director/summary_mean",
+         "@type": "http://www.w3.org/2001/XMLSchema#float"
+      },
+      "summary_missing_codes": {
+         "@id": "https://w3id.org/data-director/summary_missing_codes",
+         "@type": "@id"
+      },
+      "summary_null_count": {
+         "@id": "https://w3id.org/data-director/summary_null_count"
+      },
+      "summary_range_high": {
+         "@id": "https://w3id.org/data-director/summary_range_high"
+      },
+      "summary_range_low": {
+         "@id": "https://w3id.org/data-director/summary_range_low"
+      },
+      "summary_rows_read": {
+         "@id": "https://w3id.org/data-director/summary_rows_read"
+      },
       "xsd": "http://www.w3.org/2001/XMLSchema#"
    }
 }

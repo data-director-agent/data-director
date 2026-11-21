@@ -3,7 +3,7 @@
 // sample, when chosen, is only the form's starting data. Inspect and Chat import it.
 import React from "https://esm.sh/react@19.3.1";
 import { createRoot } from "https://esm.sh/react-dom@19.3.1/client";
-import Form from "https://esm.sh/@rjsf/core@6.8.0?deps=react@19.3.1,react-dom@19.3.1";
+import Form, { getDefaultRegistry } from "https://esm.sh/@rjsf/core@6.8.0?deps=react@19.3.1,react-dom@19.3.1";
 import validator from "https://esm.sh/@rjsf/validator-ajv8@6.8.0?deps=react@19.3.1,react-dom@19.3.1";
 
 const h = React.createElement;
@@ -19,6 +19,18 @@ const templates = {
     MoveUpButton: textButton("Move up"), MoveDownButton: textButton("Move down"), ClearButton: textButton("Clear"),
   },
 };
+
+// RJSF renders the choice of an anyOf or oneOf, such as an optional nested class or null, as a
+// <select> with no label of its own; this one names it after its field, for assistive technology.
+const DefaultSelect = getDefaultRegistry().widgets.SelectWidget;
+function SelectWidget(props) {
+  const choice = /__(any|one)of_select$/.test(props.id);
+  if (!choice) return h(DefaultSelect, props);
+  return h(React.Fragment, null,
+    h("label", { htmlFor: props.id, className: "visually-hidden" }, `${props.label || "Value"}: kind of value`),
+    h(DefaultSelect, props));
+}
+const widgets = { SelectWidget };
 
 // The class designator is fixed by the class the form was built for, so it is not a field.
 const UISCHEMA = { schema_class: { "ui:widget": "hidden" }, "ui:globalOptions": { orderable: false } };
@@ -38,7 +50,7 @@ export function inputForm(node) {
       const s = cls && schema ? schema : null;
       data = s ? { ...(formData || {}), schema_class: cls } : null;
       props = s && {
-        key: ++generation, schema: s, uiSchema: UISCHEMA, validator, templates,
+        key: ++generation, schema: s, uiSchema: UISCHEMA, validator, templates, widgets,
         // Field ids are in_<slot>; the prefix must not collide with an id on either page (Inspect has #input).
         idPrefix: "in", tagName: "div", noHtml5Validate: true, showErrorList: false, liveValidate: false,
         onChange: (e) => { data = e.formData; },
