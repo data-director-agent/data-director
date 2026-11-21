@@ -13,6 +13,7 @@ from ddtool.common import (
     Agent,
     DevError,
     compare_profile,
+    missing_optional_keys,
     model_on_by_default,
 )
 from ddtool.deployment import Place, plan
@@ -44,6 +45,13 @@ class SettingsChecks(Checks):
                 own = {}
             if on and (problem := self._model_problem(agent.name, own)):
                 report.problem(*problem)
+            if on:
+                loaded = loaded_secrets(system, vm, agent.name)
+                for key, without in missing_optional_keys(agent.name, own, loaded):
+                    report.note(
+                        f"{agent.name} has no {key}, so {without}; "
+                        f"set it with `{self.tool} secret set {agent.name} {file_label(key)}`"
+                    )
         if system.is_root():
             for directory in sorted(p for p in vm.credentials.glob("*") if p.is_dir()):
                 # The app's, the model broker's and the LiteLLM gateway's secrets are not agents'.

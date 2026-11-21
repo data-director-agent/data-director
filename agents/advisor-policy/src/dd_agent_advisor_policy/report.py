@@ -13,6 +13,7 @@ from dd_agent_advisor_policy.classes import (
     Actor,
     ActorRole,
     MatchedPolicy,
+    NotSearched,
     PolicyChecks,
     PolicyConflict,
     PolicyRegistry,
@@ -47,8 +48,10 @@ LIMITATIONS = (
     "Where a model reads a policy's own text, each obligation kept quotes that text word for word, "
     "and the code has found the quote in it. The kind, strength and value are the model's reading "
     "of the quote, and a person confirms each against the policy.",
-    "Open Policy Finder is not searched without an API key. A registry that cannot be asked is "
-    "named in the statement.",
+    "Open Policy Finder is searched only when the server has an API key for it. A registry that "
+    "is not configured or cannot be asked is named in the statement and in not_searched, and a "
+    "run that found no policy because of it says that it could not search, not that there is "
+    "none.",
     "It does not decide which of differing policies applies, nor whether an actor meets a policy's "
     "requirements.",
     "It is an alpha with no evaluation set yet: how many policies it misses is not measured.",
@@ -84,23 +87,45 @@ def _registry(record: SourceRecord) -> PolicyRegistry:
     )
 
 
-def opf_note(found: FirstSearch) -> str:
-    """Why Open Policy Finder was not searched, and which registries could not be asked."""
-    note = ""
-    if found.sources.opf is None and any(
+# Why Open Policy Finder was not asked when the server has no key for it.
+OPF_NOT_CONFIGURED = (
+    "Open Policy Finder is not configured on this server (no OPEN_POLICY_FINDER_API_KEY), so "
+    "funders' and journals' open access policies could not be checked"
+)
+
+
+def opf_not_configured(found: FirstSearch) -> bool:
+    """Whether a funder or journal was asked about but Open Policy Finder has no key, so their
+    policies could not be checked there."""
+    return found.sources.opf is None and any(
         a.role in (ActorRole.FUNDER, ActorRole.JOURNAL) for a in found.actors
-    ):
-        note = (
-            " Open Policy Finder was not searched: no OPEN_POLICY_FINDER_API_KEY is set, so "
-            "funders' and journals' open access policies were not checked."
-        )
-    if found.opf.problems:
-        note += (
-            " Not every registry could be asked: "
-            + "; ".join(dict.fromkeys(found.opf.problems))
-            + "."
-        )
-    return note
+    )
+
+
+def not_searched(found: FirstSearch) -> list[NotSearched]:
+    """The registries this run could not ask because they are not configured."""
+    if not opf_not_configured(found):
+        return []
+    return [NotSearched(registry=PolicyRegistry.OPEN_POLICY_FINDER, reason=OPF_NOT_CONFIGURED)]
+
+
+def unconfigured_note(found: FirstSearch) -> str:
+    """The statement's opening when a registry could not be asked because it is not configured:
+    what was found is not all there is."""
+    if not opf_not_configured(found):
+        return ""
+    return (
+        OPF_NOT_CONFIGURED + ". This is not the same as finding none; ask the service's operator. "
+    )
+
+
+def opf_note(found: FirstSearch) -> str:
+    """Which registries could not be asked when this run tried."""
+    if not found.opf.problems:
+        return ""
+    return (
+        " Not every registry could be asked: " + "; ".join(dict.fromkeys(found.opf.problems)) + "."
+    )
 
 
 def model_use(
@@ -133,10 +158,14 @@ def model_use(
 
 
 def no_policy_found(found: FirstSearch, texts: TextReadings) -> AgentResult:
-    """No registry had a record of any actor, and no policy text was read."""
+    """No registry had a record of any actor, and no policy text was read. When a registry that
+    would have been asked is not configured, the run could not search, which is not the same as
+    finding nothing."""
+    unconfigured = opf_not_configured(found)
     return abstain(
-        ReasonCode.NO_CANDIDATES_RETRIEVED,
-        f"No registry ({'; '.join(found.labels())}) has a policy record for "
+        ReasonCode.REGISTRY_UNAVAILABLE if unconfigured else ReasonCode.NO_CANDIDATES_RETRIEVED,
+        unconfigured_note(found)
+        + f"No registry ({'; '.join(found.labels())}) has a policy record for "
         f"{', '.join(actor.name for actor, _ in found.searched)}. Many institutions have none; "
         "check the policies directly, including whether they require a particular repository."
         + texts.note
@@ -233,6 +262,18 @@ class Report:
 
     def result(self) -> AgentResult:
         if not self.advised:
+            if opf_not_configured(self.found) and not (self.unresolved or self.texts.readings):
+                # Nothing matched, nothing to choose between and no text read, and a registry that
+                # would have been asked is not configured: the run could not search, which is not
+                # "found nothing" (#1319).
+                return AgentResult(
+                    outcome=Outcome(
+                        status=OutcomeStatus.ABSTAINED,
+                        reason_code=ReasonCode.REGISTRY_UNAVAILABLE,
+                        statement=self._unmatched_statement(),
+                    ),
+                    **self.use,
+                )
             # No policy, but ROR identified a funder, a journal was identified, or there are
             # candidates to choose from: the payload carries them, grounded on their records.
             return self._build(self._unmatched_statement(), {})
@@ -253,6 +294,7 @@ class Report:
             payload=PolicyChecks(
                 **fields,
                 no_record=self.no_record,
+                not_searched=not_searched(found),
                 funders=self.funders,
                 journals=self.journals,
                 readings=self.texts.readings,
@@ -318,7 +360,9 @@ class Report:
         return tail + " Human review is required."
 
     def _unmatched_statement(self) -> str:
-        statement = "No policy record was matched." + self._identified() + self._questions()
+        statement = (
+            unconfigured_note(self.found) + "No policy record was matched." + self._identified()
+        ) + self._questions()
         if self.no_record:
             statement += (
                 f" No registry ({'; '.join(self.labels)}) has a policy record for "
@@ -337,7 +381,7 @@ class Report:
             1 for item, _ in advised for o in item.obligations if o.derivation == Derivation.MODEL
         )
         registries = sorted({item.record.registry for item, _ in advised})
-        statement = (
+        statement = unconfigured_note(self.found) + (
             f"Policies matched: {len(policies)} for {actors_matched} of "
             f"{len(self.found.actors)} actor(s), "
             f"from {' and '.join(registries)} ({'; '.join(self.labels)})."

@@ -514,6 +514,11 @@ sudo data-director secret set advisor-policy open-policy-finder-api-key   # Jisc
 sudo data-director secret list
 ```
 
+Set the policy advisor's Open Policy Finder key on every deployment people use. The agent starts
+without it but cannot check funders' and journals' open access policies: a run that finds no
+policy for one then reports that it could not search (abstained, `registry_unavailable`), not
+that there is none. `data-director doctor` notes each optional key an agent is missing.
+
 `data-director secret` is `deploy/secret.sh` from the clone, which can also be run directly.
 
 A secret is a root-only file, `/etc/data-director/credentials/<agent>/<secret>`. Its name maps to

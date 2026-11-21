@@ -31,7 +31,7 @@ from dd_agent_advisor_policy.classes import (
 from dd_agent_advisor_policy.records import PolicyRecord
 from dd_agent_advisor_policy.ror import RorDump
 from dd_agent_advisor_policy.search import Sources
-from dd_sdk.contract.models import Derivation, OutcomeStatus
+from dd_sdk.contract.models import Derivation, OutcomeStatus, ReasonCode
 from dd_sdk.evidence import verify
 
 ELSEVIER_POLICY = PolicyRecord(
@@ -112,7 +112,7 @@ def test_without_open_policy_finder_crossref_still_reaches_the_publisher(runs_di
     assert [p.grounded_on[0].source_id for p in checks.policies] == ["FAIRsharing.test-elsevier"]
     assert [g.source_id for g in checks.journals[0].grounded_on] == [STOTEN_CROSSREF]
     assert checks.journals[0].publisher == "Elsevier BV"
-    assert "no OPEN_POLICY_FINDER_API_KEY" in env.outcome.statement
+    assert [n.registry for n in checks.not_searched] == [PolicyRegistry.OPEN_POLICY_FINDER]
 
 
 def test_a_journal_given_by_issn_is_read_by_it(runs_dir: Path) -> None:
@@ -176,10 +176,43 @@ def test_open_policy_finder_down_is_noted_and_fairsharing_still_answers(runs_dir
     assert ELSEVIER_OPF not in {e.source_id for e in env.evidence}
 
 
-def test_without_a_key_the_statement_says_open_policy_finder_was_not_searched(
+@pytest.mark.requirement("DD-OUTCOME")
+def test_without_a_key_a_funder_with_no_record_is_registry_unavailable_not_nothing_found(
+    runs_dir: Path, dump: RorDump
+) -> None:
+    # NERC is identified in ROR but has no FAIRsharing record: the run could not search Open
+    # Policy Finder, so it must not succeed with no policy (#1319).
+    advisor = PolicyAgent(Sources(FakePolicies(), organisations=nerc_only(dump)))
+    env = invoke(runs_dir, PolicyContext(actors=[NERC_ACTOR]), advisor)
+    assert env.outcome.status == OutcomeStatus.ABSTAINED, env.outcome.statement
+    assert env.outcome.reason_code == ReasonCode.REGISTRY_UNAVAILABLE
+    # A name no registry knows at all is not "nothing found" either.
+    nowhere = Actor(role=ActorRole.FUNDER, name="Ministry of Nowhere")
+    advisor = PolicyAgent(Sources(FakePolicies(), organisations=FakeOrganisations([])))
+    env = invoke(runs_dir, PolicyContext(actors=[nowhere]), advisor)
+    assert env.outcome.status == OutcomeStatus.ABSTAINED, env.outcome.statement
+    assert env.outcome.reason_code == ReasonCode.REGISTRY_UNAVAILABLE
+
+
+def test_without_a_key_a_fairsharing_match_succeeds_and_says_open_policy_finder_was_not_searched(
     runs_dir: Path,
 ) -> None:
     env = invoke(runs_dir, PolicyContext(actors=[TESTING, NERC_ACTOR]))
-    assert "Open Policy Finder was not searched" in env.outcome.statement
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    checks = env.payload_as(PolicyChecks)
+    assert checks.policies
+    [gap] = checks.not_searched
+    assert gap.registry == PolicyRegistry.OPEN_POLICY_FINDER and gap.reason
+
+
+def test_without_a_key_an_institution_alone_needs_no_open_policy_finder(runs_dir: Path) -> None:
     env = invoke(runs_dir, PolicyContext(actors=[TESTING]))
-    assert "Open Policy Finder" not in env.outcome.statement
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert env.payload_as(PolicyChecks).not_searched == []
+
+
+def test_with_a_key_open_policy_finder_is_not_listed_as_not_searched(runs_dir: Path) -> None:
+    advisor = PolicyAgent(Sources(FakePolicies(), opf=opf()))
+    env = invoke(runs_dir, PolicyContext(actors=[TESTING, NERC_ACTOR]), advisor)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert env.payload_as(PolicyChecks).not_searched == []
