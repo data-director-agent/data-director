@@ -42,6 +42,7 @@ the default home for anything.
 | The app people use: its server, configuration (`app/config/`) and browser shell (`app/web`, React and TypeScript, Node 22 or later; [The app](docs/specs/app.md), designed from `docs/ui/best-practices.md`) | `app/` |
 | The operators' read-only view of a deployment, on loopback only ([The admin service](docs/guide/operations/admin.md)) | `admin/` |
 | The model broker, which holds people's own model keys and makes their model calls ([A person's own model account](docs/specs/model-accounts.md)) | `broker/` |
+| The deposit broker, which holds people's own repository tokens and makes draft deposits for them ([Deposit](docs/specs/deposit.md)) | `deposit-broker/` |
 | The development client for agent authors: the `workbench` CLI, viewer and its development configuration | `workbench/` |
 | `dd-inventory`, which a researcher runs where their data live to describe a dataset's files ([Projects](docs/specs/projects.md)) | `inventory/` |
 | The PID resolver, an MCP server that resolves DOIs, ORCID iDs and ROR identifiers for agents through the tool gateway | `mcp-pid/` |

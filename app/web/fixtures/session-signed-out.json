@@ -4,5 +4,6 @@
   "model_account_providers": [],
   "model_accounts": false,
   "principal": null,
+  "repository_accounts": false,
   "signs_in": true
 }

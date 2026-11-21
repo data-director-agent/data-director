@@ -19,6 +19,8 @@ from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, SerializeAsA
 from dd_sdk.contract import inventory
 from dd_sdk.contract.base import SHA256_PATTERN as SHA256_PATTERN
 from dd_sdk.contract.base import Frozen as Frozen
+from dd_sdk.contract.deposit import DepositConnector as DepositConnector
+from dd_sdk.contract.deposit import Obligation as Obligation
 from dd_sdk.contract.facts import Affiliation as Affiliation
 from dd_sdk.contract.facts import AffiliationKind as AffiliationKind
 from dd_sdk.contract.facts import ChosenRepository as ChosenRepository
@@ -174,11 +176,6 @@ class TurnRole(StrEnum):
     AGENT = "agent"
 
 
-class Obligation(StrEnum):
-    REQUIRED = "required"
-    RECOMMENDED = "recommended"
-
-
 # --- Requirement sets -------------------------------------------------------------------------
 # What a deposit must or should have (docs/specs/deposit.md): the deployment's configuration, which
 # the harness loads and merges for the repository a researcher chose. Not an input or a payload of
@@ -206,6 +203,7 @@ class _Requirements(Frozen):
     licences: list[str] | None = None
     guidance: list[str] = Field(default_factory=list)
     unconfirmed: list[str] = Field(default_factory=list)
+    deposit: DepositConnector | None = None
 
 
 class RequirementSet(_Requirements):

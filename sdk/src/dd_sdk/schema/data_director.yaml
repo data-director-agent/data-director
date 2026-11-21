@@ -12,7 +12,7 @@ description: >-
   schema_class (docs/specs/contract.md); every payload mixes in Grounded so the grounding linter can check it
   without knowing its class (docs/specs/grounding.md). Formats here are fixed; see docs/specs/ for why.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.18.0
+version: 0.18.1
 license: MIT
 
 prefixes:
@@ -480,6 +480,7 @@ classes:
       - licences
       - guidance
       - unconfirmed
+      - deposit
     slot_usage:
       version:
         description: The version of the set, raised on every change.
@@ -490,6 +491,18 @@ classes:
         description: >-
           The URI of the metadata schema. An override names the standard's set it builds on.
         required: true
+
+  DepositConnector:
+    description: >-
+      An override only: how the harness deposits a draft to the repository through its API
+      (docs/specs/deposit.md, Depositing through an API). It holds no credential: each researcher
+      deposits with their own, held outside the app and the harness.
+    slots:
+      - transport
+      - format
+      - base_url
+      - target
+      - sandbox
 
   RequirementField:
     description: One metadata property a requirement set requires or recommends.
@@ -2061,6 +2074,39 @@ slots:
   form_label:
     description: >-
       An override only: the label of the repository's deposit form field the value goes in.
+  deposit:
+    description: >-
+      An override only: the API the harness may deposit a draft through. Without it the repository
+      is deposited to by hand.
+    range: DepositConnector
+    inlined: true
+  transport:
+    description: >-
+      The transport that moves the deposit, registered under the entry-point group dd.transports,
+      such as zenodo.
+    required: true
+    pattern: "^[a-z0-9][a-z0-9-]*$"
+  format:
+    description: >-
+      The format the transport carries, from the pairs docs/specs/deposit.md allows, such as
+      zenodo-deposit.
+    required: true
+    pattern: "^[a-z0-9][a-z0-9-]*$"
+  base_url:
+    description: >-
+      The installation's API root, such as https://sandbox.zenodo.org/api.
+    required: true
+    range: uri
+    pattern: "^https://"
+  target:
+    description: >-
+      Where the draft is created, in the transport's own terms, such as a Zenodo community.
+      Absent where the transport has a default.
+  sandbox:
+    description: >-
+      Whether base_url is the platform's test installation, whose items and identifiers are not
+      real. The app says so beside the deposit.
+    range: boolean
   repository_name:
     description: What the researcher calls the repository chosen, such as ORDA.
     required: true

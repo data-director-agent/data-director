@@ -9,5 +9,6 @@
     "principal_id": "https://sandbox.orcid.org/0000-0002-1825-0097",
     "vouched_by": "https://sandbox.orcid.org"
   },
+  "repository_accounts": false,
   "signs_in": true
 }

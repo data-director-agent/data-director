@@ -108,7 +108,7 @@
           "agent_id": "example.hello",
           "agent_version": "0.1.1a1",
           "completed_at": "2026-01-01T00:00:00Z",
-          "contract_version": "0.18.0",
+          "contract_version": "0.18.1",
           "conversation_id": "01900000-0000-7000-8000-000000000001",
           "evidence": [
             {
@@ -139,7 +139,7 @@
             "schema_class": "Greeting"
           },
           "payload_schema": "0000000000000000000000000000000000000000000000000000000000000009",
-          "policy_bundle_ref": "profile:data-director-app@v9",
+          "policy_bundle_ref": "profile:data-director-app@v10",
           "policy_digest": "0000000000000000000000000000000000000000000000000000000000000010",
           "project_id": "01900000-0000-7000-8000-000000000006",
           "requires_human_review": true,
@@ -161,7 +161,7 @@
         "agent_id": "orchestrator.stub",
         "agent_version": "0.1.0",
         "completed_at": "2026-01-01T00:00:00Z",
-        "contract_version": "0.18.0",
+        "contract_version": "0.18.1",
         "conversation_id": "01900000-0000-7000-8000-000000000001",
         "delegations": [
           {
@@ -211,7 +211,7 @@
           "schema_class": "Reply"
         },
         "payload_schema": "0000000000000000000000000000000000000000000000000000000000000014",
-        "policy_bundle_ref": "profile:data-director-app@v9",
+        "policy_bundle_ref": "profile:data-director-app@v10",
         "policy_digest": "0000000000000000000000000000000000000000000000000000000000000010",
         "project_id": "01900000-0000-7000-8000-000000000006",
         "requires_human_review": true,
@@ -245,7 +245,7 @@
           "agent_id": "example.hello",
           "agent_version": "0.1.1a1",
           "completed_at": "2026-01-01T00:00:00Z",
-          "contract_version": "0.18.0",
+          "contract_version": "0.18.1",
           "conversation_id": "01900000-0000-7000-8000-000000000001",
           "evidence": [
             {
@@ -276,7 +276,7 @@
             "schema_class": "Greeting"
           },
           "payload_schema": "0000000000000000000000000000000000000000000000000000000000000009",
-          "policy_bundle_ref": "profile:data-director-app@v9",
+          "policy_bundle_ref": "profile:data-director-app@v10",
           "policy_digest": "0000000000000000000000000000000000000000000000000000000000000010",
           "project_id": "01900000-0000-7000-8000-000000000006",
           "requires_human_review": true,
@@ -298,7 +298,7 @@
         "agent_id": "orchestrator.stub",
         "agent_version": "0.1.0",
         "completed_at": "2026-01-01T00:00:00Z",
-        "contract_version": "0.18.0",
+        "contract_version": "0.18.1",
         "conversation_id": "01900000-0000-7000-8000-000000000001",
         "delegations": [
           {
@@ -348,7 +348,7 @@
           "schema_class": "Reply"
         },
         "payload_schema": "0000000000000000000000000000000000000000000000000000000000000014",
-        "policy_bundle_ref": "profile:data-director-app@v9",
+        "policy_bundle_ref": "profile:data-director-app@v10",
         "policy_digest": "0000000000000000000000000000000000000000000000000000000000000010",
         "project_id": "01900000-0000-7000-8000-000000000006",
         "requires_human_review": true,

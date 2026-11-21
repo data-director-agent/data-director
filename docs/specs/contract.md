@@ -200,6 +200,11 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
     conductor fills them in a project ([Projects](projects.md), invariant 6;
     [Orchestration](orchestration.md), invariant 22; #1280). Adding them raised the contract
     version to 0.18.0.
+30. A `RequirementSet` override may carry `deposit`, a `DepositConnector`: the transport, the format
+    it carries, the API root, the target and whether it is a sandbox, through which the harness may
+    deposit a draft, and never a credential ([Deposit](deposit.md), Depositing through an API).
+    It is deployment configuration that no agent is given, so adding it raised the contract
+    version only to 0.18.1.
 
 ## Boundaries and contracts
 

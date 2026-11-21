@@ -21,6 +21,8 @@ SRC="$(cd "$(dirname "$0")/.." && pwd)"
 USER_NAME=datadirector
 # The model broker's own user (deploy/systemd/data-director-model-broker.service).
 BROKER_USER=data-director-broker
+# The deposit broker's own user (deploy/systemd/data-director-deposit-broker.service).
+DEPOSIT_BROKER_USER=data-director-deposit-broker
 ROOT=/opt/data-director
 # The Python interpreters uv installs, which every release's .venv links to. They are kept here,
 # readable by every service's user, not in $STATE: the model broker runs as a user of its own,
@@ -136,6 +138,23 @@ new_file "$ETC/model-broker.env" "$SRC/config/examples/model-broker.env"
 # The broker checks grants against the keys the app publishes, on the app's loopback address.
 fill "$ETC/model-broker.env" DD_BROKER_HARNESS_JWKS_URL \
   "http://127.0.0.1:$(setting DD_APP_PORT | grep . || echo 7860)/.well-known/jwks.json"
+# The deposit broker, likewise, has a user and credentials of its own, and is installed but not
+# enabled: depositing through a repository's API is off until an operator turns it on
+# (docs/guide/operations/deposit-broker.md).
+if ! id "$DEPOSIT_BROKER_USER" &>/dev/null; then
+  useradd --system --no-create-home --home-dir /var/lib/data-director-deposit-broker \
+    --shell /usr/sbin/nologin "$DEPOSIT_BROKER_USER"
+fi
+install -d -o root -g root -m 0700 "$ETC/credentials/deposit-broker"
+# No OAuth application until an operator registers one: people paste a token instead.
+if [[ ! -e "$ETC/credentials/deposit-broker/oauth-clients" ]]; then
+  (umask 077 && echo '{}' >"$ETC/credentials/deposit-broker/oauth-clients")
+fi
+new_file "$ETC/deposit-broker.env" "$SRC/config/examples/deposit-broker.env"
+fill "$ETC/deposit-broker.env" DD_DEPOSIT_BROKER_HARNESS_JWKS_URL \
+  "http://127.0.0.1:$(setting DD_APP_PORT | grep . || echo 7860)/.well-known/jwks.json"
+fill "$ETC/deposit-broker.env" DD_DEPOSIT_BROKER_PUBLIC_URL "https://$domain/deposit-broker"
+fill "$ETC/deposit-broker.env" DD_DEPOSIT_BROKER_APP_URL "https://$domain"
 new_file "$ETC/deploy.env" "$SRC/deploy/deploy.env.example"
 new_file "$ETC/backup.env" "$SRC/deploy/backup.env.example"
 # Backups hold every secret, so their directory is root's alone.

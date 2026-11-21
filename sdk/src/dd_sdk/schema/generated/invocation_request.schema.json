@@ -311,6 +311,49 @@
          "title": "Delegation",
          "type": "object"
       },
+      "DepositConnector": {
+         "additionalProperties": false,
+         "description": "An override only: how the harness deposits a draft to the repository through its API (docs/specs/deposit.md, Depositing through an API). It holds no credential: each researcher deposits with their own, held outside the app and the harness.",
+         "properties": {
+            "transport": {
+               "description": "The transport that moves the deposit, registered under the entry-point group dd.transports, such as zenodo.",
+               "pattern": "^[a-z0-9][a-z0-9-]*$",
+               "type": "string"
+            },
+            "format": {
+               "description": "The format the transport carries, from the pairs docs/specs/deposit.md allows, such as zenodo-deposit.",
+               "pattern": "^[a-z0-9][a-z0-9-]*$",
+               "type": "string"
+            },
+            "base_url": {
+               "description": "The installation's API root, such as https://sandbox.zenodo.org/api.",
+               "format": "uri",
+               "pattern": "^https://",
+               "type": "string"
+            },
+            "target": {
+               "description": "Where the draft is created, in the transport's own terms, such as a Zenodo community. Absent where the transport has a default.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "sandbox": {
+               "description": "Whether base_url is the platform's test installation, whose items and identifiers are not real. The app says so beside the deposit.",
+               "type": [
+                  "boolean",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "transport",
+            "format",
+            "base_url"
+         ],
+         "title": "DepositConnector",
+         "type": "object"
+      },
       "Derivation": {
          "description": "",
          "enum": [
@@ -3025,6 +3068,17 @@
                   "array",
                   "null"
                ]
+            },
+            "deposit": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/DepositConnector"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "An override only: the API the harness may deposit a draft through. Without it the repository is deposited to by hand."
             }
          },
          "required": [
@@ -3583,5 +3637,5 @@
    ],
    "title": "data_director_core",
    "type": "object",
-   "version": "0.18.0"
+   "version": "0.18.1"
 }

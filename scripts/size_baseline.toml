@@ -26,7 +26,7 @@ lines = 601
 
 [[file]]
 path = "harness/src/dd_harness/testing/storage.py"
-lines = 1234
+lines = 1196
 
 [[file]]
 path = "scripts/blueprint/convert.py"
@@ -34,4 +34,4 @@ lines = 584
 
 [[file]]
 path = "sdk/src/dd_sdk/contract/models.py"
-lines = 732
+lines = 730

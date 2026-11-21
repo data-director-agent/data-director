@@ -250,6 +250,7 @@ describe("the session API", () => {
         expires_at: "2026-10-29T18:00:00Z",
         model_accounts: false,
         model_account_providers: [],
+        repository_accounts: false,
       }),
     ).toEqual({
       signsIn: true,
@@ -263,6 +264,7 @@ describe("the session API", () => {
       expiresAt: "2026-10-29T18:00:00Z",
       modelAccounts: false,
       modelAccountProviders: [],
+      repositoryAccounts: false,
     });
   });
 

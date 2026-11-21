@@ -1,0 +1,88 @@
+# What Zenodo asks beyond DataCite's requirement set (docs/specs/deposit.md), and the API a draft is
+# deposited through. Keys are as in README.md one folder up. Taken from public pages only (listed
+# under `guidance`); what they leave open is listed under `unconfirmed`.
+schema_class: RequirementSet
+requirement_set_id: zenodo
+version: 1
+title: Zenodo
+url: https://sandbox.zenodo.org/
+re3data_id: r3d100010468
+
+# Zenodo registers each record's DOI with DataCite (prefix 10.5281; 10.5072 on the sandbox).
+conforms_to: http://datacite.org/schema/kernel-4
+
+# The fields of Zenodo's upload form, with their labels. Those DataCite already requires are listed
+# again for their labels. Zenodo requires a description and a licence for open records, which
+# DataCite only recommends.
+fields:
+  - property: titles
+    schema_org: name
+    obligation: required
+    form_label: Title
+  - property: creators
+    schema_org: creator
+    obligation: required
+    form_label: Creators
+  - property: types.resourceTypeGeneral
+    schema_org: additionalType
+    obligation: required
+    form_label: Resource type
+  - property: descriptions
+    qualifier: {descriptionType: Abstract}
+    schema_org: description
+    obligation: required
+    form_label: Description
+  - property: rightsList
+    schema_org: license
+    obligation: required
+    form_label: Licenses
+  - property: subjects
+    schema_org: keywords
+    obligation: recommended
+    form_label: Keywords and subjects
+  - property: fundingReferences
+    schema_org: funding
+    obligation: recommended
+    form_label: Funding
+  - property: relatedIdentifiers
+    schema_org: citation
+    obligation: recommended
+    form_label: Related works
+
+required_documents:
+  - metadata_record
+recommended_documents:
+  - readme
+
+# Zenodo accepts any format.
+media_types: []
+
+# 50 GB per record, and per file, through the API (developers.zenodo.org, Quickstart).
+max_file_size: 50000000000
+max_item_size: 50000000000
+
+# The licences most datasets use, as SPDX identifiers; Zenodo offers many more.
+licences:
+  - CC-BY-4.0
+  - CC0-1.0
+  - CC-BY-SA-4.0
+  - CC-BY-NC-4.0
+  - MIT
+  - Apache-2.0
+
+guidance:
+  - https://developers.zenodo.org/
+  - https://help.zenodo.org/docs/deposit/describe-records/
+  - https://www.re3data.org/repository/r3d100010468
+
+unconfirmed:
+  - Which of Zenodo's licences the deployment should offer beyond these (#648).
+
+# Drafts go to Zenodo's sandbox, whose records and DOIs are not real, so a practice deployment
+# never makes a real record. Moving to zenodo.org is a change of base_url and url, decided with the
+# research data team, TODO(#648).
+deposit:
+  transport: zenodo
+  format: zenodo-deposit
+  base_url: https://sandbox.zenodo.org/api
+  sandbox: true

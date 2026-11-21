@@ -19,7 +19,7 @@
     "agent_id": "advisor.standards",
     "agent_version": "0.3.0",
     "completed_at": "2026-01-01T00:00:00Z",
-    "contract_version": "0.18.0",
+    "contract_version": "0.18.1",
     "evidence": [
       {
         "canonicalisation": "json-sorted-utf8-v1",
@@ -775,8 +775,8 @@
       }
     },
     "payload_schema": "0f9cced156f645d29ca09aa1525f07b9b66ac9f20d1ca9d4620e963020e0b60a",
-    "policy_bundle_ref": "profile:data-director-app@v9",
-    "policy_digest": "108dd28b01741b8cd0a10531f6fb758df13d08f7483afc489352921c558a195b",
+    "policy_bundle_ref": "profile:data-director-app@v10",
+    "policy_digest": "f0270572f605f3b4f2161409a8b4609f12102e618a50c4669ac93a81b50ec603",
     "requires_human_review": true,
     "telemetry": {
       "energy_estimate_j": null,

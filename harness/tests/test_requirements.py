@@ -12,6 +12,13 @@ from requirement_sets import ELSEWHERE, ORDA, override, standard, write
 from dd_harness.requirements import DATACITE, RequirementsError, load_requirements
 from dd_sdk.contract.models import RepositoryRequirements
 
+ZENODO_SANDBOX = {
+    "transport": "zenodo",
+    "format": "zenodo-deposit",
+    "base_url": "https://sandbox.zenodo.org/api",
+    "sandbox": True,
+}
+
 
 @pytest.fixture
 def sets(tmp_path: Path) -> Path:
@@ -206,6 +213,31 @@ def test_a_choice_needs_a_re3data_identifier_and_a_name(sets: Path) -> None:
             (("standards", standard(conforms_to="https://ddialliance.org")),),
             "no standard's set conforms to",
         ),
+        (
+            (("standards", standard(deposit=ZENODO_SANDBOX)),),
+            "standard's set may not give deposit",
+        ),
+        (
+            (
+                ("standards", standard()),
+                ("overrides", override(deposit={**ZENODO_SANDBOX, "format": "bagit"})),
+            ),
+            "not a pair docs/specs/deposit.md allows",
+        ),
+        (
+            (
+                ("standards", standard()),
+                ("overrides", override(deposit={**ZENODO_SANDBOX, "base_url": "http://x"})),
+            ),
+            "not a RequirementSet",
+        ),
+        (
+            (
+                ("standards", standard()),
+                ("overrides", override(deposit={**ZENODO_SANDBOX, "token": "secret"})),
+            ),
+            "not a RequirementSet",
+        ),
     ],
 )
 def test_malformed_or_contradictory_sets_stop_start_up(
@@ -214,6 +246,25 @@ def test_malformed_or_contradictory_sets_stop_start_up(
     root = write(tmp_path / "repositories", *sets_given)
     with pytest.raises(RequirementsError, match=refusal):
         load_requirements(root)
+
+
+def test_an_override_may_name_the_api_a_draft_is_deposited_through(tmp_path: Path) -> None:
+    """Only an override names a connector, and it holds no credential; a repository without one
+    is deposited to by hand (docs/specs/deposit.md, invariants 11 and 18)."""
+    root = write(
+        tmp_path / "repositories",
+        ("standards", standard()),
+        ("overrides", override(deposit=ZENODO_SANDBOX)),
+    )
+    requirements = load_requirements(root)
+    connector = requirements.connector(ORDA)
+    assert connector is not None
+    assert (connector.transport, connector.format) == ("zenodo", "zenodo-deposit")
+    assert connector.base_url == "https://sandbox.zenodo.org/api"
+    assert connector.sandbox is True
+    assert requirements.connector(ELSEWHERE) is None
+    # The merged set a drafter is given says nothing of how the package travels.
+    assert "deposit" not in requirements.resolve(ORDA, "ORDA").requirements()
 
 
 def test_a_missing_directory_is_refused(tmp_path: Path) -> None:

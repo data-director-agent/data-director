@@ -38,12 +38,10 @@ from dd_harness.projects import (
     DOCUMENT_QUESTION_ANSWERED,
     DOCUMENT_VERSION_DECIDED,
     INVENTORY_ADDED,
-    PACKAGE_BUILT,
     PROJECT_CREATED,
     PROJECT_DELETED,
     PROJECT_RENAMED,
     PROJECT_RESTORED,
-    PROJECT_VALIDATED,
     REJECTED,
     ChangeRefusedError,
     Decision,
@@ -58,6 +56,7 @@ from dd_harness.projects import (
 )
 from dd_harness.storage import ProjectLog, ProjectStorage, RunStorage
 from dd_harness.testing.classes import ProbeClaim
+from dd_harness.testing.deposit_storage import DEPOSIT_STORAGE_CHECKS
 from dd_harness.testing.documents import DOCUMENTATION_CHECKS
 from dd_harness.testing.doubles import STUB_QUESTION, DocumentStub
 from dd_harness.testing.fact_storage import FACT_STORAGE_CHECKS
@@ -901,43 +900,6 @@ def check_the_metadata_record_is_the_one_approved_last(make: MakeProjectStorage)
     assert record["version_ref"] == {"document_id": second, "version": 1}
 
 
-def check_a_report_and_a_package_are_kept_by_digest(make: MakeProjectStorage) -> None:
-    """A validation report and a deposit package are kept by digest and named in the log
-    (docs/specs/deposit.md, invariants 8 and 9); a package the log does not name is not found."""
-    store = make("projects")
-    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
-    report = {"@type": "sh:ValidationReport", "sh:conforms": True}
-    report_digest = store.record_validation(
-        project_id,
-        report,
-        conforms=True,
-        requirements_digest=None,
-        acted_for=TEST_PRINCIPAL,
-        caused_by="check",
-    )
-    assert report_digest == input_hash(report)
-    package = b"PK\x05\x06" + bytes(18)
-    digest = store.record_package(
-        project_id,
-        package,
-        about={"report_digest": report_digest, "event": "not this"},
-        acted_for=TEST_PRINCIPAL,
-        caused_by="check",
-    )
-    assert digest == hashlib.sha256(package).hexdigest()
-    validated, built = make("projects").events(project_id)[-2:]
-    assert (validated["event"], validated["digest"]) == (PROJECT_VALIDATED, report_digest)
-    assert validated["conforms"] is True
-    assert (built["event"], built["digest"]) == (PACKAGE_BUILT, digest)
-    assert built["report_digest"] == report_digest
-    assert make("projects").package(project_id, digest) == package
-    assert store.package(project_id, "0" * 64) is None
-    with _raises(UnknownProjectError, "a package of an unknown project"):
-        store.record_package(
-            NOWHERE, package, about={}, acted_for=TEST_PRINCIPAL, caused_by="check"
-        )
-
-
 def check_answers_stand_until_answered_again(make: MakeProjectStorage) -> None:
     """A person answers the latest version's questions. An answer to another version, or to a
     question it does not ask, is refused and recorded; a malformed one records nothing. The
@@ -1045,10 +1007,10 @@ PROJECT_STORAGE_CHECKS: dict[str, Callable[[MakeProjectStorage], None]] = {
     "the metadata record is the one approved last": (
         check_the_metadata_record_is_the_one_approved_last
     ),
-    "a report and a package are kept by digest": check_a_report_and_a_package_are_kept_by_digest,
     "answers stand until answered again": check_answers_stand_until_answered_again,
     **DOCUMENTATION_CHECKS,
     **FACT_STORAGE_CHECKS,
+    **DEPOSIT_STORAGE_CHECKS,
 }
 
 

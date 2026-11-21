@@ -86,6 +86,9 @@ APP_MODEL_GRANT_SECRETS = (
     "model-grant-signing-key",
     "model-broker-subject-key",
     "pseudonym-secret",
+    # The deposit broker's public key, to which deposit grants seal the person's pseudonym
+    # (docs/guide/operations/deposit-broker.md).
+    "deposit-broker-subject-key",
 )
 
 

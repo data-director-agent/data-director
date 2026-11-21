@@ -154,7 +154,7 @@ def test_api_agents_gives_each_manifest_beside_what_the_profile_assigns(
     assert standards["requires_approval"] is False
     assert standards["grounding_mode"] == "retrieval"
     assert body["unavailable"] == {} and body["incompatible"] == {}
-    assert body["profile"]["ref"] == "profile:data-director-app@v9"
+    assert body["profile"]["ref"] == "profile:data-director-app@v10"
     assert body["profile"]["orchestrator"] == "orchestrator.stub"
     assert body["profile"]["attached_documents"] == "allowed"
     assert body["acting_for"] == {"name": TEST_PRINCIPAL.name, "assurance": "asserted"}

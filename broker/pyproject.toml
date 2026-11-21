@@ -13,7 +13,7 @@ requires-python = ">=3.14"
 license = "MIT"
 authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
 dependencies = [
-  "data-director-sdk>=0.2.0a0",
+  "data-director-sdk[brokers]>=0.2.0a0",
   "cryptography>=45",
   "httpx>=0.28",
   "joserfc>=1.0",

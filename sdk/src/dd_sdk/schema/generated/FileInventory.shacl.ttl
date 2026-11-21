@@ -12,7 +12,12 @@ dd:FileInventory a sh:NodeShape ;
     rdfs:comment "The facts about a dataset's files that the project holds in place of the files (docs/specs/projects.md): for each file its path, size, digest and format, and for a table its fields. Made by a command run where the data live; it never contains a file's content. advisor.files reads it." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
+    sh:property [ sh:class dd:PersonalDataFinding ;
+            sh:description "Where a personal-data detector found possible personal data (docs/specs/personal-data.md). Absent, no detector ran, or the inventory was made by a command without one; empty, a detector ran and found nothing, which does not mean the data hold none. In an inventory made of parts, it is every part's findings, and absent if any part's are absent." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 8 ;
+            sh:path dd:inventory_personal_data ],
+        [ sh:datatype xsd:string ;
             sh:description "The version of the command that made the inventory." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -60,12 +65,7 @@ dd:FileInventory a sh:NodeShape ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 5 ;
-            sh:path prov:generatedAtTime ],
-        [ sh:class dd:PersonalDataFinding ;
-            sh:description "Where a personal-data detector found possible personal data (docs/specs/personal-data.md). Absent, no detector ran, or the inventory was made by a command without one; empty, a detector ran and found nothing, which does not mean the data hold none. In an inventory made of parts, it is every part's findings, and absent if any part's are absent." ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 8 ;
-            sh:path dd:inventory_personal_data ] ;
+            sh:path prov:generatedAtTime ] ;
     sh:targetClass dd:FileInventory .
 
 dd:InventoryFile a sh:NodeShape ;

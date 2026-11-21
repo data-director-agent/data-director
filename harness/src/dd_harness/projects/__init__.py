@@ -44,7 +44,12 @@ from dd_harness.projects.decisions import (
     reason_required,
     review_rules,
 )
-from dd_harness.projects.deposits import DepositRecords
+from dd_harness.projects.deposits import (
+    RO_CRATE,
+    DepositInProgressError,
+    DepositRecords,
+    package_format,
+)
 from dd_harness.projects.documents import Documents
 from dd_harness.projects.extract import SOURCE_MAX_BYTES, SOURCE_MEDIA_TYPES
 from dd_harness.projects.facts import FACT_REASON_MAX_LENGTH, Facts, FactVerdict
@@ -72,8 +77,11 @@ from dd_harness.projects.rules import (
     CONVERSATION_RESTORED,
     CONVERSATION_STARTED,
     DEFAULT_RESTORE_PERIOD,
+    DEPOSIT_APPROVED,
     DEPOSIT_CHECKS_CONFIRMED,
+    DEPOSIT_FAILED,
     DEPOSIT_ITEM_DECIDED,
+    DEPOSIT_RECORDED,
     DIGEST,
     DOCUMENT_CHANGE_REFUSED,
     DOCUMENT_QUESTION_ANSWERED,
@@ -114,8 +122,11 @@ __all__ = [
     "CONVERSATION_RESTORED",
     "CONVERSATION_STARTED",
     "DEFAULT_RESTORE_PERIOD",
+    "DEPOSIT_APPROVED",
     "DEPOSIT_CHECKS_CONFIRMED",
+    "DEPOSIT_FAILED",
     "DEPOSIT_ITEM_DECIDED",
+    "DEPOSIT_RECORDED",
     "DIGEST",
     "DOCUMENTATION_ADDED",
     "DOCUMENTATION_MAX_BYTES",
@@ -143,6 +154,7 @@ __all__ = [
     "REPOSITORY_CHOSEN",
     "RESEARCHER_ADDED",
     "RESEARCHER_WITHDRAWN",
+    "RO_CRATE",
     "SOURCE_MAX_BYTES",
     "SOURCE_MEDIA_TYPES",
     "TITLE_BY_MODEL",
@@ -152,6 +164,7 @@ __all__ = [
     "ConversationDeletedError",
     "Conversations",
     "Decision",
+    "DepositInProgressError",
     "DepositRecords",
     "Documents",
     "FactVerdict",
@@ -178,6 +191,7 @@ __all__ = [
     "check_documentation",
     "conversation_deletions",
     "deletion",
+    "package_format",
     "read_document_file",
     "reason_required",
     "review_rules",

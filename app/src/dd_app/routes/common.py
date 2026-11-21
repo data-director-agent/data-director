@@ -83,6 +83,9 @@ class Deps:
     privacy_notice_url: str | None = None
     # The folders on this machine a local install may describe; None where it describes none.
     folder_roots: FolderRoots | None = None
+    # Where the browser reaches the deposit broker, when a person may connect their own
+    # repository account (docs/specs/deposit.md); None where they may not.
+    deposit_broker_path: str | None = None
     examples_dir: Path = EXAMPLES_DIR
     # The worker threads the listing routes may hold, so that turns always have some (#1258).
     listing: ListingLimiter = field(default_factory=ListingLimiter)
@@ -92,6 +95,11 @@ class Deps:
     def model_accounts(self) -> bool:
         """Whether a person may add their own model account here."""
         return self.model_account_providers is not None
+
+    @property
+    def repository_accounts(self) -> bool:
+        """Whether a person may connect their own repository account here."""
+        return self.deposit_broker_path is not None
 
 
 async def listed[T](deps: Deps, work: Callable[[], T], title: str) -> T | Response:

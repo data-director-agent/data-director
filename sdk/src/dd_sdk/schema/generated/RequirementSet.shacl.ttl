@@ -26,6 +26,12 @@ dd:RequirementSet a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 12 ;
             sh:path dd:max_file_size ],
+        [ sh:class dd:DepositConnector ;
+            sh:description "An override only: the API the harness may deposit a draft through. Without it the repository is deposited to by hand." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 17 ;
+            sh:path dd:deposit ],
         [ sh:datatype xsd:string ;
             sh:description "What the set's sources leave open, each a short statement naming the issue that will settle it, such as \"Whether ORDA's form makes any other field mandatory (#385)\". Shown to the person depositing; in a merged set, the standard's first, then the override's." ;
             sh:nodeKind sh:Literal ;
@@ -107,6 +113,47 @@ dd:RequirementSet a sh:NodeShape ;
             sh:order 3 ;
             sh:path dcterms:title ] ;
     sh:targetClass dd:RequirementSet .
+
+dd:DepositConnector a sh:NodeShape ;
+    rdfs:comment "An override only: how the harness deposits a draft to the repository through its API (docs/specs/deposit.md, Depositing through an API). It holds no credential: each researcher deposits with their own, held outside the app and the harness." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:description "The installation's API root, such as https://sandbox.zenodo.org/api." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 2 ;
+            sh:path dd:base_url ;
+            sh:pattern "^https://" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The format the transport carries, from the pairs docs/specs/deposit.md allows, such as zenodo-deposit." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:format ;
+            sh:pattern "^[a-z0-9][a-z0-9-]*$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The transport that moves the deposit, registered under the entry-point group dd.transports, such as zenodo." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:transport ;
+            sh:pattern "^[a-z0-9][a-z0-9-]*$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "Where the draft is created, in the transport's own terms, such as a Zenodo community. Absent where the transport has a default." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dd:target ],
+        [ sh:datatype xsd:boolean ;
+            sh:description "Whether base_url is the platform's test installation, whose items and identifiers are not real. The app says so beside the deposit." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dd:sandbox ] ;
+    sh:targetClass dd:DepositConnector .
 
 dd:RequirementField a sh:NodeShape ;
     rdfs:comment "One metadata property a requirement set requires or recommends." ;

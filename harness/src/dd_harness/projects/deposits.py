@@ -1,6 +1,7 @@
 """What a project keeps of getting its data deposited: each validation of it against its
-repository's requirements, each decision and confirmation a person makes before packaging, and
-each deposit package built (docs/specs/deposit.md, invariants 8, 9 and 20 to 22)."""
+repository's requirements, each decision and confirmation a person makes before packaging, each
+deposit package built, and each deposit a person approved with its outcome (docs/specs/deposit.md,
+invariants 8, 9, 12, 15 and 20 to 22)."""
 
 from __future__ import annotations
 
@@ -9,15 +10,38 @@ from collections.abc import Mapping
 from typing import Any
 
 from dd_harness.projects.rules import (
+    DEPOSIT_APPROVED,
     DEPOSIT_CHECKS_CONFIRMED,
+    DEPOSIT_FAILED,
     DEPOSIT_ITEM_DECIDED,
+    DEPOSIT_RECORDED,
     ENVELOPE_KEYS,
     PACKAGE_BUILT,
     PROJECT_VALIDATED,
+    ProjectError,
     ProjectRules,
 )
 from dd_sdk.contract.models import Principal
 from dd_sdk.evidence import INPUT_CANONICALISATION, canonicalise, input_hash
+
+# The format of a package whose `package_built` event names none: every package built before
+# packages named their format was the RO-Crate zip (docs/specs/deposit.md, invariant 19).
+RO_CRATE = "ro-crate"
+OUTCOMES = frozenset({DEPOSIT_RECORDED, DEPOSIT_FAILED})
+
+
+def package_format(event: Mapping[str, Any]) -> str:
+    """The format a `package_built` event names."""
+    return str(event.get("format") or RO_CRATE)
+
+
+class DepositInProgressError(ProjectError):
+    """The package was already approved for the repository, and that deposit has no outcome yet,
+    or has made a draft: a second approval is refused (docs/specs/deposit.md, invariant 15)."""
+
+    def __init__(self, message: str, earlier: Mapping[str, Any]) -> None:
+        super().__init__(message)
+        self.earlier = dict(earlier)
 
 
 class DepositRecords(ProjectRules):
@@ -98,7 +122,9 @@ class DepositRecords(ProjectRules):
         digest = hashlib.sha256(package).hexdigest()
         self._keep_blob(project_id, digest, package)
         detail = {key: value for key, value in about.items() if key not in ENVELOPE_KEYS}
-        self._append(project_id, PACKAGE_BUILT, acted_for, caused_by, {**detail, "digest": digest})
+        # The RO-Crate package unless `about` names another format (invariant 19).
+        detail = {"format": RO_CRATE, **detail, "digest": digest}
+        self._append(project_id, PACKAGE_BUILT, acted_for, caused_by, detail)
         return digest
 
     def package(self, project_id: str, digest: str) -> bytes | None:
@@ -110,3 +136,64 @@ class DepositRecords(ProjectRules):
         if not built:
             return None
         return self._blob(project_id, digest)
+
+    def approve_deposit(
+        self,
+        project_id: str,
+        approval: Mapping[str, Any],
+        *,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> dict[str, Any]:
+        """Record a person's approval to deposit a package in a repository, as a
+        `deposit_approved` event carrying `approval`, which names at least the package's
+        `digest` and the repository's `re3data_id`. Returns the event.
+
+        In the project's exclusive section, so two approvals of one package cannot both pass:
+        raises `DepositInProgressError` if the log already records an approval of the package
+        for the repository that ended in a draft or has no outcome yet. An approval that ended
+        in `deposit_failed` does not count, so trying again needs only a new approval. Raises
+        `ProjectError` for an unknown or deleted project."""
+        detail = {key: value for key, value in approval.items() if key not in ENVELOPE_KEYS}
+        with self._section(project_id) as section:
+            events = section.events()
+            ended = {e["approval"]: e for e in events if e["event"] in OUTCOMES}
+            for earlier in events:
+                if (
+                    earlier["event"] != DEPOSIT_APPROVED
+                    or earlier["digest"] != detail["digest"]
+                    or earlier["re3data_id"] != detail["re3data_id"]
+                ):
+                    continue
+                outcome = ended.get(earlier["event_id"])
+                if outcome is None:
+                    raise DepositInProgressError(
+                        "this package is already being deposited in the repository", earlier
+                    )
+                if outcome["event"] == DEPOSIT_RECORDED:
+                    raise DepositInProgressError(
+                        "this package was already deposited in the repository", outcome
+                    )
+            event = self._event(project_id, DEPOSIT_APPROVED, acted_for, caused_by, detail)
+            section.append([event])
+        return event
+
+    def record_deposit_outcome(
+        self,
+        project_id: str,
+        outcome: Mapping[str, Any],
+        *,
+        recorded: bool,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> dict[str, Any]:
+        """Record how an approved deposit ended: `deposit_recorded` when the repository made the
+        draft, else `deposit_failed`, carrying `outcome`, which names the `approval` it acted on.
+        Returns the event. Raises `ProjectError` for an unknown project. A deposit approved
+        before the project was deleted still records its outcome."""
+        detail = {key: value for key, value in outcome.items() if key not in ENVELOPE_KEYS}
+        kind = DEPOSIT_RECORDED if recorded else DEPOSIT_FAILED
+        event = self._event(project_id, kind, acted_for, caused_by, detail)
+        with self._section(project_id, allow_deleted=True) as section:
+            section.append([event])
+        return event

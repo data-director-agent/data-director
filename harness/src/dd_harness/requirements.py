@@ -34,7 +34,7 @@ from typing import Any
 import yaml
 
 from dd_sdk.contract.classes import ClassSchema
-from dd_sdk.contract.models import Obligation, RequirementField, RequirementSet
+from dd_sdk.contract.models import DepositConnector, Obligation, RequirementField, RequirementSet
 
 STANDARDS_DIR = "standards"
 OVERRIDES_DIR = "overrides"
@@ -43,6 +43,16 @@ SUGGESTED_FILE = "suggested.yaml"
 # checked against when it declares no standard the deployment has a set for (docs/specs/deposit.md).
 DATACITE = "http://datacite.org/schema/kernel-4"
 RE3DATA_ID = re.compile(r"^r3d[0-9]{9}$")
+# The transport and format pairs an override's `deposit` block may name (docs/specs/deposit.md,
+# Packagers and transports, invariant 18). The manual transport needs no block.
+DEPOSIT_PAIRS = frozenset(
+    {
+        ("zenodo", "zenodo-deposit"),
+        ("figshare", "figshare-item"),
+        ("dataverse", "dataverse-dataset"),
+        ("sword2", "bagit"),
+    }
+)
 
 
 class RequirementsError(ValueError):
@@ -177,6 +187,14 @@ class Requirements:
     def all(self) -> list[LoadedSet]:
         return [*self.standards, *self.overrides]
 
+    def connector(self, re3data_id: str) -> DepositConnector | None:
+        """How the harness may deposit a draft to the repository through its API, as its override
+        says now; None when it is deposited to by hand. Read when a deposit is approved, not when
+        the repository is chosen, so the approval names the connector as configured at that
+        moment (docs/specs/deposit.md)."""
+        override = self._by_repository.get(re3data_id)
+        return None if override is None else override.requirement_set.deposit
+
     def resolve(
         self, re3data_id: str, repository_name: str, declared_standards: Sequence[str] = ()
     ) -> Resolved:
@@ -281,6 +299,12 @@ def _load(path: Path, schema: ClassSchema, *, override: bool) -> LoadedSet:
         raise RequirementsError(
             f"{path}: {kind} may not give {', '.join(misplaced)} (docs/specs/deposit.md)"
         )
+    connector = found.deposit
+    if connector is not None and (connector.transport, connector.format) not in DEPOSIT_PAIRS:
+        raise RequirementsError(
+            f"{path}: deposit names transport {connector.transport!r} with format "
+            f"{connector.format!r}, which is not a pair docs/specs/deposit.md allows"
+        )
     if override and found.re3data_id is None:
         raise RequirementsError(f"{path}: an override names its repository in re3data_id")
     if not override and not found.re3data_names:
@@ -292,7 +316,7 @@ def _override_only(found: RequirementSet) -> list[str]:
     """What a standard's set gives that only an override may."""
     given = [
         key
-        for key in ("re3data_id", "max_file_size", "max_item_size", "licences")
+        for key in ("re3data_id", "max_file_size", "max_item_size", "licences", "deposit")
         if getattr(found, key) is not None
     ]
     if found.media_types:

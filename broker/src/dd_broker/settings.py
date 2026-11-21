@@ -31,8 +31,6 @@ Other settings:
 
 from __future__ import annotations
 
-import base64
-import binascii
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -46,7 +44,8 @@ from dd_broker.agents import AgentCredentials
 from dd_broker.grants import subject_key
 from dd_broker.guard import BaseUrlRefused, origin
 from dd_broker.seal import KEY_ENCRYPTION_KEY_BYTES
-from dd_sdk.credentials import ConfigError, api_key
+from dd_sdk.credentials import ConfigError, api_key, key_encryption_key
+from dd_sdk.harness_tokens import jwks_source
 
 KEY_ENCRYPTION_KEY = "DD_BROKER_KEY_ENCRYPTION_KEY"
 SUBJECT_KEY = "DD_BROKER_SUBJECT_KEY"
@@ -94,11 +93,10 @@ class BrokerSettings:
         except ValueError as exc:
             raise SettingsError(f"{AGENT_CREDENTIALS}: {exc}") from None
 
-        jwks_url, jwks_file = _text(env, HARNESS_JWKS_URL), _text(env, HARNESS_JWKS_FILE)
-        if bool(jwks_url) == bool(jwks_file):
-            raise SettingsError(f"set one of {HARNESS_JWKS_URL} or {HARNESS_JWKS_FILE}")
-        if jwks_url and urlsplit(jwks_url).scheme not in {"http", "https"}:
-            raise SettingsError(f"{HARNESS_JWKS_URL} is not an http(s) URL")
+        try:
+            jwks_url, jwks_file = jwks_source(env, HARNESS_JWKS_URL, HARNESS_JWKS_FILE)
+        except ConfigError as exc:
+            raise SettingsError(str(exc)) from None
 
         store = _text(env, STORE)
         if not store:
@@ -118,8 +116,8 @@ class BrokerSettings:
             subject_key=subject,
             agents=agents,
             store=Path(store),
-            harness_jwks_url=jwks_url or None,
-            harness_jwks_file=Path(jwks_file) if jwks_file else None,
+            harness_jwks_url=jwks_url,
+            harness_jwks_file=jwks_file,
             deployment_keys=deployment_keys,
             deployment_base_url=deployment_base_url.rstrip("/") if deployment_base_url else None,
             allowed_base_urls=_origins(env, ALLOWED_BASE_URLS),
@@ -141,15 +139,9 @@ def _text(env: Mapping[str, str], name: str) -> str:
 def _key_encryption_key(env: Mapping[str, str]) -> bytes:
     """The key-encryption key `env` holds, decoded and of the right length."""
     try:
-        kek = base64.b64decode(_secret(env, KEY_ENCRYPTION_KEY), validate=True)
-    except binascii.Error, ValueError:
-        raise SettingsError(f"{KEY_ENCRYPTION_KEY} is not base64") from None
-    if len(kek) != KEY_ENCRYPTION_KEY_BYTES:
-        raise SettingsError(
-            f"{KEY_ENCRYPTION_KEY} is not {KEY_ENCRYPTION_KEY_BYTES} bytes "
-            f"(make one with: openssl rand -base64 {KEY_ENCRYPTION_KEY_BYTES})"
-        )
-    return kek
+        return key_encryption_key(env, KEY_ENCRYPTION_KEY, KEY_ENCRYPTION_KEY_BYTES)
+    except ConfigError as exc:
+        raise SettingsError(str(exc)) from None
 
 
 def _origins(env: Mapping[str, str], name: str) -> tuple[str, ...]:

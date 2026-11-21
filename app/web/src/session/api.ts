@@ -40,6 +40,9 @@ export interface Session {
   modelAccounts: boolean;
   /** The providers the profile lets a person's own account be with; empty unless `modelAccounts`. */
   modelAccountProviders: ModelAccountProvider[];
+  /** Whether a person may connect their own repository account, to deposit a draft through the
+   * repository's API (docs/specs/deposit.md). */
+  repositoryAccounts: boolean;
 }
 
 export interface SessionApi {
@@ -67,6 +70,7 @@ export function fromRaw(raw: RawSession): Session {
       provider: p.provider,
       baseUrls: p.base_urls,
     })),
+    repositoryAccounts: raw.repository_accounts,
   };
 }
 

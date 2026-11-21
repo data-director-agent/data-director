@@ -11,7 +11,7 @@
       "action_class": "advise",
       "agent_id": "advisor.standards",
       "assigned_action_class": "advise",
-      "contract_version": "0.18.0",
+      "contract_version": "0.18.1",
       "derivations": {
         "items.concern": {
           "how": "model",
@@ -542,9 +542,9 @@
   "incompatible": {},
   "profile": {
     "attached_documents": "allowed",
-    "digest": "108dd28b01741b8cd0a10531f6fb758df13d08f7483afc489352921c558a195b",
+    "digest": "f0270572f605f3b4f2161409a8b4609f12102e618a50c4669ac93a81b50ec603",
     "orchestrator": "orchestrator.stub",
-    "ref": "profile:data-director-app@v9"
+    "ref": "profile:data-director-app@v10"
   },
   "unavailable": {}
 }

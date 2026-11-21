@@ -15,6 +15,7 @@ export const DEVELOPMENT: Session = {
   expiresAt: null,
   modelAccounts: false,
   modelAccountProviders: [],
+  repositoryAccounts: false,
 };
 
 export const SIGNED_OUT: Session = {
@@ -24,6 +25,7 @@ export const SIGNED_OUT: Session = {
   expiresAt: null,
   modelAccounts: false,
   modelAccountProviders: [],
+  repositoryAccounts: false,
 };
 
 export function signedIn(expiresAt = new Date(Date.now() + 8 * 3600_000).toISOString()): Session {
@@ -39,6 +41,7 @@ export function signedIn(expiresAt = new Date(Date.now() + 8 * 3600_000).toISOSt
     expiresAt,
     modelAccounts: false,
     modelAccountProviders: [],
+    repositoryAccounts: false,
   };
 }
 

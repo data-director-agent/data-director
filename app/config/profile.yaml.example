@@ -2,7 +2,7 @@
 # names another (docs/specs/policy-and-identity.md, docs/specs/system.md). Keys are as in workbench/profiles/README.md.
 # TODO(#225): how a steward edits and reviews this profile in a deployment (#41).
 profile_id: data-director-app
-version: 9
+version: 10
 description: Reference profile for the Data Director app; enables every in-tree agent, requires approval for writes.
 
 agents:
@@ -44,6 +44,12 @@ attached_documents: allowed
 # (docs/specs/model-accounts.md). Off: the deployment pays for every call, as before.
 model_accounts:
   own: off
+
+# The APIs a person may deposit a draft through, after approving it, with their own repository
+# account (docs/specs/deposit.md). They are used only where the deployment runs the deposit broker
+# (DD_DEPOSIT_BROKER_URL); elsewhere every repository is deposited to by hand.
+deposit_transports:
+  - zenodo
 
 actions_requiring_approval:
   - deposit

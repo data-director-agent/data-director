@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling>=1.32.4"]
+build-backend = "hatchling.build"
+
+[project]
+name = "data-director-deposit-broker"
+# Alpha: holds people's own repository tokens and makes draft deposits for them; off unless the
+# deployment sets it up and the profile offers a transport (docs/specs/deposit.md).
+version = "0.1.0-alpha.0"
+description = "Data Director deposit broker: holds people's own repository tokens, sealed, and creates draft deposits for a harness that presents a deposit grant"
+readme = "README.md"
+requires-python = ">=3.14"
+license = "MIT"
+authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
+dependencies = [
+  "data-director-sdk[brokers]>=0.2.0a0",
+  "cryptography>=45",
+  "httpx>=0.28",
+  "joserfc>=1.0",
+  "starlette>=1.8.0",
+  "uvicorn>=0.54.0",
+]
+
+[project.scripts]
+dd-deposit-broker = "dd_deposit_broker.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dd_deposit_broker"]

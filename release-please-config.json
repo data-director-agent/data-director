@@ -60,6 +60,13 @@
         "broker/tests"
       ]
     },
+    "deposit-broker": {
+      "component": "deposit-broker",
+      "release-type": "python",
+      "exclude-paths": [
+        "deposit-broker/tests"
+      ]
+    },
     "agents/orchestrator-stub": {
       "component": "agent-orchestrator-stub",
       "release-type": "python",

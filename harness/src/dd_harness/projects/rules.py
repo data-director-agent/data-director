@@ -55,6 +55,9 @@ PROJECT_VALIDATED = "project_validated"
 PACKAGE_BUILT = "package_built"
 DEPOSIT_ITEM_DECIDED = "deposit_item_decided"
 DEPOSIT_CHECKS_CONFIRMED = "deposit_checks_confirmed"
+DEPOSIT_APPROVED = "deposit_approved"
+DEPOSIT_RECORDED = "deposit_recorded"
+DEPOSIT_FAILED = "deposit_failed"
 PROJECT_ID = re.compile(UUID7_PATTERN)
 # Members every event has, which what an event carries never replaces.
 ENVELOPE_KEYS = frozenset({"event", "event_id", "project_id", "at", "acted_for", "caused_by"})
