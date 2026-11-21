@@ -42,6 +42,26 @@ class ConversationDeletedError(ProjectError):
     (docs/specs/projects.md, invariant 29)."""
 
 
+class MembershipRefusal(StrEnum):
+    """Why a change to a project's members was refused (docs/specs/projects.md, invariant 16).
+    Each value is a Problem Details slug."""
+
+    LAST_OWNER = "last-owner"
+    ALREADY_MEMBER = "already-member"
+    NOT_A_MEMBER = "not-a-member"
+    SAME_ROLE = "same-role"
+
+
+class MembershipRefusedError(ProjectError):
+    """A change to a project's members that would leave it with no owner, add someone already a
+    member, or change or remove someone who is not one. Nothing is recorded."""
+
+    def __init__(self, refusal: MembershipRefusal, detail: str) -> None:
+        super().__init__(detail)
+        self.refusal = refusal
+        self.detail = detail
+
+
 class Refusal(StrEnum):
     """Why a decision, an edit or an answer was refused as not naming what it must
     (docs/specs/projects.md, invariant 12). Each value is a Problem Details slug."""

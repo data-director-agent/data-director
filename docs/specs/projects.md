@@ -46,8 +46,9 @@ person's projects from an index
 (docs/specs/storage.md, "Listing"); the
 access check `dd_harness.project_access`, which reads each principal's role from the log, and its
 use by the conductor before a run in a project and by every route of the app's server under
-`/api/projects/{project_id}`, with the creator as the only owner until membership is built,
-TODO(#389); the app
+`/api/projects/{project_id}`; membership, whose events an owner appends to add, re-role and
+remove members by principal identifier (`dd_harness.projects.membership`, `dd-harness project
+member-add`), with the app's members page TODO(#391); the app
 starting each conversation in a project of its own and adding an inventory attached to a turn;
 researcher facts a person keeps from their own public ORCID record, given to the project's
 agents (invariant 27); the inventory command; and the core
@@ -216,7 +217,11 @@ intended design, and each part says where it is not built yet.
     ([Policy and identity](policy-and-identity.md)), never a field of the request body.
 16. **A project always has at least one owner, and only owners decide or manage members.** The
     `project_created` event makes its creator an owner. The harness refuses to remove or demote the
-    last owner. A deployment role never makes anyone a member. Not built yet, TODO(#389).
+    last owner (`MembershipRefusedError`, `last-owner`). A deployment role never makes anyone a
+    member. Membership is events of the log: `member_added` and `member_role_changed` name the
+    member (`member_id`, their principal identifier) and the role, and `member_removed` the member;
+    `membership.member_roles` is the one fold of them (`Membership.add_member`, `change_role`,
+    `remove_member`, `members`; `harness/tests/test_project_membership.py`).
 17. **Access follows the project.** Whatever carries a `project_id` (conversations, runs,
     inventories, documents, decisions) is visible to the project's members and to no one else
     except a data steward whose visibility allows it ([Data stewards](stewardship.md), invariants 2 and 3),
@@ -224,8 +229,8 @@ intended design, and each part says where it is not built yet.
     so that a refusal does not reveal whether the project exists; a member attempting an owner's
     action with 403. Enforced by `dd_harness.project_access` (`harness/tests/test_project_access.py`,
     `harness/tests/test_project_runs.py`) and the app's `in_project` route guard
-    (`app/tests/test_app.py`); until membership is built the creator is the only one with a role,
-    TODO(#389).
+    (`app/tests/test_app.py`, `app/tests/test_projects_routes.py`), over the roles the membership
+    events give (invariant 16).
 18. **No principal's identifier or name enters an agent's input**, except the researcher facts a
     person chose to keep for the record (invariant 27). A conversation's history marks each
     turn's speaker with a label pseudonymous within the project, such as "Member 1", stable
@@ -233,8 +238,9 @@ intended design, and each part says where it is not built yet.
     identity: they are what a researcher supplies for the record, as they would type their name
     into a draft, and an agent is not told which of them, if any, it acts for.
 19. **Leaving or removal takes effect from that event.** Earlier turns, runs, versions and
-    decisions keep their attribution, and a run already going finishes. Not built yet,
-    TODO(#389).
+    decisions keep their attribution, and a run already going finishes. A removed
+    member's earlier events still name them, and the access check reads only the roles that
+    stand (`harness/tests/test_project_membership.py`).
 20. **The intake's answers are events of the log, and a skip derived from one is the weakest
     word.** The harness writes them through two methods ([Orchestration](orchestration.md),
     invariant 20):
@@ -557,7 +563,8 @@ TODO(#16, #72).
 | delete the project, or restore a deleted one | no | yes |
 
 A member is added by the principal identifier they sign in with (an ORCID iD for ORCID sign-in);
-they need not have signed in before. Whether an added person must accept first, and how they are
+they need not have signed in before. No name is kept for a member, only the identifier. Any
+member may leave, by removing themselves (`project_access.may_remove_member`). Whether an added person must accept first, and how they are
 told, are TODO(#388, #378). Each turn of a shared conversation acts for the member who sent it,
 and a delegated child for that turn's principal. A run outside any project belongs to the
 principal it acted for alone ([App](app.md), rule 24).
