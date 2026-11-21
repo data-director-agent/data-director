@@ -42,6 +42,7 @@ import { deletionName, documentName, projectName } from "../../project/name";
 import { Link, navigate, projectTabPath } from "../../route";
 import { AddInventory } from "../inventory/AddInventory";
 import { PageHeader } from "../frame/PageHeader";
+import { PageLoading } from "../ui/PageLoading";
 import { DocumentList, FORMER_PANELS, stateOf } from "./DocumentList";
 import { DeleteProject } from "./DeleteProject";
 import { DocumentReader } from "./DocumentReader";
@@ -58,6 +59,11 @@ function message(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/** Whether the project's name and its documents have both been read, or failed to be. */
+function bothRead(named: boolean, load: Load): boolean {
+  return named && load.state !== "loading";
+}
+
 /** The version asked for, if `v` is a whole number. */
 function versionOf(v: string | null): number | null {
   return v !== null && /^\d+$/.test(v) ? Number(v) : null;
@@ -67,6 +73,8 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
   const api = useProjectApi();
   const [load, setLoad] = useState<Load>({ state: "loading" });
   const [project, setProject] = useState<ProjectSummary | null>(null);
+  // Whether the first read of the project's name has landed or failed.
+  const [named, setNamed] = useState(false);
   // Counts renames, so that the project's name is read again after one.
   const [renamed, setRenamed] = useState(0);
   // What a decision did, said while the document it was made on is open (`on`, as asked).
@@ -119,8 +127,11 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
       (projects) => {
         const found = projects.find((p) => p.project_id === projectId);
         if (found) setProject(found);
+        setNamed(true);
       },
-      () => undefined,
+      () => {
+        if (!controller.signal.aborted) setNamed(true);
+      },
     );
     return () => controller.abort();
   }, [api, projectId, renamed]);
@@ -224,55 +235,59 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
       ? load.value.documents.find((document) => document.document_id === announcement.next)
       : undefined;
 
+  // Drawn whole once both reads have landed, so that the name and its buttons do not arrive
+  // above the documents after they can be pressed (#1328).
   return (
-    <>
-      <ProjectNav projectId={projectId} name={title} current="documents" />
-      <PageHeader title={title ?? "Project documents"}>
-        {project && title && (
-          <p className="project-name-actions">
-            <ProjectRename
+    <PageLoading ready={bothRead(named, load)} said="Reading the project…">
+      <>
+        <ProjectNav projectId={projectId} name={title} current="documents" />
+        <PageHeader title={title ?? "Project documents"}>
+          {project && title && (
+            <p className="project-name-actions">
+              <ProjectRename
+                projectId={projectId}
+                name={project.title ?? title}
+                named={project.title_source ?? null}
+                onRenamed={() => setRenamed((n) => n + 1)}
+              />{" "}
+              <DeleteProject
+                projectId={projectId}
+                name={title}
+                typedName={deletionName(project)}
+                restoreDays={project.restore_days}
+              />
+            </p>
+          )}
+          <p className="project-inventory-actions">
+            <AddInventory
               projectId={projectId}
-              name={project.title ?? title}
-              named={project.title_source ?? null}
-              onRenamed={() => setRenamed((n) => n + 1)}
-            />{" "}
-            <DeleteProject
-              projectId={projectId}
-              name={title}
-              typedName={deletionName(project)}
-              restoreDays={project.restore_days}
+              replacing={project?.inventory != null}
+              onSaved={(saved) => {
+                setProject((p) => (p ? { ...p, inventory: saved } : p));
+              }}
             />
           </p>
-        )}
-        <p className="project-inventory-actions">
-          <AddInventory
-            projectId={projectId}
-            replacing={project?.inventory != null}
-            onSaved={(saved) => {
-              setProject((p) => (p ? { ...p, inventory: saved } : p));
-            }}
-          />
-        </p>
-        <p className="hint">
-          Check each draft before it goes into the deposit package. Approve it as it is, edit it and
-          approve your version, or reject it. A decision cannot be changed once it is made; a newer
-          version can be.
-        </p>
-      </PageHeader>
-      <div role="status" className={announcement ? "callout status-ok" : undefined}>
-        {announcement && (
-          <p>
-            {announcement.said}
-            {next && (
-              <>
-                {" "}
-                Next to review: <Link to={hrefFor(next.document_id)}>{documentName(next)}</Link>
-              </>
-            )}
+          <p className="hint">
+            Check each draft before it goes into the deposit package. Approve it as it is, edit it and
+            approve your version, or reject it. A decision cannot be changed once it is made; a newer
+            version can be.
           </p>
-        )}
-      </div>
-      {content()}
-    </>
+        </PageHeader>
+        <div role="status" className={announcement ? "callout status-ok" : undefined}>
+          {announcement && (
+            <p>
+              {announcement.said}
+              {next && (
+                <>
+                  {" "}
+                  Next to review: <Link to={hrefFor(next.document_id)}>{documentName(next)}</Link>
+                </>
+              )}
+            </p>
+          )}
+        </div>
+        {content()}
+      </>
+    </PageLoading>
   );
 }

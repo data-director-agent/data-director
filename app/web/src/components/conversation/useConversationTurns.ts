@@ -77,6 +77,8 @@ export interface Turns {
   quiet: boolean;
   /** The earlier conversations, in every project. */
   past: ConversationSummary[];
+  /** Whether the first read of the earlier conversations has landed or failed. */
+  pastSettled: boolean;
   busy: boolean;
   sent: Sent | null;
   /** The run of the message sent, while it is drawn; null once it is shown as a turn. */
@@ -348,6 +350,7 @@ export function useConversationTurns(options: TurnsOptions): Turns {
     turnCount,
     quiet: !busy && sent === null && turnCount === 0,
     past,
+    pastSettled: pastRead.resource.state !== "loading",
     busy,
     sent,
     live: turn.run && {

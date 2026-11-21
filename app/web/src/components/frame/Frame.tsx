@@ -113,7 +113,7 @@ export function Frame({
             </ul>
           </nav>
           <div className="app-tools">
-            {account}
+            <span className="app-account">{account}</span>
             <a
               className="app-tool-link"
               href={USER_GUIDE}

@@ -23,6 +23,8 @@ export interface IntakeShown {
 
 export interface IntakeRead {
   intake: IntakeShown | null;
+  /** Whether the first read of the project's intake has landed or failed. */
+  settled: boolean;
   /** Opens the card again for project `of`, with the answers as they are now. */
   openAgain(of: string): void;
   answer(of: string, questionId: string, values: string[]): Promise<ProjectIntake>;
@@ -48,7 +50,7 @@ export function useIntake(
   const [card, setCard] = useState<{ projectId: string; open: boolean; again: boolean } | null>(
     null,
   );
-  const { latest, set } = useResource(
+  const { resource, latest, set } = useResource(
     projectId,
     (of, signal) => projectApi.intake(of, signal),
     turnCount,
@@ -108,5 +110,5 @@ export function useIntake(
     projectId && latest && card?.projectId === projectId
       ? { intake: latest, open: card.open, again: card.again }
       : null;
-  return { intake, openAgain, answer, dismiss, close };
+  return { intake, settled: resource.state !== "loading", openAgain, answer, dismiss, close };
 }

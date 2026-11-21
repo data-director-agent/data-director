@@ -872,6 +872,15 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   horizontal scrolling. Automated checks find only some failures; the rest is human review
   ([Evaluation and conformance](evaluation.md)). Chat content needs particular care
   (`docs/ui/best-practices.md`).
+- **Layout stability.** Nothing moves under the pointer as what a page reads arrives (#1328). The
+  workspace and a project's page are drawn whole once the reads they make on load have landed or
+  failed, with one status line, as tall as the window, until then (`ui/PageLoading.tsx`); the
+  banner keeps a row for who is signed in at narrow widths while it is read; and a dialog whose
+  body grows after it opens, such as the document check, fills the window's height, so its
+  buttons stay put. `app/web/e2e/stability.spec.ts` measures, at 1280 and 320 CSS pixels, that
+  loading the workspace, a project's page and the document check shifts the layout by no more
+  than 0.05 (every shift not caused by input, summed) and moves neither **Next** nor an
+  **Attach** button.
 - **Live regions.** The frame mounts two, once, so they are in the page from load: a polite log
   (`aria-live="polite"`, `aria-atomic="false"`) and an assertive one for errors
   (`components/ui/Announcer.tsx`). Components speak through `useAnnounce()`; a lint rule stops

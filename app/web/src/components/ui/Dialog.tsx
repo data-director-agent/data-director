@@ -26,7 +26,9 @@ export { DialogTrigger } from "react-aria-components";
  *
  * A dialog the page opens itself, not a button, is given `isOpen` and `onOpenChange` instead of
  * a `DialogTrigger`. A `footer`, such as a dialog's confirm and cancel buttons, stays in view
- * below the body while the body scrolls.
+ * below the body while the body scrolls. A dialog whose body grows after it opens, as when a
+ * check answers, is given `fill`, so that it takes the window's height from the start and its
+ * footer does not move as the body grows (#1328).
  */
 export function ModalDialog({
   title,
@@ -34,17 +36,19 @@ export function ModalDialog({
   footer,
   isOpen,
   onOpenChange,
+  fill = false,
 }: {
   title: string;
   children: ReactNode | ((close: () => void) => ReactNode);
   footer?: ReactNode | ((close: () => void) => ReactNode);
   isOpen?: boolean;
   onOpenChange?: (isOpen: boolean) => void;
+  fill?: boolean;
 }) {
   const controlled = isOpen === undefined ? {} : { isOpen, ...(onOpenChange ? { onOpenChange } : {}) };
   return (
     <ModalOverlay className="dialog-overlay" isDismissable {...controlled}>
-      <Modal className="dialog-modal">
+      <Modal className={fill ? "dialog-modal dialog-modal-fill" : "dialog-modal"}>
         <Dialog className="dialog">
           {({ close }) => (
             <>
