@@ -19,6 +19,7 @@ import { HttpAgent, type AbstractAgent, type BaseEvent, type RunAgentInput } fro
 import { createContext, useContext } from "react";
 
 import { CassetteAgent } from "./cassette";
+import { serverAnswered } from "../status";
 
 /** The route that cancels the turn whose AG-UI run is `runId`. */
 export function turnCancelUrl(conversationId: string, runId: string): string {
@@ -47,7 +48,7 @@ export const httpTransport: RunTransport = {
     const response = await fetch(turnCancelUrl(conversationId, runId), { method: "POST" });
     // 404: the turn is no longer streaming, so it has ended, and its stream says how.
     if (!response.ok && response.status !== 404) {
-      throw new Error(`the server answered ${response.status}`);
+      throw new Error(serverAnswered(response.status));
     }
   },
 };

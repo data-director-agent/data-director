@@ -375,8 +375,13 @@ decides which endpoint serves it, and a person's endpoint is not known at start-
   record, which they may withdraw from agents but which stays in the project's log
   ([Projects](projects.md), invariant 27). Retention of personal data the app holds about its
   users is TODO(#156).
-- **Availability.** Sessions are held in the app's memory, which suits one server process:
-  restarting the app signs everyone out.
+- **Availability.** Sessions are kept in a SQLite file for each way in (`DD_SESSIONS_FILE`),
+  which suits one server process on one host, so restarting the app, as each deployment does,
+  signs nobody out; unset, as on a developer's machine, they are held in memory and a restart signs
+  everyone out. The file holds only hashes of the identifiers, and is not backed up, so a restore
+  cannot revive a session that was signed out. A request restarts the idle time to the nearest
+  minute, so a session may end up to a minute early, never late. A sign-in still at the provider
+  is held in memory, and a restart in the middle of one asks the person to sign in again.
 - **Accessibility.** The session time-out warning meets WCAG 2.2.1.
 - **Development and tests** need no ORCID client and no model key: tests act for the ORCID
   documentation's example researcher, so no stored test run names a real person, and use a fake

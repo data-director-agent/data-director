@@ -25,7 +25,13 @@
 #   DD_DEPLOY_ABOUT_URL   http://127.0.0.1:7860/api/about   where the app names its commit
 #   GITHUB_TOKEN          (unset)         only for a private repository or the API rate limit
 #
-# `deploy.sh --force` deploys the tip, skipping the CI check and the record of failed commits.
+# A pass does nothing while DD_DEPLOY_ROOT/deploy.paused exists (deploy/README.md, "Holding
+# deployments back"): empty, until it is removed; holding a time, such as 2026-11-24T18:00Z, until
+# then, when the pass removes it and goes on. A file that names no time it can read holds them back
+# too, so a mistyped pause still pauses.
+#
+# `deploy.sh --force` deploys the tip, skipping the CI check, the record of failed commits and any
+# pause.
 #
 # `deploy.sh --bootstrap [sha]` is the way out when this script, the copy in the live release, is
 # what stops a deployment: it points `current` at a release that is already built (sha, or the
@@ -73,6 +79,7 @@ BARE="$ROOT/repo.git"
 RELEASES="$ROOT/releases"
 CURRENT="$ROOT/current"
 FAILED="$ROOT/failed-commits"
+PAUSED="$ROOT/deploy.paused"
 
 log() { echo "$*"; }
 die() { echo "error: $*" >&2; exit 1; }
@@ -175,6 +182,35 @@ bootstrap() {
 
 if ((BOOTSTRAP == 1)); then
   bootstrap
+  exit 0
+fi
+
+# --- 0. Paused? --------------------------------------------------------------------------------
+
+# Whether deploy.paused holds this pass back, saying so if it does. A pause whose time has passed
+# is removed, so one set for a workshop cannot be forgotten.
+paused() {
+  [[ -e "$PAUSED" ]] || return 1
+  local until end
+  until="$(tr -d '[:space:]' <"$PAUSED")"
+  if [[ -z "$until" ]]; then
+    log "paused until $PAUSED is removed; not deploying"
+    return 0
+  fi
+  if ! end="$(date --utc --date "$until" +%s 2>/dev/null)"; then
+    log "paused: $PAUSED holds \"$until\", which is not a time, so until it is removed; not deploying"
+    return 0
+  fi
+  if (($(date +%s) < end)); then
+    log "paused until $until ($PAUSED); not deploying"
+    return 0
+  fi
+  rm -f "$PAUSED"
+  log "the pause until $until has ended; deploying again"
+  return 1
+}
+
+if ((FORCE == 0)) && paused; then
   exit 0
 fi
 

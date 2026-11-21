@@ -14,6 +14,7 @@ import { createContext, useContext } from "react";
 import type { Ticket } from "../api/generated/responses";
 import { ticketed } from "../api/ticketed";
 import { checkSignedIn } from "../session/api";
+import { serverAnswered } from "../status";
 
 export interface AccountLabel {
   provider: string;
@@ -116,7 +117,7 @@ async function ticket(signal?: AbortSignal): Promise<Ticket> {
     headers: JSON_HEADERS,
   });
   checkSignedIn(response);
-  if (!response.ok) throw new Error(`the server answered ${response.status}`);
+  if (!response.ok) throw new Error(serverAnswered(response.status));
   return (await response.json()) as Ticket;
 }
 

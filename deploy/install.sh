@@ -93,8 +93,10 @@ if ! id "$USER_NAME" &>/dev/null; then
   useradd --system --home-dir "$STATE" --create-home --shell /usr/sbin/nologin "$USER_NAME"
 fi
 install -d -o "$USER_NAME" -g "$USER_NAME" -m 0755 "$ROOT" "$ROOT/releases" "$PYTHONS"
+# The sessions are not backed up (backup.sh): putting one back could revive a session since signed
+# out.
 install -d -o "$USER_NAME" -g "$USER_NAME" -m 0750 "$STATE" "$STATE/runs" "$STATE/projects" \
-  "$STATE/workbench-runs"
+  "$STATE/workbench-runs" "$STATE/app-sessions" "$STATE/workbench-sessions"
 install -d -o root -g "$USER_NAME" -m 0750 "$ETC"
 
 # Secrets and settings: root writes them, the services read them.

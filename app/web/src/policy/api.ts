@@ -8,6 +8,7 @@ import { createContext, useContext } from "react";
 
 import type { Policy } from "../api/generated/responses";
 import { checkSignedIn } from "../session/api";
+import { serverAnswered } from "../status";
 
 export type { Policy, PolicyAgent, PolicyStep } from "../api/generated/responses";
 
@@ -19,7 +20,7 @@ export const httpPolicyApi: PolicyApi = {
   async get(signal) {
     const response = await fetch("/api/policy", signal ? { signal } : {});
     checkSignedIn(response);
-    if (!response.ok) throw new Error(`the server answered ${response.status}`);
+    if (!response.ok) throw new Error(serverAnswered(response.status));
     return (await response.json()) as Policy;
   },
 };
