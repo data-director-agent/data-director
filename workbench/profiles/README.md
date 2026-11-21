@@ -79,7 +79,7 @@ deposit_transports:          # optional: the APIs a person may deposit a draft t
                              # every repository is deposited to by hand (docs/specs/deposit.md)
 ```
 
-Those thirteen keys are the whole vocabulary. A profile with any other key is refused when the
+Those fourteen keys are the whole vocabulary. A profile with any other key is refused when the
 workbench starts, so a misspelt or out-of-date key cannot look as if it were in force.
 
 ## How it is applied
