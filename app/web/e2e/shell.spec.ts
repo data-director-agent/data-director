@@ -272,11 +272,9 @@ test("conversation: keyboard only, focus returns to the message box, reflows at 
   const box = page.getByRole("textbox", { name: "What would you like to do?" });
   await box.focus();
   await page.keyboard.type("hello world");
-  // Attaching a file, and making an inventory, come between the message and Send.
+  // Attaching a file comes between the message and Send; making an inventory is not offered here.
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Attach a file" })).toBeFocused();
-  await page.keyboard.press("Tab");
-  await expect(page.getByRole("button", { name: "Make an inventory" })).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Send" })).toBeFocused();
   await page.keyboard.press("Enter");
@@ -291,9 +289,21 @@ test("Make an inventory: routes, tabs and copy by keyboard, fits 320px, no axe v
 }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.setViewportSize({ width: 320, height: 640 });
+  const [active] = projects;
+  if (!active) throw new Error("the projects fixture lists no project");
   await serveConversation(page);
+  await page.route("/api/projects", (route) => route.fulfill({ json: projects }));
+  await page.route(`/api/projects/${active.project_id}/progress`, (route) =>
+    route.fulfill({ json: intakeComplete.progress }),
+  );
+  await page.route(`/api/projects/${active.project_id}/intake`, (route) =>
+    route.fulfill({ json: intakeComplete }),
+  );
+  await page.addInitScript((id) => localStorage.setItem("dd-project", id), active.project_id);
   await page.goto("/");
-  const make = page.getByRole("button", { name: "Make an inventory" });
+  // Not under the message box, but in the project's panel.
+  await expect(page.locator("form").getByRole("button", { name: "Make an inventory" })).toHaveCount(0);
+  const make = page.getByRole("region", { name: "Project" }).getByRole("button", { name: "Make an inventory" });
   await make.press("Enter");
   const dialog = page.getByRole("dialog", { name: "Make an inventory" });
   await expect(dialog.getByText(/your data never leave it/)).toBeVisible();

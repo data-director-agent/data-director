@@ -1,10 +1,10 @@
 /**
  * Describe a folder… in the built shell, with the real browser scanner (#554), in Chromium, Firefox
  * and WebKit: a folder whose files hold a canary string is described in the browser, its inventory
- * checked and attached to a message, and the message sent; and the same folder described again
- * under Edit inventory, as a new scan of the project's inventory, which is then saved. The canary must be in no request the
- * page makes, so in no body the app's API is sent. A turn's body is what the harness would store,
- * so no stored event can hold it either. The scanner's worker must be sent its own Content Security Policy.
+ * checked and added to the project from Make an inventory in its panel; and the same folder
+ * described again under Edit inventory, as a new scan of the project's inventory, which is then
+ * saved. The canary must be in no request the page makes, so in no body the app's API is sent.
+ * The scanner's worker must be sent its own Content Security Policy.
  *
  * Needs the scanner's bundle: `npm ci && npm run bundle` in inventory/browser, which the preview
  * server then serves at /inventory-bundle/ (vite.config.ts). Chromium's own directory picker
@@ -20,7 +20,7 @@ import { fileURLToPath } from "node:url";
 
 import { type Page, type Request, expect, test } from "@playwright/test";
 
-import { axeViolations, serveConversation, serveSession, turnSent } from "./support";
+import { axeViolations, serveConversation, serveSession } from "./support";
 import intake from "../fixtures/intake-complete.json" with { type: "json" };
 import projects from "../fixtures/projects.json" with { type: "json" };
 import development from "../fixtures/session-development.json" with { type: "json" };
@@ -72,64 +72,14 @@ async function withoutDirectoryPicker(page: Page) {
   });
 }
 
-test("a folder is described in the browser and none of its content leaves it", async ({
-  page,
-  baseURL,
-  browserName,
-}) => {
-  test.setTimeout(150_000);
-  const requests: Request[] = [];
-  page.context().on("request", (request) => requests.push(request));
-  await withoutDirectoryPicker(page);
-  await serveSession(page, development);
-  await serveConversation(page);
-  const sent: string[] = [];
-  await page.route("/api/conversations/*/turns/stream", async (route) => {
-    sent.push(JSON.stringify(turnSent(route)));
-    await route.fallback();
-  });
-
-  await page.goto("/");
-  await page.getByRole("textbox", { name: "What would you like to do?" }).fill("Describe this");
-  await page.getByRole("button", { name: "Make an inventory" }).click();
-  const dialog = page.getByRole("dialog", { name: "Make an inventory" });
-  const describe = dialog.getByRole("region", { name: "Describe a folder in this browser" });
-  await expect(describe.getByText(/None of the files is sent anywhere/)).toBeVisible();
-  const worker = page.waitForResponse(/\/assets\/inventory-scanner-[^/]*\.js$/);
-  await describe.locator('input[type="file"]').setInputFiles(folder);
-
-  await expect(describe.getByRole("progressbar")).toBeVisible();
-  // In Playwright's Firefox, axe crashes the page once `getByRole("region")` has been queried, with
-  // or without a scan running, so the dialog's accessibility is checked in Chromium and WebKit.
-  if (browserName !== "firefox") expect(await axeViolations(page)).toEqual([]);
-  expect((await worker).headers()["content-security-policy"]).toBe(WORKER_POLICY);
-
-  const review = page.getByRole("dialog", { name: "Check the inventory before attaching it" });
-  await expect(review).toBeVisible({ timeout: 120_000 });
-  await expect(review.getByText("canary.csv").first()).toBeVisible();
-  await review.getByRole("button", { name: "Attach this inventory" }).click();
-  await page.getByRole("button", { name: "Send" }).click();
-  await expect.poll(() => sent.length).toBe(1);
-
-  // The inventory was sent: the canary file by its path, made by the command under Pyodide.
-  const [body] = sent;
-  expect(body).toContain("tables/canary.csv");
-  expect(body).toMatch(/"inventory_tool_version":"[^"]+\+pyodide\./);
-  expectNoCanary(requests, baseURL);
-});
-
-test("a project's inventory is updated with a folder described in the browser", async ({
-  page,
-  baseURL,
-}) => {
-  test.setTimeout(150_000);
-  const requests: Request[] = [];
-  page.context().on("request", (request) => requests.push(request));
-  await withoutDirectoryPicker(page);
+/**
+ * Serve a workspace whose active project holds an inventory, so that its Project panel offers
+ * Edit inventory and Replace the inventory; every inventory saved to it is recorded in `saved`.
+ */
+async function serveProjectPanel(page: Page) {
   await page.setViewportSize({ width: 1280, height: 900 });
   await serveSession(page, development);
   await serveConversation(page);
-  // The active project holds an inventory, so Edit inventory is offered beside it.
   const [active] = projects;
   if (!active?.inventory) throw new Error("the projects fixture's first project holds no inventory");
   await page.route("/api/projects", (route) => route.fulfill({ json: projects }));
@@ -138,12 +88,11 @@ test("a project's inventory is updated with a folder described in the browser", 
   );
   await page.route(`/api/projects/${active.project_id}/intake`, (route) => route.fulfill({ json: intake }));
   await page.addInitScript((id) => localStorage.setItem("dd-project", id), active.project_id);
-  const madeAt = active.inventory.inventory_made_at;
   const stored = {
     schema_class: "FileInventory",
     inventory_tool: "dd-inventory",
     inventory_tool_version: "0.1.0",
-    inventory_made_at: madeAt,
+    inventory_made_at: active.inventory.inventory_made_at,
     inventory_files: [
       {
         file_path: "tables/plots.csv",
@@ -162,6 +111,59 @@ test("a project's inventory is updated with a folder described in the browser", 
     saved.push(route.request().postData() ?? "");
     return route.fulfill({ status: 201, json: { ...active.inventory, revises: active.inventory?.digest } });
   });
+  return { saved };
+}
+
+test("a folder is described in the browser and none of its content leaves it", async ({
+  page,
+  baseURL,
+  browserName,
+}) => {
+  test.setTimeout(150_000);
+  const requests: Request[] = [];
+  page.context().on("request", (request) => requests.push(request));
+  await withoutDirectoryPicker(page);
+  const { saved } = await serveProjectPanel(page);
+
+  await page.goto("/");
+  // The message box does not offer it; the project's panel does.
+  await expect(page.getByRole("textbox", { name: "What would you like to do?" })).toBeVisible();
+  await expect(page.locator("form").getByRole("button", { name: "Make an inventory" })).toHaveCount(0);
+  await page.getByRole("region", { name: "Project" }).getByRole("button", { name: "Make an inventory" }).click();
+  const dialog = page.getByRole("dialog", { name: "Make an inventory" });
+  const describe = dialog.getByRole("region", { name: "Describe a folder in this browser" });
+  await expect(describe.getByText(/None of the files is sent anywhere/)).toBeVisible();
+  const worker = page.waitForResponse(/\/assets\/inventory-scanner-[^/]*\.js$/);
+  await describe.locator('input[type="file"]').setInputFiles(folder);
+
+  await expect(describe.getByRole("progressbar")).toBeVisible();
+  // In Playwright's Firefox, axe crashes the page once `getByRole("region")` has been queried, with
+  // or without a scan running, so the dialog's accessibility is checked in Chromium and WebKit.
+  if (browserName !== "firefox") expect(await axeViolations(page)).toEqual([]);
+  expect((await worker).headers()["content-security-policy"]).toBe(WORKER_POLICY);
+
+  const review = page.getByRole("dialog", { name: "Check the inventory before attaching it" });
+  await expect(review).toBeVisible({ timeout: 120_000 });
+  await expect(review.getByText("canary.csv").first()).toBeVisible();
+  await review.getByRole("button", { name: "Add this inventory" }).click();
+  await expect.poll(() => saved.length).toBe(1);
+
+  // The inventory was stored: the canary file by its path, made by the command under Pyodide.
+  const [body] = saved;
+  expect(body).toContain("tables/canary.csv");
+  expect(body).toMatch(/"inventory_tool_version":"[^"]+\+pyodide\./);
+  expectNoCanary(requests, baseURL);
+});
+
+test("a project's inventory is updated with a folder described in the browser", async ({
+  page,
+  baseURL,
+}) => {
+  test.setTimeout(150_000);
+  const requests: Request[] = [];
+  page.context().on("request", (request) => requests.push(request));
+  await withoutDirectoryPicker(page);
+  const { saved } = await serveProjectPanel(page);
 
   await page.goto("/");
   await page.getByRole("region", { name: "Project" }).getByRole("button", { name: "Edit inventory" }).click();
