@@ -20,9 +20,11 @@ Three core classes are filled. Within a project:
 - a `Message`'s `project_inventory` says what the project's inventory is, so that an orchestrator
   knows the project holds one without being given its files; its `project_entry` and
   `project_progress` say which entry point the researcher chose and how far each step of the
-  process flow has gone, derived from the log on every turn (`dd_harness.progress`); its
-  `project_title` is the project's latest title, and `project_title_by_researcher` whether a
-  person gave it, so that an orchestrator's model can name a project nobody has named; its
+  process flow has gone, derived from the log on every turn (`dd_harness.progress`), and its
+  `project_intake` the researcher's answers to the other setup questions, "Not sure" included,
+  which no step state shows (`intake_answers`); its `project_title` is the project's latest
+  title, and `project_title_by_researcher` whether a person gave it, so that an orchestrator's
+  model can name a project nobody has named; its
   `project_documentation` lists the documents a researcher attached, by name, digest, media type
   and size, without their text, so that an orchestrator knows they are there.
   `project_entry_by_researcher` whether the researcher chose the entry point, so that the model
@@ -117,6 +119,7 @@ MESSAGE_PROJECT_SLOTS = (
     "project_decisions",
     "project_repository",
     "project_drafts",
+    "project_intake",
 )
 
 # The classes of project content (docs/specs/projects.md, invariant 8).
@@ -222,6 +225,8 @@ def give(
                 "project_repository": chosen(summary["repository"]),
                 # Left out while the project holds no drafted document.
                 "project_drafts": drafts(store.events(project_id)) or None,
+                # Left out while no setup question beside the entry question is answered.
+                "project_intake": intake_answers(where["decisions"]) or None,
             },
         )
     elif schema_class == DRAFT_REQUEST:
@@ -431,6 +436,21 @@ def _answers(store: FactSource, project_id: str, kind: Any) -> list[dict[str, An
     except ValueError:
         return None
     return store.answers(project_id, document_kind)
+
+
+def intake_answers(decisions: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """The intake's answered questions beside the entry question, as `IntakeAnswer`s, from a
+    project's decision points (`dd_harness.progress.decisions`): only those asked from the
+    project's entry point, so that the model is told only what still bears on its steps."""
+    return [
+        {
+            "intake_question_id": d["question_id"],
+            "intake_question_prompt": d["prompt"],
+            "intake_answer_labels": d["answer_labels"],
+        }
+        for d in decisions
+        if d["asked"] and d["answer_labels"]
+    ]
 
 
 def _put(filled: dict[str, Any], facts: Mapping[str, Any]) -> None:

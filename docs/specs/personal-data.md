@@ -46,8 +46,9 @@ each kind, and is then kept unchanged: flag, never fix (invariant 4). Finding no
 not to mean there is nothing (invariant 10), since names and places are not looked for in
 text.
 
-Today `dd-inventory` does none of this yet: detection lands with #470 and #471, summary values
-with #611, and the quasi-identifier check with #612. This spec is the design they build to.
+Detection landed with #470 and summary values with #611 (`dd_inventory.summaries`); the
+referral to a data steward is #471's and the quasi-identifier check is #612's, not built yet. This
+spec is the design they build to.
 
 **Name-level hints, until then (#449).** The File Archivist (`advisor.files`) and the app's
 inventory view mark files whose folder, file or field names, size or digest call for a person to
@@ -108,7 +109,8 @@ pause before deposit covers them. Whether the hints become findings of the
 7. **Every count passes the threshold before it is written.** A category, a missing-value code's
    count and a null count are each checked by ACRO's minimum-threshold rule with *k* = 10 by
    default, counts are rounded to base 5, and a zero count is treated as disclosive, as ACRO's
-   defaults have it.
+   defaults have it: a null count of zero is not written. Categories are listed by rounded count,
+   then by name, so that their order does not tell apart two counts rounded to the same value.
 8. **The researcher may tighten, never relax.** The command accepts a higher *k* and a larger
    rounding base, and refuses lower ones. A deployment may require a higher minimum for the
    inventories its project store accepts (Open questions).
@@ -197,18 +199,28 @@ its finding names the folder with a trailing slash.
 checker, MIT) is a required dependency, behind one module, `dd_inventory.summaries`, with its
 quasi-identifier use in `dd_inventory.quasi`. ACRO checks outputs of an analysis on a pandas data
 frame; the command uses it as follows, each call in suppression mode, in memory, with ACRO's
-output folder in a temporary directory, never in the dataset, and its logging silenced:
+results never finalised, so that it writes no file, and its logging and printing silenced:
 
 | Summary | How it is computed | ACRO check |
 |---|---|---|
-| Categories of a field | A one-way frequency table (`crosstab`) of the field | Minimum threshold *k*; cells below it suppressed |
-| Missing-value codes | Candidates (`-99`, `-999`, `999`, `9999`, `NA`, `N/A`, `.`, empty) found in the field, with their counts | Minimum threshold *k* on each count |
-| Null count | Rows with no value | Minimum threshold *k*, rounded |
-| Range of a numeric or date field | The *k*-th smallest and *k*-th largest values (invariant 6) | Minimum threshold on the count at or beyond each bound; ACRO's own min and max aggregates are not used, because ACRO passes a raw maximum as "ok" and only asks for a manual review against linked tables |
+| Categories of a field | A one-way frequency table (`crosstab`) of a string or boolean field with at most 50 distinct values, unless possible personal data were found in its values | Minimum threshold *k*; cells below it suppressed |
+| Missing-value codes | Candidates (`-99`, `-999`, `999`, `9999`, `NA`, `N/A`, `NaN`, `null`, `.`) found in the field, with their counts; left out of the range and the mean | Minimum threshold *k* on each count |
+| Null count | Rows whose cell is empty | Minimum threshold *k*, rounded |
+| Mean of a numeric field | The mean of the values that are not empty or a missing-value code | ACRO's mean (`pivot_table`): minimum threshold, p-ratio and nk dominance, so that no one or two values dominate it |
+| Range of a numeric or date field | The *k*-th smallest and *k*-th largest values (invariant 6), as written in the file; none for fewer than 2*k* values | Minimum threshold on the count at or beyond each bound; ACRO's own min and max aggregates are not used, because ACRO passes a raw maximum as "ok" and only asks for a manual review against linked tables |
 | Quasi-identifier combination | A cross-tabulation of the candidate columns | The number of cells below *k*, from ACRO's minimum-threshold check; the smallest non-empty cell, as a band |
 
 Rows read for summaries and the quasi-identifier check are capped (100,000 by default), and the
 limitations say when the cap was reached, since a sample is not the population.
+
+**What is written.** Each table field gets a `field_summary` with the values that passed and a
+`field_disclosure_check` saying which rules ran, *k*, the rounding base, ACRO's version and how
+many values were left out; a field whose values all failed has an empty summary and its check.
+`dd-inventory --threshold K --rounding BASE` tightens the rules and refuses lower values, and
+`--no-summaries` leaves both slots out, which the limitations say. The Documentation Editor gives
+a field's summary to its writers as `values`, telling them that a range's bounds are not the
+minimum and maximum, and fills a data dictionary's missing-value codes from it as inferred values
+([Drafting](drafting.md), #571).
 
 **Candidate quasi-identifier columns** are those whose name or inferred type indicates age or a
 date of birth, another date, sex or gender, geography (postcode district, area code, region),

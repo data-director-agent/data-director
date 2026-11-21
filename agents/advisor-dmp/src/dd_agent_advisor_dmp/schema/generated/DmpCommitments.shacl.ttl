@@ -15,16 +15,16 @@ dmp:DmpCommitments a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path <https://w3id.org/data-director/schema_class> ],
-        [ sh:class <https://w3id.org/data-director/ProjectDocument> ;
-            sh:description "The documents the project holds, with their text, in the order they were added. In a project the conductor fills them and a caller leaves them out; outside a project, the caller sends them, as it does the other facts." ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 4 ;
-            sh:path <https://w3id.org/data-director/project_documents> ],
         [ sh:class <https://w3id.org/data-director/ProjectFact> ;
             sh:description "The facts a person in the project decided (ProjectFact), the last decision on each subject, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project decided any. A drafter treats each as supplied." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 5 ;
             sh:path <https://w3id.org/data-director/project_decisions> ],
+        [ sh:class <https://w3id.org/data-director/ProjectDocument> ;
+            sh:description "The documents the project holds, with their text, in the order they were added. In a project the conductor fills them and a caller leaves them out; outside a project, the caller sends them, as it does the other facts." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 4 ;
+            sh:path <https://w3id.org/data-director/project_documents> ],
         [ sh:class dmp:SharingCommitment ;
             sh:description "What the data management plan committed to share." ;
             sh:nodeKind sh:BlankNodeOrIRI ;

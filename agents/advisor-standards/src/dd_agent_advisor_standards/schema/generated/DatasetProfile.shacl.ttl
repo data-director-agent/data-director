@@ -46,6 +46,133 @@ dcat:Dataset a sh:NodeShape ;
             sh:path dcat:keyword ] ;
     sh:targetClass dcat:Dataset .
 
+<https://w3id.org/data-director/CategoryCount> a sh:NodeShape ;
+    rdfs:comment "One category of a field and how many rows hold it, rounded." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/category_value> ],
+        [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <https://w3id.org/data-director/category_count> ] ;
+    sh:targetClass <https://w3id.org/data-director/CategoryCount> .
+
+<https://w3id.org/data-director/DisclosureCheck> a sh:NodeShape ;
+    rdfs:comment "What the disclosure check of a field's summary values did: the rules, their parameters, the tool and how many values it left out, never which (docs/specs/personal-data.md)." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:integer ;
+            sh:description "How many of the field's summary values were left out. Never which." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path <https://w3id.org/data-director/check_suppressed> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <https://w3id.org/data-director/check_tool_version> ],
+        [ sh:datatype xsd:integer ;
+            sh:description "The minimum frequency threshold k." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path <https://w3id.org/data-director/check_threshold> ],
+        [ sh:datatype xsd:integer ;
+            sh:description "The base counts were rounded to." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path <https://w3id.org/data-director/check_rounding_base> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The rules applied, such as minimum threshold, k-th value range, p-ratio, nk dominance, zeros disclosive and rounding." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path <https://w3id.org/data-director/check_rules> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The output checker that applied the rules, such as acro." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/check_tool> ] ;
+    sh:targetClass <https://w3id.org/data-director/DisclosureCheck> .
+
+<https://w3id.org/data-director/FieldSummary> a sh:NodeShape ;
+    rdfs:comment "Summary values of one table field that the inventory command computed where the data live and passed through statistical disclosure control before writing (docs/specs/personal-data.md). A value that failed a rule is absent, never altered to pass; every count is at least the check's threshold and rounded to its base, and a range is never the raw minimum and maximum." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:class <https://w3id.org/data-director/CategoryCount> ;
+            sh:description "The field's categories that at least k rows hold, with their counts. Rarer categories are left out and counted in check_suppressed." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 5 ;
+            sh:path <https://w3id.org/data-director/summary_categories> ],
+        [ sh:class <https://w3id.org/data-director/MissingCodeCount> ;
+            sh:description "Values the field holds that are often used for missing data (-99, -999, 999, 9999, NA, N/A, NaN, null, .), each held by at least k rows, with their counts." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 6 ;
+            sh:path <https://w3id.org/data-director/summary_missing_codes> ],
+        [ sh:datatype xsd:integer ;
+            sh:description "How many rows were read to compute the summaries, rounded." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/summary_rows_read> ],
+        [ sh:datatype xsd:float ;
+            sh:description "The mean of a numeric field's values, missing-value codes left out, written only when the threshold and dominance rules pass." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path <https://w3id.org/data-director/summary_mean> ],
+        [ sh:datatype xsd:integer ;
+            sh:description "How many of the rows read hold no value in the field, rounded." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <https://w3id.org/data-director/summary_null_count> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The lower bound of the field's values: the k-th smallest, so that at least k rows (the check's threshold) lie at or below it. A number or an ISO 8601 date or time, as text." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path <https://w3id.org/data-director/summary_range_low> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The upper bound of the field's values, the k-th largest, as summary_range_low." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path <https://w3id.org/data-director/summary_range_high> ] ;
+    sh:targetClass <https://w3id.org/data-director/FieldSummary> .
+
+<https://w3id.org/data-director/MissingCodeCount> a sh:NodeShape ;
+    rdfs:comment "A value that a field may use for missing data, such as -99 or NA, and how many rows hold it, rounded." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/missing_code> ],
+        [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <https://w3id.org/data-director/missing_code_count> ] ;
+    sh:targetClass <https://w3id.org/data-director/MissingCodeCount> .
+
 <https://w3id.org/data-director/TableField> a sh:NodeShape ;
     rdfs:comment "One field of a tabular resource, mirroring a Frictionless Table Schema field descriptor. Frictionless publishes no RDF namespace, so these slots carry see_also rather than a slot_uri (TODO(#20): revisit if Frictionless publishes term IRIs)." ;
     sh:closed true ;
@@ -71,6 +198,18 @@ dcat:Dataset a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
-            sh:path dcterms:description ] ;
+            sh:path dcterms:description ],
+        [ sh:class <https://w3id.org/data-director/DisclosureCheck> ;
+            sh:description "The disclosure check the field's summary values passed. Present whenever field_summary is." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 5 ;
+            sh:path <https://w3id.org/data-director/field_disclosure_check> ],
+        [ sh:class <https://w3id.org/data-director/FieldSummary> ;
+            sh:description "The field's summary values (docs/specs/personal-data.md). Absent, no summaries were made: by an older command, in a runtime where they do not run, or with them turned off." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 4 ;
+            sh:path <https://w3id.org/data-director/field_summary> ] ;
     sh:targetClass <https://w3id.org/data-director/TableField> .
 

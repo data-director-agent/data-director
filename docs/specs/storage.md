@@ -299,7 +299,9 @@ connection's `search_path`, which a location may choose with
   `project_events` in the order of `seq`; a `conversation_started` event's conversation is in an
   indexed column, so `project_of` is an indexed query. The principal an event may give a role to
   (`dd_harness.role_events.names`) is in `names_principal`, indexed with the project and `seq`,
-  so the projects naming a person are read from the index alone, in proportion to their projects;
+  so the projects naming a person are read from the index alone, in proportion to their projects,
+  in the order created (by `project_id`, a UUIDv7, so that a project someone was added to later
+  is where it was created);
   `harness/tests/test_postgres.py` checks the plan over twenty thousand projects. Content is in
   `project_blobs`.
 - **Documents are `json`, not `jsonb`.** `jsonb` refuses an escaped NUL (`\u0000`), which a

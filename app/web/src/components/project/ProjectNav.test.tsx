@@ -29,6 +29,7 @@ describe("ProjectNav", () => {
     const tabs = screen.getByRole("navigation", { name: "Project" });
     const paths = {
       Researchers: "/projects/p%201/researchers",
+      Members: "/projects/p%201/members",
       "Project facts": "/projects/p%201/facts",
       Repository: "/projects/p%201/repository",
       "Use of generative AI": "/projects/p%201/ai-use",

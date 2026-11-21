@@ -78,17 +78,17 @@ schema1:Organization a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path schema1:name ],
-        [ sh:datatype xsd:string ;
             sh:description "The organisation's ROR identifier." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
-            sh:path repository:ror ] ;
+            sh:path repository:ror ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path schema1:name ] ;
     sh:targetClass schema1:Organization .
 
 <https://w3id.org/data-director/ChosenRepository> a sh:NodeShape ;
@@ -147,6 +147,11 @@ schema1:Organization a sh:NodeShape ;
             sh:order 7 ;
             sh:path <https://w3id.org/data-director/guidance> ],
         [ sh:datatype xsd:string ;
+            sh:description "The access the repository offers, as re3data names it (open, embargoed, restricted, closed)." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path <https://w3id.org/data-director/data_access_types> ],
+        [ sh:datatype xsd:string ;
             sh:description "A repository's identifier in the registry that lists it: its re3data identifier, such as r3d100012124, where re3data lists it, else its DataCite repository identifier, such as bl.york. An override names it in place of re3data_id for a repository re3data does not list." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -154,11 +159,6 @@ schema1:Organization a sh:NodeShape ;
             sh:order 0 ;
             sh:path <https://w3id.org/data-director/repository_id> ;
             sh:pattern "^(r3d[0-9]{9}|[a-z0-9]+\\.[a-z0-9.-]+)$" ],
-        [ sh:datatype xsd:string ;
-            sh:description "The access the repository offers, as re3data names it (open, embargoed, restricted, closed)." ;
-            sh:nodeKind sh:Literal ;
-            sh:order 4 ;
-            sh:path <https://w3id.org/data-director/data_access_types> ],
         [ sh:description "That institution's ROR identifier, as a URL." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:IRI ;

@@ -34,6 +34,7 @@ import type {
 } from "./project/api";
 import type { ResearcherRecord } from "./project/researcher";
 import type { ProjectFacts } from "./project/facts";
+import type { ProjectMembers } from "./project/members";
 import type { Problem } from "./run/types";
 
 import agents from "../fixtures/agents.json";
@@ -48,6 +49,8 @@ import modelAccount from "../fixtures/model-account.json";
 import modelAccountRejected from "../fixtures/model-account-rejected.json";
 import modelAccountNone from "../fixtures/model-account-none.json";
 import orcidRecord from "../fixtures/orcid-record.json";
+import projectMembers from "../fixtures/project-members.json";
+import projectMembersLastOwner from "../fixtures/project-members-last-owner.json";
 import projectAnswers from "../fixtures/project-answers.json";
 import projectCreated from "../fixtures/project-created.json";
 import projectDocuments from "../fixtures/project-documents.json";
@@ -99,6 +102,8 @@ void (projectAnswers satisfies Wide<ProjectDocuments>);
 void (projectFacts satisfies Wide<ProjectFacts>);
 void (projectFactsDecided satisfies Wide<ProjectFacts>);
 void (projectFactsForbidden satisfies Wide<Problem>);
+void (projectMembers satisfies Wide<ProjectMembers>);
+void (projectMembersLastOwner satisfies Wide<Problem>);
 void (projectResearchers satisfies Wide<ResearcherRecord>[]);
 void (orcidRecord satisfies Wide<ResearcherRecord>);
 void (intakePending satisfies Wide<ProjectIntake>);

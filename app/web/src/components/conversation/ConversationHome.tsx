@@ -61,7 +61,7 @@ import type { Envelope } from "../../run/types";
 import { ContextPanel } from "../workspace/ContextPanel";
 import { PhaseTracker } from "../workspace/PhaseTracker";
 import { useFlowLoad } from "../workspace/useFlowLoad";
-import { useAskAbout } from "./useAskAbout";
+import { useAskAbout, useAskAboutQuestion } from "./useAskAbout";
 import { Workspace } from "../workspace/Workspace";
 import { ProjectSwitcher } from "../project/ProjectSwitcher";
 import { useAnnounce } from "../ui/Announcer";
@@ -149,6 +149,10 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   const flow = useFlowLoad();
 
   useAskAbout(flow, setText, box, {
+    conversation: urlConversation,
+    run: runId,
+  });
+  useAskAboutQuestion(documents, setText, box, {
     conversation: urlConversation,
     run: runId,
   });

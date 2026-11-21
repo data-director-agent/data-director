@@ -9,6 +9,9 @@ Every run ends in one of four outcomes.
 | `referred`  | The matter needs a person's judgement.                          |
 | `failed`    | The run did not complete, or a check failed.                    |
 
+A failed grounding or source check turns a result into `failed`: see
+[the five stages of a reply](conversation.md#the-five-stages-of-a-reply).
+
 The app shows, with each outcome, what it means and what to do next.
 
 A `referred` or `abstained` outcome is a point where a person can help. Your institution's data

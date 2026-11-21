@@ -14,5 +14,6 @@
   "agents/advisor-repository": "0.1.0-alpha.3",
   "agents/advisor-policy": "0.1.0-alpha.3",
   "inventory": "0.1.0-alpha.5",
-  "mcp-pid": "0.1.0-alpha.1"
+  "mcp-pid": "0.1.0-alpha.1",
+  "mcp-fairsharing": "0.1.0-alpha.0"
 }

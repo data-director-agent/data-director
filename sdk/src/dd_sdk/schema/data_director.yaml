@@ -12,7 +12,7 @@ description: >-
   schema_class (docs/specs/contract.md); every payload mixes in Grounded so the grounding linter can check it
   without knowing its class (docs/specs/grounding.md). Formats here are fixed; see docs/specs/ for why.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.18.1
+version: 0.20.0
 license: MIT
 
 prefixes:
@@ -206,6 +206,7 @@ classes:
       - project_decisions
       - project_repository
       - project_drafts
+      - project_intake
 
   ConversationTurn:
     description: >-
@@ -244,6 +245,16 @@ classes:
     slots:
       - step_id
       - step_state
+
+  IntakeAnswer:
+    description: >-
+      The researcher's current answer to one of the intake's setup questions beside the entry
+      question (dd_sdk.intake), as the project log shows it, with the labels of the options chosen
+      (docs/specs/orchestration.md, invariant 20).
+    slots:
+      - intake_question_id
+      - intake_question_prompt
+      - intake_answer_labels
 
   InventorySummary:
     description: >-
@@ -590,6 +601,50 @@ classes:
       - field_type
       - field_format
       - field_description
+      - field_summary
+      - field_disclosure_check
+
+  FieldSummary:
+    description: >-
+      Summary values of one table field that the inventory command computed where the data live
+      and passed through statistical disclosure control before writing
+      (docs/specs/personal-data.md). A value that failed a rule is absent, never altered to
+      pass; every count is at least the check's threshold and rounded to its base, and a range
+      is never the raw minimum and maximum.
+    slots:
+      - summary_rows_read
+      - summary_null_count
+      - summary_range_low
+      - summary_range_high
+      - summary_mean
+      - summary_categories
+      - summary_missing_codes
+
+  CategoryCount:
+    description: One category of a field and how many rows hold it, rounded.
+    slots:
+      - category_value
+      - category_count
+
+  MissingCodeCount:
+    description: >-
+      A value that a field may use for missing data, such as -99 or NA, and how many rows hold
+      it, rounded.
+    slots:
+      - missing_code
+      - missing_code_count
+
+  DisclosureCheck:
+    description: >-
+      What the disclosure check of a field's summary values did: the rules, their parameters,
+      the tool and how many values it left out, never which (docs/specs/personal-data.md).
+    slots:
+      - check_tool
+      - check_tool_version
+      - check_rules
+      - check_threshold
+      - check_rounding_base
+      - check_suppressed
 
   DraftRequest:
     description: >-
@@ -1447,6 +1502,18 @@ slots:
   step_state:
     range: StepState
     required: true
+  intake_question_id:
+    description: The intake question's id, `intake.<name>` (dd_sdk.intake).
+    required: true
+    pattern: "^intake\\.[a-z-]+$"
+  intake_question_prompt:
+    description: The intake question as the researcher was asked it.
+    required: true
+  intake_answer_labels:
+    description: >-
+      The labels of the options the researcher chose, such as "Not sure"; never empty.
+    required: true
+    multivalued: true
   inventory_digest:
     description: The inventory's dd-input-json-v1 hash, by which the project keeps it.
     required: true
@@ -1693,6 +1760,15 @@ slots:
       in the order first drafted, filled by the conductor and never by the caller. Absent when the
       run is in no project, or its project holds no drafted document.
     range: DraftSummary
+    multivalued: true
+    inlined_as_list: true
+  project_intake:
+    description: >-
+      The researcher's current answers to the intake's setup questions beside the entry question,
+      in the order they are asked, only for a question asked from the project's entry point, filled
+      by the conductor and never by the caller. Absent when the run is in no project, or no such
+      question has been answered. The entry question's answer is `project_entry`.
+    range: IntakeAnswer
     multivalued: true
     inlined_as_list: true
   drafted_since_inventory:
@@ -2230,6 +2306,80 @@ slots:
       - https://datapackage.org/standard/table-schema/#format
   field_description:
     slot_uri: dcterms:description
+  field_summary:
+    description: >-
+      The field's summary values (docs/specs/personal-data.md). Absent, no summaries were made:
+      by an older command, in a runtime where they do not run, or with them turned off.
+    range: FieldSummary
+    inlined: true
+  field_disclosure_check:
+    description: >-
+      The disclosure check the field's summary values passed. Present whenever field_summary is.
+    range: DisclosureCheck
+    inlined: true
+  summary_rows_read:
+    description: How many rows were read to compute the summaries, rounded.
+    range: integer
+  summary_null_count:
+    description: How many of the rows read hold no value in the field, rounded.
+    range: integer
+  summary_range_low:
+    description: >-
+      The lower bound of the field's values: the k-th smallest, so that at least k rows (the
+      check's threshold) lie at or below it. A number or an ISO 8601 date or time, as text.
+  summary_range_high:
+    description: The upper bound of the field's values, the k-th largest, as summary_range_low.
+  summary_mean:
+    description: >-
+      The mean of a numeric field's values, missing-value codes left out, written only when the
+      threshold and dominance rules pass.
+    range: float
+  summary_categories:
+    description: >-
+      The field's categories that at least k rows hold, with their counts. Rarer categories are
+      left out and counted in check_suppressed.
+    range: CategoryCount
+    multivalued: true
+    inlined_as_list: true
+  summary_missing_codes:
+    description: >-
+      Values the field holds that are often used for missing data (-99, -999, 999, 9999, NA,
+      N/A, NaN, null, .), each held by at least k rows, with their counts.
+    range: MissingCodeCount
+    multivalued: true
+    inlined_as_list: true
+  category_value:
+    required: true
+  category_count:
+    range: integer
+    required: true
+  missing_code:
+    required: true
+  missing_code_count:
+    range: integer
+    required: true
+  check_tool:
+    description: The output checker that applied the rules, such as acro.
+    required: true
+  check_tool_version:
+    required: true
+  check_rules:
+    description: >-
+      The rules applied, such as minimum threshold, k-th value range, p-ratio, nk dominance,
+      zeros disclosive and rounding.
+    multivalued: true
+  check_threshold:
+    description: The minimum frequency threshold k.
+    range: integer
+    required: true
+  check_rounding_base:
+    description: The base counts were rounded to.
+    range: integer
+    required: true
+  check_suppressed:
+    description: How many of the field's summary values were left out. Never which.
+    range: integer
+    required: true
   snapshot_ref:
     description: Which copy of the registry answered, e.g. snapshot:2026-09-04 or live.
   source_id:

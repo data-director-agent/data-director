@@ -30,9 +30,10 @@ Where a model is configured, it also suggests a data dictionary's definitions an
 answers to some of a README's questions, offered with the questions.
 
 The Metadata Librarian (`advisor.metadata`) drafts the metadata record by the same rules. It
-serves `preparation.metadata` and drafts a DataCite record in its JSON form from a `DraftRequest`
-with the chosen repository's requirements, asks about every value it leaves null, and places the
-answers recorded to them. Its model, on unless the operator turns it off,
+serves `preparation.metadata` and drafts the record from a `DraftRequest` with the chosen
+repository's requirements, asks about every value it leaves null, and places the answers recorded to
+them. It drafts in the standard those requirements follow ([Metadata standards](metadata-standards.md));
+today that is DataCite in its JSON form alone, TODO(#1359). Its model, on unless the operator turns it off,
 suggests some of those values beside their questions
 ([`agents/advisor-metadata/README.md`](../../agents/advisor-metadata/README.md)).
 
@@ -40,10 +41,12 @@ suggests some of those values beside their questions
 
 1. **Inferred means read from the project's facts.** A drafter infers only what the file inventory
    and the chosen repository's requirements record: the files, their formats and sizes, the
-   tables, and each field's name, type and format. It opens no file. Per-field summary values,
-   such as ranges, counts or categories, are not inferred, because the inventory does not carry
-   them until the command applies disclosure control to them
-   ([Personal data and disclosure control](personal-data.md), #571).
+   tables, and each field's name, type and format, and the summary values the command wrote
+   after disclosure control (a range that leaves out the extremes, a mean, categories and
+   missing-value codes with rounded counts). It opens no file. A data dictionary's missing-value
+   codes are inferred from them; a writer may describe a field with them but never says what a
+   code means, nor calls a range's bounds the minimum and maximum
+   ([Personal data and disclosure control](personal-data.md), #571, #611).
 2. **Supplied means given by a person.** A value is supplied when it comes from a field
    description in the inventory, from the project's approved metadata record (the version a
    person approved last, [Projects](projects.md), invariant 6), from a person's edit of an earlier
@@ -112,8 +115,9 @@ suggests some of those values beside their questions
 7. **A model's suggestion is only ever offered.** A drafter may suggest an answer, for example that
    `age_yrs` is the participant's age in years. The suggestion appears in the question
    (`suggested_answer`, with `suggestion_derivation`), never in the document's text, and a version
-   with suggestions keeps the derivation of its text. It becomes `supplied` only when a person
-   confirms or corrects it, by recording an answer
+   with suggestions keeps the derivation of its text. The app puts it in the question's box, marked
+   as a model's, for the person to check. It becomes `supplied` only when a person confirms or
+   corrects it, by accepting or saving it as an answer
    (`agents/advisor-documentation/tests/test_suggestions.py`). The Documentation Editor suggests
    only a data dictionary field's definition and unit, never its type, format or missing-value
    codes; and an answer for the README sections its template marks `suggest` (Files, Variables,
@@ -193,11 +197,14 @@ sets one, TODO(#529).
 researcher that a draft has questions and where to answer them, offers to redraft once they have,
 and says that the draft came from a mock when it did; it never accepts a suggestion for the
 researcher. The app shows the latest version's open questions on the draft's card in the
-conversation, three at a time, or more to keep one section's parts together, each as a text box
-labelled by the question and described by what it fills and by any suggestion, which the researcher may copy into the box but which never fills
-it by itself, and lists every question with its answer, or its suggestion while unanswered, on
-the project's documents page, which puts the same form beneath the latest version's questions
-([The app](app.md)). It sends the answers to
+conversation and in the Questions section of the project's documents page, each as a text box
+labelled by the question and described by what it fills. Those a model suggested an answer for come
+first, all at once, each box starting with the suggestion and saying it came from a model; the
+researcher checks them, changes or clears any, and records them with one "Accept" button. Those
+with no suggestion follow three at a time, or more to keep one section's parts together, in blank
+boxes. Each question links to a new conversation to talk it through, but its answer is recorded
+only on the draft; the documents page folds the answered questions beneath the form, and lists an
+earlier version's questions read-only ([The app](app.md)). It sends the answers to
 `POST /api/projects/{id}/documents/{document_id}/answers`, which records them for the person
 signed in and never takes a name from the body. The harness records each answer and fills the
 answers into the next `DraftRequest`. No agent writes an answer.
@@ -278,9 +285,9 @@ as any other answer is.
 
 ## Non-functional requirements
 
-- **Privacy.** A drafter sees the inventory, never the data, and the inventory carries no summary
-  values until the command applies disclosure control to them
-  ([Personal data and disclosure control](personal-data.md), #571). Project content other than the
+- **Privacy.** A drafter sees the inventory, never the data, and the inventory carries only the
+  summary values that passed disclosure control on the researcher's computer
+  ([Personal data and disclosure control](personal-data.md), #571, #611). Project content other than the
   inventory reaches a hosted model only as the profile allows.
 - **Accessibility.** Questions are answered through the app's form controls, whose accessibility
   is set out in #529.

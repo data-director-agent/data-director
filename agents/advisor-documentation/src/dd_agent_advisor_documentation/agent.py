@@ -76,6 +76,7 @@ from dd_agent_advisor_documentation.record import (
     _values,
 )
 from dd_agent_advisor_documentation.sections import Section, load_sections
+from dd_agent_advisor_documentation.values import field_facts
 from dd_sdk.agent import (
     AgentResult,
     AgentSpec,
@@ -540,24 +541,7 @@ def _facts(
             "path": f.file_path,
             "format": _format(f.file_media_type, f.file_pronom_ids),
             "size_bytes": f.file_size,
-            **(
-                {
-                    "fields": [
-                        {
-                            k: v
-                            for k, v in (
-                                ("name", c.name),
-                                ("type", c.field_type),
-                                ("format", c.field_format),
-                            )
-                            if v
-                        }
-                        for c in f.file_fields
-                    ]
-                }
-                if f.file_fields
-                else {}
-            ),
+            **({"fields": [field_facts(c) for c in f.file_fields]} if f.file_fields else {}),
         }
         for f in inventory.inventory_files
     ]

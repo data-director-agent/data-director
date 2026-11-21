@@ -8,7 +8,12 @@ rights:RightsOptions a sh:NodeShape ;
     rdfs:comment "The payload of advisor.rights: licences and access levels for the researcher to choose from, and the questions to answer first. It lists options and never chooses one." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
+    sh:property [ sh:class rights:RightsQuestion ;
+            sh:description "What the researcher must answer or confirm, with the people who can help." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 3 ;
+            sh:path rights:questions ],
+        [ sh:datatype xsd:string ;
             sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -38,12 +43,7 @@ rights:RightsOptions a sh:NodeShape ;
         [ sh:class rights:AccessOption ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 2 ;
-            sh:path rights:access_levels ],
-        [ sh:class rights:RightsQuestion ;
-            sh:description "What the researcher must answer or confirm, with the people who can help." ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 3 ;
-            sh:path rights:questions ] ;
+            sh:path rights:access_levels ] ;
     sh:targetClass rights:RightsOptions .
 
 <https://w3id.org/data-director/GroundingRef> a sh:NodeShape ;

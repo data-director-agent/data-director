@@ -118,7 +118,12 @@ repository:SearchedSummary a sh:NodeShape ;
     rdfs:comment "What was looked for, so a reader can judge an abstention as well as a recommendation." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
+    sh:property [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path repository:candidates_qualifying ],
+        [ sh:datatype xsd:string ;
             sh:description "Which copies of the registries answered, e.g. re3data:export:2026-11." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -132,12 +137,7 @@ repository:SearchedSummary a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
-            sh:path repository:candidates_retrieved ],
-        [ sh:datatype xsd:integer ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 3 ;
-            sh:path repository:candidates_qualifying ] ;
+            sh:path repository:candidates_retrieved ] ;
     sh:targetClass repository:SearchedSummary .
 
 repository:UnlistedRepository a sh:NodeShape ;

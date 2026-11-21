@@ -19,22 +19,16 @@ import {
   useFactsApi,
 } from "../../project/facts";
 import { Button } from "../ui/Button";
+import { loadInto, message, type PanelLoad } from "./panelLoad";
 import { FactDecisionForm } from "./FactDecisionForm";
 import { blankFact } from "./FactFields";
 import { KIND_LABELS, OWNERS_KINDS, describeFact } from "./factWording";
 
 const HEADING_ID = "facts-heading";
 
-type Load =
-  | { state: "loading" }
-  | { state: "failed"; message: string }
-  | { state: "loaded"; value: ProjectFacts };
+type Load = PanelLoad<ProjectFacts>;
 
 type Said = { text: string; ok: boolean };
-
-function message(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
 
 function factKey(fact: ProjectFact): string {
   return `${fact.fact_kind}:${fact.fact_subject}`;
@@ -138,16 +132,7 @@ export function FactsPanel({ projectId, revision = 0 }: { projectId: string; rev
   const [stating, setStating] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    api.facts(projectId, controller.signal).then(
-      (value) => setLoad({ state: "loaded", value }),
-      (error: unknown) => {
-        if (!controller.signal.aborted) setLoad({ state: "failed", message: message(error) });
-      },
-    );
-    return () => controller.abort();
-  }, [api, projectId, revision]);
+  useEffect(() => loadInto((signal) => api.facts(projectId, signal), setLoad), [api, projectId, revision]);
 
   const decided = useCallback((value: ProjectFacts, text: string) => {
     setLoad({ state: "loaded", value });

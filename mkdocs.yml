@@ -97,11 +97,13 @@ nav:
       - user-guide/index.md
       - Getting started: user-guide/getting-started.md
       - The workflow: user-guide/workflow.md
+      - Using the conversation: user-guide/conversation.md
       - Running an agent: user-guide/running-an-agent.md
       - Making an inventory: user-guide/making-an-inventory.md
       - Attaching a document: user-guide/attaching-a-document.md
       - Using your ORCID record: user-guide/orcid-facts.md
       - Deciding project facts: user-guide/project-facts.md
+      - Working with others: user-guide/members.md
       - Understanding outcomes: user-guide/outcomes.md
       - What is recorded: user-guide/records.md
       - Depositing your data: user-guide/depositing.md
@@ -184,6 +186,8 @@ nav:
           - Inventory library (TypeScript): /inventory/browser/README.md
       - PID resolver:
           - /mcp-pid/README.md
+      - FAIRsharing server:
+          - /mcp-fairsharing/README.md
       - Agents:
           - Working on an agent: /agents/AGENTS.md
           - /agents/README.md
@@ -219,5 +223,6 @@ nav:
       - Model broker: /broker/CHANGELOG.md
       - Deposit broker: /deposit-broker/CHANGELOG.md
       - Inventory: /inventory/CHANGELOG.md
+      - PID resolver: /mcp-pid/CHANGELOG.md
       - Agents:
           - /agents/*/CHANGELOG.md

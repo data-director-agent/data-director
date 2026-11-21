@@ -46,6 +46,8 @@ export interface RunState {
   envelope: Envelope | null;
   /** `RUN_ERROR`'s message. */
   error: string | null;
+  /** `RUN_ERROR`'s code, when the refusal names which it is (a Problem Details slug). */
+  errorCode: string | null;
   /** Replies whose messages have ended, in the order they ended. */
   messages: { id: string; text: string }[];
   /** Text of messages that have started and not yet ended. */
@@ -65,6 +67,7 @@ export const initialRunState: RunState = {
   sources: null,
   envelope: null,
   error: null,
+  errorCode: null,
   messages: [],
   pending: {},
   log: [],
@@ -172,6 +175,7 @@ export function reduce(state: RunState, raw: unknown): RunState {
         ...running,
         phase: "error",
         error: event.message,
+        errorCode: event.code ?? null,
         steps: settle(running.steps, "stopped"),
       };
     case "TEXT_MESSAGE_START":

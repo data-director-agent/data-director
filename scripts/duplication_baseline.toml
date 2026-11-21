@@ -158,7 +158,7 @@ lines = 7
 [[pair]]
 files = ["app/web/src/components/conversation/Transcript.tsx", "app/web/src/components/workspace/ContextPanel.tsx"]
 clones = 1
-lines = 11
+lines = 10
 
 [[pair]]
 files = ["app/web/src/components/project/DeleteProject.tsx", "app/web/src/components/project/ProjectRename.tsx"]

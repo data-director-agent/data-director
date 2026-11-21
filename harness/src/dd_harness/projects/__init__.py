@@ -9,6 +9,7 @@ area, each a `ProjectRules` (`rules`) over that log:
   summary;
 - `conversations`: deleting and restoring a conversation started in it;
 - `holdings`: its file inventory and supporting documentation;
+- `membership`: its members and their roles;
 - `researchers`: facts from researchers' own ORCID records;
 - `repository`: the repository chosen and the requirements it resolved to;
 - `flow`: its place in the process flow, and its intake;
@@ -22,8 +23,8 @@ area, each a `ProjectRules` (`rules`) over that log:
 caller names only the area Protocols it uses (`dd_harness.storage`). `ProjectStore` is the rules
 over the file log, `dd_harness.project_files`, under `DD_PROJECTS_DIR`.
 
-Who may do what in a project is read from the log by `dd_harness.project_access`; membership
-events are TODO(#389).
+Who may do what in a project is read from the log by `dd_harness.project_access`, which folds
+the membership events with `membership.member_roles`.
 """
 
 from __future__ import annotations
@@ -70,6 +71,16 @@ from dd_harness.projects.lifecycle import (
     Lifecycle,
     TitleSource,
 )
+from dd_harness.projects.membership import (
+    MEMBER,
+    MEMBER_ROLES,
+    OWNER,
+    MemberRole,
+    Membership,
+    is_last_owner,
+    member_roles,
+    principal_identifier,
+)
 from dd_harness.projects.repository import RepositoryChoice
 from dd_harness.projects.researchers import Researchers
 from dd_harness.projects.rules import (
@@ -91,6 +102,9 @@ from dd_harness.projects.rules import (
     FACT_DECIDED,
     FACT_PROPOSED,
     INVENTORY_ADDED,
+    MEMBER_ADDED,
+    MEMBER_REMOVED,
+    MEMBER_ROLE_CHANGED,
     PACKAGE_BUILT,
     PROJECT_CREATED,
     PROJECT_DELETED,
@@ -103,6 +117,8 @@ from dd_harness.projects.rules import (
     RESEARCHER_WITHDRAWN,
     ChangeRefusedError,
     ConversationDeletedError,
+    MembershipRefusal,
+    MembershipRefusedError,
     ProjectDeletedError,
     ProjectError,
     ProjectRules,
@@ -140,6 +156,12 @@ __all__ = [
     "FACT_PROPOSED",
     "FACT_REASON_MAX_LENGTH",
     "INVENTORY_ADDED",
+    "MEMBER",
+    "MEMBER_ADDED",
+    "MEMBER_REMOVED",
+    "MEMBER_ROLES",
+    "MEMBER_ROLE_CHANGED",
+    "OWNER",
     "PACKAGE_BUILT",
     "PROJECT_CREATED",
     "PROJECT_DELETED",
@@ -172,6 +194,10 @@ __all__ = [
     "Flow",
     "Holdings",
     "Lifecycle",
+    "MemberRole",
+    "Membership",
+    "MembershipRefusal",
+    "MembershipRefusedError",
     "ProjectDeletedError",
     "ProjectError",
     "ProjectRules",
@@ -191,7 +217,10 @@ __all__ = [
     "check_documentation",
     "conversation_deletions",
     "deletion",
+    "is_last_owner",
+    "member_roles",
     "package_format",
+    "principal_identifier",
     "read_document_file",
     "reason_required",
     "review_rules",
@@ -201,6 +230,7 @@ __all__ = [
 
 class Projects(
     Lifecycle,
+    Membership,
     Conversations,
     Holdings,
     Researchers,

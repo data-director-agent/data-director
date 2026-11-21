@@ -221,14 +221,15 @@ check them. What the guidance leaves open is also listed in the set's `unconfirm
 statement per item naming its issue, so that a person depositing by hand sees it; the merged set
 carries both sets' items. What ORDA's public pages leave open is TODO(#385).
 
-**The metadata record follows DataCite.** The drafter writes a `Document` of kind
-`metadata_record` in DataCite's JSON form, with `conforms_to` set to the merged set's. DataCite is
-the schema ORDA's DOIs are registered in, and a DataCite record serves any repository that mints
-DataCite DOIs. An override's form labels tell a person depositing by hand where each value goes, and its
-`url`, carried in the merged set as `repository_url`, where to deposit; a standard's `url`
-describes the standard and is not carried.
-Sets for other standards, such as DDI, each need a set, a mapping to schema.org and a drafter,
-TODO(#401).
+**The metadata record follows the merged set's standard.** The drafter writes a `Document` of kind
+`metadata_record` in the standard the merged set's `conforms_to` names, in a serialisation that
+standard defines, with `media_type` set to it ([Metadata standards](metadata-standards.md)). DataCite
+in its JSON form is the only standard built, and it is the default: it is the schema ORDA's DOIs are
+registered in, and a DataCite record serves any repository that mints DataCite DOIs. An override's
+form labels tell a person depositing by hand where each value goes, and its `url`, carried in the
+merged set as `repository_url`, where to deposit; a standard's `url` describes the standard and is
+not carried. A set for another standard, such as Dublin Core, ISO 19115 or DDI, needs a set and a
+definition of the standard, not a drafter of its own, TODO(#1360, #1361, #401).
 
 **Validation** checks, against the merged set:
 
@@ -243,9 +244,11 @@ TODO(#401).
 
 A project with no repository chosen, or no inventory, has a violation that says so.
 
-The record is read as RDF through the set's own field table, the same DataCite to schema.org
-mapping the package uses. A field's property, and its qualifier when it has one, select the
-record's entries; each entry's value becomes a value of the field's schema.org term. SHACL shapes
+The record is read as RDF, the same reading the package uses, through the pivot of
+[Metadata standards](metadata-standards.md): the standard's definition maps each of its properties
+to a term. Today the set's own field table does this, for DataCite alone, TODO(#1357, #1358). A
+field's property, and its qualifier when it has one, select the record's entries; each entry's value
+becomes a value of the field's term. SHACL shapes
 are generated from the fields, one `sh:minCount 1` property shape per field, with the severity
 its obligation gives and a message naming the field by its form label. pySHACL runs them. The
 other checks write their results in the same `sh:` vocabulary, which is the fixed validation

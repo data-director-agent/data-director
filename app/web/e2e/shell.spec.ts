@@ -501,7 +501,7 @@ for (const scheme of ["light", "dark"] as const) {
     await page.getByRole("textbox", { name: "What would you like to do?" }).fill("hi");
     await page.getByRole("button", { name: "Send" }).click();
 
-    const group = page.getByRole("group", { name: /has 4 questions for you/ });
+    const group = page.getByRole("form", { name: /has 4 questions for you/ });
     await expect(group).toBeVisible();
     expect(await overflow(page), "horizontal overflow with a draft's questions").toBeLessThanOrEqual(0);
     expect(await axeViolations(page)).toEqual([]);
@@ -511,7 +511,7 @@ for (const scheme of ["light", "dark"] as const) {
     await page.getByRole("button", { name: "Save answers" }).focus();
     await page.keyboard.press("Enter");
 
-    await expect(page.getByRole("group", { name: /has 3 questions for you/ })).toBeVisible();
+    await expect(page.getByRole("form", { name: /has 3 questions for you/ })).toBeVisible();
     await expect(page.getByText(/Recorded 1 answer/)).toBeVisible();
     expect(sent).toEqual({
       version: version.version,

@@ -205,6 +205,21 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
     deposit a draft, and never a credential ([Deposit](deposit.md), Depositing through an API).
     It is deployment configuration that no agent is given, so adding it raised the contract
     version only to 0.18.1.
+31. A `TableField` may carry `field_summary`, a `FieldSummary` of the field's values (rows read,
+    null count, a range whose bounds are the *k*-th smallest and largest values, a mean,
+    categories and missing-value codes with their counts), and `field_disclosure_check`, a
+    `DisclosureCheck` saying which rules the summary passed, their threshold and rounding base,
+    the tool and how many values were left out, never which. Absent means no summaries were
+    made, so an inventory made before the change still validates. Adding them raised the contract
+    version to 0.19.0
+    ([Personal data and disclosure control](personal-data.md), #611,
+    `inventory/tests/test_summaries.py`).
+32. A `Message` may carry `project_intake`, one `IntakeAnswer` for each intake question beside
+    the entry question that the researcher answered and that is asked from the project's entry
+    point: its id, its prompt and the labels of the options chosen, "Not sure" included, which no
+    step state shows. Only the conductor fills it in a project ([Projects](projects.md), invariant
+    6; [Orchestration](orchestration.md), invariant 20; #1374). Adding it raised the contract
+    version to 0.20.0.
 
 ## Boundaries and contracts
 

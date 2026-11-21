@@ -1,6 +1,6 @@
 /**
  * One of a project's tabs that is not its documents or its journey map (docs/specs/app.md): the
- * researchers, the project's facts, the repository chosen, the statement of how generative AI was
+ * researchers, its members, the project's facts, the repository chosen, the statement of how generative AI was
  * used, or the deposit package, at `/projects/{id}/{tab}`. Each is the panel that shows it, under
  * the project's breadcrumb and tabs; the panel reads what it shows itself.
  *
@@ -16,6 +16,7 @@ import { PageHeader } from "../frame/PageHeader";
 import { DepositPanel } from "./DepositPanel";
 import { DisclosurePanel } from "./DisclosurePanel";
 import { FactsPanel } from "./FactsPanel";
+import { MembersPanel } from "./MembersPanel";
 import { ProjectNav, tabLabel } from "./ProjectNav";
 import { RepositoryPanel } from "./RepositoryPanel";
 import { ResearcherPanel } from "./ResearcherPanel";
@@ -26,6 +27,8 @@ function Panel({ projectId, tab }: { projectId: string; tab: PanelTab }) {
   switch (tab) {
     case "researchers":
       return <ResearcherPanel projectId={projectId} />;
+    case "members":
+      return <MembersPanel projectId={projectId} />;
     case "facts":
       return <FactsPanel projectId={projectId} revision={0} />;
     case "repository":

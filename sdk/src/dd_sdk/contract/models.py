@@ -39,6 +39,9 @@ from dd_sdk.contract.facts import ResearcherLink as ResearcherLink
 from dd_sdk.contract.facts import ResearcherRecord as ResearcherRecord
 from dd_sdk.contract.facts import ResearcherWork as ResearcherWork
 from dd_sdk.contract.facts import VersionState as VersionState
+from dd_sdk.contract.progress import IntakeAnswer as IntakeAnswer
+from dd_sdk.contract.progress import StepProgress as StepProgress
+from dd_sdk.contract.progress import StepState as StepState
 from dd_sdk.contract.requirements import RepositoryRequirements as RepositoryRequirements
 from dd_sdk.contract.requirements import RequirementField as RequirementField
 from dd_sdk.contract.requirements import RequirementSet as RequirementSet
@@ -161,12 +164,6 @@ class Assurance(StrEnum):
     AUTHENTICATED = "authenticated"
 
 
-class StepState(StrEnum):
-    STARTED = "started"
-    DONE = "done"
-    SKIPPED = "skipped"
-
-
 class QuestionKind(StrEnum):
     CHOICE = "choice"
     SHORT_TEXT = "short_text"
@@ -191,14 +188,6 @@ class ConversationTurn(Frozen):
     turn_agent_id: str | None = None
     turn_agent_version: str | None = None
     turn_invocation_id: str | None = Field(default=None, pattern=UUID7_PATTERN)
-
-
-class StepProgress(Frozen):
-    """How far one process-flow step has gone, as the project log shows it; a step left out is
-    open (docs/specs/orchestration.md)."""
-
-    step_id: str = Field(pattern=r"^[a-z]+\.[a-z-]+$")
-    step_state: StepState
 
 
 class QuestionAnswer(Frozen):
@@ -231,8 +220,8 @@ class Message(Frozen):
     """One conversational turn and the conversation so far (docs/specs/orchestration.md). The
     conductor fills `project_inventory`, `project_entry`, `project_progress`, `project_title`,
     `project_title_by_researcher`, `project_entry_by_researcher`, `project_documentation`,
-    `project_researchers`, `project_decisions`, `project_repository` and `project_drafts` from
-    the conversation's project; a caller never does."""
+    `project_researchers`, `project_decisions`, `project_repository`, `project_drafts` and
+    `project_intake` from the conversation's project; a caller never does."""
 
     schema_class: Literal["Message"] = "Message"
     message_text: str
@@ -249,6 +238,7 @@ class Message(Frozen):
     project_decisions: list[ProjectFact] | None = None
     project_repository: ChosenRepository | None = None
     project_drafts: list[DraftSummary] | None = None
+    project_intake: list[IntakeAnswer] | None = None
 
 
 class OpenInput(Frozen):

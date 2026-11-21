@@ -102,7 +102,10 @@ def test_a_file_nothing_recognises_has_no_identifier(dataset: Path) -> None:
 
 def test_a_table_has_its_fields_inferred(inventory: Inventory) -> None:
     files = _by_path(inventory)
-    assert files["data/readings.csv"]["file_fields"] == [
+    readings = files["data/readings.csv"]["file_fields"]
+    # Each field also carries its summary values and their check (test_summaries.py).
+    assert all("field_disclosure_check" in f for f in readings)
+    assert [{"name": f["name"], "field_type": f["field_type"]} for f in readings] == [
         {"name": "site", "field_type": "string"},
         {"name": "sampled_on", "field_type": "date"},
         {"name": "ph", "field_type": "number"},

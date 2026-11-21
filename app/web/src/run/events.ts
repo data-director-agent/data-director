@@ -40,7 +40,7 @@ export type RunEvent =
   | { type: "RUN_STARTED"; threadId: string; runId: string }
   | { type: "RUN_FINISHED"; result: Envelope }
   | { type: "RUN_CANCELLED" }
-  | { type: "RUN_ERROR"; message: string }
+  | { type: "RUN_ERROR"; message: string; code?: string }
   | { type: "PLAN"; steps: PlanStep[] }
   | { type: "STEP_STARTED"; stepName: string }
   | { type: "STEP_FINISHED"; stepName: string }
@@ -158,7 +158,10 @@ export function parseEvent(raw: unknown): RunEvent {
       return finished(raw);
     case "RUN_ERROR": {
       const message = need("message");
-      return message === null ? malformed("RUN_ERROR without a message") : { type, message };
+      if (message === null) return malformed("RUN_ERROR without a message");
+      // A refusal may name which it is, as a Problem Details slug, such as `turn-conflict`.
+      const code = need("code");
+      return code === null ? { type, message } : { type, message, code };
     }
     case "CUSTOM":
       return custom(raw);
