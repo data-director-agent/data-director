@@ -282,6 +282,35 @@
          "title": "FileDecision",
          "type": "string"
       },
+      "IntakeAnswer": {
+         "additionalProperties": false,
+         "description": "The researcher's current answer to one of the intake's setup questions beside the entry question (dd_sdk.intake), as the project log shows it, with the labels of the options chosen (docs/specs/orchestration.md, invariant 20).",
+         "properties": {
+            "intake_question_id": {
+               "description": "The intake question's id, `intake.<name>` (dd_sdk.intake).",
+               "pattern": "^intake\\.[a-z-]+$",
+               "type": "string"
+            },
+            "intake_question_prompt": {
+               "description": "The intake question as the researcher was asked it.",
+               "type": "string"
+            },
+            "intake_answer_labels": {
+               "description": "The labels of the options the researcher chose, such as \"Not sure\"; never empty.",
+               "items": {
+                  "type": "string"
+               },
+               "type": "array"
+            }
+         },
+         "required": [
+            "intake_question_id",
+            "intake_question_prompt",
+            "intake_answer_labels"
+         ],
+         "title": "IntakeAnswer",
+         "type": "object"
+      },
       "InventoryFormat": {
          "additionalProperties": false,
          "description": "The files of one media type in a project's inventory, without their paths: the conductor fills one per media type into an InventorySummary, so that the agent knows what kinds of files the dataset holds without asking (docs/specs/projects.md, #1287).",
@@ -1226,6 +1255,16 @@
          "description": "The latest version of each document drafted in the conversation's project, without its text, in the order first drafted, filled by the conductor and never by the caller. Absent when the run is in no project, or its project holds no drafted document.",
          "items": {
             "$ref": "#/$defs/DraftSummary"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "project_intake": {
+         "description": "The researcher's current answers to the intake's setup questions beside the entry question, in the order they are asked, only for a question asked from the project's entry point, filled by the conductor and never by the caller. Absent when the run is in no project, or no such question has been answered. The entry question's answer is `project_entry`.",
+         "items": {
+            "$ref": "#/$defs/IntakeAnswer"
          },
          "type": [
             "array",

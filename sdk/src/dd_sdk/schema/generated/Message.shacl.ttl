@@ -41,6 +41,11 @@ dd:Message a sh:NodeShape ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 12 ;
             sh:path dd:project_decisions ],
+        [ sh:class dd:IntakeAnswer ;
+            sh:description "The researcher's current answers to the intake's setup questions beside the entry question, in the order they are asked, only for a question asked from the project's entry point, filled by the conductor and never by the caller. Absent when the run is in no project, or no such question has been answered. The entry question's answer is `project_entry`." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 15 ;
+            sh:path dd:project_intake ],
         [ sh:datatype xsd:integer ;
             sh:description "The Blueprint entry point (1, 2 or 3) the researcher chose for the conversation's project, the latest chosen. Filled by the conductor and never by the caller; absent when the run is in no project, or none was chosen." ;
             sh:maxCount 1 ;
@@ -295,6 +300,33 @@ dd:DraftSummary a sh:NodeShape ;
             sh:order 0 ;
             sh:path dd:document_kind ] ;
     sh:targetClass dd:DraftSummary .
+
+dd:IntakeAnswer a sh:NodeShape ;
+    rdfs:comment "The researcher's current answer to one of the intake's setup questions beside the entry question (dd_sdk.intake), as the project log shows it, with the labels of the options chosen (docs/specs/orchestration.md, invariant 20)." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The labels of the options the researcher chose, such as \"Not sure\"; never empty." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:intake_answer_labels ],
+        [ sh:datatype xsd:string ;
+            sh:description "The intake question's id, `intake.<name>` (dd_sdk.intake)." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:intake_question_id ;
+            sh:pattern "^intake\\.[a-z-]+$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The intake question as the researcher was asked it." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:intake_question_prompt ] ;
+    sh:targetClass dd:IntakeAnswer .
 
 dd:InventoryFormat a sh:NodeShape ;
     rdfs:comment "The files of one media type in a project's inventory, without their paths: the conductor fills one per media type into an InventorySummary, so that the agent knows what kinds of files the dataset holds without asking (docs/specs/projects.md, #1287)." ;
