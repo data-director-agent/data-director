@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.1.1-alpha.5](https://github.com/data-director-agent/data-director/compare/agent-orchestrator-model-v0.1.1-alpha.4...agent-orchestrator-model-v0.1.1-alpha.5) (2026-11-21)
+
+
+### Features
+
+* **advisor-dmp:** Read sharing commitments from an attached plan ([#1200](https://github.com/data-director-agent/data-director/issues/1200)) ([72bf7d3](https://github.com/data-director-agent/data-director/commit/72bf7d31d4a7042848e3c6e387a9c8b27cb32b64))
+* **advisor-documentation:** Ask the researcher first, then write the README ([#1291](https://github.com/data-director-agent/data-director/issues/1291)) ([dcd5c6d](https://github.com/data-director-agent/data-director/commit/dcd5c6d7375daadf9018332374baf334b12b2d00))
+* **agents:** Offer to continue provisionally when consent is unknown ([#1338](https://github.com/data-director-agent/data-director/issues/1338)) ([20a16b7](https://github.com/data-director-agent/data-director/commit/20a16b77d9257e0aac15bb1ba9c5e3e4bc0c6c0f))
+* **agents:** suggest drafted answers from a researcher's attached documents ([#1131](https://github.com/data-director-agent/data-director/issues/1131)) ([7ccf414](https://github.com/data-director-agent/data-director/commit/7ccf414c044c0e4eaf295bbb98731f11a5fe49d1))
+* **app:** let researchers rename projects and the orchestrator name untitled ones ([#678](https://github.com/data-director-agent/data-director/issues/678)) ([1c3d875](https://github.com/data-director-agent/data-director/commit/1c3d875eb0339328bb0556c1997d02ad99f117e7))
+* **app:** Show each Blueprint step's autonomy on the policy page ([#1237](https://github.com/data-director-agent/data-director/issues/1237)) ([7386a08](https://github.com/data-director-agent/data-director/commit/7386a0804711e5b76d941ac6757571c5450feffa))
+* **harness:** carry a steward's model map in the grant ([#859](https://github.com/data-director-agent/data-director/issues/859)) ([ce17ba0](https://github.com/data-director-agent/data-director/commit/ce17ba0a1d7a21c852ba5acdc7b153a08b2e0c87))
+* **harness:** mint a model grant for each model-backed invocation ([#817](https://github.com/data-director-agent/data-director/issues/817)) ([6042098](https://github.com/data-director-agent/data-director/commit/604209892028330c5eee74f58f04f15485ce4ee1))
+* Implement entry point intake handling to skip redundant questions ([#770](https://github.com/data-director-agent/data-director/issues/770)) ([10b3483](https://github.com/data-director-agent/data-director/commit/10b3483aefdd38fd15da6b6eefcbcd8aaa646ee6))
+* let agents ask a series of questions answered one at a time ([#739](https://github.com/data-director-agent/data-director/issues/739)) ([5332215](https://github.com/data-director-agent/data-director/commit/5332215e8f050dcf3b61fdccb11b63ad436e6d92))
+* **orchestrator:** Tell the model the kinds of files the inventory lists ([#1290](https://github.com/data-director-agent/data-director/issues/1290)) ([a15edf4](https://github.com/data-director-agent/data-director/commit/a15edf444a413b2fa26303e94f92357c6caa16de))
+* **sdk:** give each agent persona an emoji icon ([#1100](https://github.com/data-director-agent/data-director/issues/1100)) ([60e69dd](https://github.com/data-director-agent/data-director/commit/60e69dde27deaea1ff14d60fd1a78ac89f83e71a))
+* **sdk:** model providers beyond anthropic for the advisors ([#835](https://github.com/data-director-agent/data-director/issues/835)) ([8adfa87](https://github.com/data-director-agent/data-director/commit/8adfa870e8a277dd017f165ba16d8709ffa382ca))
+* **sdk:** record whose model account paid for each call ([#825](https://github.com/data-director-agent/data-director/issues/825)) ([8ce3e5d](https://github.com/data-director-agent/data-director/commit/8ce3e5da293c6086b6edc1eafc46fd34a2fcd60d))
+* **sdk:** share the agent kit and add a generator for new agents ([#1016](https://github.com/data-director-agent/data-director/issues/1016)) ([31aae2c](https://github.com/data-director-agent/data-director/commit/31aae2c52dc81c9818519f626a72b8f94be8a6f4))
+* **sdk:** tool calling in the model seam, so the orchestrator runs on any provider ([#837](https://github.com/data-director-agent/data-director/issues/837)) ([d88acfc](https://github.com/data-director-agent/data-director/commit/d88acfc5f50852ad397a7f0f214b4bc77c821d75))
+* Track inventory revisions and draft versions in project messages ([#1295](https://github.com/data-director-agent/data-director/issues/1295)) ([51d960f](https://github.com/data-director-agent/data-director/commit/51d960faa116c55c1da590d71c446d866f2e08c3))
+
+
+### Bug Fixes
+
+* **advisor-repository:** Describe repositories the researcher names beside the shortlist ([#1211](https://github.com/data-director-agent/data-director/issues/1211)) ([d88ee91](https://github.com/data-director-agent/data-director/commit/d88ee91e3f9d3f1ce58f70b435a0643908274d55))
+* **advisor-repository:** Describe the repository a plan names beside the shortlist ([#1235](https://github.com/data-director-agent/data-director/issues/1235)) ([96ed163](https://github.com/data-director-agent/data-director/commit/96ed16388c196d0554263ca9c2b265ec22402e99))
+* **agents:** Point researchers to Edit inventory when they ask in chat to leave files out ([#1208](https://github.com/data-director-agent/data-director/issues/1208)) ([0e6fd23](https://github.com/data-director-agent/data-director/commit/0e6fd23fdacadd6cc4af0d74089809e52f7725b5))
+* **app:** say which agents read an attached document ([#1326](https://github.com/data-director-agent/data-director/issues/1326)) ([#1345](https://github.com/data-director-agent/data-director/issues/1345)) ([f5faceb](https://github.com/data-director-agent/data-director/commit/f5faceb067c9de3ac83acdef13bb79ec473e2c06))
+* **harness:** Give the orchestrator the chosen repository and decided facts ([#1209](https://github.com/data-director-agent/data-director/issues/1209)) ([34c6f67](https://github.com/data-director-agent/data-director/commit/34c6f6777d172e78ef8e2b5637beb5d0ed324c75))
+* **orchestration:** record the entry point Data Director works out ([#706](https://github.com/data-director-agent/data-director/issues/706)) ([7781b37](https://github.com/data-director-agent/data-director/commit/7781b3738ba64bdda89af7d225ba0e1d4a970438))
+
+
+### Documentation
+
+* **architecture:** review where complexity builds up and add ratchets to contain it ([#984](https://github.com/data-director-agent/data-director/issues/984)) ([007271a](https://github.com/data-director-agent/data-director/commit/007271ac88dadf0e8a3eb98ec3cdc2c1a7c7171f))
+
 ## [0.1.1-alpha.4](https://github.com/data-director-agent/data-director/compare/agent-orchestrator-model-v0.1.1-alpha.3...agent-orchestrator-model-v0.1.1-alpha.4) (2026-11-07)
 
 

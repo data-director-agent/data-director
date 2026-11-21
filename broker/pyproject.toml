@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "data-director-model-broker"
 # Alpha: holds people's own model keys and makes their calls; off unless the profile turns own
 # accounts on (docs/specs/model-accounts.md).
-version = "0.1.0-alpha.0"
+version = "0.1.0-alpha.1"
 description = "Data Director model broker: holds people's own model keys, sealed, and makes model calls for agents that present a model grant"
 readme = "README.md"
 requires-python = ">=3.14"
