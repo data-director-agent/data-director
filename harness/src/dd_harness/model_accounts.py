@@ -9,7 +9,7 @@ an invocation of a model-backed remote agent is sent. Only the conductor calls t
 from __future__ import annotations
 
 from dd_harness import policy
-from dd_harness.model_grants import GrantMinter
+from dd_harness.model_grants import GrantMinter, GrantRequest
 from dd_harness.registry import Registered
 from dd_harness.remote import RemoteAgent
 from dd_sdk.contract.models import InvocationRequest, Principal
@@ -53,15 +53,17 @@ def model_grant(
     account = accounts.account
     own = account is not Account.DEPLOYMENT
     minted = minter.mint(
-        agent_id=spec.agent_id,
-        invocation_id=request.invocation_id,
-        models=(model.model for model in spec.models),
-        account=account,
-        acting_for=acting_for,
-        lifetime_s=agent.timeout_s,
-        providers=accounts.provider_names if own else (),
-        base_urls=accounts.base_urls if own else (),
-        model_map=accounts.model_map(spec.models) if own else None,
+        GrantRequest(
+            agent_id=spec.agent_id,
+            invocation_id=request.invocation_id,
+            models=(model.model for model in spec.models),
+            account=account,
+            acting_for=acting_for,
+            lifetime_s=agent.timeout_s,
+            providers=accounts.provider_names if own else (),
+            base_urls=accounts.base_urls if own else (),
+            model_map=accounts.model_map(spec.models) if own else None,
+        )
     )
     # The security event names the grant's terms, never the grant (docs/specs/security.md).
     emit(

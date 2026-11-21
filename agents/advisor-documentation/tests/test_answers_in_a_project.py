@@ -74,6 +74,7 @@ def test_a_researcher_completes_a_data_dictionary_by_answering_its_questions(
         project, document["document_id"], 1, answers, acted_for=TEST_PRINCIPAL, caused_by="test"
     )
 
+    asked_first = {q.question_id for q in first.document_questions}
     for _ in range(2):  # The answers stand for every later draft, not only the next.
         again = draft()
         row = rows_of(again)[(field[0] or "", field[1] or "")]
@@ -85,7 +86,11 @@ def test_a_researcher_completes_a_data_dictionary_by_answering_its_questions(
             )
         still = {q.question_id for q in again.document_questions}
         assert still.isdisjoint(a.answered_question for a in answers)
-        assert len(again.document_questions) == len(first.document_questions) - len(answers)
+        # Once its unit is given, a field's unit code is asked, here because "Answer for unit"
+        # names no UCUM unit. It was not asked while the unit was unknown.
+        newly = [q for q in again.document_questions if q.question_id not in asked_first]
+        assert [(q.gap_file, q.gap_field, q.gap_column) for q in newly] == [(*field, "unit_code")]
+        assert len(again.document_questions) == len(asked_first) - len(answers) + len(newly)
 
     # Each redraft is the next version of the one data dictionary, revising the one before (#631).
     (document,) = projects.documents(project)

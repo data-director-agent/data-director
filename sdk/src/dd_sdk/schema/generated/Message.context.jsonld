@@ -19,6 +19,9 @@
       "ExternalIdentifier": {
          "@id": "https://w3id.org/data-director/ExternalIdentifier"
       },
+      "IntakeAnswer": {
+         "@id": "https://w3id.org/data-director/IntakeAnswer"
+      },
       "InventoryFormat": {
          "@id": "https://w3id.org/data-director/InventoryFormat"
       },
@@ -220,6 +223,15 @@
       "identifier_value": {
          "@id": "https://w3id.org/data-director/identifier_value"
       },
+      "intake_answer_labels": {
+         "@id": "https://w3id.org/data-director/intake_answer_labels"
+      },
+      "intake_question_id": {
+         "@id": "https://w3id.org/data-director/intake_question_id"
+      },
+      "intake_question_prompt": {
+         "@id": "https://w3id.org/data-director/intake_question_prompt"
+      },
       "inventory_added_at": {
          "@id": "https://w3id.org/data-director/inventory_added_at",
          "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
@@ -309,6 +321,10 @@
       },
       "project_entry_by_researcher": {
          "@id": "https://w3id.org/data-director/project_entry_by_researcher"
+      },
+      "project_intake": {
+         "@id": "https://w3id.org/data-director/project_intake",
+         "@type": "@id"
       },
       "project_inventory": {
          "@id": "https://w3id.org/data-director/project_inventory",

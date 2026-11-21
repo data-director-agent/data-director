@@ -21,6 +21,8 @@ from typing import TYPE_CHECKING, Any, Final
 
 from dd_harness.project_errors import ChangeRefusedError as ChangeRefusedError
 from dd_harness.project_errors import ConversationDeletedError as ConversationDeletedError
+from dd_harness.project_errors import MembershipRefusal as MembershipRefusal
+from dd_harness.project_errors import MembershipRefusedError as MembershipRefusedError
 from dd_harness.project_errors import ProjectDeletedError as ProjectDeletedError
 from dd_harness.project_errors import ProjectError as ProjectError
 from dd_harness.project_errors import Refusal as Refusal
@@ -44,6 +46,9 @@ INVENTORY_ADDED = "inventory_added"
 DOCUMENTATION_ADDED = "documentation_added"
 RESEARCHER_ADDED = "researcher_added"
 RESEARCHER_WITHDRAWN = "researcher_withdrawn"
+MEMBER_ADDED = "member_added"
+MEMBER_ROLE_CHANGED = "member_role_changed"
+MEMBER_REMOVED = "member_removed"
 REPOSITORY_CHOSEN = "repository_chosen"
 DOCUMENT_VERSION_ADDED = "document_version_added"
 DOCUMENT_VERSION_DECIDED = "document_version_decided"

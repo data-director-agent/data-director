@@ -1,5 +1,6 @@
 """Notes from the harness about the project, which open the current message (`agent.py`): what
-its inventory is and whether it replaced an earlier one, what the project is called, what people
+its inventory is and whether it replaced an earlier one, the researcher's answers to the setup
+questions, what the project is called, what people
 in it chose or decided, which documents are attached and whether a plan among them has been read
 for a repository, and the latest version of each drafted document (docs/specs/orchestration.md).
 
@@ -19,6 +20,8 @@ from dd_agent_orchestrator_model.own_tools import ENTRY_TOOL, NAME_TOOL
 from dd_agent_orchestrator_model.provisional import chose_provisional
 from dd_sdk.contract.facts import FactKind, InventoryFormat, ProjectFact
 from dd_sdk.contract.models import DraftSummary, GroundingMode, Message
+from dd_sdk.intake import NOT_SURE, YES
+from dd_sdk.intake import question as intake_question
 from dd_sdk.process_flow import entry as flow_entry
 from dd_sdk.process_flow import progress, suggested_next
 
@@ -42,6 +45,7 @@ def record_notes(
     """The notes written from the project record, in the order they open the message.
     `manifest` is the harness's, from which the documents note says who reads attached text."""
     return (
+        intake_note(message),
         name_note(message),
         decisions_note(message),
         documents_note(message, manifest),
@@ -69,7 +73,10 @@ def progress_note(message: Message, manifest: Sequence[Mapping[str, Any]] = ()) 
             "said; they can change it"
         )
     else:
-        where = f"the researcher chose entry point {start.number} ({start.text})"
+        where = (
+            f"the researcher chose entry point {start.number} ({start.text}) in the setup "
+            "questions or the phase tracker"
+        )
     by_state = {
         state: [step_id for step_id, s in states.items() if s == state]
         for state in ("done", "started", "skipped")
@@ -86,6 +93,49 @@ def progress_note(message: Message, manifest: Sequence[Mapping[str, Any]] = ()) 
     else:
         nxt = " Every step from the entry point is done or skipped."
     return LEAD + f"For this project, {where}. The project record shows {shown}.{nxt}"
+
+
+# The intake's question about a Data Management Plan (`dd_sdk.intake`), and the labels of its
+# answers that the note acts on.
+_DMP = "intake.dmp"
+
+
+def _label(question_id: str, value: str) -> str:
+    return next(o.label for o in intake_question(question_id).options if o.value == value)
+
+
+def intake_note(message: Message) -> str | None:
+    """The researcher's answers to the setup questions beside the entry question, which the
+    researcher gave before the conversation began, or None if they answered none. No step state
+    shows a "Not sure", or any answer about a plan, so without this note the model is not told of
+    them, and denies them when the researcher says they answered (#341). When the researcher said
+    they have a Data Management Plan and the project holds no attached document, the note asks the
+    model to invite them to attach it first, since the drafters and the plan check read it."""
+    answers = message.project_intake or []
+    if not answers:
+        return None
+    said = "; ".join(
+        f"{json.dumps(a.intake_question_prompt)}: {', '.join(a.intake_answer_labels)}"
+        for a in answers
+    )
+    note = LEAD + (
+        "The researcher answered the setup questions before or during the conversation. Their "
+        f"answers, beside the entry point: {said}. Treat these as given: do not ask them again. "
+        f"{json.dumps(_label(_DMP, NOT_SURE))} means not yet known: ask about it only when a "
+        "step needs it."
+    )
+    dmp = next((a for a in answers if a.intake_question_id == _DMP), None)
+    if (
+        dmp is not None
+        and _label(_DMP, YES) in dmp.intake_answer_labels
+        and not message.project_documentation
+    ):
+        note += (
+            " They have a Data Management Plan and have attached no document to the project: "
+            "before asking what the plan may already say, invite them to attach it, as the "
+            "drafters and the Data Management Plan check read an attached plan's text."
+        )
+    return note
 
 
 def _when(at: datetime) -> str:

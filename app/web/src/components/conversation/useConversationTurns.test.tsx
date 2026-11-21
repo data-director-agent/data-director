@@ -206,6 +206,17 @@ describe("useConversationTurns", () => {
     expect(result.current.sent).toBeNull();
   });
 
+  it("reads the conversation again and keeps the message when its stream says it has moved on", async () => {
+    const refused = [{ type: "RUN_ERROR", message: "This turn does not follow.", code: "turn-conflict" }];
+    const get = vi.fn().mockResolvedValue(CONVERSATION);
+    const { result, props } = renderTurns(fakeApi({ sendTurn: () => Promise.resolve(refused), get }));
+    await act(() => result.current.deliver("hi", NOTHING, null));
+    expect(props.setText).toHaveBeenLastCalledWith("hi");
+    expect(get).toHaveBeenCalledWith("c1");
+    await waitFor(() => expect(result.current.conversation).toEqual(CONVERSATION));
+    expect(result.current.error).toMatch(/changed since you wrote this/);
+  });
+
   it("cancels the run being streamed", async () => {
     const turns = fakeApi({ sendTurn: () => new Promise(() => undefined) });
     const { result } = renderTurns(turns);

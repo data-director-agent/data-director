@@ -9,12 +9,12 @@ from typing import Any
 
 def projects_naming_query(principal_id: str) -> tuple[str, dict[str, Any]]:
     """The SQL `projects_naming` runs, and its parameters: the projects with an event naming the
-    principal, read from `project_events_by_principal` alone, in the order created. A project's
-    first event is its creation, appended in the transaction that creates its row, so the place
-    of the first event naming a principal orders the projects as they were created."""
+    principal, read from `project_events_by_principal` alone, in the order created. A
+    `project_id` is a UUIDv7, so it sorts by when the project was created, whenever the
+    principal was first named in it: a member added later finds it where it was created."""
     query = (
-        "select project_id from project_events where names_principal = %(principal)s"
-        " group by project_id order by min(seq)"
+        "select distinct project_id from project_events where names_principal = %(principal)s"
+        " order by project_id"
     )
     return query, {"principal": principal_id}
 
@@ -28,11 +28,11 @@ def logs_naming_query(principal_id: str) -> tuple[str, dict[str, Any]]:
     that scans the whole table, which it prefers once a principal has a few hundred projects."""
     query = (
         "select log.project_id, log.event from"
-        " (select project_id, min(seq) as first from project_events"
-        " where names_principal = %(principal)s group by project_id) as named"
+        " (select distinct project_id from project_events"
+        " where names_principal = %(principal)s) as named"
         " cross join lateral (select project_id, event, seq from project_events"
         " where project_events.project_id = named.project_id order by seq) as log"
-        " order by named.first, log.seq"
+        " order by named.project_id, log.seq"
     )
     return query, {"principal": principal_id}
 

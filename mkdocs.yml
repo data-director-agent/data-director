@@ -103,6 +103,7 @@ nav:
       - Attaching a document: user-guide/attaching-a-document.md
       - Using your ORCID record: user-guide/orcid-facts.md
       - Deciding project facts: user-guide/project-facts.md
+      - Working with others: user-guide/members.md
       - Understanding outcomes: user-guide/outcomes.md
       - What is recorded: user-guide/records.md
       - Depositing your data: user-guide/depositing.md
@@ -185,6 +186,10 @@ nav:
           - Inventory library (TypeScript): /inventory/browser/README.md
       - PID resolver:
           - /mcp-pid/README.md
+      - Units library:
+          - /units/README.md
+      - FAIRsharing server:
+          - /mcp-fairsharing/README.md
       - Agents:
           - Working on an agent: /agents/AGENTS.md
           - /agents/README.md

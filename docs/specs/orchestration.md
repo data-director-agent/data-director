@@ -256,7 +256,11 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     None of these holds up the conversation (invariant 16). When the intake ends, the app says which
     phase the project starts at, by its researcher-facing name, and which step `suggested_next`
     proposes, and offers to start the conversation with that step: the researcher's press sends
-    their opening turn naming it ([App](app.md), rule 25). A researcher who dismisses the intake or types instead may still say where they are
+    their opening turn naming it ([App](app.md), rule 25). The conductor gives the orchestrator
+    the answers beside the entry point on every turn (`Message.project_intake`), "Not sure"
+    included, since no step state shows it, so that the model neither asks them again nor denies
+    them; when the researcher said they have a Data Management Plan and attached no document, the
+    model invites them to attach it (#1374). A researcher who dismisses the intake or types instead may still say where they are
     in their own words; the model then records the entry point it worked out (invariant 18).
 
     The intake asks only what the researcher has not answered, but it does not ask from scratch
@@ -474,7 +478,7 @@ against it.
 - Step ids as the vocabulary in which a deployment's policy names the steps that need a person's
   sign-off, TODO(#308); proposing the ids to the RDA working group, TODO(#310).
 - The orchestrator's context about its deployment and the researcher's project beyond the
-  inventory the project holds and the intake's answers (invariant 20), to be supplied by the
-  harness rather than as a tool, TODO(#341, #160).
+  inventory the project holds, the project record and the intake's answers (invariant 20), to be
+  supplied by the harness rather than as a tool, TODO(#341, #160).
 - A read-only check of a deposit against an existing Data Management Plan, TODO(#284).
 - Streaming replies, TODO(#159).

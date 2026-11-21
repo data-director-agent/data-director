@@ -20,7 +20,13 @@ from inspect_ai.scorer import CORRECT, INCORRECT, NOANSWER, Score, Scorer, Targe
 from inspect_ai.solver import TaskState
 
 from dd_agent_advisor_documentation.agent import GAP_MARKER, _drafted, _facts
-from dd_agent_advisor_documentation.dictionary import SOURCE_SUFFIX, VALUE_COLUMNS, Source
+from dd_agent_advisor_documentation.dictionary import (
+    SOURCE_SUFFIX,
+    VALUE_COLUMNS,
+    Source,
+    asks_about,
+    worked_out_unit_code,
+)
 from dd_agent_advisor_documentation.prose import _NAMED, _NOT_PROSE
 from dd_agent_advisor_documentation.record import _record
 from dd_agent_advisor_documentation.sections import SOURCES as FACT_SOURCES
@@ -133,9 +139,9 @@ def every_cell_sourced() -> Scorer:
 @scorer(metrics=[mean_applicable()])
 def no_model_value_in_cell() -> Scorer:
     """No value is in a cell that its source does not account for: an `inferred` value is the
-    inventory's, and a `supplied` one is the inventory's description or the researcher's
-    recorded answer for that cell. Anything else came from somewhere a person did not see, such
-    as a model."""
+    inventory's, or the unit code the rule gives the row's unit, and a `supplied` one is the
+    inventory's description or the researcher's recorded answer for that cell. Anything else came
+    from somewhere a person did not see, such as a model."""
 
     async def score(state: TaskState, target: Target) -> Score:
         document = document_of(state)
@@ -163,8 +169,11 @@ def no_model_value_in_cell() -> Scorer:
                 value, source = row.get(column) or "", row.get(column + SOURCE_SUFFIX)
                 if source not in SOURCES or source == Source.UNKNOWN or not value:
                     continue  # every_cell_sourced scores these
+                inferred = given.get(key, {}).get(column)
+                if column == "unit_code":
+                    inferred = worked_out_unit_code(row.get("unit") or "")
                 accounted = {
-                    Source.INFERRED: {given.get(key, {}).get(column)},
+                    Source.INFERRED: {inferred},
                     Source.SUPPLIED: {
                         given.get(key, {}).get("description") if column == "description" else None,
                         answered.get((*key, column)),
@@ -184,8 +193,9 @@ def no_model_value_in_cell() -> Scorer:
 
 @scorer(metrics=[mean_applicable()])
 def unknown_cells_asked() -> Scorer:
-    """Of the unknown cells and the cells asked about, the share that are both: every unknown
-    cell has its question, and no question asks about a cell that is filled."""
+    """Of the unknown cells it may ask about and the cells asked about, the share that are both:
+    every such cell has its question, and no question asks about a cell that is filled. A unit
+    code is not asked while the unit it is worked out from is unknown."""
 
     async def score(state: TaskState, target: Target) -> Score:
         document = document_of(state)
@@ -196,7 +206,7 @@ def unknown_cells_asked() -> Scorer:
             (row["file"], row["field"], column)
             for row in rows
             for column in VALUE_COLUMNS
-            if row.get(column + SOURCE_SUFFIX) == Source.UNKNOWN
+            if row.get(column + SOURCE_SUFFIX) == Source.UNKNOWN and asks_about(column, row)
         }
         asked = set(cell_questions(document))
         problems = [f"{' '.join(k)}: not asked" for k in sorted(unknown - asked)] + [

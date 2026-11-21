@@ -266,20 +266,22 @@ def test_a_turn_that_fails_grounding_is_reported_before_it_finishes(
 
 
 @pytest.mark.parametrize(
-    "turn",
+    ("turn", "code"),
     [
-        {"agent_id": "not.the.orchestrator"},  # the conductor's turn refuses it
-        {"follows": "01900000-0000-7000-8000-000000000001"},  # not the latest turn
+        ({"agent_id": "not.the.orchestrator"}, None),  # the conductor's turn refuses it
+        # Not the latest turn: named, so the shell reads the conversation again (#391).
+        ({"follows": "01900000-0000-7000-8000-000000000001"}, "turn-conflict"),
     ],
 )
 def test_a_turn_refused_once_the_stream_is_open_is_run_error_alone(
-    env: Path, conductors: list[Conductor], turn: dict[str, Any]
+    env: Path, conductors: list[Conductor], turn: dict[str, Any], code: str | None
 ) -> None:
     governance, app = _over(env, conductors, AbstainingStub())
     agent_id = turn.pop("agent_id", "stub.abstain")
     events = _turn(app, agent_id, **turn)
     assert _types(events) == ["RUN_ERROR"]
     assert events[0]["message"]
+    assert events[0].get("code") == code
     assert list(governance.conductor.store.iter_envelopes()) == []
 
 

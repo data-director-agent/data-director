@@ -84,7 +84,11 @@ class UnknownConversationError(LookupError):
 
 class TurnConflictError(Exception):
     """A turn that does not follow the conversation's latest turn, or that arrives while another
-    turn of the conversation is still running (docs/specs/orchestration.md). Nothing was run."""
+    turn of the conversation is still running (docs/specs/orchestration.md). Nothing was run.
+    `code` is the Problem Details slug a refusal on the turn stream names in `RUN_ERROR`, so the
+    shell reads the conversation again and keeps what the person typed (#391)."""
+
+    code = "turn-conflict"
 
     def __init__(self, detail: str) -> None:
         super().__init__(detail)

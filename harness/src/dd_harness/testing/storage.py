@@ -61,6 +61,7 @@ from dd_harness.testing.documents import DOCUMENTATION_CHECKS
 from dd_harness.testing.doubles import STUB_QUESTION, DocumentStub
 from dd_harness.testing.fact_storage import FACT_STORAGE_CHECKS
 from dd_harness.testing.fixtures import TEST_PRINCIPAL, document_request, request
+from dd_harness.testing.member_storage import MEMBERSHIP_STORAGE_CHECKS
 from dd_harness.testing.run_batches import RUN_BATCH_CHECKS
 from dd_harness.testing.serving import make_conductor
 from dd_sdk.contract.classes import ClassSchema
@@ -524,22 +525,6 @@ def check_projects_are_listed_in_the_order_created(make: MakeProjectStorage) -> 
     assert store.summary(first) == summaries[0]
 
 
-def check_a_person_reads_the_projects_they_have_a_role_in(make: MakeProjectStorage) -> None:
-    """The projects a person may read are the ones they have a role in, the one created first
-    first, found by any store over the record and after a restart (storage.md, "Listing")."""
-    store = make("projects")
-    someone = Principal(principal_id="https://orcid.org/0000-0002-1694-233X", name="Someone Else")
-    first = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
-    theirs = store.create(acted_for=someone, caused_by="check")
-    # Acting in a project names no one a member; only membership events do, TODO(#389).
-    store.start_conversation(theirs, acted_for=TEST_PRINCIPAL, caused_by="check")
-    second = make("projects").create(acted_for=TEST_PRINCIPAL, caused_by="check")
-    assert readable_projects(store, TEST_PRINCIPAL) == [first, second]
-    assert readable_projects(make("projects"), someone) == [theirs]
-    nobody = Principal(principal_id=NOBODY, name="Nobody")
-    assert readable_projects(store, nobody) == []
-
-
 def check_a_persons_title_is_never_replaced_by_a_models(make: MakeProjectStorage) -> None:
     store = make("projects")
     project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
@@ -981,9 +966,6 @@ PROJECT_STORAGE_CHECKS: dict[str, Callable[[MakeProjectStorage], None]] = {
     "a refused change records nothing": check_a_refused_change_records_nothing,
     "an unknown project is refused": check_an_unknown_project_is_refused,
     "projects are listed in the order created": check_projects_are_listed_in_the_order_created,
-    "a person reads the projects they have a role in": (
-        check_a_person_reads_the_projects_they_have_a_role_in
-    ),
     "a person's title is never replaced by a model's": (
         check_a_persons_title_is_never_replaced_by_a_models
     ),
@@ -1008,6 +990,7 @@ PROJECT_STORAGE_CHECKS: dict[str, Callable[[MakeProjectStorage], None]] = {
         check_the_metadata_record_is_the_one_approved_last
     ),
     "answers stand until answered again": check_answers_stand_until_answered_again,
+    **MEMBERSHIP_STORAGE_CHECKS,
     **DOCUMENTATION_CHECKS,
     **FACT_STORAGE_CHECKS,
     **DEPOSIT_STORAGE_CHECKS,

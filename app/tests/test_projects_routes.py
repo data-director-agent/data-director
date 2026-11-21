@@ -25,10 +25,10 @@ from support import (
 
 from dd_app.app import build_app
 from dd_app.governance import (
+    CREATED_BY_ROUTE,
     Governance,
 )
 from dd_app.routes.projects import DeletedProject, ProjectSummary
-from dd_harness.project_access import Role
 from dd_harness.projects import PROJECT_CREATED, TITLE_MAX_LENGTH, ProjectStore
 from dd_harness.testing import (
     TEST_PRINCIPAL,
@@ -338,25 +338,33 @@ def test_the_projects_an_owner_deleted_are_listed_for_restoring(governance: Gove
 
 
 def test_a_member_asking_for_an_owners_action_is_forbidden_and_may_still_read(
-    in_projects: tuple[Governance, Any], monkeypatch: pytest.MonkeyPatch
+    in_projects: tuple[Governance, Any],
 ):
-    """Docs/specs/projects.md, invariant 17: a member is told an owner's action is not theirs
-    (403), not that the project is missing. No one is a plain member until membership events are
-    built (#389), so the role the check reads is stood in for here."""
+    """Docs/specs/projects.md, invariants 17 and 19: a member an owner added reads the project
+    and is told an owner's action is not theirs (403), not that the project is missing. Once
+    removed, they are answered as for a project that does not exist (404)."""
     governance, app = in_projects
     client = TestClient(app)
     store = governance.projects
     assert store is not None
-    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    owner = Principal(principal_id="https://orcid.org/0000-0002-1694-233X", name="An Owner")
+    project_id = store.create(acted_for=owner, caused_by=CREATED_BY_ROUTE)
+    documents = f"/api/projects/{project_id}/documents"
+    assert client.get(documents).status_code == 404
+    store.add_member(project_id, TEST_PRINCIPAL.principal_id, acted_for=owner, caused_by="test")
+    assert [p["project_id"] for p in client.get("/api/projects").json()] == [project_id]
     before = store.events(project_id)
-    monkeypatch.setattr(governance, "role", lambda _project_id, _principal: Role.MEMBER)
     document_id = str(uuid.UUID(int=0x0190_0000_0000_7000_8000_0000_0000_0000))
 
-    decided = client.post(f"/api/projects/{project_id}/documents/{document_id}/decisions", json={})
+    decided = client.post(f"{documents}/{document_id}/decisions", json={})
     assert decided.status_code == 403
     assert decided.json()["type"].endswith("project-action-forbidden")
-    assert client.get(f"/api/projects/{project_id}/documents").status_code == 200
+    assert client.get(documents).status_code == 200
     assert store.events(project_id) == before
+
+    store.remove_member(project_id, TEST_PRINCIPAL.principal_id, acted_for=owner, caused_by="t")
+    assert client.get(documents).status_code == 404
+    assert client.get("/api/projects").json() == []
 
 
 def test_the_projects_page_is_served_and_lists_nothing_without_projects(

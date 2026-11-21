@@ -5,9 +5,9 @@ backend and cannot disagree with the record. `roles` folds the log into each pri
 `allowed` is the spec's table of what each role may do; `may` puts the two together for a
 principal and a project.
 
-Today the log makes one owner, the principal who created the project (`project_created`). The
-membership events that add members, change roles and remove them are TODO(#389): they extend
-`roles` and `dd_harness.role_events.names`, and nothing that calls `may` changes.
+The project's creator is its first owner (`project_created`). After that, the membership events
+add members, change their roles and remove them (`dd_harness.projects.membership`), and
+`roles` reads them with `member_roles`, the one fold of membership.
 
 `readable_logs` finds the projects a principal may read without reading every project's log:
 the backend reads, at once, the logs of the projects whose log may give them a role
@@ -36,7 +36,7 @@ from enum import StrEnum
 from typing import Any, Protocol
 
 from dd_harness.listing import Readable
-from dd_harness.projects import PROJECT_CREATED, conversation_deletions, deletion
+from dd_harness.projects import conversation_deletions, deletion, is_last_owner, member_roles
 from dd_harness.storage import ProjectConversations, ProjectLifecycle
 from dd_sdk.contract.models import Principal
 
@@ -73,11 +73,7 @@ _ALLOWED: Mapping[Role, frozenset[Action]] = {
 def roles(events: Iterable[Mapping[str, Any]]) -> dict[str, Role]:
     """Each principal's role in the project whose log is `events`, by `principal_id`. A
     principal with none is not a member."""
-    found: dict[str, Role] = {}
-    for event in events:
-        if event["event"] == PROJECT_CREATED:
-            found[event["acted_for"]["principal_id"]] = Role.OWNER
-    return found
+    return {principal_id: Role(role) for principal_id, role in member_roles(events).items()}
 
 
 def allowed(role: Role | None, action: Action) -> bool:
@@ -132,6 +128,27 @@ def deleted_projects(store: ProjectLifecycle, principal: Principal) -> list[str]
         for project_id, events in store.logs_naming(principal.principal_id).items()
         if deletion(events) is not None and allowed(_role(events, principal), Action.MANAGE)
     ]
+
+
+def may_remove_member(
+    store: ProjectLifecycle, project_id: str, principal: Principal, member_id: str
+) -> bool:
+    """Whether `principal` may remove the member `member_id` names from the project
+    `project_id`: an owner may remove anyone, and any member may leave
+    (docs/specs/projects.md, Roles). That the last owner stays is the rules' check
+    (`dd_harness.projects.Membership.remove_member`)."""
+    role = role_of(store, project_id, principal)
+    return allowed(role, Action.MANAGE) or (
+        role is not None and member_id == principal.principal_id
+    )
+
+
+def may_leave(store: ProjectLifecycle, project_id: str, principal: Principal) -> bool:
+    """Whether `principal` may leave the project `project_id`: a member may, and an owner may
+    unless they are its last (docs/specs/projects.md, Roles)."""
+    if role_of(store, project_id, principal) is None:
+        return False
+    return not is_last_owner(member_roles(store.events(project_id)), principal.principal_id)
 
 
 class ConversationAccess(ProjectLifecycle, ProjectConversations, Protocol):

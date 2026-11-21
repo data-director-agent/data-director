@@ -130,6 +130,20 @@
       "exclude-paths": [
         "mcp-pid/tests"
       ]
+    },
+    "mcp-fairsharing": {
+      "component": "mcp-fairsharing",
+      "release-type": "python",
+      "exclude-paths": [
+        "mcp-fairsharing/tests"
+      ]
+    },
+    "units": {
+      "component": "units",
+      "release-type": "python",
+      "exclude-paths": [
+        "units/tests"
+      ]
     }
   }
 }

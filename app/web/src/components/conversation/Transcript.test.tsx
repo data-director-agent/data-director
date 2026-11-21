@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 import { describe, expect, it, vi } from "vitest";
@@ -23,7 +23,11 @@ import { projectName } from "../../project/name";
 import { type RunApi, RunApiContext } from "../../run/api";
 import type { RunResult } from "../../run/types";
 import { savedInventory } from "../../test/api";
+import { SessionApiContext } from "../../session/api";
+import { DEVELOPMENT, fakeSessionApi } from "../../test/session";
 import { Transcript } from "./Transcript";
+
+const COLLEAGUE = "https://orcid.org/0000-0001-5000-0007";
 
 /** The fixture's README, drafted by `invocationId`, with `later` versions after it. */
 function readmeDraftedBy(invocationId: string, later: DocumentVersion[] = []): ProjectDocument {
@@ -285,6 +289,23 @@ describe("Transcript, as a conversation", () => {
       expect(parts).toEqual(["turn-person", "turn-agent"]);
     }
     expect((await axe(container)).violations).toEqual([]);
+  });
+
+  it("names another member's turn and calls the reader's own turn theirs (#391)", async () => {
+    const [first, second] = conversation.turns;
+    const colleague = { ...first?.envelope.acting_for, principal_id: COLLEAGUE, name: "Ada Example" };
+    const shared = {
+      ...conversation,
+      turns: [{ ...first, envelope: { ...first?.envelope, acting_for: colleague } }, second],
+    } as Conversation;
+    render(
+      <SessionApiContext.Provider value={fakeSessionApi(DEVELOPMENT)}>
+        <Transcript conversation={shared} agents={agents} onToggleRun={() => {}} />
+      </SessionApiContext.Provider>,
+    );
+    const names = () =>
+      turns().map((t) => t.querySelector(".turn-person .turn-speaker-name")?.textContent);
+    await waitFor(() => expect(names()).toEqual(["👤Ada Example", "👤You"]));
   });
 
   it("heads a reply with the agent's name alone, not its version or model", () => {

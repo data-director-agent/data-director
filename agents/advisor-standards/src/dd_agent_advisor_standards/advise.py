@@ -48,6 +48,7 @@ from dd_agent_advisor_standards.tools import SEARCH, Run, record_block, run_tool
 from dd_sdk.agent import RunContext
 from dd_sdk.explain import add_usage, checked_rationale, missing_rationale, with_reason
 from dd_sdk.model import (
+    CallOptions,
     Model,
     ModelCallError,
     ModelMessage,
@@ -361,10 +362,9 @@ class ModelAdvisor:
                     ctx,
                     system=SYSTEM_PROMPT,
                     messages=exchange.messages,
-                    max_tokens=MAX_TOKENS,
-                    calls=exchange.log,
-                    tools=offered,
-                    tool_choice="auto",
+                    options=CallOptions(
+                        max_tokens=MAX_TOKENS, calls=exchange.log, tools=offered, tool_choice="auto"
+                    ),
                 )
             except ModelCallError as exc:
                 return f"model unavailable: {exc}"

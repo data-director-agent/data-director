@@ -474,6 +474,18 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     `app/web/src/components/conversation/DeleteConversation.tsx`,
     `app/web/src/components/project/DeletedConversations.tsx`,
     `app/tests/test_conversation_deletion.py`).
+32. **A project's members are on its Members tab, which offers what the server allows.**
+    `/projects/{id}/members` lists each member by ORCID iD, headed by the name they kept from
+    their own ORCID record in the project where they kept one, with their role and since when.
+    The server says what the person may do (`may_manage`, and each member's `removable` and
+    `role_changeable`, and `may_leave`), and the tab offers only that: an owner adds a person by
+    ORCID iD and chooses their role, makes a member an owner or an owner a member, and removes a
+    member; any member may leave, except the last owner. Removing and leaving each ask first, and
+    after leaving the page goes to the Projects page. A refusal is said in the page's status, and
+    what was typed stays. The tab says what members see of one another's work. In a project's
+    conversations each turn is headed by its sender's name, or "You" for the reader's own
+    (`app/web/src/components/project/MembersPanel.test.tsx`,
+    `app/tests/test_project_members.py`; [Projects](projects.md), Roles).
 
 ## Boundaries and contracts
 
@@ -563,7 +575,10 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   the history from the stored turns. A turn refused before the stream opens (a malformed body,
   a conversation the person may not read, a `runId` already streaming) is answered with a problem,
   as the other routes answer; one refused once it is open (it no longer follows the latest turn,
-  or goes to an agent other than the orchestrator) is `RUN_ERROR` alone.
+  or goes to an agent other than the orchestrator) is `RUN_ERROR` alone. A refusal that names
+  which it is carries its Problem Details slug as `RUN_ERROR`'s `code`: `turn-conflict` for a turn
+  that no longer follows the latest, on which the shell reads the conversation again and puts the
+  message back in the box, as for a `409` before the stream opens (#391).
   `POST /api/conversations/{id}/turns/{runId}/cancel` cancels the person's own turn while its
   stream is open (`202`), and answers `404` for any other; the stream ends with a cancelled
   `RUN_FINISHED` and the run is stored as `run-cancelled` ([Transport and tracing](transport.md),
@@ -624,7 +639,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   decision and the lines it changed from the one before. While a person edits, the preview shows
   their version. The list holds documents only.
 - **A project's pages are tabs.** Beneath the breadcrumb, each of a project's pages is a tab with
-  an address of its own: Documents (`/projects/{id}`), Researchers (`/researchers`), Project facts
+  an address of its own: Documents (`/projects/{id}`), Researchers (`/researchers`), Members
+  (`/members`), Project facts
   (`/facts`), Repository (`/repository`), Use of generative AI (`/ai-use`), Deposit package
   (`/deposit`) and the Journey map (`/journey`), each under `/projects/{id}`, then the project's
   Conversations. Each is there before any document is drafted. A link to one of the first five

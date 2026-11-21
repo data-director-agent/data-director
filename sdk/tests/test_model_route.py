@@ -21,7 +21,15 @@ from dd_sdk.contract.models import (
     OutcomeStatus,
     ReasonCode,
 )
-from dd_sdk.model import ModelCallError, ModelRequest, ModelResponse, bind_grant, call, declared
+from dd_sdk.model import (
+    CallOptions,
+    ModelCallError,
+    ModelRequest,
+    ModelResponse,
+    bind_grant,
+    call,
+    declared,
+)
 from dd_sdk.model_anthropic import AnthropicModel
 from dd_sdk.model_grant import HEADER_GRANT, HEADER_REASON, META_MODEL_GRANT
 from dd_sdk.model_openai import OpenAIModel
@@ -177,7 +185,7 @@ class Twice:
                 ctx,
                 system="Be brief.",
                 messages=[{"role": "user", "content": text}],
-                calls=log,
+                options=CallOptions(calls=log),
             )
         return AgentResult(
             outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement="Done."),

@@ -149,8 +149,10 @@ from `dd_sdk.deposit_grant.DepositReason`. No event holds a token.
 
 Who may do what in a project is read from this log by `dd_harness.project_access`, the one access
 check the conductor and the app use ([Projects](../../docs/specs/projects.md), invariant 17):
-`project_created` makes its creator the owner. Changes of membership will be events of the same
-log that `project_access.roles` folds, TODO(#389).
+`project_created` makes its creator the owner. After that, `member_added`, `member_role_changed`
+and `member_removed` add a member by principal identifier, change their role and remove them
+(`dd_harness.projects.membership`). `membership.member_roles` folds them, and
+`project_access.roles` reads that fold. The last owner is never removed or demoted.
 
 ## The inventory
 
@@ -172,7 +174,15 @@ $ uv run dd-harness project events 0192f3a4-…
 $ uv run dd-harness project list
 $ uv run dd-harness project delete 0192f3a4-…
 $ uv run dd-harness project restore 0192f3a4-…
+$ uv run dd-harness project member-add 0192f3a4-… 0000-0002-1694-233X
+$ uv run dd-harness project member-role 0192f3a4-… 0000-0002-1694-233X owner
+$ uv run dd-harness project members 0192f3a4-…
+$ uv run dd-harness project member-remove 0192f3a4-… 0000-0002-1694-233X
 ```
+
+The member commands act for the operator's principal and are refused unless they own the project,
+except that any member may remove themselves. A bare ORCID iD is taken as its `https://orcid.org/`
+IRI.
 
 `project list`, and `ProjectStore.projects()`, give a summary of each project in the order they were
 created. A summary has the latest title and who gave it (`title_source`), who created it and when, the latest inventory (digest, file
@@ -292,8 +302,6 @@ until a person approves one. The conductor gives it to every drafter in the proj
 
 ## Not yet built
 
-- Membership is not built, so a project's creator is its only owner and no one else has a
-  role in it, TODO(#389).
 - A drafter is not yet given the text of a document a researcher attached; only an
   orchestrator is told, without its text, that the project holds it.
 - How long a project is kept once it can no longer be restored, and what erasing one removes,

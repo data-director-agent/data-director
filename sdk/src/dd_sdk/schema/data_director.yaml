@@ -12,7 +12,7 @@ description: >-
   schema_class (docs/specs/contract.md); every payload mixes in Grounded so the grounding linter can check it
   without knowing its class (docs/specs/grounding.md). Formats here are fixed; see docs/specs/ for why.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.19.0
+version: 0.20.0
 license: MIT
 
 prefixes:
@@ -206,6 +206,7 @@ classes:
       - project_decisions
       - project_repository
       - project_drafts
+      - project_intake
 
   ConversationTurn:
     description: >-
@@ -244,6 +245,16 @@ classes:
     slots:
       - step_id
       - step_state
+
+  IntakeAnswer:
+    description: >-
+      The researcher's current answer to one of the intake's setup questions beside the entry
+      question (dd_sdk.intake), as the project log shows it, with the labels of the options chosen
+      (docs/specs/orchestration.md, invariant 20).
+    slots:
+      - intake_question_id
+      - intake_question_prompt
+      - intake_answer_labels
 
   InventorySummary:
     description: >-
@@ -1453,6 +1464,18 @@ slots:
   step_state:
     range: StepState
     required: true
+  intake_question_id:
+    description: The intake question's id, `intake.<name>` (dd_sdk.intake).
+    required: true
+    pattern: "^intake\\.[a-z-]+$"
+  intake_question_prompt:
+    description: The intake question as the researcher was asked it.
+    required: true
+  intake_answer_labels:
+    description: >-
+      The labels of the options the researcher chose, such as "Not sure"; never empty.
+    required: true
+    multivalued: true
   inventory_digest:
     description: The inventory's dd-input-json-v1 hash, by which the project keeps it.
     required: true
@@ -1699,6 +1722,15 @@ slots:
       in the order first drafted, filled by the conductor and never by the caller. Absent when the
       run is in no project, or its project holds no drafted document.
     range: DraftSummary
+    multivalued: true
+    inlined_as_list: true
+  project_intake:
+    description: >-
+      The researcher's current answers to the intake's setup questions beside the entry question,
+      in the order they are asked, only for a question asked from the project's entry point, filled
+      by the conductor and never by the caller. Absent when the run is in no project, or no such
+      question has been answered. The entry question's answer is `project_entry`.
+    range: IntakeAnswer
     multivalued: true
     inlined_as_list: true
   drafted_since_inventory:
