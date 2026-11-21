@@ -6,6 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from opf_fixture import opf_finding_nothing
 from ror_fixture import NERC, NERC_JO, NERC_SD, build_fixture
 
 import dd_agent_advisor_policy
@@ -449,7 +450,10 @@ def test_the_researchers_choice_of_ror_identifier_settles_the_question(
 def test_a_name_unknown_to_ror_and_fairsharing_stays_without_a_record(
     runs_dir: Path, dump: RorDump
 ) -> None:
-    advisor = PolicyAgent(Sources(RecordingPolicies(), organisations=dump))
+    # Open Policy Finder is asked and has nothing either; without its key, see test_policy_opf.
+    advisor = PolicyAgent(
+        Sources(RecordingPolicies(), organisations=dump, opf=opf_finding_nothing())
+    )
     nowhere = Actor(role=ActorRole.FUNDER, name="Ministry of Nowhere")
     env = invoke(runs_dir, PolicyContext(actors=[nowhere, TESTING]), advisor)
     checks = env.payload_as(PolicyChecks)
@@ -463,12 +467,14 @@ def test_a_name_unknown_to_ror_and_fairsharing_stays_without_a_record(
 def test_a_funder_identified_in_ror_with_no_policy_record_still_carries_its_identifier(
     runs_dir: Path, dump: RorDump
 ) -> None:
-    advisor = PolicyAgent(Sources(FakePolicies(), organisations=nerc_only(dump)))
+    advisor = PolicyAgent(
+        Sources(FakePolicies(), organisations=nerc_only(dump), opf=opf_finding_nothing())
+    )
     nerc = Actor(role=ActorRole.FUNDER, name="NERC")
     env = invoke(runs_dir, PolicyContext(actors=[nerc]), advisor)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     checks = env.payload_as(PolicyChecks)
-    assert checks.policies == [] and checks.no_record == ["NERC"]
+    assert checks.policies == [] and checks.no_record == ["NERC"] and checks.not_searched == []
     assert [f.grounded_on[0].source_id for f in checks.funders] == [NERC]
     assert "require a particular repository" in env.outcome.statement
 

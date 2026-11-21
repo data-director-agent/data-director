@@ -9,7 +9,7 @@ import shutil
 import socket
 import subprocess
 import urllib.request
-from collections.abc import Iterable
+from collections.abc import Collection, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -53,6 +53,13 @@ MODEL_BY_DEFAULT = {
     "advisor-fairness": "DD_FAIRNESS_WRITER",
     "advisor-ethics": "DD_ETHICS_READER",
     "advisor-metadata": "DD_METADATA_SUGGESTER",
+}
+# Keys an agent starts without but does less without, by agent, each with what it then cannot do.
+# `doctor` lists those not set (#1319); a run that needed one says that it could not search.
+OPTIONAL_KEYS = {
+    "advisor-policy": {
+        "OPEN_POLICY_FINDER_API_KEY": "funders' and journals' open access policies are not checked",
+    },
 }
 NODE_MAJOR = 22  # the oldest Node the shell's toolchain supports (README, "Quick start")
 APP_PORT = 7860  # dd_app's default (DD_APP_PORT)
@@ -195,6 +202,20 @@ def agent_env(agent: Agent) -> dict[str, str]:
         | read_env(agent.env_file)
         | {"CREDENTIALS_DIRECTORY": str(paths.CREDENTIALS_DIR)}
     )
+
+
+def missing_optional_keys(
+    name: str, env: dict[str, str], loaded: Collection[str] = ()
+) -> list[tuple[str, str]]:
+    """Agent `name`'s optional keys that neither its settings `env` (as KEY or KEY_FILE) nor its
+    loaded secrets `loaded` (by file name, as deploy/credentials.sh names them) give it, each with
+    what the agent then cannot do."""
+    return [
+        (key, without)
+        for key, without in OPTIONAL_KEYS.get(name, {}).items()
+        if not (env.get(key) or env.get(f"{key}_FILE"))
+        and key.lower().replace("_", "-") not in loaded
+    ]
 
 
 def has_key(env: dict[str, str]) -> bool:

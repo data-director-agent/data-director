@@ -36,6 +36,7 @@ it relies on tool calls (`AgentSpec.models`).
 
 from __future__ import annotations
 
+import logging
 import os
 from collections.abc import Mapping
 from dataclasses import replace
@@ -102,7 +103,14 @@ def build_extractor(env: Mapping[str, str], explainer: Explainer) -> Extractor:
 
 
 def build_opf(env: Mapping[str, str]) -> OpenPolicyFinder | None:
+    """Open Policy Finder with its key, or None with a warning at start-up: without it, funders'
+    and journals' policies cannot be checked, and a run says so (#1319)."""
     if not ((env.get(OPF_KEY) or "").strip() or (env.get(f"{OPF_KEY}_FILE") or "").strip()):
+        logging.getLogger(__name__).warning(
+            "%s is not set: funders' and journals' open access policies will not be checked, "
+            "and a run that needs them reports that it could not search",
+            OPF_KEY,
+        )
         return None
     return OpenPolicyFinder(api_key(env, OPF_KEY))
 

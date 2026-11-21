@@ -625,6 +625,30 @@ def test_the_policy_advisor_with_no_key_is_refused_until_it_has_one_or_is_turned
     assert apply(FakeVm(), Place.vm(vm), vm) == 0
 
 
+def test_the_policy_advisor_without_an_open_policy_finder_key_is_noted_with_the_secret_command(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    listed = vm.current / "app" / "config" / "agents.yaml"
+    listed.write_text(AGENTS + "  - name: advisor-policy\n    url: http://127.0.0.1:8108/\n")
+    settings = vm.agent_env("advisor-policy")
+    settings.parent.mkdir(parents=True, exist_ok=True)
+    settings.write_text("DD_POLICY_ADVISOR=template\n")
+    system = FakeVm()
+    system.units["data-director-agent@advisor-policy.service"] = {
+        "ActiveState": "active",
+        "UnitFileState": "enabled",
+        "NRestarts": "0",
+    }
+    _, out = check(system, vm, capsys)
+    assert says(out, "note", "OPEN_POLICY_FINDER_API_KEY", "open-policy-finder-api-key")
+
+    dropin = vm.credentials_dropin("advisor-policy")
+    dropin.parent.mkdir(parents=True, exist_ok=True)
+    dropin.write_text("[Service]\nLoadCredential=open-policy-finder-api-key:/etc/x\n")
+    _, out = check(system, vm, capsys)
+    assert not says(out, "note", "OPEN_POLICY_FINDER_API_KEY")
+
+
 def test_the_documentation_editor_on_by_default_with_no_key_is_a_problem(
     vm: Vm, capsys: pytest.CaptureFixture[str]
 ) -> None:
