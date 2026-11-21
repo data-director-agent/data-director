@@ -46,8 +46,9 @@
  * read with `useResource`.
  */
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
+import { documentReaders } from "../../conversation/documentation";
 import type { ReplyAnswers } from "../../conversation/question";
 import type { FlowStep } from "../../flow/types";
 import type { Directory } from "../../manifest/normalise";
@@ -102,6 +103,10 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   const box = useRef<HTMLTextAreaElement>(null);
 
   const attachments = useAttachments(box, announce, directory.documentsAllowed);
+  const readers = useMemo(
+    () => documentReaders(directory.agents, directory.orchestratorId),
+    [directory.agents, directory.orchestratorId],
+  );
   const turns = useConversationTurns({
     orchestratorId: orchestrator?.id,
     runId,
@@ -278,6 +283,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
             attachments={attachments}
             busy={busy}
             onSend={() => void send()}
+            readers={readers}
           />
           {turns.error && (
             <div role="alert" className="callout status-danger">

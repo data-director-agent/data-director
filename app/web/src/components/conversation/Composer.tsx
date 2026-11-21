@@ -11,6 +11,7 @@ import { Button } from "../ui/Button";
 import { ComposerAttach } from "./ComposerAttach";
 import { DocumentReviewDialog } from "./DocumentReviewDialog";
 import { MessageField } from "./MessageField";
+import type { DocumentReaders } from "../../conversation/documentation";
 import type { Attachments } from "./useAttachments";
 
 export function Composer({
@@ -20,6 +21,7 @@ export function Composer({
   attachments,
   busy,
   onSend,
+  readers,
 }: {
   box: RefObject<HTMLTextAreaElement | null>;
   text: string;
@@ -27,6 +29,8 @@ export function Composer({
   attachments: Attachments;
   busy: boolean;
   onSend: () => void;
+  /** Who reads an attached document's text, said when one is attached (#1326). */
+  readers: DocumentReaders;
 }) {
   const writing = Boolean(text.trim()) || attachments.carries;
   function submit(event: FormEvent) {
@@ -73,6 +77,7 @@ export function Composer({
           replaces={attachments.document?.name}
           onAttach={attachments.confirmDocument}
           onDiscard={attachments.discardDocument}
+          readers={readers}
         />
         {/* Said in the live region when it is set, so not live here. */}
         {attachments.notice && <p className="callout">{attachments.notice}</p>}

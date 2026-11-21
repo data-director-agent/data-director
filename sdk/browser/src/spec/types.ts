@@ -62,6 +62,9 @@ export interface RawAgentSpec {
   title?: string;
   /** The persona's icon, one emoji (docs/specs/agents.md). Absent or empty: none. */
   icon?: string;
+  /** What it reads the text of attached documents for, completing "<title> reads its text …"
+   * (#1326). Absent or empty: it does not read them. */
+  reads_attached?: string;
   /**
    * The options a deployment's profile may set, by name (docs/specs/policy-and-identity.md).
    * Absent on an older card, which offers none.

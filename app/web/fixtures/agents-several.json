@@ -35,6 +35,7 @@
       "icon": "🔍",
       "models": [],
       "payload": "QualityReview",
+      "reads_attached": "",
       "requires_approval": false,
       "schemas": {
         "MetadataRecord": {
@@ -408,6 +409,7 @@
       "icon": "📚",
       "models": [],
       "payload": "Recommendations",
+      "reads_attached": "",
       "requires_approval": false,
       "schemas": {
         "DatasetProfile": {
@@ -922,6 +924,7 @@
       "icon": "👋",
       "models": [],
       "payload": "Greeting",
+      "reads_attached": "",
       "requires_approval": false,
       "schemas": {
         "Greeting": {
@@ -1131,6 +1134,7 @@
       "icon": "",
       "models": [],
       "payload": null,
+      "reads_attached": "",
       "requires_approval": false,
       "schemas": {
         "Message": {

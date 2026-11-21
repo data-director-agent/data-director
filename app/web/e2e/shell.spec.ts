@@ -604,6 +604,8 @@ test("a document is checked by keyboard and shown as a chip at 320px with no axe
   // It is checked first: nothing is attached until it is confirmed.
   const review = page.getByRole("dialog", { name: "Check the document before attaching it" });
   await expect(review.getByText(/never\s+the data themselves/)).toBeVisible();
+  // Which agents read its text is said before it is attached (#1326): none in this deployment.
+  await expect(review.getByText(/No agent in this deployment reads its text/)).toBeVisible();
   await expect(page.getByText(/Document: a-long-sampling-protocol/)).toHaveCount(0);
   expect(await overflow(page), "horizontal overflow while checking the document").toBeLessThanOrEqual(0);
   expect(await axeViolations(page)).toEqual([]);

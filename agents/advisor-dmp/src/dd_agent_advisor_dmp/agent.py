@@ -120,6 +120,10 @@ class DmpChecker:
             "limitations": Derived(Derivation.TEMPLATE),
         },
         serves=("governance.dmp",),
+        reads_attached=(
+            "to find a data management plan's commitments to share your data, which you then "
+            "confirm or correct"
+        ),
     )
 
     def __init__(self, matcher: Matcher | None = None, reader: PlanReader | None = None) -> None:

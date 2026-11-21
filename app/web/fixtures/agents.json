@@ -43,6 +43,7 @@
       "icon": "📚",
       "models": [],
       "payload": "Recommendations",
+      "reads_attached": "",
       "requires_approval": false,
       "schemas": {
         "DatasetProfile": {

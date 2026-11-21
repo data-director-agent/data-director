@@ -53,8 +53,13 @@ shown beside its question and is never written into the draft: it becomes part o
 only when you save it, or a correction of it, as your answer. The outcome of the draft names the
 documents the model was given, and says if one was too long to give in full.
 
+The Data Management Plan Checker reads an attached data management plan to find its commitments
+to share your data, which you then confirm or correct.
+
 The agent you are talking to, and every other agent, is told only each document's name, type and
-size. The text goes to an AI model hosted outside your institution only if your institution's
+size, and cannot use its text. The Policy Adviser, for example, reads your institution's or
+funder's policy only from a web address, not from an attached document. Before you attach a
+document, the app names the agents in your deployment that read its text. The text goes to an AI model hosted outside your institution only if your institution's
 deployment allows that; where it does not, drafts are made without it.
 
 Your institution may choose not to keep attached documents at all. Then **Attach a file** takes

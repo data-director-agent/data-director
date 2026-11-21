@@ -28,6 +28,7 @@ from dd_sdk.agent import (
 from dd_sdk.contract.classes import ClassSchema, ClassSchemaError, schema_digest
 from dd_sdk.contract.models import (
     Derivation,
+    DraftRequest,
     Frozen,
     GroundingMode,
     InvocationRequest,
@@ -227,6 +228,28 @@ def test_a_description_whose_icon_is_not_a_string_is_refused() -> None:
     entry = {**describe(SPEC), "icon": 7}
     with pytest.raises(SpecError, match="icon"):
         spec_from_description(entry)
+
+
+def test_what_an_agent_reads_attached_documents_for_round_trips_through_the_manifest() -> None:
+    # An agent given attached documents says what it reads them for, so the app can say so when
+    # a document is attached (#1326).
+    spec = dataclasses.replace(
+        SPEC, accepts=(ClassSchema.of(DraftRequest),), reads_attached="to suggest answers"
+    )
+    entry = json.loads(json.dumps(describe(spec)))
+    assert entry["reads_attached"] == "to suggest answers"
+    assert spec_from_description(entry).reads_attached == "to suggest answers"
+
+
+def test_a_description_without_reads_attached_reads_no_attached_document() -> None:
+    entry = describe(SPEC)
+    del entry["reads_attached"]
+    assert spec_from_description(entry).reads_attached == ""
+
+
+def test_an_agent_never_given_attached_documents_cannot_say_it_reads_them() -> None:
+    with pytest.raises(SpecError, match="project_documents"):
+        dataclasses.replace(SPEC, reads_attached="to suggest answers")
 
 
 def test_the_settings_an_agent_offers_round_trip_through_the_manifest() -> None:

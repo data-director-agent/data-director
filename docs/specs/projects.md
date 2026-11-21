@@ -129,7 +129,9 @@ intended design, and each part says where it is not built yet.
    22; #1280). A `DraftRequest`'s `project_documents` are the documents a researcher attached, each with its
    text, replacing what the caller sent. An agent's own input class asks for the same by mixing
    in `GivenProjectDocuments` (`project_documents`), `GivenProjectDecisions`
-   (`project_decisions`) or `GivenProjectRepository` (`project_repository`): where the accepted schema on the agent's card declares the slot, the
+   (`project_decisions`) or `GivenProjectRepository` (`project_repository`); an agent that reads
+   the documents it is given also says so in its card's `reads_attached` ([Agents](agents.md),
+   invariant 12): where the accepted schema on the agent's card declares the slot, the
    conductor fills it as it fills a `DraftRequest`'s, by slot name and never by the class's name,
    and outside a project what the caller sent is kept, as for a `DraftRequest`
    (`dd_harness.project_facts.agent_slots`, `harness/tests/test_project_agent_inputs.py`,

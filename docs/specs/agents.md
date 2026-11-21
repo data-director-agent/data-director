@@ -60,7 +60,13 @@ is in [`harness/docs/registry.md`](../../harness/docs/registry.md).
     advisors serve the same step. That last rule is not yet checked by a test. A persona may also
     have an `icon`, one emoji, which the app shows beside its title; `AgentSpec` refuses an icon
     that is not one (`sdk/tests/test_agent_spec.py`). A card without an icon gets the client's
-    default (`DEFAULT_AGENT_ICON` in `@data-director/agent-view`).
+    default (`DEFAULT_AGENT_ICON` in `@data-director/agent-view`). An agent that reads the text
+    of the documents a researcher attaches says what for in `reads_attached`, a phrase completing
+    "<title> reads its text …"; `AgentSpec` refuses it from an agent no accepted class of which
+    is given `project_documents` ([Projects](projects.md)). Being given the text is not reading
+    it, so the card says so and the schema does not: the app's document dialog and the
+    orchestrator's note name the agents that read an attachment, and say that the others cannot
+    use it, before anyone relies on them doing so (#1326).
 13. A mock advisor's description begins "Mock.", its grounding mode is `none`, and its payload
     says in `limitations` what it does not yet do; a payload of the core `Document` class, which
     has no such slot, says it in the outcome statement instead. A mock declares no model and
