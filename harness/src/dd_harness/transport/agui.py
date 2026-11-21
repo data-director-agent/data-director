@@ -317,16 +317,12 @@ def _stored_events(envelope: dict[str, Any], thread_id: str, run_id: str) -> lis
     ]
 
 
-def agui_routes(  # noqa: C901
-    conductor: Conductor,
-    authenticator: Authenticator,
-    runs: RunsInFlight | None = None,
-) -> list[Route]:
-    """`POST /agui` runs one invocation and streams it; `POST /agui/runs/{run_id}/cancel` cancels
-    the caller's run of that AG-UI `runId`; `GET /agui/runs/{invocation_id}` replays a stored run
-    as `RUN_STARTED` and `RUN_FINISHED`, since its stages were not kept."""
-    in_flight = runs if runs is not None else RunsInFlight()
+type Endpoint = Callable[[Request], Awaitable[Response]]
 
+
+def _run_agent_endpoint(
+    conductor: Conductor, authenticator: Authenticator, in_flight: RunsInFlight
+) -> Endpoint:
     async def run_agent(request: Request) -> Response:
         """The body is an AG-UI `RunAgentInput`; `forwardedProps.request` (or `forwarded_props`)
         carries the `InvocationRequest` document."""
@@ -374,6 +370,10 @@ def agui_routes(  # noqa: C901
 
         return sse(events())
 
+    return run_agent
+
+
+def _cancel_run_endpoint(authenticator: Authenticator, in_flight: RunsInFlight) -> Endpoint:
     async def cancel_run(request: Request) -> Response:
         run_id = request.path_params["run_id"]
         try:
@@ -386,6 +386,10 @@ def agui_routes(  # noqa: C901
             return JSONResponse({"error": f"no run {run_id} of yours is running"}, status_code=404)
         return JSONResponse({"cancelled": run_id}, status_code=202)
 
+    return cancel_run
+
+
+def _replay_run_endpoint(conductor: Conductor) -> Endpoint:
     async def replay_run(request: Request) -> Response:
         invocation_id = request.path_params["invocation_id"]
         envelope = await asyncio.to_thread(conductor.store.get, invocation_id)
@@ -394,10 +398,26 @@ def agui_routes(  # noqa: C901
         thread_id = envelope.get("conversation_id") or "replay"
         return sse(_stored_events(envelope, thread_id, invocation_id))
 
+    return replay_run
+
+
+def agui_routes(
+    conductor: Conductor,
+    authenticator: Authenticator,
+    runs: RunsInFlight | None = None,
+) -> list[Route]:
+    """`POST /agui` runs one invocation and streams it; `POST /agui/runs/{run_id}/cancel` cancels
+    the caller's run of that AG-UI `runId`; `GET /agui/runs/{invocation_id}` replays a stored run
+    as `RUN_STARTED` and `RUN_FINISHED`, since its stages were not kept."""
+    in_flight = runs if runs is not None else RunsInFlight()
     return [
-        Route("/agui", run_agent, methods=["POST"]),
-        Route("/agui/runs/{run_id}/cancel", cancel_run, methods=["POST"]),
-        Route("/agui/runs/{invocation_id}", replay_run, methods=["GET"]),
+        Route("/agui", _run_agent_endpoint(conductor, authenticator, in_flight), methods=["POST"]),
+        Route(
+            "/agui/runs/{run_id}/cancel",
+            _cancel_run_endpoint(authenticator, in_flight),
+            methods=["POST"],
+        ),
+        Route("/agui/runs/{invocation_id}", _replay_run_endpoint(conductor), methods=["GET"]),
     ]
 
 
