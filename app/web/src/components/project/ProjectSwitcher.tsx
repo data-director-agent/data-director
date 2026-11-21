@@ -2,8 +2,8 @@
  * Which project the workspace is in, and a way to switch (docs/specs/app.md). The app works in one
  * project at a time; choosing another opens its conversations, and **New project** opens a dialog
  * that creates one (rule 27), so that Data Director can ask its intake questions before anything
- * is typed. A project is named as the projects
- * page names it. While one is active, **Project details** beside the switcher opens its page
+ * is typed. **New project** is also a button beside the switcher, so that starting one does not
+ * depend on opening the list. A project is named as the projects page names it. While one is active, **Project details** beside the switcher opens its page
  * (`/projects/{project_id}`), so a person can get from the conversation to its documents.
  */
 
@@ -24,6 +24,7 @@ import {
 import { useActiveProject } from "../../project/active";
 import { projectName } from "../../project/name";
 import { Link } from "../../route";
+import { Button } from "../ui/Button";
 import { NewProjectDialog } from "./NewProjectDialog";
 
 /** The key of the New project choice; no project identifier (a UUIDv7) can be it. */
@@ -82,6 +83,9 @@ export function ProjectSwitcher() {
           </ListBox>
         </Popover>
       </Select>
+      <Button icon={FolderPlus} variant="secondary" onPress={() => setCreating(true)}>
+        New project
+      </Button>
       {projectId !== null && (
         <Link to={`/projects/${encodeURIComponent(projectId)}`} className="button button-secondary">
           <FolderOpen className="button-icon" size="1.125em" aria-hidden="true" />
