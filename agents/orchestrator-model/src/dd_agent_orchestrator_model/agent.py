@@ -116,7 +116,6 @@ from dd_sdk.model import (
     ToolSpec,
     call,
 )
-from dd_sdk.process_flow import requirements_of
 from dd_sdk.prompts import ModelCallLog
 
 AGENT_ID = "orchestrator.model"
@@ -173,9 +172,6 @@ def tools_from_manifest(manifest: list[dict[str, Any]], own_id: str = AGENT_ID) 
             steps = [str(s) for s in entry.get("serves") or []]
             if steps:
                 description += f" Serves step(s) {', '.join(steps)}."
-                requirements = requirements_of(steps)
-                if requirements:
-                    description += f" Those steps apply {', '.join(requirements)}."
             tools.append(
                 Tool(
                     name=name[:TOOL_NAME_MAX],

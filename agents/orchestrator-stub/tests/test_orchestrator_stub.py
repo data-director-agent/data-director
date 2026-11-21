@@ -13,7 +13,7 @@ import pytest
 from dd_agent_advisor_quality.agent import QualityReviewer
 from dd_agent_advisor_standards.factory import build as build_standards
 from dd_agent_example_hello.agent import HelloWorld
-from dd_agent_orchestrator_stub.agent import DirectorStub
+from dd_agent_orchestrator_stub.agent import NO_AGENT, DirectorStub
 from dd_agent_orchestrator_stub.routing import entry_named, load_entries, load_rules, route
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.contract.models import (
@@ -29,6 +29,7 @@ from dd_sdk.contract.models import (
     TurnRole,
 )
 from dd_sdk.evidence import input_hash
+from dd_sdk.flow_prompt import REQUIREMENT_ID
 from dd_sdk.process_flow import ENTRIES, PlannedStep, entry, plan
 from dd_sdk.tracing import CHAT, DELEGATE, RETRIEVAL, records_from_jsonl
 
@@ -56,21 +57,20 @@ def listed(
     text: str, start: int, manifest: Iterable[Mapping[str, Any]]
 ) -> list[tuple[PlannedStep, str]]:
     """Each step planned from entry point `start`, with the line of `text` that lists it, after
-    checking that the line says what serves the step: its agents, "no agent yet" or "out of
-    scope", and its requirements."""
+    checking that the line says what serves the step (its agents, that none can help yet, or "out
+    of scope") and names no requirement ID (invariant 14)."""
     lines = text.splitlines()
     found = []
     for planned in plan(entry(start), manifest):
         step = planned.step
         [line] = [line for line in lines if line.startswith(f"- {step.text}")]
+        assert not REQUIREMENT_ID.search(line), line
         if step.out_of_scope:
             assert "out of scope" in line, line
+        elif planned.agent_ids:
+            assert all(a in line for a in planned.agent_ids), line
         else:
-            assert all(r in line for r in step.requirements), line
-            if planned.agent_ids:
-                assert all(a in line for a in planned.agent_ids), line
-            else:
-                assert "no agent yet" in line, line
+            assert NO_AGENT in line, line
         found.append((planned, line))
     return found
 
@@ -251,7 +251,7 @@ def test_entry_one_starts_before_collection_and_names_the_documentation_gap(
     assert text.startswith("Entry point 1")
     lines = {p.step.id: (p, line) for p, line in listed(text, 1, c.registry.manifest())}
     documentation, line = lines["setup.documentation"]
-    assert not documentation.agent_ids and "R5" in line
+    assert not documentation.agent_ids and NO_AGENT in line
     # An agent that serves a step is named with an example of what to ask it.
     [standards] = [r for r in load_rules() if r.agent_id == "advisor.standards"]
     assert any(

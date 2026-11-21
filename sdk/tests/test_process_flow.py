@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 import yaml
 
-from dd_sdk.flow_prompt import describe_flow
+from dd_sdk.flow_prompt import REQUIREMENT_ID, describe_flow
 from dd_sdk.process_flow import (
     ENTRIES,
     OUT_OF_SCOPE,
@@ -81,6 +81,15 @@ def test_the_data_management_plan_steps_are_in_the_flow_and_out_of_scope_for_now
     text = describe_flow()
     line = next(x for x in text.splitlines() if "[setup.dmp-create]" in x)
     assert "optional" in line and "out of scope for now" in line
+
+
+def test_the_flow_for_a_researcher_facing_model_names_no_requirement() -> None:
+    """A model that talks to researchers is shown every step but no requirement ID, so it has
+    none to repeat to them (docs/specs/orchestration.md, invariant 14)."""
+    assert REQUIREMENT_ID.search(describe_flow())
+    text = describe_flow(requirements=False)
+    assert not REQUIREMENT_ID.search(text)
+    assert all(f"[{s.id}]" in text for p in PHASES for s in p.steps)
 
 
 def test_an_agent_is_planned_at_the_steps_it_names_and_no_other() -> None:

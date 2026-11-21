@@ -16,7 +16,7 @@ import yaml
 from dd_agent_advisor_documentation.agent import DocumentationEditor
 from dd_agent_advisor_files.agent import FileArchivist
 from dd_agent_advisor_metadata.agent import MetadataLibrarian
-from dd_agent_orchestrator_stub.agent import ENTRY_KEY, NEXT_STEP_KEY, DirectorStub
+from dd_agent_orchestrator_stub.agent import ENTRY_KEY, NEXT_STEP_KEY, NO_AGENT, DirectorStub
 from dd_harness.conductor import Conductor
 from dd_harness.deposit import PackageRefusedError, build_package
 from dd_harness.projects import APPROVED, Decision, ProjectStore
@@ -40,6 +40,7 @@ from dd_sdk.contract.models import (
     ReplyAnswers,
     TurnRole,
 )
+from dd_sdk.flow_prompt import REQUIREMENT_ID
 from dd_sdk.intake import ENTRY
 
 
@@ -243,7 +244,8 @@ def test_the_stub_leads_from_the_files_to_a_package(
     # `dd-harness project package` does, and the log shows both steps done.
     env = researcher.say("Finalise the deposit", choose="deposit.finalise")
     assert env.delegations == []
-    assert "no agent yet" in Researcher.reply(env).reply_text
+    reply = Researcher.reply(env).reply_text
+    assert NO_AGENT in reply and not REQUIREMENT_ID.search(reply)
     assert "deposit.finalise" not in projects.progress(project)["steps"]
     runs = RunStore(tmp_path / "runs")
     # The record was approved as the mock drafted it, with its title left for the researcher to
@@ -282,7 +284,8 @@ def test_a_step_with_no_agent_is_named_and_not_done_by_the_stub(
     researcher.say("what next?")
     env = researcher.say("Upload your files", choose="deposit.upload")
     assert env.delegations == []
-    assert "no agent yet" in Researcher.reply(env).reply_text
+    reply = Researcher.reply(env).reply_text
+    assert NO_AGENT in reply and not REQUIREMENT_ID.search(reply)
     assert "deposit.upload" not in projects.progress(project)["steps"]
 
 
