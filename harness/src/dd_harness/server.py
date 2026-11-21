@@ -18,7 +18,8 @@ from the re3data export `DD_SOURCES_CONFIG` pins and its requirement sets from `
 `confirm-checks` for what a person decides before packaging (`dd_harness.deposit_cli`), `package`
 to build the deposit package from a ready project and the runs under `DD_RUNS_DIR`, `delete` and
 `restore`
-(which hide a project and bring it back within `DD_PROJECT_RESTORE_DAYS`, removing nothing), and
+(which hide a project and bring it back within `DD_PROJECT_RESTORE_DAYS`, removing nothing),
+`members`, `member-add`, `member-role` and `member-remove` (`dd_harness.member_cli`), and
 `events`.
 
 There is no authentication of callers yet (docs/specs/policy-and-identity.md, #17, #43): every
@@ -44,6 +45,7 @@ from dd_harness.deposit import PackageRefusedError, Validation, build_package, c
 from dd_harness.deposit_cli import add_commands as add_deposit_commands
 from dd_harness.gateway.config import ToolConfigError
 from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
+from dd_harness.member_cli import add_commands as add_member_commands
 from dd_harness.model_grants import jwks_routes
 from dd_harness.policy import PolicyError
 from dd_harness.projects import ProjectError
@@ -439,6 +441,7 @@ def _add_project_commands(sub: Any) -> None:
     p.add_argument("-o", "--output", help="also write the package's zip to this file")
     p.set_defaults(func=cmd_project_package)
     add_deposit_commands(project)
+    add_member_commands(project)
     p = project.add_parser(
         "choose-entry", help="record the Blueprint entry point the researcher is at (1, 2 or 3)"
     )

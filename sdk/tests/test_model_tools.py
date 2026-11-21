@@ -15,6 +15,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from dd_sdk.agent import RunContext
 from dd_sdk.model import (
     AssistantMessage,
+    CallOptions,
     ModelCallError,
     ModelMessage,
     Replay,
@@ -25,7 +26,7 @@ from dd_sdk.model import (
     call,
 )
 from dd_sdk.model_anthropic import FALLBACK_BETA, AnthropicModel, ToolLoopOptions
-from dd_sdk.model_openai import OpenAIModel, openai_client
+from dd_sdk.model_openai import OpenAIModel, OpenAIOptions, openai_client
 
 BASE = "http://endpoint.test/v1"
 GREET = ToolSpec(
@@ -96,7 +97,11 @@ def test_claude_is_sent_tools_results_and_its_own_turn_back(ctx: RunContext) -> 
 
     replay = Replay("anthropic", (thinking, {"type": "tool_use", "id": "call_1"}))
     reply = call(
-        model, ctx, system="s", messages=conversation(replay), tools=[GREET], tool_choice="none"
+        model,
+        ctx,
+        system="s",
+        messages=conversation(replay),
+        options=CallOptions(tools=[GREET], tool_choice="none"),
     )
 
     [sent] = client.requests
@@ -120,7 +125,13 @@ def test_claude_is_sent_tools_results_and_its_own_turn_back(ctx: RunContext) -> 
 def test_claude_is_sent_a_turn_from_another_provider_rebuilt(ctx: RunContext) -> None:
     client = Claude([Block(type="text", text="Done.")])
     model = AnthropicModel("claude-test", client=client)  # type: ignore[arg-type]
-    call(model, ctx, system="s", messages=conversation(Replay("openai", {})), tools=[GREET])
+    call(
+        model,
+        ctx,
+        system="s",
+        messages=conversation(Replay("openai", {})),
+        options=CallOptions(tools=[GREET]),
+    )
     _, assistant, _ = client.requests[0]["messages"]
     assert assistant["content"] == [
         {"type": "text", "text": "Asking."},
@@ -134,7 +145,9 @@ def test_claudes_tool_calls_are_read_and_its_turn_kept(ctx: RunContext) -> None:
         Block(type="tool_use", id="toolu_1", name="greet", input={"name": "Ada"}),
     ]
     model = AnthropicModel("claude-test", client=Claude(blocks, "tool_use"))  # type: ignore[arg-type]
-    reply = call(model, ctx, system="s", messages=conversation()[:1], tools=[GREET])
+    reply = call(
+        model, ctx, system="s", messages=conversation()[:1], options=CallOptions(tools=[GREET])
+    )
     assert reply.stop == "tool_use"
     assert reply.tool_calls == (ToolCall("toolu_1", "greet", {"name": "Ada"}),)
     assert reply.message.replay is not None and reply.message.replay.provider == "anthropic"
@@ -209,12 +222,11 @@ def test_an_endpoint_is_sent_function_tools_results_and_a_rebuilt_turn(ctx: RunC
     pytest.importorskip("openai")
     endpoint = Endpoint(completion({"role": "assistant", "content": "Hello, Ada!"}))
     reply = call(
-        endpoint.model(effort="low"),
+        endpoint.model(options=OpenAIOptions(effort="low")),
         ctx,
         system="s",
         messages=conversation(),
-        tools=[GREET],
-        tool_choice="auto",
+        options=CallOptions(tools=[GREET], tool_choice="auto"),
     )
     [body] = endpoint.bodies
     assert body["tools"] == [
@@ -252,13 +264,21 @@ def test_an_endpoints_tool_calls_are_read_and_its_signatures_sent_back(ctx: RunC
     )
     endpoint = Endpoint(answer)
     model = endpoint.model()
-    reply = call(model, ctx, system="s", messages=conversation()[:1], tools=[GREET])
+    reply = call(
+        model, ctx, system="s", messages=conversation()[:1], options=CallOptions(tools=[GREET])
+    )
     assert reply.stop == "tool_use"
     assert reply.tool_calls == (ToolCall("call_9", "greet", {"name": "Ada"}),)
 
     # The next call sends the turn back with the field the server added.
     endpoint.answer = completion({"role": "assistant", "content": "Done."})
-    call(model, ctx, system="s", messages=[*conversation()[:1], reply.message], tools=[GREET])
+    call(
+        model,
+        ctx,
+        system="s",
+        messages=[*conversation()[:1], reply.message],
+        options=CallOptions(tools=[GREET]),
+    )
     sent = endpoint.bodies[-1]["messages"][-1]
     assert sent["tool_calls"] == [signed]
 
@@ -267,7 +287,11 @@ def test_tool_calls_ended_with_stop_are_still_tool_calls(ctx: RunContext) -> Non
     pytest.importorskip("openai")
     answer = completion({"role": "assistant", "content": None, "tool_calls": [tool_call("{}")]})
     reply = call(
-        Endpoint(answer).model(), ctx, system="s", messages=conversation()[:1], tools=[GREET]
+        Endpoint(answer).model(),
+        ctx,
+        system="s",
+        messages=conversation()[:1],
+        options=CallOptions(tools=[GREET]),
     )
     assert reply.stop == "tool_use"
 
@@ -281,7 +305,11 @@ def test_arguments_that_are_not_an_object_are_a_problem_not_a_crash(
         {"role": "assistant", "content": None, "tool_calls": [tool_call(arguments)]}, "tool_calls"
     )
     reply = call(
-        Endpoint(answer).model(), ctx, system="s", messages=conversation()[:1], tools=[GREET]
+        Endpoint(answer).model(),
+        ctx,
+        system="s",
+        messages=conversation()[:1],
+        options=CallOptions(tools=[GREET]),
     )
     [made] = reply.tool_calls
     assert made.input == {} and made.problem
@@ -296,7 +324,11 @@ def test_why_an_endpoint_stopped_is_reported(
     pytest.importorskip("openai")
     answer = completion({"role": "assistant", "content": "Part"}, finish_reason)
     reply = call(
-        Endpoint(answer).model(), ctx, system="s", messages=conversation()[:1], tools=[GREET]
+        Endpoint(answer).model(),
+        ctx,
+        system="s",
+        messages=conversation()[:1],
+        options=CallOptions(tools=[GREET]),
     )
     assert reply.stop == stop
 
@@ -305,13 +337,25 @@ def test_an_endpoints_failure_is_a_model_call_error(ctx: RunContext) -> None:
     pytest.importorskip("openai")
     endpoint = Endpoint({"error": {"message": "tools are not supported"}}, status=400)
     with pytest.raises(ModelCallError, match="400"):
-        call(endpoint.model(), ctx, system="s", messages=conversation()[:1], tools=[GREET])
+        call(
+            endpoint.model(),
+            ctx,
+            system="s",
+            messages=conversation()[:1],
+            options=CallOptions(tools=[GREET]),
+        )
 
 
 def test_the_record_holds_the_neutral_conversation_and_the_tools(ctx: RunContext) -> None:
     pytest.importorskip("openai")
     endpoint = Endpoint(completion({"role": "assistant", "content": "Hi"}))
-    reply = call(endpoint.model(), ctx, system="s", messages=conversation(), tools=[GREET])
+    reply = call(
+        endpoint.model(),
+        ctx,
+        system="s",
+        messages=conversation(),
+        options=CallOptions(tools=[GREET]),
+    )
     [prompt] = reply.calls.prompts.values()
     assert prompt["tools"] == [GREET.to_json()] and prompt["tool_choice"] == "auto"
     assert prompt["messages"][1]["tool_calls"] == [

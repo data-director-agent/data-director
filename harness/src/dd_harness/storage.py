@@ -23,6 +23,7 @@ from dd_harness.conversation_storage import ProjectConversations as ProjectConve
 from dd_harness.fact_storage import ProjectFacts as ProjectFacts
 from dd_harness.holding_storage import ProjectHoldings as ProjectHoldings
 from dd_harness.listing import Page, Readable
+from dd_harness.member_storage import ProjectMembership as ProjectMembership
 from dd_harness.progress_storage import ProjectProgress as ProjectProgress
 from dd_harness.project_decision import Decision
 from dd_harness.project_effects import ProjectEffects
@@ -150,8 +151,7 @@ class RunStorage(Protocol):
 
 
 class ProjectRecord(Protocol):
-    """Every area reads a project's events and asks whether it exists; each area Protocol
-    below extends this one."""
+    """Every area reads a project's events and asks whether it exists, and extends this."""
 
     def exists(self, project_id: str) -> bool:
         """Whether the project exists."""
@@ -258,8 +258,7 @@ class ProjectResearchers(ProjectRecord, Protocol):
 
 
 class ProjectRepository(ProjectRecord, Protocol):
-    """The repository chosen and the requirements it resolved to
-    (`dd_harness.projects.repository`)."""
+    """The repository chosen, and the requirements it resolved to (`projects.repository`)."""
 
     def choose_repository(
         self,
@@ -403,6 +402,7 @@ class ProjectDeposits(ProjectRecord, DepositApprovals, Protocol):
 
 class ProjectStorage(
     ProjectLifecycle,
+    ProjectMembership,
     ProjectConversations,
     ProjectHoldings,
     ProjectResearchers,

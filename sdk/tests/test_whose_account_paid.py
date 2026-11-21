@@ -23,7 +23,7 @@ from dd_sdk.contract.models import (
     ReasonCode,
 )
 from dd_sdk.credentials import ModelEndpoint
-from dd_sdk.model import call
+from dd_sdk.model import CallOptions, call
 from dd_sdk.model_account import refusal
 from dd_sdk.model_anthropic import AnthropicModel, anthropic_client
 from dd_sdk.model_grant import HEADER_ACCOUNT, HEADER_PROVIDER, HEADER_REASON, META_MODEL_GRANT
@@ -125,7 +125,7 @@ class Twice:
             ctx,
             system="Be brief.",
             messages=[{"role": "user", "content": "one"}],
-            calls=log,
+            options=CallOptions(calls=log),
         )
         self.client.messages.create(
             model="claude-test", max_tokens=16, messages=[{"role": "user", "content": "two"}]
@@ -258,7 +258,7 @@ class ChatTwice:
                 ctx,
                 system="Be brief.",
                 messages=[{"role": "user", "content": text}],
-                calls=log,
+                options=CallOptions(calls=log),
             )
         return AgentResult(
             outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement="Done."),
@@ -335,7 +335,7 @@ class RoutedOnce:
                 ctx,
                 system="Be brief.",
                 messages=[{"role": "user", "content": text}],
-                calls=log,
+                options=CallOptions(calls=log),
             )
         return AgentResult(
             outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement="Done."),

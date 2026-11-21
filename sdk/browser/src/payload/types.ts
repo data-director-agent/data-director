@@ -63,7 +63,8 @@ export interface Envelope {
   completed_at: string;
   grounding_mode: string;
   policy_bundle_ref: string;
-  acting_for?: { name: string; assurance?: string } | null;
+  /** Whom the run acted for: the person who sent the turn, by their identifier and name. */
+  acting_for?: { principal_id?: string; name: string; assurance?: string } | null;
   outcome: Outcome;
   payload?: Record<string, unknown> | null;
   evidence?: EvidenceItem[] | null;

@@ -5,7 +5,8 @@
 
 alter table project_events add column names_principal text;
 
--- A project's creator is its owner (`project_created`); membership events are TODO(#389).
+-- A project's creator is its owner (`project_created`). No membership event (`member_added`,
+-- `member_role_changed`, `member_removed`) predates this migration; each is indexed when appended.
 update project_events set names_principal = event -> 'acted_for' ->> 'principal_id'
 where event ->> 'event' = 'project_created';
 

@@ -105,6 +105,7 @@ from dd_sdk.contract.models import (
 )
 from dd_sdk.delegate import Delegated, DelegationRefused
 from dd_sdk.model import (
+    CallOptions,
     Model,
     ModelCallError,
     ModelMessage,
@@ -408,10 +409,9 @@ class ModelOrchestrator:
                 ctx,
                 system=SYSTEM_PROMPT,
                 messages=state.messages,
-                tools=state.definitions,
-                tool_choice="auto" if use_tools else "none",
-                max_tokens=MAX_TOKENS,
-                calls=state.calls,
+                options=CallOptions(
+                    MAX_TOKENS, state.calls, state.definitions, "auto" if use_tools else "none"
+                ),
             )
         except ModelCallError as exc:
             raise ModelError(str(exc)) from exc

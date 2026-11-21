@@ -30,7 +30,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from dd_agent_advisor_policy.classes import Actor, ObligationKind, StatedObligation, Strength
 from dd_agent_advisor_policy.policy_text import PolicyText
 from dd_sdk.agent import RunContext
-from dd_sdk.model import Model, ModelCallError, ModelOutputError, Usage, call
+from dd_sdk.model import CallOptions, Model, ModelCallError, ModelOutputError, Usage, call
 from dd_sdk.prompts import ModelCallLog
 
 # A quote shorter than this says too little to show where a reading came from.
@@ -185,8 +185,7 @@ class ModelExtractor:
                 system=SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": prompt(actor, text)}],
                 schema=Extraction,
-                max_tokens=MAX_TOKENS,
-                calls=calls,
+                options=CallOptions(max_tokens=MAX_TOKENS, calls=calls),
             )
         except ModelOutputError as exc:
             return Reading(
