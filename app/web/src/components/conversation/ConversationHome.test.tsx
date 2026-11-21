@@ -1712,6 +1712,13 @@ describe("ConversationHome", () => {
       expect(localStorage.getItem("dd-project")).toBe(created.project_id);
     });
 
+    it("opens the New project dialog from a button beside the switcher, without opening the list", async () => {
+      await renderHome(withOrchestrator(), fakeApi(), FLOW, withProgress({}));
+      await userEvent.click(await screen.findByRole("button", { name: "New project" }));
+      expect(await screen.findByRole("dialog", { name: "New project" })).toBeVisible();
+      expect(screen.queryByRole("listbox")).toBeNull();
+    });
+
     it("opens a pending project with the intake card and keeps the message box usable", async () => {
       localStorage.setItem("dd-project", LOGGERS.project_id);
       const pending = intakePendingFixture as ProjectIntake;
