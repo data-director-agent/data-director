@@ -70,19 +70,45 @@ RECORDS = (
 JSON_HEADERS = {"content-type": "application/json"}
 
 
-def pin_export(root: Path) -> Path:
-    """A `sources.yaml` pinning a re3data export of `RECORDS`, as `dd-re3data fetch` builds."""
+# A repository only DataCite registers, as its snapshot holds it (agents/advisor-repository/data).
+DURHAM = "bl.durham"
+DATACITE_SNAPSHOT = "datacite:repositories:2026-11-21"
+DATACITE_RECORDS = (
+    {
+        "datacite_id": DURHAM,
+        "name": "Durham University Repositories",
+        "alternate_name": None,
+        "url": "https://researchdata.durham.ac.uk/",
+        "dataset_count": "611",
+    },
+)
+
+
+def _pinned(root: Path, name: str, records: tuple[dict[str, Any], ...], **entry: Any) -> Any:
+    data = "".join(json.dumps(r, sort_keys=True) + "\n" for r in records).encode()
+    (root / name).write_bytes(data)
+    return {**entry, "path": name, "sha256": hashlib.sha256(data).hexdigest()}
+
+
+def pin_export(root: Path, *, datacite: bool = False) -> Path:
+    """A `sources.yaml` pinning a re3data export of `RECORDS`, as `dd-re3data fetch` builds, and,
+    with `datacite`, a DataCite snapshot of `DATACITE_RECORDS`."""
     root.mkdir(parents=True, exist_ok=True)
-    data = "".join(json.dumps(r, sort_keys=True) + "\n" for r in RECORDS).encode()
-    (root / "registry.jsonl").write_bytes(data)
-    entry = {
-        "snapshot_refs": [EXPORT],
-        "path": "registry.jsonl",
-        "id_field": "re3data_id",
-        "sha256": hashlib.sha256(data).hexdigest(),
-    }
+    entries = [
+        _pinned(root, "registry.jsonl", RECORDS, snapshot_refs=[EXPORT], id_field="re3data_id")
+    ]
+    if datacite:
+        entries.append(
+            _pinned(
+                root,
+                "repositories.jsonl",
+                DATACITE_RECORDS,
+                snapshot_refs=[DATACITE_SNAPSHOT],
+                id_field="datacite_id",
+            )
+        )
     config = root / "sources.yaml"
-    config.write_text(yaml.safe_dump({"sources": [entry]}), "utf-8")
+    config.write_text(yaml.safe_dump({"sources": entries}), "utf-8")
     return config
 
 

@@ -310,7 +310,7 @@ def test_the_latest_re3data_export_pinned_is_the_one_read(tmp_path: Path) -> Non
         for c in (newer, older)
     ]
     config.write_text(yaml.safe_dump({"sources": entries}), "utf-8")
-    entry = Sources.from_config(config).re3data(ORDA)
+    entry = Sources.from_config(config).repository(ORDA)
     assert entry is not None
     assert (entry.name, entry.snapshot_ref) == ("ORDA", EXPORT)
 
@@ -325,7 +325,7 @@ def test_a_re3data_record_without_a_name_or_with_malformed_standards_is_refused(
     for i, broken in enumerate(broken_records):
         sources = Sources.from_config(registry(tmp_path / str(i), ({**RECORDS[0], **broken},)))
         with pytest.raises(SourceConfigError, match="has no name or a malformed"):
-            sources.re3data(ORDA)
+            sources.repository(ORDA)
 
 
 def test_the_command_records_a_choice_from_re3data_and_warns_of_what_is_not_checked(

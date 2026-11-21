@@ -1393,8 +1393,8 @@
                   "null"
                ]
             },
-            "fee_required": {
-               "description": "Whether a deposit fee is required. Unlike re3data, a deployment may say there is none.",
+            "charges_deposit_fee": {
+               "description": "Whether the repository charges a fee to deposit. Unlike re3data, a deployment may say it charges none.",
                "type": [
                   "boolean",
                   "null"

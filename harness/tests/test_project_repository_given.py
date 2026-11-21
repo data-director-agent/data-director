@@ -36,7 +36,11 @@ from dd_sdk.contract.models import (
 
 pytestmark = pytest.mark.requirement("C13.3")
 
-FORGED = ChosenRepository(chosen_repository_name="Forged", chosen_re3data_id="r3d000000000")
+FORGED = ChosenRepository(
+    chosen_repository_name="Forged",
+    chosen_repository_id="r3d000000000",
+    chosen_re3data_id="r3d000000000",
+)
 
 
 @pytest.fixture

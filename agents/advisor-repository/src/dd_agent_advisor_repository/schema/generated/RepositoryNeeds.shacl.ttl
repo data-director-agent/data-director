@@ -128,12 +128,12 @@ schema1:Organization a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
             sh:path <https://w3id.org/data-director/institution_name> ],
-        [ sh:description "Whether the registry lists a fee as a condition of depositing data." ;
-            sh:in ( "yes" "no" "unstated" ) ;
+        [ sh:datatype xsd:boolean ;
+            sh:description "Whether the repository charges a fee to deposit. Unlike re3data, a deployment may say it charges none." ;
             sh:maxCount 1 ;
-            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
             sh:order 6 ;
-            sh:path repository:fee_required ],
+            sh:path <https://w3id.org/data-director/charges_deposit_fee> ],
         [ sh:datatype xsd:string ;
             sh:description "The reference of the profile that vouches for the facts, as profile:<id>@v<version>; an agent cites them under it." ;
             sh:maxCount 1 ;

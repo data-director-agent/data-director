@@ -32,16 +32,6 @@
          "title": "Affiliation",
          "type": "object"
       },
-      "Answer": {
-         "description": "",
-         "enum": [
-            "yes",
-            "no",
-            "unstated"
-         ],
-         "title": "Answer",
-         "type": "string"
-      },
       "ChosenRepository": {
          "additionalProperties": false,
          "description": "The repository a researcher chose to deposit the project's data in, from the shortlist, by the identifier of the registry that lists it: the conductor fills it into a Message, and into the input of an agent that mixes in GivenProjectRepository, so that the agent knows a repository is chosen and which (docs/specs/projects.md). The last choice stands until a researcher chooses again.",
@@ -145,9 +135,12 @@
                   "null"
                ]
             },
-            "fee_required": {
-               "$ref": "#/$defs/Answer",
-               "description": "Whether the registry lists a fee as a condition of depositing data."
+            "charges_deposit_fee": {
+               "description": "Whether the repository charges a fee to deposit. Unlike re3data, a deployment may say it charges none.",
+               "type": [
+                  "boolean",
+                  "null"
+               ]
             },
             "guidance": {
                "description": "The pages the deployment checked the facts it vouches for against.",
@@ -163,8 +156,7 @@
          },
          "required": [
             "repository_id",
-            "profile_ref",
-            "fee_required"
+            "profile_ref"
          ],
          "title": "InstitutionRepository",
          "type": "object"

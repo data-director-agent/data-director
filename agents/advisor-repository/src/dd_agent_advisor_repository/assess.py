@@ -12,13 +12,13 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 from dd_agent_advisor_repository.classes import AccessNeed, Affiliation, Answer, RepositoryNeeds
-from dd_agent_advisor_repository.records import DatabaseRecord, Institution, Re3dataRecord, bare_ror
+from dd_agent_advisor_repository.records import DatabaseRecord, Institution, Repository, bare_ror
 
 # The responsibilities that make an institution the repository's operator, not its supplier.
 OPERATING = frozenset({"general", "funding"})
 
 
-def assigns_pids(record: Re3dataRecord) -> Answer:
+def assigns_pids(record: Repository) -> Answer:
     systems = {s.lower() for s in record.pid_systems}
     if not systems:
         return Answer.UNSTATED
@@ -30,7 +30,7 @@ def _operates(institution: Institution) -> bool:
     return not institution.responsibilities or bool(OPERATING & set(institution.responsibilities))
 
 
-def commercial(record: Re3dataRecord) -> Answer:
+def commercial(record: Repository) -> Answer:
     """Yes when a commercial institution operates it; no when the operators are all typed and
     none is commercial. A commercial technical supplier is a note, not an operator."""
     operators = [i for i in record.institutions if _operates(i)]
@@ -41,7 +41,7 @@ def commercial(record: Re3dataRecord) -> Answer:
     return Answer.UNSTATED
 
 
-def fee_required(record: Re3dataRecord) -> Answer:
+def fee_required(record: Repository) -> Answer:
     """re3data has no value for "no fee", so a fee it does not list is unstated; a deployment
     may vouch for either answer about its own repository (`institution.Vouched`)."""
     vouched = getattr(record, "fee_vouched", None)
@@ -50,7 +50,7 @@ def fee_required(record: Re3dataRecord) -> Answer:
     return Answer.YES if "feeRequired" in record.data_upload_restrictions else Answer.UNSTATED
 
 
-def provenance(record: Re3dataRecord) -> list[str]:
+def provenance(record: Repository) -> list[str]:
     """What, beside the registry's own fields, says the repository is a real data repository
     of an institution: how many datasets DataCite holds for it, and the deployment's word."""
     said = []
@@ -62,7 +62,7 @@ def provenance(record: Re3dataRecord) -> list[str]:
     return said
 
 
-def in_country(record: Re3dataRecord, country: str | None) -> Institution | None:
+def in_country(record: Repository, country: str | None) -> Institution | None:
     """The first operating institution in `country` (ISO 3166-1 alpha-3, as re3data writes
     it), or None."""
     if country is None:
@@ -73,7 +73,7 @@ def in_country(record: Re3dataRecord, country: str | None) -> Institution | None
     return None
 
 
-def home_country(records: Iterable[Re3dataRecord], affiliation: Affiliation | None) -> str | None:
+def home_country(records: Iterable[Repository], affiliation: Affiliation | None) -> str | None:
     """The country re3data gives the researcher's institution, wherever it operates one of
     `records` (matched as `affiliated` matches), or None. Records that disagree give the most
     common country, then the first in code order, so the answer does not depend on record order."""
@@ -87,7 +87,7 @@ def home_country(records: Iterable[Re3dataRecord], affiliation: Affiliation | No
     return min(seen, key=lambda c: (-seen[c], c))
 
 
-def affiliated(record: Re3dataRecord, affiliation: Affiliation | None) -> Institution | None:
+def affiliated(record: Repository, affiliation: Affiliation | None) -> Institution | None:
     """The operating institution that is the researcher's, by ROR where both have one, else by
     exact name ignoring case."""
     if affiliation is None:
@@ -105,7 +105,7 @@ def affiliated(record: Re3dataRecord, affiliation: Affiliation | None) -> Instit
     return None
 
 
-def members_only(record: Re3dataRecord) -> bool:
+def members_only(record: Repository) -> bool:
     """Whether the repository takes deposits only from its own institution's members: re3data
     lists an "institutional membership" restriction, or types it as institutional and nothing
     else."""
@@ -121,7 +121,7 @@ _ACCESS_PHRASE = {
 }
 
 
-def access_met(record: Re3dataRecord, need: AccessNeed | None) -> bool | None:
+def access_met(record: Repository, need: AccessNeed | None) -> bool | None:
     """Whether the access the data needs is listed; None when nothing is needed or listed."""
     if need is None or not record.data_access_types:
         return None
@@ -136,7 +136,7 @@ class Assessment:
 
 
 def assess(  # noqa: C901, PLR0912
-    record: Re3dataRecord, database: DatabaseRecord | None, needs: RepositoryNeeds
+    record: Repository, database: DatabaseRecord | None, needs: RepositoryNeeds
 ) -> Assessment:
     out = Assessment()
 

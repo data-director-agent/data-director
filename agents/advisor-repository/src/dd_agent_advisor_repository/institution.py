@@ -58,7 +58,7 @@ class Vouched:
 
     @property
     def fee_vouched(self) -> bool | None:
-        return self.entry.fee_required
+        return self.entry.charges_deposit_fee
 
     @property
     def institutions(self) -> list[Institution]:
@@ -129,5 +129,5 @@ class WithInstitution:
 
 
 def wrap(source: Repositories, entries: list[InstitutionRepository]) -> Repositories:
-    """`source`, with the profile's repositories laid over it; itself when the profile names none."""
-    return WithInstitution(source, entries) if entries else source  # type: ignore[return-value]
+    """`source`, with the profile's repositories over it; itself when the profile names none."""
+    return WithInstitution(source, entries) if entries else source

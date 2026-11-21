@@ -23,7 +23,7 @@ sources:
   - snapshot_refs: ["datacite:repositories:2026-11-21"]
     path: ../agents/advisor-repository/data/datacite/repositories.jsonl
     id_field: datacite_id
-    sha256: 5a03284b3b0d882f829e4ed7ebef59b00fcb63f25b9fb0414b25dca8206cd121
+    sha256: 38fa603a112cefaf987618f3dc4e251a0d0d5fd0338186c6363db85bd6fe4580
   - snapshot_refs: ["fairsharing:snapshot:2026-11-10", "fairsharing:snapshot:2026-11-10 (stale)"]
     path: ../agents/advisor-repository/data/fairsharing/snapshot.jsonl
     id_field: fairsharing_id

@@ -12,38 +12,38 @@
 prov:Activity a sh:NodeShape ;
 	rdfs:comment "One call an agent made to a language model, as the agent reports it (docs/specs/disclosure.md). model_id is the model the provider's response named, which may be more exact than the one configured. prompt_digest identifies the messages sent: the harness keeps them beside the run, never in the envelope, and checks that they hash to it. model_account says whose account paid for the call, never whose key, and model_declared the model the agent's card declared, when the profile's model map routed the call to another (docs/specs/model-accounts.md)." ;
 	sh:closed true ;
-	sh:ignoredProperties _:c14n225 ;
-	sh:property _:c14n108 , _:c14n168 , _:c14n228 , _:c14n242 , _:c14n469 , _:c14n489 , _:c14n517 , _:c14n61 ;
+	sh:ignoredProperties _:c14n226 ;
+	sh:property _:c14n108 , _:c14n169 , _:c14n229 , _:c14n243 , _:c14n469 , _:c14n489 , _:c14n517 , _:c14n61 ;
 	sh:targetClass prov:Activity .
 prov:Agent a sh:NodeShape ;
 	rdfs:comment "The human an invocation acted for (Blueprint §5.4), or the accountable human role where it acted for an institution. Named by the deployment's authentication boundary and recorded by the conductor; a request cannot name one, and an agent is never sent one (docs/specs/policy-and-identity.md)." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n9 ;
-	sh:property _:c14n148 , _:c14n169 , _:c14n198 , _:c14n307 , _:c14n395 ;
+	sh:property _:c14n149 , _:c14n170 , _:c14n199 , _:c14n307 , _:c14n395 ;
 	sh:targetClass prov:Agent .
 dd:Affiliation a sh:NodeShape ;
 	rdfs:comment "One affiliation on an ORCID record: an employment, an education or another kind, with the organisation and, where ORCID gives one, its identifier (ROR, GRID, Ringgold)." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n364 ;
-	sh:property _:c14n114 , _:c14n149 , _:c14n308 , _:c14n311 , _:c14n34 , _:c14n383 , _:c14n39 , _:c14n433 , _:c14n88 ;
+	sh:property _:c14n114 , _:c14n150 , _:c14n308 , _:c14n311 , _:c14n34 , _:c14n383 , _:c14n39 , _:c14n433 , _:c14n88 ;
 	sh:targetClass dd:Affiliation .
 dd:ApprovedMetadataRecord a sh:NodeShape ;
 	rdfs:comment "The project's metadata record as a person approved it: the version named by the last approval of a metadata_record document in the project (docs/specs/projects.md). A drafter treats what it holds as supplied, given by a person (docs/specs/drafting.md)." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n0 ;
-	sh:property _:c14n202 , _:c14n35 , _:c14n435 , _:c14n480 ;
+	sh:property _:c14n203 , _:c14n35 , _:c14n435 , _:c14n480 ;
 	sh:targetClass dd:ApprovedMetadataRecord .
 dd:ChoiceOption a sh:NodeShape ;
 	rdfs:comment "One option of a choice question (a Question of kind choice)." ;
 	sh:closed true ;
-	sh:ignoredProperties _:c14n274 ;
-	sh:property _:c14n289 , _:c14n398 , _:c14n446 ;
+	sh:ignoredProperties _:c14n275 ;
+	sh:property _:c14n290 , _:c14n398 , _:c14n446 ;
 	sh:targetClass dd:ChoiceOption .
 dd:ChosenRepository a sh:NodeShape ;
 	rdfs:comment "The repository a researcher chose to deposit the project's data in, from the shortlist, by the identifier of the registry that lists it: the conductor fills it into a Message, and into the input of an agent that mixes in GivenProjectRepository, so that the agent knows a repository is chosen and which (docs/specs/projects.md). The last choice stands until a researcher chooses again." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n494 ;
-	sh:property _:c14n261 , _:c14n264 , _:c14n458 ;
+	sh:property _:c14n262 , _:c14n265 , _:c14n458 ;
 	sh:targetClass dd:ChosenRepository .
 dd:ConversationTurn a sh:NodeShape ;
 	rdfs:comment "One earlier turn of a conversation, as the caller presents it to the agent. An agent turn names the agent and version that produced it and the invocation it came from." ;
@@ -54,14 +54,14 @@ dd:ConversationTurn a sh:NodeShape ;
 dd:CurrentVersion a sh:NodeShape ;
 	rdfs:comment "The version of a project document that a drafter is to regenerate: the document's latest, its text, and its state with the reason a person gave for any decision on it (ADR-0036 decision 7). A drafter that regenerates it names version_ref in its payload's revises." ;
 	sh:closed true ;
-	sh:ignoredProperties _:c14n152 ;
+	sh:ignoredProperties _:c14n153 ;
 	sh:property _:c14n117 , _:c14n406 , _:c14n419 , _:c14n43 , _:c14n434 , _:c14n465 ;
 	sh:targetClass dd:CurrentVersion .
 dd:Delegation a sh:NodeShape ;
 	rdfs:comment "One child invocation an agent in grounding mode delegation made through the harness (docs/specs/orchestration.md). Recorded by the conductor from its own run of the child, never reported by the agent. content_hash is the dd-envelope-json-v1 hash of the child envelope, which is what a relayed reply cites." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n14 ;
-	sh:property _:c14n153 , _:c14n296 , _:c14n329 , _:c14n379 , _:c14n48 ;
+	sh:property _:c14n154 , _:c14n296 , _:c14n329 , _:c14n379 , _:c14n48 ;
 	sh:targetClass dd:Delegation .
 dd:DepositConnector a sh:NodeShape ;
 	rdfs:comment "An override only: how the harness deposits a draft to the repository through its API (docs/specs/deposit.md, Depositing through an API). It holds no credential: each researcher deposits with their own, held outside the app and the harness." ;
@@ -72,26 +72,26 @@ dd:DepositConnector a sh:NodeShape ;
 dd:Document a sh:NodeShape ;
 	rdfs:comment "The payload of an agent that drafts or regenerates a project document: a metadata record, a README, a data dictionary or another document, as text (docs/specs/projects.md). The only payload class that becomes a project document." ;
 	sh:closed true ;
-	sh:ignoredProperties _:c14n262 ;
-	sh:property _:c14n116 , _:c14n129 , _:c14n199 , _:c14n331 , _:c14n335 , _:c14n361 , _:c14n374 , _:c14n401 , _:c14n404 , _:c14n418 , _:c14n422 ;
+	sh:ignoredProperties _:c14n263 ;
+	sh:property _:c14n116 , _:c14n129 , _:c14n200 , _:c14n331 , _:c14n335 , _:c14n361 , _:c14n374 , _:c14n401 , _:c14n404 , _:c14n418 , _:c14n422 ;
 	sh:targetClass dd:Document .
 dd:DocumentQuestion a sh:NodeShape ;
 	rdfs:comment "A question a drafter asks the researcher about one gap in the version it drafted: a README section it could not write, a data dictionary cell it could not fill, or a metadata record property it left null. The target is either gap_section, with gap_part when the section is asked part by part, or gap_file, gap_field and gap_column together, or gap_property alone. A cell question about a column that several files share, by name, type and format, also lists in gap_files every file whose cell the answer fills. question_id is derived from the target, so it is the same in every version that leaves the same gap (docs/specs/drafting.md). A question may offer a suggested_answer, with how it was derived (suggestion_derivation); a suggestion is never placed in the document, and becomes supplied only when a person records it as their answer." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n456 ;
-	sh:property _:c14n106 , _:c14n151 , _:c14n16 , _:c14n205 , _:c14n253 , _:c14n301 , _:c14n365 , _:c14n366 , _:c14n497 , _:c14n87 , _:c14n93 ;
+	sh:property _:c14n106 , _:c14n152 , _:c14n16 , _:c14n206 , _:c14n254 , _:c14n301 , _:c14n365 , _:c14n366 , _:c14n497 , _:c14n87 , _:c14n93 ;
 	sh:targetClass dd:DocumentQuestion .
 dd:DocumentVersionRef a sh:NodeShape ;
 	rdfs:comment "One version of a project document: the document the conductor minted an identifier for, and the version's number within it, counted from 1." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n490 ;
-	sh:property _:c14n273 , _:c14n65 ;
+	sh:property _:c14n274 , _:c14n65 ;
 	sh:targetClass dd:DocumentVersionRef .
 dd:DocumentationSummary a sh:NodeShape ;
 	rdfs:comment "What one document a researcher attached to a project is, without its text: the conductor fills one per document into a Message so that the agent knows the project holds it (docs/specs/projects.md)." ;
 	sh:closed true ;
-	sh:ignoredProperties _:c14n217 ;
-	sh:property _:c14n125 , _:c14n183 , _:c14n277 , _:c14n317 , _:c14n380 , _:c14n392 ;
+	sh:ignoredProperties _:c14n218 ;
+	sh:property _:c14n125 , _:c14n184 , _:c14n278 , _:c14n317 , _:c14n380 , _:c14n392 ;
 	sh:targetClass dd:DocumentationSummary .
 dd:DraftAnswer a sh:NodeShape ;
 	rdfs:comment "A person's answer to one question a version of the document asked (DocumentQuestion). The drafter places answer_text, as given, in the gap or cell the question names and marks it supplied (docs/specs/drafting.md)." ;
@@ -103,25 +103,25 @@ dd:DraftRequest a sh:NodeShape ;
 	rdfs:comment "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen, the metadata record a person approved last and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory, the requirements and the metadata record in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. In a project the conductor also fills current_version, the latest version of the project's document of that kind, or of the document redraft_document names, so a redraft is that document's next version. The answers a person recorded to the current version's questions are filled in by the conductor in the same way (docs/specs/drafting.md), and so are the researcher facts people in the project chose to keep from their public ORCID records (docs/specs/projects.md), and the text of the documents a researcher attached to the project, from which a drafter's model may suggest answers but never fill a gap." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n70 ;
-	sh:property _:c14n145 , _:c14n316 , _:c14n332 , _:c14n358 , _:c14n373 , _:c14n441 , _:c14n518 , _:c14n72 , _:c14n76 , _:c14n95 , _:c14n97 ;
+	sh:property _:c14n146 , _:c14n316 , _:c14n332 , _:c14n358 , _:c14n373 , _:c14n441 , _:c14n518 , _:c14n72 , _:c14n76 , _:c14n95 , _:c14n97 ;
 	sh:targetClass dd:DraftRequest .
 dd:DraftSummary a sh:NodeShape ;
 	rdfs:comment "The latest version of one document drafted in a project, without its text: the conductor fills one per document into a Message so that the agent knows which version is current and whether it was drafted from the inventory the project holds now, rather than relying on what it said of an earlier version (docs/specs/projects.md)." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n115 ;
-	sh:property _:c14n104 , _:c14n208 , _:c14n284 , _:c14n38 ;
+	sh:property _:c14n104 , _:c14n209 , _:c14n285 , _:c14n38 ;
 	sh:targetClass dd:DraftSummary .
 dd:Envelope a sh:NodeShape ;
 	rdfs:comment "The agent's response. Every field an agent did not decide (identifiers, timestamps, telemetry, the policy applied, the human it acted for) is filled by the conductor, so an agent cannot mislabel its own run. Conditional rules not expressible in JSON Schema are enforced by contract.validate: failed or suspended requires problem; abstained or referred requires outcome.reason_code; succeeded requires payload; a payload requires payload_schema, and payload_schema a payload." ;
 	sh:closed true ;
-	sh:ignoredProperties _:c14n159 ;
-	sh:property _:c14n10 , _:c14n105 , _:c14n137 , _:c14n189 , _:c14n21 , _:c14n210 , _:c14n221 , _:c14n222 , _:c14n241 , _:c14n310 , _:c14n354 , _:c14n363 , _:c14n393 , _:c14n394 , _:c14n438 , _:c14n44 , _:c14n470 , _:c14n474 , _:c14n487 , _:c14n56 , _:c14n60 , _:c14n84 ;
+	sh:ignoredProperties _:c14n160 ;
+	sh:property _:c14n10 , _:c14n105 , _:c14n137 , _:c14n190 , _:c14n21 , _:c14n211 , _:c14n222 , _:c14n223 , _:c14n242 , _:c14n310 , _:c14n354 , _:c14n363 , _:c14n393 , _:c14n394 , _:c14n438 , _:c14n44 , _:c14n470 , _:c14n474 , _:c14n487 , _:c14n56 , _:c14n60 , _:c14n84 ;
 	sh:targetClass dd:Envelope .
 dd:EvidenceItem a sh:NodeShape ;
 	rdfs:comment "The retrieved content a grounding claim rests on, identified by a hash over its canonicalised projection (not the HTTP body)." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n324 ;
-	sh:property _:c14n128 , _:c14n146 , _:c14n223 , _:c14n31 , _:c14n355 , _:c14n390 , _:c14n77 , _:c14n83 ;
+	sh:property _:c14n128 , _:c14n147 , _:c14n224 , _:c14n31 , _:c14n355 , _:c14n390 , _:c14n77 , _:c14n83 ;
 	sh:targetClass dd:EvidenceItem .
 dd:ExternalIdentifier a sh:NodeShape ;
 	rdfs:comment "An identifier from another scheme, as an ORCID record gives it: for a researcher, such as a Scopus Author ID; for a work, such as a DOI." ;
@@ -133,7 +133,7 @@ dd:FileInventory a sh:NodeShape ;
 	rdfs:comment "The facts about a dataset's files that the project holds in place of the files (docs/specs/projects.md): for each file its path, size, digest and format, and for a table its fields. Made by a command run where the data live; it never contains a file's content. advisor.files reads it." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n59 ;
-	sh:property _:c14n109 , _:c14n270 , _:c14n288 , _:c14n399 , _:c14n408 , _:c14n424 , _:c14n464 , _:c14n467 , _:c14n504 ;
+	sh:property _:c14n109 , _:c14n271 , _:c14n289 , _:c14n399 , _:c14n408 , _:c14n424 , _:c14n464 , _:c14n467 , _:c14n504 ;
 	sh:targetClass dd:FileInventory .
 dd:GivenInstitutionRepositories a sh:NodeShape ;
 	rdfs:comment "Mixed into an agent's own input class when the agent reads the repositories the deployment's profile names as its institution's. The conductor fills institution_repositories by this name from the profile, in a project or not, and never needs to know the input class; whatever a caller sent there is replaced." ;
@@ -145,7 +145,7 @@ dd:GivenProjectDecisions a sh:NodeShape ;
 	rdfs:comment "Mixed into an agent's own input class when the agent reads the facts people decided about the project. In a project the conductor fills project_decisions by this name, as for a DraftRequest, and never needs to know the input class (docs/specs/projects.md, invariant 6); outside one, the caller sends them." ;
 	sh:closed false ;
 	sh:ignoredProperties _:c14n477 ;
-	sh:property _:c14n190 ;
+	sh:property _:c14n191 ;
 	sh:targetClass dd:GivenProjectDecisions .
 dd:GivenProjectDocuments a sh:NodeShape ;
 	rdfs:comment "Mixed into an agent's own input class when the agent reads the documents a researcher attached to the project. In a project the conductor fills project_documents by this name, as for a DraftRequest, and never needs to know the input class (docs/specs/projects.md, invariant 6); outside one, the caller sends them." ;
@@ -156,14 +156,14 @@ dd:GivenProjectDocuments a sh:NodeShape ;
 dd:GivenProjectRepository a sh:NodeShape ;
 	rdfs:comment "Mixed into an agent's own input class when the agent reads the repository a researcher chose for the project. In a project the conductor fills project_repository by this name and never needs to know the input class (docs/specs/projects.md, invariant 6); outside one, the caller sends it." ;
 	sh:closed false ;
-	sh:ignoredProperties _:c14n178 ;
+	sh:ignoredProperties _:c14n179 ;
 	sh:property _:c14n50 ;
 	sh:targetClass dd:GivenProjectRepository .
 dd:Grounded a sh:NodeShape ;
 	rdfs:comment "Mixed into every payload class and every item class that asserts an identity. The linter walks a payload document for grounded_on lists and never needs to know the payload class; a payload that lacks grounded_on at its root is a violation, not a pass." ;
 	sh:closed false ;
 	sh:ignoredProperties _:c14n368 ;
-	sh:property _:c14n268 ;
+	sh:property _:c14n269 ;
 	sh:targetClass dd:Grounded .
 dd:GroundingRef a sh:NodeShape ;
 	rdfs:comment "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (docs/specs/grounding.md). The linter matches every GroundingRef against a retrieval span on both fields." ;
@@ -180,14 +180,14 @@ dd:Input a sh:NodeShape ;
 dd:InstitutionRepository a sh:NodeShape ;
 	rdfs:comment "One repository the deployment's profile names as its institution's (the profile's institution_repositories, docs/specs/policy-and-identity.md). It names a registry's record by repository_id and adds only what the deployment vouches for that no registry holds: the conductor fills it into the input of an agent that mixes in GivenInstitutionRepositories." ;
 	sh:closed true ;
-	sh:ignoredProperties _:c14n278 ;
-	sh:property _:c14n25 , _:c14n26 , _:c14n279 , _:c14n29 , _:c14n290 , _:c14n457 , _:c14n512 , _:c14n94 ;
+	sh:ignoredProperties _:c14n279 ;
+	sh:property _:c14n144 , _:c14n25 , _:c14n26 , _:c14n280 , _:c14n29 , _:c14n457 , _:c14n512 , _:c14n94 ;
 	sh:targetClass dd:InstitutionRepository .
 dd:InventoryFile a sh:NodeShape ;
 	rdfs:comment "One file of a dataset, as the inventory command found it." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n13 ;
-	sh:property _:c14n166 , _:c14n191 , _:c14n257 , _:c14n267 , _:c14n41 , _:c14n427 , _:c14n431 , _:c14n49 , _:c14n53 ;
+	sh:property _:c14n167 , _:c14n192 , _:c14n258 , _:c14n268 , _:c14n41 , _:c14n427 , _:c14n431 , _:c14n49 , _:c14n53 ;
 	sh:targetClass dd:InventoryFile .
 dd:InventoryFormat a sh:NodeShape ;
 	rdfs:comment "The files of one media type in a project's inventory, without their paths: the conductor fills one per media type into an InventorySummary, so that the agent knows what kinds of files the dataset holds without asking (docs/specs/projects.md, #1287)." ;
@@ -199,31 +199,31 @@ dd:InventoryPart a sh:NodeShape ;
 	rdfs:comment "One scan of one folder, mounted at a folder name in an inventory made of several (docs/specs/projects.md). Every file of the inventory lies under exactly one part's folder, and a part is replaced whole when its folder is scanned again." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n127 ;
-	sh:property _:c14n123 , _:c14n134 , _:c14n248 , _:c14n291 , _:c14n299 , _:c14n492 , _:c14n63 ;
+	sh:property _:c14n123 , _:c14n134 , _:c14n249 , _:c14n291 , _:c14n299 , _:c14n492 , _:c14n63 ;
 	sh:targetClass dd:InventoryPart .
 dd:InventorySummary a sh:NodeShape ;
 	rdfs:comment "What the inventory a project holds is, without its files: the conductor fills it into a Message so that the agent knows the project has one (docs/specs/projects.md)." ;
 	sh:closed true ;
-	sh:ignoredProperties _:c14n174 ;
-	sh:property _:c14n17 , _:c14n180 , _:c14n259 , _:c14n260 , _:c14n283 , _:c14n312 , _:c14n430 , _:c14n468 , _:c14n64 , _:c14n92 ;
+	sh:ignoredProperties _:c14n175 ;
+	sh:property _:c14n17 , _:c14n181 , _:c14n260 , _:c14n261 , _:c14n284 , _:c14n312 , _:c14n430 , _:c14n468 , _:c14n64 , _:c14n92 ;
 	sh:targetClass dd:InventorySummary .
 dd:InvocationRequest a sh:NodeShape ;
 	rdfs:comment "What the conductor hands to an agent. One request produces exactly one Envelope. A conversation is the set of top-level invocations sharing a conversation_id; each turn is one request and one envelope (docs/specs/orchestration.md)." ;
 	sh:closed true ;
-	sh:ignoredProperties _:c14n246 ;
-	sh:property _:c14n18 , _:c14n254 , _:c14n255 , _:c14n347 , _:c14n42 , _:c14n451 , _:c14n453 , _:c14n496 ;
+	sh:ignoredProperties _:c14n247 ;
+	sh:property _:c14n18 , _:c14n255 , _:c14n256 , _:c14n347 , _:c14n42 , _:c14n451 , _:c14n453 , _:c14n496 ;
 	sh:targetClass dd:InvocationRequest .
 dd:Message a sh:NodeShape ;
 	rdfs:comment "One conversational turn addressed to an agent: the text of the turn and the conversation so far. The history is part of the input, so the input hash covers everything the agent saw. In a project that holds an inventory, the conductor adds what it is (docs/specs/projects.md); in any project, it adds the entry point chosen, the progress the project log shows and the project's title, if it has one (docs/specs/orchestration.md). It adds the researcher facts people in the project chose to keep from their public ORCID records, the facts they decided, the repository they chose and the latest version of each document drafted in it (docs/specs/projects.md)." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n495 ;
-	sh:property _:c14n107 , _:c14n155 , _:c14n206 , _:c14n30 , _:c14n330 , _:c14n338 , _:c14n367 , _:c14n461 , _:c14n462 , _:c14n472 , _:c14n493 , _:c14n498 , _:c14n502 , _:c14n68 , _:c14n89 ;
+	sh:property _:c14n107 , _:c14n156 , _:c14n207 , _:c14n30 , _:c14n330 , _:c14n338 , _:c14n367 , _:c14n461 , _:c14n462 , _:c14n472 , _:c14n493 , _:c14n498 , _:c14n502 , _:c14n68 , _:c14n89 ;
 	sh:targetClass dd:Message .
 dd:Outcome a sh:NodeShape ;
 	rdfs:comment "One class rather than a union of five. The status enum carries the vocabulary; reason_code is required when status is abstained or referred; problem (on the Envelope) is required when status is failed or suspended." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n415 ;
-	sh:property _:c14n203 , _:c14n429 , _:c14n459 , _:c14n482 ;
+	sh:property _:c14n204 , _:c14n429 , _:c14n459 , _:c14n482 ;
 	sh:targetClass dd:Outcome .
 dd:Payload a sh:NodeShape ;
 	rdfs:comment "Any payload: an object that names its class in schema_class and mixes in Grounded. The core checks nothing else; the class schema of the agent's payload class does (docs/specs/contract.md)." ;
@@ -234,26 +234,26 @@ dd:Payload a sh:NodeShape ;
 dd:PersonalDataFinding a sh:NodeShape ;
 	rdfs:comment "Where the inventory command found what may be personal data, and how sure it is (docs/specs/personal-data.md). It never holds a matched value, any part of one, an offset into a file, a row number or an example: a kind, a place, bands and the detector only. A finding is a prompt for a person, never a decision." ;
 	sh:closed true ;
-	sh:ignoredProperties _:c14n236 ;
-	sh:property _:c14n111 , _:c14n120 , _:c14n154 , _:c14n212 , _:c14n33 , _:c14n36 , _:c14n413 , _:c14n86 ;
+	sh:ignoredProperties _:c14n237 ;
+	sh:property _:c14n111 , _:c14n120 , _:c14n155 , _:c14n213 , _:c14n33 , _:c14n36 , _:c14n413 , _:c14n86 ;
 	sh:targetClass dd:PersonalDataFinding .
 dd:ProblemDetails a sh:NodeShape ;
 	rdfs:comment "RFC 9457 Problem Details for HTTP APIs, used verbatim for failed and suspended outcomes. The two extension members carry the resumption condition for suspended." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n396 ;
-	sh:property _:c14n150 , _:c14n22 , _:c14n220 , _:c14n230 , _:c14n243 , _:c14n252 , _:c14n478 ;
+	sh:property _:c14n151 , _:c14n22 , _:c14n221 , _:c14n231 , _:c14n244 , _:c14n253 , _:c14n478 ;
 	sh:targetClass dd:ProblemDetails .
 dd:ProjectDocument a sh:NodeShape ;
 	rdfs:comment "One document a researcher attached to a project, with its text: the conductor fills one per document into a DraftRequest so that a drafter's model may suggest answers from it (docs/specs/projects.md). Its text is the researcher's, untrusted, and given as data." ;
 	sh:closed true ;
-	sh:ignoredProperties _:c14n185 ;
-	sh:property _:c14n195 , _:c14n250 , _:c14n313 , _:c14n420 , _:c14n506 , _:c14n75 , _:c14n96 ;
+	sh:ignoredProperties _:c14n186 ;
+	sh:property _:c14n196 , _:c14n251 , _:c14n313 , _:c14n420 , _:c14n506 , _:c14n75 , _:c14n96 ;
 	sh:targetClass dd:ProjectDocument .
 dd:ProjectFact a sh:NodeShape ;
 	rdfs:comment "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, the licence, or an output a data management plan committed to share (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n403 ;
-	sh:property _:c14n113 , _:c14n118 , _:c14n130 , _:c14n143 , _:c14n179 , _:c14n188 , _:c14n215 , _:c14n216 , _:c14n237 , _:c14n244 , _:c14n275 , _:c14n322 , _:c14n370 , _:c14n387 , _:c14n412 , _:c14n414 , _:c14n439 , _:c14n444 , _:c14n449 , _:c14n510 , _:c14n511 ;
+	sh:property _:c14n113 , _:c14n118 , _:c14n130 , _:c14n143 , _:c14n180 , _:c14n189 , _:c14n216 , _:c14n217 , _:c14n238 , _:c14n245 , _:c14n276 , _:c14n322 , _:c14n370 , _:c14n387 , _:c14n412 , _:c14n414 , _:c14n439 , _:c14n444 , _:c14n449 , _:c14n510 , _:c14n511 ;
 	sh:targetClass dd:ProjectFact .
 dd:ProposesFacts a sh:NodeShape ;
 	rdfs:comment "Mixed into an agent's payload class when the agent proposes project facts for a person to confirm (docs/specs/projects.md). The harness reads proposed_facts by this name and never needs to know the payload class." ;
@@ -264,56 +264,56 @@ dd:ProposesFacts a sh:NodeShape ;
 dd:Question a sh:NodeShape ;
 	rdfs:comment "One question a conversational agent asks the researcher in its reply, shown as a form field and answered with the reply's other questions in the next turn. A choice question has a fixed set of options, of which one or several may be chosen, and where question_other is true the researcher may answer in their own words instead; option values are unique within the question. A short or long text question is answered in the researcher's own words and has no options. Asking never suspends the run: the researcher may skip a question, or ignore them all and type (docs/specs/orchestration.md)." ;
 	sh:closed true ;
-	sh:ignoredProperties _:c14n171 ;
-	sh:property _:c14n11 , _:c14n214 , _:c14n229 , _:c14n293 , _:c14n339 , _:c14n515 , _:c14n6 ;
+	sh:ignoredProperties _:c14n172 ;
+	sh:property _:c14n11 , _:c14n215 , _:c14n230 , _:c14n293 , _:c14n339 , _:c14n515 , _:c14n6 ;
 	sh:targetClass dd:Question .
 dd:QuestionAnswer a sh:NodeShape ;
 	rdfs:comment "The researcher's answer to one question of a reply, named by its question_key: the values of the options chosen, for a choice question, and the answer in their own words, for a text question or where a choice question allows it." ;
 	sh:closed true ;
-	sh:ignoredProperties _:c14n231 ;
-	sh:property _:c14n15 , _:c14n219 , _:c14n340 ;
+	sh:ignoredProperties _:c14n232 ;
+	sh:property _:c14n15 , _:c14n220 , _:c14n340 ;
 	sh:targetClass dd:QuestionAnswer .
 dd:Reply a sh:NodeShape ;
 	rdfs:comment "The payload of a conversational agent: the text of its reply. An orchestrator's reply is grounded on its input and on the envelopes of the invocations it delegated to." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n520 ;
-	sh:property _:c14n147 , _:c14n170 , _:c14n187 , _:c14n211 , _:c14n233 , _:c14n421 , _:c14n452 , _:c14n485 ;
+	sh:property _:c14n148 , _:c14n171 , _:c14n188 , _:c14n212 , _:c14n234 , _:c14n421 , _:c14n452 , _:c14n485 ;
 	sh:targetClass dd:Reply .
 dd:ReplyAnswers a sh:NodeShape ;
 	rdfs:comment "The researcher's answers to the questions the turn before asked, given together: one QuestionAnswer for each question answered, none for a question skipped. The app checks them against those questions before it sends the turn (docs/specs/orchestration.md)." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n359 ;
-	sh:property _:c14n232 , _:c14n28 ;
+	sh:property _:c14n233 , _:c14n28 ;
 	sh:targetClass dd:ReplyAnswers .
 dd:RepositoryRequirements a sh:NodeShape ;
 	rdfs:comment "The requirements of the repository a researcher chose: its standard's set with the repository's override, if there is one, merged on top (ADR-0038 decision 2). The harness makes it when the choice is recorded, keeps it among the project's blobs, gives it to the drafters and checks the project against it. Not a set of the deployment's configuration, so it has no requirement_set_id of its own; requirement_sets names the sets it was merged from." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n40 ;
-	sh:property _:c14n1 , _:c14n135 , _:c14n167 , _:c14n173 , _:c14n197 , _:c14n247 , _:c14n263 , _:c14n304 , _:c14n346 , _:c14n391 , _:c14n407 , _:c14n425 , _:c14n514 , _:c14n519 , _:c14n91 , _:c14n98 ;
+	sh:property _:c14n1 , _:c14n135 , _:c14n168 , _:c14n174 , _:c14n198 , _:c14n248 , _:c14n264 , _:c14n304 , _:c14n346 , _:c14n391 , _:c14n407 , _:c14n425 , _:c14n514 , _:c14n519 , _:c14n91 , _:c14n98 ;
 	sh:targetClass dd:RepositoryRequirements .
 dd:RequirementField a sh:NodeShape ;
 	rdfs:comment "One metadata property a requirement set requires or recommends." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n142 ;
-	sh:property _:c14n218 , _:c14n23 , _:c14n238 , _:c14n454 , _:c14n476 ;
+	sh:property _:c14n219 , _:c14n23 , _:c14n239 , _:c14n454 , _:c14n476 ;
 	sh:targetClass dd:RequirementField .
 dd:RequirementSet a sh:NodeShape ;
 	rdfs:comment "What a deposit must or should have (docs/specs/deposit.md). A standard's set covers any record in one metadata standard and names it in re3data_names; a repository override adds what one repository asks and names it in re3data_id. The harness merges the two for the repository a researcher chose, checks the project against the result, and gives it to the drafters. Kept as YAML in the deployment's configuration, not sent by agents." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n132 ;
-	sh:property _:c14n103 , _:c14n112 , _:c14n138 , _:c14n165 , _:c14n298 , _:c14n315 , _:c14n342 , _:c14n385 , _:c14n388 , _:c14n423 , _:c14n436 , _:c14n466 , _:c14n505 , _:c14n52 , _:c14n58 , _:c14n74 , _:c14n8 , _:c14n81 , _:c14n82 ;
+	sh:property _:c14n103 , _:c14n112 , _:c14n138 , _:c14n166 , _:c14n298 , _:c14n315 , _:c14n342 , _:c14n385 , _:c14n388 , _:c14n423 , _:c14n436 , _:c14n466 , _:c14n505 , _:c14n52 , _:c14n58 , _:c14n74 , _:c14n8 , _:c14n81 , _:c14n82 ;
 	sh:targetClass dd:RequirementSet .
 dd:RequirementSetUse a sh:NodeShape ;
 	rdfs:comment "One requirement set a choice of repository was merged from, as the deployment held it." ;
 	sh:closed true ;
-	sh:ignoredProperties _:c14n201 ;
+	sh:ignoredProperties _:c14n202 ;
 	sh:property _:c14n124 , _:c14n484 ;
 	sh:targetClass dd:RequirementSetUse .
 dd:ResearcherFunding a sh:NodeShape ;
 	rdfs:comment "One grant or award on an ORCID record, with its funder." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n99 ;
-	sh:property _:c14n110 , _:c14n176 , _:c14n186 , _:c14n213 , _:c14n287 , _:c14n297 , _:c14n350 , _:c14n402 , _:c14n486 ;
+	sh:property _:c14n110 , _:c14n177 , _:c14n187 , _:c14n214 , _:c14n288 , _:c14n297 , _:c14n350 , _:c14n402 , _:c14n486 ;
 	sh:targetClass dd:ResearcherFunding .
 dd:ResearcherLink a sh:NodeShape ;
 	rdfs:comment "A web page the researcher lists on their ORCID record, such as a personal page." ;
@@ -324,43 +324,43 @@ dd:ResearcherLink a sh:NodeShape ;
 dd:ResearcherRecord a sh:NodeShape ;
 	rdfs:comment "What one researcher in a project chose to keep from their public ORCID record: only the sections and items they ticked, in ORCID's own words, never edited by a person or a model. The conductor fills the project's records into a Message and a DraftRequest so that an agent can draft creators, affiliations, subjects and funding from them (docs/specs/projects.md). Email addresses are never kept, even public ones." ;
 	sh:closed true ;
-	sh:ignoredProperties _:c14n196 ;
-	sh:property _:c14n100 , _:c14n162 , _:c14n256 , _:c14n265 , _:c14n292 , _:c14n3 , _:c14n302 , _:c14n303 , _:c14n328 , _:c14n336 , _:c14n353 , _:c14n428 , _:c14n448 , _:c14n67 ;
+	sh:ignoredProperties _:c14n197 ;
+	sh:property _:c14n100 , _:c14n163 , _:c14n257 , _:c14n266 , _:c14n292 , _:c14n3 , _:c14n302 , _:c14n303 , _:c14n328 , _:c14n336 , _:c14n353 , _:c14n428 , _:c14n448 , _:c14n67 ;
 	sh:targetClass dd:ResearcherRecord .
 dd:ResearcherWork a sh:NodeShape ;
 	rdfs:comment "One work on an ORCID record, such as a journal article or a dataset." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n73 ;
-	sh:property _:c14n184 , _:c14n24 , _:c14n306 , _:c14n443 , _:c14n507 , _:c14n7 ;
+	sh:property _:c14n185 , _:c14n24 , _:c14n306 , _:c14n443 , _:c14n507 , _:c14n7 ;
 	sh:targetClass dd:ResearcherWork .
 dd:StepProgress a sh:NodeShape ;
 	rdfs:comment "How far one step of the Blueprint's process flow has gone, as the project log shows it: started, done or skipped. A step the list leaves out is open (docs/specs/orchestration.md)." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n139 ;
-	sh:property _:c14n182 , _:c14n282 ;
+	sh:property _:c14n183 , _:c14n283 ;
 	sh:targetClass dd:StepProgress .
 dd:TableField a sh:NodeShape ;
 	rdfs:comment "One field of a tabular resource, mirroring a Frictionless Table Schema field descriptor. Frictionless publishes no RDF namespace, so these slots carry see_also rather than a slot_uri (TODO(#20): revisit if Frictionless publishes term IRIs)." ;
 	sh:closed true ;
-	sh:ignoredProperties _:c14n175 ;
-	sh:property _:c14n192 , _:c14n305 , _:c14n320 , _:c14n372 ;
+	sh:ignoredProperties _:c14n176 ;
+	sh:property _:c14n193 , _:c14n305 , _:c14n320 , _:c14n372 ;
 	sh:targetClass dd:TableField .
 dd:Telemetry a sh:NodeShape ;
 	rdfs:comment "Run measurements. The energy slots hold the conductor's estimate of the run's model calls from the profile's model_footprint (estimated), or null and not_measured where it has none (docs/specs/disclosure.md)." ;
 	sh:closed true ;
-	sh:ignoredProperties _:c14n161 ;
-	sh:property _:c14n172 , _:c14n226 , _:c14n411 , _:c14n463 , _:c14n501 , _:c14n513 , _:c14n521 ;
+	sh:ignoredProperties _:c14n162 ;
+	sh:property _:c14n173 , _:c14n227 , _:c14n411 , _:c14n463 , _:c14n501 , _:c14n513 , _:c14n521 ;
 	sh:targetClass dd:Telemetry .
 dd:ToolRetrieval a sh:NodeShape ;
 	rdfs:comment "One record a tool returned through the harness's tool gateway during the invocation (docs/specs/agents.md, docs/specs/grounding.md invariant 15). Recorded by the conductor from the tool's structured result, never reported by the agent. source_id is tool:<server>/<record id>, and content_hash is the record's hash under the canonicalisation the deployment names for the server, which is what a payload citing the record cites." ;
 	sh:closed true ;
-	sh:ignoredProperties _:c14n200 ;
-	sh:property _:c14n271 , _:c14n286 , _:c14n327 , _:c14n475 , _:c14n481 , _:c14n500 ;
+	sh:ignoredProperties _:c14n201 ;
+	sh:property _:c14n272 , _:c14n287 , _:c14n327 , _:c14n475 , _:c14n481 , _:c14n500 ;
 	sh:targetClass dd:ToolRetrieval .
 linkml:Any a sh:NodeShape ;
 	rdfs:comment "Placeholder range for slots whose value type is enumerated in any_of." ;
 	sh:closed true ;
-	sh:ignoredProperties _:c14n209 ;
+	sh:ignoredProperties _:c14n210 ;
 	sh:targetClass linkml:Any .
 _:c14n0 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
@@ -491,11 +491,11 @@ _:c14n118 sh:datatype xsd:string ;
 	sh:order 15 ;
 	sh:path dd:commitment_repository .
 _:c14n119 rdf:first "column" ;
-	rdf:rest _:c14n258 .
+	rdf:rest _:c14n259 .
 _:c14n12 rdf:first "membership" ;
 	rdf:rest _:c14n440 .
 _:c14n120 sh:description "What the detector took the data to be." ;
-	sh:in _:c14n164 ;
+	sh:in _:c14n165 ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:order 0 ;
@@ -590,7 +590,7 @@ _:c14n14 rdf:first rdf:type ;
 _:c14n140 rdf:first "user" ;
 	rdf:rest _:c14n294 .
 _:c14n141 rdf:first "indirect identifier" ;
-	rdf:rest _:c14n158 .
+	rdf:rest _:c14n159 .
 _:c14n142 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
 _:c14n143 sh:datatype xsd:string ;
@@ -598,127 +598,139 @@ _:c14n143 sh:datatype xsd:string ;
 	sh:nodeKind sh:Literal ;
 	sh:order 7 ;
 	sh:path dd:fact_required_by .
-_:c14n144 rdf:first "skipped" ;
+_:c14n144 sh:datatype xsd:boolean ;
+	sh:description "Whether the repository charges a fee to deposit. Unlike re3data, a deployment may say it charges none." ;
+	sh:maxCount 1 ;
+	sh:nodeKind sh:Literal ;
+	sh:order 6 ;
+	sh:path dd:charges_deposit_fee .
+_:c14n145 rdf:first "skipped" ;
 	rdf:rest rdf:nil .
-_:c14n145 sh:class dd:ProjectDocument ;
+_:c14n146 sh:class dd:ProjectDocument ;
 	sh:description "The documents the project holds, with their text, in the order they were added. In a project the conductor fills them and a caller leaves them out; outside a project, the caller sends them, as it does the other facts." ;
 	sh:nodeKind sh:BlankNodeOrIRI ;
 	sh:order 9 ;
 	sh:path dd:project_documents .
-_:c14n146 sh:datatype xsd:string ;
+_:c14n147 sh:datatype xsd:string ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 4 ;
 	sh:path dd:hash_algorithm .
-_:c14n147 sh:datatype xsd:string ;
+_:c14n148 sh:datatype xsd:string ;
 	sh:description "A name for the conversation's project, written by a model once it knows what the research or dataset is. The conductor records it as the project's title when the run succeeds, unless a person has given one; absent when the reply names nothing. Only an agent that declares it model-derived sets it." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 5 ;
 	sh:path dcterms:title ;
 	sh:pattern "^.{1,80}$" .
-_:c14n148 sh:description "An absolute IRI for the person or role; an ORCID iD for a person where one exists (P5)." ;
+_:c14n149 sh:description "An absolute IRI for the person or role; an ORCID iD for a person where one exists (P5)." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:IRI ;
 	sh:order 0 ;
 	sh:path dd:principal_id ;
 	sh:pattern "^[a-z][a-z0-9+.-]*:\\S+$" .
-_:c14n149 sh:datatype xsd:string ;
-	sh:description "The organisation's name." ;
-	sh:maxCount 1 ;
-	sh:minCount 1 ;
-	sh:nodeKind sh:Literal ;
-	sh:order 2 ;
-	sh:path dd:organisation_name .
 _:c14n15 sh:datatype xsd:string ;
 	sh:description "The values of the options chosen, for a choice question; empty when the researcher answered in their own words, and always empty for a text question." ;
 	sh:nodeKind sh:Literal ;
 	sh:order 1 ;
 	sh:path dd:answer_values .
 _:c14n150 sh:datatype xsd:string ;
+	sh:description "The organisation's name." ;
+	sh:maxCount 1 ;
+	sh:minCount 1 ;
+	sh:nodeKind sh:Literal ;
+	sh:order 2 ;
+	sh:path dd:organisation_name .
+_:c14n151 sh:datatype xsd:string ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 3 ;
 	sh:path dd:detail .
-_:c14n151 sh:datatype xsd:string ;
+_:c14n152 sh:datatype xsd:string ;
 	sh:description "The data dictionary column the question would fill, such as unit." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 6 ;
 	sh:path dd:gap_column .
-_:c14n152 rdf:first rdf:type ;
+_:c14n153 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
-_:c14n153 sh:datatype xsd:string ;
+_:c14n154 sh:datatype xsd:string ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 0 ;
 	sh:path dd:delegated_invocation_id ;
 	sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" .
-_:c14n154 sh:description "The share of a column's sampled, non-empty values that matched, as a band so that it cannot be turned back into a count. Present for a column only." ;
-	sh:in _:c14n156 ;
+_:c14n155 sh:description "The share of a column's sampled, non-empty values that matched, as a band so that it cannot be turned back into a count. Present for a column only." ;
+	sh:in _:c14n157 ;
 	sh:maxCount 1 ;
 	sh:order 4 ;
 	sh:path dd:finding_proportion .
-_:c14n155 sh:datatype xsd:boolean ;
+_:c14n156 sh:datatype xsd:boolean ;
 	sh:description "Whether a person gave the project its title, so that a model's would be refused; false while the project has no title. Filled by the conductor and never by the caller; absent when the run is in no project." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 8 ;
 	sh:path dd:project_title_by_researcher .
-_:c14n156 rdf:first "under 1%" ;
+_:c14n157 rdf:first "under 1%" ;
 	rdf:rest _:c14n66 .
-_:c14n157 rdf:first "asserted" ;
-	rdf:rest _:c14n280 .
-_:c14n158 rdf:first "special category" ;
-	rdf:rest _:c14n163 .
-_:c14n159 rdf:first rdf:type ;
-	rdf:rest rdf:nil .
+_:c14n158 rdf:first "asserted" ;
+	rdf:rest _:c14n281 .
+_:c14n159 rdf:first "special category" ;
+	rdf:rest _:c14n164 .
 _:c14n16 sh:datatype xsd:string ;
 	sh:description "Every file whose data dictionary cell the answer fills, gap_file among them, when the question asks once about a column that several files share by name, type and format. Absent when the question fills one cell." ;
 	sh:nodeKind sh:Literal ;
 	sh:order 7 ;
 	sh:path dd:gap_files .
-_:c14n160 rdf:first "National Insurance number" ;
-	rdf:rest _:c14n51 .
-_:c14n161 rdf:first rdf:type ;
+_:c14n160 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
-_:c14n162 sh:datatype xsd:string ;
+_:c14n161 rdf:first "National Insurance number" ;
+	rdf:rest _:c14n51 .
+_:c14n162 rdf:first rdf:type ;
+	rdf:rest rdf:nil .
+_:c14n163 sh:datatype xsd:string ;
 	sh:description "The researcher's biography, as their ORCID record gives it." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 3 ;
 	sh:path dd:biography .
-_:c14n163 rdf:first "location" ;
+_:c14n164 rdf:first "location" ;
 	rdf:rest rdf:nil .
-_:c14n164 rdf:first "email address" ;
-	rdf:rest _:c14n204 .
-_:c14n165 sh:description "Where the standard or the repository is described." ;
+_:c14n165 rdf:first "email address" ;
+	rdf:rest _:c14n205 .
+_:c14n166 sh:description "Where the standard or the repository is described." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:IRI ;
 	sh:order 4 ;
 	sh:path schema1:url .
-_:c14n166 sh:description "How the PRONOM identifiers were arrived at: by the inventory command, or chosen by the researcher where the command found several matches or none." ;
+_:c14n167 sh:description "How the PRONOM identifiers were arrived at: by the inventory command, or chosen by the researcher where the command found several matches or none." ;
 	sh:in _:c14n333 ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:order 5 ;
 	sh:path dd:file_identified_by .
-_:c14n167 sh:datatype xsd:string ;
+_:c14n168 sh:datatype xsd:string ;
 	sh:description "What the set's sources leave open, each a short statement naming the issue that will settle it, such as \"Whether ORDA's form makes any other field mandatory (#385)\". Shown to the person depositing; in a merged set, the standard's first, then the override's." ;
 	sh:nodeKind sh:Literal ;
 	sh:order 13 ;
 	sh:path dd:unconfirmed .
-_:c14n168 sh:datatype xsd:string ;
+_:c14n169 sh:datatype xsd:string ;
 	sh:description "Who served the call: the provider the model broker reports, or else the provider as the agent's card names it (anthropic)." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 0 ;
 	sh:path dd:model_provider .
-_:c14n169 sh:datatype xsd:string ;
+_:c14n17 sh:datatype xsd:integer ;
+	sh:description "How many of the inventory's files are tables whose fields it lists." ;
+	sh:maxCount 1 ;
+	sh:nodeKind sh:Literal ;
+	sh:order 9 ;
+	sh:path dd:inventory_table_count .
+_:c14n170 sh:datatype xsd:string ;
 	sh:description "How the person or role is named to a reader of the record." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
@@ -726,49 +738,38 @@ _:c14n169 sh:datatype xsd:string ;
 	sh:order 1 ;
 	sh:path dd:name ;
 	sh:pattern "\\S" .
-_:c14n17 sh:datatype xsd:integer ;
-	sh:description "How many of the inventory's files are tables whose fields it lists." ;
-	sh:maxCount 1 ;
-	sh:nodeKind sh:Literal ;
-	sh:order 9 ;
-	sh:path dd:inventory_table_count .
-_:c14n170 sh:datatype xsd:integer ;
+_:c14n171 sh:datatype xsd:integer ;
 	sh:description "The Blueprint entry point (1, 2 or 3) a model worked out from what the researcher said, such as data already collected. The conductor records it for the conversation's project when the run succeeds, unless the researcher has chosen one; absent when the reply records none. Only an agent that declares it model-derived sets it." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 6 ;
 	sh:path dd:new_project_entry .
-_:c14n171 rdf:first rdf:type ;
+_:c14n172 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
-_:c14n172 sh:class prov:Activity ;
+_:c14n173 sh:class prov:Activity ;
 	sh:description "Each call to a language model the agent made during the run, in the order made. Absent for an agent that called none." ;
 	sh:nodeKind sh:BlankNodeOrIRI ;
 	sh:order 6 ;
 	sh:path dd:model_calls .
-_:c14n173 sh:datatype xsd:string ;
+_:c14n174 sh:datatype xsd:string ;
 	sh:description "An override only: the media types the repository accepts. Empty means any." ;
 	sh:nodeKind sh:Literal ;
 	sh:order 8 ;
 	sh:path dd:media_types .
-_:c14n174 rdf:first rdf:type ;
-	rdf:rest rdf:nil .
 _:c14n175 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
-_:c14n176 sh:datatype xsd:integer ;
+_:c14n176 rdf:first rdf:type ;
+	rdf:rest rdf:nil .
+_:c14n177 sh:datatype xsd:integer ;
 	sh:description "The year it ended; absent while it continues." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 8 ;
 	sh:path dd:end_year .
-_:c14n177 rdf:first "recommended" ;
+_:c14n178 rdf:first "recommended" ;
 	rdf:rest rdf:nil .
-_:c14n178 rdf:first rdf:type ;
+_:c14n179 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
-_:c14n179 sh:description "The funder's ROR identifier, as a URL, where it is known." ;
-	sh:maxCount 1 ;
-	sh:nodeKind sh:IRI ;
-	sh:order 3 ;
-	sh:path dd:fact_funder_ror .
 _:c14n18 sh:datatype xsd:string ;
 	sh:description "UUIDv7 of the project the invocation belongs to (docs/specs/projects.md). Set only by the conductor, from the conversation the request is a turn of or, on a child invocation, from the parent's grant; a caller's request that carries it is refused. Never sent to the agent." ;
 	sh:maxCount 1 ;
@@ -776,16 +777,21 @@ _:c14n18 sh:datatype xsd:string ;
 	sh:order 5 ;
 	sh:path dd:project_id ;
 	sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" .
-_:c14n180 sh:datatype xsd:string ;
+_:c14n180 sh:description "The funder's ROR identifier, as a URL, where it is known." ;
+	sh:maxCount 1 ;
+	sh:nodeKind sh:IRI ;
+	sh:order 3 ;
+	sh:path dd:fact_funder_ror .
+_:c14n181 sh:datatype xsd:string ;
 	sh:description "The version of the command that made the inventory." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 3 ;
 	sh:path dd:inventory_tool_version .
-_:c14n181 rdf:first "questions" ;
+_:c14n182 rdf:first "questions" ;
 	rdf:rest _:c14n334 .
-_:c14n182 sh:datatype xsd:string ;
+_:c14n183 sh:datatype xsd:string ;
 	sh:description "A process-flow step id, `<phase>.<step>` (dd_sdk.process_flow)." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
@@ -793,40 +799,45 @@ _:c14n182 sh:datatype xsd:string ;
 	sh:order 0 ;
 	sh:path dd:step_id ;
 	sh:pattern "^[a-z]+\\.[a-z-]+$" .
-_:c14n183 sh:datatype xsd:integer ;
+_:c14n184 sh:datatype xsd:integer ;
 	sh:description "The size of the document's UTF-8 text, in bytes." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 3 ;
 	sh:path dd:documentation_size .
-_:c14n184 sh:datatype xsd:string ;
+_:c14n185 sh:datatype xsd:string ;
 	sh:description "ORCID's identifier for the item within the record, by which a researcher chose to keep it." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 0 ;
 	sh:path dd:put_code .
-_:c14n185 rdf:first rdf:type ;
+_:c14n186 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
-_:c14n186 sh:datatype xsd:string ;
+_:c14n187 sh:datatype xsd:string ;
 	sh:description "The scheme of funder_identifier, in ORCID's words, such as FUNDREF or ROR. Present exactly when funder_identifier is." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 5 ;
 	sh:path dd:funder_identifier_scheme .
-_:c14n187 sh:description "How reply_text came about. template for a rule-based agent, model for a model." ;
-	sh:in _:c14n543 ;
+_:c14n188 sh:description "How reply_text came about. template for a rule-based agent, model for a model." ;
+	sh:in _:c14n539 ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:order 2 ;
 	sh:path dd:reply_derivation .
-_:c14n188 sh:description "The funder's Crossref Funder ID, as a DOI URL, where it is known." ;
+_:c14n189 sh:description "The funder's Crossref Funder ID, as a DOI URL, where it is known." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:IRI ;
 	sh:order 4 ;
 	sh:path dd:fact_crossref_funder_id .
-_:c14n189 sh:datatype xsd:string ;
+_:c14n19 sh:class dd:ProjectDocument ;
+	sh:description "The documents the project holds, with their text, in the order they were added. In a project the conductor fills them and a caller leaves them out; outside a project, the caller sends them, as it does the other facts." ;
+	sh:nodeKind sh:BlankNodeOrIRI ;
+	sh:order 0 ;
+	sh:path dd:project_documents .
+_:c14n190 sh:datatype xsd:string ;
 	sh:description "The version of this core contract the conductor governed the invocation under (docs/specs/contract.md)." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
@@ -834,17 +845,12 @@ _:c14n189 sh:datatype xsd:string ;
 	sh:order 8 ;
 	sh:path dd:contract_version ;
 	sh:pattern "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$" .
-_:c14n19 sh:class dd:ProjectDocument ;
-	sh:description "The documents the project holds, with their text, in the order they were added. In a project the conductor fills them and a caller leaves them out; outside a project, the caller sends them, as it does the other facts." ;
-	sh:nodeKind sh:BlankNodeOrIRI ;
-	sh:order 0 ;
-	sh:path dd:project_documents .
-_:c14n190 sh:class dd:ProjectFact ;
+_:c14n191 sh:class dd:ProjectFact ;
 	sh:description "The facts a person in the project decided (ProjectFact), the last decision on each subject, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project decided any. A drafter treats each as supplied." ;
 	sh:nodeKind sh:BlankNodeOrIRI ;
 	sh:order 0 ;
 	sh:path dd:project_decisions .
-_:c14n191 sh:datatype xsd:string ;
+_:c14n192 sh:datatype xsd:string ;
 	sh:description "The file's path relative to the dataset's root folder, with forward slashes; in an inventory made of parts, it begins with its part's folder. Never an absolute path, which would say where the data live." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
@@ -852,40 +858,33 @@ _:c14n191 sh:datatype xsd:string ;
 	sh:order 0 ;
 	sh:path dd:file_path ;
 	sh:pattern "^[^/]" .
-_:c14n192 sh:datatype xsd:string ;
+_:c14n193 sh:datatype xsd:string ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 2 ;
 	sh:path dd:field_format .
-_:c14n193 rdf:first "short_text" ;
+_:c14n194 rdf:first "short_text" ;
 	rdf:rest _:c14n483 .
-_:c14n194 rdf:first "done" ;
-	rdf:rest _:c14n144 .
-_:c14n195 sh:datatype xsd:integer ;
+_:c14n195 rdf:first "done" ;
+	rdf:rest _:c14n145 .
+_:c14n196 sh:datatype xsd:integer ;
 	sh:description "The size of the document's UTF-8 text, in bytes." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 3 ;
 	sh:path dd:documentation_size .
-_:c14n196 rdf:first rdf:type ;
+_:c14n197 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
-_:c14n197 sh:description "The pages the set's values were taken from, so that a steward can check them; in a merged set, the standard's first, then the override's." ;
+_:c14n198 sh:description "The pages the set's values were taken from, so that a steward can check them; in a merged set, the standard's first, then the override's." ;
 	sh:nodeKind sh:IRI ;
 	sh:order 15 ;
 	sh:path dd:guidance .
-_:c14n198 sh:in _:c14n323 ;
+_:c14n199 sh:in _:c14n323 ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:order 2 ;
 	sh:path dd:principal_kind .
-_:c14n199 sh:datatype xsd:string ;
-	sh:description "The content of the document, as text; a structured record is serialised." ;
-	sh:maxCount 1 ;
-	sh:minCount 1 ;
-	sh:nodeKind sh:Literal ;
-	sh:order 5 ;
-	sh:path dd:document_text .
 _:c14n2 sh:datatype xsd:string ;
 	sh:description "For an agent turn, the version of the agent that produced it." ;
 	sh:maxCount 1 ;
@@ -899,43 +898,48 @@ _:c14n20 sh:datatype xsd:string ;
 	sh:order 4 ;
 	sh:path dd:turn_invocation_id ;
 	sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" .
-_:c14n200 rdf:first rdf:type ;
-	rdf:rest rdf:nil .
+_:c14n200 sh:datatype xsd:string ;
+	sh:description "The content of the document, as text; a structured record is serialised." ;
+	sh:maxCount 1 ;
+	sh:minCount 1 ;
+	sh:nodeKind sh:Literal ;
+	sh:order 5 ;
+	sh:path dd:document_text .
 _:c14n201 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
-_:c14n202 sh:description "The schema or profile document_text follows, such as a repository's metadata schema." ;
+_:c14n202 rdf:first rdf:type ;
+	rdf:rest rdf:nil .
+_:c14n203 sh:description "The schema or profile document_text follows, such as a repository's metadata schema." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:IRI ;
 	sh:order 2 ;
 	sh:path dcterms:conformsTo .
-_:c14n203 sh:in _:c14n405 ;
+_:c14n204 sh:in _:c14n405 ;
 	sh:maxCount 1 ;
 	sh:order 1 ;
 	sh:path dd:reason_code .
-_:c14n204 rdf:first "phone number" ;
-	rdf:rest _:c14n224 .
-_:c14n205 sh:datatype xsd:string ;
+_:c14n205 rdf:first "phone number" ;
+	rdf:rest _:c14n225 .
+_:c14n206 sh:datatype xsd:string ;
 	sh:description "The metadata record value the question would fill, as a path into the record's JSON form: property names joined by dots, with a list entry's position in brackets, such as titles[0].title." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 8 ;
 	sh:path dd:gap_property .
-_:c14n206 sh:class dd:ConversationTurn ;
+_:c14n207 sh:class dd:ConversationTurn ;
 	sh:description "The earlier turns of the conversation, oldest first." ;
 	sh:nodeKind sh:BlankNodeOrIRI ;
 	sh:order 2 ;
 	sh:path dd:history .
-_:c14n207 rdf:first "required_repository" ;
+_:c14n208 rdf:first "required_repository" ;
 	rdf:rest _:c14n491 .
-_:c14n208 sh:datatype xsd:integer ;
+_:c14n209 sh:datatype xsd:integer ;
 	sh:description "The number of a version within its document, counted from 1." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 1 ;
 	sh:path dd:version .
-_:c14n209 rdf:first rdf:type ;
-	rdf:rest rdf:nil .
 _:c14n21 sh:datatype xsd:string ;
 	sh:description "SHA-256 of the profile file's bytes, so a stored run names exactly the rules applied." ;
 	sh:maxCount 1 ;
@@ -944,7 +948,9 @@ _:c14n21 sh:datatype xsd:string ;
 	sh:order 6 ;
 	sh:path dd:policy_digest ;
 	sh:pattern "^[0-9a-f]{64}$" .
-_:c14n210 sh:datatype xsd:string ;
+_:c14n210 rdf:first rdf:type ;
+	rdf:rest rdf:nil .
+_:c14n211 sh:datatype xsd:string ;
 	sh:description "The institutional profile the conductor applied, as profile:<profile_id>@v<version>. The deployment chooses the profile; a request cannot name one (docs/specs/policy-and-identity.md)." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
@@ -952,140 +958,140 @@ _:c14n210 sh:datatype xsd:string ;
 	sh:order 5 ;
 	sh:path dd:policy_bundle_ref ;
 	sh:pattern "^profile:[a-z0-9][a-z0-9.-]*@v[0-9]+$" .
-_:c14n211 sh:datatype xsd:string ;
+_:c14n212 sh:datatype xsd:string ;
 	sh:description "The reply, as prose." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 1 ;
 	sh:path dd:reply_text .
-_:c14n212 sh:description "What part of the file was examined." ;
+_:c14n213 sh:description "What part of the file was examined." ;
 	sh:in _:c14n119 ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:order 2 ;
 	sh:path dd:finding_target .
-_:c14n213 sh:datatype xsd:string ;
+_:c14n214 sh:datatype xsd:string ;
 	sh:description "The funder's identifier, where ORCID gives one, such as a Crossref Funder ID." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 4 ;
 	sh:path dd:funder_identifier .
-_:c14n214 sh:datatype xsd:boolean ;
+_:c14n215 sh:datatype xsd:boolean ;
 	sh:description "True when the researcher may answer in their own words instead of an option. Choice questions only." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 6 ;
 	sh:path dd:question_other .
-_:c14n215 sh:datatype xsd:string ;
+_:c14n216 sh:datatype xsd:string ;
 	sh:description "The required repository's re3data identifier, such as r3d100010199, where known." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 6 ;
 	sh:path dd:fact_re3data_id ;
 	sh:pattern "^r3d[0-9]{9}$" .
-_:c14n216 sh:datatype xsd:string ;
+_:c14n217 sh:datatype xsd:string ;
 	sh:description "For a sharing commitment, the licence the plan committed to, as the plan names it; absent where it names none." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 17 ;
 	sh:path dd:commitment_licence .
-_:c14n217 rdf:first rdf:type ;
+_:c14n218 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
-_:c14n218 sh:description "Values that narrow the property, such as a subjectScheme. Part of what identifies a field when an override is merged with its standard's set." ;
+_:c14n219 sh:description "Values that narrow the property, such as a subjectScheme. Part of what identifies a field when an override is merged with its standard's set." ;
 	sh:maxCount 1 ;
 	sh:order 1 ;
 	sh:path dd:qualifier .
-_:c14n219 sh:datatype xsd:string ;
-	sh:description "The researcher's answer in their own words: the whole answer to a text question, or an answer given in place of an option where a choice question allows it." ;
-	sh:maxCount 1 ;
-	sh:nodeKind sh:Literal ;
-	sh:order 2 ;
-	sh:path dd:answer_words .
 _:c14n22 sh:datatype xsd:integer ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 2 ;
 	sh:path dd:http_status .
 _:c14n220 sh:datatype xsd:string ;
+	sh:description "The researcher's answer in their own words: the whole answer to a text question, or an answer given in place of an option where a choice question allows it." ;
+	sh:maxCount 1 ;
+	sh:nodeKind sh:Literal ;
+	sh:order 2 ;
+	sh:path dd:answer_words .
+_:c14n221 sh:datatype xsd:string ;
 	sh:description "What must happen for a suspended invocation to resume (extension member)." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 5 ;
 	sh:path dd:resume_condition .
-_:c14n221 sh:datatype xsd:string ;
+_:c14n222 sh:datatype xsd:string ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 2 ;
 	sh:path dd:agent_version .
-_:c14n222 sh:datatype xsd:boolean ;
+_:c14n223 sh:datatype xsd:boolean ;
 	sh:description "Always true (C13, C15). Emitted as a constant so no consumer can produce an envelope claiming otherwise." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 15 ;
 	sh:path dd:requires_human_review .
-_:c14n223 sh:datatype xsd:string ;
+_:c14n224 sh:datatype xsd:string ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 0 ;
 	sh:path dd:source_id .
-_:c14n224 rdf:first "NHS number" ;
-	rdf:rest _:c14n160 .
-_:c14n225 rdf:first rdf:type ;
+_:c14n225 rdf:first "NHS number" ;
+	rdf:rest _:c14n161 .
+_:c14n226 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
-_:c14n226 sh:in _:c14n450 ;
+_:c14n227 sh:in _:c14n450 ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:order 5 ;
 	sh:path dd:energy_method .
-_:c14n227 rdf:first "deployment" ;
+_:c14n228 rdf:first "deployment" ;
 	rdf:rest rdf:nil .
-_:c14n228 sh:datatype xsd:string ;
+_:c14n229 sh:datatype xsd:string ;
 	sh:description "The model the agent's card declared, on a call the profile's model map routed to another model, which model_id and model_provider then name. Absent for every other call, and in runs recorded before contract 0.11.0." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 7 ;
 	sh:path dd:model_declared .
-_:c14n229 sh:datatype xsd:string ;
-	sh:description "One or two sentences shown under the question to help the researcher answer it." ;
-	sh:maxCount 1 ;
-	sh:nodeKind sh:Literal ;
-	sh:order 3 ;
-	sh:path dd:question_help .
 _:c14n23 sh:in _:c14n352 ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:order 3 ;
 	sh:path dd:obligation .
-_:c14n230 sh:datatype xsd:dateTime ;
+_:c14n230 sh:datatype xsd:string ;
+	sh:description "One or two sentences shown under the question to help the researcher answer it." ;
+	sh:maxCount 1 ;
+	sh:nodeKind sh:Literal ;
+	sh:order 3 ;
+	sh:path dd:question_help .
+_:c14n231 sh:datatype xsd:dateTime ;
 	sh:description "Earliest time a suspended invocation may resume (extension member)." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 6 ;
 	sh:path dd:resume_after .
-_:c14n231 rdf:first rdf:type ;
+_:c14n232 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
-_:c14n232 sh:class dd:QuestionAnswer ;
+_:c14n233 sh:class dd:QuestionAnswer ;
 	sh:description "One answer for each question answered, in the order asked; at least one." ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:BlankNodeOrIRI ;
 	sh:order 1 ;
 	sh:path dd:given_answers .
-_:c14n233 sh:class dd:Question ;
+_:c14n234 sh:class dd:Question ;
 	sh:description "The questions the reply asks, in the order they are put to the researcher one at a time; between 1 and 8, with unique question_key values. Absent when the reply asks nothing or asks in prose." ;
 	sh:nodeKind sh:BlankNodeOrIRI ;
 	sh:order 4 ;
 	sh:path dd:reply_questions .
-_:c14n234 rdf:first "data" ;
-	rdf:rest _:c14n281 .
-_:c14n235 rdf:first "input_only" ;
-	rdf:rest _:c14n589 .
-_:c14n236 rdf:first rdf:type ;
+_:c14n235 rdf:first "data" ;
+	rdf:rest _:c14n282 .
+_:c14n236 rdf:first "input_only" ;
+	rdf:rest _:c14n588 .
+_:c14n237 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
-_:c14n237 sh:datatype xsd:string ;
+_:c14n238 sh:datatype xsd:string ;
 	sh:description "The key a decision counts by within its kind: the funder's identifier or name, the repository's re3data identifier or name, the file's path, the field or path judged sensitive, or licence. The last decision on a kind and subject stands." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
@@ -1093,63 +1099,61 @@ _:c14n237 sh:datatype xsd:string ;
 	sh:order 1 ;
 	sh:path dd:fact_subject ;
 	sh:pattern "\\S" .
-_:c14n238 sh:datatype xsd:string ;
+_:c14n239 sh:datatype xsd:string ;
 	sh:description "The schema.org term the property maps to, by which the record is read as RDF." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 2 ;
 	sh:path dd:schema_org .
-_:c14n239 rdf:first "direct identifier" ;
-	rdf:rest _:c14n141 .
 _:c14n24 sh:class dd:ExternalIdentifier ;
 	sh:description "The work's identifiers, such as its DOI." ;
 	sh:nodeKind sh:BlankNodeOrIRI ;
 	sh:order 5 ;
 	sh:path dd:work_identifiers .
-_:c14n240 rdf:first "invited_position" ;
-	rdf:rest _:c14n249 .
-_:c14n241 sh:datatype xsd:string ;
+_:c14n240 rdf:first "direct identifier" ;
+	rdf:rest _:c14n141 .
+_:c14n241 rdf:first "invited_position" ;
+	rdf:rest _:c14n250 .
+_:c14n242 sh:datatype xsd:string ;
 	sh:description "UUIDv7 of the project the invocation belongs to (docs/specs/projects.md). Set only by the conductor, from the conversation the request is a turn of or, on a child invocation, from the parent's grant; a caller's request that carries it is refused. Never sent to the agent." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 18 ;
 	sh:path dd:project_id ;
 	sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" .
-_:c14n242 sh:description "Whose account paid for a model call, as the model broker reports it: a person's own or the deployment's. Never names the account, its key or its holder. Absent only in runs recorded before contract 0.10.0." ;
+_:c14n243 sh:description "Whose account paid for a model call, as the model broker reports it: a person's own or the deployment's. Never names the account, its key or its holder. Absent only in runs recorded before contract 0.10.0." ;
 	sh:in _:c14n473 ;
 	sh:maxCount 1 ;
 	sh:order 6 ;
 	sh:path dd:model_account .
-_:c14n243 sh:datatype xsd:string ;
+_:c14n244 sh:datatype xsd:string ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 1 ;
 	sh:path dcterms:title .
-_:c14n244 sh:datatype xsd:string ;
+_:c14n245 sh:datatype xsd:string ;
 	sh:description "Why the agent proposes the fact, in a sentence for the person deciding. Kept with the proposal and shown to the person, never given to an agent." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 20 ;
 	sh:path dd:proposed_because .
-_:c14n245 rdf:first "container" ;
+_:c14n246 rdf:first "container" ;
 	rdf:rest _:c14n376 .
-_:c14n246 rdf:first rdf:type ;
+_:c14n247 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
-_:c14n247 sh:datatype xsd:string ;
+_:c14n248 sh:datatype xsd:string ;
 	sh:description "What the researcher was told when the repository was chosen, such as that it does not list DataCite." ;
 	sh:nodeKind sh:Literal ;
 	sh:order 12 ;
 	sh:path dd:warnings .
-_:c14n248 sh:datatype xsd:string ;
+_:c14n249 sh:datatype xsd:string ;
 	sh:description "The command that scanned the part's folder, such as dd-inventory." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 1 ;
 	sh:path prov:wasGeneratedBy .
-_:c14n249 rdf:first "distinction" ;
-	rdf:rest _:c14n12 .
 _:c14n25 sh:datatype xsd:string ;
 	sh:description "The reference of the profile that vouches for the facts, as profile:<id>@v<version>; an agent cites them under it." ;
 	sh:maxCount 1 ;
@@ -1158,128 +1162,130 @@ _:c14n25 sh:datatype xsd:string ;
 	sh:order 1 ;
 	sh:path dd:profile_ref ;
 	sh:pattern "^profile:\\S+@v[0-9]+$" .
-_:c14n250 sh:datatype xsd:string ;
+_:c14n250 rdf:first "distinction" ;
+	rdf:rest _:c14n12 .
+_:c14n251 sh:datatype xsd:string ;
 	sh:description "The document's media type, text/plain or text/markdown." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 2 ;
 	sh:path dd:documentation_media_type .
-_:c14n251 rdf:first "education" ;
-	rdf:rest _:c14n269 .
-_:c14n252 sh:description "RFC 9457 problem type URI." ;
+_:c14n252 rdf:first "education" ;
+	rdf:rest _:c14n270 .
+_:c14n253 sh:description "RFC 9457 problem type URI." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:IRI ;
 	sh:order 0 ;
 	sh:path dd:type .
-_:c14n253 sh:description "How suggested_answer came about. Present exactly when suggested_answer is." ;
-	sh:in _:c14n539 ;
+_:c14n254 sh:description "How suggested_answer came about. Present exactly when suggested_answer is." ;
+	sh:in _:c14n543 ;
 	sh:maxCount 1 ;
 	sh:order 10 ;
 	sh:path dd:suggestion_derivation .
-_:c14n254 sh:class dd:Input ;
+_:c14n255 sh:class dd:Input ;
 	sh:description "What the agent is asked to work on: an instance of one of the input classes the agent accepts, named by schema_class. The class schema the agent's card carries checks the rest (docs/specs/contract.md)." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:BlankNodeOrIRI ;
 	sh:order 7 ;
 	sh:path dd:input .
-_:c14n255 sh:datatype xsd:string ;
+_:c14n256 sh:datatype xsd:string ;
 	sh:description "Stable identifier of the agent, e.g. advisor.standards or stub.abstain." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 1 ;
 	sh:path prov:wasAssociatedWith .
-_:c14n256 sh:datatype xsd:string ;
+_:c14n257 sh:datatype xsd:string ;
 	sh:description "A country the researcher's ORCID record names, as an ISO 3166-1 alpha-2 code." ;
 	sh:nodeKind sh:Literal ;
 	sh:order 5 ;
 	sh:path dd:country .
-_:c14n257 sh:datatype xsd:string ;
+_:c14n258 sh:datatype xsd:string ;
 	sh:description "Every PRONOM unique identifier (PUID) the file matched, such as fmt/95 or x-fmt/18. More than one means the identification is ambiguous; none means the format is unknown." ;
 	sh:nodeKind sh:Literal ;
 	sh:order 4 ;
 	sh:path dd:file_pronom_ids .
-_:c14n258 rdf:first "field name" ;
+_:c14n259 rdf:first "field name" ;
 	rdf:rest _:c14n369 .
-_:c14n259 sh:datatype xsd:integer ;
+_:c14n26 sh:description "The pages the deployment checked the facts it vouches for against." ;
+	sh:nodeKind sh:IRI ;
+	sh:order 7 ;
+	sh:path dd:guidance .
+_:c14n260 sh:datatype xsd:integer ;
 	sh:description "How many files the inventory lists." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 1 ;
 	sh:path dd:inventory_file_count .
-_:c14n26 sh:description "The pages the deployment checked the facts it vouches for against." ;
-	sh:nodeKind sh:IRI ;
-	sh:order 7 ;
-	sh:path dd:guidance .
-_:c14n260 sh:datatype xsd:dateTime ;
+_:c14n261 sh:datatype xsd:dateTime ;
 	sh:description "When the inventory was added to the project, as its latest; a revision, such as files left out in Edit inventory, is added anew." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 6 ;
 	sh:path dd:inventory_added_at .
-_:c14n261 sh:datatype xsd:string ;
+_:c14n262 sh:datatype xsd:string ;
 	sh:description "The chosen repository's identifier: its re3data identifier, such as r3d100010468, where re3data lists it, else its DataCite repository identifier, such as bl.york. The conductor always gives it; a caller that sends only chosen_re3data_id has it given from that." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 1 ;
 	sh:path dd:chosen_repository_id ;
 	sh:pattern "^(r3d[0-9]{9}|[a-z0-9]+\\.[a-z0-9.-]+)$" .
-_:c14n262 rdf:first rdf:type ;
+_:c14n263 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
-_:c14n263 sh:description "The document kinds whose absence is a warning." ;
-	sh:in _:c14n575 ;
+_:c14n264 sh:description "The document kinds whose absence is a warning." ;
+	sh:in _:c14n560 ;
 	sh:order 7 ;
 	sh:path dd:recommended_documents .
-_:c14n264 sh:datatype xsd:string ;
+_:c14n265 sh:datatype xsd:string ;
 	sh:description "The chosen repository's re3data identifier, such as r3d100010468, where it has one." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 2 ;
 	sh:path dd:chosen_re3data_id ;
 	sh:pattern "^r3d[0-9]{9}$" .
-_:c14n265 sh:datatype xsd:integer ;
+_:c14n266 sh:datatype xsd:integer ;
 	sh:description "How many works the record held beyond the 50 offered. Absent when none were left out." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 10 ;
 	sh:path dd:works_omitted .
-_:c14n266 rdf:first "capability_not_implemented" ;
-	rdf:rest _:c14n285 .
-_:c14n267 sh:class dd:TableField ;
+_:c14n267 rdf:first "capability_not_implemented" ;
+	rdf:rest _:c14n286 .
+_:c14n268 sh:class dd:TableField ;
 	sh:description "For a table, its fields as a Frictionless Table Schema inferred from a sample of rows." ;
 	sh:nodeKind sh:BlankNodeOrIRI ;
 	sh:order 6 ;
 	sh:path dd:file_fields .
-_:c14n268 sh:class dd:GroundingRef ;
+_:c14n269 sh:class dd:GroundingRef ;
 	sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:BlankNodeOrIRI ;
 	sh:order 0 ;
 	sh:path dd:grounded_on .
-_:c14n269 rdf:first "qualification" ;
-	rdf:rest _:c14n240 .
 _:c14n27 rdf:first "licence" ;
 	rdf:rest _:c14n377 .
-_:c14n270 sh:datatype xsd:string ;
+_:c14n270 rdf:first "qualification" ;
+	rdf:rest _:c14n241 .
+_:c14n271 sh:datatype xsd:string ;
 	sh:description "The version of the command that made the inventory." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 3 ;
 	sh:path dd:inventory_tool_version .
-_:c14n271 sh:datatype xsd:string ;
+_:c14n272 sh:datatype xsd:string ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 3 ;
 	sh:path dd:canonicalisation .
-_:c14n272 rdf:first "researcher" ;
+_:c14n273 rdf:first "researcher" ;
 	rdf:rest rdf:nil .
-_:c14n273 sh:datatype xsd:string ;
+_:c14n274 sh:datatype xsd:string ;
 	sh:description "The identifier the conductor minted for the document, a UUIDv7." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
@@ -1287,32 +1293,24 @@ _:c14n273 sh:datatype xsd:string ;
 	sh:order 0 ;
 	sh:path dd:document_id ;
 	sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" .
-_:c14n274 rdf:first rdf:type ;
+_:c14n275 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
-_:c14n275 sh:description "Whether the file is to be deposited." ;
+_:c14n276 sh:description "Whether the file is to be deposited." ;
 	sh:in _:c14n133 ;
 	sh:maxCount 1 ;
 	sh:order 9 ;
 	sh:path dd:file_decision .
-_:c14n276 rdf:first "over 50%" ;
+_:c14n277 rdf:first "over 50%" ;
 	rdf:rest rdf:nil .
-_:c14n277 sh:datatype xsd:string ;
+_:c14n278 sh:datatype xsd:string ;
 	sh:description "The document's media type, text/plain or text/markdown." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 2 ;
 	sh:path dd:documentation_media_type .
-_:c14n278 rdf:first rdf:type ;
+_:c14n279 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
-_:c14n279 sh:datatype xsd:string ;
-	sh:description "A repository's identifier in the registry that lists it: its re3data identifier, such as r3d100012124, where re3data lists it, else its DataCite repository identifier, such as bl.york. An override names it in place of re3data_id for a repository re3data does not list." ;
-	sh:maxCount 1 ;
-	sh:minCount 1 ;
-	sh:nodeKind sh:Literal ;
-	sh:order 0 ;
-	sh:path dd:repository_id ;
-	sh:pattern "^(r3d[0-9]{9}|[a-z0-9]+\\.[a-z0-9.-]+)$" .
 _:c14n28 sh:datatype xsd:string ;
 	sh:description "The invocation whose reply asked the questions." ;
 	sh:maxCount 1 ;
@@ -1321,65 +1319,67 @@ _:c14n28 sh:datatype xsd:string ;
 	sh:order 0 ;
 	sh:path dd:answer_to ;
 	sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" .
-_:c14n280 rdf:first "authenticated" ;
+_:c14n280 sh:datatype xsd:string ;
+	sh:description "A repository's identifier in the registry that lists it: its re3data identifier, such as r3d100012124, where re3data lists it, else its DataCite repository identifier, such as bl.york. An override names it in place of re3data_id for a repository re3data does not list." ;
+	sh:maxCount 1 ;
+	sh:minCount 1 ;
+	sh:nodeKind sh:Literal ;
+	sh:order 0 ;
+	sh:path dd:repository_id ;
+	sh:pattern "^(r3d[0-9]{9}|[a-z0-9]+\\.[a-z0-9.-]+)$" .
+_:c14n281 rdf:first "authenticated" ;
 	rdf:rest rdf:nil .
-_:c14n281 rdf:first "documentation" ;
+_:c14n282 rdf:first "documentation" ;
 	rdf:rest _:c14n337 .
-_:c14n282 sh:in _:c14n442 ;
+_:c14n283 sh:in _:c14n442 ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:order 1 ;
 	sh:path dd:step_state .
-_:c14n283 sh:datatype xsd:string ;
+_:c14n284 sh:datatype xsd:string ;
 	sh:description "The command that made the inventory, such as dd-inventory." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 2 ;
 	sh:path prov:wasGeneratedBy .
-_:c14n284 sh:description "Whether a person has approved or rejected the version, or not yet decided." ;
-	sh:in _:c14n581 ;
+_:c14n285 sh:description "Whether a person has approved or rejected the version, or not yet decided." ;
+	sh:in _:c14n584 ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:order 2 ;
 	sh:path dd:version_state .
-_:c14n285 rdf:first "requires_human_judgement" ;
+_:c14n286 rdf:first "requires_human_judgement" ;
 	rdf:rest _:c14n131 .
-_:c14n286 sh:datatype xsd:string ;
+_:c14n287 sh:datatype xsd:string ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 4 ;
 	sh:path dd:content_hash ;
 	sh:pattern "^[0-9a-f]{64}$" .
-_:c14n287 sh:datatype xsd:string ;
+_:c14n288 sh:datatype xsd:string ;
 	sh:description "The kind of funding, in ORCID's words, such as grant or award." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 2 ;
 	sh:path dd:funding_type .
-_:c14n288 sh:datatype xsd:string ;
+_:c14n289 sh:datatype xsd:string ;
 	sh:description "What the inventory left out or could not do, such as files it skipped." ;
 	sh:nodeKind sh:Literal ;
 	sh:order 6 ;
 	sh:path dd:inventory_limitations .
-_:c14n289 sh:datatype xsd:string ;
-	sh:description "One sentence that helps the researcher tell this option from the others." ;
-	sh:maxCount 1 ;
-	sh:nodeKind sh:Literal ;
-	sh:order 2 ;
-	sh:path dd:option_help .
 _:c14n29 sh:datatype xsd:string ;
 	sh:description "The access the repository offers, as re3data names it (open, embargoed, restricted, closed)." ;
 	sh:nodeKind sh:Literal ;
 	sh:order 4 ;
 	sh:path dd:data_access_types .
-_:c14n290 sh:datatype xsd:boolean ;
-	sh:description "Whether a deposit fee is required. Unlike re3data, a deployment may say there is none." ;
+_:c14n290 sh:datatype xsd:string ;
+	sh:description "One sentence that helps the researcher tell this option from the others." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
-	sh:order 6 ;
-	sh:path dd:fee_required .
+	sh:order 2 ;
+	sh:path dd:option_help .
 _:c14n291 sh:datatype xsd:string ;
 	sh:description "What the scan of the part's folder left out or could not do." ;
 	sh:nodeKind sh:Literal ;
@@ -1456,7 +1456,7 @@ _:c14n303 sh:datatype xsd:string ;
 	sh:order 4 ;
 	sh:path dd:keywords .
 _:c14n304 sh:description "The document kinds that must have an approved version before a package is built." ;
-	sh:in _:c14n560 ;
+	sh:in _:c14n565 ;
 	sh:order 6 ;
 	sh:path dd:required_documents .
 _:c14n305 sh:datatype xsd:string ;
@@ -1473,7 +1473,7 @@ _:c14n306 sh:datatype xsd:string ;
 	sh:order 1 ;
 	sh:path dd:work_title .
 _:c14n307 sh:description "How the harness came to know the principal." ;
-	sh:in _:c14n157 ;
+	sh:in _:c14n158 ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:order 3 ;
@@ -1625,7 +1625,7 @@ _:c14n330 sh:datatype xsd:boolean ;
 	sh:nodeKind sh:Literal ;
 	sh:order 10 ;
 	sh:path dd:project_entry_by_researcher .
-_:c14n331 sh:in _:c14n565 ;
+_:c14n331 sh:in _:c14n570 ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:order 1 ;
@@ -1637,7 +1637,7 @@ _:c14n332 sh:description "The kind of document to draft." ;
 	sh:order 1 ;
 	sh:path dd:document_kind .
 _:c14n333 rdf:first "signature" ;
-	rdf:rest _:c14n245 .
+	rdf:rest _:c14n246 .
 _:c14n334 rdf:first "draft" ;
 	rdf:rest rdf:nil .
 _:c14n335 sh:description "The schema or profile document_text follows, such as a repository's metadata schema." ;
@@ -1738,7 +1738,7 @@ _:c14n351 sh:class dd:ProjectFact ;
 	sh:order 0 ;
 	sh:path dd:proposed_facts .
 _:c14n352 rdf:first "required" ;
-	rdf:rest _:c14n177 .
+	rdf:rest _:c14n178 .
 _:c14n353 sh:datatype xsd:string ;
 	sh:description "Other names the researcher is known by, as their ORCID record lists them." ;
 	sh:nodeKind sh:Literal ;
@@ -1854,7 +1854,7 @@ _:c14n375 sh:class dd:GroundingRef ;
 	sh:order 1 ;
 	sh:path dd:grounded_on .
 _:c14n376 rdf:first "extension" ;
-	rdf:rest _:c14n588 .
+	rdf:rest _:c14n589 .
 _:c14n377 rdf:first "sharing_commitment" ;
 	rdf:rest rdf:nil .
 _:c14n378 sh:datatype xsd:string ;
@@ -1884,7 +1884,7 @@ _:c14n380 sh:datatype xsd:dateTime ;
 	sh:order 4 ;
 	sh:path dd:documentation_added_at .
 _:c14n381 rdf:first "choice" ;
-	rdf:rest _:c14n193 .
+	rdf:rest _:c14n194 .
 _:c14n382 rdf:first "no_candidates_retrieved" ;
 	rdf:rest _:c14n300 .
 _:c14n383 sh:description "What kind of affiliation the item is." ;
@@ -1968,7 +1968,7 @@ _:c14n395 sh:description "The IRI of the identity provider's issuer that vouched
 _:c14n396 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
 _:c14n397 rdf:first "person name" ;
-	rdf:rest _:c14n239 .
+	rdf:rest _:c14n240 .
 _:c14n398 sh:datatype xsd:string ;
 	sh:description "What the agent reads back when the option is chosen. A string, never a number: a number reaches the agent as a floating-point value over A2A." ;
 	sh:maxCount 1 ;
@@ -2008,7 +2008,7 @@ _:c14n402 sh:datatype xsd:string ;
 _:c14n403 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
 _:c14n404 sh:description "How far the version has got (docs/specs/drafting.md): `questions` when the drafter is asking the researcher what it needs before it writes the document, so that document_text is only a note and the version cannot be approved; `draft` when it is the document itself. Absent means `draft`." ;
-	sh:in _:c14n181 ;
+	sh:in _:c14n182 ;
 	sh:maxCount 1 ;
 	sh:order 7 ;
 	sh:path dd:document_stage .
@@ -2086,7 +2086,7 @@ _:c14n416 sh:datatype xsd:string ;
 	sh:order 0 ;
 	sh:path dd:format_media_type .
 _:c14n417 rdf:first "insufficient_input" ;
-	rdf:rest _:c14n266 .
+	rdf:rest _:c14n267 .
 _:c14n418 sh:datatype xsd:string ;
 	sh:description "The media type of document_text, such as text/markdown or application/json." ;
 	sh:maxCount 1 ;
@@ -2095,7 +2095,7 @@ _:c14n418 sh:datatype xsd:string ;
 	sh:order 3 ;
 	sh:path dcterms:format .
 _:c14n419 sh:description "Whether a person has approved or rejected the version, or not yet decided." ;
-	sh:in _:c14n584 ;
+	sh:in _:c14n581 ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:order 4 ;
@@ -2179,7 +2179,7 @@ _:c14n430 sh:datatype xsd:string ;
 	sh:path dd:inventory_digest ;
 	sh:pattern "^[0-9a-f]{64}$" .
 _:c14n431 sh:description "What part the file plays in the dataset, as the researcher states it. Unset means not stated, not data." ;
-	sh:in _:c14n234 ;
+	sh:in _:c14n235 ;
 	sh:maxCount 1 ;
 	sh:order 8 ;
 	sh:path dd:file_role .
@@ -2243,7 +2243,7 @@ _:c14n441 sh:class dd:ApprovedMetadataRecord ;
 	sh:order 4 ;
 	sh:path dd:metadata_record .
 _:c14n442 rdf:first "started" ;
-	rdf:rest _:c14n194 .
+	rdf:rest _:c14n195 .
 _:c14n443 sh:datatype xsd:string ;
 	sh:description "The work's type, in ORCID's words, such as journal-article or data-set." ;
 	sh:maxCount 1 ;
@@ -2282,7 +2282,7 @@ _:c14n449 sh:datatype xsd:string ;
 	sh:order 16 ;
 	sh:path dd:commitment_access .
 _:c14n45 rdf:first "retrieval" ;
-	rdf:rest _:c14n235 .
+	rdf:rest _:c14n236 .
 _:c14n450 rdf:first "not_measured" ;
 	rdf:rest _:c14n445 .
 _:c14n451 sh:datatype xsd:string ;
@@ -2370,7 +2370,7 @@ _:c14n465 sh:datatype xsd:string ;
 	sh:order 1 ;
 	sh:path dcterms:title .
 _:c14n466 sh:description "The document kinds whose absence is a warning." ;
-	sh:in _:c14n570 ;
+	sh:in _:c14n575 ;
 	sh:order 11 ;
 	sh:path dd:recommended_documents .
 _:c14n467 sh:datatype xsd:string ;
@@ -2405,7 +2405,7 @@ _:c14n472 sh:class dd:ChosenRepository ;
 	sh:order 13 ;
 	sh:path dd:project_repository .
 _:c14n473 rdf:first "own" ;
-	rdf:rest _:c14n227 .
+	rdf:rest _:c14n228 .
 _:c14n474 sh:datatype xsd:string ;
 	sh:description "The invocation that delegated this one. Set only by the conductor, from a delegation grant; a caller's request that carries it is refused." ;
 	sh:maxCount 1 ;
@@ -2845,9 +2845,9 @@ _:c14n586 rdf:first "rejected" ;
 _:c14n587 rdf:first "other" ;
 	rdf:rest rdf:nil .
 _:c14n588 rdf:first "none" ;
-	rdf:rest _:c14n272 .
-_:c14n589 rdf:first "none" ;
 	rdf:rest _:c14n341 .
+_:c14n589 rdf:first "none" ;
+	rdf:rest _:c14n273 .
 _:c14n59 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
 _:c14n6 sh:description "How the question is answered." ;
@@ -2903,7 +2903,7 @@ _:c14n68 sh:class dd:DraftSummary ;
 	sh:order 14 ;
 	sh:path dd:project_drafts .
 _:c14n69 rdf:first "employment" ;
-	rdf:rest _:c14n251 .
+	rdf:rest _:c14n252 .
 _:c14n7 sh:datatype xsd:string ;
 	sh:description "Where the work was published, such as a journal's name." ;
 	sh:maxCount 1 ;
@@ -2913,7 +2913,7 @@ _:c14n7 sh:datatype xsd:string ;
 _:c14n70 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
 _:c14n71 rdf:first "funder" ;
-	rdf:rest _:c14n207 .
+	rdf:rest _:c14n208 .
 _:c14n72 sh:datatype xsd:string ;
 	sh:description "The project document to redraft, by its document_id, where the project holds more than one of the kind asked for. Without it the conductor gives the latest. In a project the conductor refuses a document that is not the project's or is of another kind; outside a project it is removed." ;
 	sh:maxCount 1 ;
@@ -2948,7 +2948,7 @@ _:c14n77 sh:datatype xsd:dateTime ;
 	sh:order 2 ;
 	sh:path dd:retrieved_at .
 _:c14n78 rdf:first "10 to 50%" ;
-	rdf:rest _:c14n276 .
+	rdf:rest _:c14n277 .
 _:c14n79 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
 _:c14n8 sh:datatype xsd:integer ;

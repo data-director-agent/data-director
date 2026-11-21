@@ -39,8 +39,7 @@ from dd_agent_advisor_repository import assess
 from dd_agent_advisor_repository.classes import Affiliation
 from dd_agent_advisor_repository.records import DataciteRecord, Re3dataRecord
 from dd_agent_advisor_repository.snapshot import Re3dataRegistry
-from dd_sdk.registry import Hit, Query, RegistryUnavailable, SnapshotRef
-from dd_sdk.registry import pinned
+from dd_sdk.registry import Hit, Query, RegistryUnavailable, SnapshotRef, pinned
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data" / "datacite"
 SNAPSHOT = DATA_DIR / "repositories.jsonl"
@@ -150,7 +149,7 @@ def _record(entry: dict[str, Any], members: dict[str, Any], datasets: int) -> Da
         software=a.get("software") or None,
         certificates=a.get("certificate") or [],
         opendoar=str(a["opendoar"]) if a.get("opendoar") else None,
-        dataset_count=datasets,
+        dataset_count=str(datasets),
         prefixes=[p["id"] for p in rel.get("prefixes", {}).get("data") or []],
         member={
             "name": member.get("name"),

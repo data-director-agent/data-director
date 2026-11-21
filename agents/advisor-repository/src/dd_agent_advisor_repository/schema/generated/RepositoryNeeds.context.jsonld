@@ -30,6 +30,9 @@
          "@id": "https://w3id.org/data-director/agents/repository/asked_about",
          "@type": "@id"
       },
+      "charges_deposit_fee": {
+         "@id": "https://w3id.org/data-director/charges_deposit_fee"
+      },
       "chosen_re3data_id": {
          "@id": "https://w3id.org/data-director/chosen_re3data_id"
       },
@@ -100,9 +103,6 @@
       },
       "fact_subject": {
          "@id": "https://w3id.org/data-director/fact_subject"
-      },
-      "fee_required": {
-         "@id": "https://w3id.org/data-director/agents/repository/fee_required"
       },
       "file_decision": {
          "@id": "https://w3id.org/data-director/file_decision"

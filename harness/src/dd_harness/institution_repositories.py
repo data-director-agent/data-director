@@ -107,7 +107,8 @@ def resolvers(profile: _Profile) -> dict[str, Vouched]:
 
 
 def ids(profile: _Profile) -> list[str]:
-    """The identifiers the profile names, in its order."""
+    """The identifiers the profile names, in its order: offered first among the suggestions, and
+    each checked against the pinned registries at start-up (`settings.build_conductor`)."""
     return [e.repository_id for e in profile.institution_repositories]
 
 

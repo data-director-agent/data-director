@@ -308,7 +308,7 @@ classes:
       - institution_ror
       - data_access_types
       - data_licences
-      - fee_required
+      - charges_deposit_fee
       - guidance
     slot_usage:
       repository_id:
@@ -1761,8 +1761,10 @@ slots:
   data_licences:
     description: The licences the repository offers for data, as SPDX identifiers or URLs.
     multivalued: true
-  fee_required:
-    description: Whether a deposit fee is required. Unlike re3data, a deployment may say there is none.
+  charges_deposit_fee:
+    description: >-
+      Whether the repository charges a fee to deposit. Unlike re3data, a deployment may say it
+      charges none.
     range: boolean
   proposed_facts:
     description: >-

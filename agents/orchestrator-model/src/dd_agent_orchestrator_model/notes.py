@@ -155,7 +155,8 @@ def decisions_note(message: Message) -> str | None:
     if (chosen := message.project_repository) is not None:
         said.append(
             f"repository chosen for deposit: {json.dumps(chosen.chosen_repository_name)} "
-            f"(re3data {chosen.chosen_re3data_id})"
+            f"({'re3data' if chosen.chosen_re3data_id else 'DataCite'} "
+            f"{chosen.chosen_repository_id})"
         )
     said.extend(_fact(fact) for fact in message.project_decisions or [])
     if not said:

@@ -339,8 +339,7 @@ class Sources:
         return found
 
     def _datacite(self) -> tuple[str, RecordsFile] | None:
-        """The latest pinned DataCite snapshot, less the repositories whose address is a
-        re3data record's, which re3data describes; None if none is pinned."""
+        """The latest DataCite snapshot, less those at a re3data record's address; None if none."""
         found = self._latest(DATACITE_REPOSITORIES)
         if found is None or not isinstance(found[1], RecordsFile):
             return None
@@ -413,10 +412,9 @@ class Sources:
         return None if record is None else (ref, record)
 
     def repository(self, repository_id: str) -> RegistryEntry | None:
-        """The record the latest pinned registry holds for `repository_id`: re3data's for a
-        re3data identifier, else DataCite's; `None` if it holds none. A DataCite repository
-        declares DataCite's standard, whose DOIs it registers. Raises `SourceConfigError` if no
-        re3data export is pinned or the latest is not built."""
+        """The record the latest pinned registry, re3data's or else DataCite's, holds for
+        `repository_id`, or `None`; one of DataCite's declares the standard whose DOIs it
+        registers. Raises `SourceConfigError` if no built re3data export is pinned."""
         found = self._record(repository_id)
         if found is None:
             return None
@@ -438,9 +436,18 @@ class Sources:
             content_hash=content_hash(record, DOCUMENT_CANONICALISATION),
         )
 
-    def re3data(self, re3data_id: str) -> RegistryEntry | None:
-        """The record the latest pinned re3data export holds for `re3data_id`, or `None`."""
-        return self.repository(re3data_id) if _RE3DATA_ID.fullmatch(re3data_id) else None
+    def unheld(self, repository_ids: Sequence[str]) -> list[str]:
+        """Those of `repository_ids` that the pinned registry for their identifier does not
+        hold. One whose registry is not pinned or built cannot be checked, and is logged."""
+        out = []
+        for rid in repository_ids:
+            prefix = RE3DATA_EXPORT if _RE3DATA_ID.fullmatch(rid) else DATACITE_REPOSITORIES
+            try:
+                if self._latest(prefix) is not None and self.repository(rid) is None:
+                    out.append(rid)
+            except SourceConfigError as exc:
+                log.warning("%s cannot be checked: %s", rid, exc)
+        return out
 
 
 def check(envelope: dict[str, Any], sources: Sources) -> SourceReport:

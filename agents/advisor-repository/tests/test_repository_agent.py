@@ -155,10 +155,10 @@ class FakeRepositories:
         self._check()
         return [r for r in self.records if code in dfg.codes(r.subjects)]
 
-    def institutional(self, affiliation: object) -> list[Re3dataRecord]:  # noqa: ARG002
+    def institutional(self, affiliation: object) -> list[Re3dataRecord]:
         return []
 
-    def snapshot_of(self, record: Re3dataRecord) -> SnapshotRef:  # noqa: ARG002
+    def snapshot_of(self, record: Re3dataRecord) -> SnapshotRef:
         return self.snapshot_ref()
 
 

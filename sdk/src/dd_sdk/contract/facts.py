@@ -273,5 +273,5 @@ class InstitutionRepository(Frozen):
     institution_ror: str | None = None
     data_access_types: list[str] = Field(default_factory=list)
     data_licences: list[str] = Field(default_factory=list)
-    fee_required: bool | None = None
+    charges_deposit_fee: bool | None = None
     guidance: list[str] = Field(default_factory=list)

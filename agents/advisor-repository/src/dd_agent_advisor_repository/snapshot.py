@@ -157,10 +157,10 @@ class Re3dataRegistry:
         found = self._by_name.get(wanted) or self._by_any_name.get(wanted, [])
         return sorted(found, key=lambda r: r.re3data_id)
 
-    def institutional(self, affiliation: Affiliation | None) -> list[Re3dataRecord]:  # noqa: ARG002
+    def institutional(self, affiliation: Affiliation | None) -> list[Re3dataRecord]:
         return []
 
-    def snapshot_of(self, record: Re3dataRecord) -> SnapshotRef:  # noqa: ARG002
+    def snapshot_of(self, record: Re3dataRecord) -> SnapshotRef:
         return self.snapshot_ref()
 
 

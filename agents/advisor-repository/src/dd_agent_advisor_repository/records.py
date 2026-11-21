@@ -213,8 +213,10 @@ class DataciteRecord(BaseModel):
     software: str | None = None
     certificates: list[str] = Field(default_factory=list)
     opendoar: str | None = None
-    # How many DOIs of resource type Dataset the repository has registered when it was fetched.
-    dataset_count: int
+    # How many DOIs of resource type Dataset the repository had registered when it was fetched, in
+    # decimal digits: a string, since A2A carries an integer in evidence as a float, whose hash
+    # would then fail (TODO(#333), docs/specs/grounding.md).
+    dataset_count: str = Field(pattern=r"^[1-9][0-9]*$")
     prefixes: list[str] = Field(default_factory=list)
     member: Member
 
@@ -440,3 +442,7 @@ def from_fairsharing_json(data: dict[str, Any]) -> DatabaseRecord | None:
         pre_publication_review=review if isinstance(review, str) else None,
         re3data_ids=[i for i in re3data_ids if i],
     )
+
+
+# A repository as either registry describes it; assessing and ranking read the same names of both.
+Repository = Re3dataRecord | DataciteRecord
