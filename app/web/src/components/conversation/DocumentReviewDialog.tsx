@@ -11,6 +11,8 @@
  * named by kind, never quoted; to attach the document anyway, the researcher ticks that they have
  * checked it, the button reads **Attach anyway**, and the turn says which kinds they confirmed.
  * The server holds back a document sent without that, so this dialog is not the only guard.
+ * What the check finds is shown below the text, beside the buttons, so that its answer arriving
+ * moves nothing the researcher is reading or about to press (#1328).
  *
  * A message carries one document, so where one is already attached the dialog says, before the
  * researcher decides, that attaching this one replaces it (#1170).
@@ -145,6 +147,12 @@ export function DocumentReviewDialog({
               <a href={DOCUMENT_GUIDE}>What to attach</a>
             </p>
           </div>
+          <h3 className="document-review-heading">What it says</h3>
+          {/* Scrollable, so it must be reachable by keyboard. */}
+          {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
+          <pre className="document-review-text" tabIndex={0} aria-label={`The text of ${pending.name}`}>
+            {pending.text}
+          </pre>
           <section aria-labelledby={`${confirmId}-heading`} className="document-review-check">
             <h3 id={`${confirmId}-heading`} className="document-review-heading">
               Possible personal data or secrets
@@ -188,12 +196,6 @@ export function DocumentReviewDialog({
               </>
             )}
           </section>
-          <h3 className="document-review-heading">What it says</h3>
-          {/* Scrollable, so it must be reachable by keyboard. */}
-          {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
-          <pre className="document-review-text" tabIndex={0} aria-label={`The text of ${pending.name}`}>
-            {pending.text}
-          </pre>
         </>
       )}
     </ReviewDialog>

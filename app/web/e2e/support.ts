@@ -101,3 +101,48 @@ export async function overflow(page: Page) {
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );
 }
+
+/**
+ * The most the page may shift as what it reads arrives (#1328): the sum of every layout shift no
+ * input caused, which is stricter than cumulative layout shift's windows, against half of the 0.1
+ * that cumulative layout shift counts as good.
+ */
+export const MAX_LAYOUT_SHIFT = 0.05;
+
+declare global {
+  interface Window {
+    layoutShift?: number;
+  }
+}
+
+/** Sums, from the page's first paint, each layout shift that no input caused. Chromium only. */
+export async function watchShifts(page: Page) {
+  await page.addInitScript(() => {
+    window.layoutShift = 0;
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries() as (PerformanceEntry & {
+        value: number;
+        hadRecentInput: boolean;
+      })[]) {
+        if (!entry.hadRecentInput) window.layoutShift = (window.layoutShift ?? 0) + entry.value;
+      }
+    }).observe({ type: "layout-shift", buffered: true });
+  });
+}
+
+/** The layout shift summed since the page loaded, or since the last call with `reset`. */
+export async function layoutShift(page: Page, reset = false) {
+  return page.evaluate((reset) => {
+    const shift = window.layoutShift ?? 0;
+    if (reset) window.layoutShift = 0;
+    return shift;
+  }, reset);
+}
+
+/** Answers `url` with `json` after `ms`, as a busy server would. */
+export async function serveLate(page: Page, url: string, ms: number, json: unknown) {
+  await page.route(url, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, ms));
+    await route.fulfill({ json });
+  });
+}

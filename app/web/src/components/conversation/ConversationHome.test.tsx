@@ -98,13 +98,14 @@ function fakeApi({
   };
 }
 
-function renderHome(
+/** Renders the page and waits until what it reads on load has landed and it has opened. */
+async function renderHome(
   directory: Directory,
   api: FakeApi,
   flow: FlowApi = FLOW,
   project: ProjectApi = httpProjectApi,
 ) {
-  return render(
+  const rendered = render(
     <AnnouncerProvider>
       <FlowApiContext.Provider value={flow}>
         <ProjectApiContext.Provider value={project}>
@@ -119,6 +120,13 @@ function renderHome(
       </FlowApiContext.Provider>
     </AnnouncerProvider>,
   );
+  return opened(rendered);
+}
+
+/** Waits until what the page reads on load has landed and it has opened. */
+async function opened<T extends { container: HTMLElement }>(rendered: T): Promise<T> {
+  await waitFor(() => expect(rendered.container.querySelector(".page-loading")).toBeNull());
+  return rendered;
 }
 
 const QUESTION = questionFixture as unknown as Conversation;
@@ -138,7 +146,7 @@ describe("ConversationHome", () => {
         .fn()
         .mockResolvedValueOnce(QUESTION)
         .mockResolvedValue(ANSWERED);
-      const { container } = renderHome(
+      const { container } = await renderHome(
         withOrchestrator(),
         fakeApi({ sendTurn, get }),
       );
@@ -201,7 +209,7 @@ describe("ConversationHome", () => {
         .fn()
         .mockResolvedValueOnce(undefined)
         .mockRejectedValueOnce(refused);
-      renderHome(
+      await renderHome(
         withOrchestrator(),
         fakeApi({ sendTurn, get: () => Promise.resolve(QUESTION) }),
       );
@@ -226,7 +234,7 @@ describe("ConversationHome", () => {
 
     it("may be ignored: a typed message is sent with no answer", async () => {
       const sendTurn = vi.fn().mockResolvedValue(undefined);
-      renderHome(
+      await renderHome(
         withOrchestrator(),
         fakeApi({ sendTurn, get: () => Promise.resolve(QUESTION) }),
       );
@@ -255,7 +263,7 @@ describe("ConversationHome", () => {
   });
 
   it("says plainly when there is no orchestrator, and links to the directory", async () => {
-    renderHome(normalise(raw), fakeApi());
+    await renderHome(normalise(raw), fakeApi());
     expect(
       screen.getByRole("heading", { name: "No conversation is available" }),
     ).toBeVisible();
@@ -264,13 +272,13 @@ describe("ConversationHome", () => {
     ).toHaveAttribute("href", "/agents");
   });
 
-  it("says when the profile names no orchestrator", () => {
-    renderHome(normalise(raw), fakeApi());
+  it("says when the profile names no orchestrator", async () => {
+    await renderHome(normalise(raw), fakeApi());
     expect(screen.getByText(/names no agent to converse with/)).toBeVisible();
   });
 
-  it("says when the named orchestrator is not available", () => {
-    renderHome(
+  it("says when the named orchestrator is not available", async () => {
+    await renderHome(
       normalise({
         ...raw,
         profile: { ...raw.profile, orchestrator: "orchestrator.model" },
@@ -282,9 +290,9 @@ describe("ConversationHome", () => {
     ).toBeVisible();
   });
 
-  it("does not converse with a named agent that does not delegate", () => {
+  it("does not converse with a named agent that does not delegate", async () => {
     const other = template as RawManifestEntry;
-    renderHome(
+    await renderHome(
       normalise({
         ...raw,
         profile: { ...raw.profile, orchestrator: other.agent_id },
@@ -310,7 +318,7 @@ describe("ConversationHome", () => {
         { ...delegation, agent_id: "orchestrator.model" },
       ],
     });
-    renderHome(directory, fakeApi({ sendTurn }));
+    await renderHome(directory, fakeApi({ sendTurn }));
     await userEvent.type(
       screen.getByRole("textbox", { name: "What would you like to do?" }),
       "hi",
@@ -329,14 +337,14 @@ describe("ConversationHome", () => {
       );
   });
 
-  it("says when the profile does not permit the orchestrator", () => {
-    renderHome(withOrchestrator(null), fakeApi());
+  it("says when the profile does not permit the orchestrator", async () => {
+    await renderHome(withOrchestrator(null), fakeApi());
     expect(screen.getByText(/does not permit orchestrator.stub/)).toBeVisible();
   });
 
   it("sends a turn, labels replies and children, and returns focus to the message box", async () => {
     const sendTurn = vi.fn().mockResolvedValue(undefined);
-    const { container } = renderHome(withOrchestrator(), fakeApi({ sendTurn }));
+    const { container } = await renderHome(withOrchestrator(), fakeApi({ sendTurn }));
     const box = screen.getByRole("textbox", {
       name: "What would you like to do?",
     });
@@ -372,8 +380,8 @@ describe("ConversationHome", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it("tells people that Ctrl+Enter sends, as the message box's description", () => {
-    renderHome(withOrchestrator(), fakeApi());
+  it("tells people that Ctrl+Enter sends, as the message box's description", async () => {
+    await renderHome(withOrchestrator(), fakeApi());
     const box = screen.getByRole("textbox", {
       name: "What would you like to do?",
     });
@@ -382,7 +390,7 @@ describe("ConversationHome", () => {
 
   it("sends the message on Ctrl+Enter but not when it is empty", async () => {
     const sendTurn = vi.fn().mockResolvedValue(undefined);
-    renderHome(withOrchestrator(), fakeApi({ sendTurn }));
+    await renderHome(withOrchestrator(), fakeApi({ sendTurn }));
     const box = screen.getByRole("textbox", {
       name: "What would you like to do?",
     });
@@ -419,7 +427,7 @@ describe("ConversationHome", () => {
 
     it("checks a chosen document, shows it as a chip and sends it beside the message", async () => {
       const sendTurn = vi.fn().mockResolvedValue(undefined);
-      const { container } = renderHome(withOrchestrator(), fakeApi({ sendTurn }));
+      const { container } = await renderHome(withOrchestrator(), fakeApi({ sendTurn }));
       await userEvent.upload(fileInput(container), doc(PROTOCOL));
       const review = await screen.findByRole("dialog", { name: "Check the document before attaching it" });
       expect(within(review).getByText(/Sediment cores were taken monthly/)).toBeVisible();
@@ -446,7 +454,7 @@ describe("ConversationHome", () => {
     });
 
     it("attaches nothing when the check is cancelled, and removes an attached document", async () => {
-      const { container } = renderHome(withOrchestrator(), fakeApi());
+      const { container } = await renderHome(withOrchestrator(), fakeApi());
       await userEvent.upload(fileInput(container), doc("age: years", "codebook.txt", "text/plain"));
       const review = await screen.findByRole("dialog", { name: "Check the document before attaching it" });
       await userEvent.click(within(review).getByRole("button", { name: "Cancel" }));
@@ -490,7 +498,7 @@ describe("ConversationHome", () => {
 
     it("shows a chosen file as a chip and sends it beside the message", async () => {
       const sendTurn = vi.fn().mockResolvedValue(undefined);
-      const { container } = renderHome(
+      const { container } = await renderHome(
         withOrchestrator(),
         fakeApi({ sendTurn }),
       );
@@ -530,7 +538,7 @@ describe("ConversationHome", () => {
     });
 
     it("offers Attach a file under the message box but not Make an inventory", async () => {
-      renderHome(withOrchestrator(), fakeApi());
+      await renderHome(withOrchestrator(), fakeApi());
       const form = screen
         .getByRole("textbox", { name: "What would you like to do?" })
         .closest("form");
@@ -545,7 +553,7 @@ describe("ConversationHome", () => {
 
     it("says a gateway error may mean the message is still being answered, and reloads", async () => {
       const get = vi.fn().mockResolvedValue(conversationFixture as Conversation);
-      renderHome(
+      await renderHome(
         withOrchestrator(),
         fakeApi({ sendTurn: () => Promise.reject(new NoAnswer(502)), get }),
       );
@@ -560,7 +568,7 @@ describe("ConversationHome", () => {
 
     it("keeps the inventory attached when the send fails", async () => {
       const sendTurn = vi.fn().mockRejectedValue(new Unreachable());
-      renderHome(withOrchestrator(), fakeApi({ sendTurn }));
+      await renderHome(withOrchestrator(), fakeApi({ sendTurn }));
       const box = screen.getByRole("textbox", {
         name: "What would you like to do?",
       });
@@ -579,7 +587,7 @@ describe("ConversationHome", () => {
     });
 
     it("attaches nothing until the inventory is checked, and nothing when it is cancelled", async () => {
-      const { container } = renderHome(withOrchestrator(), fakeApi());
+      const { container } = await renderHome(withOrchestrator(), fakeApi());
       const input =
         container.querySelector<HTMLInputElement>('input[type="file"]');
       if (!input) throw new Error("no file input");
@@ -613,7 +621,7 @@ describe("ConversationHome", () => {
     it("sends the inventory without the folder and column left out, naming neither", async () => {
       // `app/tests/test_app.py` checks that the project keeps nothing of what is left out of `sent`.
       const sendTurn = vi.fn().mockResolvedValue(undefined);
-      const { container } = renderHome(
+      const { container } = await renderHome(
         withOrchestrator(),
         fakeApi({ sendTurn }),
       );
@@ -666,7 +674,7 @@ describe("ConversationHome", () => {
         },
       ],
     };
-    renderHome(
+    await renderHome(
       withOrchestrator(),
       fakeApi({ get: () => Promise.resolve(changed) }),
     );
@@ -696,7 +704,7 @@ describe("ConversationHome", () => {
         },
       ],
     };
-    renderHome(
+    await renderHome(
       withOrchestrator(),
       fakeApi({ get: () => Promise.resolve(abstained) }),
     );
@@ -706,7 +714,7 @@ describe("ConversationHome", () => {
   });
 
   it("reports a failed send as an alert", async () => {
-    renderHome(
+    await renderHome(
       withOrchestrator(),
       fakeApi({
         sendTurn: () => Promise.reject(new Error("the server answered 500")),
@@ -725,7 +733,7 @@ describe("ConversationHome", () => {
   it("shows the message and that the orchestrator is working until the reply arrives", async () => {
     let reply: () => void = () => undefined;
     const sendTurn = () => new Promise<void>((resolve) => (reply = () => resolve()));
-    renderHome(withOrchestrator(), fakeApi({ sendTurn }));
+    await renderHome(withOrchestrator(), fakeApi({ sendTurn }));
     await userEvent.type(screen.getByRole("textbox"), "hello world");
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
 
@@ -754,7 +762,7 @@ describe("ConversationHome", () => {
           project_id: projectId,
         }),
       ]);
-    renderHome(withOrchestrator(), fakeApi({ list }));
+    await renderHome(withOrchestrator(), fakeApi({ list }));
     await userEvent.click(
       await screen.findByRole("button", {
         name: /^Depositing a soil survey .*, 2 turns$/,
@@ -784,7 +792,7 @@ describe("ConversationHome", () => {
       history.replaceState(null, "", "/?conversation=c9");
       const create = vi.fn(fakeApi().create);
       const sendTurn = vi.fn(() => Promise.resolve());
-      renderHome(withOrchestrator(), fakeApi({ create, sendTurn }));
+      await renderHome(withOrchestrator(), fakeApi({ create, sendTurn }));
       expect(await screen.findByRole("list", { name: "Conversation" })).toBeVisible();
       await userEvent.type(screen.getByRole("textbox", { name: "What would you like to do?" }), "more");
       await userEvent.click(screen.getByRole("button", { name: "Send" }));
@@ -806,7 +814,7 @@ describe("ConversationHome", () => {
             project_id: projectId,
           }),
         ]);
-      renderHome(withOrchestrator(), fakeApi({ list }));
+      await renderHome(withOrchestrator(), fakeApi({ list }));
       await userEvent.click(await screen.findByRole("button", { name: /^Depositing a soil survey / }));
       await screen.findByRole("list", { name: "Conversation" });
       expect(location.search).toBe("?conversation=c9");
@@ -817,7 +825,7 @@ describe("ConversationHome", () => {
     it("says so, and clears the address, when the conversation cannot be opened", async () => {
       history.replaceState(null, "", "/?conversation=gone");
       const get = () => Promise.reject(new Error("not found"));
-      renderHome(withOrchestrator(), fakeApi({ get }));
+      await renderHome(withOrchestrator(), fakeApi({ get }));
       expect(await screen.findByText(/could not open that conversation/)).toBeVisible();
       expect(location.search).toBe("");
     });
@@ -854,7 +862,7 @@ describe("ConversationHome", () => {
           project_id: LOGGERS.project_id,
         }),
       );
-      renderHome(
+      await renderHome(
         withOrchestrator(),
         fakeApi({ list, create }),
         FLOW,
@@ -887,7 +895,7 @@ describe("ConversationHome", () => {
         Promise.resolve({ conversation_id: "c1", project_id: "p-new" }),
       );
       const sendTurn = vi.fn().mockResolvedValue(undefined);
-      renderHome(withOrchestrator(), fakeApi({ create, sendTurn }), FLOW, {
+      await renderHome(withOrchestrator(), fakeApi({ create, sendTurn }), FLOW, {
         ...httpProjectApi,
         projects: () => Promise.resolve([]),
       });
@@ -920,13 +928,13 @@ describe("ConversationHome", () => {
 
     it("links from the conversation to the active project's details", async () => {
       localStorage.setItem("dd-project", LOGGERS.project_id);
-      renderHome(withOrchestrator(), fakeApi({ list }), FLOW, withProjects);
+      await renderHome(withOrchestrator(), fakeApi({ list }), FLOW, withProjects);
       const link = await screen.findByRole("link", { name: "Project details" });
       expect(link).toHaveAttribute("href", `/projects/${LOGGERS.project_id}`);
     });
 
     it("offers no project details link while no project is active", async () => {
-      renderHome(withOrchestrator(), fakeApi(), FLOW, {
+      await renderHome(withOrchestrator(), fakeApi(), FLOW, {
         ...httpProjectApi,
         projects: () => Promise.resolve([]),
       });
@@ -942,7 +950,7 @@ describe("ConversationHome", () => {
       localStorage.setItem("dd-project", LOGGERS.project_id);
       const get = () =>
         Promise.resolve({ ...CONVERSATION, project_id: LOGGERS.project_id });
-      const { container } = renderHome(
+      const { container } = await renderHome(
         withOrchestrator(),
         fakeApi({ list, get }),
         FLOW,
@@ -966,11 +974,13 @@ describe("ConversationHome", () => {
       expect(
         screen.queryByRole("list", { name: "Conversation" }),
       ).not.toBeInTheDocument();
+      // The other project's workspace opens afresh once its reads have landed.
+      const other = await screen.findByRole("region", { name: "Conversations" });
       expect(
-        await within(history).findByRole("button", { name: /^River gauges / }),
+        await within(other).findByRole("button", { name: /^River gauges / }),
       ).toBeVisible();
       expect(
-        within(history).queryByRole("button", { name: /^Soil survey / }),
+        within(other).queryByRole("button", { name: /^Soil survey / }),
       ).toBeNull();
       expect(localStorage.getItem("dd-project")).toBe("p2");
     });
@@ -978,7 +988,7 @@ describe("ConversationHome", () => {
 
   describe("the workspace around the conversation", () => {
     it("lists the six phases of the journey in plain words, with no agents or requirements", async () => {
-      const { container } = renderHome(withOrchestrator(), fakeApi());
+      const { container } = await renderHome(withOrchestrator(), fakeApi());
       const phases = await screen.findByRole("navigation", {
         name: "Your data journey",
       });
@@ -1013,7 +1023,7 @@ describe("ConversationHome", () => {
     });
 
     it("shows the Data Management Plan steps and says they are out of scope for now", async () => {
-      renderHome(withOrchestrator(), fakeApi());
+      await renderHome(withOrchestrator(), fakeApi());
       const phases = await screen.findByRole("navigation", {
         name: "Your data journey",
       });
@@ -1040,8 +1050,8 @@ describe("ConversationHome", () => {
       ).toHaveTextContent("(out of scope for now)");
     });
 
-    it("draws what is not built of the project's state, linked to its issues", () => {
-      renderHome(withOrchestrator(), fakeApi());
+    it("draws what is not built of the project's state, linked to its issues", async () => {
+      await renderHome(withOrchestrator(), fakeApi());
       const state = screen.getByRole("region", { name: "Current state" });
       const repository = within(state).getByText("Repository")
         .nextElementSibling as HTMLElement;
@@ -1068,8 +1078,8 @@ describe("ConversationHome", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("says a first message starts a project, and lists no conversations yet", () => {
-      renderHome(withOrchestrator(), fakeApi());
+    it("says a first message starts a project, and lists no conversations yet", async () => {
+      await renderHome(withOrchestrator(), fakeApi());
       const panel = screen.getByRole("region", { name: "Project" });
       expect(
         within(panel).getByText(/Your first message starts a new project/),
@@ -1119,7 +1129,7 @@ describe("ConversationHome", () => {
           documents: [],
         }),
       );
-      renderHome(withOrchestrator(), fakeApi({ get, create }), FLOW, {
+      await renderHome(withOrchestrator(), fakeApi({ get, create }), FLOW, {
         ...httpProjectApi,
         inventory,
         documents,
@@ -1199,7 +1209,7 @@ describe("ConversationHome", () => {
       const documents = vi.fn<ProjectApi["documents"]>(() =>
         Promise.resolve(drafted),
       );
-      const { container } = renderHome(withOrchestrator(), fakeApi(), FLOW, {
+      const { container } = await renderHome(withOrchestrator(), fakeApi(), FLOW, {
         ...httpProjectApi,
         documents,
       });
@@ -1251,7 +1261,7 @@ describe("ConversationHome", () => {
     it("says in the side bar when the project's documents cannot be read", async () => {
       const documents = () =>
         Promise.reject(new Error("the server answered 500"));
-      renderHome(withOrchestrator(), fakeApi(), FLOW, {
+      await renderHome(withOrchestrator(), fakeApi(), FLOW, {
         ...httpProjectApi,
         documents,
       });
@@ -1275,7 +1285,7 @@ describe("ConversationHome", () => {
       const failing: FlowApi = {
         get: () => Promise.reject(new Error("the server answered 500")),
       };
-      renderHome(withOrchestrator(), fakeApi(), failing);
+      await renderHome(withOrchestrator(), fakeApi(), failing);
       const phases = screen.getByRole("navigation", {
         name: "Your data journey",
       });
@@ -1288,7 +1298,7 @@ describe("ConversationHome", () => {
     });
 
     it("keeps the phases when there is no conversation", async () => {
-      renderHome(normalise(raw), fakeApi());
+      await renderHome(normalise(raw), fakeApi());
       expect(
         screen.getByRole("heading", {
           level: 1,
@@ -1305,7 +1315,7 @@ describe("ConversationHome", () => {
 
     function renderWithRuns(conversation: Conversation) {
       const api = fakeApi({ get: () => Promise.resolve(conversation) });
-      return render(
+      return opened(render(
         <AnnouncerProvider>
           <FlowApiContext.Provider value={FLOW}>
             <RunApiContext.Provider value={runs}>
@@ -1317,12 +1327,12 @@ describe("ConversationHome", () => {
             </RunApiContext.Provider>
           </FlowApiContext.Provider>
         </AnnouncerProvider>,
-      );
+      ));
     }
 
     async function sendAndSelect(conversation: Conversation) {
       history.replaceState(null, "", "/");
-      const view = renderWithRuns(conversation);
+      const view = await renderWithRuns(conversation);
       await userEvent.type(
         screen.getByRole("textbox", { name: "What would you like to do?" }),
         "hi",
@@ -1363,7 +1373,7 @@ describe("ConversationHome", () => {
 
     it("opens a linked run that is not in the transcript, as after a reload", async () => {
       history.replaceState(null, "", `/?run=${run.envelope.invocation_id}`);
-      renderWithRuns(CONVERSATION);
+      await renderWithRuns(CONVERSATION);
       const linked = screen.getByRole("region", { name: /^Run / });
       expect(
         await within(linked).findByRole("heading", { name: /^Outcome:/ }),
@@ -1414,7 +1424,7 @@ describe("ConversationHome", () => {
 
     it("shows the harness's suggestion and each step's state, without computing either", async () => {
       localStorage.setItem("dd-project", LOGGERS.project_id);
-      const { container } = renderHome(
+      const { container } = await renderHome(
         withOrchestrator(),
         fakeApi(),
         FLOW,
@@ -1458,7 +1468,7 @@ describe("ConversationHome", () => {
       const chooseEntry = vi.fn(() =>
         Promise.resolve<ProjectProgress>({ ...AT_ENTRY_TWO, entry: 3 }),
       );
-      renderHome(
+      await renderHome(
         withOrchestrator(),
         fakeApi(),
         FLOW,
@@ -1495,7 +1505,7 @@ describe("ConversationHome", () => {
     it("suggests nothing for Phase 1 while no entry point is recorded", async () => {
       localStorage.setItem("dd-project", LOGGERS.project_id);
       const unknown: ProjectProgress = projectProgress();
-      renderHome(
+      await renderHome(
         withOrchestrator(),
         fakeApi(),
         FLOW,
@@ -1523,7 +1533,7 @@ describe("ConversationHome", () => {
     it("starts a new conversation from a step with its prompt in the box, unsent", async () => {
       localStorage.setItem("dd-project", LOGGERS.project_id);
       const sendTurn = vi.fn().mockResolvedValue(undefined);
-      const { container } = renderHome(
+      const { container } = await renderHome(
         withOrchestrator(),
         fakeApi({ sendTurn }),
         FLOW,
@@ -1565,7 +1575,7 @@ describe("ConversationHome", () => {
 
     it("asks before replacing a message being written", async () => {
       localStorage.setItem("dd-project", LOGGERS.project_id);
-      renderHome(withOrchestrator(), fakeApi(), FLOW, withProgress());
+      await renderHome(withOrchestrator(), fakeApi(), FLOW, withProgress());
       const phases = await screen.findByRole("navigation", {
         name: "Your data journey",
       });
@@ -1602,7 +1612,7 @@ describe("ConversationHome", () => {
     it("offers ways to start an empty conversation, led by the suggested step", async () => {
       localStorage.setItem("dd-project", LOGGERS.project_id);
       const sendTurn = vi.fn().mockResolvedValue(undefined);
-      renderHome(
+      await renderHome(
         withOrchestrator(),
         fakeApi({ sendTurn }),
         FLOW,
@@ -1630,7 +1640,7 @@ describe("ConversationHome", () => {
 
     it("offers no ways to start while nothing is suggested", async () => {
       localStorage.setItem("dd-project", LOGGERS.project_id);
-      renderHome(
+      await renderHome(
         withOrchestrator(),
         fakeApi(),
         FLOW,
@@ -1650,7 +1660,7 @@ describe("ConversationHome", () => {
     it("says when Data Director recorded the entry point from what the researcher said", async () => {
       localStorage.setItem("dd-project", LOGGERS.project_id);
       const read: ProjectProgress = { ...AT_ENTRY_TWO, entry_source: "model" };
-      renderHome(
+      await renderHome(
         withOrchestrator(),
         fakeApi(),
         FLOW,
@@ -1679,7 +1689,7 @@ describe("ConversationHome", () => {
       });
       const intake = vi.fn<ProjectApi["intake"]>(() => Promise.resolve(pending));
       const startConversation = vi.fn();
-      renderHome(
+      await renderHome(
         withOrchestrator(),
         fakeApi({ create: startConversation }),
         FLOW,
@@ -1710,7 +1720,7 @@ describe("ConversationHome", () => {
       const option = entry?.question.question_options?.[0];
       if (!entry || !option) throw new Error("the intake fixture asks nothing");
       const answerIntake = vi.fn<ProjectApi["answerIntake"]>(() => Promise.resolve(complete));
-      renderHome(
+      await renderHome(
         withOrchestrator(),
         fakeApi(),
         FLOW,
@@ -1745,7 +1755,7 @@ describe("ConversationHome", () => {
         Promise.resolve({ conversation_id: "c1", project_id: LOGGERS.project_id }),
       );
       const sendTurn = vi.fn<TurnSent>(() => Promise.resolve());
-      renderHome(
+      await renderHome(
         withOrchestrator(),
         fakeApi({ create, sendTurn }),
         FLOW,
@@ -1784,7 +1794,7 @@ describe("ConversationHome", () => {
     it("shows no card for a complete intake until the tracker asks the questions again", async () => {
       localStorage.setItem("dd-project", LOGGERS.project_id);
       const complete = intakeCompleteFixture as ProjectIntake;
-      renderHome(
+      await renderHome(
         withOrchestrator(),
         fakeApi(),
         FLOW,
@@ -1805,7 +1815,7 @@ describe("ConversationHome", () => {
     /** Sends "hi" with turns replayed from `events`, `paceMs` apart. */
     async function sendWith(events: readonly unknown[], paceMs = 0) {
       const api = { ...fakeApi(), turns: cassetteTransport(events, { paceMs }) };
-      const view = renderHome(withOrchestrator(), api);
+      const view = await renderHome(withOrchestrator(), api);
       await userEvent.type(screen.getByRole("textbox"), "hi");
       await userEvent.click(screen.getByRole("button", { name: "Send" }));
       return { ...view, api };

@@ -22,6 +22,11 @@
     box-shadow: var(--shadow-floating);
   }
 
+  /* As tall as the window allows from the start, so the footer stays put as the body grows. */
+  .dialog-modal-fill {
+    height: 100%;
+  }
+
   .dialog {
     display: flex;
     flex-direction: column;
@@ -46,6 +51,10 @@
   .dialog-body {
     overflow: auto;
     padding: var(--space-4);
+  }
+
+  .dialog-modal-fill .dialog-body {
+    flex: 1 1 auto;
   }
 
   .dialog-footer {

@@ -1,7 +1,8 @@
 /**
  * A dialog in which something is checked before it is attached: an inventory or a document. Its
  * footer offers **Cancel** and one button that attaches; closing it any other way discards what
- * it shows, so nothing is attached by accident.
+ * it shows, so nothing is attached by accident. It fills the window's height, so that the
+ * buttons stay where they are while what it shows is checked.
  */
 
 import type { LucideIcon } from "lucide-react";
@@ -35,6 +36,7 @@ export function ReviewDialog({
     <ModalDialog
       title={title}
       isOpen={isOpen}
+      fill
       onOpenChange={(open) => {
         if (!open) onDiscard();
       }}

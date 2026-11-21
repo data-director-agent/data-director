@@ -174,7 +174,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
   // eslint-disable-next-line complexity -- recorded debt: split it, do not add to it (docs/architecture-review.md)
   const content = () => {
     if (path === "/signed-out") return <SignedOutPage issuer={known?.issuer ?? null} />;
-    if (session.state === "loading") return <p role="status">Loading…</p>;
+    if (session.state === "loading") return <p role="status" className="page-loading">Loading…</p>;
     if (session.state === "failed") {
       return (
         <div role="alert" className="callout status-danger">
@@ -195,7 +195,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
     const sessionPage = SESSION_PAGES[path];
     if (sessionPage) return sessionPage(session.value, query ?? "");
     if (projectId) return projectPage(projectId, tab, query ?? "");
-    if (state.state === "loading") return <p role="status">Loading the agents…</p>;
+    if (state.state === "loading") return <p role="status" className="page-loading">Loading the agents…</p>;
     if (state.state === "failed") {
       return (
         <div role="alert" className="callout status-danger">

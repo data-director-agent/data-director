@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 
@@ -285,9 +285,9 @@ describe("DepositPanel", () => {
     expect(buildPackage).toHaveBeenCalledTimes(1);
 
     finish(BUILT);
-    expect(
-      await within(region()).findByRole("heading", { name: "The package is built" }),
-    ).toHaveFocus();
+    const built = await within(region()).findByRole("heading", { name: "The package is built" });
+    // The heading takes focus in an effect after it renders, so wait for it.
+    await waitFor(() => expect(built).toHaveFocus());
     expect(within(region()).queryByRole("button", { name: /Build/ })).not.toBeInTheDocument();
   });
 

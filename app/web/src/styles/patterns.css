@@ -45,6 +45,12 @@
   margin-bottom: 0;
 }
 
+/* A page reading what it shows: as tall as the window, so that the footer is already below it and
+   the page, arriving whole, moves nothing in view (#1328). */
+.page-loading {
+  min-block-size: 100vh;
+}
+
 /* Something not built yet, drawn as such rather than filled with a stand-in. */
 .not-built {
   color: var(--color-text);

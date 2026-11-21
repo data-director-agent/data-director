@@ -14,6 +14,8 @@ import { useResource } from "../../useResource";
 export interface ProjectProgressRead {
   /** The project's progress, once read. */
   progress: ProjectProgress | undefined;
+  /** Whether the first read of the project has landed or failed; it stays so across later reads. */
+  settled: boolean;
   /** Why the last change was not recorded, if it was not. */
   error: string | null;
   /** Holds the progress `change` returns for project `of`, or why it failed. */
@@ -27,7 +29,7 @@ export function useProjectProgress(
   turnCount: number,
 ): ProjectProgressRead {
   const projectApi = useProjectApi();
-  const { latest, set } = useResource(
+  const { resource, latest, set } = useResource(
     projectId,
     (of, signal) => projectApi.progress(of, signal),
     turnCount,
@@ -45,5 +47,5 @@ export function useProjectProgress(
     },
     [set],
   );
-  return { progress: latest, error, change, set };
+  return { progress: latest, settled: resource.state !== "loading", error, change, set };
 }

@@ -166,6 +166,14 @@
     gap: var(--space-1) var(--space-3);
   }
 
+  .app-account {
+    display: flex;
+  }
+
+  .app-account:empty {
+    display: none;
+  }
+
   .app-tool-link {
     display: inline-flex;
     align-items: center;
@@ -258,6 +266,16 @@
 
     .app-tools {
       justify-self: start;
+    }
+
+    /* Who is signed in has a row of its own, kept while it is read, so that the links beside it
+       do not move when it arrives (#1328). */
+    .app-account,
+    .app-account:empty {
+      display: flex;
+      flex-basis: 100%;
+      align-items: center;
+      min-block-size: var(--control-height-small);
     }
   }
 }

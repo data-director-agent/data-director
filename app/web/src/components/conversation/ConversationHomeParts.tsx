@@ -192,3 +192,25 @@ export function NoConversation({
     />
   );
 }
+
+/**
+ * Whether the workspace is drawn: once the flow, and the reads it makes on load, have landed or
+ * failed. A conversation under way is never hidden, as when a first message starts the project.
+ * `reads` are the earlier conversations' read and then the project's, which count only with a
+ * project.
+ */
+export function workspaceReady({
+  flow,
+  projectId,
+  reads: [past, ...project],
+  quiet,
+}: {
+  flow: FlowLoad;
+  projectId: string | null;
+  reads: [boolean, ...boolean[]];
+  quiet: boolean;
+}): boolean {
+  if (!quiet) return true;
+  const landed = flow.state !== "loading" && past;
+  return landed && (projectId === null || project.every(Boolean));
+}

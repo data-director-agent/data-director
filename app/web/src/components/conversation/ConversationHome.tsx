@@ -43,7 +43,9 @@
  * The page puts together hooks that each hold one part: the open conversation and its turns
  * (`useConversationTurns`), what a message carries (`useAttachments`), and the project's
  * documents, progress and intake (`useProjectDocuments`, `useProjectProgress`, `useIntake`), each
- * read with `useResource`.
+ * read with `useResource`. Until the first of those reads have landed, and the flow and the
+ * earlier conversations with them, the page shows one line in their place, so that what arrives
+ * late never moves a button the researcher is about to press.
  */
 
 import { useMemo, useRef, useState } from "react";
@@ -63,6 +65,7 @@ import { useAskAbout } from "./useAskAbout";
 import { Workspace } from "../workspace/Workspace";
 import { ProjectSwitcher } from "../project/ProjectSwitcher";
 import { useAnnounce } from "../ui/Announcer";
+import { PageLoading } from "../ui/PageLoading";
 import { Composer } from "./Composer";
 import { EarlierConversations } from "./EarlierConversations";
 import {
@@ -76,6 +79,7 @@ import {
   projectNamed,
   restoreDays,
   trackedProgress,
+  workspaceReady,
 } from "./ConversationHomeParts";
 import { whyUnusable } from "./orchestrator";
 import { StartFromStep } from "./StartFromStep";
@@ -155,14 +159,24 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   };
   const project = projectNamed(projects, projectId);
 
+  // Drawn whole once what it reads on load has landed (#1328).
+  const ready = workspaceReady({
+    flow,
+    projectId,
+    reads: [turns.pastSettled, progress.settled, intakeRead.settled, documents.state !== "loading"],
+    quiet,
+  });
+
   if (unusable || !orchestrator) {
     return (
-      <NoConversation
-        frame={frame}
-        why={unusable}
-        projectId={projectId}
-        project={project}
-      />
+      <PageLoading ready={ready} said="Opening the project…">
+        <NoConversation
+          frame={frame}
+          why={unusable}
+          projectId={projectId}
+          project={project}
+        />
+      </PageLoading>
     );
   }
 
@@ -220,102 +234,104 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   }
 
   return (
-    <Workspace
-      {...frame}
-      title="Talk to Data Director"
-      titleHidden
-      centre={
-        <section
-          aria-labelledby="conversation-heading"
-          className="conversation-main"
-        >
-          <h2 id="conversation-heading" className="visually-hidden">
-            Conversation
-          </h2>
-          <OpenIntake
-            projectId={projectId}
-            read={intakeRead}
-            flow={flow}
-            onStart={quiet ? startFromIntake : undefined}
-            onAnnounce={announce}
-          />
-          {(turnCount > 0 || sent !== null) && (
-            <Transcript
-              conversation={conversation}
-              agents={directory.agents}
-              onToggleRun={toggleRun}
-              selectedRun={runId}
-              documents={
-                documents.state === "loaded" ? documents.documents : null
-              }
-              pending={sent && { agentId: orchestrator.id, ...sent, live: turns.live }}
-              onAnswer={(answers, message) =>
-                void answerQuestions(answers, message)
-              }
-              chosenRepository={chosenRepository(project)}
-              project={project}
-              onRetry={(message) =>
-                void turns.deliver(message, { inventory: null, document: null }, null)
-              }
-              onDocumentWrite={(message) =>
-                void turns.deliver(message, { inventory: null, document: null }, null)
-              }
-              {...projectHandlers(projectId, answered, reloadProjects)}
+    <PageLoading ready={ready} said="Opening the project…">
+      <Workspace
+        {...frame}
+        title="Talk to Data Director"
+        titleHidden
+        centre={
+          <section
+            aria-labelledby="conversation-heading"
+            className="conversation-main"
+          >
+            <h2 id="conversation-heading" className="visually-hidden">
+              Conversation
+            </h2>
+            <OpenIntake
+              projectId={projectId}
+              read={intakeRead}
+              flow={flow}
+              onStart={quiet ? startFromIntake : undefined}
+              onAnnounce={announce}
             />
-          )}
-          <StartFromStep
-            offered={offeredPrompts(
-              flow,
-              tracked,
-              quiet && !writing && !intake?.open,
+            {(turnCount > 0 || sent !== null) && (
+              <Transcript
+                conversation={conversation}
+                agents={directory.agents}
+                onToggleRun={toggleRun}
+                selectedRun={runId}
+                documents={
+                  documents.state === "loaded" ? documents.documents : null
+                }
+                pending={sent && { agentId: orchestrator.id, ...sent, live: turns.live }}
+                onAnswer={(answers, message) =>
+                  void answerQuestions(answers, message)
+                }
+                chosenRepository={chosenRepository(project)}
+                project={project}
+                onRetry={(message) =>
+                  void turns.deliver(message, { inventory: null, document: null }, null)
+                }
+                onDocumentWrite={(message) =>
+                  void turns.deliver(message, { inventory: null, document: null }, null)
+                }
+                {...projectHandlers(projectId, answered, reloadProjects)}
+              />
             )}
-            replacing={replacing}
-            onChoose={beginWith}
-            onCancel={() => setReplacing(null)}
+            <StartFromStep
+              offered={offeredPrompts(
+                flow,
+                tracked,
+                quiet && !writing && !intake?.open,
+              )}
+              replacing={replacing}
+              onChoose={beginWith}
+              onCancel={() => setReplacing(null)}
+            />
+            {runId && !holdsRun(conversation, runId) && (
+              <LinkedRun runId={runId} agents={directory.agents} />
+            )}
+            <Composer
+              box={box}
+              text={text}
+              onText={setText}
+              attachments={attachments}
+              busy={busy}
+              onSend={() => void send()}
+              readers={readers}
+            />
+            {turns.error && (
+              <div role="alert" className="callout status-danger">
+                <p>{turns.error}</p>
+              </div>
+            )}
+          </section>
+        }
+        history={
+          <EarlierConversations
+            conversations={turns.past.filter(
+              (c) => (c.project_id ?? null) === projectId,
+            )}
+            currentId={turns.conversationId}
+            onOpen={(id) => void turns.reopen(id)}
+            onNew={turns.reset}
+            onDeleted={(id) => {
+              turns.deleted(id);
+              void reloadProjects();
+            }}
+            restoreDays={restoreDays(project)}
           />
-          {runId && !holdsRun(conversation, runId) && (
-            <LinkedRun runId={runId} agents={directory.agents} />
-          )}
-          <Composer
-            box={box}
-            text={text}
-            onText={setText}
-            attachments={attachments}
-            busy={busy}
-            onSend={() => void send()}
-            readers={readers}
+        }
+        context={
+          <ContextPanel
+            projectId={projectId}
+            project={project}
+            conversation={conversation}
+            documents={documents}
+            onInventorySaved={() => void reloadProjects()}
           />
-          {turns.error && (
-            <div role="alert" className="callout status-danger">
-              <p>{turns.error}</p>
-            </div>
-          )}
-        </section>
-      }
-      history={
-        <EarlierConversations
-          conversations={turns.past.filter(
-            (c) => (c.project_id ?? null) === projectId,
-          )}
-          currentId={turns.conversationId}
-          onOpen={(id) => void turns.reopen(id)}
-          onNew={turns.reset}
-          onDeleted={(id) => {
-            turns.deleted(id);
-            void reloadProjects();
-          }}
-          restoreDays={restoreDays(project)}
-        />
-      }
-      context={
-        <ContextPanel
-          projectId={projectId}
-          project={project}
-          conversation={conversation}
-          documents={documents}
-          onInventorySaved={() => void reloadProjects()}
-        />
-      }
-    />
+        }
+      />
+    </PageLoading>
   );
 }
