@@ -16,7 +16,8 @@ import {
   type Validation,
 } from "../../project/api";
 import type { Problem } from "../../run/types";
-import { DEPOSIT_GUIDE, DepositPanel, outcome, sizeInWords } from "./DepositPanel";
+import { DepositPanel, outcome, sizeInWords } from "./DepositPanel";
+import { DEPOSIT_GUIDE } from "./PackageBuilt";
 
 // What the server says (app/tests/test_deposit_package.py): a project with Zenodo chosen and no metadata
 // record approved, refused with one violation and a warning; and, once one is approved, the
@@ -128,7 +129,9 @@ describe("DepositPanel", () => {
     await user.click(within(region()).getByRole("button", { name: "Check the project" }));
     await user.click(await within(region()).findByRole("button", { name: "Build the package" }));
 
-    expect(await within(region()).findByText(/not yet valid for deposit/)).toBeVisible();
+    const refused = await within(region()).findByText(/not yet valid for deposit/);
+    expect(refused).toBeVisible();
+    expect(refused.closest(".callout")).toHaveFocus();
     expect(within(region()).getByRole("status")).toHaveTextContent(/^No package was built/);
     for (const result of INVALID.violations) {
       expect(within(region()).getByText(result.message)).toBeVisible();
@@ -184,7 +187,7 @@ describe("DepositPanel", () => {
       "href",
       DEPOSIT_GUIDE,
     );
-    expect(document.body).toHaveFocus();
+    expect(within(region()).getByRole("heading", { name: "The package is built" })).toHaveFocus();
     expect(await axe(container)).toHaveNoViolations();
   });
 
@@ -261,6 +264,49 @@ describe("DepositPanel", () => {
       PROJECT_ID,
       REVIEW.statements.map((s) => s.id),
     );
+  });
+
+  it("says a build is running, and starts only one however often the button is pressed", async () => {
+    let finish: (built: BuiltPackage) => void = () => undefined;
+    const buildPackage = vi.fn(
+      () => new Promise<BuiltPackage>((resolve) => (finish = resolve)),
+    );
+    const user = userEvent.setup();
+    renderPanel({ validate: () => Promise.resolve(VALID), buildPackage });
+    await user.click(within(region()).getByRole("button", { name: "Check the project" }));
+    const build = await within(region()).findByRole("button", { name: "Build the package" });
+    await user.click(build);
+
+    const running = within(region()).getByRole("button", { name: /Build/ });
+    expect(running).toHaveAttribute("aria-disabled", "true");
+    expect(within(region()).getByRole("button", { name: "Check the project" })).toBeDisabled();
+    expect(within(region()).getByRole("status")).not.toBeEmptyDOMElement();
+    await user.click(running);
+    expect(buildPackage).toHaveBeenCalledTimes(1);
+
+    finish(BUILT);
+    expect(
+      await within(region()).findByRole("heading", { name: "The package is built" }),
+    ).toHaveFocus();
+    expect(within(region()).queryByRole("button", { name: /Build/ })).not.toBeInTheDocument();
+  });
+
+  it("says when the package cannot be built, in an alert that takes focus", async () => {
+    const user = userEvent.setup();
+    const { container } = renderPanel({
+      validate: () => Promise.resolve(VALID),
+      buildPackage: () => Promise.reject(new Error("the server answered 500")),
+    });
+    await user.click(within(region()).getByRole("button", { name: "Check the project" }));
+    await user.click(await within(region()).findByRole("button", { name: "Build the package" }));
+
+    const alert = await within(region()).findByRole("alert");
+    expect(alert).toHaveTextContent("the server answered 500");
+    expect(alert).toHaveFocus();
+    expect(within(region()).queryByRole("link", { name: /Download/ })).not.toBeInTheDocument();
+    // The check still stands, so the build can be tried again.
+    expect(within(region()).getByRole("button", { name: "Build the package" })).toBeEnabled();
+    expect(await axe(container)).toHaveNoViolations();
   });
 
   it("says when the project cannot be checked", async () => {

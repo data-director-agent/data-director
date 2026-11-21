@@ -5,8 +5,10 @@
  * The harness validates and builds; the panel asks it to and draws what it found. Each problem
  * that stops the package and each warning is the harness's message, as it wrote it. The package
  * can be built only after a check the project passed, and is downloaded by its digest from the
- * project log. What a check or a build did is said once, in a live region that is in the panel
- * from the start, so that a screen reader announces it; focus stays on the button pressed.
+ * project log. That a build is running, and what a check or a build did, is said once, in a live
+ * region that is in the panel from the start, so that a screen reader announces it. A check leaves
+ * focus on the button pressed. A build removes that button, so focus moves to what it left: the
+ * built package, or the callout that says why there is none, which scrolls it into view (#1315).
  *
  * A decision changes the project (`revision`), so a check made before it no longer stands: the
  * panel says so and offers no build until the project is checked again.
@@ -22,8 +24,8 @@
  * not yet confirmed come from the chosen repository's requirements, never from this file.
  */
 
-import { Download, ListChecks, Package } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ListChecks, Package } from "lucide-react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 
 import {
   type BuiltPackage,
@@ -36,15 +38,9 @@ import {
 import { Button } from "../ui/Button";
 import { formatNumber } from "../../format";
 import { BeforePackaging } from "./BeforePackaging";
-import { DepositToRepository } from "./DepositToRepository";
-import { Unconfirmed } from "./Unconfirmed";
+import { PackageBuilt } from "./PackageBuilt";
 
 const HEADING_ID = "deposit-heading";
-const NEXT_ID = "deposit-next";
-
-/** The user guide's page on depositing by hand. */
-export const DEPOSIT_GUIDE =
-  "https://data-director-agent.github.io/data-director/user-guide/depositing/";
 
 type Result =
   | { state: "checked"; validation: Validation }
@@ -117,90 +113,22 @@ function Results({
   );
 }
 
-function FieldLabels({
-  choice,
-  obligation,
+/** A callout that takes focus when it appears, and so scrolls into view. */
+function FocusedCallout({
+  role,
+  className,
+  children,
 }: {
-  choice: RepositoryRequirements;
-  obligation: string;
+  role?: "alert";
+  className: string;
+  children: ReactNode;
 }) {
-  const labels = choice.fields
-    .filter((f) => f.obligation === obligation && f.form_label)
-    .map((f) => f.form_label as string);
-  const unique = [...new Set(labels)];
-  if (unique.length === 0) return null;
+  const callout = useRef<HTMLDivElement>(null);
+  useEffect(() => callout.current?.focus(), []);
   return (
-    <ul
-      aria-label={obligation === "required" ? "Fields the form requires" : "Fields worth filling"}
-    >
-      {unique.map((label) => (
-        <li key={label}>{label}</li>
-      ))}
-    </ul>
-  );
-}
-
-/** What to do with a built package, for the chosen repository where it is known. */
-export function NextSteps({ choice }: { choice: RepositoryRequirements | null }) {
-  const name = choice?.repository_name ?? "the repository you chose";
-  const where = choice
-    ? (choice.repository_url ??
-      `https://www.re3data.org/repository/${encodeURIComponent(choice.re3data_id)}`)
-    : null;
-  const labelled = choice?.fields.some((f) => f.form_label) ?? false;
-  const unlabelled = [
-    ...new Set(choice?.fields.filter((f) => !f.form_label).map((f) => f.property) ?? []),
-  ];
-  const unconfirmed = choice?.unconfirmed ?? [];
-  return (
-    <section className="deposit-next" aria-labelledby={NEXT_ID}>
-      <h3 id={NEXT_ID}>What to do next</h3>
-      <p>
-        Data Director does not deposit, register a DOI or release an embargo. You do, in {name}:
-      </p>
-      <ol>
-        <li>Create a new item in {where ? <a href={where}>{name}</a> : name}.</li>
-        <li>
-          Enter the metadata from the approved metadata record, copying each value into the
-          repository&apos;s form.
-          {labelled && choice && (
-            <>
-              {" "}
-              The form&apos;s fields that the record fills are:
-              <FieldLabels choice={choice} obligation="required" />
-              and, if the record has them:
-              <FieldLabels choice={choice} obligation="recommended" />
-              {unlabelled.length > 0 && (
-                <p className="hint">
-                  The repository&apos;s profile names no form field for{" "}
-                  {unlabelled.map((property, i) => (
-                    <span key={property}>
-                      {i > 0 && ", "}
-                      <code>{property}</code>
-                    </span>
-                  ))}
-                  ; put these where the form allows, or leave them in the record.
-                </p>
-              )}
-            </>
-          )}
-        </li>
-        <li>
-          Attach your data files. The package lists each one with its SHA-256 digest, so you can
-          show the files you upload are the files described.
-        </li>
-        <li>
-          Keep the package with the project. It is the audit and metadata bundle: the approved
-          documents, the record of who decided what, and how generative AI was used. The repository
-          does not read it, though you may attach it to the item.
-        </li>
-        <li>Review the item and publish it from the repository.</li>
-      </ol>
-      <Unconfirmed items={unconfirmed} name={name} />
-      <p>
-        <a href={DEPOSIT_GUIDE}>Depositing your data, step by step, in the user guide</a>
-      </p>
-    </section>
+    <div role={role} className={`callout ${className}`} ref={callout} tabIndex={-1}>
+      {children}
+    </div>
   );
 }
 
@@ -239,6 +167,7 @@ export function DepositPanel({ projectId, revision }: { projectId: string; revis
         setResult({ state: "checked", validation: found, revision });
         setSaid(outcome(found));
       } else {
+        setSaid("Building the package…");
         const built = await api.buildPackage(projectId);
         setResult({ state: "built", built, revision });
         setSaid(
@@ -288,9 +217,9 @@ export function DepositPanel({ projectId, revision }: { projectId: string; revis
         {said && shown && <p>{said}</p>}
       </div>
       {failed && (
-        <div role="alert" className="callout status-danger">
+        <FocusedCallout role="alert" className="status-danger">
           <p>Data Director could not check or package the project: {failed}</p>
-        </div>
+        </FocusedCallout>
       )}
       {stale && (
         <div className="callout status-warn">
@@ -298,9 +227,9 @@ export function DepositPanel({ projectId, revision }: { projectId: string; revis
         </div>
       )}
       {shown?.state === "refused" && (
-        <div className="callout status-danger">
+        <FocusedCallout className="status-danger">
           <p>No package was built: the project is not yet valid for deposit.</p>
-        </div>
+        </FocusedCallout>
       )}
       {validation && (
         <>
@@ -333,27 +262,13 @@ export function DepositPanel({ projectId, revision }: { projectId: string; revis
         </p>
       )}
       {shown?.state === "built" && (
-        <>
-          <p className="document-actions">
-            <a
-              className="button button-primary"
-              href={shown.built.package.href}
-              download={`deposit-package-${shown.built.package.digest.slice(0, 12)}.zip`}
-            >
-              <Download className="button-icon" size="1.125em" aria-hidden="true" />
-              Download the package (zip, {sizeInWords(shown.built.package.size)})
-            </a>
-          </p>
-          <p className="hint">
-            SHA-256 <code className="deposit-digest">{shown.built.package.digest}</code>
-          </p>
-          <DepositToRepository
-            projectId={projectId}
-            digest={shown.built.package.digest}
-            revision={revision}
-          />
-          <NextSteps choice={choice} />
-        </>
+        <PackageBuilt
+          projectId={projectId}
+          built={shown.built}
+          size={sizeInWords(shown.built.package.size)}
+          revision={revision}
+          choice={choice}
+        />
       )}
     </section>
   );

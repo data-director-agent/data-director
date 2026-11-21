@@ -631,9 +631,10 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   requirements ([Deposit](deposit.md)) when the person asks, and lists what must be fixed and
   what is worth fixing, each in the harness's words. It offers to build the package only after
   a check the project passed, and then a link to download the zip by its digest. A decision made
-  since the check withdraws that offer until the project is checked again. What a check or a
-  build did is said once in a live region that is in the panel from the start; focus stays on
-  the button pressed.
+  since the check withdraws that offer until the project is checked again. That a build is
+  running, and what a check or a build did, is said once in a live region that is in the panel
+  from the start. A check leaves focus on the button pressed; a build removes it, so focus moves
+  to the built package, or to the callout that says why there is none, which brings it into view.
 - **A project is named on its page.** The page's heading is the project's title, else its first
   conversation's, else when it was started. **Rename project** opens a dialog with the name to
   edit; saving sends it (`PUT /api/projects/{id}/title`), the server records it for the person
