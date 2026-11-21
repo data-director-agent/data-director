@@ -9,6 +9,9 @@
   }
 
   .tab {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
     padding: var(--space-2) var(--control-padding-inline);
     font-weight: var(--font-weight-strong);
     color: var(--color-text-muted);
@@ -18,6 +21,10 @@
     transition-property: color, border-color, background-color;
     transition-duration: var(--duration-fast);
     transition-timing-function: var(--easing);
+  }
+
+  .tab-icon {
+    flex: none;
   }
 
   .tab[data-hovered] {
