@@ -17,10 +17,36 @@ ORDA = "r3d100012124"
 ELSEWHERE = "r3d100000001"
 EXPORT = "re3data:export:2026-11"
 
+DURHAM = "bl.durham"
+DATACITE_SNAPSHOT = "datacite:repositories:2026-11-21"
+
 # Records as the export's registry.jsonl holds them, cut down to the fields a choice reads.
 RECORDS = (
-    {"re3data_id": ORDA, "name": "ORDA", "metadata_standards": ["Dublin Core"]},
+    {
+        "re3data_id": ORDA,
+        "name": "ORDA",
+        "metadata_standards": ["Dublin Core"],
+        "url": "https://orda.shef.ac.uk/",
+    },
     {"re3data_id": ELSEWHERE, "name": "Elsewhere", "metadata_standards": []},
+)
+# Repositories as DataCite's snapshot holds them (agents/advisor-repository/data/datacite): one
+# re3data does not list, and one at ORDA's address, which re3data describes.
+DATACITE_RECORDS = (
+    {
+        "datacite_id": DURHAM,
+        "name": "Durham University Repositories",
+        "alternate_name": None,
+        "url": "https://researchdata.durham.ac.uk/",
+        "dataset_count": "611",
+    },
+    {
+        "datacite_id": "bl.shef",
+        "name": "ORDA on DataCite",
+        "alternate_name": None,
+        "url": "http://www.orda.shef.ac.uk",
+        "dataset_count": "2092",
+    },
 )
 
 
@@ -91,20 +117,36 @@ def write(root: Path, *sets: tuple[str, dict[str, Any]]) -> Path:
     return root
 
 
-def registry(root: Path, records: tuple[dict[str, Any], ...] = RECORDS, ref: str = EXPORT) -> Path:
-    """Write `records` as a re3data export and a `sources.yaml` pinning it under `ref`; returns
-    the `sources.yaml`."""
-    root.mkdir(parents=True, exist_ok=True)
+def _pinned(
+    root: Path, name: str, records: tuple[dict[str, Any], ...], **entry: Any
+) -> dict[str, Any]:
     data = "".join(json.dumps(r, sort_keys=True) + "\n" for r in records).encode()
-    (root / "registry.jsonl").write_bytes(data)
+    (root / name).write_bytes(data)
+    return {**entry, "path": name, "sha256": hashlib.sha256(data).hexdigest()}
+
+
+def registry(
+    root: Path,
+    records: tuple[dict[str, Any], ...] = RECORDS,
+    ref: str = EXPORT,
+    datacite: tuple[dict[str, Any], ...] = (),
+) -> Path:
+    """Write `records` as a re3data export, and `datacite` as a DataCite snapshot, and a
+    `sources.yaml` pinning them, the export under `ref`; returns the `sources.yaml`."""
+    root.mkdir(parents=True, exist_ok=True)
+    entries = [_pinned(root, "registry.jsonl", records, snapshot_refs=[ref], id_field="re3data_id")]
+    if datacite:
+        entries.append(
+            _pinned(
+                root,
+                "repositories.jsonl",
+                datacite,
+                snapshot_refs=[DATACITE_SNAPSHOT],
+                id_field="datacite_id",
+            )
+        )
     config = root / "sources.yaml"
-    entry = {
-        "snapshot_refs": [ref],
-        "path": "registry.jsonl",
-        "id_field": "re3data_id",
-        "sha256": hashlib.sha256(data).hexdigest(),
-    }
-    config.write_text(yaml.safe_dump({"sources": [entry]}), "utf-8")
+    config.write_text(yaml.safe_dump({"sources": entries}), "utf-8")
     return config
 
 

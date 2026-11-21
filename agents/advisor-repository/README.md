@@ -7,7 +7,7 @@ The repository advisor helps with Phase 3 of the Blueprint's process flow, repos
 
 | Step | What the agent does |
 |---|---|
-| `repository.recommend` (R1) | Shortlists repositories from the whole of re3data, or describes the ones mandated, and describes any the researcher asks about. |
+| `repository.recommend` (R1) | Shortlists repositories from the whole of re3data, with the researcher's own institution's repository from DataCite where re3data does not list it, or describes the ones mandated, and describes any the researcher asks about. |
 | `repository.pid` (R7) | Reports whether re3data lists a persistent identifier system the repository uses. |
 | `repository.access-and-costs` | Compares the access the data needs with what the repository offers, and reports listed fees. |
 | `repository.certification` | Reports the certificates re3data lists. They carry no weight in ranking. |
@@ -44,8 +44,11 @@ not list, such as "ReShare" for the UK Data Service's self-deposit repository, i
 short, sourced list in `aliases.yaml`, and the statement says so.
 
 `RepositoryOptions` holds one candidate per repository. A candidate names its records only in
-`grounded_on`: its re3data record, cited by the record's own DOI, and the FAIRsharing database
-record that re3data cross-references, when there is one. What the reader is shown about the repository is the
+`grounded_on`: first its registry record, re3data's, cited by the record's own DOI, or, for a
+repository re3data does not list, DataCite's, cited by its address in DataCite's API; then the
+FAIRsharing database record that re3data cross-references, when there is one; and what the
+deployment's profile vouches for, when it names the repository (*The deployment's own
+repositories* below). What the reader is shown about the repository is the
 evidence `content` of those records ([Evidence and grounding](../../docs/specs/grounding.md)). The candidate adds:
 
 - three answers read from the records, each `yes`, `no` or `unstated`: `assigns_pids`,
@@ -58,9 +61,11 @@ evidence `content` of those records ([Evidence and grounding](../../docs/specs/g
   sentence per ranking signal, such as `Matches the theme "hydrology" (1 of 2 given).` Empty
   for a mandated one, and for one asked about that the shortlist did not rank.
 
-Mandated names, and names in the plan or asked about, with no single re3data record are listed in
-`not_found`. Those re3data lists under no name, such as many an institution's own repository or a
-local archive, are also in `unlisted`, each with its basis, so that the researcher still sees them
+Mandated names, and names in the plan or asked about, with no single record in re3data or, after
+it, DataCite are listed in `not_found`. A name re3data does not list but DataCite does, such as
+many an institution's own repository, is described like any other, and can be chosen (#1342).
+Those neither lists under any name, such as a local archive that mints no DataCite DOIs, are
+also in `unlisted`, each with its basis, so that the researcher still sees them
 as "In your plan" or "You asked about this" (#1334). Nothing is said about their terms, fees or
 identifiers, since there is no record to read them from, and the statement says to check with the
 repository. A succeeded payload must rest on a record retrieved, so a run with nothing but such
@@ -105,6 +110,14 @@ repository or makes a judgement:
   Search folds English plurals to singulars (`-ies` to `-y`, a final `s` dropped except after
   `s`, `u` or `i`) in queries and records alike, so the theme "environmental science" finds a
   record that says only "sciences".
+- **The researcher's institution's repositories that re3data does not list** are retrieved from
+  DataCite (*Sources* below): those whose DataCite member is the researcher's institution, by ROR
+  where both have one, else by exact name, and those the deployment's profile names as its
+  institution's. They are ranked as re3data's are: a DataCite record gives its member as the
+  operator, `DOI` as its PID system, its repository types, and how many datasets it has
+  registered; it states no access, licences or fees, so those are `unstated` unless the profile
+  vouches for them. One typed only `institutional` takes deposits from its members, so it is
+  offered only to them.
 - **The researcher's institution** is a fallback, in case no more specific destination (a
   repository of the discipline, or one a funder, journal or project requires) suits the data
   (#441). Affiliation adds no score. The shortlist is ordered by kind of fit (`order`): the
@@ -129,7 +142,8 @@ repository or makes a judgement:
   score each say in `ranked_by` that they are ranked equal, and by which rule. Certification
   carries no weight, because Figure 3 says paid certification must not outweigh free
   evaluation.
-- **Credit.** Every statement ends by crediting re3data and naming the export it read.
+- **Credit.** Every statement ends by crediting re3data, naming the export it read, and DataCite,
+  naming the day its snapshot was fetched.
 - **Explanation.** By default a model writes the rationale; `DD_REPOSITORY_EXPLAINER=template`
   writes it from a template and needs no key. The model writes the rationale only, from
   `system_prompt.md`, and is sent registry text and the needs, never research data.
@@ -176,6 +190,33 @@ request; CI fails while either `sources.yaml` disagrees with the manifest
 (`scripts/pin_re3data.py --check`). How we credit re3data and keep our load on it low is in
 [`data/re3data/SOURCE.md`](data/re3data/SOURCE.md).
 
+**DataCite.** `data/datacite/repositories.jsonl` holds the repositories DataCite registers that
+re3data does not list: active ones, of client type repository, that link to no re3data record and
+have registered at least one Dataset DOI, which tells a data repository from a press or a theses
+service. DataCite's metadata are CC0. The snapshot is committed and pinned in
+`data/datacite/manifest.json`, as the FAIRsharing snapshot is, since DataCite publishes no
+archive that could be fetched again to the same bytes; `uv run dd-datacite fetch` fetches it anew,
+and `uv run dd-datacite check` checks it against its pin. Both `sources.yaml` files pin it under
+`datacite:repositories:YYYY-MM-DD`, so the source check verifies every DataCite record the agent
+cites. A DataCite record whose address is a re3data record's is that repository, which re3data
+describes with more facts, and is left out even where DataCite does not link the two. The dataset
+count is kept as a string of digits: A2A carries an integer in evidence as a float, whose hash
+would then fail (TODO(#333)). How we credit DataCite is in
+[`data/datacite/SOURCE.md`](data/datacite/SOURCE.md).
+
+**The deployment's own repositories.** A deployment names its institution's repositories in its
+profile (`institution_repositories`,
+[Configuration](../../docs/guide/operations/configuration.md)), each by its re3data or DataCite
+identifier, with what it vouches for that no registry holds: which institution's it is, its
+access, licences and whether it charges a fee. The conductor gives them to the agent in
+`RepositoryNeeds.institution_repositories` (`GivenInstitutionRepositories`), and whatever a caller
+sent there is replaced. Such a repository is the institution's for a researcher of that
+institution, whoever registered it, and what the profile vouches for stands over the registry's
+silence (`institution.py`): the deployment knows its own repository better than a registry, as a
+steward's requirement override does ([Deposit](../../docs/specs/deposit.md), invariant 5). It is
+cited as a second evidence item, `institution:<identifier>`, under the profile's reference, which
+the harness's source check resolves against the profile it loaded.
+
 **FAIRsharing.** `data/fairsharing/` holds a committed snapshot of the database records that
 re3data cross-references for the repositories the agent was first tested on. It is pinned in
 both `sources.yaml` files. Rebuild it with
@@ -199,10 +240,14 @@ from the export (`tests/data/SOURCE.md`), so they need no network.
   certificate is reported as if current. TODO(#485). Free quality evaluations are not consulted.
   TODO(#323)
 - re3data lists the PID systems a repository uses, but not whether assignment is automatic.
-- Only institutions that re3data lists are matched to the researcher's affiliation. There is no
-  preference for the deployment's approved repositories (TODO(#320)), and none for the
-  researcher's country, so a search for "social science" offers national archives from anywhere
-  (TODO(#486)).
+- Only institutions that re3data or DataCite lists, or the profile names, are matched to the
+  researcher's affiliation, which the caller gives: it is not read from the researcher's identity
+  or ORCID record. A repository that mints no DataCite DOIs and that re3data does not list cannot
+  be offered or chosen; OpenDOAR would cover many such, once its licence is confirmed to allow a
+  pinned copy. DataCite writes its members' countries in two letters, re3data in three, so a
+  DataCite repository adds nothing to the country rule. There is no preference for a deployment's
+  approved repositories beyond its own institution's (TODO(#320)), and none for the researcher's
+  country, so a search for "social science" offers national archives from anywhere (TODO(#486)).
 - re3data's subjects follow the DFG classification, and its content types the COAR resource
   types (`dataset`, `image`), so a kind of data matches only the words re3data uses.
 - The metadata standards each repository lists are in the evidence, but the chosen repository

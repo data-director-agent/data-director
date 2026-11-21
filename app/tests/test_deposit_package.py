@@ -96,7 +96,7 @@ def chosen(client: TestClient, store: ProjectStorage) -> str:
     store.add_inventory(
         project_id, file_inventory("data/cores.csv"), acted_for=TEST_PRINCIPAL, caused_by="test"
     )
-    chose = client.put(f"/api/projects/{project_id}/repository", json={"re3data_id": ZENODO})
+    chose = client.put(f"/api/projects/{project_id}/repository", json={"repository_id": ZENODO})
     assert chose.status_code == 201
     return project_id
 

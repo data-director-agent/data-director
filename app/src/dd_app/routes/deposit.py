@@ -62,9 +62,12 @@ CONFIRMATION_REFUSED = "Data Director could not record this confirmation"
 
 
 class RepositoryMatch(ResponseBody):
-    """What a search of the pinned re3data export shows of one repository."""
+    """What a search of the pinned registries shows of one repository."""
 
-    re3data_id: str
+    repository_id: str
+    """Its re3data identifier, or, for one re3data does not list, its DataCite one."""
+    registry: Literal["re3data", "datacite"]
+    re3data_id: str | None
     name: str
     additional_names: list[str]
     url: str | None
@@ -72,8 +75,9 @@ class RepositoryMatch(ResponseBody):
 
 
 class RepositorySearch(ResponseBody):
-    """Repositories a researcher may choose: those the pinned re3data export holds that `query`
-    names, or, when `suggested`, those the deployment offers before a search."""
+    """Repositories a researcher may choose: those the pinned re3data export, and DataCite
+    snapshot, hold that `query` names, or, when `suggested`, those the deployment offers before a
+    search: its institution's repositories first."""
 
     snapshot_ref: str
     """The re3data export searched."""
@@ -264,11 +268,14 @@ class ConfirmChecks(RequestBody):
 
 
 class ChooseRepository(RequestBody):
-    """The repository, by its re3data identifier alone."""
+    """The repository, by its identifier alone: re3data's, or DataCite's for one re3data does
+    not list."""
 
-    refusal: ClassVar[str] = "`re3data_id` is the repository's re3data identifier."
+    refusal: ClassVar[str] = (
+        "`repository_id` is the repository's re3data identifier, or its DataCite one."
+    )
 
-    re3data_id: str
+    repository_id: str
 
 
 def routes(deps: Deps) -> list[Route]:
@@ -318,7 +325,10 @@ async def choose_repository(request: Request, person: Principal, deps: Deps) -> 
     try:
         chosen = await run_in_threadpool(
             lambda: deps.projects.deposit.choose_repository(
-                project_id, body.re3data_id, acted_for=person, caused_by=f"PUT {request.url.path}"
+                project_id,
+                body.repository_id,
+                acted_for=person,
+                caused_by=f"PUT {request.url.path}",
             )
         )
     except (

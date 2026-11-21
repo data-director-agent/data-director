@@ -33,6 +33,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
+from dd_sdk.contract.base import REPOSITORY_ID_PATTERN
 from dd_sdk.model_grant import (
     CLAIM_AUDIENCE,
     CLAIM_EXPIRES,
@@ -118,7 +119,8 @@ HEADER_GRANT = "X-DD-Deposit-Grant"
 HEADER_REASON = "X-DD-Reason"
 
 _DIGEST = re.compile(r"^[0-9a-f]{64}$")
-_RE3DATA_ID = re.compile(r"^r3d[0-9]{9}$")
+# The repository, by its re3data or DataCite identifier (dd_sdk.contract.base).
+_REPOSITORY_ID = re.compile(REPOSITORY_ID_PATTERN)
 _NAME = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
 
@@ -212,7 +214,7 @@ class DepositGrantClaims:
             audience=_text(claims, CLAIM_AUDIENCE, "grant"),
             grant_id=_text(claims, CLAIM_TICKET_ID, "grant"),
             subject=_text(claims, CLAIM_SUBJECT, "grant"),
-            repository=_matching(claims, CLAIM_REPOSITORY, _RE3DATA_ID),
+            repository=_matching(claims, CLAIM_REPOSITORY, _REPOSITORY_ID),
             transport=_matching(claims, CLAIM_TRANSPORT, _NAME),
             base_url=base_url,
             target=target,

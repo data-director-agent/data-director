@@ -26,7 +26,11 @@ from dd_sdk.contract.models import (
 
 pytestmark = pytest.mark.requirement("DD-CONVERSATION")
 
-ZENODO = ChosenRepository(chosen_repository_name="Zenodo", chosen_re3data_id="r3d100010468")
+ZENODO = ChosenRepository(
+    chosen_repository_name="Zenodo",
+    chosen_repository_id="r3d100010468",
+    chosen_re3data_id="r3d100010468",
+)
 LICENCE = {"fact_kind": "licence", "fact_subject": "licence", "licence_id": "CC-BY-4.0"}
 WHY = "The funder's policy asks for an open licence."
 FACTS = [
@@ -83,7 +87,7 @@ def test_the_chosen_repository_and_each_decision_open_the_message() -> None:
     assert text.endswith(message.message_text)
     for value in (
         ZENODO.chosen_repository_name,
-        ZENODO.chosen_re3data_id,
+        ZENODO.chosen_repository_id,
         LICENCE["licence_id"],
         "EPSRC",
         "r3d100012124",

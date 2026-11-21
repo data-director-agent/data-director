@@ -5,6 +5,7 @@
     disabled: []             # agents in app/config/agents.yaml not to run
     privacy_notice: https://example.ac.uk/data-director/privacy   # optional
     model_accounts: {own: allowed, ...}   # optional: copied into the profile as it stands
+    institution_repositories: [{repository_id: bl.durham, ...}]   # optional: copied likewise
     pid_resolver: true       # optional, development only: run the PID resolver (mcp-pid)
 
 Each problem is reported against the file as the operator knows it, naming the key and what it
@@ -23,7 +24,15 @@ import yaml
 from ddtool.common import MODEL_BACKED, Agent, DevError, shown
 
 ORCHESTRATORS = ("model", "stub")
-KEYS = {"name", "orchestrator", "disabled", "privacy_notice", "model_accounts", "pid_resolver"}
+KEYS = {
+    "name",
+    "orchestrator",
+    "disabled",
+    "privacy_notice",
+    "model_accounts",
+    "institution_repositories",
+    "pid_resolver",
+}
 # An absolute https URL with a host and no spaces. The app checks the same rule when it reads
 # the setting (dd_app.privacy), as app.env can be edited by hand.
 PRIVACY_NOTICE = re.compile(r"https://[^\s/@?#]+(?:[/?#]\S*)?")
@@ -37,6 +46,7 @@ class Deployment:
     disabled: frozenset[str] = frozenset()
     privacy_notice: str | None = None
     model_accounts: dict[str, Any] | None = None
+    institution_repositories: list[dict[str, Any]] | None = None
     pid_resolver: bool = False
 
     @property
@@ -69,8 +79,8 @@ def parse(text: str, label: str, agents: list[Agent]) -> Deployment:
         raise DevError(f"{label} is not valid YAML: {exc}") from exc
     if not isinstance(data, dict):
         raise DevError(
-            f"{label}: expected name, orchestrator, disabled, privacy_notice, model_accounts "
-            "and pid_resolver"
+            f"{label}: expected name, orchestrator, disabled, privacy_notice, model_accounts, "
+            "institution_repositories and pid_resolver"
         )
     if unknown := sorted(set(data) - KEYS):
         raise DevError(
@@ -99,7 +109,8 @@ def parse(text: str, label: str, agents: list[Agent]) -> Deployment:
 
 
 def _options(data: dict[str, Any], label: str) -> dict[str, Any]:
-    """The optional keys, checked: privacy_notice, model_accounts and pid_resolver."""
+    """The optional keys, checked: privacy_notice, model_accounts, institution_repositories and
+    pid_resolver. What the profile's keys hold is checked when the harness loads the profile."""
     privacy_notice = data.get("privacy_notice")
     if privacy_notice is not None and not (
         isinstance(privacy_notice, str) and PRIVACY_NOTICE.fullmatch(privacy_notice.strip())
@@ -111,11 +122,20 @@ def _options(data: dict[str, Any], label: str) -> dict[str, Any]:
     model_accounts = data.get("model_accounts")
     if model_accounts is not None and not isinstance(model_accounts, dict):
         raise DevError(f"{label}: model_accounts is a mapping, as in the profile")
+    repositories = data.get("institution_repositories")
+    if repositories is not None and not (
+        isinstance(repositories, list) and all(isinstance(r, dict) for r in repositories)
+    ):
+        raise DevError(
+            f"{label}: institution_repositories lists repositories, each a mapping with a "
+            "repository_id, as in the profile"
+        )
     pid_resolver = data.get("pid_resolver", False)
     if not isinstance(pid_resolver, bool):
         raise DevError(f"{label}: pid_resolver is true or false")
     return {
         "privacy_notice": privacy_notice.strip() if privacy_notice else None,
         "model_accounts": model_accounts,
+        "institution_repositories": repositories,
         "pid_resolver": pid_resolver,
     }

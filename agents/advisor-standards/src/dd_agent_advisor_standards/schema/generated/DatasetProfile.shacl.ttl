@@ -11,6 +11,11 @@ dcat:Dataset a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
+            sh:description "Discipline or subject, as free text or an IRI." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dcat:theme ],
+        [ sh:datatype xsd:string ;
             sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -38,12 +43,7 @@ dcat:Dataset a sh:NodeShape ;
         [ sh:datatype xsd:string ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
-            sh:path dcat:keyword ],
-        [ sh:datatype xsd:string ;
-            sh:description "Discipline or subject, as free text or an IRI." ;
-            sh:nodeKind sh:Literal ;
-            sh:order 4 ;
-            sh:path dcat:theme ] ;
+            sh:path dcat:keyword ] ;
     sh:targetClass dcat:Dataset .
 
 <https://w3id.org/data-director/CategoryCount> a sh:NodeShape ;

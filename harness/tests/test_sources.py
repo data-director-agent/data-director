@@ -224,7 +224,7 @@ def _registry(tmp_path: Path) -> Sources:
 
 
 def _ids(sources: Sources, query: str, limit: int = 20) -> list[str]:
-    return [m.re3data_id for m in sources.find_repositories(query, limit)]
+    return [m.repository_id for m in sources.find_repositories(query, limit)]
 
 
 @pytest.mark.parametrize(

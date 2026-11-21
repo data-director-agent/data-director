@@ -120,7 +120,7 @@ class Matches:
         for place, hit in enumerate(hits, start=1):
             share = hit.lexical_score / best if best > 0 else 1.0
             grade = round(base + (1 - base) * share, 4)
-            into.setdefault(hit.record.re3data_id, {}).setdefault(
+            into.setdefault(hit.record.identifier, {}).setdefault(
                 query.text, TextMatch(grade, place, len(hits))
             )
 
@@ -143,10 +143,10 @@ def by_subject(theme: str, records: list[Re3dataRecord], matches: Matches) -> li
     also match the theme's text first, then the most specialised (filed under fewest subjects),
     up to `search_limit`."""
     limit = int(config()["search_limit"])
-    unique = {r.re3data_id: r for r in records}.values()
+    unique = {r.identifier: r for r in records}.values()
     return sorted(
         unique,
-        key=lambda r: (-matches.text_grade(r.re3data_id, theme), len(r.subjects), r.re3data_id),
+        key=lambda r: (-matches.text_grade(r.identifier, theme), len(r.subjects), r.identifier),
     )[:limit]
 
 
@@ -180,7 +180,7 @@ def _theme(theme: str, record: Re3dataRecord, matches: Matches) -> tuple[float, 
     grade is how near the repository is filed to that subject, and the rest is its text match.
     Otherwise the text match is the whole grade: a rule whose input is missing does not count
     against the repository."""
-    rid = record.re3data_id
+    rid = record.identifier
     cfg = config()["theme_match"]
     reasons: list[str] = []
     text = matches.themes.get(rid, {}).get(theme)
@@ -409,7 +409,7 @@ def _order(r: Ranked) -> tuple[int, float, tuple[int, ...], int, str]:
         for question, preferred in (cfg.get("tie_break") or {}).items()
     )
     general = generalists()
-    rid = r.record.re3data_id
+    rid = r.record.identifier
     return (
         [str(f) for f in cfg["order"]].index(r.fit),
         -r.score,

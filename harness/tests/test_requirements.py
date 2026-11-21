@@ -118,7 +118,7 @@ def test_a_repository_that_declares_no_known_standard_is_checked_against_datacit
 
 def test_a_choice_needs_a_re3data_identifier_and_a_name(sets: Path) -> None:
     requirements = load_requirements(sets)
-    with pytest.raises(RequirementsError, match="not a re3data identifier"):
+    with pytest.raises(RequirementsError, match="neither a re3data identifier"):
         requirements.resolve("orda", "ORDA")
     with pytest.raises(RequirementsError, match="needs its name"):
         requirements.resolve(ORDA, " ")
@@ -132,7 +132,7 @@ def test_a_choice_needs_a_re3data_identifier_and_a_name(sets: Path) -> None:
         ((("standards", standard(re3data_names=[])),), "names its standard in re3data_names"),
         (
             (("standards", standard()), ("overrides", override(re3data_id=None))),
-            "names its repository in re3data_id",
+            "names its repository once",
         ),
         (
             (("standards", standard()), ("overrides", override(re3data_names=["x"]))),

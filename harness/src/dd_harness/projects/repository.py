@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 from dd_harness.projects.rules import REPOSITORY_CHOSEN, ProjectRules
-from dd_harness.requirements import RE3DATA_ID, Requirements, RequirementsError
+from dd_harness.requirements import REPOSITORY_ID, Requirements, RequirementsError
 from dd_harness.sources import Sources
 from dd_sdk.contract.models import Principal
 from dd_sdk.evidence import INPUT_CANONICALISATION, canonicalise, input_hash
@@ -23,29 +23,33 @@ class RepositoryChoice(ProjectRules):
     def choose_repository(
         self,
         project_id: str,
-        re3data_id: str,
+        repository_id: str,
         *,
         registry: Sources,
         requirements: Requirements,
         acted_for: Principal,
         caused_by: str,
     ) -> str:
-        """Record the repository a researcher chose by its re3data identifier, and the
-        requirements it resolved to. Its name and declared metadata standards come from the
-        latest re3data export `registry` pins, and the event names that record by `snapshot_ref`
-        and content hash (docs/specs/deposit.md). Returns the merged set's digest. Raises
-        `ProjectError` for an unknown project, `RequirementsError` for an identifier the export
-        does not hold, and `SourceConfigError` if no built export is pinned."""
+        """Record the repository a researcher chose, by its re3data identifier or, for one
+        re3data does not list, its DataCite one, and the requirements it resolved to. Its name
+        and declared metadata standards come from the latest copy of that registry `registry`
+        pins, and the event names that record by `snapshot_ref` and content hash
+        (docs/specs/deposit.md). Returns the merged set's digest. Raises `ProjectError` for an
+        unknown project, `RequirementsError` for an identifier no pinned copy holds, and
+        `SourceConfigError` if no built re3data export is pinned."""
         self._require(project_id)
-        if not RE3DATA_ID.fullmatch(re3data_id):
-            raise RequirementsError(f"{re3data_id!r} is not a re3data identifier (r3d + 9 digits)")
-        entry = registry.re3data(re3data_id)
+        if not REPOSITORY_ID.fullmatch(repository_id):
+            raise RequirementsError(
+                f"{repository_id!r} is neither a re3data identifier (r3d + 9 digits) nor a "
+                "DataCite one (such as bl.york)"
+            )
+        entry = registry.repository(repository_id)
         if entry is None:
             raise RequirementsError(
-                f"the pinned re3data export holds no repository {re3data_id}; "
-                "check the identifier at re3data.org"
+                f"neither re3data nor DataCite, as pinned, holds a repository {repository_id}; "
+                "check the identifier"
             )
-        resolved = requirements.resolve(entry.re3data_id, entry.name, entry.metadata_standards)
+        resolved = requirements.resolve(entry.repository_id, entry.name, entry.metadata_standards)
         merged = resolved.requirements()
         digest = input_hash(merged)
         self._keep_blob(project_id, digest, canonicalise(merged, INPUT_CANONICALISATION))
@@ -55,6 +59,7 @@ class RepositoryChoice(ProjectRules):
             acted_for,
             caused_by,
             {
+                "repository_id": resolved.repository_id,
                 "re3data_id": resolved.re3data_id,
                 "repository_name": resolved.repository_name,
                 "declared_standards": list(resolved.declared_standards),
@@ -70,5 +75,9 @@ class RepositoryChoice(ProjectRules):
         return digest
 
     def requirements(self, project_id: str) -> dict[str, Any] | None:
-        """The merged requirements of the repository chosen last, or None if none has been."""
-        return self._latest(project_id, REPOSITORY_CHOSEN)
+        """The merged requirements of the repository chosen last, or None if none has been. A set
+        kept before repositories had an identifier of their own is given its re3data one."""
+        found = self._latest(project_id, REPOSITORY_CHOSEN)
+        if found is not None and "repository_id" not in found and found.get("re3data_id"):
+            return {**found, "repository_id": found["re3data_id"]}
+        return found

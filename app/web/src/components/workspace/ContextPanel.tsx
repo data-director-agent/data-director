@@ -24,6 +24,7 @@ import { InventoryEditDialog } from "../inventory/InventoryEditDialog";
 import { documentName } from "../../project/name";
 import { STATES } from "../project/DocumentFacts";
 import { IssueLinks } from "../NotBuilt";
+import { registryRecord } from "../../project/registry";
 
 const NOT_BUILT: { label: string; issues: number[] }[] = [
   { label: "Dataset", issues: [160] },
@@ -139,7 +140,8 @@ export function ContextPanel({
                 <>
                   {project.repository.repository_name}{" "}
                   <span className="hint">
-                    (re3data <code>{project.repository.re3data_id}</code>)
+                    ({registryRecord(project.repository.repository_id).registry}{" "}
+                    <code>{project.repository.repository_id}</code>)
                   </span>
                   {project.repository.warnings.length > 0 && (
                     <ul className="plain-list" aria-label="What this choice does not check">

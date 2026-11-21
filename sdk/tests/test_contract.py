@@ -1045,6 +1045,7 @@ def test_a_draft_request_is_the_core_input_of_every_drafter() -> None:
     asked = DraftRequest(
         document_kind=DocumentKind.METADATA_RECORD,
         requirements=RepositoryRequirements(
+            repository_id="r3d100012124",
             re3data_id="r3d100012124",
             repository_name="ORDA",
             conforms_to="http://datacite.org/schema/kernel-4",

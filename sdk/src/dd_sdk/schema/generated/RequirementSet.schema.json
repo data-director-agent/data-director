@@ -176,6 +176,14 @@
             "null"
          ]
       },
+      "repository_id": {
+         "description": "A repository's identifier in the registry that lists it: its re3data identifier, such as r3d100012124, where re3data lists it, else its DataCite repository identifier, such as bl.york. An override names it in place of re3data_id for a repository re3data does not list.",
+         "pattern": "^(r3d[0-9]{9}|[a-z0-9]+\\.[a-z0-9.-]+)$",
+         "type": [
+            "string",
+            "null"
+         ]
+      },
       "fields": {
          "description": "The metadata properties the set requires or recommends.",
          "items": {

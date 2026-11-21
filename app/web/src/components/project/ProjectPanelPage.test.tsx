@@ -116,7 +116,7 @@ describe("ProjectPanelPage", () => {
     expect(await axe(container)).toHaveNoViolations();
     await user.click(at(options, 0));
     await user.click(screen.getByRole("button", { name: "Choose repository" }));
-    expect(choose).toHaveBeenCalledWith(PROJECT.project_id, at(SUGGESTED.repositories, 0).re3data_id);
+    expect(choose).toHaveBeenCalledWith(PROJECT.project_id, at(SUGGESTED.repositories, 0).repository_id);
     const panel = screen.getByRole("region", { name: "Repository" });
     expect(await within(panel).findByText("orda@v3")).toBeVisible();
     expect(within(panel).getByRole("button", { name: "Change repository" })).toBeVisible();

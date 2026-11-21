@@ -19,6 +19,7 @@ import type {
 } from "../../project/shortlist";
 import { errorMessage } from "../../run/api";
 import { Button } from "../ui/Button";
+import { registryRecord } from "../../project/registry";
 
 const DOCUMENT_NAMES: Record<string, string> = {
   metadata_record: "a metadata record",
@@ -132,12 +133,12 @@ export function RepositoryShortlist({
   const headingId = `${idPrefix}-heading`;
 
   async function choose(repository: ShortlistedRepository) {
-    setPending(repository.re3dataId);
+    setPending(repository.repositoryId);
     setError(null);
     try {
       const requirements = await projectApi.chooseRepository(
         projectId,
-        repository.re3dataId,
+        repository.repositoryId,
       );
       setResolved(requirements);
       onChosen(requirements);
@@ -150,7 +151,7 @@ export function RepositoryShortlist({
     }
   }
 
-  const current = resolved?.re3data_id ?? chosenId;
+  const current = resolved?.repository_id ?? chosenId;
   return (
     <section
       className="callout repository-shortlist"
@@ -165,10 +166,10 @@ export function RepositoryShortlist({
         aria-labelledby={headingId}
       >
         {shortlist.map((repository) => {
-          const chosen = repository.re3dataId === current;
+          const chosen = repository.repositoryId === current;
           return (
             <li
-              key={repository.re3dataId}
+              key={repository.repositoryId}
               {...(chosen ? { "aria-current": "true" as const } : {})}
             >
               <p>
@@ -177,11 +178,11 @@ export function RepositoryShortlist({
                 {chosen && <span className="status status-ok">Chosen</span>}
                 <br />
                 <span className="hint">
-                  re3data{" "}
+                  {registryRecord(repository.repositoryId).registry}{" "}
                   {repository.uri ? (
-                    <a href={repository.uri}>{repository.re3dataId}</a>
+                    <a href={repository.uri}>{repository.repositoryId}</a>
                   ) : (
-                    <code>{repository.re3dataId}</code>
+                    <code>{repository.repositoryId}</code>
                   )}
                 </span>
               </p>
@@ -194,10 +195,10 @@ export function RepositoryShortlist({
                   size="small"
                   icon={Check}
                   isDisabled={pending !== null}
-                  aria-label={`${pending === repository.re3dataId ? "Choosing" : "Choose"} ${repository.name}`}
+                  aria-label={`${pending === repository.repositoryId ? "Choosing" : "Choose"} ${repository.name}`}
                   onPress={() => void choose(repository)}
                 >
-                  {pending === repository.re3dataId ? "Choosing…" : "Choose"}
+                  {pending === repository.repositoryId ? "Choosing…" : "Choose"}
                 </Button>
               )}
             </li>
@@ -210,8 +211,8 @@ export function RepositoryShortlist({
               <Basis basis={repository.basis} />
               <br />
               <span className="hint">
-                Not listed in re3data, so nothing is shown of its terms, fees
-                or identifiers: check them with the repository.
+                Not listed in re3data or DataCite, so nothing is shown of its
+                terms, fees or identifiers: check them with the repository.
               </span>
             </p>
           </li>

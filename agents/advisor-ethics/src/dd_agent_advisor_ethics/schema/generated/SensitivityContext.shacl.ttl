@@ -8,7 +8,13 @@ ethics:SensitivityContext a sh:NodeShape ;
     rdfs:comment "What the researcher has said about the dataset that bears on sensitive data: its field names, whether it involves people, and whether they intend an embargo." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
+    sh:property [ sh:datatype xsd:boolean ;
+            sh:description "Whether the data were collected from or about people. Unknown if absent." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path ethics:involves_people ],
+        [ sh:datatype xsd:string ;
             sh:description "The dataset's title." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -37,12 +43,6 @@ ethics:SensitivityContext a sh:NodeShape ;
             sh:description "The names of the dataset's fields or columns." ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
-            sh:path ethics:fields ],
-        [ sh:datatype xsd:boolean ;
-            sh:description "Whether the data were collected from or about people. Unknown if absent." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 4 ;
-            sh:path ethics:involves_people ] ;
+            sh:path ethics:fields ] ;
     sh:targetClass ethics:SensitivityContext .
 

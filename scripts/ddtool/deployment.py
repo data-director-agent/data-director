@@ -100,6 +100,7 @@ OWNED_PROFILE_KEYS = frozenset(
         "agents",
         "orchestrator",
         "model_accounts",  # from deployment.yaml; the example's own is not carried
+        "institution_repositories",  # from deployment.yaml, as the instance's own institution's
         "tool_servers",  # from the PID resolver
     }
 )
@@ -141,6 +142,8 @@ def profile(
     }
     if deployment.model_accounts is not None:
         body["model_accounts"] = deployment.model_accounts
+    if deployment.institution_repositories:
+        body["institution_repositories"] = deployment.institution_repositories
     if tool_servers:
         body["tool_servers"] = tool_servers
     have: dict[str, Any] = (yaml.safe_load(current) or {}) if current else {}

@@ -37,6 +37,12 @@ fairness:PublishedRecord a sh:NodeShape ;
             sh:order 2 ;
             sh:path fairness:title ],
         [ sh:datatype xsd:string ;
+            sh:description "The dataset's persistent identifier or landing page, e.g. a DOI or URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path fairness:identifier ],
+        [ sh:datatype xsd:string ;
             sh:description "The dataset's description or abstract, as published." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -49,12 +55,6 @@ fairness:PublishedRecord a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path <https://w3id.org/data-director/schema_class> ],
-        [ sh:datatype xsd:string ;
-            sh:description "The dataset's persistent identifier or landing page, e.g. a DOI or URL." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path fairness:identifier ],
         [ sh:datatype xsd:string ;
             sh:description "The media types of the dataset's files, e.g. text/csv." ;
             sh:nodeKind sh:Literal ;

@@ -12,6 +12,7 @@
 import type { RepositoryRequirements } from "../../project/api";
 import { sizeInWords } from "./DepositPanel";
 import { Unconfirmed } from "./Unconfirmed";
+import { registryRecord } from "../../project/registry";
 
 const DOCUMENT_KINDS: Record<string, string> = {
   readme: "README",
@@ -42,15 +43,14 @@ function Fields({ choice, obligation }: { choice: RepositoryRequirements; obliga
 }
 
 function About({ choice }: { choice: RepositoryRequirements }) {
+  const record = registryRecord(choice.repository_id);
   return (
     <dl className="facts">
       <dt>Repository</dt>
       <dd>
-        <a href={`https://www.re3data.org/repository/${encodeURIComponent(choice.re3data_id)}`}>
-          {choice.repository_name}
-        </a>{" "}
+        <a href={record.url}>{choice.repository_name}</a>{" "}
         <span className="muted">
-          (<code>{choice.re3data_id}</code>, its re3data record)
+          (<code>{choice.repository_id}</code>, its {record.registry} record)
         </span>
       </dd>
       {choice.repository_url && (

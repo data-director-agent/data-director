@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "data-director-agent-advisor-repository"
 version = "0.1.0-alpha.3"
-description = "advisor.repository: recommends and describes data repositories from re3data and FAIRsharing"
+description = "advisor.repository: recommends and describes data repositories from re3data, DataCite and FAIRsharing"
 requires-python = ">=3.14"
 license = "MIT"
 authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
@@ -22,6 +22,7 @@ eval = ["data-director-workbench[eval]"]
 [project.scripts]
 dd-advisor-repository = "dd_agent_advisor_repository.factory:main"
 dd-re3data = "dd_agent_advisor_repository.registry:main"
+dd-datacite = "dd_agent_advisor_repository.datacite:main"
 
 # The re3data registry is built from its pinned export, not committed; `dd-sources prepare` builds it.
 [project.entry-points."dd.sources"]

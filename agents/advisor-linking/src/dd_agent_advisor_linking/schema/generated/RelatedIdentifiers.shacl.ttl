@@ -67,6 +67,13 @@ linking:RelatedLink a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
+            sh:description "The identifier, as given." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path linking:given ],
+        [ sh:datatype xsd:string ;
             sh:description "The type of what a resolved identifier names, as the source gives it: a DOI's resource type, Person for an ORCID iD, or an organisation's first ROR type." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -85,6 +92,12 @@ linking:RelatedLink a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
             sh:path linking:scheme ],
+        [ sh:datatype xsd:boolean ;
+            sh:description "Whether the identifier (a DOI, ORCID iD or ROR id) was found through the tool gateway. Absent when no lookup was made; false when it was made and found nothing or failed, with the reason in message." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path linking:resolved ],
         [ sh:datatype xsd:string ;
             sh:description "What the researcher should check or do with the identifier." ;
             sh:maxCount 1 ;
@@ -92,12 +105,6 @@ linking:RelatedLink a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 8 ;
             sh:path linking:message ],
-        [ sh:datatype xsd:boolean ;
-            sh:description "Whether the identifier (a DOI, ORCID iD or ROR id) was found through the tool gateway. Absent when no lookup was made; false when it was made and found nothing or failed, with the reason in message." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 5 ;
-            sh:path linking:resolved ],
         [ sh:datatype xsd:boolean ;
             sh:description "Whether the identifier is well formed for its scheme. True does not mean it exists: only a link with resolved true was looked up." ;
             sh:maxCount 1 ;
@@ -116,13 +123,6 @@ linking:RelatedLink a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 6 ;
-            sh:path linking:title ],
-        [ sh:datatype xsd:string ;
-            sh:description "The identifier, as given." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path linking:given ] ;
+            sh:path linking:title ] ;
     sh:targetClass linking:RelatedLink .
 

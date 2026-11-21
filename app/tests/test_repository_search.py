@@ -45,7 +45,7 @@ def test_without_a_query_the_deployments_suggestions_come_overrides_first(
     assert body["suggested"] is True
     assert body["snapshot_ref"] == EXPORT
     # The deployment's list names repositories this export does not hold; they are left out.
-    assert [r["re3data_id"] for r in body["repositories"]] == [ORDA, ZENODO]
+    assert [r["repository_id"] for r in body["repositories"]] == [ORDA, ZENODO]
     check_fixture("repositories-suggested.json", body, model=RepositorySearch)
 
 
@@ -60,7 +60,7 @@ def test_a_query_searches_the_pinned_export(
     assert found.status_code == 200
     body = found.json()
     assert body["suggested"] is False
-    assert [r["re3data_id"] for r in body["repositories"]] == expected
+    assert [r["repository_id"] for r in body["repositories"]] == expected
 
 
 def test_an_unbuilt_export_is_answered_as_unavailable(

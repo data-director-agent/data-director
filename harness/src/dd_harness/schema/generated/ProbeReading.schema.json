@@ -3,21 +3,31 @@
    "$defs": {
       "ChosenRepository": {
          "additionalProperties": false,
-         "description": "The repository a researcher chose to deposit the project's data in, from the shortlist, by its re3data identifier: the conductor fills it into a Message, and into the input of an agent that mixes in GivenProjectRepository, so that the agent knows a repository is chosen and which (docs/specs/projects.md). The last choice stands until a researcher chooses again.",
+         "description": "The repository a researcher chose to deposit the project's data in, from the shortlist, by the identifier of the registry that lists it: the conductor fills it into a Message, and into the input of an agent that mixes in GivenProjectRepository, so that the agent knows a repository is chosen and which (docs/specs/projects.md). The last choice stands until a researcher chooses again.",
          "properties": {
             "chosen_repository_name": {
                "description": "The chosen repository's name, as the pinned re3data export gives it.",
                "type": "string"
             },
+            "chosen_repository_id": {
+               "description": "The chosen repository's identifier: its re3data identifier, such as r3d100010468, where re3data lists it, else its DataCite repository identifier, such as bl.york. The conductor always gives it; a caller that sends only chosen_re3data_id has it given from that.",
+               "pattern": "^(r3d[0-9]{9}|[a-z0-9]+\\.[a-z0-9.-]+)$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
             "chosen_re3data_id": {
-               "description": "The chosen repository's re3data identifier, such as r3d100010468.",
+               "description": "The chosen repository's re3data identifier, such as r3d100010468, where it has one.",
                "pattern": "^r3d[0-9]{9}$",
-               "type": "string"
+               "type": [
+                  "string",
+                  "null"
+               ]
             }
          },
          "required": [
-            "chosen_repository_name",
-            "chosen_re3data_id"
+            "chosen_repository_name"
          ],
          "title": "ChosenRepository",
          "type": "object"

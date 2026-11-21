@@ -54,13 +54,14 @@ import json
 import logging
 import re
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Protocol
 
 import yaml
 
 from dd_sdk.contract.models import (
+    RE3DATA_ID_PATTERN,
     TOOL_SOURCE_PREFIX,
     GroundingMode,
     input_source_id,
@@ -76,7 +77,13 @@ ATTESTED_MODES = (GroundingMode.INPUT_ONLY, GroundingMode.NONE, GroundingMode.DE
 
 # The snapshot_ref prefix of a pinned monthly re3data export, followed by its month (YYYY-MM).
 RE3DATA_EXPORT = "re3data:export:"
-_RE3DATA_ID = re.compile(r"^r3d[0-9]{9}$")
+# The snapshot_ref prefix of a pinned snapshot of the repositories DataCite registers that re3data
+# does not list, followed by the day it was fetched (agents/advisor-repository/data/datacite).
+DATACITE_REPOSITORIES = "datacite:repositories:"
+# Every repository in that snapshot registers DataCite DOIs, so it declares DataCite's standard,
+# by the name re3data gives it (app/config/repositories/standards/datacite-4.yaml).
+DATACITE_STANDARD = "DataCite Metadata Schema"
+_RE3DATA_ID = re.compile(RE3DATA_ID_PATTERN)
 # A query shorter than this, once trimmed, matches no name (it would match most of them).
 MIN_QUERY = 2
 _DOI_PREFIX = re.compile(r"^(?:https?://(?:dx\.)?doi\.org/|doi:)", re.IGNORECASE)
@@ -148,9 +155,12 @@ class SourceReport:
 
 @dataclass(frozen=True)
 class RegistryEntry:
-    """What a pinned re3data export says about one repository, and which record said it."""
+    """What a pinned registry says about one repository, and which record said it:
+    `repository_id` is its re3data identifier, or its DataCite one where re3data lists it under
+    none (`re3data_id` is then None)."""
 
-    re3data_id: str
+    repository_id: str
+    re3data_id: str | None
     name: str
     metadata_standards: tuple[str, ...]
     snapshot_ref: str
@@ -160,20 +170,36 @@ class RegistryEntry:
 
 @dataclass(frozen=True)
 class RepositoryMatch:
-    """What a search of the pinned re3data export shows of one repository."""
+    """What a search of the pinned registries shows of one repository: `registry` is `re3data`
+    or `datacite`, and `re3data_id` is None for a repository only DataCite registers."""
 
-    re3data_id: str
+    repository_id: str
     name: str
     additional_names: tuple[str, ...] = ()
     url: str | None = None
     doi: str | None = None
+    registry: str = "re3data"
+
+    @property
+    def re3data_id(self) -> str | None:
+        return self.repository_id if self.registry == "re3data" else None
 
     @classmethod
     def of(cls, record: Mapping[str, Any]) -> RepositoryMatch:
+        if "datacite_id" in record:
+            alternate = record.get("alternate_name")
+            url = record.get("url")
+            return cls(
+                repository_id=str(record["datacite_id"]),
+                name=str(record.get("name") or record["datacite_id"]),
+                additional_names=(alternate,) if isinstance(alternate, str) else (),
+                url=url if isinstance(url, str) else None,
+                registry="datacite",
+            )
         names = record.get("additional_names") or []
         url, doi = record.get("url"), record.get("doi")
         return cls(
-            re3data_id=str(record["re3data_id"]),
+            repository_id=str(record["re3data_id"]),
             name=str(record.get("name") or record["re3data_id"]),
             additional_names=tuple(str(n) for n in names if isinstance(n, str)),
             url=url if isinstance(url, str) else None,
@@ -182,6 +208,8 @@ class RepositoryMatch:
 
     def describe(self) -> dict[str, Any]:
         return {
+            "repository_id": self.repository_id,
+            "registry": self.registry,
             "re3data_id": self.re3data_id,
             "name": self.name,
             "additional_names": list(self.additional_names),
@@ -203,6 +231,8 @@ def _identifies(query: str, record: Mapping[str, Any]) -> bool:
     it names an organisation, not a repository."""
     if _RE3DATA_ID.fullmatch(query.casefold()):
         return record.get("re3data_id") == query.casefold()
+    if record.get("datacite_id") == query.strip().casefold():
+        return True
     doi, url = record.get("doi"), record.get("url")
     if isinstance(doi, str) and doi and _bare_doi(doi) == _bare_doi(query):
         return True
@@ -210,7 +240,11 @@ def _identifies(query: str, record: Mapping[str, Any]) -> bool:
 
 
 def _names(record: Mapping[str, Any]) -> list[str]:
-    names = [record.get("name"), *(record.get("additional_names") or [])]
+    names = [
+        record.get("name"),
+        record.get("alternate_name"),
+        *(record.get("additional_names") or []),
+    ]
     return [n.casefold() for n in names if isinstance(n, str)]
 
 
@@ -226,6 +260,12 @@ class Sources:
     @classmethod
     def none(cls) -> Sources:
         return cls()
+
+    def with_resolvers(self, more: Mapping[str, Resolver]) -> Sources:
+        """These copies and `more`, such as what the profile vouches for, by `snapshot_ref`."""
+        if not more:
+            return self
+        return replace(self, by_snapshot_ref={**self.by_snapshot_ref, **more})
 
     @classmethod
     def from_config(cls, path: Path) -> Sources:
@@ -272,44 +312,71 @@ class Sources:
             by_ref.update(dict.fromkeys(refs, resolver))
         return cls(by_snapshot_ref=by_ref, unbuilt=frozenset(unbuilt))
 
+    def _latest(self, prefix: str) -> tuple[str, Resolver] | None:
+        """The latest pinned copy whose `snapshot_ref` starts with `prefix`, or None if none is
+        pinned. Raises `SourceConfigError` if the latest is not built."""
+        refs = sorted(
+            ref for ref in (*self.by_snapshot_ref, *self.unbuilt) if ref.startswith(prefix)
+        )
+        if not refs:
+            return None
+        resolver = self.by_snapshot_ref.get(refs[-1])
+        if resolver is None:
+            raise SourceConfigError(
+                f"the copy {refs[-1]} is not built; build it with `{PREPARE_COMMAND}`"
+            )
+        return refs[-1], resolver
+
     def _re3data_export(self) -> tuple[str, Resolver]:
         """The latest pinned re3data export and its `snapshot_ref`. Raises `SourceConfigError` if
         none is pinned or the latest is not built."""
-        refs = sorted(
-            ref for ref in (*self.by_snapshot_ref, *self.unbuilt) if ref.startswith(RE3DATA_EXPORT)
-        )
-        if not refs:
+        found = self._latest(RE3DATA_EXPORT)
+        if found is None:
             raise SourceConfigError(
                 f"sources.yaml pins no re3data export ({RE3DATA_EXPORT}YYYY-MM), so a repository "
                 "cannot be looked up"
             )
-        ref = refs[-1]
-        resolver = self.by_snapshot_ref.get(ref)
-        if resolver is None:
-            raise SourceConfigError(
-                f"the re3data export {ref} is not built; build it with `{PREPARE_COMMAND}`"
-            )
-        return ref, resolver
+        return found
+
+    def _datacite(self) -> tuple[str, RecordsFile] | None:
+        """The latest DataCite snapshot, less those at a re3data record's address; None if none."""
+        found = self._latest(DATACITE_REPOSITORIES)
+        if found is None or not isinstance(found[1], RecordsFile):
+            return None
+        _, re3data = self._re3data_export()
+        listed = (
+            {_bare_url(u) for r in re3data.records.values() if isinstance(u := r.get("url"), str)}
+            if isinstance(re3data, RecordsFile)
+            else set()
+        )
+        kept = {
+            k: r
+            for k, r in found[1].records.items()
+            if not isinstance(u := r.get("url"), str) or _bare_url(u) not in listed
+        }
+        return found[0], RecordsFile(records=kept)
 
     def re3data_export_ref(self) -> str:
         """The `snapshot_ref` of the export `re3data` and `find_repositories` read."""
         return self._re3data_export()[0]
 
     def find_repositories(self, query: str, limit: int = 20) -> list[RepositoryMatch]:
-        """The repositories in the latest pinned re3data export that `query` names, at most
-        `limit` of them. A repository `query` identifies (its re3data identifier, its re3data DOI
-        or its URL) comes first; then those with a name or additional name that starts with it;
-        then those with one that contains it. Each group is in order of name, then identifier.
-        Raises `SourceConfigError` as `re3data` does."""
+        """The repositories in the latest pinned re3data export, and DataCite snapshot, that
+        `query` names, at most `limit` of them. A repository `query` identifies (its re3data or
+        DataCite identifier, its re3data DOI or its URL) comes first; then those with a name or
+        additional name that starts with it; then those with one that contains it. Each group
+        is in order of name, then identifier. Raises `SourceConfigError` as `re3data` does."""
         ref, resolver = self._re3data_export()
         if not isinstance(resolver, RecordsFile):
             raise SourceConfigError(f"the re3data export {ref} cannot be searched")
         wanted = query.strip()
         if not wanted:
             return []
+        datacite = self._datacite()
+        records = [*resolver.records.values(), *(datacite[1].records.values() if datacite else [])]
         folded = wanted.casefold()
         groups: tuple[list[Mapping[str, Any]], ...] = ([], [], [])
-        for record in resolver.records.values():
+        for record in records:
             names = _names(record)
             if _identifies(wanted, record):
                 groups[0].append(record)
@@ -323,38 +390,64 @@ class Sources:
         for group in groups:
             matches = sorted(
                 (RepositoryMatch.of(r) for r in group),
-                key=lambda m: (m.name.casefold(), m.re3data_id),
+                key=lambda m: (m.name.casefold(), m.repository_id),
             )
             found.extend(matches)
         return found[: max(limit, 0)]
 
-    def repositories(self, re3data_ids: Sequence[str]) -> list[RepositoryMatch]:
-        """The repositories the latest pinned re3data export holds of `re3data_ids`, in that
-        order, without those it does not hold. Raises `SourceConfigError` as `re3data` does."""
-        _, resolver = self._re3data_export()
-        found = (resolver.record(i) for i in dict.fromkeys(re3data_ids))
-        return [RepositoryMatch.of(r) for r in found if r is not None]
+    def repositories(self, repository_ids: Sequence[str]) -> list[RepositoryMatch]:
+        """The repositories the pinned registries hold of `repository_ids`, in that order,
+        without those they do not hold. Raises `SourceConfigError` as `re3data` does."""
+        found = (self._record(i) for i in dict.fromkeys(repository_ids))
+        return [RepositoryMatch.of(r[1]) for r in found if r is not None]
 
-    def re3data(self, re3data_id: str) -> RegistryEntry | None:
-        """The record the latest pinned re3data export holds for `re3data_id`, or `None` if it
-        holds none. Raises `SourceConfigError` if no export is pinned or the latest is not built.
-        """
-        ref, resolver = self._re3data_export()
-        record = resolver.record(re3data_id)
-        if record is None:
+    def _record(self, repository_id: str) -> tuple[str, dict[str, Any]] | None:
+        if _RE3DATA_ID.fullmatch(repository_id):
+            ref, resolver = self._re3data_export()
+        elif (datacite := self._datacite()) is not None:
+            ref, resolver = datacite
+        else:
             return None
-        name, standards = record.get("name"), record.get("metadata_standards") or []
+        record = resolver.record(repository_id)
+        return None if record is None else (ref, record)
+
+    def repository(self, repository_id: str) -> RegistryEntry | None:
+        """The record the latest pinned registry, re3data's or else DataCite's, holds for
+        `repository_id`, or `None`; one of DataCite's declares the standard whose DOIs it
+        registers. Raises `SourceConfigError` if no built re3data export is pinned."""
+        found = self._record(repository_id)
+        if found is None:
+            return None
+        ref, record = found
+        listed = _RE3DATA_ID.fullmatch(repository_id) is not None
+        name = record.get("name")
+        standards = (record.get("metadata_standards") or []) if listed else [DATACITE_STANDARD]
         if not isinstance(name, str) or not all(isinstance(s, str) for s in standards):
             raise SourceConfigError(
-                f"{ref}: the record of {re3data_id} has no name or a malformed metadata_standards"
+                f"{ref}: the record of {repository_id} has no name or a malformed "
+                "metadata_standards"
             )
         return RegistryEntry(
-            re3data_id=re3data_id,
+            repository_id=repository_id,
+            re3data_id=repository_id if listed else None,
             name=name,
             metadata_standards=tuple(standards),
             snapshot_ref=ref,
             content_hash=content_hash(record, DOCUMENT_CANONICALISATION),
         )
+
+    def unheld(self, repository_ids: Sequence[str]) -> list[str]:
+        """Those of `repository_ids` that the pinned registry for their identifier does not
+        hold. One whose registry is not pinned or built cannot be checked, and is logged."""
+        out = []
+        for rid in repository_ids:
+            prefix = RE3DATA_EXPORT if _RE3DATA_ID.fullmatch(rid) else DATACITE_REPOSITORIES
+            try:
+                if self._latest(prefix) is not None and self.repository(rid) is None:
+                    out.append(rid)
+            except SourceConfigError as exc:
+                log.warning("%s cannot be checked: %s", rid, exc)
+        return out
 
 
 def check(envelope: dict[str, Any], sources: Sources) -> SourceReport:

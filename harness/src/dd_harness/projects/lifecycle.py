@@ -234,8 +234,11 @@ def _repository_summary(events: list[dict[str, Any]]) -> dict[str, Any] | None:
     repository = next((e for e in reversed(events) if e["event"] == REPOSITORY_CHOSEN), None)
     if repository is None:
         return None
+    re3data_id = repository.get("re3data_id")
     return {
-        "re3data_id": repository["re3data_id"],
+        # A choice recorded before repositories had an identifier of their own named re3data's.
+        "repository_id": repository.get("repository_id") or re3data_id,
+        "re3data_id": re3data_id,
         "repository_name": repository["repository_name"],
         "warnings": repository["warnings"],
         "chosen_at": repository["at"],

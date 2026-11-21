@@ -121,12 +121,6 @@ dd:Affiliation a sh:NodeShape ;
             sh:order 2 ;
             sh:path dd:organisation_name ],
         [ sh:datatype xsd:string ;
-            sh:description "The scheme of organisation_identifier, in ORCID's words, such as ROR, GRID or RINGGOLD. Present exactly when organisation_identifier is." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 4 ;
-            sh:path dd:organisation_identifier_scheme ],
-        [ sh:datatype xsd:string ;
             sh:description "The researcher's role or degree." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -139,6 +133,12 @@ dd:Affiliation a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path dd:put_code ],
+        [ sh:datatype xsd:string ;
+            sh:description "The scheme of organisation_identifier, in ORCID's words, such as ROR, GRID or RINGGOLD. Present exactly when organisation_identifier is." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dd:organisation_identifier_scheme ],
         [ sh:datatype xsd:string ;
             sh:description "The department within the organisation." ;
             sh:maxCount 1 ;
@@ -166,24 +166,30 @@ dd:Affiliation a sh:NodeShape ;
     sh:targetClass dd:Affiliation .
 
 dd:ChosenRepository a sh:NodeShape ;
-    rdfs:comment "The repository a researcher chose to deposit the project's data in, from the shortlist, by its re3data identifier: the conductor fills it into a Message, and into the input of an agent that mixes in GivenProjectRepository, so that the agent knows a repository is chosen and which (docs/specs/projects.md). The last choice stands until a researcher chooses again." ;
+    rdfs:comment "The repository a researcher chose to deposit the project's data in, from the shortlist, by the identifier of the registry that lists it: the conductor fills it into a Message, and into the input of an agent that mixes in GivenProjectRepository, so that the agent knows a repository is chosen and which (docs/specs/projects.md). The last choice stands until a researcher chooses again." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
+            sh:description "The chosen repository's identifier: its re3data identifier, such as r3d100010468, where re3data lists it, else its DataCite repository identifier, such as bl.york. The conductor always gives it; a caller that sends only chosen_re3data_id has it given from that." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:chosen_repository_id ;
+            sh:pattern "^(r3d[0-9]{9}|[a-z0-9]+\\.[a-z0-9.-]+)$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The chosen repository's re3data identifier, such as r3d100010468, where it has one." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:chosen_re3data_id ;
+            sh:pattern "^r3d[0-9]{9}$" ],
+        [ sh:datatype xsd:string ;
             sh:description "The chosen repository's name, as the pinned re3data export gives it." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
-            sh:path dd:chosen_repository_name ],
-        [ sh:datatype xsd:string ;
-            sh:description "The chosen repository's re3data identifier, such as r3d100010468." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path dd:chosen_re3data_id ;
-            sh:pattern "^r3d[0-9]{9}$" ] ;
+            sh:path dd:chosen_repository_name ] ;
     sh:targetClass dd:ChosenRepository .
 
 dd:ConversationTurn a sh:NodeShape ;
@@ -275,7 +281,12 @@ dd:DraftSummary a sh:NodeShape ;
     rdfs:comment "The latest version of one document drafted in a project, without its text: the conductor fills one per document into a Message so that the agent knows which version is current and whether it was drafted from the inventory the project holds now, rather than relying on what it said of an earlier version (docs/specs/projects.md)." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:integer ;
+    sh:property [ sh:in ( "metadata_record" "readme" "data_dictionary" "dmp" "other" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 0 ;
+            sh:path dd:document_kind ],
+        [ sh:datatype xsd:integer ;
             sh:description "The number of a version within its document, counted from 1." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -293,12 +304,7 @@ dd:DraftSummary a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
-            sh:path dd:drafted_since_inventory ],
-        [ sh:in ( "metadata_record" "readme" "data_dictionary" "dmp" "other" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 0 ;
-            sh:path dd:document_kind ] ;
+            sh:path dd:drafted_since_inventory ] ;
     sh:targetClass dd:DraftSummary .
 
 dd:IntakeAnswer a sh:NodeShape ;
@@ -683,18 +689,18 @@ dd:ResearcherRecord a sh:NodeShape ;
     rdfs:comment "What one researcher in a project chose to keep from their public ORCID record: only the sections and items they ticked, in ORCID's own words, never edited by a person or a model. The conductor fills the project's records into a Message and a DraftRequest so that an agent can draft creators, affiliations, subjects and funding from them (docs/specs/projects.md). Email addresses are never kept, even public ones." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
+    sh:property [ sh:description "The public API address the record was read from." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 13 ;
+            sh:path dd:record_source ],
+        [ sh:datatype xsd:string ;
             sh:description "The researcher's biography, as their ORCID record gives it." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
             sh:path dd:biography ],
-        [ sh:datatype xsd:string ;
-            sh:description "The researcher's name as their ORCID record gives it: the credit name, else the given and family names. Absent when they keep their name private or did not keep it." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path dd:researcher_name ],
         [ sh:datatype xsd:string ;
             sh:description "A country the researcher's ORCID record names, as an ISO 3166-1 alpha-2 code." ;
             sh:nodeKind sh:Literal ;
@@ -706,6 +712,12 @@ dd:ResearcherRecord a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 10 ;
             sh:path dd:works_omitted ],
+        [ sh:datatype xsd:string ;
+            sh:description "The researcher's name as their ORCID record gives it: the credit name, else the given and family names. Absent when they keep their name private or did not keep it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:researcher_name ],
         [ sh:datatype xsd:dateTime ;
             sh:description "When the record was read from ORCID's public API." ;
             sh:maxCount 1 ;
@@ -753,13 +765,7 @@ dd:ResearcherRecord a sh:NodeShape ;
             sh:description "The researcher's grants and awards they kept, the current ones first." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 11 ;
-            sh:path dd:fundings ],
-        [ sh:description "The public API address the record was read from." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:IRI ;
-            sh:order 13 ;
-            sh:path dd:record_source ] ;
+            sh:path dd:fundings ] ;
     sh:targetClass dd:ResearcherRecord .
 
 dd:ResearcherWork a sh:NodeShape ;

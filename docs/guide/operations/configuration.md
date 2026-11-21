@@ -85,6 +85,20 @@ wait. Turns and run starts use the shared pool of 40 threads, which listings no 
 `DD_APP_LISTING_THREADS` only if the database and the CPU have room; each listing thread competes
 with turns for the same process. The app refuses to start if one is not a whole number in range.
 
+Your institution's own data repositories are the profile's `institution_repositories`, which
+`apply` copies from `deployment.yaml` as written ([example](../../../config/examples/deployment.yaml)).
+Name each by its identifier in the registry that lists it: its re3data identifier (`r3d` and nine
+digits), or, since re3data does not list many an institution's repository, its DataCite repository
+identifier, which you can find at `https://api.datacite.org/repositories?query=<its name>`. Add
+only what no registry holds and you vouch for: `institution_name` and `institution_ror`, where
+DataCite registers the repository under a consortium's or a platform's account rather than your
+institution's; `data_access_types`, `data_licences` and `charges_deposit_fee`; and the `guidance`
+pages you checked them against. The repository advisor offers each to a researcher of your
+institution, beyond its shortlist's cap, and cites what you vouch for under the profile's
+reference; the project page suggests them first. A repository that neither the pinned re3data
+export nor the DataCite snapshot (`app/config/sources.yaml`) holds stops start-up, so a mistyped
+identifier is not offered silently ([Deposit](../../specs/deposit.md)).
+
 Raise the profile's `version` on every change. Each stored run records the profile and version it
 was held to, with the digest of its bytes, so a later reader can tell which rules applied. A
 request cannot name a profile; only the operator chooses it

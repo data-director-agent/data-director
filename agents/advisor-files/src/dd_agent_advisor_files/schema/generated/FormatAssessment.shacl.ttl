@@ -124,6 +124,11 @@ files:FileCheck a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
+            sh:description "For a duplicate, the paths of the other files with the same digest." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path files:related_paths ],
+        [ sh:datatype xsd:string ;
             sh:description "The word of a folder, file or field name, or the file name, that called for the check; absent for an empty file or a duplicate." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -148,11 +153,6 @@ files:FileCheck a sh:NodeShape ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
-            sh:path files:path ],
-        [ sh:datatype xsd:string ;
-            sh:description "For a duplicate, the paths of the other files with the same digest." ;
-            sh:nodeKind sh:Literal ;
-            sh:order 4 ;
-            sh:path files:related_paths ] ;
+            sh:path files:path ] ;
     sh:targetClass files:FileCheck .
 

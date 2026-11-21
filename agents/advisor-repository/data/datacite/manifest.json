@@ -1,0 +1,8 @@
+{
+  "fetched_at": "2026-11-21T18:24:38+00:00",
+  "source": "https://api.datacite.org/repositories",
+  "records": 1331,
+  "sha256": "38fa603a112cefaf987618f3dc4e251a0d0d5fd0338186c6363db85bd6fe4580",
+  "citation": "DataCite REST API, repositories and providers. https://support.datacite.org/docs/api",
+  "licence": "CC0 1.0 (DataCite metadata); see SOURCE.md"
+}

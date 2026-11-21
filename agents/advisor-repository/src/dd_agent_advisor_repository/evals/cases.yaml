@@ -1,12 +1,12 @@
-# The repository advisor's evaluation cases (docs/specs/evaluation.md; #1334).
+# The repository advisor's evaluation cases (docs/specs/evaluation.md; #1334, #1342).
 #
-# SOURCE. Dataset F of data-director-agent/sample-data ("Mill Voices", an oral-history archive),
-# at commit d350ea6. The themes and kinds of data are read from its inventory and its data
-# management plan (`grant/dmp.md`), whose section 4 says: audio masters, transcripts and the
-# image archive "will be deposited in the Wharfedale Research Data Repository and a copy offered
-# to the Netherbrook Local Studies Archive". Both are fictional, so re3data lists neither, as
-# re3data does not list many an institution's or a local archive's repository. The depositor is
-# affiliated with the fictional Wharfedale University. Every name is the dataset's own invention.
+# SOURCE. Real repositories and institutions only. Durham University's data repository, "Durham
+# University Repositories" (DataCite bl.durham, https://researchdata.durham.ac.uk/), and the
+# British Library Research Repository (DataCite bl.repo) both mint DataCite DOIs, and re3data
+# lists neither under any name or address, as it does not list many an institution's own
+# repository. The University of York's is in re3data (r3d100013241). Durham University's ROR is
+# https://ror.org/01v29qb04, York's https://ror.org/04m01e293. The themes and kinds of data are
+# those of an oral-history project; the plan's sentence is written for these cases.
 #
 # bases: the needs each case starts from, as `RepositoryNeeds` without `project_decisions`.
 # plan: the sharing commitments of the plan, as a researcher confirmed them. Each is sent as a
@@ -18,58 +18,71 @@
 #   commitments  which of `plan`'s commitment sets are confirmed (none if absent)
 #   expect:
 #     status, reason_code   the outcome (reason_code optional)
-#     in_plan               each repository the plan names, which the researcher must see as
-#                           "In your plan", whether or not re3data lists it: in the payload, or
-#                           named in the statement where the advisor stops
+#     in_plan               each repository the plan names, by its registry identifier, which
+#                           the researcher must see as "In your plan" and be able to choose
+#     institutional         each repository of the researcher's institution re3data does not
+#                           list, by its DataCite identifier, that must be offered
+#     not_offered           each such repository of another institution, which must not be
 #     shortlist             true where a shortlist is still expected beside what the plan names:
 #                           a plan's repository adds to the shortlist and removes nothing
 
 bases:
-  dataset-f:
+  durham:
     themes: [oral history]
     data_kinds: [audio recordings, interview transcripts, photographs]
     access: open
-    affiliation: {name: Wharfedale University}
+    affiliation: {name: Durham University, ror: "https://ror.org/01v29qb04"}
     country: GBR
-  # The same plan with nothing to search for: no theme, kind of data or affiliation given, as when
-  # a researcher asks only about the repositories their plan names.
+  york:
+    themes: [oral history]
+    data_kinds: [audio recordings, interview transcripts, photographs]
+    access: open
+    affiliation: {name: University of York, ror: "https://ror.org/04m01e293"}
+    country: GBR
+  # Nothing to search for: no theme, kind of data or affiliation given, as when a researcher asks
+  # only about the repositories their plan names.
   plan-only: {}
 
 quote: &quote >-
   At the end of the project, audio masters, transcripts and the image archive will be deposited
-  in the Wharfedale Research Data Repository and a copy offered to the Netherbrook Local Studies
-  Archive, the local authority archive for the valley.
+  in Durham University Repositories and a copy offered to the British Library Research
+  Repository.
 
 plan:
   # One commitment per destination, each with the repository in its subject, as the plan checker
-  # reads the plan's single sentence (dd_agent_advisor_dmp.read_plan).
+  # reads one sentence that names both (dd_agent_advisor_dmp.read_plan).
   separate:
-    - subject: Audio masters, transcripts and image archive (Wharfedale Research Data Repository)
-      repository: Wharfedale Research Data Repository
-    - subject: Audio masters, transcripts and image archive (Netherbrook Local Studies Archive)
-      repository: Netherbrook Local Studies Archive
+    - subject: Audio masters, transcripts and image archive (Durham University Repositories)
+      repository: Durham University Repositories
+    - subject: Audio masters, transcripts and image archive (British Library Research Repository)
+      repository: British Library Research Repository
 
 cases:
-  # The smoke test as run: the plan attached but not confirmed, so nothing of it reaches the
-  # advisor, which shortlists from re3data alone.
-  - id: dataset-f-plan-unconfirmed
-    base: dataset-f
-    expect: {status: succeeded, shortlist: true}
+  # A Durham researcher with no plan: the university's repository is offered beside the
+  # shortlist, from DataCite's record, though re3data does not list it.
+  - id: durham-no-plan
+    base: durham
+    expect: {status: succeeded, shortlist: true, institutional: [bl.durham]}
 
-  - id: dataset-f-plan-confirmed
-    base: dataset-f
+  # Another institution's researcher is not offered it: it takes deposits from Durham's members.
+  - id: york-no-plan
+    base: york
+    expect: {status: succeeded, shortlist: true, not_offered: [bl.durham]}
+
+  - id: durham-plan-confirmed
+    base: durham
     commitments: separate
     expect:
       status: succeeded
       shortlist: true
-      in_plan: [Wharfedale Research Data Repository, Netherbrook Local Studies Archive]
+      in_plan: [bl.durham, bl.repo]
 
-  # A succeeded payload must rest on a record retrieved (docs/specs/grounding.md, G2), and re3data
-  # lists neither repository, so the advisor stops; the plan's repositories must still be named.
-  - id: dataset-f-plan-without-shortlist
+  # A succeeded payload must rest on a record retrieved (docs/specs/grounding.md, G2). DataCite's
+  # records are retrieved, so the plan's repositories are described and can be chosen, though
+  # there is nothing else to search for.
+  - id: plan-without-shortlist
     base: plan-only
     commitments: separate
     expect:
-      status: abstained
-      reason_code: no_candidates_retrieved
-      in_plan: [Wharfedale Research Data Repository, Netherbrook Local Studies Archive]
+      status: succeeded
+      in_plan: [bl.durham, bl.repo]

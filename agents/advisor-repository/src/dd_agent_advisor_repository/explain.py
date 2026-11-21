@@ -54,27 +54,27 @@ IDENTIFIER = re.compile(r"\b(r3d\d+|FAIRsharing\.[0-9A-Za-z-]+)", re.IGNORECASE)
 def template_rationale(item: Item) -> str:
     r = item.record
     if item.basis == CandidateBasis.MANDATED:
-        lead = f"{r.name} ({r.re3data_id}) was named as mandated, so it is described, not ranked."
+        lead = f"{r.name} ({r.identifier}) was named as mandated, so it is described, not ranked."
     elif item.basis == CandidateBasis.ASKED_ABOUT:
         why = f" {' '.join(item.reasons)}" if item.reasons else ""
         lead = (
-            f"{r.name} ({r.re3data_id}) is described because the researcher asked about it; "
+            f"{r.name} ({r.identifier}) is described because the researcher asked about it; "
             f"no policy given requires it.{why}"
         )
     elif item.basis == CandidateBasis.IN_PLAN:
         why = f" {' '.join(item.reasons)}" if item.reasons else ""
         lead = (
-            f"{r.name} ({r.re3data_id}) is described because the project's data management "
+            f"{r.name} ({r.identifier}) is described because the project's data management "
             f"plan names it; no policy given requires it.{why}"
         )
     elif item.basis == CandidateBasis.CHOSEN:
         lead = (
-            f"{r.name} ({r.re3data_id}) is the repository the researcher chose, so it is described."
+            f"{r.name} ({r.identifier}) is the repository the researcher chose, so it is described."
         )
     else:
         why = f" {' '.join(item.reasons)}" if item.reasons else ""
-        lead = f"{r.name} ({r.re3data_id}) is shortlisted.{why}"
-    kind = f" re3data lists it as {', '.join(r.types)}." if r.types else ""
+        lead = f"{r.name} ({r.identifier}) is shortlisted.{why}"
+    kind = f" {r.registry} lists it as {', '.join(r.types)}." if r.types else ""
     subjects = f" Subjects: {'; '.join(r.subject_names()[:3])}." if r.subjects else ""
     gaps = (
         f" Not met or not stated: {' '.join(item.assessment.misses)}"
@@ -119,7 +119,7 @@ class ModelExplainer(explain.ModelExplainer[RepositoryNeeds, Item]):
             r, a = item.record, item.assessment
             desc = (r.description or "").strip().replace("\n", " ")
             lines.append(
-                f"{n}. {r.name} [{r.re3data_id}] — basis: {item.basis.value}; "
+                f"{n}. {r.name} [{r.identifier}] — basis: {item.basis.value}; "
                 f"types: {', '.join(r.types)}; subjects: {'; '.join(r.subject_names()[:6])}; "
                 f"meets: {' '.join(a.meets) or '(none)'}; "
                 f"misses: {' '.join(a.misses) or '(none)'}; "
@@ -132,5 +132,5 @@ class ModelExplainer(explain.ModelExplainer[RepositoryNeeds, Item]):
         return template_rationale(item)
 
     def allowed(self, items: list[Item]) -> set[str]:
-        ids = {item.record.re3data_id for item in items}
+        ids = {item.record.identifier for item in items}
         return ids | {i.record.fairsharing_id for i in items if i.record.fairsharing_id}

@@ -47,7 +47,14 @@ dmp:DmpCommitments a sh:NodeShape ;
     rdfs:comment "One document a researcher attached to a project, with its text: the conductor fills one per document into a DraftRequest so that a drafter's model may suggest answers from it (docs/specs/projects.md). Its text is the researcher's, untrusted, and given as data." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:integer ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The file name the researcher attached the document under, without any folder." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/documentation_name> ],
+        [ sh:datatype xsd:integer ;
             sh:description "The size of the document's UTF-8 text, in bytes." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -88,14 +95,7 @@ dmp:DmpCommitments a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
             sh:path <https://w3id.org/data-director/documentation_digest> ;
-            sh:pattern "^[0-9a-f]{64}$" ],
-        [ sh:datatype xsd:string ;
-            sh:description "The file name the researcher attached the document under, without any folder." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path <https://w3id.org/data-director/documentation_name> ] ;
+            sh:pattern "^[0-9a-f]{64}$" ] ;
     sh:targetClass <https://w3id.org/data-director/ProjectDocument> .
 
 <https://w3id.org/data-director/ProjectFact> a sh:NodeShape ;

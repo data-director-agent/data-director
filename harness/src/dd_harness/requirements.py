@@ -1,12 +1,14 @@
 """Repository requirements: the deployment's requirement sets, and what a choice resolves to.
 
-A researcher may choose any repository in re3data (docs/specs/deposit.md). What a deposit to it must
+A researcher may choose any repository in re3data, or, for one re3data does not list, in DataCite
+(docs/specs/deposit.md). What a deposit to it must
 or should have is not written for each repository. It comes from the deployment's `RequirementSet`s,
 kept as YAML under `DD_REPOSITORIES_DIR`:
 
     standards/<id>.yaml    one per metadata standard, naming it in re3data_names
-    overrides/<id>.yaml    what one repository asks beyond its standard, naming it in re3data_id
-    suggested.yaml         optional: the re3data identifiers the app offers before a search
+    overrides/<id>.yaml    what one repository asks beyond its standard, naming it in re3data_id,
+                           or in repository_id by its DataCite identifier if re3data lists it not
+    suggested.yaml         optional: the identifiers the app offers before a search
 
 A choice resolves to the repository's override, if the deployment has one, and the standard's
 set: the one the override names in `conforms_to`, else one the repository's re3data record
@@ -34,7 +36,14 @@ from typing import Any
 import yaml
 
 from dd_sdk.contract.classes import ClassSchema
-from dd_sdk.contract.models import DepositConnector, Obligation, RequirementField, RequirementSet
+from dd_sdk.contract.models import (
+    RE3DATA_ID_PATTERN,
+    REPOSITORY_ID_PATTERN,
+    DepositConnector,
+    Obligation,
+    RequirementField,
+    RequirementSet,
+)
 
 STANDARDS_DIR = "standards"
 OVERRIDES_DIR = "overrides"
@@ -42,7 +51,8 @@ SUGGESTED_FILE = "suggested.yaml"
 # The standard every repository that mints DataCite DOIs accepts, and so the one a repository is
 # checked against when it declares no standard the deployment has a set for (docs/specs/deposit.md).
 DATACITE = "http://datacite.org/schema/kernel-4"
-RE3DATA_ID = re.compile(r"^r3d[0-9]{9}$")
+RE3DATA_ID = re.compile(RE3DATA_ID_PATTERN)
+REPOSITORY_ID = re.compile(REPOSITORY_ID_PATTERN)
 # The transport and format pairs an override's `deposit` block may name (docs/specs/deposit.md,
 # Packagers and transports, invariant 18). The manual transport needs no block.
 DEPOSIT_PAIRS = frozenset(
@@ -72,17 +82,26 @@ class LoadedSet:
     def describe(self) -> dict[str, str]:
         return {"ref": self.ref, "sha256": self.sha256}
 
+    @property
+    def repository_id(self) -> str | None:
+        """An override's repository, by its re3data identifier or its DataCite one."""
+        return self.requirement_set.re3data_id or self.requirement_set.repository_id
+
 
 @dataclass(frozen=True)
 class Resolved:
     """What one choice of repository resolved to."""
 
-    re3data_id: str
+    repository_id: str
     repository_name: str
     declared_standards: tuple[str, ...]
     standard: LoadedSet
     override: LoadedSet | None
     warnings: tuple[str, ...]
+
+    @property
+    def re3data_id(self) -> str | None:
+        return self.repository_id if RE3DATA_ID.fullmatch(self.repository_id) else None
 
     @property
     def sets(self) -> tuple[LoadedSet, ...]:
@@ -95,7 +114,8 @@ class Resolved:
         required = list(standard.required_documents)
         recommended = list(standard.recommended_documents)
         merged: dict[str, Any] = {
-            "re3data_id": self.re3data_id,
+            "repository_id": self.repository_id,
+            **({"re3data_id": self.re3data_id} if self.re3data_id else {}),
             "repository_name": self.repository_name,
             "conforms_to": standard.conforms_to,
             "requirement_sets": [s.describe() for s in self.sets],
@@ -147,11 +167,11 @@ class Requirements:
         overrides: Iterable[LoadedSet],
         suggested: Sequence[str] = (),
     ) -> None:
-        for re3data_id in suggested:
-            if not RE3DATA_ID.fullmatch(re3data_id):
+        for repository_id in suggested:
+            if not REPOSITORY_ID.fullmatch(repository_id):
                 raise RequirementsError(
-                    f"suggested repository {re3data_id!r} is not a re3data identifier "
-                    "(r3d + 9 digits)"
+                    f"suggested repository {repository_id!r} is neither a re3data identifier "
+                    "(r3d + 9 digits) nor a DataCite one"
                 )
         self._suggested = tuple(suggested)
         self.standards = sorted(standards, key=lambda s: s.requirement_set.requirement_set_id)
@@ -161,9 +181,9 @@ class Requirements:
         _unique(
             "re3data_names", (n for s in self.standards for n in s.requirement_set.re3data_names)
         )
-        _unique("re3data_id", (s.requirement_set.re3data_id for s in self.overrides))
+        _unique("repository", (s.repository_id for s in self.overrides))
         self._by_standard = {s.requirement_set.conforms_to: s for s in self.standards}
-        self._by_repository = {s.requirement_set.re3data_id: s for s in self.overrides}
+        self._by_repository = {s.repository_id: s for s in self.overrides}
         for standard in self.standards:
             _distinct_terms(
                 standard.requirement_set.requirement_set_id, standard.requirement_set.fields
@@ -178,35 +198,38 @@ class Requirements:
 
     @property
     def suggested(self) -> tuple[str, ...]:
-        """The repositories to offer a researcher before they search, by re3data identifier: those
-        the deployment has an override for, then those `suggested.yaml` lists, each once."""
-        overridden = (s.requirement_set.re3data_id for s in self.overrides)
+        """The repositories to offer a researcher before they search, by identifier: those the
+        deployment has an override for, then those `suggested.yaml` lists, each once."""
+        overridden = (s.repository_id for s in self.overrides)
         return tuple(dict.fromkeys([*(i for i in overridden if i), *self._suggested]))
 
     @property
     def all(self) -> list[LoadedSet]:
         return [*self.standards, *self.overrides]
 
-    def connector(self, re3data_id: str) -> DepositConnector | None:
+    def connector(self, repository_id: str) -> DepositConnector | None:
         """How the harness may deposit a draft to the repository through its API, as its override
         says now; None when it is deposited to by hand. Read when a deposit is approved, not when
         the repository is chosen, so the approval names the connector as configured at that
         moment (docs/specs/deposit.md)."""
-        override = self._by_repository.get(re3data_id)
+        override = self._by_repository.get(repository_id)
         return None if override is None else override.requirement_set.deposit
 
     def resolve(
-        self, re3data_id: str, repository_name: str, declared_standards: Sequence[str] = ()
+        self, repository_id: str, repository_name: str, declared_standards: Sequence[str] = ()
     ) -> Resolved:
-        """What a repository's requirements are, from its re3data identifier and the metadata
-        standards its re3data record declares. Raises `RequirementsError` for a malformed one."""
-        if not RE3DATA_ID.fullmatch(re3data_id):
-            raise RequirementsError(f"{re3data_id!r} is not a re3data identifier (r3d + 9 digits)")
+        """What a repository's requirements are, from its identifier and the metadata standards
+        its registry record declares. Raises `RequirementsError` for a malformed identifier."""
+        if not REPOSITORY_ID.fullmatch(repository_id):
+            raise RequirementsError(
+                f"{repository_id!r} is neither a re3data identifier (r3d + 9 digits) nor a "
+                "DataCite one"
+            )
         if not repository_name.strip():
             raise RequirementsError("a chosen repository needs its name")
         declared = tuple(dict.fromkeys(declared_standards))
         warnings: list[str] = []
-        override = self._by_repository.get(re3data_id)
+        override = self._by_repository.get(repository_id)
         if override is not None:
             standard = self._by_standard[override.requirement_set.conforms_to]
         else:
@@ -227,7 +250,9 @@ class Requirements:
                 f"{standard.requirement_set.title} is checked, not the repository's own form, "
                 "formats, sizes or licences"
             )
-        return Resolved(re3data_id, repository_name, declared, standard, override, tuple(warnings))
+        return Resolved(
+            repository_id, repository_name, declared, standard, override, tuple(warnings)
+        )
 
     def _check_override(self, override: LoadedSet) -> None:
         own = override.requirement_set
@@ -305,8 +330,11 @@ def _load(path: Path, schema: ClassSchema, *, override: bool) -> LoadedSet:
             f"{path}: deposit names transport {connector.transport!r} with format "
             f"{connector.format!r}, which is not a pair docs/specs/deposit.md allows"
         )
-    if override and found.re3data_id is None:
-        raise RequirementsError(f"{path}: an override names its repository in re3data_id")
+    if override and (found.re3data_id is None) == (found.repository_id is None):
+        raise RequirementsError(
+            f"{path}: an override names its repository once, in re3data_id or, for one re3data "
+            "does not list, in repository_id"
+        )
     if not override and not found.re3data_names:
         raise RequirementsError(f"{path}: a standard's set names its standard in re3data_names")
     return LoadedSet(found, hashlib.sha256(raw).hexdigest())
@@ -316,7 +344,14 @@ def _override_only(found: RequirementSet) -> list[str]:
     """What a standard's set gives that only an override may."""
     given = [
         key
-        for key in ("re3data_id", "max_file_size", "max_item_size", "licences", "deposit")
+        for key in (
+            "re3data_id",
+            "repository_id",
+            "max_file_size",
+            "max_item_size",
+            "licences",
+            "deposit",
+        )
         if getattr(found, key) is not None
     ]
     if found.media_types:

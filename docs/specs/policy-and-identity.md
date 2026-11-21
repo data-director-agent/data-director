@@ -145,12 +145,21 @@ their source and date; [Disclosure](disclosure.md), invariant 8) and `attached_d
 (`allowed`, the default, or `refused`: whether people may attach documents to a project, and
 whether any agent is given one a project already holds; [Projects](projects.md), Documentation) and
 `deposit_transports` (the transports a person may deposit a draft through, such as `zenodo`;
-without it every repository is deposited to by hand; [Deposit](deposit.md)). A setting is the agent's own
+without it every repository is deposited to by hand; [Deposit](deposit.md)) and
+`institution_repositories` (the repositories the deployment names as its institution's, each by
+its re3data or DataCite identifier, with only what the deployment vouches for that no registry
+holds: the institution, the access offered, the licences, whether it charges a deposit fee, and
+the pages checked; the conductor gives them to an agent whose input class mixes in
+`GivenInstitutionRepositories`, replacing whatever a caller sent, the source check resolves what
+an agent cites of them under the profile's reference, the app suggests them first, and one that
+no pinned registry holds stops start-up; `dd_harness.institution_repositories`,
+[Deposit](deposit.md)). A setting is the agent's own
 option, chosen by the steward: the conductor checks it against the card and sends it, and the agent
 applies it. It is not a way to grant an agent anything the other keys withhold. A deployment's generated profile is the release's example with the keys `deployment.yaml` sets, and carries every other key of the
 example as it stands. A change to which orchestrator is
-named raises the profile's version. Approved repositories (R1), persistent identifier systems
-(R7) and registry access return as keys only together with the agent or check that enforces them.
+named raises the profile's version. Approved repositories beyond the institution's own (R1,
+TODO(#320)), persistent identifier systems (R7) and registry access return as keys only together
+with the agent or check that enforces them.
 `hosted_models` lists the classes of project content (`inventory`, `documentation`,
 `researcher`, `decisions`) that may go to an agent whose card declares a `hosted` model; without
 it `inventory` and `decisions` may ([Projects](projects.md), invariant 8). Researcher facts the profile does not list

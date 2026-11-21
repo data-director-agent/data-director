@@ -5,7 +5,7 @@ describe("shortlistOf", () => {
   it("names each candidate by the re3data record it rests on, in the advisor's order", () => {
     expect(shortlistOf(shortlistRun())).toEqual([
       {
-        re3dataId: ORDA,
+        repositoryId: ORDA,
         name: "ORDA",
         uri: "https://doi.org/10.17616/R3D100012124",
         basis: "mandated",
@@ -14,7 +14,7 @@ describe("shortlistOf", () => {
       },
       // No name in the evidence: the identifier stands in for it.
       {
-        re3dataId: ZENODO,
+        repositoryId: ZENODO,
         name: ZENODO,
         uri: null,
         basis: "recommended",

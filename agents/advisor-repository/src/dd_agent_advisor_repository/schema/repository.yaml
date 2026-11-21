@@ -41,6 +41,7 @@ classes:
     mixins:
       - GivenProjectDecisions
       - GivenProjectRepository
+      - GivenInstitutionRepositories
     slots:
       - schema_class
       - themes
@@ -58,6 +59,7 @@ classes:
     slots:
       - name
       - re3data_id
+      - repository_id
 
   Affiliation:
     description: The researcher's institution, matched against the institutions a registry lists.
@@ -82,7 +84,7 @@ classes:
   UnlistedRepository:
     description: >-
       A repository named in the needs, mandated, in the data management plan or asked about, that
-      re3data does not list, such as many an institution's own repository or a local archive. It
+      neither re3data nor DataCite lists, such as a local archive that mints no DataCite DOIs. It
       is shown with the reason it was named, so the researcher still sees it, but nothing is said
       about it: there is no record to read its terms, fees or identifiers from.
     slots:
@@ -186,8 +188,8 @@ slots:
     inlined_as_list: true
   unlisted:
     description: >-
-      The repositories named (mandated, in the data management plan or asked about) that re3data
-      lists under no name, each with the reason it was named. A name that several records bear is
+      The repositories named (mandated, in the data management plan or asked about) that neither
+      re3data nor DataCite lists under any name, each with the reason it was named. A name that several records bear is
       not here but in not_found, with a request for the identifier.
     range: UnlistedRepository
     multivalued: true
