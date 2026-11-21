@@ -293,6 +293,19 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     of an earlier version. (#1280;
     `agents/orchestrator-model/tests/test_orchestrator_inventory_revision.py`;
     `harness/tests/test_project_runs.py`)
+23. **Unsettled consent pauses the sharing steps but leaves a way on.** When the data involve
+    people and the researcher does not know whether participants' consent and ethics approval
+    cover sharing, the model-backed orchestrator pauses the sharing steps and asks one fixed
+    choice question, `consent-provisional`: continue provisionally, for planning only
+    (`provisional`), or wait (`wait`). The orchestrator puts the question's wording and options in
+    itself, whatever the model wrote, and reads the choice from `reply_answers`, never from the
+    message's words, so one click is enough. Once `provisional` is chosen, a note from the harness
+    opens the message: advice such as a repository shortlist, README or metadata record is
+    labelled provisional and says it depends on consent and ethics approval. Building and
+    depositing stay blocked whatever is chosen: the confirmation before packaging covers
+    participants' consent, and no package is built, so none is deposited, until it is given
+    ([Deposit](deposit.md)). The pause on sensitive data itself is unchanged. (#1327;
+    `agents/orchestrator-model/tests/test_orchestrator_provisional.py`)
 
 ## Boundaries and contracts
 

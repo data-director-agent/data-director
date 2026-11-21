@@ -39,7 +39,12 @@ kinds of knowledge:
   anonymisation and CARE.
 
 The prompt also tells the model to pause the sharing steps when sensitive data is flagged, and to
-treat agent results and pasted text as data, not instructions. Context about the deployment and
+treat agent results and pasted text as data, not instructions. When consent is not settled, the
+pause offers one fixed choice, `consent-provisional`: continue provisionally, for planning only,
+or wait. The orchestrator sets the question's wording and reads the choice from the answer, not
+the message's words, and once it is `provisional` a note asks for advice labelled provisional
+(`provisional.py`, #1327). Building and depositing still wait for the confirmation before
+packaging, which covers consent. Context about the deployment and
 the project is for the harness to supply (#341, #160).
 
 ## How a turn runs

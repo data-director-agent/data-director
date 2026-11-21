@@ -309,7 +309,7 @@ package still describes the files the inventory lists. A decision on an item the
 list now is refused.
 
 **The confirmation.** Once per inventory, the person confirms three statements together: that the
-ethics approvals that apply are in place and allow the deposit, that data protection advice has
+ethics approvals and participants' consent that apply are in place and allow the deposit, that data protection advice has
 been taken for data about living people or there are none, and that third-party material may be
 shared and every agreement the data come under is in force and allows it
 (`dd_harness.deposit_review.CONFIRMATIONS`). It is recorded as a `deposit_checks_confirmed` event
