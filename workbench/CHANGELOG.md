@@ -1,5 +1,47 @@
 # Changelog
 
+## [0.2.0-alpha.6](https://github.com/data-director-agent/data-director/compare/workbench-v0.2.0-alpha.5...workbench-v0.2.0-alpha.6) (2026-11-21)
+
+
+### Features
+
+* **advisor-dmp:** Evaluate reading a free-text plan's sharing commitments ([#1254](https://github.com/data-director-agent/data-director/issues/1254)) ([2cd0ddc](https://github.com/data-director-agent/data-director/commit/2cd0ddcca98df2f9aa7728fd62eafbceaa6ba3f9))
+* **advisor-policy:** identify funders in ROR before searching FAIRsharing ([#848](https://github.com/data-director-agent/data-director/issues/848)) ([793dd73](https://github.com/data-director-agent/data-director/commit/793dd730419d782ad784bd230b666f39e5b1aacf))
+* **advisor-policy:** read policies' own text and keep only quotes found in it ([#965](https://github.com/data-director-agent/data-director/issues/965)) ([dc4a0e6](https://github.com/data-director-agent/data-director/commit/dc4a0e6950613151e7c3c4ca8c8423b04ce4d5e7))
+* Deposit a draft to the Zenodo sandbox through its API with the researcher's account ([#1297](https://github.com/data-director-agent/data-director/issues/1297)) ([2d3cf96](https://github.com/data-director-agent/data-director/commit/2d3cf96b45505bee705242b06c26d74004c5c876))
+* **harness:** add pagination for listing runs and conversations ([#715](https://github.com/data-director-agent/data-director/issues/715)) ([bc3b541](https://github.com/data-director-agent/data-director/commit/bc3b5411362e31b8dae01eb13fd671bc0e55af43))
+* **harness:** carry a steward's model map in the grant ([#859](https://github.com/data-director-agent/data-director/issues/859)) ([ce17ba0](https://github.com/data-director-agent/data-director/commit/ce17ba0a1d7a21c852ba5acdc7b153a08b2e0c87))
+* **harness:** enforce the profile's model_accounts key ([#820](https://github.com/data-director-agent/data-director/issues/820)) ([3229145](https://github.com/data-director-agent/data-director/commit/3229145163e9ccf90cdc8176417373e9ed22f05a))
+* **harness:** estimate model energy and cost per run, and benchmark over PostgreSQL ([#1086](https://github.com/data-director-agent/data-director/issues/1086)) ([6ab94f2](https://github.com/data-director-agent/data-director/commit/6ab94f2c1470ba17f15b0ca2cc14f7bdb7991d90))
+* **harness:** Let a profile refuse attached documents altogether ([#1161](https://github.com/data-director-agent/data-director/issues/1161)) ([165cc9b](https://github.com/data-director-agent/data-director/commit/165cc9b2de26d6b30079794cc95c0d28066917ab))
+* **harness:** reach MCP servers through a tool gateway ([#1146](https://github.com/data-director-agent/data-director/issues/1146)) ([611b628](https://github.com/data-director-agent/data-director/commit/611b62826fe685b2d8a173f1e7306605949b29f7))
+* **harness:** record facts a person decides and give them to every drafter ([#1093](https://github.com/data-director-agent/data-director/issues/1093)) ([0095d50](https://github.com/data-director-agent/data-director/commit/0095d504e36d271db318bd550ef23b6e2ce7b638))
+* **harness:** stream run stages, check reports and cancellation over ag-ui ([#709](https://github.com/data-director-agent/data-director/issues/709)) ([6a48a7f](https://github.com/data-director-agent/data-director/commit/6a48a7f9e210fc29d96d0e59d0b680f6fddc61e5))
+* **harness:** validate agent payloads against their SHACL shapes ([#654](https://github.com/data-director-agent/data-director/issues/654)) ([7406741](https://github.com/data-director-agent/data-director/commit/74067418e35de94175a76c3e9d66601c8875cbf1))
+* let agents ask a series of questions answered one at a time ([#739](https://github.com/data-director-agent/data-director/issues/739)) ([5332215](https://github.com/data-director-agent/data-director/commit/5332215e8f050dcf3b61fdccb11b63ad436e6d92))
+* own model accounts with openai and openai-compatible endpoints ([#844](https://github.com/data-director-agent/data-director/issues/844)) ([d5469df](https://github.com/data-director-agent/data-director/commit/d5469dfd4275eb3900f4a59499ff24825326f813))
+* route a declared model to the one a person's own provider serves ([#880](https://github.com/data-director-agent/data-director/issues/880)) ([d55cad3](https://github.com/data-director-agent/data-director/commit/d55cad3afaf9a8cba850b6d1fe094a0e3ed77183))
+* **sdk:** share the agent kit and add a generator for new agents ([#1016](https://github.com/data-director-agent/data-director/issues/1016)) ([31aae2c](https://github.com/data-director-agent/data-director/commit/31aae2c52dc81c9818519f626a72b8f94be8a6f4))
+
+
+### Bug Fixes
+
+* **advisor-repository:** Describe repositories the researcher names beside the shortlist ([#1211](https://github.com/data-director-agent/data-director/issues/1211)) ([d88ee91](https://github.com/data-director-agent/data-director/commit/d88ee91e3f9d3f1ce58f70b435a0643908274d55))
+* **advisor-repository:** Describe the repository a plan names beside the shortlist ([#1235](https://github.com/data-director-agent/data-director/issues/1235)) ([96ed163](https://github.com/data-director-agent/data-director/commit/96ed16388c196d0554263ca9c2b265ec22402e99))
+* **advisor-repository:** match plurals and rank the researcher's country first ([#745](https://github.com/data-director-agent/data-director/issues/745)) ([aa9b1fe](https://github.com/data-director-agent/data-director/commit/aa9b1fe5583312e7e0ac486e83a8bed303379dbc))
+* **scripts:** Carry the example profile's keys into the generated profile ([#1348](https://github.com/data-director-agent/data-director/issues/1348)) ([4df490b](https://github.com/data-director-agent/data-director/commit/4df490b9169c47c045017c136826635d31661f22))
+* small accessibility and layout fixes in the app, admin and workbench ([#997](https://github.com/data-director-agent/data-director/issues/997)) ([8c3c1ec](https://github.com/data-director-agent/data-director/commit/8c3c1ec3d19f0f16ff1bb797ff015f1db816e3e0))
+
+
+### Performance Improvements
+
+* **app:** Move blocking store reads off the event loop ([#1289](https://github.com/data-director-agent/data-director/issues/1289)) ([03acc69](https://github.com/data-director-agent/data-director/commit/03acc697bff951d4b50b4008722dd259e8f3e8b2))
+
+
+### Documentation
+
+* **architecture:** review where complexity builds up and add ratchets to contain it ([#984](https://github.com/data-director-agent/data-director/issues/984)) ([007271a](https://github.com/data-director-agent/data-director/commit/007271ac88dadf0e8a3eb98ec3cdc2c1a7c7171f))
+
 ## [0.2.0-alpha.5](https://github.com/data-director-agent/data-director/compare/workbench-v0.2.0-alpha.4...workbench-v0.2.0-alpha.5) (2026-11-07)
 
 

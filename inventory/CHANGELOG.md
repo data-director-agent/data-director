@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.0-alpha.5](https://github.com/data-director-agent/data-director/compare/inventory-v0.1.0-alpha.4...inventory-v0.1.0-alpha.5) (2026-11-21)
+
+
+### Features
+
+* **inventory:** build the pyodide bundle and check it against the command ([#1048](https://github.com/data-director-agent/data-director/issues/1048)) ([21d53ab](https://github.com/data-director-agent/data-director/commit/21d53ab74213232eba79637de550342babbe1ece))
+* **inventory:** compare personal-data detectors on a synthetic evaluation set ([#1144](https://github.com/data-director-agent/data-director/issues/1144)) ([d3a0106](https://github.com/data-director-agent/data-director/commit/d3a0106a92ada10abda7842c99b731a409847b60))
+* **inventory:** flag possible personal data where the command finds it ([#1122](https://github.com/data-director-agent/data-director/issues/1122)) ([3901653](https://github.com/data-director-agent/data-director/commit/39016531293c04534067555da3153759307dca54))
+* **inventory:** one inventory of several folders, each updated on its own ([#846](https://github.com/data-director-agent/data-director/issues/846)) ([44a27f7](https://github.com/data-director-agent/data-director/commit/44a27f7c7887c00f2e2ec874d7b25e880de677b6))
+
+
+### Bug Fixes
+
+* Address the workshop dry-run findings in ethics, files, metadata and the inventory ([#1248](https://github.com/data-director-agent/data-director/issues/1248)) ([a76b427](https://github.com/data-director-agent/data-director/commit/a76b427355b9e12a5c6b41c828de2809f4067211))
+
 ## [0.1.0-alpha.4](https://github.com/data-director-agent/data-director/compare/inventory-v0.1.0-alpha.3...inventory-v0.1.0-alpha.4) (2026-11-07)
 
 
