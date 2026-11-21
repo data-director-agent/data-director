@@ -1,0 +1,19 @@
+{
+  "id": 1234,
+  "name": "Example Metadata Standard",
+  "abbreviation": "EMS",
+  "registry": "Standard",
+  "type": "model_and_format",
+  "metadata": {
+    "doi": "10.25504/FAIRsharing.abc123",
+    "name": "Example Metadata Standard",
+    "abbreviation": "EMS",
+    "status": "ready",
+    "description": "A made-up record shaped like FAIRsharing's public route, for tests.",
+    "homepage": "https://example.org/ems"
+  },
+  "tags": {
+    "subjects": [{"label": "Metadata", "iri": "http://example.org/metadata"}],
+    "domains": [{"label": "Data management"}]
+  }
+}
