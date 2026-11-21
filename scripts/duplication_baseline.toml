@@ -98,7 +98,7 @@ lines = 19
 [[pair]]
 files = ["agents/advisor-policy/src/dd_agent_advisor_policy/advise.py", "agents/advisor-standards/src/dd_agent_advisor_standards/advise.py"]
 clones = 5
-lines = 79
+lines = 78
 
 [[pair]]
 files = ["agents/advisor-policy/src/dd_agent_advisor_policy/classes.py", "agents/advisor-quality/src/dd_agent_advisor_quality/classes.py"]
