@@ -97,6 +97,7 @@ nav:
       - user-guide/index.md
       - Getting started: user-guide/getting-started.md
       - The workflow: user-guide/workflow.md
+      - Using the conversation: user-guide/conversation.md
       - Running an agent: user-guide/running-an-agent.md
       - Making an inventory: user-guide/making-an-inventory.md
       - Attaching a document: user-guide/attaching-a-document.md

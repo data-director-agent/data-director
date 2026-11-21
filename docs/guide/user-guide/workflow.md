@@ -127,7 +127,7 @@ evidence: see [What the Data Director records](records.md).
 
 ## How you interact with it
 
-1. **Say where you are.** Start a conversation and name your entry point.
+1. **Say where you are.** Start a conversation ([Using the conversation](conversation.md)) and name your entry point.
 2. **Read the plan.** The Data Director lists the steps from your entry point. For each step it
    shows the requirement and the agents that serve it.
 3. **Hand a step to an agent.** The Data Director delegates the step to an agent through the
