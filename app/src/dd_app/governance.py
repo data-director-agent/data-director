@@ -12,6 +12,7 @@ assertion. The app runs no agent in its own process, so it never holds an agent'
 from __future__ import annotations
 
 import asyncio
+import functools
 import re
 import threading
 from collections.abc import Mapping
@@ -23,6 +24,7 @@ from dd_app.attached import keep_attached
 from dd_app.config import DEFAULT_PROJECTS_DIR, DEFAULT_REPOSITORIES_DIR
 from dd_app.documentation_check import accept
 from dd_app.run_checks import stored_checks
+from dd_app.step_autonomy import enabled_manifest
 from dd_app.turn_body import AttachedDocument, Turn
 from dd_app.turn_lock import hold_turn
 from dd_harness import conversations, project_access
@@ -162,6 +164,7 @@ class Governance:
         # The conductor takes each run's project from the same logs the app reads.
         if self.projects is not None:
             self.conductor.projects = self.projects
+            self.projects.serving = functools.partial(enabled_manifest, self.conductor)
 
     async def invoke(self, request: InvocationRequest, acting_for: Principal) -> Envelope:
         return await self.conductor.ainvoke(request, acting_for=acting_for)

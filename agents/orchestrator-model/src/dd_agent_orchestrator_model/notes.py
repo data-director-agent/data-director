@@ -50,9 +50,10 @@ def record_notes(
     )
 
 
-def progress_note(message: Message) -> str | None:
+def progress_note(message: Message, manifest: Sequence[Mapping[str, Any]] = ()) -> str | None:
     """What the harness says of where the project is in the process flow, or None outside a
-    project. Names steps by id, as the prompt's flow does, and the suggested next step."""
+    project. Names steps by id, as the prompt's flow does, and the suggested next step: one an
+    agent in the harness's `manifest` serves, where there is one (#1377)."""
     if message.project_progress is None and message.project_entry is None:
         return None
     start = flow_entry(message.project_entry) if message.project_entry is not None else None
@@ -77,7 +78,7 @@ def progress_note(message: Message) -> str | None:
         "; ".join(f"{state}: {', '.join(ids)}" for state, ids in by_state.items() if ids)
         or "no step is started, done or skipped yet"
     )
-    suggested = suggested_next(progress(start, states, []), start)
+    suggested = suggested_next(progress(start, states, manifest), start)
     if suggested is not None:
         nxt = f" Suggested next: [{suggested.step.id}]."
     elif start is None:

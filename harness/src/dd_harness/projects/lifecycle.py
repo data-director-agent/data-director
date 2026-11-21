@@ -207,7 +207,7 @@ class Lifecycle(ProjectRules):
             "repository": _repository_summary(events),
             "conversation_count": _conversation_count(events),
             "documents": states,
-            "progress": flow.describe(events),
+            "progress": flow.describe(events, self.serving()),
             "intake": intake.state(events),
             "deleted": self._deleted(events),
             "restore_days": self.restore_period.days,
