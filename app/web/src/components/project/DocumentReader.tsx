@@ -1,9 +1,10 @@
 /**
  * One document in the project's reader: its name and state, who drafted it, and its text in three
- * tabs (a preview read by its media type, the stored text exactly, and its versions), then the
- * questions the version asks the researcher, with any answers recorded, and, on the latest version,
- * the form to answer those still open (the same form as the draft's card in the conversation), then
- * the form to decide on it while its latest version is undecided.
+ * tabs (a preview read by its media type, the stored text exactly, and its versions), then one
+ * Questions section: on the latest version, the form to answer those still open (the same form as
+ * the draft's card in the conversation) with the answered ones folded beneath it, and on an earlier
+ * version every question with its answer, read-only; then the form to decide on it while its
+ * latest version is undecided.
  *
  * The preview is for reading. A decision names the stored text by its digest, which is what the
  * Source tab shows and what the deposit package will hold. While the person edits, the preview
@@ -208,10 +209,9 @@ export function DocumentReader({
       <QuestionList
         document={document}
         version={version}
-        canAnswer={isLatest}
+        isLatest={isLatest}
         headingId={`${headingId}-questions`}
-      />
-      {isLatest && (
+      >
         <DocumentQuestions
           projectId={projectId}
           document={document}
@@ -219,7 +219,7 @@ export function DocumentReader({
           name={name}
           onAnswered={onAnswered}
         />
-      )}
+      </QuestionList>
       {isLatest && version.state === "proposed" && (
         <Deciding name={name} version={version}>
           <DecisionForm

@@ -21,6 +21,7 @@ from ddtool.common import (
     app_env,
     has_key,
     load_agents,
+    missing_optional_keys,
     needs_build,
     needs_install,
     port_free,
@@ -113,14 +114,17 @@ def _deployment_problems() -> list[str]:
 
 
 def _agent_problems() -> list[str]:
-    """Read each agent's settings, noting which have no model key."""
+    """Read each agent's settings, noting which have no model key or lack an optional key."""
     problems = []
     for agent in load_agents():
         try:
-            keyed = has_key(agent_env(agent) | dict(os.environ))
+            env = agent_env(agent) | dict(os.environ)
         except DevError as exc:
             problems.append(str(exc))
             continue
+        keyed = has_key(env)
+        for key, without in missing_optional_keys(agent.name, env):
+            print(f"note: {agent.script} has no {key}, so {without}")
         if agent.name in MODEL_BACKED and not keyed:
             print(f"note: {agent.script} has no model key, so `start` will skip it")
         elif (switch := MODEL_BY_DEFAULT.get(agent.name)) and not keyed:

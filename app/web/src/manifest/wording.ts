@@ -50,7 +50,8 @@ export const REASON: Record<string, { meaning: string; next: string }> = {
   },
   registry_unavailable: {
     meaning: "It could not search the registry. This is not the same as finding nothing.",
-    next: "Try again later.",
+    next:
+      "Try again later. If it keeps happening, ask the people who run this service whether the registry is set up.",
   },
   not_applicable: {
     meaning: "The question does not apply to this input.",

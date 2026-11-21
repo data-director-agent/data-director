@@ -11,3 +11,6 @@ The app lists every agent the harness has registered. Each agent has three tabs:
 - **History**: the stored runs. Each reopens in the same view.
 
 Parts of the app that are not built yet are marked "Not built yet", with a link to the issue.
+
+The stages a run shows, and what each check means, are explained in
+[Using the conversation](conversation.md#the-five-stages-of-a-reply).

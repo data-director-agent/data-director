@@ -144,18 +144,22 @@ describe("ProjectPage", () => {
     const asked = at(at(document.versions, 0).questions, 0);
     const unanswered = { ...answered, documents: [{ ...document, answers: [] }] };
     const { unmount } = renderPage(fakeApi({ documents: () => Promise.resolve(unanswered) }));
-    let questions = await screen.findByRole("region", { name: "Questions for the researcher" });
-    expect(questions).toHaveTextContent(asked.question_prompt);
-    expect(questions).toHaveTextContent(/Not answered yet/);
+    let questions = await screen.findByRole("region", { name: "Questions" });
+    expect(questions).toHaveTextContent(/0 of 1 answered/);
+    expect(within(questions).getByRole("textbox", { name: asked.question_prompt })).toBeVisible();
+    expect(within(questions).queryByText(/Answered \(/)).not.toBeInTheDocument();
     unmount();
 
     renderPage(fakeApi({ documents: () => Promise.resolve(answered) }));
-    questions = await screen.findByRole("region", { name: "Questions for the researcher" });
+    questions = await screen.findByRole("region", { name: "Questions" });
     expect(questions).toHaveTextContent(/1 of 1 answered/);
+    // An answered question is folded away beneath the form, not asked again.
+    expect(within(questions).getByText("Answered (1)")).toBeVisible();
     expect(questions).toHaveTextContent(/Answered: .*Soil cores/);
+    expect(within(questions).queryByRole("textbox")).not.toBeInTheDocument();
   });
 
-  it("shows a model's suggestion beside an unanswered question, as a suggestion only", async () => {
+  it("asks each question once, with a model's suggestion in its box to check and accept", async () => {
     const answered = answersFixture as ProjectDocuments;
     const document = at(answered.documents, 0);
     const version = at(document.versions, 0);
@@ -178,10 +182,13 @@ describe("ProjectPage", () => {
       ],
     };
     const { container } = renderPage(fakeApi({ documents: () => Promise.resolve(suggesting) }));
-    const questions = await screen.findByRole("region", { name: "Questions for the researcher" });
+    const questions = await screen.findByRole("region", { name: "Questions" });
     expect(questions).toHaveTextContent(/0 of 1 answered/);
-    expect(questions).toHaveTextContent(/Not answered yet/);
-    expect(questions).toHaveTextContent(/Cores at 0 to 10 cm/);
+    expect(within(questions).getAllByText(asked.question_prompt)).toHaveLength(1);
+    expect(within(questions).getByRole("textbox", { name: asked.question_prompt })).toHaveValue(
+      "Cores at 0 to 10 cm",
+    );
+    expect(within(questions).getByRole("button", { name: "Accept 1 suggested answer" })).toBeEnabled();
     expect(await axe(container)).toHaveNoViolations();
   });
 
@@ -212,7 +219,7 @@ describe("ProjectPage", () => {
         [{ answered_question: asked.question_id, answer_text: "Soil cores" }],
       ],
     ]);
-    const questions = await screen.findByRole("region", { name: "Questions for the researcher" });
+    const questions = await screen.findByRole("region", { name: "Questions" });
     expect(questions).toHaveTextContent(/1 of 1 answered/);
     expect(screen.queryByRole("textbox", { name: asked.question_prompt })).not.toBeInTheDocument();
     expect(await screen.findByText(/Recorded 1 answer/)).toBeVisible();
@@ -225,7 +232,7 @@ describe("ProjectPage", () => {
     const second = { ...first, version: 2, questions: [], revises: { document_id: first.document_id, version: 1 } };
     const twice = { ...answered, documents: [{ ...document, answers: [], versions: [first, second] }] };
     renderPage(fakeApi({ documents: () => Promise.resolve(twice) }), `doc=${document.document_id}&v=1`);
-    const questions = await screen.findByRole("region", { name: "Questions for the researcher" });
+    const questions = await screen.findByRole("region", { name: "Questions" });
     expect(questions).toHaveTextContent(/asked of an earlier version/);
     expect(screen.queryByRole("textbox", { name: at(first.questions, 0).question_prompt })).not.toBeInTheDocument();
   });

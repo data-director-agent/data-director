@@ -63,10 +63,13 @@ def dictionary_rows(document: Mapping[str, Any]) -> list[dict[str, str]] | None:
 
 
 def cell_questions(document: Mapping[str, Any]) -> dict[tuple[str, str, str], dict[str, Any]]:
+    """Each data dictionary cell a question fills, by file, field and column: a question about a
+    column several files share fills that column's cell in each of its `gap_files`."""
     return {
-        (q["gap_file"], q["gap_field"], q["gap_column"]): q
+        (file, q["gap_field"], q["gap_column"]): q
         for q in document.get("document_questions", [])
         if q.get("gap_file") is not None
+        for file in q.get("gap_files") or [q["gap_file"]]
     }
 
 

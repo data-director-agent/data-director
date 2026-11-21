@@ -132,6 +132,26 @@
          "title": "MatchedPolicy",
          "type": "object"
       },
+      "NotSearched": {
+         "additionalProperties": false,
+         "description": "A registry that was not asked in this run, and why: it is not configured on this server, or it could not be reached. A policy it holds was not found, which is not the same as there being none.",
+         "properties": {
+            "registry": {
+               "$ref": "#/$defs/PolicyRegistry",
+               "description": "The registry that was not asked."
+            },
+            "reason": {
+               "description": "Why it was not asked.",
+               "type": "string"
+            }
+         },
+         "required": [
+            "registry",
+            "reason"
+         ],
+         "title": "NotSearched",
+         "type": "object"
+      },
       "Obligation": {
          "additionalProperties": false,
          "description": "What a policy record says about one kind of obligation. Read from a curated field by a fixed rule (derivation registry), or stated by a model with a quote from the record that the agent found in it, word for word, before keeping it (derivation model).",
@@ -518,9 +538,19 @@
          ]
       },
       "no_record": {
-         "description": "Actors for which no FAIRsharing policy record was found.",
+         "description": "Actors for which no policy record was found in the registries searched. A registry in not_searched was not asked.",
          "items": {
             "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "not_searched": {
+         "description": "The registries that could not be asked in this run, each with the reason. Empty when every registry the agent reads was asked.",
+         "items": {
+            "$ref": "#/$defs/NotSearched"
          },
          "type": [
             "array",

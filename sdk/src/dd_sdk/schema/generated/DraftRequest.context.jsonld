@@ -10,8 +10,14 @@
       "ApprovedMetadataRecord": {
          "@id": "https://w3id.org/data-director/ApprovedMetadataRecord"
       },
+      "CategoryCount": {
+         "@id": "https://w3id.org/data-director/CategoryCount"
+      },
       "CurrentVersion": {
          "@id": "https://w3id.org/data-director/CurrentVersion"
+      },
+      "DisclosureCheck": {
+         "@id": "https://w3id.org/data-director/DisclosureCheck"
       },
       "DocumentVersionRef": {
          "@id": "https://w3id.org/data-director/DocumentVersionRef"
@@ -25,6 +31,9 @@
       "ExternalIdentifier": {
          "@id": "https://w3id.org/data-director/ExternalIdentifier"
       },
+      "FieldSummary": {
+         "@id": "https://w3id.org/data-director/FieldSummary"
+      },
       "FileInventory": {
          "@id": "https://w3id.org/data-director/FileInventory"
       },
@@ -33,6 +42,9 @@
       },
       "InventoryPart": {
          "@id": "https://w3id.org/data-director/InventoryPart"
+      },
+      "MissingCodeCount": {
+         "@id": "https://w3id.org/data-director/MissingCodeCount"
       },
       "PersonalDataFinding": {
          "@id": "https://w3id.org/data-director/PersonalDataFinding"
@@ -85,6 +97,30 @@
       },
       "biography": {
          "@id": "https://w3id.org/data-director/biography"
+      },
+      "category_count": {
+         "@id": "https://w3id.org/data-director/category_count"
+      },
+      "category_value": {
+         "@id": "https://w3id.org/data-director/category_value"
+      },
+      "check_rounding_base": {
+         "@id": "https://w3id.org/data-director/check_rounding_base"
+      },
+      "check_rules": {
+         "@id": "https://w3id.org/data-director/check_rules"
+      },
+      "check_suppressed": {
+         "@id": "https://w3id.org/data-director/check_suppressed"
+      },
+      "check_threshold": {
+         "@id": "https://w3id.org/data-director/check_threshold"
+      },
+      "check_tool": {
+         "@id": "https://w3id.org/data-director/check_tool"
+      },
+      "check_tool_version": {
+         "@id": "https://w3id.org/data-director/check_tool_version"
       },
       "commitment_access": {
          "@id": "https://w3id.org/data-director/commitment_access"
@@ -201,8 +237,16 @@
       "field_description": {
          "@id": "http://purl.org/dc/terms/description"
       },
+      "field_disclosure_check": {
+         "@id": "https://w3id.org/data-director/field_disclosure_check",
+         "@type": "@id"
+      },
       "field_format": {
          "@id": "https://w3id.org/data-director/field_format"
+      },
+      "field_summary": {
+         "@id": "https://w3id.org/data-director/field_summary",
+         "@type": "@id"
       },
       "field_type": {
          "@id": "https://w3id.org/data-director/field_type"
@@ -373,6 +417,12 @@
          "@id": "https://w3id.org/data-director/metadata_record",
          "@type": "@id"
       },
+      "missing_code": {
+         "@id": "https://w3id.org/data-director/missing_code"
+      },
+      "missing_code_count": {
+         "@id": "https://w3id.org/data-director/missing_code_count"
+      },
       "name": {
          "@id": "https://w3id.org/data-director/name"
       },
@@ -515,6 +565,30 @@
       "spdx": "http://spdx.org/rdf/terms#",
       "start_year": {
          "@id": "https://w3id.org/data-director/start_year"
+      },
+      "summary_categories": {
+         "@id": "https://w3id.org/data-director/summary_categories",
+         "@type": "@id"
+      },
+      "summary_mean": {
+         "@id": "https://w3id.org/data-director/summary_mean",
+         "@type": "http://www.w3.org/2001/XMLSchema#float"
+      },
+      "summary_missing_codes": {
+         "@id": "https://w3id.org/data-director/summary_missing_codes",
+         "@type": "@id"
+      },
+      "summary_null_count": {
+         "@id": "https://w3id.org/data-director/summary_null_count"
+      },
+      "summary_range_high": {
+         "@id": "https://w3id.org/data-director/summary_range_high"
+      },
+      "summary_range_low": {
+         "@id": "https://w3id.org/data-director/summary_range_low"
+      },
+      "summary_rows_read": {
+         "@id": "https://w3id.org/data-director/summary_rows_read"
       },
       "unconfirmed": {
          "@id": "https://w3id.org/data-director/unconfirmed"

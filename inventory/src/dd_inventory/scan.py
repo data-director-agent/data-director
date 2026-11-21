@@ -24,6 +24,7 @@ from typing import Any, Final, TypedDict, Unpack
 
 from dd_inventory.identify import Identifier, default_identifier
 from dd_inventory.personal import Check, Detector, default_detector
+from dd_inventory.summaries import SummaryRules, available, summarise
 from dd_inventory.tables import TableError, is_table, table_fields
 
 TOOL = "dd-inventory"
@@ -117,7 +118,10 @@ class ScanOptions(TypedDict, total=False):
     if given, is called once per file, in order, after the file is handled. `detector` looks for
     possible personal data (docs/specs/personal-data.md); by default it is Presidio's pattern
     recognisers, and with `None` no check runs and the inventory has no
-    `inventory_personal_data`, which says that none ran.
+    `inventory_personal_data`, which says that none ran. `summaries` gives the disclosure rules
+    for table fields' summary values (docs/specs/personal-data.md); by default `SummaryRules()`
+    natively and none under Pyodide, where the disclosure checker does not run, and with `None`
+    no field has a `field_summary`.
     """
 
     identifier: Identifier | None
@@ -125,6 +129,7 @@ class ScanOptions(TypedDict, total=False):
     runtime: str | _Detect | None
     on_file: Callable[[FileProgress], None] | None
     detector: Detector | _Default | None
+    summaries: SummaryRules | _Default | None
 
 
 def _runtime(options: ScanOptions) -> str | None:
@@ -137,12 +142,38 @@ def _detector(options: ScanOptions) -> Detector | None:
     return default_detector() if isinstance(detector, _Default) else detector
 
 
+def _summaries(options: ScanOptions) -> tuple[SummaryRules | None, str | None]:
+    """The summary rules to apply, and, when there are none, why not, for the limitations."""
+    rules = options.get("summaries", DEFAULT)
+    if rules is None:
+        return None, "No summary values of table fields were made: they were turned off."
+    if detect_runtime() is not None:
+        return None, (
+            "No summary values of table fields were made: their disclosure check does not run "
+            "in this runtime."
+        )
+    if problem := available():
+        return None, f"No summary values of table fields were made: {problem}."
+    return (SummaryRules() if isinstance(rules, _Default) else rules), None
+
+
+def summaries_limitation(rules: SummaryRules) -> str:
+    """What a reader of an inventory with summary values should know about them."""
+    return (
+        f"Summary values of table fields passed statistical disclosure control with "
+        f"{rules.description()}. Values that failed a rule were left out and are not stored "
+        f"anywhere; each field's check says how many. A range is never the minimum and "
+        f"maximum: at least {rules.threshold} values lie at or beyond each of its bounds."
+    )
+
+
 def make_inventory(root: Path, **options: Unpack[ScanOptions]) -> dict[str, Any]:
     """The `FileInventory` of every file under `root`, as a JSON-ready dict (`ScanOptions`)."""
     runtime = _runtime(options)
     detector = _detector(options)
     identifier, now, on_file = options.get("identifier"), options.get("now"), options.get("on_file")
     check = Check(detector) if detector is not None else None
+    rules, no_summaries = _summaries(options)
     root = root.resolve()
     if not root.is_dir():
         raise NotADirectoryError(root)
@@ -158,7 +189,7 @@ def make_inventory(root: Path, **options: Unpack[ScanOptions]) -> dict[str, Any]
         relative = path.relative_to(root).as_posix()
         size = 0
         try:
-            entry = _describe(root, path, identifier, limitations, check)
+            entry = _describe(root, path, identifier, limitations, (check, rules))
             files.append(entry)
             size = entry["file_size"]
         except OSError as exc:
@@ -169,6 +200,7 @@ def make_inventory(root: Path, **options: Unpack[ScanOptions]) -> dict[str, Any]
         "Table fields are inferred from a sample of rows; a later row may not fit the type given."
     )
     limitations += check.limitations() if check else ["No personal-data detector ran."]
+    limitations.append(summaries_limitation(rules) if rules else str(no_summaries))
     made_at = (now or datetime.now(UTC)).isoformat(timespec="seconds")
     inventory = {
         "schema_class": SCHEMA_CLASS,
@@ -243,6 +275,7 @@ def make_inventory_of(parts: Mapping[str, Path], **options: Unpack[ScanOptions])
             runtime=runtime,
             on_file=progress,
             detector=detector,
+            summaries=options.get("summaries", DEFAULT),
         )
         if unavailable:
             scan["inventory_limitations"].insert(
@@ -287,8 +320,13 @@ def _part(name: str, scan: dict[str, Any]) -> dict[str, Any]:
 
 
 def _describe(
-    root: Path, path: Path, identifier: Identifier, limitations: list[str], check: Check | None
+    root: Path,
+    path: Path,
+    identifier: Identifier,
+    limitations: list[str],
+    checks: tuple[Check | None, SummaryRules | None],
 ) -> dict[str, Any]:
+    check, rules = checks
     relative = PurePosixPath(path.relative_to(root).as_posix())
     found = identifier.identify(path)
     entry: dict[str, Any] = {
@@ -313,4 +351,18 @@ def _describe(
             limitations += table.limitations(str(relative))
             if check is not None:
                 check.table(str(relative), table)
+            if rules is not None:
+                skip = check.flagged_columns(str(relative)) if check else frozenset()
+                made = summarise(path, table, str(relative), rules, skip)
+                entry["file_fields"] = [
+                    {
+                        **f,
+                        "field_summary": made.fields[f["name"]][0],
+                        "field_disclosure_check": made.fields[f["name"]][1],
+                    }
+                    if f["name"] in made.fields
+                    else f
+                    for f in table.fields
+                ]
+                limitations += made.limitations
     return entry

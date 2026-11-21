@@ -4,6 +4,7 @@
  * once and is kept in this browser only (`preferences.ts`); nothing here reaches the server.
  */
 
+import { CalendarClock, Palette, Rocket, type LucideIcon } from "lucide-react";
 import { formatDateTime } from "../../format";
 import {
   type PreferenceName,
@@ -124,10 +125,14 @@ const EXAMPLE = new Date(2026, 10, 16, 14, 5);
 /** The preference sections, one tab each on the Settings page. */
 export type PreferenceSection = "appearance" | "dates" | "starting";
 
-export const PREFERENCE_SECTIONS: { id: PreferenceSection; title: string }[] = [
-  { id: "appearance", title: "Appearance" },
-  { id: "dates", title: "Dates and times" },
-  { id: "starting", title: "Starting up" },
+export const PREFERENCE_SECTIONS: {
+  id: PreferenceSection;
+  title: string;
+  icon: LucideIcon;
+}[] = [
+  { id: "appearance", title: "Appearance", icon: Palette },
+  { id: "dates", title: "Dates and times", icon: CalendarClock },
+  { id: "starting", title: "Starting up", icon: Rocket },
 ];
 
 export function Preferences({ section }: { section: PreferenceSection }) {

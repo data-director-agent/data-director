@@ -1,8 +1,37 @@
 /**
  * Compare the inventory `dd-inventory` writes natively with the one it writes under Pyodide.
- * Pure. They must be equal but for when each was made and the runtime's local version label,
- * which only the Pyodide one has (docs/specs/projects.md).
+ * Pure. They must be equal but for when each was made, the runtime's local version label, which
+ * only the Pyodide one has (docs/specs/projects.md), and table fields' summary values, which are
+ * made natively only, with what each says about them (docs/specs/personal-data.md).
  */
+
+/** Slots of a table field that only the native inventory has. */
+const NATIVE_ONLY_FIELD_SLOTS = ["field_summary", "field_disclosure_check"];
+/** The beginnings of the limitations that say what was done about summary values. */
+const SUMMARY_LIMITATIONS = [
+  "Summary values of table fields",
+  "No summary values of table fields",
+];
+
+function withoutSummaries(value: Json): Json {
+  if (Array.isArray(value)) {
+    return value
+      .filter(
+        (v) =>
+          typeof v !== "string" ||
+          !(SUMMARY_LIMITATIONS.some((s) => v.startsWith(s)) || / summary values were computed /.test(v)),
+      )
+      .map(withoutSummaries);
+  }
+  if (isObject(value)) {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([k]) => !NATIVE_ONLY_FIELD_SLOTS.includes(k))
+        .map(([k, v]) => [k, withoutSummaries(v)]),
+    );
+  }
+  return value;
+}
 
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 
@@ -50,5 +79,8 @@ export function parityProblems(
     delete rest.inventory_tool_version;
     return rest;
   };
-  return [...problems, ...differences(strip(native), strip(pyodide))];
+  return [
+    ...problems,
+    ...differences(withoutSummaries(strip(native)), withoutSummaries(strip(pyodide))),
+  ];
 }

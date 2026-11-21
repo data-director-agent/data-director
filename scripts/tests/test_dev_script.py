@@ -153,6 +153,19 @@ def test_the_tooling_lists_every_advisor_whose_model_is_on_by_default() -> None:
     assert on_by_default == common.MODEL_BY_DEFAULT
 
 
+def test_doctor_lists_an_agents_optional_key_until_its_settings_or_secrets_give_it() -> None:
+    factory = importlib.import_module("dd_agent_advisor_policy.factory")
+
+    # The table names the variable the agent reads.
+    assert factory.OPF_KEY in common.OPTIONAL_KEYS["advisor-policy"]
+    [(key, without)] = common.missing_optional_keys("advisor-policy", {})
+    assert key == factory.OPF_KEY and without
+    assert common.missing_optional_keys("advisor-policy", {key: "k"}) == []
+    assert common.missing_optional_keys("advisor-policy", {f"{key}_FILE": "opf"}) == []
+    assert common.missing_optional_keys("advisor-policy", {}, {"open-policy-finder-api-key"}) == []
+    assert common.missing_optional_keys("advisor-standards", {}) == []
+
+
 def test_a_key_makes_the_model_orchestrator_the_home_pages_with_a_new_version(repo: Path) -> None:
     setup(scripted("", "", KEY, "n", "y", ""), install=False)
     local = repo / "config" / "local"

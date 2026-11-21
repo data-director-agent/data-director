@@ -52,6 +52,7 @@ which gets one line that points to the code.
 | [The intake against §8](intake-reading.md) | A reading of the project intake's questions, entry points and the steps an answer skips against Blueprint §8, and the decisions it settled. |
 | [Drafting documents](drafting.md) | What a drafter may infer, ask and write; gaps, questions to the researcher and their answers. |
 | [Deposit](deposit.md) | Repository requirements and the deposit package. |
+| [Metadata standards](metadata-standards.md) | How a metadata record is written in any standard: standards as definitions, codecs, the pivot used to check and convert, and drafting in a standard. |
 | [Storage](storage.md) | The run and project storage protocols, their guarantees, the file backends and how another backend is added. |
 | [Disclosure](disclosure.md) | Model calls and their prompts, and the disclosure of how each approved document came about, as a statement and a PROV-O graph. |
 | [Provenance](provenance.md) | What "all actions" means for a project, how each event and run maps to PROV-O, the identifiers, and how the graph is checked complete. |

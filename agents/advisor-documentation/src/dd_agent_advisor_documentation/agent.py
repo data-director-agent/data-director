@@ -38,7 +38,8 @@ version.
 
 Every gap is asked (docs/specs/drafting.md): the version carries one `DocumentQuestion` for each
 README section, or part of one asked part by part, left for the researcher, and each `unknown` data
-dictionary cell. A README gap is an italic placeholder followed by `<!-- dd:gap <question-id> -->`.
+dictionary cell, or each column several files share by name, type and format (`dictionary.py`).
+A README gap is an italic placeholder followed by `<!-- dd:gap <question-id> -->`.
 A question's identifier is derived from its gap, so the same gap is asked under the same identifier
 in every version. An answer in the request's `draft_answers` goes, as given, in its gap, `supplied`.
 """
@@ -52,6 +53,7 @@ from typing import Any, Literal
 from dd_agent_advisor_documentation.counts import counted
 from dd_agent_advisor_documentation.dictionary import (
     Source,
+    _answers,
     draft_dictionary,
     unit_codes_statement,
 )
@@ -76,6 +78,7 @@ from dd_agent_advisor_documentation.record import (
     _values,
 )
 from dd_agent_advisor_documentation.sections import Section, load_sections
+from dd_agent_advisor_documentation.values import field_facts
 from dd_sdk.agent import (
     AgentResult,
     AgentSpec,
@@ -91,7 +94,6 @@ from dd_sdk.contract.models import (
     Document,
     DocumentKind,
     DocumentQuestion,
-    DraftAnswer,
     DraftRequest,
     FileInventory,
     GroundingMode,
@@ -247,7 +249,8 @@ class DocumentationEditor:
                 f"from the inventory or worked out by rule, {counts[Source.SUPPLIED]} supplied by "
                 f"you and {counts[Source.UNKNOWN]} unknown. It asks "
                 f"{count(len(questions), 'question')}, one for each unknown value it can ask "
-                f"about yet. {unit_codes_statement(drafted.unit_codes)} "
+                "about yet, or for each column several files share. "
+                f"{unit_codes_statement(drafted.unit_codes)} "
                 f"{how_suggested(suggested, TITLES[kind])}"
             )
 
@@ -543,24 +546,7 @@ def _facts(
             "path": f.file_path,
             "format": _format(f.file_media_type, f.file_pronom_ids),
             "size_bytes": f.file_size,
-            **(
-                {
-                    "fields": [
-                        {
-                            k: v
-                            for k, v in (
-                                ("name", c.name),
-                                ("type", c.field_type),
-                                ("format", c.field_format),
-                            )
-                            if v
-                        }
-                        for c in f.file_fields
-                    ]
-                }
-                if f.file_fields
-                else {}
-            ),
+            **({"fields": [field_facts(c) for c in f.file_fields]} if f.file_fields else {}),
         }
         for f in inventory.inventory_files
     ]
@@ -622,12 +608,6 @@ def _table(header: tuple[str, ...], rows: Sequence[tuple[str, ...]]) -> str:
         return "| " + " | ".join(c.replace("|", "\\|") for c in cells) + " |"
 
     return "\n".join([line(header), line(tuple("---" for _ in header)), *map(line, rows)])
-
-
-def _answers(given: Sequence[DraftAnswer]) -> dict[str, str]:
-    """The recorded answers by the question they answer. A blank answer leaves its gap open; of
-    two answers to one question, the later in the list wins."""
-    return {a.answered_question: a.answer_text for a in given if a.answer_text.strip()}
 
 
 def build() -> DocumentationEditor:

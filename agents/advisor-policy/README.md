@@ -137,7 +137,10 @@ never taken alone:
   default).
 - `OPEN_POLICY_FINDER_API_KEY` or `OPEN_POLICY_FINDER_API_KEY_FILE`: a free key from
   [Open Policy Finder](https://openpolicyfinder.jisc.ac.uk/help/developers/how-to-request-a-new-api-key).
-  On a VM: `sudo data-director secret set advisor-policy open-policy-finder-api-key`.
+  On a VM: `sudo data-director secret set advisor-policy open-policy-finder-api-key`. Without
+  it, the agent warns at start-up and lists Open Policy Finder in the payload's `not_searched`;
+  a run that matches no policy for a funder or journal abstains with `registry_unavailable`,
+  because it could not search, and `doctor` notes the key as not set.
 - `DD_POLICY_CROSSREF`: `live` (the default) asks Crossref which publisher a journal belongs to;
   `off` does not.
 

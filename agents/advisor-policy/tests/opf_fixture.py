@@ -108,6 +108,11 @@ def opf(handler: Callable[[httpx.Request], httpx.Response] | None = None) -> Ope
     return OpenPolicyFinder(KEY, client=client)
 
 
+def opf_finding_nothing() -> OpenPolicyFinder:
+    """Open Policy Finder with a key, answering every search with no record."""
+    return opf(lambda request: httpx.Response(200, json=EMPTY))
+
+
 def crossref(
     handler: Callable[[httpx.Request], httpx.Response] | None = None,
 ) -> CrossrefJournals:

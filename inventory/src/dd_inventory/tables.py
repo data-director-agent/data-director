@@ -38,6 +38,8 @@ class Table:
     missing_seen: tuple[str, ...] = ()
     # The fields with no value in the sample, whose type is therefore not known (`any`).
     no_values: tuple[str, ...] = ()
+    # How many rows at the top of the file are headers, for a later read of the rows.
+    header_rows: int = 1
 
     def limitations(self, relative: str) -> list[str]:
         """What a reader of the inventory should know about this table's inferred types."""
@@ -100,4 +102,5 @@ def table_fields(path: Path) -> Table:
         columns,
         missing_seen=tuple(m for m in MISSING_VALUES if m and m in seen),
         no_values=tuple(name for name in names if not columns[name]),
+        header_rows=headers,
     )

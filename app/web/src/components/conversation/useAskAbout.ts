@@ -1,7 +1,10 @@
-import { type RefObject, useEffect, useState } from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
 
 import { locate } from "../../flow/journey";
 import type { ProcessFlow } from "../../flow/types";
+import { type DocumentQuestion, questionTarget } from "../../project/api";
+import type { DocumentsRead } from "../../project/drafted";
+import { documentName } from "../../project/name";
 import { homePath, navigate, useLocation } from "../../route";
 
 /**
@@ -25,11 +28,70 @@ export function useAskAbout(
       );
     }
   }
+  const focus = useFocusOnceDrawn(box);
   useEffect(() => {
     if (!askAbout || askedAbout !== askAbout) return;
-    box.current?.focus();
+    focus();
     navigate(homePath(keep), true);
     // Only the step asked about, once its text is in the box, is acted on.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [askAbout, askedAbout]);
+}
+
+/**
+ * Focuses `box` when asked, or, if the page has not drawn it yet (the workspace waits for what it
+ * reads on load), as soon as a later render has.
+ */
+function useFocusOnceDrawn(box: RefObject<HTMLTextAreaElement | null>): () => void {
+  const waiting = useRef(false);
+  useEffect(() => {
+    if (!waiting.current || !box.current) return;
+    box.current.focus();
+    waiting.current = false;
+  });
+  return () => {
+    if (box.current) box.current.focus();
+    else waiting.current = true;
+  };
+}
+
+/** The message that asks for help with a draft's question, in the researcher's voice. */
+export function askAboutQuestion(name: string, question: DocumentQuestion): string {
+  return (
+    `Can you help me answer this question about the ${name}: “${question.question_prompt}” ` +
+    `(it fills ${questionTarget(question)})? I'll record my answer on the draft once we've worked it out.`
+  );
+}
+
+/**
+ * A draft's question to talk through (`?question={document_id}/{question_id}`, from its
+ * "Talk this through" link) fills the message box of a new conversation, unsent, once the
+ * project's documents are read; the address then drops it so a reload does not refill. A question
+ * the documents do not ask is ignored. The answer is still recorded on the draft, never here.
+ */
+export function useAskAboutQuestion(
+  documents: DocumentsRead,
+  setText: (text: string) => void,
+  box: RefObject<HTMLTextAreaElement | null>,
+  keep: { conversation: string | null; run: string | null },
+): void {
+  const asked = new URLSearchParams(useLocation().split("?")[1] ?? "").get("question");
+  const [handled, setHandled] = useState<string | null>(null);
+  if (asked && documents.state === "loaded" && handled !== asked) {
+    setHandled(asked);
+    const [documentId, questionId] = asked.split("/");
+    const document = documents.documents.find((d) => d.document_id === documentId);
+    const question = document?.versions
+      .flatMap((v) => v.questions)
+      .find((q) => q.question_id === questionId);
+    if (document && question) setText(askAboutQuestion(documentName(document), question));
+  }
+  const focus = useFocusOnceDrawn(box);
+  useEffect(() => {
+    if (!asked || handled !== asked) return;
+    focus();
+    navigate(homePath(keep), true);
+    // Only the question asked about, once its text is in the box, is acted on.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [asked, handled]);
 }

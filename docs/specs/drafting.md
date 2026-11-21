@@ -30,9 +30,10 @@ Where a model is configured, it also suggests a data dictionary's definitions an
 answers to some of a README's questions, offered with the questions.
 
 The Metadata Librarian (`advisor.metadata`) drafts the metadata record by the same rules. It
-serves `preparation.metadata` and drafts a DataCite record in its JSON form from a `DraftRequest`
-with the chosen repository's requirements, asks about every value it leaves null, and places the
-answers recorded to them. Its model, on unless the operator turns it off,
+serves `preparation.metadata` and drafts the record from a `DraftRequest` with the chosen
+repository's requirements, asks about every value it leaves null, and places the answers recorded to
+them. It drafts in the standard those requirements follow ([Metadata standards](metadata-standards.md));
+today that is DataCite in its JSON form alone, TODO(#1359). Its model, on unless the operator turns it off,
 suggests some of those values beside their questions
 ([`agents/advisor-metadata/README.md`](../../agents/advisor-metadata/README.md)).
 
@@ -40,10 +41,12 @@ suggests some of those values beside their questions
 
 1. **Inferred means read from the project's facts.** A drafter infers only what the file inventory
    and the chosen repository's requirements record: the files, their formats and sizes, the
-   tables, and each field's name, type and format. It opens no file. Per-field summary values,
-   such as ranges, counts or categories, are not inferred, because the inventory does not carry
-   them until the command applies disclosure control to them
-   ([Personal data and disclosure control](personal-data.md), #571). A data dictionary's
+   tables, and each field's name, type and format, and the summary values the command wrote
+   after disclosure control (a range that leaves out the extremes, a mean, categories and
+   missing-value codes with rounded counts). It opens no file. A data dictionary's missing-value
+   codes are inferred from them; a writer may describe a field with them but never says what a
+   code means, nor calls a range's bounds the minimum and maximum
+   ([Personal data and disclosure control](personal-data.md), #571, #611). A data dictionary's
    `unit_code` is also inferred: it is worked out by rule (`dd-units`) from the unit the field
    is given, whoever gave it, as its [UCUM](https://ucum.org) code, or `n/a` for a field given
    no unit. The rule reads only that unit, accepts a UCUM name, print symbol or code as a person
@@ -87,12 +90,17 @@ suggests some of those values beside their questions
    separate things, such as General information's title,
    creators, dates and funding, is asked part by part: each part the facts do not
    give is its own gap, on a `- **<part>:**` line, with its own question. A data dictionary gap is
-   an `unknown` cell. Each gap has exactly one question in the
-   version's `document_questions` whose target names it
-   (`agents/advisor-documentation/tests/test_documentation_agent.py`), but one: a `unit_code`
-   whose `unit` is still `unknown` is not asked, because it is worked out once the unit is given
-   (invariant 1). Its question appears only if the rule cannot read the unit given
-   (`agents/advisor-documentation/tests/test_unit_codes.py`).
+   an `unknown` cell, except that the `unknown` cells of a column several files share are one
+   gap: a column is shared when files hold a field of the same name, type and format, as a study
+   whose runs each write the same table does, and a field of the same name with another type or
+   format is a column of its own. The dictionary still has a row for each field of each file. Each
+   gap has exactly one question in the version's `document_questions` whose target names it, so a
+   study of many runs is asked as many questions as one of two
+   (`agents/advisor-documentation/tests/test_documentation_agent.py`,
+   `agents/advisor-documentation/tests/test_shared_columns.py`, #1317). A `unit_code` follows its
+   file's unit, so files share its gap only if they give the same unit, and one whose `unit` is still `unknown` is
+   not asked, because it is worked out once the unit is given (invariant 1). Its question appears only if the rule cannot read the
+   unit given (`agents/advisor-documentation/tests/test_unit_codes.py`).
 6. **An answer is supplied only when a person recorded it.** A person answers the latest version's
    questions in the app, on the draft's card in the conversation or on the project's documents
    page. Each answer is a `document_question_answered` event that names the person it acted for,
@@ -103,7 +111,11 @@ suggests some of those values beside their questions
    puts in the inventory (`harness/tests/test_project_runs.py`). The answers stand until the
    person answers again, because a question's identifier is the same in every draft. The drafter
    places each answer, as given, in its gap or cell and marks it `supplied`, and asks that gap no
-   more (`agents/advisor-documentation/tests/test_answers_in_a_project.py`). In a README, a model
+   more (`agents/advisor-documentation/tests/test_answers_in_a_project.py`). An answer to a shared
+   column's question goes in that column's cell in each file that shares it. A person who wants one
+   file's cell to say something else edits that file's row: a value given for one file, by an edit
+   or by an answer to that file's own cell, stands for that file over the shared answer
+   (`agents/advisor-documentation/tests/test_shared_columns.py`). In a README, a model
    may write a section the researcher answered as a whole in its own words, keeping every value
    the answer gives (invariant 4); where it does not, or its paragraph fails the checks, the
    answer is placed as given. The recorded answer is what is `supplied`, and it stays on the
@@ -112,8 +124,9 @@ suggests some of those values beside their questions
 7. **A model's suggestion is only ever offered.** A drafter may suggest an answer, for example that
    `age_yrs` is the participant's age in years. The suggestion appears in the question
    (`suggested_answer`, with `suggestion_derivation`), never in the document's text, and a version
-   with suggestions keeps the derivation of its text. It becomes `supplied` only when a person
-   confirms or corrects it, by recording an answer
+   with suggestions keeps the derivation of its text. The app puts it in the question's box, marked
+   as a model's, for the person to check. It becomes `supplied` only when a person confirms or
+   corrects it, by accepting or saving it as an answer
    (`agents/advisor-documentation/tests/test_suggestions.py`). The Documentation Editor suggests
    only a data dictionary field's definition and unit, never its type, format or missing-value
    codes; and an answer for the README sections its template marks `suggest` (Files, Variables,
@@ -174,9 +187,12 @@ suggests some of those values beside their questions
 (`harness/docs/projects.md`). A question (`DocumentQuestion`) has an identifier, `q-` and 16
 hexadecimal digits, that is stable within the document across regenerations, so it is derived
 from what the question fills and never from its position; the Documentation Editor takes the
-digits from the SHA-256 of its target. It also has the text put to the person and its target: a
+digits from the SHA-256 of its target. A shared column's target is the field's name, type and
+format and the dictionary column, never the files, so leaving a file out or adding one keeps the
+question and its answer. It also has the text put to the person and its target: a
 README section (`gap_section`), with the part of it (`gap_part`) when the section is asked part by
-part, a data dictionary cell named by `gap_file`, `gap_field` and `gap_column`, or a metadata
+part, a data dictionary cell named by `gap_file`, `gap_field` and `gap_column`, with every file
+whose cell the answer fills in `gap_files` when the column is shared (invariant 5), or a metadata
 record value named by its path in the record's JSON form (`gap_property`, such as
 `titles[0].title`). A metadata record marks a gap by leaving its value `null`, since JSON has no
 comments. An answer (`DraftAnswer`) names the question it answers and gives the text. The
@@ -190,11 +206,14 @@ sets one, TODO(#529).
 researcher that a draft has questions and where to answer them, offers to redraft once they have,
 and says that the draft came from a mock when it did; it never accepts a suggestion for the
 researcher. The app shows the latest version's open questions on the draft's card in the
-conversation, three at a time, or more to keep one section's parts together, each as a text box
-labelled by the question and described by what it fills and by any suggestion, which the researcher may copy into the box but which never fills
-it by itself, and lists every question with its answer, or its suggestion while unanswered, on
-the project's documents page, which puts the same form beneath the latest version's questions
-([The app](app.md)). It sends the answers to
+conversation and in the Questions section of the project's documents page, each as a text box
+labelled by the question and described by what it fills. Those a model suggested an answer for come
+first, all at once, each box starting with the suggestion and saying it came from a model; the
+researcher checks them, changes or clears any, and records them with one "Accept" button. Those
+with no suggestion follow three at a time, or more to keep one section's parts together, in blank
+boxes. Each question links to a new conversation to talk it through, but its answer is recorded
+only on the draft; the documents page folds the answered questions beneath the form, and lists an
+earlier version's questions read-only ([The app](app.md)). It sends the answers to
 `POST /api/projects/{id}/documents/{document_id}/answers`, which records them for the person
 signed in and never takes a name from the body. The harness records each answer and fills the
 answers into the next `DraftRequest`. No agent writes an answer.
@@ -285,9 +304,9 @@ as any other answer is.
 
 ## Non-functional requirements
 
-- **Privacy.** A drafter sees the inventory, never the data, and the inventory carries no summary
-  values until the command applies disclosure control to them
-  ([Personal data and disclosure control](personal-data.md), #571). Project content other than the
+- **Privacy.** A drafter sees the inventory, never the data, and the inventory carries only the
+  summary values that passed disclosure control on the researcher's computer
+  ([Personal data and disclosure control](personal-data.md), #571, #611). Project content other than the
   inventory reaches a hosted model only as the profile allows.
 - **Accessibility.** Questions are answered through the app's form controls, whose accessibility
   is set out in #529.

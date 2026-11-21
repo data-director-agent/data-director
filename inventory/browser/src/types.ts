@@ -25,12 +25,40 @@ export type FileRole = "data" | "documentation" | "code" | "other";
 /** The roles in the order a person is offered them. */
 export const FILE_ROLES: readonly FileRole[] = ["data", "documentation", "code", "other"];
 
+/**
+ * A field's summary values, each one that failed a disclosure rule left out
+ * (docs/specs/personal-data.md). Counts are at least the check's threshold and rounded; a range
+ * is the k-th smallest and largest values, never the minimum and maximum.
+ */
+export interface FieldSummary {
+  summary_rows_read?: number;
+  summary_null_count?: number;
+  summary_range_low?: string;
+  summary_range_high?: string;
+  summary_mean?: number;
+  summary_categories?: { category_value: string; category_count: number }[];
+  summary_missing_codes?: { missing_code: string; missing_code_count: number }[];
+}
+
+/** What the disclosure check of a field's summary values did, never what it left out. */
+export interface DisclosureCheck {
+  check_tool: string;
+  check_tool_version: string;
+  check_rules?: string[];
+  check_threshold: number;
+  check_rounding_base: number;
+  check_suppressed: number;
+}
+
 /** One field of a table, mirroring a Frictionless Table Schema field descriptor. */
 export interface TableField {
   name: string;
   field_type?: string;
   field_format?: string;
   field_description?: string;
+  /** Absent, no summaries were made: by an older command, in the browser, or turned off. */
+  field_summary?: FieldSummary;
+  field_disclosure_check?: DisclosureCheck;
 }
 
 /** One file of a dataset, as the inventory command found it. */

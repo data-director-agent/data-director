@@ -297,7 +297,9 @@ Then restart the broker, as [its guide](model-broker.md#on-a-vm) says, and run
 
 The policy advisor's `DD_POLICY_MAX_LOOKUPS` limits the searches its model may make in one run (6
 by default). It also searches Jisc Open Policy Finder when given a free key:
-`sudo data-director secret set advisor-policy open-policy-finder-api-key`. The app runs no agent
+`sudo data-director secret set advisor-policy open-policy-finder-api-key`. Without it, a run that
+finds no policy for a funder or journal reports that it could not search, and
+`sudo data-director doctor` notes the key as not set. The app runs no agent
 in its own process, so there is nothing to change in the app ([The app](../../specs/app.md)).
 
 ## Turn on the model-backed orchestrator

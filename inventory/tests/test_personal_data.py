@@ -35,14 +35,16 @@ LABELS: dict[str, Any] = json.loads((CORPUS / "labels.json").read_text(encoding=
 VALUE_TARGETS = {FindingTarget.COLUMN.value, FindingTarget.TEXT.value}
 
 
+# Summary values are values by design, checked by their own rules (test_summaries.py), so the
+# findings are tested without them.
 @pytest.fixture(scope="module")
 def corpus() -> Inventory:
-    return make_inventory(CORPUS)
+    return make_inventory(CORPUS, summaries=None)
 
 
 @pytest.fixture(scope="module")
 def unchecked() -> Inventory:
-    return make_inventory(CORPUS, detector=None)
+    return make_inventory(CORPUS, detector=None, summaries=None)
 
 
 def _found(inventory: Inventory, file: str, target: str, column: str | None) -> set[str]:
@@ -129,7 +131,7 @@ def test_no_sampled_value_nor_any_part_of_one_is_written(
     written = _dumped(corpus)
     enums = (PersonalDataKind, FindingTarget, ProportionBand)
     vocabulary = [e.value for kind in enums for e in kind]
-    already = _dumped(unchecked, make_inventory(tmp_path), vocabulary)
+    already = _dumped(unchecked, make_inventory(tmp_path, summaries=None), vocabulary)
     leaked = set()
     for value in _sampled_values():
         tokens = {value, *re.findall(r"[A-Za-z0-9@.+]{4,}", value)}

@@ -19,6 +19,7 @@ fixes what the word "harness" names.
 | `inventory/` | `data-director-inventory` | The command a researcher runs where their data live to describe a dataset's files ([Projects](projects.md)). |
 | `mcp-pid/` | `data-director-mcp-pid` | The PID resolver: a framework-neutral MCP server that resolves DOIs (DataCite, Crossref), ORCID iDs and ROR identifiers to records an agent cites through the tool gateway ([Agents](agents.md#tools-mcp-servers-and-agent-skills)). Imports no other member. |
 | `units/` | `data-director-units` | Turns a unit as a person writes it into a UCUM code, by rule; the Documentation Editor fills a data dictionary's unit codes with it ([Drafting documents](drafting.md)). Imports no other member. |
+| `metadata-records/` | `data-director-metadata-records` | Not built yet, TODO(#1358). The codecs and the definitions of metadata standards that write, read and check a metadata record in any standard ([Metadata standards](metadata-standards.md)). Speaks no Data Director contract and imports no other member. |
 
 Beside the Python members, `inventory/browser/` is `@data-director/inventory`, a TypeScript
 library that reads a `FileInventory`: it parses, summarises, arranges the files as folders,
@@ -58,8 +59,11 @@ The contract, transport, grounding and the app's own process boundary are specif
    - `admin` depends on `harness` and `sdk`, and on nothing else in the workspace; no member
      depends on it;
    - `broker` depends on `sdk` only; no member depends on it;
-   - each agent depends on `sdk` only;
-   - `inventory` depends on no other member.
+   - each agent depends on `sdk` only, and an agent that drafts or reads a metadata record also on
+     `metadata-records` once it exists, TODO(#1358);
+   - `inventory` depends on no other member;
+   - `metadata-records` depends on no other member, and the harness depends on it as well as on
+     `sdk`, once it exists, TODO(#1358).
 
    The graph is what each member declares in `[project].dependencies`; no check compares the
    declarations with this list, so a new first-party dependency is a change to this spec.
