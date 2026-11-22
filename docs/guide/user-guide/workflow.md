@@ -105,6 +105,8 @@ builds the deposit package; you then deposit it in the repository yourself, as
 - Validate metadata quality (R4)
 - Assign a licence
 - Link to related research outputs: publication DOIs, ORCID, ROR and grant IDs (R7)
+- Check how FAIR the draft metadata record is before submitting (*optional*; not in the
+  Blueprint's figure, added so that you can act on it before you deposit)
 - Set access restrictions
 - Generate a private peer review link (*optional*)
 - Upload the files ([Depositing your data](depositing.md))
@@ -118,7 +120,8 @@ Publication is not the end. This phase is a continuing loop.
 - Record the deposit in institutional systems where required
 - Monitor access, downloads and citations
 - Check embargo release
-- Evaluate the FAIRness of the published objects and discover related datasets (R12)
+- Evaluate the FAIRness of the published objects and discover related datasets (R12): this
+  re-checks the record as published, after the check you can make before you submit
 - Retrofit FAIR-aligned metadata for existing datasets (R9)
 - Link datasets to related research outputs (R11)
 

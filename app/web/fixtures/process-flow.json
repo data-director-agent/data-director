@@ -315,6 +315,16 @@
           "text": "Link to related research outputs: publication DOIs, ORCID, ROR and grant IDs"
         },
         {
+          "id": "deposit.fairness",
+          "label": "Check how FAIR your description is before you submit",
+          "optional": true,
+          "out_of_scope": false,
+          "person_decides": false,
+          "prompt": "Help me check how FAIR my dataset's description is before I submit it.",
+          "requirements": [],
+          "text": "Check how FAIR the draft metadata record is before submitting"
+        },
+        {
           "id": "deposit.access",
           "label": "Set who can see or download the data",
           "optional": false,
@@ -404,11 +414,11 @@
         },
         {
           "id": "post.fairness",
-          "label": "Check how FAIR your published data are",
+          "label": "Re-check how FAIR your published record is",
           "optional": false,
           "out_of_scope": false,
           "person_decides": false,
-          "prompt": "Help me check how FAIR my published data are.",
+          "prompt": "Help me check how FAIR the record of my published data is.",
           "requirements": [
             "R12"
           ],
