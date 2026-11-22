@@ -27,6 +27,8 @@ services:
       # The models: this directory's config.yaml, or the file DD_GATEWAY_CONFIG names (on a VM,
       # /etc/data-director/llm-gateway.yaml when the operator has written one).
       - ${DD_GATEWAY_CONFIG:-./config.yaml}:/app/config.yaml:ro
+      # The per-request limits the config names under callbacks: loaded from the config's directory.
+      - ./dd_token_guard.py:/app/dd_token_guard.py:ro
     command: ["--config", "/app/config.yaml", "--port", "4000"]
     ports:
       # Bound to localhost only. Put a TLS reverse proxy in front before
@@ -65,11 +67,21 @@ services:
     profiles: ["monitoring"]
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
       - ./monitoring/litellm_key:/etc/prometheus/litellm_key:ro
       - promdata:/prometheus
     ports:
       - "127.0.0.1:9090:9090"
     depends_on: [litellm]
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:v0.28.1@sha256:27c475db5fb156cab31d5c18a4251ac7ed567746a2483ff264516437a39b15ba
+    profiles: ["monitoring"]
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports:
+      - "127.0.0.1:9093:9093"
     restart: unless-stopped
 
   grafana:

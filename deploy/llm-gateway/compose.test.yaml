@@ -4,6 +4,7 @@ services:
   litellm:
     volumes: !override
       - ./config.test.yaml:/app/config.yaml:ro
+      - ./dd_token_guard.py:/app/dd_token_guard.py:ro
     depends_on:
       fake-upstream:
         condition: service_started

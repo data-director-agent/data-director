@@ -2,17 +2,21 @@
 
 A ready-to-run [LiteLLM Proxy](https://docs.litellm.ai/) set-up that puts one endpoint in front of Anthropic, OpenAI, Gemini and local Ollama models. It records tokens and cost for every call, enforces budgets per key, user and team, and produces spend reports. It is optional: the app and agents run without it. Background, and the comparison with other tools, is in [background.md](background.md).
 
-Tested on 11 November 2026 with LiteLLM `v1.109.0`, Postgres 16, Prometheus 3.5 and Grafana 12.1 (see [What was tested](#what-was-tested)).
+Tested on 11 November 2026 with LiteLLM `v1.109.0`, Postgres 16, Prometheus 3.5 and Grafana 12.1 (see [What was tested](#what-was-tested)). The image is now pinned to `v1.110.2`, and CI runs the smoke test against that image.
 
 ```
 deploy/llm-gateway/
-├── compose.yaml              gateway + Postgres (+ Prometheus/Grafana with --profile monitoring)
+├── compose.yaml              gateway + Postgres (+ Prometheus/Alertmanager/Grafana with --profile monitoring)
 ├── compose.test.yaml         test overlay: fake provider, no real keys needed
-├── config.yaml               models (Claude, OpenAI, Gemini, Ollama)
+├── config.yaml               models (Claude, OpenAI, Gemini, Ollama) and the limits on spend
+├── dd_token_guard.py         limits on one request's output and prompt size, loaded by the config
 ├── background.md             why LiteLLM, and how it compares with other tools
-├── config.test.yaml          fake models used by the smoke test
+├── config.test.yaml          fake models and small limits used by the smoke test
 ├── .env.example              copy to .env and fill in
-├── monitoring/prometheus.yml
+├── monitoring/
+│   ├── prometheus.yml
+│   ├── alerts.yml            spend alerts: budgets nearly used or out, spend spikes
+│   └── alertmanager.yml      where the alerts go (nowhere until you add a receiver)
 └── scripts/
     ├── admin.py              teams, users, keys, spend reports, CSV export (stdlib only)
     ├── smoke_test.sh         end-to-end test of tracking, tags, budgets and metrics
@@ -248,6 +252,37 @@ scripts/admin.py export --start 2026-10-01 --end 2026-10-31 --out oct.csv
 - Budgets with `--period` reset automatically (e.g. `30d`).
 - Spend reaches the database in batches, so `key info` and `team info` can lag by up to about a minute. Enforcement uses the live in-memory figure.
 
+## Protections against runaway usage
+
+A budget stops spending after the fact, so the gateway has several layers, each bounding a different way a call or a loop can run away. The figures are in `config.yaml`, and are placeholders to change to suit the deployment.
+
+| Layer | What it bounds | Where | Limit shipped |
+|---|---|---|---|
+| Output size of one call | A caller that sets no `max_tokens` can no longer ask for a model's whole output window; one that asks for too much is refused (HTTP 400). | `dd_token_guard.py`, `general_settings.dd_token_guard` | Default 4096, ceiling 32000 |
+| Prompt size of one call | A prompt over the limit is refused (HTTP 413). Characters stand in for tokens, at about four to one. | The same | 1,000,000 characters |
+| Key defaults | A key created without a limit gets these, so no key is unlimited by accident. | `default_key_generate_params` | $25 per 30 days, 200,000 tokens and 60 requests a minute, 5 calls at once |
+| Key ceilings | The most any key may be given, by `admin.py`, the admin UI or the API. | `upperbound_key_generate_params` | $100 per 30 days, 1,000,000 tokens and 300 requests a minute, 20 calls at once |
+| Creation by `admin.py` | A team, user or key needs `--budget` and `--period` (a key needs `--models` too), or a deliberate `--unlimited`. | `scripts/admin.py` | |
+| Calls in flight | A backstop on every key together, because budgets are checked before a call and can be overshot by those in flight. | `global_max_parallel_requests` | 50 |
+| Whole-gateway budget | Every call is refused once the gateway as a whole has spent this much in the period. | `max_budget`, `budget_duration` | $500 per 30 days |
+| Timeouts and retries | A call is dropped after two minutes, and a failed call is retried once, because a retry is billed like the call it repeats. | `request_timeout`, `num_retries` | 120 s, 1 retry |
+| Alerts | A key or team with under 20% of its budget left, a key out of budget, and spend over $20 an hour, or $10 an hour for one key. | `monitoring/alerts.yml` | |
+| Provider limits | The last backstop, outside the gateway: a spend limit on the provider's workspace or project, for the gateway's own provider keys. | The provider's console | Set it by hand |
+
+The agents also set `max_tokens` on every call (`dd_sdk.model` defaults to 4096, and the orchestrator asks for at most 16000), so the guard is a floor under callers that do not.
+
+What this does not cover:
+
+- **Keys that already exist.** The defaults and ceilings apply when a key is created. Look through the admin UI's Virtual Keys page for keys with no budget, and give each one.
+- **Teams and users made outside `admin.py`.** The ceilings are for keys only; the admin UI and API can still make a team without a budget. The whole-gateway budget bounds them.
+- **The whole-gateway budget refuses everyone at once**, the model broker's calls included, until the period resets. Set it above what the deployment spends in a period, not at it. Raise it in `config.yaml` and restart.
+- **Prompt size is approximate.** It is counted in characters, so a prompt of unusually short words, or one that carries images, can pass or fail by a wide margin. A model's own context window is the hard bound.
+- **LiteLLM's `max_request_size_mb` and `max_response_size_mb` are not used.** The proxy ignores them without an Enterprise licence.
+- **Per-model rate limits** (`rpm` and `tpm` under `litellm_params`) are not set: LiteLLM uses them to choose between deployments of a model, and they have not been tested as a hard stop. The limits on the key are.
+- **The model broker's key** (`deploy/install.sh --gateway`) is made at the ceiling for rates and with $100 per 30 days, because it pays for the whole deployment's calls. If the deployment spends more than that, raise `upperbound_key_generate_params.max_budget` and the key's own budget.
+
+A deployment that runs its own gateway configuration (`DD_GATEWAY_CONFIG`) needs the same settings and the `dd_token_guard.proxy_handler_instance` callback in it: the guard loads only if the configuration names it.
+
 ## Monitoring (optional)
 
 Create a read-only key for Prometheus. This writes `monitoring/litellm_key`, which is git-ignored and world-readable so the Prometheus container can read it:
@@ -265,7 +300,8 @@ docker compose --profile monitoring up -d
 - Prometheus is at <http://localhost:9090>. Useful queries: `sum by (team_alias) (litellm_spend_metric_total)`, `litellm_remaining_team_budget_metric` and `litellm_remaining_api_key_budget_metric`.
 - Grafana is at <http://localhost:3000> (first login `admin`/`admin`). Add Prometheus as a data source with URL `http://prometheus:9090`.
 - Budget gauges for every team and key are refreshed every 5 minutes (`prometheus_initialize_budget_metrics` in `config.yaml`).
-- For alerts such as "team at 80% of budget", use Prometheus Alertmanager or Grafana alerting. LiteLLM's own email alerts are an Enterprise feature.
+- The spend alerts in `monitoring/alerts.yml` load into Prometheus (<http://localhost:9090/alerts>) and go to Alertmanager (<http://localhost:9093>). Alertmanager sends them nowhere until you add a receiver to `monitoring/alertmanager.yml`, which has an email example. The two dollar thresholds for spend per hour are placeholders: set them to suit.
+- LiteLLM's own email alerts are an Enterprise feature.
 
 ## Optional: Langfuse tracing
 
@@ -332,6 +368,8 @@ Separately confirmed:
 - Prometheus scrapes the gateway with the read-only key;
 - Grafana starts.
 
+The checks of the limits on one request and one key (section 8 of `smoke_test.sh`), and the alert rules and Alertmanager, were added after that run. `scripts/tests/test_llm_gateway_config.py` tests the guard and the shipped settings without Docker.
+
 **Not tested here:** real provider calls (no API keys were available), Ollama, Langfuse, and running behind a reverse proxy.
 
 LiteLLM's built-in `mock_response` option records **$0 cost** on the Anthropic route, which is why the test uses a fake provider instead.
@@ -350,4 +388,4 @@ LiteLLM's built-in `mock_response` option records **$0 cost** on the Anthropic r
 - **Prices:** LiteLLM costs requests using its built-in price list. At start-up it also tries to download the latest list from GitHub, and falls back to the built-in copy if that fails. Set `LITELLM_LOCAL_MODEL_COST_MAP=True` in `.env` to always use the version shipped with the image. For new or negotiated prices, set `input_cost_per_token` / `output_cost_per_token` under `model_info` in `config.yaml`.
 - **Reconciliation:** the gateway's figures are estimates. Check them monthly against each provider's own usage and cost reports (see the guide). Giving the gateway its own provider keys or workspace makes this one-to-one.
 - **Large exports:** `/spend/logs/v2` returns at most 10,000 rows per query, so use shorter date ranges, or query Postgres directly (table `"LiteLLM_SpendLogs"`).
-- **Upgrades:** the image is pinned to `v1.109.0`. Read the release notes before bumping it, then re-run the smoke test.
+- **Upgrades:** the image is pinned to `v1.110.2`. Read the release notes before bumping it, then re-run the smoke test. The limits above use LiteLLM settings that change between releases (`upperbound_key_generate_params`, `default_key_generate_params`, `global_max_parallel_requests`, and the hook that `dd_token_guard.py` implements), so check each of them in the notes.

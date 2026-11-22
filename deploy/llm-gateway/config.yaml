@@ -45,10 +45,45 @@ model_list:
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
   database_url: os.environ/DATABASE_URL
+  # Most calls the gateway will have in flight at once, across every key. A backstop against a
+  # runaway loop: budgets are checked before a call and can be overshot by the calls in flight.
+  global_max_parallel_requests: 50
+  # Limits on one request, applied by dd_token_guard.py before it reaches a provider. A request
+  # that names no max_tokens gets default_max_tokens; one that asks for more than
+  # max_output_tokens, or sends more than max_input_chars (about four per token), is refused.
+  # The agents ask for at most 16000 output tokens (agents/orchestrator-model).
+  dd_token_guard:
+    default_max_tokens: 4096
+    max_output_tokens: 32000
+    max_input_chars: 1000000
 
 litellm_settings:
-  # Prometheus metrics at /metrics (requires an API key to scrape).
-  callbacks: ["prometheus"]
+  # Prometheus metrics at /metrics (requires an API key to scrape), and the per-request limits.
+  callbacks: ["prometheus", "dd_token_guard.proxy_handler_instance"]
+  # A budget for the whole gateway, across every key. When it is used up every model call is
+  # refused until the period resets, so set it to what the deployment may spend in a period at
+  # most, not to what it expects to. The figure is a placeholder: change it to suit.
+  max_budget: 500
+  budget_duration: 30d
+  # A call that has not finished in this many seconds is dropped, and one failed call is retried
+  # once, not several times: a retry is billed like the call it repeats.
+  request_timeout: 120
+  num_retries: 1
+  # What a key gets for any limit its creator leaves out, so that no key is unlimited by accident.
+  default_key_generate_params:
+    max_budget: 25
+    budget_duration: 30d
+    tpm_limit: 200000
+    rpm_limit: 60
+    max_parallel_requests: 5
+  # The most any key may be given, whoever creates it. A key made without a limit gets this one.
+  # These apply to /key/generate only; teams and users are bounded by scripts/admin.py.
+  upperbound_key_generate_params:
+    max_budget: 100
+    budget_duration: 30d
+    tpm_limit: 1000000
+    rpm_limit: 300
+    max_parallel_requests: 20
   prometheus_initialize_budget_metrics: true   # publish budget gauges for every key/team/user
   # Uncomment to send traces to Langfuse (set LANGFUSE_* in .env):
   # success_callback: ["langfuse"]
