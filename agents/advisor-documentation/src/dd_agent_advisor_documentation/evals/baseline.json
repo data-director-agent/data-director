@@ -1,16 +1,16 @@
 {
   "identity": {
     "agent_id": "advisor.documentation",
-    "cases_sha256": "64b8721d7bf31987ca0d2719da26e76c509e3caded52df31d41e97daca54197f",
+    "cases_sha256": "95e43ded4ef097d54f834fc24c2637c83c314fb04fd5d4c33c422ae34c071db5",
     "configuration": {},
     "data_sha256": {
       "hallam-moor.inventory.json": "43ee4cb1b7b801092c4cfcd733fa84577ade88a98c4a9b394072aea40e49c6fd",
       "hallam-moor.metadata-record.json": "3f8c74624f9dce6f1450d7900e90e18b4526f0a6cbcc135c96cd878164c2b0f6",
       "soil-survey.readme-with-record.draft.json": "c9ba7601f5bcbef5879972fcb1f2fbeb18f71a7d687b5eb71e9d1b2093d84874"
     },
-    "git_revision": "219a056cb49bb159d3ae0e991207938bc5f4381b",
+    "git_revision": "a64dcf3aceffce5febfecccd85d4098e05b73e7c",
     "readme_template_sha256": "0f1c7a4521a2d0280ca974b433c01349d7232a7486edf062495f9f1b1f920192",
-    "spec_version": "0.8.0a2"
+    "spec_version": "0.9.0a1"
   },
   "scores": {
     "hallam-dictionary": {

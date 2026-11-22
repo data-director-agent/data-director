@@ -8,9 +8,9 @@
       "partial.md": "8c8c3be5441ffca88dec2022580b214e96ac54b4e6570a16e830fbc1a31bfebe",
       "vague.md": "fb795034fb92ad7e1cfa65d82fa5d87933458ffa529504b3303654d9809eabaa"
     },
-    "git_revision": "ef6ccc9716325138f785695755c62267489d3cc7",
+    "git_revision": "a64dcf3aceffce5febfecccd85d4098e05b73e7c+dirty",
     "read_prompt_sha256": "d559bbd37e278bc501dd2d9f9fc2ed1dd6a023a994bbf31ea9856d34b2599ba0",
-    "spec_version": "0.2.0a1"
+    "spec_version": "0.3.0a1"
   },
   "scores": {
     "compare-complete": {
