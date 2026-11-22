@@ -1,0 +1,18 @@
+# Who is asked to review a change to each path. GitHub uses the last matching line, so the rules run
+# from general to specific, and scripts/check_codeowners.py checks that every tracked path has an
+# owner and that no rule matches nothing. A change that crosses a boundary between workspace members
+# asks the owners of both sides.
+#
+# One team owns every part for now; give a member its own owner by changing its line.
+
+# Everything not named below, including the root files.
+*                    @data-director-agent/data-director-reference-implementation-collaboration
+
+/sdk/                @data-director-agent/data-director-reference-implementation-collaboration
+/harness/            @data-director-agent/data-director-reference-implementation-collaboration
+/workbench/          @data-director-agent/data-director-reference-implementation-collaboration
+/app/                @data-director-agent/data-director-reference-implementation-collaboration
+/agents/             @data-director-agent/data-director-reference-implementation-collaboration
+/inventory/          @data-director-agent/data-director-reference-implementation-collaboration
+/docs/               @data-director-agent/data-director-reference-implementation-collaboration
+/.github/            @data-director-agent/data-director-reference-implementation-collaboration
