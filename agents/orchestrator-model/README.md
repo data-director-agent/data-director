@@ -130,14 +130,14 @@ environment variable:
 
 | Value | Suggests |
 |---|---|
-| `oecd-fos` (default) | The OECD Fields of R&D (Frascati Manual 2015): 6 broad fields and 42 below them. |
-| `anzsrc-for` | The ANZSRC 2020 Fields of Research: 23 divisions and 213 groups. |
+| `anzsrc-for` (default) | The ANZSRC 2020 Fields of Research: 23 divisions and 213 groups, under CC BY 4.0. |
+| `oecd-fos` | The OECD Fields of R&D (Frascati Manual 2015): 6 broad fields and 42 below them. |
 | `none` | Nothing: a plain one-line answer. |
 
 ```yaml
 agent_settings:
   orchestrator.model:
-    fields_of_study: "anzsrc-for"
+    fields_of_study: "oecd-fos"
 ```
 
 Apart from the SDK, `dd-subjects` is the package's only dependency: data read with the standard

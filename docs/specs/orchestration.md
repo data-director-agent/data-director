@@ -172,9 +172,9 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     their own (re3data the DFG classification, many institutional repositories ANZSRC), so the
     answer stays the researcher's own words. Which classification is suggested is the
     deployment's choice, through the orchestrator's `fields_of_study` setting (the profile's
-    `agent_settings`, [Policy and identity](policy-and-identity.md), invariant 22): `oecd-fos`, the
-    OECD Fields of R&D, by default; `anzsrc-for`, the ANZSRC 2020 Fields of Research; or `none`
-    (#1406; `test_the_profile_chooses_the_scheme_or_none`).
+    `agent_settings`, [Policy and identity](policy-and-identity.md), invariant 22): `anzsrc-for`,
+    the ANZSRC 2020 Fields of Research (CC BY 4.0), by default; `oecd-fos`, the OECD Fields of
+    R&D; or `none` (#1406; `test_the_profile_chooses_the_scheme_or_none`).
 
 17. **A step the Blueprint has and this project does not yet do is in the flow, marked
     `out_of_scope`.** The Data Management Plan steps (`setup.dmp-create`, `setup.dmp-review`,

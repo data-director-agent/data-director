@@ -24,10 +24,10 @@ NONE: Final = "none"
 
 FIELDS_OF_STUDY_SETTING: Final = Setting(
     (*SCHEMES, NONE),
-    "oecd-fos",
+    "anzsrc-for",
     "The subject classification whose fields are suggested when the researcher is asked for "
-    "their discipline: oecd-fos (OECD Fields of R&D, Frascati Manual 2015) or anzsrc-for "
-    "(ANZSRC 2020 Fields of Research, divisions and groups). The researcher may always answer "
+    "their discipline: anzsrc-for (ANZSRC 2020 Fields of Research, divisions and groups) or "
+    "oecd-fos (OECD Fields of R&D, Frascati Manual 2015). The researcher may always answer "
     "in their own words. None: no suggestions.",
 )
 
