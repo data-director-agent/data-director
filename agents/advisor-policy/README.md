@@ -176,8 +176,8 @@ the new file.
 
 Open Policy Finder (`api.openpolicyfinder.jisc.ac.uk`, key in the `x-api-key` header) and
 Crossref's journals API are read live only, labelled `open-policy-finder:live:<date>` and
-`crossref-journals:live:<date>`. Jisc states no licence for the records that would let a copy be
-committed, nor a rate limit (#952). To check the route with a key, run
+`crossref-journals:live:<date>`. Jisc licenses the data under CC BY-NC-ND 4.0 and the API is for
+non-commercial use, so no copy is kept to fall back to; Jisc states no rate limit (#952). To check the route with a key, run
 `uv run python -m dd_agent_advisor_policy.opf check`; `--record <folder>` writes what came back,
 for the test fixtures.
 
