@@ -90,7 +90,7 @@ locally from the repository root:
 |---|---|
 | Pre-commit hooks and Ruff | `uv run ruff check . && uv run ruff format --check . && pre-commit run --all-files` |
 | mypy | `uv run mypy` |
-| pytest | `uv run pytest --json-report --json-report-file=.report.json` (runs on every core; `-n0` for one process, to debug; CI runs it as three shards, `--test-shard 1/3`, balanced by the durations in `scripts/test_durations.json`: when they drift apart, commit the map from the coverage job's `test-durations` artefact, or write it with `uv run --no-project --python 3.14 scripts/test_durations.py .report-*.json`) |
+| pytest | `uv run pytest --json-report --json-report-file=.report.json` (runs on every core; `-n0` for one process, to debug; CI runs it as four shards, `--test-shard 1/4`, balanced by the durations in `scripts/test_durations.json`: when they drift apart, commit the map from the coverage job's `test-durations` artefact, or write it with `uv run --no-project --python 3.14 scripts/test_durations.py .report-*.json`) |
 | Coverage and CONFORMANCE.md (a stale file warns) | `uv run python scripts/conformance_report.py --check` (after pytest, which writes `.report.json`) |
 | Generated schemas up to date | `uv run dd-gen-schema && git diff --exit-code -- sdk/src/dd_sdk/schema/generated/` |
 | Generated API types up to date | in `app/web`: `npm run gen:api && git diff --exit-code -- src/api/generated/` |

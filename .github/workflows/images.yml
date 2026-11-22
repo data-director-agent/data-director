@@ -50,18 +50,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Native runners for each platform, so that npm and uv are not emulated.
-        include:
-          - platform: linux/amd64
-            runner: ubuntu-24.04
-            arch: amd64
-          - platform: linux/arm64
-            runner: ubuntu-24.04-arm
-            arch: arm64
-        # A pull request builds amd64 alone: the second platform doubled its runner time and caught
-        # nothing the push to main does not, since nothing requires this workflow.
-        exclude:
-          - arch: ${{ github.event_name == 'pull_request' && 'arm64' || 'none' }}
+        # Native runners for each platform, so that npm and uv are not emulated. A pull request
+        # builds amd64 alone: the second platform doubled its runner time and caught nothing the
+        # push to main does not, since nothing requires this workflow. (A matrix `exclude` cannot
+        # take an expression, so the whole list is chosen here.)
+        include: >-
+          ${{ fromJSON(github.event_name == 'pull_request'
+          && '[{"platform":"linux/amd64","runner":"ubuntu-24.04","arch":"amd64"}]'
+          || '[{"platform":"linux/amd64","runner":"ubuntu-24.04","arch":"amd64"},{"platform":"linux/arm64","runner":"ubuntu-24.04-arm","arch":"arm64"}]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

@@ -1,19 +1,27 @@
 name: Built sources
 description: >-
   Build every source copy that agents build outside git (dd-sources prepare, sdk/src/dd_sdk/sources.py),
-  keeping what they download in a cache keyed on their pins. Expects the workspace synced with uv.
+  keeping what they download and what they build in a cache keyed on their pins, so that a job
+  that restores it builds nothing. Expects the workspace synced with uv.
 runs:
   using: composite
   steps:
-    # The key changes only when some source's pin does, so each pin is downloaded once: the first
-    # job to miss the cache saves it, and every later job restores it.
+    # The key changes only when some source's pin does, so each pin is downloaded and built once:
+    # the first job to miss the cache saves it, and every later job restores it. The cache holds
+    # each source's built copy as well as its downloads, so `prepare` finds it current (about a
+    # second, against some thirteen to build the copies again); `prepare` checks each copy against
+    # its pin, so a stale one is rebuilt. A new built source adds its copy's path below, or it is
+    # rebuilt in every job.
     - name: Key the cache on every source's pin
       id: key
       shell: bash
-      run: echo "key=built-sources-$(uv run --no-sync dd-sources pins | sha256sum | cut -c1-32)" >> "$GITHUB_OUTPUT"
+      run: echo "key=built-sources-v2-$(uv run --no-sync dd-sources pins | sha256sum | cut -c1-32)" >> "$GITHUB_OUTPUT"
     - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
-        path: .cache/sources
+        path: |
+          .cache/sources
+          agents/advisor-repository/data/re3data/registry.jsonl
+          agents/advisor-policy/data/ror/registry.jsonl
         key: ${{ steps.key.outputs.key }}
     - name: Prepare every built source
       shell: bash

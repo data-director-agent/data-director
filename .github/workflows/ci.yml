@@ -178,13 +178,13 @@ jobs:
           uv run pytest scripts/tests/test_architecture_canary.py scripts/tests/test_check_boundaries.py
           scripts/tests/test_check_duplication.py scripts/tests/test_check_unused.py
 
-  # The suite runs as three jobs side by side, each a third of the test files (--test-shard, the
+  # The suite runs as four jobs side by side, each a quarter of the test files (--test-shard, the
   # root conftest.py), because a runner has two cores and the whole suite on one took eight
   # minutes. The files are dealt out by their durations in scripts/test_durations.json, so the
   # shards take about as long as each other. Each shard hands its JSON report and its coverage
   # data to the coverage job, which combines them.
   test:
-    name: pytest (${{ matrix.shard }} of 3)
+    name: pytest (${{ matrix.shard }} of 4)
     needs: changes
     if: needs.changes.outputs.python == 'true'
     runs-on: ubuntu-24.04
@@ -192,7 +192,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4]
     # The database the PostgreSQL storage backend's tests run against
     # (harness/tests/test_postgres.py); without DD_TEST_POSTGRES they are skipped. The password
     # reaches libpq through PGPASSWORD, never the URL, as a deployment's must (docs/specs/storage.md).
@@ -212,7 +212,7 @@ jobs:
     env:
       DD_TEST_POSTGRES: postgresql://postgres@localhost:5432/postgres
       PGPASSWORD: dd-ci
-      SHARD: ${{ matrix.shard }}/3
+      SHARD: ${{ matrix.shard }}/4
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

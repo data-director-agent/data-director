@@ -1,6 +1,6 @@
 """How long each test file takes, so that CI's pytest shards take about as long as each other.
 
-CI runs the suite as three jobs side by side (`--test-shard`, the root conftest.py). A shard that
+CI runs the suite as four jobs side by side (`--test-shard`, the root conftest.py). A shard that
 takes longer than the others sets how long every pull request waits, so the files are dealt out by
 their recorded durations, longest first, each to the shard with the least so far. The durations
 are in `scripts/test_durations.json`; a file not listed there, such as a new one, falls in a shard
