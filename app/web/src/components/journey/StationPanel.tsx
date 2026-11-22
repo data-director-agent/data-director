@@ -12,7 +12,7 @@ import type { Decision, StepMark } from "../../flow/types";
 import { formatDate } from "../../format";
 import { Link } from "../../route";
 import { Button } from "../ui/Button";
-import { STATE_WORDS } from "./JourneyMap";
+import { stateWords } from "./JourneyMap";
 
 export function StationPanel({
   station,
@@ -48,7 +48,7 @@ export function StationPanel({
       </h2>
       <p className="muted">{phase.summary}</p>
       <p>
-        <strong>{step.out_of_scope ? "Not in this version" : STATE_WORDS[state]}</strong>
+        <strong>{stateWords(step, state)}</strong>
         {step.optional && " (optional)"}
         {station.suggested && " · Suggested next"}
         {station.waiting && " · Waiting on you"}

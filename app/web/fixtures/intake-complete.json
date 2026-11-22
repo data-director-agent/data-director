@@ -41,8 +41,18 @@
     ],
     "entry": 1,
     "entry_source": "researcher",
-    "reasons": {},
-    "steps": {},
+    "reasons": {
+      "setup.dmp-review": {
+        "at": "2026-11-22T07:31:02.371002+00:00",
+        "event": "intake_answered",
+        "question_id": "intake.dmp",
+        "source": "intake",
+        "state": "skipped"
+      }
+    },
+    "steps": {
+      "setup.dmp-review": "skipped"
+    },
     "suggested": "setup.vocabularies"
   },
   "questions": [
