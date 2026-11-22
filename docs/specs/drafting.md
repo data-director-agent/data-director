@@ -142,7 +142,11 @@ suggests some of those values beside their questions
    (`agents/advisor-documentation/tests/test_attached_documents.py`). A
    dictionary suggestion is offered only if it is one short line of plain text that names no
    link, email address or identifier its input does not give; a README suggestion only if it
-   passes the checks the prose does. The Metadata Librarian suggests only the values its rule
+   passes the checks the prose does. The questions are asked in batches, and a reply that does not parse
+   as a whole costs only the suggestions it does not hold complete and well formed: a reply cut
+   off at the model's length limit, or one malformed item, never discards the rest. The outcome's
+   statement says how many questions got no suggestion and why, in plain words
+   (`agents/advisor-documentation/tests/test_suggestion_batches.py`, #1318). The Metadata Librarian suggests only the values its rule
    table marks `suggest` (`agents/advisor-metadata/src/dd_agent_advisor_metadata/datacite.yaml`):
    a title, a description, a free keyword and a language; never a creator, contributor, date,
    rights statement, funder, related identifier or place, which only the researcher can give,

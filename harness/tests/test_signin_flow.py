@@ -150,4 +150,4 @@ def test_a_person_the_way_in_does_not_admit_gets_no_session() -> None:
     with pytest.raises(NotAdmitted) as refused:
         signed_in(sign_in, idp, "0000-0001-5000-0007")
     assert refused.value.principal.principal_id.endswith("0000-0001-5000-0007")
-    assert len(sign_in.store._sessions) == 1
+    assert len(sign_in.store.table) == 1

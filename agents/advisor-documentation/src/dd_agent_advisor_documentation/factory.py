@@ -4,9 +4,9 @@
 `config/examples/agents.env`):
 
 - `DD_DOCUMENTATION_WRITER`: `model` (default), which has a model write the README's prose and
-  suggest answers to the draft's questions from the project's facts (`prose.py`), or `template`,
-  which writes no prose and suggests nothing, and needs no key. `anthropic`, the older name for
-  `model`, still works.
+  suggest answers to the draft's questions from the project's facts (`prose.py`,
+  `suggestions.py`), or `template`, which writes no prose and suggests nothing, and needs no key.
+  `anthropic`, the older name for `model`, still works.
 - The model's provider, id and key: as for every advisor (docs/guide/operations/ai-models.md).
 
 An unknown value, or an unusable model setting, is a configuration error (`ConfigError`), and

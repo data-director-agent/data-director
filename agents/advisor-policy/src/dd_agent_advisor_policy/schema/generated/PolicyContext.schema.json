@@ -96,6 +96,55 @@
          "title": "LocationPrecision",
          "type": "string"
       },
+      "ProjectDocument": {
+         "additionalProperties": false,
+         "description": "One document a researcher attached to a project, with its text: the conductor fills one per document into a DraftRequest so that a drafter's model may suggest answers from it (docs/specs/projects.md). Its text is the researcher's, untrusted, and given as data.",
+         "properties": {
+            "documentation_name": {
+               "description": "The file name the researcher attached the document under, without any folder.",
+               "type": "string"
+            },
+            "documentation_digest": {
+               "description": "The SHA-256 of the document's UTF-8 text, by which the project keeps it.",
+               "pattern": "^[0-9a-f]{64}$",
+               "type": "string"
+            },
+            "documentation_media_type": {
+               "description": "The document's media type, text/plain or text/markdown.",
+               "type": "string"
+            },
+            "documentation_size": {
+               "description": "The size of the document's UTF-8 text, in bytes.",
+               "type": "integer"
+            },
+            "documentation_added_at": {
+               "description": "When the document was added to the project.",
+               "format": "date-time",
+               "type": "string"
+            },
+            "documentation_source_media_type": {
+               "description": "The media type of the Word document or PDF the document's text was read from, inside the deployment; absent for a document attached as text. The project keeps the file beside the text.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "documentation_text": {
+               "description": "The document's text, as the researcher attached it, or as read from the file named by documentation_source_media_type.",
+               "type": "string"
+            }
+         },
+         "required": [
+            "documentation_name",
+            "documentation_digest",
+            "documentation_media_type",
+            "documentation_size",
+            "documentation_added_at",
+            "documentation_text"
+         ],
+         "title": "ProjectDocument",
+         "type": "object"
+      },
       "ProjectFact": {
          "additionalProperties": false,
          "allOf": [
@@ -480,7 +529,7 @@
    "$id": "https://w3id.org/data-director/agents/policy/PolicyContext",
    "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
-   "description": "Who funds, publishes and hosts the research, and what the data is. The agent looks up each actor's data policy. In a project the conductor also gives the facts people decided: each decided funder is an actor, whether or not the caller named it.",
+   "description": "Who funds, publishes and hosts the research, and what the data is. The agent looks up each actor's data policy. In a project the conductor also gives the facts people decided: each decided funder is an actor, whether or not the caller named it. It also gives the documents a researcher attached, such as an institutional policy or an award letter, whose text is read as a policy's own text for the actor it names.",
    "properties": {
       "schema_class": {
          "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -523,6 +572,16 @@
          "pattern": "^\\d{4}(-\\d{2}(-\\d{2})?)?$",
          "type": [
             "string",
+            "null"
+         ]
+      },
+      "project_documents": {
+         "description": "The documents the project holds, with their text, in the order they were added. In a project the conductor fills them and a caller leaves them out; outside a project, the caller sends them, as it does the other facts.",
+         "items": {
+            "$ref": "#/$defs/ProjectDocument"
+         },
+         "type": [
+            "array",
             "null"
          ]
       },

@@ -22,6 +22,7 @@ import type { Problem } from "../run/types";
 import type { AttachedDocument } from "./documentation";
 import type { ReplyAnswers } from "./question";
 import type { Conversation, ConversationSummary, DeletedConversation } from "./types";
+import { serverAnswered } from "../status";
 
 export type { Started } from "../api/generated/responses";
 
@@ -131,7 +132,7 @@ export function streamFailure(error: unknown): Error {
   if (status === 409 && problem) return new TurnConflict(problem);
   if (GATEWAY_ERRORS.includes(status)) return new NoAnswer(status);
   if (status === 400 && problem) return new RunRefused(problem);
-  return new Error(problem?.detail ?? `the server answered ${status}`);
+  return new Error(problem?.detail ?? serverAnswered(status));
 }
 
 /** `fetch`, with a request that got no response raised as `Unreachable`, whichever endpoint. */

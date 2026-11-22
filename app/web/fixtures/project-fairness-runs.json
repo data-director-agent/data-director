@@ -10,15 +10,15 @@
       "agent_id": "advisor.fairness",
       "agent_version": "0.3.0a1",
       "completed_at": "2026-01-04T00:00:00Z",
-      "contract_version": "0.21.0",
-      "conversation_id": "01a20269-bc5d-734c-931c-45b149e6a128",
+      "contract_version": "0.22.0",
+      "conversation_id": "01a20270-7a5a-77d8-b834-e191726c4970",
       "evidence": [
         {
           "canonicalisation": "dd-input-json-v1",
           "content_hash": "54aecd136b6252dda97d2ef2e8c7720aa516abb5f3eb87045e2ea4d51558fcb4",
           "hash_algorithm": "sha256",
-          "retrieved_at": "2026-11-22T08:40:13.619030Z",
-          "source_id": "input:01a20269-bb94-748e-8a64-21f92300889b"
+          "retrieved_at": "2026-11-22T08:47:35.490310Z",
+          "source_id": "input:01a20270-7a34-7408-af5c-5a5faf97b493"
         }
       ],
       "grounding_mode": "input_only",
@@ -103,7 +103,7 @@
         "grounded_on": [
           {
             "content_hash": "54aecd136b6252dda97d2ef2e8c7720aa516abb5f3eb87045e2ea4d51558fcb4",
-            "source_id": "input:01a20269-bb94-748e-8a64-21f92300889b"
+            "source_id": "input:01a20270-7a34-7408-af5c-5a5faf97b493"
           }
         ],
         "limitations": [
@@ -142,12 +142,12 @@
       "payload_schema": "c6d9e8b5114d7d4c3bf4c4ac27cb7ca939d2f01013b5604595578dd6cbd5771c",
       "policy_bundle_ref": "profile:data-director-app@v10",
       "policy_digest": "ab725374b8da40037bf07df8be63675aafa873559965f2c5ac95d8c3cc988be7",
-      "project_id": "01a20269-bc53-7366-a663-5458600220dd",
+      "project_id": "01a20270-7a58-74c2-a50c-0216610c4e92",
       "requires_human_review": true,
       "telemetry": {
         "energy_estimate_j": null,
         "energy_method": "not_measured",
-        "trace_id": "523e80ecda5f6f29d9197d19d6f1956b"
+        "trace_id": "b75e855955ffc529dbb878517aec0801"
       }
     },
     {
@@ -160,15 +160,15 @@
       "agent_id": "advisor.fairness",
       "agent_version": "0.3.0a1",
       "completed_at": "2026-01-02T00:00:00Z",
-      "contract_version": "0.21.0",
-      "conversation_id": "01a20269-bc5d-734c-931c-45b149e6a128",
+      "contract_version": "0.22.0",
+      "conversation_id": "01a20270-7a5a-77d8-b834-e191726c4970",
       "evidence": [
         {
           "canonicalisation": "dd-input-json-v1",
           "content_hash": "54aecd136b6252dda97d2ef2e8c7720aa516abb5f3eb87045e2ea4d51558fcb4",
           "hash_algorithm": "sha256",
-          "retrieved_at": "2026-11-22T08:40:13.619030Z",
-          "source_id": "input:01a20269-bb94-748e-8a64-21f92300889b"
+          "retrieved_at": "2026-11-22T08:47:35.490310Z",
+          "source_id": "input:01a20270-7a34-7408-af5c-5a5faf97b493"
         }
       ],
       "grounding_mode": "input_only",
@@ -254,7 +254,7 @@
         "grounded_on": [
           {
             "content_hash": "54aecd136b6252dda97d2ef2e8c7720aa516abb5f3eb87045e2ea4d51558fcb4",
-            "source_id": "input:01a20269-bb94-748e-8a64-21f92300889b"
+            "source_id": "input:01a20270-7a34-7408-af5c-5a5faf97b493"
           }
         ],
         "limitations": [
@@ -293,12 +293,12 @@
       "payload_schema": "c6d9e8b5114d7d4c3bf4c4ac27cb7ca939d2f01013b5604595578dd6cbd5771c",
       "policy_bundle_ref": "profile:data-director-app@v10",
       "policy_digest": "ab725374b8da40037bf07df8be63675aafa873559965f2c5ac95d8c3cc988be7",
-      "project_id": "01a20269-bc53-7366-a663-5458600220dd",
+      "project_id": "01a20270-7a58-74c2-a50c-0216610c4e92",
       "requires_human_review": true,
       "telemetry": {
         "energy_estimate_j": null,
         "energy_method": "not_measured",
-        "trace_id": "523e80ecda5f6f29d9197d19d6f1956b"
+        "trace_id": "b75e855955ffc529dbb878517aec0801"
       }
     }
   ]

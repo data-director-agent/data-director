@@ -1,4 +1,5 @@
 {
+  "former_researchers": [],
   "may_leave": false,
   "may_manage": true,
   "members": [
@@ -6,6 +7,7 @@
       "is_you": true,
       "member_id": "https://orcid.org/0000-0002-1825-0097",
       "member_since": "2026-01-01T00:00:00+00:00",
+      "public_name": "Josiah Carberry",
       "removable": false,
       "role": "owner",
       "role_changeable": false

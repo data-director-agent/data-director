@@ -189,6 +189,8 @@ nav:
           - /mcp-pid/README.md
       - Units library:
           - /units/README.md
+      - Subjects library:
+          - /subjects/README.md
       - FAIRsharing server:
           - /mcp-fairsharing/README.md
       - Agents:

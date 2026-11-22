@@ -10,6 +10,8 @@
 #   units.tar.gz         the systemd drop-ins (data-director*.d), such as a feedback key's
 #   state.tar.gz         /var/lib/data-director/.sign-in and any runs set aside before sign-in
 #   store-<name>.tar.gz  each store kept in a directory (runs, projects, workbench-runs)
+# The sessions (app-sessions, workbench-sessions) are left out on purpose: putting one back could
+# revive a session since signed out.
 #   db-<name>.pgdump     each database a store names, by pg_dump's custom format
 #   broker.sqlite3       the model broker's store, people's sealed keys and token counts, if any
 #   gateway.pgdump       the LiteLLM gateway's database, its keys, budgets and spend, if it runs

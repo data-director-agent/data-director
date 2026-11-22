@@ -48,7 +48,7 @@ access check `dd_harness.project_access`, which reads each principal's role from
 use by the conductor before a run in a project and by every route of the app's server under
 `/api/projects/{project_id}`; membership, whose events an owner appends to add, re-role and
 remove members by principal identifier (`dd_harness.projects.membership`, `dd-harness project
-member-add`) and from the project's Members tab (`/api/projects/{project_id}/members`); the app
+member-add`) and from the project's People tab (`/api/projects/{project_id}/members`); the app
 starting each conversation in a project of its own and adding an inventory attached to a turn;
 researcher facts a person keeps from their own public ORCID record, given to the project's
 agents (invariant 27); the inventory command; and the core
@@ -495,7 +495,7 @@ folder is added to an inventory without parts, the researcher names the folder i
 and its paths, and what they stated about them, move under that name. `dd-inventory` given
 several folders makes an inventory of one part per folder. Replacing the whole inventory with
 another remains possible.
-A project's members are on its Members tab (`GET`, `POST`, `PATCH` and `DELETE
+A project's members, and the facts each kept from ORCID, are on its People tab (`GET`, `POST`, `PATCH` and `DELETE
 /api/projects/{project_id}/members`, `app/tests/test_project_members.py`), which offers only what
 the server says the person may do ([The app](app.md), rule 32). A turn refused as stale keeps what
 the person typed and reads the conversation again, whether refused before its stream opens or in
@@ -532,8 +532,9 @@ media type, size and SHA-256 too, the document's `DocumentationSummary` gives
 (`ProjectStore.add_document_file`, `harness/tests/test_document_files.py`). An encrypted or
 damaged file, a scanned PDF with no text layer (no text is recognised in images) and one whose
 text is blank or too long are refused. The text read from a file is `documentation`, so
-`hosted_models` decides whether it reaches a hosted model, as for one attached as text. Citing
-an attached document as evidence of its own is TODO(#1181), and recording its reading as an agent
+`hosted_models` decides whether it reaches a hosted model, as for one attached as text. The
+Policy Adviser cites an attached policy or award letter it reads as evidence of its own, by its
+SHA-256 (`agents/advisor-policy/`, `attached.py`); citing one in the other agents is TODO(#1181), and recording its reading as an agent
 action TODO(#1182). A document the store refuses leaves no trace, and a turn
 that attaches an inventory too adds neither when either is refused. A `Message`'s
 `project_documentation` lists each document the project holds by name, digest, media type, size
@@ -585,7 +586,14 @@ TODO(#16, #72).
 | delete the project, or restore a deleted one | no | yes |
 
 A member is added by the principal identifier they sign in with (an ORCID iD for ORCID sign-in);
-they need not have signed in before. No name is kept for a member, only the identifier. Any
+they need not have signed in before. No name is kept for a member, only the identifier. The
+People tab names a member by the name they kept from their ORCID record (invariant 27), or else
+by the name on their public ORCID record, read from ORCID's public API for the page and held in
+the app's memory for at most an hour (`dd_harness.orcid_names`); it is never written to the log
+and never given to an agent (invariant 18). A member whose name is private, or whom ORCID does
+not answer for in time, is shown by their identifier. Records kept by people no longer members
+are listed apart, since agents are still given them. Whether removing a member should withdraw
+their record is TODO(#1405). Any
 member may leave, by removing themselves (`project_access.may_remove_member`). Whether an added person must accept first, and how they are
 told, are TODO(#388, #378). Each turn of a shared conversation acts for the member who sent it,
 and a delegated child for that turn's principal. A run outside any project belongs to the
@@ -697,6 +705,9 @@ store, and writes to neither ([Disclosure](disclosure.md)).
   anything yet, or remove one.
 - **Names or identifiers in the conversation history.** An agent would be told whom it acts for,
   and names would go to hosted models with every turn.
+- **Keeping a member's name in `member_added`.** It would be personal data in the log that goes
+  stale when the person changes it at ORCID, and erasing it waits for TODO(#156). A name read for
+  the page and held briefly in memory shows the current one and keeps nothing.
 - **Reading the ORCID record at sign-in, or asking for a wider scope.** Every agent would be given
   facts nobody chose to share, and the sign-in would ask for more than it needs. The public API
   needs no scope and returns only what the holder made public.
@@ -721,10 +732,11 @@ store, and writes to neither ([Disclosure](disclosure.md)).
   personal did. Detecting personal data where the inventory is made, and disclosure control for
   any summary value it carries, are [Personal data and disclosure control](personal-data.md);
   personal data in conversation text is TODO(#40). The tool never anonymises (C2).
-  No email address is asked for or held for a member. Researcher facts are public, but
+  No email address is asked for or held for a member. Showing members' names sends each member's
+  iD to ORCID's public API. Researcher facts are public, but
   personal: they go to a hosted model only where the profile lists `researcher` (invariant 8),
   and withdrawing them stops them being given but does not erase them from the log, TODO(#156). Members see each other's words and work,
-  each turn with its sender's name, and the Members tab and the user guide
+  each turn with its sender's name, and the People tab and the user guide
   ([Working on a project with others](../guide/user-guide/members.md)) say so where a member is
   added.
 - **Disclosure.** A refusal to a non-member does not reveal whether a project exists, and a

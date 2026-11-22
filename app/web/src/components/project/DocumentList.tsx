@@ -29,7 +29,7 @@ const GROUPS: { state: VersionState; heading: string }[] = [
 /** The entries that were once listed here and are now tabs, by their old `?doc=` id, so that an
  * old link still lands on them. */
 export const FORMER_PANELS: Readonly<Record<string, PanelTab>> = {
-  researchers: "researchers",
+  researchers: "people",
   facts: "facts",
   repository: "repository",
   disclosure: "ai-use",

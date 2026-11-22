@@ -11,6 +11,7 @@
 import { createContext, useContext } from "react";
 
 import type { RawSession } from "../api/generated/responses";
+import { serverAnswered } from "../status";
 
 export type { RawSession } from "../api/generated/responses";
 
@@ -75,7 +76,7 @@ export function fromRaw(raw: RawSession): Session {
 }
 
 async function session(response: Response): Promise<Session> {
-  if (!response.ok) throw new Error(`the server answered ${response.status}`);
+  if (!response.ok) throw new Error(serverAnswered(response.status));
   return fromRaw((await response.json()) as RawSession);
 }
 
@@ -91,7 +92,7 @@ export const httpSessionApi: SessionApi = {
   },
   async signOut() {
     const response = await fetch("/api/sign-out", { method: "POST", headers: JSON_HEADERS });
-    if (!response.ok) throw new Error(`the server answered ${response.status}`);
+    if (!response.ok) throw new Error(serverAnswered(response.status));
   },
 };
 

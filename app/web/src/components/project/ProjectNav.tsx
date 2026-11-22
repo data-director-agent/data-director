@@ -1,10 +1,9 @@
 /**
  * The top of each of a project's pages: where the project sits (Projects › its name), then its
- * pages as tabs (its documents, the researchers, its members, its facts, the repository chosen,
- * the FAIR feedback on its metadata record, the statement of how generative AI was used, the
- * deposit package, its journey map and its conversations), the one shown marked as current. The
- * same block on each page, so moving between them is one press from any, and nothing moves when
- * the page changes.
+ * pages as tabs (its documents, its people, its facts, the repository chosen, the FAIR feedback
+ * on its metadata record, the statement of how generative AI was used, the deposit package, its
+ * journey map and its conversations), the one shown marked as current. The same block on each
+ * page, so moving between them is one press from any, and nothing moves when the page changes.
  *
  * Its conversations open on the conversation page, in this project: a project's page makes the
  * project the one the app is working in when it reads it (docs/specs/app.md).
@@ -22,7 +21,6 @@ import {
   MessagesSquare,
   Package,
   Sparkles,
-  UserRound,
   Users,
 } from "lucide-react";
 
@@ -36,8 +34,7 @@ export function projectPath(projectId: string): string {
 
 const TABS: { id: ProjectTab; label: string; icon: LucideIcon }[] = [
   { id: "documents", label: "Documents", icon: FileText },
-  { id: "researchers", label: "Researchers", icon: UserRound },
-  { id: "members", label: "Members", icon: Users },
+  { id: "people", label: "People", icon: Users },
   { id: "facts", label: "Project facts", icon: ListChecks },
   { id: "repository", label: "Repository", icon: Landmark },
   { id: "fair", label: "FAIR feedback", icon: Compass },

@@ -23,7 +23,7 @@ import { SignedOutPage } from "./components/session/SignedOutPage";
 import { SignInPage } from "./components/session/SignInPage";
 import { ActiveProjectProvider } from "./project/active";
 import { RunActivityProvider } from "./run/activity";
-import { type ProjectTab, isProjectTab, useLocation } from "./route";
+import { type ProjectTab, projectTabOf, useLocation } from "./route";
 import { type Directory, normalise } from "./manifest/normalise";
 import type { RawAgentsResponse } from "./manifest/types";
 import {
@@ -32,6 +32,7 @@ import {
   checkSignedIn,
   useSessionApi,
 } from "./session/api";
+import { serverAnswered } from "./status";
 
 // The person's projects: `/projects`; a project's documents: `/projects/{project_id}`
 // (docs/specs/projects.md); its other tabs, such as its repository or journey map:
@@ -49,7 +50,7 @@ function message(error: unknown): string {
 export async function fetchDirectory(signal?: AbortSignal): Promise<Directory> {
   const response = await fetch("/api/agents", signal ? { signal } : {});
   checkSignedIn(response);
-  if (!response.ok) throw new Error(`the server answered ${response.status}`);
+  if (!response.ok) throw new Error(serverAnswered(response.status));
   return normalise((await response.json()) as RawAgentsResponse);
 }
 
@@ -59,8 +60,8 @@ function projectRoute(path: string): { projectId: string | null; tab: ProjectTab
   if (!path.startsWith(PROJECT_PREFIX)) return { projectId: null, tab: "documents" };
   const rest = path.slice(PROJECT_PREFIX.length);
   const cut = rest.lastIndexOf("/");
-  const last = rest.slice(cut + 1);
-  if (cut > 0 && last !== "documents" && isProjectTab(last)) {
+  const last = projectTabOf(rest.slice(cut + 1));
+  if (cut > 0 && last !== null && last !== "documents") {
     return { projectId: rest.slice(0, cut), tab: last };
   }
   return { projectId: rest, tab: "documents" };

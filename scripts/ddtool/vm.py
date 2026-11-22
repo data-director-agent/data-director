@@ -59,6 +59,10 @@ class Vm:
         return self.root / "failed-commits"
 
     @property
+    def paused(self) -> Path:
+        return self.root / "deploy.paused"
+
+    @property
     def credentials(self) -> Path:
         return self.etc / "credentials"
 

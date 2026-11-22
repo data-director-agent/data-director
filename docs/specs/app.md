@@ -260,7 +260,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     buttons, or checkboxes where several may be chosen, each option a card the whole of which can
     be clicked (the control stays visible and ticked beside an accent bar), with "Something else"
     and a text box where the question allows an answer in words; a short text question as a
-    one-line text box; a long text question as a text area that counts the characters left. A lone
+    one-line text box, which offers the question's suggested answers (`question_suggestions`) in a
+    list narrowed to those containing what is typed, the answer always being the text in the box;
+    a long text question as a text area that counts the characters left. A lone
     question is answered and sent in place. A series shows one question at a time, saying in
     words which of how many it is beside a progress bar, with Back, Skip and Next; Next with
     nothing entered says to answer or skip. After the last question it lists the answers to check,
@@ -382,15 +384,15 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     `ChoiceQuestion.tsx`, as a reply's are (`app/tests/test_intake_routes.py`,
     `app/web/src/components/conversation/IntakeCard.test.tsx`).
 26. **Researcher facts are chosen on the project's page, with nothing ticked.** The project's page
-    lists **Researchers** beside the repository, the disclosure and the deposit package. It shows
-    each record the project's researchers kept and, for the signed-in person's own, a button to
-    withdraw it. **Bring in facts from your ORCID record** reads their public record and offers
+    lists **People** beside the repository, the disclosure and the deposit package (rule 32). Under
+    each member it shows the record they kept and, on the signed-in person's own entry, a button
+    to withdraw it; records kept by people no longer members are listed apart. **Bring in facts from your ORCID record** reads their public record and offers
     each section, and each affiliation, work and funding, as a checkbox, none ticked, with a
     button to tick or untick all of a group; **Keep the ticked facts** sends only what is ticked,
     by section and put-code, and the page then shows what the server kept. The panel says that the
     facts go to the project's agents, and to a hosted model only where the deployment allows it,
     and that an email address is never read
-    (`app/web/src/components/project/ResearcherPanel.test.tsx`, `app/tests/test_researcher_facts.py`,
+    (`app/web/src/components/project/PeoplePanel.test.tsx`, `app/tests/test_researcher_facts.py`,
     [Projects](projects.md), invariant 27).
 27. **The shell opens on the person's projects, and a project is started on purpose.** Where the
     app keeps projects, `/` is the Projects page: the person's projects, as `GET /api/projects`
@@ -478,9 +480,12 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     `app/web/src/components/conversation/DeleteConversation.tsx`,
     `app/web/src/components/project/DeletedConversations.tsx`,
     `app/tests/test_conversation_deletion.py`).
-32. **A project's members are on its Members tab, which offers what the server allows.**
-    `/projects/{id}/members` lists each member by ORCID iD, headed by the name they kept from
-    their own ORCID record in the project where they kept one, with their role and since when.
+32. **A project's members are on its People tab, which offers what the server allows.**
+    `/projects/{id}/people` lists each member by ORCID iD, headed by the name they kept from
+    their own ORCID record in the project, else the name on their public ORCID record, which the
+    server reads for the page and does not keep ([Projects](projects.md), Roles), with their role
+    and since when, and the facts they kept (rule 26). The former Researchers and Members tabs'
+    paths, `/projects/{id}/researchers` and `/projects/{id}/members`, open it.
     The server says what the person may do (`may_manage`, and each member's `removable` and
     `role_changeable`, and `may_leave`), and the tab offers only that: an owner adds a person by
     ORCID iD and chooses their role, makes a member an owner or an owner a member, and removes a
@@ -488,7 +493,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     after leaving the page goes to the Projects page. A refusal is said in the page's status, and
     what was typed stays. The tab says what members see of one another's work. In a project's
     conversations each turn is headed by its sender's name, or "You" for the reader's own
-    (`app/web/src/components/project/MembersPanel.test.tsx`,
+    (`app/web/src/components/project/PeoplePanel.test.tsx`,
     `app/tests/test_project_members.py`; [Projects](projects.md), Roles).
 
 ## Boundaries and contracts
@@ -645,7 +650,16 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   indented), and its Source tab shows the stored text exactly, since that is what a decision names
   by its digest and what the deposit package holds. Its Versions tab shows each version's
   decision and the lines it changed from the one before. While a person edits, the preview shows
-  their version. The list holds documents only.
+  their version. The decision form chooses nothing for the person:
+  approve, edit and reject start unchosen. While the latest version is undecided, the reader says
+  how many gaps it has (a README's placeholders, a data dictionary's unknown cells, a metadata
+  record's empty fields) and how many of its questions are open, in a bar held at the foot of the
+  window with a button to the decision, and again beside the button that records it. The counts are
+  the version's questions and the answers recorded to them (one question per gap,
+  [Drafting](drafting.md), invariant 5), never read from its prose. Approving a version with any gap
+  as it is asks again in a dialog that names the count, since an approval is final and the deposit
+  package takes it; rejecting, or editing and approving, does not, and keeps its reason rule (#1282).
+  The list holds documents only.
 - **A project's pages are tabs.** Beneath the breadcrumb, each of a project's pages is a tab with
   an address of its own: Documents (`/projects/{id}`), Researchers (`/researchers`), Members
   (`/members`), Project facts

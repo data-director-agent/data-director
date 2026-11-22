@@ -2,7 +2,8 @@
  * One question put to the researcher as a form field (docs/specs/app.md, rule 21): a choice
  * question as radio buttons, or checkboxes when several options may be chosen, each option a card
  * the whole of which can be clicked, with "Something else" and a text box where it allows an
- * answer in their own words; a short text question as a one-line text box; a long text question
+ * answer in their own words; a short text question as a one-line text box, offering its suggested
+ * answers where it has them (`SuggestedAnswer`); a long text question
  * as a text area with a count of the characters left. The question is a fieldset whose legend is
  * the question, and its help is the fieldset's description.
  *
@@ -20,6 +21,7 @@ import {
   type QuestionAnswer,
   SHORT_TEXT_MAX,
 } from "../../conversation/question";
+import { SuggestedAnswer } from "./SuggestedAnswer";
 
 /** What the researcher has entered for one question so far. */
 export interface Draft {
@@ -168,7 +170,15 @@ export function QuestionField({
           />
         </div>
       )}
-      {question.question_kind === "short_text" && (
+      {question.question_kind === "short_text" && question.question_suggestions && (
+        <SuggestedAnswer
+          id={id}
+          suggestions={question.question_suggestions}
+          words={draft.words}
+          onWords={(words) => onChange({ ...draft, words })}
+        />
+      )}
+      {question.question_kind === "short_text" && !question.question_suggestions && (
         <>
           <label className="visually-hidden" htmlFor={`${id}-words`}>
             Your answer

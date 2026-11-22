@@ -5,6 +5,7 @@
 
 import type { Problem } from "./run/types";
 import { checkSignedIn } from "./session/api";
+import { serverAnswered } from "./status";
 
 /** The server refused the request before any run began (a 400 with Problem Details). */
 export class RunRefused extends Error {
@@ -31,5 +32,5 @@ export async function json<T>(response: Response, refine?: Refine): Promise<T> {
   const refined = refine?.(response.status, problem);
   if (refined) throw refined;
   if (response.status === 400 && problem) throw new RunRefused(problem);
-  throw new Error(problem?.detail ?? `the server answered ${response.status}`);
+  throw new Error(problem?.detail ?? serverAnswered(response.status));
 }

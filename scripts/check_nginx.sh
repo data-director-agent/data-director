@@ -4,7 +4,8 @@
 # what the config says: HTTP redirected to HTTPS, TLS 1.3 alone, HSTS, no password of its own (the
 # app and the workbench sign people in), /a2a, the agent card and /server-status closed, the forwarded headers set,
 # the body size limit, port 8443 reaching the workbench and nothing else, and /broker/enrolment/
-# alone reaching the model broker on 127.0.0.1:8300. The "NGINX reverse proxy" job in
+# alone reaching the model broker on 127.0.0.1:8300, and a page saying the app is restarting when
+# nothing answers on its port. The "NGINX reverse proxy" job in
 # .github/workflows/ci.yml runs it.
 #
 # It changes /etc/nginx and /etc/letsencrypt, so run it as root on a throwaway Debian or Ubuntu
@@ -61,7 +62,7 @@ threading.Thread(target=broker.serve_forever, daemon=True).start()
 HTTPServer(("127.0.0.1", 7860), Echo).serve_forever()
 PY
 upstream=$!
-trap 'kill "$upstream"' EXIT
+trap 'kill "$upstream" 2>/dev/null || true' EXIT
 bash "$src/deploy/wait-for-ports.sh" 10 7860 8000 8300
 
 nginx -t
@@ -135,6 +136,17 @@ curl -sk -o /dev/null -D - "$workbench/" | grep -qi "^Content-Security-Policy: f
 headers=$(curl -sk "$workbench/")
 grep -q '^Upstream: 8000' <<<"$headers" || fail "port 8443 does not reach the workbench"
 grep -qi '^X-Forwarded-Proto: https' <<<"$headers" || fail "X-Forwarded-Proto not passed to the workbench"
+
+# With nothing on the app's port, as while it restarts: a page that says so, not a bare 502, still
+# with the server's headers.
+kill "$upstream"
+wait "$upstream" 2>/dev/null || true
+expect 503 "/ while the app restarts" "$url/projects"
+expect 503 "/api/ while the app restarts" "$url/api/agents"
+curl -sk "$url/projects" | grep -q 'Data Director is restarting' ||
+  fail "no restarting page while the app restarts"
+curl -sk -o /dev/null -D - "$url/projects" | grep -qi '^Strict-Transport-Security: max-age=63072000' ||
+  fail "no HSTS header on the restarting page"
 
 [[ $status -eq 0 ]] && echo "nginx: every check passed"
 exit "$status"
