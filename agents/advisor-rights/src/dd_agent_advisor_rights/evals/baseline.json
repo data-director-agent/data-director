@@ -1,0 +1,176 @@
+{
+  "identity": {
+    "agent_id": "advisor.rights",
+    "cases_sha256": "43bc639e0ca4327a78a0f03bc5e8f015ef97f4ed9bebe286430b9e971ba25b91",
+    "configuration": {},
+    "git_revision": "5b8a2c5764b36ba7d37d3dffbfafcb46db673069",
+    "licences_sha256": "795f38cdc5737467d8d43b94c2fe7040e5c159ee41d5d8e285bc8bf7f466507d",
+    "spec_version": "0.2.0a1",
+    "system_prompt_sha256": "45cded4ba1782c2823b08775387883ffd5846656a6a07cceaf47de40088ce08e"
+  },
+  "scores": {
+    "any-reuse": {
+      "access_first": 1.0,
+      "grounding_passed": 1.0,
+      "ids_recalled": 1.0,
+      "none_listed": 1.0,
+      "outcome_matches": 1.0,
+      "questions_asked": null,
+      "stopped_correctly": 1.0
+    },
+    "attribution": {
+      "access_first": null,
+      "grounding_passed": 1.0,
+      "ids_recalled": 1.0,
+      "none_listed": 1.0,
+      "outcome_matches": 1.0,
+      "questions_asked": null,
+      "stopped_correctly": 1.0
+    },
+    "mandate-against-wish": {
+      "access_first": null,
+      "grounding_passed": 1.0,
+      "ids_recalled": 1.0,
+      "none_listed": 1.0,
+      "outcome_matches": 1.0,
+      "questions_asked": 1.0,
+      "stopped_correctly": 1.0
+    },
+    "mandate-in-table": {
+      "access_first": null,
+      "grounding_passed": 1.0,
+      "ids_recalled": 1.0,
+      "none_listed": 1.0,
+      "outcome_matches": 1.0,
+      "questions_asked": null,
+      "stopped_correctly": 1.0
+    },
+    "mandate-outside-table": {
+      "access_first": null,
+      "grounding_passed": 1.0,
+      "ids_recalled": 1.0,
+      "none_listed": 1.0,
+      "outcome_matches": 1.0,
+      "questions_asked": null,
+      "stopped_correctly": 1.0
+    },
+    "no-reuse-said": {
+      "access_first": null,
+      "grounding_passed": 1.0,
+      "ids_recalled": 1.0,
+      "none_listed": null,
+      "outcome_matches": 1.0,
+      "questions_asked": 1.0,
+      "stopped_correctly": 1.0
+    },
+    "non-commercial": {
+      "access_first": null,
+      "grounding_passed": 1.0,
+      "ids_recalled": 1.0,
+      "none_listed": 1.0,
+      "outcome_matches": 1.0,
+      "questions_asked": null,
+      "stopped_correctly": 1.0
+    },
+    "nothing-said": {
+      "access_first": null,
+      "grounding_passed": 1.0,
+      "ids_recalled": null,
+      "none_listed": null,
+      "outcome_matches": 1.0,
+      "questions_asked": null,
+      "stopped_correctly": 1.0
+    },
+    "sensitive": {
+      "access_first": 1.0,
+      "grounding_passed": 1.0,
+      "ids_recalled": 1.0,
+      "none_listed": null,
+      "outcome_matches": 1.0,
+      "questions_asked": 1.0,
+      "stopped_correctly": 1.0
+    },
+    "sensitive-only": {
+      "access_first": 1.0,
+      "grounding_passed": 1.0,
+      "ids_recalled": null,
+      "none_listed": null,
+      "outcome_matches": 1.0,
+      "questions_asked": 1.0,
+      "stopped_correctly": 1.0
+    },
+    "sensitive-third-party-mandate": {
+      "access_first": 1.0,
+      "grounding_passed": 1.0,
+      "ids_recalled": 1.0,
+      "none_listed": 1.0,
+      "outcome_matches": 1.0,
+      "questions_asked": 1.0,
+      "stopped_correctly": 1.0
+    },
+    "sensitivity-unknown": {
+      "access_first": null,
+      "grounding_passed": 1.0,
+      "ids_recalled": 1.0,
+      "none_listed": null,
+      "outcome_matches": 1.0,
+      "questions_asked": 1.0,
+      "stopped_correctly": 1.0
+    },
+    "share-alike": {
+      "access_first": null,
+      "grounding_passed": 1.0,
+      "ids_recalled": 0.5,
+      "none_listed": 1.0,
+      "outcome_matches": 1.0,
+      "questions_asked": null,
+      "stopped_correctly": 1.0
+    },
+    "third-party-content": {
+      "access_first": null,
+      "grounding_passed": 1.0,
+      "ids_recalled": 1.0,
+      "none_listed": null,
+      "outcome_matches": 1.0,
+      "questions_asked": 1.0,
+      "stopped_correctly": 1.0
+    },
+    "words-credit-us": {
+      "access_first": null,
+      "grounding_passed": 1.0,
+      "ids_recalled": 1.0,
+      "none_listed": 0.0,
+      "outcome_matches": 1.0,
+      "questions_asked": null,
+      "stopped_correctly": 1.0
+    },
+    "words-keep-it-open": {
+      "access_first": null,
+      "grounding_passed": 1.0,
+      "ids_recalled": 1.0,
+      "none_listed": 0.0,
+      "outcome_matches": 1.0,
+      "questions_asked": null,
+      "stopped_correctly": 1.0
+    },
+    "words-not-to-sell": {
+      "access_first": null,
+      "grounding_passed": 1.0,
+      "ids_recalled": 1.0,
+      "none_listed": 0.0,
+      "outcome_matches": 1.0,
+      "questions_asked": null,
+      "stopped_correctly": 1.0
+    },
+    "words-public-domain": {
+      "access_first": null,
+      "grounding_passed": 1.0,
+      "ids_recalled": 1.0,
+      "none_listed": 0.0,
+      "outcome_matches": 1.0,
+      "questions_asked": null,
+      "stopped_correctly": 1.0
+    }
+  },
+  "task": "rights_choosing"
+}
