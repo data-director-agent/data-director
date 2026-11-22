@@ -67,13 +67,6 @@ linking:RelatedLink a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
-            sh:description "The identifier, as given." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path linking:given ],
-        [ sh:datatype xsd:string ;
             sh:description "The type of what a resolved identifier names, as the source gives it: a DOI's resource type, Person for an ORCID iD, or an organisation's first ROR type." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -118,6 +111,13 @@ linking:RelatedLink a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
             sh:path linking:normalised ],
+        [ sh:datatype xsd:string ;
+            sh:description "The identifier, as given." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path linking:given ],
         [ sh:datatype xsd:string ;
             sh:description "What a resolved identifier names, as the source gives it: a DOI's title, a person's public name or an organisation's name." ;
             sh:maxCount 1 ;
