@@ -1,5 +1,10 @@
 """Identify a file's format against PRONOM with fido. The one module that knows fido.
 
+fido 1.6.1 ships PRONOM v109 (2022), so fido is given the signatures pinned in `pronom/`
+instead: a fido format file built from a current PRONOM release and PRONOM's container
+signatures, each checked against the SHA-256 in `pronom/manifest.json` before it is read
+(`scripts/pin_pronom.py` refreshes them). Only the extension table is fido's own.
+
 fido reads the start and end of a file and matches them against PRONOM's byte signatures, then
 its container signatures for ZIP and OLE2 files, and falls back to the file's extension. Each
 step can match several formats, so every PRONOM identifier (PUID) it returns is kept, with the
@@ -12,12 +17,16 @@ gives no PUID (docs/specs/projects.md, dependencies).
 from __future__ import annotations
 
 import contextlib
+import gzip
+import hashlib
 import io
+import json
 import mimetypes
 import warnings
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from importlib.metadata import version
+from importlib.resources import files
 from pathlib import Path
 from typing import Any, Protocol
 from xml.etree import ElementTree
@@ -42,6 +51,34 @@ class Identifier(Protocol):
 
 class FidoUnavailableError(Exception):
     """fido could not be loaded; the reason is recorded in the inventory's limitations."""
+
+
+@dataclass(frozen=True)
+class PinnedSignatures:
+    """The PRONOM release in `pronom/`, its files checked against the manifest's hashes."""
+
+    pronom_version: int
+    formats: bytes  # fido's format file, uncompressed
+    container: bytes
+    container_date: str
+
+    @classmethod
+    def load(cls) -> PinnedSignatures:
+        pinned = files("dd_inventory") / "pronom"
+        manifest = json.loads((pinned / "manifest.json").read_text(encoding="utf-8"))
+
+        def checked(entry: dict[str, str]) -> bytes:
+            data = (pinned / entry["file"]).read_bytes()
+            if hashlib.sha256(data).hexdigest() != entry["sha256"]:
+                raise ValueError(f"{entry['file']} does not match its hash in the manifest")
+            return data
+
+        return cls(
+            pronom_version=int(manifest["pronom_version"]),
+            formats=gzip.decompress(checked(manifest["formats"])),
+            container=checked(manifest["container"]),
+            container_date=manifest["container"]["date"],
+        )
 
 
 @contextlib.contextmanager
@@ -76,22 +113,23 @@ class FidoIdentifier:
             from fido.package import OlePackage, ZipPackage
             from fido.versions import get_local_versions
 
-            # The library's defaults name a signature file fido 1.6.1 does not ship; its CLI
-            # reads the files from versions.xml, and so does this.
-            versions = get_local_versions()
+            pinned = PinnedSignatures.load()
+            extensions = Path(CONFIG_DIR) / get_local_versions().fido_extension_signature
             with _quiet_fido():
-                self._fido = Fido(
-                    quiet=True,
-                    format_files=[versions.pronom_signature, versions.fido_extension_signature],
-                )
-                self._containers = ElementTree.parse(
-                    Path(CONFIG_DIR) / versions.pronom_container_signature
-                )
-            pronom = versions.pronom_version
+                # The PRONOM formats first, then fido's extension table, as fido's CLI loads them.
+                self._fido = Fido(quiet=True, format_files=[])
+                self._fido.load_fido_xml(io.BytesIO(pinned.formats))
+                if not self._fido.formats:  # fido reports a parse error on stderr, not by raising
+                    raise ValueError("no PRONOM formats could be read from the pinned file")
+                self._fido.load_fido_xml(str(extensions))
+                self._containers = ElementTree.parse(io.BytesIO(pinned.container))
         except Exception as exc:  # fido raises bare OSError, ParseError, ...
             raise FidoUnavailableError(f"fido could not be loaded: {exc}") from exc
         self._packages = {"zip": ("ZIP", ZipPackage), "ole": ("OLE2", OlePackage)}
-        self.description = f"fido {version('opf-fido')} with PRONOM signatures v{pronom}"
+        self.description = (
+            f"fido {version('opf-fido')} with PRONOM signatures v{pinned.pronom_version}"
+            f" and container signatures of {pinned.container_date}"
+        )
 
     def identify(self, path: Path) -> Identification:
         fido = self._fido

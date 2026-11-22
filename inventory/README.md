@@ -89,6 +89,16 @@ Hidden files and folders (names beginning with `.`) are skipped, symbolic links 
 followed, and both are counted in `inventory_limitations`. If fido cannot be loaded, formats are
 guessed from file extensions and the inventory says so.
 
+fido 1.6.1 ships PRONOM v109 (2022), so it is given the signatures pinned in
+`src/dd_inventory/pronom/` instead: a fido format file converted from a recent PRONOM release
+and PRONOM's container signatures, each checked against its SHA-256 in `manifest.json` before it
+is read. `inventory_identified_with` names both. `scripts/pin_pronom.py` rebuilds them after a
+PRONOM release (about every two months); the manifest lists any format it could not convert and
+any record PRONOM updated after the release. PRONOM is © The National Archives under the
+[Open Government Licence v3.0](https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/)
+(`src/dd_inventory/pronom/LICENCE.md`). Identification is local: no file's bytes leave the
+machine.
+
 The same package runs in a web browser under [Pyodide](https://pyodide.org/), so that a researcher
 can describe a folder without installing anything ([#367](https://github.com/data-director-agent/data-director/issues/367)). The inventory it makes there is the
 command's, except that its `inventory_tool_version` carries a local version label naming the
@@ -112,7 +122,7 @@ what it writes against the contract's `FileInventory` schema.
 | Module | What it does |
 |---|---|
 | `scan.py` | Walks the folder, digests each file and assembles the inventory. |
-| `identify.py` | The one module that calls fido, with the extension fallback. |
+| `identify.py` | The one module that calls fido, with the pinned PRONOM signatures and the extension fallback. |
 | `tables.py` | Infers a table's fields with Frictionless, keeping the sampled values for the check. |
 | `summaries.py` | Computes table fields' summary values and checks them with ACRO, the one module that imports it. |
 | `personal.py` | Looks for possible personal data with Presidio and the keyword table (`keywords.json`, a copy of advisor.ethics's). |

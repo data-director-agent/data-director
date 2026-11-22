@@ -1,0 +1,30 @@
+{
+  "pronom_version": 125,
+  "release_created": "2026-09-02T09:52:22",
+  "droid_signature_file": {
+    "url": "https://cdn.nationalarchives.gov.uk/documents/DROID_SignatureFile_V125.xml",
+    "sha256": "c7c328dd0e131947667e9b94294c5d47e0b6ec8ec3040b7fd542ac605ecc6ec5"
+  },
+  "record_url": "https://www.nationalarchives.gov.uk/pronom/{puid}.xml",
+  "retrieved": "2026-11-22",
+  "converted_with": "opf-fido 1.6.1 (fido.prepare), reference files not fetched",
+  "formats": {
+    "file": "formats-v125.xml.gz",
+    "sha256": "0f8a8af41bbf0ec0fd6aa7fe4ceb182bb9421f50182e73eded63bd0b6bdc1b61",
+    "count": 2571
+  },
+  "container": {
+    "file": "container-signature-20260907.xml",
+    "date": "2026-09-07",
+    "url": "https://pronom.nationalarchives.gov.uk/container-signatures/container-signature-20260907.xml",
+    "sha256": "4917911c9b576fca31ecea818e1d58e770063ad1b6335124890908780dd1b8df"
+  },
+  "records_missing": [],
+  "records_not_converted": [],
+  "signatures_not_converted": [
+    "fmt/1795",
+    "fmt/899",
+    "fmt/900"
+  ],
+  "records_updated_after_release": []
+}

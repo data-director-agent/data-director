@@ -46,6 +46,8 @@ UNPUBLISHED = (
     "agents/*/src/*/*_prompt.md",
     # The licence of a third-party data snapshot, which travels with the data.
     "agents/*/data/*",
+    # The licence of the pinned PRONOM signatures, which travels with the data.
+    "inventory/src/dd_inventory/pronom/*",
     # The converter's input; the Blueprint's contents page (docs/blueprint/README.md) carries it.
     "scripts/blueprint/index-header.md",
     # A fixture dataset for the inventory's tests, which stands in for a researcher's files.
