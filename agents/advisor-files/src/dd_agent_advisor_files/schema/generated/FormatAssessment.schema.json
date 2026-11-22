@@ -9,6 +9,7 @@
             "third_party",
             "governance",
             "system_file",
+            "credentials",
             "empty",
             "duplicate",
             "extension_mismatch"

@@ -154,6 +154,24 @@ def test_asks_a_person_to_look_at_files_whose_names_call_for_it(runs_dir: Path) 
     assert all(c.question for c in checks)
 
 
+def test_asks_a_person_whether_a_configuration_file_holds_credentials(runs_dir: Path) -> None:
+    """A workshop dataset's `config.ini` held credentials and was not flagged (#1320)."""
+    files = of_files(
+        file("README.md"),
+        file("config.ini"),
+        file("data/survey_responses.csv", fields=("respondent", "q1", "q2")),
+        file("scripts/clean.py"),
+    )
+    env = make_conductor(runs_dir, FileArchivist()).invoke(
+        request("advisor.files", files), acting_for=TEST_PRINCIPAL
+    )
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED
+    checks = env.payload_as(FormatAssessment).checks
+    flagged = [c for c in checks if c.kind == CheckKind.CREDENTIALS]
+    assert [c.path for c in flagged] == ["config.ini"]
+    assert flagged[0].question
+
+
 def test_a_duplicate_names_its_copies() -> None:
     files = of_files(file("a.csv", digest=1), file("b/a.csv", digest=1), file("c.csv", digest=1))
     checks = FileArchivist()._checks(files.inventory_files)
