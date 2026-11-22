@@ -114,6 +114,8 @@ export interface DocumentationSummary {
   documentation_added_at: string;
   /** The Word or PDF file's media type, for a document whose text was read from one. */
   documentation_source_media_type?: string;
+  /** True for the document a person decided is the project's Data Management Plan (#1447). */
+  documentation_is_plan?: boolean;
 }
 
 /** Why a file is not a document the project would keep. */

@@ -5,7 +5,8 @@
  * or `readSource` for a Word document or PDF, which the server reads inside the deployment), then
  * opened in the same check as one attached to a message (`DocumentReviewDialog`: its text, who
  * reads it and what the personal-data check found, #473). Only when the researcher confirms is it
- * kept (`POST /api/projects/{id}/documentation`); until then nothing is stored. What happened is
+ * kept (`POST /api/projects/{id}/documentation`); until then nothing is stored. The list of
+ * documents held, and which is the project's Data Management Plan, is `AttachedDocuments`. What happened is
  * said through the page's announcer. A refusal closes the check and is shown on the page, since
  * the page behind an open dialog is hidden from a screen reader; the document can be chosen again.
  *
@@ -23,7 +24,6 @@ import {
   type DocumentReaders,
   DOCUMENT_EXTENSIONS,
   DOCUMENT_MEDIA_TYPES,
-  describeSize,
   documentReaders,
   isDocumentName,
   NotADocument,
@@ -37,6 +37,7 @@ import { errorMessage } from "../../run/api";
 import { DocumentReviewDialog } from "../conversation/DocumentReviewDialog";
 import { useAnnounce } from "../ui/Announcer";
 import { Button } from "../ui/Button";
+import { AttachedDocuments } from "./AttachedDocuments";
 
 const NOT_A_DOCUMENT =
   "is not a document Data Director keeps. Attach a plain text (.txt), Markdown (.md), Word " +
@@ -130,19 +131,7 @@ export function AttachDocument({
         </FileTrigger>
       </span>
       {refused && <span role="alert">{refused}</span>}
-      {held.length > 0 && (
-        <section aria-label="Attached documents" className="attached-documents">
-          <h2 className="attached-documents-heading">Attached documents</h2>
-          <ul className="plain-list">
-            {held.map((d) => (
-              <li key={`${d.documentation_name}:${d.documentation_digest}`}>
-                {d.documentation_name}{" "}
-                <span className="hint">({describeSize(d.documentation_size)})</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <AttachedDocuments projectId={projectId} held={held} onChange={setHeld} />
       <DocumentReviewDialog
         pending={pending}
         readers={readers}

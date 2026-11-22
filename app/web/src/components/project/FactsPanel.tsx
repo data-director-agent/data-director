@@ -132,9 +132,12 @@ function Decided({
         />
       ) : (
         <p className="actions">
-          <Button size="small" onPress={() => setChanging(true)}>
-            Change
-          </Button>
+          {/* Which document is the plan is changed on the Documents page (#1447). */}
+          {fact.fact_kind !== "data_management_plan" && (
+            <Button size="small" onPress={() => setChanging(true)}>
+              Change
+            </Button>
+          )}
           <Button size="small" variant="quiet" icon={Trash2} isPending={busy} onPress={onRemove}>
             Remove
           </Button>

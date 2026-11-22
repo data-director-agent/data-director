@@ -284,7 +284,9 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     the answers beside the entry point on every turn (`Message.project_intake`), "Not sure"
     included, since no step state shows it, so that the model neither asks them again nor denies
     them; when the researcher said they have a Data Management Plan and attached no document, the
-    model invites them to attach it (#1374). A researcher who dismisses the intake or types instead may still say where they are
+    model invites them to attach it and mark it as their plan (#1374), and when documents are
+    attached but none is marked as the plan, to mark which one it is ([Projects](projects.md),
+    invariant 32; #1447). A researcher who dismisses the intake or types instead may still say where they are
     in their own words; the model then records the entry point it worked out (invariant 18).
 
     The intake asks only what the researcher has not answered, but it does not ask from scratch

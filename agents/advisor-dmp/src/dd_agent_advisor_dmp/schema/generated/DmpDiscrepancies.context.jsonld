@@ -109,6 +109,9 @@
       "output": {
          "@id": "https://w3id.org/data-director/agents/dmp/output"
       },
+      "plan_document": {
+         "@id": "https://w3id.org/data-director/plan_document"
+      },
       "planned": {
          "@id": "https://w3id.org/data-director/agents/dmp/planned"
       },
