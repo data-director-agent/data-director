@@ -391,3 +391,113 @@ def test_the_current_version_is_the_latest_of_the_document_with_its_decision(
         store.current_version(project, DocumentKind.DATA_DICTIONARY, first.document_id)
     with pytest.raises(ProjectError, match="has no document"):
         store.current_version(project, DocumentKind.README, "0" * 8 + first.document_id[8:])
+
+
+def ask_to_revise(
+    store: ProjectStore, project_id: str, instruction: str, **given: Any
+) -> DocumentVersionRef:
+    shown = latest(store, project_id)
+    fields = {
+        "document_id": shown["document_id"],
+        "version": shown["version"],
+        "digest": text_digest(shown["text"]),
+        **given,
+    }
+    return store.request_revision(
+        project_id,
+        fields["document_id"],
+        fields["version"],
+        fields["digest"],
+        instruction,
+        acted_for=DECIDER,
+        caused_by="test",
+    )
+
+
+@pytest.mark.requirement("C13.3")
+def test_a_request_for_changes_is_recorded_with_the_version_and_changes_no_version(
+    store: ProjectStore, project: str, draft: Envelope
+) -> None:
+    first = store.record_draft(project, draft)
+
+    ref = ask_to_revise(store, project, "  Shorten the Methods section.  ")
+
+    assert ref == first
+    (version,) = store.documents(project)[0]["versions"]
+    assert version["state"] == PROPOSED
+    assert version["revision_request"]["instruction"] == "Shorten the Methods section."
+    assert version["revision_request"]["requested_by"]["principal_id"] == DECIDER.principal_id
+    given = store.current_version(project, DocumentKind.README, revise=True)
+    assert given is not None
+    assert given["revision_request"] == "Shorten the Methods section."
+    assert "revision_request" not in (store.current_version(project, DocumentKind.README) or {})
+
+
+@pytest.mark.requirement("C13.3")
+def test_the_change_asked_for_last_stands(
+    store: ProjectStore, project: str, draft: Envelope
+) -> None:
+    store.record_draft(project, draft)
+    ask_to_revise(store, project, "Shorten it.")
+    ask_to_revise(store, project, "Lengthen it.")
+    given = store.current_version(project, DocumentKind.README, revise=True)
+    assert given is not None and given["revision_request"] == "Lengthen it."
+
+
+def test_revising_a_version_nobody_asked_to_change_is_an_error(
+    store: ProjectStore, project: str, draft: Envelope
+) -> None:
+    store.record_draft(project, draft)
+    with pytest.raises(ProjectError, match="nobody asked"):
+        store.current_version(project, DocumentKind.README, revise=True)
+
+
+@pytest.mark.requirement("C13.3")
+def test_a_request_for_changes_to_a_stale_version_is_refused_and_recorded(
+    store: ProjectStore, project: str, draft: Envelope
+) -> None:
+    first = store.record_draft(project, draft)
+    stale = latest(store, project)
+    store.edit(
+        project,
+        first.document_id,
+        1,
+        stale["digest"],
+        "# Newer\n",
+        acted_for=DECIDER,
+        caused_by="t",
+    )
+    with pytest.raises(ChangeRefusedError) as refused:
+        ask_to_revise(store, project, "Shorten it.", version=1, digest=stale["digest"])
+    assert refused.value.refusal is Refusal.NOT_LATEST
+    assert store.events(project)[-1]["event"] == DOCUMENT_CHANGE_REFUSED
+    assert all(v["revision_request"] is None for v in store.documents(project)[0]["versions"])
+
+
+@pytest.mark.parametrize("instruction", ["", "   ", "x" * 2001])
+def test_a_blank_or_overlong_request_records_nothing(
+    store: ProjectStore, project: str, draft: Envelope, instruction: str
+) -> None:
+    store.record_draft(project, draft)
+    before = store.events(project)
+    with pytest.raises(ProjectError):
+        ask_to_revise(store, project, instruction)
+    assert store.events(project) == before
+
+
+@pytest.mark.requirement("C13.3")
+def test_a_version_that_only_asks_questions_cannot_be_revised(
+    store: ProjectStore, project: str, draft: Envelope
+) -> None:
+    asking = draft.model_copy(
+        update={
+            "payload": OpenPayload.model_validate(
+                {**draft.to_document()["payload"], "document_stage": "questions"}
+            )
+        }
+    )
+    store.record_draft(project, asking)
+    with pytest.raises(ChangeRefusedError) as refused:
+        ask_to_revise(store, project, "Shorten it.")
+    assert refused.value.refusal is Refusal.NOT_A_DRAFT
+    assert store.events(project)[-1]["event"] == DOCUMENT_CHANGE_REFUSED

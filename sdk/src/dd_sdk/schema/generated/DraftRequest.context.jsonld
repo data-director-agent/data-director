@@ -560,6 +560,12 @@
          "@id": "https://w3id.org/data-director/researchers",
          "@type": "@id"
       },
+      "revise": {
+         "@id": "https://w3id.org/data-director/revise"
+      },
+      "revision_request": {
+         "@id": "https://w3id.org/data-director/revision_request"
+      },
       "role_title": {
          "@id": "https://w3id.org/data-director/role_title"
       },

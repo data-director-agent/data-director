@@ -59,6 +59,7 @@ export function fakeProjectApi(overrides: Partial<ProjectApi> = {}): ProjectApi 
     disclosure: () => Promise.resolve(DISCLOSURE),
     decide: () => Promise.resolve(decided("approved")),
     answer: () => Promise.resolve(PROJECT),
+    revise: () => Promise.reject(new Error("no changes asked for in this test")),
     inventory: () => Promise.resolve(null),
     saveInventory: () => Promise.reject(new Error("not saved in this test")),
     documentation: () => Promise.resolve([]),

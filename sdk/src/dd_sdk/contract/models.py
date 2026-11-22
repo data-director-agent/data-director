@@ -409,6 +409,7 @@ class CurrentVersion(Frozen):
     document_text: str
     version_state: VersionState
     decision_reason: str | None = None
+    revision_request: str | None = None
 
 
 class ApprovedMetadataRecord(Frozen):
@@ -430,13 +431,11 @@ class DraftRequest(Frozen):
     requirements: RepositoryRequirements | None = None
     metadata_record: ApprovedMetadataRecord | None = None
     current_version: CurrentVersion | None = None
-    # The rest but redraft_document are filled by the conductor in a project: the answers people
-    # recorded, to this kind's questions and to other kinds' on a shared field, the facts people
-    # kept from their ORCID records, the documents attached and the facts people decided.
+    # In a project the conductor fills every slot but these two (data_director.yaml says each).
     draft_answers: list[DraftAnswer] = Field(default_factory=list)
     shared_answers: list[questions.SharedAnswer] = Field(default_factory=list)
-    # The project document to redraft, where the project holds more than one of the kind.
     redraft_document: str | None = Field(default=None, pattern=UUID7_PATTERN)
+    revise: bool = False
     researchers: list[ResearcherRecord] = Field(default_factory=list)
     project_documents: list[ProjectDocument] = Field(default_factory=list)
     project_decisions: list[ProjectFact] = Field(default_factory=list)

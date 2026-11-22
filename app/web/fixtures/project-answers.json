@@ -54,6 +54,7 @@
             }
           ],
           "revises": null,
+          "revision_request": null,
           "stage": "draft",
           "state": "proposed",
           "text": "# Untitled dataset\n\nDrafted by a stub.\n",
@@ -63,6 +64,7 @@
     }
   ],
   "project_id": "01900000-0000-7000-8000-000000000003",
+  "request_max_length": 2000,
   "review": {
     "reason_max_length": 2000,
     "reason_required": {

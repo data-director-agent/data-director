@@ -33,11 +33,21 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from enum import StrEnum
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from dd_harness.listing import Readable
-from dd_harness.projects import conversation_deletions, deletion, is_last_owner, member_roles
+from dd_harness.projects import (
+    ProjectDeletedError,
+    UnknownProjectError,
+    conversation_deletions,
+    deletion,
+    is_last_owner,
+    member_roles,
+)
 from dd_harness.storage import ProjectConversations, ProjectLifecycle
+
+if TYPE_CHECKING:
+    from dd_harness.project_facts import FactSource
 from dd_sdk.contract.models import Principal
 
 
@@ -185,3 +195,25 @@ def hidden_in(logs: Iterable[Iterable[Mapping[str, Any]]]) -> frozenset[str]:
 def conversation_deleted(store: ProjectLifecycle, project_id: str, conversation_id: str) -> bool:
     """Whether the conversation `conversation_id` in the project `project_id` is deleted."""
     return conversation_id in conversation_deletions(store.events(project_id))
+
+
+class Snapshots(Protocol):
+    def snapshot(self, project_id: str) -> FactSource: ...
+
+
+def run_facts(
+    projects: Snapshots | None, project_id: str | None, acting_for: Principal
+) -> FactSource | None:
+    """The snapshot of `project_id` a run reads everything it asks of its project from, or None
+    for a run in no project. Only someone who may read the project runs anything in it; anyone
+    else is answered as for a project that does not exist (docs/specs/projects.md, invariant
+    17). A deleted project takes no new run, not even its owner's (invariant 24). A delegated
+    child is not checked again: its grant carries its parent's project."""
+    if projects is None or project_id is None:
+        return None
+    facts = projects.snapshot(project_id)
+    if not may(facts, project_id, acting_for, Action.READ):
+        raise UnknownProjectError(f"no project {project_id!r}")
+    if facts.is_deleted(project_id):
+        raise ProjectDeletedError(f"project {project_id} is deleted")
+    return facts

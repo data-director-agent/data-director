@@ -16,6 +16,10 @@ an answer stands until the person answers the same question again. `answers` giv
 answer to each question of the documents of a kind, which the conductor puts into the next
 `DraftRequest`.
 
+A person may also ask for the latest version to be revised in their words
+(`dd_harness.projects.revisions`); `current_version` gives that request to a drafter asked to
+revise.
+
 Giving a drafter the version it regenerates is TODO(#394).
 """
 
@@ -314,15 +318,22 @@ class Documents(ProjectRules):
         return found
 
     def current_version(
-        self, project_id: str, document_kind: DocumentKind, document_id: str | None = None
+        self,
+        project_id: str,
+        document_kind: DocumentKind,
+        document_id: str | None = None,
+        *,
+        revise: bool = False,
     ) -> dict[str, Any] | None:
         """The version a drafter of `document_kind` regenerates, as a `CurrentVersion`: the latest
         version of `document_id`, or, without one, of the project's document of that kind drafted
-        or revised last. Its text, its state, and the reason a person gave for any decision on it.
-        None if the project holds no document of the kind.
+        or revised last. Its text, its state, and the reason a person gave for any decision on it;
+        with `revise`, also the change a person asked for last to it. None if the project holds
+        no document of the kind.
 
         Raises `ProjectError` if `document_id` names no document of this project, or one of
-        another kind, and `UnknownProjectError` for an unknown project."""
+        another kind, or, with `revise`, if nobody asked for a change to the latest version; and
+        `UnknownProjectError` for an unknown project."""
         events = self.events(project_id)
         chosen = _chosen(fold(events), events, document_kind, document_id)
         if chosen is None:
@@ -338,6 +349,10 @@ class Documents(ProjectRules):
             given["document_title"] = latest["document_title"]
         if latest["decision"] is not None and latest["decision"]["reason"] is not None:
             given["decision_reason"] = latest["decision"]["reason"]
+        if revise:
+            if latest["revision_request"] is None:
+                raise ProjectError(f"nobody asked for a change to version {latest['version']}")
+            given["revision_request"] = latest["revision_request"]["instruction"]
         return given
 
     def metadata_record(self, project_id: str) -> dict[str, Any] | None:

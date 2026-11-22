@@ -320,6 +320,20 @@ class ProjectDocuments(ProjectRecord, Protocol):
         """Record a person's answers to questions the latest version asks."""
         ...
 
+    def request_revision(
+        self,
+        project_id: str,
+        document_id: str,
+        version: int,
+        digest: str,
+        instruction: str,
+        *,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> DocumentVersionRef:
+        """Record a person's request that a drafter revise the latest version as they say."""
+        ...
+
     def answers(self, project_id: str, document_kind: DocumentKind) -> list[dict[str, Any]] | None:
         """The latest answer to each question of the documents of `document_kind`, as
         `DraftAnswer`s, or None."""
@@ -333,11 +347,17 @@ class ProjectDocuments(ProjectRecord, Protocol):
         ...
 
     def current_version(
-        self, project_id: str, document_kind: DocumentKind, document_id: str | None = None
+        self,
+        project_id: str,
+        document_kind: DocumentKind,
+        document_id: str | None = None,
+        *,
+        revise: bool = False,
     ) -> dict[str, Any] | None:
         """The latest version of `document_id`, or of the document of `document_kind` drafted or
-        revised last, as a `CurrentVersion`, or None. Raises `ProjectError` for a `document_id`
-        that is not the project's or is of another kind."""
+        revised last, as a `CurrentVersion`, or None; with `revise`, with the change a person
+        asked for last to it. Raises `ProjectError` for a `document_id` that is not the
+        project's or is of another kind, and, with `revise`, if nobody asked for a change."""
         ...
 
     def documents(self, project_id: str) -> list[dict[str, Any]]:

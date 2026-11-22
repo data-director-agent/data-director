@@ -23,6 +23,8 @@ QUESTION_ID = re.compile(QUESTION_ID_PATTERN)
 REASON_MAX_LENGTH = 2000
 # The longest answer the harness keeps, in characters: a definition or a paragraph of methods.
 ANSWER_MAX_LENGTH = 2000
+# The longest change a person may ask of a version, in characters: a paragraph of instructions.
+REQUEST_MAX_LENGTH = 2000
 
 
 def reason_required(verdict: Verdict, *, edited: bool) -> bool:
@@ -87,3 +89,14 @@ def check_answers(answers: list[DraftAnswer]) -> list[DraftAnswer]:
             raise ProjectError(f"an answer is at most {ANSWER_MAX_LENGTH} characters")
         stripped.append(DraftAnswer(answered_question=answer.answered_question, answer_text=text))
     return stripped
+
+
+def check_request(instruction: str) -> str:
+    """The change a person asked for, stripped. Raises `ProjectError` for one malformed in
+    itself, which records nothing: a blank or overlong request (docs/specs/drafting.md)."""
+    text = instruction.strip()
+    if not text:
+        raise ProjectError("say what to change")
+    if len(text) > REQUEST_MAX_LENGTH:
+        raise ProjectError(f"a request for changes is at most {REQUEST_MAX_LENGTH} characters")
+    return text

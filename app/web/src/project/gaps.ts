@@ -6,7 +6,13 @@
  * version's text: the answer is placed by the next draft.
  */
 
-import { type DocumentVersion, type ProjectDocument, openQuestions } from "./api";
+import type { DocumentQuestion, DocumentVersion, ProjectDocument } from "./api";
+
+/** The questions of `version` that no answer recorded for `document` has answered yet. */
+export function openQuestions(document: ProjectDocument, version: DocumentVersion): DocumentQuestion[] {
+  const answered = new Set(document.answers.map((a) => a.question_id));
+  return version.questions.filter((q) => !answered.has(q.question_id));
+}
 
 /** What a gap is called in each kind of document, one and many. */
 const GAP_WORDS: Record<string, readonly [string, string]> = {

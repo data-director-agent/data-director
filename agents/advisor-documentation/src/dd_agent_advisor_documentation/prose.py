@@ -25,13 +25,15 @@ or a count of files, folders or tables that is not one the facts give (`counts.p
 those at the top level and in each folder among them, are worked out by rule and given in the
 facts, so the model need not add anything up.
 
-A writer also suggests answers to a draft's questions (`suggest`, `suggestions.py`).
+A writer also suggests answers to a draft's questions (`suggest`, `suggestions.py`), and a
+`ModelWriter` revises a README's prose as a person asked (`revise`, `revise.py`), the one time it
+is given an earlier version: the version that person asked to change.
 """
 
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
@@ -40,6 +42,7 @@ from pydantic import BaseModel, ValidationError
 
 from dd_agent_advisor_documentation.checks import StrictReply, unchecked
 from dd_agent_advisor_documentation.replies import unfenced
+from dd_agent_advisor_documentation.revise import Revision, revise
 from dd_agent_advisor_documentation.suggestions import Ask, Suggestions, suggest
 from dd_sdk.agent import RunContext
 from dd_sdk.model import Model, ModelOutputError, call
@@ -103,6 +106,15 @@ class Writer(Protocol):
         self, facts: Mapping[str, Any], asks: Sequence[Ask], ctx: RunContext
     ) -> Suggestions: ...
 
+    def revise(
+        self,
+        facts: Mapping[str, Any],
+        current: str,
+        instruction: str,
+        given: Collection[str],
+        ctx: RunContext,
+    ) -> Revision | None: ...
+
 
 class TemplateWriter:
     """Writes no prose and suggests nothing: the draft is the template's."""
@@ -116,6 +128,17 @@ class TemplateWriter:
         self, facts: Mapping[str, Any], asks: Sequence[Ask], ctx: RunContext
     ) -> Suggestions:
         return Suggestions()
+
+    def revise(
+        self,
+        facts: Mapping[str, Any],
+        current: str,
+        instruction: str,
+        given: Collection[str],
+        ctx: RunContext,
+    ) -> Revision | None:
+        """None: a revision as a person asks needs a model (docs/specs/drafting.md)."""
+        return None
 
 
 class ModelWriter:
@@ -143,6 +166,17 @@ class ModelWriter:
         self, facts: Mapping[str, Any], asks: Sequence[Ask], ctx: RunContext
     ) -> Suggestions:
         return suggest(self.model, facts, asks, ctx)
+
+    def revise(
+        self,
+        facts: Mapping[str, Any],
+        current: str,
+        instruction: str,
+        given: Collection[str],
+        ctx: RunContext,
+    ) -> Revision | None:
+        """`current` revised as a person asked, its reply checked (`revise.py`)."""
+        return revise(self._call, current, instruction, facts, given, ctx)
 
     def _call[T: BaseModel](
         self, system: str, content: str, schema: type[T], ctx: RunContext

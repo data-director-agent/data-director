@@ -1,0 +1,102 @@
+{
+  "answer_max_length": 2000,
+  "documents": [
+    {
+      "answers": [],
+      "document_id": "01900000-0000-7000-8000-000000000001",
+      "document_kind": "readme",
+      "document_title": null,
+      "versions": [
+        {
+          "added_at": "2026-01-01T00:00:00Z",
+          "added_by": {
+            "assurance": "asserted",
+            "name": "Josiah Carberry",
+            "principal_id": "https://orcid.org/0000-0002-1825-0097",
+            "principal_kind": "person"
+          },
+          "conforms_to": null,
+          "decision": null,
+          "digest": "b04ab7d4e3815605c46456d58f2fa25d125343365a5eec88d4a55f211ead28ca",
+          "document_id": "01900000-0000-7000-8000-000000000001",
+          "document_kind": "readme",
+          "document_title": null,
+          "drafted_by": {
+            "agent_id": "stub.document",
+            "agent_version": "0.1.0",
+            "document_derivation": "template",
+            "invocation_id": "01900000-0000-7000-8000-000000000002"
+          },
+          "media_type": "text/markdown",
+          "questions": [],
+          "revises": null,
+          "revision_request": {
+            "instruction": "Shorten the Files paragraph.",
+            "requested_at": "2026-01-01T00:00:00Z",
+            "requested_by": {
+              "assurance": "asserted",
+              "name": "Josiah Carberry",
+              "principal_id": "https://orcid.org/0000-0002-1825-0097",
+              "principal_kind": "person"
+            }
+          },
+          "stage": "draft",
+          "state": "proposed",
+          "text": "# Untitled dataset\n\nDrafted by a stub.\n",
+          "version": 1
+        },
+        {
+          "added_at": "2026-01-01T00:00:00Z",
+          "added_by": {
+            "assurance": "asserted",
+            "name": "Josiah Carberry",
+            "principal_id": "https://orcid.org/0000-0002-1825-0097",
+            "principal_kind": "person"
+          },
+          "conforms_to": null,
+          "decision": null,
+          "digest": "0bebe032a80de3744a3b1cbdf5fedeaf7f2decdcfd72c89c509ab3308fef8f43",
+          "document_id": "01900000-0000-7000-8000-000000000001",
+          "document_kind": "readme",
+          "document_title": null,
+          "drafted_by": {
+            "agent_id": "stub.document",
+            "agent_version": "0.1.0",
+            "document_derivation": "template",
+            "invocation_id": "01900000-0000-7000-8000-000000000003"
+          },
+          "media_type": "text/markdown",
+          "questions": [],
+          "revises": {
+            "document_id": "01900000-0000-7000-8000-000000000001",
+            "version": 1
+          },
+          "revision_request": null,
+          "stage": "draft",
+          "state": "proposed",
+          "text": "# Untitled dataset\n\nDrafted by a stub.\n\nGiven: files=None, repository=None, record=None\n",
+          "version": 2
+        }
+      ]
+    }
+  ],
+  "project_id": "01900000-0000-7000-8000-000000000004",
+  "request_max_length": 2000,
+  "review": {
+    "reason_max_length": 2000,
+    "reason_required": {
+      "approved": false,
+      "edited_and_approved": true,
+      "rejected": true
+    }
+  },
+  "revised": {
+    "invocation_id": "01900000-0000-7000-8000-000000000003",
+    "statement": "Drafted a placeholder readme. No model was called.",
+    "status": "succeeded",
+    "version": {
+      "document_id": "01900000-0000-7000-8000-000000000001",
+      "version": 2
+    }
+  }
+}

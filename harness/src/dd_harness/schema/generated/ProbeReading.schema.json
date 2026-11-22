@@ -67,7 +67,7 @@
       },
       "CurrentVersion": {
          "additionalProperties": false,
-         "description": "The version of a project document that a drafter is to regenerate: the document's latest, its text, and its state with the reason a person gave for any decision on it (ADR-0036 decision 7). A drafter that regenerates it names version_ref in its payload's revises.",
+         "description": "The version of a project document that a drafter is to regenerate: the document's latest, its text, and its state with the reason a person gave for any decision on it (ADR-0036 decision 7). A drafter that regenerates it names version_ref in its payload's revises. When the request asks for a revision, it also holds the change a person asked for.",
          "properties": {
             "version_ref": {
                "$ref": "#/$defs/DocumentVersionRef",
@@ -94,6 +94,13 @@
             },
             "decision_reason": {
                "description": "The reason the person gave for their decision, in their words. Present for a rejection, and for an approval only if they gave one.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "revision_request": {
+               "description": "The change a person asked for to this version, in their words, as the project log records it. A drafter follows it as an instruction, and a value it states counts as given by that person (docs/specs/drafting.md). In a project only the conductor fills it.",
                "type": [
                   "string",
                   "null"

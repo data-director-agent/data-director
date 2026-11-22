@@ -188,6 +188,30 @@ the gaps and questions of the template draft.
   version"). The call is recorded with the run: the model, the tokens and the prompt by digest
   (docs/specs/disclosure.md).
 
+## Revising a README as you ask
+
+A researcher can ask for changes to the latest README draft in their own words, such as "shorten
+the Files paragraph" or "say that sampling was monthly from 2019 to 2021", from the project's
+documents page. The harness records the request with the version it names, and the editor is run
+with `revise` set; the conductor gives it the current version with the request
+(`revision_request`), never a caller's words (docs/specs/drafting.md, invariant 12).
+
+- **What may change.** The current text is split at its blank lines (`revise.py`). Only a
+  paragraph of plain prose that is not a value a person gave may change: headings, lists, tables,
+  the gaps and their markers, the values placed from the approved metadata record and the answers
+  placed as given are kept byte for byte. The model may change, remove or add paragraphs, so a
+  revision never fills a gap; the version asks the same questions under the same identifiers.
+- **What it is given.** The request, as its instruction (`revise_prompt.md`); the paragraphs it
+  may change, by identifier; the sections it may add a paragraph to; and the README as it stands
+  and the facts, as data.
+- **What is checked.** Each paragraph passes the checks a draft's prose does, against the facts,
+  the README as it stands and the request: a number or name the request gives counts as given by
+  the person. A paragraph that fails keeps the current text, and the statement says why. If
+  nothing usable changed, the editor abstains and drafts no version.
+- **Limits.** It revises a README only, and only with a model: without one, or for another kind,
+  it abstains and says to edit the document instead. A later redraft from the facts drafts the
+  README afresh and does not keep a revision's wording (#1468).
+
 ## Suggested answers
 
 Before any model, the editor offers the researcher's own words (#1284, docs/specs/drafting.md,
@@ -273,7 +297,8 @@ and people's answers. The shipped profiles list it. The CI evaluation runs the t
   only the codes the inventory found. A model's suggested definition, unit or README answer is
   only offered, and it suggests no missing value codes, people, dates, places or citation, and
   methods only from documents the researcher attached.
-- It does not read an earlier README, or the reason a person gave for a decision on a version.
+- It does not read an earlier README, or the reason a person gave for a decision on a version,
+  except the version a person asked it to revise.
 - It follows no data dictionary standard, such as CDIF's variable descriptions (#220).
 
 ## Run it

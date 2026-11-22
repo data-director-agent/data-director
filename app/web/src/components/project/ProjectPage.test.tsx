@@ -741,7 +741,7 @@ describe("ProjectPage", () => {
       `/projects/${PROJECT.project_id}?doc=${README.document_id}`,
     );
     expect(within(article).getByText("Rejected")).toBeVisible();
-    expect(within(article).queryByRole("group")).not.toBeInTheDocument();
+    expect(within(article).queryByRole("group", { name: /Your decision/ })).not.toBeInTheDocument();
   });
 
   it.each([
@@ -839,7 +839,7 @@ describe("ProjectPage", () => {
     );
     expect(await pageStatus()).toHaveTextContent("README: version 1 approved.");
     expect(within(article).getByText("Approved")).toBeVisible();
-    expect(within(article).queryByRole("group")).not.toBeInTheDocument();
+    expect(within(article).queryByRole("group", { name: /Your decision/ })).not.toBeInTheDocument();
     // The form has gone, so the focus goes to the document it was about.
     expect(
       within(article).getByRole("heading", { name: "README" }),

@@ -6,15 +6,19 @@ approves or rejects the latest version, or approves an edit of it, for the perso
 answers `409` if that version is no longer the latest or undecided (docs/specs/projects.md);
 `POST /api/projects/{id}/documents/{document_id}/answers` records the person's answers to questions
 the latest version asks, for the next draft to place as supplied, and answers `409` if that
-version is no longer the latest or does not ask them (docs/specs/drafting.md). Who decided or
-answered is whom the authenticator names, never the body.
+version is no longer the latest or does not ask them (docs/specs/drafting.md);
+`POST /api/projects/{id}/documents/{document_id}/revisions` records the person's request for
+changes to the latest version, in their words, and runs the agent that drafted the document to
+revise it, answering `201` with the run's outcome whether or not it drafted a version, and `409`
+if that version is no longer the latest or no agent drafted the document. Who decided, answered
+or asked is whom the authenticator names, never the body.
 """
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import ClassVar, Literal
 
-from pydantic import MISSING
+from pydantic import MISSING, Field
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 from starlette.responses import Response
@@ -24,9 +28,11 @@ from dd_app import contract_shapes as contract
 from dd_app import documents
 from dd_app.routes.common import (
     Deps,
+    RequestBody,
     ResponseBody,
     caused_by,
     in_project,
+    parse_body,
     problem,
     project_refused,
     read_json,
@@ -35,10 +41,11 @@ from dd_app.routes.common import (
 )
 from dd_harness.project_access import Action
 from dd_harness.projects import ChangeRefusedError, ProjectError, Refusal
-from dd_sdk.contract.models import Principal
+from dd_sdk.contract.models import DocumentKind, DraftRequest, InvocationRequest, Principal
 
 DECISION_REFUSED = "Data Director could not record this decision"
 ANSWERS_REFUSED = "Data Director could not record these answers"
+REVISION_REFUSED = "Data Director could not ask for these changes"
 
 
 class DocumentDraftedBy(ResponseBody):
@@ -57,6 +64,14 @@ class VersionDecision(ResponseBody):
     reason: str | None
     decided_by: contract.Principal
     decided_at: str
+
+
+class RevisionRequested(ResponseBody):
+    """A person's request for changes to a version, as the project log records it."""
+
+    instruction: str
+    requested_by: contract.Principal
+    requested_at: str
 
 
 class DocumentVersion(ResponseBody):
@@ -82,6 +97,8 @@ class DocumentVersion(ResponseBody):
     added_at: str
     state: Literal["proposed", "approved", "rejected"]
     decision: VersionDecision | None
+    revision_request: RevisionRequested | None
+    """The change a person asked for last to this version, in their words."""
     text: str
 
 
@@ -130,10 +147,36 @@ class ProjectDocuments(ResponseBody):
     review: ReviewRules
     answer_max_length: int
     """The longest answer the harness keeps, in characters."""
+    request_max_length: int
+    """The longest request for changes the harness keeps, in characters."""
     decided: contract.DocumentVersionRef | MISSING = MISSING
     """After a decision: the version it decided."""
     answered: contract.DocumentVersionRef | MISSING = MISSING
     """After answers: the version whose questions they answered."""
+    revised: RevisionRun | MISSING = MISSING
+    """After a request for changes: the run that revised the document, or declined to."""
+
+
+class RevisionRun(ResponseBody):
+    """The run asked to revise a document: its outcome, and the version it drafted, if any."""
+
+    invocation_id: str
+    status: Literal["succeeded", "abstained", "referred", "failed"]
+    statement: str
+    version: contract.DocumentVersionRef | None
+
+
+class RevisionAsked(RequestBody):
+    """A person's request for changes to the latest version, in their words."""
+
+    refusal: ClassVar[str] = (
+        "A request for changes gives `version`, the `digest` of the text shown and "
+        "`instruction`, and never who asked."
+    )
+
+    version: int = Field(ge=1)
+    digest: str = Field(pattern=r"^[0-9a-f]{64}$")
+    instruction: str = Field(min_length=1)
 
 
 def routes(deps: Deps) -> list[Route]:
@@ -148,6 +191,11 @@ def routes(deps: Deps) -> list[Route]:
         Route(
             f"{document}/{{document_id}}/answers",
             in_project(deps, Action.CONTRIBUTE, answer),
+            methods=["POST"],
+        ),
+        Route(
+            f"{document}/{{document_id}}/revisions",
+            in_project(deps, Action.CONTRIBUTE, revise),
             methods=["POST"],
         ),
     ]
@@ -204,6 +252,57 @@ async def answer(request: Request, answerer: Principal, deps: Deps) -> Response:
     except ProjectError as exc:
         return _change_refused(exc, project_id, ANSWERS_REFUSED)
     return respond(ProjectDocuments, answered, status_code=201)
+
+
+async def revise(request: Request, asker: Principal, deps: Deps) -> Response:
+    """Record the request for changes, then run the document's drafter to revise it."""
+    project_id = request.path_params["project_id"]
+    document_id = request.path_params["document_id"]
+    body = await parse_body(request, RevisionAsked, REVISION_REFUSED)
+    if isinstance(body, Response):
+        return body
+    try:
+        agent_id, kind = await run_in_threadpool(
+            lambda: deps.projects.documents.request_revision(
+                project_id,
+                document_id,
+                body.version,
+                body.digest,
+                body.instruction,
+                acted_for=asker,
+                caused_by=caused_by(request),
+            )
+        )
+    except documents.NoDrafterError as exc:
+        return problem(409, "no-drafter", REVISION_REFUSED, str(exc))
+    except ProjectError as exc:
+        return _change_refused(exc, project_id, REVISION_REFUSED)
+    asked = DraftRequest(
+        document_kind=DocumentKind(kind), redraft_document=document_id, revise=True
+    )
+    try:
+        envelope = await deps.governance.invoke(
+            InvocationRequest(agent_id=agent_id, input=asked), asker, in_project=project_id
+        )
+    except ProjectError as exc:
+        return project_refused(exc, project_id, REVISION_REFUSED)
+    shown = await run_in_threadpool(deps.projects.documents.documents, project_id)
+    drafted = next(
+        (
+            {"document_id": v["document_id"], "version": v["version"]}
+            for d in shown["documents"]
+            for v in d["versions"]
+            if (v["drafted_by"] or {}).get("invocation_id") == envelope.invocation_id
+        ),
+        None,
+    )
+    revised = {
+        "invocation_id": envelope.invocation_id,
+        "status": envelope.outcome.status.value,
+        "statement": envelope.outcome.statement,
+        "version": drafted,
+    }
+    return respond(ProjectDocuments, {**shown, "revised": revised}, status_code=201)
 
 
 def _change_refused(exc: ProjectError, project_id: str, title: str) -> Response:

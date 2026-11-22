@@ -159,6 +159,7 @@ activity `prov:used` the entity.
 | `document_version_decided` | `dd:VersionDecision` | Uses the version; `dd:decision` approved or rejected, and the reason as `schema:description`. |
 | `document_change_refused` | `dd:ChangeRefusal` | Uses the version it names, where it names one; `dd:refusal` the reason code. |
 | `document_question_answered` | `dd:QuestionAnswer` | Uses the version; generates the answer, named by its digest. |
+| `document_revision_requested` | `dd:RevisionRequest` | Uses the version; the person's words as `schema:description`. The run that revises it is a run as below, whose version `prov:wasRevisionOf` the one named. |
 | `fact_proposed` | `dd:FactProposal` | Generates the proposed fact, a `prov:Entity` with `dd:factKind` and `dd:factSubject`, which `prov:wasGeneratedBy` the run that proposed it. |
 | `fact_decided` | `dd:FactDecision` | Uses the proposal, where it names one; generates the fact that stands, with `dd:decision` confirmed, changed or rejected, and the reason as `schema:description`. A rejection invalidates the fact it removes (`prov:wasInvalidatedBy`). |
 | `project_validated` | `dd:ProjectValidation` | Uses the inventory, the merged set and the versions validated; generates the report, named by its digest, with `dd:conforms`. |

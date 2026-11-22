@@ -9,12 +9,8 @@
 
 import { useEffect, useState } from "react";
 
-import {
-  type DocumentQuestion,
-  type DocumentVersion,
-  type ProjectDocument,
-  openQuestions,
-} from "../../project/api";
+import type { DocumentQuestion, DocumentVersion, ProjectDocument } from "../../project/api";
+import { openQuestions } from "../../project/gaps";
 
 /** A question's suggested answer, or "" when it has none. */
 export function suggestion(q: DocumentQuestion): string {

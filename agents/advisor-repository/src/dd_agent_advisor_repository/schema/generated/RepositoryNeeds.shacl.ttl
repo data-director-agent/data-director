@@ -78,17 +78,17 @@ schema1:Organization a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
-            sh:description "The organisation's ROR identifier." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path repository:ror ],
-        [ sh:datatype xsd:string ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
-            sh:path schema1:name ] ;
+            sh:path schema1:name ],
+        [ sh:datatype xsd:string ;
+            sh:description "The organisation's ROR identifier." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path repository:ror ] ;
     sh:targetClass schema1:Organization .
 
 <https://w3id.org/data-director/ChosenRepository> a sh:NodeShape ;

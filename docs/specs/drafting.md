@@ -27,7 +27,8 @@ the researcher to say, the editor returns a note that asks for it (a version at 
 stage) instead of a README full of gaps, and writes the README on the next run, from whatever
 answers are recorded by then.
 Where a model is configured, it also suggests a data dictionary's definitions and units, and
-answers to some of a README's questions, offered with the questions.
+answers to some of a README's questions, offered with the questions, and revises a README's prose
+as the researcher asks in their own words, such as "shorten the Files paragraph" (invariant 12).
 
 The Metadata Librarian (`advisor.metadata`) drafts the metadata record by the same rules. It
 serves `preparation.metadata` and drafts the record from a `DraftRequest` with the chosen
@@ -83,8 +84,8 @@ the same requirements (`setup.dmp-review`).
    That input is the inventory, the metadata record and the repository's requirements. Once the
    researcher has answered a README section as a whole, the model is also given their answers by
    section, the project's decisions and the documents they attached, and may write that section
-   from them; it is never given an earlier version, nor an answer to a part of General
-   information, which is placed as given. What none of these supports is a gap and is left
+   from them; it is never given an earlier version, except the one a person asked it to revise
+   (invariant 12), nor an answer to a part of General information, which is placed as given. What none of these supports is a gap and is left
    unwritten: methods, study design, data collection, variable definitions, units, missing value
    codes, and any claim about the data's contents that no answer makes. The gaps are decided by
    rule, not by the model: a model writes prose only around the facts a section is drafted from or
@@ -222,6 +223,27 @@ the same requirements (`setup.dmp-review`).
     (`agents/advisor-metadata/tests/test_metadata_shared.py`,
     `agents/advisor-documentation/tests/test_readme_shared_answers.py`).
 
+12. **A revision changes prose as a person asked, and nothing a person gave.** A person may ask
+    for changes to the latest version of a README, when it is a draft, in their own words. The
+    request is a `document_revision_requested` event naming the version, the digest of the text
+    they saw and their words, and is refused like an edit if either is not the latest
+    ([Projects](projects.md), invariant 12). A drafter asked to revise (`DraftRequest.revise`) is
+    given that version with the request (`CurrentVersion.revision_request`), which only the
+    conductor fills, from the log, so the words a drafter follows are always a person's; a request
+    to revise that names no recorded request is refused. The Documentation Editor splits the
+    version at its blank lines and lets its model change, remove or add only paragraphs of plain
+    prose: headings, lists, tables, every gap with its marker, and every paragraph that is an
+    answer as given or a value placed by rule from the facts are kept byte for byte, so a revision
+    never closes a gap and asks the same questions under the same identifiers
+    (`agents/advisor-documentation/tests/test_revise.py`). The request is the model's instruction;
+    the version and the facts are data. A paragraph is used only if it passes the checks of
+    invariant 4 against the facts, the version and the request: a number or name the request
+    gives counts as given by the person, as an answer does, and anything else the check finds is
+    dropped, the paragraph keeping its text, with the reason in the statement. A revision is
+    `model`. If no model is configured, the document is not a README, or nothing usable changed,
+    the editor abstains and drafts no version, saying why. A later redraft from the facts drafts
+    the README afresh and does not keep a revision's wording, TODO(#1468).
+
 ## Boundaries and contracts
 
 **Questions belong to the version.** A `Document` carries an optional list of questions
@@ -263,6 +285,16 @@ new answer; the documents page lists an earlier version's questions read-only ([
 `POST /api/projects/{id}/documents/{document_id}/answers`, which records them for the person
 signed in and never takes a name from the body. The harness records each answer and fills the
 answers into the next `DraftRequest`. No agent writes an answer.
+
+**A request for changes goes to the drafter.** The project's documents page offers a form beneath
+a README's latest draft to ask for changes ([The app](app.md)). It sends the person's words with
+the version and the digest of its text to
+`POST /api/projects/{id}/documents/{document_id}/revisions`, which records the request for the
+person signed in, then runs the agent that drafted the document with a `DraftRequest` that sets
+`revise` and names the document, in the project and no conversation ([Projects](projects.md),
+invariant 7). The app names no agent: it runs the one whose run drafted the document's latest
+drafted version. It answers with the documents and the run's outcome, whether or not the run
+drafted a version. A request from a conversation, relayed by an orchestrator, is TODO(#1470).
 
 **An answer outlives its version.** The conductor gives a drafter the latest version of the
 document it redrafts, so a redraft is that document's next version. A drafter is given the answers
@@ -320,6 +352,12 @@ as any other answer is.
   carries its question's identifier still matches its answer, and the app and the evaluation can
   count gaps without parsing prose.
 
+- **A revision in a person's words, checked as a draft is.** Editing by hand is precise but slow
+  for a change of tone or length; asking in words is quick, and a person still reviews the result
+  as a new version, with its differences shown. Keeping every gap, table and value as it was by
+  rule, not by the model's restraint, means a revision can make prose worse but cannot lose what a
+  person gave or hide what is still missing.
+
 ## Rejected alternatives
 
 - **The orchestrator gathering the README's answers in the chat before drafting.** It would need
@@ -350,6 +388,16 @@ as any other answer is.
 - **Questions on the `Outcome`.** The outcome is the agent's decision about the run, and a question
   is about the version. The version is where the app and the next regeneration look for it.
 
+- **The orchestrator paraphrasing the request into the drafter's input.** It would put a model's
+  words where the person's belong, and let a turn ask a drafter for changes nobody recorded. The
+  conductor fills `revision_request` from the log alone, as it fills answers.
+- **Revising by drafting afresh with the request as one more fact.** A redraft rebuilds the README
+  from the facts and drops any wording a person or an earlier revision gave it, so "shorten this"
+  would undo everything else. A revision changes the version the person read.
+- **Running a revision as a turn in the conversation that drafted the document.** It would add a
+  turn the person did not send to that conversation, and a turn the conversation's open page would
+  not follow. A revision is a run in the project and no conversation instead.
+
 ## Non-functional requirements
 
 - **Privacy.** A drafter sees the inventory, never the data, and the inventory carries only the
@@ -364,3 +412,4 @@ as any other answer is.
 - Whether a data dictionary should follow CDIF's variable descriptions, and be exported as DDI-CDI:
   TODO(#220).
 - Whether the README itself should state how generative AI was used to draft it: TODO(#478).
+- How a Data Management Plan is revised as a person asks: TODO(#1469).

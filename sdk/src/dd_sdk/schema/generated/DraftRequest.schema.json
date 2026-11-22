@@ -157,7 +157,7 @@
       },
       "CurrentVersion": {
          "additionalProperties": false,
-         "description": "The version of a project document that a drafter is to regenerate: the document's latest, its text, and its state with the reason a person gave for any decision on it (ADR-0036 decision 7). A drafter that regenerates it names version_ref in its payload's revises.",
+         "description": "The version of a project document that a drafter is to regenerate: the document's latest, its text, and its state with the reason a person gave for any decision on it (ADR-0036 decision 7). A drafter that regenerates it names version_ref in its payload's revises. When the request asks for a revision, it also holds the change a person asked for.",
          "properties": {
             "version_ref": {
                "$ref": "#/$defs/DocumentVersionRef",
@@ -184,6 +184,13 @@
             },
             "decision_reason": {
                "description": "The reason the person gave for their decision, in their words. Present for a rejection, and for an approval only if they gave one.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "revision_request": {
+               "description": "The change a person asked for to this version, in their words, as the project log records it. A drafter follows it as an instruction, and a value it states counts as given by that person (docs/specs/drafting.md). In a project only the conductor fills it.",
                "type": [
                   "string",
                   "null"
@@ -1892,7 +1899,7 @@
    "$id": "https://w3id.org/data-director/schema/core/DraftRequest",
    "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
-   "description": "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen, the metadata record a person approved last and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory, the requirements and the metadata record in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. In a project the conductor also fills current_version, the latest version of the project's document of that kind, or of the document redraft_document names, so a redraft is that document's next version. The answers a person recorded to the current version's questions are filled in by the conductor in the same way (docs/specs/drafting.md), and so are the researcher facts people in the project chose to keep from their public ORCID records (docs/specs/projects.md), and the text of the documents a researcher attached to the project, from which a drafter's model may suggest answers but never fill a gap. The conductor also fills shared_answers: the latest answer a person recorded, for a document of another kind, to a question that asks for the same thing as one of this draft's (shared_field), which a drafter may offer as a suggestion but never place.",
+   "description": "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen, the metadata record a person approved last and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory, the requirements and the metadata record in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. In a project the conductor also fills current_version, the latest version of the project's document of that kind, or of the document redraft_document names, so a redraft is that document's next version. The answers a person recorded to the current version's questions are filled in by the conductor in the same way (docs/specs/drafting.md), and so are the researcher facts people in the project chose to keep from their public ORCID records (docs/specs/projects.md), and the text of the documents a researcher attached to the project, from which a drafter's model may suggest answers but never fill a gap. The conductor also fills shared_answers: the latest answer a person recorded, for a document of another kind, to a question that asks for the same thing as one of this draft's (shared_field), which a drafter may offer as a suggestion but never place. With revise, the drafter is asked to revise the current version as a person asked, in their words, and the conductor gives the current version the change they asked for (revision_request).",
    "properties": {
       "schema_class": {
          "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -1974,6 +1981,13 @@
          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
          "type": [
             "string",
+            "null"
+         ]
+      },
+      "revise": {
+         "description": "Whether the drafter is to revise the current version as a person asked, rather than draft it again from the project's facts (docs/specs/drafting.md). In a project the conductor gives the current version the change the person asked for last (revision_request), and refuses the run if they asked for none; outside a project the caller sends it.",
+         "type": [
+            "boolean",
             "null"
          ]
       },

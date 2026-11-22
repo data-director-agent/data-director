@@ -20,7 +20,6 @@ import type {
   Disclosure,
   DocumentVersion,
   ProjectDetails,
-  ProjectDocument,
   ProjectDocuments,
   ProjectIntake,
   ProjectSummary,
@@ -70,6 +69,13 @@ export type ItemDecision = "keep" | "leave_out" | "change";
 export interface GivenAnswer {
   answered_question: string;
   answer_text: string;
+}
+
+/** A person's request for changes to a version, in their words (docs/specs/drafting.md). */
+export interface RevisionRequest {
+  version: number;
+  digest: string;
+  instruction: string;
 }
 
 export interface DecisionRequest {
@@ -127,6 +133,9 @@ export interface ProjectApi {
     version: number,
     answers: GivenAnswer[],
   ): Promise<ProjectDocuments>;
+  /** Records the person's request for changes to the latest version, whose text has `digest`,
+   * and runs the agent that drafted it to revise it; answers with the run's outcome as `revised`. */
+  revise(projectId: string, documentId: string, request: RevisionRequest): Promise<ProjectDocuments>;
   /** The inventory the project holds, as it was added; the inventory dialog reads it. */
   inventory(projectId: string, signal?: AbortSignal): Promise<unknown>;
   /** Adds `inventory` as the project's latest, revising the one it holds; answers with what it then holds. */
@@ -365,20 +374,14 @@ export const httpProjectApi: ProjectApi = {
     );
   },
   async answer(projectId, documentId, version, answers) {
-    return parse(
-      await fetch(
-        `${documentsPath(projectId)}/${encodeURIComponent(documentId)}/answers`,
-        post({ version, answers }),
-      ),
-    );
+    const path = `${documentsPath(projectId)}/${encodeURIComponent(documentId)}/answers`;
+    return parse(await fetch(path, post({ version, answers })));
+  },
+  async revise(projectId, documentId, request) {
+    const path = `${documentsPath(projectId)}/${encodeURIComponent(documentId)}/revisions`;
+    return parse(await fetch(path, post(request)));
   },
 };
-
-/** The questions of `version` that no answer recorded for `document` has answered yet. */
-export function openQuestions(document: ProjectDocument, version: DocumentVersion): DocumentQuestion[] {
-  const answered = new Set(document.answers.map((a) => a.question_id));
-  return version.questions.filter((q) => !answered.has(q.question_id));
-}
 
 /** What a question fills, in words: a README section or one part of it, a data dictionary cell (in each file that shares its column), or a record value. */
 export function questionTarget(question: DocumentQuestion): string {
