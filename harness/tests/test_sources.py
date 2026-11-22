@@ -61,6 +61,31 @@ def test_a_file_that_does_not_match_its_pin_is_a_configuration_error(tmp_path: P
         RecordsFile.load(path, "source_id", "0" * 64)
 
 
+def test_a_pinned_file_is_read_once_until_it_changes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path, pin = _pinned(tmp_path, [RECORD])
+    reads: list[Path] = []
+    read_bytes = Path.read_bytes
+
+    def counting(self: Path) -> bytes:
+        reads.append(self)
+        return read_bytes(self)
+
+    monkeypatch.setattr(Path, "read_bytes", counting)
+    first = RecordsFile.load(path, "source_id", pin)
+    again = RecordsFile.load(path, "source_id", pin)
+    assert again.records == first.records and len(reads) == 1
+    with pytest.raises(TypeError):
+        first.records["src:b"] = RECORD  # type: ignore[index]
+
+    # Rewritten on disk: read and checked against the pin again.
+    path.write_text(json.dumps({"source_id": "src:b", "text": "Beta."}) + "\n", encoding="utf-8")
+    with pytest.raises(SourceConfigError):
+        RecordsFile.load(path, "source_id", pin)
+    assert len(reads) == 2
+
+
 def test_config_resolves_paths_beside_the_file(tmp_path: Path) -> None:
     path, pin = _pinned(tmp_path, [RECORD])
     config = tmp_path / "sources.yaml"
