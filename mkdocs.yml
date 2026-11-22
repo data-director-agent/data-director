@@ -154,6 +154,7 @@ nav:
       - Repository: /README.md
       - UI best practices: /docs/ui/best-practices.md
       - Steward escalation flows: /docs/ui/steward-escalation-flows.md
+      - FAIR feedback: /docs/ui/fair-feedback.md
       - Specifications:
           - /docs/specs/README.md
           - /docs/specs/*.md
@@ -188,6 +189,8 @@ nav:
           - /mcp-pid/README.md
       - Units library:
           - /units/README.md
+      - Subjects library:
+          - /subjects/README.md
       - FAIRsharing server:
           - /mcp-fairsharing/README.md
       - Agents:

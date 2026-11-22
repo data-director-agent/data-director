@@ -10,7 +10,11 @@ requires-python = ">=3.14"
 license = "MIT"
 authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
 # Every provider's adapter behind the SDK's model seam; the orchestrator imports neither package.
-dependencies = ["data-director-sdk[anthropic,openai]>=0.2.0a0"]
+dependencies = [
+  "data-director-sdk[anthropic,openai]>=0.2.0a0",
+  # The subject classifications the discipline question suggests fields from (asking.py).
+  "data-director-subjects>=0.1.0a0",
+]
 
 [project.scripts]
 dd-orchestrator-model = "dd_agent_orchestrator_model.factory:main"

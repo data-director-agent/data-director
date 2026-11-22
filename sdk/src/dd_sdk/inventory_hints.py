@@ -10,7 +10,8 @@ table. The app's inventory view marks the same files from its own copy,
 
 Each kind is checked in the order of `RULES`. `words` are matched as whole lower-case words of the
 parts named by `within`: `folders` (each folder in the path), `file` (the file name) or `fields`
-(a table's field names). `names` are whole file names, case ignored; `prefixes` begin a file name.
+(a table's field names). `names` are whole file names, case ignored; `prefixes` begin a file name
+and `suffixes` end one, such as an extension.
 `empty` and `duplicate` are judged from size and digest.
 """
 
@@ -34,6 +35,7 @@ class HintKind(StrEnum):
     THIRD_PARTY = "third_party"
     GOVERNANCE = "governance"
     SYSTEM_FILE = "system_file"
+    CREDENTIALS = "credentials"
     EMPTY = "empty"
     DUPLICATE = "duplicate"
 
@@ -48,6 +50,7 @@ class Rule:
     words: frozenset[str] = frozenset()
     names: frozenset[str] = frozenset()
     prefixes: tuple[str, ...] = ()
+    suffixes: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -115,6 +118,31 @@ RULES: tuple[Rule, ...] = (
         names=frozenset({"thumbs.db", "desktop.ini", ".ds_store", "ehthumbs.db"}),
         prefixes=("~$", "._"),
     ),
+    Rule(
+        HintKind.CREDENTIALS,
+        "Its name is that of a configuration or credentials file, which may hold passwords, keys "
+        "or tokens. Check whether it does, and if so leave it out of the deposit.",
+        within=frozenset({"file"}),
+        words=_words(
+            "config secret secrets credential credentials password passwords token tokens apikey"
+        ),
+        names=_words(
+            ".env .netrc .pgpass .htpasswd .pypirc .npmrc .git-credentials .s3cfg id_rsa id_dsa "
+            "id_ecdsa id_ed25519 credentials credentials.json secrets.yaml secrets.yml secrets.json"
+        ),
+        suffixes=(
+            ".ini",
+            ".cfg",
+            ".conf",
+            ".env",
+            ".pem",
+            ".key",
+            ".p12",
+            ".pfx",
+            ".keystore",
+            ".jks",
+        ),
+    ),
     Rule(HintKind.EMPTY, "The file is empty. Leave it out, or find what it should hold."),
     Rule(
         HintKind.DUPLICATE,
@@ -154,7 +182,7 @@ def _named(rule: Rule, file: InventoryFile) -> Hint | None:
     """A hint whose file's name, or a word in its folders, name or fields, the rule names."""
     path = PurePosixPath(file.file_path)
     name = path.name.lower()
-    if name in rule.names or (bool(rule.prefixes) and name.startswith(rule.prefixes)):
+    if name in rule.names or name.startswith(rule.prefixes) or name.endswith(rule.suffixes):
         return Hint(file.file_path, rule.kind, rule.question, matched=path.name)
     places: list[str] = []
     if "folders" in rule.within:

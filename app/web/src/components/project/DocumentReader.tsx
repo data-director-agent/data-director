@@ -4,7 +4,9 @@
  * Questions section: on the latest version, the form to answer those still open (the same form as
  * the draft's card in the conversation) with the answered ones folded beneath it, and on an earlier
  * version every question with its answer, read-only; then the form to decide on it while its
- * latest version is undecided.
+ * latest version is undecided. While it is, a bar that stays at the foot of the window says how
+ * many gaps and open questions the version has, with a button that takes the focus to the decision,
+ * so that a long draft need not be scrolled to its end to decide on it (#1282).
  *
  * The preview is for reading. A decision names the stored text by its digest, which is what the
  * Source tab shows and what the deposit package will hold. While the person edits, the preview
@@ -27,6 +29,7 @@ import type {
   ReviewRules,
 } from "../../project/api";
 import { dataUrl, fileName } from "../../project/media";
+import { type VersionGaps, versionGaps } from "../../project/gaps";
 import { documentName } from "../../project/name";
 import { Link } from "../../route";
 import { Button } from "../ui/Button";
@@ -42,6 +45,7 @@ export function DocumentReader({
   document,
   shown: wanted,
   rules,
+  answerMaxLength,
   hrefFor,
   onDecided,
   onAnswered,
@@ -52,6 +56,8 @@ export function DocumentReader({
   /** The version asked for in the address, or null for the latest. */
   shown: number | null;
   rules: ReviewRules;
+  /** The longest answer to a question the harness keeps, in characters. */
+  answerMaxLength: number;
   /** The address of a version of this document; with no version, its latest. */
   hrefFor: (version?: DocumentVersion) => string;
   onDecided: (value: ProjectDocuments, said: string) => void;
@@ -73,6 +79,7 @@ export function DocumentReader({
   const [editing, setEditing] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const onEditing = useCallback((text: string | null) => setEditing(text), []);
+  const deciding = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (stale) alert.current?.focus();
@@ -217,21 +224,31 @@ export function DocumentReader({
           document={document}
           version={version}
           name={name}
+          maxLength={answerMaxLength}
+          foldAnswered
           onAnswered={onAnswered}
         />
       </QuestionList>
       {isLatest && version.state === "proposed" && (
         <Deciding name={name} version={version}>
-          <DecisionForm
-            key={`${version.document_id}:${version.version}`}
-            projectId={projectId}
-            name={name}
-            version={version}
-            rules={rules}
-            onDecided={decided}
-            onStale={refused}
-            onEditing={onEditing}
+          <DecisionBar
+            version={version.version}
+            gaps={versionGaps(document, version)}
+            onGo={() => deciding.current?.querySelector("input")?.focus()}
           />
+          <div ref={deciding}>
+            <DecisionForm
+              key={`${version.document_id}:${version.version}`}
+              projectId={projectId}
+              name={name}
+              version={version}
+              gaps={versionGaps(document, version)}
+              rules={rules}
+              onDecided={decided}
+              onStale={refused}
+              onEditing={onEditing}
+            />
+          </div>
         </Deciding>
       )}
     </article>
@@ -254,5 +271,20 @@ function Deciding({
       This version is not the {name} yet: it asks what the drafter needs before writing it. Answer
       its questions on its card in the conversation, then ask for the {name} to be written.
     </p>
+  );
+}
+
+/** What the version leaves open, kept in view at the foot of the window, and the way to the decision. */
+function DecisionBar({ version, gaps, onGo }: { version: number; gaps: VersionGaps; onGo: () => void }) {
+  return (
+    <div className={gaps.gaps > 0 ? "decision-bar status-warn" : "decision-bar"}>
+      <p>
+        Version {version}:{" "}
+        {gaps.gaps > 0 ? `${gaps.gapWords}, ${gaps.openWords}` : "no gaps or open questions"}
+      </p>
+      <Button size="small" variant="secondary" onPress={onGo}>
+        Decide on version {version}
+      </Button>
+    </div>
   );
 }

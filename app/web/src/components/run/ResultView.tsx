@@ -2,7 +2,8 @@
  * A run's result, laid out by `@data-director/agent-view`'s `PayloadView` from its class's JSON
  * Schema and the manifest's derivations (see that component for how). The shell lends it its own
  * Markdown renderer and its document view (`result/DocumentText`: copy and download), so that a
- * drafted document reads the same here as on the project's documents page.
+ * drafted document reads the same here as on the project's documents page. A FAIR report is laid
+ * out as on the project's FAIR feedback tab (`../fairness`).
  */
 
 import "@data-director/agent-view/styles.css";
@@ -10,7 +11,9 @@ import "@data-director/agent-view/styles.css";
 import type { Derivation, DocumentPart, EvidenceItem, JsonSchema } from "@data-director/agent-view";
 import { AgentViewProvider, type DocumentProps, PayloadView, type Slots } from "@data-director/agent-view/react";
 
+import { FAIRNESS_CLASS } from "../../project/fairness";
 import { documentName } from "../../project/name";
+import { FairnessRenderer } from "../fairness/FairnessRenderer";
 import { Markdown } from "../ui/Markdown";
 import { DocumentText } from "./result/DocumentText";
 
@@ -31,6 +34,8 @@ function ShellDocument({ document, headingId }: DocumentProps) {
 }
 
 const SLOTS: Slots = { Markdown, Document: ShellDocument };
+// The classes the shell lays out itself, by class name, never by agent (docs/specs/app.md).
+const RENDERERS = { [FAIRNESS_CLASS]: FairnessRenderer };
 
 export function ResultView({
   payload,
@@ -49,7 +54,7 @@ export function ResultView({
   idPrefix: string;
 }) {
   return (
-    <AgentViewProvider components={SLOTS}>
+    <AgentViewProvider components={SLOTS} renderers={RENDERERS}>
       <PayloadView
         payload={payload}
         schema={schema}

@@ -260,7 +260,11 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     buttons, or checkboxes where several may be chosen, each option a card the whole of which can
     be clicked (the control stays visible and ticked beside an accent bar), with "Something else"
     and a text box where the question allows an answer in words; a short text question as a
-    one-line text box; a long text question as a text area that counts the characters left. A lone
+    one-line text box, which offers the question's suggested answers (`question_suggestions`) in a
+    list narrowed to those containing what is typed, the answer always being the text in the box;
+    a long text question as a text area. Each text box counts the characters left against the limit
+    the harness holds an answer to and never cuts what is typed or pasted: an answer over the limit
+    is kept whole and refused with a message saying by how much. A lone
     question is answered and sent in place. A series shows one question at a time, saying in
     words which of how many it is beside a progress bar, with Back, Skip and Next; Next with
     nothing entered says to answer or skip. After the last question it lists the answers to check,
@@ -299,7 +303,14 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     reads; nothing a model suggested is recorded until a person presses it. Those with no
     suggestion follow, three at a time, in a fieldset "Only you can answer these", each a blank text
     box labelled by the question and described by what it fills, saved with "Save answers", which
-    never sends a suggestion; blank boxes are left as they are. Each question links to a new
+    never sends a suggestion; blank boxes are left as they are. Each box counts the characters left
+    against the server's `answer_max_length` and never cuts the text; an answer over it is kept
+    whole and refused with a message, with nothing sent. A box holding text not yet saved says
+    "Not saved yet" in words, and the browser asks before the page is left or reloaded while any
+    does. Beneath the form, the card lists the latest version's answered questions with the answers
+    the project log holds, so they are there after a reload; each has a "Change" button that puts
+    the question back in the form with its saved answer, and saving records a new answer, which
+    stands. Each question links to a new
     conversation ("Talk this through", `/?question={document_id}/{question_id}`) whose message box
     holds, unsent, a request for help with it; the address then drops the question, and the answer
     is still recorded on the draft. Saving sends the answers to
@@ -309,11 +320,12 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     The card then draws the documents the server read back and says in a status how many answers
     were recorded. The project's documents page has one Questions section per version, saying how
     many are answered: on the latest version it holds the same form, with the answered questions
-    folded beneath it, each with its answer; an earlier version's questions are listed only, each
-    with the answer recorded, or saying in words that none is, with the suggestion while it is
-    unanswered ([Drafting documents](drafting.md),
+    folded beneath it, each with its answer and "Change"; an earlier version's questions are
+    listed only, each with the answer recorded, or saying in words that none is, with the
+    suggestion while it is unanswered ([Drafting documents](drafting.md),
     `app/tests/test_document_answers.py`,
     `app/web/src/components/project/DocumentQuestions.test.tsx`,
+    `app/web/src/components/conversation/DocumentCard.test.tsx`,
     `app/web/src/components/project/ProjectPage.test.tsx`,
     `app/web/src/components/conversation/useAskAbout.test.tsx`, `e2e/shell.spec.ts`).
 24. **Each person sees only their own runs and conversations.** A run or conversation in a project
@@ -382,15 +394,15 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     `ChoiceQuestion.tsx`, as a reply's are (`app/tests/test_intake_routes.py`,
     `app/web/src/components/conversation/IntakeCard.test.tsx`).
 26. **Researcher facts are chosen on the project's page, with nothing ticked.** The project's page
-    lists **Researchers** beside the repository, the disclosure and the deposit package. It shows
-    each record the project's researchers kept and, for the signed-in person's own, a button to
-    withdraw it. **Bring in facts from your ORCID record** reads their public record and offers
+    lists **People** beside the repository, the disclosure and the deposit package (rule 32). Under
+    each member it shows the record they kept and, on the signed-in person's own entry, a button
+    to withdraw it; records kept by people no longer members are listed apart. **Bring in facts from your ORCID record** reads their public record and offers
     each section, and each affiliation, work and funding, as a checkbox, none ticked, with a
     button to tick or untick all of a group; **Keep the ticked facts** sends only what is ticked,
     by section and put-code, and the page then shows what the server kept. The panel says that the
     facts go to the project's agents, and to a hosted model only where the deployment allows it,
     and that an email address is never read
-    (`app/web/src/components/project/ResearcherPanel.test.tsx`, `app/tests/test_researcher_facts.py`,
+    (`app/web/src/components/project/PeoplePanel.test.tsx`, `app/tests/test_researcher_facts.py`,
     [Projects](projects.md), invariant 27).
 27. **The shell opens on the person's projects, and a project is started on purpose.** Where the
     app keeps projects, `/` is the Projects page: the person's projects, as `GET /api/projects`
@@ -478,9 +490,12 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     `app/web/src/components/conversation/DeleteConversation.tsx`,
     `app/web/src/components/project/DeletedConversations.tsx`,
     `app/tests/test_conversation_deletion.py`).
-32. **A project's members are on its Members tab, which offers what the server allows.**
-    `/projects/{id}/members` lists each member by ORCID iD, headed by the name they kept from
-    their own ORCID record in the project where they kept one, with their role and since when.
+32. **A project's members are on its People tab, which offers what the server allows.**
+    `/projects/{id}/people` lists each member by ORCID iD, headed by the name they kept from
+    their own ORCID record in the project, else the name on their public ORCID record, which the
+    server reads for the page and does not keep ([Projects](projects.md), Roles), with their role
+    and since when, and the facts they kept (rule 26). The former Researchers and Members tabs'
+    paths, `/projects/{id}/researchers` and `/projects/{id}/members`, open it.
     The server says what the person may do (`may_manage`, and each member's `removable` and
     `role_changeable`, and `may_leave`), and the tab offers only that: an owner adds a person by
     ORCID iD and chooses their role, makes a member an owner or an owner a member, and removes a
@@ -488,7 +503,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     after leaving the page goes to the Projects page. A refusal is said in the page's status, and
     what was typed stays. The tab says what members see of one another's work. In a project's
     conversations each turn is headed by its sender's name, or "You" for the reader's own
-    (`app/web/src/components/project/MembersPanel.test.tsx`,
+    (`app/web/src/components/project/PeoplePanel.test.tsx`,
     `app/tests/test_project_members.py`; [Projects](projects.md), Roles).
 
 ## Boundaries and contracts
@@ -645,7 +660,16 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   indented), and its Source tab shows the stored text exactly, since that is what a decision names
   by its digest and what the deposit package holds. Its Versions tab shows each version's
   decision and the lines it changed from the one before. While a person edits, the preview shows
-  their version. The list holds documents only.
+  their version. The decision form chooses nothing for the person:
+  approve, edit and reject start unchosen. While the latest version is undecided, the reader says
+  how many gaps it has (a README's placeholders, a data dictionary's unknown cells, a metadata
+  record's empty fields) and how many of its questions are open, in a bar held at the foot of the
+  window with a button to the decision, and again beside the button that records it. The counts are
+  the version's questions and the answers recorded to them (one question per gap,
+  [Drafting](drafting.md), invariant 5), never read from its prose. Approving a version with any gap
+  as it is asks again in a dialog that names the count, since an approval is final and the deposit
+  package takes it; rejecting, or editing and approving, does not, and keeps its reason rule (#1282).
+  The list holds documents only.
 - **A project's pages are tabs.** Beneath the breadcrumb, each of a project's pages is a tab with
   an address of its own: Documents (`/projects/{id}`), Researchers (`/researchers`), Members
   (`/members`), Project facts
@@ -688,6 +712,18 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   documents with their latest versions' states, the conversation's own first, and a proposed
   version waits on the researcher there with a link to its review. A decision is made only on the
   documents page.
+- **FAIR feedback is read from the project's `FairnessReport` runs.** The shell recognises the
+  class, not the agent. `GET /api/projects/{id}/runs?payload=<class>` lists the succeeded runs
+  in the project whose payload is of the class the shell names, newest first, turns and
+  delegated children alike, from the conversations the person may read; the server names no
+  class (`app/tests/test_project_runs_by_class.py`). The project pane shows how many checks of
+  each of F, A, I and R the latest report meets, what is new since the report before, the next
+  steps and whether the metadata record has changed since; a question goes in the message box,
+  unsent. The pane draws it only where an agent's manifest names `FairnessReport` as its
+  payload. The project's FAIR feedback tab (`/projects/{id}/fair`) shows every check and each
+  report stored in the project, and a run card lays a report out the same way. No score is
+  shown: every view names the run that gave the report and says it is not a FAIRness evaluation
+  (R4, [FAIR feedback](../ui/fair-feedback.md)).
 - **A repository is chosen from the shortlist on the turn that made it.** A run whose payload is a
   `RepositoryOptions`, on the turn or among its delegated children, is a card on that turn listing
   each candidate by the re3data record it rests on: the `grounded_on` entry that is a re3data

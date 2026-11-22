@@ -13,14 +13,8 @@ import pytest
 
 from dd_agent_advisor_documentation.agent import RESEARCHER_ANSWERS, DocumentationEditor
 from dd_agent_advisor_documentation.factory import build
-from dd_agent_advisor_documentation.prose import (
-    SUGGEST_PROMPT,
-    SUGGEST_README_PROMPT,
-    SYSTEM_PROMPT,
-    ModelWriter,
-    ProseReply,
-    check,
-)
+from dd_agent_advisor_documentation.prose import SYSTEM_PROMPT, ModelWriter, ProseReply, check
+from dd_agent_advisor_documentation.suggestions import SUGGEST_PROMPT, SUGGEST_README_PROMPT
 from dd_agent_advisor_documentation.testing import prose_reply, redraft, suggestion_reply
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.contract.models import (

@@ -12,7 +12,7 @@ description: >-
   schema_class (docs/specs/contract.md); every payload mixes in Grounded so the grounding linter can check it
   without knowing its class (docs/specs/grounding.md). Formats here are fixed; see docs/specs/ for why.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.22.0
+version: 0.23.0
 license: MIT
 
 prefixes:
@@ -954,8 +954,9 @@ classes:
       fixed set of options, of which one or several may be chosen, and where question_other is
       true the researcher may answer in their own words instead; option values are unique within
       the question. A short or long text question is answered in the researcher's own words and
-      has no options. Asking never suspends the run: the researcher may skip a question, or
-      ignore them all and type (docs/specs/orchestration.md).
+      has no options; a short text question may suggest answers (question_suggestions), which the
+      researcher may take or ignore. Asking never suspends the run: the researcher may skip a
+      question, or ignore them all and type (docs/specs/orchestration.md).
     slots:
       - question_key
       - question_prompt
@@ -964,6 +965,7 @@ classes:
       - question_options
       - question_multiple
       - question_other
+      - question_suggestions
 
   ChoiceOption:
     description: One option of a choice question (a Question of kind choice).
@@ -1638,6 +1640,14 @@ slots:
       True when the researcher may answer in their own words instead of an option. Choice
       questions only.
     range: boolean
+  question_suggestions:
+    description: >-
+      Answers a short text question suggests, in the order they are offered, such as the fields
+      of a subject classification; between 1 and 300, each a line of at most 200 characters. The
+      researcher may take one or answer in their own words, so a suggestion never constrains the
+      answer. Short text questions only.
+    multivalued: true
+    # No cardinality bounds, for the reason given at question_options (#333).
   option_value:
     description: >-
       What the agent reads back when the option is chosen. A string, never a number: a number

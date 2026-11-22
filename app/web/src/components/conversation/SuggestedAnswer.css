@@ -1,0 +1,37 @@
+@layer components {
+  .suggested-answer {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .suggested-answer-field {
+    display: flex;
+    gap: var(--space-1);
+  }
+
+  .suggested-answer-field input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .suggested-answer-popover {
+    width: var(--trigger-width);
+    max-width: calc(100vw - 2 * var(--page-gutter));
+    max-height: 20rem;
+    overflow: auto;
+    background: var(--color-bg);
+    border: var(--border-width) solid var(--color-border-subtle);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-floating);
+  }
+
+  .suggested-answer-option {
+    padding: var(--space-2) var(--space-3);
+    cursor: default;
+  }
+
+  .suggested-answer-option[data-focused] {
+    background: var(--color-surface);
+  }
+}

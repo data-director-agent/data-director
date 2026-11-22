@@ -154,6 +154,10 @@ enums:
         description: A folder or file name suggests terms or an agreement.
       system_file:
         description: The file name is that of a file an operating system or program makes.
+      credentials:
+        description: >-
+          The file name suggests configuration or credentials, which may hold passwords, keys or
+          tokens.
       empty:
         description: The file is empty.
       duplicate:

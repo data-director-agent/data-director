@@ -4,6 +4,10 @@
  * harness's rule (`ReviewRules`): a departure from the draft needs one, a plain approval does not,
  * so that approving what is right asks for nothing more (`docs/ui/best-practices.md`, 8).
  *
+ * No decision is chosen until the person chooses one, so that approving is never the default, and
+ * the form says how many gaps and open questions the version has beside the button that records
+ * it. Approving a version with any gap as it is asks again, naming the count (#1282).
+ *
  * While the person edits, `onEditing` is given their text, so that the reader's preview can show
  * their version; it is given null when they choose otherwise.
  */
@@ -20,8 +24,10 @@ import {
   digestOf,
   useProjectApi,
 } from "../../project/api";
+import { type VersionGaps, gapSentence } from "../../project/gaps";
 import { RunRefused } from "../../run/api";
 import { Button } from "../ui/Button";
+import { ApproveWithGaps } from "./ApproveWithGaps";
 import { ReasonField, useDecisionError } from "./DecisionParts";
 
 type Choice = "approve" | "edit" | "reject";
@@ -30,6 +36,7 @@ export function DecisionForm({
   projectId,
   name,
   version,
+  gaps,
   rules,
   onDecided,
   onStale,
@@ -38,6 +45,8 @@ export function DecisionForm({
   projectId: string;
   name: string;
   version: DocumentVersion;
+  /** What the version leaves open, which approving it as it is keeps. */
+  gaps: VersionGaps;
   rules: ReviewRules;
   onDecided: (value: ProjectDocuments, said: string) => void;
   onStale: (detail: string) => Promise<void>;
@@ -48,7 +57,8 @@ export function DecisionForm({
   const lineEnding = version.text.includes("\r\n") ? "\r\n" : null;
   const api = useProjectApi();
   const id = useId();
-  const [choice, setChoice] = useState<Choice>("approve");
+  const [choice, setChoice] = useState<Choice | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const [reason, setReason] = useState("");
   const [edited, setEdited] = useState(version.text);
   const [sending, setSending] = useState(false);
@@ -61,11 +71,13 @@ export function DecisionForm({
   // The preview goes back to the stored text when the form goes.
   useEffect(() => () => onEditing(null), [onEditing]);
 
-  const required = {
-    approve: rules.reason_required.approved,
-    edit: rules.reason_required.edited_and_approved,
-    reject: rules.reason_required.rejected,
-  }[choice];
+  const required =
+    choice !== null &&
+    {
+      approve: rules.reason_required.approved,
+      edit: rules.reason_required.edited_and_approved,
+      reject: rules.reason_required.rejected,
+    }[choice];
   const n = version.version;
   const choices: { value: Choice; label: string }[] = [
     { value: "approve", label: `Approve version ${n} as it is` },
@@ -76,15 +88,25 @@ export function DecisionForm({
     approve: "Anything a colleague should know about this approval.",
     edit: "Say what you changed and why.",
     reject: "Say what is wrong, so that the next draft can put it right.",
-  }[choice];
+    none: "Rejecting, or editing before approving, needs one.",
+  }[choice ?? "none"];
   const submitLabel = {
     approve: `Approve version ${n}`,
     edit: "Approve my edited version",
     reject: `Reject version ${n}`,
-  }[choice];
+    none: "Record my decision",
+  }[choice ?? "none"];
 
-  async function submit(event: FormEvent) {
+  function submit(event: FormEvent) {
     event.preventDefault();
+    // The browser stops a form with no choice; this keeps the type narrow.
+    if (choice === null) return;
+    if (choice === "approve" && gaps.gaps > 0) setConfirming(true);
+    else void record(choice);
+  }
+
+  async function record(chosen: Choice) {
+    setConfirming(false);
     setSending(true);
     setError(null);
     try {
@@ -92,9 +114,9 @@ export function DecisionForm({
         version: n,
         // The text this page showed, as it showed it.
         digest: digestOf(version.text),
-        decision: choice === "reject" ? "rejected" : "approved",
+        decision: chosen === "reject" ? "rejected" : "approved",
         ...(reason.trim() ? { reason } : {}),
-        ...(choice === "edit"
+        ...(chosen === "edit"
           ? {
               edited_text: lineEnding
                 ? edited.replace(/\r?\n/g, lineEnding)
@@ -107,7 +129,7 @@ export function DecisionForm({
         approve: `${name}: version ${n} approved.`,
         edit: `${name}: your edited version ${value.decided?.version ?? n + 1} approved.`,
         reject: `${name}: version ${n} rejected.`,
-      }[choice];
+      }[chosen];
       onDecided(value, said);
     } catch (caught) {
       setSending(false);
@@ -132,6 +154,7 @@ export function DecisionForm({
               id={`${id}-${value}`}
               name={`${id}-choice`}
               value={value}
+              required
               checked={choice === value}
               onChange={() => setChoice(value)}
             />
@@ -167,6 +190,9 @@ export function DecisionForm({
         value={reason}
         onChange={setReason}
       />
+      <p id={`${id}-gaps`} className={gaps.gaps > 0 ? "callout status-warn" : "hint"}>
+        {gapSentence(gaps, n)}
+      </p>
       {alert}
       {/* Not `isPending`: the form is gone once the decision is recorded, and the button's busy
           indicator would be left behind without its label (as in `Account.tsx`). Focus goes to
@@ -174,11 +200,19 @@ export function DecisionForm({
       <Button
         type="submit"
         variant="primary"
-        icon={{ approve: Check, edit: Pencil, reject: X }[choice]}
+        icon={choice ? { approve: Check, edit: Pencil, reject: X }[choice] : undefined}
+        aria-describedby={`${id}-gaps`}
         isDisabled={sending}
       >
         {sending ? "Recording…" : submitLabel}
       </Button>
+      <ApproveWithGaps
+        version={n}
+        gaps={gaps}
+        isOpen={confirming}
+        onCancel={() => setConfirming(false)}
+        onApprove={() => void record("approve")}
+      />
     </form>
   );
 }

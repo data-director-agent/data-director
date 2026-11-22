@@ -59,6 +59,7 @@ import { useProjectApi } from "../../project/api";
 import { homePath, navigate, useLocation } from "../../route";
 import type { Envelope } from "../../run/types";
 import { ContextPanel } from "../workspace/ContextPanel";
+import { FAIRNESS_CLASS } from "../../project/fairness";
 import { PhaseTracker } from "../workspace/PhaseTracker";
 import { useFlowLoad } from "../workspace/useFlowLoad";
 import { useAskAbout, useAskAboutQuestion } from "./useAskAbout";
@@ -125,7 +126,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   const { conversation, busy, sent, turnCount, quiet } = turns;
   const { inventory: attached, document: attachedDocument } = attachments;
   const writing = Boolean(text.trim()) || attachments.carries;
-  const { documents, answered } = useProjectDocuments(
+  const { documents, answered, answerMaxLength } = useProjectDocuments(
     projectId,
     turnCount,
     turns.awaitedDrafts,
@@ -280,7 +281,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
                 onDocumentWrite={(message) =>
                   void turns.deliver(message, { inventory: null, document: null }, null)
                 }
-                {...projectHandlers(projectId, answered, reloadProjects)}
+                {...projectHandlers(projectId, { answered, answerMaxLength }, reloadProjects)}
               />
             )}
             <StartFromStep
@@ -335,6 +336,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
             documents={documents}
             flow={flow}
             progress={progress.progress}
+            fairFeedback={directory.agents.some((a) => a.payload === FAIRNESS_CLASS)}
             refresh={turnCount}
             onAsk={(question) => askInBox(question, text, setText, box)}
             onInventorySaved={() => void reloadProjects()}

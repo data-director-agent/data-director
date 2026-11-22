@@ -1,0 +1,1190 @@
+{
+ "id": "anzsrc-for",
+ "name": "ANZSRC Fields of Research",
+ "version": "2020 (release of 24 October 2025)",
+ "source": "https://www.abs.gov.au/statistics/classifications/australian-and-new-zealand-standard-research-classification-anzsrc/latest-release",
+ "licence": "CC-BY-4.0",
+ "attribution": "Australian Bureau of Statistics and Stats NZ, Australian and New Zealand Standard Research Classification (ANZSRC) 2020, Fields of Research, Table 2: divisions and groups. Division titles, printed in capitals, are given in sentence case.",
+ "terms": [
+  {
+   "code": "30",
+   "label": "Agricultural, veterinary and food sciences",
+   "parent": null
+  },
+  {
+   "code": "3001",
+   "label": "Agricultural biotechnology",
+   "parent": "30"
+  },
+  {
+   "code": "3002",
+   "label": "Agriculture, land and farm management",
+   "parent": "30"
+  },
+  {
+   "code": "3003",
+   "label": "Animal production",
+   "parent": "30"
+  },
+  {
+   "code": "3004",
+   "label": "Crop and pasture production",
+   "parent": "30"
+  },
+  {
+   "code": "3005",
+   "label": "Fisheries sciences",
+   "parent": "30"
+  },
+  {
+   "code": "3006",
+   "label": "Food sciences",
+   "parent": "30"
+  },
+  {
+   "code": "3007",
+   "label": "Forestry sciences",
+   "parent": "30"
+  },
+  {
+   "code": "3008",
+   "label": "Horticultural production",
+   "parent": "30"
+  },
+  {
+   "code": "3009",
+   "label": "Veterinary sciences",
+   "parent": "30"
+  },
+  {
+   "code": "3099",
+   "label": "Other agricultural, veterinary and food sciences",
+   "parent": "30"
+  },
+  {
+   "code": "31",
+   "label": "Biological sciences",
+   "parent": null
+  },
+  {
+   "code": "3101",
+   "label": "Biochemistry and cell biology",
+   "parent": "31"
+  },
+  {
+   "code": "3102",
+   "label": "Bioinformatics and computational biology",
+   "parent": "31"
+  },
+  {
+   "code": "3103",
+   "label": "Ecology",
+   "parent": "31"
+  },
+  {
+   "code": "3104",
+   "label": "Evolutionary biology",
+   "parent": "31"
+  },
+  {
+   "code": "3105",
+   "label": "Genetics",
+   "parent": "31"
+  },
+  {
+   "code": "3106",
+   "label": "Industrial biotechnology",
+   "parent": "31"
+  },
+  {
+   "code": "3107",
+   "label": "Microbiology",
+   "parent": "31"
+  },
+  {
+   "code": "3108",
+   "label": "Plant biology",
+   "parent": "31"
+  },
+  {
+   "code": "3109",
+   "label": "Zoology",
+   "parent": "31"
+  },
+  {
+   "code": "3199",
+   "label": "Other biological sciences",
+   "parent": "31"
+  },
+  {
+   "code": "32",
+   "label": "Biomedical and clinical sciences",
+   "parent": null
+  },
+  {
+   "code": "3201",
+   "label": "Cardiovascular medicine and haematology",
+   "parent": "32"
+  },
+  {
+   "code": "3202",
+   "label": "Clinical sciences",
+   "parent": "32"
+  },
+  {
+   "code": "3203",
+   "label": "Dentistry",
+   "parent": "32"
+  },
+  {
+   "code": "3204",
+   "label": "Immunology",
+   "parent": "32"
+  },
+  {
+   "code": "3205",
+   "label": "Medical biochemistry and metabolomics",
+   "parent": "32"
+  },
+  {
+   "code": "3206",
+   "label": "Medical biotechnology",
+   "parent": "32"
+  },
+  {
+   "code": "3207",
+   "label": "Medical microbiology",
+   "parent": "32"
+  },
+  {
+   "code": "3208",
+   "label": "Medical physiology",
+   "parent": "32"
+  },
+  {
+   "code": "3209",
+   "label": "Neurosciences",
+   "parent": "32"
+  },
+  {
+   "code": "3210",
+   "label": "Nutrition and dietetics",
+   "parent": "32"
+  },
+  {
+   "code": "3211",
+   "label": "Oncology and carcinogenesis",
+   "parent": "32"
+  },
+  {
+   "code": "3212",
+   "label": "Ophthalmology and optometry",
+   "parent": "32"
+  },
+  {
+   "code": "3213",
+   "label": "Paediatrics",
+   "parent": "32"
+  },
+  {
+   "code": "3214",
+   "label": "Pharmacology and pharmaceutical sciences",
+   "parent": "32"
+  },
+  {
+   "code": "3215",
+   "label": "Reproductive medicine",
+   "parent": "32"
+  },
+  {
+   "code": "3299",
+   "label": "Other biomedical and clinical sciences",
+   "parent": "32"
+  },
+  {
+   "code": "33",
+   "label": "Built environment and design",
+   "parent": null
+  },
+  {
+   "code": "3301",
+   "label": "Architecture",
+   "parent": "33"
+  },
+  {
+   "code": "3302",
+   "label": "Building",
+   "parent": "33"
+  },
+  {
+   "code": "3303",
+   "label": "Design",
+   "parent": "33"
+  },
+  {
+   "code": "3304",
+   "label": "Urban and regional planning",
+   "parent": "33"
+  },
+  {
+   "code": "3399",
+   "label": "Other built environment and design",
+   "parent": "33"
+  },
+  {
+   "code": "34",
+   "label": "Chemical sciences",
+   "parent": null
+  },
+  {
+   "code": "3401",
+   "label": "Analytical chemistry",
+   "parent": "34"
+  },
+  {
+   "code": "3402",
+   "label": "Inorganic chemistry",
+   "parent": "34"
+  },
+  {
+   "code": "3403",
+   "label": "Macromolecular and materials chemistry",
+   "parent": "34"
+  },
+  {
+   "code": "3404",
+   "label": "Medicinal and biomolecular chemistry",
+   "parent": "34"
+  },
+  {
+   "code": "3405",
+   "label": "Organic chemistry",
+   "parent": "34"
+  },
+  {
+   "code": "3406",
+   "label": "Physical chemistry",
+   "parent": "34"
+  },
+  {
+   "code": "3407",
+   "label": "Theoretical and computational chemistry",
+   "parent": "34"
+  },
+  {
+   "code": "3499",
+   "label": "Other chemical sciences",
+   "parent": "34"
+  },
+  {
+   "code": "35",
+   "label": "Commerce, management, tourism and services",
+   "parent": null
+  },
+  {
+   "code": "3501",
+   "label": "Accounting, auditing and accountability",
+   "parent": "35"
+  },
+  {
+   "code": "3502",
+   "label": "Banking, finance and investment",
+   "parent": "35"
+  },
+  {
+   "code": "3503",
+   "label": "Business systems in context",
+   "parent": "35"
+  },
+  {
+   "code": "3504",
+   "label": "Commercial services",
+   "parent": "35"
+  },
+  {
+   "code": "3505",
+   "label": "Human resources and industrial relations",
+   "parent": "35"
+  },
+  {
+   "code": "3506",
+   "label": "Marketing",
+   "parent": "35"
+  },
+  {
+   "code": "3507",
+   "label": "Strategy, management and organisational behaviour",
+   "parent": "35"
+  },
+  {
+   "code": "3508",
+   "label": "Tourism",
+   "parent": "35"
+  },
+  {
+   "code": "3509",
+   "label": "Transportation, logistics and supply chains",
+   "parent": "35"
+  },
+  {
+   "code": "3599",
+   "label": "Other commerce, management, tourism and services",
+   "parent": "35"
+  },
+  {
+   "code": "36",
+   "label": "Creative arts and writing",
+   "parent": null
+  },
+  {
+   "code": "3601",
+   "label": "Art history, theory and criticism",
+   "parent": "36"
+  },
+  {
+   "code": "3602",
+   "label": "Creative and professional writing",
+   "parent": "36"
+  },
+  {
+   "code": "3603",
+   "label": "Music",
+   "parent": "36"
+  },
+  {
+   "code": "3604",
+   "label": "Performing arts",
+   "parent": "36"
+  },
+  {
+   "code": "3605",
+   "label": "Screen and digital media",
+   "parent": "36"
+  },
+  {
+   "code": "3606",
+   "label": "Visual arts",
+   "parent": "36"
+  },
+  {
+   "code": "3699",
+   "label": "Other creative arts and writing",
+   "parent": "36"
+  },
+  {
+   "code": "37",
+   "label": "Earth sciences",
+   "parent": null
+  },
+  {
+   "code": "3701",
+   "label": "Atmospheric sciences",
+   "parent": "37"
+  },
+  {
+   "code": "3702",
+   "label": "Climate change science",
+   "parent": "37"
+  },
+  {
+   "code": "3703",
+   "label": "Geochemistry",
+   "parent": "37"
+  },
+  {
+   "code": "3704",
+   "label": "Geoinformatics",
+   "parent": "37"
+  },
+  {
+   "code": "3705",
+   "label": "Geology",
+   "parent": "37"
+  },
+  {
+   "code": "3706",
+   "label": "Geophysics",
+   "parent": "37"
+  },
+  {
+   "code": "3707",
+   "label": "Hydrology",
+   "parent": "37"
+  },
+  {
+   "code": "3708",
+   "label": "Oceanography",
+   "parent": "37"
+  },
+  {
+   "code": "3709",
+   "label": "Physical geography and environmental geoscience",
+   "parent": "37"
+  },
+  {
+   "code": "3799",
+   "label": "Other earth sciences",
+   "parent": "37"
+  },
+  {
+   "code": "38",
+   "label": "Economics",
+   "parent": null
+  },
+  {
+   "code": "3801",
+   "label": "Applied economics",
+   "parent": "38"
+  },
+  {
+   "code": "3802",
+   "label": "Econometrics",
+   "parent": "38"
+  },
+  {
+   "code": "3803",
+   "label": "Economic theory",
+   "parent": "38"
+  },
+  {
+   "code": "3899",
+   "label": "Other economics",
+   "parent": "38"
+  },
+  {
+   "code": "39",
+   "label": "Education",
+   "parent": null
+  },
+  {
+   "code": "3901",
+   "label": "Curriculum and pedagogy",
+   "parent": "39"
+  },
+  {
+   "code": "3902",
+   "label": "Education policy, sociology and philosophy",
+   "parent": "39"
+  },
+  {
+   "code": "3903",
+   "label": "Education systems",
+   "parent": "39"
+  },
+  {
+   "code": "3904",
+   "label": "Specialist studies in education",
+   "parent": "39"
+  },
+  {
+   "code": "3999",
+   "label": "Other education",
+   "parent": "39"
+  },
+  {
+   "code": "40",
+   "label": "Engineering",
+   "parent": null
+  },
+  {
+   "code": "4001",
+   "label": "Aerospace engineering",
+   "parent": "40"
+  },
+  {
+   "code": "4002",
+   "label": "Automotive engineering",
+   "parent": "40"
+  },
+  {
+   "code": "4003",
+   "label": "Biomedical engineering",
+   "parent": "40"
+  },
+  {
+   "code": "4004",
+   "label": "Chemical engineering",
+   "parent": "40"
+  },
+  {
+   "code": "4005",
+   "label": "Civil engineering",
+   "parent": "40"
+  },
+  {
+   "code": "4006",
+   "label": "Communications engineering",
+   "parent": "40"
+  },
+  {
+   "code": "4007",
+   "label": "Control engineering, mechatronics and robotics",
+   "parent": "40"
+  },
+  {
+   "code": "4008",
+   "label": "Electrical engineering",
+   "parent": "40"
+  },
+  {
+   "code": "4009",
+   "label": "Electronics, sensors and digital hardware",
+   "parent": "40"
+  },
+  {
+   "code": "4010",
+   "label": "Engineering practice and education",
+   "parent": "40"
+  },
+  {
+   "code": "4011",
+   "label": "Environmental engineering",
+   "parent": "40"
+  },
+  {
+   "code": "4012",
+   "label": "Fluid mechanics and thermal engineering",
+   "parent": "40"
+  },
+  {
+   "code": "4013",
+   "label": "Geomatic engineering",
+   "parent": "40"
+  },
+  {
+   "code": "4014",
+   "label": "Manufacturing engineering",
+   "parent": "40"
+  },
+  {
+   "code": "4015",
+   "label": "Maritime engineering",
+   "parent": "40"
+  },
+  {
+   "code": "4016",
+   "label": "Materials engineering",
+   "parent": "40"
+  },
+  {
+   "code": "4017",
+   "label": "Mechanical engineering",
+   "parent": "40"
+  },
+  {
+   "code": "4018",
+   "label": "Nanotechnology",
+   "parent": "40"
+  },
+  {
+   "code": "4019",
+   "label": "Resources engineering and extractive metallurgy",
+   "parent": "40"
+  },
+  {
+   "code": "4099",
+   "label": "Other engineering",
+   "parent": "40"
+  },
+  {
+   "code": "41",
+   "label": "Environmental sciences",
+   "parent": null
+  },
+  {
+   "code": "4101",
+   "label": "Climate change impacts and adaptation",
+   "parent": "41"
+  },
+  {
+   "code": "4102",
+   "label": "Ecological applications",
+   "parent": "41"
+  },
+  {
+   "code": "4103",
+   "label": "Environmental biotechnology",
+   "parent": "41"
+  },
+  {
+   "code": "4104",
+   "label": "Environmental management",
+   "parent": "41"
+  },
+  {
+   "code": "4105",
+   "label": "Pollution and contamination",
+   "parent": "41"
+  },
+  {
+   "code": "4106",
+   "label": "Soil sciences",
+   "parent": "41"
+  },
+  {
+   "code": "4199",
+   "label": "Other environmental sciences",
+   "parent": "41"
+  },
+  {
+   "code": "42",
+   "label": "Health sciences",
+   "parent": null
+  },
+  {
+   "code": "4201",
+   "label": "Allied health and rehabilitation science",
+   "parent": "42"
+  },
+  {
+   "code": "4202",
+   "label": "Epidemiology",
+   "parent": "42"
+  },
+  {
+   "code": "4203",
+   "label": "Health services and systems",
+   "parent": "42"
+  },
+  {
+   "code": "4204",
+   "label": "Midwifery",
+   "parent": "42"
+  },
+  {
+   "code": "4205",
+   "label": "Nursing",
+   "parent": "42"
+  },
+  {
+   "code": "4206",
+   "label": "Public health",
+   "parent": "42"
+  },
+  {
+   "code": "4207",
+   "label": "Sports science and exercise",
+   "parent": "42"
+  },
+  {
+   "code": "4208",
+   "label": "Traditional, complementary and integrative medicine",
+   "parent": "42"
+  },
+  {
+   "code": "4299",
+   "label": "Other health sciences",
+   "parent": "42"
+  },
+  {
+   "code": "43",
+   "label": "History, heritage and archaeology",
+   "parent": null
+  },
+  {
+   "code": "4301",
+   "label": "Archaeology",
+   "parent": "43"
+  },
+  {
+   "code": "4302",
+   "label": "Heritage, archive and museum studies",
+   "parent": "43"
+  },
+  {
+   "code": "4303",
+   "label": "Historical studies",
+   "parent": "43"
+  },
+  {
+   "code": "4399",
+   "label": "Other history, heritage and archaeology",
+   "parent": "43"
+  },
+  {
+   "code": "44",
+   "label": "Human society",
+   "parent": null
+  },
+  {
+   "code": "4401",
+   "label": "Anthropology",
+   "parent": "44"
+  },
+  {
+   "code": "4402",
+   "label": "Criminology",
+   "parent": "44"
+  },
+  {
+   "code": "4403",
+   "label": "Demography",
+   "parent": "44"
+  },
+  {
+   "code": "4404",
+   "label": "Development studies",
+   "parent": "44"
+  },
+  {
+   "code": "4405",
+   "label": "Gender studies",
+   "parent": "44"
+  },
+  {
+   "code": "4406",
+   "label": "Human geography",
+   "parent": "44"
+  },
+  {
+   "code": "4407",
+   "label": "Policy and administration",
+   "parent": "44"
+  },
+  {
+   "code": "4408",
+   "label": "Political science",
+   "parent": "44"
+  },
+  {
+   "code": "4409",
+   "label": "Social work",
+   "parent": "44"
+  },
+  {
+   "code": "4410",
+   "label": "Sociology",
+   "parent": "44"
+  },
+  {
+   "code": "4499",
+   "label": "Other human society",
+   "parent": "44"
+  },
+  {
+   "code": "45",
+   "label": "Indigenous studies",
+   "parent": null
+  },
+  {
+   "code": "4501",
+   "label": "Aboriginal and Torres Strait Islander culture, language and history",
+   "parent": "45"
+  },
+  {
+   "code": "4502",
+   "label": "Aboriginal and Torres Strait Islander education",
+   "parent": "45"
+  },
+  {
+   "code": "4503",
+   "label": "Aboriginal and Torres Strait Islander environmental knowledges and management",
+   "parent": "45"
+  },
+  {
+   "code": "4504",
+   "label": "Aboriginal and Torres Strait Islander health and wellbeing",
+   "parent": "45"
+  },
+  {
+   "code": "4505",
+   "label": "Aboriginal and Torres Strait Islander peoples, society and community",
+   "parent": "45"
+  },
+  {
+   "code": "4506",
+   "label": "Aboriginal and Torres Strait Islander sciences",
+   "parent": "45"
+  },
+  {
+   "code": "4507",
+   "label": "Te ahurea, reo me te hītori o te Māori (Māori culture, language and history)",
+   "parent": "45"
+  },
+  {
+   "code": "4508",
+   "label": "Mātauranga Māori (Māori education)",
+   "parent": "45"
+  },
+  {
+   "code": "4509",
+   "label": "Ngā mātauranga taiao o te Māori (Māori environmental knowledges)",
+   "parent": "45"
+  },
+  {
+   "code": "4510",
+   "label": "Te hauora me te oranga o te Māori (Māori health and wellbeing)",
+   "parent": "45"
+  },
+  {
+   "code": "4511",
+   "label": "Ngā tāngata, te porihanga me ngā hapori o te Māori (Māori peoples, society and community)",
+   "parent": "45"
+  },
+  {
+   "code": "4512",
+   "label": "Ngā pūtaiao Māori (Māori sciences)",
+   "parent": "45"
+  },
+  {
+   "code": "4513",
+   "label": "Pacific Peoples culture, language and history",
+   "parent": "45"
+  },
+  {
+   "code": "4514",
+   "label": "Pacific Peoples education",
+   "parent": "45"
+  },
+  {
+   "code": "4515",
+   "label": "Pacific Peoples environmental knowledges",
+   "parent": "45"
+  },
+  {
+   "code": "4516",
+   "label": "Pacific Peoples health and wellbeing",
+   "parent": "45"
+  },
+  {
+   "code": "4517",
+   "label": "Pacific Peoples sciences",
+   "parent": "45"
+  },
+  {
+   "code": "4518",
+   "label": "Pacific Peoples society and community",
+   "parent": "45"
+  },
+  {
+   "code": "4519",
+   "label": "Other Indigenous data, methodologies and global Indigenous studies",
+   "parent": "45"
+  },
+  {
+   "code": "4599",
+   "label": "Other Indigenous studies",
+   "parent": "45"
+  },
+  {
+   "code": "46",
+   "label": "Information and computing sciences",
+   "parent": null
+  },
+  {
+   "code": "4601",
+   "label": "Applied computing",
+   "parent": "46"
+  },
+  {
+   "code": "4602",
+   "label": "Artificial intelligence",
+   "parent": "46"
+  },
+  {
+   "code": "4603",
+   "label": "Computer vision and multimedia computation",
+   "parent": "46"
+  },
+  {
+   "code": "4604",
+   "label": "Cybersecurity and privacy",
+   "parent": "46"
+  },
+  {
+   "code": "4605",
+   "label": "Data management and data science",
+   "parent": "46"
+  },
+  {
+   "code": "4606",
+   "label": "Distributed computing and systems software",
+   "parent": "46"
+  },
+  {
+   "code": "4607",
+   "label": "Graphics, augmented reality and games",
+   "parent": "46"
+  },
+  {
+   "code": "4608",
+   "label": "Human-centred computing",
+   "parent": "46"
+  },
+  {
+   "code": "4609",
+   "label": "Information systems",
+   "parent": "46"
+  },
+  {
+   "code": "4610",
+   "label": "Library and information studies",
+   "parent": "46"
+  },
+  {
+   "code": "4611",
+   "label": "Machine learning",
+   "parent": "46"
+  },
+  {
+   "code": "4612",
+   "label": "Software engineering",
+   "parent": "46"
+  },
+  {
+   "code": "4613",
+   "label": "Theory of computation",
+   "parent": "46"
+  },
+  {
+   "code": "4699",
+   "label": "Other information and computing sciences",
+   "parent": "46"
+  },
+  {
+   "code": "47",
+   "label": "Language, communication and culture",
+   "parent": null
+  },
+  {
+   "code": "4701",
+   "label": "Communication and media studies",
+   "parent": "47"
+  },
+  {
+   "code": "4702",
+   "label": "Cultural studies",
+   "parent": "47"
+  },
+  {
+   "code": "4703",
+   "label": "Language studies",
+   "parent": "47"
+  },
+  {
+   "code": "4704",
+   "label": "Linguistics",
+   "parent": "47"
+  },
+  {
+   "code": "4705",
+   "label": "Literary studies",
+   "parent": "47"
+  },
+  {
+   "code": "4799",
+   "label": "Other language, communication and culture",
+   "parent": "47"
+  },
+  {
+   "code": "48",
+   "label": "Law and legal studies",
+   "parent": null
+  },
+  {
+   "code": "4801",
+   "label": "Commercial law",
+   "parent": "48"
+  },
+  {
+   "code": "4802",
+   "label": "Environmental and resources law",
+   "parent": "48"
+  },
+  {
+   "code": "4803",
+   "label": "International and comparative law",
+   "parent": "48"
+  },
+  {
+   "code": "4804",
+   "label": "Law in context",
+   "parent": "48"
+  },
+  {
+   "code": "4805",
+   "label": "Legal systems",
+   "parent": "48"
+  },
+  {
+   "code": "4806",
+   "label": "Private law and civil obligations",
+   "parent": "48"
+  },
+  {
+   "code": "4807",
+   "label": "Public law",
+   "parent": "48"
+  },
+  {
+   "code": "4899",
+   "label": "Other law and legal studies",
+   "parent": "48"
+  },
+  {
+   "code": "49",
+   "label": "Mathematical sciences",
+   "parent": null
+  },
+  {
+   "code": "4901",
+   "label": "Applied mathematics",
+   "parent": "49"
+  },
+  {
+   "code": "4902",
+   "label": "Mathematical physics",
+   "parent": "49"
+  },
+  {
+   "code": "4903",
+   "label": "Numerical and computational mathematics",
+   "parent": "49"
+  },
+  {
+   "code": "4904",
+   "label": "Pure mathematics",
+   "parent": "49"
+  },
+  {
+   "code": "4905",
+   "label": "Statistics",
+   "parent": "49"
+  },
+  {
+   "code": "4999",
+   "label": "Other mathematical sciences",
+   "parent": "49"
+  },
+  {
+   "code": "50",
+   "label": "Philosophy and religious studies",
+   "parent": null
+  },
+  {
+   "code": "5001",
+   "label": "Applied ethics",
+   "parent": "50"
+  },
+  {
+   "code": "5002",
+   "label": "History and philosophy of specific fields",
+   "parent": "50"
+  },
+  {
+   "code": "5003",
+   "label": "Philosophy",
+   "parent": "50"
+  },
+  {
+   "code": "5004",
+   "label": "Religious studies",
+   "parent": "50"
+  },
+  {
+   "code": "5005",
+   "label": "Theology",
+   "parent": "50"
+  },
+  {
+   "code": "5099",
+   "label": "Other philosophy and religious studies",
+   "parent": "50"
+  },
+  {
+   "code": "51",
+   "label": "Physical sciences",
+   "parent": null
+  },
+  {
+   "code": "5101",
+   "label": "Astronomical sciences",
+   "parent": "51"
+  },
+  {
+   "code": "5102",
+   "label": "Atomic, molecular and optical physics",
+   "parent": "51"
+  },
+  {
+   "code": "5103",
+   "label": "Classical physics",
+   "parent": "51"
+  },
+  {
+   "code": "5104",
+   "label": "Condensed matter physics",
+   "parent": "51"
+  },
+  {
+   "code": "5105",
+   "label": "Medical and biological physics",
+   "parent": "51"
+  },
+  {
+   "code": "5106",
+   "label": "Nuclear and plasma physics",
+   "parent": "51"
+  },
+  {
+   "code": "5107",
+   "label": "Particle and high energy physics",
+   "parent": "51"
+  },
+  {
+   "code": "5108",
+   "label": "Quantum physics",
+   "parent": "51"
+  },
+  {
+   "code": "5109",
+   "label": "Space sciences",
+   "parent": "51"
+  },
+  {
+   "code": "5110",
+   "label": "Synchrotrons and accelerators",
+   "parent": "51"
+  },
+  {
+   "code": "5199",
+   "label": "Other physical sciences",
+   "parent": "51"
+  },
+  {
+   "code": "52",
+   "label": "Psychology",
+   "parent": null
+  },
+  {
+   "code": "5201",
+   "label": "Applied and developmental psychology",
+   "parent": "52"
+  },
+  {
+   "code": "5202",
+   "label": "Biological psychology",
+   "parent": "52"
+  },
+  {
+   "code": "5203",
+   "label": "Clinical and health psychology",
+   "parent": "52"
+  },
+  {
+   "code": "5204",
+   "label": "Cognitive and computational psychology",
+   "parent": "52"
+  },
+  {
+   "code": "5205",
+   "label": "Social and personality psychology",
+   "parent": "52"
+  },
+  {
+   "code": "5299",
+   "label": "Other psychology",
+   "parent": "52"
+  }
+ ]
+}

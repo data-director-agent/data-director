@@ -51,6 +51,7 @@ person to look, by the rules in `dd_sdk.inventory_hints`, which the harness's de
 | `third_party` | A folder such as `reference`, `external`, `vendor` or `downloaded` |
 | `governance` | A folder or file name such as `agreement`, `licence`, `permission`, `contract` or `governance` |
 | `system_file` | `Thumbs.db`, `desktop.ini`, `.DS_Store`, or a name beginning `~$` or `._` |
+| `credentials` | A name such as `.env`, `.netrc` or `id_rsa`; an extension such as `.ini`, `.cfg`, `.conf`, `.pem` or `.key`; or a file name with a word such as `config`, `secret`, `credentials`, `password` or `token` |
 | `empty` | A size of zero |
 | `duplicate` | The same digest as another file that is not empty |
 | `extension_mismatch` | A PRONOM identification whose format differs from the one the file name's extension suggests (`matched` is the extension) |

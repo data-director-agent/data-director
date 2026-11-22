@@ -25,6 +25,7 @@ import { Button } from "../ui/Button";
 import { IntakeCard } from "./IntakeCard";
 import { RunDetail } from "./RunDetail";
 import type { IntakeRead } from "./useIntake";
+import type { ProjectDocumentsRead } from "./useProjectDocuments";
 import type { ProjectProgressRead } from "./useProjectProgress";
 
 /** The project's progress for the phase tracker, with how to change it, once it has been read. */
@@ -153,12 +154,18 @@ export function restoreDays(project: ProjectSummary | null): number | undefined 
  * project. */
 export function projectHandlers(
   projectId: string | null,
-  answered: (projectId: string, value: ProjectDocuments) => void,
+  { answered, answerMaxLength }: Pick<ProjectDocumentsRead, "answered" | "answerMaxLength">,
   reloadProjects: () => void | Promise<void>,
 ) {
   if (!projectId) return {};
   return {
-    onDocumentAnswered: (value: ProjectDocuments) => answered(projectId, value),
+    // A draft's questions are put once the server has said how long an answer may be.
+    ...(answerMaxLength !== null && {
+      documentAnswering: {
+        maxLength: answerMaxLength,
+        onAnswered: (value: ProjectDocuments) => answered(projectId, value),
+      },
+    }),
     // The panel reads the choice from the projects list, so it is read again.
     onRepositoryChosen: () => void reloadProjects(),
   };

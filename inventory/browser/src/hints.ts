@@ -18,6 +18,7 @@ export type HintKind =
   | "third_party"
   | "governance"
   | "system_file"
+  | "credentials"
   | "empty"
   | "duplicate";
 
@@ -41,6 +42,8 @@ interface Rule {
   words?: readonly string[];
   names?: readonly string[];
   prefixes?: readonly string[];
+  /** Ends of a file name, such as an extension. */
+  suffixes?: readonly string[];
 }
 
 /** In the order of `dd_sdk.inventory_hints.RULES`: the order a file's hints are given in. */
@@ -101,6 +104,23 @@ export const HINT_RULES: readonly Rule[] = [
       "Its name is that of a file an operating system or program makes for itself. It is rarely " +
       "part of a dataset: leave it out unless it is.",
   },
+  {
+    kind: "credentials",
+    within: ["file"],
+    words: [
+      "config", "secret", "secrets", "credential", "credentials", "password", "passwords", "token",
+      "tokens", "apikey",
+    ],
+    names: [
+      ".env", ".netrc", ".pgpass", ".htpasswd", ".pypirc", ".npmrc", ".git-credentials", ".s3cfg",
+      "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519", "credentials", "credentials.json",
+      "secrets.yaml", "secrets.yml", "secrets.json",
+    ],
+    suffixes: [".ini", ".cfg", ".conf", ".env", ".pem", ".key", ".p12", ".pfx", ".keystore", ".jks"],
+    question:
+      "Its name is that of a configuration or credentials file, which may hold passwords, keys " +
+      "or tokens. Check whether it does, and if so leave it out of the deposit.",
+  },
   { kind: "empty", question: "The file is empty. Leave it out, or find what it should hold." },
   {
     kind: "duplicate",
@@ -116,6 +136,7 @@ export const HINT_LABELS: Readonly<Record<HintKind, string>> = {
   third_party: "May be someone else's",
   governance: "Terms or an agreement",
   system_file: "System file",
+  credentials: "May hold credentials",
   empty: "Empty",
   duplicate: "Exact copy",
 };
@@ -138,10 +159,20 @@ function hintFor(rule: Rule, file: InventoryFile, copies: Map<string, string[]>)
     const related = (copies.get(file.file_sha256) ?? []).filter((p) => p !== file.file_path);
     return related.length ? { kind, question, related } : null;
   }
+  return namedHint(rule, file);
+}
+
+/** A hint whose file's name, or a word in its folders, name or fields, the rule names. */
+function namedHint(rule: Rule, file: InventoryFile): FileHint | null {
+  const { kind, question } = rule;
   const segments = file.file_path.split("/");
   const name = segments.at(-1) ?? file.file_path;
   const lower = name.toLowerCase();
-  if (rule.names?.includes(lower) || rule.prefixes?.some((p) => lower.startsWith(p))) {
+  if (
+    rule.names?.includes(lower) ||
+    rule.prefixes?.some((p) => lower.startsWith(p)) ||
+    rule.suffixes?.some((s) => lower.endsWith(s))
+  ) {
     return { kind, question, matched: name };
   }
   const within = rule.within ?? [];

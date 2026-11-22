@@ -47,7 +47,7 @@ from dd_sdk.contract.models import (
 from dd_sdk.delegate import DelegationRefused
 from dd_sdk.evidence import envelope_hash
 from dd_sdk.tracing import records_from_jsonl
-from dd_sdk.wire import META_DELEGATION_TOKEN
+from dd_sdk.wire import MANIFEST_EXTENSION_URI, META_DELEGATION_TOKEN
 
 
 def child_agent(**overrides: Any) -> ScriptedAgent:
@@ -406,3 +406,76 @@ def test_a_card_without_the_manifest_is_a_refusal() -> None:
 
     with pytest.raises(DelegationRefused, match="manifest"):
         _manifest_from_card({"name": "not a harness", "capabilities": {}})
+
+
+def test_the_harness_card_is_serialised_once_and_revalidated_with_a_304(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from a2a.server.request_handlers import response_helpers as a2a_helpers
+    from starlette.testclient import TestClient
+
+    from dd_harness.transport import a2a
+
+    conductor = make_conductor(tmp_path, child_agent())
+    calls: list[int] = []
+    real = a2a_helpers.agent_card_to_dict
+
+    def counted(card: Any) -> dict[str, Any]:
+        calls.append(1)
+        return real(card)
+
+    monkeypatch.setattr(a2a, "agent_card_to_dict", counted)
+    client = TestClient(Starlette(routes=a2a_routes(conductor, None, "http://harness.test")[1]))
+
+    first = client.get("/.well-known/agent-card.json")
+    second = client.get("/.well-known/agent-card.json")
+    assert first.status_code == second.status_code == 200
+    assert first.content == second.content
+    assert calls == [1]
+    etag = first.headers["etag"]
+    assert second.headers["etag"] == etag
+    unchanged = client.get("/.well-known/agent-card.json", headers={"If-None-Match": etag})
+    assert unchanged.status_code == 304
+    assert unchanged.content == b""
+    stale = client.get("/.well-known/agent-card.json", headers={"If-None-Match": '"other"'})
+    assert stale.status_code == 200
+
+
+def test_a_second_grant_on_the_same_harness_revalidates_the_card_without_downloading_it() -> None:
+    import httpx
+
+    from dd_sdk import delegate
+    from dd_sdk.delegate import DelegationGrant, HarnessDelegate
+
+    card = {
+        "name": "h",
+        "capabilities": {"extensions": [{"uri": MANIFEST_EXTENSION_URI, "params": {"agents": []}}]},
+    }
+    seen: list[str | None] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        sent = request.headers.get("if-none-match")
+        seen.append(sent)
+        if sent == '"v1"':
+            return httpx.Response(304, headers={"ETag": '"v1"'})
+        return httpx.Response(200, json=card, headers={"ETag": '"v1"'})
+
+    def factory(base_url: str, timeout_s: float) -> httpx.AsyncClient:
+        return httpx.AsyncClient(
+            base_url=base_url, transport=httpx.MockTransport(handler), timeout=timeout_s
+        )
+
+    delegate._CARDS.clear()
+
+    def grant_delegate() -> HarnessDelegate:
+        return HarnessDelegate(
+            grant=DelegationGrant(url="http://harness.test", token="t"),
+            parent=request("fake.delegation"),
+            tracer=None,  # type: ignore[arg-type]
+            client_factory=factory,
+        )
+
+    assert grant_delegate().manifest() == []
+    assert grant_delegate().manifest() == []
+    assert seen == [None, '"v1"']
+    delegate._CARDS.clear()

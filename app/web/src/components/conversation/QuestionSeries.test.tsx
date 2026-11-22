@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 
-import type { Question, ReplyAnswers } from "../../conversation/question";
+import { type Question, type ReplyAnswers, SHORT_TEXT_MAX } from "../../conversation/question";
 import { AskedQuestions, QuestionSeries } from "./QuestionSeries";
 
 const CHOICE: Question = {
@@ -26,6 +26,15 @@ const METHOD: Question = {
   question_help: "A few sentences are enough.",
 };
 const ASKED_BY = "0190a000-0000-7000-8000-000000000001";
+
+/** The elements that describe `element`, in order. */
+function describedBy(element: HTMLElement): HTMLElement[] {
+  const ids = (element.getAttribute("aria-describedby") ?? "").split(" ").filter(Boolean);
+  return ids.flatMap((id) => {
+    const found = document.getElementById(id);
+    return found ? [found] : [];
+  });
+}
 
 function renderSeries(questions: Question[]) {
   const onAnswer = vi.fn();
@@ -110,6 +119,34 @@ describe("QuestionSeries, one question", () => {
     );
   });
 
+  it.each([
+    ["a short text question", TITLE, false],
+    ["Something else", { ...CHOICE, question_other: true }, true],
+  ])("keeps an answer to %s over the limit whole, and refuses it with a message", async (_, question, other) => {
+    const { onAnswer } = renderSeries([question]);
+    if (other) await userEvent.click(screen.getByRole("radio", { name: "Something else" }));
+    const box = screen.getByRole("textbox", { name: "Your answer" });
+    expect(box).not.toHaveAttribute("maxlength");
+    const long = "x".repeat(SHORT_TEXT_MAX + 25);
+    await userEvent.click(box);
+    await userEvent.paste(long);
+    expect(box).toHaveValue(long);
+    const [count] = describedBy(box);
+    expect(count).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Send answer" }));
+    expect(onAnswer).not.toHaveBeenCalled();
+    expect(box).toHaveValue(long);
+    expect(box).toHaveAttribute("aria-invalid", "true");
+    const message = describedBy(box).filter((e) => e !== count);
+    expect(message).toHaveLength(1);
+    expect(message[0]).toBeVisible();
+    // Shortened to the limit, it is sent.
+    await userEvent.clear(box);
+    await userEvent.paste("y".repeat(SHORT_TEXT_MAX));
+    await userEvent.click(screen.getByRole("button", { name: "Send answer" }));
+    expect(onAnswer).toHaveBeenCalledTimes(1);
+  });
+
   it("can be disabled while a message is sent", () => {
     render(<QuestionSeries questions={[CHOICE]} askedBy={ASKED_BY} onAnswer={vi.fn()} disabled />);
     expect(screen.getByRole("radio", { name: "Zenodo" })).toBeDisabled();
@@ -189,6 +226,21 @@ describe("QuestionSeries, several questions", () => {
     await userEvent.click(screen.getByRole("button", { name: "Next" }));
     expect(screen.getByText(/Say what your answer is/)).toBeVisible();
     expect(screen.getByText("Question 1 of 2")).toBeVisible();
+  });
+
+  it("goes back to an answer over the limit that was skipped past, and sends nothing", async () => {
+    const { onAnswer } = renderSeries([TITLE, CHOICE]);
+    const long = "x".repeat(SHORT_TEXT_MAX + 1);
+    await userEvent.click(screen.getByRole("textbox", { name: "Your answer" }));
+    await userEvent.paste(long);
+    await userEvent.click(screen.getByRole("button", { name: "Skip" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Zenodo" }));
+    await userEvent.click(screen.getByRole("button", { name: "Check answers" }));
+    await userEvent.click(screen.getByRole("button", { name: "Send answers" }));
+    expect(onAnswer).not.toHaveBeenCalled();
+    const box = screen.getByRole("textbox", { name: "Your answer" });
+    expect(box).toHaveValue(long);
+    expect(box).toHaveAttribute("aria-invalid", "true");
   });
 });
 

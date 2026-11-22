@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from dd_sdk.contract.models import IdentificationMethod, InventoryFile, TableField
 from dd_sdk.inventory_hints import RULES, HintKind, hints
 
@@ -42,3 +44,28 @@ def test_hints_come_file_by_file_with_what_called_for_them() -> None:
         ("data/Thumbs.db", HintKind.EMPTY, None),
     ]
     assert found[2].related_paths == ("b/a.csv",)
+
+
+@pytest.mark.parametrize(
+    ("path", "matched"),
+    [
+        ("config.ini", "config.ini"),
+        (".env", ".env"),
+        ("certs/server.pem", "server.pem"),
+        ("deploy/secrets.yaml", "secrets.yaml"),
+        ("scripts/db_password.txt", "password"),
+    ],
+)
+def test_a_configuration_or_credentials_file_is_flagged_by_its_name(
+    path: str, matched: str
+) -> None:
+    found = [h for h in hints([file(path)]) if h.kind == HintKind.CREDENTIALS]
+    assert [(h.path, h.matched) for h in found] == [(path, matched)]
+    assert found[0].question
+
+
+@pytest.mark.parametrize(
+    "path", ["docs/configuration_notes.md", "analysis/tokenizer.py", "data/keyboard.csv"]
+)
+def test_credentials_words_match_whole_and_extensions_match_at_the_end(path: str) -> None:
+    assert HintKind.CREDENTIALS not in {h.kind for h in hints([file(path)])}

@@ -35,6 +35,9 @@ dev = [
   "data-director-agent-example-hello",
   "data-director-agent-advisor-quality",
   "data-director-agent-advisor-standards",
+  # A FAIR report run in a project, for the per-project runs listing
+  # (tests/test_project_runs_by_class.py).
+  "data-director-agent-advisor-fairness",
   # The minimum loop's agents and scanner (tests/test_minimum_loop.py).
   "data-director-agent-advisor-files",
   "data-director-agent-advisor-metadata",

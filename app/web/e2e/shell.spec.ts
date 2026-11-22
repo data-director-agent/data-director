@@ -486,16 +486,16 @@ for (const scheme of ["light", "dark"] as const) {
       ),
     );
     let sent: unknown = null;
+    // What the project log holds: the answers saved so far, read back on every load.
+    let held: unknown = asking;
     await page.route(`/api/projects/${conversation.project_id}/documents`, (route) =>
-      route.fulfill({ json: asking }),
+      route.fulfill({ json: held }),
     );
     await page.route(`/api/projects/${conversation.project_id}/documents/*/answers`, (route) => {
       sent = route.request().postDataJSON();
       const answers = [{ ...readme.answers[0], question_id: questions[0]?.question_id, answer_text: "mg/kg" }];
-      return route.fulfill({
-        status: 201,
-        json: { ...asking, documents: [{ ...asking.documents[0], answers }] },
-      });
+      held = { ...asking, documents: [{ ...readme, versions: [drafted], answers }] };
+      return route.fulfill({ status: 201, json: held });
     });
     await page.goto("/");
     await page.getByRole("textbox", { name: "What would you like to do?" }).fill("hi");
@@ -517,7 +517,15 @@ for (const scheme of ["light", "dark"] as const) {
       version: version.version,
       answers: [{ answered_question: questions[0]?.question_id, answer_text: "mg/kg" }],
     });
+    const change = page.getByRole("button", { name: "Change your answer to: What unit is field_1 in?" });
+    await expect(change).toBeVisible();
     expect(await axeViolations(page)).toEqual([]);
+
+    // After a reload the saved answer is still on the card, read back from the project log.
+    await page.reload();
+    await expect(page.getByRole("form", { name: /has 3 questions for you/ })).toBeVisible();
+    await expect(change).toBeVisible();
+    await expect(page.locator("li", { has: change }).getByText("mg/kg")).toBeVisible();
   });
 }
 

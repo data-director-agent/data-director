@@ -14,6 +14,9 @@ is kept until they choose:
   put-code. A caller sends a choice, never the facts, and the record is read again before it is
   kept, so what a project holds is always ORCID's own words.
 
+- `fetch_public_name` reads only the name on anyone's public record, for a page to show
+  (`dd_harness.orcid_names`). It is never kept and never given to an agent.
+
 A record that cannot be read raises `OrcidUnavailableError`: the network, ORCID, or an iD it does
 not know, never a content problem of a run.
 """
@@ -130,6 +133,40 @@ def fetch_record(
     if not isinstance(document, dict):
         raise OrcidUnavailableError("the ORCID record is not an object")
     return document
+
+
+def name_url(principal_id: str) -> str | None:
+    """Where the `person` section of the public record `principal_id` names is read from, or
+    None for a principal that is not an ORCID iD of an issuer with a public API."""
+    for issuer, api in PUBLIC_APIS.items():
+        path = principal_id.removeprefix(issuer + "/")
+        if path != principal_id and ORCID_ID.fullmatch(path):
+            return f"{api}/{path}/person"
+    return None
+
+
+def fetch_public_name(
+    principal_id: str, *, transport: httpx.BaseTransport | None = None
+) -> str | None:
+    """The name on the public record of the person `principal_id` names, as `normalise` reads
+    it: the credit name, else the given and family names. None for a principal that is not an
+    ORCID iD, an iD ORCID does not know, or a name its holder keeps private. Raises
+    `OrcidUnavailableError` if ORCID cannot be read."""
+    url = name_url(principal_id)
+    if url is None:
+        return None
+    try:
+        with httpx.Client(timeout=FETCH_TIMEOUT_S, transport=transport) as client:
+            response = client.get(url, headers={"Accept": ORCID_MEDIA_TYPE})
+            if response.status_code == 404:
+                return None
+            response.raise_for_status()
+            document = response.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        raise OrcidUnavailableError(
+            f"the ORCID record could not be read: {type(exc).__name__}"
+        ) from exc
+    return _name(_get(document, "name"))
 
 
 def normalise(

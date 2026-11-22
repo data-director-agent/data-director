@@ -90,6 +90,21 @@ const FEATURE_IMPORTS = [
     reason: "The journey map is one of a project's pages, under its navigation (ProjectNav).",
   },
   {
+    from: "project",
+    to: "fairness",
+    reason: "A project's FAIR feedback tab is the fairness panel (FairnessPanel).",
+  },
+  {
+    from: "run",
+    to: "fairness",
+    reason: "A FAIR report in a run card is laid out as on the FAIR feedback tab (FairnessRenderer).",
+  },
+  {
+    from: "workspace",
+    to: "fairness",
+    reason: "The context panel shows how FAIR the metadata record is (FairnessStanding).",
+  },
+  {
     from: "agent",
     to: "capabilities",
     reason: "An agent's page lists its capabilities (CapabilitiesPanel).",

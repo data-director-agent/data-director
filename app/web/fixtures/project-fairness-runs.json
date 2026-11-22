@@ -1,0 +1,305 @@
+{
+  "runs": [
+    {
+      "acting_for": {
+        "assurance": "asserted",
+        "name": "Josiah Carberry",
+        "principal_id": "https://orcid.org/0000-0002-1825-0097",
+        "principal_kind": "person"
+      },
+      "agent_id": "advisor.fairness",
+      "agent_version": "0.3.0a1",
+      "completed_at": "2026-01-01T00:00:00Z",
+      "contract_version": "0.23.0",
+      "conversation_id": "01900000-0000-7000-8000-000000000001",
+      "evidence": [
+        {
+          "canonicalisation": "dd-input-json-v1",
+          "content_hash": "0000000000000000000000000000000000000000000000000000000000000007",
+          "hash_algorithm": "sha256",
+          "retrieved_at": "2026-01-01T00:00:00Z",
+          "source_id": "input:01900000-0000-7000-8000-000000000002"
+        }
+      ],
+      "grounding_mode": "input_only",
+      "input_schema": "0000000000000000000000000000000000000000000000000000000000000008",
+      "invocation_id": "01900000-0000-7000-8000-000000000003",
+      "outcome": {
+        "statement": "Your draft metadata record already meets 6 of 9 checks (F 2/3, I 1/2, R 3/4). Next: Add keywords, preferably terms from a controlled vocabulary used in your discipline. No model is configured, so each recommendation is the rule table's own. This is not a FAIRness evaluation.",
+        "status": "succeeded"
+      },
+      "payload": {
+        "checks": [
+          {
+            "check": "title-present",
+            "met": true,
+            "principle": "F2"
+          },
+          {
+            "check": "creators-present",
+            "met": true,
+            "principle": "F2"
+          },
+          {
+            "check": "open-format",
+            "met": true,
+            "principle": "I1"
+          },
+          {
+            "check": "formats-declared",
+            "met": true,
+            "principle": "R1"
+          },
+          {
+            "check": "licence-present",
+            "met": true,
+            "principle": "R1.1"
+          },
+          {
+            "check": "licence-open",
+            "met": true,
+            "principle": "R1.1"
+          },
+          {
+            "check": "keywords-present",
+            "met": false,
+            "principle": "F2",
+            "recommendation": "Add keywords, preferably terms from a controlled vocabulary used in your discipline.",
+            "recommendation_derivation": "template"
+          },
+          {
+            "check": "creators-identified",
+            "met": false,
+            "principle": "R1.2",
+            "recommendation": "Add a persistent identifier, such as an ORCID iD, for every creator.",
+            "recommendation_derivation": "template"
+          },
+          {
+            "check": "related-identifiers-present",
+            "met": false,
+            "principle": "I3",
+            "recommendation": "Add the identifiers of related outputs, such as the article that uses the data or the software that produced them.",
+            "recommendation_derivation": "template"
+          },
+          {
+            "after_deposit": true,
+            "check": "identifier-is-doi",
+            "met": false,
+            "principle": "F1"
+          },
+          {
+            "after_deposit": true,
+            "check": "identifier-present",
+            "met": false,
+            "principle": "F3"
+          },
+          {
+            "after_deposit": true,
+            "check": "access-protocol-open",
+            "met": false,
+            "principle": "A1"
+          }
+        ],
+        "grounded_on": [
+          {
+            "content_hash": "0000000000000000000000000000000000000000000000000000000000000007",
+            "source_id": "input:01900000-0000-7000-8000-000000000002"
+          }
+        ],
+        "limitations": [
+          "This is not a FAIRness evaluation: it checks only whether the draft's metadata are present and in an expected form, against a short list.",
+          "Its feedback changes no record. Edit or approve the draft yourself.",
+          "Checks of what the repository supplies at deposit, such as the DOI and how the data are accessed, are left until then and not counted."
+        ],
+        "next_steps": [
+          "keywords-present",
+          "creators-identified"
+        ],
+        "principle_tallies": [
+          {
+            "principle_group": "F",
+            "tally_assessed": 3.0,
+            "tally_met": 2.0
+          },
+          {
+            "principle_group": "A",
+            "tally_assessed": 0.0,
+            "tally_met": 0.0
+          },
+          {
+            "principle_group": "I",
+            "tally_assessed": 2.0,
+            "tally_met": 1.0
+          },
+          {
+            "principle_group": "R",
+            "tally_assessed": 4.0,
+            "tally_met": 3.0
+          }
+        ],
+        "schema_class": "FairnessReport"
+      },
+      "payload_schema": "0000000000000000000000000000000000000000000000000000000000000009",
+      "policy_bundle_ref": "profile:data-director-app@v10",
+      "policy_digest": "0000000000000000000000000000000000000000000000000000000000000010",
+      "project_id": "01900000-0000-7000-8000-000000000004",
+      "requires_human_review": true,
+      "telemetry": {
+        "energy_estimate_j": null,
+        "energy_method": "not_measured",
+        "trace_id": "00000000000000000000000000000000"
+      }
+    },
+    {
+      "acting_for": {
+        "assurance": "asserted",
+        "name": "Josiah Carberry",
+        "principal_id": "https://orcid.org/0000-0002-1825-0097",
+        "principal_kind": "person"
+      },
+      "agent_id": "advisor.fairness",
+      "agent_version": "0.3.0a1",
+      "completed_at": "2026-01-01T00:00:00Z",
+      "contract_version": "0.23.0",
+      "conversation_id": "01900000-0000-7000-8000-000000000001",
+      "evidence": [
+        {
+          "canonicalisation": "dd-input-json-v1",
+          "content_hash": "0000000000000000000000000000000000000000000000000000000000000007",
+          "hash_algorithm": "sha256",
+          "retrieved_at": "2026-01-01T00:00:00Z",
+          "source_id": "input:01900000-0000-7000-8000-000000000002"
+        }
+      ],
+      "grounding_mode": "input_only",
+      "input_schema": "0000000000000000000000000000000000000000000000000000000000000008",
+      "invocation_id": "01900000-0000-7000-8000-000000000005",
+      "outcome": {
+        "statement": "Your draft metadata record already meets 6 of 9 checks (F 2/3, I 1/2, R 3/4). Next: Add keywords, preferably terms from a controlled vocabulary used in your discipline. No model is configured, so each recommendation is the rule table's own. This is not a FAIRness evaluation.",
+        "status": "succeeded"
+      },
+      "parent_invocation_id": "01900000-0000-7000-8000-000000000006",
+      "payload": {
+        "checks": [
+          {
+            "check": "title-present",
+            "met": true,
+            "principle": "F2"
+          },
+          {
+            "check": "creators-present",
+            "met": true,
+            "principle": "F2"
+          },
+          {
+            "check": "open-format",
+            "met": true,
+            "principle": "I1"
+          },
+          {
+            "check": "formats-declared",
+            "met": true,
+            "principle": "R1"
+          },
+          {
+            "check": "licence-present",
+            "met": true,
+            "principle": "R1.1"
+          },
+          {
+            "check": "licence-open",
+            "met": true,
+            "principle": "R1.1"
+          },
+          {
+            "check": "keywords-present",
+            "met": false,
+            "principle": "F2",
+            "recommendation": "Add keywords, preferably terms from a controlled vocabulary used in your discipline.",
+            "recommendation_derivation": "template"
+          },
+          {
+            "check": "creators-identified",
+            "met": false,
+            "principle": "R1.2",
+            "recommendation": "Add a persistent identifier, such as an ORCID iD, for every creator.",
+            "recommendation_derivation": "template"
+          },
+          {
+            "check": "related-identifiers-present",
+            "met": false,
+            "principle": "I3",
+            "recommendation": "Add the identifiers of related outputs, such as the article that uses the data or the software that produced them.",
+            "recommendation_derivation": "template"
+          },
+          {
+            "after_deposit": true,
+            "check": "identifier-is-doi",
+            "met": false,
+            "principle": "F1"
+          },
+          {
+            "after_deposit": true,
+            "check": "identifier-present",
+            "met": false,
+            "principle": "F3"
+          },
+          {
+            "after_deposit": true,
+            "check": "access-protocol-open",
+            "met": false,
+            "principle": "A1"
+          }
+        ],
+        "grounded_on": [
+          {
+            "content_hash": "0000000000000000000000000000000000000000000000000000000000000007",
+            "source_id": "input:01900000-0000-7000-8000-000000000002"
+          }
+        ],
+        "limitations": [
+          "This is not a FAIRness evaluation: it checks only whether the draft's metadata are present and in an expected form, against a short list.",
+          "Its feedback changes no record. Edit or approve the draft yourself.",
+          "Checks of what the repository supplies at deposit, such as the DOI and how the data are accessed, are left until then and not counted."
+        ],
+        "next_steps": [
+          "keywords-present",
+          "creators-identified"
+        ],
+        "principle_tallies": [
+          {
+            "principle_group": "F",
+            "tally_assessed": 3.0,
+            "tally_met": 2.0
+          },
+          {
+            "principle_group": "A",
+            "tally_assessed": 0.0,
+            "tally_met": 0.0
+          },
+          {
+            "principle_group": "I",
+            "tally_assessed": 2.0,
+            "tally_met": 1.0
+          },
+          {
+            "principle_group": "R",
+            "tally_assessed": 4.0,
+            "tally_met": 3.0
+          }
+        ],
+        "schema_class": "FairnessReport"
+      },
+      "payload_schema": "0000000000000000000000000000000000000000000000000000000000000009",
+      "policy_bundle_ref": "profile:data-director-app@v10",
+      "policy_digest": "0000000000000000000000000000000000000000000000000000000000000010",
+      "project_id": "01900000-0000-7000-8000-000000000004",
+      "requires_human_review": true,
+      "telemetry": {
+        "energy_estimate_j": null,
+        "energy_method": "not_measured",
+        "trace_id": "00000000000000000000000000000000"
+      }
+    }
+  ]
+}
