@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# End-to-end check of spend tracking, tags, reports and budget enforcement.
+# End-to-end check of spend tracking, tags, reports, budget enforcement, and the limits on one
+# request or key (output and prompt size, key ceilings and defaults, rate limits).
 # Needs the TEST stack (fake provider, no real keys, nothing billed):
 #   docker compose -f compose.yaml -f compose.test.yaml up -d
 #   scripts/smoke_test.sh
@@ -45,10 +46,11 @@ check "admin UI responds"   200 "$(curl -s -o /dev/null -L -w '%{http_code}' "$U
 echo "2. Create team (budget \$1.00), user and key (budget \$0.50)"
 TEAM=$($ADMIN team create "smoke-team-$RUN" --budget 1.0 --period 30d | awk '/team_id/{print $2}')
 [[ -n "$TEAM" ]] && ok "team created" || bad "team create"
-USERID=$($ADMIN user create "smoke-$RUN@example.ac.uk" --team "$TEAM" | awk '/user_id/{print $2}')
+USERID=$($ADMIN user create "smoke-$RUN@example.ac.uk" --team "$TEAM" --budget 5 --period 30d \
+        | awk '/user_id/{print $2}')
 [[ -n "$USERID" ]] && ok "user created" || bad "user create"
-KEY=$($ADMIN key create "smoke-key-$RUN" --team "$TEAM" --user "$USERID" --budget 0.5 \
-      --tags "project:smoke-$RUN" | awk '/^key:/{print $2}')
+KEY=$($ADMIN key create "smoke-key-$RUN" --team "$TEAM" --user "$USERID" --budget 0.5 --period 30d \
+      --models 'test-gpt,test-claude' --tags "project:smoke-$RUN" | awk '/^key:/{print $2}')
 [[ "$KEY" == sk-* ]] && ok "key created" || bad "key create"
 
 echo "3. Both API styles, then the key budget (\$0.50) is enforced"
@@ -63,7 +65,8 @@ check "key eventually refused with budget_exceeded" yes "$K_REFUSED"
 echo "        key calls allowed: $K_OK"
 
 echo "4. The team budget (\$1.00) caps every key in the team"
-KEY2=$($ADMIN key create "smoke-key2-$RUN" --team "$TEAM" --tags "project:smoke-$RUN" | awk '/^key:/{print $2}')
+KEY2=$($ADMIN key create "smoke-key2-$RUN" --team "$TEAM" --budget 5 --period 30d \
+       --models test-gpt --tags "project:smoke-$RUN" | awk '/^key:/{print $2}')
 T_OK=0; T_REFUSED=no
 for n in $(seq 1 8); do
   s=$(openai_call "$KEY2" "exp:b-$RUN")
@@ -107,6 +110,52 @@ echo "7. Prometheus metrics"
 METRICS=$(curl -s "$URL/metrics/" -H "Authorization: Bearer $LITELLM_MASTER_KEY")
 grep -q "^litellm_spend_metric_total{.*team_alias=\"smoke-team-$RUN\"" <<<"$METRICS" \
   && ok "litellm_spend_metric_total exported with team label" || bad "spend metric missing"
+
+echo "8. Limits that stop one request, or one key, running away"
+# 4xx with a message naming the limit. The status itself is whatever the proxy gives a refusal
+# raised from a hook, so the message is the firmer evidence of which limit stopped the call.
+refused_for(){ [[ $1 == 4* ]] && grep -q -- "$2" "$BODY" && echo yes || echo "no ($1)"; }
+post() {  # key, JSON body -> HTTP status; no pause, for the rate-limit test
+  curl -s -o "$BODY" -w '%{http_code}' "$URL/v1/chat/completions" \
+    -H "Authorization: Bearer $1" -H 'Content-Type: application/json' -d "$2"
+}
+G_KEY=$($ADMIN key create "smoke-guard-$RUN" --budget 5 --period 30d --models test-gpt \
+        | awk '/^key:/{print $2}')
+
+s=$(post "$G_KEY" '{"model":"test-gpt","messages":[{"role":"user","content":"hi"}]}')
+check "a request with no max_tokens is allowed" 200 "$s"
+check "...and was given the gateway's default of 20 output tokens" 20 \
+  "$(python3 -c "import json;print(json.load(open('$BODY'))['usage']['completion_tokens'])")"
+s=$(post "$G_KEY" '{"model":"test-gpt","max_tokens":1000,"messages":[{"role":"user","content":"hi"}]}')
+check "max_tokens over the gateway's ceiling (100) refused" yes "$(refused_for "$s" "output tokens")"
+big=$(python3 -c "print('x' * 5000)")
+s=$(post "$G_KEY" "{\"model\":\"test-gpt\",\"max_tokens\":50,\"messages\":[{\"role\":\"user\",\"content\":\"$big\"}]}")
+check "a prompt over the gateway's ceiling (3000 characters) refused" yes "$(refused_for "$s" "too large")"
+
+out=$($ADMIN key create "smoke-over-$RUN" --budget 1000 --period 30d --models test-gpt 2>&1); rc=$?
+[[ $rc -ne 0 ]] && grep -q "over max limit" <<<"$out" \
+  && ok "a key with a budget over the gateway's ceiling (\$100) refused" \
+  || bad "an over-ceiling key was not refused: $out"
+out=$($ADMIN key create "smoke-bare-$RUN" 2>&1); rc=$?
+[[ $rc -ne 0 ]] && grep -q "Refusing" <<<"$out" \
+  && ok "admin.py refuses a key with no budget, period or models" \
+  || bad "admin.py created a key with no limits: $out"
+
+U_KEY=$($ADMIN key create "smoke-unlimited-$RUN" --unlimited | awk '/^key:/{print $2}')
+info=$(curl -s "$URL/key/info?key=$U_KEY" -H "Authorization: Bearer $LITELLM_MASTER_KEY")
+check "a key made with --unlimited still gets the default budget (\$25)" 25.0 \
+  "$(python3 -c "import json,sys;print(float(json.loads(sys.argv[1])['info']['max_budget']))" "$info")"
+check "...and the default request rate (600 a minute)" 600 \
+  "$(python3 -c "import json,sys;print(json.loads(sys.argv[1])['info']['rpm_limit'])" "$info")"
+
+R_KEY=$($ADMIN key create "smoke-rate-$RUN" --budget 5 --period 30d --models test-gpt --rpm 1 \
+        | awk '/^key:/{print $2}')
+limited=no
+for n in 1 2 3 4; do
+  s=$(post "$R_KEY" '{"model":"test-gpt","max_tokens":50,"messages":[{"role":"user","content":"hi"}]}')
+  [[ $s == 429 ]] && { limited=yes; break; }
+done
+check "a key limited to 1 request a minute is refused with 429" yes "$limited"
 
 echo; echo "Passed: $PASS   Failed: $FAIL"
 [[ $FAIL -eq 0 ]]

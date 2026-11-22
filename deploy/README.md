@@ -259,7 +259,8 @@ sudo deploy/install.sh --domain data-director.example.ac.uk --gateway
 It installs Docker and runs the gateway and its PostgreSQL database under
 `data-director-llm-gateway.service`, on 127.0.0.1:4000 only. It makes the gateway's master key,
 salt key and database password once, in `/etc/data-director/credentials/llm-gateway/`. Then it
-makes a gateway key for the model broker, tagged `service:model-broker`, and sends the broker's
+makes a gateway key for the model broker, tagged `service:model-broker` and limited to $100 per
+30 days (the gateway's ceiling for a key, which `config.yaml` sets), and sends the broker's
 deployment-paid calls through the gateway: it sets `DD_BROKER_DEPLOYMENT_BASE_URL` in
 `model-broker.env` and writes the broker's drop-in `llm-gateway.conf`. A person's own account
 never goes through the gateway.

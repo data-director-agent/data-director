@@ -9,6 +9,7 @@ Examples
   scripts/admin.py user create someone@example.ac.uk --budget 50 --period 30d --team <team_id>
   scripts/admin.py key create thesis-ch3 --team <team_id> --user <user_id> \
         --budget 25 --period 30d --models claude-sonnet-5-5,gemini --tags project:thesis,grant:EP-X-1
+  (a team, user or key needs --budget and --period, and a key needs --models too, or --unlimited)
   scripts/admin.py key info sk-...            # spend vs budget for one key
   scripts/admin.py team list                  # all teams with spend vs budget
   scripts/admin.py spend --by tag             # this month, grouped by tag
@@ -104,8 +105,26 @@ def _print_budget(
     print(f"{label}: spent {_money(spend)} of {_money(budget)}{pct}{extra}")
 
 
+def _require_limits(a: argparse.Namespace, *, models: bool = False) -> None:
+    """Refuse to create a team, user or key that nothing would stop from spending without limit.
+
+    --unlimited is the deliberate way round. The gateway's own ceilings still apply to a key
+    (`upperbound_key_generate_params` in config.yaml), and its global budget to every call.
+    """
+    wanted = [("--budget", a.budget), ("--period", a.period)]
+    if models:
+        wanted.append(("--models", a.models))
+    missing = [flag for flag, value in wanted if value in (None, "")]
+    if missing and not a.unlimited:
+        sys.exit(
+            f"Refusing to create this without {', '.join(missing)}: it would have no limit of "
+            "its own. Give each, or pass --unlimited to create it anyway."
+        )
+
+
 # --------------------------------------------------------------------------- commands
 def team_create(a: argparse.Namespace) -> None:
+    _require_limits(a)
     r = api(
         "POST",
         "/team/new",
@@ -147,6 +166,7 @@ def team_info(a: argparse.Namespace) -> None:
 
 
 def user_create(a: argparse.Namespace) -> None:
+    _require_limits(a)
     r = api(
         "POST",
         "/user/new",
@@ -178,6 +198,7 @@ def user_info(a: argparse.Namespace) -> None:
 
 
 def key_create(a: argparse.Namespace) -> None:
+    _require_limits(a, models=True)
     metadata = {"tags": _csv_list(a.tags)} if a.tags else None
     r = api(
         "POST",
@@ -192,6 +213,7 @@ def key_create(a: argparse.Namespace) -> None:
                 "models": _csv_list(a.models),
                 "tpm_limit": a.tpm,
                 "rpm_limit": a.rpm,
+                "max_parallel_requests": a.max_parallel,
                 "duration": a.expires,
                 "metadata": metadata,
             }
@@ -364,6 +386,11 @@ def _limits(sp: argparse.ArgumentParser) -> None:
     sp.add_argument("--budget", type=float, help="max spend in USD")
     sp.add_argument("--period", help="budget reset period, e.g. 30d, 7d, 24h")
     sp.add_argument("--models", help="comma-separated model names allowed")
+    sp.add_argument(
+        "--unlimited",
+        action="store_true",
+        help="create it without the limits above (a key still gets the gateway's own ceilings)",
+    )
 
 
 def _rates(sp: argparse.ArgumentParser) -> None:
@@ -412,6 +439,7 @@ def main(argv: list[str] | None = None) -> None:
     sp.add_argument("alias")
     _limits(sp)
     _rates(sp)
+    sp.add_argument("--max-parallel", type=int, help="most requests in flight at once")
     sp.add_argument("--team")
     sp.add_argument("--user")
     sp.add_argument("--tags", help="comma-separated tags applied to every request with this key")

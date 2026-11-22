@@ -3,6 +3,14 @@
 global:
   scrape_interval: 30s
 
+# The spend alerts (alerts.yml), and where they go (alertmanager.yml).
+rule_files:
+  - /etc/prometheus/alerts.yml
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
 scrape_configs:
   - job_name: litellm
     metrics_path: /metrics/

@@ -262,6 +262,8 @@ Gateway costs are **estimates** based on list prices and token counts. Caching d
 
 It also helps to give the proxy **its own provider API keys** (or a dedicated workspace or project) at each provider. Provider-side reports then line up one-to-one with gateway traffic, and you can set a provider-side hard limit as a final backstop.
 
+Set that limit. The gateway's budgets are checked before a call and can be overshot by the calls in flight, a gateway that is misconfigured or bypassed enforces nothing, and a provider's limit is the only one that holds in those cases. The gateway's own protections against a runaway call or loop, and what each does not cover, are listed in the [README](README.md#protections-against-runaway-usage).
+
 ---
 
 ## 6. When to choose something else

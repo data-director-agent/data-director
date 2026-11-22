@@ -240,6 +240,8 @@ if [[ "$gateway" == true ]]; then
     made="$(LITELLM_URL=http://127.0.0.1:4000 \
       LITELLM_MASTER_KEY="$(<"$gateway_credentials/litellm-master-key")" \
       python3 "$SRC/deploy/llm-gateway/scripts/admin.py" key create model-broker \
+      --budget 100 --period 30d --rpm 300 --tpm 1000000 --max-parallel 20 \
+      --models 'claude-*,gpt-*,gemini-*' \
       --tags service:model-broker | sed -n 's/^key: //p')"
     [[ "$made" == sk-* ]] || { echo "could not make the model broker's gateway key" >&2; exit 1; }
     (umask 077 && printf '%s' "$made" >"$broker_key")

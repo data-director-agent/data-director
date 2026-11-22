@@ -1,0 +1,27 @@
+# Where Alertmanager sends the rules in alerts.yml. As shipped it sends them nowhere: the alerts
+# show on Prometheus's Alerts page (http://localhost:9090/alerts) and nobody is told. Add a
+# receiver below, then restart it: `docker compose --profile monitoring up -d`.
+#
+# Email, for example (the SMTP password is a secret: keep it out of this file, in a file that
+# Alertmanager reads with `smtp_auth_password_file`):
+#
+#   global:
+#     smtp_smarthost: smtp.example.ac.uk:587
+#     smtp_from: gateway-alerts@example.ac.uk
+#     smtp_auth_username: gateway-alerts
+#     smtp_auth_password_file: /etc/alertmanager/smtp-password
+#   receivers:
+#     - name: operators
+#       email_configs:
+#         - to: operators@example.ac.uk
+#
+# Then set `receiver: operators` below.
+route:
+  receiver: nobody
+  group_by: [alertname]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+receivers:
+  - name: nobody

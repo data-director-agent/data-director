@@ -1,0 +1,65 @@
+# Alert rules for the gateway's spend. Prometheus evaluates them; Alertmanager (or Grafana) sends
+# them on (monitoring/alertmanager.yml). They come from the budget gauges in config.yaml
+# (`prometheus_initialize_budget_metrics`) and the spend counter, so they watch what the gateway
+# records, not what a provider bills.
+#
+# The dollar thresholds in the two spend-rate rules are placeholders. Set them to what the
+# deployment spends in an hour on a busy day, plus enough to be sure a real spike stands out.
+groups:
+  - name: llm-gateway-spend
+    rules:
+      - alert: GatewayKeyBudgetNearlyUsed
+        # A key with 20% or less of its budget left. A key with no budget has no max gauge above 0.
+        expr: |
+          (litellm_remaining_api_key_budget_metric / on(hashed_api_key) litellm_api_key_max_budget_metric) < 0.2
+          and on(hashed_api_key) litellm_api_key_max_budget_metric > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Key {{ $labels.api_key_alias }} has under 20% of its budget left"
+
+      - alert: GatewayTeamBudgetNearlyUsed
+        expr: |
+          (litellm_remaining_team_budget_metric / on(team) litellm_team_max_budget_metric) < 0.2
+          and on(team) litellm_team_max_budget_metric > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Team {{ $labels.team_alias }} has under 20% of its budget left"
+
+      - alert: GatewayKeyBudgetUsedUp
+        # The gateway now refuses this key's calls until its budget resets.
+        expr: |
+          (litellm_remaining_api_key_budget_metric <= 0)
+          and on(hashed_api_key) litellm_api_key_max_budget_metric > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Key {{ $labels.api_key_alias }} is out of budget and is being refused"
+
+      - alert: GatewaySpendSpike
+        # More than $20 in the last hour across the gateway: a loop or a leaked key looks like this.
+        expr: sum(increase(litellm_spend_metric_total[1h])) > 20
+        labels:
+          severity: critical
+        annotations:
+          summary: "The gateway has spent more than $20 in the last hour"
+
+      - alert: GatewayKeySpendSpike
+        expr: sum by (api_key_alias) (increase(litellm_spend_metric_total[1h])) > 10
+        labels:
+          severity: warning
+        annotations:
+          summary: "Key {{ $labels.api_key_alias }} has spent more than $10 in the last hour"
+
+      - alert: GatewayMetricsMissing
+        # Without the metrics none of the rules above can fire.
+        expr: absent(litellm_spend_metric_total) or up{job="litellm"} == 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Prometheus cannot read the gateway's spend metrics"
