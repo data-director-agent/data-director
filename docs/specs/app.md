@@ -645,7 +645,16 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   indented), and its Source tab shows the stored text exactly, since that is what a decision names
   by its digest and what the deposit package holds. Its Versions tab shows each version's
   decision and the lines it changed from the one before. While a person edits, the preview shows
-  their version. The list holds documents only.
+  their version. The decision form chooses nothing for the person:
+  approve, edit and reject start unchosen. While the latest version is undecided, the reader says
+  how many gaps it has (a README's placeholders, a data dictionary's unknown cells, a metadata
+  record's empty fields) and how many of its questions are open, in a bar held at the foot of the
+  window with a button to the decision, and again beside the button that records it. The counts are
+  the version's questions and the answers recorded to them (one question per gap,
+  [Drafting](drafting.md), invariant 5), never read from its prose. Approving a version with any gap
+  as it is asks again in a dialog that names the count, since an approval is final and the deposit
+  package takes it; rejecting, or editing and approving, does not, and keeps its reason rule (#1282).
+  The list holds documents only.
 - **A project's pages are tabs.** Beneath the breadcrumb, each of a project's pages is a tab with
   an address of its own: Documents (`/projects/{id}`), Researchers (`/researchers`), Members
   (`/members`), Project facts
