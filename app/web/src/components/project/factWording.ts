@@ -20,6 +20,7 @@ export const KIND_LABELS: Record<FactKind, string> = {
   licence: "Licence",
   sharing_commitment: "Sharing commitment in the plan",
   standard: "Standard, vocabulary or format",
+  data_management_plan: "Data Management Plan",
 };
 
 export const FILE_DECISION_LABELS: Record<FileDecision, string> = {
@@ -118,5 +119,7 @@ export function describeFact(fact: ProjectFact): string {
       return commitmentSentence(fact);
     case "standard":
       return standardSentence(fact);
+    case "data_management_plan":
+      return "One attached document is the project's Data Management Plan; the Documents page shows which.";
   }
 }

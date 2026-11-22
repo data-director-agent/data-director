@@ -1,8 +1,9 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 
 import { type Question, type ReplyAnswers, SHORT_TEXT_MAX } from "../../conversation/question";
+import { Button } from "../ui/Button";
 import { AskedQuestions, QuestionSeries } from "./QuestionSeries";
 
 const CHOICE: Question = {
@@ -279,5 +280,34 @@ describe("AskedQuestions", () => {
     render(<AskedQuestions questions={[CHOICE]} answers={null} />);
     expect(screen.queryByText(/your choice/)).toBeNull();
     expect(screen.queryByText("Skipped")).toBeNull();
+  });
+});
+
+describe("QuestionSeries, attaching a file", () => {
+  it("puts what attaches a file in the action row, alone or in a series", () => {
+    for (const questions of [[CHOICE], [CHOICE, TITLE]]) {
+      const { unmount } = render(
+        <QuestionSeries
+          questions={questions}
+          askedBy={ASKED_BY}
+          onAnswer={vi.fn()}
+          attach={<Button>Attach a file</Button>}
+        />,
+      );
+      const attach = screen.getByRole("button", { name: "Attach a file" });
+      expect(attach.closest(".question-actions")).not.toBeNull();
+      unmount();
+    }
+  });
+
+  it("takes a file dropped on the form", () => {
+    const drop = { dropping: false, onDragOver: vi.fn(), onDragLeave: vi.fn(), onDrop: vi.fn() };
+    const { container } = render(
+      <QuestionSeries questions={[CHOICE]} askedBy={ASKED_BY} onAnswer={vi.fn()} drop={drop} />,
+    );
+    const form = container.querySelector("form");
+    if (!form) throw new Error("no form");
+    fireEvent.drop(form);
+    expect(drop.onDrop).toHaveBeenCalled();
   });
 });

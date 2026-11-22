@@ -9,9 +9,9 @@ import type { ReactNode } from "react";
 
 import type { ProjectDocument, ProjectSummary } from "../../../project/api";
 import { documentHref, latestOf } from "../../../project/drafted";
-import type { ProjectFacts } from "../../../project/facts";
+import { type ProjectFacts, factKey } from "../../../project/facts";
 import { documentName } from "../../../project/name";
-import { Link, projectTabPath } from "../../../route";
+import { factsPath, Link } from "../../../route";
 import type { Resource } from "../../../useResource";
 import { IssueLinks } from "../../NotBuilt";
 import { KIND_LABELS, describeFact } from "../../project/factWording";
@@ -50,11 +50,6 @@ function documentRows(projectId: string, documents: readonly ProjectDocument[]):
 }
 
 function factRows(projectId: string, facts: ProjectFacts): Row[] {
-  const action = (
-    <Link className="button button-secondary button-small" to={projectTabPath(projectId, "facts")}>
-      Decide
-    </Link>
-  );
   return proposalsByKind(facts.proposals).map(([kind, proposals]) => {
     const [only] = proposals;
     return {
@@ -69,7 +64,16 @@ function factRows(projectId: string, facts: ProjectFacts): Row[] {
             <strong>{KIND_LABELS[kind]}</strong>: {proposals.length} proposals to decide
           </>
         ),
-      action,
+      // Lands on these proposals on the facts page, where they are decided.
+      action: (
+        <Link
+          className="button button-secondary button-small"
+          aria-label={`Review ${KIND_LABELS[kind]}`}
+          to={factsPath(projectId, proposals.map((p) => factKey(p.fact)))}
+        >
+          Review
+        </Link>
+      ),
     };
   });
 }

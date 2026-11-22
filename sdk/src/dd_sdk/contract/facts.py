@@ -106,6 +106,7 @@ class FactKind(StrEnum):
     LICENCE = "licence"
     SHARING_COMMITMENT = "sharing_commitment"
     STANDARD = "standard"
+    DATA_MANAGEMENT_PLAN = "data_management_plan"
 
 
 class FileDecision(StrEnum):
@@ -143,6 +144,10 @@ class LocationPrecision(StrEnum):
 STANDARD_TARGET_PATTERN = r"^(dataset|field:\S.*)$"
 DATASET_TARGET = "dataset"
 
+# The one subject a `data_management_plan` fact has, so that a project has at most one current
+# plan: the last decision on it stands (docs/specs/projects.md, invariant 32).
+PLAN_SUBJECT = "project"
+
 # The value slots each kind of project fact needs (the schema's rules on ProjectFact).
 FACT_NEEDS: dict[FactKind, tuple[str, ...]] = {
     FactKind.FUNDER: ("fact_funder_name",),
@@ -152,6 +157,7 @@ FACT_NEEDS: dict[FactKind, tuple[str, ...]] = {
     FactKind.LICENCE: ("licence_id",),
     FactKind.SHARING_COMMITMENT: ("commitment_quote", "commitment_document"),
     FactKind.STANDARD: ("standard_name",),
+    FactKind.DATA_MANAGEMENT_PLAN: ("plan_document",),
 }
 
 
@@ -186,6 +192,8 @@ class ProjectFact(Frozen):
     standard_id: str | None = None
     standard_kind: StandardKind | None = None
     standard_target: str | None = Field(default=None, pattern=STANDARD_TARGET_PATTERN)
+    # Which attached document is the project's data management plan, by its text's digest.
+    plan_document: str | None = Field(default=None, pattern=SHA256_PATTERN)
     # Shown to the person deciding; never given to an agent.
     proposed_because: str | None = None
 
@@ -194,6 +202,8 @@ class ProjectFact(Frozen):
         missing = [slot for slot in FACT_NEEDS[self.fact_kind] if getattr(self, slot) is None]
         if missing:
             raise ValueError(f"a {self.fact_kind} fact needs {', '.join(missing)}")
+        if self.fact_kind == FactKind.DATA_MANAGEMENT_PLAN and self.fact_subject != PLAN_SUBJECT:
+            raise ValueError(f"a data management plan fact's subject is {PLAN_SUBJECT!r}")
         return self
 
 
@@ -273,6 +283,9 @@ class DocumentationSummary(Frozen):
     documentation_added_at: datetime
     # The Word or PDF file's media type, for a document whose text was read from one.
     documentation_source_media_type: str | None = None
+    # True for the document a person decided is the project's data management plan; filled only
+    # by the conductor (docs/specs/projects.md, invariant 32).
+    documentation_is_plan: bool | None = None
 
 
 class ProjectDocument(DocumentationSummary):

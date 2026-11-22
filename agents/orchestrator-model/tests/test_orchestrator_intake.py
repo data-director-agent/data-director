@@ -13,7 +13,9 @@ from test_orchestrator_naming import in_project, turn
 
 from dd_agent_orchestrator_model.notes import LEAD, intake_note
 from dd_agent_orchestrator_model.prompt import SYSTEM_PROMPT
+from dd_harness.projects import FactVerdict
 from dd_harness.testing import TEST_PRINCIPAL
+from dd_harness.testing.plan_storage import plan_fact
 from dd_sdk.contract.models import IntakeAnswer, Message, OutcomeStatus
 from dd_sdk.intake import ENTRY, NO, NOT_SURE, YES, question
 
@@ -27,7 +29,9 @@ def label(question_id: str, value: str) -> str:
     return next(o.label for o in question(question_id).options if o.value == value)
 
 
-def first_note(tmp_path: Path, answers: dict[str, str], *, attach: bool = False) -> str:
+def first_note(
+    tmp_path: Path, answers: dict[str, str], *, attach: bool = False, mark: bool = False
+) -> str:
     """The text the model is sent on a project's first turn, after the intake's answers."""
     model = ScriptedModel([say("Let us start.")])
     conductor, project, conversation_id = in_project(tmp_path, model)
@@ -37,9 +41,17 @@ def first_note(tmp_path: Path, answers: dict[str, str], *, attach: bool = False)
             project, question_id, [value], acted_for=TEST_PRINCIPAL, caused_by="test"
         )
     if attach:
-        projects.add_documentation(
+        digest = projects.add_documentation(
             project, "plan.md", "text/markdown", "# Plan", acted_for=TEST_PRINCIPAL, caused_by="t"
         )
+        if mark:
+            projects.decide_fact(
+                project,
+                FactVerdict.CHANGED,
+                fact=plan_fact(digest),
+                acted_for=TEST_PRINCIPAL,
+                caused_by="t",
+            )
     env = turn(conductor, conversation_id, "I've answered the setup questions.")
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     content = model.sent[0]["messages"][-1]["content"]
@@ -64,14 +76,18 @@ def test_with_only_the_entry_point_answered_there_is_no_intake_note(tmp_path: Pa
     assert intake_paragraph(first_note(tmp_path, {})) is None
 
 
-def test_a_plan_the_researcher_has_is_invited_until_a_document_is_attached(
+def test_a_plan_the_researcher_has_is_invited_until_a_document_is_marked_as_it(
     tmp_path: Path,
 ) -> None:
+    """With no document attached the model invites the plan; with one attached but none marked
+    as the plan, it invites the researcher to mark it; once one is marked, it invites neither
+    (#1447)."""
     invited = intake_paragraph(first_note(tmp_path / "none", {DMP: YES}))
-    attached = intake_paragraph(first_note(tmp_path / "one", {DMP: YES}, attach=True))
-    assert invited is not None and attached is not None
-    assert "attach" in invited
-    assert "attach" not in attached
+    unmarked = intake_paragraph(first_note(tmp_path / "one", {DMP: YES}, attach=True))
+    marked = intake_paragraph(first_note(tmp_path / "two", {DMP: YES}, attach=True, mark=True))
+    assert invited is not None and unmarked is not None and marked is not None
+    assert "invite" in invited and "invite" in unmarked and invited != unmarked
+    assert "invite" not in marked
 
 
 def test_a_caller_cannot_supply_the_intake() -> None:

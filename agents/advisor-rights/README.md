@@ -18,11 +18,15 @@ The researcher chooses. The adviser never picks a licence or an access level.
 `RightsContext` may give `reuse_wanted` (in the researcher's own words, or one of `any`,
 `attribution`, `share-alike` or `non-commercial`), whether the data are `sensitive`, a
 `mandated_licence` as an SPDX identifier, and whether they include `third_party_content`. With
-none of these the agent abstains with `INSUFFICIENT_INPUT`.
+none of these the agent abstains with `INSUFFICIENT_INPUT`. In a project the conductor also gives
+the facts people decided (`project_decisions`), which take precedence over what the caller wrote
+(`given.py`): a decided licence is the mandated licence, and a decision to withhold or generalise
+a sensitive field or file says the data are sensitive when the caller left that unknown.
 
 `RightsOptions` holds:
 
-- `licences`: SPDX identifier, name, URL and a note for each one;
+- `licences`: SPDX identifier, name, URL and a note for each one (the name is the gateway's when
+  the licence was retrieved through it);
 - `access_levels`;
 - `questions` for the researcher: what reuse to allow, whether the data are sensitive, and who to
   ask about sensitive data and third-party rights;
@@ -79,6 +83,16 @@ Its grounding mode is `retrieval`, and its card declares the `spdx` server's `ge
 
 An agent declares one grounding mode, so both paths are `retrieval`.
 
+## Configuration
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `DD_RIGHTS_INTERPRETER` | `model` | `model` turns the interpreter model on; `template` turns it off and needs no key. `anthropic` is the older name for `model`. Any other value stops start-up. |
+
+The model's provider, id (default `claude-sonnet-5-5`) and key are set as for every advisor
+([AI models](../../docs/guide/operations/ai-models.md)). With no key and the variable unset,
+start-up fails and says to set `DD_RIGHTS_INTERPRETER=template`.
+
 ## What it does not do
 
 - It offers five licences (CC0-1.0, CC-BY-4.0, ODC-By-1.0, ODbL-1.0, CC-BY-NC-4.0) and reads no
@@ -90,3 +104,11 @@ An agent declares one grounding mode, so both paths are `retrieval`.
 - It does not judge whether the data are sensitive or who holds rights in them.
 - It has no evaluation set yet, so how often the model misreads a wish is not measured.
 - It is not legal advice.
+
+## Run it
+
+```sh
+uv run dd-advisor-rights serve --port 8115
+uv run workbench invoke --agent advisor.rights --input workbench/samples/rights-context.json
+uv run pytest agents/advisor-rights
+```

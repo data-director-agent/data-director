@@ -195,7 +195,11 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     attached; one opens at `?attached=<digest>` in a reader with a **Preview** laid out by its
     media type (`GET …/documentation/{digest}?preview`, which reads a Word document's file again as
     Markdown), the **Text** agents read, and, for one read from a Word document or PDF, the
-    original to download (`?original`). Nobody decides on an attached document. The page lists no
+    original to download (`?original`). Nobody decides on an attached document, but a person may
+    mark one as the project's Data Management Plan: the reader offers **Mark as the Data Management
+    Plan** and, on the one marked, **Not the plan**; both are a person's decision on the project's
+    `data_management_plan` fact, sent to `POST /api/projects/{id}/facts/decisions`, after which the
+    documents are read again ([Projects](projects.md), invariant 32; `PlanMark.test.tsx`). The page lists no
     conversations: they are on the Conversations tab
     (`app/web/src/components/project/AttachDocument.test.tsx`, `AttachedReader.tsx`,
     `ProjectPage.test.tsx`, `app/tests/test_project_materials.py`).
@@ -278,7 +282,13 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     app asks for no wider scope (`app/web/src/components/profile/ProfilePage.test.tsx`). It points
     to the Settings page (rule 30) for the person's own AI account and preferences.
 21. **A reply's questions are answered one at a time in a form, and may be ignored.** A reply's
-    `reply_questions` are drawn beneath the reply. On the latest turn each question is a fieldset
+    `reply_questions` are drawn beneath the reply on earlier turns. The latest turn's take the
+    message box's place, so that one way of replying shows at a time: beneath them, **Reply in my
+    own words instead** shows the message box, and **Answer the questions instead** under the box
+    shows them again with what was entered kept; text put in the box for the researcher, as by a
+    step's prompt, shows the box. **Attach a file** leads the questions' action row, and a file
+    may be dropped on their form; it is checked as one attached to a message is (rule 19), and
+    sent with the answers in one turn. On the latest turn each question is a fieldset
     whose legend is the question and whose description is its help: a choice question as radio
     buttons, or checkboxes where several may be chosen, each option a card the whole of which can
     be clicked (the control stays visible and ticked beside an accent bar), with "Something else"
@@ -299,9 +309,11 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     Markdown, each question asked in bold followed by its answer (several options chosen as a list)
     or by `_Skipped_`, with the question's and the researcher's words escaped so that they read as
     written; the transcript renders such a message as Markdown, and a typed one as typed. The
-    server refuses answers the harness's `answer_problem` rejects, and nothing runs. The message
-    box stays usable, so the researcher may type instead (`app/tests/test_app.py`,
-    `app/web/src/components/conversation/QuestionSeries.test.tsx`, `e2e/shell.spec.ts`).
+    server refuses answers the harness's `answer_problem` rejects, and nothing runs. A send that
+    fails keeps the answers in their form and puts what was attached back. The researcher may
+    reply in their own words instead (`app/tests/test_app.py`,
+    `app/web/src/components/conversation/QuestionSeries.test.tsx`,
+    `app/web/src/components/conversation/ConversationHome.test.tsx`, `e2e/shell.spec.ts`).
 22. **The policy page shows the profile the gate holds runs to.** `/policy`, in the main navigation
     and linked from each place that names the policy, is drawn from `GET /api/policy`: the
     profile's reference, description, digest and orchestrator, each agent it enables with the
@@ -483,7 +495,13 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     server read back. A proposal that has moved on is read again with a warning, and a member
     deciding whether sensitive data is published, or the licence, is told only an owner may
     (`app/web/src/components/project/FactsPanel.test.tsx`, `app/tests/test_project_facts.py`,
-    [Projects](projects.md), invariant 28).
+    [Projects](projects.md), invariant 28). The way to a proposal is one press from where it
+    was made: a delegated run's card in the conversation lists the facts it proposed, a few in
+    words and the rest counted, with **Review them in Project facts**, and each fact the project
+    pane names links to it. Such a link names the facts by kind and subject
+    (`/projects/{id}/facts?fact={kind}:{subject}`, repeated), and the panel marks them, brings the
+    first into view and moves focus to it, or says that none of them is there any more
+    (`ProposedFacts.test.tsx`, `app/web/e2e/facts.spec.ts`). Nothing but the panel decides one.
 30. **A person's own settings are on the Settings page.** `/settings`, reached from the cog
     labelled **Settings** in the banner on every page and from the profile page, holds what a
     person sets for themselves, in tabs (**AI account**, **Appearance**, **Dates and times** and
@@ -896,8 +914,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   conversation's own first; and the guardrails, closed until opened. What waits comes first
   because it is what a person must act on (`docs/ui/best-practices.md` §1, §2); the facts sit
   beside the chat so that a wrong one is seen before an answer built on it is relied on (§4). The
-  pane decides nothing: a button goes to the project page where the decision is made, or puts a
-  question in the message box, unsent. Approval before an agent acts and the pause for personal
+  pane decides nothing: a button goes to the project page where the decision is made, landing on
+  the fact or document concerned (rule 29), or puts a question in the message box, unsent. Approval before an agent acts and the pause for personal
   data are drawn as not built (#72, #39); the guardrails link to what the policy delegates at each
   step.
   The activity log spans runs and conversations, so it is a page of its own in the main

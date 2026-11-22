@@ -48,6 +48,9 @@
       "documentation_digest": {
          "@id": "https://w3id.org/data-director/documentation_digest"
       },
+      "documentation_is_plan": {
+         "@id": "https://w3id.org/data-director/documentation_is_plan"
+      },
       "documentation_media_type": {
          "@id": "https://w3id.org/data-director/documentation_media_type"
       },
@@ -113,6 +116,9 @@
       },
       "name": {
          "@id": "http://schema.org/name"
+      },
+      "plan_document": {
+         "@id": "https://w3id.org/data-director/plan_document"
       },
       "policy": "https://w3id.org/data-director/agents/policy/",
       "policy_url": {

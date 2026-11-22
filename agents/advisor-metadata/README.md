@@ -1,7 +1,8 @@
 # advisor.metadata
 
-**Alpha** (`0.2.0a1`), a model-backed alpha (docs/specs/agents.md, invariant 14), and the drafter
-of a project's metadata record (#200). Its model is on by default (`DD_METADATA_SUGGESTER=template` turns it off), and it only
+**Model-backed alpha** (`0.2.0a1`): the Metadata Librarian persona
+([Agents](../../docs/specs/agents.md), invariant 14), the drafter of a project's metadata record
+(#200). Its model is on by default (`DD_METADATA_SUGGESTER=template` turns it off), and it only
 suggests values beside the record's questions (#698).
 
 The Metadata Librarian drafts a metadata record for a dataset, for the researcher to review before
@@ -34,7 +35,7 @@ property in the request's `requirements` is written:
   public ORCID records ([Projects](../../docs/specs/projects.md), invariant 27), and the
   repository asks for the property: `creators` lists each researcher with their name (or `null`
   if they did not keep it), their ORCID iD as a name identifier, and the employers they kept that
-  they still work for, with ROR identifiers where ORCID gives them; `subjects` adds their keywords
+  they still work for, with the organisation's identifier (such as a ROR) where ORCID gives one; `subjects` adds their keywords
   after the entries the repository's vocabularies ask for; and `fundingReferences` lists their
   grants, with the funder's identifier and the award number.
 - A property `datacite.yaml` does not know is written as `null`.
@@ -91,8 +92,10 @@ question that already offers one.
   record, whose text stays the template's byte for byte. It becomes part of the record only when
   a person records it, or a correction of it, as their answer.
 
-The model is given the chosen repository's name and requirements and the inventory's structure:
-each file's path, media type and size, and its fields' names, types and formats. It is never given
+The model is given the chosen repository's name and requirements, the inventory's structure (each
+file's path, media type and size, and its fields' names, types and formats) and the text of the
+questions it may suggest for. The subjects question names the vocabularies the project chose, so
+those names go too. It is never given
 the data, a description a person wrote, the researchers' ORCID records, an answer or an earlier
 version. A suggestion is dropped if it answers a question the model was not offered, repeats one,
 is longer than a short paragraph, is not one line of plain text, or names a link, DOI, email
@@ -105,6 +108,19 @@ a named vocabulary, such as an ANZSRC field of research.
 
 Its grounding mode is `input_only`: it cites only its input. The core `Document` has no
 `limitations` slot, so the outcome's statement says what it does not do (docs/specs/agents.md).
+
+## Configuration
+
+| Variable | Default | Effect |
+|---|---|---|
+| `DD_METADATA_SUGGESTER` | `model` | `model` has a model suggest values beside the questions; `template` suggests nothing, calls no model and needs no key. `anthropic` is the older name for `model`. Any other value is a configuration error. |
+
+With `model`, the provider, model id and key are those every advisor uses
+([AI models](../../docs/guide/operations/ai-models.md)); the model defaults to `claude-sonnet-5-5`,
+and the agent's card declares it, with whether it is hosted, for the profile's rules on project
+content. With the setting unset and no key, `dd-advisor-metadata serve` stops at start-up and says to
+set `DD_METADATA_SUGGESTER=template` to run without a model. Settings are described in
+`config/examples/agents.env`.
 
 ## What it does not do
 
@@ -122,3 +138,11 @@ Its grounding mode is `input_only`: it cites only its input. The core `Document`
 
 The fully designed librarian, which drafts against controlled vocabularies and maps between
 schemas, is TODO(#357).
+
+## Run it
+
+```sh
+uv run dd-advisor-metadata serve --port 8113
+uv run workbench invoke --agent advisor.metadata --input workbench/samples/soil-survey.metadata-record.draft.json
+uv run pytest agents/advisor-metadata
+```

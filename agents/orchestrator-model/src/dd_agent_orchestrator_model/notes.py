@@ -110,8 +110,9 @@ def intake_note(message: Message) -> str | None:
     shows a "Not sure", and an answer about a plan shows only as an out-of-scope step skipped, so
     without this note the model is not told of them, and denies them when the researcher says
     they answered (#341). When the researcher said
-    they have a Data Management Plan and the project holds no attached document, the note asks the
-    model to invite them to attach it first, since the drafters and the plan check read it."""
+    they have a Data Management Plan and no attached document is marked as the plan, the note asks
+    the model to invite them to attach it, or to mark which attached document it is, since the
+    drafters and the plan check read it (#1447)."""
     answers = message.project_intake or []
     if not answers:
         return None
@@ -126,15 +127,22 @@ def intake_note(message: Message) -> str | None:
         "step needs it."
     )
     dmp = next((a for a in answers if a.intake_question_id == _DMP), None)
-    if (
-        dmp is not None
-        and _label(_DMP, YES) in dmp.intake_answer_labels
-        and not message.project_documentation
-    ):
-        note += (
+    if dmp is None or _label(_DMP, YES) not in dmp.intake_answer_labels:
+        return note
+    documents = message.project_documentation or []
+    if not documents:
+        return note + (
             " They have a Data Management Plan and have attached no document to the project: "
-            "before asking what the plan may already say, invite them to attach it, as the "
-            "drafters and the Data Management Plan check read an attached plan's text."
+            "before asking what the plan may already say, invite them to attach it and mark it "
+            "as their plan, as the drafters and the Data Management Plan check read an attached "
+            "plan's text."
+        )
+    if not any(d.documentation_is_plan for d in documents):
+        return note + (
+            " They have a Data Management Plan, and no attached document is marked as it: "
+            "before asking what the plan may already say, invite them to mark which attached "
+            "document is their plan on the project's Documents page, or to attach it, as the Data "
+            "Management Plan check then reads that document alone."
         )
     return note
 
@@ -262,7 +270,11 @@ def documents_note(message: Message, manifest: Sequence[Mapping[str, Any]] = ())
     documents = message.project_documentation or []
     if not documents:
         return None
-    names = ", ".join(json.dumps(d.documentation_name) for d in documents)
+    names = ", ".join(
+        json.dumps(d.documentation_name)
+        + (" (marked as the project's Data Management Plan)" if d.documentation_is_plan else "")
+        for d in documents
+    )
     note = LEAD + f"The researcher attached to the project: {names}."
     if manifest:
         note += _readers(manifest)
@@ -359,6 +371,11 @@ def _standard(fact: ProjectFact) -> str:
     return said + (f" ({fact.standard_id})" if fact.standard_id else "")
 
 
+def _plan(_: ProjectFact) -> str:
+    """Which document is named in the documents note; a digest says nothing to the model."""
+    return "data management plan: one attached document is marked as the project's plan"
+
+
 _SAYS: dict[FactKind, Callable[[ProjectFact], str]] = {
     FactKind.FUNDER: _funder,
     FactKind.REQUIRED_REPOSITORY: _required,
@@ -367,6 +384,7 @@ _SAYS: dict[FactKind, Callable[[ProjectFact], str]] = {
     FactKind.LICENCE: _licence,
     FactKind.SHARING_COMMITMENT: _commitment,
     FactKind.STANDARD: _standard,
+    FactKind.DATA_MANAGEMENT_PLAN: _plan,
 }
 
 

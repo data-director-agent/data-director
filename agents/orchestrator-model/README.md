@@ -10,14 +10,19 @@ grounding mode `delegation`, with `reply_derivation` `model`.
 | Agent id | `orchestrator.model` |
 | Serve | `dd-orchestrator-model serve --port 8107` (`scripts/run-agents.sh`) |
 | Model | `claude-sonnet-5-5`, and `claude-haiku-5-5` for titles, at the time of writing, declared in `AgentSpec.models` |
-| Status | Alpha (`0.1.0`) |
+| Persona | Data Director |
+| Status | Alpha (`0.1.1-alpha.5`) |
 
 ## What it cannot do
 
-**The orchestrator has no tools except its delegations** ([Orchestration](../../docs/specs/orchestration.md)
-decision 15). The model is offered one tool per input class of each agent in the harness's
-manifest, and nothing else: no MCP server, no web search or fetch, no code execution and no Agent
-Skills. Every lookup is therefore a child run that the harness governs, stores and grounds.
+**The orchestrator has no tools except its delegations and three of its own that reach nothing**
+([Orchestration](../../docs/specs/orchestration.md), invariant 8). The model is offered one tool
+per input class of each agent in the harness's manifest, and `ask_questions`, `name_project` and
+`set_entry_point` (`own_tools.py`), and nothing else: no MCP server, no web search or fetch, no
+code execution and no Agent Skills. `ask_questions` ends the turn with questions for the
+researcher; `name_project` and `set_entry_point` are offered only while a person has not named the
+project or chosen its entry point, and put the name or the entry point on the reply for the
+conductor to record. A fourth, `suggest_setup_answers`, is specified but not built, TODO(#908). Every lookup is therefore a child run that the harness governs, stores and grounds.
 
 If the orchestrator needs to know something new, such as a registry, a funder's policy or a PID
 service, write or extend an agent that serves the step and let the orchestrator delegate to it.
@@ -54,12 +59,15 @@ the project is for the harness to supply (#341, #160).
    model one tool per input class of each agent, leaving out delegation agents, itself included.
    No list of agents is configured here, so an agent registered with the harness can be asked as
    soon as the profile permits it.
-   Each tool's description also names the steps its agent `serves` and the requirements those
-   steps apply ([Orchestration](../../docs/specs/orchestration.md)). The system
-   prompt carries the Blueprint's process flow (`dd_sdk.process_flow`): on a first turn that
-   does not say, the model asks which of the three entry points applies, then takes the
-   researcher through the steps from there, naming any step no tool serves with its requirement
-   ([Orchestration](../../docs/specs/orchestration.md)).
+   Each tool's description also names the steps its agent `serves`
+   ([Orchestration](../../docs/specs/orchestration.md)). The system
+   prompt carries the Blueprint's process flow (`dd_sdk.process_flow`) without requirement IDs: on
+   a first turn that does not say, and where no entry point is known, the model asks which of the
+   three entry points applies, then takes the researcher through the steps from there. A step no
+   tool serves is named as one no agent can help with yet, with general background and a choice of
+   steps that have an agent ([Orchestration](../../docs/specs/orchestration.md), invariant 14).
+   Without a grant to delegate, as under `workbench invoke`, the run abstains with
+   `CAPABILITY_NOT_IMPLEMENTED`.
 2. It sends the model the last `DD_ORCHESTRATOR_HISTORY` turns of the conversation, then the
    current message. Turns before the first user turn in that window are dropped. The whole
    history is still covered by the input hash.
@@ -74,7 +82,7 @@ the project is for the harness to supply (#341, #160).
    check those citations against what the conductor recorded.
 
 The run succeeds once the model has replied, whatever its children's outcomes were ([Orchestration](../../docs/specs/orchestration.md)
-decision 14). It fails, as `failed(agent-error)`, only when it cannot reply: the Messages API
+invariant 10). It fails, as `failed(agent-error)`, only when it cannot reply: the Messages API
 failed, or the model declined the request after the server-side fallback
 (`fallbacks: "default"`). Its reply is never replaced by a template.
 
@@ -180,4 +188,5 @@ uv run pytest agents/orchestrator-model
 `test_orchestrator_only_delegates.py` checks the limit in "What it cannot do".
 `test_orchestrator_key_not_stored.py` replays three Messages API replies from a hand-written
 cassette through the real client. It checks that the tool loop works and that the key reaches
-no stored record.
+no stored record. `test_orchestrator_exclusions.py` replays one reply, to check that a request to
+leave files out is pointed to Edit inventory.

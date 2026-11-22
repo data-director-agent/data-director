@@ -24,6 +24,7 @@ from dd_harness.testing import (
     make_conductor,
     request,
 )
+from dd_harness.testing.plan_storage import plan_fact
 from dd_sdk.agent import AgentResult, ModelUse
 from dd_sdk.contract.models import (
     GroundingMode,
@@ -111,6 +112,49 @@ def test_a_class_with_the_mixins_is_given_the_documents_and_decisions_in_place_o
     assert (document["documentation_name"], document["documentation_text"]) == ("dmp.md", PLAN)
     (decision,) = given["project_decisions"]
     assert decision["fact_funder_name"] == FUNDER["fact_funder_name"]
+
+
+def test_the_document_a_person_marked_as_the_plan_is_given_as_the_plan(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """The conductor says which attached document is the project's data management plan, from
+    a person's decision, whatever the caller sent (invariant 32)."""
+    notes = projects.add_documentation(
+        project,
+        "notes.md",
+        "text/markdown",
+        "Field notes.",
+        acted_for=TEST_PRINCIPAL,
+        caused_by="t",
+    )
+    (plan,) = [
+        d["documentation_digest"]
+        for d in projects.documentation(project)
+        if d["documentation_name"] == "dmp.md"
+    ]
+    projects.decide_fact(
+        project,
+        FactVerdict.CHANGED,
+        fact=plan_fact(plan),
+        acted_for=TEST_PRINCIPAL,
+        caused_by="test",
+    )
+    runs = tmp_path / "runs"
+    conductor = conductor_over(runs, projects, FactStub())
+    sent = ProbeReading(
+        project_documents=[FORGED_DOCUMENT.model_copy(update={"documentation_is_plan": True})]
+    )
+
+    env = conductor.invoke(
+        in_project(projects, project, request("stub.facts", sent)), acting_for=TEST_PRINCIPAL
+    )
+
+    given = stored_input(runs, env.invocation_id)
+    marked = {
+        d["documentation_digest"]: d.get("documentation_is_plan")
+        for d in given["project_documents"]
+    }
+    assert marked == {plan: True, notes: None}
 
 
 def test_outside_a_project_the_caller_gives_its_own_as_to_a_drafter(

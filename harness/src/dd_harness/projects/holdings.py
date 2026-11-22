@@ -16,6 +16,10 @@ A Word document or a PDF with a text layer is kept as the file and the text read
 the deployment (`add_document_file`, `dd_harness.projects.extract`): the text is the document an
 agent is given, as plain text, and the event names the file's media type, size and digest too, so
 the file can be served beside it (`documentation_source`).
+
+The document a person decided is the project's data management plan (a `data_management_plan`
+fact, `dd_harness.projects.facts.current_plan`) is listed with `documentation_is_plan`, so the
+app, the orchestrator and every agent given the documents know which one it is.
 """
 
 from __future__ import annotations
@@ -26,6 +30,7 @@ from functools import cache
 from typing import Any, Final
 
 from dd_harness.projects.extract import extract_text, extracted_media_type
+from dd_harness.projects.facts import current_plan
 from dd_harness.projects.fold import text_digest
 from dd_harness.projects.rules import (
     DOCUMENTATION_ADDED,
@@ -184,9 +189,12 @@ class Holdings(ProjectRules):
     def documentation(self, project_id: str) -> list[dict[str, Any]]:
         """Each document the project holds, without its text, as a `DocumentationSummary`: the
         one added first first, and a name and text added again listed once, when first added.
-        Raises `UnknownProjectError` for an unknown project."""
+        The project's data management plan carries `documentation_is_plan`. Raises
+        `UnknownProjectError` for an unknown project."""
+        events = self.events(project_id)
+        plan = current_plan(events)
         found: dict[tuple[str, str], dict[str, Any]] = {}
-        for event in self.events(project_id):
+        for event in events:
             if event["event"] != DOCUMENTATION_ADDED:
                 continue
             found.setdefault(
@@ -202,6 +210,7 @@ class Holdings(ProjectRules):
                         if "source_media_type" in event
                         else {}
                     ),
+                    **({"documentation_is_plan": True} if event["digest"] == plan else {}),
                 },
             )
         return list(found.values())

@@ -18,8 +18,10 @@ In a project it is also given the documents the researcher attached and the fact
 (`sharing_commitment` facts) are compared with the planned outputs as typed ones are. Where none
 is confirmed or typed but a plan is attached, a model reads the plan (`read_plan.py`) and the
 checker proposes each commitment it finds, with the quoted passage, as a project fact for the
-researcher to confirm or correct; it compares nothing until they have (#962). It reads only its
-input, so its grounding mode is `input_only` and it cites only its input. Reading a
+researcher to confirm or correct; it compares nothing until they have (#962). When a person has
+marked a document as the project's plan, only that document is read; when none is marked, the
+checker also proposes the document it read the commitments from as the plan (#1447). It reads
+only its input, so its grounding mode is `input_only` and it cites only its input. Reading a
 machine-actionable plan (the RDA DMP Common Standard, #284) is TODO(#701).
 """
 
@@ -41,7 +43,14 @@ from dd_agent_advisor_dmp.match import (
     model_use,
     residue_of,
 )
-from dd_agent_advisor_dmp.read_plan import PlanReader, Reading, TemplateReader, confirmed
+from dd_agent_advisor_dmp.read_plan import (
+    PlanReader,
+    Reading,
+    TemplateReader,
+    confirmed,
+    plan_documents,
+    plan_proposal,
+)
 from dd_sdk.agent import (
     AgentResult,
     AgentSpec,
@@ -167,8 +176,9 @@ class DmpChecker:
 
     def _read(self, commitments: DmpCommitments, ctx: RunContext) -> AgentResult:
         """A plan's commitments, proposed as facts for the researcher to confirm; nothing is
-        compared until they have."""
-        reading = self.reader.read(commitments.project_documents, ctx)
+        compared until they have. Only the document a person marked as the plan is read, when one
+        is; otherwise the document the commitments were read from is proposed as the plan."""
+        reading = self.reader.read(plan_documents(commitments.project_documents), ctx)
         if reading.model_id is None:
             return abstain(
                 ReasonCode.CAPABILITY_NOT_IMPLEMENTED,
@@ -180,7 +190,10 @@ class DmpChecker:
             payload=DmpDiscrepancies(
                 dropped=list(reading.dropped),
                 limitations=list(LIMITATIONS),
-                proposed_facts=list(reading.proposals),
+                proposed_facts=[
+                    *reading.proposals,
+                    *plan_proposal(reading.proposals, commitments.project_documents),
+                ],
                 grounded_on=[input_ref(ctx)],
             ),
             evidence=[input_evidence(ctx)],

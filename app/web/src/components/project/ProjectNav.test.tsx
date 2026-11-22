@@ -5,12 +5,13 @@ import { ProjectNav } from "./ProjectNav";
 
 describe("ProjectNav", () => {
   it("places the project under Projects and links its pages, marking the one shown", async () => {
-    const { container } = render(<ProjectNav projectId="p 1" name="Moorland" current="journey" />);
-    const crumbs = screen.getByRole("navigation", { name: "Breadcrumb" });
-    expect(within(crumbs).getByRole("link", { name: "Projects" })).toHaveAttribute(
-      "href",
-      "/projects",
+    const { container } = render(
+      <ProjectNav projectId="p 1" name="Moorland" current="journey" />,
     );
+    const crumbs = screen.getByRole("navigation", { name: "Breadcrumb" });
+    expect(
+      within(crumbs).getByRole("link", { name: "Projects" }),
+    ).toHaveAttribute("href", "/projects");
     expect(within(crumbs).getByText("Moorland")).toBeInTheDocument();
 
     const tabs = screen.getByRole("navigation", { name: "Project" });
@@ -20,14 +21,20 @@ describe("ProjectNav", () => {
     expect(documents).not.toHaveAttribute("aria-current");
     expect(map).toHaveAttribute("href", "/projects/p%201/journey");
     expect(map).toHaveAttribute("aria-current", "page");
-    expect(within(tabs).getByRole("link", { name: "Conversations" })).toHaveAttribute("href", "/");
+    expect(
+      within(tabs).getByRole("link", { name: "Conversations" }),
+    ).toHaveAttribute("href", "/");
     expect(await axe(container)).toHaveNoViolations();
   });
 
   it("lists the tabs in the order the work goes", () => {
     render(<ProjectNav projectId="p" name="Moorland" current="documents" />);
     const tabs = screen.getByRole("navigation", { name: "Project" });
-    expect(within(tabs).getAllByRole("link").map((a) => a.textContent)).toEqual([
+    expect(
+      within(tabs)
+        .getAllByRole("link")
+        .map((a) => a.textContent),
+    ).toEqual([
       "Documents",
       "Project facts",
       "People",
@@ -51,21 +58,22 @@ describe("ProjectNav", () => {
       "Deposit package": "/projects/p%201/deposit",
     };
     for (const [name, href] of Object.entries(paths)) {
-      expect(within(tabs).getByRole("link", { name })).toHaveAttribute("href", href);
+      expect(within(tabs).getByRole("link", { name })).toHaveAttribute(
+        "href",
+        href,
+      );
     }
-    expect(within(tabs).getByRole("link", { name: "Repository" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
+    expect(
+      within(tabs).getByRole("link", { name: "Repository" }),
+    ).toHaveAttribute("aria-current", "page");
   });
 
   it("marks Documents on the documents page, and names the project generically until known", () => {
     render(<ProjectNav projectId="p" name={null} current="documents" />);
     expect(screen.getByText("This project")).toBeInTheDocument();
     const tabs = screen.getByRole("navigation", { name: "Project" });
-    expect(within(tabs).getByRole("link", { name: "Documents" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
+    expect(
+      within(tabs).getByRole("link", { name: "Documents" }),
+    ).toHaveAttribute("aria-current", "page");
   });
 });

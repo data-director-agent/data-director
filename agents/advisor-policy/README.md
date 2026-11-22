@@ -1,6 +1,8 @@
 # advisor.policy
 
-**Alpha** (`0.1.0-alpha`): exploratory, and likely to change shape.
+**Model-backed alpha** (`0.1.0-alpha.3`): the Policy Adviser persona
+([Agents](../../docs/specs/agents.md)), exploratory and likely to change shape. Its grounding mode
+is `retrieval`.
 
 The policy advisor checks what the data and open access policies of a project's funders, journals
 and institution ask of it. It serves two steps of the Blueprint's process flow (§8.2):
@@ -42,6 +44,11 @@ ambiguous. It may also give the disciplines, the kinds of data and the publicati
   within one scope, grounded on every policy involved.
 - `mandated_repositories`: the repositories a matched policy requires.
 - `no_record`: the actors with no policy record.
+- `readings`: what a model read in each policy's own text (see
+  [Reading the policy's own text](#reading-the-policys-own-text)).
+- `not_searched`: each registry that was not asked in this run, with the reason.
+- `searched`: the queries made, the snapshot labels that answered and the number of policies
+  retrieved.
 - `limitations`: what the adviser does not do (its sources, what a record is, and what a model's
   reading of the text is worth), on every payload.
 - `funders`: each funder identified in ROR, grounded on its ROR record (the identifier is stated
@@ -111,13 +118,26 @@ never taken alone:
 
   What is dropped, and why, is in the statement. If the model declines, cannot be reached, or
   submits no findings, the template is used and the statement says so. The model is sent
-  registry text and the context, never research data.
+  registry text, the context (disciplines, kinds of data, publication date) and, when policy text
+  is read (below), the text of each policy page or attached document, never research data.
 - **Template** (`explain.py`, `DD_POLICY_ADVISOR=template`). The rationale is written from a
   template, and obligations are only those read by rule.
 - **Conflicts**. When matched policies state the same kind of obligation with different
   strengths, such as a funder requiring deposit where the institution only recommends it, the
   difference is listed for a person to resolve. Data and publication obligations are compared
   separately.
+
+## Outcomes
+
+- `succeeded`: at least one policy was matched, or none was but a funder or journal was
+  identified, a candidate list is returned or a policy's text was read. The statement ends
+  "Human review is required."
+- `abstained` with `INSUFFICIENT_INPUT`: the context names no actor.
+- `abstained` with `NO_CANDIDATES_RETRIEVED`: no registry has a record of any actor, no funder was
+  identified and no policy text was read.
+- `abstained` with `REGISTRY_UNAVAILABLE`: FAIRsharing could not be searched and no snapshot
+  stood in; or Open Policy Finder is not configured and, with nothing matched, identified or
+  read, the run could not search.
 
 ## Configuration
 
@@ -139,8 +159,8 @@ never taken alone:
   [Open Policy Finder](https://openpolicyfinder.jisc.ac.uk/help/developers/how-to-request-a-new-api-key).
   On a VM: `sudo data-director secret set advisor-policy open-policy-finder-api-key`. Without
   it, the agent warns at start-up and lists Open Policy Finder in the payload's `not_searched`;
-  a run that matches no policy for a funder or journal abstains with `registry_unavailable`,
-  because it could not search, and `doctor` notes the key as not set.
+  a run that finds nothing for a funder or journal, identifies nothing and reads no text abstains
+  with `REGISTRY_UNAVAILABLE`, because it could not search, and `doctor` notes the key as not set.
 - `DD_POLICY_CROSSREF`: `live` (the default) asks Crossref which publisher a journal belongs to;
   `off` does not.
 
@@ -169,7 +189,7 @@ its label is `ror:dump:<version>`. `uv run dd-ror fetch --update-pin` pins the n
 
 - FAIRsharing's policy records are coarse, and many institutions have none. They have no field
   for embargoes or for when data must be shared; a model can read these from a record's text
-  only where the record states them. The policies' own pages are not read. TODO(#904)
+  only where the record states them, or from the policy's own page (below).
 - Open Policy Finder's client was written from Jisc's documentation and the Sherpa v2 API's shape,
   without a key: the `funder` item type, the filter fields and the answer's shape are still to be
   confirmed, and the test fixtures are hand-written. TODO(#302)
@@ -181,14 +201,17 @@ its label is `ror:dump:<version>`. `uv run dd-ror fetch --update-pin` pins the n
   gateway. TODO(#1143)
 - The FAIRsharing API returns no relations from a policy to the databases and standards it
   names, even for policies that list repositories on the website. So the repository and standard
-  obligations are `unstated`, and `mandated_repositories` is empty, until a route provides them.
+  obligations read by rule are `unstated`, and `mandated_repositories` is empty, until a route
+  provides them. A repository a model reads in a policy's text is quoted in the obligation or
+  reading and named in the statement, not listed there.
   An empty list is not evidence that no repository is mandated, and the statement says so,
   naming the actors with no record as unchecked. TODO(#302, #331)
 - An actor is matched by rule by name, and only to a record whose name contains one of its
   names. A funder is searched by every name ROR gives it, a journal also by its publisher's, and
   an institution only by the name given. ROR's live search reads the first page of results only, so a common name may need the
   dump or the identifier.
-- A funder's affiliation country does not yet rank its ROR candidates.
+- A funder's affiliation country does not rank its ROR candidates.
+- It has no evaluation set, so how many policies it misses is not measured.
 - Differences are found between strengths only. Two policies that require different
   repositories are not yet compared. TODO(#331)
 
@@ -230,3 +253,13 @@ Pages are read live and not pinned, so the source check reports them as unresolv
 the text requires are in `readings` and the statement; they are not yet passed to
 `advisor.repository` as mandated (#753). No run with a real model has measured how accurate the
 readings are.
+
+## Run it
+
+```bash
+uv run dd-advisor-policy serve --port 8108
+uv run workbench invoke --agent advisor.policy --input workbench/samples/policy-context.json
+uv run pytest agents/advisor-policy
+```
+
+With no model key, set `DD_POLICY_ADVISOR=template`.

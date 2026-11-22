@@ -8,10 +8,11 @@ names a proposal and takes it as it is, `changed` gives the person's own `Projec
 proposal's kind and subject or for one nobody proposed, and `rejected` names a proposal or a
 fact's kind and subject. A decision on a proposal the project does not hold is answered `404`;
 one on a proposal a later proposal or decision on its kind and subject has followed, and a changed
-fact of another kind or subject than its proposal's, `409`. Members may decide
-funders, required repositories and which files go in; whether sensitive data may be published,
-and the licence, have legal consequences, so only an owner may decide them. Who decided is whom
-the authenticator names, never the body.
+fact of another kind or subject than its proposal's, `409`; a Data Management Plan that is no
+document the project holds, `404`. Members may decide which attached document is the project's
+Data Management Plan, funders, required repositories and which files go in; whether sensitive
+data may be published, and the licence, have legal consequences, so only an owner may decide
+them. Who decided is whom the authenticator names, never the body.
 """
 
 from __future__ import annotations
@@ -142,12 +143,14 @@ def _kind(
 
 
 def _change_refused(exc: ProjectError, project_id: str) -> Response:
-    """`404` for a proposal that is not there, `409` for a proposal a later proposal or decision
-    has followed or a fact that is not the proposal's, and `400` for a decision the project
-    refuses."""
+    """`404` for a proposal or a plan's document that is not there, `409` for a proposal a later
+    proposal or decision has followed or a fact that is not the proposal's, and `400` for a
+    decision the project refuses."""
     if isinstance(exc, ChangeRefusedError):
         if exc.refusal is Refusal.NO_PROPOSAL:
             return problem(404, exc.refusal.value, "No such proposal", exc.detail)
+        if exc.refusal is Refusal.NOT_ATTACHED:
+            return problem(404, exc.refusal.value, "No such document", exc.detail)
         if exc.refusal is Refusal.SUPERSEDED:
             return problem(409, exc.refusal.value, "Proposal already decided", exc.detail)
         return problem(409, exc.refusal.value, "Not the fact proposed", exc.detail)

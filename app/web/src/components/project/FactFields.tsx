@@ -242,6 +242,9 @@ function KindValues({ fact, set, isNew }: { fact: ProjectFact; set: Setter; isNe
           <TextValue label="Under what licence" slot="commitment_licence" fact={fact} set={set} />
         </>
       );
+    case "data_management_plan":
+      // Which document is the plan is chosen on the Documents page, not typed here.
+      return null;
     case "standard":
       // What it is chosen for stays as proposed; a standard a person states is for the dataset.
       return (

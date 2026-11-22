@@ -1,6 +1,7 @@
 # Running an agent
 
-The app lists every agent the harness has registered. Each agent has three tabs:
+The app lists every agent the harness has registered; [The agents](agents.md) says what each does
+and which workflow step it serves. Each agent has three tabs:
 
 - **Run**: a form drawn from the agent's input, with example inputs. Submitting it runs the agent
   through the conductor. The page shows the stages, the outcome, the result and the evidence it

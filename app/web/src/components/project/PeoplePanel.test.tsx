@@ -8,7 +8,12 @@ import membersFixture from "../../../fixtures/project-members.json";
 import keptFixture from "../../../fixtures/project-researchers.json";
 import { ActiveProjectTestContext } from "../../project/active";
 import { type ProjectApi, ProjectApiContext } from "../../project/api";
-import { type MembersApi, MembersApiContext, MembersRefused, type ProjectMembers } from "../../project/members";
+import {
+  type MembersApi,
+  MembersApiContext,
+  MembersRefused,
+  type ProjectMembers,
+} from "../../project/members";
 import type { ResearcherRecord } from "../../project/researcher";
 import type { Problem } from "../../run/types";
 import { PeoplePanel } from "./PeoplePanel";
@@ -40,10 +45,16 @@ const JOINED: ProjectMembers = {
 /** The owner's view once they have kept facts from their ORCID record. */
 const KEPT_BY_ME: ProjectMembers = {
   ...OWNED,
-  members: OWNED.members.map((m) => (m.is_you ? { ...m, record: KEPT[0] as ResearcherRecord } : m)),
+  members: OWNED.members.map((m) =>
+    m.is_you ? { ...m, record: KEPT[0] as ResearcherRecord } : m,
+  ),
 };
 
-function renderPanel(api: Partial<MembersApi>, reloadProjects = vi.fn(), project: Partial<ProjectApi> = {}) {
+function renderPanel(
+  api: Partial<MembersApi>,
+  reloadProjects = vi.fn(),
+  project: Partial<ProjectApi> = {},
+) {
   const projectApi = {
     orcidRecord: () => Promise.resolve(OFFERED),
     ...project,
@@ -89,30 +100,48 @@ describe("PeoplePanel", () => {
     expect(entries()).toHaveLength(2);
     expect(me).toHaveTextContent("(you)");
     // The owner is named from their public ORCID record; the colleague, who has none, by iD.
-    expect(within(me).getByRole("heading", { level: 3 })).toHaveTextContent(OWNED.members[0]?.public_name ?? "");
+    expect(within(me).getByRole("heading", { level: 3 })).toHaveTextContent(
+      OWNED.members[0]?.public_name ?? "",
+    );
     expect(within(me).getByRole("link")).toHaveAttribute("href", ME);
-    expect(within(colleague).getByRole("heading", { level: 3 })).toHaveTextContent("0000-0002-1694-233X");
+    expect(
+      within(colleague).getByRole("heading", { level: 3 }),
+    ).toHaveTextContent("0000-0002-1694-233X");
     // The last owner is neither demoted nor removed, and only their own facts are theirs to change;
     // the colleague may be both demoted and removed.
-    expect(within(me).queryByRole("button", { name: /Make|Remove/ })).toBeNull();
+    expect(
+      within(me).queryByRole("button", { name: /Make|Remove/ }),
+    ).toBeNull();
     expect(
       within(me).getByRole("button", {
         name: /Bring in facts from your ORCID record/,
       }),
     ).toBeVisible();
-    expect(within(colleague).queryByRole("button", { name: /ORCID/ })).toBeNull();
-    expect(within(colleague).getByRole("button", { name: /Make owner/ })).toBeVisible();
-    expect(within(colleague).getByRole("button", { name: /Remove/ })).toBeVisible();
+    expect(
+      within(colleague).queryByRole("button", { name: /ORCID/ }),
+    ).toBeNull();
+    expect(
+      within(colleague).getByRole("button", { name: /Make owner/ }),
+    ).toBeVisible();
+    expect(
+      within(colleague).getByRole("button", { name: /Remove/ }),
+    ).toBeVisible();
     expect(screen.getByRole("form", { name: "Add a member" })).toBeVisible();
-    expect(screen.queryByRole("button", { name: "Leave this project" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Leave this project" }),
+    ).toBeNull();
     expect(await axe(container)).toHaveNoViolations();
   });
 
   it("offers a plain member only leaving", async () => {
     renderPanel({ members: () => Promise.resolve(JOINED) });
-    expect(await screen.findByRole("button", { name: "Leave this project" })).toBeVisible();
+    expect(
+      await screen.findByRole("button", { name: "Leave this project" }),
+    ).toBeVisible();
     expect(screen.queryByRole("form", { name: "Add a member" })).toBeNull();
-    expect(screen.queryByRole("button", { name: /Make owner|Make member|Remove/ })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /Make owner|Make member|Remove/ }),
+    ).toBeNull();
   });
 
   it("adds a person by ORCID iD and says so", async () => {
@@ -124,9 +153,17 @@ describe("PeoplePanel", () => {
     });
     await user.type(field, "0000-0002-1694-233X");
     await user.click(screen.getByRole("radio", { name: /^Owner/ }));
-    await user.click(screen.getByRole("button", { name: "Add to the project" }));
-    expect(addMember).toHaveBeenCalledWith(PROJECT, "0000-0002-1694-233X", "owner");
-    expect(await screen.findByRole("status")).toHaveTextContent(/Added 0000-0002-1694-233X/);
+    await user.click(
+      screen.getByRole("button", { name: "Add to the project" }),
+    );
+    expect(addMember).toHaveBeenCalledWith(
+      PROJECT,
+      "0000-0002-1694-233X",
+      "owner",
+    );
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      /Added 0000-0002-1694-233X/,
+    );
     expect(field).toHaveValue("");
   });
 
@@ -146,13 +183,19 @@ describe("PeoplePanel", () => {
       name: "Their ORCID iD",
     });
     await user.type(field, ME);
-    await user.click(screen.getByRole("button", { name: "Add to the project" }));
-    expect(await screen.findByRole("status")).toHaveTextContent(/already a member/);
+    await user.click(
+      screen.getByRole("button", { name: "Add to the project" }),
+    );
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      /already a member/,
+    );
     expect(field).toHaveValue(ME);
   });
 
   it("asks before removing a member", async () => {
-    const removeMember = vi.fn(() => Promise.resolve({ ...OWNED, members: OWNED.members.slice(0, 1) }));
+    const removeMember = vi.fn(() =>
+      Promise.resolve({ ...OWNED, members: OWNED.members.slice(0, 1) }),
+    );
     renderPanel({ removeMember });
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: /Remove/ }));
@@ -162,16 +205,23 @@ describe("PeoplePanel", () => {
     expect(removeMember).not.toHaveBeenCalled();
     await user.click(within(dialog).getByRole("button", { name: "Remove" }));
     expect(removeMember).toHaveBeenCalledWith(PROJECT, COLLEAGUE);
-    expect(await screen.findByRole("status")).toHaveTextContent(/no longer a member/);
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      /no longer a member/,
+    );
     expect(entries()).toHaveLength(1);
   });
 
   it("leaves after asking, and goes back to the projects", async () => {
     const removeMember = vi.fn(() => Promise.resolve(null));
     const reloadProjects = vi.fn();
-    renderPanel({ members: () => Promise.resolve(JOINED), removeMember }, reloadProjects);
+    renderPanel(
+      { members: () => Promise.resolve(JOINED), removeMember },
+      reloadProjects,
+    );
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: "Leave this project" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Leave this project" }),
+    );
     const dialog = await screen.findByRole("dialog", {
       name: "Leave this project",
     });
@@ -188,7 +238,10 @@ describe("PeoplePanel", () => {
 
   it("offers the person's record with nothing ticked, and sends only what they tick", async () => {
     const keepResearcher = vi.fn(() => Promise.resolve(KEPT));
-    const members = vi.fn().mockResolvedValueOnce(OWNED).mockResolvedValue(KEPT_BY_ME);
+    const members = vi
+      .fn()
+      .mockResolvedValueOnce(OWNED)
+      .mockResolvedValue(KEPT_BY_ME);
     const { container } = renderPanel({ members }, vi.fn(), { keepResearcher });
     const user = userEvent.setup();
 
@@ -206,13 +259,19 @@ describe("PeoplePanel", () => {
     expect(form).not.toHaveTextContent("@");
     expect(await axe(container)).toHaveNoViolations();
 
-    await user.click(within(form).getByRole("checkbox", { name: /^Keywords:/ }));
+    await user.click(
+      within(form).getByRole("checkbox", { name: /^Keywords:/ }),
+    );
     const employment = OFFERED.affiliations?.[0];
     const affiliations = within(form).getByRole("group", {
       name: "Affiliations",
     });
-    await user.click(within(affiliations).getAllByRole("checkbox")[0] as HTMLElement);
-    await user.click(within(form).getByRole("button", { name: "Keep the ticked facts" }));
+    await user.click(
+      within(affiliations).getAllByRole("checkbox")[0] as HTMLElement,
+    );
+    await user.click(
+      within(form).getByRole("button", { name: "Keep the ticked facts" }),
+    );
 
     expect(keepResearcher).toHaveBeenCalledWith(PROJECT, {
       sections: ["keywords"],
@@ -222,14 +281,18 @@ describe("PeoplePanel", () => {
     });
     expect(await screen.findByRole("status")).toHaveTextContent("Kept.");
     // The people are read again, and the facts kept show on the person's own entry.
-    expect(await screen.findByRole("button", { name: /Change what you keep/ })).toBeVisible();
+    expect(
+      await screen.findByRole("button", { name: /Change what you keep/ }),
+    ).toBeVisible();
     expect(members).toHaveBeenCalledTimes(2);
   });
 
   it("ticks all of a section at once", async () => {
     renderPanel({});
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: /Bring in facts/ }));
+    await user.click(
+      await screen.findByRole("button", { name: /Bring in facts/ }),
+    );
     const works = await screen.findByRole("group", { name: "Works" });
     await user.click(within(works).getByRole("button", { name: /Tick all/ }));
     expect(
@@ -244,7 +307,9 @@ describe("PeoplePanel", () => {
     const someone = { ...KEPT[0], orcid_id: COLLEAGUE } as ResearcherRecord;
     const both: ProjectMembers = {
       ...KEPT_BY_ME,
-      members: KEPT_BY_ME.members.map((m) => (m.is_you ? m : { ...m, record: someone })),
+      members: KEPT_BY_ME.members.map((m) =>
+        m.is_you ? m : { ...m, record: someone },
+      ),
     };
     renderPanel({ members: () => Promise.resolve(both) }, vi.fn(), {
       withdrawResearcher,
@@ -261,7 +326,9 @@ describe("PeoplePanel", () => {
     ).toBeVisible();
     await user.click(withdraw[0] as HTMLElement);
     expect(withdrawResearcher).toHaveBeenCalledWith(PROJECT);
-    expect(await screen.findByRole("status")).toHaveTextContent("no longer given");
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "no longer given",
+    );
   });
 
   it("lists the facts of people who are no longer members", async () => {
@@ -276,15 +343,22 @@ describe("PeoplePanel", () => {
       name: "No longer members",
     });
     expect(heading).toBeVisible();
-    expect(screen.getAllByRole("link", { name: /0000-0001-5000-0007/ }).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByRole("link", { name: /0000-0001-5000-0007/ }).length,
+    ).toBeGreaterThan(0);
   });
 
   it("says when the ORCID record cannot be read", async () => {
     renderPanel({}, vi.fn(), {
-      orcidRecord: () => Promise.reject(new Error("ORCID could not be reached")),
+      orcidRecord: () =>
+        Promise.reject(new Error("ORCID could not be reached")),
     });
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: /Bring in facts/ }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("ORCID could not be reached");
+    await user.click(
+      await screen.findByRole("button", { name: /Bring in facts/ }),
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "ORCID could not be reached",
+    );
   });
 });

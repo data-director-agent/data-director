@@ -14,9 +14,9 @@
  * version the turn or one of its children drafted, as the project log records it, is a card on
  * the turn, before the runs that are its evidence.
  *
- * A reply that asks a choice question shows it beneath the reply: as choices on the latest turn,
- * disabled while a message is being sent, and read-only with the answer marked on every earlier
- * turn. A message that sends answers is shown as the Markdown they were sent in, each question with
+ * A reply that asks questions shows them beneath the reply, read-only with the answer marked, on
+ * every earlier turn. The latest turn's are answered where the researcher replies (`ReplyArea`),
+ * so are not drawn here. A message that sends answers is shown as the Markdown they were sent in, each question with
  * its answer; a typed message is shown as typed.
  */
 
@@ -31,7 +31,7 @@ import type {
   InventorySource,
   InventorySummary,
 } from "../../conversation/inventory";
-import { type ReplyAnswers, replyOwnText, replyQuestions } from "../../conversation/question";
+import { replyOwnText, replyQuestions } from "../../conversation/question";
 import type { Conversation, ConversationTurn } from "../../conversation/types";
 import {
   type ProjectDocument,
@@ -40,6 +40,7 @@ import {
   useProjectApi,
 } from "../../project/api";
 import { draftedBy } from "../../project/drafted";
+import { proposedFactsOf } from "../../project/facts";
 import { shortlistOf, unlistedOf } from "../../project/shortlist";
 import type { AgentView } from "../../manifest/normalise";
 import { Link } from "../../route";
@@ -47,10 +48,11 @@ import { useViewerId } from "../../session/viewer";
 import type { Envelope } from "../../run/types";
 import { Button } from "../ui/Button";
 import { Markdown } from "../ui/Markdown";
+import { ProposedFacts } from "./ProposedFacts";
 import { OUTCOME } from "../../manifest/wording";
 import { type DocumentAnswering, DocumentCard } from "./DocumentCard";
 import { FAILED_REPLY, OutcomeNote, RetryTurn } from "./TurnOutcome";
-import { AskedQuestions, QuestionSeries } from "./QuestionSeries";
+import { AskedQuestions } from "./QuestionSeries";
 import { DocumentChip } from "./DocumentChip";
 import { InventoryChip } from "./InventoryChip";
 import { Pending } from "./Pending";
@@ -140,6 +142,7 @@ function ChildCard({
       <Link to={`/agents?agent=${encodeURIComponent(child.agent_id)}`}>
         About this agent<span className="visually-hidden"> {name}</span>
       </Link>
+      <ProposedFacts facts={proposedFactsOf(child)} projectId={project?.project_id ?? null} />
       <div id={regionId} className="child-run" hidden={!selected}>
         {selected && (
           <RunDetail
@@ -164,16 +167,19 @@ function turnFacts(
   turn: ConversationTurn,
   index: number,
   documents: ProjectDocument[] | null,
+  answersBelow: boolean,
 ) {
   const next = conversation.turns[index + 1];
+  const latest = index === conversation.turns.length - 1;
   return {
     given: inventoryGiven(conversation, index),
     attachedDocuments: documentsGiven(conversation, index),
     drafted: documents
       ? draftedBy([turn.invocation_id, ...turn.children.map((child) => child.invocation_id)], documents)
       : [],
-    questions: replyQuestions(turn.envelope),
-    latest: index === conversation.turns.length - 1,
+    // The latest turn's questions, answered beneath the transcript, are not drawn in it.
+    questions: latest && answersBelow ? [] : replyQuestions(turn.envelope),
+    latest,
     answers: next ? (conversation.inputs[next.invocation_id]?.reply_answers ?? null) : null,
     // Any document attached by this turn may be the plan whose repositories the shortlist shows.
     planAttached: (conversation.inputs[turn.invocation_id]?.project_documentation ?? []).length > 0,
@@ -190,7 +196,7 @@ export function Transcript({
   selectedRun = null,
   pending = null,
   documents = null,
-  onAnswer,
+  answersBelow,
   documentAnswering,
   onDocumentWrite,
   chosenRepository = null,
@@ -215,8 +221,8 @@ export function Transcript({
     /** The message's run, drawn live from its stream. */
     live?: LiveRun | null;
   } | null;
-  /** Sends the answers to the latest turn's questions; without it, none can be answered. */
-  onAnswer?: (answers: ReplyAnswers, text: string) => void;
+  /** Whether the latest turn's questions are answered beneath the transcript, so not drawn in it. */
+  answersBelow?: boolean;
   /** How a draft card answers its questions (`DocumentCard`); without it, no draft's questions
    * can be answered. */
   documentAnswering?: DocumentAnswering;
@@ -261,6 +267,7 @@ export function Transcript({
           turn,
           index,
           projectId && documents ? documents : null,
+          Boolean(answersBelow),
         );
         return (
         <li key={turn.invocation_id} className="turn">
@@ -302,23 +309,12 @@ export function Transcript({
             <div className="markdown">
               <Markdown>{replyText(conversation, turn)}</Markdown>
             </div>
-            {questions.length > 0 &&
-              (latest && onAnswer ? (
-                // Kept while a message is sent, disabled, so a failed send keeps the answers.
-                <QuestionSeries
-                  key={turn.invocation_id}
-                  questions={questions}
-                  askedBy={turn.invocation_id}
-                  askedByName={nameOf(agents, turn.agent_id)}
-                  onAnswer={onAnswer}
-                  disabled={pending !== null}
-                />
-              ) : (
-                <AskedQuestions
-                  questions={questions}
-                  answers={answers?.answer_to === turn.invocation_id ? answers : null}
-                />
-              ))}
+            {questions.length > 0 && (
+              <AskedQuestions
+                questions={questions}
+                answers={answers?.answer_to === turn.invocation_id ? answers : null}
+              />
+            )}
             <OutcomeNote envelope={turn.envelope} />
             <RetryTurn
               conversation={conversation}

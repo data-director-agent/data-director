@@ -272,6 +272,7 @@ export function ProjectPage({
             key={attachedDocument.documentation_digest}
             projectId={projectId}
             document={attachedDocument}
+            onChange={setAttached}
           />
         ) : (
           <NotInProject />

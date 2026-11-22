@@ -21,12 +21,13 @@
  * announced, and focus returns to the message box. The project's documents are read once for
  * both the transcript's cards and the side bar's list.
  *
- * A reply may ask a choice question, which the transcript shows as choices; sending the answer
- * takes the same path as a typed message, with the answer beside the labels chosen. The message
- * box stays usable, so the researcher may ignore the question and type instead.
+ * A reply may ask questions, which are answered in the message box's place (`ReplyArea`), with a
+ * file attached beside them if the researcher wishes; sending the answers takes the same path as
+ * a typed message, with the answers beside the words. "Reply in my own words instead" shows the
+ * message box, so the researcher may ignore the questions and type instead.
  *
- * A message may attach a `dd-inventory` file, chosen with the Attach button, dropped on the form
- * or pasted, which shows as a chip and goes to the conversation's project, never into the text
+ * A message, or answers, may attach a `dd-inventory` file, chosen with the Attach button, dropped
+ * on the form or pasted, which shows as a chip and goes to the conversation's project, never into the text
  * (#443, docs/specs/app.md). A file read as an inventory is first opened to be checked, and is
  * attached, without whatever the researcher left out, only when they confirm (#472). Making one is offered in the project's panel, not under the
  * message box (AddInventory.tsx, #553).
@@ -51,7 +52,8 @@
 import { useMemo, useRef, useState } from "react";
 
 import { documentReaders } from "../../conversation/documentation";
-import type { ReplyAnswers } from "../../conversation/question";
+import { type ReplyAnswers, replyQuestions } from "../../conversation/question";
+import type { Conversation } from "../../conversation/types";
 import type { FlowStep } from "../../flow/types";
 import type { Directory } from "../../manifest/normalise";
 import { useActiveProject } from "../../project/active";
@@ -67,7 +69,6 @@ import { Workspace } from "../workspace/Workspace";
 import { ProjectSwitcher } from "../project/ProjectSwitcher";
 import { useAnnounce } from "../ui/Announcer";
 import { PageLoading } from "../ui/PageLoading";
-import { Composer } from "./Composer";
 import { EarlierConversations } from "./EarlierConversations";
 import {
   LinkedRun,
@@ -84,6 +85,8 @@ import {
   workspaceReady,
 } from "./ConversationHomeParts";
 import { whyUnusable } from "./orchestrator";
+import { type Asking, type ReplyFocus, ReplyArea, useReplyMode } from "./ReplyArea";
+import { nameOf } from "./Speaker";
 import { StartFromStep } from "./StartFromStep";
 import { Transcript } from "./Transcript";
 import { useAttachments } from "./useAttachments";
@@ -107,8 +110,10 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   // The open conversation is kept in the address, so a reload or a link reopens it.
   const urlConversation = params.get("conversation");
   const box = useRef<HTMLTextAreaElement>(null);
+  // Whichever way of replying is shown: the message box, or the latest reply's questions.
+  const reply = useRef<ReplyFocus>(null);
 
-  const attachments = useAttachments(box, announce, directory.documentsAllowed);
+  const attachments = useAttachments(reply, announce, directory.documentsAllowed);
   const readers = useMemo(
     () => documentReaders(directory.agents, directory.orchestratorId),
     [directory.agents, directory.orchestratorId],
@@ -117,13 +122,15 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     orchestratorId: orchestrator?.id,
     runId,
     urlConversation,
-    box,
+    box: reply,
     announce: announce,
-    setText,
+    setText: putText,
     restore: attachments.restore,
     clearAttachError: attachments.clearError,
   });
   const { conversation, busy, sent, turnCount, quiet } = turns;
+  const asking = askingOf(conversation, directory);
+  const mode = useReplyMode(asking);
   const { inventory: attached, document: attachedDocument } = attachments;
   const writing = Boolean(text.trim()) || attachments.carries;
   const { documents, answered, answerMaxLength } = useProjectDocuments(
@@ -150,15 +157,15 @@ export function ConversationHome({ directory }: { directory: Directory }) {
 
   const flow = useFlowLoad();
 
-  useAskAbout(flow, setText, box, {
+  useAskAbout(flow, putText, reply, {
     conversation: urlConversation,
     run: runId,
   });
-  useAskAboutQuestion(documents, setText, box, {
+  useAskAboutQuestion(documents, putText, reply, {
     conversation: urlConversation,
     run: runId,
   });
-  useAskForFairFeedback(setText, box, {
+  useAskForFairFeedback(putText, reply, {
     conversation: urlConversation,
     run: runId,
   });
@@ -176,6 +183,12 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     reads: [turns.pastSettled, progress.settled, intakeRead.settled, documents.state !== "loading"],
     quiet,
   });
+
+  /** Puts text in the message box for the researcher, which shows the box. */
+  function putText(said: string) {
+    setText(said);
+    if (said.trim()) mode.setWords(true);
+  }
 
   if (unusable || !orchestrator) {
     return (
@@ -198,10 +211,10 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     );
   }
 
-  /** Sends the answers to the latest turn's questions, said in words as `message`. What is in
-   * the message box stays there. */
+  /** Sends the answers to the latest turn's questions, said in words as `message`, with what is
+   * attached. What is in the message box stays there. */
   async function answerQuestions(answers: ReplyAnswers, message: string) {
-    await turns.deliver(message, { inventory: null, document: null }, answers);
+    await turns.deliver(message, { inventory: attached, document: attachedDocument }, answers);
   }
 
   // The finished intake hands over to the conversation: the researcher's press sends their
@@ -221,7 +234,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   function beginWith(step: FlowStep) {
     setReplacing(null);
     turns.reset();
-    setText(step.prompt);
+    putText(step.prompt);
     announce(
       `New conversation about ${step.label}. The message box holds a suggested message: edit it if you wish, then send.`,
     );
@@ -274,9 +287,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
                   documents.state === "loaded" ? documents.documents : null
                 }
                 pending={sent && { agentId: orchestrator.id, ...sent, live: turns.live }}
-                onAnswer={(answers, message) =>
-                  void answerQuestions(answers, message)
-                }
+                answersBelow={asking !== null}
                 chosenRepository={chosenRepository(project)}
                 project={project}
                 onRetry={(message) =>
@@ -301,13 +312,19 @@ export function ConversationHome({ directory }: { directory: Directory }) {
             {runId && !holdsRun(conversation, runId) && (
               <LinkedRun runId={runId} agents={directory.agents} />
             )}
-            <Composer
+            <ReplyArea
+              ref={reply}
+              asking={asking}
+              words={mode.words}
+              onWords={mode.setWords}
               box={box}
               text={text}
               onText={setText}
               attachments={attachments}
               busy={busy}
+              answering={sent !== null}
               onSend={() => void send()}
+              onAnswer={(answers, message) => void answerQuestions(answers, message)}
               readers={readers}
             />
             {turns.error && (
@@ -342,11 +359,19 @@ export function ConversationHome({ directory }: { directory: Directory }) {
             progress={progress.progress}
             fairFeedback={directory.agents.some((a) => a.payload === FAIRNESS_CLASS)}
             refresh={turnCount}
-            onAsk={(question) => askInBox(question, text, setText, box)}
+            onAsk={(question) => askInBox(question, text, putText, reply)}
             onInventorySaved={() => void reloadProjects()}
           />
         }
       />
     </PageLoading>
   );
+}
+
+/** The questions the open conversation's latest turn asks, if it asks any. */
+function askingOf(conversation: Conversation | null, directory: Directory): Asking | null {
+  const last = conversation?.turns[conversation.turns.length - 1];
+  const questions = last ? replyQuestions(last.envelope) : [];
+  if (!last || questions.length === 0) return null;
+  return { askedBy: last.invocation_id, askedByName: nameOf(directory.agents, last.agent_id), questions };
 }

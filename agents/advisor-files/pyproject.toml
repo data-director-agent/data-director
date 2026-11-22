@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "data-director-agent-advisor-files"
 version = "0.2.0a1"
-description = "advisor.files: the File Archivist persona (mock)"
+description = "advisor.files: the File Archivist persona (model-backed alpha)"
 requires-python = ">=3.14"
 license = "MIT"
 authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]

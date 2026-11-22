@@ -21,7 +21,11 @@ import {
 
 import type { DocumentationSummary } from "../../conversation/documentation";
 import type { ProjectDocument, VersionState } from "../../project/api";
-import { type AttachedKind, attachedDetail, attachedKind } from "../../project/attached";
+import {
+  type AttachedKind,
+  attachedDetail,
+  attachedKind,
+} from "../../project/attached";
 import { documentName } from "../../project/name";
 import { Link } from "../../route";
 import type { PanelTab } from "./ProjectPanelPage";
@@ -81,7 +85,11 @@ function Entry({
         className="document-entry"
         {...(current ? { "aria-current": "page" as const } : {})}
       >
-        <Icon className="document-entry-icon" size="1.125em" aria-hidden="true" />
+        <Icon
+          className="document-entry-icon"
+          size="1.125em"
+          aria-hidden="true"
+        />
         <span className="document-entry-name">{label}</span>
         {detail && <span className="document-entry-detail">{detail}</span>}
       </Link>
@@ -102,7 +110,8 @@ function Attached({
   return (
     <section className="document-group document-group-attached">
       <h2 className="document-group-heading">
-        Attached documents <span className="document-group-count">({attached.length})</span>
+        Attached documents{" "}
+        <span className="document-group-count">({attached.length})</span>
       </h2>
       <ul className="plain-list">
         {attached.map((document) => (
@@ -111,7 +120,7 @@ function Attached({
             to={hrefFor(document.documentation_digest)}
             icon={ATTACHED_ICONS[attachedKind(document)]}
             label={document.documentation_name}
-            detail={attachedDetail(document)}
+            detail={`${attachedDetail(document)}${document.documentation_is_plan ? " · Data Management Plan" : ""}`}
             current={selected === document.documentation_digest}
           />
         ))}
@@ -141,12 +150,18 @@ export function DocumentList({
   return (
     <nav className="document-list" aria-label="Documents">
       {GROUPS.map(({ state, heading }) => {
-        const group = documents.filter((document) => stateOf(document) === state);
+        const group = documents.filter(
+          (document) => stateOf(document) === state,
+        );
         if (group.length === 0) return null;
         return (
-          <section key={state} className={`document-group document-group-${state}`}>
+          <section
+            key={state}
+            className={`document-group document-group-${state}`}
+          >
             <h2 className="document-group-heading">
-              {heading} <span className="document-group-count">({group.length})</span>
+              {heading}{" "}
+              <span className="document-group-count">({group.length})</span>
             </h2>
             <ul className="plain-list">
               {group.map((document) => (
@@ -163,7 +178,11 @@ export function DocumentList({
           </section>
         );
       })}
-      <Attached attached={attached} selected={selectedAttached} hrefFor={attachedHrefFor} />
+      <Attached
+        attached={attached}
+        selected={selectedAttached}
+        hrefFor={attachedHrefFor}
+      />
     </nav>
   );
 }

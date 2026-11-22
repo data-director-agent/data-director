@@ -98,6 +98,16 @@ export function journeyPath(projectId: string, step?: string | null): string {
   return step ? `${base}?step=${encodeURIComponent(step)}` : base;
 }
 
+/** A project's facts, with the facts given (`?fact=`, each `{kind}:{subject}`, the key
+ * `factKey` in `project/facts.ts` makes) marked and the first brought into view. */
+export function factsPath(projectId: string, keys: readonly string[] = []): string {
+  const base = projectTabPath(projectId, "facts");
+  const query = new URLSearchParams();
+  for (const key of new Set(keys)) query.append("fact", key);
+  const text = query.toString();
+  return text ? `${base}?${text}` : base;
+}
+
 export function Link({
   to,
   children,

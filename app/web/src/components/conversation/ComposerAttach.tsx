@@ -19,6 +19,7 @@ import type { AttachedInventory } from "../../conversation/inventory";
 import { Button } from "../ui/Button";
 import { DocumentChip } from "./DocumentChip";
 import { InventoryChip } from "./InventoryChip";
+import type { Attachments } from "./useAttachments";
 
 export function ComposerAttach({
   attached,
@@ -72,5 +73,20 @@ export function ComposerAttach({
         )}
       </div>
     </>
+  );
+}
+
+/** `ComposerAttach` for what the next message carries, as the message box and the questions show it. */
+export function AttachControls({ attachments, busy }: { attachments: Attachments; busy: boolean }) {
+  return (
+    <ComposerAttach
+      attached={attachments.inventory}
+      attachedDocument={attachments.document}
+      documents={attachments.documents}
+      busy={busy}
+      onAttachFiles={(files) => void attachments.attachFiles(files)}
+      onRemoveInventory={attachments.removeInventory}
+      onRemoveDocument={attachments.removeDocument}
+    />
   );
 }

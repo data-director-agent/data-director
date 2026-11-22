@@ -31,8 +31,8 @@ the first identifier, so that it is not mistaken for a file nothing is known abo
 ## How it decides
 
 It looks up, in `formats.yaml`, the PRONOM identifiers (PUIDs such as `x-fmt/18`) the
-inventory gives, which `dd-inventory` read from the file's content with fido: the first one in the
-table decides. If there is none, it looks up the media type the inventory gives, then the file name's
+inventory gives, which `dd-inventory` read from the file's content with fido: the first of the file's
+identifiers that the table lists decides. If there is none, it looks up the media type the inventory gives, then the file name's
 last extension, case ignored. A row of the table has a `pronom` list only where we are sure of its
 PUIDs, so a format without one is still found by media type or extension. It reads no file and
 consults no source, so its grounding mode is `input_only` and it cites only its input.
@@ -64,7 +64,6 @@ a copy of these rules in `inventory/browser/src/hints.ts`; change both together.
 detection, and findings carried in the inventory itself, are #470 and #471
 ([Personal data](../../docs/specs/personal-data.md)).
 
-
 ## Summary
 
 A summariser (`dd_sdk.summary`) writes a short `summary` beside the findings, with
@@ -90,3 +89,13 @@ The model changes no finding: each format and each check is decided by the rules
 - It does not suggest conversions, check that files open, or version them.
 
 The real archivist is TODO(#354).
+
+## Run it
+
+```sh
+uv run dd-advisor-files serve --port 8110
+uv run workbench invoke --agent advisor.files --input workbench/samples/soil-survey.inventory.json
+uv run pytest agents/advisor-files
+```
+
+With no model key, set `DD_FILES_SUMMARISER=template` first.

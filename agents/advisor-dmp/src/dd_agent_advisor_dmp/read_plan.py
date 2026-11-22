@@ -15,11 +15,18 @@ the reply is constrained to a schema (`ReadReply`). What it proposes is checked 
 found in that document's text once case, whitespace, quotation marks and dashes are set aside.
 Anything else is dropped and said. "No commitments found" and "too vague to say" are results, not
 failures.
+
+When a person has marked one attached document as the project's plan (`documentation_is_plan`,
+docs/specs/projects.md, invariant 32), a reader is given that document alone (`plan_documents`).
+When none is marked, it is given them all, and the checker also proposes, as a
+`data_management_plan` fact, the document the commitments it read were quoted from
+(`plan_proposal`), for a person to confirm as the plan.
 """
 
 from __future__ import annotations
 
 import json
+from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -30,7 +37,7 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 from dd_agent_advisor_dmp.classes import DmpCommitments, SharingCommitment
 from dd_agent_advisor_dmp.match import _unfenced
 from dd_sdk.agent import RunContext
-from dd_sdk.contract.facts import FactKind, ProjectDocument, ProjectFact
+from dd_sdk.contract.facts import PLAN_SUBJECT, FactKind, ProjectDocument, ProjectFact
 from dd_sdk.model import CallOptions, Model, ModelCallError, ModelOutputError, Usage, call
 from dd_sdk.prompts import ModelCallLog
 
@@ -153,6 +160,39 @@ def _unused(
     usage: Usage | None = None,
 ) -> Reading:
     return Reading(unused=why, model_id=model_id, read=names, usage=usage or Usage(), calls=calls)
+
+
+def plan_documents(documents: Sequence[ProjectDocument]) -> list[ProjectDocument]:
+    """The document a person marked as the project's plan, alone, or every document while none
+    is marked."""
+    marked = [d for d in documents if d.documentation_is_plan]
+    return marked or list(documents)
+
+
+def plan_proposal(
+    proposals: Sequence[ProjectFact], documents: Sequence[ProjectDocument]
+) -> list[ProjectFact]:
+    """A `data_management_plan` fact naming the document most of `proposals` were quoted from,
+    for a person to confirm as the project's plan; none when one is already marked, or nothing
+    was read."""
+    if any(d.documentation_is_plan for d in documents):
+        return []
+    quoted = Counter(p.commitment_document for p in proposals if p.commitment_document)
+    if not quoted:
+        return []
+    digest = quoted.most_common(1)[0][0]
+    name = next(d.documentation_name for d in documents if d.documentation_digest == digest)
+    return [
+        ProjectFact(
+            fact_kind=FactKind.DATA_MANAGEMENT_PLAN,
+            fact_subject=PLAN_SUBJECT,
+            plan_document=digest,
+            proposed_because=(
+                f"The plan's sharing commitments were read from {name}; confirm it is the "
+                "project's Data Management Plan."
+            ),
+        )
+    ]
 
 
 def fitted(documents: Sequence[ProjectDocument]) -> tuple[list[ProjectDocument], set[str]]:

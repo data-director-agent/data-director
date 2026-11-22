@@ -8,7 +8,7 @@ import documentsFixture from "../../../fixtures/project-documents.json";
 import projects from "../../../fixtures/projects.json";
 import type { ProcessFlow, ProjectProgress } from "../../flow/types";
 import type { ProjectDocuments, ProjectSummary } from "../../project/api";
-import { type FactsApi, FactsApiContext, type ProjectFacts } from "../../project/facts";
+import { type FactsApi, FactsApiContext, type ProjectFacts, factKey } from "../../project/facts";
 import { ProjectRunsApiContext } from "../../project/projectRuns";
 import { aReport, aRun, runsApi } from "../../test/fairness";
 import { ContextPanel } from "./ContextPanel";
@@ -62,21 +62,36 @@ describe("ContextPanel", () => {
       },
     };
     const { container } = renderPanel(
-      { projectId: PROJECT_ID, project, documents: { state: "loaded", documents: DOCUMENTS }, onAsk },
+      {
+        projectId: PROJECT_ID,
+        project,
+        documents: { state: "loaded", documents: DOCUMENTS },
+        onAsk,
+      },
       OFFERED,
     );
     const sections = screen.getAllByRole("heading", { level: 3 }).map((h) => h.id);
     expect(sections[0]).toBe("waiting-heading");
 
-    const waiting = await screen.findByRole("list", { name: /^Waiting on you/ });
-    await within(waiting).findAllByRole("link", { name: "Decide" });
+    const waiting = await screen.findByRole("list", {
+      name: /^Waiting on you/,
+    });
+    const factLinks = await within(waiting).findAllByRole("link", {
+      name: /^Review .+/,
+    });
     // The proposed document goes to its review; the approved one does not wait.
     const reviews = within(waiting).getAllByRole("link", { name: "Review" });
     expect(reviews).toHaveLength(1);
     expect(reviews[0]).toHaveAttribute("href", expect.stringContaining("?doc="));
-    // One row per kind of fact proposed, to the facts page.
-    for (const link of within(waiting).getAllByRole("link", { name: "Decide" })) {
-      expect(link).toHaveAttribute("href", `/projects/${PROJECT_ID}/facts`);
+    // One row per kind of fact proposed, each landing on its own proposals on the facts page.
+    const proposed = new Set(OFFERED.proposals.map((p) => factKey(p.fact)));
+    expect(factLinks).toHaveLength(new Set(OFFERED.proposals.map((p) => p.fact.fact_kind)).size);
+    for (const link of factLinks) {
+      const href = new URL(link.getAttribute("href") ?? "", location.origin);
+      expect(href.pathname).toBe(`/projects/${PROJECT_ID}/facts`);
+      const named = href.searchParams.getAll("fact");
+      expect(named.length).toBeGreaterThan(0);
+      for (const key of named) expect(proposed).toContain(key);
     }
     // A repository warning is asked about in the conversation, not decided here.
     await userEvent.click(within(waiting).getByRole("button", { name: "Ask why" }));
@@ -85,7 +100,11 @@ describe("ContextPanel", () => {
   });
 
   it("says when nothing waits on the person", async () => {
-    renderPanel({ projectId: PROJECT_ID, project: SETTLED, documents: { state: "loaded", documents: [] } });
+    renderPanel({
+      projectId: PROJECT_ID,
+      project: SETTLED,
+      documents: { state: "loaded", documents: [] },
+    });
     const waiting = region(/^Waiting on you/);
     expect(within(waiting).queryByRole("list")).not.toBeInTheDocument();
     expect(await within(waiting).findByText(/Nothing waits on you/)).toBeVisible();
@@ -99,7 +118,13 @@ describe("ContextPanel", () => {
       ...(listed.progress as ProjectProgress),
       suggested: step.id,
     };
-    renderPanel({ projectId: PROJECT_ID, project: SETTLED, flow: { state: "loaded", flow: FLOW }, progress, onAsk });
+    renderPanel({
+      projectId: PROJECT_ID,
+      project: SETTLED,
+      flow: { state: "loaded", flow: FLOW },
+      progress,
+      onAsk,
+    });
     const where = region("Where we are");
     expect(within(where).getByText("Suggested next").nextElementSibling).toHaveTextContent(step.label);
     await userEvent.click(within(where).getByRole("button", { name: "Ask about the next step" }));
@@ -111,10 +136,17 @@ describe("ContextPanel", () => {
     const working = region("What Data Director is working from");
     const sensitivity = (await within(working).findByText("Sensitive data")).nextElementSibling;
     expect(sensitivity).toHaveTextContent("Proposed");
+    // Each value links to that fact on the facts page.
+    const [proposal] = OFFERED.proposals.filter((p) => p.fact.fact_kind === "sensitivity");
+    if (!proposal) throw new Error("the fixture proposes no sensitivity");
+    const value = within(sensitivity as HTMLElement).getByRole("link");
+    expect(new URL(value.getAttribute("href") ?? "", location.origin).searchParams.getAll("fact")).toEqual([
+      factKey(proposal.fact),
+    ]);
     // What nothing is known of is named in one row.
     expect(within(working).getByText("Not known yet").nextElementSibling).toHaveTextContent("Funder");
     expect(within(working).getByText("Repository chosen").nextElementSibling).toHaveTextContent(/None chosen yet/);
-    expect(within(working).getByRole("link", { name: "Check or change the facts" })).toHaveAttribute(
+    expect(within(working).getByRole("link", { name: /^Open Project facts/ })).toHaveAttribute(
       "href",
       `/projects/${PROJECT_ID}/facts`,
     );
@@ -131,10 +163,17 @@ describe("ContextPanel", () => {
   });
 
   it("shows how FAIR the metadata record is only where an agent here gives FAIR feedback", async () => {
-    const { unmount } = renderPanel({ projectId: PROJECT_ID, documents: { state: "loaded", documents: DOCUMENTS } });
+    const { unmount } = renderPanel({
+      projectId: PROJECT_ID,
+      documents: { state: "loaded", documents: DOCUMENTS },
+    });
     expect(screen.queryByRole("region", { name: "How FAIR it is" })).not.toBeInTheDocument();
     unmount();
-    renderPanel({ projectId: PROJECT_ID, documents: { state: "loaded", documents: DOCUMENTS }, fairFeedback: true });
+    renderPanel({
+      projectId: PROJECT_ID,
+      documents: { state: "loaded", documents: DOCUMENTS },
+      fairFeedback: true,
+    });
     const fair = region("How FAIR it is");
     expect((await within(fair).findAllByRole("meter")).length).toBeGreaterThan(0);
     expect(within(fair).getByRole("link", { name: "Every check" })).toHaveAttribute(

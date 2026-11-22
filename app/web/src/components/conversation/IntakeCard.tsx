@@ -209,6 +209,7 @@ export function IntakeCard({
               }}
               error={error}
               legendRef={legend}
+              orReply="Or type a reply below instead."
             />
           </fieldset>
           <div className="question-actions">

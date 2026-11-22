@@ -185,6 +185,11 @@
   }
 
   /* An attached document's reader (AttachedReader.tsx): a badge for what it is, then its facts. */
+  .plan-badge {
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-strong);
+  }
+
   .attached-reader-facts {
     display: flex;
     flex-wrap: wrap;
@@ -450,6 +455,13 @@
     padding-top: var(--space-3);
     margin-bottom: var(--space-4);
     overflow-wrap: anywhere;
+  }
+
+  /* A fact a link from the conversation or the project pane named (`?fact=`). */
+  .fact-target {
+    border-left: 4px solid var(--color-accent);
+    padding-left: var(--space-3);
+    scroll-margin-block-start: var(--space-5);
   }
 
   .fact-card h4 {

@@ -222,10 +222,10 @@ export function RepositoryShortlist({
         !unlisted.some((r) => r.basis === "in_plan") &&
         !shortlist.some((r) => r.basis === "in_plan") && (
           <p className="hint">
-            If a document you attached is your data management plan, the
-            repositories it names are shown here as &ldquo;In your plan&rdquo;
-            once you confirm its sharing commitments on the project&apos;s
-            documents page.
+            If a document you attached is your data management plan, mark it
+            as your plan on the project&apos;s documents page: the repositories
+            it names are shown here as &ldquo;In your plan&rdquo; once you
+            confirm its sharing commitments.
           </p>
         )}
       {error && (

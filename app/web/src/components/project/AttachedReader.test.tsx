@@ -3,6 +3,7 @@ import { render, screen, within } from "@testing-library/react";
 import type { DocumentationSummary } from "../../conversation/documentation";
 import { ProjectApiContext } from "../../project/api";
 import { fakeProjectApi } from "../../test/projectApi";
+import { AnnouncerProvider } from "../ui/Announcer";
 import { AttachedReader } from "./AttachedReader";
 
 const NOTES: DocumentationSummary = {
@@ -19,16 +20,29 @@ describe("AttachedReader", () => {
     render(
       <ProjectApiContext.Provider
         value={fakeProjectApi({
-          documentationText: () => Promise.resolve({ text, mediaType: "text/markdown" }),
+          documentationText: () =>
+            Promise.resolve({ text, mediaType: "text/markdown" }),
         })}
       >
-        <AttachedReader projectId="p1" document={NOTES} />
+        <AnnouncerProvider>
+          <AttachedReader
+            projectId="p1"
+            document={NOTES}
+            onChange={() => undefined}
+          />
+        </AnnouncerProvider>
       </ProjectApiContext.Provider>,
     );
-    const article = await screen.findByRole("article", { name: NOTES.documentation_name });
-    expect(await within(article).findByRole("heading", { name: "Protocol" })).toBeVisible();
+    const article = await screen.findByRole("article", {
+      name: NOTES.documentation_name,
+    });
+    expect(
+      await within(article).findByRole("heading", { name: "Protocol" }),
+    ).toBeVisible();
     expect(within(article).getAllByRole("listitem").length).toBeGreaterThan(0);
     expect(within(article).getByRole("tablist")).toBeVisible();
-    expect(within(article).queryByRole("link", { name: /Download/ })).toBeNull();
+    expect(
+      within(article).queryByRole("link", { name: /Download/ }),
+    ).toBeNull();
   });
 });
