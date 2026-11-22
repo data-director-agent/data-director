@@ -9,6 +9,7 @@ import type {
   LocationPrecision,
   ProjectFact,
   SensitivityDecision,
+  StandardKind,
 } from "../../project/facts";
 
 export const KIND_LABELS: Record<FactKind, string> = {
@@ -18,6 +19,7 @@ export const KIND_LABELS: Record<FactKind, string> = {
   required_repository: "Required repository",
   licence: "Licence",
   sharing_commitment: "Sharing commitment in the plan",
+  standard: "Standard, vocabulary or format",
 };
 
 export const FILE_DECISION_LABELS: Record<FileDecision, string> = {
@@ -38,6 +40,15 @@ export const PRECISION_LABELS: Record<LocationPrecision, string> = {
   site: "The site or nearest named place",
   region: "A region, such as a county or national park",
   country: "The country only",
+};
+
+export const STANDARD_KIND_LABELS: Record<StandardKind, string> = {
+  metadata_standard: "A metadata standard",
+  controlled_vocabulary: "A controlled vocabulary",
+  ontology: "An ontology",
+  terminology: "A terminology",
+  data_format: "A data format",
+  field_format: "A format for a field's values",
 };
 
 /** Which kinds of fact only an owner of the project may decide. */
@@ -80,6 +91,14 @@ function commitmentSentence(fact: ProjectFact): string {
   return `The plan commits to share ${fact.fact_subject}${where}${access}${licence}.`;
 }
 
+function standardSentence(fact: ProjectFact): string {
+  const name = fact.standard_name ?? fact.fact_subject;
+  const target = fact.standard_target?.startsWith("field:")
+    ? `the field ${fact.standard_target.slice("field:".length)}`
+    : "the dataset";
+  return `Use ${name} for ${target}.`;
+}
+
 /** One sentence that says what `fact` decides. */
 export function describeFact(fact: ProjectFact): string {
   switch (fact.fact_kind) {
@@ -97,5 +116,7 @@ export function describeFact(fact: ProjectFact): string {
       return `Deposit the data under ${fact.licence_id ?? fact.fact_subject}.`;
     case "sharing_commitment":
       return commitmentSentence(fact);
+    case "standard":
+      return standardSentence(fact);
   }
 }

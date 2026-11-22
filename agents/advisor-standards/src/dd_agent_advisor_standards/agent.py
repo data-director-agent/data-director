@@ -16,6 +16,7 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import UTC, datetime
 
+from dd_agent_advisor_standards import propose
 from dd_agent_advisor_standards import rank as ranking
 from dd_agent_advisor_standards.classes import (
     DatasetProfile,
@@ -65,11 +66,12 @@ class StandardsAgent:
         agent_id="advisor.standards",
         title="Standards Librarian",
         icon="📚",
-        version="0.3.0",
+        version="0.4.0",
         description=(
             "Recommends controlled vocabularies, ontologies and data formats from FAIRsharing "
             "for a dataset profile, grounded on the registry records it retrieved. Ranking rules "
-            "choose first; a model may add records it found and note doubts, never remove one."
+            "choose first; a model may add records it found and note doubts, never remove one. "
+            "Each recommendation is proposed for the researcher to choose in their project."
         ),
         action_class="advise",
         accepts=(ClassSchema.of(DatasetProfile),),
@@ -271,6 +273,13 @@ class StandardsAgent:
             else ""
         )
         remarks = "".join(f" {r}" for r in explanation.remarks)
+        payload = Recommendations(
+            items=items,
+            searched=searched,
+            grounded_on=grounded_on,
+            limitations=LIMITATIONS,
+            proposed_facts=propose.proposals(items, retrieved, ref.as_string()),
+        )
         return AgentResult(
             outcome=Outcome(
                 status=OutcomeStatus.SUCCEEDED,
@@ -280,9 +289,7 @@ class StandardsAgent:
                     "Human review is required."
                 ),
             ),
-            payload=Recommendations(
-                items=items, searched=searched, grounded_on=grounded_on, limitations=LIMITATIONS
-            ),
+            payload=payload,
             evidence=evidence,
             model_id=self.explainer.model_id,
             input_tokens=explanation.usage.input_tokens,

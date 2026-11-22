@@ -360,7 +360,9 @@ intended design, and each part says where it is not built yet.
     management plan makes (`sharing_commitment`: the output, where, how openly and under what
     licence, one repository to a commitment, so that a plan naming several for one output gives
     a commitment for each, its subject carrying the repository, with the plan's own words in `commitment_quote` and the digest of the attached
-    document's text that holds them in `commitment_document`, both required). A succeeded run's proposals are
+    document's text that holds them in `commitment_document`, both required), or a standard,
+    vocabulary, ontology or format chosen for the dataset or one field of its tables (`standard`:
+    its name, required, its identifier, its kind and what it is for, #1391). A succeeded run's proposals are
     `fact_proposed` events, one each, caused by the run and naming its agent, from a payload of
     any class (`dd_harness.project_effects`); they are checked before anything is written and
     recorded only once the run's draft is kept, so a run that fails leaves none. A person decides each as a `fact_decided` event:
@@ -381,7 +383,11 @@ intended design, and each part says where it is not built yet.
     (`GET /api/projects/{project_id}/facts`, `READ`; `POST …/facts/decisions`, `CONTRIBUTE`, or
     `DECIDE` for `sensitivity` and `licence`). A sharing commitment is shown with the plan's words
     and is only proposed, never stated, since it quotes the plan; the DMP Checker compares only
-    those a person decided ([Agents](agents.md)) (`dd_harness.testing.storage`,
+    those a person decided ([Agents](agents.md)). The Standards Librarian proposes each standard it
+    recommends; a person confirms the ones they will use and rejects the others, and only those
+    confirmed, or stated by a person, reach the Metadata Librarian, which names the vocabularies
+    chosen for the dataset in its question about subjects, and the Documentation Editor, which
+    lists every standard chosen in the README's Variables section (`dd_harness.testing.storage`,
     `harness/tests/test_project_decisions.py`, `app/tests/test_project_facts.py`,
     `app/web/src/components/project/FactsPanel.test.tsx`).
 29. **Deleting a conversation is an event in its project's log, not a removal.** A conversation

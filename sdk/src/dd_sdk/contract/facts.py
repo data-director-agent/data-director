@@ -105,6 +105,7 @@ class FactKind(StrEnum):
     SENSITIVITY = "sensitivity"
     LICENCE = "licence"
     SHARING_COMMITMENT = "sharing_commitment"
+    STANDARD = "standard"
 
 
 class FileDecision(StrEnum):
@@ -120,12 +121,27 @@ class SensitivityDecision(StrEnum):
     UNDECIDED = "undecided"
 
 
+class StandardKind(StrEnum):
+    """What kind of standard a `standard` fact names."""
+
+    METADATA_STANDARD = "metadata_standard"
+    CONTROLLED_VOCABULARY = "controlled_vocabulary"
+    ONTOLOGY = "ontology"
+    TERMINOLOGY = "terminology"
+    DATA_FORMAT = "data_format"
+    FIELD_FORMAT = "field_format"
+
+
 class LocationPrecision(StrEnum):
     EXACT = "exact"
     SITE = "site"
     REGION = "region"
     COUNTRY = "country"
 
+
+# What a standard is chosen for: the dataset, or one field of its tables.
+STANDARD_TARGET_PATTERN = r"^(dataset|field:\S.*)$"
+DATASET_TARGET = "dataset"
 
 # The value slots each kind of project fact needs (the schema's rules on ProjectFact).
 FACT_NEEDS: dict[FactKind, tuple[str, ...]] = {
@@ -135,6 +151,7 @@ FACT_NEEDS: dict[FactKind, tuple[str, ...]] = {
     FactKind.SENSITIVITY: ("sensitive_subject", "sensitivity_decision"),
     FactKind.LICENCE: ("licence_id",),
     FactKind.SHARING_COMMITMENT: ("commitment_quote", "commitment_document"),
+    FactKind.STANDARD: ("standard_name",),
 }
 
 
@@ -164,6 +181,11 @@ class ProjectFact(Frozen):
     commitment_licence: str | None = None
     commitment_quote: str | None = None
     commitment_document: str | None = Field(default=None, pattern=SHA256_PATTERN)
+    # A standard, vocabulary or format chosen; `standard_target` is dataset or field:<name>.
+    standard_name: str | None = None
+    standard_id: str | None = None
+    standard_kind: StandardKind | None = None
+    standard_target: str | None = Field(default=None, pattern=STANDARD_TARGET_PATTERN)
     # Shown to the person deciding; never given to an agent.
     proposed_because: str | None = None
 

@@ -13,6 +13,7 @@
 #   record_abstract  the approved metadata record's abstract
 #   record_rights    the licence the approved metadata record names
 #   record_citation  a citation by the approved metadata record's creators, year and title
+#   standards        the standards, vocabularies and formats people in the project chose
 #
 # A section drafted from a fact still shows its `ask`, for what the fact cannot say, unless the
 # fact named by `complete_from` gives it: that fact says all the section asks.
@@ -69,6 +70,7 @@
     how the data were collected and processed; the software and instruments, with their versions;
     the standards, calibration and quality assurance applied.
 - heading: Variables
+  from: standards
   suggest: true
   ask: >-
     where the data dictionary is, which describes each field's definition, type, unit and missing

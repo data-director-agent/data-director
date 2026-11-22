@@ -19,6 +19,7 @@ SOURCES = frozenset(
         "record_abstract",
         "record_rights",
         "record_citation",
+        "standards",
     }
 )
 # A section's `suggest` value for "only from the documents the researcher attached".

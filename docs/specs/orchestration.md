@@ -300,7 +300,10 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     say it is undecided, and to put a decided value into an agent's input where the input has a
     place for it. With nothing chosen or decided there is no note, and none says that nothing is
     decided, since a profile may keep `decisions` from a hosted model ([Projects](projects.md),
-    invariant 8). (#1168; `agents/orchestrator-model/tests/test_orchestrator_decisions.py`;
+    invariant 8). A standard is chosen on the project page, not in the conversation: when the
+    Standards Librarian recommends standards, the prompt has the model say that each is proposed
+    there for the researcher to confirm or reject, and not ask for a choice that would not be
+    recorded (#1391). (#1168; `agents/orchestrator-model/tests/test_orchestrator_decisions.py`;
     `harness/tests/test_project_repository_given.py`)
 22. **The model speaks of the latest draft, and of the inventory as it now is.** A drafted
     document reaches the model within a turn as the drafter's result, and in later turns only as

@@ -827,7 +827,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   (documents to review, fact proposals to decide, repository warnings, unanswered setup
   questions), each with the one thing to do about it; where the project stands, the step under way
   and the one suggested next; what Data Director is working from, the facts that shape its answers
-  (funder, required repository, sensitive data, licence, sharing commitment), each marked
+  (funder, required repository, sensitive data, licence, sharing commitment, standard), each marked
   confirmed, proposed or not known, and the repository chosen; the inventory and documents, the
   conversation's own first; and the guardrails, closed until opened. What waits comes first
   because it is what a person must act on (`docs/ui/best-practices.md` §1, §2); the facts sit
