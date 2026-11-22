@@ -203,6 +203,8 @@ nav:
           - /dmp-template/README.md
       - FAIRsharing server:
           - /mcp-fairsharing/README.md
+      - SPDX licence list server:
+          - /mcp-spdx/README.md
       - Agents:
           - Working on an agent: /agents/AGENTS.md
           - /agents/README.md

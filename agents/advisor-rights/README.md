@@ -96,9 +96,9 @@ start-up fails and says to set `DD_RIGHTS_INTERPRETER=template`.
 ## What it does not do
 
 - It offers five licences (CC0-1.0, CC-BY-4.0, ODC-By-1.0, ODbL-1.0, CC-BY-NC-4.0) and reads no
-  licence texts, and which reuse each fits is its table's judgement, not SPDX's. Not done yet
-  (TODO(#877)): the `licence-choice` Skill (#280) in the system prompt, and a served `mcp-spdx`
-  server; the tests use the harness's in-memory fake, and no deployment lists a real one.
+  licence texts, and which reuse each fits is its table's judgement, not SPDX's. The `spdx` server
+  is [`mcp-spdx`](../../mcp-spdx/README.md), serving SPDX licence list 3.29.0, but no deployment
+  runs it yet (TODO(#1478)). The `licence-choice` Skill in the system prompt is TODO(#280).
 - It does not check what a funder, journal, institution or repository requires or offers. The
   repository's licence options and an evaluation set are TODO(#702).
 - It does not judge whether the data are sensitive or who holds rights in them.

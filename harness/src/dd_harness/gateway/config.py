@@ -6,10 +6,10 @@ source it serves (docs/specs/grounding.md):
 ```yaml
 servers:
   - name: spdx                      # what cards and the profile call it
-    url: http://127.0.0.1:8300/mcp  # its streamable HTTP endpoint
+    url: http://127.0.0.1:8312/spdx/mcp     # its streamable HTTP endpoint
     id_field: licenseId             # the field that identifies a record
-    canonicalisation: dd-json-document-v1   # registered in dd_sdk.evidence
-    snapshot_ref: spdx:3.27         # optional: the pinned copy it serves
+    canonicalisation: dd-spdx-licence-v1    # registered in dd_sdk.evidence
+    snapshot_ref: spdx:3.29.0       # optional: the pinned copy it serves (mcp-spdx)
     tools_sha256: "6f1e…"           # the pin of its tools/list (dd-mcp-tools-v1), quoted
 ```
 

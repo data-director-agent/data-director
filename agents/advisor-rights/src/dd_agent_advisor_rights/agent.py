@@ -17,8 +17,8 @@ Its grounding mode is `retrieval` (`retrieval.py`). Where the deployment grants 
 tool server, the shell retrieves each candidate licence through the tool gateway before any model
 is called, the closed set is the licences the gateway returned, and the payload cites the records
 the conductor recorded. With no grant it reads the packaged table, records that read, and says so
-in `limitations`. The `licence-choice` Skill and a served `mcp-spdx` server are TODO(#877); the
-repository's own licence options and an evaluation set are TODO(#702).
+in `limitations`. The `spdx` server is `mcp-spdx`, which no deployment runs yet (TODO(#1478)); the
+`licence-choice` Skill is TODO(#280); the repository's own licence options are TODO(#702).
 """
 
 from __future__ import annotations
