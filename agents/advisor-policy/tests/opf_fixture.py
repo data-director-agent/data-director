@@ -4,12 +4,16 @@ The fixtures (`data/opf-*.json`, `data/crossref-journal-stoten.json`) follow the
 Sherpa v2 API, which Jisc says the Open Policy Finder platform replicates, and Crossref's journals
 API. They were written by hand, not recorded: no key was at hand. TODO(#302) replace them with
 answers recorded by `python -m dd_agent_advisor_policy.opf check --record`.
+
+The mocked `/retrieve` refuses, with a 400 as Jisc documents, a filter that uses an operator or
+field the documentation does not list for the item type, or more than three conditions.
 """
 
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
+import re
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -39,11 +43,46 @@ ELSEVIER_OPF = "https://openpolicyfinder.jisc.ac.uk/publisher/30"
 STOTEN_CROSSREF = "https://api.crossref.org/journals/0048-9697"
 
 
-def _words(request: httpx.Request) -> tuple[str, str]:
-    """The item type and the searched text of a /retrieve request."""
+# The filter fields Jisc documents for each item type, and its operators.
+FIELDS = {
+    "funder": {"name", "name_name", "acronym", "name_acronym", "country", "id", "funderid"},
+    "publisher": {"name", "name_name", "acronym", "name_acronym", "country", "id"},
+    "publication": {"title", "title_title", "acronym", "title_acronym", "issn", "id"},
+}
+OPERATORS = {"equals", "contains word", "gte", "lte"}
+
+
+def conditions(request: httpx.Request) -> list[tuple[str, str, str]]:
+    """The conditions of a /retrieve request's filter."""
+    return [tuple(c) for c in json.loads(request.url.params.get("filter", "[]"))]
+
+
+def refusal(request: httpx.Request) -> str | None:
+    """Why the documented API would refuse this /retrieve request, or None."""
     item_type = request.url.params.get("item-type", "")
-    [[_, _, text]] = json.loads(request.url.params.get("filter", '[["", "", ""]]'))
-    return item_type, text.casefold().removeprefix("the ")
+    found = conditions(request)
+    if not 1 <= len(found) <= 3:
+        return f"{len(found)} conditions"
+    for field, operator, _ in found:
+        if field not in FIELDS.get(item_type, set()) or operator not in OPERATORS:
+            return f"unsupported condition {field!r} {operator!r}"
+    return None
+
+
+def _words(text: str) -> set[str]:
+    return set(re.findall(r"\w+", text.casefold()))
+
+
+def fits(request: httpx.Request, name: str, acronyms: Sequence[str] = ()) -> bool:
+    """Whether every condition of the request holds for a record with this name and acronyms."""
+    for field, _, value in conditions(request):
+        wanted = value.casefold()
+        if "acronym" in field:
+            if wanted not in {a.casefold() for a in acronyms}:
+                return False
+        elif wanted not in _words(name):
+            return False
+    return True
 
 
 def opf_handler(
@@ -52,7 +91,13 @@ def opf_handler(
     status: int = 200,
 ) -> Callable[[httpx.Request], httpx.Response]:
     """Answers searches for NERC, Elsevier and Science of the Total Environment, and reads by
-    ISSN 0048-9697 and publisher 30. `extra` adds answers by (item type, searched text)."""
+    ISSN 0048-9697 and publisher 30. `extra` adds answers by (item type, record name)."""
+    named: list[tuple[str, str, Sequence[str], dict[str, Any]]] = [
+        *((t, n, (), answer) for (t, n), answer in (extra or {}).items()),
+        ("funder", "Natural Environment Research Council", ("NERC",), NERC_FUNDER),
+        ("publication", "Science of the Total Environment", ("STOTEN",), STOTEN),
+        ("publisher", "Elsevier", (), ELSEVIER),
+    ]
 
     def handle(request: httpx.Request) -> httpx.Response:
         if seen is not None:
@@ -67,18 +112,12 @@ def opf_handler(
             if (item_type, ident) == ("publisher", "30"):
                 return httpx.Response(200, json=ELSEVIER)
             return httpx.Response(404, json={"error": "not found"})
-        item_type, text = _words(request)
-        if extra and (item_type, text) in extra:
-            return httpx.Response(200, json=extra[(item_type, text)])
-        if item_type == "funder" and text in (
-            "nerc",
-            "natural environment research council",
-        ):
-            return httpx.Response(200, json=NERC_FUNDER)
-        if item_type == "publication" and text == "science of the total environment":
-            return httpx.Response(200, json=STOTEN)
-        if item_type == "publisher" and text == "elsevier":
-            return httpx.Response(200, json=ELSEVIER)
+        if (why := refusal(request)) is not None:
+            return httpx.Response(400, json={"error": why})
+        item_type = request.url.params.get("item-type")
+        for kind, name, acronyms, answer in named:
+            if kind == item_type and fits(request, name, acronyms):
+                return httpx.Response(200, json=answer)
         return httpx.Response(200, json=EMPTY)
 
     return handle
