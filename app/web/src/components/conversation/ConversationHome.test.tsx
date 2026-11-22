@@ -517,7 +517,9 @@ describe("ConversationHome", () => {
       expect(await screen.findByText(/Document: codebook.txt/)).toBeVisible();
       await userEvent.click(screen.getByRole("button", { name: "Remove codebook.txt" }));
       expect(screen.queryByText(/Document: codebook.txt/)).toBeNull();
-      expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toHaveFocus();
+      await waitFor(() =>
+        expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toHaveFocus(),
+      );
     });
 
   });
