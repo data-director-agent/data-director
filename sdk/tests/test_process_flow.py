@@ -83,6 +83,35 @@ def test_the_data_management_plan_steps_are_in_the_flow_and_out_of_scope_for_now
     assert "optional" in line and "out of scope for now" in line
 
 
+def test_vocabularies_are_chosen_before_collection_and_finalised_once_the_standard_is_known() -> (
+    None
+):
+    # Figure 1 makes a first choice; Figure 4 finalises it after the repository's metadata
+    # standard is identified and before the metadata are completed.
+    order = [s.id for p in PHASES for s in p.steps]
+    assert order.index("setup.vocabularies") < order.index("governance.policies")
+    assert (
+        order.index("preparation.metadata-standard")
+        < order.index("preparation.vocabularies")
+        < order.index("preparation.metadata")
+    )
+
+
+def test_the_constraints_check_sits_between_sensitive_data_and_the_embargo() -> None:
+    # Figure 2: after the sensitive-data branch, whichever way it went, and before the embargo.
+    order = [s.id for p in PHASES for s in p.steps]
+    assert (
+        order.index("governance.sensitive-data-handle")
+        < order.index("governance.constraints")
+        < order.index("governance.embargo")
+    )
+
+
+def test_a_skip_before_the_entry_point_does_not_bring_its_phase_back() -> None:
+    states = {"setup.dmp-create": "skipped"}
+    assert {s.phase.number for s in progress(entry(2), states, [])} == {2, 3, 4, 5, 6}
+
+
 def test_the_flow_for_a_researcher_facing_model_names_no_requirement() -> None:
     """A model that talks to researchers is shown every step but no requirement ID, so it has
     none to repeat to them (docs/specs/orchestration.md, invariant 14)."""

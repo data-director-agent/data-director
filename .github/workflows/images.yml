@@ -3,8 +3,8 @@ name: Images
 # The production image (docker/release.Dockerfile, #223): the app, its shell and every in-tree
 # agent in one image, ghcr.io/data-director-agent/data-director, for linux/amd64 and linux/arm64.
 #
-# - A pull request builds it for both platforms and smoke-tests each (scripts/smoke_image.py),
-#   and publishes nothing.
+# - A pull request builds it for linux/amd64 only and smoke-tests it (scripts/smoke_image.py),
+#   and publishes nothing. The arm64 build waits for main, which builds both before it publishes.
 # - A push to main publishes it as `edge` and `sha-<short>`.
 # - A release that includes the app (release.yaml) publishes it as the app's version, such as
 #   `0.3.0-alpha.8`, and `sha-<short>`. Every package's version is in the image's
@@ -58,6 +58,10 @@ jobs:
           - platform: linux/arm64
             runner: ubuntu-24.04-arm
             arch: arm64
+        # A pull request builds amd64 alone: the second platform doubled its runner time and caught
+        # nothing the push to main does not, since nothing requires this workflow.
+        exclude:
+          - arch: ${{ github.event_name == 'pull_request' && 'arm64' || 'none' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

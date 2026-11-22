@@ -13,7 +13,7 @@ from dd_sdk.process_flow import ENTRIES, OUT_OF_SCOPE, PHASES, STEPS
 # The steps each answer marks skipped (Blueprint §8, docs/specs/intake-reading.md). "Not sure" and
 # an answer not listed mark nothing.
 EXPECTED_SKIPS: dict[str, dict[str, set[str]]] = {
-    "intake.dmp": {},
+    "intake.dmp": {YES: {"setup.dmp-create"}, NO: {"setup.dmp-review"}},
     "intake.sensitive": {
         NO: {"governance.sensitive-data-identify", "governance.sensitive-data-handle"}
     },
@@ -42,11 +42,12 @@ def test_each_question_converts_to_a_core_choice_question(q: IntakeQuestion) -> 
 
 
 @pytest.mark.parametrize("q", INTAKE, ids=lambda q: q.id)
-def test_every_effect_names_a_known_step_that_is_in_scope(q: IntakeQuestion) -> None:
-    in_scope = STEPS - OUT_OF_SCOPE
-    for o in q.options:
-        stray = set(o.skips) - in_scope
-        assert not stray, f"{q.id} = {o.value} skips unknown or out-of-scope steps {stray}"
+def test_every_effect_names_a_known_step_and_keeps_scope_apart(q: IntakeQuestion) -> None:
+    # A question either skips steps in scope or records a branch between steps out of scope, as
+    # the plan question does (Figure 1); it never mixes the two.
+    skipped = {s for o in q.options for s in o.skips}
+    assert skipped <= STEPS, f"{q.id} skips unknown steps {skipped - STEPS}"
+    assert skipped <= OUT_OF_SCOPE or not skipped & OUT_OF_SCOPE, f"{q.id} mixes scopes"
 
 
 def test_each_decision_sits_before_a_step_of_the_flow_and_no_later_than_what_it_skips() -> None:

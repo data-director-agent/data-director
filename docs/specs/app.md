@@ -455,7 +455,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     sends to the model broker alone ([A person's own model account](model-accounts.md),
     `app/web/src/components/settings/ModelAccount.test.tsx`, `app/web/e2e/settings.spec.ts`).
     The other tabs are the **Preferences**: the colour scheme (light, dark, or matching the device), text
-    size, spacing, animation (matching the device, reduced or shown), the style dates and numbers
+    size, spacing, animation (matching the device, reduced or shown), the icon that stands for the
+    person beside "You" in the conversation (another member keeps the default person icon), the style dates and numbers
     are written in and the 12- or 24-hour clock, and whether a visit returns to the project used
     last or starts with none chosen. Each applies at once and is kept in that browser only, one
     `localStorage` key each, and none reaches the server (`app/web/src/preferences.ts`,
@@ -730,7 +731,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   log), and the last phase looping back rather than ending. Like the strip it names no agent and
   no requirement, and computes no state: each stop's state, the word that decided it
   (`reasons`) and the decision points (`decisions`) are the harness's, in the progress it
-  serves. Each stop is a button that says its state in words; opening one (`?step=`) shows what
+  serves. Each stop is a button that says its state in words. A step out of scope says "Not in
+  this version", or, where the intake's answer skipped it as the branch not taken, that it is
+  skipped, struck through like any skipped step; opening one (`?step=`) shows what
   the step is, its state and why, a link to the document or page that produced it, the marks the
   researcher may make, and **Ask Data Director about this**, which opens the conversation with a
   question about the step in the message box, unsent (`/?ask={step_id}`), so the researcher's

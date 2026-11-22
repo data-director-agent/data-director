@@ -32,7 +32,7 @@ import type {
   InventorySummary,
 } from "../../conversation/inventory";
 import { type ReplyAnswers, replyOwnText, replyQuestions } from "../../conversation/question";
-import type { Conversation, ConversationTurn, TurnInputs } from "../../conversation/types";
+import type { Conversation, ConversationTurn } from "../../conversation/types";
 import {
   type ProjectDocument,
   type ProjectDocuments,
@@ -55,22 +55,11 @@ import { AskedQuestions, QuestionSeries } from "./QuestionSeries";
 import { DocumentChip } from "./DocumentChip";
 import { InventoryChip } from "./InventoryChip";
 import { Pending } from "./Pending";
+import { PersonText } from "./PersonText";
 import type { LiveRun } from "./useConversationTurns";
 import { RepositoryShortlist } from "./RepositoryShortlist";
 import { RunDetail } from "./RunDetail";
 import { iconOf, nameOf, senderOf, Speaker } from "./Speaker";
-
-/** The person's message: as typed, or, when it sends answers to a reply's questions, the Markdown
- * the answers were put in (`answersText`), each question with its answer. */
-function PersonMessage({ input }: { input: TurnInputs | null | undefined }) {
-  const text = input?.message_text;
-  if (!input?.reply_answers || !text) return <p>{text}</p>;
-  return (
-    <div className="markdown">
-      <Markdown>{text}</Markdown>
-    </div>
-  );
-}
 
 function replyText(conversation: Conversation, turn: ConversationTurn): string {
   // A Reply's own text: the history adds the question after it, which is shown as choices.
@@ -220,6 +209,8 @@ export function Transcript({
   pending?: {
     agentId: string;
     message: string;
+    /** Whether the message sends answers to the latest turn's questions, put in Markdown. */
+    answers?: boolean;
     inventory?: AttachedInventory | null;
     document?: AttachedDocument | null;
     /** The message's run, drawn live from its stream. */
@@ -276,7 +267,10 @@ export function Transcript({
         <li key={turn.invocation_id} className="turn">
           <div className="turn-person">
             <Speaker person={senderOf(turn.envelope, viewer)} />
-            <PersonMessage input={conversation.inputs[turn.invocation_id]} />
+            <PersonText
+              text={conversation.inputs[turn.invocation_id]?.message_text}
+              answers={Boolean(conversation.inputs[turn.invocation_id]?.reply_answers)}
+            />
             {given && (
               <p>
                 <InventoryChip
@@ -386,6 +380,7 @@ export function Transcript({
           agentName={nameOf(agents, pending.agentId)}
           agentIcon={iconOf(agents, pending.agentId)}
           message={pending.message}
+          answers={pending.answers ?? false}
           inventory={pending.inventory ?? null}
           document={pending.document ?? null}
           live={pending.live ?? null}

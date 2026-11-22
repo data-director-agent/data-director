@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 from starlette.testclient import TestClient
-from support import check_fixture, configure_env, dist_dir, new_governance
+from support import FIXED_TIME, check_fixture, configure_env, dist_dir, new_governance
 
 from dd_app.app import build_app
 from dd_app.governance import Governance
@@ -84,6 +84,8 @@ def test_answering_each_question_in_turn_completes_the_intake_with_a_suggestion(
     served = {s for e in enabled_manifest(governance.conductor) for s in e.get("serves") or ()}
     assert body["progress"]["suggested"] in served
     assert {q["question_id"] for q in body["questions"]} == seen
+    for reason in body["progress"]["reasons"].values():
+        reason["at"] = FIXED_TIME  # the clock's reading would make the fixture differ on every run
     check_fixture("intake-complete.json", body, model=ProjectIntake)
 
     events = [e for e in store.events(project) if e["event"] in INTAKE_EVENTS]

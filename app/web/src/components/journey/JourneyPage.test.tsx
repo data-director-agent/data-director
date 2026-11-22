@@ -67,4 +67,28 @@ describe("JourneyPage", () => {
     expect(await screen.findByText("You marked this done.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open again" })).toBeInTheDocument();
   });
+
+  it("strikes through an out-of-scope step the intake skipped, and leaves the others", async () => {
+    const [skipped, other] = FLOW.phases.flatMap((p) => p.steps).filter((s) => s.out_of_scope);
+    if (!skipped || !other) throw new Error("the fixture has fewer than two out-of-scope steps");
+    const progress: ProjectProgress = projectProgress({
+      entry: 1,
+      steps: { [skipped.id]: "skipped" },
+      suggested: null,
+      reasons: {
+        [skipped.id]: {
+          state: "skipped",
+          source: "intake",
+          event: "intake_answered",
+          question_id: "intake.dmp",
+        },
+      },
+    });
+    renderPage(fakeApi(progress, () => Promise.resolve(progress)));
+    const stop = await screen.findByRole("button", { name: new RegExp(`^${skipped.label}: `) });
+    expect(stop.closest("li")).toHaveClass("is-out-of-scope", "is-skipped");
+    const open = screen.getByRole("button", { name: new RegExp(`^${other.label}: `) });
+    expect(open.closest("li")).toHaveClass("is-out-of-scope");
+    expect(open.closest("li")).not.toHaveClass("is-skipped");
+  });
 });

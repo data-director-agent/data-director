@@ -107,8 +107,9 @@ def _label(question_id: str, value: str) -> str:
 def intake_note(message: Message) -> str | None:
     """The researcher's answers to the setup questions beside the entry question, which the
     researcher gave before the conversation began, or None if they answered none. No step state
-    shows a "Not sure", or any answer about a plan, so without this note the model is not told of
-    them, and denies them when the researcher says they answered (#341). When the researcher said
+    shows a "Not sure", and an answer about a plan shows only as an out-of-scope step skipped, so
+    without this note the model is not told of them, and denies them when the researcher says
+    they answered (#341). When the researcher said
     they have a Data Management Plan and the project holds no attached document, the note asks the
     model to invite them to attach it first, since the drafters and the plan check read it."""
     answers = message.project_intake or []
