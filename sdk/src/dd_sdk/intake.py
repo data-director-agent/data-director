@@ -15,8 +15,10 @@ Each answer may mark steps skipped, and none ever marks a step done: saying a pl
 the check of a deposit against it, so the intake never shows a step as done. "Not sure" marks
 nothing. The mandated-repository question follows §8's two branches (Figure 3): "No" marks the
 check of whether a repository is mandated skipped, and "Yes" marks the recommendation of one
-skipped, since the choice is made. The Data Management Plan question marks nothing: §8's decision
-(Figure 1) gates the steps that create or review a plan, which are out of scope. An answer may also
+skipped, since the choice is made. The Data Management Plan question follows Figure 1's two
+branches: "Yes" marks creating a plan skipped and "No" marks reviewing one skipped. Both steps are
+out of scope, so the skip records the branch not taken, not work; it is the one way an
+out-of-scope step is ever skipped, since a researcher may not mark one. An answer may also
 carry a notice, which the app shows at once. "Yes" to sensitive data says not to share the data
 itself with the agent, as §5.2 asks that sensitive data not reach the model without institutional
 authorisation and Figure 2 asks that it be anonymised first in a cloud deployment.
@@ -129,12 +131,14 @@ INTAKE: tuple[IntakeQuestion, ...] = (
         tuple(IntakeOption(str(e.number), f"{e.text[0].upper()}{e.text[1:]}") for e in ENTRIES),
         tuple(e.number for e in ENTRIES),
     ),
-    # Figure 1's decision gates steps that are out of scope, so no answer skips a step: the answer
-    # is recorded for the project log.
+    # Figure 1's decision: "Yes" goes on to review the plan and "No" to create one. Both steps are
+    # out of scope, and the answer skips the branch not taken.
     _yes_no(
         "intake.dmp",
         "Do you have a Data Management Plan for this project?",
         (1, 2),
+        yes=("setup.dmp-create",),
+        no=("setup.dmp-review",),
         before="setup.dmp-create",
     ),
     _yes_no(

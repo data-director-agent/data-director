@@ -90,13 +90,14 @@ def test_another_answer_is_an_intake_answered_event_and_skips_what_its_branch_by
     assert store.progress(project)["steps"] == {}
 
 
-def test_an_answer_to_the_dmp_question_is_recorded_and_marks_no_step(
+def test_an_answer_to_the_dmp_question_is_recorded_and_skips_only_the_branch_not_taken(
     store: ProjectStore, project: str
 ) -> None:
     answer(store, project, ENTRY, "1")
     for value in (NO, YES):
         answer(store, project, "intake.dmp", value)
-        assert store.progress(project)["steps"] == {}
+        skipped = question("intake.dmp").skips([value])
+        assert store.progress(project)["steps"] == dict.fromkeys(skipped, "skipped")
         assert store.events(project)[-1]["answer_values"] == [value]
 
 
