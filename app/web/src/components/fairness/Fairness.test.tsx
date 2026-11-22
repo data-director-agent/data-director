@@ -1,4 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 
 import { type ProjectApi, ProjectApiContext } from "../../project/api";
@@ -37,6 +38,13 @@ describe("FairnessPanel, the project's tab", () => {
       screen.queryByRole("button", { name: "Ask how" }),
     ).not.toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("has a button that opens the conversation with the FAIR question ready", async () => {
+    const user = userEvent.setup();
+    renderPanel([aRun(aReport(), "2026-01-03T00:00:00Z")]);
+    await user.click(await screen.findByRole("button", { name: "Check again" }));
+    expect(location.search).toBe("?fair=check");
   });
 
   it("points on to the deposit checks once every check a draft can meet is met", async () => {

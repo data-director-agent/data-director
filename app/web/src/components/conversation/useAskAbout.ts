@@ -4,6 +4,7 @@ import { locate } from "../../flow/journey";
 import type { FlowPhase, FlowStep, ProcessFlow } from "../../flow/types";
 import { type DocumentQuestion, questionTarget } from "../../project/api";
 import type { DocumentsRead } from "../../project/drafted";
+import { ASK_FOR_FEEDBACK } from "../../project/fairness";
 import { documentName } from "../../project/name";
 import { homePath, navigate, useLocation } from "../../route";
 
@@ -56,6 +57,32 @@ function useFocusOnceDrawn(box: RefObject<HTMLTextAreaElement | null>): () => vo
     if (box.current) box.current.focus();
     else waiting.current = true;
   };
+}
+
+/**
+ * FAIR feedback asked for from the project's FAIR feedback tab (`?fair=check`) fills the message
+ * box, unsent, so that the researcher's own word starts the turn; the address then drops it so a
+ * reload does not refill. The orchestrator delegates the check; the shell does not route.
+ */
+export function useAskForFairFeedback(
+  setText: (text: string) => void,
+  box: RefObject<HTMLTextAreaElement | null>,
+  keep: { conversation: string | null; run: string | null },
+): void {
+  const asked = new URLSearchParams(useLocation().split("?")[1] ?? "").get("fair") === "check";
+  const [handled, setHandled] = useState(false);
+  if (asked && !handled) {
+    setHandled(true);
+    setText(ASK_FOR_FEEDBACK);
+  }
+  const focus = useFocusOnceDrawn(box);
+  useEffect(() => {
+    if (!asked || !handled) return;
+    focus();
+    navigate(homePath(keep), true);
+    // Only the request, once its text is in the box, is acted on.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [asked, handled]);
 }
 
 /** The message that asks for help with a draft's question, in the researcher's voice. */
