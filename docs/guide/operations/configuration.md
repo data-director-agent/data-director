@@ -119,6 +119,7 @@ deployment, with the redirect URI `https://<your host>/api/sign-in/callback`, th
 | `DD_OIDC_CLIENT_SECRET_FILE` | A file that holds the client's secret, relative to `$CREDENTIALS_DIRECTORY` under systemd |
 | `DD_APP_PUBLIC_URL` | `https://<your host>`, as registered |
 | `DD_SESSION_IDLE_S`, `DD_SESSION_LIFETIME_S` | Optional: a session ends after 8 hours unused or 7 days at most |
+| `DD_SESSIONS_FILE` | Optional: the SQLite file sessions are kept in, so a restart signs nobody out (the deployment's units set it). Unset, they are kept in memory. |
 
 Sign-in needs HTTPS. Sessions are held in memory, so restarting the app signs everyone out. The
 app asks ORCID for the iD and the name only, and keeps no token. A researcher may choose, on a
@@ -207,6 +208,7 @@ operator, as before.
 | Each run: input, output, spans, evidence and, by default, a Process Run Crate | `/var/lib/data-director/runs/` (`DD_RUNS_DIR`) | It outlives releases, so back it up with the rest of the host. `DD_WRITE_CRATE=0` stops the crate being written. |
 | Each conversation's turn lock | `locks/` under `DD_RUNS_DIR`, or an advisory lock in its database | Lets several app processes share one store. On PostgreSQL each running turn holds one database connection of its own, beside the pool (`DD_POSTGRES_POOL_SIZE`). |
 | Each workbench run | `/var/lib/data-director/workbench-runs/` | Apart from the app's runs. |
+| Who is signed in | `/var/lib/data-director/app-sessions/`, `workbench-sessions/` (`DD_SESSIONS_FILE`) | A hash of each session identifier, the person's iD and name, and the session's times; no token. Not backed up. |
 | Model calls | In the run, as `chat` spans with token counts | No key is ever stored. |
 | Problem reports | A public GitHub issue, if a credential is set | Off without a GitHub App (`DD_FEEDBACK_GITHUB_APP_ID` and `DD_FEEDBACK_GITHUB_APP_PRIVATE_KEY_FILE`) or a token (`DD_FEEDBACK_GITHUB_TOKEN`), not both. Either needs Issues: write on one repository and nothing else. |
 

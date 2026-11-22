@@ -226,6 +226,7 @@ started it, recorded as `authenticated` with the issuer that vouched ([Policy an
 | `DD_OIDC_CLIENT_SECRET` or `_FILE` | Its secret, or a file that holds it. |
 | `DD_APP_PUBLIC_URL` | Where people reach the app. The client's redirect URI is this followed by `/api/sign-in/callback`. Defaults to `http://DD_APP_HOST:DD_APP_PORT`. |
 | `DD_SESSION_IDLE_S`, `DD_SESSION_LIFETIME_S` | A session ends after this long unused (8 hours) or this long at most (7 days). |
+| `DD_SESSIONS_FILE` | The SQLite file sessions are kept in, so that restarting the app signs nobody out. Unset, they are kept in memory. |
 
 To try it locally, register a client through ORCID's
 [sandbox registration page](https://info.orcid.org/register-a-client-application-sandbox-member-api/)

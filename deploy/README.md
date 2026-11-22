@@ -70,9 +70,11 @@ process ([The app](../docs/specs/app.md)).
 | `/opt/data-director/cache/sources/` | What agents' built sources are built from (`dd-sources prepare`), one subdirectory per source, such as the pinned re3data export: downloaded once per pin and shared by releases. |
 | `/opt/data-director/cache/inventory-wheels/` | The wheels the browser scanner's bundle holds (`npm run bundle` in `inventory/browser`): Pyodide's builds from `cdn.jsdelivr.net` and the rest from PyPI, each checked against its lock. Downloaded once per pin and shared by releases. |
 | `/opt/data-director/failed-commits` | Commits that did not start. They are not tried again. |
+| `/opt/data-director/deploy.paused` | While it exists, deployments are held back ([Holding deployments back](#holding-deployments-back)). |
 | `/var/lib/data-director/runs/` | The run store (`DD_RUNS_DIR`). It outlives releases. |
 | `/var/lib/data-director/projects/` | The project store (`DD_PROJECTS_DIR`): each project's log and documents. It outlives releases. |
 | `/var/lib/data-director/workbench-runs/` | The workbench's run store, apart from the app's. |
+| `/var/lib/data-director/app-sessions/`, `workbench-sessions/` | Who is signed in to the app and to the workbench (`DD_SESSIONS_FILE`), so that a restart signs nobody out. Readable by the service user alone, and not backed up: putting one back could revive a session since signed out. |
 | `/opt/data-director/python/` | The Python interpreters uv installs, which each release's `.venv` links to, readable by every service's user (the model broker's included). |
 | `/var/lib/data-director/` | Also the service user's home: uv's package cache, npm's cache. |
 | `/etc/data-director/deployment.yaml` | What this instance runs: its name, the orchestrator (`model` or `stub`) and any agents disabled (`config/examples/deployment.yaml`). The one file to edit for that; `apply` writes the rest. |
@@ -370,7 +372,39 @@ sudo systemctl restart data-director.target
 ```
 
 The timer will move it forward again at the next new commit on `main`. To hold the VM on one
-release, stop the timer: `sudo systemctl disable --now data-director-deploy.timer`.
+release, pause deployments (below), or stop the timer:
+`sudo systemctl disable --now data-director-deploy.timer`.
+
+### Holding deployments back
+
+A restart signs nobody out: sessions are kept in `/var/lib/data-director/app-sessions/` and
+outlive it. But while the app restarts, for up to a minute or two, it does not answer: pages show
+"Data Director is restarting" and requests fail. During a workshop or a demonstration, hold
+deployments back so that a merge to `main` does not restart it.
+
+Hold them back until a time, after which the next pass removes the pause and deploys as usual,
+so a pause cannot be forgotten:
+
+```bash
+echo 2026-11-24T18:00Z | sudo -u datadirector tee /opt/data-director/deploy.paused
+```
+
+Or until the file is removed:
+
+```bash
+sudo -u datadirector touch /opt/data-director/deploy.paused
+```
+
+Lift the pause early:
+
+```bash
+sudo rm /opt/data-director/deploy.paused
+```
+
+While paused, each pass says so in `journalctl -u data-director-deploy`, and `data-director doctor`
+reports it. A file that does not hold a time `date` can read holds deployments back until it is
+removed. `deploy.sh --force` deploys through a pause. A crash still restarts the app
+(`Restart=on-failure`), and still signs nobody out.
 
 ### The app shows an old commit
 
@@ -559,6 +593,8 @@ Each store is backed up from where the services keep it: the directory the unit 
 `DD_RUNS_DIR` and `DD_PROJECTS_DIR` that `app.env` and `workbench.env` give in its place, a
 directory or a `postgresql://` URL ([Storage](../docs/specs/storage.md)). Python and npm caches in
 `/var/lib/data-director` and the releases are not backed up: a release is rebuilt from `main`.
+Nor are the sessions (`app-sessions/`, `workbench-sessions/`): after a restore, people sign in
+again, and no session that was signed out comes back.
 
 A store in a directory is copied while the app and the workbench are stopped, because the file
 backends append to their logs as they run; they are started again as soon as the copy is done,

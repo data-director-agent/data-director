@@ -14,6 +14,8 @@ The provider is configuration: `DD_OIDC_ISSUER`, `DD_OIDC_CLIENT_ID` and `DD_OID
 (or `DD_OIDC_CLIENT_SECRET_FILE`), and the public URL under the variable the way in names. With no
 issuer, the way in is a development server: every run acts for the operator named in
 `DD_PRINCIPAL_ID` and records `asserted`. A provider beside an operator principal stops start-up.
+`DD_SESSIONS_FILE`, if set, is the SQLite file the sessions are kept in, so that they outlive a
+restart (`dd_harness.sessions`); unset, they are kept in memory.
 """
 
 from __future__ import annotations
@@ -21,6 +23,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
 
@@ -51,6 +54,7 @@ CALLBACK_PATH = "/api/sign-in/callback"
 SECRET_VARIABLE = "DD_OIDC_CLIENT_SECRET"
 IDLE_VARIABLE = "DD_SESSION_IDLE_S"
 LIFETIME_VARIABLE = "DD_SESSION_LIFETIME_S"
+SESSIONS_VARIABLE = "DD_SESSIONS_FILE"
 
 
 @dataclass(frozen=True)
@@ -63,6 +67,8 @@ class SignInSettings:
     idle_s: int = DEFAULT_IDLE_S
     lifetime_s: int = DEFAULT_LIFETIME_S
     callback_path: str = CALLBACK_PATH
+    # The SQLite file the sessions are kept in, or None to keep them in memory.
+    sessions_file: Path | None = None
 
     @property
     def redirect_uri(self) -> str:
@@ -97,6 +103,7 @@ class SignInSettings:
             public_url=env.get(public_url_variable) or base_url,
             idle_s=_seconds(env, IDLE_VARIABLE, DEFAULT_IDLE_S),
             lifetime_s=_seconds(env, LIFETIME_VARIABLE, DEFAULT_LIFETIME_S),
+            sessions_file=Path(env[SESSIONS_VARIABLE]) if env.get(SESSIONS_VARIABLE) else None,
         )
 
 
@@ -151,7 +158,9 @@ class SignIn:
         and endpoints (`dd_harness.testing.FakeIdentityProvider`)."""
         self.settings = settings
         self.admit = admit
-        self.store = store or SessionStore(settings.idle_s, settings.lifetime_s)
+        self.store = store or SessionStore.open(
+            settings.sessions_file, settings.idle_s, settings.lifetime_s
+        )
         self.authenticator = SessionAuthenticator(self.store, session_cookie)
         self._keys = keys or IssuerKeys(settings.provider.issuer)
         self._client = client

@@ -319,6 +319,13 @@ def test_a_tip_that_failed_is_a_problem_and_a_waiting_one_a_note(
     assert status == 1 and says(out, "problem", TIP[:10])
 
 
+def test_a_pause_is_a_note(vm: Vm, capsys: pytest.CaptureFixture[str]) -> None:
+    vm.paused.write_text("2026-11-24T18:00Z\n")
+    status, out = check(FakeVm(), vm, capsys)
+    assert status == 0, out
+    assert says(out, "note", "2026-11-24T18:00Z", str(vm.paused))
+
+
 def test_a_stray_instance_is_named_with_how_to_remove_it(
     vm: Vm, capsys: pytest.CaptureFixture[str]
 ) -> None:
