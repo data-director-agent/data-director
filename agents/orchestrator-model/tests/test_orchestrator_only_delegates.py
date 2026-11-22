@@ -70,8 +70,11 @@ OPENAI_KEYS = {
 TOOL_KEYS = {"name", "description", "input_schema"}
 # A function tool, the only kind of Chat Completions tool, which the orchestrator runs.
 FUNCTION_KEYS = {"name", "description", "parameters"}
-DEPENDENCIES = {"data-director-sdk"}
-IMPORTS = {"dd_sdk", "dd_agent_orchestrator_model", "__future__"}
+# Besides the SDK, only the subject classifications the discipline question suggests fields from:
+# data read with the standard library, which can provide no tool (docs/specs/orchestration.md,
+# invariant 8).
+DEPENDENCIES = {"data-director-sdk", "data-director-subjects"}
+IMPORTS = {"dd_sdk", "dd_subjects", "dd_agent_orchestrator_model", "__future__"}
 
 
 class _Block:

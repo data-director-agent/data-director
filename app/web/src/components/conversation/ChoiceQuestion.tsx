@@ -2,11 +2,12 @@
  * One question put to the researcher as a form field (docs/specs/app.md, rule 21): a choice
  * question as radio buttons, or checkboxes when several options may be chosen, each option a card
  * the whole of which can be clicked, with "Something else" and a text box where it allows an
- * answer in their own words; a short text question as a one-line text box; a long text question
- * as a text area. Every box for an answer in their own words counts the characters left against
- * the limit the harness holds answers to, and never cuts what is typed or pasted: an answer over
- * the limit is kept whole and refused with a message saying by how much (`problemOf`). The
- * question is a fieldset whose legend is the question, and its help is the fieldset's description.
+ * answer in their own words; a short text question as a one-line text box, offering its suggested
+ * answers where it has them (`SuggestedAnswer`); a long text question as a text area. Every box
+ * for an answer in their own words counts the characters left against the limit the harness holds
+ * answers to, and never cuts what is typed or pasted: an answer over the limit is kept whole and
+ * refused with a message saying by how much (`problemOf`). The question is a fieldset whose
+ * legend is the question, and its help is the fieldset's description.
  *
  * A reply's questions (`QuestionSeries`) and the project intake's (`IntakeCard`) are both drawn
  * with it.
@@ -23,6 +24,7 @@ import {
   type QuestionAnswer,
   SHORT_TEXT_MAX,
 } from "../../conversation/question";
+import { SuggestedAnswer } from "./SuggestedAnswer";
 
 /** What the researcher has entered for one question so far. */
 export interface Draft {
@@ -204,7 +206,17 @@ export function QuestionField({
           {count}
         </div>
       )}
-      {question.question_kind === "short_text" && (
+      {question.question_kind === "short_text" && question.question_suggestions && (
+        <SuggestedAnswer
+          id={id}
+          suggestions={question.question_suggestions}
+          words={draft.words}
+          onWords={(words) => onChange({ ...draft, words })}
+          count={count}
+          errorId={error ? `${id}-error` : null}
+        />
+      )}
+      {question.question_kind === "short_text" && !question.question_suggestions && (
         <>
           <label className="visually-hidden" htmlFor={`${id}-words`}>
             Your answer

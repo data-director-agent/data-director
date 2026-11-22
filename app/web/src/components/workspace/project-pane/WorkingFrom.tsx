@@ -101,7 +101,7 @@ export function WorkingFrom({
       {facts.state === "loading" && <p className="hint">Reading the project&apos;s facts…</p>}
       <p className="pane-actions">
         <Link to={projectTabPath(projectId, "facts")}>Check or change the facts</Link>
-        <Link to={projectTabPath(projectId, "researchers")}>Researchers</Link>
+        <Link to={projectTabPath(projectId, "people")}>People</Link>
       </p>
     </section>
   );

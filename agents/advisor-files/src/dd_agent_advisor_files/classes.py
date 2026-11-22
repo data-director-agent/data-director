@@ -28,6 +28,7 @@ class CheckKind(StrEnum):
     THIRD_PARTY = "third_party"
     GOVERNANCE = "governance"
     SYSTEM_FILE = "system_file"
+    CREDENTIALS = "credentials"
     EMPTY = "empty"
     DUPLICATE = "duplicate"
     EXTENSION_MISMATCH = "extension_mismatch"

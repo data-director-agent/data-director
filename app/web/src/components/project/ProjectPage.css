@@ -271,6 +271,33 @@
     font-size: var(--font-size-small);
   }
 
+  /* What the undecided version leaves open, held at the foot of the window above a long draft and
+     at rest just above the decision form once it is reached (#1282). */
+  .decision-bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    max-width: calc(var(--measure) + var(--space-6));
+    margin-block: var(--space-4) var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: var(--border-width) solid currentcolor;
+    border-radius: var(--radius);
+    background: var(--color-surface);
+  }
+
+  .decision-bar.status-warn {
+    background: var(--color-warn-bg);
+  }
+
+  .decision-bar p {
+    margin: 0;
+  }
+
   .decision-form {
     margin-bottom: var(--space-4);
     padding: var(--space-4);
@@ -337,17 +364,7 @@
     overflow-wrap: anywhere;
   }
 
-  /* The facts researchers kept from ORCID (ResearcherPanel.tsx). */
-  .researchers h2 {
-    margin-top: 0;
-  }
-
-  .researcher-record {
-    border-top: 1px solid var(--color-border);
-    padding-top: var(--space-3);
-    margin-bottom: var(--space-4);
-  }
-
+  /* The facts a person kept from ORCID (KeptFacts.tsx). */
   .researcher-facts {
     display: grid;
     gap: var(--space-2);
@@ -362,7 +379,8 @@
     overflow-wrap: anywhere;
   }
 
-  /* Who works on the project, and adding someone (MembersPanel.tsx, AddMember.tsx). */
+  /* Who works on the project, the facts each kept, and adding someone (PeoplePanel.tsx,
+     AddMember.tsx). */
   .members-panel h2 {
     margin-top: 0;
   }
@@ -383,6 +401,17 @@
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-2);
+  }
+
+  .member-facts {
+    margin-top: var(--space-3);
+    padding-left: var(--space-3);
+    border-left: 2px solid var(--color-border);
+  }
+
+  .member-facts h4 {
+    margin: 0 0 var(--space-2);
+    font-size: var(--font-size-small);
   }
 
   /* What agents proposed about the project, and what people decided (FactsPanel.tsx). */

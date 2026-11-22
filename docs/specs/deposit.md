@@ -296,7 +296,8 @@ one of:
 - a **name-level hint** (`source: name`): a file whose folder, file or field names, size or digest
   call for a person to look, by the rule table in `dd_sdk.inventory_hints` that the File Archivist
   reads too: free text, coordinates, a folder of someone else's material, terms or an agreement,
-  an operating-system file, an empty file, and a byte-for-byte copy
+  an operating-system file, a configuration or credentials file, an empty file, and a
+  byte-for-byte copy
   ([Personal data](personal-data.md), "Name-level hints");
 - a **personal-data finding** (`source: finding`): each entry of the inventory's
   `inventory_personal_data`, which `dd-inventory` writes ([Personal data](personal-data.md)).

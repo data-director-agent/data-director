@@ -85,6 +85,27 @@ describe("fileHints", () => {
     },
   );
 
+  it.each([
+    ["config.ini", "config.ini"],
+    [".env", ".env"],
+    ["certs/server.pem", "server.pem"],
+    ["deploy/secrets.yaml", "secrets.yaml"],
+    ["scripts/db_password.txt", "password"],
+  ])("marks %s as a file that may hold credentials", (path, matched) => {
+    const found = (fileHints(inventory([file(path)])).get(path) ?? []).filter(
+      (h) => h.kind === "credentials",
+    );
+    expect(found.map((h) => h.matched)).toEqual([matched]);
+  });
+
+  it.each(["docs/configuration_notes.md", "analysis/tokenizer.py", "data/keyboard.csv"])(
+    "does not take %s for a credentials file",
+    (path) => {
+      const found = (fileHints(inventory([file(path)])).get(path) ?? []).map((h) => h.kind);
+      expect(found).not.toContain("credentials");
+    },
+  );
+
   it("gives every kind a label and a question", () => {
     for (const rule of HINT_RULES) {
       expect(HINT_LABELS[rule.kind]).toBeTruthy();

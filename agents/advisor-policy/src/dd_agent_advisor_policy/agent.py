@@ -30,7 +30,7 @@ which they mean. ROR's records are evidence like FAIRsharing's, under the same c
 
 from __future__ import annotations
 
-from dd_agent_advisor_policy import assess, given, reading, report, search
+from dd_agent_advisor_policy import assess, attached, given, reading, report, search
 from dd_agent_advisor_policy.classes import PolicyChecks, PolicyContext
 from dd_agent_advisor_policy.explain import Explainer, Explanation, Item, TemplateExplainer
 from dd_agent_advisor_policy.extract import Extractor, NoExtractor
@@ -85,11 +85,16 @@ class PolicyAgent:
             "readings.stated.value": Derived(Derivation.MODEL),
         },
         serves=("governance.policies", "repository.mandated"),
+        reads_attached=(
+            "to find what your institution's policy or your award letter asks of the data, "
+            "alongside the published policies, quoting each passage for you to confirm"
+        ),
         settings={
             POLICY_TEXT: Setting(
                 (READ, OFF),
                 READ,
-                "Fetch each matched policy's own page or PDF, and any the researcher gives, and "
+                "Fetch each matched policy's own page or PDF, and any the researcher gives or "
+                "attaches, and "
                 "have the agent's model report what it requires, quoting the passage each "
                 "obligation comes from; the code keeps only quotes it finds in the text. Needs a "
                 "model. Off: only the registries' records are read.",
@@ -133,6 +138,7 @@ class PolicyAgent:
             off=setting(ctx, self.spec, POLICY_TEXT) == OFF,
             pages=self.pages,
             extractor=self.extractor,
+            attached=attached.targets(list(context.project_documents), list(context.actors)),
         )
         if not found.records and not found.organisations and not texts.readings:
             return report.no_policy_found(found, texts)

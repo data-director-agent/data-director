@@ -68,6 +68,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from dd_agent_orchestrator_model import asking
 from dd_agent_orchestrator_model.notes import inventory_note, progress_note, record_notes
 from dd_agent_orchestrator_model.own_tools import ENTRY_TOOL as ENTRY_TOOL
 from dd_agent_orchestrator_model.own_tools import ENTRY_TOOL_DEFINITION as ENTRY_TOOL_DEFINITION
@@ -314,6 +315,7 @@ class ModelOrchestrator:
             "new_project_title": Derived(Derivation.MODEL),
             "new_project_entry": Derived(Derivation.MODEL),
         },
+        settings={asking.FIELDS_OF_STUDY: asking.FIELDS_OF_STUDY_SETTING},
     )
 
     def __init__(
@@ -469,15 +471,10 @@ class ModelOrchestrator:
     def _reply(
         self, message: Message, turn: ModelReply, state: _Turns, ctx: RunContext
     ) -> AgentResult:
-        questions, delegated, calls = state.questions, state.delegated, state.calls
+        delegated, calls = state.delegated, state.calls
+        questions = asking.shown(state.questions, ctx, self.spec)
         input_tokens, output_tokens = state.input_tokens, state.output_tokens
-        text = turn.text.strip()
-        if questions and not text:
-            text = (
-                questions[0].question_prompt
-                if len(questions) == 1
-                else f"I have {len(questions)} questions for you."
-            )
+        text = asking.reply_text(turn.text.strip(), questions)
         model_id = turn.model_id
         if turn.stop == "max_tokens":
             text = f"{text}\n\n{CUT_SHORT}" if text else CUT_SHORT

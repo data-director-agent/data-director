@@ -20,6 +20,7 @@ from inspect_ai.scorer import CORRECT, INCORRECT, NOANSWER, Score, Scorer, Targe
 from inspect_ai.solver import TaskState
 
 from dd_agent_advisor_documentation.agent import GAP_MARKER, _facts
+from dd_agent_advisor_documentation.checks import NAMED, NOT_PROSE
 from dd_agent_advisor_documentation.dictionary import (
     SOURCE_SUFFIX,
     VALUE_COLUMNS,
@@ -28,7 +29,6 @@ from dd_agent_advisor_documentation.dictionary import (
     worked_out_unit_code,
 )
 from dd_agent_advisor_documentation.drafted import drafted
-from dd_agent_advisor_documentation.prose import _NAMED, _NOT_PROSE
 from dd_agent_advisor_documentation.record import _record
 from dd_agent_advisor_documentation.sections import SOURCES as FACT_SOURCES
 from dd_agent_advisor_documentation.sections import load_sections
@@ -398,9 +398,9 @@ def no_unsupported_claim() -> Scorer:
         problems = []
         for paragraph in document["document_text"].split("\n\n"):
             flat = " ".join(paragraph.split())
-            if not flat or _NOT_PROSE.search(paragraph) or flat in not_model:
+            if not flat or NOT_PROSE.search(paragraph) or flat in not_model:
                 continue
-            for pattern in _NAMED:
+            for pattern in NAMED:
                 for match in pattern.finditer(flat):
                     named = match.group(match.lastindex or 0)
                     if named not in known:
@@ -422,7 +422,7 @@ def _written_from(answer: Mapping[str, Any], document: Mapping[str, Any]) -> boo
     if "part" in answer or document.get("document_derivation") != "model":
         return False
     text = document["document_text"]
-    named = [m.group(m.lastindex or 0) for p in _NAMED for m in p.finditer(answer["text"])]
+    named = [m.group(m.lastindex or 0) for p in NAMED for m in p.finditer(answer["text"])]
     return all(n in text for n in named)
 
 
