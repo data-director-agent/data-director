@@ -67,7 +67,7 @@ describe("renderNotices", () => {
     { name: "opf-fido", version: "1.6.1", licence: "Apache License 2.0", files: ["L.txt"] },
     { name: "certifi", version: "2026.4.22", licence: "MPL-2.0", files: [] },
   ];
-  const notices = renderNotices({ pyodide: "314.0.8", python: "3.14.2", wheels, pronom: "v109" });
+  const notices = renderNotices({ pyodide: "314.0.8", python: "3.14.2", wheels, pronom: "v125" });
 
   it("names every wheel with its licence and where its source is", () => {
     for (const w of wheels) {
@@ -79,6 +79,6 @@ describe("renderNotices", () => {
   it("says where Pyodide's source is and gives the PRONOM attribution", () => {
     expect(notices).toContain("https://github.com/pyodide/pyodide/tree/314.0.8");
     expect(notices).toContain(OGL_STATEMENT);
-    expect(notices).toContain("v109");
+    expect(notices).toContain("v125");
   });
 });
