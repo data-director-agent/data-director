@@ -11,26 +11,30 @@ harness's deposit check reads too. The inventory holds no
 contents, so each is a prompt for a person, never a finding, and a file it does not list may still
 hold personal data (docs/specs/personal-data.md).
 
-It looks up the PRONOM identifiers the inventory gives, which `dd-inventory` read from the
-file's content with fido, in `formats.yaml`; failing that, the media type the inventory gives;
-failing that, the file's last extension. An identifier the table does not know is reported as
-identified but not in the table, and an identification that disagrees with the extension is a check
-for a person.
-It reads no file and consults no source, so it cites only its input (grounding mode
-`input_only`). Each format and check is decided by rule; a summariser (`dd_sdk.summary`) then
-writes a short summary beside them: a model's by default, the rules' own with
-`DD_FILES_SUMMARISER=template` (`factory.py`). The real archivist, which also weighs table fields,
-is TODO(#354).
+It describes each file's format from the PRONOM record (`dd_formats`, a pinned PRONOM release)
+of the first PRONOM identifier the inventory gives that the release has; `dd-inventory` read those
+identifiers from the file's content with fido. Each such assessment cites its record (grounding mode
+`retrieval`, #955). Whether a format is open is the agent's own judgement, from `formats.yaml`,
+since PRONOM does not say. Failing a PRONOM record, it judges by the media type the inventory gives,
+then the file's last extension, from the same table, and cites only its input. An identifier the
+release does not have is reported as identified but not described, and a known extension that the
+record does not list is a check for a person.
+It reads no file and sends nothing anywhere. Each format and check is decided by rule; a
+summariser (`dd_sdk.summary`) then writes a short summary beside them: a model's by default, the
+rules' own with `DD_FILES_SUMMARISER=template` (`factory.py`). The real archivist, which also weighs
+table fields, is TODO(#354).
 """
 
 from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 
 import yaml
 
+import dd_formats
 from dd_agent_advisor_files.classes import (
     CheckKind,
     FileAssessment,
@@ -51,15 +55,19 @@ from dd_sdk.agent import (
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Derivation,
+    EvidenceItem,
     FileInventory,
     GroundingMode,
+    GroundingRef,
     InventoryFile,
     InvocationRequest,
     Outcome,
     OutcomeStatus,
     ReasonCode,
 )
+from dd_sdk.evidence import DOCUMENT_CANONICALISATION, HASH_ALGORITHM, content_hash, project
 from dd_sdk.inventory_hints import RULES, Rule
+from dd_sdk.tracing import retrieval_span
 
 FORMATS = Path(__file__).with_name("formats.yaml")
 UNKNOWN = "unknown"
@@ -71,9 +79,11 @@ MISMATCH_QUESTION = (
 )
 
 LIMITATIONS = (
-    "It judges each format by the inventory's PRONOM identifiers, its media type "
-    "or the file name's extension, using a short table of formats.",
-    "A format outside that table is reported as such, not described.",
+    "It describes each format from the PRONOM record of an identifier the inventory gives, from "
+    "a pinned PRONOM release; failing one, from the inventory's media type or the file name's "
+    "extension, using a short table of formats.",
+    "Whether a format is open is the agent's own judgement from a short table, not PRONOM's: a "
+    "format outside it is described but not judged open or not.",
     "It does not weigh the inventory's table fields.",
     "It does not check that files open or suggest conversions.",
     "It reads folder, file and field names, never contents: a file it does not list for a person "
@@ -85,41 +95,72 @@ LIMITATIONS = (
 
 @dataclass(frozen=True)
 class Format:
+    """A format the table describes for a file with no PRONOM record."""
+
     name: str
     media_type: str
     open: bool
-    pronom: tuple[str, ...] = ()
 
 
-def load_formats(path: Path = FORMATS) -> dict[str, Format]:
+@dataclass(frozen=True)
+class Formats:
+    """`formats.yaml`: whether each PRONOM-identified format is open, and the formats that file
+    extensions suggest."""
+
+    open: dict[str, bool]
+    extensions: dict[str, Format]
+
+
+def load_formats(path: Path = FORMATS) -> Formats:
     with path.open(encoding="utf-8") as fh:
         table = yaml.safe_load(fh)
-    return {
-        str(ext).lower(): Format(
-            str(row["format"]),
-            str(row["media_type"]),
-            bool(row["open"]),
-            tuple(str(p) for p in row.get("pronom", ())),
-        )
-        for ext, row in table.items()
-    }
+    return Formats(
+        open={str(puid): bool(value) for puid, value in table["open"].items()},
+        extensions={
+            str(ext).lower(): Format(str(row["format"]), str(row["media_type"]), bool(row["open"]))
+            for ext, row in table["extensions"].items()
+        },
+    )
+
+
+@dataclass(frozen=True)
+class Cited:
+    """A PRONOM record as the agent cites it: its reference and its evidence content."""
+
+    ref: GroundingRef
+    content: dict[str, object]
+    url: str
+
+
+def _cite(record: dd_formats.FormatRecord) -> Cited:
+    content = project(record.as_dict(), DOCUMENT_CANONICALISATION)
+    digest = content_hash(content, DOCUMENT_CANONICALISATION)
+    return Cited(GroundingRef(source_id=record.puid, content_hash=digest), content, record.url)
+
+
+def _display_name(record: dd_formats.FormatRecord) -> str:
+    """PRONOM's name, with its version where the name does not already end with it."""
+    if record.version and not record.name.endswith(record.version):
+        return f"{record.name} {record.version}"
+    return record.name
 
 
 class FileArchivist:
     spec = AgentSpec(
         agent_id="advisor.files",
-        version="0.2.0a1",
+        version="0.3.0a1",
         title="File Archivist",
         icon="🗄️",
         description=(
-            "Lists each file of a project's inventory with the format its PRONOM "
-            "identification, media type or extension suggests, and whether that format is open, "
+            "Lists each file of a project's inventory with its format, described from the PRONOM "
+            "record of its identification, or else suggested by its media type or extension, and "
+            "whether that format is open, "
             "and the files whose names, size or digest call for a person to look at them "
             "before deposit, with a short summary. Reads no file."
         ),
         action_class="advise",
         accepts=(ClassSchema.of(FileInventory),),
-        grounding_mode=GroundingMode.INPUT_ONLY,
+        grounding_mode=GroundingMode.RETRIEVAL,
         payload=ClassSchema.of(FormatAssessment),
         derivations={
             "assessments.extension": Derived(Derivation.LEXICAL),
@@ -141,7 +182,7 @@ class FileArchivist:
 
     def __init__(
         self,
-        formats: dict[str, Format] | None = None,
+        formats: Formats | None = None,
         hints: tuple[Rule, ...] = RULES,
         summariser: summary.Summariser | None = None,
     ) -> None:
@@ -149,10 +190,7 @@ class FileArchivist:
         self.hints = hints
         self.summariser = summariser or summary.TemplateSummariser()
         self.by_media_type: dict[str, Format] = {}
-        self.by_puid: dict[str, Format] = {}
-        for known in self.formats.values():
-            for puid in known.pronom:
-                self.by_puid.setdefault(puid, known)
+        for known in self.formats.extensions.values():
             if known.media_type != OCTET_STREAM:
                 self.by_media_type.setdefault(known.media_type, known)
 
@@ -169,8 +207,9 @@ class FileArchivist:
             )
 
         assessments = [self._assess(file) for file in inventory.inventory_files]
+        cited = self._retrieve(assessments, ctx)
         checks = self._checks(inventory.inventory_files)
-        closed = sum(not a.open_format for a in assessments)
+        closed = sum(a.open_format is not True for a in assessments)
         statement = _statement(checks, closed, len(assessments))
         told = summary.Findings(
             {
@@ -188,11 +227,41 @@ class FileArchivist:
                 summary=summarised.text,
                 summary_derivation=summarised.derivation,
                 limitations=list(LIMITATIONS),
-                grounded_on=[input_ref(ctx)],
+                grounded_on=[input_ref(ctx), *(c.ref for c in cited)],
             ),
-            evidence=[input_evidence(ctx)],
+            evidence=[input_evidence(ctx), *(self._evidence(c) for c in cited)],
         )
         return summary.with_calls(result, self.summariser.model_id, explanation)
+
+    def _retrieve(self, assessments: list[FileAssessment], ctx: RunContext) -> list[Cited]:
+        """One retrieval span for the input, which every assessment rests on, and one per distinct
+        PRONOM record cited, before any model call (docs/specs/grounding.md, G1-G2)."""
+        with retrieval_span(ctx.tracer, ctx.input_ref, ctx.input_hash):
+            pass
+        cited: dict[str, Cited] = {}
+        for assessment in assessments:
+            if assessment.judged_by != JudgedBy.PRONOM or assessment.pronom_id is None:
+                continue
+            record = dd_formats.lookup(assessment.pronom_id)
+            if record is None or record.puid in cited:
+                continue
+            cited[record.puid] = _cite(record)
+            with retrieval_span(ctx.tracer, record.puid, cited[record.puid].ref.content_hash):
+                pass
+        return list(cited.values())
+
+    @staticmethod
+    def _evidence(cited: Cited) -> EvidenceItem:
+        return EvidenceItem(
+            source_id=cited.ref.source_id,
+            source_uri=cited.url,
+            retrieved_at=datetime.now(UTC),
+            snapshot_ref=snapshot_ref(),
+            hash_algorithm=HASH_ALGORITHM,
+            canonicalisation=DOCUMENT_CANONICALISATION,
+            content_hash=cited.ref.content_hash,
+            content=cited.content,
+        )
 
     def _checks(self, files: list[InventoryFile]) -> list[FileCheck]:
         by_path: dict[str, list[FileCheck]] = defaultdict(list)
@@ -215,11 +284,15 @@ class FileArchivist:
         return checks
 
     def _mismatch(self, file: FileAssessment) -> FileCheck | None:
-        """Content-based identification and the extension name different formats."""
-        by_extension = self.formats.get(file.extension)
-        if file.judged_by != JudgedBy.PRONOM or by_extension is None:
+        """The file's PRONOM record does not list an extension the table knows: content-based
+        identification and the name suggest different formats. An extension the table does not
+        know, or a record that lists none, says nothing either way."""
+        if file.judged_by != JudgedBy.PRONOM or file.pronom_id is None:
             return None
-        if by_extension.name == file.format_name:
+        record = dd_formats.lookup(file.pronom_id)
+        if file.extension not in self.formats.extensions or record is None:
+            return None
+        if not record.extensions or file.extension in record.extensions:
             return None
         return FileCheck(
             path=file.path,
@@ -230,28 +303,39 @@ class FileArchivist:
 
     def _assess(self, file: InventoryFile) -> FileAssessment:
         extension = PurePosixPath(file.file_path).suffix.lstrip(".").lower()
-        puid = next((p for p in file.file_pronom_ids if p in self.by_puid), None)
-        if puid is None and file.file_pronom_ids:
+        record = next(
+            (r for p in file.file_pronom_ids if (r := dd_formats.lookup(p)) is not None), None
+        )
+        if record is not None:
+            return FileAssessment(
+                path=file.file_path,
+                extension=extension,
+                format_name=_display_name(record),
+                media_type=file.file_media_type or next(iter(record.media_types), None),
+                open_format=self.formats.open.get(record.puid),
+                judged_by=JudgedBy.PRONOM,
+                pronom_id=record.puid,
+                grounded_on=[_cite(record).ref],
+            )
+        if file.file_pronom_ids:
             return FileAssessment(
                 path=file.file_path,
                 extension=extension,
                 format_name=UNKNOWN,
                 media_type=file.file_media_type,
-                open_format=False,
                 judged_by=JudgedBy.PRONOM_UNLISTED,
                 pronom_id=file.file_pronom_ids[0],
             )
-        known = self.by_puid[puid] if puid else self.by_media_type.get(file.file_media_type or "")
-        judged_by = JudgedBy.PRONOM if puid else JudgedBy.MEDIA_TYPE
+        known = self.by_media_type.get(file.file_media_type or "")
+        judged_by = JudgedBy.MEDIA_TYPE
         if known is None:
-            known, judged_by = self.formats.get(extension), JudgedBy.EXTENSION
+            known, judged_by = self.formats.extensions.get(extension), JudgedBy.EXTENSION
         if known is None:
             return FileAssessment(
                 path=file.file_path,
                 extension=extension,
                 format_name=UNKNOWN,
                 media_type=file.file_media_type,
-                open_format=False,
                 judged_by=JudgedBy.NOTHING,
             )
         return FileAssessment(
@@ -261,8 +345,13 @@ class FileArchivist:
             media_type=file.file_media_type or known.media_type,
             open_format=known.open,
             judged_by=judged_by,
-            pronom_id=puid,
         )
+
+
+def snapshot_ref() -> str:
+    """The label of the pinned PRONOM release, which a deployment's source check pins a copy of
+    (app/config/sources.yaml)."""
+    return f"pronom:v{dd_formats.release().version}"
 
 
 def _statement(checks: list[FileCheck], closed: int, total: int) -> str:

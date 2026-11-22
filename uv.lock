@@ -32,6 +32,7 @@ members = [
     "data-director-app",
     "data-director-deposit-broker",
     "data-director-dmp-template",
+    "data-director-formats",
     "data-director-harness",
     "data-director-inventory",
     "data-director-mcp-fairsharing",
@@ -1169,6 +1170,7 @@ dependencies = [
     { name = "data-director-app" },
     { name = "data-director-deposit-broker" },
     { name = "data-director-dmp-template" },
+    { name = "data-director-formats" },
     { name = "data-director-harness", extra = ["serve"] },
     { name = "data-director-inventory" },
     { name = "data-director-mcp-fairsharing" },
@@ -1240,6 +1242,7 @@ requires-dist = [
     { name = "data-director-app", editable = "app" },
     { name = "data-director-deposit-broker", editable = "deposit-broker" },
     { name = "data-director-dmp-template", editable = "dmp-template" },
+    { name = "data-director-formats", editable = "formats" },
     { name = "data-director-harness", extras = ["serve"], editable = "harness" },
     { name = "data-director-inventory", editable = "inventory" },
     { name = "data-director-mcp-fairsharing", editable = "mcp-fairsharing" },
@@ -1442,9 +1445,10 @@ dev = [{ name = "data-director-harness", editable = "harness" }]
 
 [[package]]
 name = "data-director-agent-advisor-files"
-version = "0.2.0a1"
+version = "0.3.0a1"
 source = { editable = "agents/advisor-files" }
 dependencies = [
+    { name = "data-director-formats" },
     { name = "data-director-sdk" },
     { name = "pydantic" },
     { name = "pyyaml" },
@@ -1457,6 +1461,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "data-director-formats", editable = "formats" },
     { name = "data-director-sdk", editable = "sdk" },
     { name = "pydantic", specifier = ">=2.14.1,<3" },
     { name = "pyyaml", specifier = ">=6.0" },
@@ -1866,6 +1871,11 @@ requires-dist = [
 name = "data-director-dmp-template"
 version = "0.1.0a0"
 source = { editable = "dmp-template" }
+
+[[package]]
+name = "data-director-formats"
+version = "0.1.0a0"
+source = { editable = "formats" }
 
 [[package]]
 name = "data-director-harness"

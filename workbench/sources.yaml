@@ -38,3 +38,8 @@ sources:
     built: true
     id_field: id
     sha256: 30919b36894f3d2e43afd7fc533b25500e51f9fbdbfe8482fd76fa8a20a2afbb
+  - snapshot_refs: ["pronom:v125"]
+    path: ../formats/src/dd_formats/data/pronom-v125.jsonl
+    # The PRONOM records dd-formats describes formats from (formats/README.md).
+    id_field: puid
+    sha256: 063eecf28351eeb3cf7f207fd4f044b7b5624a67e51b8584a5ef48106a0f8c66

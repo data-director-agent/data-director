@@ -1,57 +1,149 @@
-# advisor.files's whole rule table: file extension (lower case, no dot) to the format it suggests,
-# that format's media type, whether the format is open (publicly specified and readable without
-# proprietary software) and, where we are sure of them, the format's PRONOM identifiers (`pronom`,
-# PUIDs such as fmt/18). A row with no `pronom` has none we are sure of; leave it so rather than
-# guess. The inventory's PRONOM identifiers, read from content, are looked up first (by PUID), then
-# its media type, then a file's last extension. An alpha's table (docs/specs/agents.md): the
-# extension alone says nothing certain about a file's content, and the real archivist is TODO(#354).
-csv: {format: Comma-separated values, media_type: text/csv, open: true, pronom: [x-fmt/18]}
-tsv: {format: Tab-separated values, media_type: text/tab-separated-values, open: true}
-txt: {format: Plain text, media_type: text/plain, open: true, pronom: [x-fmt/111]}
-md: {format: Markdown, media_type: text/markdown, open: true, pronom: [fmt/1149]}
-json: {format: JSON, media_type: application/json, open: true, pronom: [fmt/817]}
-jsonld: {format: JSON-LD, media_type: application/ld+json, open: true}
-xml: {format: XML, media_type: application/xml, open: true, pronom: [fmt/101]}
-yaml: {format: YAML, media_type: application/yaml, open: true, pronom: [fmt/818]}
-yml: {format: YAML, media_type: application/yaml, open: true, pronom: [fmt/818]}
-html: {format: HTML, media_type: text/html, open: true, pronom: [fmt/96]}
-pdf: {format: PDF, media_type: application/pdf, open: true, pronom: [fmt/14, fmt/15, fmt/16, fmt/17, fmt/18, fmt/19, fmt/20, fmt/276]}
-odt: {format: OpenDocument Text, media_type: application/vnd.oasis.opendocument.text, open: true}
-ods: {format: OpenDocument Spreadsheet, media_type: application/vnd.oasis.opendocument.spreadsheet, open: true}
-docx: {format: Microsoft Word (OOXML), media_type: application/vnd.openxmlformats-officedocument.wordprocessingml.document, open: true, pronom: [fmt/412]}
-xlsx: {format: Microsoft Excel (OOXML), media_type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, open: true, pronom: [fmt/214]}
-doc: {format: Microsoft Word 97-2003, media_type: application/msword, open: false, pronom: [fmt/40]}
-xls: {format: Microsoft Excel 97-2003, media_type: application/vnd.ms-excel, open: false, pronom: [fmt/61, fmt/62]}
-sav: {format: SPSS data file, media_type: application/x-spss-sav, open: false}
-dta: {format: Stata data file, media_type: application/x-stata-dta, open: false}
-sas7bdat: {format: SAS data set, media_type: application/x-sas-data, open: false}
-rds: {format: R data (RDS), media_type: application/octet-stream, open: false}
-mat: {format: MATLAB MAT-file, media_type: application/x-matlab-data, open: false}
-nc: {format: NetCDF, media_type: application/x-netcdf, open: true}
-h5: {format: HDF5, media_type: application/x-hdf5, open: true}
-hdf5: {format: HDF5, media_type: application/x-hdf5, open: true}
-parquet: {format: Apache Parquet, media_type: application/vnd.apache.parquet, open: true}
-sqlite: {format: SQLite database, media_type: application/vnd.sqlite3, open: true}
-tif: {format: TIFF, media_type: image/tiff, open: true, pronom: [fmt/353]}
-tiff: {format: TIFF, media_type: image/tiff, open: true, pronom: [fmt/353]}
-png: {format: PNG, media_type: image/png, open: true, pronom: [fmt/11, fmt/12, fmt/13]}
-jpg: {format: JPEG, media_type: image/jpeg, open: true, pronom: [fmt/42, fmt/43, fmt/44]}
-jpeg: {format: JPEG, media_type: image/jpeg, open: true, pronom: [fmt/42, fmt/43, fmt/44]}
-svg: {format: SVG, media_type: image/svg+xml, open: true, pronom: [fmt/91, fmt/92]}
-wav: {format: WAVE audio, media_type: audio/wav, open: true, pronom: [fmt/6, fmt/141]}
-flac: {format: FLAC audio, media_type: audio/flac, open: true, pronom: [fmt/279]}
-mp3: {format: MP3 audio, media_type: audio/mpeg, open: true, pronom: [fmt/134]}
-mp4: {format: MPEG-4, media_type: video/mp4, open: false, pronom: [fmt/199]}
-zip: {format: ZIP archive, media_type: application/zip, open: true, pronom: [x-fmt/263]}
-gz: {format: Gzip, media_type: application/gzip, open: true, pronom: [x-fmt/266]}
-tar: {format: Tar archive, media_type: application/x-tar, open: true, pronom: [x-fmt/265]}
-# Code: plain text in a publicly specified language, so open (#1071). PUIDs as DROID signature
-# file v109 gives them for the extension; a row without one has none there.
-r: {format: R script, media_type: text/plain, open: true, pronom: [fmt/1599]}
-py: {format: Python script, media_type: text/x-python, open: true, pronom: [fmt/938]}
-m: {format: MATLAB script, media_type: text/plain, open: true, pronom: [fmt/1678]}
-do: {format: Stata do-file, media_type: text/plain, open: true, pronom: [fmt/1598]}
-ipynb: {format: Jupyter notebook, media_type: application/x-ipynb+json, open: true, pronom: [fmt/1119]}
-jl: {format: Julia script, media_type: text/plain, open: true}
-sh: {format: Shell script, media_type: application/x-sh, open: true}
-sas: {format: SAS program, media_type: text/plain, open: true}
+# advisor.files's own judgements, which no registry gives (#955). A format's name, version, media
+# type and extensions come from its PRONOM record (dd-formats); PRONOM says nothing about whether a
+# format is open, so this table does.
+#
+# `open`: for each PRONOM identifier (PUID), whether the format is open (publicly specified and
+# readable without proprietary software). A PUID not listed is described from its record but not
+# judged open or not; add it here, with its record checked, rather than guess.
+#
+# `extensions`: for a file the inventory gives no PUID for, the format its last extension (lower
+# case, no dot) suggests, that format's media type and whether it is open. The extension alone
+# says nothing certain about a file's content, so such a file is reported as identified by
+# extension only. A known extension the PRONOM record does not list is a check for a person.
+open:
+  x-fmt/18: true      # Comma Separated Values
+  x-fmt/13: true      # Tab-separated Values
+  x-fmt/111: true     # Plain Text File
+  fmt/1149: true      # Markdown
+  fmt/817: true       # JSON
+  fmt/880: true       # JSON-LD
+  fmt/101: true       # XML 1.0
+  fmt/818: true       # YAML
+  fmt/96: true        # HTML
+  fmt/14: true        # PDF 1.0
+  fmt/15: true        # PDF 1.1
+  fmt/16: true        # PDF 1.2
+  fmt/17: true        # PDF 1.3
+  fmt/18: true        # PDF 1.4
+  fmt/19: true        # PDF 1.5
+  fmt/20: true        # PDF 1.6
+  fmt/276: true       # PDF 1.7
+  fmt/136: true       # OpenDocument Text 1.0
+  fmt/290: true       # OpenDocument Text 1.1
+  fmt/291: true       # OpenDocument Text 1.2
+  fmt/1756: true      # OpenDocument Text 1.3
+  fmt/2044: true      # OpenDocument Text 1.4
+  fmt/137: true       # OpenDocument Spreadsheet 1.0
+  fmt/294: true       # OpenDocument Spreadsheet 1.1
+  fmt/295: true       # OpenDocument Spreadsheet 1.2
+  fmt/1755: true      # OpenDocument Spreadsheet 1.3
+  fmt/2045: true      # OpenDocument Spreadsheet 1.4
+  fmt/412: true       # Microsoft Word 2007 onwards (OOXML)
+  fmt/214: true       # Microsoft Excel 2007 onwards (OOXML)
+  fmt/40: false       # Microsoft Word 97-2003
+  fmt/61: false       # Microsoft Excel 97-2003
+  fmt/62: false       # Microsoft Excel 2000-2003
+  fmt/638: false      # SPSS Data File
+  fmt/1029: false     # Stata Data 104
+  fmt/1030: false     # Stata Data 105
+  fmt/1031: false     # Stata Data 110
+  fmt/1032: false     # Stata Data 111
+  fmt/1033: false     # Stata Data 113
+  fmt/1034: false     # Stata Data 114
+  fmt/1035: false     # Stata Data 115
+  fmt/1036: false     # Stata Data 117
+  fmt/1037: false     # Stata Data 118
+  fmt/1015: false     # SAS Data (Windows), generic
+  fmt/1016: false     # SAS Data (Unix), generic
+  fmt/607: false      # SAS Data (Windows) 9.1
+  fmt/608: false      # SAS Data (Unix) 9.1
+  fmt/1017: false     # SAS Data (Windows) 8.2
+  fmt/1018: false     # SAS Data (Unix) 8.2
+  fmt/1019: false     # SAS Data (Windows) 9.2
+  fmt/1020: false     # SAS Data (Unix) 9.2
+  fmt/1021: false     # SAS Data (Windows) 9.3
+  fmt/1022: false     # SAS Data (Unix) 9.3
+  fmt/1550: false     # MATLAB MAT-file Level 4
+  fmt/806: false      # MATLAB MAT-file Level 5
+  fmt/828: false      # MATLAB MAT-file Level 7.3
+  fmt/282: true       # netCDF-3 Classic
+  fmt/283: true       # netCDF-3 64-bit
+  fmt/807: true       # HDF5 0
+  fmt/286: true       # HDF5 1
+  fmt/287: true       # HDF5 2
+  fmt/2023: true      # Apache Parquet
+  fmt/1135: true      # SQLite 2
+  fmt/729: true       # SQLite 3
+  fmt/353: true       # TIFF
+  fmt/11: true        # PNG 1.0
+  fmt/12: true        # PNG 1.1
+  fmt/13: true        # PNG 1.2
+  fmt/42: true        # JPEG (JFIF) 1.00
+  fmt/43: true        # JPEG (JFIF) 1.01
+  fmt/44: true        # JPEG (JFIF) 1.02
+  fmt/91: true        # SVG 1.0
+  fmt/92: true        # SVG 1.1
+  fmt/6: true         # WAVE audio
+  fmt/141: true       # WAVE audio (PCMWAVEFORMAT)
+  fmt/279: true       # FLAC
+  fmt/134: true       # MP3
+  fmt/199: false      # MPEG-4
+  x-fmt/263: true     # ZIP
+  x-fmt/266: true     # GZIP
+  x-fmt/265: true     # Tar
+  # Code: plain text in a publicly specified language, so open (#1071).
+  fmt/1599: true      # R script
+  fmt/938: true       # Python script
+  fmt/1678: true      # MATLAB script
+  fmt/1598: true      # Stata do-file
+  fmt/1119: true      # Jupyter notebook
+extensions:
+  csv: {format: Comma-separated values, media_type: text/csv, open: true}
+  tsv: {format: Tab-separated values, media_type: text/tab-separated-values, open: true}
+  txt: {format: Plain text, media_type: text/plain, open: true}
+  md: {format: Markdown, media_type: text/markdown, open: true}
+  json: {format: JSON, media_type: application/json, open: true}
+  jsonld: {format: JSON-LD, media_type: application/ld+json, open: true}
+  xml: {format: XML, media_type: application/xml, open: true}
+  yaml: {format: YAML, media_type: application/yaml, open: true}
+  yml: {format: YAML, media_type: application/yaml, open: true}
+  html: {format: HTML, media_type: text/html, open: true}
+  pdf: {format: PDF, media_type: application/pdf, open: true}
+  odt: {format: OpenDocument Text, media_type: application/vnd.oasis.opendocument.text, open: true}
+  ods: {format: OpenDocument Spreadsheet, media_type: application/vnd.oasis.opendocument.spreadsheet, open: true}
+  docx: {format: Microsoft Word (OOXML), media_type: application/vnd.openxmlformats-officedocument.wordprocessingml.document, open: true}
+  xlsx: {format: Microsoft Excel (OOXML), media_type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, open: true}
+  doc: {format: Microsoft Word 97-2003, media_type: application/msword, open: false}
+  xls: {format: Microsoft Excel 97-2003, media_type: application/vnd.ms-excel, open: false}
+  sav: {format: SPSS data file, media_type: application/x-spss-sav, open: false}
+  dta: {format: Stata data file, media_type: application/x-stata-dta, open: false}
+  sas7bdat: {format: SAS data set, media_type: application/x-sas-data, open: false}
+  rds: {format: R data (RDS), media_type: application/octet-stream, open: false}
+  mat: {format: MATLAB MAT-file, media_type: application/x-matlab-data, open: false}
+  nc: {format: NetCDF, media_type: application/x-netcdf, open: true}
+  h5: {format: HDF5, media_type: application/x-hdf5, open: true}
+  hdf5: {format: HDF5, media_type: application/x-hdf5, open: true}
+  parquet: {format: Apache Parquet, media_type: application/vnd.apache.parquet, open: true}
+  sqlite: {format: SQLite database, media_type: application/vnd.sqlite3, open: true}
+  tif: {format: TIFF, media_type: image/tiff, open: true}
+  tiff: {format: TIFF, media_type: image/tiff, open: true}
+  png: {format: PNG, media_type: image/png, open: true}
+  jpg: {format: JPEG, media_type: image/jpeg, open: true}
+  jpeg: {format: JPEG, media_type: image/jpeg, open: true}
+  svg: {format: SVG, media_type: image/svg+xml, open: true}
+  wav: {format: WAVE audio, media_type: audio/wav, open: true}
+  flac: {format: FLAC audio, media_type: audio/flac, open: true}
+  mp3: {format: MP3 audio, media_type: audio/mpeg, open: true}
+  mp4: {format: MPEG-4, media_type: video/mp4, open: false}
+  zip: {format: ZIP archive, media_type: application/zip, open: true}
+  gz: {format: Gzip, media_type: application/gzip, open: true}
+  tar: {format: Tar archive, media_type: application/x-tar, open: true}
+  # Code (#1071).
+  r: {format: R script, media_type: text/plain, open: true}
+  py: {format: Python script, media_type: text/x-python, open: true}
+  m: {format: MATLAB script, media_type: text/plain, open: true}
+  do: {format: Stata do-file, media_type: text/plain, open: true}
+  ipynb: {format: Jupyter notebook, media_type: application/x-ipynb+json, open: true}
+  jl: {format: Julia script, media_type: text/plain, open: true}
+  sh: {format: Shell script, media_type: application/x-sh, open: true}
+  sas: {format: SAS program, media_type: text/plain, open: true}

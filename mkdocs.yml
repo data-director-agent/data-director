@@ -197,6 +197,8 @@ nav:
           - /registry-cache/README.md
       - Subjects library:
           - /subjects/README.md
+      - Formats library:
+          - /formats/README.md
       - DMP template library:
           - /dmp-template/README.md
       - FAIRsharing server:
