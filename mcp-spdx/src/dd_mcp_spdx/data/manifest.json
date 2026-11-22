@@ -1,0 +1,15 @@
+{
+  "licence_list_version": "3.29.0",
+  "release_date": "2026-09-16",
+  "source": "SPDX licence list, spdx/license-list-data",
+  "derived_from": {
+    "url": "https://raw.githubusercontent.com/spdx/license-list-data/v3.29.0/json/licenses.json",
+    "sha256": "47d1cc681abe31166b342b6cc4aab13a6ba8ea5c48794697fe3bf8b1dbaf509a"
+  },
+  "records": {
+    "file": "licenses-3.29.0.jsonl",
+    "sha256": "56acc3421be0d809ef6360b5344b48972c47b63a403295d62956ba0fba581ec5",
+    "count": 740
+  },
+  "licence": "CC0-1.0"
+}

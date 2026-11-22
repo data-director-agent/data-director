@@ -128,6 +128,9 @@ proposal.
 A run that could not use the person's own AI account is `abstained` with `model_account_missing`,
 `model_account_rejected` or `model_account_limit` ([A person's own model account](specs/model-accounts.md)).
 
+A run that a data steward's pause of its project stops is `referred` with `project_paused`
+([Data stewards](specs/stewardship.md), invariant 8).
+
 A run that its caller cancelled is `failed` with problem type `run-cancelled`. Whatever the agent
 answered is not kept ([Transport and tracing](specs/transport.md)).
 

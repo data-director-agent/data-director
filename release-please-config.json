@@ -138,6 +138,13 @@
         "mcp-fairsharing/tests"
       ]
     },
+    "mcp-spdx": {
+      "component": "mcp-spdx",
+      "release-type": "python",
+      "exclude-paths": [
+        "mcp-spdx/tests"
+      ]
+    },
     "units": {
       "component": "units",
       "release-type": "python",

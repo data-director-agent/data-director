@@ -184,6 +184,10 @@ requirements:
     source: project
     parent: C13
     title: An agent whose card declares a hosted model is given only the classes of project content the profile's hosted_models lists, inventory and decided facts by default, and is otherwise refused before anything is sent; that the card declares every model the agent calls is not checked
+  - id: C13.6
+    source: project
+    parent: C13
+    title: A data steward reaches a researcher's project only through a steward team the profile names, and only while the profile's visibility allows it; the harness checks each steward action against a closed list and refuses a member of the project, records each action and each read naming the steward, and refuses every run that is not advise while a steward's pause stands; export to provenance is not exercised (#1481)
   - id: C14
     source: blueprint
     title: Explainability — human-readable explanations for recommendations and decisions

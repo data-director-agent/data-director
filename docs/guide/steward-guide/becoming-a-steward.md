@@ -4,10 +4,10 @@ You are a data steward in a Data Director instance because its institutional pro
 No one is a steward by signing in. A person the profile does not name is a researcher.
 
 !!! note "Partly built"
-    The profile names the teams, and the app knows who is a steward. Opening a project as a
-    steward is not built yet ([#374](https://github.com/data-director-agent/data-director/issues/374)),
-    so until it is, `visibility` may only be `escalated` and `deposit_co_approval` only `false`;
-    a profile that sets either otherwise is refused when the instance starts.
+    The profile names the teams, the app knows who is a steward, and a steward can open a project
+    the profile's `visibility` allows. Co-approval of a deposit is not built yet
+    ([#1306](https://github.com/data-director-agent/data-director/issues/1306)), so `deposit_co_approval` may only be
+    `false`; a profile that sets it otherwise is refused when the instance starts.
 
 ## Teams
 
@@ -43,6 +43,7 @@ able to map a staff group to a team instead of listing iDs ([#936](https://githu
 - **`escalated`** (the default): you can open a project only while it has an escalation routed to
   your team, or a pause your team applied.
 - **`scope`**: as above, and also any project whose owners chose your team as its support team.
+  Until a matter is escalated to your team, you can only read such a project.
 
 No setting lets a steward see every project. Every time you open a project, it is recorded and
 shown to the researcher. If you are yourself a member of a project, you act there as a member,

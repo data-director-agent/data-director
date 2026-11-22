@@ -25,6 +25,7 @@ Giving a drafter the version it regenerates is TODO(#394).
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
 from dd_harness.projects.decisions import Decision, check_answers, check_decision, check_names
@@ -39,6 +40,7 @@ from dd_harness.projects.rules import (
     Refusal,
     Refused,
 )
+from dd_harness.steward_storage import ProposedEdit
 from dd_sdk.contract.models import (
     Document,
     DocumentKind,
@@ -135,17 +137,32 @@ class Documents(ProjectRules):
         Raises `ChangeRefusedError`, and records the refusal, if the version is not the latest or
         the digest is not its; `ProjectError`, which records nothing, if the text is unchanged
         or the document or digest is malformed."""
-        check_names(document_id, digest)
+        edit = ProposedEdit(document_id, version, digest, text)
+        return self._edit(project_id, edit, acted_for=acted_for, caused_by=caused_by)
+
+    def _edit(
+        self,
+        project_id: str,
+        edit: ProposedEdit,
+        *,
+        acted_for: Principal,
+        caused_by: str,
+        marked: Mapping[str, str] | None = None,
+    ) -> DocumentVersionRef:
+        """`edit`, with what `marked` adds to its event, such as a steward's `acting_as`."""
+        check_names(edit.document_id, edit.digest)
 
         def change(section: ProjectSection) -> DocumentVersionRef | Refused:
-            parent = check_latest(section.events(), document_id, version, digest, deciding=False)
+            parent = check_latest(
+                section.events(), edit.document_id, edit.version, edit.digest, deciding=False
+            )
             if isinstance(parent, Refused):
                 return parent
-            detail = self._edited(project_id, parent, text)
+            detail = {**self._edited(project_id, parent, edit.text), **(marked or {})}
             section.append(
                 [self._event(project_id, DOCUMENT_VERSION_ADDED, acted_for, caused_by, detail)]
             )
-            return DocumentVersionRef(document_id=document_id, version=detail["version"])
+            return DocumentVersionRef(document_id=edit.document_id, version=detail["version"])
 
         return self._checked(project_id, acted_for, caused_by, change)
 

@@ -35,6 +35,7 @@ from collections.abc import Iterable, Mapping
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any, Protocol
 
+from dd_harness import steward_access
 from dd_harness.listing import Readable
 from dd_harness.projects import (
     ProjectDeletedError,
@@ -47,6 +48,7 @@ from dd_harness.projects import (
 from dd_harness.storage import ProjectConversations, ProjectLifecycle
 
 if TYPE_CHECKING:
+    from dd_harness.policy import Profile
     from dd_harness.project_facts import FactSource
 from dd_sdk.contract.models import Principal
 
@@ -202,18 +204,33 @@ class Snapshots(Protocol):
 
 
 def run_facts(
-    projects: Snapshots | None, project_id: str | None, acting_for: Principal
+    projects: Snapshots | None,
+    project_id: str | None,
+    acting_for: Principal,
+    profile: Profile | None = None,
 ) -> FactSource | None:
     """The snapshot of `project_id` a run reads everything it asks of its project from, or None
-    for a run in no project. Only someone who may read the project runs anything in it; anyone
+    for a run in no project. Only someone who may read the project runs anything in it, or a
+    steward the profile lets run an agent there (docs/specs/stewardship.md, invariant 6); anyone
     else is answered as for a project that does not exist (docs/specs/projects.md, invariant
     17). A deleted project takes no new run, not even its owner's (invariant 24). A delegated
     child is not checked again: its grant carries its parent's project."""
     if projects is None or project_id is None:
         return None
     facts = projects.snapshot(project_id)
-    if not may(facts, project_id, acting_for, Action.READ):
+    if not may(facts, project_id, acting_for, Action.READ) and not _steward_runs(
+        facts, profile, project_id, acting_for
+    ):
         raise UnknownProjectError(f"no project {project_id!r}")
     if facts.is_deleted(project_id):
         raise ProjectDeletedError(f"project {project_id} is deleted")
     return facts
+
+
+def _steward_runs(
+    facts: FactSource, profile: Profile | None, project_id: str, acting_for: Principal
+) -> bool:
+    if profile is None:
+        return False
+    found = steward_access.steward_of(facts, profile, project_id, acting_for)
+    return found is not None and found.refusal("run") is None

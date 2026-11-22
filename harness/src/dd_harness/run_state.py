@@ -8,7 +8,7 @@ conductor, so the conductor sits above them: `Conductor` satisfies `RunHost`, as
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Protocol
@@ -98,6 +98,23 @@ class RunHost(Protocol):
     def _spans(self, trace_id: str) -> bytes: ...
 
 
+@dataclass(frozen=True)
+class FromProject:
+    """What a run's project gives it before it starts: the classes of project content the
+    conductor put into the input, why it could not fill it from the project, if it could not, and
+    the pause a data steward holds on the project, if any (docs/specs/stewardship.md, invariant
+    8)."""
+
+    given: frozenset[str] = frozenset()
+    unfillable: str | None = None
+    paused: Mapping[str, Any] | None = None
+
+    @property
+    def given_to_run(self) -> tuple[frozenset[str], str | None, Mapping[str, Any] | None]:
+        """In the order `RunState` takes them, after the link."""
+        return self.given, self.unfillable, self.paused
+
+
 @dataclass
 class RunState:
     """One invocation as it goes through the steps: what it was asked, then what each step
@@ -112,6 +129,9 @@ class RunState:
     link: SpanContext | None = None
     given: frozenset[str] = frozenset()
     unfillable: str | None = None
+    # The pause a data steward holds on the run's project, if any (docs/specs/stewardship.md,
+    # invariant 8).
+    paused: Mapping[str, Any] | None = None
     started: datetime = field(default_factory=lambda: datetime.now(UTC))
     input_hash: str = field(init=False)
     trace_id: str = ""

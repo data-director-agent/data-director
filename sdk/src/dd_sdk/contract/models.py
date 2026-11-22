@@ -125,6 +125,7 @@ class ReasonCode(StrEnum):
     REQUIRES_HUMAN_JUDGEMENT = "requires_human_judgement"
     POLICY_REQUIRES_APPROVAL = "policy_requires_approval"
     OUTSIDE_AGENT_SCOPE = "outside_agent_scope"
+    PROJECT_PAUSED = "project_paused"
     # abstained: a person's own model account could not be used (docs/specs/model-accounts.md)
     MODEL_ACCOUNT_MISSING = "model_account_missing"
     MODEL_ACCOUNT_REJECTED = "model_account_rejected"
@@ -516,8 +517,7 @@ class Envelope(Frozen):
     # (docs/specs/policy-and-identity.md).
     policy_bundle_ref: str = Field(pattern=POLICY_BUNDLE_REF_PATTERN)
     policy_digest: str = Field(pattern=SHA256_PATTERN)
-    # Named by the authentication boundary, never by the request
-    # (docs/specs/policy-and-identity.md).
+    # Named by the authentication boundary, never the request (docs/specs/policy-and-identity.md).
     acting_for: Principal
     # The core contract, and the class schemas the card carried, that the run was checked
     # against (docs/specs/contract.md). The digests name schemas the run store keeps.

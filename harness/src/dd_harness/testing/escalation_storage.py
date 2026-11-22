@@ -8,6 +8,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from dd_harness.projects.escalations import NewEscalation, escalations
+from dd_harness.projects.stewarding import pause_of
 from dd_harness.role_events import team_key
 from dd_harness.storage import ProjectStorage
 from dd_harness.testing.fixtures import TEST_PRINCIPAL
@@ -49,8 +50,23 @@ def check_a_teams_projects_are_found_through_the_index(make: MakeProjectStorage)
     assert found["taken_by"]["principal_id"] == STEWARD.principal_id
 
 
+def check_a_pause_keeps_the_project_in_its_teams_index(make: MakeProjectStorage) -> None:
+    """A pause names the team that holds it, so the team finds the project through its index
+    once the escalation is withdrawn, until it lifts the pause (docs/specs/stewardship.md,
+    invariant 8)."""
+    store = make("projects")
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
+    store.pause(project_id, "faculty", "Checking consent", acted_for=STEWARD, caused_by="check")
+    again = make("projects")
+    assert again.projects_naming(team_key("faculty")) == [project_id]
+    assert pause_of(again.events(project_id)) is not None
+
+
 ESCALATION_STORAGE_CHECKS: dict[str, Callable[[MakeProjectStorage], None]] = {
     "a team's projects are found through the index": (
         check_a_teams_projects_are_found_through_the_index
+    ),
+    "a pause keeps the project in its team's index": (
+        check_a_pause_keeps_the_project_in_its_teams_index
     ),
 }

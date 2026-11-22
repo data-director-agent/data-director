@@ -72,6 +72,8 @@ export type AppResponse =
   | OutcomeStatus
   | PackageLink
   | PackageRefusedProblem
+  | PermittedAction
+  | PermittedActions
   | Policy
   | PolicyAgent
   | PolicyProfile
@@ -91,7 +93,10 @@ export type AppResponse =
   | ProjectMembers
   | ProjectProgress
   | ProjectRuns
+  | ProjectStewarding
   | ProjectSummary
+  | ProjectView
+  | ProposedVersion
   | QueuedEscalation
   | RawAgentsResponse
   | RawManifestEntry
@@ -116,7 +121,11 @@ export type AppResponse =
   | Started
   | StepReason
   | StepState
+  | StewardGateDecision
+  | StewardMessage
+  | StewardPause
   | StewardQueue
+  | StewardView
   | StoredRun
   | SupportTeamOption
   | Ticket
@@ -1083,6 +1092,24 @@ export interface Validation {
   warnings: ValidationResult[];
 }
 /**
+ * One thing a person may ask to do in a project, and why not if they may not.
+ */
+export interface PermittedAction {
+  action: string;
+  permitted: boolean;
+  /**
+   * Why it is refused, as a code; absent where it is permitted.
+   */
+  refusal?: string;
+}
+export interface PermittedActions {
+  /**
+   * Whether the person is in the project as a member or as its steward.
+   */
+  acting_as: "member" | "steward";
+  actions: PermittedAction[];
+}
+/**
  * The rules the policy gate holds every run to (`GET /api/policy`).
  */
 export interface Policy {
@@ -1441,6 +1468,46 @@ export interface ProjectRuns {
   runs: Envelope[];
 }
 /**
+ * What data stewards have done in a project, which its members see too.
+ */
+export interface ProjectStewarding {
+  gate_decisions: StewardGateDecision[];
+  messages: StewardMessage[];
+  /**
+   * The pause a steward team holds, which stops every run but an adviser's; null if none.
+   */
+  paused: StewardPause | null;
+  /**
+   * Each steward's reads, at most one a day for each.
+   */
+  views: StewardView[];
+}
+export interface StewardGateDecision {
+  at: string;
+  by: Principal;
+  invocation_id: string;
+  reason: string;
+  verdict: "cleared" | "refused";
+}
+export interface StewardMessage {
+  at: string;
+  /**
+   * The steward, shown as a named person, never as an agent.
+   */
+  by: Principal;
+  note: string;
+}
+export interface StewardPause {
+  at: string;
+  by: Principal;
+  reason: string;
+  team_id: string;
+}
+export interface StewardView {
+  at: string;
+  by: Principal;
+}
+/**
  * One project the person may read, as `GET /api/projects` lists it and
  * `POST /api/projects` creates it, with the conversations started in it, most recent first.
  */
@@ -1477,6 +1544,47 @@ export interface ProjectSummary {
    * Who gave the name. A person's name is never replaced by the model's.
    */
   title_source: ("researcher" | "model") | null;
+}
+/**
+ * One project, as `GET /api/projects/{id}` opens it for a member or a steward.
+ */
+export interface ProjectView {
+  conversation_count: number;
+  created_at: string;
+  created_by: Principal;
+  /**
+   * When the project was deleted, by whom, and until when an owner may restore it; null
+   * while it is not deleted.
+   */
+  deleted: ProjectDeletion | null;
+  documents: DocumentCounts;
+  /**
+   * Whether the project's intake still has a question to ask, has none left, or was
+   * dismissed.
+   */
+  intake: "pending" | "complete" | "dismissed";
+  inventory: SavedInventory | null;
+  permitted_actions: PermittedActions;
+  progress: ProjectProgress;
+  project_id: string;
+  repository: ChosenRepository | null;
+  /**
+   * For how many days after a deletion an owner may restore the project; 0 makes deletion
+   * final.
+   */
+  restore_days: number;
+  /**
+   * The project's latest name; null until a person or the Data Director names it.
+   */
+  title: string | null;
+  /**
+   * Who gave the name. A person's name is never replaced by the model's.
+   */
+  title_source: ("researcher" | "model") | null;
+}
+export interface ProposedVersion {
+  document_id: string;
+  version: number;
 }
 /**
  * An escalation routed to one of the steward's teams, with its project.

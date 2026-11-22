@@ -197,6 +197,9 @@ activity `prov:used` the entity.
 | `support_team_chosen` | `dd:SupportTeamChoice` | Uses the project; `dd:team` the team. |
 | `escalation_opened` | `dd:EscalationOpening` | Generates the escalation, with `dd:team`, `dd:origin` and `dd:scopeShared`; `prov:wasInformedBy` the run it came from, where one; the note, named by its digest, as `dd:note`. |
 | `escalation_taken`, `_released`, `_waiting`, `_replied`, `_resolved`, `_handed_back`, `_withdrawn`, `_reopened` | `dd:EscalationTaking`, `dd:EscalationRelease`, `dd:EscalationWaiting`, `dd:EscalationReply`, `dd:EscalationResolution`, `dd:EscalationHandBack`, `dd:EscalationWithdrawal`, `dd:EscalationReopening` | Uses the escalation; `dd:actingAs` steward where a steward acted; the note, named by its digest, as `dd:note`. |
+| `steward_viewed`, `steward_message` | `dd:StewardView`, `dd:StewardMessage` | Uses the project; `dd:actingAs` steward; the message's note, named by its digest, as `dd:note`. |
+| `project_paused`, `project_resumed` | `dd:ProjectPause`, `dd:ProjectResumption` | Uses the project; `dd:team` the team that holds the pause; `dd:actingAs` steward; the reason, named by its digest, as `dd:note`. |
+| `gate_cleared`, `gate_refused` | `dd:GateClearance`, `dd:GateRefusal` | `prov:wasInformedBy` the referred run; `dd:actingAs` steward; the reason, named by its digest, as `dd:note`. |
 
 **Runs and what happens within them.**
 
@@ -347,7 +350,7 @@ auditor can run the same shapes on a package with any SHACL processor.
 - The harness recording what an agent read, rather than the agent: TODO(#246).
 - Mappings for event types not yet written, each needed before its type can be logged
   (invariant 2): a steward's further actions ([Data stewards](stewardship.md), invariant 12;
-  TODO(#374)) and a refused turn (TODO(#390)).
+  TODO(#1481)) and a refused turn (TODO(#390)).
 - How a package built after the project changed names the one before it: TODO(#649).
 - Whether R10 is also assessed by independent review, as the Blueprint's guidance suggests:
   TODO(#26).

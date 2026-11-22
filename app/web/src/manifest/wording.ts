@@ -69,6 +69,10 @@ export const REASON: Record<string, { meaning: string; next: string }> = {
     meaning: "The agent judged that a person should decide this.",
     next: "Give the run id to a data steward.",
   },
+  project_paused: {
+    meaning: "A data steward has paused this project, so only advisers run in it for now.",
+    next: "Read the steward's reason in the project, or write to them; they lift the pause.",
+  },
   policy_requires_approval: {
     meaning: "This deployment's policy says runs of this agent need a data steward's approval.",
     next: "Give the run id to a data steward. Approving runs is not built yet (#16).",

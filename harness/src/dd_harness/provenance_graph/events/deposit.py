@@ -18,8 +18,14 @@ from dd_harness.projects.rules import (
     ESCALATION_TAKEN,
     ESCALATION_WAITING,
     ESCALATION_WITHDRAWN,
+    GATE_CLEARED,
+    GATE_REFUSED,
     PACKAGE_BUILT,
+    PROJECT_PAUSED,
+    PROJECT_RESUMED,
     PROJECT_VALIDATED,
+    STEWARD_MESSAGE,
+    STEWARD_VIEWED,
     SUPPORT_TEAM_CHOSEN,
 )
 from dd_harness.provenance_graph.events.base import Context, Event, EventMapping, generated, uses
@@ -115,10 +121,10 @@ def _team(ctx: Context, activity: str, event: Event) -> None:
     ctx.graph.put(activity, dd__team=event.get("team_id"))
 
 
-def _note(ctx: Context, activity: str, event: Event) -> None:
+def _note(ctx: Context, activity: str, event: Event, key: str = "note") -> None:
     """A note a person wrote, named by its digest (invariant 5)."""
-    if event.get("note"):
-        note = ctx.graph.content(digest_of(event["note"]))
+    if event.get(key):
+        note = ctx.graph.content(digest_of(event[key]))
         generated(ctx, activity, note, event)
         ctx.graph.link(activity, "dd:note", note)
 
@@ -148,6 +154,32 @@ def _move(ctx: Context, activity: str, event: Event) -> None:
     _note(ctx, activity, event)
 
 
+def _viewed(ctx: Context, activity: str, event: Event) -> None:
+    uses(ctx, activity, ctx.project)
+    ctx.graph.put(activity, dd__actingAs=event.get("acting_as"))
+
+
+def _steward_message(ctx: Context, activity: str, event: Event) -> None:
+    uses(ctx, activity, ctx.project)
+    ctx.graph.put(activity, dd__actingAs=event.get("acting_as"))
+    _note(ctx, activity, event)
+
+
+def _pause(ctx: Context, activity: str, event: Event) -> None:
+    """A pause or its lifting, by the team that holds it, with its reason named by digest."""
+    uses(ctx, activity, ctx.project)
+    ctx.graph.put(activity, dd__team=event.get("team_id"), dd__actingAs=event.get("acting_as"))
+    _note(ctx, activity, event, "reason")
+
+
+def _gate(ctx: Context, activity: str, event: Event) -> None:
+    """A steward's decision on a run the policy gate referred."""
+    if event.get("invocation_id"):
+        ctx.graph.link(activity, "prov:wasInformedBy", uuid_iri(event["invocation_id"]))
+    ctx.graph.put(activity, dd__actingAs=event.get("acting_as"))
+    _note(ctx, activity, event, "reason")
+
+
 MAPPINGS: dict[str, EventMapping] = {
     PROJECT_VALIDATED: EventMapping("dd:ProjectValidation", _validated, harness=True),
     PACKAGE_BUILT: EventMapping("dd:PackageBuild", _package, harness=True),
@@ -166,4 +198,10 @@ MAPPINGS: dict[str, EventMapping] = {
     ESCALATION_HANDED_BACK: EventMapping("dd:EscalationHandBack", _move),
     ESCALATION_WITHDRAWN: EventMapping("dd:EscalationWithdrawal", _move),
     ESCALATION_REOPENED: EventMapping("dd:EscalationReopening", _move),
+    STEWARD_VIEWED: EventMapping("dd:StewardView", _viewed),
+    STEWARD_MESSAGE: EventMapping("dd:StewardMessage", _steward_message),
+    PROJECT_PAUSED: EventMapping("dd:ProjectPause", _pause),
+    PROJECT_RESUMED: EventMapping("dd:ProjectResumption", _pause),
+    GATE_CLEARED: EventMapping("dd:GateClearance", _gate),
+    GATE_REFUSED: EventMapping("dd:GateRefusal", _gate),
 }

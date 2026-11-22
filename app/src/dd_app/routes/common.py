@@ -176,7 +176,14 @@ def in_project(deps: Deps, action: Action, handler: Handler) -> Endpoint:
         project_id = request.path_params["project_id"]
         role = await run_in_threadpool(deps.governance.role, project_id, principal)
         if role is None:
-            return no_project(project_id)
+            # A steward reads a project through the same routes, recorded, and changes nothing
+            # through them (docs/specs/stewardship.md, invariants 2 and 3).
+            reads = action == Action.READ and request.method == "GET"
+            if not reads or not await run_in_threadpool(
+                deps.governance.steward_reads, project_id, principal, caused_by(request)
+            ):
+                return no_project(project_id)
+            return await _handled(request, principal, deps, handler, project_id)
         if not allowed(role, action):
             return problem(
                 403,
@@ -190,13 +197,19 @@ def in_project(deps: Deps, action: Action, handler: Handler) -> Endpoint:
             deps.governance.is_deleted, project_id
         ):
             return project_deleted(project_id)
-        try:
-            return await handler(request, principal, deps)
-        except UnknownProjectError:
-            # A server that keeps no projects, or one gone since the check above.
-            return no_project(project_id)
+        return await _handled(request, principal, deps, handler, project_id)
 
     return signed_in(deps, checked)
+
+
+async def _handled(
+    request: Request, principal: Principal, deps: Deps, handler: Handler, project_id: str
+) -> Response:
+    try:
+        return await handler(request, principal, deps)
+    except UnknownProjectError:
+        # A server that keeps no projects, or one gone since the check above.
+        return no_project(project_id)
 
 
 _CHANGES_STATE = frozenset({"POST", "PUT", "PATCH", "DELETE"})

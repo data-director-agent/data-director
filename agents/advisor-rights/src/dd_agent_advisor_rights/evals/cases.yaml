@@ -1,0 +1,138 @@
+# The Rights and Licensing Adviser's evaluation cases (README.md beside this file).
+#
+# Each case is a `RightsContext` (`input`) and what a data steward would expect of the options
+# offered (`expect`):
+#
+# - `status`, and `reason_code` for a stop;
+# - `include`: the SPDX ids a steward would list for this context; one the adviser leaves out is a
+#   false negative. They are the steward's, not the adviser's table's, so a licence the table
+#   lacks (CC-BY-SA-4.0) is still expected;
+# - `exclude`: the SPDX ids that must not be offered, because they do not fit what was asked;
+# - `access_first`: the access levels that must lead the list, in order;
+# - `questions`: the kinds of question the researcher must be asked (scorers.py, QUESTIONS).
+#
+# The baseline runs the template path (no model), so free-word wishes are not read; those cases
+# record what reading them should give.
+cases:
+  # --- A reuse wish the rules understand -------------------------------------------------------
+  - id: any-reuse
+    input: {reuse_wanted: any, sensitive: false}
+    expect:
+      status: succeeded
+      include: [CC0-1.0, CC-BY-4.0, ODC-By-1.0]
+      exclude: [CC-BY-NC-4.0, ODbL-1.0]
+      access_first: [open]
+  - id: attribution
+    input: {reuse_wanted: attribution, sensitive: false}
+    expect:
+      status: succeeded
+      include: [CC-BY-4.0, ODC-By-1.0]
+      exclude: [CC-BY-NC-4.0]
+  - id: share-alike
+    input: {reuse_wanted: share-alike, sensitive: false}
+    expect:
+      status: succeeded
+      # CC-BY-SA-4.0 is the share-alike licence most data repositories offer; the table lacks it.
+      include: [ODbL-1.0, CC-BY-SA-4.0]
+      exclude: [CC0-1.0, CC-BY-NC-4.0]
+  - id: non-commercial
+    input: {reuse_wanted: Non-Commercial, sensitive: false}
+    expect:
+      status: succeeded
+      include: [CC-BY-NC-4.0]
+      exclude: [CC0-1.0, CC-BY-4.0, ODC-By-1.0]
+
+  # --- A reuse wish in the researcher's own words ----------------------------------------------
+  - id: words-not-to-sell
+    input: {reuse_wanted: "Anyone may use it, but nobody may sell it.", sensitive: false}
+    expect:
+      status: succeeded
+      include: [CC-BY-NC-4.0]
+      exclude: [CC0-1.0, CC-BY-4.0, ODC-By-1.0]
+  - id: words-keep-it-open
+    input:
+      reuse_wanted: "Whatever people build from it must be shared on the same terms."
+      sensitive: false
+    expect:
+      status: succeeded
+      include: [ODbL-1.0]
+      exclude: [CC0-1.0, CC-BY-NC-4.0]
+  - id: words-public-domain
+    input: {reuse_wanted: "Public domain, no strings attached.", sensitive: false}
+    expect:
+      status: succeeded
+      include: [CC0-1.0]
+      exclude: [CC-BY-NC-4.0, ODbL-1.0]
+  - id: words-credit-us
+    input: {reuse_wanted: "Fine to reuse for anything, as long as we are credited.", sensitive: false}
+    expect:
+      status: succeeded
+      include: [CC-BY-4.0]
+      exclude: [CC-BY-NC-4.0]
+  - id: no-reuse-said
+    input: {third_party_content: false, sensitive: false}
+    expect:
+      status: succeeded
+      include: [CC0-1.0, CC-BY-4.0, ODC-By-1.0, ODbL-1.0, CC-BY-NC-4.0]
+      questions: [reuse]
+
+  # --- A mandated licence ----------------------------------------------------------------------
+  - id: mandate-in-table
+    input: {mandated_licence: CC-BY-4.0, reuse_wanted: any, sensitive: false}
+    expect:
+      status: succeeded
+      include: [CC-BY-4.0]
+      exclude: [CC0-1.0, ODC-By-1.0, CC-BY-NC-4.0]
+  - id: mandate-outside-table
+    input: {mandated_licence: CC-BY-SA-4.0, sensitive: false}
+    expect:
+      status: succeeded
+      include: [CC-BY-SA-4.0]
+      exclude: [CC0-1.0, CC-BY-4.0, CC-BY-NC-4.0]
+  - id: mandate-against-wish
+    input: {mandated_licence: CC-BY-4.0, reuse_wanted: non-commercial, sensitive: false}
+    expect:
+      status: succeeded
+      include: [CC-BY-4.0]
+      exclude: [CC-BY-NC-4.0]
+      questions: [mandated_reuse]
+
+  # --- Sensitive data and third-party content --------------------------------------------------
+  - id: sensitive
+    input: {reuse_wanted: attribution, sensitive: true}
+    expect:
+      status: succeeded
+      include: [CC-BY-4.0]
+      access_first: [restricted, closed]
+      questions: [sensitive]
+  - id: sensitive-only
+    input: {sensitive: true}
+    expect:
+      status: succeeded
+      access_first: [restricted, closed]
+      questions: [sensitive, reuse]
+  - id: sensitivity-unknown
+    input: {reuse_wanted: any}
+    expect:
+      status: succeeded
+      include: [CC0-1.0, CC-BY-4.0]
+      questions: [unknown_sensitive]
+  - id: third-party-content
+    input: {reuse_wanted: attribution, third_party_content: true, sensitive: false}
+    expect:
+      status: succeeded
+      include: [CC-BY-4.0]
+      questions: [third_party]
+  - id: sensitive-third-party-mandate
+    input: {mandated_licence: CC0-1.0, third_party_content: true, sensitive: true}
+    expect:
+      status: succeeded
+      include: [CC0-1.0]
+      exclude: [CC-BY-4.0]
+      access_first: [restricted, closed]
+      questions: [sensitive, third_party]
+
+  # --- Nothing to go on ------------------------------------------------------------------------
+  - id: nothing-said
+    input: {}
+    expect: {status: abstained, reason_code: insufficient_input}

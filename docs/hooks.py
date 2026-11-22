@@ -50,6 +50,8 @@ UNPUBLISHED = (
     "inventory/src/dd_inventory/pronom/*",
     # The licence of the pinned PRONOM records, which travels with the data.
     "formats/src/dd_formats/data/*",
+    # The licence of the pinned SPDX licence list, which travels with the data.
+    "mcp-spdx/src/dd_mcp_spdx/data/*",
     # The converter's input; the Blueprint's contents page (docs/blueprint/README.md) carries it.
     "scripts/blueprint/index-header.md",
     # A fixture dataset for the inventory's tests, which stands in for a researcher's files.

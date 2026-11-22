@@ -6,7 +6,8 @@ This module holds what is common to every agent's evaluation:
 - a solver that sends each case through the conductor, so the policy gate, the input check and
   the grounding linter run exactly as they do for any other invocation;
 - scorers for the outcome, for whether the agent stopped when it should have, and for the
-  linter's verdict;
+  linter's verdict; and, for an agent whose payload lists options by id, for recall of the ids a
+  case expects (its false negatives) and, apart, for ids it must not list;
 - metrics that leave a case out when a scorer does not apply to it, rather than counting it as
   zero;
 - building a task: its dataset from a case list, one conductor for every case (to an agent built
@@ -213,6 +214,58 @@ def grounding_passed() -> Scorer:
         return Score(
             value=CORRECT if grounding["passed"] else INCORRECT,
             explanation="; ".join(grounding["violations"]) or "no violations",
+        )
+
+    return score
+
+
+def listed_ids(envelope: dict[str, Any], field: str, id_key: str) -> list[str]:
+    """The ids the payload lists under `field`, each item's `id_key`, in order; none for a run
+    with no payload, such as an abstention."""
+    items = (envelope.get("payload") or {}).get(field) or []
+    return [str(item[id_key]) for item in items]
+
+
+@scorer(metrics=[mean_applicable()])
+def ids_recalled(field: str, id_key: str) -> Scorer:
+    """The share of the case's `include` ids that the payload lists under `field`: recall, with
+    each id it missed (a false negative) in the score's metadata. Does not apply to a case that
+    names no `include`."""
+
+    async def score(state: TaskState, target: Target) -> Score:
+        wanted = list(expectation_of(state).get("include", []))
+        if not wanted:
+            return Score(value=NOANSWER, explanation="the case names no id it must list")
+        listed = {i.casefold() for i in listed_ids(envelope_of(state), field, id_key)}
+        missing = [i for i in wanted if i.casefold() not in listed]
+        found = len(wanted) - len(missing)
+        return Score(
+            value=found / len(wanted),
+            answer=f"{found}/{len(wanted)}",
+            explanation="missing: " + ", ".join(missing) if missing else "all listed",
+            metadata={"missing": missing},
+        )
+
+    return score
+
+
+@scorer(metrics=[mean_applicable()])
+def none_listed(field: str, id_key: str) -> Scorer:
+    """Whether the payload lists none of the case's `exclude` ids under `field`, scored apart from
+    recall (invariant 4): a missed option and a wrong one are different failures. Does not apply
+    to a case that names no `exclude`."""
+
+    async def score(state: TaskState, target: Target) -> Score:
+        unwanted = {i.casefold(): i for i in expectation_of(state).get("exclude", [])}
+        if not unwanted:
+            return Score(value=NOANSWER, explanation="the case names no id it must not list")
+        listed = listed_ids(envelope_of(state), field, id_key)
+        wrong = [i for i in listed if i.casefold() in unwanted]
+        return Score(
+            value=0.0 if wrong else 1.0,
+            answer=str(len(wrong)),
+            explanation="listed: " + ", ".join(wrong) if wrong else "none listed",
+            metadata={"wrong": wrong},
         )
 
     return score

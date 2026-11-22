@@ -73,6 +73,7 @@ from dd_app.routes import (
     projects,
     runs,
     session,
+    stewarding,
 )
 from dd_app.routes.common import Deps, Feedback
 from dd_app.worker_policy import BundleCaching, WorkerPolicy
@@ -119,6 +120,7 @@ AREAS = (
     deposit,
     drafts,
     escalations,
+    stewarding,
 )
 
 

@@ -26,6 +26,7 @@ from dd_app.project_service.lifecycle import Lifecycle
 from dd_app.project_service.materials import Materials
 from dd_app.project_service.members import Members
 from dd_app.project_service.progress import Progress
+from dd_app.project_service.stewarding import Stewarding
 from dd_harness.deposit import PackageRefusedError
 
 
@@ -41,6 +42,7 @@ class ProjectService:
     facts: Facts
     deposit: Deposit
     escalations: Escalations
+    stewarding: Stewarding
 
     @classmethod
     def over(cls, governance: Governance) -> ProjectService:
@@ -53,6 +55,7 @@ class ProjectService:
             facts=Facts(governance),
             deposit=Deposit(governance),
             escalations=Escalations(governance),
+            stewarding=Stewarding(governance),
         )
 
 
