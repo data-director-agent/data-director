@@ -1,12 +1,14 @@
 # advisor.documentation
 
-**Alpha** (`0.3.0a1`): the Documentation Editor persona of the agent roster
-(docs/specs/agents.md), and the drafter of a project's README and data dictionary
-([Drafting documents](../../docs/specs/drafting.md)). It is likely to change shape.
+**Alpha** (`0.9.0a1`): the Documentation Editor persona of the agent roster
+(docs/specs/agents.md), and the drafter of a project's README, data dictionary and Data Management
+Plan ([Drafting documents](../../docs/specs/drafting.md)). It is likely to change shape.
 
 The Documentation Editor drafts a README and a data dictionary for a dataset (Blueprint R5), from
-the project's file inventory and approved metadata record. It serves one step of the process flow,
-`preparation.documentation`.
+the project's file inventory and approved metadata record, and a Data Management Plan from the
+decisions made in the project and the researcher's answers. It serves two steps of the process
+flow, `preparation.documentation` and `setup.dmp-create` ([A Data Management
+Plan](#a-data-management-plan)).
 
 It does not serve the Phase 1 step `setup.documentation`, planning the documentation before data
 are collected: a project has a file inventory only once its data exist, so the editor would have
@@ -107,7 +109,7 @@ into the next request, replacing any a caller sent, so only a person's answer is
 The README's sections are the common core of the research data README templates compared in
 #200: Cornell's Data README, Dryad's and the Borealis working group's minimum README.
 
-It abstains with `insufficient_input` when the request has no inventory, or when a data
+It abstains with `insufficient_input` when a README or data dictionary is asked for and the request has no inventory, or when a data
 dictionary is asked for and no file in the inventory has fields. It abstains with
 `outside_agent_scope` for any other kind. When the request gives a `current_version`, the editor
 drafts afresh, names that version in `revises` and keeps its title. A regenerated data dictionary
@@ -119,6 +121,39 @@ Its grounding mode is `input_only`, whether or not a model is configured: it cit
 (docs/specs/drafting.md, invariant 8). The core `Document` has no `limitations` slot, so the
 outcome's statement says how the version was drafted, how many gaps it left and what the editor
 does not do.
+
+## A Data Management Plan
+
+A request for `document_kind` `dmp` drafts a plan in Markdown (`plan.py`). It needs no inventory,
+since a plan is written before data are collected. Its sections are a first section of project
+details (the title, the researchers and the funding, each asked part by part, and not asked when
+the approved metadata record gives it), then the six core requirements of
+[`dd-dmp-template`](../../dmp-template/README.md), after Science Europe's, each asking the
+template's one-sentence summary. Each is drafted from the project's decided facts, as given
+(`drafted.py`):
+
+| Section | Drafted from |
+|---|---|
+| Project details | the decided funders |
+| Data description and collection | the inventory's files, if the data already exist |
+| Documentation and data quality | the standards, vocabularies and formats chosen |
+| Legal and ethical requirements | the sensitive data identified, and how each is to be handled |
+| Data sharing and long-term preservation | the chosen and required repositories, the decided licence, and the licences the repository offers |
+
+It asks first, as a README does: with no answers recorded and no current version, the version is
+a note (`document_stage` `questions`). Then each answer is placed as given, and every section left
+is a gap, marked and asked. A decided funder, the record's title and creators, and a decided
+licence are offered beside their questions as the researcher's own words (`shares`).
+
+No model writes a plan's text: `document_derivation` is always `template`. Where a model is
+configured and the researcher attached documents, such as a grant application or a protocol, it
+may suggest answers to each core requirement's question from those documents and the decisions
+alone (`suggest_dmp_prompt.md`), checked as a README's suggestions are, and offered beside the
+question, never placed. Without attached documents it is not asked.
+
+What it does not do: it follows one funder-neutral template, not a funder's own; it does not
+export a machine-actionable plan (RDA DMP Common Standard, #701); and updating a plan after
+publication (`post.dmp-update`) is out of scope.
 
 ## Prose written by a model
 

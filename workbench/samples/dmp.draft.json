@@ -1,0 +1,40 @@
+{
+  "schema_class": "DraftRequest",
+  "document_kind": "dmp",
+  "project_decisions": [
+    {
+      "fact_kind": "funder",
+      "fact_subject": "funder",
+      "fact_funder_name": "Economic and Social Research Council"
+    },
+    {
+      "fact_kind": "required_repository",
+      "fact_subject": "repository",
+      "fact_repository_name": "UK Data Service",
+      "fact_required_by": [
+        "ESRC"
+      ]
+    },
+    {
+      "fact_kind": "licence",
+      "fact_subject": "licence",
+      "licence_id": "CC-BY-4.0"
+    },
+    {
+      "fact_kind": "sensitivity",
+      "fact_subject": "names",
+      "sensitive_subject": "Participants' names",
+      "sensitivity_decision": "withhold"
+    }
+  ],
+  "current_version": {
+    "version_ref": {
+      "document_id": "0198a7c2-0000-7000-8000-000000000001",
+      "version": 1
+    },
+    "document_title": "Data Management Plan",
+    "media_type": "text/markdown",
+    "document_text": "# Data Management Plan\n\n_This is not the plan yet._\n",
+    "version_state": "proposed"
+  }
+}

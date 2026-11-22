@@ -122,7 +122,7 @@
       "label": "Write a Data Management Plan",
       "phase_name": "Plan ahead",
       "phase_number": 1,
-      "reason": "out_of_scope",
+      "reason": "no_agent",
       "refers_to": null,
       "step_id": "setup.dmp-create"
     },
@@ -133,7 +133,7 @@
       "label": "Review your Data Management Plan",
       "phase_name": "Plan ahead",
       "phase_number": 1,
-      "reason": "out_of_scope",
+      "reason": "no_agent",
       "refers_to": null,
       "step_id": "setup.dmp-review"
     },

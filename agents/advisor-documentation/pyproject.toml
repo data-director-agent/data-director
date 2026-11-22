@@ -10,6 +10,7 @@ requires-python = ">=3.14"
 license = "MIT"
 authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
 dependencies = [
+  "data-director-dmp-template>=0.1.0a0",
   "data-director-sdk>=0.2.0a0",
   "data-director-units>=0.1.0a0",
   "pydantic>=2.14.1,<3",

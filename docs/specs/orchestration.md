@@ -177,14 +177,15 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     R&D; or `none` (#1406; `test_the_profile_chooses_the_scheme_or_none`).
 
 17. **A step the Blueprint has and this project does not yet do is in the flow, marked
-    `out_of_scope`.** The Data Management Plan steps (`setup.dmp-create`, `setup.dmp-review`,
-    `post.dmp-update`) are these. The phase tracker and the stub name them and say "out of scope
+    `out_of_scope`.** Updating the Data Management Plan after publication (`post.dmp-update`) is
+    one. Writing a plan (`setup.dmp-create`) and reviewing one (`setup.dmp-review`) are served by
+    alpha agents. The phase tracker and the stub name them and say "out of scope
     for now"; the model's prompt marks them and tells the model not to offer to do them or look for
     a tool. An agent that serves one is a `SpecError`, so none can appear to cover it, and a
     researcher may not mark one. The intake's plan question may skip one, recording the branch of
     Figure 1 not taken (invariant 20). Verifying a deposit against an existing plan
     (`governance.dmp`, R8) is in scope.
-    (`test_the_data_management_plan_steps_are_in_the_flow_and_out_of_scope_for_now`,
+    (`test_updating_the_data_management_plan_is_in_the_flow_and_out_of_scope_for_now`,
     `test_serving_a_step_that_is_out_of_scope_for_now_is_refused`,
     `test_data_management_plan_steps_are_named_and_said_to_be_out_of_scope`)
 18. **Where a project is in the flow is derived from its log on every read, never stored.** No

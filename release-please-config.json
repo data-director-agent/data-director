@@ -151,6 +151,13 @@
       "exclude-paths": [
         "subjects/tests"
       ]
+    },
+    "dmp-template": {
+      "component": "dmp-template",
+      "release-type": "python",
+      "exclude-paths": [
+        "dmp-template/tests"
+      ]
     }
   }
 }

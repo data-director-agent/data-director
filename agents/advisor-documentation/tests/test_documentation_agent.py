@@ -280,7 +280,8 @@ def test_the_card_names_the_persona_and_its_steps() -> None:
         "recorded_in": "document_derivation",
     }
     # Not `setup.documentation`: before collection there is no inventory to draft from (#1017).
-    assert entry["serves"] == ["preparation.documentation"]
+    # A Data Management Plan needs none: it is drafted from decisions and answers.
+    assert entry["serves"] == ["preparation.documentation", "setup.dmp-create"]
     json.dumps(entry)
 
 

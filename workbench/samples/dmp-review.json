@@ -1,0 +1,33 @@
+{
+  "schema_class": "DmpReviewRequest",
+  "project_documents": [
+    {
+      "documentation_name": "partial.md",
+      "documentation_digest": "8c8c3be5441ffca88dec2022580b214e96ac54b4e6570a16e830fbc1a31bfebe",
+      "documentation_media_type": "text/markdown",
+      "documentation_size": 1090,
+      "documentation_added_at": "2026-11-01T00:00:00Z",
+      "documentation_text": "# Data Management Plan: Community Health Conversations\n\nSynthetic plan written for the advisor.dmp evaluation. The project, people and data are invented.\n\n## Data to be collected\n\nWe will run an online survey of around 400 residents and conduct 30 semi-structured interviews,\nwhich will be audio recorded and transcribed. Transcripts will be anonymised before analysis.\n\n## Ethics and consent\n\nParticipants will consent to the use of their anonymised data in research and to its sharing\nwith other researchers under appropriate safeguards.\n\n## Sharing and preservation\n\nSurvey responses will be shared openly in ORDA, the University of Sheffield's repository, under\nCC BY 4.0 once the main findings are published.\n\nThe anonymised interview transcripts will be deposited in the UK Data Service under safeguarded\naccess.\n\nThe analysis scripts will be made available on request.\n\nThe audio recordings will not be shared and will be destroyed once the transcripts have been\nchecked.\n\n## Long-term preservation\n\nThe repositories named above will preserve the shared data for at least ten years.\n"
+    }
+  ],
+  "project_decisions": [
+    {
+      "fact_kind": "licence",
+      "fact_subject": "licence",
+      "licence_id": "CC-BY-NC-4.0"
+    },
+    {
+      "fact_kind": "required_repository",
+      "fact_subject": "repository",
+      "fact_repository_name": "UK Data Service",
+      "fact_required_by": [
+        "ESRC"
+      ]
+    },
+    {
+      "fact_kind": "funder",
+      "fact_subject": "funder",
+      "fact_funder_name": "Economic and Social Research Council"
+    }
+  ]
+}

@@ -73,6 +73,7 @@ DONE_BY_EVENT: Final[Mapping[str, str]] = {
 DOCUMENT_STEPS: Final[Mapping[str, tuple[str, tuple[str, ...]]]] = {
     "preparation.metadata": ("metadata_record", ()),
     "preparation.documentation": ("readme", ("data_dictionary",)),
+    "setup.dmp-create": ("dmp", ()),
 }
 
 _ORDER = {s.id: i for i, s in enumerate(s for p in PHASES for s in p.steps)}

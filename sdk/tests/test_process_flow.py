@@ -68,19 +68,21 @@ def test_every_step_has_a_unique_id_under_its_phase_and_none_is_a_requirement() 
     assert all(len(prefix) == 1 for prefix in prefixes.values())
 
 
-def test_the_data_management_plan_steps_are_in_the_flow_and_out_of_scope_for_now() -> None:
-    assert {"setup.dmp-create", "setup.dmp-review", "post.dmp-update"} == OUT_OF_SCOPE
+def test_updating_the_data_management_plan_is_in_the_flow_and_out_of_scope_for_now() -> None:
+    assert {"post.dmp-update"} == OUT_OF_SCOPE
     assert OUT_OF_SCOPE <= STEPS
-    # Verifying a deposit against an existing plan (R8) stays in scope.
-    assert "governance.dmp" not in OUT_OF_SCOPE
+    # Writing and reviewing a plan, and verifying a deposit against it (R8), are in scope.
+    assert not {"setup.dmp-create", "setup.dmp-review", "governance.dmp"} & OUT_OF_SCOPE
     # An out-of-scope step is still planned, so an orchestrator and the phase tracker show it,
     # with no agent.
     planned = {p.step.id: p for p in plan(entry(1), [])}
     assert all(planned[i].agent_ids == () for i in OUT_OF_SCOPE)
     assert [s.id for s in PHASES[0].steps][-2:] == ["setup.dmp-create", "setup.dmp-review"]
     text = describe_flow()
+    line = next(x for x in text.splitlines() if "[post.dmp-update]" in x)
+    assert "out of scope for now" in line
     line = next(x for x in text.splitlines() if "[setup.dmp-create]" in x)
-    assert "optional" in line and "out of scope for now" in line
+    assert "optional" in line and "out of scope for now" not in line
 
 
 def test_vocabularies_are_chosen_before_collection_and_finalised_once_the_standard_is_known() -> (
@@ -236,8 +238,8 @@ def test_the_suggestion_passes_optional_and_out_of_scope_steps_and_ends_when_all
     start = entry(1)
     states = {"setup.documentation": "done", "setup.vocabularies": "done"}
     found = suggested_next(progress(start, states, []), start)
-    # setup.dmp-create is optional and out of scope, setup.dmp-review out of scope.
-    assert found is not None and found.step.id == "governance.policies"
+    # setup.dmp-create is optional; setup.dmp-review is the next required step.
+    assert found is not None and found.step.id == "setup.dmp-review"
     every = {s.id: "done" for p in PHASES for s in p.steps}
     assert suggested_next(progress(start, every, []), start) is None
     # Optional steps never hold the suggestion back.

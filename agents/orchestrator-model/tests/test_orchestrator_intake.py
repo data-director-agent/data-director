@@ -90,6 +90,14 @@ def test_a_plan_the_researcher_has_is_invited_until_a_document_is_marked_as_it(
     assert "invite" not in marked
 
 
+def test_a_plan_is_offered_a_review_and_no_plan_is_offered_writing(tmp_path: Path) -> None:
+    attached = intake_paragraph(first_note(tmp_path / "one", {DMP: YES}, attach=True, mark=True))
+    none = intake_paragraph(first_note(tmp_path / "none", {DMP: NO}))
+    assert attached is not None and none is not None
+    assert "review" in attached and "write" not in attached
+    assert "write" in none and "review" not in none
+
+
 def test_a_caller_cannot_supply_the_intake() -> None:
     """Outside a project the conductor removes the slot, so a caller's answers never reach the
     note; here the note is built only from what the slot holds."""

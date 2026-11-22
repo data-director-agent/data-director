@@ -76,9 +76,11 @@ describe("JourneyPage", () => {
     expect(screen.getByRole("button", { name: "Open again" })).toBeInTheDocument();
   });
 
-  it("strikes through an out-of-scope step the intake skipped, and leaves the others", async () => {
-    const [skipped, other] = FLOW.phases.flatMap((p) => p.steps).filter((s) => s.out_of_scope);
-    if (!skipped || !other) throw new Error("the fixture has fewer than two out-of-scope steps");
+  it("strikes through an out-of-scope step that was skipped, and leaves the others", async () => {
+    const steps = FLOW.phases.flatMap((p) => p.steps);
+    const skipped = steps.find((s) => s.out_of_scope);
+    const other = steps.find((s) => !s.out_of_scope && s.id !== STEP.id);
+    if (!skipped || !other) throw new Error("the fixture has no out-of-scope step");
     const progress: ProjectProgress = projectProgress({
       entry: 1,
       steps: { [skipped.id]: "skipped" },
@@ -96,7 +98,7 @@ describe("JourneyPage", () => {
     const stop = await screen.findByRole("button", { name: new RegExp(`^${skipped.label}: `) });
     expect(stop.closest("li")).toHaveClass("is-out-of-scope", "is-skipped");
     const open = screen.getByRole("button", { name: new RegExp(`^${other.label}: `) });
-    expect(open.closest("li")).toHaveClass("is-out-of-scope");
+    expect(open.closest("li")).not.toHaveClass("is-out-of-scope");
     expect(open.closest("li")).not.toHaveClass("is-skipped");
   });
 });

@@ -1,6 +1,9 @@
 """advisor.dmp: the Data Management Plan Checker persona (docs/specs/agents.md). An alpha.
 
-Serves `governance.dmp` (R8). It compares the outputs a data management plan committed to share
+Serves `governance.dmp` (R8) and `setup.dmp-review`. Given a `DmpReviewRequest`, it reviews the
+plan the researcher attached against the core requirements of a plan and the decisions people in
+the project made (`review.py`, `review_model.py`). Given `DmpCommitments`, the rest of this
+docstring applies. It compares the outputs a data management plan committed to share
 with the outputs the researcher now plans to share, and lists every difference for a person to
 review. It never enforces the plan: a reviewed decision not to share is a valid outcome.
 
@@ -31,6 +34,7 @@ from dd_agent_advisor_dmp.classes import (
     Discrepancy,
     DmpCommitments,
     DmpDiscrepancies,
+    DmpReviewRequest,
     Reconciliation,
     SharingCommitment,
 )
@@ -51,6 +55,8 @@ from dd_agent_advisor_dmp.read_plan import (
     plan_documents,
     plan_proposal,
 )
+from dd_agent_advisor_dmp.review import counted, plan_of, review
+from dd_agent_advisor_dmp.review_model import ModelReview, Reviewer, TemplateReviewer
 from dd_sdk.agent import (
     AgentResult,
     AgentSpec,
@@ -70,6 +76,16 @@ from dd_sdk.contract.models import (
     ReasonCode,
 )
 
+REVIEW_LIMITATIONS = (
+    "It reviews the plan against one funder-neutral template, after Science Europe's core "
+    "requirements; your funder's own template may ask for more.",
+    "By rule it reads only the plan's headings: a section is covered if a heading names it, "
+    "whether or not the text under it answers the requirement's questions.",
+    "A model's reading, where one is configured, may only raise a finding, never lower it; read "
+    "each one, with its quote, before you act on it.",
+    "It reviews the document marked as the project's plan, or, while none is marked, the latest "
+    "document attached; it reads a free-text plan only, not a machine-actionable one (#701).",
+)
 LIMITATIONS = (
     "It reads a plan the researcher attached only to propose its commitments, which count once "
     "the researcher confirms them; it does not read a machine-actionable plan by its identifier "
@@ -105,17 +121,19 @@ RENAMED = (
 class DmpChecker:
     spec = AgentSpec(
         agent_id="advisor.dmp",
-        version="0.2.0a1",
+        version="0.3.0a1",
         title="Data Management Plan Checker",
         icon="📋",
         description=(
-            "Alpha. Compares what a data management plan committed to share with what is planned "
-            "at publication, and lists each difference in output, repository, access or licence "
-            "for a person to review. With a model, it reads renamed outputs and two names for one "
-            "thing among what its rules leave over. Never enforces the plan."
+            "Alpha. Reviews the data management plan the researcher attached against Science "
+            "Europe's core requirements and the decisions made in the project; and compares what "
+            "a plan committed to share with what is planned at publication, listing each "
+            "difference in output, repository, access or licence for a person to review. With a "
+            "model, it reads the plan against each requirement's questions, and renamed outputs "
+            "and two names for one thing among what its rules leave over. Never enforces the plan."
         ),
         action_class="advise",
-        accepts=(ClassSchema.of(DmpCommitments),),
+        accepts=(ClassSchema.of(DmpCommitments), ClassSchema.of(DmpReviewRequest)),
         grounding_mode=GroundingMode.INPUT_ONLY,
         payload=ClassSchema.of(DmpDiscrepancies),
         derivations={
@@ -125,21 +143,35 @@ class DmpChecker:
             "discrepancies.reason": Derived(Derivation.MODEL),
             "discrepancies.message": Derived(Derivation.TEMPLATE),
             "reconciled.reason": Derived(Derivation.MODEL),
+            "section_findings.finding": Derived(
+                Derivation.LEXICAL, recorded_in="finding_derivation"
+            ),
+            "section_findings.reason": Derived(Derivation.MODEL),
+            "section_findings.message": Derived(Derivation.TEMPLATE),
+            "decision_conflicts": Derived(Derivation.LEXICAL),
             "dropped": Derived(Derivation.TEMPLATE),
             "limitations": Derived(Derivation.TEMPLATE),
         },
-        serves=("governance.dmp",),
+        serves=("governance.dmp", "setup.dmp-review"),
         reads_attached=(
-            "to find a data management plan's commitments to share your data, which you then "
-            "confirm or correct"
+            "to review your data management plan, and to find its commitments to share your "
+            "data, which you then confirm or correct"
         ),
     )
 
-    def __init__(self, matcher: Matcher | None = None, reader: PlanReader | None = None) -> None:
+    def __init__(
+        self,
+        matcher: Matcher | None = None,
+        reader: PlanReader | None = None,
+        reviewer: Reviewer | None = None,
+    ) -> None:
         self.matcher: Matcher = TemplateMatcher() if matcher is None else matcher
         self.reader: PlanReader = TemplateReader() if reader is None else reader
+        self.reviewer: Reviewer = TemplateReviewer() if reviewer is None else reviewer
 
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
+        if isinstance(request.input, DmpReviewRequest):
+            return self._review(request.input, ctx)
         commitments = request.input
         assert isinstance(commitments, DmpCommitments)  # the conductor checked spec.accepts
         committed = [*commitments.committed_outputs, *confirmed(commitments)]
@@ -199,6 +231,61 @@ class DmpChecker:
             evidence=[input_evidence(ctx)],
             **model_use(reading.model_id, reading.usage, reading.calls),
         )
+
+    def _review(self, asked: DmpReviewRequest, ctx: RunContext) -> AgentResult:
+        """A review of the attached plan: by rule, then raised by a model where one is set."""
+        plan = plan_of(asked.project_documents)
+        if plan is None:
+            return abstain(
+                ReasonCode.INSUFFICIENT_INPUT,
+                "Attach your data management plan to the project, and ask for a review again.",
+            )
+        reviewed = review(plan, asked.project_decisions)
+        read = self.reviewer.review(plan, reviewed.findings, ctx)
+        conflicts = reviewed.conflicts
+        reflected = (
+            f"{_count(len(conflicts), 'decision')} made in the project "
+            f"{'is' if len(conflicts) == 1 else 'are'} not reflected in it"
+            if conflicts
+            else "it names every decision made in the project that it was checked against"
+        )
+        which = "the project's plan" if plan.documentation_is_plan else "the latest attached"
+        statement = (
+            f"It reviewed '{plan.documentation_name}', {which}. {counted(read.findings)}; "
+            f"{reflected}. "
+            f"{_how_reviewed(read)} Each finding is advice for you to judge: the plan is not "
+            "changed."
+        )
+        return AgentResult(
+            outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement=statement),
+            payload=DmpDiscrepancies(
+                section_findings=read.findings,
+                decision_conflicts=conflicts,
+                dropped=list(read.dropped),
+                limitations=list(REVIEW_LIMITATIONS),
+                grounded_on=[input_ref(ctx)],
+            ),
+            evidence=[input_evidence(ctx)],
+            **model_use(read.model_id if read.calls else None, read.usage, read.calls),
+        )
+
+
+def _how_reviewed(read: ModelReview) -> str:
+    """What the statement says about the model's reading of the plan."""
+    if read.model_id is None:
+        return "It was reviewed by rule: no model is configured, so only the headings were read."
+    if read.unused:
+        return f"It was reviewed by rule, because {read.unused} ({read.model_id})."
+    raised = sum(f.finding_derivation == Derivation.MODEL for f in read.findings)
+    said = (
+        f"A model ({read.model_id}) read the plan against each requirement's questions and "
+        f"raised {_count(raised, 'finding')}"
+    )
+    if read.dropped:
+        said += f"; {_count(len(read.dropped), 'reading')} was not used: " + "; ".join(read.dropped)
+    if read.cut:
+        said += "; only the start of the plan was read, for room"
+    return said + "."
 
 
 def _how_read(reading: Reading) -> str:

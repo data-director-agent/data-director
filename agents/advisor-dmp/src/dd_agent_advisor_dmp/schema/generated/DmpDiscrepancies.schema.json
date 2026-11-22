@@ -1,6 +1,31 @@
 {
    "$comment": "Generated from dmp.yaml by `uv run dd-gen-schema <path to dmp.yaml>`. Do not edit.",
    "$defs": {
+      "DecisionConflict": {
+         "additionalProperties": false,
+         "description": "A decision people in the project made that the plan does not reflect, such as a licence or repository it does not name, for a person to review: the plan may need updating, or the decision may. Found by rule.",
+         "properties": {
+            "fact_kind": {
+               "$ref": "#/$defs/FactKind",
+               "description": "What the fact is about, which says which value slots apply."
+            },
+            "decided": {
+               "description": "What people in the project decided, as recorded.",
+               "type": "string"
+            },
+            "message": {
+               "description": "The difference, said for a person to review.",
+               "type": "string"
+            }
+         },
+         "required": [
+            "fact_kind",
+            "decided",
+            "message"
+         ],
+         "title": "DecisionConflict",
+         "type": "object"
+      },
       "Derivation": {
          "description": "",
          "enum": [
@@ -548,6 +573,57 @@
          "title": "Reconciliation",
          "type": "object"
       },
+      "SectionFinding": {
+         "additionalProperties": false,
+         "description": "How the plan meets one core requirement: covered, vague or missing, with the plan's heading and words it rests on. The rules decide the finding from the plan's headings (finding_derivation lexical); a model may only raise it, from covered to vague, never lower it (finding_derivation model, with its reason). Either way it is for a person to judge.",
+         "properties": {
+            "section": {
+               "description": "The core requirement, by its heading, such as Storage and backup during the project.",
+               "type": "string"
+            },
+            "finding": {
+               "description": "covered (a heading of the plan names it, with text under it), vague (it has a heading but nothing, or too little, under it to answer its questions) or missing (no heading names it).",
+               "type": "string"
+            },
+            "plan_heading": {
+               "description": "The plan's heading that names the requirement, if one does.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "quote": {
+               "description": "The plan's own words the finding rests on, found in its text.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "message": {
+               "description": "The difference, said for a person to review.",
+               "type": "string"
+            },
+            "finding_derivation": {
+               "$ref": "#/$defs/Derivation",
+               "description": "How the finding was reached: lexical, by the rule reading the plan's headings, or model, by a model that read the plan as too vague to answer the requirement's questions."
+            },
+            "reason": {
+               "description": "The model's short reason for a pairing or a reconciliation. Present exactly when a model found it.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "section",
+            "finding",
+            "message",
+            "finding_derivation"
+         ],
+         "title": "SectionFinding",
+         "type": "object"
+      },
       "SensitivityDecision": {
          "description": "Whether a sensitive field or file may be published.",
          "enum": [
@@ -576,7 +652,7 @@
    "$id": "https://w3id.org/data-director/agents/dmp/DmpDiscrepancies",
    "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
-   "description": "The payload of advisor.dmp: where the planned sharing differs from the plan's commitments, for a person to review (R8). It flags and never enforces; a reviewed decision not to share is a valid outcome. Where it has read an attached plan and nobody has confirmed its commitments yet, it proposes each commitment as a project fact for the researcher to confirm, quoting the passage it rests on, and compares nothing until they do.",
+   "description": "The payload of advisor.dmp: where the planned sharing differs from the plan's commitments, for a person to review (R8). It flags and never enforces; a reviewed decision not to share is a valid outcome. Where it has read an attached plan and nobody has confirmed its commitments yet, it proposes each commitment as a project fact for the researcher to confirm, quoting the passage it rests on, and compares nothing until they do. A review of an attached plan (setup.dmp-review) fills section_findings and decision_conflicts instead.",
    "properties": {
       "schema_class": {
          "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -598,6 +674,26 @@
          "description": "Differences in repository, access or licence that a model judged to be the same thing, each with its reason, for a person to check. Empty when no model is configured.",
          "items": {
             "$ref": "#/$defs/Reconciliation"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "section_findings": {
+         "description": "For each core requirement of a data management plan, how the plan meets it.",
+         "items": {
+            "$ref": "#/$defs/SectionFinding"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "decision_conflicts": {
+         "description": "The decisions people in the project made that the plan does not reflect.",
+         "items": {
+            "$ref": "#/$defs/DecisionConflict"
          },
          "type": [
             "array",

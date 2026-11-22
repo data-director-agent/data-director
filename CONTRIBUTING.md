@@ -48,6 +48,7 @@ the default home for anything.
 | The PID resolver, an MCP server that resolves DOIs, ORCID iDs and ROR identifiers for agents through the tool gateway | `mcp-pid/` |
 | `dd-units`, a library that turns a unit as a person writes it into a UCUM code | `units/` |
 | `dd-subjects`, subject classifications (OECD Fields of R&D, ANZSRC Fields of Research) to suggest a field of study from | `subjects/` |
+| `dd-dmp-template`, the core requirements of a Data Management Plan (after Science Europe's) and a rule that finds which of them a plan's headings cover | `dmp-template/` |
 | The FAIRsharing server, an MCP server that looks up FAIRsharing records for agents through the tool gateway | `mcp-fairsharing/` |
 | Repository tooling and tests of the repository as a whole (scripts, shipped configuration, cross-package checks) | `scripts/`, `scripts/tests/` |
 | What governs every package: the Blueprint, system overview, specifications, contract, glossary, requirements register, reviews | `docs/` |

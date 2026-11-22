@@ -42,8 +42,9 @@ from dd_agent_advisor_documentation.replies import (
     salvage,
     unfenced,
 )
+from dd_agent_advisor_documentation.sections import Section
 from dd_sdk.agent import RunContext
-from dd_sdk.contract.models import DraftRequest
+from dd_sdk.contract.models import DocumentQuestion, DraftRequest
 from dd_sdk.model import CallOptions, Model, ModelOutputError, ModelReply, Usage, call
 from dd_sdk.prompts import ModelCallLog
 
@@ -53,6 +54,12 @@ SUGGEST_PROMPT = Path(__file__).with_name("suggest_prompt.md").read_text(encodin
 SUGGEST_README_PROMPT = (
     Path(__file__).with_name("suggest_readme_prompt.md").read_text(encoding="utf-8").strip()
 )
+# What the model is told when it suggests answers to a Data Management Plan's questions.
+SUGGEST_DMP_PROMPT = (
+    Path(__file__).with_name("suggest_dmp_prompt.md").read_text(encoding="utf-8").strip()
+)
+# The key under which a sectioned document's facts name its kind, when it is not a README.
+DOCUMENT_KIND = "document_kind"
 # The data dictionary columns a model may suggest an answer for: what a field's name can say.
 # Never a type or format, which are read from the data, nor missing-value codes, which are not.
 SUGGESTED_COLUMNS = frozenset({"description", "unit"})
@@ -138,7 +145,13 @@ def suggest(
         return Suggestions()
     if len({a.section is None for a in asks}) > 1:
         raise ValueError("a README's and a data dictionary's questions are asked apart")
-    system = SUGGEST_README_PROMPT if asks[0].section is not None else SUGGEST_PROMPT
+    system = (
+        SUGGEST_PROMPT
+        if asks[0].section is None
+        else SUGGEST_DMP_PROMPT
+        if facts.get(DOCUMENT_KIND) == "dmp"
+        else SUGGEST_README_PROMPT
+    )
     calls: ModelCallLog | None = None
     answers: dict[str, str] = {}
     dropped: list[str] = []
@@ -347,3 +360,16 @@ def how_suggested(suggested: Suggestions, title: str) -> str:
         cut = f" ({', '.join(suggested.cut)} only in part, for room)" if suggested.cut else ""
         said += f"{cut}."
     return said
+
+
+def section_asks(
+    sections: Sequence[Section], questions: Sequence[DocumentQuestion], *, has_documents: bool
+) -> list[Ask]:
+    """The questions of a sectioned document a model may suggest an answer to: a whole section's,
+    of a section marked `suggest`, that no person's words already answer."""
+    suggestable = {s.heading: s.ask for s in sections if s.suggestable(has_documents=has_documents)}
+    return [
+        Ask(q.question_id, section=q.gap_section, asks=suggestable[q.gap_section])
+        for q in questions
+        if q.gap_section in suggestable and q.gap_part is None and q.suggested_answer is None
+    ]

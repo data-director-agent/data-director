@@ -39,6 +39,7 @@ def outlined(
     bodies: Mapping[str, str],
     record: Mapping[str, Any] | None,
     answers: Mapping[str, str],
+    document: str = "README",
 ) -> Outlined:
     """A section's gaps and questions, decided by rule (docs/specs/drafting.md, invariant 5)."""
     question_id = _question_id({"section": section.heading})
@@ -78,7 +79,7 @@ def outlined(
     marker = GAP_MARKER.format(question_id=question_id)
     question = DocumentQuestion(
         question_id=question_id,
-        question_prompt=f"For the README's {section.heading} section: {section.ask}",
+        question_prompt=f"For the {document}'s {section.heading} section: {section.ask}",
         gap_section=section.heading,
         shared_field=section.shares,
     )

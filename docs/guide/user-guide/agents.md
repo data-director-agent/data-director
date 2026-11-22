@@ -65,7 +65,14 @@ By default it uses an AI model, sent the policy records and text it finds plus y
 
 ### Data Management Plan Checker (`advisor.dmp`)
 
-An early-stage (alpha) checker for the governance step where you compare what your data management plan promised to share with what you now plan to publish.
+An early-stage (alpha) checker for two steps: reviewing your data management plan before you collect data, and, at the governance step, comparing what the plan promised to share with what you now plan to publish.
+
+**Reviewing your plan.** Attach your plan to the project and ask for a review.
+
+- **You get back**, for each of six core requirements of a plan (after Science Europe's: data collection, documentation and quality, storage and backup, legal and ethics, sharing and preservation, responsibilities and resources), whether the plan covers it, treats it too vaguely or has no section for it, with the plan's words the finding rests on; and each decision made in the project, such as the licence or repository, that the plan does not name.
+- **It will not** change your plan, or say whether it meets your funder's own template. Without a model it reads only the plan's headings. With one, the model may point out a vague section or one answered under another heading, quoting your plan; it never marks a section better than the headings show.
+
+**Comparing what you share with what the plan promised.**
 
 - **You give it** your attached plan, or a list of the outputs the plan committed to share, plus the outputs you plan to share now.
 - **You get back**, for an attached plan, each sharing commitment it finds with the passage it rests on. You confirm, correct or reject each; nothing is compared until you have. Then it lists every difference (an output missing, unplanned, or a different repository, access level or licence), each flagged for you to review.
@@ -120,6 +127,8 @@ The File Archivist helps when you clean and version your data files, the "prepar
 ### Documentation Editor (`advisor.documentation`)
 
 The Documentation Editor helps you prepare a README and a data dictionary for your dataset, at the documentation step of preparing data for deposit. It works from your project's file inventory and, where there is one, your approved metadata record.
+
+It also drafts a Data Management Plan (alpha), before you collect data. The plan follows six core requirements, after Science Europe's, under a section of project details. It places what people in the project decided, such as the funder, the repository, the licence and how sensitive data are handled, and asks you for the rest, first as questions and then, once you have answered, as the plan for you to approve. It writes no text of its own: a model, if one is configured, only suggests answers from documents you attached, such as your grant application. It needs no file inventory.
 
 - **What you give it:** the inventory of your files, and ideally the approved metadata record. You can also attach field notes or a protocol, and answer its questions.
 - **What you get back:** first, a short note asking what only you can say, such as methods, definitions, units and missing value codes. Once you have answered what you can, it writes the README and a data dictionary. The dictionary marks each value as read from the inventory, given by you, or still unknown. Anything it cannot know is left as a clearly marked gap and asked as a question.

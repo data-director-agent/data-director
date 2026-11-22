@@ -20,7 +20,7 @@ from dd_agent_orchestrator_model.own_tools import ENTRY_TOOL, NAME_TOOL
 from dd_agent_orchestrator_model.provisional import chose_provisional
 from dd_sdk.contract.facts import FactKind, InventoryFormat, ProjectFact
 from dd_sdk.contract.models import DraftSummary, GroundingMode, Message
-from dd_sdk.intake import NOT_SURE, YES
+from dd_sdk.intake import NO, NOT_SURE, YES
 from dd_sdk.intake import question as intake_question
 from dd_sdk.process_flow import entry as flow_entry
 from dd_sdk.process_flow import progress, suggested_next
@@ -107,12 +107,13 @@ def _label(question_id: str, value: str) -> str:
 def intake_note(message: Message) -> str | None:
     """The researcher's answers to the setup questions beside the entry question, which the
     researcher gave before the conversation began, or None if they answered none. No step state
-    shows a "Not sure", and an answer about a plan shows only as an out-of-scope step skipped, so
+    shows a "Not sure", and an answer about a plan shows only as the other plan step skipped, so
     without this note the model is not told of them, and denies them when the researcher says
     they answered (#341). When the researcher said
     they have a Data Management Plan and no attached document is marked as the plan, the note asks
     the model to invite them to attach it, or to mark which attached document it is, since the
-    drafters and the plan check read it (#1447)."""
+    drafters and the plan check read it (#1447); once one is marked, to offer to review it. When
+    they said they have none, it asks the model to offer to help write one."""
     answers = message.project_intake or []
     if not answers:
         return None
@@ -127,6 +128,8 @@ def intake_note(message: Message) -> str | None:
         "step needs it."
     )
     dmp = next((a for a in answers if a.intake_question_id == _DMP), None)
+    if dmp is not None and _label(_DMP, NO) in dmp.intake_answer_labels:
+        return note + " They have no Data Management Plan: offer to help write one."
     if dmp is None or _label(_DMP, YES) not in dmp.intake_answer_labels:
         return note
     documents = message.project_documentation or []
@@ -144,7 +147,10 @@ def intake_note(message: Message) -> str | None:
             "document is their plan on the project's Documents page, or to attach it, as the Data "
             "Management Plan check then reads that document alone."
         )
-    return note
+    return note + (
+        " They have a Data Management Plan, marked among the attached documents: offer to review "
+        "it against the decisions made in the project."
+    )
 
 
 def _when(at: datetime) -> str:

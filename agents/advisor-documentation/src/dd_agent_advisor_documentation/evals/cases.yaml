@@ -276,13 +276,13 @@ cases:
       status: abstained
       reason_code: insufficient_input
 
+  # A Data Management Plan is drafted with or without an inventory; the first draft asks first.
   - id: hallam-dmp
     base: hallam-moor
     kind: dmp
     defect: none
     expect:
-      status: abstained
-      reason_code: outside_agent_scope
+      status: succeeded
 
   # --- Soil survey: no gold, the agent's own sample --------------------------------------------
   - id: soil-dictionary

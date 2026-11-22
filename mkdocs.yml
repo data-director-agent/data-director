@@ -195,6 +195,8 @@ nav:
           - /units/README.md
       - Subjects library:
           - /subjects/README.md
+      - DMP template library:
+          - /dmp-template/README.md
       - FAIRsharing server:
           - /mcp-fairsharing/README.md
       - Agents:

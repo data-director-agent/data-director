@@ -37,6 +37,19 @@ today that is DataCite in its JSON form alone, TODO(#1359). Its model, on unless
 suggests some of those values beside their questions
 ([`agents/advisor-metadata/README.md`](../../agents/advisor-metadata/README.md)).
 
+The Documentation Editor also drafts a Data Management Plan (`dmp`), an alpha that serves
+`setup.dmp-create`. Its sections are the core requirements of
+[`dd-dmp-template`](../../dmp-template/README.md), after Science Europe's, under a section of
+project details. A plan is drafted before data exist, so it needs no inventory: it infers nothing,
+and places only what is supplied (invariant 2): the funders, the required repository, the licence,
+the sensitive data and their handling, and the standards people in the project decided, as project
+facts give them, the inventory's files if the data already exist, and the researcher's answers. It
+asks first, as a README does, and every other gap is asked. No model writes a plan's text, so
+`document_derivation` is always `template`; where a model is configured, it suggests answers only
+from the documents the researcher attached and the project's decisions, beside the questions
+(invariant 7). The Data Management Plan Checker (`advisor.dmp`) reviews an attached plan against
+the same requirements (`setup.dmp-review`).
+
 ## Invariants
 
 1. **Inferred means read from the project's facts.** A drafter infers only what the file inventory

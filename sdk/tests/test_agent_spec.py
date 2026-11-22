@@ -309,7 +309,7 @@ def test_serving_anything_but_a_step_is_refused(serves: tuple[str, ...]) -> None
 
 def test_serving_a_step_that_is_out_of_scope_for_now_is_refused() -> None:
     with pytest.raises(SpecError, match="out of scope for now"):
-        dataclasses.replace(SPEC, serves=("setup.dmp-create",))
+        dataclasses.replace(SPEC, serves=("post.dmp-update",))
     entry = describe(SPEC)
     entry["serves"] = ["post.dmp-update"]
     with pytest.raises(SpecError, match="out of scope for now"):

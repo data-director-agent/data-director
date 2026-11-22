@@ -1,10 +1,10 @@
-"""The README template's sections (`readme.yaml`, docs/specs/drafting.md): what each asks, the
-project facts it is drafted from, its parts, whether a model may suggest an answer to it, and the
-shared field it asks for, if any."""
+"""A sectioned document's sections (docs/specs/drafting.md): the README's (`readme.yaml`) and the
+Data Management Plan's (`plan.py`). What each asks, the project facts it is drafted from, its
+parts, whether a model may suggest an answer to it, and the shared field it asks for, if any."""
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, Literal, NamedTuple
 
@@ -13,7 +13,8 @@ import yaml
 from dd_sdk.contract.questions import SharedField
 
 README = Path(__file__).with_name("readme.yaml")
-# The project facts a README section may be drafted from (readme.yaml explains each).
+# The project facts a section may be drafted from (readme.yaml explains each; `drafted.py` the
+# decided facts a Data Management Plan also draws on: funders, repository, licence, sensitivity).
 SOURCES = frozenset(
     {
         "files",
@@ -23,6 +24,10 @@ SOURCES = frozenset(
         "record_rights",
         "record_citation",
         "standards",
+        "funders",
+        "repository",
+        "licence",
+        "sensitivity",
     }
 )
 # A section's `suggest` value for "only from the documents the researcher attached".
@@ -74,6 +79,12 @@ class Section(NamedTuple):
 def load_sections(path: Path = README) -> list[Section]:
     with path.open(encoding="utf-8") as fh:
         table = yaml.safe_load(fh)
+    return sections_from(table, path)
+
+
+def sections_from(table: Sequence[Mapping[str, Any]], path: Path | str) -> list[Section]:
+    """The sections a table of entries describes, in the form of `readme.yaml`; `path` names
+    where the table came from, for its errors."""
     sections = []
     for entry in table:
         given = entry.get("from")
@@ -128,7 +139,7 @@ def load_sections(path: Path = README) -> list[Section]:
     return sections
 
 
-def _part(path: Path, heading: str, entry: Mapping[str, Any]) -> Part:
+def _part(path: Path | str, heading: str, entry: Mapping[str, Any]) -> Part:
     given_by = entry.get("given_by")
     if given_by is not None and given_by not in RECORD_GENERAL:
         raise ValueError(f"{path}: section {heading!r} has a part given by unknown {given_by!r}")
@@ -140,7 +151,7 @@ def _part(path: Path, heading: str, entry: Mapping[str, Any]) -> Part:
     )
 
 
-def _shares(path: Path, heading: str, entry: Mapping[str, Any]) -> SharedField | None:
+def _shares(path: Path | str, heading: str, entry: Mapping[str, Any]) -> SharedField | None:
     shares = entry.get("shares")
     if shares is None:
         return None
