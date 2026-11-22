@@ -14,6 +14,7 @@ from test_deposit import FILES, RECORD, approve
 from dd_harness.deposit import build_package
 from dd_harness.deposit_api import (
     DepositRefusedError,
+    DepositSetup,
     Refusal,
     approve_and_deposit,
     connection,
@@ -112,9 +113,11 @@ def deposit(
         project_id,
         changes.pop("digest", digest),
         requirements=requirements,
-        offered=changes.pop("offered", OFFERED),
-        transports=changes.pop("transports", TRANSPORTS),
-        broker=None if broker is None else broker.deposit_broker(),
+        setup=DepositSetup(
+            offered=changes.pop("offered", OFFERED),
+            transports=changes.pop("transports", TRANSPORTS),
+            broker=None if broker is None else broker.deposit_broker(),
+        ),
         acted_for=TEST_PRINCIPAL,
         caused_by="test",
     )
@@ -212,9 +215,7 @@ def test_an_unreachable_broker_is_a_failed_deposit(
         project_id,
         digest,
         requirements=requirements,
-        offered=OFFERED,
-        transports=TRANSPORTS,
-        broker=unreachable,
+        setup=DepositSetup(OFFERED, TRANSPORTS, unreachable),
         acted_for=TEST_PRINCIPAL,
         caused_by="test",
     )

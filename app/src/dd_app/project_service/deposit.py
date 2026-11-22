@@ -141,9 +141,11 @@ class Deposit(Area):
             project_id,
             digest,
             requirements=self._requirements(),
-            offered=self.governance.conductor.profile.deposit_transports,
-            transports=self.governance.transports,
-            broker=self.governance.deposit_broker,
+            setup=deposit_api.DepositSetup(
+                offered=self.governance.conductor.profile.deposit_transports,
+                transports=self.governance.transports,
+                broker=self.governance.deposit_broker,
+            ),
             acted_for=acted_for,
             caused_by=caused_by,
         )
