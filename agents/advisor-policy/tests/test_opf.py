@@ -3,6 +3,9 @@ rules for journals and funders (`discover.py`)."""
 
 from __future__ import annotations
 
+import json
+import re
+
 import httpx
 import pytest
 from opf_fixture import (
@@ -16,12 +19,13 @@ from opf_fixture import (
     crossref_handler,
     opf,
     opf_handler,
+    refusal,
 )
 
 from dd_agent_advisor_policy import discover
 from dd_agent_advisor_policy.classes import Actor, ActorRole
 from dd_agent_advisor_policy.crossref import normal_issn
-from dd_agent_advisor_policy.opf import from_item
+from dd_agent_advisor_policy.opf import MAX_CONDITIONS, filter_for, from_item
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, verify
 from dd_sdk.registry import RegistryUnavailable
 
@@ -36,7 +40,7 @@ def test_a_search_sends_the_key_in_a_header_and_never_in_the_address() -> None:
     assert KEY not in str(request.url)
     assert request.url.params["item-type"] == "funder"
     assert request.url.params["format"] == "Json"
-    assert "Natural Environment Research Council" in request.url.params["filter"]
+    assert refusal(request) is None
     assert "data-director-advisor-policy" in request.headers["user-agent"]
     assert record.source_id == NERC_OPF
     assert (record.name, record.acronyms, record.country) == (
@@ -44,6 +48,39 @@ def test_a_search_sends_the_key_in_a_header_and_never_in_the_address() -> None:
         ["NERC"],
         "gb",
     )
+
+
+@pytest.mark.parametrize(
+    ("item_type", "text"),
+    [
+        ("funder", "Natural Environment Research Council"),
+        ("funder", "Deutsche Forschungsgemeinschaft"),
+        ("publication", "The Journal of the Society for the Study of Things and Others"),
+        ("publisher", "Elsevier"),
+    ],
+)
+def test_a_filter_asks_for_whole_words_of_the_name_in_documented_terms(
+    item_type: str, text: str
+) -> None:
+    found = json.loads(filter_for(item_type, text))  # type: ignore[arg-type]
+    assert 1 <= len(found) <= MAX_CONDITIONS
+    name_words = {w.casefold() for w in re.findall(r"\w+", text)}
+    for field, operator, value in found:
+        assert field in ("name", "title") and operator == "contains word"
+        assert value.casefold() in name_words and value.casefold() not in {"the", "of", "for"}
+
+
+def test_a_single_word_in_capitals_is_looked_for_among_acronyms() -> None:
+    [record] = opf().search("funder", "NERC")
+    assert record.source_id == NERC_OPF
+    [[field, _, value]] = json.loads(filter_for("funder", "NERC"))
+    assert (field, value) == ("acronym", "NERC")
+
+
+def test_a_refused_filter_is_unavailable_not_empty() -> None:
+    refuse = httpx.Response(400, json={"error": "unsupported operator"})
+    with pytest.raises(RegistryUnavailable, match="HTTP 400"):
+        opf(lambda _: refuse).search("funder", "NERC")
 
 
 def test_a_journal_is_read_by_issn_with_its_publisher_and_policies() -> None:
