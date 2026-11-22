@@ -9,6 +9,8 @@ import projects from "../../../fixtures/projects.json";
 import type { ProcessFlow, ProjectProgress } from "../../flow/types";
 import type { ProjectDocuments, ProjectSummary } from "../../project/api";
 import { type FactsApi, FactsApiContext, type ProjectFacts } from "../../project/facts";
+import { ProjectRunsApiContext } from "../../project/projectRuns";
+import { aReport, aRun, runsApi } from "../../test/fairness";
 import { ContextPanel } from "./ContextPanel";
 
 // A project as the server lists it (app/tests/test_app.py), which has chosen no repository.
@@ -28,7 +30,9 @@ function renderPanel(props: Parameters<typeof ContextPanel>[0], facts: ProjectFa
   };
   return render(
     <FactsApiContext.Provider value={api}>
-      <ContextPanel {...props} />
+      <ProjectRunsApiContext.Provider value={runsApi([aRun(aReport(), "2026-01-02T00:00:00Z")])}>
+        <ContextPanel {...props} />
+      </ProjectRunsApiContext.Provider>
     </FactsApiContext.Provider>,
   );
 }
@@ -124,5 +128,18 @@ describe("ContextPanel", () => {
     for (const badge of badges) {
       expect(within(badge.parentElement as HTMLElement).getAllByRole("link").length).toBeGreaterThan(0);
     }
+  });
+
+  it("shows how FAIR the metadata record is only where an agent here gives FAIR feedback", async () => {
+    const { unmount } = renderPanel({ projectId: PROJECT_ID, documents: { state: "loaded", documents: DOCUMENTS } });
+    expect(screen.queryByRole("region", { name: "How FAIR it is" })).not.toBeInTheDocument();
+    unmount();
+    renderPanel({ projectId: PROJECT_ID, documents: { state: "loaded", documents: DOCUMENTS }, fairFeedback: true });
+    const fair = region("How FAIR it is");
+    expect((await within(fair).findAllByRole("meter")).length).toBeGreaterThan(0);
+    expect(within(fair).getByRole("link", { name: "Every check" })).toHaveAttribute(
+      "href",
+      `/projects/${PROJECT_ID}/fair`,
+    );
   });
 });

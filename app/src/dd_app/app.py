@@ -68,6 +68,7 @@ from dd_app.routes import (
     members,
     meta,
     progress,
+    project_runs,
     projects,
     runs,
     session,
@@ -112,6 +113,7 @@ AREAS = (
     progress,
     documents,
     facts,
+    project_runs,
     deposit,
     drafts,
 )

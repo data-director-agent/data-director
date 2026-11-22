@@ -54,8 +54,9 @@ its `recommendation_derivation` (`template` or `model`). The feedback is shaped 
   accessed are supplied by the repository at deposit. A draft that lacks them has those checks
   marked `after_deposit`, with no recommendation, and they are not counted.
 
-It also lists the assessor's `limitations`. Comparing with the previous assessment, rather than
-the approved version, and showing the tallies in the app's project area are TODO(#433).
+It also lists the assessor's `limitations`. The app shows the tallies in the project area,
+recognising the report by its class ([FAIR feedback](../../docs/ui/fair-feedback.md)). Comparing
+with the previous assessment, rather than the approved version, is TODO(#1417).
 
 ## What it does
 

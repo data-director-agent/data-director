@@ -141,6 +141,31 @@ class Reads:
             readable=self.governance.readable(reader), limit=limit, before=before
         )
 
+    def project_runs(
+        self, project_id: str, reader: Principal, payload_class: str, *, limit: int = PAGE_SIZE
+    ) -> list[dict[str, Any]]:
+        """The envelopes of the succeeded runs in project `project_id` whose payload is a
+        `payload_class`, newest first, at most `limit` (`GET /api/projects/{id}/runs`): turns and
+        delegated children alike, from the conversations `reader` may read. The caller names the
+        class, so the server names none (docs/specs/app.md)."""
+        check_limit(limit)
+        readable = self.governance.readable(reader)
+        store = self.governance.conductor.store
+        found: list[dict[str, Any]] = []
+        for listed in self._every_conversation(readable):
+            if listed.get("project_id") != project_id:
+                continue
+            found += (
+                envelope
+                for envelope in store.iter_envelopes(conversation_id=listed["conversation_id"])
+                if envelope.get("project_id") == project_id
+                and envelope["outcome"]["status"] == "succeeded"
+                and (envelope.get("payload") or {}).get("schema_class") == payload_class
+                and readable.includes(envelope)
+            )
+        found.sort(key=lambda envelope: envelope["completed_at"], reverse=True)
+        return found[:limit]
+
     def stored_run(self, invocation_id: str, reader: Principal) -> dict[str, Any] | None:
         """A stored run as `run` returned it, with its request (`GET /api/runs/{id}`), or None,
         also when `reader` may not read it, so that a refusal does not reveal whether it exists.

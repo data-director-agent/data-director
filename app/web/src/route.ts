@@ -60,6 +60,7 @@ export const PROJECT_TABS = [
   "members",
   "facts",
   "repository",
+  "fair",
   "ai-use",
   "deposit",
   "journey",

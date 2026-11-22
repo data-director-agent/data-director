@@ -5,6 +5,7 @@
  *
  * - what waits on the person, each with the one thing to do about it;
  * - where the project stands, in one line, and the step suggested next;
+ * - how FAIR its metadata record is so far, where an agent here gives FAIR feedback;
  * - what Data Director is working from: the facts that shape its answers and the repository chosen;
  * - the files and documents, this conversation's first;
  * - the guardrails, closed until opened.
@@ -22,6 +23,7 @@ import type { ProjectSummary } from "../../project/api";
 import type { DocumentsRead } from "../../project/drafted";
 import type { FlowLoad } from "./PhaseTracker";
 import { useProjectFacts } from "./project-pane/facts";
+import { FairFeedback } from "./project-pane/FairFeedback";
 import { FilesAndDocuments } from "./project-pane/FilesAndDocuments";
 import { Guardrails } from "./project-pane/Guardrails";
 import { WaitingOnYou } from "./project-pane/WaitingOnYou";
@@ -35,6 +37,7 @@ export function ContextPanel({
   documents = { state: "loading" },
   flow = { state: "loading" },
   progress,
+  fairFeedback = false,
   refresh,
   onAsk,
   onInventorySaved,
@@ -49,6 +52,8 @@ export function ContextPanel({
   /** The process flow, once read, and where the project is in it. */
   flow?: FlowLoad;
   progress?: ProjectProgress | undefined;
+  /** Whether an agent in this deployment returns FAIR reports, so that feedback can be asked for. */
+  fairFeedback?: boolean;
   /** Changes when a turn settles, so that what the pane reads itself is read again. */
   refresh?: unknown;
   /** Puts `text` in the message box, unsent, for the person to send or change. */
@@ -81,6 +86,14 @@ export function ContextPanel({
             progress={progress ?? null}
             onAsk={onAsk}
           />
+          {fairFeedback && (
+            <FairFeedback
+              projectId={projectId}
+              documents={documents.state === "loaded" ? documents.documents : []}
+              refresh={refresh}
+              onAsk={onAsk}
+            />
+          )}
           <WorkingFrom projectId={projectId} repository={project?.repository} facts={facts} />
           <FilesAndDocuments
             projectId={projectId}

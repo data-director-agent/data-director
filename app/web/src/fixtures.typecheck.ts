@@ -21,7 +21,7 @@
  * is not: it is written by hand, as what a test sends the server, not what the server says.
  */
 
-import type { RunResult } from "./api/generated/responses";
+import type { ProjectRuns, RunResult } from "./api/generated/responses";
 import type { Conversation } from "./conversation/types";
 import type { RawAgentsResponse } from "./manifest/types";
 import type { RawModelAccount, RawRefusal } from "./model-account/api";
@@ -57,6 +57,7 @@ import projectDocuments from "../fixtures/project-documents.json";
 import projectFacts from "../fixtures/project-facts.json";
 import projectFactsDecided from "../fixtures/project-facts-decided.json";
 import projectFactsForbidden from "../fixtures/project-facts-forbidden.json";
+import projectFairnessRuns from "../fixtures/project-fairness-runs.json";
 import projectResearchers from "../fixtures/project-researchers.json";
 import projects from "../fixtures/projects.json";
 import projectsDeleted from "../fixtures/projects-deleted.json";
@@ -102,6 +103,7 @@ void (projectAnswers satisfies Wide<ProjectDocuments>);
 void (projectFacts satisfies Wide<ProjectFacts>);
 void (projectFactsDecided satisfies Wide<ProjectFacts>);
 void (projectFactsForbidden satisfies Wide<Problem>);
+void (projectFairnessRuns satisfies Wide<ProjectRuns>);
 void (projectMembers satisfies Wide<ProjectMembers>);
 void (projectMembersLastOwner satisfies Wide<Problem>);
 void (projectResearchers satisfies Wide<ResearcherRecord>[]);
