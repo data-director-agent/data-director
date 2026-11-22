@@ -91,13 +91,6 @@ fairness:ProjectMetadataDraft a sh:NodeShape ;
             sh:minCount 1 ;
             sh:order 4 ;
             sh:path <https://w3id.org/data-director/version_state> ],
-        [ sh:class <https://w3id.org/data-director/DocumentVersionRef> ;
-            sh:description "The version, by its document and number." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 0 ;
-            sh:path <https://w3id.org/data-director/version_ref> ],
         [ sh:datatype xsd:string ;
             sh:description "The media type of document_text, such as text/markdown or application/json." ;
             sh:maxCount 1 ;
@@ -105,6 +98,13 @@ fairness:ProjectMetadataDraft a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
             sh:path dcterms:format ],
+        [ sh:class <https://w3id.org/data-director/DocumentVersionRef> ;
+            sh:description "The version, by its document and number." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/version_ref> ],
         [ sh:datatype xsd:string ;
             sh:description "A short name a person can tell documents apart by, such as README for raw/." ;
             sh:maxCount 1 ;
@@ -117,20 +117,20 @@ fairness:ProjectMetadataDraft a sh:NodeShape ;
     rdfs:comment "One version of a project document: the document the conductor minted an identifier for, and the version's number within it, counted from 1." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:integer ;
-            sh:description "The number of a version within its document, counted from 1." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path <https://w3id.org/data-director/version> ],
-        [ sh:datatype xsd:string ;
+    sh:property [ sh:datatype xsd:string ;
             sh:description "The identifier the conductor minted for the document, a UUIDv7." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path <https://w3id.org/data-director/document_id> ;
-            sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ] ;
+            sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ],
+        [ sh:datatype xsd:integer ;
+            sh:description "The number of a version within its document, counted from 1." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <https://w3id.org/data-director/version> ] ;
     sh:targetClass <https://w3id.org/data-director/DocumentVersionRef> .
 

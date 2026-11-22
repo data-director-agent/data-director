@@ -27,7 +27,8 @@
             "template",
             "model",
             "lexical",
-            "registry"
+            "registry",
+            "answer"
          ],
          "title": "Derivation",
          "type": "string"

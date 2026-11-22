@@ -182,12 +182,40 @@ describe("DocumentQuestions", () => {
     expect(screen.getByRole("button", { name: "Save answers" })).toBeDisabled();
 
     await userEvent.type(box(1), " dry weight");
-    expect(box(1)).toHaveAccessibleDescription(/You changed a model's suggestion/);
+    expect(box(1)).toHaveAccessibleDescription(/You changed the suggestion by a model/);
     await userEvent.clear(box(3));
     await userEvent.click(within(check).getByRole("button", { name: "Accept 2 suggested answers" }));
     expect(answer).toHaveBeenCalledWith(ANSWERED.project_id, README.document_id, VERSION.version, [
       { answered_question: cell(1).question_id, answer_text: "mg/kg dry weight" },
       { answered_question: cell(2).question_id, answer_text: "cm" },
+    ]);
+  });
+
+  it("says when a suggestion is the researcher's own answer for another document, and records it only when accepted", async () => {
+    const title: DocumentQuestion = {
+      question_id: "q-" + "1".repeat(16),
+      question_prompt: "Title: the dataset's title.",
+      gap_section: "General information",
+      gap_part: "Title",
+      shared_field: "title",
+      suggested_answer: "Soil cores from Hallam Moor",
+      suggestion_derivation: "answer",
+      suggested_from: "metadata_record",
+    };
+    const document: ProjectDocument = {
+      ...UNANSWERED,
+      versions: [{ ...VERSION, questions: [title] }],
+    };
+    const answer = vi.fn<ProjectApi["answer"]>().mockResolvedValue(ANSWERED);
+    renderQuestions(document, answer);
+    const box = screen.getByRole("textbox", { name: title.question_prompt });
+    expect(box).toHaveValue("Soil cores from Hallam Moor");
+    expect(box).toHaveAccessibleDescription(/your answer for the metadata record/);
+    expect(box).not.toHaveAccessibleDescription(/by a model/);
+    expect(answer).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Accept 1 suggested answer" }));
+    expect(answer).toHaveBeenCalledWith(ANSWERED.project_id, README.document_id, VERSION.version, [
+      { answered_question: title.question_id, answer_text: "Soil cores from Hallam Moor" },
     ]);
   });
 

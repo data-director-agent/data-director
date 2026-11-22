@@ -56,6 +56,7 @@ export const GLOSSARY = {
   "derivation:template": { term: "template", text: "Produced deterministically from retrieved fields by a fixed template." },
   "derivation:lexical": { term: "lexical", text: "Produced by a keyword rule over retrieved fields." },
   "derivation:registry": { term: "registry", text: "Read directly from a curated registry field." },
+  "derivation:answer": { term: "answer", text: "Copied, as given, from a person's own answer to another document's question, or from a fact people in the project decided: offered for them to confirm, never placed." },
   "derivation:verified": { term: "verified", text: "The unbadged default: set by the harness or read from a registry, not generated." },
   "source_id": { term: "source_id", text: "What was retrieved: a registry record identifier, or input:<invocation_id> for the input document itself." },
   "cited": { term: "cited", text: "The row's content_hash appears in the payload's grounded_on, so the payload rests on it. A visual cross-check only; the grounding linter is what enforces it." },

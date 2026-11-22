@@ -92,7 +92,7 @@ ethics:SensitivityFlag a sh:NodeShape ;
             sh:order 1 ;
             sh:path ethics:category ],
         [ sh:description "How the value came about, lexical (the keyword table), template or model." ;
-            sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:in ( "template" "model" "lexical" "registry" "answer" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 4 ;
@@ -104,7 +104,7 @@ ethics:SensitivityQuestion a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:description "How the value came about, lexical (the keyword table), template or model." ;
-            sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:in ( "template" "model" "lexical" "registry" "answer" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 1 ;

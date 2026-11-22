@@ -9,7 +9,7 @@ quality:QualityReview a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:description "How the summary came about: template, the rules' own summary, or model, where a model wrote it from the findings." ;
-            sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:in ( "template" "model" "lexical" "registry" "answer" ) ;
             sh:maxCount 1 ;
             sh:order 4 ;
             sh:path quality:summary_derivation ],
@@ -73,7 +73,7 @@ quality:Finding a sh:NodeShape ;
             sh:order 4 ;
             sh:path <https://w3id.org/data-director/grounded_on> ],
         [ sh:description "How the finding was produced." ;
-            sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:in ( "template" "model" "lexical" "registry" "answer" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 3 ;

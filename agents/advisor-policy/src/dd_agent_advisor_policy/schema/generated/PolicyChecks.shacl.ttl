@@ -134,7 +134,7 @@ policy:MatchedPolicy a sh:NodeShape ;
             sh:order 0 ;
             sh:path policy:actor ],
         [ sh:description "How the record was matched to the actor: registry, by the agent's fixed rule over the first search, or model, by a model with its search tools." ;
-            sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:in ( "template" "model" "lexical" "registry" "answer" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 3 ;
@@ -145,7 +145,7 @@ policy:MatchedPolicy a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 6 ;
             sh:path policy:rationale ],
-        [ sh:in ( "template" "model" "lexical" "registry" ) ;
+        [ sh:in ( "template" "model" "lexical" "registry" "answer" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 7 ;
@@ -198,7 +198,7 @@ policy:Obligation a sh:NodeShape ;
             sh:order 4 ;
             sh:path policy:value ],
         [ sh:description "How the obligation was read, registry (a fixed rule) or model." ;
-            sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:in ( "template" "model" "lexical" "registry" "answer" ) ;
             sh:maxCount 1 ;
             sh:order 6 ;
             sh:path policy:derivation ],

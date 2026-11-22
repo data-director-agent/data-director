@@ -12,6 +12,7 @@ import type { ReactNode } from "react";
 
 import type { DocumentQuestion, DocumentVersion, ProjectDocument } from "../../project/api";
 import { questionTarget } from "../../project/api";
+import { suggestionSource } from "../../project/suggestion";
 
 export function QuestionList({
   document,
@@ -84,7 +85,7 @@ function Listed({
                 {q.suggested_answer && (
                   <>
                     {" "}
-                    Suggested by a model, not yet confirmed: <q>{q.suggested_answer}</q>
+                    Suggested {suggestionSource(q)}, not yet confirmed: <q>{q.suggested_answer}</q>
                   </>
                 )}
               </>

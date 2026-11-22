@@ -9,7 +9,7 @@
           ],
           "action_class": "advise",
           "agent_id": "test.spec",
-          "contract_version": "0.21.0",
+          "contract_version": "0.22.0",
           "derivations": {
             "items.kind": {
               "how": "lexical",
@@ -32,7 +32,7 @@
           "reads_attached": "",
           "schemas": {
             "Findings": {
-              "digest": "a7d5da442bfd094784f8c02c53cb504850438064740d4953d51eabc4fbdf116a",
+              "digest": "41809d20c8b262d22f2a654d6ab19540f0002d8e999605e20ec6caf104f64cc6",
               "json_schema": {
                 "$defs": {
                   "Derivation": {
@@ -40,7 +40,8 @@
                       "template",
                       "model",
                       "lexical",
-                      "registry"
+                      "registry",
+                      "answer"
                     ],
                     "type": "string"
                   },

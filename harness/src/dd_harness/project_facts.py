@@ -4,18 +4,20 @@
 Three core classes are filled. Within a project:
 
 - a `DraftRequest`'s `inventory`, `requirements`, `metadata_record`, `draft_answers`,
-  `researchers` and `project_documents` are the project's own: whatever the caller sent is
-  replaced, and a slot the project has no value for is removed, so that an agent is never given
-  facts a caller, or a model, made up. The metadata record is the version a person approved last,
-  since a drafter treats it as supplied. The answers are the latest a person recorded to each
-  question of the project's documents of the kind asked for (docs/specs/drafting.md, invariant 6):
-  a drafter marks an answer `supplied`, so no caller may send one. The `project_documents` are the
-  documents a researcher attached, each with its text, from which a drafter's model may suggest
-  answers. The `current_version` is the latest version of the project's document of that kind
-  drafted or revised last, or of the one `redraft_document` names, so a drafter that revises it
-  makes that document's next version. A `redraft_document` that is not the project's, or is of
-  another kind, is refused (`refusal`); outside a project it is removed, since it names a project
-  document;
+  `shared_answers`, `researchers` and `project_documents` are the project's own: whatever the
+  caller sent is replaced, and a slot the project has no value for is removed, so that an agent is
+  never given facts a caller, or a model, made up. The metadata record is the version a person
+  approved last, since a drafter treats it as supplied. The answers are the latest a person
+  recorded to each question of the project's documents of the kind asked for
+  (docs/specs/drafting.md, invariant 6): a drafter marks an answer `supplied`, so no caller may
+  send one. The `shared_answers` are the latest answers a person recorded for documents of other
+  kinds to questions on a value every kind gives the same way (`shared_field`), which a drafter
+  may only offer as suggestions. The `project_documents` are the documents a researcher attached,
+  each with its text, from which a drafter's model may suggest answers. The `current_version` is
+  the latest version of the project's document of that kind drafted or revised last, or of the one
+  `redraft_document` names, so a drafter that revises it makes that document's next version. A
+  `redraft_document` that is not the project's, or is of another kind, is refused (`refusal`);
+  outside a project it is removed, since it names a project document;
 - a plain `FileInventory` is the project's inventory, when it holds one;
 - a `Message`'s `project_inventory` says what the project's inventory is, so that an orchestrator
   knows the project holds one without being given its files; its `project_entry` and
@@ -155,7 +157,13 @@ class FactSource(
 
 
 # A `DraftRequest`'s slots that hold documentation.
-DOCUMENTATION_SLOTS = ("metadata_record", "current_version", "draft_answers", "project_documents")
+DOCUMENTATION_SLOTS = (
+    "metadata_record",
+    "current_version",
+    "draft_answers",
+    "shared_answers",
+    "project_documents",
+)
 # Which slot of a filled input holds which class of project content, by input class.
 CONTENT_SLOTS: dict[str, tuple[tuple[str, str], ...]] = {
     MESSAGE: (
@@ -250,6 +258,10 @@ def give(
                 "current_version": _current(store, project_id, filled),
                 # Only answers a person recorded may be placed as supplied.
                 "draft_answers": _answers(store, project_id, filled.get("document_kind")),
+                # Offered as suggestions only, never placed (docs/specs/drafting.md, invariant 7).
+                "shared_answers": _answers(
+                    store, project_id, filled.get("document_kind"), shared=True
+                ),
                 "researchers": store.researchers(project_id),
                 "project_documents": _documents(store, project_id) if documents else None,
                 # Only facts a person decided, never a proposal.
@@ -445,13 +457,18 @@ def _current(
         return None
 
 
-def _answers(store: FactSource, project_id: str, kind: Any) -> list[dict[str, Any]] | None:
-    """The recorded answers for a drafter of `kind`. None for a kind that is not one, which
-    the request's validation then refuses."""
+def _answers(
+    store: FactSource, project_id: str, kind: Any, *, shared: bool = False
+) -> list[dict[str, Any]] | None:
+    """The recorded answers for a drafter of `kind`, or, `shared`, those recorded for documents
+    of other kinds on a shared field. None for a kind that is not one, which the request's
+    validation then refuses."""
     try:
         document_kind = DocumentKind(kind)
     except ValueError:
         return None
+    if shared:
+        return store.shared_answers(project_id, document_kind)
     return store.answers(project_id, document_kind)
 
 

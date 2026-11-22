@@ -8,7 +8,13 @@ fairness:FairnessReport a sh:NodeShape ;
     rdfs:comment "The payload of advisor.fairness: which of a short list of FAIR-related checks the record meets, what is already met first, a tally of the checks for each of F, A, I and R, the next steps most worth taking, and a suggestion for each check not met. For a draft it also says which checks are newly met since the version a person approved last. A tally is a count of presence checks, not a FAIR score (R4). It is advisory and changes no record (R9, R12); the researcher decides what to change." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:class fairness:PrincipleTally ;
+    sh:property [ sh:class <https://w3id.org/data-director/GroundingRef> ;
+            sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 7 ;
+            sh:path <https://w3id.org/data-director/grounded_on> ],
+        [ sh:class fairness:PrincipleTally ;
             sh:description "A tally for each of F, A, I and R, in that order." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 2 ;
@@ -31,6 +37,10 @@ fairness:FairnessReport a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path <https://w3id.org/data-director/schema_class> ],
+        [ sh:class fairness:FairCheck ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 1 ;
+            sh:path fairness:checks ],
         [ sh:class <https://w3id.org/data-director/DocumentVersionRef> ;
             sh:description "The version a person approved last, which newly_met compares with. Absent when none was approved, or when it is the version assessed." ;
             sh:maxCount 1 ;
@@ -41,17 +51,7 @@ fairness:FairnessReport a sh:NodeShape ;
             sh:description "What this assessor does not do." ;
             sh:nodeKind sh:Literal ;
             sh:order 6 ;
-            sh:path fairness:limitations ],
-        [ sh:class fairness:FairCheck ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 1 ;
-            sh:path fairness:checks ],
-        [ sh:class <https://w3id.org/data-director/GroundingRef> ;
-            sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 7 ;
-            sh:path <https://w3id.org/data-director/grounded_on> ] ;
+            sh:path fairness:limitations ] ;
     sh:targetClass fairness:FairnessReport .
 
 <https://w3id.org/data-director/GroundingRef> a sh:NodeShape ;
@@ -78,7 +78,7 @@ fairness:FairCheck a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:description "How the recommendation came about: template, the rule table's own text, or model, where a model wrote it for this record. Absent when the check is met." ;
-            sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:in ( "template" "model" "lexical" "registry" "answer" ) ;
             sh:maxCount 1 ;
             sh:order 6 ;
             sh:path fairness:recommendation_derivation ],
@@ -153,20 +153,20 @@ fairness:PrincipleTally a sh:NodeShape ;
     rdfs:comment "One version of a project document: the document the conductor minted an identifier for, and the version's number within it, counted from 1." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:integer ;
-            sh:description "The number of a version within its document, counted from 1." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path <https://w3id.org/data-director/version> ],
-        [ sh:datatype xsd:string ;
+    sh:property [ sh:datatype xsd:string ;
             sh:description "The identifier the conductor minted for the document, a UUIDv7." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path <https://w3id.org/data-director/document_id> ;
-            sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ] ;
+            sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ],
+        [ sh:datatype xsd:integer ;
+            sh:description "The number of a version within its document, counted from 1." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <https://w3id.org/data-director/version> ] ;
     sh:targetClass <https://w3id.org/data-director/DocumentVersionRef> .
 

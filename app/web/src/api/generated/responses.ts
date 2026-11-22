@@ -666,7 +666,7 @@ export interface Deposits {
  * How an agent derives one field of its payload.
  */
 export interface Derivation {
-  how: "template" | "model" | "lexical" | "registry";
+  how: "template" | "model" | "lexical" | "registry" | "answer";
   recorded_in: string | null;
 }
 /**

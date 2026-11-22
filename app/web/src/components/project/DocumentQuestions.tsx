@@ -39,6 +39,7 @@ import {
   questionTarget,
   useProjectApi,
 } from "../../project/api";
+import { fromAPerson, suggestionSource } from "../../project/suggestion";
 import { Link, homePath } from "../../route";
 import { errorMessage } from "../../run/api";
 import { Button } from "../ui/Button";
@@ -202,8 +203,11 @@ export function DocumentQuestions({
         <fieldset className="field" disabled={saving}>
           <legend>Suggested answers to check ({suggested.length})</legend>
           <p className="hint">
-            A model suggested these from the project&apos;s files and documents. Check each one;
-            change it, or clear the box if it is wrong. Nothing is recorded until you accept.
+            {suggested.some(fromAPerson)
+              ? "Some of these are what you gave for another document, or what was decided in the project; the rest a model suggested from the project's files and documents."
+              : "A model suggested these from the project's files and documents."}{" "}
+            Check each one; change it, or clear the box if it is wrong. Nothing is recorded until
+            you accept.
           </p>
           {suggested.map(field)}
           <p>
@@ -284,8 +288,8 @@ function QuestionField({
         <p className="hint">
           <span id={`${id}-suggestion`}>
             {value === offered
-              ? "Suggested by a model; check it before you accept."
-              : <>You changed a model&apos;s suggestion: <q>{offered}</q>.</>}
+              ? `Suggested ${suggestionSource(q)}; check it before you accept.`
+              : <>You changed the suggestion {suggestionSource(q)}: <q>{offered}</q>.</>}
           </span>
           {value !== offered && (
             <>

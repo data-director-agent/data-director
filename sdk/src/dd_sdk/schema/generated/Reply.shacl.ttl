@@ -23,7 +23,7 @@ dd:Reply a sh:NodeShape ;
             sh:order 6 ;
             sh:path dd:new_project_entry ],
         [ sh:description "How reply_text came about. template for a rule-based agent, model for a model." ;
-            sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:in ( "template" "model" "lexical" "registry" "answer" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 2 ;

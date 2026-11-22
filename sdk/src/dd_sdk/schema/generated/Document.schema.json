@@ -7,7 +7,8 @@
             "template",
             "model",
             "lexical",
-            "registry"
+            "registry",
+            "answer"
          ],
          "title": "Derivation",
          "type": "string"
@@ -26,7 +27,7 @@
       },
       "DocumentQuestion": {
          "additionalProperties": false,
-         "description": "A question a drafter asks the researcher about one gap in the version it drafted: a README section it could not write, a data dictionary cell it could not fill, or a metadata record property it left null. The target is either gap_section, with gap_part when the section is asked part by part, or gap_file, gap_field and gap_column together, or gap_property alone. A cell question about a column that several files share, by name, type and format, also lists in gap_files every file whose cell the answer fills. question_id is derived from the target, so it is the same in every version that leaves the same gap (docs/specs/drafting.md). A question may offer a suggested_answer, with how it was derived (suggestion_derivation); a suggestion is never placed in the document, and becomes supplied only when a person records it as their answer.",
+         "description": "A question a drafter asks the researcher about one gap in the version it drafted: a README section it could not write, a data dictionary cell it could not fill, or a metadata record property it left null. The target is either gap_section, with gap_part when the section is asked part by part, or gap_file, gap_field and gap_column together, or gap_property alone. A cell question about a column that several files share, by name, type and format, also lists in gap_files every file whose cell the answer fills. question_id is derived from the target, so it is the same in every version that leaves the same gap (docs/specs/drafting.md). A question may offer a suggested_answer, with how it was derived (suggestion_derivation); a suggestion is never placed in the document, and becomes supplied only when a person records it as their answer. A question that asks for a value every kind of document gives the same way names it in shared_field; a suggestion copied from a person's own answer or decision elsewhere in the project says where, in suggested_from.",
          "properties": {
             "question_id": {
                "description": "The question's identifier within its document: q- and 16 lower-case hexadecimal digits, derived from the gap it targets.",
@@ -106,6 +107,25 @@
                   }
                ],
                "description": "How suggested_answer came about. Present exactly when suggested_answer is."
+            },
+            "shared_field": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/SharedField"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "The value a question asks for, or an answer gives, when every kind of document gives it the same way, so that an answer given for one document may be offered as a suggestion in another (docs/specs/drafting.md)."
+            },
+            "suggested_from": {
+               "description": "Where a suggestion copied from the person's own words came from: the kind of document whose question they answered, or `decision` for a fact people in the project decided. Present exactly when suggestion_derivation is `answer`.",
+               "pattern": "^(metadata_record|readme|data_dictionary|dmp|other|decision)$",
+               "type": [
+                  "string",
+                  "null"
+               ]
             }
          },
          "required": [
@@ -163,6 +183,20 @@
          ],
          "title": "GroundingRef",
          "type": "object"
+      },
+      "SharedField": {
+         "description": "A value every kind of project document gives the same way, so that an answer given for one may be offered in another (docs/specs/drafting.md).",
+         "enum": [
+            "title",
+            "creators",
+            "description",
+            "dates_collected",
+            "place",
+            "funder",
+            "licence"
+         ],
+         "title": "SharedField",
+         "type": "string"
       }
    },
    "$id": "https://w3id.org/data-director/schema/core/Document",

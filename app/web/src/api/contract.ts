@@ -37,8 +37,12 @@ export interface DocumentQuestion {
   gap_property?: string;
   /** A drafter's suggested answer, offered beside the question and never put into the draft. */
   suggested_answer?: string;
-  /** How the suggestion came about, such as `model`. */
+  /** How the suggestion came about, such as `model`, or `answer` for a person's own words. */
   suggestion_derivation?: string;
+  /** The value the question asks for that every kind of document gives the same way. */
+  shared_field?: string;
+  /** Where a suggestion derived as `answer` came from: a document kind, or `decision`. */
+  suggested_from?: string;
 }
 
 /** The request a run was started with, as the run store keeps it. */

@@ -74,6 +74,14 @@ model writes a value.
 
 ## Suggestions
 
+Before any model, the librarian offers the researcher's own words (#1284, docs/specs/drafting.md,
+invariant 11). The properties `datacite.yaml` marks `shares` (the first title, creator, abstract,
+date collected, place, funder and licence) carry a `shared_field`, and the answer the researcher
+recorded to the same field of the README, or the funder or licence people decided, is offered as
+the question's suggestion (`suggestion_derivation: answer`, `suggested_from`), never placed in the
+record (`dd_sdk.shared_answers`, `tests/test_metadata_shared.py`). The model is not asked about a
+question that already offers one.
+
 `DD_METADATA_SUGGESTER` chooses the suggester (`factory.py`, `config/examples/agents.env`):
 
 - `template` suggests nothing, calls no model and needs no key.

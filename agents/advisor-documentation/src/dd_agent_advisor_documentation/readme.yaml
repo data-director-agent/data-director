@@ -36,6 +36,10 @@
 # some: the methods, which the researcher's own field notes or protocol can say and nothing else
 # can.
 #
+# `shares` names the value a section or part asks for that every kind of document gives the same
+# way (`SharedField`, docs/specs/drafting.md): an answer the researcher gave for the metadata
+# record, or a fact people decided, is offered beside its question as a suggestion, never placed.
+#
 # The README names people; their identifiers, affiliations and contact details belong to the
 # metadata record, so it does not ask for them.
 - heading: General information
@@ -43,22 +47,28 @@
   parts:
     - label: Title
       given_by: title
+      shares: title
       ask: the dataset's title.
     - label: Creators
       given_by: creators
+      shares: creators
       ask: who created the dataset, by name, and which of them answers questions about the data.
     - label: Dates of data collection
       given_by: collected
+      shares: dates_collected
       ask: when the data were collected, as YYYY-MM-DD to YYYY-MM-DD.
     - label: Geographic location
       given_by: location
+      shares: place
       ask: where the data were collected, or say it does not apply.
     - label: Funding
       given_by: funding
+      shares: funder
       ask: the funders and grant numbers.
 - heading: Description
   from: record_abstract
   complete_from: record_abstract
+  shares: description
   ask: what the dataset is, and what it is for.
 - heading: Files
   from: files
@@ -78,6 +88,7 @@
 - heading: Access and licence
   from: [record_rights, licences]
   suggest: true
+  shares: licence
   ask: the licence, any restrictions, related publications and other places the data are held.
 - heading: How to cite
   from: record_citation

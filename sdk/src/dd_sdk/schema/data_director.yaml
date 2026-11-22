@@ -12,7 +12,7 @@ description: >-
   schema_class (docs/specs/contract.md); every payload mixes in Grounded so the grounding linter can check it
   without knowing its class (docs/specs/grounding.md). Formats here are fixed; see docs/specs/ for why.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.21.0
+version: 0.22.0
 license: MIT
 
 prefixes:
@@ -662,7 +662,10 @@ classes:
       same way (docs/specs/drafting.md), and so are the researcher facts people in the project
       chose to keep from their public ORCID records (docs/specs/projects.md), and the text of
       the documents a researcher attached to the project, from which a drafter's model may suggest
-      answers but never fill a gap.
+      answers but never fill a gap. The conductor also fills shared_answers: the latest answer a
+      person recorded, for a document of another kind, to a question that asks for the same thing
+      as one of this draft's (shared_field), which a drafter may offer as a suggestion but never
+      place.
     slots:
       - schema_class
       - document_kind
@@ -671,6 +674,7 @@ classes:
       - metadata_record
       - current_version
       - draft_answers
+      - shared_answers
       - redraft_document
       - researchers
       - project_documents
@@ -711,6 +715,25 @@ classes:
     slots:
       - answered_question
       - answer_text
+
+  SharedAnswer:
+    description: >-
+      A person's answer, recorded for a document of another kind, to a question that asks for a
+      value every kind of document gives the same way (shared_field), such as the dataset's title
+      (docs/specs/drafting.md). A drafter may offer it as the suggested answer to its own question
+      on that field, never place it.
+    slots:
+      - shared_field
+      - answer_text
+      - answered_question
+      - answered_in
+    slot_usage:
+      shared_field:
+        required: true
+      answered_question:
+        required: true
+      answered_in:
+        required: true
 
   ProjectFact:
     description: >-
@@ -999,7 +1022,9 @@ classes:
       from the target, so it is the same in every version that leaves the same gap
       (docs/specs/drafting.md). A question may offer a suggested_answer, with how it was derived
       (suggestion_derivation); a suggestion is never placed in the document, and becomes supplied
-      only when a person records it as their answer.
+      only when a person records it as their answer. A question that asks for a value every kind
+      of document gives the same way names it in shared_field; a suggestion copied from a person's
+      own answer or decision elsewhere in the project says where, in suggested_from.
     slots:
       - question_id
       - question_prompt
@@ -1012,6 +1037,8 @@ classes:
       - gap_property
       - suggested_answer
       - suggestion_derivation
+      - shared_field
+      - suggested_from
 
   DocumentVersionRef:
     description: >-
@@ -1754,6 +1781,29 @@ slots:
   suggestion_derivation:
     description: How suggested_answer came about. Present exactly when suggested_answer is.
     range: Derivation
+  shared_field:
+    description: >-
+      The value a question asks for, or an answer gives, when every kind of document gives it the
+      same way, so that an answer given for one document may be offered as a suggestion in
+      another (docs/specs/drafting.md).
+    range: SharedField
+  suggested_from:
+    description: >-
+      Where a suggestion copied from the person's own words came from: the kind of document whose
+      question they answered, or `decision` for a fact people in the project decided. Present
+      exactly when suggestion_derivation is `answer`.
+    pattern: "^(metadata_record|readme|data_dictionary|dmp|other|decision)$"
+  answered_in:
+    description: The kind of document whose question the answer was recorded to.
+    range: DocumentKind
+  shared_answers:
+    description: >-
+      The latest answer a person recorded, for each shared_field, to a question of a document of
+      another kind than the one asked for. In a project the conductor fills them; a caller leaves
+      them out.
+    range: SharedAnswer
+    multivalued: true
+    inlined_as_list: true
   draft_answers:
     description: >-
       The answers a person recorded to the current version's questions. In a project the
@@ -2670,6 +2720,30 @@ enums:
         description: Produced by a keyword rule over retrieved fields.
       registry:
         description: Read directly from a curated registry field.
+      answer:
+        description: >-
+          Copied, as given, from a person's own answer to another document's question, or from a
+          fact people in the project decided: offered for them to confirm, never placed.
+
+  SharedField:
+    description: >-
+      A value every kind of project document gives the same way, so that an answer given for one
+      may be offered in another (docs/specs/drafting.md).
+    permissible_values:
+      title:
+        description: The dataset's title.
+      creators:
+        description: Who created the dataset.
+      description:
+        description: What the dataset is, as its abstract.
+      dates_collected:
+        description: When the data were collected.
+      place:
+        description: Where the data were collected.
+      funder:
+        description: Who funded the work that produced the dataset.
+      licence:
+        description: The licence or rights statement the dataset is shared under.
 
   DocumentKind:
     description: What a project document is for (docs/specs/projects.md).

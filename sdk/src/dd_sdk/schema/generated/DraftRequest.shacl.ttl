@@ -9,7 +9,7 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 dd:DraftRequest a sh:NodeShape ;
-    rdfs:comment "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen, the metadata record a person approved last and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory, the requirements and the metadata record in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. In a project the conductor also fills current_version, the latest version of the project's document of that kind, or of the document redraft_document names, so a redraft is that document's next version. The answers a person recorded to the current version's questions are filled in by the conductor in the same way (docs/specs/drafting.md), and so are the researcher facts people in the project chose to keep from their public ORCID records (docs/specs/projects.md), and the text of the documents a researcher attached to the project, from which a drafter's model may suggest answers but never fill a gap." ;
+    rdfs:comment "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen, the metadata record a person approved last and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory, the requirements and the metadata record in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. In a project the conductor also fills current_version, the latest version of the project's document of that kind, or of the document redraft_document names, so a redraft is that document's next version. The answers a person recorded to the current version's questions are filled in by the conductor in the same way (docs/specs/drafting.md), and so are the researcher facts people in the project chose to keep from their public ORCID records (docs/specs/projects.md), and the text of the documents a researcher attached to the project, from which a drafter's model may suggest answers but never fill a gap. The conductor also fills shared_answers: the latest answer a person recorded, for a document of another kind, to a question that asks for the same thing as one of this draft's (shared_field), which a drafter may offer as a suggestion but never place." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:class dd:FileInventory ;
@@ -18,16 +18,11 @@ dd:DraftRequest a sh:NodeShape ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 2 ;
             sh:path dd:inventory ],
-        [ sh:class dd:ProjectFact ;
-            sh:description "The facts a person in the project decided (ProjectFact), the last decision on each subject, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project decided any. A drafter treats each as supplied." ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 10 ;
-            sh:path dd:project_decisions ],
-        [ sh:class dd:ProjectDocument ;
-            sh:description "The documents the project holds, with their text, in the order they were added. In a project the conductor fills them and a caller leaves them out; outside a project, the caller sends them, as it does the other facts." ;
+        [ sh:class dd:ResearcherRecord ;
+            sh:description "The researcher facts the project holds, one record for each person who kept some. In a project the conductor fills them and a caller leaves them out; outside a project, the caller sends them, as it does the other facts." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 9 ;
-            sh:path dd:project_documents ],
+            sh:path dd:researchers ],
         [ sh:class dd:CurrentVersion ;
             sh:description "The document's latest version, when the drafter is to regenerate it. Absent for a new document." ;
             sh:maxCount 1 ;
@@ -40,6 +35,11 @@ dd:DraftRequest a sh:NodeShape ;
             sh:minCount 1 ;
             sh:order 1 ;
             sh:path dd:document_kind ],
+        [ sh:class dd:ProjectDocument ;
+            sh:description "The documents the project holds, with their text, in the order they were added. In a project the conductor fills them and a caller leaves them out; outside a project, the caller sends them, as it does the other facts." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 10 ;
+            sh:path dd:project_documents ],
         [ sh:datatype xsd:string ;
             sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
             sh:maxCount 1 ;
@@ -53,24 +53,29 @@ dd:DraftRequest a sh:NodeShape ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 3 ;
             sh:path dd:requirements ],
+        [ sh:datatype xsd:string ;
+            sh:description "The project document to redraft, by its document_id, where the project holds more than one of the kind asked for. Without it the conductor gives the latest. In a project the conductor refuses a document that is not the project's or is of another kind; outside a project it is removed." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 8 ;
+            sh:path dd:redraft_document ;
+            sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ],
         [ sh:class dd:ApprovedMetadataRecord ;
             sh:description "The project's metadata record, the version a person approved last, if any has been. In a project the conductor fills it; a caller leaves it out." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 4 ;
             sh:path dd:metadata_record ],
-        [ sh:class dd:ResearcherRecord ;
-            sh:description "The researcher facts the project holds, one record for each person who kept some. In a project the conductor fills them and a caller leaves them out; outside a project, the caller sends them, as it does the other facts." ;
+        [ sh:class dd:SharedAnswer ;
+            sh:description "The latest answer a person recorded, for each shared_field, to a question of a document of another kind than the one asked for. In a project the conductor fills them; a caller leaves them out." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 8 ;
-            sh:path dd:researchers ],
-        [ sh:datatype xsd:string ;
-            sh:description "The project document to redraft, by its document_id, where the project holds more than one of the kind asked for. Without it the conductor gives the latest. In a project the conductor refuses a document that is not the project's or is of another kind; outside a project it is removed." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
             sh:order 7 ;
-            sh:path dd:redraft_document ;
-            sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ],
+            sh:path dd:shared_answers ],
+        [ sh:class dd:ProjectFact ;
+            sh:description "The facts a person in the project decided (ProjectFact), the last decision on each subject, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project decided any. A drafter treats each as supplied." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 11 ;
+            sh:path dd:project_decisions ],
         [ sh:class dd:DraftAnswer ;
             sh:description "The answers a person recorded to the current version's questions. In a project the conductor fills them; a caller leaves them out." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
@@ -1104,6 +1109,39 @@ dd:ResearcherWork a sh:NodeShape ;
             sh:path dd:journal_title ] ;
     sh:targetClass dd:ResearcherWork .
 
+dd:SharedAnswer a sh:NodeShape ;
+    rdfs:comment "A person's answer, recorded for a document of another kind, to a question that asks for a value every kind of document gives the same way (shared_field), such as the dataset's title (docs/specs/drafting.md). A drafter may offer it as the suggested answer to its own question on that field, never place it." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:description "The kind of document whose question the answer was recorded to." ;
+            sh:in ( "metadata_record" "readme" "data_dictionary" "dmp" "other" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 3 ;
+            sh:path dd:answered_in ],
+        [ sh:description "The value a question asks for, or an answer gives, when every kind of document gives it the same way, so that an answer given for one document may be offered as a suggestion in another (docs/specs/drafting.md)." ;
+            sh:in ( "title" "creators" "description" "dates_collected" "place" "funder" "licence" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 0 ;
+            sh:path dd:shared_field ],
+        [ sh:datatype xsd:string ;
+            sh:description "The answer as the person gave it." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:answer_text ],
+        [ sh:datatype xsd:string ;
+            sh:description "The question_id of the question answered." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:answered_question ;
+            sh:pattern "^q-[0-9a-f]{16}$" ] ;
+    sh:targetClass dd:SharedAnswer .
+
 dd:TableField a sh:NodeShape ;
     rdfs:comment "One field of a tabular resource, mirroring a Frictionless Table Schema field descriptor. Frictionless publishes no RDF namespace, so these slots carry see_also rather than a slot_uri (TODO(#20): revisit if Frictionless publishes term IRIs)." ;
     sh:closed true ;
@@ -1148,21 +1186,21 @@ dd:DocumentVersionRef a sh:NodeShape ;
     rdfs:comment "One version of a project document: the document the conductor minted an identifier for, and the version's number within it, counted from 1." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:integer ;
-            sh:description "The number of a version within its document, counted from 1." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path dd:version ],
-        [ sh:datatype xsd:string ;
+    sh:property [ sh:datatype xsd:string ;
             sh:description "The identifier the conductor minted for the document, a UUIDv7." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path dd:document_id ;
-            sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ] ;
+            sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ],
+        [ sh:datatype xsd:integer ;
+            sh:description "The number of a version within its document, counted from 1." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:version ] ;
     sh:targetClass dd:DocumentVersionRef .
 
 dd:ExternalIdentifier a sh:NodeShape ;

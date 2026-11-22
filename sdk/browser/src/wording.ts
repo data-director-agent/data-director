@@ -10,6 +10,7 @@ export const DERIVATION: Record<DerivationHow, string> = {
   model: "Written by a language model",
   lexical: "Matched by keyword rules",
   registry: "Taken from a registry record",
+  answer: "Copied from your own answer or decision elsewhere in the project",
 };
 
 /** Short labels for a derivation, for a badge beside the value it describes. */
@@ -18,6 +19,7 @@ export const DERIVATION_SHORT: Record<DerivationHow, string> = {
   model: "Language model",
   lexical: "Keyword rules",
   registry: "Registry",
+  answer: "Your answer",
 };
 
 /** Words for a class name such as `DatasetProfile`: "dataset profile". */

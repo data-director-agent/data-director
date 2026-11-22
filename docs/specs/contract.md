@@ -227,6 +227,13 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
     (`standard_target`: `dataset`, the default, or `field:<name>`). Its subject is the standard's
     name, with the field for a field-level choice ([Projects](projects.md), invariant 28; #1391;
     `sdk/tests/test_fact_kinds.py`). Adding it raised the contract version to 0.21.0.
+34. A `DocumentQuestion` may name the value it asks for that every kind of project document gives
+    the same way (`shared_field`, `SharedField`), and a suggestion copied from a person's own
+    answer to another document's question, or from a fact people decided, is derived as `answer`
+    (a new `Derivation` value) and names where it came from (`suggested_from`). A `DraftRequest`'s
+    `shared_answers` (`SharedAnswer`) are filled only by the conductor in a project
+    ([Drafting documents](drafting.md), invariant 11; #1284). Adding them raised the contract
+    version to 0.22.0.
 
 ## Boundaries and contracts
 

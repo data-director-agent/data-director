@@ -29,6 +29,7 @@ in `revises`. Controlled vocabularies and schema mapping are TODO(#703).
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -45,6 +46,7 @@ from dd_agent_advisor_metadata.questions import (
     place,
 )
 from dd_agent_advisor_metadata.suggest import Ask, Suggester, Suggestions, TemplateSuggester
+from dd_sdk import shared_answers
 from dd_sdk.agent import (
     AgentResult,
     AgentSpec,
@@ -74,6 +76,7 @@ from dd_sdk.contract.models import (
     ResearcherFunding,
     ResearcherRecord,
 )
+from dd_sdk.contract.questions import SharedField
 
 DATACITE_FORM = Path(__file__).with_name("datacite.yaml")
 # The schema every record follows in the MVP (docs/specs/deposit.md).
@@ -107,6 +110,22 @@ class Form:
     ask: str | None = None
     publish: str | None = None
     suggest: bool = False
+    # The shared field its first entry gives, or one for each qualifier value (`datacite.yaml`).
+    shares: str | Mapping[str, str] | None = None
+
+    def shared_field(self, gap: Gap) -> SharedField | None:
+        """The shared field `gap` asks for: only in the property's first entry, since the
+        researcher gave one answer for the dataset as a whole."""
+        if self.shares is None or "[0]" not in gap.path or _LATER_ENTRY.search(gap.path):
+            return None
+        if isinstance(self.shares, str):
+            return SharedField(self.shares)
+        named = [self.shares[v] for v in gap.qualifier.values() if v in self.shares]
+        return SharedField(named[0]) if named else None
+
+
+# A list entry after the first, anywhere in a gap's path.
+_LATER_ENTRY = re.compile(r"\[[1-9][0-9]*\]")
 
 
 def load_form(path: Path = DATACITE_FORM) -> dict[str, Form]:
@@ -114,12 +133,12 @@ def load_form(path: Path = DATACITE_FORM) -> dict[str, Form]:
         table = yaml.safe_load(fh)
     form = {}
     for prop, entry in table.items():
-        unknown = set(entry) - {"value", "filled", "ask", "publish", "suggest"}
+        unknown = set(entry) - {"value", "filled", "ask", "publish", "suggest", "shares"}
         if unknown:
             raise ValueError(f"{path}: {prop} has unknown keys {sorted(unknown)}")
         if "value" in entry and "filled" in entry:
             raise ValueError(f"{path}: {prop} has a value key or a filled value, not both")
-        if "filled" in entry and {"ask", "publish", "suggest"} & set(entry):
+        if "filled" in entry and {"ask", "publish", "suggest", "shares"} & set(entry):
             raise ValueError(f"{path}: {prop} is filled, so nothing is asked or suggested")
         form[str(prop)] = Form(**entry)
     return form
@@ -186,6 +205,7 @@ class MetadataLibrarian:
         found = gaps(record)
         open_gaps = place(record, found, answers_by_question(asked.draft_answers))
         pairs, withheld = self._ask(open_gaps, asked)
+        pairs = _offer(pairs, asked)
         questions, suggested = self._questions(pairs, _facts(requirements, asked.inventory), ctx)
         required = sum(f.obligation == Obligation.REQUIRED for f in requirements.fields)
         statement = (
@@ -195,6 +215,7 @@ class MetadataLibrarian:
             f"{_placed(len(found) - len(open_gaps))}. It asks "
             f"{_count(len(questions), 'question')} about the values left null. "
             f"{''.join(s + ' ' for s in withheld)}{_how_suggested(suggested)}"
+            f"{shared_answers.how_offered(questions)}"
         )
         current = asked.current_version
         if current is not None:
@@ -248,8 +269,9 @@ class MetadataLibrarian:
         pairs: list[tuple[Gap, DocumentQuestion]] = []
         withheld: dict[str, None] = {}
         for gap in open_gaps:
-            publish = self.form.get(gap.prop, Form()).publish
-            question = ask(gap, prompts)
+            form = self.form.get(gap.prop, Form())
+            publish = form.publish
+            question = ask(gap, prompts).model_copy(update={"shared_field": form.shared_field(gap)})
             if publish is None:
                 pairs.append((gap, question))
                 continue
@@ -282,7 +304,9 @@ class MetadataLibrarian:
         asks = [
             Ask(q.question_id, gap.path, gap.prop, q.question_prompt, gap.qualifier)
             for gap, q in pairs
-            if self.form.get(gap.prop, Form()).suggest and not gap.names_a_vocabulary
+            if self.form.get(gap.prop, Form()).suggest
+            and not gap.names_a_vocabulary
+            and q.suggested_answer is None
         ]
         suggested = self.suggester.suggest(facts, asks, ctx) if asks else Suggestions()
         return [
@@ -394,6 +418,17 @@ def _funding(funding: ResearcherFunding) -> dict[str, Any]:
         entry["awardNumber"] = funding.award_identifier
     entry["awardTitle"] = funding.funding_title
     return entry
+
+
+def _offer(
+    pairs: Sequence[tuple[Gap, DocumentQuestion]], asked: DraftRequest
+) -> list[tuple[Gap, DocumentQuestion]]:
+    """Each question on a shared field offered the researcher's own answer to it in another
+    document, or the fact people decided, before any model suggests (`dd_sdk.shared_answers`)."""
+    offered = shared_answers.offer(
+        [q for _, q in pairs], asked.shared_answers, asked.project_decisions
+    )
+    return [(gap, q) for (gap, _), q in zip(pairs, offered, strict=True)]
 
 
 def _facts(requirements: RepositoryRequirements, inventory: FileInventory | None) -> dict[str, Any]:

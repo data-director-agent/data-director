@@ -475,15 +475,15 @@ class DraftRequest(Frozen):
     requirements: RepositoryRequirements | None = None
     metadata_record: ApprovedMetadataRecord | None = None
     current_version: CurrentVersion | None = None
-    # Filled by the conductor in a project, from the answers people recorded.
+    # The rest but redraft_document are filled by the conductor in a project: the answers people
+    # recorded, to this kind's questions and to other kinds' on a shared field, the facts people
+    # kept from their ORCID records, the documents attached and the facts people decided.
     draft_answers: list[DraftAnswer] = Field(default_factory=list)
+    shared_answers: list[questions.SharedAnswer] = Field(default_factory=list)
     # The project document to redraft, where the project holds more than one of the kind.
     redraft_document: str | None = Field(default=None, pattern=UUID7_PATTERN)
-    # Filled by the conductor in a project, from the facts people kept from their ORCID records.
     researchers: list[ResearcherRecord] = Field(default_factory=list)
-    # Filled by the conductor in a project, from the documents a researcher attached.
     project_documents: list[ProjectDocument] = Field(default_factory=list)
-    # Filled by the conductor in a project, from the facts people decided.
     project_decisions: list[ProjectFact] = Field(default_factory=list)
 
 

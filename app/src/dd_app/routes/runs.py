@@ -61,7 +61,7 @@ type OutcomeStatus = Literal["succeeded", "abstained", "referred", "failed", "su
 class Derivation(ResponseBody):
     """How an agent derives one field of its payload."""
 
-    how: Literal["template", "model", "lexical", "registry"]
+    how: Literal["template", "model", "lexical", "registry", "answer"]
     recorded_in: str | None
 
 

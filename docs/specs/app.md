@@ -294,7 +294,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     recorded answer has answered in one form, titled with how many remain, in two groups. Those
     with a model's suggested answer come first, all at once, in a fieldset "Suggested answers to
     check": each box starts with the suggestion and is described by what it fills and by a line
-    saying a model suggested it, or, once changed, what the suggestion was, with a button to put it
+    saying who suggested it, a model or the researcher in another document or a decision
+    ([Drafting documents](drafting.md), invariant 11), or, once changed, what the suggestion was,
+    with a button to put it
     back. One "Accept N suggested answers" button records every box not left blank, as it then
     reads; nothing a model suggested is recorded until a person presses it. Those with no
     suggestion follow, three at a time, in a fieldset "Only you can answer these", each a blank text
