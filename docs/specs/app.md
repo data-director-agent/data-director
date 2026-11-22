@@ -643,7 +643,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
 - **The activity log** (`components/workspace/ActivityLog.tsx`) lists each step of each run this
   tab has streamed, as it happens, newest run first, from the same reducer state
   (`run/activity.tsx`): steps, checks' reports, tool calls and delegated children, each child
-  linked to its record. Below them it lists every stored run the person may read
+  linked to its record. Below them it tabulates every stored run the person may read
   (`GET /api/runs`, newest first, a page at a time, `components/workspace/RecordedRuns.tsx`), with
   its outcome and a link to its record, leaving out those shown step by step above; it reads them
   again as each run here ends. The server keeps a run's record, not its events, so the steps are
