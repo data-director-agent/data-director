@@ -30,8 +30,11 @@ classes:
     description: >-
       Who funds, publishes and hosts the research, and what the data is. The agent looks up each
       actor's data policy. In a project the conductor also gives the facts people decided: each
-      decided funder is an actor, whether or not the caller named it.
+      decided funder is an actor, whether or not the caller named it. It also gives the documents
+      a researcher attached, such as an institutional policy or an award letter, whose text is
+      read as a policy's own text for the actor it names.
     mixins:
+      - GivenProjectDocuments
       - GivenProjectDecisions
     slots:
       - schema_class

@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from typing import NamedTuple
 
 from dd_agent_advisor_policy import assess
+from dd_agent_advisor_policy.attached import Targets
 from dd_agent_advisor_policy.classes import (
     Actor,
     ObligationKind,
@@ -28,6 +29,9 @@ from dd_sdk.evidence import DOCUMENT_CANONICALISATION, HASH_ALGORITHM, content_h
 from dd_sdk.prompts import ModelCallLog
 from dd_sdk.registry import RegistryUnavailable
 from dd_sdk.tracing import retrieval_span
+
+# The snapshot label of an attached document's evidence: the project holds the only copy.
+ATTACHED_SNAPSHOT = "attached-document"
 
 
 def text_hash(text: PolicyText) -> str:
@@ -126,45 +130,71 @@ def read_texts(
     off: bool,
     pages: Pages | None,
     extractor: Extractor,
+    attached: Targets | None = None,
 ) -> TextReadings:
-    """Fetch and read each policy's own text: the page each matched record names, and each
-    `policy_url` given. Every page is fetched, with its retrieval span, before any model is
-    called (docs/specs/grounding.md, G1)."""
+    """Fetch and read each policy's own text: the page each matched record names, each
+    `policy_url` given, and each document the researcher attached (`attached.py`). Every page is
+    fetched, and every document's retrieval span emitted, before any model is called
+    (docs/specs/grounding.md, G1)."""
     out = TextReadings()
+    given = attached or Targets()
     wanted = reading_targets(matched)
-    if not wanted:
+    if not wanted and not given.pairs and not given.unmatched:
         return out
     if off:
         out.note = " The policies' own text was not read: the deployment turns reading off."
         return out
-    if pages is None or isinstance(extractor, NoExtractor):
+    if isinstance(extractor, NoExtractor) or (pages is None and not given.pairs):
         out.note = (
             " The policies' own text was not read: no model is configured to read it, so "
             "only FAIRsharing's curated records were."
         )
         return out
-    reader = _Reader(extractor, ctx, out, pages.snapshot_ref().as_string(), datetime.now(UTC))
+    fetched = fetch_pages(pages, wanted, ctx) if pages is not None else []
+    for _, text in given.pairs:
+        with retrieval_span(ctx.tracer, text.url, text_hash(text)):
+            pass
+    where = pages.snapshot_ref().as_string() if pages is not None else None
+    reader = _Reader(extractor, ctx, out, where, datetime.now(UTC))
     unread: list[str] = []
-    for fetched in fetch_pages(pages, wanted, ctx):
-        record_refs = [record_ref(fetched.origin)] if fetched.origin is not None else []
-        if fetched.page is not None:
-            reader.read(fetched.actor, fetched.page, record_refs)
+    for item in fetched:
+        record_refs = [record_ref(item.origin)] if item.origin is not None else []
+        if item.page is not None:
+            reader.read(item.actor, item.page, record_refs)
         elif record_refs:
-            out.readings.append(unread_reading(fetched, record_refs))
+            out.readings.append(unread_reading(item, record_refs))
         else:
-            unread.append(f"{fetched.url} ({fetched.problem})")
+            unread.append(f"{item.url} ({item.problem})")
+    for actor, text in given.pairs:
+        reader.read(actor, text, [])
     out.note = reading_note(out.readings, matched, unread, extractor.model_id)
+    out.note += attached_note(given)
     return out
+
+
+def attached_note(given: Targets) -> str:
+    """The statement's sentence on the attached documents read, and those that were not."""
+    note = ""
+    names = sorted({text.name or text.url for _, text in given.pairs})
+    if names:
+        note += " Read from what the researcher attached: " + "; ".join(names) + "."
+    if given.unmatched:
+        note += (
+            " An attached document names none of the funders, journals or institutions given, "
+            "so it was not read as any one's policy: " + "; ".join(sorted(given.unmatched)) + "."
+        )
+    return note
 
 
 @dataclass
 class _Reader:
-    """Has the extractor read each fetched page, adding its reading and evidence to `out`."""
+    """Has the extractor read each fetched page or attached document, adding its reading and
+    evidence to `out`."""
 
     extractor: Extractor
     ctx: RunContext
     out: TextReadings
-    where: str
+    where: str | None
     now: datetime
 
     def read(self, actor: Actor, page: PolicyText, record_refs: list[GroundingRef]) -> None:
@@ -178,20 +208,15 @@ class _Reader:
         out.evidence.append(
             EvidenceItem(
                 source_id=page.url,
-                source_uri=page.url,
+                source_uri=readable_url(page.url),
                 retrieved_at=self.now,
-                snapshot_ref=self.where,
+                snapshot_ref=ATTACHED_SNAPSHOT if page.name is not None else self.where,
                 hash_algorithm=HASH_ALGORITHM,
                 canonicalisation=DOCUMENT_CANONICALISATION,
                 content_hash=ref.content_hash,
                 content=page.document(),
             )
         )
-        reasons = []
-        if reading.why_not:
-            reasons.append(f"The text was not read: {reading.why_not}.")
-        if page.truncated:
-            reasons.append("The text was long and only its first part was read.")
         out.readings.append(
             PolicyReading(
                 actor=actor.name,
@@ -199,10 +224,21 @@ class _Reader:
                 status=ReadingStatus.NOT_READ if reading.why_not else ReadingStatus.READ,
                 stated=reading.checked.stated,
                 dropped=reading.checked.dropped,
-                reason=" ".join(reasons) or None,
+                reason=_reason(page, reading.why_not),
                 grounded_on=[ref, *record_refs],
             )
         )
+
+
+def _reason(page: PolicyText, why_not: str | None) -> str | None:
+    reasons = []
+    if page.name is not None:
+        reasons.append(f"Read from {page.source()}.")
+    if why_not:
+        reasons.append(f"The text was not read: {why_not}.")
+    if page.truncated:
+        reasons.append("The text was long and only its first part was read.")
+    return " ".join(reasons) or None
 
 
 def reading_note(
