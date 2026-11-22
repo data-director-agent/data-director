@@ -68,7 +68,7 @@ describe("ActivityLog", () => {
     expect(screen.queryByRole("region", { name: "Sent from this tab" })).not.toBeInTheDocument();
     const section = await recorded();
     await waitFor(() => expect(within(section).queryByRole("status")).not.toBeInTheDocument());
-    expect(within(section).queryByRole("listitem")).not.toBeInTheDocument();
+    expect(within(section).queryByRole("table")).not.toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 
@@ -114,7 +114,7 @@ describe("ActivityLog", () => {
   it("lists the recorded runs, each linked to its record, after a reload", async () => {
     const { container } = renderLog([], store([row("r2", "abstained"), row("r1")]));
     const section = await recorded();
-    const items = await within(section).findAllByRole("listitem");
+    const items = (await within(section).findAllByRole("row")).slice(1);
     expect(items).toHaveLength(2);
     expect(within(items[0] as HTMLElement).getByRole("link")).toHaveAttribute("href", "/?run=r2");
     expect(within(items[0] as HTMLElement).getByText(/Abstained/)).toHaveClass("status-warn");
@@ -124,10 +124,10 @@ describe("ActivityLog", () => {
   it("still lists the recorded runs after leaving the page and coming back", async () => {
     const api = store([row("r1")]);
     const first = renderLog([], api);
-    expect(await within(await recorded()).findAllByRole("listitem")).toHaveLength(1);
+    expect(await within(await recorded()).findAllByRole("row")).toHaveLength(2);
     first.unmount();
     renderLog([], api);
-    expect(await within(await recorded()).findAllByRole("listitem")).toHaveLength(1);
+    expect(await within(await recorded()).findAllByRole("row")).toHaveLength(2);
   });
 
   it("does not list again a run this tab shows step by step", async () => {
@@ -135,7 +135,7 @@ describe("ActivityLog", () => {
     const own = delegated.state.envelope?.invocation_id;
     expect(own).toBeTruthy();
     renderLog([delegated], store([row(own as string), row("other")]));
-    const items = await within(await recorded()).findAllByRole("listitem");
+    const items = (await within(await recorded()).findAllByRole("row")).slice(1);
     expect(items).toHaveLength(1);
     expect(within(items[0] as HTMLElement).getByRole("link")).toHaveAttribute("href", "/?run=other");
   });
@@ -144,9 +144,9 @@ describe("ActivityLog", () => {
     const api = store([row("r2")], [row("r1")]);
     renderLog([], api);
     const section = await recorded();
-    await within(section).findByRole("listitem");
+    await within(section).findByRole("table");
     await userEvent.click(within(section).getByRole("button", { name: "Show older runs" }));
-    await waitFor(() => expect(within(section).getAllByRole("listitem")).toHaveLength(2));
+    await waitFor(() => expect(within(section).getAllByRole("row")).toHaveLength(3));
     expect(api.list).toHaveBeenLastCalledWith("1");
     expect(within(section).queryByRole("button")).not.toBeInTheDocument();
   });
