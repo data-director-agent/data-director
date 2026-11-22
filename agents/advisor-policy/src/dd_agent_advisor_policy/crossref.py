@@ -7,7 +7,9 @@ table of publishers is kept here:
 - `GET https://api.crossref.org/journals/{issn}` reads one journal by ISSN;
 - `GET https://api.crossref.org/journals?query=<title>&rows=<n>` searches by title.
 
-Both need no account. Requests carry the project's User-Agent, which names no person. Crossref's
+Both need no account. Requests carry the project's User-Agent, which names no person; a
+deployment may add its operators' contact address (`DD_REGISTRY_CONTACT`), which puts the
+requests in Crossref's faster "polite" pool. Crossref's
 metadata is CC0, but there is no pinned copy: the route is read live, and when it fails the
 agent says so and carries on (docs/specs/dependencies.md).
 
@@ -19,21 +21,34 @@ unknown ISSN is None.
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any, ClassVar
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
-from dd_agent_advisor_policy.ror import USER_AGENT
+from dd_sdk.credentials import ConfigError
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, content_hash
-from dd_sdk.registry import RegistryUnavailable, SnapshotRef
+from dd_sdk.registry import RegistryUnavailable, SnapshotRef, pinned
 
 API_BASE = "https://api.crossref.org/journals"
 REGISTRY_LABEL = "crossref-journals"
 TIMEOUT_S = 20.0
 SEARCH_ROWS = 5
 ISSN = re.compile(r"^\d{4}-?\d{3}[\dX]$")
+CONTACT_SETTING = "DD_REGISTRY_CONTACT"
+# One plain address: nothing that could end the User-Agent's comment or start another header.
+ADDRESS = re.compile(r"[^\s@<>();,\"\\]+@[^\s@<>();,\"\\]+\.[^\s@<>();,\"\\]+")
+
+
+def contact_from(env: Mapping[str, str]) -> str | None:
+    """The operators' contact address `DD_REGISTRY_CONTACT` gives, or None when it is unset or
+    blank. Anything but one plain address is a `ConfigError`."""
+    value = (env.get(CONTACT_SETTING) or "").strip()
+    if value and not ADDRESS.fullmatch(value):
+        raise ConfigError(f"{CONTACT_SETTING}={value!r}: expected one e-mail address")
+    return value or None
 
 
 def normal_issn(value: str) -> str | None:
@@ -113,13 +128,21 @@ def from_message(message: dict[str, Any]) -> CrossrefJournal | None:
 
 
 class CrossrefJournals:
-    def __init__(self, client: httpx.Client | None = None, now: datetime | None = None) -> None:
+    def __init__(
+        self,
+        client: httpx.Client | None = None,
+        now: datetime | None = None,
+        contact: str | None = None,
+    ) -> None:
         self._client = client
         self._now = now
+        self.user_agent = pinned.user_agent(
+            "data-director-agent-advisor-policy", "data-director-advisor-policy", contact
+        )
 
     def _http(self) -> httpx.Client:
         if self._client is None:
-            self._client = httpx.Client(timeout=TIMEOUT_S, headers={"User-Agent": USER_AGENT})
+            self._client = httpx.Client(timeout=TIMEOUT_S, headers={"User-Agent": self.user_agent})
         return self._client
 
     def snapshot_ref(self) -> SnapshotRef:
@@ -131,7 +154,7 @@ class CrossrefJournals:
 
     def _get(self, url: str, params: dict[str, str] | None = None) -> Any:
         try:
-            resp = self._http().get(url, params=params, headers={"User-Agent": USER_AGENT})
+            resp = self._http().get(url, params=params, headers={"User-Agent": self.user_agent})
         except httpx.HTTPError as exc:
             raise RegistryUnavailable(f"Crossref: {type(exc).__name__}") from None
         if resp.status_code == 404:

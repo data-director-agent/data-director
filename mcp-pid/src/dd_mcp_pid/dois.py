@@ -114,8 +114,10 @@ def _crossref_record(doi: str, msg: dict[str, Any]) -> DoiRecord:
 class DataCite:
     """DataCite's REST API, for DOIs DataCite holds."""
 
-    def __init__(self, http: Http | None = None) -> None:
-        self.http = http or Http("DataCite", headers={"Accept": "application/vnd.api+json"})
+    def __init__(self, http: Http | None = None, contact: str | None = None) -> None:
+        self.http = http or Http(
+            "DataCite", headers={"Accept": "application/vnd.api+json"}, contact=contact
+        )
 
     def get(self, doi: str) -> DoiRecord | None:
         """The DOI's record, or None when DataCite holds no such DOI."""
@@ -134,8 +136,8 @@ class DataCite:
 class Crossref:
     """Crossref's REST API, for DOIs Crossref holds."""
 
-    def __init__(self, http: Http | None = None) -> None:
-        self.http = http or Http("Crossref")
+    def __init__(self, http: Http | None = None, contact: str | None = None) -> None:
+        self.http = http or Http("Crossref", contact=contact)
 
     def get(self, doi: str) -> DoiRecord | None:
         """The DOI's record, or None when Crossref holds no such DOI."""

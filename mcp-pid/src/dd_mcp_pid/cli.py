@@ -10,6 +10,9 @@ Settings, from the environment:
   `ROR dump v2.15`).
 - `DD_PID_HOSTS`: comma-separated names clients reach the server by, beyond loopback (such as a
   container's service name).
+- `DD_REGISTRY_CONTACT`: the operators' contact address, which DataCite and Crossref are sent as
+  `mailto:` in the User-Agent so that they serve the server from their faster, identified pool.
+  Never a person's own address. Unset, no address is sent.
 """
 
 from __future__ import annotations
@@ -23,6 +26,7 @@ import uvicorn
 
 from dd_mcp_pid.app import LOOPBACK, create_app
 from dd_mcp_pid.dois import Crossref, DataCite
+from dd_mcp_pid.http import contact_address
 from dd_mcp_pid.orcid import Orcid
 from dd_mcp_pid.ror import RorApi, RorIndex
 from dd_mcp_pid.tools import (
@@ -52,10 +56,18 @@ def ror_sources(env: Mapping[str, str]) -> RorSources:
     return RorSources(index=index, api=RorApi(), index_label=label)
 
 
+def contact(env: Mapping[str, str]) -> str | None:
+    try:
+        return contact_address(env.get("DD_REGISTRY_CONTACT", ""))
+    except ValueError as exc:
+        raise SettingsError(f"DD_REGISTRY_CONTACT: {exc}") from None
+
+
 def registries(env: Mapping[str, str]) -> list[Registry]:
+    address = contact(env)
     return [
-        doi_registry("DataCite", DataCite()),
-        doi_registry("Crossref", Crossref()),
+        doi_registry("DataCite", DataCite(contact=address)),
+        doi_registry("Crossref", Crossref(contact=address)),
         orcid_registry(Orcid()),
         ror_registry(ror_sources(env)),
     ]

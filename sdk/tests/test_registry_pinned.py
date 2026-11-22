@@ -173,6 +173,10 @@ def test_a_made_client_names_the_project(tmp_path: Path) -> None:
     agent = pinned.user_agent("data-director-sdk", "data-director-sdk")
     assert agent.startswith("data-director-sdk/")
     assert pinned.PROJECT_URL in agent
+    assert "mailto:" not in agent
+    named = pinned.user_agent("data-director-sdk", "data-director-sdk", "ops@example.org")
+    assert named.startswith("data-director-sdk/")
+    assert "mailto:ops@example.org" in named
 
 
 def test_write_atomic_makes_the_directory(tmp_path: Path) -> None:

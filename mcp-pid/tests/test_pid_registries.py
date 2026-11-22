@@ -16,8 +16,9 @@ from pid_support import (
     http,
 )
 
+from dd_mcp_pid.cli import SettingsError, contact, registries
 from dd_mcp_pid.dois import MAX_CREATORS, Crossref, DataCite, bare_doi
-from dd_mcp_pid.http import UnavailableError, user_agent
+from dd_mcp_pid.http import Http, UnavailableError, user_agent
 from dd_mcp_pid.orcid import Orcid, checksum_ok, orcid_url
 from dd_mcp_pid.ror import RorApi, RorIndex
 
@@ -123,6 +124,43 @@ def test_requests_name_this_server_and_send_no_email_address() -> None:
     assert agent == user_agent()
     assert agent.startswith("data-director-mcp-pid/") and "@" not in agent
     assert "mailto" not in str(seen[0].url)
+
+
+def test_an_operators_contact_address_reaches_datacite_and_crossref_only() -> None:
+    seen: list[httpx.Request] = []
+
+    def keep(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(404)
+
+    def client(name: str) -> Http:
+        return Http(name, transport=httpx.MockTransport(keep), contact="ops@example.org")
+
+    DataCite(client("DataCite")).get(DATACITE_DOI)
+    Crossref(client("Crossref")).get(CROSSREF_DOI)
+    for request in seen:
+        agent = request.headers["user-agent"]
+        assert agent.startswith("data-director-mcp-pid/")
+        assert "mailto:ops@example.org" in agent
+    assert DataCite(contact="ops@example.org").http.contact == "ops@example.org"
+    assert Crossref(contact="ops@example.org").http.contact == "ops@example.org"
+    assert Orcid().http.contact is None and RorApi().http.contact is None
+
+
+@pytest.mark.parametrize(
+    ("value", "address"), [("", None), ("  ", None), (" ops@example.org ", "ops@example.org")]
+)
+def test_a_contact_setting_is_one_plain_address_or_none(value: str, address: str | None) -> None:
+    assert contact({"DD_REGISTRY_CONTACT": value}) == address
+    assert contact({}) is None
+
+
+@pytest.mark.parametrize(
+    "value", ["not an address", "ops@example", "a@b.org; x", "a@b.org)\r\nX-Other: 1", "<a@b.org>"]
+)
+def test_a_contact_setting_that_is_not_an_address_stops_start_up(value: str) -> None:
+    with pytest.raises(SettingsError, match="DD_REGISTRY_CONTACT"):
+        registries({"DD_REGISTRY_CONTACT": value})
 
 
 def test_an_orcid_id_is_read_with_its_check_character() -> None:

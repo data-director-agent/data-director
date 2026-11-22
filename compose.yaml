@@ -342,6 +342,8 @@ services:
       DD_PID_ROR_REGISTRY: /workspace/agents/advisor-policy/data/ror/registry.jsonl
       # The name the app reaches it by; any other Host header is refused.
       DD_PID_HOSTS: mcp-pid
+      # Your operators' contact address for DataCite and Crossref (mcp-pid/README.md); blank: none.
+      DD_REGISTRY_CONTACT: ${DD_REGISTRY_CONTACT:-}
     healthcheck:
       test:
         - CMD
