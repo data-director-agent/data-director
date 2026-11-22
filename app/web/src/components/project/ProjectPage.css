@@ -65,7 +65,7 @@
     }
   }
 
-  /* The side bar: the documents, then any recently deleted conversations. */
+  /* The side bar: the documents. */
   .document-browser-side {
     position: sticky;
     top: var(--space-4);
