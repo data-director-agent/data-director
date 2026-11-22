@@ -34,6 +34,7 @@ from dd_app.responses import ResponseBody as ResponseBody
 from dd_app.responses import respond as respond
 from dd_app.responses import respond_page as respond_page
 from dd_harness.identity import Unauthenticated
+from dd_harness.orcid_names import PublicNames
 from dd_harness.project_access import Action, allowed
 from dd_harness.projects import ProjectError, UnknownProjectError
 from dd_harness.sessions import SESSION_COOKIE, cookie
@@ -76,6 +77,8 @@ class Deps:
     sign_in: SignIn | None = None
     # A test's stand-in for ORCID's public API (`dd_harness.orcid`).
     orcid_transport: httpx.BaseTransport | None = None
+    # Members' names from their public ORCID records, held briefly (`dd_harness.orcid_names`).
+    public_names: PublicNames = field(default_factory=PublicNames)
     # Where the browser reaches the model broker, when a person may add their own model account.
     model_broker_path: str | None = None
     # The providers a person's own model account may use; None where they may not add one.

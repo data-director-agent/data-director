@@ -5,16 +5,22 @@ decisions and conversations, and each can carry the work forward.
 
 ## Adding someone
 
-You add people from the project's **Members** tab if you are an owner of the project.
+You add people from the project's **People** tab if you are an owner of the project.
 
-1. Open the project and choose the **Members** tab.
+1. Open the project and choose the **People** tab.
 2. Under **Add a member**, type their ORCID iD, such as `0000-0002-1825-0097`. They need not have
    signed in to Data Director yet.
 3. Choose their role, then select **Add to the project**.
 
 Data Director never asks for or keeps an email address for a member. It keeps only their ORCID
-iD. The Members tab names each member by their iD, and by their name too once they have kept
-facts from their own ORCID record in the project ([Using your ORCID record](orcid-facts.md)).
+iD. The People tab names each member by the name they kept from their own ORCID record in the
+project ([Using your ORCID record](orcid-facts.md)), or else by the name on their public ORCID
+record, which Data Director reads from ORCID to show the page and does not keep. A member whose
+name is private on ORCID is shown by their iD.
+
+Under each member, the People tab lists the facts they chose to keep from their ORCID record,
+which agents in the project are given. Facts kept by someone who has since left the project are
+listed under **No longer members**: agents are still given them until that person withdraws them.
 
 ## Roles
 
@@ -47,7 +53,7 @@ member chose to keep from their ORCID record ([Using your ORCID record](orcid-fa
 
 ## Leaving, and removing someone
 
-To leave a project, select **Leave this project** on the Members tab and confirm. An owner can
+To leave a project, select **Leave this project** on the People tab and confirm. An owner can
 remove a member with **Remove** next to their name. Either way, the person no longer sees the
 project from that moment. Everything they did in it keeps their name, and an owner can add them
 again later.

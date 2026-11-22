@@ -30,6 +30,7 @@ const IMPORTS = {
   RawSchemaEntry: "@data-director/agent-view",
   RawSkillUse: "@data-director/agent-view",
   RawToolUse: "@data-director/agent-view",
+  ResearcherRecord: "../../project/researcher",
 };
 
 const HEADER = `/**

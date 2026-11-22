@@ -124,7 +124,8 @@ Sign-in needs HTTPS. Sessions are held in memory, so restarting the app signs ev
 app asks ORCID for the iD and the name only, and keeps no token. A researcher may choose, on a
 project's page, facts from their own public ORCID record for its agents; the app then reads that
 record from ORCID's public API (`pub.orcid.org`, or `pub.sandbox.orcid.org` for the sandbox
-issuer), so the host must be able to reach it. It needs no credential. A deployment made with
+issuer), so the host must be able to reach it. The project's People tab also reads each member's
+public name from it; where it cannot be reached, members are shown by their iD. It needs no credential. A deployment made with
 `deploy/install.sh` always signs people in: the installer fills `DD_APP_PUBLIC_URL`, waits for the
 other settings and the secret (`/etc/data-director/credentials/app/orcid-client-secret`, which the
 app's unit loads), and sets up no site password ([Deploying to a VM](../../../deploy/README.md)).

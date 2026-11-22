@@ -236,7 +236,10 @@ the profile maps them to steward teams ([Data stewards](stewardship.md), invaria
 which needs no credential and returns only what the holder made public, and only for their own
 iD: the one ORCID vouched for at sign-in, or on a development server the operator's asserted iD
 URL (`dd_harness.orcid.issuer_of`). What they keep of it in a project, and how it reaches agents,
-is in [Projects](projects.md), invariant 27. An email address is never read from it.
+is in [Projects](projects.md), invariant 27. An email address is never read from it. Apart from
+that, only the name on a project member's public record is read, to show it on the project's
+People tab; it is held in memory for at most an hour, never kept and never given to an agent
+([Projects](projects.md), Roles).
 
 **The principal.** Its identifier is an absolute IRI. For ORCID it is the iD URL, whose path is
 the token's `sub`. For any other issuer it is a URN made from the issuer and the subject alone,

@@ -77,6 +77,7 @@ from dd_app.worker_policy import BundleCaching, WorkerPolicy
 from dd_harness import gateway
 from dd_harness.identity import IdentityError
 from dd_harness.model_grants import jwks_routes
+from dd_harness.orcid_names import PublicNames
 from dd_harness.policy import PolicyError
 from dd_harness.registry import RegistryError
 from dd_harness.requirements import RequirementsError
@@ -180,6 +181,7 @@ def build_app(
         feedback=feedback or Feedback(),
         sign_in=sign_in,
         orcid_transport=orcid_transport,
+        public_names=PublicNames(transport=orcid_transport),
         model_broker_path=links.model_broker_path,
         model_account_providers=_model_account_providers(governance, links.model_broker_path),
         privacy_notice_url=links.privacy_notice_url,

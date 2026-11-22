@@ -232,7 +232,8 @@ def sample_record(orcid_id: str = SAMPLE_ID, host: str = "sandbox.orcid.org") ->
 
 @dataclass
 class FakeOrcidRegistry:
-    """ORCID's public API in memory: a record for each iD in `records`, and 404 for any other.
+    """ORCID's public API in memory: a record, and its `person` section, for each iD in
+    `records`, and 404 for any other.
     `issuer` picks the API it answers as; it defaults to the sandbox, as `FakeIdentityProvider`
     does. `requests` counts the records read, so a test can see that one was read again."""
 
@@ -255,8 +256,9 @@ class FakeOrcidRegistry:
             if request.headers.get("accept") != ORCID_MEDIA_TYPE:
                 return httpx.Response(406)
             orcid_id, _, rest = url.removeprefix(api + "/").partition("/")
-            if rest != "record" or orcid_id not in self.records:
+            if rest not in ("record", "person") or orcid_id not in self.records:
                 return httpx.Response(404)
-            return httpx.Response(200, json=self.records[orcid_id])
+            record = self.records[orcid_id]
+            return httpx.Response(200, json=record if rest == "record" else record.get("person"))
 
         return httpx.MockTransport(answer)
