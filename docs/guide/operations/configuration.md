@@ -224,6 +224,7 @@ operator, as before.
 | Each workbench run | `/var/lib/data-director/workbench-runs/` | Apart from the app's runs. |
 | Who is signed in | `/var/lib/data-director/app-sessions/`, `workbench-sessions/` (`DD_SESSIONS_FILE`) | A hash of each session identifier, the person's iD and name, and the session's times; no token. Not backed up. |
 | Model calls | In the run, as `chat` spans with token counts | No key is ever stored. |
+| Records read from a live registry route (FAIRsharing) | Each agent's cache, `/var/cache/data-director-agent-<name>/` (`DD_REGISTRY_CACHE_DIR`; in memory if unset) | Public records only; no token or credential. A record is read again after its time to live (`DD_REGISTRY_CACHE_TTL_RECORD`, `_SEARCH`, `_MISSING`, in seconds; [example](../../../config/examples/agents.env)), and an expired copy answers, marked stale, while the registry is down. Not backed up: `systemctl clean --what=cache data-director-agent@<name>` or `dd-registry-cache clear <file>` empties it. |
 | Problem reports | A public GitHub issue, if a credential is set | Off without a GitHub App (`DD_FEEDBACK_GITHUB_APP_ID` and `DD_FEEDBACK_GITHUB_APP_PRIVATE_KEY_FILE`) or a token (`DD_FEEDBACK_GITHUB_TOKEN`), not both. Either needs Issues: write on one repository and nothing else. |
 
 ## Before you open it to users

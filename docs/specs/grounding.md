@@ -102,6 +102,29 @@ mixin are in [Contract](contract.md); the `dd.*` span attributes the rules read 
     harness's clock; an agent on another host whose clock runs ahead could fail G1 although it
     waited. The source check does not look such a record up again: its hash is the conductor's
     own, computed from what the server returned.
+16. A live registry route answers through a local cache in the agent (`dd_registry_cache`,
+    `dd_sdk.registry.caching`, #327). In order, a record comes from:
+    - a cached copy younger than its time to live, with no request;
+    - the registry, which may confirm a cached copy current (an `ETag` and a 304);
+    - an expired cached copy, when the registry cannot be asked;
+    - the agent's snapshot, when there is no cached copy either.
+
+    Evidence names the copy:
+    - A record the registry sent or confirmed in the run keeps the live route's `snapshot_ref`
+      (`fairsharing:live`).
+    - One answered from the cache cites the cache: the label with `live` replaced by `cache`
+      (`fairsharing:cache`). It is marked `(stale)` when it was served past its time to live
+      because the registry could not be asked.
+    - A snapshot answering for the live route is marked `(stale)`, as before.
+
+    `retrieved_at` is when the registry last sent or confirmed the record, not when the run read
+    the cache. The cached bytes are the registry's own, so the record is projected and hashed
+    exactly as a fresh one is, and its `content_hash` is the same. A cache label names no pinned
+    copy, so the source check reports such an item as unresolved (invariant 11), as it does a
+    live one. Which copy answered is noted per record for the run (`dd_sdk.registry.provenance`),
+    not per agent, because one run may read records from both
+    (`sdk/tests/test_registry_caching.py`,
+    `agents/advisor-repository/tests/test_repository_cache.py`).
 
 ## Boundaries and contracts
 

@@ -315,7 +315,7 @@ class Report:
 
     def _evidence(self) -> list[EvidenceItem]:
         return (
-            record_evidence(self.cited, self.found.registry_labels())
+            record_evidence(self.cited, self.found.registry_labels(), self.found.fairsharing_ref)
             + org_evidence(self.found.organisations, self.found.ror.where or "")
             + self.texts.evidence
         )

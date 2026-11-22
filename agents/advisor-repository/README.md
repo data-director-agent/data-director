@@ -161,6 +161,11 @@ repository or makes a judgement:
 - `DD_REPOSITORY_RETRIEVAL`: how FAIRsharing's database records are read: `snapshot` (the
   default) or `live`. The live route is public and needs no account; when it fails the agent falls
   back to the snapshot, marked stale. re3data is always read from the pinned registry.
+- `DD_REGISTRY_CACHE_DIR`: where the live route keeps its local cache of FAIRsharing's answers
+  (in memory when unset); `DD_REGISTRY_CACHE_TTL_RECORD`, `_SEARCH` and `_MISSING` set how many
+  seconds an answer is used without asking again
+  ([example](../../config/examples/agents.env)). A record from the cache is cited as
+  `fairsharing:cache`, and as stale when FAIRsharing could not be asked.
 - `DD_REPOSITORY_EXPLAINER`: `model` (the default; `anthropic` is its older name) or `template`,
   which calls no model and needs no key. The provider, model and key are set as for every advisor
   ([AI models](../../docs/guide/operations/ai-models.md)). With the model on, the agent's card

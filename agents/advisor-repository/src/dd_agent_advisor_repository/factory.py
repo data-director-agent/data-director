@@ -39,6 +39,7 @@ from dd_sdk import serve
 from dd_sdk.credentials import ConfigError
 from dd_sdk.model import declared
 from dd_sdk.model_provider import optional_model
+from dd_sdk.registry.fairsharing import FairsharingClient
 
 SWITCH = "DD_REPOSITORY_EXPLAINER"
 
@@ -59,7 +60,7 @@ def build(env: Mapping[str, str] | None = None) -> RepositoryAgent:
     elif choice == "live":
         agent = RepositoryAgent(
             repositories,
-            FairsharingLive(),
+            FairsharingLive(api=FairsharingClient.from_env(env, follow_redirects=True)),
             explainer,
             databases_fallback=FairsharingSnapshot(),
         )

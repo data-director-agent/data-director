@@ -27,7 +27,14 @@ RestartPreventExitStatus=2
 TimeoutStopSec=30
 SyslogIdentifier=dd-%i
 
-# Hardening: the agents read the release and write nothing.
+# The local cache of live registry routes (dd_sdk.registry.caching, #327): systemd makes the
+# directory, for this unit alone. `systemctl clean --what=cache data-director-agent@<name>`
+# empties it; an agent that reads no live route leaves it empty.
+CacheDirectory=data-director-agent-%i
+CacheDirectoryMode=0700
+Environment=DD_REGISTRY_CACHE_DIR=%C/data-director-agent-%i
+
+# Hardening: the agents read the release and write only their cache directory.
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes

@@ -66,8 +66,8 @@ def test_search_signs_in_once_and_sends_the_token() -> None:
         return httpx.Response(200, json={"data": [{"id": 1}]})
 
     client = _client(httpx.MockTransport(handle))
-    assert client.search({"q": "soil"}) == [{"id": 1}]
-    assert client.search({"q": "rock"}) == [{"id": 1}]
+    assert client.search({"q": "soil"}).value == [{"id": 1}]
+    assert client.search({"q": "rock"}).value == [{"id": 1}]
     signs_in = [r for r in seen if str(r.url) == SIGN_IN]
     searches = [r for r in seen if str(r.url).startswith(SEARCH)]
     assert len(signs_in) == 1
@@ -118,7 +118,7 @@ def test_a_sign_in_without_a_token_is_unavailable() -> None:
 )
 def test_get_json_reads_a_record_or_none(answer: httpx.Response, found: object) -> None:
     client = _client(httpx.MockTransport(lambda r: answer))
-    assert client.get_json("https://fairsharing.org/FAIRsharing.x") == found
+    assert client.get_json("https://fairsharing.org/FAIRsharing.x").value == found
 
 
 def test_get_json_on_a_server_error_is_unavailable() -> None:

@@ -60,6 +60,7 @@ from dd_sdk import serve
 from dd_sdk.credentials import ConfigError, api_key
 from dd_sdk.model import Model, declared
 from dd_sdk.model_provider import configured_model, optional_model
+from dd_sdk.registry.fairsharing import FairsharingClient
 
 SWITCH = "DD_POLICY_ADVISOR"
 OLD_SWITCH = "DD_POLICY_EXPLAINER"
@@ -142,7 +143,8 @@ def build_policies(env: Mapping[str, str]) -> tuple[Policies, Policies | None]:
         )
     # Read as a credential, so the password may be a file under $CREDENTIALS_DIRECTORY.
     password = api_key(env, "FAIRSHARING_PASSWORD")
-    return PolicyLive(login=login, password=password), PolicySnapshot()
+    api = FairsharingClient.from_env(env, login=login, password=password, follow_redirects=True)
+    return PolicyLive(api=api), PolicySnapshot()
 
 
 def ror_choice(env: Mapping[str, str]) -> str:

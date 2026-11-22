@@ -21,6 +21,7 @@ fixes what the word "harness" names.
 | `units/` | `data-director-units` | Turns a unit as a person writes it into a UCUM code, by rule; the Documentation Editor fills a data dictionary's unit codes with it ([Drafting documents](drafting.md)). Imports no other member. |
 | `subjects/` | `data-director-subjects` | Subject classifications held as data with their sources and licences (OECD Fields of R&D, ANZSRC 2020 Fields of Research); the model orchestrator suggests fields of study from them when it asks for a researcher's discipline ([Orchestration](orchestration.md)). Imports no other member. |
 | `dmp-template/` | `data-director-dmp-template` | The core requirements of a Data Management Plan, after Science Europe's, and a rule that finds which of them a plan's headings cover; the Documentation Editor drafts a plan to them and the Data Management Plan Checker reviews one against them ([Drafting documents](drafting.md)). |
+| `registry-cache/` | `data-director-registry-cache` | A local cache in front of a registry that changes slowly: its own time to live, `ETag` revalidation, and an expired copy when the registry cannot be asked. The SDK's FAIRsharing client is built on it ([Grounding](grounding.md)). Standard library only; imports no other member. |
 | `mcp-fairsharing/` | `data-director-mcp-fairsharing` | The FAIRsharing server: a framework-neutral MCP server that looks up a FAIRsharing record, and searches the registry with an account, answering records an agent cites through the tool gateway. Imports no other member. The advisers do not use it yet (TODO(#280)). |
 | `metadata-records/` | `data-director-metadata-records` | Not built yet, TODO(#1358). The codecs and the definitions of metadata standards that write, read and check a metadata record in any standard ([Metadata standards](metadata-standards.md)). Speaks no Data Director contract and imports no other member. |
 
@@ -54,7 +55,7 @@ The contract, transport, grounding and the app's own process boundary are specif
 ## Invariants
 
 1. The dependency graph between members at run time is:
-   - `sdk` depends on no other member;
+   - `sdk` depends on `registry-cache` only;
    - `harness` depends on `sdk` only;
    - `workbench` depends on `harness` and `sdk`, and on nothing else in the workspace;
    - `app` depends on `harness`, `sdk` and `inventory`, the last to describe a folder on a local
@@ -65,6 +66,7 @@ The contract, transport, grounding and the app's own process boundary are specif
    - each agent depends on `sdk` only, and an agent that drafts or reads a metadata record also on
      `metadata-records` once it exists, TODO(#1358);
    - `inventory` depends on no other member;
+   - `registry-cache` depends on no other member;
    - `metadata-records` depends on no other member, and the harness depends on it as well as on
      `sdk`, once it exists, TODO(#1358).
 
@@ -74,8 +76,8 @@ The contract, transport, grounding and the app's own process boundary are specif
    import, direct or indirect, that runs against the direction above: the layers `sdk`,
    `harness`, then `workbench`, `app`, `admin` and each agent, with no agent importing another,
    `admin` importing neither the app, the workbench nor an agent, nothing importing `admin`,
-   `broker` importing no member but `sdk` and nothing importing `broker`, and `inventory`
-   importing no member. A known exception is an `ignore_imports` entry naming the
+   `broker` importing no member but `sdk` and nothing importing `broker`, and `inventory` and
+   `registry-cache` importing no member. A known exception is an `ignore_imports` entry naming the
    issue that removes it. `scripts/check_boundaries.py` (CI) fails code that imports a member it
    does not declare, and `scripts/check_wheels.py` (CI) installs each built wheel alone and
    imports it. Invariants 2 and 3 test the two edges most likely to be added by mistake.

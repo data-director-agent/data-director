@@ -17,6 +17,8 @@ dependencies = [
   "opentelemetry-sdk>=1.44",
   "a2a-sdk[http-server]>=1.2.2,<2",
   "httpx>=0.28",
+  # The local cache in front of FAIRsharing (dd_sdk.registry.caching, docs/specs/system.md).
+  "data-director-registry-cache>=0.1.0a0",
   "protobuf>=5",
   "starlette>=0.40",
   "uvicorn>=0.30",
