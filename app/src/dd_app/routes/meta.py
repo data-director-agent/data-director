@@ -302,7 +302,8 @@ async def send_feedback(request: Request, reporter: Principal, deps: Deps) -> Re
     except feedback.RateLimitedError as exc:
         return problem(429, "rate-limited", "Too many reports", str(exc))
     context = await run_in_threadpool(_context, report, reporter, deps)
-    text = feedback.issue_body(report, deps.identity, context)
+    deployment = await run_in_threadpool(deps.deployment.deployment)
+    text = feedback.issue_body(report, deps.identity, context, deployment)
     try:
         if settings.client is not None:
             created = await feedback.create_issue(
