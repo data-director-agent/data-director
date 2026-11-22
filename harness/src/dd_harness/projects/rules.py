@@ -19,6 +19,7 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Final
 
+from dd_harness.progress import ENTRY_CHOSEN, INTAKE_ANSWERED, INTAKE_DISMISSED, STEP_MARKED
 from dd_harness.project_errors import ChangeRefusedError as ChangeRefusedError
 from dd_harness.project_errors import ConversationDeletedError as ConversationDeletedError
 from dd_harness.project_errors import EscalationRefusal as EscalationRefusal
@@ -78,6 +79,56 @@ ESCALATION_RESOLVED = "escalation_resolved"
 ESCALATION_HANDED_BACK = "escalation_handed_back"
 ESCALATION_WITHDRAWN = "escalation_withdrawn"
 ESCALATION_REOPENED = "escalation_reopened"
+# Every event type the project log can hold. A type written that is not here is a programmer's
+# error, and a type here needs a mapping in the provenance graph (docs/specs/provenance.md,
+# invariant 2; dd_harness.provenance_graph).
+EVENT_TYPES: Final = frozenset(
+    {
+        PROJECT_CREATED,
+        PROJECT_RENAMED,
+        PROJECT_DELETED,
+        PROJECT_RESTORED,
+        CONVERSATION_STARTED,
+        CONVERSATION_DELETED,
+        CONVERSATION_RESTORED,
+        INVENTORY_ADDED,
+        DOCUMENTATION_ADDED,
+        RESEARCHER_ADDED,
+        RESEARCHER_WITHDRAWN,
+        MEMBER_ADDED,
+        MEMBER_ROLE_CHANGED,
+        MEMBER_REMOVED,
+        REPOSITORY_CHOSEN,
+        DOCUMENT_VERSION_ADDED,
+        DOCUMENT_VERSION_DECIDED,
+        DOCUMENT_CHANGE_REFUSED,
+        DOCUMENT_QUESTION_ANSWERED,
+        DOCUMENT_REVISION_REQUESTED,
+        FACT_PROPOSED,
+        FACT_DECIDED,
+        PROJECT_VALIDATED,
+        PACKAGE_BUILT,
+        DEPOSIT_ITEM_DECIDED,
+        DEPOSIT_CHECKS_CONFIRMED,
+        DEPOSIT_APPROVED,
+        DEPOSIT_RECORDED,
+        DEPOSIT_FAILED,
+        SUPPORT_TEAM_CHOSEN,
+        ESCALATION_OPENED,
+        ESCALATION_TAKEN,
+        ESCALATION_RELEASED,
+        ESCALATION_WAITING,
+        ESCALATION_REPLIED,
+        ESCALATION_RESOLVED,
+        ESCALATION_HANDED_BACK,
+        ESCALATION_WITHDRAWN,
+        ESCALATION_REOPENED,
+        ENTRY_CHOSEN,
+        STEP_MARKED,
+        INTAKE_ANSWERED,
+        INTAKE_DISMISSED,
+    }
+)
 PROJECT_ID = re.compile(UUID7_PATTERN)
 # Members every event has, which what an event carries never replaces.
 ENVELOPE_KEYS = frozenset({"event", "event_id", "project_id", "at", "acted_for", "caused_by"})
@@ -227,6 +278,8 @@ class ProjectRules:
     def _event(
         project_id: str, kind: str, acted_for: Principal, caused_by: str, detail: dict[str, Any]
     ) -> dict[str, Any]:
+        if kind not in EVENT_TYPES:
+            raise ValueError(f"{kind!r} is not an event type of the project log (EVENT_TYPES)")
         return {
             "event": kind,
             "event_id": new_invocation_id(),

@@ -40,11 +40,24 @@
     },
     "@graph": [
       {
+        "@id": "https://orcid.org/0000-0002-1825-0097",
+        "@type": [
+          "prov:Person",
+          "schema:Person"
+        ],
+        "dd:assurance": "asserted",
+        "dd:principalKind": "person",
+        "schema:name": "Josiah Carberry"
+      },
+      {
         "@id": "https://w3id.org/data-director/agents/stub.document",
         "@type": [
           "prov:SoftwareAgent",
           "schema:SoftwareApplication"
         ],
+        "prov:qualifiedDelegation": {
+          "@id": "urn:uuid:01900000-0000-7000-8000-000000000002#delegation"
+        },
         "schema:name": "stub.document"
       },
       {
@@ -57,6 +70,15 @@
         "schema:provider": "test"
       },
       {
+        "@id": "ni:///sha-256;PQrby7nXSlMh4cRCx_8q_u40vPRVGWsfz3cCEi9cWoc",
+        "@type": [
+          "prov:Entity",
+          "prov:Plan"
+        ],
+        "schema:name": "profile:test-permissive@v9",
+        "schema:sha256": "3d0adbcbb9d74a5321e1c442c7ff2afeee34bcf455196b1fcf7702122f5c5a87"
+      },
+      {
         "@id": "ni:///sha-256;SvzO5uVaLjJnkmCdxlgowPl93Bt9HpGBg2dRfxc5-B0",
         "@type": [
           "prov:Entity",
@@ -66,16 +88,62 @@
         "schema:sha256": "4afccee6e55a2e326792609dc65828c0f97ddc1b7d1e91818367517f1739f81d"
       },
       {
+        "@id": "ni:///sha-256;ke3wdL-uO7XfzUHMIzp_5htUHDYm9VDeRUhfMl11TLE",
+        "@type": "prov:Entity",
+        "dd:sourceId": "input:01900000-0000-7000-8000-000000000002",
+        "prov:wasGeneratedBy": {
+          "@id": "urn:uuid:01900000-0000-7000-8000-000000000002#retrieval-1"
+        },
+        "schema:sha256": "91edf074bfae3bb5dfcd41cc233a7fe61b541c3626f550de45485f325d754cb1"
+      },
+      {
+        "@id": "urn:uuid:01900000-0000-7000-8000-000000000002",
+        "@type": [
+          "dd:Invocation",
+          "prov:Activity"
+        ],
+        "dd:outcome": "succeeded",
+        "prov:endedAtTime": {
+          "@type": "xsd:dateTime",
+          "@value": "2026-01-01T00:00:00Z"
+        },
+        "prov:used": [
+          {
+            "@id": "ni:///sha-256;PQrby7nXSlMh4cRCx_8q_u40vPRVGWsfz3cCEi9cWoc"
+          },
+          {
+            "@id": "ni:///sha-256;ke3wdL-uO7XfzUHMIzp_5htUHDYm9VDeRUhfMl11TLE"
+          }
+        ],
+        "prov:wasAssociatedWith": {
+          "@id": "https://w3id.org/data-director/agents/stub.document"
+        },
+        "prov:wasInformedBy": [
+          {
+            "@id": "urn:uuid:01900000-0000-7000-8000-000000000002#model-call-1"
+          },
+          {
+            "@id": "urn:uuid:01900000-0000-7000-8000-000000000002#retrieval-1"
+          }
+        ],
+        "schema:softwareVersion": "0.1.0"
+      },
+      {
+        "@id": "urn:uuid:01900000-0000-7000-8000-000000000002#delegation",
+        "@type": "prov:Delegation",
+        "prov:agent": {
+          "@id": "https://orcid.org/0000-0002-1825-0097"
+        },
+        "prov:hadActivity": {
+          "@id": "urn:uuid:01900000-0000-7000-8000-000000000002"
+        }
+      },
+      {
         "@id": "urn:uuid:01900000-0000-7000-8000-000000000002#model-call-1",
         "@type": "prov:Activity",
+        "dd:modelAccount": "deployment",
         "prov:qualifiedAssociation": {
-          "@type": "prov:Association",
-          "prov:agent": {
-            "@id": "https://w3id.org/data-director/models/test/test-model"
-          },
-          "prov:hadPlan": {
-            "@id": "ni:///sha-256;SvzO5uVaLjJnkmCdxlgowPl93Bt9HpGBg2dRfxc5-B0"
-          }
+          "@id": "urn:uuid:01900000-0000-7000-8000-000000000002#model-call-1-association"
         },
         "prov:startedAtTime": {
           "@type": "xsd:dateTime",
@@ -89,45 +157,21 @@
         }
       },
       {
-        "@id": "urn:uuid:01900000-0000-7000-8000-000000000002",
-        "@type": "prov:Activity",
-        "dd:derivation": "model",
-        "prov:endedAtTime": {
-          "@type": "xsd:dateTime",
-          "@value": "2026-01-01T00:00:00Z"
+        "@id": "urn:uuid:01900000-0000-7000-8000-000000000002#model-call-1-association",
+        "@type": "prov:Association",
+        "prov:agent": {
+          "@id": "https://w3id.org/data-director/models/test/test-model"
         },
+        "prov:hadPlan": {
+          "@id": "ni:///sha-256;SvzO5uVaLjJnkmCdxlgowPl93Bt9HpGBg2dRfxc5-B0"
+        }
+      },
+      {
+        "@id": "urn:uuid:01900000-0000-7000-8000-000000000002#retrieval-1",
+        "@type": "prov:Activity",
         "prov:wasAssociatedWith": {
           "@id": "https://w3id.org/data-director/agents/stub.document"
-        },
-        "prov:wasInformedBy": [
-          {
-            "@id": "urn:uuid:01900000-0000-7000-8000-000000000002#model-call-1"
-          }
-        ],
-        "schema:softwareVersion": "0.1.0"
-      },
-      {
-        "@id": "https://orcid.org/0000-0002-1825-0097",
-        "@type": [
-          "prov:Person",
-          "schema:Person"
-        ],
-        "schema:name": "Josiah Carberry"
-      },
-      {
-        "@id": "urn:uuid:01900000-0000-7000-8000-000000000001#v1-approval",
-        "@type": "prov:Activity",
-        "prov:endedAtTime": {
-          "@type": "xsd:dateTime",
-          "@value": "2026-01-01T00:00:00Z"
-        },
-        "prov:used": {
-          "@id": "urn:uuid:01900000-0000-7000-8000-000000000001#v1"
-        },
-        "prov:wasAssociatedWith": {
-          "@id": "https://orcid.org/0000-0002-1825-0097"
-        },
-        "schema:name": "approval"
+        }
       },
       {
         "@id": "urn:uuid:01900000-0000-7000-8000-000000000001#v1",
@@ -135,6 +179,10 @@
           "prov:Entity",
           "schema:CreativeWork"
         ],
+        "dd:derivation": "model",
+        "prov:qualifiedGeneration": {
+          "@id": "urn:uuid:01900000-0000-7000-8000-000000000004"
+        },
         "prov:wasAttributedTo": {
           "@id": "https://w3id.org/data-director/agents/stub.document"
         },
@@ -145,9 +193,47 @@
         "schema:digitalSourceType": {
           "@id": "http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia"
         },
+        "schema:encodingFormat": "text/markdown",
         "schema:name": "README",
         "schema:sha256": "b04ab7d4e3815605c46456d58f2fa25d125343365a5eec88d4a55f211ead28ca",
         "schema:version": 1
+      },
+      {
+        "@id": "urn:uuid:01900000-0000-7000-8000-000000000004",
+        "@type": [
+          "dd:VersionDrafting",
+          "prov:Generation"
+        ],
+        "prov:activity": {
+          "@id": "urn:uuid:01900000-0000-7000-8000-000000000002"
+        },
+        "prov:atTime": {
+          "@type": "xsd:dateTime",
+          "@value": "2026-01-01T00:00:00Z"
+        }
+      },
+      {
+        "@id": "urn:uuid:01900000-0000-7000-8000-000000000005",
+        "@type": [
+          "dd:VersionDecision",
+          "prov:Activity"
+        ],
+        "dd:causedBy": "POST /api/projects/01900000-0000-7000-8000-000000000003/documents/01900000-0000-7000-8000-000000000001/decisions",
+        "dd:decision": "approved",
+        "prov:endedAtTime": {
+          "@type": "xsd:dateTime",
+          "@value": "2026-01-01T00:00:00Z"
+        },
+        "prov:startedAtTime": {
+          "@type": "xsd:dateTime",
+          "@value": "2026-01-01T00:00:00Z"
+        },
+        "prov:used": {
+          "@id": "urn:uuid:01900000-0000-7000-8000-000000000001#v1"
+        },
+        "prov:wasAssociatedWith": {
+          "@id": "https://orcid.org/0000-0002-1825-0097"
+        }
       }
     ]
   },
