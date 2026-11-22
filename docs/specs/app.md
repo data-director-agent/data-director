@@ -455,7 +455,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     sends to the model broker alone ([A person's own model account](model-accounts.md),
     `app/web/src/components/settings/ModelAccount.test.tsx`, `app/web/e2e/settings.spec.ts`).
     The other tabs are the **Preferences**: the colour scheme (light, dark, or matching the device), text
-    size, spacing, animation (matching the device, reduced or shown), the style dates and numbers
+    size, spacing, animation (matching the device, reduced or shown), the icon that stands for the
+    person beside "You" in the conversation (another member keeps the default person icon), the style dates and numbers
     are written in and the 12- or 24-hour clock, and whether a visit returns to the project used
     last or starts with none chosen. Each applies at once and is kept in that browser only, one
     `localStorage` key each, and none reaches the server (`app/web/src/preferences.ts`,

@@ -1,12 +1,14 @@
 /**
  * The person's preferences, on the Settings page (docs/specs/app.md, "Preferences"): how the app
- * looks, how it writes dates and times, and which project it opens in, a section to a tab. Each choice applies at
+ * looks (with the icon that stands for the person in the chat), how it writes dates and times, and which project it opens in, a section to a tab. Each choice applies at
  * once and is kept in this browser only (`preferences.ts`); nothing here reaches the server.
  */
 
 import { CalendarClock, Palette, Rocket, type LucideIcon } from "lucide-react";
 import { formatDateTime } from "../../format";
 import {
+  CHOICES,
+  PERSON_ICONS,
   type PreferenceName,
   type Preferences as PreferenceValues,
   setPreference,
@@ -56,6 +58,14 @@ const APPEARANCE: AnySetting[] = [
       { value: "reduce", label: "Reduce" },
       { value: "full", label: "Show" },
     ],
+  },
+  {
+    name: "personIcon",
+    legend: "Your icon in the chat",
+    options: CHOICES.personIcon.map((value) => ({
+      value,
+      label: `${PERSON_ICONS[value].icon} ${PERSON_ICONS[value].label}`,
+    })),
   },
 ];
 
