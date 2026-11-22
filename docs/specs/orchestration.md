@@ -386,6 +386,16 @@ survives a new conversation and the model's history window, and lets work done i
 Most steps leave nothing in the log, so the researcher's own word on them is an event too, and
 the suggestion is only a suggestion so that marking, skipping and going back are always open.
 
+A model orchestrator recommends and never decides, but it does not hide an agent's advice
+either. When an agent returns recommendations in an order, or with a reason or a concern for
+each, the orchestrator keeps that order and passes the reasons and concerns on, grouping
+recommendations of different kinds (vocabularies, data formats, metadata standards) rather than
+offering them as one list. It asks the researcher to choose only when the answer is recorded in
+the project or a later step uses it, because a choice that changes nothing costs the researcher
+effort and tells them nothing. A choice of standards is not recorded yet, so a standards result
+is reported as advice, TODO(#1391). Before #1390, the prompt told the model not to rank options,
+and it turned the Standards Librarian's ranked shortlist into an unordered menu.
+
 An orchestrator succeeds whatever its children's outcomes because mirroring a child's failure on
 the parent would lose the reply's explanation, while the failure stays visible where it occurred.
 
