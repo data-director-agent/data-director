@@ -364,16 +364,16 @@ step "Workbench, for admins, at https://$domain:8443/"
 fill "$ETC/workbench.env" DD_OIDC_ISSUER "$(setting DD_OIDC_ISSUER)"
 fill "$ETC/workbench.env" DD_OIDC_CLIENT_ID "$(setting DD_OIDC_CLIENT_ID)"
 fill "$ETC/workbench.env" DD_WORKBENCH_PUBLIC_URL "https://$domain:8443"
-# It admits only the ORCID iDs listed and does not start with none, so it is enabled once there is
-# one (deploy/README.md).
-if [[ -n "$(setting DD_WORKBENCH_ADMINS "$ETC/workbench.env")" ]]; then
+# It admits only the administrators the profile names and does not start with none, so it is
+# enabled once `apply` has written one into the profile from deployment.yaml (deploy/README.md).
+if grep -q '^administrators:' "$ETC/profile.yaml" 2>/dev/null; then
   systemctl enable --now data-director-workbench.service
-  echo "The workbench is https://$domain:8443/ for the admins in $ETC/workbench.env."
+  echo "The workbench is https://$domain:8443/ for the administrators in $ETC/deployment.yaml."
 else
   systemctl disable --now data-director-workbench.service 2>/dev/null || true
   echo "The workbench is not running. To run it:"
   echo "  - add the redirect URI https://$domain:8443/api/sign-in/callback to the ORCID client;"
-  echo "  - set DD_WORKBENCH_ADMINS in $ETC/workbench.env to the admins' ORCID iDs;"
+  echo "  - list the administrators' ORCID iD URLs under administrators in $ETC/deployment.yaml;"
   echo "  - ask for TCP port 8443 to be open to the VM;"
   echo "and run this again."
 fi

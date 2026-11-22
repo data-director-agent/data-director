@@ -110,3 +110,21 @@ def test_the_institutions_repositories_are_the_deployments_own(tmp_path: Path) -
     assert body["institution_repositories"] == [entry]
     (loaded,) = load_profile(path).institution_repositories
     assert loaded.repository_id == "r3d100012124"
+
+
+def test_the_administrators_and_steward_teams_are_the_deployments_own(tmp_path: Path) -> None:
+    """Deployment roles are the instance's own (docs/specs/stewardship.md, invariant 1), so they
+    are taken from deployment.yaml, as written, and never from the release's example."""
+    admin = "https://orcid.org/0000-0002-1825-0097"
+    team = {"id": "library-rdm", "name": "Library Research Data Team", "members": [admin]}
+    example = example_with(tmp_path, {"administrators": ["https://orcid.org/0000-0001-5000-0007"]})
+    _, without = generated(tmp_path, example=example)
+    assert "administrators" not in without and "stewardship" not in without
+    text = yaml.safe_dump(
+        {"name": "dev", "administrators": [admin], "stewardship": {"teams": [team]}}
+    )
+    path, body = generated(tmp_path, text, example=example)
+    assert body["administrators"] == [admin]
+    assert body["stewardship"] == {"teams": [team]}
+    loaded = load_profile(path)
+    assert loaded.roles_of(admin).administrator and loaded.roles_of(admin).steward

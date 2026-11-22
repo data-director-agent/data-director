@@ -11,6 +11,8 @@ Its keys are read and checked by ddtool.deployment_file. From it and the release
   rules it ran under (docs/guide/operations/configuration.md);
 - `model_accounts`, if the file has it, in the profile as written; the app checks it when it
   starts (docs/specs/model-accounts.md). Without it the profile has none, so the deployment pays;
+- `administrators` and `stewardship`, if the file has them, in the profile as written: who
+  administers the instance and its steward teams (docs/specs/stewardship.md, invariant 1);
 - the app's agent list, `agents.yaml` beside `deployment.yaml`, with `DD_AGENTS_CONFIG` naming it
   in `app.env`: the release's list, with `model_broker: true` on each agent whose settings set
   `DD_MODEL_BROKER_URL` (ddtool.agent_list). A release that changes the list reaches the app at
@@ -101,6 +103,8 @@ OWNED_PROFILE_KEYS = frozenset(
         "orchestrator",
         "model_accounts",  # from deployment.yaml; the example's own is not carried
         "institution_repositories",  # from deployment.yaml, as the instance's own institution's
+        "administrators",  # from deployment.yaml: deployment roles are the instance's own
+        "stewardship",  # likewise
         "tool_servers",  # from the PID resolver
     }
 )
@@ -144,6 +148,10 @@ def profile(
         body["model_accounts"] = deployment.model_accounts
     if deployment.institution_repositories:
         body["institution_repositories"] = deployment.institution_repositories
+    if deployment.administrators:
+        body["administrators"] = deployment.administrators
+    if deployment.stewardship is not None:
+        body["stewardship"] = deployment.stewardship
     if tool_servers:
         body["tool_servers"] = tool_servers
     have: dict[str, Any] = (yaml.safe_load(current) or {}) if current else {}

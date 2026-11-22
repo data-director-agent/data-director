@@ -90,6 +90,7 @@ export type AppResponse =
   | RawModelAccountProvider
   | RawSession
   | RawSessionPrincipal
+  | RawStewardTeam
   | ReasonRequired
   | RecordedAnswer
   | RepositoryMatch
@@ -1475,9 +1476,25 @@ export interface RawSessionPrincipal {
   name: string;
   principal_id: string;
   /**
+   * The person's deployment roles, from the profile (docs/specs/stewardship.md, invariant 1).
+   * Everyone is a researcher. No deployment role makes anyone a member of a project.
+   */
+  roles: ("researcher" | "steward" | "administrator")[];
+  /**
+   * The steward teams the person is in; empty unless they are a steward.
+   */
+  teams: RawStewardTeam[];
+  /**
    * The issuer that vouched for an authenticated person; absent for an asserted one.
    */
   vouched_by?: string;
+}
+/**
+ * A steward team the person is in, as the profile names it (docs/specs/stewardship.md).
+ */
+export interface RawStewardTeam {
+  name: string;
+  team_id: string;
 }
 /**
  * What a search of the pinned registries shows of one repository.

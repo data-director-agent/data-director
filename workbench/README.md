@@ -140,8 +140,9 @@ for one command. If only one of them is set, the command stops with
 ### Signing admins in
 
 With `DD_OIDC_ISSUER` set, `serve` signs people in with ORCID through the harness's flow
-(`dd_harness.signin`) and admits only the ORCID iDs in `DD_WORKBENCH_ADMINS`
-(`src/workbench/transport/signin.py`). Anyone else is refused at the callback, and no session is
+(`dd_harness.signin`) and admits only the administrators its profile names under `administrators`
+(`src/workbench/transport/signin.py`; docs/specs/stewardship.md, invariant 1), each by principal
+identifier, such as `https://orcid.org/0000-0002-1825-0097`. With none it does not start. Anyone else is refused at the callback, and no session is
 opened for them. Every route but `/api/sign-in`, its callback, `/api/sign-out` and `/api/session`
 then needs an admin's session: a page without one is sent to sign in and back, and any other
 request is answered `401`. Each run acts for the admin who started it, recorded `authenticated`.
@@ -152,7 +153,6 @@ in and offers to sign out.
 |---|---|
 | `DD_OIDC_ISSUER`, `DD_OIDC_CLIENT_ID`, `DD_OIDC_CLIENT_SECRET` (or `_FILE`) | The ORCID client, as for the app. Not beside `DD_PRINCIPAL_*`. |
 | `DD_WORKBENCH_PUBLIC_URL` | Where admins reach the workbench; the redirect URI is this plus `/api/sign-in/callback`. Default: the address it serves on. |
-| `DD_WORKBENCH_ADMINS` | The ORCID iDs it admits, separated by commas or spaces. Required with an issuer. |
 
 Its cookies (`dd_workbench_session`, `dd_workbench_sign_in`) are named apart from the app's, because
 a browser scopes cookies by host and not by port. This is how the workbench runs on the VM

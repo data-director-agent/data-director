@@ -39,6 +39,23 @@ disabled: []
 #     charges_deposit_fee: false
 #     guidance: [https://www.sheffield.ac.uk/library/research-data-management]
 
+# Who administers this instance, each by their ORCID iD as a URL, copied into the profile as written.
+# A deployed workbench admits them and no one else, and does not run without one. Being an
+# administrator gives no access to anyone's project (docs/guide/steward-guide/becoming-a-steward.md).
+# administrators:
+#   - https://orcid.org/0000-0002-1825-0097
+
+# The instance's data steward teams, copied into the profile as written: who receives the matters
+# researchers raise (docs/guide/steward-guide/becoming-a-steward.md). Leave it out and the instance
+# has no stewards; a researcher who asks for one is told so.
+# stewardship:
+#   teams:
+#     - id: library-rdm
+#       name: Library Research Data Team
+#       members: [https://orcid.org/0000-0002-1825-0097]
+#       contact: https://example.ac.uk/research-data/contact
+#       response_time: 3 working days
+
 # Whether people may pay for model calls with their own AI provider account, copied into the
 # profile as written. Leave it out and the deployment pays. It needs the model broker and the
 # grant secrets first (docs/guide/operations/model-broker.md); the app stops at start-up without

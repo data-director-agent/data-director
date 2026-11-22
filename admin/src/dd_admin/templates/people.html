@@ -3,7 +3,7 @@
 {% block title %}People{% endblock %}
 {% block heading %}People{% endblock %}
 {% block content %}
-<p class="muted">Everyone a run acted for or who created a project. The service keeps no list of accounts: people are known only from the stores. Who may use the workbench is <code>DD_WORKBENCH_ADMINS</code> in <code>/etc/data-director/workbench.env</code>.</p>
+<p class="muted">Everyone a run acted for or who created a project. The service keeps no list of accounts: people are known only from the stores. Who may use the workbench is the profile's <code>administrators</code>, set in <code>/etc/data-director/deployment.yaml</code>.</p>
 {% for error in usage.errors %}<div class="banner bad" role="alert">{{ error }}</div>{% endfor %}
 <div class="table-wrap">
 <table>

@@ -88,9 +88,25 @@ institution_repositories:    # optional: your institution's own repositories, ea
     guidance: [https://www.durham.ac.uk/research/research-data/]  # pages you checked. Offered
                              # to its researchers and suggested first; one no pinned registry
                              # holds stops start-up (docs/specs/deposit.md)
+
+administrators:              # optional: who administers the deployment, by principal identifier
+  - https://orcid.org/0000-0002-1825-0097   # (an ORCID iD as a URL). A workbench that signs
+                             # people in admits them and no one else. No access to any project
+
+stewardship:                 # optional: the deployment's data steward teams
+  visibility: escalated      # the only value until stewards can open projects (#374)
+  deposit_co_approval: false # false until co-approval is built (#1306)
+  teams:
+    - id: library-rdm        # lower-case words joined by hyphens
+      name: Library Research Data Team         # what researchers see
+      members: [https://orcid.org/0000-0002-1825-0097]   # by principal identifier
+      supports: [faculty-of-science]           # optional: labels of the projects it supports
+      contact: https://example.ac.uk/rdm       # optional: shown when no steward can help
+      response_time: 3 working days            # optional: shown to the researcher
+                             # (docs/specs/stewardship.md, invariant 1)
 ```
 
-Those fifteen keys are the whole vocabulary. A profile with any other key is refused when the
+Those seventeen keys are the whole vocabulary. A profile with any other key is refused when the
 workbench starts, so a misspelt or out-of-date key cannot look as if it were in force.
 
 ## How it is applied

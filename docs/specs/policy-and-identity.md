@@ -153,7 +153,9 @@ the pages checked; the conductor gives them to an agent whose input class mixes 
 `GivenInstitutionRepositories`, replacing whatever a caller sent, the source check resolves what
 an agent cites of them under the profile's reference, the app suggests them first, and one that
 no pinned registry holds stops start-up; `dd_harness.institution_repositories`,
-[Deposit](deposit.md)). A setting is the agent's own
+[Deposit](deposit.md)) and `stewardship` and `administrators` (the deployment's steward teams and
+its administrators, each person by principal identifier: deployment roles,
+[Data stewards](stewardship.md), invariant 1; `dd_harness.stewardship`). A setting is the agent's own
 option, chosen by the steward: the conductor checks it against the card and sends it, and the agent
 applies it. It is not a way to grant an agent anything the other keys withhold. A deployment's generated profile is the release's example with the keys `deployment.yaml` sets, and carries every other key of the
 example as it stands. A change to which orchestrator is
@@ -192,12 +194,11 @@ calling a hosted model is held to both lists (`dd_harness.policy.withheld`).
 Each sign-in callback and the bearer authenticator verify a token with the one function in
 `dd_harness.identity`, so every way in agrees on what a valid token is.
 
-**Admins.** A deployed workbench admits only the ORCID iDs its deployment lists
-(`DD_WORKBENCH_ADMINS`). The flow refuses anyone else after verifying their token and before
-opening a session, and every request is checked against the list, so an admin taken off it is
-refused at once. Once more than one issuer is accepted, the list holds principal identifiers,
-not only iDs (TODO(#936)). The list stands in for the administrator role, which the profile's
-`administrators` key replaces ([Data stewards](stewardship.md), invariant 1), TODO(#154).
+**Admins.** A deployed workbench admits only the administrators its profile names
+(`administrators`, [Data stewards](stewardship.md), invariant 1), each by principal identifier
+and vouched for by the deployment's issuer. The flow refuses anyone else after verifying their
+token and before opening a session, and every request is checked against the list. A profile with
+no administrator stops a workbench that signs people in at start-up.
 
 **The admin service.** The admin service (`admin/`) shows an operator every person's runs and
 projects, and the deployment's settings with secret values hidden. It has no sign-in of its own:

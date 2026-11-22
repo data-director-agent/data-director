@@ -6,6 +6,8 @@
     privacy_notice: https://example.ac.uk/data-director/privacy   # optional
     model_accounts: {own: allowed, ...}   # optional: copied into the profile as it stands
     institution_repositories: [{repository_id: bl.durham, ...}]   # optional: copied likewise
+    administrators: [https://orcid.org/0000-0002-1825-0097]       # optional: copied likewise
+    stewardship: {teams: [...]}                                     # optional: copied likewise
     pid_resolver: true       # optional, development only: run the PID resolver (mcp-pid)
 
 Each problem is reported against the file as the operator knows it, naming the key and what it
@@ -31,6 +33,8 @@ KEYS = {
     "privacy_notice",
     "model_accounts",
     "institution_repositories",
+    "administrators",
+    "stewardship",
     "pid_resolver",
 }
 # An absolute https URL with a host and no spaces. The app checks the same rule when it reads
@@ -47,6 +51,9 @@ class Deployment:
     privacy_notice: str | None = None
     model_accounts: dict[str, Any] | None = None
     institution_repositories: list[dict[str, Any]] | None = None
+    # Deployment roles (docs/specs/stewardship.md, invariant 1), copied into the profile.
+    administrators: list[str] | None = None
+    stewardship: dict[str, Any] | None = None
     pid_resolver: bool = False
 
     @property
@@ -80,7 +87,7 @@ def parse(text: str, label: str, agents: list[Agent]) -> Deployment:
     if not isinstance(data, dict):
         raise DevError(
             f"{label}: expected name, orchestrator, disabled, privacy_notice, model_accounts, "
-            "institution_repositories and pid_resolver"
+            "institution_repositories, administrators, stewardship and pid_resolver"
         )
     if unknown := sorted(set(data) - KEYS):
         raise DevError(
@@ -109,8 +116,9 @@ def parse(text: str, label: str, agents: list[Agent]) -> Deployment:
 
 
 def _options(data: dict[str, Any], label: str) -> dict[str, Any]:
-    """The optional keys, checked: privacy_notice, model_accounts, institution_repositories and
-    pid_resolver. What the profile's keys hold is checked when the harness loads the profile."""
+    """The optional keys, checked: privacy_notice, model_accounts, institution_repositories,
+    administrators, stewardship and pid_resolver. What the profile's keys hold is checked when the
+    harness loads the profile."""
     privacy_notice = data.get("privacy_notice")
     if privacy_notice is not None and not (
         isinstance(privacy_notice, str) and PRIVACY_NOTICE.fullmatch(privacy_notice.strip())
@@ -130,6 +138,17 @@ def _options(data: dict[str, Any], label: str) -> dict[str, Any]:
             f"{label}: institution_repositories lists repositories, each a mapping with a "
             "repository_id, as in the profile"
         )
+    administrators = data.get("administrators")
+    if administrators is not None and not (
+        isinstance(administrators, list) and all(isinstance(a, str) for a in administrators)
+    ):
+        raise DevError(
+            f"{label}: administrators lists people by principal identifier, such as "
+            "https://orcid.org/0000-0002-1825-0097, as in the profile"
+        )
+    stewardship = data.get("stewardship")
+    if stewardship is not None and not isinstance(stewardship, dict):
+        raise DevError(f"{label}: stewardship is a mapping with teams, as in the profile")
     pid_resolver = data.get("pid_resolver", False)
     if not isinstance(pid_resolver, bool):
         raise DevError(f"{label}: pid_resolver is true or false")
@@ -137,5 +156,7 @@ def _options(data: dict[str, Any], label: str) -> dict[str, Any]:
         "privacy_notice": privacy_notice.strip() if privacy_notice else None,
         "model_accounts": model_accounts,
         "institution_repositories": repositories,
+        "administrators": administrators,
+        "stewardship": stewardship,
         "pid_resolver": pid_resolver,
     }

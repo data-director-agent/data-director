@@ -335,7 +335,7 @@ visibility allows it opens the project through a path of its own beside membersh
 recorded as `steward_viewed`, and what a steward does there (write to the researcher, propose an
 edit, run an agent, clear a gate, pause the project) is a log event naming the steward. The
 researcher still approves the content and the deposit. This is specified in
-[Data stewards](specs/stewardship.md) and not built yet, TODO(#154, #373, #374).
+[Data stewards](specs/stewardship.md) and not built yet, TODO(#373, #374). Only deployment roles are built: the profile names the steward teams and the administrators (`dd_harness.stewardship`).
 
 ## 6. Configuration and deployment
 

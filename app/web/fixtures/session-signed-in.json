@@ -7,6 +7,10 @@
     "assurance": "authenticated",
     "name": "Josiah Carberry",
     "principal_id": "https://sandbox.orcid.org/0000-0002-1825-0097",
+    "roles": [
+      "researcher"
+    ],
+    "teams": [],
     "vouched_by": "https://sandbox.orcid.org"
   },
   "repository_accounts": false,

@@ -73,7 +73,7 @@ the VM for those. A fix the doctor names that refers to "the clone" means the cl
 from.
 
 The service keeps no list of accounts: people are known only from the runs and projects that name
-them. Who may use the workbench is `DD_WORKBENCH_ADMINS` ([Configuration](configuration.md)).
+them. Who may use the workbench is the profile's `administrators`, set in `deployment.yaml` ([Configuration](configuration.md)).
 
 ### Secrets
 

@@ -115,9 +115,10 @@ identifier is not offered silently ([Deposit](../../specs/deposit.md)).
 Raise the profile's `version` on every change. Each stored run records the profile and version it
 was held to, with the digest of its bytes, so a later reader can tell which rules applied. A
 request cannot name a profile; only the operator chooses it
-([profiles](../../../workbench/profiles/README.md)). Who the data stewards are will be a profile
-key too, `stewardship`, which the stewards' team owns and the operator applies
-([Becoming a steward](../steward-guide/becoming-a-steward.md)); it is not enforced yet, TODO(#154).
+([profiles](../../../workbench/profiles/README.md)). Who the data stewards are is a profile
+key too, `stewardship`, which the stewards' team owns and the operator applies, and who administers
+the instance is `administrators`; on a VM both are written in `deployment.yaml`
+([Becoming a steward](../steward-guide/becoming-a-steward.md)).
 
 ## Who a run acts for
 
@@ -201,17 +202,17 @@ Setting both a provider and an operator stops the app at start-up.
 
 ### The workbench on a server
 
-A deployed workbench signs people in with the same ORCID client and admits only admins
-([Deploying to a VM](../../../deploy/README.md#the-workbench)). Its settings are in
-`/etc/data-director/workbench.env`:
+A deployed workbench signs people in with the same ORCID client and admits only the
+administrators the instance's profile names, from `administrators` in `deployment.yaml`
+([Deploying to a VM](../../../deploy/README.md#the-workbench)). It runs under the instance's
+profile, as the app does. Its settings are in `/etc/data-director/workbench.env`:
 
 | Setting | What it is |
 |---|---|
 | `DD_OIDC_ISSUER`, `DD_OIDC_CLIENT_ID` | The app's; `install.sh` copies them. The secret is the app's file, loaded by the workbench's own unit. |
 | `DD_WORKBENCH_PUBLIC_URL` | Where admins reach it, `https://<host>:8443`. Register `DD_WORKBENCH_PUBLIC_URL/api/sign-in/callback` as a second redirect URI on the ORCID client. |
-| `DD_WORKBENCH_ADMINS` | The ORCID iDs it admits, bare or as iD URLs, separated by commas or spaces. Required: with none, or one that is not an iD, it does not start. |
 
-Anyone else who signs in is told they are not an admin, and no session is opened for them. A
+With no administrator in the profile it does not start. Anyone else who signs in is told they are not an admin, and no session is opened for them. A
 workbench without `DD_OIDC_ISSUER`, as on a developer's machine, signs nobody in and acts for the
 operator, as before.
 

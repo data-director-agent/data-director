@@ -16,6 +16,7 @@ from urllib.parse import parse_qs, urlsplit
 
 import httpx
 import pytest
+import yaml
 
 from dd_agent_example_hello.agent import HelloWorld
 from dd_harness.identity import OperatorAssertion
@@ -25,13 +26,7 @@ from dd_harness.testing import TEST_PRINCIPAL, FakeIdentityProvider, make_conduc
 from dd_sdk.contract.models import Principal, to_document
 from dd_sdk.credentials import ConfigError
 from workbench.transport.app import build_app
-from workbench.transport.signin import (
-    ADMINS_VARIABLE,
-    SESSION_COOKIE,
-    Admins,
-    admin_sign_in,
-    admins_from_env,
-)
+from workbench.transport.signin import SESSION_COOKIE, Admins, admin_sign_in
 
 BASE = "https://workbench.test:8443"
 JOSIAH = "0000-0002-1825-0097"
@@ -77,7 +72,9 @@ class Workbench:
             settings,
             session_cookie=SESSION_COOKIE,
             # Read at each call, so a test can take someone off the list.
-            admit=lambda p: Admins(self.idp.issuer, frozenset(self.admins))(p),
+            admit=lambda p: Admins(
+                self.idp.issuer, frozenset(f"{self.idp.issuer}/{a}" for a in self.admins)
+            )(p),
             keys=self.idp.keys(),
             client=httpx.AsyncClient(transport=self.idp.transport()),
         )
@@ -266,24 +263,6 @@ def test_a_development_server_gates_nothing(runs_dir: Path):
 # Configuration.
 
 
-@pytest.mark.parametrize(
-    ("value", "admins"),
-    [
-        (JOSIAH, {JOSIAH}),
-        (f"{JOSIAH}, https://orcid.org/{ADA}", {JOSIAH, ADA}),
-        (f" {JOSIAH}\n0000-0002-1694-233X ", {JOSIAH, "0000-0002-1694-233X"}),
-    ],
-)
-def test_admins_are_orcid_ids_bare_or_as_urls(value: str, admins: set[str]):
-    assert admins_from_env({ADMINS_VARIABLE: value}) == admins
-
-
-@pytest.mark.parametrize("value", ["", " , ", "josiah", "0000-0002-1825", f"{JOSIAH},ada@x.org"])
-def test_an_empty_or_mistyped_list_stops_start_up(value: str):
-    with pytest.raises(ConfigError, match=ADMINS_VARIABLE):
-        admins_from_env({ADMINS_VARIABLE: value})
-
-
 def principal(principal_id: str, vouched_by: str) -> Principal:
     return Principal(
         principal_id=principal_id,
@@ -295,7 +274,7 @@ def principal(principal_id: str, vouched_by: str) -> Principal:
 
 
 def test_an_admin_is_listed_and_vouched_for_by_the_deployments_issuer():
-    admins = Admins("https://orcid.org", frozenset({JOSIAH}))
+    admins = Admins("https://orcid.org", frozenset({f"https://orcid.org/{JOSIAH}"}))
     assert admins(principal(f"https://orcid.org/{JOSIAH}", "https://orcid.org"))
     assert not admins(principal(f"https://orcid.org/{ADA}", "https://orcid.org"))
     # The same iD at the sandbox is another person, as far as a production workbench knows.
@@ -313,18 +292,39 @@ def settings(tmp_path: Path, **changes: Any) -> Settings:
     )
 
 
-def test_sign_in_is_configured_from_the_environment(tmp_path: Path):
+def profile(tmp_path: Path, administrators: list[str]) -> Path:
+    path = tmp_path / "profile.yaml"
+    path.write_text(
+        yaml.safe_dump(
+            {
+                "profile_id": "wb",
+                "agents": {"example.hello": "advise"},
+                "administrators": administrators,
+            }
+        )
+    )
+    return path
+
+
+def test_sign_in_admits_the_administrators_the_profile_names(tmp_path: Path):
     idp = FakeIdentityProvider()
     configured = settings(tmp_path, oidc_issuer=idp.issuer, oidc_client_id=idp.client_id)
-    env = {
-        "DD_OIDC_CLIENT_SECRET": idp.client_secret,
-        "DD_WORKBENCH_PUBLIC_URL": BASE,
-        ADMINS_VARIABLE: JOSIAH,
-    }
+    env = {"DD_OIDC_CLIENT_SECRET": idp.client_secret, "DD_WORKBENCH_PUBLIC_URL": BASE}
+    profile(tmp_path, [f"{idp.issuer}/{JOSIAH}"])
     found = admin_sign_in(env, configured, "http://127.0.0.1:8000")
     assert found is not None
     assert found.settings.redirect_uri == f"{BASE}/api/sign-in/callback"
     assert found.authenticator.cookie_name == SESSION_COOKIE
-    with pytest.raises(ConfigError, match=ADMINS_VARIABLE):
-        admin_sign_in({**env, ADMINS_VARIABLE: ""}, configured, "http://127.0.0.1:8000")
+    assert found.admit is not None
+    assert found.admit(principal(f"{idp.issuer}/{JOSIAH}", idp.issuer))
+    assert not found.admit(principal(f"{idp.issuer}/{ADA}", idp.issuer))
     assert admin_sign_in(env, settings(tmp_path), "http://127.0.0.1:8000") is None
+
+
+def test_a_profile_with_no_administrators_stops_start_up(tmp_path: Path):
+    idp = FakeIdentityProvider()
+    configured = settings(tmp_path, oidc_issuer=idp.issuer, oidc_client_id=idp.client_id)
+    env = {"DD_OIDC_CLIENT_SECRET": idp.client_secret, "DD_WORKBENCH_PUBLIC_URL": BASE}
+    profile(tmp_path, [])
+    with pytest.raises(ConfigError, match="administrators"):
+        admin_sign_in(env, configured, "http://127.0.0.1:8000")

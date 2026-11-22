@@ -237,7 +237,7 @@ intended design, and each part says where it is not built yet.
 17. **Access follows the project.** Whatever carries a `project_id` (conversations, runs,
     inventories, documents, decisions) is visible to the project's members and to no one else
     except a data steward whose visibility allows it ([Data stewards](stewardship.md), invariants 2 and 3),
-    TODO(#154). A non-member is refused with status 404,
+    TODO(#374). A non-member is refused with status 404,
     so that a refusal does not reveal whether the project exists; a member attempting an owner's
     action with 403. Enforced by `dd_harness.project_access` (`harness/tests/test_project_access.py`,
     `harness/tests/test_project_runs.py`) and the app's `in_project` route guard
