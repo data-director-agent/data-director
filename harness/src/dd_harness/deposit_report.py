@@ -5,7 +5,8 @@ them; they are kept apart so that it stays within its size.
 A validation is ready to package when its report has no violation (it conforms, in SHACL's sense)
 and nothing waits on a person (`dd_harness.deposit_review`): no item is undecided and the checks
 before deposit are confirmed. Both are carried in the report as warnings, which in SHACL do not
-make it fail to conform; the package is refused until they are cleared all the same.
+make it fail to conform; the package is refused until they are cleared all the same. Information
+(`sh:Info`), such as what the repository fills in itself, never blocks.
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ from typing import Any
 from dd_harness.deposit_review import REVIEW_CHECKS, Review
 from dd_harness.disclosure import ni
 from dd_harness.projects import ProjectError
-from dd_harness.shacl import VIOLATION, WARNING, Result
+from dd_harness.shacl import INFO, VIOLATION, WARNING, Result
 from dd_harness.shacl import report_jsonld as shacl_report
 
 
@@ -61,6 +62,12 @@ class Validation:
     @property
     def warnings(self) -> tuple[Result, ...]:
         return tuple(r for r in self.results if r.severity == WARNING)
+
+    @property
+    def infos(self) -> tuple[Result, ...]:
+        """What the validation says for information only, such as what the repository fills in
+        itself; it never blocks."""
+        return tuple(r for r in self.results if r.severity == INFO)
 
     @property
     def awaiting(self) -> tuple[Result, ...]:

@@ -509,6 +509,7 @@ classes:
       - fields
       - required_documents
       - recommended_documents
+      - filled_by_repository
       - media_types
       - max_file_size
       - max_item_size
@@ -547,6 +548,7 @@ classes:
       - schema_org
       - obligation
       - form_label
+      - supplied_on
 
   RepositoryRequirements:
     description: >-
@@ -564,6 +566,7 @@ classes:
       - fields
       - required_documents
       - recommended_documents
+      - filled_by_repository
       - media_types
       - max_file_size
       - max_item_size
@@ -2249,6 +2252,13 @@ slots:
     description: The document kinds whose absence is a warning.
     range: DocumentKind
     multivalued: true
+  filled_by_repository:
+    description: >-
+      The properties the schema makes mandatory that the repository fills in itself when it
+      registers the record, such as DataCite's publisher and publicationYear, so the researcher
+      is not asked for them. Validation says so as information, never as a violation; in a merged
+      set, the standard's first, then the override's.
+    multivalued: true
   media_types:
     description: "An override only: the media types the repository accepts. Empty means any."
     multivalued: true
@@ -2297,6 +2307,11 @@ slots:
   form_label:
     description: >-
       An override only: the label of the repository's deposit form field the value goes in.
+  supplied_on:
+    description: >-
+      Where in the app a researcher supplies the field's value, which validation names beside a
+      missing one. Absent means documents, the metadata record's questions.
+    range: SuppliedOn
   deposit:
     description: >-
       An override only: the API the harness may deposit a draft through. Without it the repository
@@ -2571,6 +2586,20 @@ enums:
         description: A missing value is an sh:Violation; the package is not built.
       recommended:
         description: A missing value is an sh:Warning, shown to the researcher.
+
+  SuppliedOn:
+    description: >-
+      The page of a project where a researcher supplies a value a deposit needs
+      (docs/specs/deposit.md, Validation).
+    permissible_values:
+      documents:
+        description: The project's documents, including the metadata record's questions.
+      researchers:
+        description: The project's researchers, read from ORCID.
+      facts:
+        description: The facts recorded about the project, such as its licence and file decisions.
+      repository:
+        description: The choice of repository.
 
   IdentificationMethod:
     description: How a file's format was identified, from strongest to weakest (docs/specs/projects.md).

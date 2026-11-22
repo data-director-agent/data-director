@@ -3,7 +3,7 @@
 # under `guidance`); what they leave open is listed under `unconfirmed`.
 schema_class: RequirementSet
 requirement_set_id: zenodo
-version: 1
+version: 2
 title: Zenodo
 url: https://sandbox.zenodo.org/
 re3data_id: r3d100010468
@@ -44,6 +44,7 @@ fields:
     schema_org: funding
     obligation: recommended
     form_label: Funding
+    supplied_on: researchers
   - property: relatedIdentifiers
     schema_org: citation
     obligation: recommended

@@ -131,10 +131,12 @@ TODO(#394, #200).
 8. **Validity is the harness's, never an agent's.** The harness checks the project against the
    recorded merged set and writes one SHACL Validation Report. A failed `required` check is an
    `sh:Violation`, a failed `recommended` one an `sh:Warning`. The package is valid when the report
-   has no violation; warnings, including those from resolving the choice, are shown and do not
-   block. `advisor.quality` stays advisory. Every validation, valid or not, is kept by its digest
-   in the project log
+   has no violation; warnings, including those from resolving the choice, and information
+   (`sh:Info`) are shown and do not block. `advisor.quality` stays advisory. Every validation,
+   valid or not, is kept by its digest in the project log
    (`test_a_missing_required_field_is_a_violation_and_a_recommended_one_a_warning`,
+   `test_each_missing_required_field_names_itself_and_the_page_it_is_supplied_on`,
+   `test_what_the_repository_fills_in_is_information_and_never_blocks`,
    `test_the_validation_report_is_a_shacl_validation_report`).
 9. **A package, in any format, is built only from a valid report, and holds no data file.** A
    violation stops the package and names each reason; the report is still kept
@@ -214,8 +216,12 @@ test the rest.
 **The class.** `RequirementSet` is a core contract class ([Contract](contract.md)) so that the
 harness, a drafter and `advisor.repository` read one description without knowing one another. Each
 field names a property of the standard's schema, optionally qualified, the schema.org term it maps
-to, and its obligation. Properties the repository fills itself, such as the identifier and the
-publisher, are not listed. A value the guidance does not state is left out and marked with an
+to, its obligation and, in `supplied_on`, the page of the project where a researcher supplies its
+value: `documents` (the metadata record's questions, the default), `researchers`, `facts` or
+`repository`. Properties the repository fills itself, such as the identifier, the publisher and the
+publication year, are not fields; those the schema makes mandatory and the researcher might look
+for are listed in `filled_by_repository` (DataCite's set lists the publisher and the publication
+year), and a merged set carries both sets' entries. A value the guidance does not state is left out and marked with an
 issue reference, never guessed; each set cites the pages its values came from, so a steward can
 check them. What the guidance leaves open is also listed in the set's `unconfirmed`, one
 statement per item naming its issue, so that a person depositing by hand sees it; the merged set
@@ -234,15 +240,30 @@ definition of the standard, not a drafter of its own, TODO(#1360, #1361, #401).
 **Validation** checks, against the merged set:
 
 - every required document kind has an approved version, and, as warnings, every recommended one;
+- as a warning, a data dictionary: when the set neither requires nor recommends one and the project
+  has none approved, a project whose inventory lists a table, or has no inventory, is warned that
+  one helps others reuse the data. It never blocks a package, even when the repository does not
+  list it;
 - the approved metadata record has every required field and, as warnings, every recommended one;
 - the record's licence is one the set lists, when it lists any;
 - every inventory entry has an accepted media type and is within the file size limit, and the
   inventory's files together within the item size, when they are stated. A limit on the number of
   files in an item is not in the class, TODO(#385);
 - as warnings, each item a person must decide before packaging, and the confirmation of the
-  checks before deposit when it is missing (*The pause before packaging*).
+  checks before deposit when it is missing (*The pause before packaging*);
+- as information (`sh:Info`), what the repository fills in itself, from `filled_by_repository`,
+  naming the repository: "Zenodo fills in the publisher and publication year". Information never
+  makes a project invalid or holds its package.
 
 A project with no repository chosen, or no inventory, has a violation that says so.
+
+**Each result says where to act.** A result about a field or a document names it in `dd:field` (the
+repository's form label, else the property; or the document kind) and the project's page where a
+person supplies it in `dd:supplied_on`, beside the `sh:` terms: a missing field names the page its
+set's `supplied_on` gives, a missing document, the metadata record among them, names `documents`,
+and a missing repository choice names `repository`. With no metadata record approved, its fields
+are not checked, and the one violation for the record names `documents`. The app links each result
+to that page.
 
 The record is read as RDF, the same reading the package uses, through the pivot of
 [Metadata standards](metadata-standards.md): the standard's definition maps each of its properties

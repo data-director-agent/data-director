@@ -12,10 +12,22 @@ from typing import Any
 import pytest
 import rdflib
 from rdflib.namespace import RDF, SH
-from requirement_sets import ELSEWHERE, ORDA, override, pinned, standard, write
+from requirement_sets import (
+    ELSEWHERE,
+    ORDA,
+    ZENODO,
+    override,
+    pinned,
+    standard,
+    write,
+    zenodo,
+    zenodo_standard,
+)
 
 from dd_harness import server
 from dd_harness.deposit import (
+    DOCUMENT_CHECK,
+    INFO,
     LICENCE_CHECK,
     LOG_NAME,
     PROVENANCE_NAME,
@@ -178,9 +190,13 @@ def test_a_project_without_a_required_document_is_refused_and_says_why(
     assert messages(validation.results, VIOLATION) == [
         "ORDA requires a metadata record, and none has been approved."
     ]
-    assert messages(validation.results, WARNING) == [
-        "ORDA recommends a README, and none has been approved."
-    ]
+    # With no record approved, its fields are not checked; the violation names the page where
+    # the record is approved.
+    (missing,) = validation.violations
+    assert (missing.field, missing.supplied_on) == ("metadata record", "documents")
+    assert "ORDA recommends a README, and none has been approved." in messages(
+        validation.results, WARNING
+    )
     # The report is kept, and no package is.
     events = [e["event"] for e in projects.events(chosen)]
     assert events[-1] == PROJECT_VALIDATED
@@ -196,6 +212,7 @@ def test_a_project_with_no_repository_chosen_has_nothing_to_be_valid_against(
     assert not validation.conforms
     assert validation.requirements_digest is None
     assert "No repository has been chosen" in validation.violations[0].message
+    assert validation.violations[0].supplied_on == "repository"
 
 
 @pytest.mark.requirement("R4.2")
@@ -239,6 +256,104 @@ def test_a_missing_required_field_is_a_violation_and_a_recommended_one_a_warning
     assert [r.message for r in found.violations] == [
         "No inventory of the data files has been added, so the package could not say which "
         "files to deposit in Elsewhere."
+    ]
+
+
+def choose_zenodo(projects: ProjectStore, project_id: str, tmp_path: Path) -> None:
+    """Record Zenodo as chosen, checked against DataCite's set and Zenodo's override as the
+    deployment's configuration has them."""
+    folder = write(
+        tmp_path / "zenodo-sets", ("standards", zenodo_standard()), ("overrides", zenodo())
+    )
+    projects.choose_repository(
+        project_id,
+        ZENODO,
+        registry=pinned(folder / "re3data"),
+        requirements=load_requirements(folder),
+        acted_for=TEST_PRINCIPAL,
+        caused_by="test",
+    )
+
+
+@pytest.mark.requirement("R4.2")
+@pytest.mark.parametrize(
+    ("missing", "field", "page"),
+    [
+        ("titles", "Title", "documents"),
+        ("creators", "Creators", "researchers"),
+        ("rightsList", "Licenses", "documents"),
+    ],
+)
+def test_each_missing_required_field_names_itself_and_the_page_it_is_supplied_on(
+    projects: ProjectStore,
+    runs: RunStore,
+    chosen: str,
+    tmp_path: Path,
+    missing: str,
+    field: str,
+    page: str,
+) -> None:
+    choose_zenodo(projects, chosen, tmp_path)
+    record = {k: v for k, v in RECORD.items() if k != missing}
+    approve(projects, runs, chosen, DocumentKind.METADATA_RECORD, json.dumps(record))
+    validation = validate(projects, chosen)
+    (violation,) = validation.violations
+    assert (violation.field, violation.supplied_on) == (field, page)
+    # The report carries both beside the SHACL result.
+    (node,) = [
+        r
+        for r in validation.report_jsonld()["sh:result"]
+        if r["sh:resultSeverity"] == {"@id": "sh:Violation"}
+    ]
+    assert (node["dd:field"], node["dd:supplied_on"]) == (field, page)
+
+
+def test_what_the_repository_fills_in_is_information_and_never_blocks(
+    projects: ProjectStore, runs: RunStore, chosen: str, tmp_path: Path
+) -> None:
+    """The record gives no publisher or publication year: Zenodo fills them in, so the check says
+    so as `sh:Info`, and the project is still ready to package."""
+    choose_zenodo(projects, chosen, tmp_path)
+    assert "publisher" not in RECORD and "publicationYear" not in RECORD
+    approve(projects, runs, chosen, DocumentKind.METADATA_RECORD, json.dumps(RECORD))
+    approve(projects, runs, chosen, DocumentKind.README)
+    clear_review(projects, chosen, acted_for=TEST_PRINCIPAL)
+    validation = validate(projects, chosen)
+    assert validation.ready
+    (info,) = validation.infos
+    assert info.severity == INFO
+    assert all(word in info.message for word in ("Zenodo", "publisher", "publication year"))
+    assert not any("publisher" in r.message for r in validation.violations + validation.warnings)
+    severities = {r["sh:resultSeverity"]["@id"] for r in validation.report_jsonld()["sh:result"]}
+    assert "sh:Info" in severities
+
+
+def test_an_unapproved_data_dictionary_is_a_warning_even_when_the_repository_asks_for_none(
+    projects: ProjectStore, runs: RunStore, ready: str, tmp_path: Path
+) -> None:
+    """ORDA asks for no data dictionary, and the project's files are tables: the check warns,
+    names the documents page, and the project is still ready to package."""
+    validation = validate(projects, ready)
+    assert validation.ready
+    (dictionary,) = [
+        r for r in validation.warnings if r.component == DOCUMENT_CHECK and r.field is not None
+    ]
+    assert (dictionary.field, dictionary.supplied_on) == ("data dictionary", "documents")
+
+    # Once one is approved, there is nothing to warn of.
+    approve(projects, runs, ready, DocumentKind.DATA_DICTIONARY)
+    assert not [r for r in validate(projects, ready).warnings if r.component == DOCUMENT_CHECK]
+
+    # A project with no table has no columns to describe.
+    no_tables = projects.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    inventory = file_inventory("notes/field-notes.pdf")
+    inventory["inventory_files"][0]["file_media_type"] = "application/pdf"
+    projects.add_inventory(no_tables, inventory, acted_for=TEST_PRINCIPAL, caused_by="test")
+    choose(projects, no_tables, tmp_path)
+    assert not [
+        r
+        for r in validate(projects, no_tables).warnings
+        if r.component == DOCUMENT_CHECK and r.field == "data dictionary"
     ]
 
 

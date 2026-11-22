@@ -171,6 +171,10 @@ export interface AgentsProfile {
  */
 export interface BuiltPackage {
   conforms: boolean;
+  /**
+   * Information that never blocks, such as what the repository fills in itself.
+   */
+  infos: ValidationResult[];
   package: PackageLink;
   project_id: string;
   /**
@@ -195,6 +199,29 @@ export interface BuiltPackage {
    * Warnings that do not wait on a person; those that do are the `review`'s.
    */
   warnings: ValidationResult[];
+}
+/**
+ * One result of a validation: what is missing, in the harness's words.
+ */
+export interface ValidationResult {
+  /**
+   * The check that made it.
+   */
+  component: string;
+  /**
+   * The field or document it is about, such as the repository's form label, or null.
+   */
+  field: string | null;
+  /**
+   * The node the result is about, such as the project or the metadata record.
+   */
+  focus: string;
+  message: string;
+  path: string | null;
+  /**
+   * The project's page where a person supplies what is missing, or null.
+   */
+  supplied_on: ("documents" | "researchers" | "facts" | "repository") | null;
 }
 /**
  * A deposit package the harness built, kept by the SHA-256 of its bytes.
@@ -273,21 +300,6 @@ export interface ItemDecisionMade {
   decided_by: Principal;
   decision: "keep" | "leave_out" | "change";
   note: string | null;
-}
-/**
- * One result of a validation: what is missing, in the harness's words.
- */
-export interface ValidationResult {
-  /**
-   * The check that made it.
-   */
-  component: string;
-  /**
-   * The node the result is about, such as the project or the metadata record.
-   */
-  focus: string;
-  message: string;
-  path: string | null;
 }
 /**
  * A check's stored summary.
@@ -959,11 +971,15 @@ export interface PackageRefusedProblem {
 }
 /**
  * A project's validation against its chosen repository's requirements, as the harness made
- * it and kept it in the project log. A violation stops the package; a warning does not; an
- * item undecided or the checks unconfirmed hold it until a person clears them.
+ * it and kept it in the project log. A violation stops the package; a warning or information
+ * does not; an item undecided or the checks unconfirmed hold it until a person clears them.
  */
 export interface Validation {
   conforms: boolean;
+  /**
+   * Information that never blocks, such as what the repository fills in itself.
+   */
+  infos: ValidationResult[];
   project_id: string;
   /**
    * Whether a package may be built: no violation, and nothing waits on a person.

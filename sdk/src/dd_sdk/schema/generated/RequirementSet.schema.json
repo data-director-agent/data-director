@@ -109,6 +109,17 @@
                   "string",
                   "null"
                ]
+            },
+            "supplied_on": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/SuppliedOn"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "Where in the app a researcher supplies the field's value, which validation names beside a missing one. Absent means documents, the metadata record's questions."
             }
          },
          "required": [
@@ -118,6 +129,17 @@
          ],
          "title": "RequirementField",
          "type": "object"
+      },
+      "SuppliedOn": {
+         "description": "The page of a project where a researcher supplies a value a deposit needs (docs/specs/deposit.md, Validation).",
+         "enum": [
+            "documents",
+            "researchers",
+            "facts",
+            "repository"
+         ],
+         "title": "SuppliedOn",
+         "type": "string"
       }
    },
    "$id": "https://w3id.org/data-director/schema/core/RequirementSet",
@@ -208,6 +230,16 @@
          "description": "The document kinds whose absence is a warning.",
          "items": {
             "$ref": "#/$defs/DocumentKind"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "filled_by_repository": {
+         "description": "The properties the schema makes mandatory that the repository fills in itself when it registers the record, such as DataCite's publisher and publicationYear, so the researcher is not asked for them. Validation says so as information, never as a violation; in a merged set, the standard's first, then the override's.",
+         "items": {
+            "type": "string"
          },
          "type": [
             "array",

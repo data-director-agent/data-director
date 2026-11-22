@@ -12,13 +12,7 @@ dd:DraftRequest a sh:NodeShape ;
     rdfs:comment "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen, the metadata record a person approved last and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory, the requirements and the metadata record in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. In a project the conductor also fills current_version, the latest version of the project's document of that kind, or of the document redraft_document names, so a redraft is that document's next version. The answers a person recorded to the current version's questions are filled in by the conductor in the same way (docs/specs/drafting.md), and so are the researcher facts people in the project chose to keep from their public ORCID records (docs/specs/projects.md), and the text of the documents a researcher attached to the project, from which a drafter's model may suggest answers but never fill a gap." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:class dd:FileInventory ;
-            sh:description "The project's inventory, the latest added. In a project the conductor fills it; a caller leaves it out." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 2 ;
-            sh:path dd:inventory ],
-        [ sh:class dd:ProjectFact ;
+    sh:property [ sh:class dd:ProjectFact ;
             sh:description "The facts a person in the project decided (ProjectFact), the last decision on each subject, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project decided any. A drafter treats each as supplied." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 10 ;
@@ -75,7 +69,13 @@ dd:DraftRequest a sh:NodeShape ;
             sh:description "The answers a person recorded to the current version's questions. In a project the conductor fills them; a caller leaves them out." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 6 ;
-            sh:path dd:draft_answers ] ;
+            sh:path dd:draft_answers ],
+        [ sh:class dd:FileInventory ;
+            sh:description "The project's inventory, the latest added. In a project the conductor fills it; a caller leaves it out." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 2 ;
+            sh:path dd:inventory ] ;
     sh:targetClass dd:DraftRequest .
 
 dd:Affiliation a sh:NodeShape ;
@@ -770,61 +770,66 @@ dd:RepositoryRequirements a sh:NodeShape ;
             sh:order 1 ;
             sh:path dd:re3data_id ;
             sh:pattern "^r3d[0-9]{9}$" ],
-        [ sh:datatype xsd:string ;
-            sh:description "What the set's sources leave open, each a short statement naming the issue that will settle it, such as \"Whether ORDA's form makes any other field mandatory (#385)\". Shown to the person depositing; in a merged set, the standard's first, then the override's." ;
+        [ sh:datatype xsd:integer ;
+            sh:description "An override only: the largest file the repository accepts, in bytes." ;
+            sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 13 ;
-            sh:path dd:unconfirmed ],
+            sh:order 10 ;
+            sh:path dd:max_file_size ],
         [ sh:datatype xsd:string ;
-            sh:description "An override only: the media types the repository accepts. Empty means any." ;
+            sh:description "The properties the schema makes mandatory that the repository fills in itself when it registers the record, such as DataCite's publisher and publicationYear, so the researcher is not asked for them. Validation says so as information, never as a violation; in a merged set, the standard's first, then the override's." ;
             sh:nodeKind sh:Literal ;
             sh:order 8 ;
-            sh:path dd:media_types ],
-        [ sh:description "The pages the set's values were taken from, so that a steward can check them; in a merged set, the standard's first, then the override's." ;
-            sh:nodeKind sh:IRI ;
-            sh:order 15 ;
-            sh:path dd:guidance ],
-        [ sh:datatype xsd:string ;
-            sh:description "What the researcher was told when the repository was chosen, such as that it does not list DataCite." ;
-            sh:nodeKind sh:Literal ;
-            sh:order 12 ;
-            sh:path dd:warnings ],
+            sh:path dd:filled_by_repository ],
         [ sh:description "The document kinds whose absence is a warning." ;
             sh:in ( "metadata_record" "readme" "data_dictionary" "dmp" "other" ) ;
             sh:order 7 ;
             sh:path dd:recommended_documents ],
+        [ sh:description "The pages the set's values were taken from, so that a steward can check them; in a merged set, the standard's first, then the override's." ;
+            sh:nodeKind sh:IRI ;
+            sh:order 16 ;
+            sh:path dd:guidance ],
         [ sh:description "The document kinds that must have an approved version before a package is built." ;
             sh:in ( "metadata_record" "readme" "data_dictionary" "dmp" "other" ) ;
             sh:order 6 ;
             sh:path dd:required_documents ],
+        [ sh:description "Where the chosen repository is, taken from its override's url; absent when the deployment has no override for it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 15 ;
+            sh:path dd:repository_url ],
+        [ sh:datatype xsd:string ;
+            sh:description "What the set's sources leave open, each a short statement naming the issue that will settle it, such as \"Whether ORDA's form makes any other field mandatory (#385)\". Shown to the person depositing; in a merged set, the standard's first, then the override's." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 14 ;
+            sh:path dd:unconfirmed ],
+        [ sh:datatype xsd:string ;
+            sh:description "What the researcher was told when the repository was chosen, such as that it does not list DataCite." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 13 ;
+            sh:path dd:warnings ],
         [ sh:description "The URI of the metadata schema of the standard's set." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:IRI ;
             sh:order 3 ;
             sh:path dcterms:conformsTo ],
+        [ sh:datatype xsd:string ;
+            sh:description "An override only: the licences the repository offers, each an SPDX identifier or the URL of the repository's own terms." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 12 ;
+            sh:path dd:licences ],
         [ sh:class dd:RequirementSetUse ;
             sh:description "The sets the requirements were merged from, the standard's first." ;
             sh:minCount 1 ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 4 ;
             sh:path dd:requirement_sets ],
-        [ sh:datatype xsd:integer ;
-            sh:description "An override only: the largest deposit the repository accepts, in bytes." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 10 ;
-            sh:path dd:max_item_size ],
         [ sh:datatype xsd:string ;
-            sh:description "An override only: the licences the repository offers, each an SPDX identifier or the URL of the repository's own terms." ;
+            sh:description "An override only: the media types the repository accepts. Empty means any." ;
             sh:nodeKind sh:Literal ;
-            sh:order 11 ;
-            sh:path dd:licences ],
-        [ sh:description "Where the chosen repository is, taken from its override's url; absent when the deployment has no override for it." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:IRI ;
-            sh:order 14 ;
-            sh:path dd:repository_url ],
+            sh:order 9 ;
+            sh:path dd:media_types ],
         [ sh:datatype xsd:string ;
             sh:description "What the researcher calls the repository chosen, such as ORDA." ;
             sh:maxCount 1 ;
@@ -833,26 +838,26 @@ dd:RepositoryRequirements a sh:NodeShape ;
             sh:order 2 ;
             sh:path dd:repository_name ],
         [ sh:datatype xsd:integer ;
-            sh:description "An override only: the largest file the repository accepts, in bytes." ;
+            sh:description "An override only: the largest deposit the repository accepts, in bytes." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 9 ;
-            sh:path dd:max_file_size ] ;
+            sh:order 11 ;
+            sh:path dd:max_item_size ] ;
     sh:targetClass dd:RepositoryRequirements .
 
 dd:RequirementField a sh:NodeShape ;
     rdfs:comment "One metadata property a requirement set requires or recommends." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:in ( "required" "recommended" ) ;
+    sh:property [ sh:description "Values that narrow the property, such as a subjectScheme. Part of what identifies a field when an override is merged with its standard's set." ;
+            sh:maxCount 1 ;
+            sh:order 1 ;
+            sh:path dd:qualifier ],
+        [ sh:in ( "required" "recommended" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 3 ;
             sh:path dd:obligation ],
-        [ sh:description "Values that narrow the property, such as a subjectScheme. Part of what identifies a field when an override is merged with its standard's set." ;
-            sh:maxCount 1 ;
-            sh:order 1 ;
-            sh:path dd:qualifier ],
         [ sh:datatype xsd:string ;
             sh:description "The schema.org term the property maps to, by which the record is read as RDF." ;
             sh:maxCount 1 ;
@@ -860,6 +865,11 @@ dd:RequirementField a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
             sh:path dd:schema_org ],
+        [ sh:description "Where in the app a researcher supplies the field's value, which validation names beside a missing one. Absent means documents, the metadata record's questions." ;
+            sh:in ( "documents" "researchers" "facts" "repository" ) ;
+            sh:maxCount 1 ;
+            sh:order 5 ;
+            sh:path dd:supplied_on ],
         [ sh:datatype xsd:string ;
             sh:description "An override only: the label of the repository's deposit form field the value goes in." ;
             sh:maxCount 1 ;

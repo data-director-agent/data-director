@@ -3,7 +3,9 @@
  * from it (docs/specs/deposit.md).
  *
  * The harness validates and builds; the panel asks it to and draws what it found. Each problem
- * that stops the package and each warning is the harness's message, as it wrote it. The package
+ * that stops the package, each warning and each piece of information is the harness's message, as
+ * it wrote it, with a link to the project's page where the person supplies what is missing, when
+ * the harness names one (`supplied_on`). The package
  * can be built only after a check the project passed, and is downloaded by its digest from the
  * project log. That a build is running, and what a check or a build did, is said once, in a live
  * region that is in the panel from the start, so that a screen reader announces it. A check leaves
@@ -37,6 +39,8 @@ import {
 } from "../../project/api";
 import { Button } from "../ui/Button";
 import { formatNumber } from "../../format";
+import { Link, projectTabPath } from "../../route";
+import { tabLabel } from "./ProjectNav";
 import { BeforePackaging } from "./BeforePackaging";
 import { PackageBuilt } from "./PackageBuilt";
 
@@ -89,13 +93,29 @@ export function outcome(validation: Validation): string {
   return `${problems} must be fixed before the package can be built.`;
 }
 
+/** The link to the page where a person supplies what a result says is missing, if it names one. */
+function SuppliedOn({ projectId, result }: { projectId: string; result: ValidationResult }) {
+  if (!result.supplied_on) return null;
+  const what = result.field ? `the ${result.field} on ` : "it on ";
+  return (
+    <>
+      {" "}
+      <Link to={projectTabPath(projectId, result.supplied_on)}>
+        Supply {what}the {tabLabel(result.supplied_on)} page
+      </Link>
+    </>
+  );
+}
+
 function Results({
   id,
   heading,
+  projectId,
   results,
 }: {
   id: string;
   heading: string;
+  projectId: string;
   results: ValidationResult[];
 }) {
   if (results.length === 0) return null;
@@ -106,7 +126,10 @@ function Results({
       </h3>
       <ul>
         {results.map((result, index) => (
-          <li key={`${result.component}-${result.focus}-${index}`}>{result.message}</li>
+          <li key={`${result.component}-${result.focus}-${index}`}>
+            <span>{result.message}</span>
+            <SuppliedOn projectId={projectId} result={result} />
+          </li>
         ))}
       </ul>
     </section>
@@ -236,9 +259,21 @@ export function DepositPanel({ projectId, revision }: { projectId: string; revis
           <Results
             id="deposit-violations"
             heading="Must be fixed before packaging"
+            projectId={projectId}
             results={validation.violations}
           />
-          <Results id="deposit-warnings" heading="Worth fixing" results={validation.warnings} />
+          <Results
+            id="deposit-warnings"
+            heading="Worth fixing"
+            projectId={projectId}
+            results={validation.warnings}
+          />
+          <Results
+            id="deposit-infos"
+            heading="For your information"
+            projectId={projectId}
+            results={validation.infos}
+          />
           {validation.review && shown?.state !== "built" && (
             <BeforePackaging
               projectId={projectId}
