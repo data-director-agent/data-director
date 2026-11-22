@@ -5,11 +5,16 @@ researcher to read; it answers `404` when there is none. `POST /api/projects/{id
 `{"inventory": …}` to the project as its latest, for the person signed in: the researcher's
 revision of the one it holds, or a new scan. It answers `201` with what the project then holds of
 it. `GET /api/projects/{id}/documentation` lists the documents attached to the project, without
-their text, and `GET /api/projects/{id}/documentation/{digest}` is one document's text, `404` when
-the project holds none with that digest; with `?original`, the Word document or PDF its text was
-read from, `404` for one attached as text. `POST /api/documentation/extract` reads the text of a
-Word document or PDF (`{"name", "media_type", "data"}`, the file as base64) for the person to
-check before they attach it, and keeps nothing (#961). `POST /api/documentation/check` checks a
+their text; `POST /api/projects/{id}/documentation` attaches one outside a conversation, as a turn
+does (`{"name", "media_type", "text"}`, or `{"name", "media_type", "data"}` for a Word document or
+PDF, and the `confirmed` kinds of possible personal data the person has checked), answering `201`
+with the documents the project then holds, `409` when what was found is not confirmed and `400`
+when the profile or the project refuses it; and `GET /api/projects/{id}/documentation/{digest}`
+is one document's text, `404` when the project holds none with that digest; with `?original`,
+the Word document or PDF its text was read from, `404` for one attached as text.
+`POST /api/documentation/extract` reads the text of a Word document or PDF
+(`{"name", "media_type", "data"}`, the file as base64) for the person to check before they attach
+it, and keeps nothing (#961). `POST /api/documentation/check` checks a
 document's text for possible personal data and secrets before it is attached, in or out of a
 project, keeping nothing: it answers with what was found, by kind, never a value (#473).
 `GET /api/researcher/orcid` is the signed-in person's public ORCID record, and `…/researchers`
@@ -20,14 +25,14 @@ from __future__ import annotations
 
 from typing import Any, ClassVar
 
-from pydantic import MISSING
+from pydantic import MISSING, Field
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse, Response
 from starlette.routing import Route
 
 from dd_app import contract_shapes as contract
-from dd_app.documentation_check import checked_with, kinds, screen
+from dd_app.documentation_check import DocumentationHeldError, checked_with, kinds, screen
 from dd_app.problems import refused
 from dd_app.routes.common import (
     Deps,
@@ -44,7 +49,7 @@ from dd_app.routes.common import (
     signed_in,
 )
 from dd_app.routes.conversations import SavedInventory
-from dd_app.turn_body import decoded
+from dd_app.turn_body import AttachedDocument, decoded
 from dd_harness import orcid
 from dd_harness.policy import check_attached_document
 from dd_harness.project_access import Action
@@ -60,6 +65,7 @@ INVENTORY_REFUSED = "Data Director could not add this inventory"
 CHECK_REFUSED = "Data Director could not check this document"
 RESEARCHER_REFUSED = "Data Director could not keep these ORCID facts"
 DOCUMENT_REFUSED = "Data Director could not read this document"
+DOCUMENT_ATTACH_REFUSED = "Data Director could not attach this document"
 
 
 class AddInventory(RequestBody):
@@ -81,6 +87,23 @@ class ExtractDocument(RequestBody):
     name: str
     media_type: str
     data: str
+
+
+class AttachDocument(RequestBody):
+    """A document to keep in the project: its file name, media type and text, or, for a Word
+    document or PDF, the file as base64 (the server reads its text), and the kinds of possible
+    personal data or secrets the person confirmed it holds."""
+
+    refusal: ClassVar[str] = (
+        "Give the document's `name` and `media_type`, and its `text` or, for a Word document "
+        "or PDF, its `data` as base64; `confirmed` lists the kinds found that you checked."
+    )
+
+    name: str
+    media_type: str
+    text: str | None = None
+    data: str | None = None
+    confirmed: list[str] = Field(default_factory=list)
 
 
 class CheckDocument(RequestBody):
@@ -145,6 +168,7 @@ def routes(deps: Deps) -> list[Route]:
         Route(f"{project}/inventory", read(get_inventory), methods=["GET"]),
         Route(f"{project}/inventory", contribute(add_inventory), methods=["POST"]),
         Route(f"{project}/documentation", read(list_documentation), methods=["GET"]),
+        Route(f"{project}/documentation", contribute(add_documentation), methods=["POST"]),
         Route(f"{project}/documentation/{{digest}}", read(get_documentation), methods=["GET"]),
         Route(f"{project}/researchers", read(list_researchers), methods=["GET"]),
         Route(f"{project}/researchers/me", contribute(keep_researcher), methods=["PUT"]),
@@ -208,6 +232,47 @@ async def list_documentation(request: Request, _: Principal, deps: Deps) -> Resp
         list[contract.DocumentationSummary],
         await run_in_threadpool(deps.projects.materials.documentation, project_id),
     )
+
+
+def attached_document(body: AttachDocument) -> AttachedDocument | Response:
+    """The document `body` attaches, or the `400` problem that refuses its shape."""
+    if (body.text is None) == (body.data is None):
+        return refused("Give either `text` or `data`, not both.", DOCUMENT_ATTACH_REFUSED)
+    data = None if body.data is None else decoded(body.data)
+    if body.data is not None and data is None:
+        return refused("`data` must be the file, encoded as base64.", DOCUMENT_ATTACH_REFUSED)
+    return AttachedDocument(
+        body.name, body.media_type, body.text or "", data=data, confirmed=tuple(body.confirmed)
+    )
+
+
+async def add_documentation(request: Request, person: Principal, deps: Deps) -> Response:
+    """Attach a document to the project outside a conversation. It is checked as a turn's is:
+    the profile must allow it, the project must keep one of its kind, and what the personal-data
+    check finds must be confirmed. Nothing is kept otherwise."""
+    project_id = request.path_params["project_id"]
+    body = await parse_body(request, AttachDocument, DOCUMENT_ATTACH_REFUSED)
+    if isinstance(body, Response):
+        return body
+    document = attached_document(body)
+    if isinstance(document, Response):
+        return document
+    cause = caused_by(request)
+    try:
+        check_attached_document(deps.governance.conductor.profile)
+        held = await run_in_threadpool(
+            lambda: deps.projects.materials.add_documentation(
+                project_id, document, acted_for=person, caused_by=cause
+            )
+        )
+    except DocumentationHeldError as exc:
+        title = "This document needs your confirmation"
+        return problem(409, "documentation-held", title, str(exc), kinds=exc.kinds)
+    except ProjectError as exc:
+        return project_refused(exc, project_id, DOCUMENT_ATTACH_REFUSED)
+    except ValueError as exc:  # a profile that refuses attached documents
+        return refused(str(exc), DOCUMENT_ATTACH_REFUSED)
+    return respond(list[contract.DocumentationSummary], held, status_code=201)
 
 
 async def get_documentation(request: Request, _: Principal, deps: Deps) -> Response:

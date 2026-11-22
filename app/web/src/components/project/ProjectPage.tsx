@@ -31,6 +31,8 @@ import "./ProjectPage.css";
 import { ArrowLeft } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
+import type { Directory } from "../../manifest/normalise";
+
 import { useActiveProject } from "../../project/active";
 import {
   type DocumentVersion,
@@ -43,6 +45,7 @@ import { Link, navigate, projectTabPath } from "../../route";
 import { AddInventory } from "../inventory/AddInventory";
 import { PageHeader } from "../frame/PageHeader";
 import { PageLoading } from "../ui/PageLoading";
+import { AttachDocumentOffer } from "./AttachDocument";
 import { DocumentList, FORMER_PANELS, stateOf } from "./DocumentList";
 import { DeleteProject } from "./DeleteProject";
 import { DocumentReader } from "./DocumentReader";
@@ -69,8 +72,19 @@ function versionOf(v: string | null): number | null {
   return v !== null && /^\d+$/.test(v) ? Number(v) : null;
 }
 
-export function ProjectPage({ projectId, query = "" }: { projectId: string; query?: string }) {
+export function ProjectPage({
+  projectId,
+  query = "",
+  directory,
+}: {
+  projectId: string;
+  query?: string;
+  /** The agents and profile, which say whether a document may be attached and who reads it;
+   * none is offered until they are known. */
+  directory?: Directory | null;
+}) {
   const api = useProjectApi();
+
   const [load, setLoad] = useState<Load>({ state: "loading" });
   const [project, setProject] = useState<ProjectSummary | null>(null);
   // Whether the first read of the project's name has landed or failed.
@@ -268,6 +282,7 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
               }}
             />
           </p>
+          <AttachDocumentOffer projectId={projectId} directory={directory} />
           <p className="hint">
             Check each draft before it goes into the deposit package. Approve it as it is, edit it and
             approve your version, or reject it. A decision cannot be changed once it is made; a newer

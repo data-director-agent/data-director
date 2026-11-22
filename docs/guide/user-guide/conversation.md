@@ -46,7 +46,9 @@ place, as buttons, or as tick boxes where more than one may apply. You never hav
 select **Reply in my own words instead** to type a message, which is sent as your reply, and
 **Answer the questions instead** to go back to the choices, as you left them. **Attach a file**
 sits beside the choices too, so a file you attach goes with your answers. A series of questions
-lists your answers for you to check after the last one.
+lists your answers for you to check after the last one. In a text box for a longer answer, Enter
+starts a new line; press Ctrl+Enter (Cmd+Enter on a Mac) to submit the answer, as in the message
+box.
 
 ### Attaching a file
 
