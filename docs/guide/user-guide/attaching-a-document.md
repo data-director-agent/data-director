@@ -34,9 +34,15 @@ attached.
 
 You can also attach a document without starting a conversation. On the project's **Documents**
 page, select **Attach a document** and choose the file. It goes through the same check, and
-selecting **Attach this document** keeps it in the project straight away. The documents the
-project holds are listed under **Attached documents**. Where your institution does not allow
-attached documents, the button is not offered.
+selecting **Attach this document** keeps it in the project straight away. Where your
+institution does not allow attached documents, the button is not offered.
+
+The **Documents** page lists every document you have attached under **Attached documents**, below
+the drafts agents have made, whether you attached it there or in a conversation. Select one to read
+it. **Preview** lays it out with its headings, lists and tables; for a Word document these are
+taken from the document's own styles, so use Word's heading and list styles rather than bold text
+to keep them. **Text** shows exactly what agents read. For a Word document or PDF, **Download the
+original** gives you back the file you attached. A PDF is read as plain text, without its layout.
 
 The document then shows as a chip under the message box. Select its **Remove** button if you
 change your mind. You can type a message as well, or send it on its own. A message can carry one

@@ -12,25 +12,6 @@
     margin-block: 0 var(--space-3);
   }
 
-  /* The documents the researcher attached, under the button that attaches them. */
-  .attached-documents {
-    margin-block: var(--space-3);
-  }
-
-  .attached-documents-heading {
-    margin: 0 0 var(--space-1);
-    font-size: var(--font-size-small);
-    font-weight: var(--font-weight-strong);
-    color: var(--color-text-muted);
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-  }
-
-  .plan-badge {
-    font-size: var(--font-size-small);
-    font-weight: var(--font-weight-strong);
-  }
-
   .project-rename-actions {
     display: flex;
     flex-wrap: wrap;
@@ -84,7 +65,7 @@
     }
   }
 
-  /* The side bar: the documents, then the project's conversations (ProjectConversations.tsx). */
+  /* The side bar: the documents, then any recently deleted conversations. */
   .document-browser-side {
     position: sticky;
     top: var(--space-4);
@@ -94,20 +75,11 @@
     border-inline-end: var(--border-width) solid var(--color-border-subtle);
   }
 
-  .project-conversations {
+  /* Recently deleted conversations (DeletedConversations.tsx): each with when, and Restore. */
+  .deleted-conversations {
     margin-top: var(--space-5);
     padding-top: var(--space-4);
     border-top: var(--border-width) solid var(--color-border-subtle);
-  }
-
-  .project-conversations > .muted {
-    margin: var(--space-1) var(--space-2) 0;
-    font-size: var(--font-size-small);
-  }
-
-  /* Recently deleted conversations (DeletedConversations.tsx): each with when, and Restore. */
-  .deleted-conversations {
-    margin-top: var(--space-4);
   }
 
   .deleted-conversation {
@@ -194,6 +166,41 @@
 
   .document-group-rejected .document-entry-icon {
     color: var(--color-danger-fg);
+  }
+
+  .document-group-attached .document-entry-icon {
+    color: var(--color-link);
+  }
+
+  /* With nothing drafted or attached: what will be listed, in place of a reader. */
+  .document-browser-empty {
+    max-width: var(--measure);
+    padding: var(--space-5);
+    border: var(--border-width) dashed var(--color-border);
+    border-radius: var(--radius);
+  }
+
+  .document-browser-empty h2 {
+    margin-top: 0;
+  }
+
+  /* An attached document's reader (AttachedReader.tsx): a badge for what it is, then its facts. */
+  .plan-badge {
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-strong);
+  }
+
+  .attached-reader-facts {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1) var(--space-2);
+  }
+
+  .attached-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
   }
 
   .document-entry-detail {

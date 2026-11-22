@@ -4,7 +4,9 @@ Documentation). The only importer of `pypdf` and `python-docx` in the harness
 
 A researcher may attach a document about their data as the file they already have it in: a Word
 document or a PDF with a text layer. The project keeps the file and the text read from it here;
-agents are given the text, as for a document attached as text. A file this module cannot read is a
+agents are given the text, as for a document attached as text. The text of a Word document is
+Markdown, keeping its headings, lists and tables (`extracted_media_type`); a PDF's is plain text,
+since its text layer says nothing of its structure. A file this module cannot read is a
 content problem, refused with a `ProjectError` before anything is kept: an encrypted or damaged
 file, a scanned PDF with no text layer (no OCR is attempted), or one whose text is blank or over
 `DOCUMENTATION_MAX_BYTES`. If a library cannot be imported, its kind of file is refused, saying
@@ -74,6 +76,12 @@ def _pdf(data: bytes) -> str:
     return "\n\n".join(p.strip() for p in pages if p.strip())
 
 
+def extracted_media_type(source_media_type: str) -> str:
+    """The media type of the text read from a file of `source_media_type`: Markdown for a Word
+    document, whose headings, lists and tables it keeps, and plain text for a PDF."""
+    return "text/markdown" if source_media_type == DOCX else "text/plain"
+
+
 def _docx(data: bytes) -> str:
     try:
         import docx
@@ -82,19 +90,75 @@ def _docx(data: bytes) -> str:
         raise ProjectError("this deployment cannot read Word documents") from None
     try:
         document = docx.Document(io.BytesIO(data))
-        blocks = list(_blocks(document.iter_inner_content(), Table))
+        # A document with a title has it as the first level, and its headings beneath it.
+        titled = any(p.style is not None and p.style.name == "Title" for p in document.paragraphs)
+        blocks = list(_blocks(document.iter_inner_content(), Table, shift=int(titled)))
     except (zipfile.BadZipFile, ValueError, KeyError, OSError) as exc:
         log.info("a Word document could not be read: %s", exc)
         raise ProjectError("this Word document could not be read") from None
-    return "\n\n".join(b for b in blocks if b.strip())
+    return _joined(b for b in blocks if b.strip())
 
 
-def _blocks(content: Iterator[object], table_type: type) -> Iterator[str]:
-    """Each paragraph's text, and each table's rows with their cells separated by tabs, in the
-    order the document has them."""
+def _blocks(content: Iterator[object], table_type: type, *, shift: int) -> Iterator[str]:
+    """Each paragraph as a line of Markdown, by its style (a heading, a list item or a paragraph),
+    and each table as a Markdown table, in the order the document has them. The words are the
+    document's own: no emphasis is added, so that a quotation from the text is found in it."""
     for block in content:
         if isinstance(block, table_type):
-            rows = block.rows  # type: ignore[attr-defined]
-            yield "\n".join("\t".join(cell.text.strip() for cell in row.cells) for row in rows)
+            yield _table([[cell.text for cell in row.cells] for row in block.rows])  # type: ignore[attr-defined]
         else:
-            yield block.text  # type: ignore[attr-defined]
+            style = getattr(getattr(block, "style", None), "name", None) or ""
+            yield _paragraph(block.text, style, shift)  # type: ignore[attr-defined]
+
+
+def _paragraph(text: str, style: str, shift: int) -> str:
+    """`text` as Markdown for a paragraph of the Word style `style`, its heading levels `shift`
+    deeper."""
+    text = text.strip()
+    if not text:
+        return ""
+    if style == "Title":
+        return f"# {text}"
+    if style.startswith("Heading "):
+        level = style.removeprefix("Heading ").strip()
+        depth = min(max(int(level), 1), 6) if level.isdigit() else 2
+        return f"{'#' * min(depth + shift, 6)} {text}"
+    if style.startswith(("List Bullet", "List Number")):
+        level = style.rsplit(" ", 1)[-1]
+        indent = "  " * (int(level) - 1 if level.isdigit() else 0)
+        return f"{indent}{'1.' if style.startswith('List Number') else '-'} {text}"
+    if style == "List Paragraph":
+        return f"- {text}"
+    return text
+
+
+def _cell(text: str) -> str:
+    return " ".join(text.split()).replace("|", "\\|")
+
+
+def _table(rows: list[list[str]]) -> str:
+    """`rows` as a Markdown table, the first row its header."""
+    if not rows:
+        return ""
+    width = max(len(row) for row in rows)
+    cells = [[_cell(c) for c in row] + [""] * (width - len(row)) for row in rows]
+    lines = ["| " + " | ".join(row) + " |" for row in cells]
+    lines.insert(1, "|" + " --- |" * width)
+    return "\n".join(lines)
+
+
+def _joined(blocks: Iterator[str]) -> str:
+    """The blocks with a blank line between them, except between items of one list."""
+    out: list[str] = []
+    for block in blocks:
+        if out and _is_item(out[-1]) and _is_item(block):
+            out.append("\n" + block)
+        elif out:
+            out.append("\n\n" + block)
+        else:
+            out.append(block)
+    return "".join(out)
+
+
+def _is_item(block: str) -> bool:
+    return block.lstrip().startswith(("- ", "1. "))

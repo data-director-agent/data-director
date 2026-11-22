@@ -428,7 +428,7 @@ intended design, and each part says where it is not built yet.
     (`plan_document`). Its subject is always `project`, so the last decision on it is the
     project's one current plan; an earlier plan stays in the log (invariant 2). A person marks a
     document as the plan by stating the fact, on the project's Documents page (**Mark as the Data
-    Management Plan**, `AttachedDocuments.tsx`), and removes the mark by rejecting it (**Not the
+    Management Plan**, `PlanMark.tsx`), and removes the mark by rejecting it (**Not the
     plan**); a member may do either (`CONTRIBUTE`). An agent may only propose which document is
     the plan: the DMP Checker, given no marked plan, proposes the document it read the plan's
     commitments from, for a person to confirm on the **Project facts** panel. A decision naming a
@@ -452,7 +452,7 @@ intended design, and each part says where it is not built yet.
     Standard) is to become the same fact, TODO(#960); reading a machine-actionable plan is
     TODO(#701). (`dd_harness.testing.plan_storage`, `harness/tests/test_project_agent_inputs.py`,
     `sdk/tests/test_fact_kinds.py`, `agents/advisor-dmp/tests/test_reads_plan.py`,
-    `app/web/src/components/project/AttachedDocuments.test.tsx`.)
+    `app/web/src/components/project/PlanMark.test.tsx`.)
 
 ## Boundaries and contracts
 
@@ -562,11 +562,20 @@ media type, size and the SHA-256 of its UTF-8 text, under which the text is kept
 (`ProjectStore.add_documentation`). A turn may instead attach a Word document (`.docx`) or a
 PDF with a text layer, of at most 1 MB (`SOURCE_MAX_BYTES`, what a request through the
 deployment's proxy carries once encoded): the store reads its text inside the deployment
-(`dd_harness.projects.extract`, with `pypdf` and `python-docx`) and keeps it as a plain-text
-document, under the same limits, with the file as a blob beside it; the event names the file's
+(`dd_harness.projects.extract`, with `pypdf` and `python-docx`) and keeps it as a document under
+the same limits, with the file as a blob beside it. A Word document's text is Markdown, which keeps
+its title, headings, bulleted and numbered lists and tables in the document's own words, with no
+emphasis added, so that a quotation from it is found in it; a PDF's is plain text
+(`extracted_media_type`). The event names the file's
 media type, size and SHA-256 too, the document's `DocumentationSummary` gives
 `documentation_source_media_type`, and `ProjectStore.documentation_source` returns the file
-(`ProjectStore.add_document_file`, `harness/tests/test_document_files.py`). An encrypted or
+(`ProjectStore.add_document_file`, `harness/tests/test_document_files.py`). A document's stored
+text, and so its digest, never changes: one kept before Word documents were read as Markdown stays
+plain text, and `GET /api/projects/{id}/documentation/{digest}?preview` reads its file again as
+Markdown for a person to read, keeping nothing. The project page's **Documents** tab lists the
+documents attached to the project beside those agents drafted, and opens each in a reader with
+that preview, the stored text agents read, and the original file to download
+(`AttachedReader.tsx`). An encrypted or
 damaged file, a scanned PDF with no text layer (no text is recognised in images) and one whose
 text is blank or too long are refused. The text read from a file is `documentation`, so
 `hosted_models` decides whether it reaches a hosted model, as for one attached as text. The

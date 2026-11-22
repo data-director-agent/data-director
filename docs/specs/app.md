@@ -186,16 +186,23 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     refusal is said and the check stays open, and cancelling stores nothing
     (`app/web/src/components/inventory/AddInventory.test.tsx`).
     A supporting document may be attached the same way: the project's Documents page offers
-    **Attach a document** (not offered where the profile sets `attached_documents: refused`) and
-    lists the documents the project holds. The file goes through the check a message's attachment
-    goes through (`DocumentReviewDialog`), and only **Attach this document** sends it, to
-    `POST /api/projects/{id}/documentation`; a refusal closes the check and is said on the page,
-    and cancelling stores nothing (`app/web/src/components/project/AttachDocument.test.tsx`,
-    `app/tests/test_project_materials.py`). Each document listed offers **Mark as the Data
-    Management Plan**, and the one marked is labelled as the plan and offers **Not the plan**; both
-    are a person's decision on the project's `data_management_plan` fact, sent to
-    `POST /api/projects/{id}/facts/decisions`, after which the list is read again
-    ([Projects](projects.md), invariant 32; `AttachedDocuments.test.tsx`).
+    **Attach a document** (not offered where the profile sets `attached_documents: refused`). The
+    file goes through the check a message's attachment goes through (`DocumentReviewDialog`), and
+    only **Attach this document** sends it, to `POST /api/projects/{id}/documentation`; a refusal
+    closes the check and is said on the page, and cancelling stores nothing. A document kept is
+    listed and opened. The Documents page lists the documents the project holds under **Attached
+    documents**, after the drafts, each with the kind of file it came as, its size and when it was
+    attached; one opens at `?attached=<digest>` in a reader with a **Preview** laid out by its
+    media type (`GET …/documentation/{digest}?preview`, which reads a Word document's file again as
+    Markdown), the **Text** agents read, and, for one read from a Word document or PDF, the
+    original to download (`?original`). Nobody decides on an attached document, but a person may
+    mark one as the project's Data Management Plan: the reader offers **Mark as the Data Management
+    Plan** and, on the one marked, **Not the plan**; both are a person's decision on the project's
+    `data_management_plan` fact, sent to `POST /api/projects/{id}/facts/decisions`, after which the
+    documents are read again ([Projects](projects.md), invariant 32; `PlanMark.test.tsx`). The page lists no
+    conversations: they are on the Conversations tab
+    (`app/web/src/components/project/AttachDocument.test.tsx`, `AttachedReader.tsx`,
+    `ProjectPage.test.tsx`, `app/tests/test_project_materials.py`).
     A chip whose whole inventory the page can read, the one attached and the one the project holds
     now (`GET /api/projects/{id}/inventory`), has a **View inventory** button. It opens a dialog
     that says this is everything Data Director keeps and agents are shown, then what the inventory
@@ -519,7 +526,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     the project's `restore_days`; **Delete conversation** deletes it
     (`DELETE /api/conversations/{id}`) and, if it was open, the workspace starts afresh. The
     project's page lists the project's deleted conversations under **Recently deleted**, beneath
-    its conversations (`GET /api/conversations/deleted`), with when each was deleted, until when
+    its documents (`GET /api/conversations/deleted`), with when each was deleted, until when
     it can be restored, and **Restore** (`POST /api/conversations/{id}/restore`); the section is
     not shown while there is nothing in it. Only whoever started the conversation, or the
     project's owner, may do either ([Projects](projects.md), invariants 29 to 31;

@@ -45,39 +45,63 @@ async function proposalCard(name: RegExp) {
 
 describe("FactsPanel", () => {
   it("lists each proposal with why it was proposed, and confirms one as it is", async () => {
-    const decideFact = vi.fn<FactsApi["decideFact"]>(() => Promise.resolve(DECIDED));
+    const decideFact = vi.fn<FactsApi["decideFact"]>(() =>
+      Promise.resolve(DECIDED),
+    );
     const { container } = renderPanel({ decideFact });
     const user = userEvent.setup();
 
-    const duplicate = await proposalCard(/Leave data\/old\/readings \(copy\)\.csv out of the deposit/);
+    const duplicate = await proposalCard(
+      /Leave data\/old\/readings \(copy\)\.csv out of the deposit/,
+    );
     expect(duplicate).toHaveTextContent("byte for byte the same");
-    const sites = await proposalCard(/Decide whether calibration\/sites\.csv may be published/);
+    const sites = await proposalCard(
+      /Decide whether calibration\/sites\.csv may be published/,
+    );
     expect(sites).toHaveTextContent("Only an owner");
     expect(screen.getByText(/Nobody has decided any facts/)).toBeVisible();
     expect(await axe(container)).toHaveNoViolations();
 
-    await user.click(within(duplicate).getByRole("button", { name: "Confirm" }));
+    await user.click(
+      within(duplicate).getByRole("button", { name: "Confirm" }),
+    );
 
     expect(decideFact).toHaveBeenCalledWith(PROJECT, {
       verdict: "confirmed",
       proposal: OFFERED.proposals[0]?.proposal,
     });
-    expect(await screen.findByRole("status")).toHaveTextContent(/Recorded: Leave data\/old/);
-    const decided = screen.getByRole("heading", { name: "Decided" }).nextElementSibling as HTMLElement;
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      /Recorded: Leave data\/old/,
+    );
+    const decided = screen.getByRole("heading", { name: "Decided" })
+      .nextElementSibling as HTMLElement;
     expect(decided).toHaveTextContent(/File to deposit/);
   });
 
   it("sends a person's own version of a proposal, of the same kind and subject", async () => {
-    const decideFact = vi.fn<FactsApi["decideFact"]>(() => Promise.resolve(DECIDED));
+    const decideFact = vi.fn<FactsApi["decideFact"]>(() =>
+      Promise.resolve(DECIDED),
+    );
     renderPanel({ decideFact });
     const user = userEvent.setup();
     const sites = await proposalCard(/calibration\/sites\.csv/);
 
     await user.click(within(sites).getByRole("radio", { name: /Change it/ }));
-    await user.selectOptions(within(sites).getByLabelText("Whether it may be published"), "generalise");
-    await user.selectOptions(within(sites).getByLabelText("At what precision"), "region");
-    await user.type(within(sites).getByLabelText(/Reason/), "A curlew nests near one node.");
-    await user.click(within(sites).getByRole("button", { name: "Record my version" }));
+    await user.selectOptions(
+      within(sites).getByLabelText("Whether it may be published"),
+      "generalise",
+    );
+    await user.selectOptions(
+      within(sites).getByLabelText("At what precision"),
+      "region",
+    );
+    await user.type(
+      within(sites).getByLabelText(/Reason/),
+      "A curlew nests near one node.",
+    );
+    await user.click(
+      within(sites).getByRole("button", { name: "Record my version" }),
+    );
 
     expect(decideFact).toHaveBeenCalledWith(PROJECT, {
       verdict: "changed",
@@ -94,7 +118,9 @@ describe("FactsPanel", () => {
   });
 
   it("tells a member that only an owner decides sensitive data, and records nothing", async () => {
-    const decideFact = vi.fn<FactsApi["decideFact"]>(() => Promise.reject(new FactForbidden(FORBIDDEN)));
+    const decideFact = vi.fn<FactsApi["decideFact"]>(() =>
+      Promise.reject(new FactForbidden(FORBIDDEN)),
+    );
     renderPanel({ decideFact });
     const user = userEvent.setup();
     const sites = await proposalCard(/calibration\/sites\.csv/);
@@ -102,7 +128,9 @@ describe("FactsPanel", () => {
     await user.click(within(sites).getByRole("radio", { name: "Reject it" }));
     await user.click(within(sites).getByRole("button", { name: "Reject" }));
 
-    expect(await within(sites).findByRole("alert")).toHaveTextContent(/Only an owner of this project/);
+    expect(await within(sites).findByRole("alert")).toHaveTextContent(
+      /Only an owner of this project/,
+    );
   });
 
   it("reads the facts again when a proposal has moved on", async () => {
@@ -119,23 +147,39 @@ describe("FactsPanel", () => {
     const user = userEvent.setup();
     const duplicate = await proposalCard(/readings \(copy\)/);
 
-    await user.click(within(duplicate).getByRole("button", { name: "Confirm" }));
+    await user.click(
+      within(duplicate).getByRole("button", { name: "Confirm" }),
+    );
 
-    expect(await screen.findByRole("status")).toHaveTextContent(/Nothing was recorded/);
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      /Nothing was recorded/,
+    );
     expect(facts).toHaveBeenCalledTimes(2);
-    expect(await screen.findByText(/No agent has proposed anything/)).toBeVisible();
+    expect(
+      await screen.findByText(/No agent has proposed anything/),
+    ).toBeVisible();
   });
 
   it("records a fact nobody proposed, named by the value that names it", async () => {
-    const decideFact = vi.fn<FactsApi["decideFact"]>(() => Promise.resolve(DECIDED));
+    const decideFact = vi.fn<FactsApi["decideFact"]>(() =>
+      Promise.resolve(DECIDED),
+    );
     renderPanel({ decideFact });
     const user = userEvent.setup();
 
     await user.click(await screen.findByRole("button", { name: /Add a fact/ }));
     const form = screen.getByRole("form", { name: "A fact nobody proposed" });
-    await user.selectOptions(within(form).getByLabelText("What the fact is about"), "funder");
-    await user.type(within(form).getByLabelText(/The funder's name/), "Natural Environment Research Council");
-    await user.click(within(form).getByRole("button", { name: "Record this fact" }));
+    await user.selectOptions(
+      within(form).getByLabelText("What the fact is about"),
+      "funder",
+    );
+    await user.type(
+      within(form).getByLabelText(/The funder's name/),
+      "Natural Environment Research Council",
+    );
+    await user.click(
+      within(form).getByRole("button", { name: "Record this fact" }),
+    );
 
     expect(decideFact).toHaveBeenCalledWith(PROJECT, {
       verdict: "changed",
@@ -148,7 +192,9 @@ describe("FactsPanel", () => {
   });
 
   it("removes a fact that stands by rejecting its kind and subject", async () => {
-    const decideFact = vi.fn<FactsApi["decideFact"]>(() => Promise.resolve(OFFERED));
+    const decideFact = vi.fn<FactsApi["decideFact"]>(() =>
+      Promise.resolve(OFFERED),
+    );
     renderPanel({ facts: () => Promise.resolve(DECIDED), decideFact });
     const user = userEvent.setup();
 
@@ -170,7 +216,8 @@ describe("FactsPanel", () => {
       standard_id: "https://doi.org/10.25504/FAIRsharing.xvf5y3",
       standard_kind: "controlled_vocabulary",
       standard_target: "field:species",
-      proposed_because: "Recommended by the Standards Librarian; choose it if you will use it.",
+      proposed_because:
+        "Recommended by the Standards Librarian; choose it if you will use it.",
     };
     const offered: ProjectFacts = {
       proposals: [
@@ -183,8 +230,13 @@ describe("FactsPanel", () => {
       ],
       decisions: [],
     };
-    const decideFact = vi.fn<FactsApi["decideFact"]>(() => Promise.resolve(DECIDED));
-    const { container } = renderPanel({ facts: () => Promise.resolve(offered), decideFact });
+    const decideFact = vi.fn<FactsApi["decideFact"]>(() =>
+      Promise.resolve(DECIDED),
+    );
+    const { container } = renderPanel({
+      facts: () => Promise.resolve(offered),
+      decideFact,
+    });
     const user = userEvent.setup();
 
     const card = await proposalCard(/Use Darwin Core for the field species/);
@@ -202,9 +254,11 @@ describe("FactsPanel", () => {
       fact_kind: "sharing_commitment",
       fact_subject: "Survey responses",
       commitment_repository: "ORDA",
-      commitment_quote: "Survey responses will be shared openly in ORDA under CC BY 4.0.",
+      commitment_quote:
+        "Survey responses will be shared openly in ORDA under CC BY 4.0.",
       commitment_document: "a".repeat(64),
-      proposed_because: "Read from dmp.docx; check it against the quoted passage.",
+      proposed_because:
+        "Read from dmp.docx; check it against the quoted passage.",
     };
     const offered: ProjectFacts = {
       proposals: [
@@ -217,19 +271,36 @@ describe("FactsPanel", () => {
       ],
       decisions: [],
     };
-    const decideFact = vi.fn<FactsApi["decideFact"]>(() => Promise.resolve(DECIDED));
-    const { container } = renderPanel({ facts: () => Promise.resolve(offered), decideFact });
+    const decideFact = vi.fn<FactsApi["decideFact"]>(() =>
+      Promise.resolve(DECIDED),
+    );
+    const { container } = renderPanel({
+      facts: () => Promise.resolve(offered),
+      decideFact,
+    });
     const user = userEvent.setup();
 
-    const card = await proposalCard(/commits to share Survey responses in ORDA/);
-    expect(within(card).getByRole("blockquote")).toHaveTextContent(commitment.commitment_quote ?? "");
+    const card = await proposalCard(
+      /commits to share Survey responses in ORDA/,
+    );
+    expect(within(card).getByRole("blockquote")).toHaveTextContent(
+      commitment.commitment_quote ?? "",
+    );
     expect(await axe(container)).toHaveNoViolations();
 
     await user.click(within(card).getByRole("radio", { name: /Change it/ }));
     await user.clear(within(card).getByLabelText(/Where it is shared/));
-    await user.type(within(card).getByLabelText(/Where it is shared/), "Zenodo");
-    await user.type(within(card).getByLabelText(/Reason/), "We moved to Zenodo.");
-    await user.click(within(card).getByRole("button", { name: "Record my version" }));
+    await user.type(
+      within(card).getByLabelText(/Where it is shared/),
+      "Zenodo",
+    );
+    await user.type(
+      within(card).getByLabelText(/Reason/),
+      "We moved to Zenodo.",
+    );
+    await user.click(
+      within(card).getByRole("button", { name: "Record my version" }),
+    );
 
     const kept: ProjectFact = { ...commitment };
     delete kept.proposed_because;
@@ -252,9 +323,13 @@ describe("FactsPanel", () => {
       const card = await proposalCard(/calibration\/sites\.csv/);
       expect(card).toHaveClass("fact-target");
       expect(card).toHaveFocus();
-      const other = screen.getByRole("article", { name: /readings \(copy\)\.csv/ });
+      const other = screen.getByRole("article", {
+        name: /readings \(copy\)\.csv/,
+      });
       expect(other).not.toHaveClass("fact-target");
-      expect(screen.getByRole("link", { name: /without marks/ })).toHaveAttribute("href", factsPath(PROJECT));
+      expect(
+        screen.getByRole("link", { name: /without marks/ }),
+      ).toHaveAttribute("href", factsPath(PROJECT));
       expect(await axe(container)).toHaveNoViolations();
     });
 

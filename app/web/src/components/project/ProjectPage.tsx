@@ -1,13 +1,15 @@
 /**
  * A project's documents (docs/specs/projects.md), as a list beside a reader: the list groups the
- * documents by state, those waiting for a decision first, and the reader shows the one chosen,
- * with the form to decide on it while it is undecided. The researchers, the project's facts, the
+ * documents agents drafted by state, those waiting for a decision first, then the documents a
+ * researcher attached, and the reader shows the one chosen: a draft with the form to decide on it
+ * while it is undecided (`DocumentReader`), or an attached document laid out to read, with its
+ * original file to download (`AttachedReader`). The researchers, the project's facts, the
  * repository chosen, the statement of how generative AI was used and the deposit package each
  * have a tab of their own (`ProjectPanelPage`); an old link to one of them here (`?doc=repository`
  * and the like) is sent on to its tab.
  *
- * What is open is in the address (`?doc=<id>`, and `&v=<n>` for an earlier version), so that it
- * can be linked and left with Back. With nothing chosen, the first document waiting for a decision
+ * What is open is in the address (`?doc=<id>`, and `&v=<n>` for an earlier version, or
+ * `?attached=<digest>` for an attached document), so that it can be linked and left with Back. With nothing chosen, the first document waiting for a decision
  * opens, or else the first document. On a narrow screen the list and the reader take turns: the
  * list until a document is chosen, then the reader with a link back to the list.
  *
@@ -20,10 +22,12 @@
  * The header offers to rename the project (`ProjectRename`); after a rename the page reads the
  * project's name again rather than showing the one it sent.
  *
+ * The documents the project holds are read beside its drafts; if they cannot be read, the drafts
+ * are still shown. Attaching one (`AttachDocumentOffer`) lists it and opens it.
+ *
  * A project the page could read becomes the one the app is working in (docs/specs/app.md), so a
- * link to it lands in that project. The project's conversations are listed beneath its documents
- * (`ProjectConversations`), each one press away, with a link to start a new one; on a narrow
- * screen they take turns with the reader as the documents do.
+ * link to it lands in that project. Its conversations are on the Conversations tab; beneath the
+ * documents are only its recently deleted ones, to restore (`DeletedConversations`).
  */
 
 import "./ProjectPage.css";
@@ -33,9 +37,12 @@ import { useCallback, useEffect, useState } from "react";
 
 import type { Directory } from "../../manifest/normalise";
 
+import type { DocumentationSummary } from "../../conversation/documentation";
 import { useActiveProject } from "../../project/active";
+import { findAttached } from "../../project/attached";
 import {
   type DocumentVersion,
+  type ProjectDocument,
   type ProjectDocuments,
   type ProjectSummary,
   useProjectApi,
@@ -46,10 +53,11 @@ import { AddInventory } from "../inventory/AddInventory";
 import { PageHeader } from "../frame/PageHeader";
 import { PageLoading } from "../ui/PageLoading";
 import { AttachDocumentOffer } from "./AttachDocument";
+import { AttachedReader } from "./AttachedReader";
 import { DocumentList, FORMER_PANELS, stateOf } from "./DocumentList";
 import { DeleteProject } from "./DeleteProject";
 import { DocumentReader } from "./DocumentReader";
-import { ProjectConversations } from "./ProjectConversations";
+import { DeletedConversations } from "./DeletedConversations";
 import { ProjectNav } from "./ProjectNav";
 import { ProjectRename } from "./ProjectRename";
 
@@ -70,6 +78,56 @@ function bothRead(named: boolean, load: Load): boolean {
 /** The version asked for, if `v` is a whole number. */
 function versionOf(v: string | null): number | null {
   return v !== null && /^\d+$/.test(v) ? Number(v) : null;
+}
+
+/** What the address asks for: a draft and a version of it, an attached document, or a former
+ * panel that is a tab now. */
+function addressOf(query: string) {
+  const params = new URLSearchParams(query);
+  const askedAttached = params.get("attached");
+  const asked = askedAttached === null ? params.get("doc") : null;
+  const moved = asked === null ? undefined : FORMER_PANELS[asked];
+  return { asked, askedAttached, moved, shown: versionOf(params.get("v")) };
+}
+
+/** What the address opens: a draft (`?doc=`), an attached document (`?attached=`), or with
+ * neither, the first draft waiting for a decision, else the first draft, else the first attached
+ * document. `open` says whether the reader takes the screen on a narrow one. */
+function opened(
+  documents: ProjectDocument[],
+  attached: readonly DocumentationSummary[],
+  asked: string | null,
+  askedAttached: string | null,
+) {
+  const fallback = documents.find((document) => stateOf(document) === "proposed") ?? documents[0];
+  const firstAttached = attached[0]?.documentation_digest ?? null;
+  const chosenAttached = askedAttached ?? (asked === null && !fallback ? firstAttached : null);
+  const chosen = chosenAttached === null ? (asked ?? fallback?.document_id ?? null) : null;
+  const document = documents.find((d) => d.document_id === chosen);
+  const attachedDocument = findAttached(attached, chosenAttached);
+  const unknown = chosenAttached === null ? chosen !== null && !document : !attachedDocument;
+  const open = (asked ?? askedAttached) !== null && !unknown;
+  return { chosen, chosenAttached, document, attachedDocument, open };
+}
+
+function NotInProject() {
+  return (
+    <div className="callout status-warn">
+      <p>That document is not in this project. Choose one from the list.</p>
+    </div>
+  );
+}
+
+function NoDocuments() {
+  return (
+    <div className="document-browser-empty">
+      <h2>No documents yet</h2>
+      <p>
+        Each draft an agent makes is listed here for you to check. Documents you attach, such as a
+        data management plan or a codebook, are listed here too, for you and the agents to read.
+      </p>
+    </div>
+  );
 }
 
 export function ProjectPage({
@@ -97,6 +155,8 @@ export function ProjectPage({
     next: string | null;
     on: string | null;
   } | null>(null);
+  // The documents a researcher attached; none are listed if they cannot be read.
+  const [attached, setAttached] = useState<DocumentationSummary[]>([]);
   const { setProjectId } = useActiveProject();
   const readable = load.state === "loaded";
 
@@ -104,18 +164,16 @@ export function ProjectPage({
     if (readable) setProjectId(projectId);
   }, [readable, projectId, setProjectId]);
 
-  const params = new URLSearchParams(query);
-  const asked = params.get("doc");
-  const moved = asked === null ? undefined : FORMER_PANELS[asked];
+  const { asked, askedAttached, moved, shown } = addressOf(query);
 
   // What was once a panel here is a tab now: an old link lands on it, and Back skips this one.
   useEffect(() => {
     if (moved) navigate(projectTabPath(projectId, moved), true);
   }, [moved, projectId]);
-  const shown = versionOf(params.get("v"));
   const base = `/projects/${encodeURIComponent(projectId)}`;
   const hrefFor = (id: string, version?: number) =>
     `${base}?doc=${encodeURIComponent(id)}${version === undefined ? "" : `&v=${version}`}`;
+  const attachedHref = (digest: string) => `${base}?attached=${encodeURIComponent(digest)}`;
 
   const read = useCallback(
     (signal?: AbortSignal) =>
@@ -133,6 +191,17 @@ export function ProjectPage({
     void read(controller.signal);
     return () => controller.abort();
   }, [read]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    api.documentation(projectId, controller.signal).then(setAttached, () => undefined);
+    return () => controller.abort();
+  }, [api, projectId]);
+
+  const onAttached = (held: DocumentationSummary[], added: DocumentationSummary | undefined) => {
+    setAttached(held);
+    if (added) navigate(attachedHref(added.documentation_digest));
+  };
 
   // The project's name is a nicety: while it is read, or if it cannot be, the page says what it is.
   useEffect(() => {
@@ -189,27 +258,28 @@ export function ProjectPage({
       );
     }
     const { documents, review, answer_max_length: answerMaxLength } = load.value;
-    const fallback = documents.find((document) => stateOf(document) === "proposed") ?? documents[0];
-    const chosen = asked ?? fallback?.document_id ?? null;
-    const document = documents.find((d) => d.document_id === chosen);
-    const unknown = chosen !== null && !document;
+    const { chosen, chosenAttached, document, attachedDocument, open } = opened(
+      documents,
+      attached,
+      asked,
+      askedAttached,
+    );
 
     const reader = () => {
-      if (chosen === null) {
-        return (
-          <p>
-            No document has been drafted for this project yet. Each draft an agent makes is listed
-            here for you to check.
-          </p>
+      if (chosenAttached !== null) {
+        return attachedDocument ? (
+          <AttachedReader
+            key={attachedDocument.documentation_digest}
+            projectId={projectId}
+            document={attachedDocument}
+            onChange={setAttached}
+          />
+        ) : (
+          <NotInProject />
         );
       }
-      if (!document) {
-        return (
-          <div className="callout status-warn">
-            <p>That document is not in this project. Choose one from the list.</p>
-          </div>
-        );
-      }
+      if (chosen === null) return <NoDocuments />;
+      if (!document) return <NotInProject />;
       return (
         <DocumentReader
           key={document.document_id}
@@ -227,10 +297,17 @@ export function ProjectPage({
     };
 
     return (
-      <div className="document-browser" data-open={asked && !unknown ? "reader" : "list"}>
+      <div className="document-browser" data-open={open ? "reader" : "list"}>
         <div className="document-browser-side">
-          <DocumentList documents={documents} selected={chosen} hrefFor={(id) => hrefFor(id)} />
-          <ProjectConversations key={projectId} projectId={projectId} />
+          <DocumentList
+            documents={documents}
+            attached={attached}
+            selected={chosen}
+            selectedAttached={chosenAttached}
+            hrefFor={(id) => hrefFor(id)}
+            attachedHrefFor={attachedHref}
+          />
+          <DeletedConversations key={projectId} projectId={projectId} onRestored={() => undefined} />
         </div>
         <div className="document-browser-reader">
           <p className="document-browser-back">
@@ -282,7 +359,7 @@ export function ProjectPage({
               }}
             />
           </p>
-          <AttachDocumentOffer projectId={projectId} directory={directory} />
+          <AttachDocumentOffer projectId={projectId} directory={directory} onAttached={onAttached} />
           <p className="hint">
             Check each draft before it goes into the deposit package. Approve it as it is, edit it and
             approve your version, or reject it. A decision cannot be changed once it is made; a newer

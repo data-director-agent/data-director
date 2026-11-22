@@ -63,6 +63,7 @@ export function fakeProjectApi(overrides: Partial<ProjectApi> = {}): ProjectApi 
     saveInventory: () => Promise.reject(new Error("not saved in this test")),
     documentation: () => Promise.resolve([]),
     attachDocument: () => Promise.reject(new Error("no document attached in this test")),
+    documentationText: () => Promise.reject(new Error("no document read in this test")),
     repository: () => Promise.resolve(REPOSITORY),
     progress: () => Promise.resolve(projectProgress()),
     chooseEntry: () => Promise.resolve(projectProgress()),

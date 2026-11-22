@@ -1,13 +1,13 @@
 /**
  * Attaching a supporting document to a project from outside a conversation (docs/specs/projects.md):
  * the project's Documents page offers **Attach a document**, beside **Add an inventory**, and lists
- * the documents the project holds. A file chosen is read as it is for a message (`readDocument`,
+ * the documents the project holds beside those agents drafted (`DocumentList`). A file chosen is read as it is for a message (`readDocument`,
  * or `readSource` for a Word document or PDF, which the server reads inside the deployment), then
  * opened in the same check as one attached to a message (`DocumentReviewDialog`: its text, who
  * reads it and what the personal-data check found, #473). Only when the researcher confirms is it
- * kept (`POST /api/projects/{id}/documentation`); until then nothing is stored. The list of
- * documents held, and which is the project's Data Management Plan, is `AttachedDocuments`. What happened is
- * said through the page's announcer. A refusal closes the check and is shown on the page, since
+ * kept (`POST /api/projects/{id}/documentation`); until then nothing is stored. What happened is
+ * said through the page's announcer, and the page is told (`onAttached`), so that it lists the
+ * document and opens it. A refusal closes the check and is shown on the page, since
  * the page behind an open dialog is hidden from a screen reader; the document can be chosen again.
  *
  * Where the profile refuses attached documents the page does not offer it
@@ -15,7 +15,7 @@
  */
 
 import { Paperclip } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { FileTrigger } from "react-aria-components";
 
 import {
@@ -37,19 +37,23 @@ import { errorMessage } from "../../run/api";
 import { DocumentReviewDialog } from "../conversation/DocumentReviewDialog";
 import { useAnnounce } from "../ui/Announcer";
 import { Button } from "../ui/Button";
-import { AttachedDocuments } from "./AttachedDocuments";
 
 const NOT_A_DOCUMENT =
   "is not a document Data Director keeps. Attach a plain text (.txt), Markdown (.md), Word " +
   "(.docx) or PDF (.pdf) file. To add an inventory, use Add an inventory.";
 
 /** `AttachDocument`, where the agents and profile are known and the profile allows documents. */
+/** Called with the documents the project holds once one is attached, and the one attached. */
+export type OnAttached = (held: DocumentationSummary[], attached: DocumentationSummary | undefined) => void;
+
 export function AttachDocumentOffer({
   projectId,
   directory,
+  onAttached,
 }: {
   projectId: string;
   directory: Directory | null | undefined;
+  onAttached: OnAttached;
 }) {
   const readers = useMemo(
     () => directory && documentReaders(directory.agents, directory.orchestratorId),
@@ -58,7 +62,7 @@ export function AttachDocumentOffer({
   if (!readers || !directory?.documentsAllowed) return null;
   return (
     <p className="project-document-actions">
-      <AttachDocument projectId={projectId} readers={readers} />
+      <AttachDocument projectId={projectId} readers={readers} onAttached={onAttached} />
     </p>
   );
 }
@@ -66,24 +70,18 @@ export function AttachDocumentOffer({
 export function AttachDocument({
   projectId,
   readers,
+  onAttached,
 }: {
   projectId: string;
   /** Who reads an attached document's text, for the check to say (`documentReaders`). */
   readers: DocumentReaders;
+  onAttached: OnAttached;
 }) {
   const api = useProjectApi();
-  const [held, setHeld] = useState<DocumentationSummary[]>([]);
   const [pending, setPending] = useState<AttachedDocument | null>(null);
   const [saving, setSaving] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
   const announce = useAnnounce();
-
-  // The documents the project holds; if they cannot be read the button still works.
-  useEffect(() => {
-    const controller = new AbortController();
-    api.documentation(projectId, controller.signal).then(setHeld, () => undefined);
-    return () => controller.abort();
-  }, [api, projectId]);
 
   async function choose(file: File | undefined) {
     if (!file) return;
@@ -106,7 +104,8 @@ export function AttachDocument({
   async function save(checked: AttachedDocument) {
     setSaving(true);
     try {
-      setHeld(await api.attachDocument(projectId, checked));
+      const held = await api.attachDocument(projectId, checked);
+      onAttached(held, held.findLast((d) => d.documentation_name === checked.name));
       setPending(null);
       setRefused(null);
       announce(`${checked.name} attached to the project.`);
@@ -131,7 +130,6 @@ export function AttachDocument({
         </FileTrigger>
       </span>
       {refused && <span role="alert">{refused}</span>}
-      <AttachedDocuments projectId={projectId} held={held} onChange={setHeld} />
       <DocumentReviewDialog
         pending={pending}
         readers={readers}

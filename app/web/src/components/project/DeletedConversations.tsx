@@ -1,8 +1,8 @@
 /**
- * The project's recently deleted conversations, beneath its conversations on the project's page
+ * The project's recently deleted conversations, beneath its documents on the project's page
  * (docs/specs/app.md, rule 30): each that the person may still restore, with when it was deleted
  * and until when it may be restored, and **Restore**. Nothing is shown while there is none, or
- * if they cannot be read, since the conversations above are what the side bar is for.
+ * if they cannot be read, since the documents above are what the side bar is for.
  */
 
 import { RotateCcw } from "lucide-react";
