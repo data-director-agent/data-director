@@ -21,9 +21,12 @@ Researchers do not always start at the beginning. Say which of the three describ
 All three continue through every later phase to the end.
 
 When you create a project, the Data Director first asks a few setup questions that place it
-in this flow. Once you have answered them, it tells you which phase you start at and suggests a
-first step. Select **Start with** that step to begin the conversation there, or **Not now** to
-close the questions and type your own message.
+in this flow. They take the message box's place: select **Reply in my own words instead** to type
+a message, and **Answer the setup questions instead** under the box to go back to them, as you
+left them. A message you send leaves the questions to answer later. **Attach a file** beside the
+questions adds a document to the project straight away. Once you have answered them, it tells you
+which phase you start at and suggests a first step. Select **Start with** that step to begin the
+conversation there, or **Not now** to close the questions and type your own message.
 
 On a first message that names no entry point, the Data Director asks which one you mean, with
 the three entry points as choices beneath its reply. Choose one and select **Send answer**, or

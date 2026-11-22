@@ -286,7 +286,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     message box's place, so that one way of replying shows at a time: beneath them, **Reply in my
     own words instead** shows the message box, and **Answer the questions instead** under the box
     shows them again with what was entered kept; text put in the box for the researcher, as by a
-    step's prompt, shows the box. **Attach a file** leads the questions' action row, and a file
+    step's prompt, shows the box. The open intake (rule 25) is a third way, after these questions:
+    each way offers each other one open. **Attach a file** leads the questions' action row, and a file
     may be dropped on their form; it is checked as one attached to a message is (rule 19), and
     sent with the answers in one turn. On the latest turn each question is a fieldset
     whose legend is the question and whose description is its help: a choice question as radio
@@ -387,8 +388,14 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     by.** While a project's intake is pending ([Orchestration](orchestration.md), invariant 20),
     its workspace (`/projects/{id}/conversation`) opens with Data Director's card before any turn.
     The new-project workflow (rule 27) opens that workspace, so a new project's card is the first
-    thing in it. The card holds a greeting and the next question, drawn as in rule 21. It is announced in the polite live region and has a
-    "Skip these questions" button.
+    thing in it. The card holds a greeting and the next question, drawn as in rule 21. It takes
+    the message box's place as the latest reply's questions do (rule 21), after them where the
+    latest reply asks: **Reply in my own words instead** beneath it shows the box, and **Answer the
+    setup questions instead** beneath the box shows it again with what was entered kept. It is
+    announced in the polite live region, unless hidden behind another way of replying, and has a
+    "Skip these questions" button. Where the profile allows attached documents, **Attach a file**
+    leads its actions: a document is checked as one attached to a message is (rule 19) and kept
+    to the project at once, as from the project's Documents page, since the card is not a turn.
     - `GET /api/projects/{id}/intake` reads the next question, or says the intake is complete or
       dismissed. It carries `state`, `next` (the next question's id, or null), every question
       asked from the project's entry point with its current `answer_values` and, for a question one
@@ -409,8 +416,10 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
 
     Neither body names who answered: the server records the answer for the person signed in. A
     malformed body is refused with a 400, and an answer the harness rejects with a 409; nothing is
-    recorded in either case. The message box stays usable throughout. A turn sent while the
-    intake is pending leaves it pending, and does not count as an answer. A question with only a model's
+    recorded in either case. The message box stays a press away throughout. A turn sent while the
+    intake is pending leaves it pending, does not count as an answer, and leaves the box shown,
+    the card a press away; a reply's questions answered, the box shows. Closing the card moves
+    the focus to the way of replying shown next. A question with only a model's
     suggestion (`suggested_values`), and the entry question while its entry point is a model's, are asked with that answer chosen and a note that Data Director
     took it from what the researcher wrote; Next records it as the researcher's own answer, and
     Skip leaves the suggestion unrecorded as an answer. A question with neither is asked with

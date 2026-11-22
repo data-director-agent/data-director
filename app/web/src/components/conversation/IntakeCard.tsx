@@ -11,8 +11,11 @@
  *
  * Asked again from the phase tracker, the card walks every question with its current answer
  * chosen, and records only what changed. Each new question, and the summary, is announced in the
- * page's polite live region; the focus moves to it only once the researcher has acted. The card
- * is not a turn and never holds up the message box below it.
+ * page's polite live region, unless the card is hidden behind another way of replying; the focus
+ * moves to it only once the researcher has acted. The card takes the message box's place
+ * (`ReplyArea`), but is not a turn and never holds up the box: "Reply in my own words instead"
+ * shows it. Where the page offers it, **Attach a file** leads the question's actions and keeps a
+ * document to the project at once (`attach`), as the project's Documents page does.
  *
  * An entry point Data Director worked out from what the researcher said answers the entry
  * question, but only as Data Director's: the card asks it with that answer chosen and says whose
@@ -27,13 +30,14 @@ import "./QuestionSeries.css";
 import "./IntakeCard.css";
 
 import { ArrowRight, Check, SkipForward, X } from "lucide-react";
-import { type FormEvent, useEffect, useId, useRef, useState } from "react";
+import { type FormEvent, type ReactNode, type Ref, useEffect, useId, useImperativeHandle, useRef, useState } from "react";
 
 import type { ProcessFlow } from "../../flow/types";
 import type { IntakeQuestion, ProjectIntake } from "../../project/api";
 import { errorMessage } from "../../run/api";
 import { Button } from "../ui/Button";
 import { type Draft, QuestionField, answerOf } from "./ChoiceQuestion";
+import type { QuestionFocus } from "./QuestionSeries";
 
 /** The phase a project at `entry` starts at and the step suggested first, by their names. */
 function summaryOf(
@@ -71,7 +75,6 @@ function sameValues(a: readonly string[], b: readonly string[] | null): boolean 
   return b !== null && a.length === b.length && a.every((v) => b.includes(v));
 }
 
-// eslint-disable-next-line complexity -- recorded debt: split it, do not add to it (docs/architecture-review.md)
 export function IntakeCard({
   intake,
   again = false,
@@ -81,6 +84,9 @@ export function IntakeCard({
   onClose,
   onStart,
   onAnnounce,
+  attach,
+  hidden,
+  ref,
 }: {
   intake: ProjectIntake;
   /** Asked again from the phase tracker: every question, with its current answer chosen. */
@@ -96,6 +102,11 @@ export function IntakeCard({
    * researcher's opening turn; absent once the project's conversation has begun. */
   onStart?: ((message: string) => void) | undefined;
   onAnnounce: (text: string) => void;
+  /** What attaches a file to the project, led in the question's actions. */
+  attach?: ReactNode;
+  /** Hidden behind another way of replying, so what it shows is not announced. */
+  hidden?: boolean;
+  ref?: Ref<QuestionFocus>;
 }) {
   const id = useId();
   // The questions passed by in this visit: skipped, or, asked again, answered.
@@ -134,8 +145,10 @@ export function IntakeCard({
           .join(" ") || "Thank you: your answers are recorded."
       : "You can answer the setup questions later from the phase tracker.";
 
+  useImperativeHandle(ref, () => ({ focus: () => (legend.current ?? ending.current)?.focus() }));
+
   useEffect(() => {
-    onAnnounce(moved.current || !shown ? said : `Data Director asks: ${said}`);
+    if (!hidden) onAnnounce(moved.current || !shown ? said : `Data Director asks: ${said}`);
     if (moved.current) (shown ? legend.current : ending.current)?.focus();
     // Announced when what the card shows changes, not when the callback does.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -183,7 +196,7 @@ export function IntakeCard({
       {!again && (
         <p>
           Before you start, a few questions place your project in the process. Answer, skip them,
-          or type below at any time.
+          or reply in your own words at any time.
         </p>
       )}
       {notices.map((notice) => (
@@ -209,10 +222,10 @@ export function IntakeCard({
               }}
               error={error}
               legendRef={legend}
-              orReply="Or type a reply below instead."
             />
           </fieldset>
           <div className="question-actions">
+            {attach}
             <Button
               variant="quiet"
               icon={SkipForward}
@@ -230,52 +243,82 @@ export function IntakeCard({
           </div>
         </form>
       ) : (
-        <div className="intake-card-ending">
-          <h4 ref={ending} tabIndex={-1}>
-            {complete ? "Where your project starts" : "Questions skipped"}
-          </h4>
-          {complete ? (
-            <>
-              {summary.phase && (
-                <p>
-                  Your project starts at <strong>{summary.phase}</strong>.
-                </p>
-              )}
-              {summary.step && (
-                <p>
-                  Suggested first step: <strong>{summary.step}</strong>.
-                </p>
-              )}
-              {!summary.phase && !summary.step && <p>Thank you: your answers are recorded.</p>}
-              {startWith && (
-                <p>Data Director can guide you through it now, or you can type your own question below.</p>
-              )}
-            </>
-          ) : (
-            <p>You can answer the setup questions later from the phase tracker.</p>
-          )}
-          {startWith && onStart ? (
-            <div className="question-actions">
-              <Button
-                variant="primary"
-                icon={ArrowRight}
-                onPress={() =>
-                  onStart(`I've answered the setup questions. Let's start with: ${startWith}.`)
-                }
-              >
-                Start with {startWith}
-              </Button>
-              <Button icon={X} onPress={onClose}>
-                Not now
-              </Button>
-            </div>
-          ) : (
-            <Button icon={Check} onPress={onClose}>
-              Close
-            </Button>
-          )}
-        </div>
+        <IntakeEnding
+          ref={ending}
+          complete={complete}
+          summary={summary}
+          startWith={startWith}
+          onStart={onStart}
+          onClose={onClose}
+        />
       )}
     </section>
+  );
+}
+
+/** How the card ends once nothing is left to ask: where the project starts and the step suggested
+ * first, with the offer to start there; or, the questions skipped, where to answer them later. */
+function IntakeEnding({
+  complete,
+  summary,
+  startWith,
+  onStart,
+  onClose,
+  ref,
+}: {
+  complete: boolean;
+  summary: { phase: string | null; step: string | null };
+  /** The step the researcher may start the conversation with, if they may. */
+  startWith: string | null;
+  onStart?: ((message: string) => void) | undefined;
+  onClose: () => void;
+  ref: Ref<HTMLHeadingElement>;
+}) {
+  return (
+    <div className="intake-card-ending">
+      <h4 ref={ref} tabIndex={-1}>
+        {complete ? "Where your project starts" : "Questions skipped"}
+      </h4>
+      {complete ? (
+        <>
+          {summary.phase && (
+            <p>
+              Your project starts at <strong>{summary.phase}</strong>.
+            </p>
+          )}
+          {summary.step && (
+            <p>
+              Suggested first step: <strong>{summary.step}</strong>.
+            </p>
+          )}
+          {!summary.phase && !summary.step && <p>Thank you: your answers are recorded.</p>}
+          {startWith && (
+            <p>Data Director can guide you through it now, or you can ask your own question.</p>
+          )}
+        </>
+      ) : (
+        <p>You can answer the setup questions later from the phase tracker.</p>
+      )}
+      {startWith && onStart ? (
+        <div className="question-actions">
+          <Button
+            variant="primary"
+            icon={ArrowRight}
+            onPress={() =>
+              onStart(`I've answered the setup questions. Let's start with: ${startWith}.`)
+            }
+          >
+            Start with {startWith}
+          </Button>
+          <Button icon={X} onPress={onClose}>
+            Not now
+          </Button>
+        </div>
+      ) : (
+        <Button icon={Check} onPress={onClose}>
+          Close
+        </Button>
+      )}
+    </div>
   );
 }

@@ -173,7 +173,6 @@ export function QuestionField({
   error,
   legendRef,
   lead,
-  orReply,
 }: {
   question: Question;
   draft: Draft;
@@ -182,8 +181,6 @@ export function QuestionField({
   legendRef?: Ref<HTMLLegendElement>;
   /** Words before the question in the legend, such as which of several it is. */
   lead?: string;
-  /** Said after how to answer, where another way to reply sits beside the question. */
-  orReply?: string;
 }) {
   const id = useId();
   const multiple = Boolean(question.question_multiple);
@@ -222,7 +219,7 @@ export function QuestionField({
         </p>
       )}
       <p className="hint" id={`${id}-how`}>
-        {orReply ? `${how} ${orReply}` : how}
+        {how}
       </p>
       {error && (
         <p id={`${id}-error`} className="field-error">

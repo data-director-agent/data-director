@@ -1,4 +1,5 @@
-import { render, screen, within } from "@testing-library/react";
+import { createRef } from "react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 
@@ -9,7 +10,9 @@ import pendingFixture from "../../../fixtures/intake-pending.json";
 import flowFixture from "../../../fixtures/process-flow.json";
 import type { ProcessFlow } from "../../flow/types";
 import { DecisionConflict, type ProjectIntake } from "../../project/api";
+import { Button } from "../ui/Button";
 import { IntakeCard } from "./IntakeCard";
+import type { QuestionFocus } from "./QuestionSeries";
 
 const PENDING = pendingFixture as ProjectIntake;
 const COMPLETE = completeFixture as ProjectIntake;
@@ -224,5 +227,26 @@ describe("IntakeCard", () => {
     };
     rerender(<IntakeCard intake={recorded} flow={FLOW} {...handlers} />);
     expect(screen.getByRole("note").textContent).toBe(notice);
+  });
+  it("leads the question's actions with what the page gives to attach a file", () => {
+    renderCard({ attach: <Button>Attach a file</Button> });
+    const form = screen.getByRole("group", { name: ENTRY.question.question_prompt }).closest("form");
+    if (!form) throw new Error("no form");
+    const actions = within(form).getAllByRole("button");
+    const attach = within(form).getByRole("button", { name: "Attach a file" });
+    const next = within(form).getByRole("button", { name: "Next" });
+    expect(actions.indexOf(attach)).toBeLessThan(actions.indexOf(next));
+  });
+
+  it("announces nothing while hidden behind another way of replying", () => {
+    const { onAnnounce } = renderCard({ hidden: true });
+    expect(onAnnounce).not.toHaveBeenCalled();
+  });
+
+  it("moves the focus to the question when asked to", () => {
+    const focus = createRef<QuestionFocus>();
+    renderCard({ ref: focus });
+    act(() => focus.current?.focus());
+    expect(screen.getByText(ENTRY.question.question_prompt).closest("legend")).toHaveFocus();
   });
 });
