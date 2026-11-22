@@ -55,7 +55,7 @@ describe("Frame", () => {
     );
   });
 
-  it("puts Projects first in the main navigation, before the conversation", () => {
+  it("puts Project first in the main navigation, before the conversation", () => {
     render(
       <Frame current="/project">
         <p>Content</p>
@@ -65,17 +65,17 @@ describe("Frame", () => {
     const names = within(nav)
       .getAllByRole("link")
       .map((link) => link.textContent);
-    // The order of the rest may change as pages are added; Projects leads and the conversation
+    // The order of the rest may change as pages are added; Project leads and the conversation
     // follows it.
-    expect(names[0]).toBe("Projects");
+    expect(names[0]).toBe("Project");
     expect(names.indexOf("Conversation")).toBeGreaterThan(0);
     // `/project` opens the current project's page (`ProjectLanding`), not the list of projects.
-    const projects = within(nav).getByRole("link", { name: "Projects" });
+    const projects = within(nav).getByRole("link", { name: "Project" });
     expect(projects).toHaveAttribute("href", "/project");
     expect(projects).toHaveAttribute("aria-current", "page");
   });
 
-  it("has the journey map in the main navigation, straight after Projects", () => {
+  it("has the journey map in the main navigation, straight after Project", () => {
     render(
       <Frame current="/journey">
         <p>Content</p>
@@ -85,12 +85,12 @@ describe("Frame", () => {
     const names = within(nav)
       .getAllByRole("link")
       .map((link) => link.textContent);
-    expect(names.indexOf("Journey map")).toBe(names.indexOf("Projects") + 1);
+    expect(names.indexOf("Journey map")).toBe(names.indexOf("Project") + 1);
     const link = within(nav).getByRole("link", { name: "Journey map" });
     expect(link).toHaveAttribute("href", "/journey");
     expect(link).toHaveAttribute("aria-current", "page");
     expect(
-      within(nav).getByRole("link", { name: "Projects" }),
+      within(nav).getByRole("link", { name: "Project" }),
     ).not.toHaveAttribute("aria-current");
   });
 
@@ -151,7 +151,7 @@ describe("Frame", () => {
     );
     const banner = screen.getByRole("banner");
     for (const name of [
-      "Projects",
+      "Project",
       "Conversation",
       "Activity log",
       "Agents",

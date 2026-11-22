@@ -223,7 +223,7 @@ export function FactsPanel({ projectId, revision = 0 }: { projectId: string; rev
         ) : (
           <p>
             <Button icon={Plus} onPress={() => setStating(true)}>
-              State a fact nobody proposed
+              Add a fact
             </Button>
           </p>
         )}

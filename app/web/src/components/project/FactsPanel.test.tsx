@@ -129,7 +129,7 @@ describe("FactsPanel", () => {
     renderPanel({ decideFact });
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole("button", { name: /State a fact nobody proposed/ }));
+    await user.click(await screen.findByRole("button", { name: /Add a fact/ }));
     const form = screen.getByRole("form", { name: "A fact nobody proposed" });
     await user.selectOptions(within(form).getByLabelText("What the fact is about"), "funder");
     await user.type(within(form).getByLabelText(/The funder's name/), "Natural Environment Research Council");

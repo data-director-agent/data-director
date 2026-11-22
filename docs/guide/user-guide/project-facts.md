@@ -18,7 +18,7 @@ metadata record is given only what a person has decided, never a proposal. So yo
 4. Add a reason if a colleague should know why. It is kept in the project's record, and no
    agent is given it.
 
-Under **Decided**, you can change or remove a fact that stands. **State a fact nobody proposed**
+Under **Decided**, you can change or remove a fact that stands. **Add a fact**
 records one of your own, such as a funder no agent found.
 
 ## Who decides

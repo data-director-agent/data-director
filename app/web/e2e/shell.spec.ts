@@ -854,7 +854,7 @@ test("the journey map is one press from the main navigation, and a tab away from
   const tabs = page.getByRole("navigation", { name: "Project" });
   await tabs.getByRole("link", { name: "Documents" }).click();
   await expect(page).toHaveURL(new RegExp(`/projects/${active.project_id}(\\?.*)?$`));
-  await expect(nav.getByRole("link", { name: "Projects" })).toHaveAttribute("aria-current", "page");
+  await expect(nav.getByRole("link", { name: "Project" })).toHaveAttribute("aria-current", "page");
   expect(await axeViolations(page)).toEqual([]);
   await tabs.getByRole("link", { name: "Journey map" }).click();
   await expect(page).toHaveURL(`/projects/${active.project_id}/journey`);

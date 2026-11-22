@@ -464,7 +464,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     proposed, each with what it would decide in one sentence, why it was proposed and which agent
     proposed it, and offers **Confirm it as proposed**, **Change it, then record my version** and
     **Reject it**, with an optional reason that no agent is given. Under **Decided** each fact that
-    stands can be changed or removed, and **State a fact nobody proposed** records one of the
+    stands can be changed or removed, and **Add a fact** records one of the
     person's own, named by the value that names it. After each decision the panel shows what the
     server read back. A proposal that has moved on is read again with a warning, and a member
     deciding whether sensitive data is published, or the licence, is told only an owner may
@@ -850,7 +850,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   ([Projects](projects.md)): its conversations, inventory, documents and decisions belong to it.
   So a person lands on their projects (`/`), the Projects page is the first item in the main
   navigation, and a project's own pages are marked as under it, except its journey map. **Journey
-  map** follows Projects in the main navigation: `/journey` opens the active project's map in its
+  map** follows Project in the main navigation: `/journey` opens the active project's map in its
   place (so Back skips it), or lists the person's projects to choose one when none is active, and
   a project's map is marked as under it. Each of a project's pages starts with the same block: a
   breadcrumb (Projects › the project's name) and tabs for its **Documents**, **Journey map** and
