@@ -168,8 +168,10 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     `out_of_scope`.** The Data Management Plan steps (`setup.dmp-create`, `setup.dmp-review`,
     `post.dmp-update`) are these. The phase tracker and the stub name them and say "out of scope
     for now"; the model's prompt marks them and tells the model not to offer to do them or look for
-    a tool. An agent that serves one is a `SpecError`, so none can appear to cover it. Verifying a
-    deposit against an existing plan (`governance.dmp`, R8) is in scope.
+    a tool. An agent that serves one is a `SpecError`, so none can appear to cover it, and a
+    researcher may not mark one. The intake's plan question may skip one, recording the branch of
+    Figure 1 not taken (invariant 20). Verifying a deposit against an existing plan
+    (`governance.dmp`, R8) is in scope.
     (`test_the_data_management_plan_steps_are_in_the_flow_and_out_of_scope_for_now`,
     `test_serving_a_step_that_is_out_of_scope_for_now_is_refused`,
     `test_data_management_plan_steps_are_named_and_said_to_be_out_of_scope`)
@@ -240,7 +242,7 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     | Question id | Asks | From entry | An answer of "No" marks skipped | An answer of "Yes" marks skipped |
     |---|---|---|---|---|
     | `intake.entry` | Where are you with your research data? | always, first | (the answer is the entry point: `entry_chosen`) | |
-    | `intake.dmp` | Do you have a Data Management Plan for this project? | 1, 2 | nothing | nothing |
+    | `intake.dmp` | Do you have a Data Management Plan for this project? | 1, 2 | `setup.dmp-review` | `setup.dmp-create` |
     | `intake.sensitive` | Does the data include personal or otherwise sensitive information? | 1, 2 | `governance.sensitive-data-identify`, `governance.sensitive-data-handle` | nothing, but it says at once not to share the data itself |
     | `intake.repository-mandated` | Has a funder, journal or institution said where the data must go? | 1, 2, 3 | `repository.mandated` | `repository.recommend` |
 
@@ -249,8 +251,10 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     with no "Something else" (`sdk/tests/test_intake.py`). Every question but the first
     offers "Not sure", which records the answer and marks nothing. No answer ever shows a step as
     done. "Yes" to a mandated repository marks the recommendation of one skipped, as Figure 3's
-    "Yes" branch does; the Data Management Plan question marks nothing, because Figure 1's decision
-    gates the steps that create or review a plan, which are out of scope. "Yes" to sensitive data
+    "Yes" branch does. The Data Management Plan question follows Figure 1's branches: "Yes" marks
+    creating a plan skipped and "No" marks reviewing one skipped. Both steps are out of scope, so
+    the skip records the branch not taken, not work, and a skip before the entry point does not
+    bring its phase into the tracker (`dd_sdk.process_flow.progress`). "Yes" to sensitive data
     says at once, in the card, not to paste or upload the data itself into the conversation, and
     that the governance step covers how it is handled: Blueprint §5.2 asks that sensitive data not
     reach the model without institutional authorisation, and Figure 2 asks that it be anonymised
@@ -296,7 +300,10 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     say it is undecided, and to put a decided value into an agent's input where the input has a
     place for it. With nothing chosen or decided there is no note, and none says that nothing is
     decided, since a profile may keep `decisions` from a hosted model ([Projects](projects.md),
-    invariant 8). (#1168; `agents/orchestrator-model/tests/test_orchestrator_decisions.py`;
+    invariant 8). A standard is chosen on the project page, not in the conversation: when the
+    Standards Librarian recommends standards, the prompt has the model say that each is proposed
+    there for the researcher to confirm or reject, and not ask for a choice that would not be
+    recorded (#1391). (#1168; `agents/orchestrator-model/tests/test_orchestrator_decisions.py`;
     `harness/tests/test_project_repository_given.py`)
 22. **The model speaks of the latest draft, and of the inventory as it now is.** A drafted
     document reaches the model within a turn as the drafter's result, and in later turns only as

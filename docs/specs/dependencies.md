@@ -8,8 +8,9 @@ an action is permitted, whether evidence suffices, whether to decline. Adopted l
 abandoned, change licence or turn hostile, and an instance at a university may have to run for
 years on what it was deployed with. This spec keeps the loss of any one library a local problem.
 
-It covers every external dependency of every workspace member and of `app/web`. Standard library
-modules are not dependencies here.
+It covers every external dependency of every workspace member and of `app/web`, and the external
+sources (registries, PID services, vocabularies) that agents and the harness read. Standard
+library modules are not dependencies here.
 
 ## Invariants
 
@@ -39,6 +40,10 @@ modules are not dependencies here.
 5. Our own fixed formats never depend on a library's representation. Envelopes, evidence and
    span records are plain documents that survive the library that produced them, which is what
    makes each fallback possible.
+6. Every external source is in the register below with one route, so that it is not adopted
+   twice or by two routes. A pull request that adds a source, or changes its route, edits the
+   register in the same change; the review of a source's licence, terms, limits and what a query
+   sends is recorded on #952.
 
 ## The register
 
@@ -88,6 +93,34 @@ shape check ([Contract](contract.md)) both call. The SDK generates the shapes wi
 `gen-shacl` at development time, and reads a payload as JSON-LD without an RDF library, so it adds
 no runtime dependency.
 
+### External sources
+
+| Source | Read by | Route | What a query sends | Licence of what is kept | When it cannot answer |
+|---|---|---|---|---|---|
+| FAIRsharing | Standards, repository and policy advisers; `mcp-fairsharing` | Committed snapshots; the live REST API | A search term or a record identifier | CC BY-SA 4.0, kept with each snapshot (`LICENCE.md`) | The snapshot answers |
+| re3data | Repository adviser (`registry`) | The monthly export, pinned and built locally | Nothing at run time | CC0 | — |
+| DataCite repositories | Repository adviser | Committed snapshot | Nothing at run time | CC0 | — |
+| ROR | Policy adviser (`ror`); `mcp-pid` | The pinned dump; the live API if chosen | An identifier or an organisation name | CC0 | The dump answers |
+| DataCite and Crossref REST (works) | `mcp-pid` | Live, through the tool gateway | A DOI | CC0; facts | The run says the resolver is unavailable |
+| ORCID public API | `dd_harness.orcid`; `mcp-pid` | Live, anonymous | An iD | Nothing kept; ORCID's API licence is for non-commercial use | As above |
+| Jisc Open Policy Finder, Crossref journals | Policy adviser (`opf`, `crossref`) | Live only | An ISSN, a journal title, a publisher or funder name | Nothing kept | FAIRsharing answers |
+| PRONOM | `dd_inventory.identify`, through `opf-fido` | The signature file the library ships | Nothing: identification is local | Open Government Licence v3.0 | Media types from extensions |
+| SPDX licence list | The gateway's `spdx` server; rights adviser | A pinned copy served by the gateway | A licence identifier | Pinned with the gateway | The adviser's packaged `licences.yaml` |
+
+A query never carries a researcher's unpublished text, file contents or names taken from their
+files (column and variable names, a project description) to an external source unless the
+researcher has confirmed that term first; where that matters, a local copy or a self-hosted
+service is preferred (Blueprint P10, C2, C4). A key a source needs goes in the credential file of
+the agent or server that uses it ([Policy and identity](policy-and-identity.md)).
+
+Adopted for later, each with its implementing issue: the OpenAIRE Graph API v3 as a tool beside
+grant resolution (#953); related-data discovery through DataCite's REST search, with OpenAlex
+and ScholeXplorer v3 if the spike shows they add links (#954); terminology services, chosen by
+#956; the Library of Congress format descriptions, as links only (#955); the Open Definition
+list, as a pinned copy (#877); a self-hosted F-UJI, given published identifiers only (#704); the
+RDA DMP Common Standard as a format, and DMPonline and DMPTool through the person's own
+authorisation (#701, #284); and the GA4GH Data Use Ontology as a committed copy (#787).
+
 ### Evaluation and CI
 
 Unconstrained, and listed so that nothing moves into the runtime tier unnoticed: `pytest` and
@@ -129,12 +162,28 @@ Which licences are acceptable is not yet decided or enforced: TODO(#82).
   live route is cited as `ror:live:<date>`, which no deployment pins, so the source check reports
   it unresolved, as it does FAIRsharing's live route.
   Jisc Open Policy Finder and Crossref's journals API are read live only, by the policy advisor
-  (#302, #905). Open Policy Finder states no licence for its records that would let a copy be
-  committed, nor a rate limit, so there is no pinned copy to fall back to: when its route fails,
-  or no key is given, the run says so and FAIRsharing still answers. Crossref is asked only for
-  the publisher a journal belongs to. Their evidence is cited as `open-policy-finder:live:<date>`
-  and `crossref-journals:live:<date>`, which the source check reports unresolved. TODO(#952):
-  revisit a pinned copy once Jisc's terms for the data are known.
+  (#302, #905). Open Policy Finder's data is licensed CC BY-NC-ND 4.0 and its API is for
+  non-commercial use: no-derivatives rules out the projected registry a pinned copy would be built
+  into, and non-commercial would bind anyone reusing this repository, so there is no pinned copy
+  to fall back to. When its route fails, or no key is given, the run says so and FAIRsharing
+  still answers. Crossref is asked only for the publisher a journal belongs to. Their evidence is
+  cited as `open-policy-finder:live:<date>` and `crossref-journals:live:<date>`, which the source
+  check reports unresolved.
+- **External sources reviewed and not adopted** (#952, one comment per source):
+  - DataCite's GraphQL API, which DataCite deprecates on 1 July 2027; its REST API is used.
+  - The full dumps of the OpenAIRE Graph, Scholix, Crossref and OpenAlex: hundreds of gigabytes
+    for what are per-project lookups.
+  - The CoreTrustSeal register: all rights reserved and no API. The certificates in DataCite's
+    repository records are used instead (and re3data's, if #485 confirms its export carries
+    them), with a link to the certificate.
+  - A CODATA CDIF variables registry, which does not yet exist.
+  - Hosted FAIR assessors, and any assessor given a URL that carries a private-share token: an
+    assessor fetches the landing page and may download the data files.
+  - Services that read researcher text with a model or annotator (BioPortal's Annotator, the
+    I-ADOPT annotation service, OpenAlex semantic search) on anything unpublished.
+  - Online format identification, which would send a researcher's file bytes away.
+  - `sdcMicro` bundled into a package: it is GPL-2 and R only, and `acro` already covers output
+    checking.
 - **`any-llm`, LiteLLM's SDK or `pydantic-ai` as the model layer.** Each puts its own abstraction
   over many providers where `dd_sdk.model` already is one, and `any-llm` installs each provider's
   SDK beneath it anyway. The OpenAI-compatible Chat Completions format is the shared, open

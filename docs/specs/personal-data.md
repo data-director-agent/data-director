@@ -135,8 +135,9 @@ changes the [Contract](contract.md) and bumps the contract version as an additiv
 ([Deposit](deposit.md), "The pause before packaging"); the referral to a data steward ([Data stewards](stewardship.md), invariant 9) and hints to
 the ethics adviser are #471's.
 
-**The detector.** Microsoft [Presidio](https://github.com/microsoft/presidio) (`presidio-analyzer`)
-is a required dependency of the command, behind one module, `dd_inventory.personal`, and a
+**The detector.** [Presidio](https://github.com/data-privacy-stack/presidio) (`presidio-analyzer`,
+begun by Microsoft and now community-governed) is a required dependency of the command, behind
+one module, `dd_inventory.personal`, and a
 `Detector` protocol, so that the comparison #39 asks for (GLiNER-PII, column typing) can replace
 it without touching the scan. The same detector, with the same configuration, runs natively and
 under Pyodide in the browser scanner (#367), so that the two routes give the same findings (The

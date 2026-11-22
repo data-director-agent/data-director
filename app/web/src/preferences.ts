@@ -24,7 +24,21 @@ export const CHOICES = {
   dateLocale: ["browser", "en-GB", "en-US"],
   hourCycle: ["locale", "h23", "h12"],
   startupProject: ["last", "none"],
+  personIcon: ["person", "researcher", "owl", "fox", "octopus", "seedling", "telescope", "books", "coffee"],
 } as const;
+
+/** The icon each `personIcon` choice shows beside "You" in the conversation, and its name. */
+export const PERSON_ICONS: Record<Preferences["personIcon"], { icon: string; label: string }> = {
+  person: { icon: "👤", label: "Person" },
+  researcher: { icon: "🧑‍🔬", label: "Researcher" },
+  owl: { icon: "🦉", label: "Owl" },
+  fox: { icon: "🦊", label: "Fox" },
+  octopus: { icon: "🐙", label: "Octopus" },
+  seedling: { icon: "🌱", label: "Seedling" },
+  telescope: { icon: "🔭", label: "Telescope" },
+  books: { icon: "📚", label: "Books" },
+  coffee: { icon: "☕", label: "Coffee" },
+};
 
 export type Preferences = { -readonly [K in keyof typeof CHOICES]: (typeof CHOICES)[K][number] };
 export type PreferenceName = keyof Preferences;
@@ -38,6 +52,7 @@ const KEYS: Record<PreferenceName, string> = {
   dateLocale: "dd-date-locale",
   hourCycle: "dd-hour-cycle",
   startupProject: "dd-startup-project",
+  personIcon: "dd-person-icon",
 };
 
 const NAMES = Object.keys(CHOICES) as PreferenceName[];

@@ -68,6 +68,18 @@ item's `content`, the `json-sorted-utf8-v1` projection its hash covers. The lint
 that content (E1, [Evidence and grounding](../../../../docs/specs/grounding.md)), so what a reader is shown is what was retrieved. The root
 `Recommendations.grounded_on` lists every cited record once.
 
+## Proposing a choice
+
+A recommendation is advice. So that the researcher can record which they choose, `Recommendations`
+also carries `proposed_facts` (`ProposesFacts`, `propose.py`): one `standard` project fact for each
+recommendation, naming the record's name, its DOI as a URL (else its FAIRsharing page), its kind
+and what it is for (`dataset` or `field:<name>`), with a sentence saying why for the person
+deciding ([Projects](../../../../docs/specs/projects.md), invariant 28; #1391). This is the one
+place the record's name is copied: a later agent is given the decided fact, not this run's
+evidence. In a project the harness records each as a proposal; a person confirms the ones they
+will use and rejects the others on the project page, and only those reach the Metadata Librarian
+and the Documentation Editor.
+
 ## Honest limits
 
 - **Ranking is lexical and naive.** BM25 over name, abbreviation, description and subject

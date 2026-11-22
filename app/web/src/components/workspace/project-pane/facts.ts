@@ -16,6 +16,7 @@ export const WORKING_KINDS: readonly FactKind[] = [
   "sensitivity",
   "licence",
   "sharing_commitment",
+  "standard",
 ];
 
 /** A fact's value in a few words where its kind has one; otherwise its sentence. */
@@ -27,6 +28,8 @@ export function factValue(fact: ProjectFact): string {
       return fact.fact_repository_name ?? fact.fact_subject;
     case "licence":
       return fact.licence_id ?? fact.fact_subject;
+    case "standard":
+      return fact.standard_name ?? fact.fact_subject;
     default:
       return describeFact(fact);
   }

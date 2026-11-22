@@ -101,11 +101,6 @@ clones = 1
 lines = 12
 
 [[pair]]
-files = ["agents/advisor-policy/src/dd_agent_advisor_policy/classes.py", "agents/advisor-standards/src/dd_agent_advisor_standards/classes.py"]
-clones = 1
-lines = 12
-
-[[pair]]
 files = ["agents/advisor-policy/src/dd_agent_advisor_policy/crossref.py", "agents/advisor-policy/src/dd_agent_advisor_policy/opf.py"]
 clones = 2
 lines = 23

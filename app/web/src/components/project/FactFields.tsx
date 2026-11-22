@@ -1,7 +1,8 @@
 /**
  * The values of one project fact, as a person sets them: whether a file goes in, whether a
  * sensitive field or file may be published and how precisely, a funder, a required repository,
- * the licence, or what the plan commits to share (docs/specs/projects.md, invariant 28).
+ * the licence, what the plan commits to share, or a standard, vocabulary or format chosen
+ * (docs/specs/projects.md, invariant 28).
  *
  * When a person changes a proposal, its kind and subject stay as proposed, since a decision is on
  * that fact; when they state a fact of their own, they choose the kind, and the subject is taken
@@ -17,6 +18,7 @@ import {
   PRECISIONS,
   type ProjectFact,
   SENSITIVITY_DECISIONS,
+  STANDARD_KINDS,
   SUBJECT_OF,
 } from "../../project/facts";
 import {
@@ -24,6 +26,7 @@ import {
   KIND_LABELS,
   PRECISION_LABELS,
   SENSITIVITY_LABELS,
+  STANDARD_KIND_LABELS,
 } from "./factWording";
 
 type Setter = (slot: keyof ProjectFact, value: string | string[] | undefined) => void;
@@ -237,6 +240,29 @@ function KindValues({ fact, set, isNew }: { fact: ProjectFact; set: Setter; isNe
             set={set}
           />
           <TextValue label="Under what licence" slot="commitment_licence" fact={fact} set={set} />
+        </>
+      );
+    case "standard":
+      // What it is chosen for stays as proposed; a standard a person states is for the dataset.
+      return (
+        <>
+          <TextValue label="The standard's name" slot="standard_name" fact={fact} set={set} required />
+          <TextValue
+            label="Its identifier"
+            hint="A link, such as its FAIRsharing DOI."
+            slot="standard_id"
+            fact={fact}
+            set={set}
+          />
+          <Choice
+            label="What kind of standard it is"
+            slot="standard_kind"
+            options={STANDARD_KINDS}
+            labels={STANDARD_KIND_LABELS}
+            fact={fact}
+            set={set}
+            optional
+          />
         </>
       );
   }

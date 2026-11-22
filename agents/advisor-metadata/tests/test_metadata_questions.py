@@ -12,6 +12,7 @@ from test_metadata_agent import draft, sample
 from dd_agent_advisor_metadata.agent import load_form
 from dd_agent_advisor_metadata.location import entry_path
 from dd_agent_advisor_metadata.questions import gaps, question_id
+from dd_sdk.contract.facts import FactKind, ProjectFact, StandardKind
 from dd_sdk.contract.models import Document, DraftAnswer, OutcomeStatus
 
 
@@ -112,3 +113,45 @@ def test_without_licences_the_licence_question_names_none(runs_dir: Path) -> Non
         if (q.gap_property or "").startswith("rightsList")
     ]
     assert "accepts" not in licence.question_prompt
+
+
+def _standard(name: str, kind: str, target: str = "dataset") -> ProjectFact:
+    return ProjectFact(
+        fact_kind=FactKind.STANDARD,
+        fact_subject=f"{name} {target}",
+        standard_name=name,
+        standard_kind=StandardKind(kind),
+        standard_target=target,
+    )
+
+
+def _subjects_prompts(runs_dir: Path, decisions: list[ProjectFact]) -> list[str]:
+    asked = sample().model_copy(update={"project_decisions": decisions})
+    env, _ = draft(runs_dir, asked)
+    return [
+        q.question_prompt
+        for q in env.payload_as(Document).document_questions
+        if (q.gap_property or "").startswith("subjects")
+    ]
+
+
+def test_the_subjects_question_names_the_vocabularies_the_project_chose(runs_dir: Path) -> None:
+    """#1391: a vocabulary a person chose for the dataset is named where its terms are asked for;
+    a format, or one chosen for a field's values, is not."""
+    decisions = [
+        _standard("AGROVOC", "controlled_vocabulary"),
+        _standard("CSV", "data_format"),
+        _standard("ISO 8601", "field_format", "field:sampled_on"),
+    ]
+    prompts = _subjects_prompts(runs_dir, decisions)
+    assert prompts
+    for prompt in prompts:
+        assert "AGROVOC" in prompt
+        assert "CSV" not in prompt
+        assert "ISO 8601" not in prompt
+
+
+def test_without_a_chosen_vocabulary_the_subjects_question_names_none(runs_dir: Path) -> None:
+    assert _subjects_prompts(runs_dir, []) == _subjects_prompts(
+        runs_dir, [_standard("CSV", "data_format")]
+    )

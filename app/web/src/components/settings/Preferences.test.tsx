@@ -24,7 +24,7 @@ describe("Preferences", () => {
       [
         "appearance",
         "Appearance",
-        ["Colour scheme", "Text size", "Spacing", "Animation"],
+        ["Colour scheme", "Text size", "Spacing", "Animation", "Your icon in the chat"],
         "Light",
       ],
       [
@@ -61,6 +61,14 @@ describe("Preferences", () => {
 
     await userEvent.click(screen.getByRole("radio", { name: "Dark" }));
     expect(root.dataset.theme).toBe("dark");
+  });
+
+  it("lets the person choose the icon that stands for them in the chat", async () => {
+    render(<Preferences section="appearance" />);
+    expect(screen.getByRole("radio", { name: /Person/ })).toBeChecked();
+    await userEvent.click(screen.getByRole("radio", { name: /Owl/ }));
+    expect(screen.getByRole("radio", { name: /Owl/ })).toBeChecked();
+    expect(localStorage.getItem("dd-person-icon")).toBe("owl");
   });
 
   it("shows an example of the chosen date style and clock", async () => {

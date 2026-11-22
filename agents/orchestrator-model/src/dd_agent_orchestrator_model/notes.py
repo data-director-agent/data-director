@@ -107,8 +107,9 @@ def _label(question_id: str, value: str) -> str:
 def intake_note(message: Message) -> str | None:
     """The researcher's answers to the setup questions beside the entry question, which the
     researcher gave before the conversation began, or None if they answered none. No step state
-    shows a "Not sure", or any answer about a plan, so without this note the model is not told of
-    them, and denies them when the researcher says they answered (#341). When the researcher said
+    shows a "Not sure", and an answer about a plan shows only as an out-of-scope step skipped, so
+    without this note the model is not told of them, and denies them when the researcher says
+    they answered (#341). When the researcher said
     they have a Data Management Plan and the project holds no attached document, the note asks the
     model to invite them to attach it first, since the drafters and the plan check read it."""
     answers = message.project_intake or []
@@ -352,6 +353,12 @@ def _commitment(fact: ProjectFact) -> str:
     return said + (f" ({', '.join(terms)})" if terms else "")
 
 
+def _standard(fact: ProjectFact) -> str:
+    target = fact.standard_target or "dataset"
+    said = f"standard chosen for the {target.replace(':', ' ')}: {json.dumps(fact.standard_name)}"
+    return said + (f" ({fact.standard_id})" if fact.standard_id else "")
+
+
 _SAYS: dict[FactKind, Callable[[ProjectFact], str]] = {
     FactKind.FUNDER: _funder,
     FactKind.REQUIRED_REPOSITORY: _required,
@@ -359,6 +366,7 @@ _SAYS: dict[FactKind, Callable[[ProjectFact], str]] = {
     FactKind.SENSITIVITY: _sensitivity,
     FactKind.LICENCE: _licence,
     FactKind.SHARING_COMMITMENT: _commitment,
+    FactKind.STANDARD: _standard,
 }
 
 

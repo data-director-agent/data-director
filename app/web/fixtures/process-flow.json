@@ -35,11 +35,11 @@
         },
         {
           "id": "setup.vocabularies",
-          "label": "Choose standard terms to describe your data",
+          "label": "Start a list of standard terms to describe your data",
           "optional": false,
           "out_of_scope": false,
           "person_decides": false,
-          "prompt": "Help me choose standard terms and vocabularies to describe my data.",
+          "prompt": "Help me start a list of standard terms and vocabularies to describe my data as I collect it.",
           "requirements": [
             "R3"
           ],
@@ -102,6 +102,16 @@
           "prompt": "Help me decide how to protect the sensitive information in my data.",
           "requirements": [],
           "text": "Handle sensitive data"
+        },
+        {
+          "id": "governance.constraints",
+          "label": "Check the ethical, legal and institutional rules that apply",
+          "optional": false,
+          "out_of_scope": false,
+          "person_decides": false,
+          "prompt": "What ethical, legal or institutional rules apply to sharing my data?",
+          "requirements": [],
+          "text": "Check ethical, legal and institutional constraints"
         },
         {
           "id": "governance.embargo",
@@ -238,6 +248,16 @@
           "prompt": "Which metadata standard should I follow for my data?",
           "requirements": [],
           "text": "Identify the appropriate metadata standard"
+        },
+        {
+          "id": "preparation.vocabularies",
+          "label": "Confirm the standard terms you will use",
+          "optional": false,
+          "out_of_scope": false,
+          "person_decides": false,
+          "prompt": "Help me confirm the standard terms to use, now that I know what my repository needs.",
+          "requirements": [],
+          "text": "Finalise controlled vocabularies and ontologies"
         },
         {
           "id": "preparation.metadata",

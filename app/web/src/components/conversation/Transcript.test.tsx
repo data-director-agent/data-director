@@ -321,7 +321,7 @@ describe("Transcript, as a conversation", () => {
     );
     const names = () =>
       turns().map((t) => t.querySelector(".turn-person .turn-speaker-name")?.textContent);
-    await waitFor(() => expect(names()).toEqual(["👤Ada Example", "👤You"]));
+    await waitFor(() => expect(names()).toEqual(["Ada Example", "You"]));
   });
 
   it("heads a reply with the agent's name alone, not its version or model", () => {
@@ -341,6 +341,17 @@ describe("Transcript, as a conversation", () => {
     const icon = personPart.querySelector(".turn-speaker-name .person-icon");
     expect(icon).not.toBeNull();
     expect(icon).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("shows the icon the person chose in Settings beside \"You\"", () => {
+    localStorage.setItem("dd-person-icon", "owl");
+    try {
+      render(<Transcript conversation={conversation} agents={agents} onToggleRun={() => {}} />);
+      const personPart = turns()[0]?.querySelector(".turn-person") as HTMLElement;
+      expect(personPart.querySelector(".turn-speaker-name .person-icon")).toHaveTextContent("🦉");
+    } finally {
+      localStorage.removeItem("dd-person-icon");
+    }
   });
 
   it("names an agent the directory does not list by its id, once", () => {

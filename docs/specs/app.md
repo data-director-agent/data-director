@@ -455,7 +455,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     sends to the model broker alone ([A person's own model account](model-accounts.md),
     `app/web/src/components/settings/ModelAccount.test.tsx`, `app/web/e2e/settings.spec.ts`).
     The other tabs are the **Preferences**: the colour scheme (light, dark, or matching the device), text
-    size, spacing, animation (matching the device, reduced or shown), the style dates and numbers
+    size, spacing, animation (matching the device, reduced or shown), the icon that stands for the
+    person beside "You" in the conversation (another member keeps the default person icon), the style dates and numbers
     are written in and the 12- or 24-hour clock, and whether a visit returns to the project used
     last or starts with none chosen. Each applies at once and is kept in that browser only, one
     `localStorage` key each, and none reaches the server (`app/web/src/preferences.ts`,
@@ -627,9 +628,13 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
 - **The activity log** (`components/workspace/ActivityLog.tsx`) lists each step of each run this
   tab has streamed, as it happens, newest run first, from the same reducer state
   (`run/activity.tsx`): steps, checks' reports, tool calls and delegated children, each child
-  linked to its record. The server keeps a run's record, not its events, so the log holds only
-  what this tab has seen since it was opened, and says so. It is not a live region: the run view
-  says the run's progress once, through the announcer.
+  linked to its record. Below them it lists every stored run the person may read
+  (`GET /api/runs`, newest first, a page at a time, `components/workspace/RecordedRuns.tsx`), with
+  its outcome and a link to its record, leaving out those shown step by step above; it reads them
+  again as each run here ends. The server keeps a run's record, not its events, so the steps are
+  shown only for what this tab has seen since it was opened, and the page says so; the recorded
+  runs outlast a reload, another tab and signing in again (#1330). It is not a live region: the
+  run view says the run's progress once, through the announcer.
 - **Outcomes, evidence and the checks' reports** are rendered as the [Contract](contract.md) and
   [Evidence and grounding](grounding.md) define them. A drafted document in a run's result is
   shown as a document: rendered when its media type is `text/markdown`, tables included, and
@@ -730,7 +735,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   log), and the last phase looping back rather than ending. Like the strip it names no agent and
   no requirement, and computes no state: each stop's state, the word that decided it
   (`reasons`) and the decision points (`decisions`) are the harness's, in the progress it
-  serves. Each stop is a button that says its state in words; opening one (`?step=`) shows what
+  serves. Each stop is a button that says its state in words. A step out of scope says "Not in
+  this version", or, where the intake's answer skipped it as the branch not taken, that it is
+  skipped, struck through like any skipped step; opening one (`?step=`) shows what
   the step is, its state and why, a link to the document or page that produced it, the marks the
   researcher may make, and **Ask Data Director about this**, which opens the conversation with a
   question about the step in the message box, unsent (`/?ask={step_id}`), so the researcher's
@@ -824,7 +831,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   (documents to review, fact proposals to decide, repository warnings, unanswered setup
   questions), each with the one thing to do about it; where the project stands, the step under way
   and the one suggested next; what Data Director is working from, the facts that shape its answers
-  (funder, required repository, sensitive data, licence, sharing commitment), each marked
+  (funder, required repository, sensitive data, licence, sharing commitment, standard), each marked
   confirmed, proposed or not known, and the repository chosen; the inventory and documents, the
   conversation's own first; and the guardrails, closed until opened. What waits comes first
   because it is what a person must act on (`docs/ui/best-practices.md` §1, §2); the facts sit

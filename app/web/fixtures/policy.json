@@ -108,7 +108,7 @@
         "advisor.standards"
       ],
       "autonomy": "delegated",
-      "label": "Choose standard terms to describe your data",
+      "label": "Start a list of standard terms to describe your data",
       "phase_name": "Plan ahead",
       "phase_number": 1,
       "reason": null,
@@ -169,6 +169,17 @@
       "reason": null,
       "refers_to": null,
       "step_id": "governance.sensitive-data-handle"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Check the ethical, legal and institutional rules that apply",
+      "phase_name": "Check the rules",
+      "phase_number": 2,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "governance.constraints"
     },
     {
       "action_classes": [],
@@ -294,6 +305,17 @@
       "reason": "no_agent",
       "refers_to": null,
       "step_id": "preparation.metadata-standard"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Confirm the standard terms you will use",
+      "phase_name": "Get your data ready",
+      "phase_number": 4,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "preparation.vocabularies"
     },
     {
       "action_classes": [],

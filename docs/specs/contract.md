@@ -220,6 +220,13 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
     step state shows. Only the conductor fills it in a project ([Projects](projects.md), invariant
     6; [Orchestration](orchestration.md), invariant 20; #1374). Adding it raised the contract
     version to 0.20.0.
+33. A `ProjectFact` may be a `standard`: a standard, vocabulary, ontology or format a researcher
+    chose, named by `standard_name` (required), with a persistent identifier as a URL
+    (`standard_id`), its kind (`StandardKind`: metadata standard, controlled vocabulary,
+    ontology, terminology, data format or field format) and what it is chosen for
+    (`standard_target`: `dataset`, the default, or `field:<name>`). Its subject is the standard's
+    name, with the field for a field-level choice ([Projects](projects.md), invariant 28; #1391;
+    `sdk/tests/test_fact_kinds.py`). Adding it raised the contract version to 0.21.0.
 
 ## Boundaries and contracts
 
