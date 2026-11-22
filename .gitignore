@@ -244,3 +244,6 @@ mutants/
 
 # Load-test results (loadtest/README.md)
 loadtest/out/
+
+# scripts/test_value.py keeps its run here
+.test-value/
