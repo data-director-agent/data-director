@@ -53,7 +53,8 @@ spec is the design they build to.
 **Name-level hints, until then (#449).** The File Archivist (`advisor.files`) and the app's
 inventory view mark files whose folder, file or field names, size or digest call for a person to
 look: free text, coordinates, a folder of someone else's material, terms or an agreement, an
-operating-system file, an empty file and a byte-for-byte copy. The harness's deposit check works
+operating-system file, a configuration or credentials file, an empty file and a byte-for-byte
+copy. The harness's deposit check works
 out the same hints and asks a person to decide each before packaging ([Deposit](deposit.md), "The
 pause before packaging", #987). All three work them out from an inventory as it stands, by one rule
 table kept in two copies (`dd_sdk.inventory_hints`, which the adviser and the harness share, and
@@ -63,6 +64,18 @@ invariants 4 and 10 (a prompt for a person, and no hint is never clearance). Thi
 operating-system files and copies are not personal data; they are listed here because the same
 pause before deposit covers them. Whether the hints become findings of the
 `file name` and `field name` kinds when findings land, or stay beside them, TODO(#471).
+
+**Configuration and credentials files (#1320).** A file whose name is that of a configuration or
+credentials file is marked with the `credentials` hint, and a person is asked whether it holds
+passwords, keys or tokens and, if so, to leave it out of the deposit. The rule matches a whole
+name (`.env`, `.netrc`, `.pgpass`, `id_rsa`, `id_ed25519`, `credentials.json`, `secrets.yaml`), an
+extension (`.ini`, `.cfg`, `.conf`, `.env`, `.pem`, `.key`, `.p12`, `.pfx`, `.keystore`, `.jks`)
+or a whole word of the file name (`config`, `secret`, `credential`, `password`, `token`, `apikey`
+and their plurals), so `config.ini` is marked and `configuration_notes.md` and `tokenizer.py`
+are not. Agents see file names, not contents: a password, key or token inside a file, or a
+licence comment in its header, is not checked, and a file with no hint may still hold one.
+Reading the contents of files for such values is out of scope here, TODO(#1132); leaving a
+flagged file out of a draft is #1072.
 
 ## Threat model
 

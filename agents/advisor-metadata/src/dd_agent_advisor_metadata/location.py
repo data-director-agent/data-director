@@ -27,7 +27,7 @@ from dd_sdk.contract.facts import FactKind, LocationPrecision, ProjectFact, Sens
 from dd_sdk.contract.models import FileInventory
 
 # Whole lower-case words of a field name that suggest a location. Kept in step with the File
-# Archivist's `coordinates` hint (agents/advisor-files/.../hints.yaml); an agent imports no other.
+# Archivist's `coordinates` hint, whose rules are in `dd_sdk.inventory_hints`.
 LOCATION_WORDS = frozenset(
     {
         "lat", "lon", "lng", "latitude", "longitude", "easting", "northing", "eastings",
