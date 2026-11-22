@@ -104,7 +104,7 @@ no runtime dependency.
 | DataCite and Crossref REST (works) | `mcp-pid` | Live, through the tool gateway | A DOI | CC0; facts | The run says the resolver is unavailable |
 | ORCID public API | `dd_harness.orcid`; `mcp-pid` | Live, anonymous | An iD | Nothing kept; ORCID's API licence is for non-commercial use | As above |
 | Jisc Open Policy Finder, Crossref journals | Policy adviser (`opf`, `crossref`) | Live only | An ISSN, a journal title, a publisher or funder name | Nothing kept | FAIRsharing answers |
-| PRONOM | `dd_inventory.identify`, through `opf-fido` | A committed signature file built from a recent release by `inventory/scripts/pin_pronom.py`, checked against its hash | Nothing: identification is local | Open Government Licence v3.0, kept with the copy (`LICENCE.md`) | Media types from extensions |
+| PRONOM | `dd_inventory.identify`, through `opf-fido`; the files adviser, through `dd-formats` | For identification, a committed signature file built from a recent release by `inventory/scripts/pin_pronom.py`; for describing a format, the same release's records, committed as JSON Lines by `formats/scripts/pin_pronom_records.py`; each checked against its hash. A live record lookup is TODO(#1475) | Nothing: identification and lookup are local | Open Government Licence v3.0, kept with each copy (`LICENCE.md`) | Media types from extensions; a file with no PUID is described by extension only |
 | SPDX licence list | The gateway's `spdx` server; rights adviser | A pinned copy served by the gateway | A licence identifier | Pinned with the gateway | The adviser's packaged `licences.yaml` |
 
 A query never carries a researcher's unpublished text, file contents or names taken from their

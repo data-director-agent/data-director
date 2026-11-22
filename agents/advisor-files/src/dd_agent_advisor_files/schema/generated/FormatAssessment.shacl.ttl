@@ -5,7 +5,7 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 files:FormatAssessment a sh:NodeShape ;
-    rdfs:comment "The payload of advisor.files: each file of the inventory with the format it is judged to be, and whether that format is open. It judges from the inventory alone and reads no file." ;
+    rdfs:comment "The payload of advisor.files: each file of the inventory with the format it is judged to be, and whether that format is open. It reads no file: it judges from the inventory and the PRONOM records of the identifiers the inventory gives." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:description "How the summary came about: template, the rules' own summary, or model, where a model wrote it from the findings." ;
@@ -48,50 +48,24 @@ files:FormatAssessment a sh:NodeShape ;
             sh:path files:assessments ] ;
     sh:targetClass files:FormatAssessment .
 
-<https://w3id.org/data-director/GroundingRef> a sh:NodeShape ;
-    rdfs:comment "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (docs/specs/grounding.md). The linter matches every GroundingRef against a retrieval span on both fields." ;
-    sh:closed true ;
-    sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path <https://w3id.org/data-director/content_hash> ;
-            sh:pattern "^[0-9a-f]{64}$" ],
-        [ sh:datatype xsd:string ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path <https://w3id.org/data-director/source_id> ] ;
-    sh:targetClass <https://w3id.org/data-director/GroundingRef> .
-
 files:FileAssessment a sh:NodeShape ;
-    rdfs:comment "One file of the inventory and the format it is judged to be." ;
+    rdfs:comment "One file of the inventory and the format it is judged to be. grounded_on cites the PRONOM record the format is described from, when judged_by is pronom, and is empty otherwise." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
-            sh:description "The format the file is judged to be, from formats.yaml, or unknown." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path files:format_name ],
-        [ sh:description "What the judgement rests on." ;
+    sh:property [ sh:description "What the judgement rests on." ;
             sh:in ( "pronom" "pronom_unlisted" "media_type" "extension" "nothing" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 5 ;
             sh:path files:judged_by ],
         [ sh:datatype xsd:string ;
-            sh:description "The PRONOM identifier (PUID) the judgement rests on, or, when judged_by is pronom_unlisted, the first identifier the inventory gave. Absent when the inventory gave none that was used." ;
+            sh:description "The PRONOM identifier (PUID) of the record the format is described from (the current one, where the inventory gave a deprecated identifier), or, when judged_by is pronom_unlisted, the first identifier the inventory gave. Absent when the inventory gave none." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 6 ;
             sh:path files:pronom_id ],
         [ sh:datatype xsd:string ;
-            sh:description "The format's media type, from the inventory if it gave one, else from formats.yaml." ;
+            sh:description "The format's media type, from the inventory if it gave one, else from the PRONOM record or formats.yaml." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
@@ -104,12 +78,24 @@ files:FileAssessment a sh:NodeShape ;
             sh:order 0 ;
             sh:path files:path ],
         [ sh:datatype xsd:boolean ;
-            sh:description "Whether formats.yaml records the format as open. False for an unknown format." ;
+            sh:description "Whether the agent judges the format open, from formats.yaml (PRONOM does not say). Absent when the format is unknown or formats.yaml does not judge it." ;
             sh:maxCount 1 ;
-            sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 4 ;
             sh:path files:open_format ],
+        [ sh:datatype xsd:string ;
+            sh:description "The format the file is judged to be: its PRONOM record's name and version when judged_by is pronom, else the name formats.yaml gives, or unknown." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path files:format_name ],
+        [ sh:class <https://w3id.org/data-director/GroundingRef> ;
+            sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 7 ;
+            sh:path <https://w3id.org/data-director/grounded_on> ],
         [ sh:datatype xsd:string ;
             sh:description "The file name's last extension, lower case and without the dot; empty if none." ;
             sh:maxCount 1 ;
@@ -155,4 +141,23 @@ files:FileCheck a sh:NodeShape ;
             sh:order 0 ;
             sh:path files:path ] ;
     sh:targetClass files:FileCheck .
+
+<https://w3id.org/data-director/GroundingRef> a sh:NodeShape ;
+    rdfs:comment "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (docs/specs/grounding.md). The linter matches every GroundingRef against a retrieval span on both fields." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <https://w3id.org/data-director/content_hash> ;
+            sh:pattern "^[0-9a-f]{64}$" ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/source_id> ] ;
+    sh:targetClass <https://w3id.org/data-director/GroundingRef> .
 

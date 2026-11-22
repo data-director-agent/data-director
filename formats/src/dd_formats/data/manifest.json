@@ -1,0 +1,15 @@
+{
+  "pronom_version": 125,
+  "release_created": "2026-09-02",
+  "source": "The National Archives, PRONOM",
+  "derived_from": {
+    "file": "formats-v125.xml.gz",
+    "sha256": "0f8a8af41bbf0ec0fd6aa7fe4ceb182bb9421f50182e73eded63bd0b6bdc1b61"
+  },
+  "records": {
+    "file": "pronom-v125.jsonl",
+    "sha256": "063eecf28351eeb3cf7f207fd4f044b7b5624a67e51b8584a5ef48106a0f8c66",
+    "count": 2571
+  },
+  "licence": "OGL-UK-3.0"
+}

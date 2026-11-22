@@ -7,9 +7,9 @@ id: https://w3id.org/data-director/agents/files
 name: dd_agent_advisor_files
 title: advisor.files classes
 description: >-
-  The File Archivist's assessment, in reply to a project's file inventory, of whether each file's
-  format is open.
-version: 0.5.0
+  The File Archivist's assessment, in reply to a project's file inventory, of each file's format,
+  described from its PRONOM record where it has one, and whether that format is open.
+version: 0.6.0
 license: MIT
 
 prefixes:
@@ -27,7 +27,8 @@ classes:
   FormatAssessment:
     description: >-
       The payload of advisor.files: each file of the inventory with the format it is judged to
-      be, and whether that format is open. It judges from the inventory alone and reads no file.
+      be, and whether that format is open. It reads no file: it judges from the inventory and the
+      PRONOM records of the identifiers the inventory gives.
     mixins:
       - Grounded
     slots:
@@ -39,7 +40,11 @@ classes:
       - limitations
 
   FileAssessment:
-    description: One file of the inventory and the format it is judged to be.
+    description: >-
+      One file of the inventory and the format it is judged to be. grounded_on cites the PRONOM
+      record the format is described from, when judged_by is pronom, and is empty otherwise.
+    mixins:
+      - Grounded
     slots:
       - path
       - extension
@@ -74,22 +79,28 @@ slots:
     description: The file name's last extension, lower case and without the dot; empty if none.
     required: true
   format_name:
-    description: The format the file is judged to be, from formats.yaml, or unknown.
+    description: >-
+      The format the file is judged to be: its PRONOM record's name and version when judged_by is
+      pronom, else the name formats.yaml gives, or unknown.
     required: true
   media_type:
-    description: The format's media type, from the inventory if it gave one, else from formats.yaml.
+    description: >-
+      The format's media type, from the inventory if it gave one, else from the PRONOM record or
+      formats.yaml.
   open_format:
-    description: Whether formats.yaml records the format as open. False for an unknown format.
+    description: >-
+      Whether the agent judges the format open, from formats.yaml (PRONOM does not say). Absent
+      when the format is unknown or formats.yaml does not judge it.
     range: boolean
-    required: true
   judged_by:
     description: What the judgement rests on.
     range: JudgedBy
     required: true
   pronom_id:
     description: >-
-      The PRONOM identifier (PUID) the judgement rests on, or, when judged_by is pronom_unlisted,
-      the first identifier the inventory gave. Absent when the inventory gave none that was used.
+      The PRONOM identifier (PUID) of the record the format is described from (the current one,
+      where the inventory gave a deprecated identifier), or, when judged_by is pronom_unlisted,
+      the first identifier the inventory gave. Absent when the inventory gave none.
   checks:
     description: >-
       The files a person should look at, in the inventory's order and, for each file, in the order
@@ -130,17 +141,21 @@ enums:
   JudgedBy:
     permissible_values:
       pronom:
-        description: A PRONOM identifier the inventory gives, which is in formats.yaml.
+        description: >-
+          A PRONOM identifier the inventory gives, whose record in the pinned PRONOM release the
+          format is described from.
       pronom_unlisted:
         description: >-
-          The inventory gives PRONOM identifiers and none is in formats.yaml: the file is
-          identified, but not as a format this table knows.
+          The inventory gives PRONOM identifiers and the pinned PRONOM release has a record for
+          none of them: the file is identified, but not described.
       media_type:
         description: The media type the inventory gives, which fido may have read from content.
       extension:
         description: The file name's extension; the inventory's media type was absent or unknown.
       nothing:
-        description: Neither the media type nor the extension is in formats.yaml.
+        description: >-
+          The inventory gives no PRONOM identifier, and neither the media type nor the extension
+          is in formats.yaml.
 
   CheckKind:
     permissible_values:
@@ -164,5 +179,5 @@ enums:
         description: Another file in the inventory has the same digest.
       extension_mismatch:
         description: >-
-          The inventory's content-based identification and the file name's extension name
-          different formats.
+          The file's PRONOM record does not list its extension, one that formats.yaml knows: its
+          content-based identification and its name suggest different formats.

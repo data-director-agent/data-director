@@ -42,12 +42,12 @@ class FileCheck(Frozen):
     related_paths: list[str] = Field(default_factory=list)
 
 
-class FileAssessment(Frozen):
+class FileAssessment(Grounded):
     path: str
     extension: str
     format_name: str
     media_type: str | None = None
-    open_format: bool
+    open_format: bool | None = None
     judged_by: JudgedBy
     pronom_id: str | None = None
 

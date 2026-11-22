@@ -9,11 +9,13 @@ from pathlib import Path
 import pytest
 
 import dd_agent_advisor_files
+import dd_formats
 from dd_agent_advisor_files.agent import LIMITATIONS, UNKNOWN, FileArchivist, load_formats
 from dd_agent_advisor_files.classes import CheckKind, FormatAssessment, JudgedBy
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import describe
 from dd_sdk.contract.models import (
+    EvidenceItem,
     FileInventory,
     GroundingMode,
     IdentificationMethod,
@@ -22,6 +24,7 @@ from dd_sdk.contract.models import (
     ReasonCode,
     TableField,
 )
+from dd_sdk.evidence import verify
 from dd_sdk.schema import gen
 
 SAMPLES = Path(__file__).resolve().parents[3] / "workbench" / "samples"
@@ -95,22 +98,44 @@ def moorland() -> FileInventory:
     )
 
 
+def _record_name(puid: str) -> str:
+    record = dd_formats.lookup(puid)
+    assert record is not None
+    return record.name
+
+
 @pytest.mark.requirement("DD-GROUNDING-MODE", "DD-GROUNDED-PAYLOAD")
-def test_judges_each_file_of_the_inventory_by_its_identification(runs_dir: Path) -> None:
+def test_describes_each_file_from_the_pronom_record_of_its_identification(
+    runs_dir: Path,
+) -> None:
     conductor = make_conductor(runs_dir, FileArchivist())
     env = conductor.invoke(request("advisor.files", sample()), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
-    assert env.grounding_mode == GroundingMode.INPUT_ONLY
+    assert env.grounding_mode == GroundingMode.RETRIEVAL
     payload = env.payload_as(FormatAssessment)
-    assert [(a.path, a.format_name, a.open_format, a.judged_by) for a in payload.assessments] == [
-        ("README.md", "Markdown", True, JudgedBy.PRONOM),
-        ("data/readings.csv", "Comma-separated values", True, JudgedBy.PRONOM),
-        ("data/sites.tsv", UNKNOWN, False, JudgedBy.PRONOM_UNLISTED),
-        ("docs/protocol.pdf", "PDF", True, JudgedBy.PRONOM),
-        ("docs/site-map.png", "PNG", True, JudgedBy.PRONOM),
-    ]
+    for a, given in zip(payload.assessments, sample().inventory_files, strict=True):
+        assert a.judged_by == JudgedBy.PRONOM
+        assert a.pronom_id == given.file_pronom_ids[0]
+        assert a.format_name.startswith(_record_name(a.pronom_id))
+        assert a.open_format is True
+        assert [g.source_id for g in a.grounded_on] == [a.pronom_id]
     assert payload.limitations
     assert conductor.grounding_reports[env.invocation_id].passed
+
+
+def test_each_record_cited_is_in_the_evidence_and_rehashes(runs_dir: Path) -> None:
+    env = make_conductor(runs_dir, FileArchivist()).invoke(
+        request("advisor.files", sample()), acting_for=TEST_PRINCIPAL
+    )
+    payload = env.payload_as(FormatAssessment)
+    evidence: dict[tuple[str, str], EvidenceItem] = {
+        (e.source_id, e.content_hash): e for e in env.evidence
+    }
+    for ref in (g for a in payload.assessments for g in a.grounded_on):
+        item = evidence[(ref.source_id, ref.content_hash)]
+        assert item.content is not None and item.snapshot_ref
+        assert verify(item.content, item.canonicalisation, item.content_hash)
+        assert ref in payload.grounded_on
 
 
 def test_falls_back_to_the_extension_and_says_when_nothing_is_known(runs_dir: Path) -> None:
@@ -128,11 +153,13 @@ def test_falls_back_to_the_extension_and_says_when_nothing_is_known(runs_dir: Pa
     ] == [
         ("sav", "SPSS data file", False, JudgedBy.EXTENSION),
         ("doc", "Microsoft Word 97-2003", False, JudgedBy.EXTENSION),
-        ("rdx", UNKNOWN, False, JudgedBy.NOTHING),
+        ("rdx", UNKNOWN, None, JudgedBy.NOTHING),
     ]
     assert payload.assessments[1].media_type == "application/x-unrecognised"
     assert payload.assessments[2].media_type is None
     assert payload.checks == []
+    # Identified by extension only: no PRONOM record is cited.
+    assert all(a.grounded_on == [] and a.pronom_id is None for a in payload.assessments)
 
 
 def test_asks_a_person_to_look_at_files_whose_names_call_for_it(runs_dir: Path) -> None:
@@ -232,26 +259,41 @@ def test_its_classes_are_generated_from_its_linkml() -> None:
 def test_pronom_identification_is_preferred_to_media_type_and_extension() -> None:
     files = of_files(file("data/export.dat", pronom=("x-fmt/18",), media_type="text/plain"))
     assessment = FileArchivist()._assess(files.inventory_files[0])
-    assert (assessment.format_name, assessment.judged_by, assessment.pronom_id) == (
-        "Comma-separated values",
-        JudgedBy.PRONOM,
-        "x-fmt/18",
-    )
+    assert assessment.format_name == _record_name("x-fmt/18")
+    assert (assessment.judged_by, assessment.pronom_id) == (JudgedBy.PRONOM, "x-fmt/18")
 
 
-def test_the_first_identifier_in_the_table_is_used() -> None:
-    assessment = FileArchivist()._assess(file("a.bin", pronom=("fmt/99999", "fmt/276")))
-    assert (assessment.format_name, assessment.pronom_id) == ("PDF", "fmt/276")
+def test_the_first_identifier_the_release_has_is_used() -> None:
+    assessment = FileArchivist()._assess(file("a.bin", pronom=("fmt/999999", "fmt/276")))
+    assert assessment.pronom_id == "fmt/276"
+    assert assessment.format_name.startswith(_record_name("fmt/276"))
 
 
-def test_an_identifier_outside_the_table_is_reported_as_such() -> None:
+def test_a_deprecated_identifier_is_described_by_the_record_that_replaces_it() -> None:
+    old = next(r for r in dd_formats.records() if r.superseded_by == "fmt/353")
+    assessment = FileArchivist()._assess(file("scan.tif", pronom=(old.puid,)))
+    assert assessment.pronom_id == "fmt/353"
+    assert [g.source_id for g in assessment.grounded_on] == ["fmt/353"]
+
+
+def test_an_identifier_the_release_lacks_is_reported_as_such() -> None:
     assessment = FileArchivist()._assess(
-        file("data/readings.csv", pronom=("fmt/99999",), media_type="text/csv")
+        file("data/readings.csv", pronom=("fmt/999999",), media_type="text/csv")
     )
     assert assessment.judged_by == JudgedBy.PRONOM_UNLISTED
-    assert assessment.pronom_id == "fmt/99999"
+    assert assessment.pronom_id == "fmt/999999"
     assert assessment.format_name == UNKNOWN
-    assert not assessment.open_format
+    assert assessment.open_format is None
+    assert assessment.grounded_on == []
+
+
+def test_a_format_the_table_does_not_judge_is_described_but_not_judged() -> None:
+    table = load_formats()
+    unjudged = next(r for r in dd_formats.records() if r.puid not in table.open)
+    assessment = FileArchivist()._assess(file("x.bin", pronom=(unjudged.puid,)))
+    assert assessment.judged_by == JudgedBy.PRONOM
+    assert assessment.format_name != UNKNOWN
+    assert assessment.open_format is None
 
 
 def test_content_that_disagrees_with_the_extension_is_a_check() -> None:
@@ -267,11 +309,11 @@ def test_content_that_disagrees_with_the_extension_is_a_check() -> None:
     assert checks[0].question
 
 
-def test_the_formats_table_has_no_puid_twice_for_different_formats() -> None:
-    seen: dict[str, str] = {}
-    for known in load_formats().values():
-        for puid in known.pronom:
-            assert seen.setdefault(puid, known.name) == known.name
+def test_every_puid_the_table_judges_is_a_current_record_of_the_release() -> None:
+    for puid in load_formats().open:
+        record = dd_formats.lookup(puid)
+        assert record is not None, puid
+        assert record.puid == puid, f"{puid} is deprecated in favour of {record.puid}"
 
 
 @pytest.mark.parametrize(
