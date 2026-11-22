@@ -9,7 +9,8 @@
  * message, beside whatever the server stored of it.
  *
  * While a reply is awaited the message sits in the transcript; it comes back to the message box if
- * the send fails, so nothing typed or attached is lost, but not once the turn is stored, so that it
+ * the send fails, and what it attached comes back whether it was typed or sent answers, so nothing
+ * typed or attached is lost, but not once the turn is stored, so that it
  * is never sent twice (#337). Each turn names the latest turn the page shows, and the server
  * refuses one that does not follow it. Switching project closes the open conversation; starting a
  * project by sending the first message does not, since the open conversation is the one that
@@ -62,7 +63,7 @@ export interface TurnsOptions {
   runId: string | null;
   /** The conversation the address names. */
   urlConversation: string | null;
-  box: RefObject<HTMLTextAreaElement | null>;
+  box: RefObject<{ focus(): void } | null>;
   announce(said: string): void;
   /** Puts text in the message box. */
   setText(text: string): void;
@@ -250,11 +251,11 @@ export function useConversationTurns(options: TurnsOptions): Turns {
   }
 
   /** The turn was not stored: the message goes back to the box, and the page says why. */
-  function notSent(e: unknown, id: string | null, back: Sent | null) {
-    if (back) {
-      setText(back.message);
-      options.restore({ inventory: back.inventory, document: back.document });
-    }
+  function notSent(e: unknown, id: string | null, back: Sent, fromBox: boolean) {
+    // Answers stay in their form; a typed message goes back to the box. Either way what was
+    // attached comes back.
+    if (fromBox) setText(back.message);
+    options.restore({ inventory: back.inventory, document: back.document });
     // The server may have received the turn and be running it, or have moved on: show what it
     // stored.
     if (id && (e instanceof Unreachable || e instanceof TurnConflict)) {
@@ -271,10 +272,9 @@ export function useConversationTurns(options: TurnsOptions): Turns {
     turn.clear();
     setSent(sending);
     setSentAfter(conversation?.turns.length ?? 0);
-    if (fromBox) {
-      setText("");
-      options.restore(NOTHING);
-    }
+    // What is attached goes with answers as with a typed message; the box's text only with the latter.
+    if (fromBox) setText("");
+    options.restore(NOTHING);
   }
 
   /** The run has ended and the conversation has been read again. A finished run is shown as a
@@ -323,7 +323,7 @@ export function useConversationTurns(options: TurnsOptions): Turns {
       if (ended) notShown(e);
       else {
         turn.clear();
-        notSent(e, id, fromBox ? { message, ...carried } : null);
+        notSent(e, id, { message, ...carried }, fromBox);
       }
     } finally {
       // A run that did not finish keeps its screen, whose heading has the focus.

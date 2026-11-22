@@ -229,7 +229,8 @@ describe("ConversationHome", () => {
         "Refused: not an option",
       );
       expect(screen.getByRole("radio", { name: COLLECTED })).toBeChecked();
-      expect(box).toHaveValue("");
+      await userEvent.click(screen.getByRole("button", { name: "Reply in my own words instead" }));
+      expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toHaveValue("");
     });
 
     it("may be ignored: a typed message is sent with no answer", async () => {
@@ -246,7 +247,14 @@ describe("ConversationHome", () => {
       await screen.findByRole("group", {
         name: "Where are you with your research data?",
       });
-      await userEvent.type(box, "ready to deposit");
+      // One way of replying shows at a time: the questions take the message box's place.
+      expect(screen.queryByRole("textbox", { name: "What would you like to do?" })).toBeNull();
+      await userEvent.click(screen.getByRole("button", { name: "Reply in my own words instead" }));
+      expect(screen.queryByRole("group", { name: "Where are you with your research data?" })).toBeNull();
+      await userEvent.type(
+        await screen.findByRole("textbox", { name: "What would you like to do?" }),
+        "ready to deposit",
+      );
       await userEvent.click(screen.getByRole("button", { name: "Send" }));
       expect(sendTurn).toHaveBeenLastCalledWith(
         "c1",
@@ -258,6 +266,49 @@ describe("ConversationHome", () => {
           null,
           null,
         ),
+      );
+    });
+
+    it("swaps back from the message box to the questions, keeping what was chosen", async () => {
+      await renderHome(withOrchestrator(), fakeApi({ get: () => Promise.resolve(QUESTION) }));
+      await userEvent.type(screen.getByRole("textbox", { name: "What would you like to do?" }), "hi");
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
+      await userEvent.click(await screen.findByRole("radio", { name: COLLECTED }));
+      await userEvent.click(screen.getByRole("button", { name: "Reply in my own words instead" }));
+      await waitFor(() =>
+        expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toHaveFocus(),
+      );
+      await userEvent.click(screen.getByRole("button", { name: "Answer the questions instead" }));
+      expect(screen.queryByRole("textbox", { name: "What would you like to do?" })).toBeNull();
+      expect(screen.getByRole("radio", { name: COLLECTED })).toBeChecked();
+    });
+
+    it("sends a file attached while answering beside the answers", async () => {
+      const sendTurn = vi.fn().mockResolvedValue(undefined);
+      const { container } = await renderHome(
+        withOrchestrator(),
+        fakeApi({ sendTurn, get: () => Promise.resolve(QUESTION) }),
+      );
+      await userEvent.type(screen.getByRole("textbox", { name: "What would you like to do?" }), "hi");
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
+      const group = await screen.findByRole("group", { name: "Where are you with your research data?" });
+      const form = group.closest("form");
+      if (!form) throw new Error("no form");
+      expect(within(form).getByRole("button", { name: "Attach a file" })).toBeVisible();
+      const input = container.querySelector<HTMLInputElement>('input[type="file"]');
+      if (!input) throw new Error("no file input");
+      await userEvent.upload(input, new File(["# Plan"], "plan.md", { type: "text/markdown" }));
+      const review = await screen.findByRole("dialog", { name: "Check the document before attaching it" });
+      await userEvent.click(within(review).getByRole("button", { name: "Attach this document" }));
+      expect(await within(form).findByText(/Document: plan.md/)).toBeVisible();
+      await userEvent.click(within(group).getByRole("radio", { name: COLLECTED }));
+      await userEvent.click(screen.getByRole("button", { name: "Send answer" }));
+      expect(sendTurn).toHaveBeenLastCalledWith(
+        "c1",
+        expect.objectContaining({
+          reply_answers: expect.objectContaining({ answer_to: QUESTION.turns[0]?.invocation_id }),
+          documentation: expect.objectContaining({ name: "plan.md", text: "# Plan" }),
+        }),
       );
     });
   });

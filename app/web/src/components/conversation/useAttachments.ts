@@ -67,7 +67,7 @@ export interface Attachments extends Carried {
   clearError(): void;
 }
 
-function focusLater(box: RefObject<HTMLTextAreaElement | null>) {
+function focusLater(box: RefObject<{ focus(): void } | null>) {
   requestAnimationFrame(() => box.current?.focus());
 }
 
@@ -93,7 +93,7 @@ export function notAttached(opened: string, left: readonly string[]): string {
 }
 
 export function useAttachments(
-  box: RefObject<HTMLTextAreaElement | null>,
+  box: RefObject<{ focus(): void } | null>,
   announce: (said: string) => void,
   documents = true,
 ): Attachments {

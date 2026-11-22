@@ -50,7 +50,7 @@ export function sendFailure(e: unknown): string {
     : `Data Director could not send this: ${errorMessage(e)}`;
 }
 
-/** A turn's body: the answer, or else the document, only when there is one. */
+/** A turn's body: the answers and what is attached, each only when there is one. */
 export function body(
   agentId: string,
   message: string,
@@ -59,7 +59,7 @@ export function body(
   answer: ReplyAnswers | null,
 ): Record<string, unknown> {
   const inventory = carried.inventory?.document ?? null;
-  return turnBody(agentId, message, follows, inventory, answer, answer ? null : carried.document);
+  return turnBody(agentId, message, follows, inventory, answer, carried.document);
 }
 
 /** A turn the server refused once its stream was open, before any run began: nothing was run. */

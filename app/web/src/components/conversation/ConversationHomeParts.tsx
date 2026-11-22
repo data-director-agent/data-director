@@ -230,7 +230,7 @@ export function askInBox(
   question: string,
   text: string,
   setText: (text: string) => void,
-  box: RefObject<HTMLTextAreaElement | null>,
+  box: RefObject<{ focus(): void } | null>,
 ): void {
   setText(text.trim() ? `${text.trimEnd()}\n\n${question}` : question);
   box.current?.focus();

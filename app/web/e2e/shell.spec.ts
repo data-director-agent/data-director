@@ -392,6 +392,9 @@ for (const scheme of ["light", "dark"] as const) {
     await expect(
       group.getByRole("radio", { name: "Data already collected, being prepared for sharing" }),
     ).toBeChecked();
+    // Attach a file leads the action row, so a file may go with the answer.
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("button", { name: "Attach a file" })).toBeFocused();
     await page.keyboard.press("Tab");
     await expect(page.getByRole("button", { name: "Send answer" })).toBeFocused();
     await page.keyboard.press("Enter");
@@ -401,7 +404,9 @@ for (const scheme of ["light", "dark"] as const) {
       answer_to: question.turns[0]?.invocation_id,
       given_answers: [{ answered_key: "entry", answer_values: ["2"] }],
     });
-    await expect(box).toBeFocused();
+    // The reply asks again, so its question, in the message box's place, takes the focus.
+    await expect(box).toBeHidden();
+    await expect(page.locator("legend", { hasText: "What would you like to do next?" })).toBeFocused();
     expect(await axeViolations(page)).toEqual([]);
   });
 

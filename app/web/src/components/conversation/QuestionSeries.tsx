@@ -11,21 +11,47 @@
  * together. Any question may be skipped; at least one must be answered. A lone question is
  * answered and sent in place. On moving to another question the focus moves to its legend.
  *
- * Only the latest turn's questions can be answered. Sending them sends the answers in words, as
- * Markdown that pairs each question with its answer (`answersText`), as the message, beside the
- * answers themselves, which the harness checks against the questions. The
- * researcher may ignore them and type in the message box instead. Earlier questions are shown as
+ * Only the latest turn's questions can be answered, and they are answered in the message box's
+ * place (`ReplyArea`): the page passes what attaches a file (`attach`) for the action row, and a
+ * file dropped on the form is attached, so a file goes with the answers. Sending them sends the
+ * answers in words, as Markdown that pairs each question with its answer (`answersText`), as the
+ * message, beside the answers themselves, which the harness checks against the questions. The
+ * researcher may ignore them and reply in their own words instead. Earlier questions are shown as
  * they were answered, marked with an icon and words, never by colour alone.
  */
 
 import "./QuestionSeries.css";
 
 import { ArrowLeft, ArrowRight, Check, Pencil, SendHorizontal, SkipForward } from "lucide-react";
-import { type FormEvent, useEffect, useId, useRef, useState } from "react";
+import { type DragEvent, type FormEvent, type ReactNode, type Ref, useEffect, useId, useImperativeHandle, useRef, useState } from "react";
 
 import { type Question, type ReplyAnswers, answerSaid, answersText } from "../../conversation/question";
 import { Button } from "../ui/Button";
 import { type Draft, EMPTY, QuestionField, answerOf, problemOf } from "./ChoiceQuestion";
+
+/** What lets a file be dropped on the questions' form, as on the message form. */
+export interface DropTarget {
+  dropping: boolean;
+  onDragOver: (event: DragEvent<HTMLFormElement>) => void;
+  onDragLeave: () => void;
+  onDrop: (event: DragEvent<HTMLFormElement>) => void;
+}
+
+/** What the form takes to have a file dropped on it, a shortcut for the Attach a file button. */
+function dropTargetProps(drop: DropTarget | undefined) {
+  if (!drop) return {};
+  return {
+    className: `choice-question question-series${drop.dropping ? " dropping" : ""}`,
+    onDragOver: drop.onDragOver,
+    onDragLeave: drop.onDragLeave,
+    onDrop: drop.onDrop,
+  };
+}
+
+/** Moves the focus to the question shown, or to the answers to check. */
+export interface QuestionFocus {
+  focus(): void;
+}
 
 export function QuestionSeries({
   questions,
@@ -33,6 +59,9 @@ export function QuestionSeries({
   askedByName,
   onAnswer,
   disabled = false,
+  attach,
+  drop,
+  ref,
 }: {
   questions: Question[];
   /** The invocation whose reply asks them. */
@@ -41,6 +70,11 @@ export function QuestionSeries({
   askedByName?: string;
   onAnswer: (answers: ReplyAnswers, text: string) => void;
   disabled?: boolean;
+  /** What attaches a file, put first in the action row. */
+  attach?: ReactNode;
+  /** Takes a file dropped on the form. */
+  drop?: DropTarget;
+  ref?: Ref<QuestionFocus>;
 }) {
   const id = useId();
   const count = questions.length;
@@ -57,6 +91,11 @@ export function QuestionSeries({
     if (!moved.current) return;
     (step < count ? legend.current : review.current)?.focus();
   }, [step, count]);
+  useImperativeHandle(ref, () => ({ focus: () => (step < count ? legend.current : review.current)?.focus() }), [
+    step,
+    count,
+  ]);
+  const dropProps = dropTargetProps(drop);
 
   const draftOf = (q: Question): Draft => drafts[q.question_key] ?? EMPTY;
   const given = questions.flatMap((q) => {
@@ -122,20 +161,34 @@ export function QuestionSeries({
     if (!q) return null;
     const ready = answerOf(q, draftOf(q)) !== null;
     return (
-      <form className="choice-question question-series" onSubmit={next} aria-label={q.question_prompt}>
+      <form className="choice-question question-series" {...dropProps} onSubmit={next} aria-label={q.question_prompt}>
         <fieldset className="question-step" disabled={disabled}>
-          <QuestionField question={q} draft={draftOf(q)} onChange={(d) => change(q, d)} error={error} />
+          <QuestionField
+            question={q}
+            draft={draftOf(q)}
+            onChange={(d) => change(q, d)}
+            error={error}
+            legendRef={legend}
+          />
         </fieldset>
-        <Button type="submit" variant="primary" icon={SendHorizontal} isDisabled={!ready || disabled}>
-          Send answer
-        </Button>
+        <div className="question-actions">
+          {attach}
+          <Button type="submit" variant="primary" icon={SendHorizontal} isDisabled={!ready || disabled}>
+            Send answer
+          </Button>
+        </div>
       </form>
     );
   }
 
   const q = step < count ? questions[step] : undefined;
   return (
-    <form className="choice-question question-series" onSubmit={next} aria-labelledby={`${id}-heading`}>
+    <form
+      className="choice-question question-series"
+      {...dropProps}
+      onSubmit={next}
+      aria-labelledby={`${id}-heading`}
+    >
       <p className="question-series-heading" id={`${id}-heading`}>
         <strong>{heading}</strong>
       </p>
@@ -188,13 +241,14 @@ export function QuestionSeries({
             </dl>
             {given.length === 0 && (
               <p className="hint" role="status">
-                Answer at least one question to send your answers, or type a reply below instead.
+                Answer at least one question to send your answers, or reply in your own words instead.
               </p>
             )}
           </section>
         )}
       </fieldset>
       <div className="question-actions">
+        {attach}
         {step > 0 && (
           <Button icon={ArrowLeft} onPress={() => go(step - 1)} isDisabled={disabled}>
             Back
