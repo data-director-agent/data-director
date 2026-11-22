@@ -25,6 +25,7 @@ import type {
   Escalation,
   ProjectEscalations,
   ProjectRuns,
+  ProjectStewarding,
   RunResult,
   StewardQueue,
 } from "./api/generated/responses";
@@ -67,6 +68,7 @@ import projectFacts from "../fixtures/project-facts.json";
 import projectFactsDecided from "../fixtures/project-facts-decided.json";
 import projectFactsForbidden from "../fixtures/project-facts-forbidden.json";
 import stewardQueue from "../fixtures/steward-queue.json";
+import stewarding from "../fixtures/stewarding.json";
 import projectFairnessRuns from "../fixtures/project-fairness-runs.json";
 import projectResearchers from "../fixtures/project-researchers.json";
 import projects from "../fixtures/projects.json";
@@ -120,6 +122,7 @@ void (projectMembersLastOwner satisfies Wide<Problem>);
 void (escalations satisfies Wide<ProjectEscalations>);
 void (escalationResolved satisfies Wide<Escalation>);
 void (stewardQueue satisfies Wide<StewardQueue>);
+void (stewarding satisfies Wide<ProjectStewarding>);
 void (projectResearchers satisfies Wide<ResearcherRecord>[]);
 void (orcidRecord satisfies Wide<ResearcherRecord>);
 void (intakePending satisfies Wide<ProjectIntake>);

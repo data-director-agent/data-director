@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from typing import Final
 
+from dd_agent_orchestrator_model.steward_offer import STEWARD_KEY, STEWARD_QUESTION
 from dd_sdk.contract.models import ChoiceOption, Message, Question, QuestionKind, TurnRole
 
 CONSENT_KEY: Final = "consent-provisional"
@@ -56,7 +57,11 @@ def chose_provisional(message: Message) -> bool:
     )
 
 
+_FIXED: Final = {CONSENT_KEY: CONSENT_QUESTION, STEWARD_KEY: STEWARD_QUESTION}
+
+
 def fixed(question: Question) -> Question:
-    """The question as it is shown: the consent choice always in its own words and values, so
-    that the answer can be read without reading the model's wording."""
-    return CONSENT_QUESTION if question.question_key == CONSENT_KEY else question
+    """The question as it is shown: a reserved question (the consent choice, the offer of a data
+    steward) always in its own words and values, so that the answer can be read without reading
+    the model's wording."""
+    return _FIXED.get(question.question_key, question)

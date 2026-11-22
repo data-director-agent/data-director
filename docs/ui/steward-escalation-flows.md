@@ -89,7 +89,7 @@ The pattern:
 2. **Offer.** One clear option: "Ask a data steward about this". The offer is a suggestion; the agent does not decide on the researcher's behalf.
 3. **Show what will be shared.** The same summary as Flow A, prefilled with the question the agent drafted, which the researcher can edit.
 4. **Researcher confirms.** Only then is the escalation created, recorded against the project with its origin (policy gate, agent, orchestrator) so a steward knows why it arrived.
-5. **Decline is easy, except for a mandatory review.** "Not now" dismisses the offer, and it does not nag. Proposed default: once declined, the agent does not raise the offer again for the same trigger in that conversation; a different trigger, or a new run that ends in the same way, may offer again. The researcher can still ask at any time through Flow A. TODO(#375)
+5. **Decline is easy, except for a mandatory review.** "Not now" dismisses the offer, and it does not nag. Proposed default: once declined, the agent does not raise the offer again for the same trigger in that conversation; a different trigger, or a new run that ends in the same way, may offer again. The researcher can still ask at any time through Flow A. Decided in #375: the orchestrator's prompt does not offer again for the same matter in that conversation after "Not now"; the offer beside a run stays with that run.
 
 Two cases differ slightly:
 

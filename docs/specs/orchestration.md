@@ -346,6 +346,15 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     participants' consent, and no package is built, so none is deposited, until it is given
     ([Deposit](deposit.md)). The pause on sensitive data itself is unchanged. (#1327;
     `agents/orchestrator-model/tests/test_orchestrator_provisional.py`)
+24. **The orchestrator offers a data steward and raises nothing.** When an agent abstains or is
+    referred, or the researcher is stuck on something no agent can help with, the model-backed
+    orchestrator may offer one fixed choice question, `ask-steward`: ask a data steward (`send`)
+    or not now (`not-now`). As with `consent-provisional`, the orchestrator puts in the
+    question's wording and options itself. The app shows the offer and, on `send`, opens the
+    escalation only once the researcher has seen what will be shared and sent it, with the
+    orchestrator's turn as its origin ([Data stewards](stewardship.md), invariant 5). The prompt
+    does not offer again for the same matter in a conversation after "Not now". (#375;
+    `agents/orchestrator-model/tests/test_orchestrator_steward_offer.py`)
 
 ## Boundaries and contracts
 

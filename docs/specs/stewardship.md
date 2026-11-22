@@ -35,7 +35,9 @@ the people who do this work have a [Data Steward's Guide](../guide/steward-guide
 `referred_to: data_steward` and does not run the agent ([Policy and identity](policy-and-identity.md),
 `dd_harness.refusals`), and the Policy page shows each step a steward must approve
 ([The app](app.md)). Deployment roles (invariant 1). The escalation record, its routing and a
-steward's queue (invariant 4), without the screens, TODO(#375, #376). The steward path, recorded
+steward's queue (invariant 4). The researcher's side in the app: asking, the agents' offers, each
+request's status, withdrawing, replying and re-opening, and steward messages in the conversation
+(invariants 5, 10 and 11, #375); the steward's screens are TODO(#376). The steward path, recorded
 reads, the closed list of a steward's actions, clearing or refusing a gate as a record, and pause
 (invariants 2, 3, 6, 7 and 8), through the API and without the screens, TODO(#376). Everything
 else in this spec is the intended design; each invariant names the issue that builds it.
@@ -116,7 +118,13 @@ else in this spec is the intended design; each invariant names the issue that bu
 5. **The agent offers; a person confirms.** No escalation exists until a person confirms it, having
    seen what will be shared. An agent's `abstained` outcome offers an escalation and never raises
    one. The exception is a mandatory review (invariant 9): the step is stopped whatever the
-   researcher chooses, and the offer is how its reviewer is reached. Not built yet, TODO(#375).
+   researcher chooses, and the offer is how its reviewer is reached. Built: the app offers beside
+   each `referred` or `abstained` run and in place of the orchestrator's `ask-steward` question
+   ([Orchestration](orchestration.md), invariant 24), and opens the escalation only from the
+   dialog in which the researcher reads what is shared, may narrow it, and sends it. A mandatory
+   review's dialog offers "Leave it stopped", not "Not now". After "Not now" the orchestrator does
+   not offer again for the same matter in that conversation, which its prompt says; a run's own
+   offer stays beside it, and the researcher may ask at any time.
 
 6. **What a steward may do in a project is a closed list.** Each action is checked by the harness
    against the steward's access (invariant 3) and recorded as an event naming the steward as whom
@@ -187,13 +195,17 @@ else in this spec is the intended design; each invariant names the issue that bu
 10. **The researcher can see everything a steward does in their project.** The project's log view
     shows each `steward_viewed` (who and when), each steward action and each escalation's state,
     and a single status line answers "what is happening with my request?". A steward's message,
-    proposed version and run are always labelled with the steward's name. Not built yet,
-    TODO(#375, #376).
+    proposed version and run are always labelled with the steward's name. Built for the
+    researcher (#375): each request's status line and moves in the project pane, and each steward
+    message and move in the conversation between the turns it fell between, as "Data steward:
+    Name". The project's log view of reads and a steward's proposed versions and runs is
+    TODO(#376).
 
 11. **A deployment without stewards still works** (C17). With no `stewardship` key, or no team
     for a project, the "Ask a data steward" control says so and shows the profile's contact if it
     has one, a referred step stays stopped with its card and its reason, and nothing else changes
-    for the researcher. Not built yet, TODO(#375).
+    for the researcher. Built for the control and the referred step (#375). The profile's contact is
+    named per team, so with no team the control says to ask whoever runs the deployment.
 
 12. **A steward's contribution is attributed** (P5, R10). Each steward event maps to a
     `prov:Activity` associated with the steward as a `prov:Person` identified by their ORCID iD

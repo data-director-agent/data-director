@@ -72,3 +72,11 @@ export function useAnnounce(): Announce {
   if (!announce) throw new Error("useAnnounce needs an AnnouncerProvider (the frame mounts one)");
   return announce;
 }
+
+const SILENT: Announce = () => undefined;
+
+/** As `useAnnounce`, but says nothing outside a frame, as when a part shown on every project page,
+ * such as the project's navigation, is tested on its own. */
+export function useAnnounceIfMounted(): Announce {
+  return useContext(AnnounceContext) ?? SILENT;
+}

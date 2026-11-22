@@ -5,9 +5,9 @@ researcher's project. Everything that happens to it is kept there and shown to t
 
 !!! note "Partly built"
     The escalation record, its routing and your queue are built and reached through the app's
-    API (`/api/steward/escalations`). The screens described below are not built yet: the
-    researcher's side is [#375](https://github.com/data-director-agent/data-director/issues/375),
-    and the queue and the controls are [#376](https://github.com/data-director-agent/data-director/issues/376).
+    API (`/api/steward/escalations`), and so is the researcher's side in the app
+    ([#375](https://github.com/data-director-agent/data-director/issues/375)). Your queue and its
+    controls are not built yet: [#376](https://github.com/data-director-agent/data-director/issues/376).
 
 ## Where escalations come from
 
