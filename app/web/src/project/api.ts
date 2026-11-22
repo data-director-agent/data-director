@@ -28,10 +28,14 @@ import type {
   SavedInventory,
   Validation,
 } from "../api/generated/responses";
+import type { AttachedDocument, DocumentationSummary } from "../conversation/documentation";
 import type { ProjectProgress, StepMark } from "../flow/types";
 import { json } from "../http";
 import type { Problem } from "../run/types";
+import type { RepositoryRequirements } from "./repository";
 import type { KeepChoice, ResearcherRecord } from "./researcher";
+
+export type { RepositoryRequirements } from "./repository";
 
 export type { DocumentQuestion } from "../api/contract";
 export type {
@@ -98,41 +102,6 @@ export class PackageRefused extends Error {
   }
 }
 
-/** One field a repository's requirements name, and how much the deposit needs it. */
-export interface RequiredField {
-  property: string;
-  schema_org: string;
-  obligation: "required" | "recommended";
-  /** What the repository's own deposit form calls it, where an override says. */
-  form_label?: string;
-  qualifier?: Record<string, string>;
-}
-
-/**
- * The requirements a chosen repository resolved to (docs/specs/deposit.md): its override, if any,
- * merged on its standard's set. Its name and declared standards came from the pinned registry
- * (re3data's, or DataCite's for one re3data does not list), not from anyone typing them.
- */
-export interface RepositoryRequirements {
-  repository_id: string;
-  repository_name: string;
-  conforms_to: string;
-  requirement_sets: { ref: string; sha256: string }[];
-  fields: RequiredField[];
-  required_documents: string[];
-  recommended_documents: string[];
-  media_types?: string[];
-  licences?: string[];
-  max_file_size?: number;
-  max_item_size?: number;
-  warnings: string[];
-  /** What the sets' sources leave open, each naming the issue that will settle it. */
-  unconfirmed?: string[];
-  /** Where the repository is, from its override; absent without one. */
-  repository_url?: string;
-  guidance?: string[]; // The pages the sets' values came from, the standard's first.
-}
-
 export interface ProjectApi {
   projects(signal?: AbortSignal): Promise<ProjectSummary[]>;
   /** Start a project of the person's own, with no conversation yet, named by `title` if given
@@ -161,6 +130,12 @@ export interface ProjectApi {
   inventory(projectId: string, signal?: AbortSignal): Promise<unknown>;
   /** Adds `inventory` as the project's latest, revising the one it holds; answers with what it then holds. */
   saveInventory(projectId: string, inventory: unknown): Promise<SavedInventory>;
+  /** The supporting documents the project holds, without their text, the first added first. */
+  documentation(projectId: string, signal?: AbortSignal): Promise<DocumentationSummary[]>;
+  /** Keeps `document`, which the person has checked, in the project; answers with the documents
+   * the project then holds. Refused, with nothing kept, if the profile or the project refuses it
+   * or what the check found is not in `document.confirmed`. */
+  attachDocument(projectId: string, document: AttachedDocument): Promise<DocumentationSummary[]>;
   /** The repository chosen for the project, or null if none has been. */
   repository(projectId: string, signal?: AbortSignal): Promise<RepositoryRequirements | null>;
   /** Where the project is in the process flow, derived anew by the harness. */
@@ -289,6 +264,15 @@ export const httpProjectApi: ProjectApi = {
   },
   async saveInventory(projectId, inventory) {
     return parse(await fetch(`${projectPath(projectId)}/inventory`, post({ inventory })));
+  },
+  async documentation(projectId, signal) {
+    return parse(await fetch(`${projectPath(projectId)}/documentation`, signal ? { signal } : {}));
+  },
+  async attachDocument(projectId, document) {
+    // A Word document or PDF goes as the file, whose text the server reads; text goes as text.
+    const { name, media_type, text, data, confirmed = [] } = document;
+    const body = data === undefined ? { name, media_type, text, confirmed } : { name, media_type, data, confirmed };
+    return parse(await fetch(`${projectPath(projectId)}/documentation`, post(body)));
   },
   async repository(projectId, signal) {
     const response = await fetch(`${projectPath(projectId)}/repository`, signal ? { signal } : {});

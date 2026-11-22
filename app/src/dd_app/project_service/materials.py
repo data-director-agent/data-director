@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from dd_app.attached import keep_attached
+from dd_app.documentation_check import accept
 from dd_app.project_service._area import Area
+from dd_app.turn_body import AttachedDocument
 from dd_harness.storage import ProjectHoldings, ProjectResearchers
 from dd_sdk.contract.models import Principal
 
@@ -25,6 +28,23 @@ class Materials(Area):
 
     def documentation(self, project_id: str) -> list[dict[str, Any]]:
         store: ProjectHoldings = self._store
+        return store.documentation(project_id)
+
+    def add_documentation(
+        self,
+        project_id: str,
+        document: AttachedDocument,
+        *,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> list[dict[str, Any]]:
+        """Keep a document the person attached outside a turn, checked as a turn's is, and
+        answer with the documents the project then holds. Raises `ProjectError` for one the
+        project refuses and `DocumentationHeldError` for one whose possible personal data or
+        secrets the person has not confirmed; nothing is kept then."""
+        store: ProjectHoldings = self._store
+        accept(document)
+        keep_attached(store, project_id, document, acted_for, caused_by)
         return store.documentation(project_id)
 
     def documentation_text(self, project_id: str, digest: str) -> str | None:

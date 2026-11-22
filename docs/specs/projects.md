@@ -519,6 +519,9 @@ the runtime, such as `0.1.0a4+pyodide.314.0.8`, while the command's has none. It
 the deployment serves its bundle, as the release image and the VM deploy do.
 
 **Documentation** may be added as text, within a size limit and from a list of media types. A
+person may add one outside a conversation too, with `POST /api/projects/{id}/documentation`
+([The app](app.md)): it is checked, held and kept as a turn's is, by the same code, and refused
+under a profile that refuses attached documents. A
 turn of the app may attach one document, plain text or Markdown of at most 256 KB under a file
 name with no folder, which the store keeps as a `documentation_added` event naming its name,
 media type, size and the SHA-256 of its UTF-8 text, under which the text is kept as a blob

@@ -185,6 +185,13 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     a message, and only **Add this inventory** sends it, to `POST /api/projects/{id}/inventory`; a
     refusal is said and the check stays open, and cancelling stores nothing
     (`app/web/src/components/inventory/AddInventory.test.tsx`).
+    A supporting document may be attached the same way: the project's Documents page offers
+    **Attach a document** (not offered where the profile sets `attached_documents: refused`) and
+    lists the documents the project holds. The file goes through the check a message's attachment
+    goes through (`DocumentReviewDialog`), and only **Attach this document** sends it, to
+    `POST /api/projects/{id}/documentation`; a refusal closes the check and is said on the page,
+    and cancelling stores nothing (`app/web/src/components/project/AttachDocument.test.tsx`,
+    `app/tests/test_project_materials.py`).
     A chip whose whole inventory the page can read, the one attached and the one the project holds
     now (`GET /api/projects/{id}/inventory`), has a **View inventory** button. It opens a dialog
     that says this is everything Data Director keeps and agents are shown, then what the inventory

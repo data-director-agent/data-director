@@ -88,9 +88,14 @@ function navCurrent(path: string): string {
 }
 
 /** The page for one of a project's tabs. */
-function projectPage(projectId: string, tab: ProjectTab, query: string) {
+function projectPage(
+  projectId: string,
+  tab: ProjectTab,
+  query: string,
+  directory: Directory | null,
+) {
   if (tab === "journey") return <JourneyPage projectId={projectId} query={query} />;
-  if (tab === "documents") return <ProjectPage projectId={projectId} query={query} />;
+  if (tab === "documents") return <ProjectPage projectId={projectId} query={query} directory={directory} />;
   return <ProjectPanelPage key={`${projectId}/${tab}`} projectId={projectId} tab={tab} />;
 }
 
@@ -196,7 +201,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
     if (!hasPage(path)) return <NotFoundPage path={path} />;
     const sessionPage = SESSION_PAGES[path];
     if (sessionPage) return sessionPage(session.value, query ?? "");
-    if (projectId) return projectPage(projectId, tab, query ?? "");
+    if (projectId) return projectPage(projectId, tab, query ?? "", state.state === "loaded" ? state.value : null);
     if (state.state === "loading") return <p role="status" className="page-loading">Loading the agents…</p>;
     if (state.state === "failed") {
       return (

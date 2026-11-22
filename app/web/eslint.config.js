@@ -76,6 +76,11 @@ const FEATURE_IMPORTS = [
   },
   {
     from: "project",
+    to: "conversation",
+    reason: "A project's page attaches a document through the check a message's attachment goes through (DocumentReviewDialog).",
+  },
+  {
+    from: "project",
     to: "inventory",
     reason: "A project's page adds its inventory (AddInventory).",
   },
