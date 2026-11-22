@@ -819,7 +819,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   the step is, its state and why, a link to the document or page that produced it, the marks the
   researcher may make, and **Ask Data Director about this**, which opens the conversation with a
   question about the step in the message box, unsent (`/?ask={step_id}`), so the researcher's
-  own word starts the turn. **Waiting on you** picks out the steps whose document awaits the
+  own word starts the turn. A key at the foot of the page, **How to read the map**, says each
+  mark in words: a stop's state, optional, not in this version, suggested next, waiting on you, a
+  decision point and where the project started. **Waiting on you** picks out the steps whose document awaits the
   researcher's decision and the decision points not yet answered; the strip shows the same count
   and leads with a button-styled link to the map, and names the suggested step's phase. Each card
   on the projects page shows the journey at a glance, linking to the map, and a **Journey map**
