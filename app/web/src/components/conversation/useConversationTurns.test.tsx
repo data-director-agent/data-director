@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, render, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 
 import conversationFixture from "../../../fixtures/conversation.json";
@@ -9,6 +9,7 @@ import {
   TurnConflict,
   Unreachable,
 } from "../../conversation/api";
+import { ConversationSessionProvider } from "../../conversation/session";
 import type { Conversation } from "../../conversation/types";
 import { ActiveProjectProvider } from "../../project/active";
 import { type ProjectApi, ProjectApiContext } from "../../project/api";
@@ -91,6 +92,62 @@ function renderTurns(api: FakeApi, options: Partial<TurnsOptions> = {}) {
   );
   const view = renderHook(() => useConversationTurns(props), { wrapper });
   return { ...view, props };
+}
+
+/**
+ * The hook drawn in a page that can be left and come back to, under the app's conversation
+ * session; `turns()` is what the page drawn last holds.
+ */
+function renderLeavable(api: FakeApi) {
+  let held: ReturnType<typeof useConversationTurns> | null = null;
+  const props: TurnsOptions = {
+    orchestratorId: "orchestrator.stub",
+    runId: null,
+    urlConversation: null,
+    box: { current: null },
+    announce: vi.fn(),
+    setText: vi.fn(),
+    restore: vi.fn(),
+    clearAttachError: vi.fn(),
+  };
+  function Page({ urlConversation }: { urlConversation: string | null }) {
+    held = useConversationTurns({ ...props, urlConversation });
+    return null;
+  }
+  const app = (shown: boolean) => (
+    <AnnouncerProvider>
+      <ProjectApiContext.Provider value={PROJECTS}>
+        <ActiveProjectProvider>
+          <ConversationApiContext.Provider value={api}>
+            <RunTransportContext.Provider value={api.turns}>
+              <ConversationSessionProvider>
+                {shown && <Page urlConversation={new URLSearchParams(location.search).get("conversation")} />}
+              </ConversationSessionProvider>
+            </RunTransportContext.Provider>
+          </ConversationApiContext.Provider>
+        </ActiveProjectProvider>
+      </ProjectApiContext.Provider>
+    </AnnouncerProvider>
+  );
+  const view = render(app(true));
+  const turns = () => {
+    if (!held) throw new Error("the page was never drawn");
+    return held;
+  };
+  return {
+    turns,
+    /** Goes to another page, by a link to it. */
+    leave: () => {
+      view.rerender(app(false));
+      history.replaceState(null, "", "/activity");
+    },
+    /** Comes back by the menu's link, which names no conversation. */
+    comeBack: () => {
+      history.replaceState(null, "", "/");
+      held = null;
+      view.rerender(app(true));
+    },
+  };
 }
 
 describe("useConversationTurns", () => {
@@ -307,6 +364,64 @@ describe("useConversationTurns", () => {
     const { result } = renderTurns(fakeApi({ get }), { urlConversation: "c7" });
     await waitFor(() => expect(result.current.conversationId).toBe("c7"));
     expect(get).toHaveBeenCalledWith("c7", expect.any(AbortSignal));
+  });
+
+  it("keeps the conversation and its run when the page is left while the reply is awaited", async () => {
+    let reply: () => void = () => undefined;
+    const sendTurn = () => new Promise<void>((resolve) => (reply = () => resolve()));
+    const page = renderLeavable(fakeApi({ sendTurn }));
+    act(() => void page.turns().deliver("hello", NOTHING, null));
+    await waitFor(() => expect(page.turns().live?.state.phase).toBe("idle"));
+    page.leave();
+    page.comeBack();
+    expect(page.turns().conversationId).toBe("c1");
+    expect(page.turns().sent?.message).toBe("hello");
+    expect(page.turns().busy).toBe(true);
+    expect(page.turns().live).not.toBeNull();
+    // The address names the conversation again, so that a reload reopens it.
+    await waitFor(() => expect(location.search).toContain("conversation=c1"));
+    await act(async () => reply());
+    await waitFor(() => expect(page.turns().conversation).toEqual(CONVERSATION));
+    expect(page.turns().sent).toBeNull();
+    expect(page.turns().busy).toBe(false);
+  });
+
+  it("shows on coming back a reply that arrived while the page was left", async () => {
+    let reply: () => void = () => undefined;
+    const sendTurn = () => new Promise<void>((resolve) => (reply = () => resolve()));
+    const page = renderLeavable(fakeApi({ sendTurn }));
+    act(() => void page.turns().deliver("hello", NOTHING, null));
+    await waitFor(() => expect(page.turns().live).not.toBeNull());
+    page.leave();
+    await act(async () => reply());
+    // The turn sent from the page that was left does not take the address of the page shown now.
+    expect(location.pathname).toBe("/activity");
+    page.comeBack();
+    await waitFor(() => expect(page.turns().conversation).toEqual(CONVERSATION));
+    expect(page.turns().busy).toBe(false);
+    expect(page.turns().live).toBeNull();
+  });
+
+  it("can still cancel, after coming back, a run sent before the page was left", async () => {
+    const api = fakeApi({ sendTurn: () => new Promise(() => undefined) });
+    const page = renderLeavable(api);
+    act(() => void page.turns().deliver("hi", NOTHING, null));
+    await waitFor(() => expect(page.turns().live).not.toBeNull());
+    page.leave();
+    page.comeBack();
+    act(() => page.turns().live?.cancel());
+    expect(api.turns.cancel).toHaveBeenCalledWith("c1", expect.any(String));
+  });
+
+  it("starts afresh after a new conversation, on coming back", async () => {
+    const page = renderLeavable(fakeApi({ sendTurn: vi.fn().mockResolvedValue(undefined) }));
+    await act(() => page.turns().deliver("hi", NOTHING, null));
+    act(() => page.turns().reset());
+    page.leave();
+    page.comeBack();
+    expect(page.turns().conversation).toBeNull();
+    expect(page.turns().quiet).toBe(true);
+    expect(location.search).not.toContain("conversation=");
   });
 
   it("lists the earlier conversations, and reads them again after a turn", async () => {

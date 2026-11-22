@@ -25,6 +25,7 @@ import {
   type ConversationApi,
 } from "../../conversation/api";
 import type { ReplyAnswers } from "../../conversation/question";
+import { useSessionRef, useSessionState } from "../../conversation/session";
 import type { Conversation, ConversationSummary } from "../../conversation/types";
 import { useActiveProject } from "../../project/active";
 import { homePath, navigate } from "../../route";
@@ -122,23 +123,39 @@ export function useConversationTurns(options: TurnsOptions): Turns {
   const { orchestratorId, runId, urlConversation, box, announce, setText } = options;
   const api = useConversationApi();
   const { projectId, setProjectId, reloadProjects } = useActiveProject();
-  const [conversationId, setConversationId] = useState<string | null>(null);
+  // Kept in the conversation session, not the page, so that leaving the page while a reply is
+  // awaited loses nothing: the turn goes on, and the page drawn on coming back shows it.
+  const [conversationId, setConversationId] = useSessionState<string | null>("id", null);
   // The project of the open conversation, once it has been started or reopened.
-  const [openProject, setOpenProject] = useState<string | null | undefined>(undefined);
-  const [conversation, setConversation] = useState<Conversation | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [sent, setSent] = useState<Sent | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [awaitedDrafts, setAwaitedDrafts] = useState<AwaitedDrafts | null>(null);
+  const [openProject, setOpenProject] = useSessionState<string | null | undefined>(
+    "project",
+    undefined,
+  );
+  const [conversation, setConversation] = useSessionState<Conversation | null>("open", null);
+  const [busy, setBusy] = useSessionState("busy", false);
+  const [sent, setSent] = useSessionState<Sent | null>("sent", null);
+  const [error, setError] = useSessionState<string | null>("error", null);
+  const [awaitedDrafts, setAwaitedDrafts] = useSessionState<AwaitedDrafts | null>("drafts", null);
   const turn = useTurnStream();
   // How many turns the conversation held when the message was sent.
-  const [sentAfter, setSentAfter] = useState(0);
+  const [sentAfter, setSentAfter] = useSessionState("sentAfter", 0);
+  // Whether a Conversation page is drawn: a turn sent from one that has since been left must not
+  // take the address of the page shown now.
+  const pageShownRef = useSessionRef("pageShown", false);
+  useEffect(() => {
+    pageShownRef.current = true;
+    return () => {
+      pageShownRef.current = false;
+    };
+  }, [pageShownRef]);
   const pastRead = useResource("conversations", (_, signal) => api.list(signal));
   const past = pastRead.latest ?? [];
   const reloadPast = pastRead.reload;
   // The conversation the page already holds, or has deliberately closed, so that the address
   // changing to it is not read as a request to load it.
-  const handled = useRef<string | null>(null);
+  const handled = useSessionRef<string | null>("handled", null);
+  // The page has just been drawn: a conversation held from before goes back in the address.
+  const arriving = useRef(true);
 
   /** Holds `found`, opened in its own project, so the workspace follows it there. */
   function open(id: string, found: Conversation) {
@@ -163,8 +180,17 @@ export function useConversationTurns(options: TurnsOptions): Turns {
 
   // A conversation named in the address and not yet held, as after a reload or Back, is read and
   // opened in its own project.
+  // Coming back to the page by a link with no conversation in it, as the menu's, puts the one still
+  // open back in the address.
   useEffect(() => {
+    const arrived = arriving.current;
+    arriving.current = false;
     if (!urlConversation) {
+      if (arrived && conversationId) {
+        handled.current = conversationId;
+        navigate(homePath({ conversation: conversationId, run: runId }), true);
+        return;
+      }
       handled.current = null;
       return;
     }
@@ -204,7 +230,7 @@ export function useConversationTurns(options: TurnsOptions): Turns {
     // With no project active, the server started one: the shell is now working in it.
     if (started.project_id !== projectId) setProjectId(started.project_id);
     handled.current = id;
-    navigate(homePath({ conversation: id, run: runId }), true);
+    if (pageShownRef.current) navigate(homePath({ conversation: id, run: runId }), true);
     return id;
   }
 

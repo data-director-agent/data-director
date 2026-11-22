@@ -283,6 +283,31 @@ test("conversation: keyboard only, focus returns to the message box, reflows at 
   expect(await overflow(page), "horizontal overflow on the conversation").toBeLessThanOrEqual(0);
 });
 
+test("conversation: leaving the page while the reply is awaited and coming back loses nothing", async ({
+  page,
+}) => {
+  await serveConversation(page);
+  // The reply's stream is held open until the page has been left and come back to.
+  let release: () => void = () => undefined;
+  const released = new Promise<void>((resolve) => (release = resolve));
+  await page.route("/api/conversations/*/turns/stream", async (route) => {
+    await released;
+    await streamTurn(route);
+  });
+  await page.goto("/");
+  await page.getByRole("textbox", { name: "What would you like to do?" }).fill("hello world");
+  await page.getByRole("button", { name: "Send" }).click();
+  await expect(page.getByText("hello world")).toBeVisible();
+  await page.getByRole("link", { name: "Activity log" }).click();
+  await expect(page).toHaveURL(/\/activity/);
+  await page.getByRole("link", { name: "Conversation" }).click();
+  // The message is still awaiting its reply, and the address names the conversation again.
+  await expect(page.getByText("hello world")).toBeVisible();
+  await expect(page).toHaveURL(/conversation=/);
+  release();
+  await expect(page.getByRole("list", { name: "Conversation" })).toBeVisible();
+});
+
 test("Make an inventory: routes, tabs and copy by keyboard, fits 320px, no axe violations", async ({
   page,
   context,
