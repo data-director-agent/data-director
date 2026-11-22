@@ -218,6 +218,8 @@ ignore_imports = [
   "dd_agent_advisor_dmp.evals.* -> workbench.*",
   # And the repository advisor's.
   "dd_agent_advisor_repository.evals.* -> workbench.*",
+  # And the Rights and Licensing Adviser's.
+  "dd_agent_advisor_rights.evals.* -> workbench.*",
 ]
 
 [[tool.importlinter.contracts]]

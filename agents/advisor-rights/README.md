@@ -100,9 +100,11 @@ start-up fails and says to set `DD_RIGHTS_INTERPRETER=template`.
   is [`mcp-spdx`](../../mcp-spdx/README.md), serving SPDX licence list 3.29.0, but no deployment
   runs it yet (TODO(#1478)). The `licence-choice` Skill in the system prompt is TODO(#280).
 - It does not check what a funder, journal, institution or repository requires or offers. The
-  repository's licence options and an evaluation set are TODO(#702).
+  repository's licence options are TODO(#702).
 - It does not judge whether the data are sensitive or who holds rights in them.
-- It has no evaluation set yet, so how often the model misreads a wish is not measured.
+- Its evaluation ([`evals/`](src/dd_agent_advisor_rights/evals/README.md)) runs the rules, and a
+  model's reading only with a fake model, so how often a real model misreads a wish is not
+  measured.
 - It is not legal advice.
 
 ## Run it

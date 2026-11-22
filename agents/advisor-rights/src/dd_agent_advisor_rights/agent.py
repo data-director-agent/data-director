@@ -73,7 +73,7 @@ LIMITATIONS = (
     "Without an interpreter model (DD_RIGHTS_INTERPRETER=template), it understands the reuse you "
     "want only as one of any, attribution, share-alike or non-commercial.",
     "A model's reading of the reuse you want is a reading of your words, not advice: check it. "
-    "It has no evaluation set yet, so how often it misreads is not measured.",
+    "How often a model misreads is not yet measured.",
     "It is not legal advice.",
 )
 CHOOSE_QUESTION = (

@@ -18,7 +18,7 @@ evaluation score measures quality over a case set; a review records what one per
 within a stated scope at one commit. None of these is a claim that a requirement is met in
 general, and the report says so.
 
-Four agents have an evaluation so far. The Documentation Editor's
+Five agents have an evaluation so far. The Documentation Editor's
 (`agents/advisor-documentation/src/dd_agent_advisor_documentation/evals/`) takes its labels from
 the crib sheet of a synthetic workshop dataset, Dataset A of `data-director-agent/sample-data`, and
 runs the template path. The standards advisor's also runs its template path, the ranking rules
@@ -37,7 +37,14 @@ re3data does not list, Durham University's and the British Library's research re
 DataCite registers, and asks whether a confirmed plan's repositories reach the researcher as the
 plan's, to be chosen, beside the shortlist or without one (#1334), and whether a researcher's own
 institution's repository is offered, and only to its researchers (#1342). It runs over the full
-pinned re3data registry, which CI builds, and the committed DataCite snapshot.
+pinned re3data registry, which CI builds, and the committed DataCite snapshot. The Rights and
+Licensing Adviser's (`agents/advisor-rights/src/dd_agent_advisor_rights/evals/`) asks whether the
+licences and access levels it offers for a reuse wish, a mandate, sensitive data or third-party
+content are those a data steward would list. Its false negatives are the steward's licences,
+leading access levels and questions it leaves out, and licences that do not fit are scored apart
+(#702). Its baseline runs the rules; a fake-model test shows that free-word wishes, read, score in
+full, and that a misread wish is caught. The recall and "none listed" scorers it uses are the
+workbench's, for any agent whose payload lists options by id.
 
 ## Invariants
 
