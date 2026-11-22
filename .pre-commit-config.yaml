@@ -12,6 +12,7 @@ exclude: >-
     |.*/package-lock\.json
     |.*/schema/generated/.*
     |.*/tests/data/.*
+    |inventory/src/dd_inventory/pronom/(formats|container-signature)-.*
     |.*/cassettes/.*
     |.*\.har\.zip
     |docs/blueprint/.*

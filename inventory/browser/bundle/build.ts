@@ -158,9 +158,10 @@ function writeNotices(out: string, wheels: BundleWheel[], python: string): void 
     if (!wheel) throw new BundleError(`${w.file} could not be read`);
     return wheelLicence(w.name, w.version, wheel.metadata, wheel.paths);
   });
+  // The release the inventory package pins (dd_inventory/pronom/), which identify.py gives fido.
   const pronom = Object.values(read)
     .flatMap((w) => w.paths)
-    .map((p) => /^fido\/conf\/formats-(v\d+)\.xml$/.exec(p)?.[1])
+    .map((p) => /^dd_inventory\/pronom\/formats-(v\d+)\.xml\.gz$/.exec(p)?.[1])
     .find(Boolean);
   writeFileSync(
     join(out, NOTICES),
