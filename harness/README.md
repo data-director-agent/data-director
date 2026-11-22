@@ -21,6 +21,7 @@ one of them, used for developing and testing agents
 | `sources.py` | The source check against pinned copies ([Evidence and grounding](../docs/specs/grounding.md)). |
 | `storage.py` | The `RunStorage` and `ProjectStorage` protocols every caller reaches a store through, and the `ProjectLog` a backend provides for projects ([Storage](../docs/specs/storage.md)). |
 | `store.py`, `provenance.py`, `conversations.py` | The file run store, Process Run Crates, and conversations derived from the run storage. |
+| `provenance_graph/`, `document_origin.py`, `disclosure.py` | A project's whole history as one PROV-O graph, read from its log and the run store and checked against the SHACL shapes beside it; how a document version came about; and the disclosure of generative AI, whose graph is part of the project's ([Provenance](../docs/specs/provenance.md), [Disclosure](../docs/specs/disclosure.md)). |
 | `projects/`, `project_files.py` | The project record: the project rules, one class per area, composed as `Projects` and written once over any `ProjectLog`, and the file log under them ([`docs/projects.md`](docs/projects.md), [Projects](../docs/specs/projects.md)). |
 | `project_effects.py`, `project_errors.py` | What a finished run does to its project (a proposed version, a title, an entry point), behind the `ProjectEffects` interface the conductor calls and `Projects` implements through `RunEffects`; and the project rules' errors. |
 | `registry.py`, `remote.py` | The agent registry and the A2A client for agents ([Agents](../docs/specs/agents.md)). |

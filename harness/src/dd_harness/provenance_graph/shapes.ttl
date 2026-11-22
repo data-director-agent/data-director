@@ -1,0 +1,79 @@
+# The shapes a project's provenance graph is checked against (docs/specs/provenance.md,
+# Completeness and validation). They check the constraints the spec relies on, not all of
+# PROV-CONSTRAINTS.
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix schema: <http://schema.org/> .
+@prefix dd: <https://w3id.org/data-director/> .
+@prefix ddsh: <https://w3id.org/data-director/shapes/provenance/> .
+
+# Every activity is associated with an agent or a person.
+ddsh:Activity a sh:NodeShape ;
+    sh:targetClass prov:Activity ;
+    sh:property [
+        sh:path prov:wasAssociatedWith ;
+        sh:minCount 1 ;
+        sh:message "An activity is associated with an agent or a person." ;
+    ] .
+
+# Every software agent associated with a run acts for a person or an accountable role in that
+# run, through a delegation whose activity is the run (invariant 4).
+ddsh:Invocation a sh:NodeShape ;
+    sh:targetClass dd:Invocation ;
+    sh:sparql [
+        sh:message "A software agent associated with a run acts for a principal in that run." ;
+        sh:select """
+            SELECT $this ?value WHERE {
+                $this <http://www.w3.org/ns/prov#wasAssociatedWith> ?value .
+                ?value a <http://www.w3.org/ns/prov#SoftwareAgent> .
+                FILTER NOT EXISTS {
+                    ?value <http://www.w3.org/ns/prov#qualifiedDelegation> ?delegation .
+                    ?delegation <http://www.w3.org/ns/prov#hadActivity> $this .
+                }
+            }
+        """ ;
+    ] .
+
+# A delegation names one principal, a person or an accountable role, and the activity it was for.
+ddsh:Delegation a sh:NodeShape ;
+    sh:targetClass prov:Delegation ;
+    sh:property [
+        sh:path prov:agent ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:or ( [ sh:class prov:Person ] [ sh:class dd:AccountableRole ] ) ;
+        sh:message "A delegation is to one person or accountable role." ;
+    ] ;
+    sh:property [
+        sh:path prov:hadActivity ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:message "A delegation names the one activity it was for." ;
+    ] .
+
+# A document version has one generation.
+ddsh:Version a sh:NodeShape ;
+    sh:targetClass schema:CreativeWork ;
+    sh:property [
+        sh:path prov:wasGeneratedBy ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:message "A document version has one generation." ;
+    ] .
+
+# A person is not an accountable role (invariant 4).
+ddsh:Person a sh:NodeShape ;
+    sh:targetClass prov:Person ;
+    sh:not [ sh:class dd:AccountableRole ] ;
+    sh:message "A person is not an accountable role." .
+
+# Content is named, not carried (invariant 5): no node carries the text of a message, a prompt
+# or an answer.
+ddsh:NoText a sh:NodeShape ;
+    sh:targetSubjectsOf schema:text, dd:answerText, dd:instruction, dd:messageText, dd:promptText ;
+    sh:property [ sh:path schema:text ; sh:maxCount 0 ] ;
+    sh:property [ sh:path dd:answerText ; sh:maxCount 0 ] ;
+    sh:property [ sh:path dd:instruction ; sh:maxCount 0 ] ;
+    sh:property [ sh:path dd:messageText ; sh:maxCount 0 ] ;
+    sh:property [ sh:path dd:promptText ; sh:maxCount 0 ] ;
+    sh:message "The graph names content by its digest and carries no text of it." .

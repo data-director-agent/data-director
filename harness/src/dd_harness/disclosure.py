@@ -18,43 +18,24 @@ person reads and as a PROV-O graph in JSON-LD.
 
 from __future__ import annotations
 
-import base64
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any
 
+from dd_harness.document_origin import DIGITAL_SOURCE_TYPE as DIGITAL_SOURCE_TYPE
+from dd_harness.document_origin import IPTC as IPTC
+from dd_harness.document_origin import KIND_NAMES as KIND_NAMES
+from dd_harness.document_origin import Origin, document_name, drafted_in, edited_after_draft
+from dd_harness.document_origin import origin as origin_of
+from dd_harness.document_origin import version_chain as chain_of
 from dd_harness.projects import APPROVED, PROPOSED
-from dd_harness.provenance import AGENT_BASE
+from dd_harness.provenance_graph import CONTEXT as CONTEXT
+from dd_harness.provenance_graph import project_graph
+from dd_harness.provenance_graph.nodes import MODEL_BASE as MODEL_BASE
+from dd_harness.provenance_graph.nodes import ni as ni
+from dd_harness.provenance_graph.nodes import version_id as version_id
 from dd_harness.storage import ProjectDocuments, RunStorage
 from dd_sdk.contract.models import now
-
-# Where a model is named, beside the agents (TODO(#3): the w3id namespace is not yet registered).
-MODEL_BASE = "https://w3id.org/data-director/models/"
-
-type Origin = Literal["model", "model_revised", "template", "template_revised", "person"]
-
-# The IPTC Digital Source Type vocabulary, as schema.org's `digitalSourceType` takes it.
-IPTC = "http://cv.iptc.org/newscodes/digitalsourcetype/"
-DIGITAL_SOURCE_TYPE: dict[Origin, str | None] = {
-    "model": IPTC + "trainedAlgorithmicMedia",
-    "model_revised": IPTC + "compositeWithTrainedAlgorithmicMedia",
-    "template": IPTC + "algorithmicMedia",
-    "template_revised": IPTC + "algorithmicMedia",
-    "person": None,
-}
-# How a statement names a document kind (dd_sdk DocumentKind).
-KIND_NAMES = {
-    "metadata_record": "Metadata record",
-    "readme": "README",
-    "data_dictionary": "Data dictionary",
-    "dmp": "Data management plan",
-}
-CONTEXT = {
-    "prov": "http://www.w3.org/ns/prov#",
-    "schema": "http://schema.org/",
-    "dd": "https://w3id.org/data-director/",
-    "xsd": "http://www.w3.org/2001/XMLSchema#",
-}
 
 
 @dataclass(frozen=True)
@@ -93,13 +74,10 @@ class DocumentDisclosure:
     approved_by: str
     approved_at: str
     reason: str | None
-    # Each version from the first draft to the approved one, oldest first (for the graph).
-    chain: tuple[dict[str, Any], ...] = field(repr=False)
 
     @property
     def name(self) -> str:
-        kind = KIND_NAMES.get(self.document_kind, self.document_kind.replace("_", " "))
-        return f"{kind}: {self.document_title}" if self.document_title else kind
+        return document_name(self.document_kind, self.document_title)
 
 
 @dataclass(frozen=True)
@@ -109,6 +87,8 @@ class Disclosure:
     documents: tuple[DocumentDisclosure, ...]
     # Documents with a version still awaiting a decision and none approved.
     pending: int
+    # The part of the project's provenance graph reachable from each approved version.
+    graph: dict[str, Any] = field(repr=False, default_factory=dict)
 
     def to_document(self) -> dict[str, Any]:
         """The disclosure as JSON, for the app."""
@@ -198,16 +178,10 @@ class Disclosure:
         return "\n".join(lines) + "\n"
 
     def prov_jsonld(self) -> dict[str, Any]:
-        """A PROV-O account of each approved version, in JSON-LD with an inline context."""
-        graph: dict[str, dict[str, Any]] = {}
-
-        def put(node: dict[str, Any]) -> None:
-            graph.setdefault(node["@id"], {}).update(node)
-
-        for d in self.documents:
-            for link in d.chain:
-                _version_nodes(put, d, link)
-        return {"@context": CONTEXT, "@graph": list(graph.values())}
+        """A PROV-O account of each approved version, in JSON-LD with an inline context: the
+        part of the project's provenance graph reachable from each approved version and its
+        approval (docs/specs/provenance.md, invariant 10)."""
+        return self.graph
 
 
 def disclose(projects: ProjectDocuments, runs: RunStorage, project_id: str) -> Disclosure:
@@ -215,6 +189,7 @@ def disclose(projects: ProjectDocuments, runs: RunStorage, project_id: str) -> D
     unknown project."""
     found: list[DocumentDisclosure] = []
     pending = 0
+    seeds: list[str] = []
     for document in projects.documents(project_id):
         versions = document["versions"]
         approved = [v for v in versions if v["state"] == APPROVED]
@@ -222,24 +197,18 @@ def disclose(projects: ProjectDocuments, runs: RunStorage, project_id: str) -> D
             pending += any(v["state"] == PROPOSED for v in versions)
             continue
         found.append(_disclose(runs, document, approved[-1]))
-    return Disclosure(project_id, now(), tuple(found), pending)
+        seeds.append(version_id(document["document_id"], approved[-1]["version"]))
+    graph = project_graph(projects, runs, project_id)
+    seeds += [graph.approvals[(d.document_id, d.version)] for d in found]
+    return Disclosure(project_id, now(), tuple(found), pending, graph.subgraph(seeds))
 
 
 def _disclose(
     runs: RunStorage, document: dict[str, Any], version: dict[str, Any]
 ) -> DocumentDisclosure:
     chain = version_chain(document, version)
-    drafted = next((v for v in reversed(chain) if v.get("drafted_by")), None)
+    drafted = drafted_in(chain)
     draft = _draft(runs, drafted["drafted_by"]) if drafted else None
-    after = chain[chain.index(drafted) + 1 :] if drafted else chain
-    edited_by = tuple(v["added_by"]["name"] for v in after if not v.get("drafted_by"))
-    origin: Origin
-    if draft is None:
-        origin = "person"
-    elif draft.derivation == "model":
-        origin = "model_revised" if edited_by else "model"
-    else:
-        origin = "template_revised" if edited_by else "template"
     decision = version["decision"]
     return DocumentDisclosure(
         document_id=document["document_id"],
@@ -247,33 +216,18 @@ def _disclose(
         document_title=version.get("document_title"),
         version=version["version"],
         digest=version["digest"],
-        origin=origin,
+        origin=origin_of(chain),
         draft=draft,
-        edited_by=edited_by,
+        edited_by=tuple(v["added_by"]["name"] for v in edited_after_draft(chain)),
         approved_by=decision["decided_by"]["name"],
         approved_at=decision["decided_at"],
         reason=decision.get("reason"),
-        chain=tuple(
-            {**v, "document_id": document["document_id"], "draft": _draft_of(runs, v)}
-            for v in chain
-        ),
     )
 
 
 def version_chain(document: dict[str, Any], version: dict[str, Any]) -> list[dict[str, Any]]:
     """The versions from the first a version revises back to, to the version, oldest first."""
-    by_number = {v["version"]: v for v in document["versions"]}
-    chain = [version]
-    while (revises := chain[0].get("revises")) and revises["version"] in by_number:
-        if revises["document_id"] != document["document_id"]:
-            break
-        chain.insert(0, by_number[revises["version"]])
-    return chain
-
-
-def _draft_of(runs: RunStorage, version: dict[str, Any]) -> Draft | None:
-    drafted_by = version.get("drafted_by")
-    return _draft(runs, drafted_by) if drafted_by else None
+    return chain_of(document["document_id"], document["versions"], version)
 
 
 def _draft(runs: RunStorage, drafted_by: dict[str, Any]) -> Draft:
@@ -329,139 +283,6 @@ def _sentence(d: DocumentDisclosure) -> str:
 def _sentence_end(text: str) -> str:
     text = text.strip()
     return text if text.endswith((".", "!", "?")) else text + "."
-
-
-def _version_nodes(put: Any, d: DocumentDisclosure, link: dict[str, Any]) -> None:
-    """The PROV nodes for one version of the chain: the version, what generated it, and, for the
-    approved version, its approval."""
-    vid = version_id(link["document_id"], link["version"])
-    node: dict[str, Any] = {
-        "@id": vid,
-        "@type": ["prov:Entity", "schema:CreativeWork"],
-        "schema:name": d.name,
-        "schema:additionalType": d.document_kind,
-        "schema:sha256": link["digest"],
-        "schema:version": link["version"],
-    }
-    if revises := link.get("revises"):
-        node["prov:wasRevisionOf"] = {"@id": version_id(link["document_id"], revises["version"])}
-    draft: Draft | None = link["draft"]
-    if draft is not None:
-        agent = AGENT_BASE + draft.agent_id
-        run = f"urn:uuid:{draft.invocation_id}"
-        put(
-            {
-                "@id": agent,
-                "@type": ["prov:SoftwareAgent", "schema:SoftwareApplication"],
-                "schema:name": draft.agent_id,
-            }
-        )
-        activity: dict[str, Any] = {
-            "@id": run,
-            "@type": "prov:Activity",
-            "prov:wasAssociatedWith": {"@id": agent},
-            "schema:softwareVersion": draft.agent_version,
-            "dd:derivation": draft.derivation,
-        }
-        if draft.completed_at:
-            activity["prov:endedAtTime"] = _datetime(draft.completed_at)
-        calls = []
-        for n, m in enumerate(draft.models, start=1):
-            model = f"{MODEL_BASE}{m.provider or 'unknown'}/{m.model_id}"
-            put(
-                {
-                    "@id": model,
-                    "@type": ["prov:SoftwareAgent", "schema:SoftwareApplication"],
-                    "schema:name": m.model_id,
-                    **({"schema:provider": m.provider} if m.provider else {}),
-                }
-            )
-            call: dict[str, Any] = {
-                "@id": f"{run}#model-call-{n}",
-                "@type": "prov:Activity",
-                "prov:wasAssociatedWith": {"@id": model},
-            }
-            if m.called_at:
-                call["prov:startedAtTime"] = _datetime(m.called_at)
-            if m.prompt_digest:
-                prompt = ni(m.prompt_digest)
-                put(
-                    {
-                        "@id": prompt,
-                        "@type": ["prov:Entity", "prov:Plan"],
-                        "schema:name": "Prompt sent to the model",
-                        "schema:sha256": m.prompt_digest,
-                    }
-                )
-                call["prov:used"] = {"@id": prompt}
-                call["prov:qualifiedAssociation"] = {
-                    "@type": "prov:Association",
-                    "prov:agent": {"@id": model},
-                    "prov:hadPlan": {"@id": prompt},
-                }
-            put(call)
-            calls.append({"@id": call["@id"]})
-        if calls:
-            activity["prov:wasInformedBy"] = calls
-        put(activity)
-        node["prov:wasGeneratedBy"] = {"@id": run}
-        node["prov:wasAttributedTo"] = {"@id": agent}
-    else:
-        person = _person(put, link["added_by"])
-        edit = f"{vid}-edit"
-        put(
-            {
-                "@id": edit,
-                "@type": "prov:Activity",
-                "prov:wasAssociatedWith": {"@id": person},
-                "prov:endedAtTime": _datetime(link["added_at"]),
-            }
-        )
-        node["prov:wasGeneratedBy"] = {"@id": edit}
-        node["prov:wasAttributedTo"] = {"@id": person}
-    if link["version"] == d.version:
-        source_type = DIGITAL_SOURCE_TYPE[d.origin]
-        if source_type:
-            node["schema:digitalSourceType"] = {"@id": source_type}
-        decision = link["decision"]
-        person = _person(put, decision["decided_by"])
-        approval: dict[str, Any] = {
-            "@id": f"{vid}-approval",
-            "@type": "prov:Activity",
-            "schema:name": "approval",
-            "prov:used": {"@id": vid},
-            "prov:wasAssociatedWith": {"@id": person},
-            "prov:endedAtTime": _datetime(decision["decided_at"]),
-        }
-        if decision.get("reason"):
-            approval["schema:description"] = decision["reason"]
-        put(approval)
-    put(node)
-
-
-def _person(put: Any, principal: dict[str, Any]) -> str:
-    put(
-        {
-            "@id": principal["principal_id"],
-            "@type": ["prov:Person", "schema:Person"],
-            "schema:name": principal["name"],
-        }
-    )
-    return str(principal["principal_id"])
-
-
-def version_id(document_id: str, version: int) -> str:
-    return f"urn:uuid:{document_id}#v{version}"
-
-
-def ni(digest: str) -> str:
-    """The RFC 6920 `ni` URI of a SHA-256 hex digest."""
-    raw = bytes.fromhex(digest)
-    return "ni:///sha-256;" + base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
-
-
-def _datetime(value: str) -> dict[str, str]:
-    return {"@value": value, "@type": "xsd:dateTime"}
 
 
 def _model_name(m: ModelUsed) -> str:

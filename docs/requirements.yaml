@@ -103,6 +103,10 @@ requirements:
     source: project
     parent: R10
     title: Each approved project document is disclosed as a statement and a PROV-O graph naming the run and models that drafted it, each prompt by digest, each person's edit and the approval, and carried in the deposit package
+  - id: R10.3
+    source: project
+    parent: R10
+    title: A project's whole history is read from its log and the run store as one PROV-O graph, in which every event type is mapped, each run's agent acts for the person in that run, refusals appear beside authorisations, content is named by digest, and the graph checks against SHACL shapes and rebuilds to the same bytes; the checks' activities, conversation turns, the app's view and the package's copy are not exercised (#800, #801, #803, #804)
   - id: R11
     source: blueprint
     title: Link datasets to related research outputs including publications, people, grants and software

@@ -39,20 +39,25 @@ Out of scope:
   spans ([Disclosure](disclosure.md#boundaries-and-contracts)). The harness makes an omission
   detectable where it can (invariant 3), not impossible.
 
-What is built: the disclosure graph of each approved version (`dd_harness.disclosure`) and the
-Process Run Crate of each run (`dd_harness.provenance`). The project graph, and every part of
-this spec beyond those two, is not built yet. Each part says which issue builds it.
+What is built: the Process Run Crate of each run (`dd_harness.provenance`), and the project
+graph (`dd_harness.provenance_graph.project_graph`): every event of the log, every run of the
+project with its agent's delegation, model calls, child runs, retrievals, tool calls and the
+policy gate's refusals and referrals, checked against SHACL shapes. The disclosure graph of each
+approved version is read from it (`dd_harness.disclosure`). The checks' activities and
+conversation turns, the app's view and the package's copy are not built yet; each part says which
+issue builds it.
 
 ## Invariants
 
 1. **The graph is read from the record and changes nothing.** It is built from the project log
    and the run store on request, is never stored as a record of its own, and writes neither
-   source. Built twice from the same record, it gives the same bytes. Not built yet, TODO(#799).
+   source. Built twice from the same record, it gives the same bytes.
 2. **Every event type has a mapping.** Each event type the project log can write has a row in
    the mapping table below and a mapping in the code. A test compares the log's event types with
    the mappings in both directions, so an event type added without a mapping (such as membership,
    steward actions, deposit, refused turns, or deleting and restoring a project) fails until it
-   has one. Not built yet, TODO(#799).
+   has one. Every type is listed once, in `dd_harness.projects.EVENT_TYPES`, and the log refuses
+   to write a type that is not.
 3. **Nothing recorded is missing from the graph.** Every event in the log appears by its
    identifier. Every run of the project appears, and so does each of its model calls,
    delegations, retrievals, tool calls and policy decisions. A run that fails still reports the
@@ -81,10 +86,9 @@ this spec beyond those two, is not built yet. Each part says which issue builds 
    policy gate refused or referred, and a version a person rejected are activities in the graph,
    as the Blueprint's consultation log asks (#26).
 9. **The graph validates.** It is read as RDF and checked against committed SHACL shapes (see
-   [Completeness and validation](#completeness-and-validation)). Not built yet, TODO(#799).
+   [Completeness and validation](#completeness-and-validation)).
 10. **The disclosure graph is part of the provenance graph.** It is the part reachable from each
-    document's latest approved version, with the same IRIs, so the two cannot disagree. Today it
-    is built on its own, TODO(#799).
+    document's latest approved version, with the same IRIs, so the two cannot disagree.
 
 ## Boundaries and contracts
 
@@ -112,11 +116,29 @@ A `ni:` URI names content without carrying it, so anyone who holds the content c
 content named. The w3id namespace, under which agents, models, the harness and the `dd:` terms
 are named, is not yet registered, TODO(#3).
 
+A node the graph makes to qualify a relation, or to name what an event made that has no
+identifier of its own, takes the IRI of what it belongs to with a fragment, so the graph has no
+blank nodes and serialises to the same bytes however it was built:
+
+| What | IRI |
+|---|---|
+| The delegation through which an agent, or the harness, acted for a principal in one activity | the activity's IRI with `#delegation` |
+| A model call's association with its model and prompt | the call's IRI with `-association` |
+| A run's Process Run Crate | the run's IRI with `#process-run-crate` |
+| Evidence with no SHA-256 content hash | the run's IRI with `#evidence-{n}` |
+| A fact proposed or decided | the event's IRI with `#fact` |
+| An escalation | its opening event's IRI with `#escalation` |
+| A deposit recorded | the event's IRI with `#deposit` |
+
 The `dd:` terms are few: a class for each event type (named in the table below),
-`dd:Invocation` and `dd:AccountableRole`, and the
-properties `dd:causedBy`, `dd:titleSource`, `dd:outcome`, `dd:reasonCode`, `dd:referredTo`,
-`dd:problem`, `dd:decision`, `dd:refusal`, `dd:conforms`, `dd:modelAccount`, `dd:derivation` and
-`dd:parentInvocation`. A PROV-O or schema.org term is used wherever one fits.
+`dd:Invocation` and `dd:AccountableRole`, and the properties `dd:causedBy`, `dd:titleSource`,
+`dd:outcome`, `dd:reasonCode`, `dd:referredTo`, `dd:problem`, `dd:decision`, `dd:refusal`,
+`dd:conforms`, `dd:modelAccount`, `dd:derivation`, `dd:parentInvocation`, `dd:principalKind`,
+`dd:assurance`, `dd:vouchedBy`, `dd:member`, `dd:role`, `dd:entry`, `dd:entrySource`, `dd:step`,
+`dd:mark`, `dd:question`, `dd:factKind`, `dd:factSubject`, `dd:sourceId`, `dd:toolServer`,
+`dd:repository`, `dd:transport`, `dd:sandbox`, `dd:status`, `dd:team`, `dd:origin`,
+`dd:scopeShared`, `dd:actingAs` and `dd:note`. A PROV-O or schema.org term is used wherever one
+fits.
 
 ### The mapping
 
@@ -166,6 +188,18 @@ activity `prov:used` the entity.
 | `deposit_item_decided` | `dd:DepositItemDecision` | Uses the inventory, named by its digest; the item's file as `schema:about`, `dd:decision` keep, leave out or change, and the note as `schema:description`. |
 | `deposit_checks_confirmed` | `dd:DepositChecksConfirmation` | Uses the inventory, named by its digest; the statements confirmed as `schema:description`. |
 | `package_built` | `dd:PackageBuild` | Uses each version, the report, the merged set and the runs it holds; generates the package, named by its digest. |
+| `project_deleted`, `project_restored` | `dd:ProjectDeletion`, `dd:ProjectRestoration` | Uses the project. |
+| `conversation_deleted`, `conversation_restored` | `dd:ConversationDeletion`, `dd:ConversationRestoration` | Uses the conversation. |
+| `member_added`, `member_role_changed`, `member_removed` | `dd:MemberAddition`, `dd:MemberRoleChange`, `dd:MemberRemoval` | Uses the project; `dd:member` the member, a `prov:Agent` named by their principal's identifier alone, and `dd:role` their role. |
+| `deposit_approved` | `dd:DepositApproval` | Uses the package and the item deposited, named by their digests; `dd:repository`, `dd:transport` and `dd:sandbox`. |
+| `deposit_recorded` | `dd:DepositRecording` | The harness is associated too. `prov:wasInformedBy` the approval it was made under; uses the package and the item; generates the deposit, with its DOI or deposit identifier as `schema:identifier` and its draft as `schema:url`, which `prov:wasDerivedFrom` the item. |
+| `deposit_failed` | `dd:DepositFailure` | The harness is associated too. `prov:wasInformedBy` the approval; uses the package and the item; `dd:status` and the reason as `schema:description`. |
+| `support_team_chosen` | `dd:SupportTeamChoice` | Uses the project; `dd:team` the team. |
+| `escalation_opened` | `dd:EscalationOpening` | Generates the escalation, with `dd:team`, `dd:origin` and `dd:scopeShared`; `prov:wasInformedBy` the run it came from, where one; the note, named by its digest, as `dd:note`. |
+| `escalation_taken`, `_released`, `_waiting`, `_replied`, `_resolved`, `_handed_back`, `_withdrawn`, `_reopened` | `dd:EscalationTaking`, `dd:EscalationRelease`, `dd:EscalationWaiting`, `dd:EscalationReply`, `dd:EscalationResolution`, `dd:EscalationHandBack`, `dd:EscalationWithdrawal`, `dd:EscalationReopening` | Uses the escalation; `dd:actingAs` steward where a steward acted; the note, named by its digest, as `dd:note`. |
+| `steward_viewed`, `steward_message` | `dd:StewardView`, `dd:StewardMessage` | Uses the project; `dd:actingAs` steward; the message's note, named by its digest, as `dd:note`. |
+| `project_paused`, `project_resumed` | `dd:ProjectPause`, `dd:ProjectResumption` | Uses the project; `dd:team` the team that holds the pause; `dd:actingAs` steward; the reason, named by its digest, as `dd:note`. |
+| `gate_cleared`, `gate_refused` | `dd:GateClearance`, `dd:GateRefusal` | `prov:wasInformedBy` the referred run; `dd:actingAs` steward; the reason, named by its digest, as `dd:note`. |
 
 **Runs and what happens within them.**
 
@@ -177,7 +211,7 @@ activity `prov:used` the entity.
 | Retrieval | A `prov:Activity` the run `prov:wasInformedBy`, which used the source (its `source_uri`) and generated the evidence, named by its content hash; the run uses the evidence. The agent reports it today, not the harness, TODO(#246). |
 | Tool call | A `prov:Activity` the run `prov:wasInformedBy`. |
 | Policy gate | Where it refused or referred the run, a `prov:Activity` associated with the harness, which used the policy and which the run `prov:wasInformedBy`, with the decision. |
-| Checks | The grounding linter, the source check and the shape check are each a `prov:Activity` associated with the harness, which used the payload and which the run `prov:wasInformedBy`; the shape check generates its report, named by its digest. |
+| Checks | The grounding linter, the source check and the shape check are each a `prov:Activity` associated with the harness, which used the payload and which the run `prov:wasInformedBy`; the shape check generates its report, named by its digest. TODO(#800). |
 | Conversation turn | The message a person sent is an entity named by its digest, attributed to them and `schema:isPartOf` the conversation, which the run used. The reply is an entity named by its digest, which the run generated. TODO(#801). |
 
 The mapping in the code is the authority on property names; this table is the authority on
@@ -190,8 +224,7 @@ which records appear, as what kind, and in which relations.
   reordered, is TODO(#802).
 - **The disclosure** keeps its statement and its graph's meaning ([Disclosure](disclosure.md)).
   Its graph becomes the part of the provenance graph reachable from each approved version
-  (invariant 10). A person's edit and an approval then take their events' IRIs, in place of the
-  `{version}-edit` and `{version}-approval` identifiers made today, TODO(#799).
+  (invariant 10). A person's edit and an approval take their events' IRIs.
 - **The Process Run Crate** stays the record of one run, written after it ([Contract](contract.md#boundaries-and-contracts)).
   The graph does not copy it; it links each run to its crate. The crate's `CreateAction` takes the
   run's IRI, and the crate names agents, models and prompts by the graph's IRIs (invariant 7),
@@ -315,8 +348,9 @@ auditor can run the same shapes on a package with any SHACL processor.
   are defined: TODO(#3).
 - What erasure removes, and what it leaves of provenance: TODO(#156).
 - The harness recording what an agent read, rather than the agent: TODO(#246).
-- Mappings for event types not yet written: membership (TODO(#389)), a steward's actions
-  ([Data stewards](stewardship.md), invariant 12; TODO(#1481)), a deposit (TODO(#647)) and a refused turn (TODO(#390)).
+- Mappings for event types not yet written, each needed before its type can be logged
+  (invariant 2): a steward's further actions ([Data stewards](stewardship.md), invariant 12;
+  TODO(#1481)) and a refused turn (TODO(#390)).
 - How a package built after the project changed names the one before it: TODO(#649).
 - Whether R10 is also assessed by independent review, as the Blueprint's guidance suggests:
   TODO(#26).

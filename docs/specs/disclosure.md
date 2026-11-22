@@ -79,7 +79,7 @@ document should have been drafted with a model is a matter for policy
    A prompt is identified by its RFC 6920 `ni:` URI, so the graph names it without carrying it
    (`test_the_disclosure_reads_as_prov_o`). This graph is the part of the project's provenance
    graph reachable from each approved version, with the same IRIs
-   ([Provenance](provenance.md), invariant 10); today it is built on its own, TODO(#799).
+   ([Provenance](provenance.md), invariant 10), read from it, so the two cannot disagree.
 8. **A run's model footprint is estimated from the profile, never measured.** When the
    profile has a `model_footprint` table ([Policy and identity](policy-and-identity.md)), the
    conductor estimates each model call's energy, in joules, and cost, in the table's currency,
