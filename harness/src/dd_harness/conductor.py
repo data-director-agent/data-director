@@ -79,9 +79,10 @@ from dd_harness.model_grants import GrantMinter
 from dd_harness.observe import RunObserver, Watch
 from dd_harness.project_effects import ProjectEffects
 from dd_harness.project_facts import FactSource
+from dd_harness.projects.stewarding import pause_of
 from dd_harness.registry import Registry
+from dd_harness.run_state import FromProject, RunState
 from dd_harness.run_state import Grant as Grant
-from dd_harness.run_state import RunState
 from dd_harness.storage import SPANS, RunStorage
 from dd_sdk.agent import AgentSpec
 from dd_sdk.contract import validate
@@ -279,7 +280,7 @@ class Conductor:
             else None
         )
         # Read from one snapshot, which only someone who may read the project gets.
-        facts = project_access.run_facts(self.projects, project_id, acting_for)
+        facts = project_access.run_facts(self.projects, project_id, acting_for, self.profile)
         return self._invoke(
             request, acting_for, project_id=project_id, facts=facts, watch=Watch(observer, cancel)
         )
@@ -394,6 +395,7 @@ class Conductor:
                 filled = project_facts.leave_out(filled, out)
                 given = project_facts.given(facts, in_project, filled)
         refused = project_facts.refusal(facts, in_project, filled)
+        paused = pause_of(facts.events(in_project)) if facts and in_project else None
         if in_project is not None or filled != sent:
             request = InvocationRequest.model_validate(
                 {**to_document(request), "input": filled, "project_id": in_project}
@@ -409,9 +411,8 @@ class Conductor:
                 )
             self._running.add(invocation_id)
         try:
-            return self._run(
-                request, request_doc, acting_for, link, given, refused, watch or Watch(None, None)
-            )
+            project = FromProject(given, refused, paused)
+            return self._run(request, request_doc, acting_for, link, project, watch)
         finally:
             with self._running_lock:
                 self._running.discard(invocation_id)
@@ -430,13 +431,10 @@ class Conductor:
         request_doc: dict[str, Any],
         acting_for: Principal,
         link: SpanContext | None,
-        given: frozenset[str] = frozenset(),
-        unfillable: str | None = None,
+        project: FromProject,
         watch: Watch | None = None,
     ) -> Envelope:
-        """Run the steps of `dd_harness.pipeline` in order. `given` is the classes of project
-        content the conductor put into the input, and `unfillable` why it could not fill it from
-        the project, if it could not."""
+        """Run the steps of `dd_harness.pipeline` in order, with what `project` gives the run."""
         agent = self.registry.get(request.agent_id)
         if agent is None:
             self.registry.refresh()  # it may have started since the registry was built
@@ -448,7 +446,7 @@ class Conductor:
             )
         watch = watch or Watch(None, None)
         watch.plan()
-        run = RunState(request, request_doc, acting_for, agent, watch, link, given, unfillable)
+        run = RunState(request, request_doc, acting_for, agent, watch, link, *project.given_to_run)
         spec = agent.spec
         with invoke_agent_span(
             self.tracing.tracer, spec.agent_id, spec.grounding_mode.value, run.input_hash, link=link

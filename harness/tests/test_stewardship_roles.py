@@ -107,18 +107,16 @@ def test_a_malformed_stewardship_key_stops_start_up(stewardship: Any) -> None:
         profile(stewardship=stewardship)
 
 
-@pytest.mark.parametrize(
-    "stewardship",
-    [
-        {"teams": [TEAM], "visibility": "scope"},
-        {"teams": [TEAM], "deposit_co_approval": True},
-    ],
-)
-def test_a_choice_nothing_enforces_yet_is_refused(stewardship: Any) -> None:
-    # A steward cannot yet open a project, nor a deposit wait for a co-approval: a profile that
-    # promised either would tell a steward a rule is in force when it is not.
+def test_a_choice_nothing_enforces_yet_is_refused() -> None:
+    # A deposit cannot yet wait for a co-approval: a profile that promised it would tell a
+    # steward a rule is in force when it is not.
     with pytest.raises(PolicyError, match="not enforced yet"):
-        profile(stewardship=stewardship)
+        profile(stewardship={"teams": [TEAM], "deposit_co_approval": True})
+
+
+def test_visibility_scope_is_enforced_so_may_be_set() -> None:
+    loaded = profile(stewardship={"teams": [TEAM], "visibility": "scope"})
+    assert loaded.stewardship.visibility == "scope"
 
 
 @pytest.mark.parametrize("administrators", ["https://orcid.org/0000-0002-1825-0097", [""], [3]])

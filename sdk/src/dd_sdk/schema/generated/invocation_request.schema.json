@@ -3131,6 +3131,7 @@
             "requires_human_judgement",
             "policy_requires_approval",
             "outside_agent_scope",
+            "project_paused",
             "model_account_missing",
             "model_account_rejected",
             "model_account_limit"
@@ -4260,5 +4261,5 @@
    ],
    "title": "data_director_core",
    "type": "object",
-   "version": "0.25.0"
+   "version": "0.26.0"
 }

@@ -30,6 +30,8 @@ from dd_harness.project_errors import ProjectError as ProjectError
 from dd_harness.project_errors import Refusal as Refusal
 from dd_harness.project_errors import Refused as Refused
 from dd_harness.project_errors import RestoreRefusedError as RestoreRefusedError
+from dd_harness.project_errors import StewardRefusal as StewardRefusal
+from dd_harness.project_errors import StewardRefusedError as StewardRefusedError
 from dd_harness.project_errors import UnknownConversationError as UnknownConversationError
 from dd_harness.project_errors import UnknownProjectError as UnknownProjectError
 from dd_sdk.contract.models import UUID7_PATTERN, Principal, new_invocation_id, now
@@ -78,6 +80,14 @@ ESCALATION_RESOLVED = "escalation_resolved"
 ESCALATION_HANDED_BACK = "escalation_handed_back"
 ESCALATION_WITHDRAWN = "escalation_withdrawn"
 ESCALATION_REOPENED = "escalation_reopened"
+# What a data steward does in a project they reach as its steward (docs/specs/stewardship.md,
+# invariants 3, 6 to 8; dd_harness.projects.stewarding).
+STEWARD_VIEWED = "steward_viewed"
+STEWARD_MESSAGE = "steward_message"
+PROJECT_PAUSED = "project_paused"
+PROJECT_RESUMED = "project_resumed"
+GATE_CLEARED = "gate_cleared"
+GATE_REFUSED = "gate_refused"
 PROJECT_ID = re.compile(UUID7_PATTERN)
 # Members every event has, which what an event carries never replaces.
 ENVELOPE_KEYS = frozenset({"event", "event_id", "project_id", "at", "acted_for", "caused_by"})

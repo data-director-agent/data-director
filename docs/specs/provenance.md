@@ -316,7 +316,7 @@ auditor can run the same shapes on a package with any SHACL processor.
 - What erasure removes, and what it leaves of provenance: TODO(#156).
 - The harness recording what an agent read, rather than the agent: TODO(#246).
 - Mappings for event types not yet written: membership (TODO(#389)), a steward's actions
-  ([Data stewards](stewardship.md), invariant 12; TODO(#374)), a deposit (TODO(#647)) and a refused turn (TODO(#390)).
+  ([Data stewards](stewardship.md), invariant 12; TODO(#1481)), a deposit (TODO(#647)) and a refused turn (TODO(#390)).
 - How a package built after the project changed names the one before it: TODO(#649).
 - Whether R10 is also assessed by independent review, as the Blueprint's guidance suggests:
   TODO(#26).

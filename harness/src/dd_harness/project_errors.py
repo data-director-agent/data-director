@@ -89,6 +89,31 @@ class EscalationRefusedError(ProjectError):
         self.detail = detail
 
 
+class StewardRefusal(StrEnum):
+    """Why a steward's action in a project was refused (docs/specs/stewardship.md, invariants 6
+    to 8). Each value is a Problem Details slug."""
+
+    MEMBER_OF_PROJECT = "member-of-project"
+    NOT_PERMITTED = "steward-action-not-permitted"
+    NOTE_REQUIRED = "note-required"
+    NOTE_TOO_LONG = "note-too-long"
+    ALREADY_PAUSED = "already-paused"
+    NOT_PAUSED = "not-paused"
+    PAUSE_HELD_ELSEWHERE = "pause-held-by-another-team"
+    NOT_REFERRED = "run-not-referred"
+    GATE_DECIDED = "gate-decided"
+
+
+class StewardRefusedError(ProjectError):
+    """A steward's action that their access, or the project's state, does not allow. Nothing is
+    recorded."""
+
+    def __init__(self, refusal: StewardRefusal, detail: str) -> None:
+        super().__init__(detail)
+        self.refusal = refusal
+        self.detail = detail
+
+
 class Refusal(StrEnum):
     """Why a decision, an edit or an answer was refused as not naming what it must
     (docs/specs/projects.md, invariant 12). Each value is a Problem Details slug."""

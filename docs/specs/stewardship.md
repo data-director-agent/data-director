@@ -35,8 +35,10 @@ the people who do this work have a [Data Steward's Guide](../guide/steward-guide
 `referred_to: data_steward` and does not run the agent ([Policy and identity](policy-and-identity.md),
 `dd_harness.refusals`), and the Policy page shows each step a steward must approve
 ([The app](app.md)). Deployment roles (invariant 1). The escalation record, its routing and a
-steward's queue (invariant 4), without the screens, TODO(#375, #376). Everything else in this spec is the intended
-design; each invariant names the issue that builds it.
+steward's queue (invariant 4), without the screens, TODO(#375, #376). The steward path, recorded
+reads, the closed list of a steward's actions, clearing or refusing a gate as a record, and pause
+(invariants 2, 3, 6, 7 and 8), through the API and without the screens, TODO(#376). Everything
+else in this spec is the intended design; each invariant names the issue that builds it.
 
 ## Invariants
 
@@ -55,9 +57,8 @@ design; each invariant names the issue that builds it.
    Group or entitlement claims from an institutional identity provider may later map to a team,
    in the same key, TODO(#936). Like every profile key, `stewardship` is refused at load unless
    something enforces it, and is recorded with every run through `policy_bundle_ref`; until
-   steward access to a project is built, a profile that sets `visibility: scope` or
-   `deposit_co_approval: true` is refused, TODO(#374, #1306). Built:
-   `dd_harness.stewardship`.
+   co-approval is built, a profile that sets `deposit_co_approval: true` is refused,
+   TODO(#1306). Built: `dd_harness.stewardship`.
 
 2. **A deployment role never makes anyone a member of a project** ([Projects](projects.md),
    invariant 16). A steward reaches a project by a separate path beside
@@ -65,7 +66,8 @@ design; each invariant names the issue that builds it.
    check that `role_of` answers today also asks the steward path: the app's `in_project`,
    `Governance.role` and the conductor's check before a run. A person who is both a member of a
    project and a steward acts as a member there, and may not act as its steward (invariant 7).
-   Not built yet, TODO(#374).
+   The app's `in_project` admits a steward only to a `GET` that reads, and a steward acts through
+   the routes of invariant 6. Built: `dd_harness.steward_access`.
 
 3. **A steward sees a project only while the profile's visibility allows it, and every look is
    recorded.** `stewardship.visibility` is one of:
@@ -80,7 +82,8 @@ design; each invariant names the issue that builds it.
    reveal that it exists. Each time a steward opens a project, or reads any of its content, the
    harness appends a `steward_viewed` event naming the steward; repeated reads by the same steward
    on the same day append one. The researcher sees each one in the project's log (invariant 10).
-   Not built yet, TODO(#374).
+   With `scope` and no live escalation, a steward may only read. Built:
+   `dd_harness.steward_access`, `dd_harness.steward_api.read`.
 
 4. **An escalation is a record in the project's log, not a store of its own.** Its events are
    `escalation_opened`, `escalation_taken`, `escalation_released`, `escalation_waiting`,
@@ -106,7 +109,8 @@ design; each invariant names the issue that builds it.
    a person's projects in one query ([Storage](storage.md)) also names the team that
    `support_team_chosen` and `escalation_opened` route to, by a URN no principal signs in as, so
    that a team's queue is one query too. A steward reaches an escalation's record and moves
-   through `/api/steward/escalations`; opening the project itself is TODO(#374). Built:
+   through `/api/steward/escalations`, and opens the project itself through the steward path
+(invariant 2). Built:
    `dd_harness.projects.escalations`, `dd_harness.escalation_api`.
 
 5. **The agent offers; a person confirms.** No escalation exists until a person confirms it, having
@@ -122,7 +126,7 @@ design; each invariant names the issue that builds it.
    |---|---|---|
    | Read the project | `steward_viewed` | — |
    | Write to the researcher | `steward_message`, shown as from a named person, never as an agent | — |
-   | Propose an edit to a document | a new `proposed` version by `ProjectStore.edit`, marked as the steward's | the project's owners approve or reject it ([Projects](projects.md), invariants 11 to 14) |
+   | Propose an edit to a document | a new `proposed` version, marked `acting_as: steward` (`ProjectStore.propose_edit`) | the project's owners approve or reject it ([Projects](projects.md), invariants 11 to 14) |
    | Run an agent in the project | a run acting for the steward, with the project as context; its drafts land as `proposed` versions | the project's owners |
    | Clear or refuse a gated action | `gate_cleared` or `gate_refused`, naming the referred invocation and a reason | the steward (a §5.1 policy exception) |
    | Pause the project, or lift a pause | `project_paused`, `project_resumed`, each with a reason | the steward's team (invariant 8) |
@@ -131,7 +135,12 @@ design; each invariant names the issue that builds it.
 
    A steward cannot decide a project fact, approve or reject a version, approve a deposit, change
    membership, or delete or restore a project. A researcher cannot do any of the steward's
-   actions, by any route. Not built yet, TODO(#374).
+   actions, by any route. Reading is open to every steward who reaches the project; lifting a
+   pause to its team; a note to the researcher while a matter is escalated or a pause held; every
+   other action while a matter is escalated to the steward's team. A cleared gate is recorded
+   but does not yet resume the referred run, TODO(#16); the deposit review items and co-approval
+   are TODO(#1306). Built: `dd_harness.steward_api`, `dd_harness.projects.stewarding`, and the
+   app's `/api/projects/{project_id}/steward/` routes.
 
 7. **Clearing a gate is not approving the content** (§5.1 against R2 and §8). An accountable role
    resolves policy exceptions; the researcher approves their own outputs and is responsible for
@@ -142,7 +151,7 @@ design; each invariant names the issue that builds it.
    naming the package digest the researcher approved; a new package needs a new co-approval. A
    steward who is a member of the project may not clear its gates or co-approve its deposit,
    because the person checked would be checking themselves (C14). Not built yet,
-   TODO(#374, #1306, #1308).
+   TODO(#1306, #1308). Built: `gate_cleared` and `gate_refused` (`dd_harness.steward_api`).
 
 8. **A pause stops consequential steps until a steward lifts it** (P4, human on the loop). While
    a project is paused, the conductor refuses every run in it whose action class is not `advise`,
@@ -153,7 +162,8 @@ design; each invariant names the issue that builds it.
    the team keeps access to the project until it is lifted. A run already in progress when the
    pause is applied finishes and is recorded. `project_paused` is a new value of the reason-code
    vocabulary, a fixed format: [Contract](contract.md) gains it in the pull request that builds
-   pause. Not built yet, TODO(#374).
+   pause; a paused run ends `referred`, with `referred_to: data_steward`. Built:
+   `dd_harness.refusals`, `dd_harness.deposit_api`, `dd_harness.projects.stewarding`.
 
 9. **The mandatory reviews stop their step until their reviewer acts.** The Blueprint makes these
    reviews compulsory; the profile's `stewardship.reviews` names, for each, whether the reviewer is
@@ -172,7 +182,7 @@ design; each invariant names the issue that builds it.
    whose reviewer is a steward falls to the researcher only if the profile says so; otherwise the
    step stays stopped with its card and the profile's contact (invariant 11). Built: the deposit's
    pause before packaging for the researcher's reviews ([Deposit](deposit.md)). Not built yet:
-   the steward's reviews and the per-review profile key, TODO(#374, #16, #73).
+   the steward's reviews and the per-review profile key, TODO(#16, #73).
 
 10. **The researcher can see everything a steward does in their project.** The project's log view
     shows each `steward_viewed` (who and when), each steward action and each escalation's state,
@@ -191,22 +201,25 @@ design; each invariant names the issue that builds it.
     for a proposed edit, a run or a note, and *Validation* for clearing a gate, a review or a
     co-approval. In the deposit package's RO-Crate, a co-approval or a cleared gate is an
     `AssessAction` and a steward's accepted edit an `UpdateAction`, each naming the steward. A
-    steward's read is not exported. Not built yet, TODO(#374).
+    steward's read is not exported. Not built yet, TODO(#1481).
 
 ## Boundaries and contracts
 
 - **The harness decides; the shell renders.** Every check above is in `dd_harness`; the app's
   shell holds no policy ([The app](app.md)). Each project response gains `permitted_actions`, the
   actions the signed-in person may take there and why any is refused, so the shell shows only
-  what is permitted and explains the rest, instead of learning its limits from a 403,
-  TODO(#374). The session response names the person's deployment roles and teams (built).
-- **Routes.** A steward's routes are under `/api/steward/` (the queue, the overviews) and the
-  existing `/api/projects/{project_id}` routes, which serve a steward through the steward path of
-  invariant 2. There is no separate copy of a project for stewards.
+  what is permitted and explains the rest, instead of learning its limits from a 403. Built
+  for `GET /api/projects/{project_id}`; the project list does not carry it yet, TODO(#376). The session response names the person's deployment roles and teams (built).
+- **Routes.** A steward's routes are under `/api/steward/` (the queue, the overviews), the
+  existing `/api/projects/{project_id}` routes, which serve a steward's reads through the steward
+  path of invariant 2, and `/api/projects/{project_id}/steward/`, where a steward writes to the
+  researcher, pauses and lifts a pause, clears or refuses a referred run and proposes a version.
+  `GET /api/projects/{project_id}/stewarding` shows the project's members and stewards what
+  stewards have done in it. There is no separate copy of a project for stewards.
 - **A steward's run** acts for the steward (`acting_for` is the steward's principal), never for
   the researcher, with the project as context, so the runs record and the provenance say who
-  asked. Whether the run envelope records the role it was asked in is a contract change, made
-  with #374.
+  asked. Whether the run envelope records the role it was asked in is a contract change,
+  TODO(#1482).
 - **Notifications** carry a link and a short subject, never research content or personal data
   beyond what is needed. The harness record stays authoritative wherever a notification goes,
   TODO(#378).

@@ -98,7 +98,7 @@ Two cases differ slightly:
 
 ### Mandatory review
 
-The Blueprint makes human review compulsory in several places. Each trigger below stops the step until the named person has reviewed it; where that person is a steward, "Not now" cannot bypass the review. The reviewer column gives the defaults; the deployment's profile sets the reviewer of each, from its governance agreement (§5.1) ([Data stewards](../specs/stewardship.md), invariant 9), TODO(#374).
+The Blueprint makes human review compulsory in several places. Each trigger below stops the step until the named person has reviewed it; where that person is a steward, "Not now" cannot bypass the review. The reviewer column gives the defaults; the deployment's profile sets the reviewer of each, from its governance agreement (§5.1) ([Data stewards](../specs/stewardship.md), invariant 9), TODO(#73).
 
 | Trigger | Blueprint | Proposed reviewer | What stays stopped |
 |---|---|---|---|

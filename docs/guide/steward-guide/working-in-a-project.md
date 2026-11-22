@@ -3,9 +3,13 @@
 While an escalation is open, or while a project is in your team's scope, you can open the
 researcher's project and help in it.
 
-!!! note "Not built yet"
-    Opening a project as a steward and the actions on this page are [#374](https://github.com/data-director-agent/data-director/issues/374) and
-    [#376](https://github.com/data-director-agent/data-director/issues/376).
+!!! note "Partly built"
+    The server checks and records opening a project as a steward, writing to the researcher,
+    proposing an edit, running an agent, clearing or refusing a stopped step, and pausing
+    ([#374](https://github.com/data-director-agent/data-director/issues/374)). The screens described here are
+    [#376](https://github.com/data-director-agent/data-director/issues/376). Clearing a step records your decision but does
+    not yet resume it ([#16](https://github.com/data-director-agent/data-director/issues/16)), and the credit in the deposit
+    package's provenance is [#1481](https://github.com/data-director-agent/data-director/issues/1481).
 
 ## What you see
 

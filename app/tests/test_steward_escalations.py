@@ -1,7 +1,9 @@
 """Escalation to a data steward through the app's server (docs/specs/stewardship.md, invariants
 4, 5 and 11; #373): a member opens one, replies to, withdraws and re-opens it; a steward reads
 their teams' queue and moves the escalations routed to them; and what the rules refuse is a
-`409` naming why. The signed-in person is `TEST_PRINCIPAL`, a steward of the library team."""
+`409` naming why. A steward also reads the project, and writes, pauses and decides in it
+(invariants 2, 3 and 6 to 8; #374). The signed-in person is `TEST_PRINCIPAL`, a steward of the
+library team."""
 
 from __future__ import annotations
 
@@ -18,6 +20,7 @@ from dd_app.app import build_app
 from dd_app.config import EXAMPLE_PROFILE
 from dd_app.governance import CREATED_BY_ROUTE, Governance
 from dd_app.routes.escalations import Escalation, ProjectEscalations, StewardQueue
+from dd_app.routes.stewarding import ProjectStewarding, ProjectView
 from dd_harness.projects.escalations import NewEscalation
 from dd_harness.storage import ProjectStorage
 from dd_harness.testing import TEST_PRINCIPAL
@@ -167,11 +170,12 @@ def test_a_steward_reads_the_queue_and_takes_and_resolves(client: TestClient, th
     assert len(client.get("/api/steward/escalations?state=resolved").json()["escalations"]) == 1
 
 
-def test_a_steward_reaches_the_escalation_but_not_the_project(
-    client: TestClient, theirs: str
+def test_a_steward_reaches_the_escalation_and_reads_the_project(
+    client: TestClient, store: ProjectStorage, theirs: str
 ) -> None:
-    # Opening the project as a steward is #374: until then it is not theirs to read.
-    assert client.get(f"/api/projects/{theirs}/escalations").status_code == 404
+    assert client.get(f"/api/projects/{theirs}/escalations").status_code == 200
+    viewed = [e for e in store.events(theirs) if e["event"] == "steward_viewed"]
+    assert [e["acted_for"]["principal_id"] for e in viewed] == [TEST_PRINCIPAL.principal_id]
     (row,) = client.get("/api/steward/escalations").json()["escalations"]
     # A researcher's move by the steward's route is refused as not theirs.
     url = f"/api/steward/escalations/{theirs}/{row['escalation_id']}"
@@ -225,3 +229,76 @@ def test_an_owner_chooses_the_support_team(monkeypatch: pytest.MonkeyPatch, tmp_
         chosen = client.put(url, json={"team_id": "faculty"}, headers=JSON_HEADERS)
         assert chosen.status_code == 200 and chosen.json()["support_team"] == "faculty"
         assert send(client, project_id).json()["escalations"][0]["team_id"] == "faculty"
+
+
+def steward_post(client: TestClient, project_id: str, path: str, **body: Any) -> Any:
+    return client.post(
+        f"/api/projects/{project_id}/steward/{path}", json=body, headers=JSON_HEADERS
+    )
+
+
+@pytest.mark.requirement("C13.6")
+def test_a_steward_opens_the_project_and_sees_what_they_may_do(
+    client: TestClient, owned: str, theirs: str
+) -> None:
+    opened = client.get(f"/api/projects/{theirs}")
+    assert opened.status_code == 200
+    view = ProjectView.model_validate(opened.json())
+    permitted = {a.action: a.permitted for a in view.permitted_actions.actions}
+    assert view.permitted_actions.acting_as == "steward"
+    assert permitted["pause"] and permitted["message"] and not permitted["decide"]
+    mine = ProjectView.model_validate(client.get(f"/api/projects/{owned}").json())
+    assert mine.permitted_actions.acting_as == "member"
+    assert {a.action: a.permitted for a in mine.permitted_actions.actions}["manage"]
+
+
+@pytest.mark.requirement("C13.6")
+def test_a_steward_changes_nothing_through_a_researchers_route(
+    client: TestClient, theirs: str
+) -> None:
+    sent = send(client, theirs)
+    assert sent.status_code == 404
+    renamed = client.put(
+        f"/api/projects/{theirs}/title", json={"title": "Mine now"}, headers=JSON_HEADERS
+    )
+    assert renamed.status_code == 404
+
+
+@pytest.mark.requirement("C13.6")
+def test_a_steward_writes_pauses_and_lifts_the_pause(
+    client: TestClient, store: ProjectStorage, theirs: str
+) -> None:
+    assert steward_post(client, theirs, "messages", note="I am looking at this.").status_code == 200
+    paused = steward_post(client, theirs, "pause", note="Checking consent forms")
+    assert paused.status_code == 200
+    again = steward_post(client, theirs, "pause", note="Again")
+    assert again.status_code == 409 and again.json()["type"].endswith("already-paused")
+    shown = ProjectStewarding.model_validate(
+        client.get(f"/api/projects/{theirs}/stewarding").json()
+    )
+    assert shown.paused is not None and shown.paused.team_id == "library-rdm"
+    assert [m.by["principal_id"] for m in shown.messages] == [TEST_PRINCIPAL.principal_id]
+    resumed = steward_post(client, theirs, "resume", note="Consent confirmed")
+    assert resumed.status_code == 200 and resumed.json()["paused"] is None
+    kinds = [e["event"] for e in store.events(theirs)]
+    assert {"steward_message", "project_paused", "project_resumed"} <= set(kinds)
+
+
+@pytest.mark.requirement("C13.6")
+def test_a_steward_route_refuses_a_member_and_hides_a_project_from_others(
+    client: TestClient, owned: str, store: ProjectStorage
+) -> None:
+    send(client, owned)
+    member = steward_post(client, owned, "pause", note="Not mine to pause")
+    assert member.status_code == 403 and member.json()["type"].endswith("member-of-project")
+    hidden = store.create(acted_for=OTHER, caused_by=CREATED_BY_ROUTE, title="Hidden")
+    assert steward_post(client, hidden, "messages", note="Hello").status_code == 404
+    assert client.get(f"/api/projects/{hidden}").status_code == 404
+    assert client.get(f"/api/projects/{hidden}/stewarding").status_code == 404
+
+
+def test_a_gate_decision_must_name_a_referred_run(client: TestClient, theirs: str) -> None:
+    refused = steward_post(
+        client, theirs, "gates/019a0000-0000-7000-8000-00000000ffff", verdict="cleared", note="OK"
+    )
+    assert refused.status_code == 409 and refused.json()["type"].endswith("run-not-referred")

@@ -27,7 +27,7 @@ from dd_app.run_checks import stored_checks
 from dd_app.step_autonomy import enabled_manifest
 from dd_app.turn_body import AttachedDocument, Turn
 from dd_app.turn_lock import hold_turn
-from dd_harness import conversations, project_access
+from dd_harness import conversations, project_access, steward_api
 from dd_harness.conductor import Conductor
 from dd_harness.deposit_broker import DepositBroker
 from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
@@ -382,9 +382,23 @@ class Governance:
         """Whether the project `project_id` is deleted (docs/specs/projects.md, invariant 22)."""
         return self.projects is not None and self.projects.is_deleted(project_id)
 
+    def steward_reads(self, project_id: str, reader: Principal, caused_by: str) -> bool:
+        """Whether `reader` reads the project `project_id` as its steward, recording the read
+        (`dd_harness.steward_api.read`, docs/specs/stewardship.md, invariants 2 and 3). A member
+        never reads as a steward."""
+        if self.projects is None:
+            return False
+        found = steward_api.read(
+            self.projects, self.conductor.profile, project_id, reader, caused_by=caused_by
+        )
+        return found is not None
+
     def may_read_project(self, project_id: str, reader: Principal) -> bool:
-        """Whether `reader` may read the project `project_id`."""
-        return project_access.allowed(self.role(project_id, reader), Action.READ)
+        """Whether `reader` may read the project `project_id`: as a member, or as its steward,
+        which is recorded."""
+        if project_access.allowed(self.role(project_id, reader), Action.READ):
+            return True
+        return self.steward_reads(project_id, reader, f"read project {project_id}")
 
     def may_read_run(self, envelope: Mapping[str, Any], reader: Principal) -> bool:
         """Whether `reader` may read the stored run whose envelope is `envelope`."""

@@ -33,6 +33,7 @@ from dd_harness.project_log import ProjectLog as ProjectLog
 from dd_harness.project_log import ProjectSection as ProjectSection
 from dd_harness.requirements import Requirements
 from dd_harness.sources import Sources
+from dd_harness.steward_storage import ProjectStewarding as ProjectStewarding
 from dd_harness.storage_deposits import DepositApprovals
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
@@ -440,6 +441,7 @@ class ProjectStorage(
     ProjectFacts,
     ProjectDeposits,
     ProjectEscalations,
+    ProjectStewarding,
     ProjectEffects,
     Protocol,
 ):

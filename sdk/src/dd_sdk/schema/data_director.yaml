@@ -12,7 +12,7 @@ description: >-
   schema_class (docs/specs/contract.md); every payload mixes in Grounded so the grounding linter can check it
   without knowing its class (docs/specs/grounding.md). Formats here are fixed; see docs/specs/ for why.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.25.0
+version: 0.26.0
 license: MIT
 
 prefixes:
@@ -2781,6 +2781,10 @@ enums:
         description: The institutional profile requires approval for this action class.
       outside_agent_scope:
         description: The request asked for something this agent does not do.
+      project_paused:
+        description: >-
+          A data steward has paused the project, and the run's action class is not advise; the
+          agent was not run (docs/specs/stewardship.md, invariant 8).
       model_account_missing:
         description: >-
           The profile requires the person's own model account and they have none

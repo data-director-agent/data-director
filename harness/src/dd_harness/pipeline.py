@@ -26,7 +26,7 @@ from dd_harness import observe as steps
 from dd_harness import sources as source_check
 from dd_harness.observe import cancelled_result
 from dd_harness.provenance import process_run_crate
-from dd_harness.refusals import failed_result, input_refusal, refuse
+from dd_harness.refusals import failed_result, input_refusal, refuse, stopped_by_pause
 from dd_harness.remote import Received, RemoteAgent
 from dd_harness.run_state import RunHost, RunState, Step
 from dd_harness.storage import CRATE, GROUNDING, SOURCES, SPANS, VALIDATION
@@ -77,6 +77,8 @@ def check_input(conductor: RunHost, run: RunState) -> None:
     cancelled."""
     decision = run.gate_decision
     if not decision.allowed or run.bypasses or decision.requires_approval or run.watch.cancelled():
+        return
+    if stopped_by_pause(run):
         return
     run.watch.started(steps.INPUT)
     run.refused = input_refusal(run.spec, run.request_doc["input"])

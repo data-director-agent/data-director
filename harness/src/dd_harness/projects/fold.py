@@ -97,6 +97,7 @@ def _add_version(documents: dict[str, dict[str, Any]], event: dict[str, Any]) ->
             "conforms_to": event.get("conforms_to"),
             "revises": event.get("revises"),
             "drafted_by": event.get("drafted_by"),
+            **({"acting_as": event["acting_as"]} if event.get("acting_as") else {}),
             "questions": event.get("questions", []),
             "stage": event.get("stage", DRAFT_STAGE),
             "added_by": event["acted_for"],
