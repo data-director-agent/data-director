@@ -532,8 +532,9 @@ media type, size and SHA-256 too, the document's `DocumentationSummary` gives
 (`ProjectStore.add_document_file`, `harness/tests/test_document_files.py`). An encrypted or
 damaged file, a scanned PDF with no text layer (no text is recognised in images) and one whose
 text is blank or too long are refused. The text read from a file is `documentation`, so
-`hosted_models` decides whether it reaches a hosted model, as for one attached as text. Citing
-an attached document as evidence of its own is TODO(#1181), and recording its reading as an agent
+`hosted_models` decides whether it reaches a hosted model, as for one attached as text. The
+Policy Adviser cites an attached policy or award letter it reads as evidence of its own, by its
+SHA-256 (`agents/advisor-policy/`, `attached.py`); citing one in the other agents is TODO(#1181), and recording its reading as an agent
 action TODO(#1182). A document the store refuses leaves no trace, and a turn
 that attaches an inventory too adds neither when either is refused. A `Message`'s
 `project_documentation` lists each document the project holds by name, digest, media type, size

@@ -56,9 +56,14 @@ documents the model was given, and says if one was too long to give in full.
 The Data Management Plan Checker reads an attached data management plan to find its commitments
 to share your data, which you then confirm or correct.
 
+The Policy Adviser reads an attached policy or award letter as the text of the policy of the
+funder, journal or institution it names, beside the published policies it finds. Each obligation
+it reports quotes the passage it comes from, and cites the document by name, for you to confirm.
+A document that names none of them is read for the only one you gave; if you gave several, it is
+not read, and the adviser says so.
+
 The agent you are talking to, and every other agent, is told only each document's name, type and
-size, and cannot use its text. The Policy Adviser, for example, reads your institution's or
-funder's policy only from a web address, not from an attached document. Before you attach a
+size, and cannot use its text. Before you attach a
 document, the app names the agents in your deployment that read its text. The text goes to an AI model hosted outside your institution only if your institution's
 deployment allows that; where it does not, drafts are made without it.
 

@@ -159,10 +159,12 @@ class PolicyText:
     text: str
     truncated: bool = False
     linked: tuple[Linked, ...] = ()
+    # The file name of a document the researcher attached (`attached.py`); None for a page.
+    name: str | None = None
 
     def document(self) -> dict[str, Any]:
         """What is hashed and shown as evidence."""
-        return {
+        shown: dict[str, Any] = {
             "url": self.url,
             "media_type": self.media_type,
             "sha256": self.sha256,
@@ -170,6 +172,15 @@ class PolicyText:
             "truncated": self.truncated,
             "linked": [{"url": d.url, "sha256": d.sha256} for d in self.linked],
         }
+        if self.name is not None:
+            shown["name"] = self.name
+        return shown
+
+    def source(self) -> str:
+        """Where the text came from, in words."""
+        if self.name is not None:
+            return f"the document {self.name!r} the researcher attached"
+        return self.url
 
 
 class UnreadableError(Exception):
