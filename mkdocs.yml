@@ -227,6 +227,7 @@ nav:
           - Linking advisor: /agents/advisor-linking/README.md
           - Metadata advisor: /agents/advisor-metadata/README.md
           - Rights advisor: /agents/advisor-rights/README.md
+          - Rights evaluation: /agents/advisor-rights/src/dd_agent_advisor_rights/evals/README.md
   - Conformance:
       - Approach: /docs/conformance.md
       - Report: /CONFORMANCE.md
