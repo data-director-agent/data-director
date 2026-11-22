@@ -12,7 +12,9 @@ from typing import Literal
 from pydantic import Field
 
 from dd_sdk.contract.models import (
+    ApprovedMetadataRecord,
     ChosenRepository,
+    CurrentVersion,
     Derivation,
     DocumentKind,
     Frozen,
@@ -52,6 +54,8 @@ class ProbeReading(Frozen):
     project_documents: list[ProjectDocument] = Field(default_factory=list)
     project_decisions: list[ProjectFact] = Field(default_factory=list)
     project_repository: ChosenRepository | None = None
+    project_metadata_draft: CurrentVersion | None = None
+    project_metadata_approved: ApprovedMetadataRecord | None = None
 
 
 class ProbeReview(Grounded):

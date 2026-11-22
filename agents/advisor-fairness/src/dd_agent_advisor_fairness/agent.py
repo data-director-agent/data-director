@@ -1,30 +1,42 @@
 """advisor.fairness: the FAIR Assessor persona (docs/specs/agents.md). A model-backed alpha.
 
 Serves `post.fairness` (R12) and `post.retrofit` (R9). It checks the metadata of an already
-published dataset, as the researcher gives it, against a short list of FAIR-related presence
-checks, and recommends a retrofit for each check not met. It is advisory and changes no record:
-the researcher decides what to submit to the repository. It gives no score and is not a FAIRness
-evaluation (R4).
+published dataset, as the researcher gives it (`PublishedRecord`), against a short list of
+FAIR-related presence checks, and recommends a retrofit for each check not met.
 
-Whether each check is met is decided by the rule table in `checks.yaml`, never by a model. The
-recommendation for each unmet check comes from a writer (`write.py`): text a model writes for
-this record by default, or, with `DD_FAIRNESS_WRITER=template` (`factory.py`), the table's own
-text, recorded in `recommendation_derivation`. It retrieves nothing and resolves no
-identifier, so its grounding mode is `input_only` and it cites only its input. Resolving the
-record and running a community FAIRness tool is TODO(#704); discovering related datasets is
-TODO(#954).
+It also gives feedback on the project's metadata record while it is drafted
+(`ProjectMetadataDraft`, #430, #432), at any point in the work and for no step of its own: the
+conductor gives it the record's latest version and the version a person approved last
+(`GivenProjectMetadataRecord`). The feedback puts what is met first, tallies the checks for each
+of F, A, I and R, names the next steps most worth taking, and says which checks are newly met since
+the approved version. A check the repository fills at deposit, such as the DOI, is not expected of
+a draft and not counted (`after_deposit` in `checks.yaml`).
+
+It is advisory and changes no record: the researcher decides what to change. It gives no score and
+is not a FAIRness evaluation (R4). Whether each check is met is decided by the rule table, never by
+a model (`rules.py`); so are the tallies and next steps (`feedback.py`). The recommendation for
+each check to act on comes from a writer (`write.py`): text a model writes for this record by
+default, or, with `DD_FAIRNESS_WRITER=template` (`factory.py`), the table's own text, recorded in
+`recommendation_derivation`. It retrieves nothing and resolves no identifier, so its grounding
+mode is `input_only` and it cites only its input. Resolving the record and running a community
+FAIRness tool is TODO(#704); discovering related datasets is TODO(#954).
 """
 
 from __future__ import annotations
 
-import re
+from collections.abc import Sequence
 from dataclasses import dataclass
-from pathlib import Path
 
-import yaml
-
-from dd_agent_advisor_fairness.classes import FairCheck, FairnessReport, PublishedRecord
-from dd_agent_advisor_fairness.write import TemplateWriter, Unmet, Writer, Writing
+from dd_agent_advisor_fairness import datacite
+from dd_agent_advisor_fairness.classes import (
+    FairCheck,
+    FairnessReport,
+    ProjectMetadataDraft,
+    PublishedRecord,
+)
+from dd_agent_advisor_fairness.feedback import Verdict, judge, next_steps, summary, tallies
+from dd_agent_advisor_fairness.rules import Rule, load_checks
+from dd_agent_advisor_fairness.write import Recommendation, TemplateWriter, Unmet, Writer, Writing
 from dd_sdk.agent import (
     AgentResult,
     AgentSpec,
@@ -37,6 +49,7 @@ from dd_sdk.agent import (
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Derivation,
+    DocumentVersionRef,
     GroundingMode,
     InvocationRequest,
     Outcome,
@@ -44,100 +57,76 @@ from dd_sdk.contract.models import (
     ReasonCode,
 )
 
-CHECKS = Path(__file__).with_name("checks.yaml")
-TESTS = frozenset({"present", "doi", "one_of", "any_in", "covered"})
-# A DOI, bare or as a resolver URL: the 10. prefix, a registrant code, a slash and a suffix.
-DOI = re.compile(r"^(?:https?://(?:dx\.)?doi\.org/|doi:)?10\.\d{4,9}/\S+$", re.IGNORECASE)
-
-LIMITATIONS = (
+NOT_AN_EVALUATION = (
     "This is not a FAIRness evaluation: it checks only whether the metadata given here are present "
-    "and in an expected form, against a short list.",
+    "and in an expected form, against a short list."
+)
+LIMITATIONS = (
+    NOT_AN_EVALUATION,
     "Nothing was retrieved: the identifier was not resolved and the repository's record, files and "
     "landing page were not read.",
     "It does not yet discover related datasets or outputs.",
     "Its recommendations change no record. Submit any change to the repository yourself.",
 )
+DRAFT_LIMITATIONS = (
+    NOT_AN_EVALUATION.replace("the metadata given here", "the draft's metadata"),
+    "Its feedback changes no record. Edit or approve the draft yourself.",
+)
+AFTER_DEPOSIT_LIMITATION = (
+    "Checks of what the repository supplies at deposit, such as the DOI and how the data are "
+    "accessed, are left until then and not counted."
+)
 MODEL_LIMITATION = (
     "Recommendations marked as written by a model were tailored to the metadata given here and "
     "were not checked against the published record. Review each before acting on it."
 )
+NO_DRAFT = (
+    "The project holds no metadata record yet. Ask the Metadata Librarian to draft one, then ask "
+    "again for feedback on it."
+)
 
 
 @dataclass(frozen=True)
-class Rule:
-    principle: str
-    check: str
-    test: str
-    field: str
-    recommendation: str
-    values: frozenset[str] = frozenset()
-    by: str | None = None
+class Assessment:
+    """What a run assesses: the record, the verdicts on it, and for a draft, the versions."""
 
-
-def load_checks(path: Path = CHECKS) -> list[Rule]:
-    with path.open(encoding="utf-8") as fh:
-        table = yaml.safe_load(fh)
-    rules = []
-    for entry in table:
-        rule = Rule(
-            principle=str(entry["principle"]),
-            check=str(entry["check"]),
-            test=str(entry["test"]),
-            field=str(entry["field"]),
-            recommendation=" ".join(str(entry["recommendation"]).split()),
-            values=frozenset(str(v).lower() for v in entry.get("values", ())),
-            by=entry.get("by"),
-        )
-        if rule.test not in TESTS:
-            raise ValueError(f"{path}: check {rule.check!r} has unknown test {rule.test!r}")
-        if rule.field not in PublishedRecord.model_fields:
-            raise ValueError(f"{path}: check {rule.check!r} names unknown field {rule.field!r}")
-        if rule.test == "covered" and rule.by not in PublishedRecord.model_fields:
-            raise ValueError(f"{path}: check {rule.check!r} needs `by`, a field of the record")
-        rules.append(rule)
-    return rules
-
-
-def meets(rule: Rule, record: PublishedRecord) -> bool:
-    value = getattr(record, rule.field)
-    match rule.test:
-        case "present":
-            return bool(value)
-        case "doi":
-            return value is not None and DOI.match(value.strip()) is not None
-        case "one_of":
-            return value is not None and value.strip().lower() in rule.values
-        case "any_in":
-            return any(item.strip().lower() in rule.values for item in value)
-        case "covered":
-            assert rule.by is not None  # load_checks requires it
-            return bool(value) and len(getattr(record, rule.by)) >= len(value)
-    raise ValueError(f"unknown test {rule.test!r}")
+    record: PublishedRecord
+    verdicts: list[Verdict]
+    limitations: tuple[str, ...]
+    assessed_version: DocumentVersionRef | None = None
+    compared_with: DocumentVersionRef | None = None
 
 
 class FairAssessor:
     spec = AgentSpec(
         agent_id="advisor.fairness",
-        version="0.2.0a1",
+        version="0.3.0a1",
         title="FAIR Assessor",
         icon="🌱",
         description=(
-            "Alpha. Checks the metadata given for a published dataset against a short list of "
-            "FAIR-related presence checks and recommends what to retrofit; with a model "
-            "configured, the recommendations are tailored to the record. Not a FAIRness "
-            "evaluation; retrieves nothing and changes no record."
+            "Alpha. Checks a dataset's metadata against a short list of FAIR-related presence "
+            "checks: a published record the researcher gives, or, at any time, the project's draft "
+            "metadata record. It says what is already met first, tallies the checks for each of "
+            "F, A, I and R, names the next steps most worth taking and, for a draft, what is newly "
+            "met since the version approved. With a model configured, the recommendations are "
+            "tailored to the record. Not a FAIRness evaluation; retrieves nothing and changes no "
+            "record."
         ),
         action_class="advise",
-        accepts=(ClassSchema.of(PublishedRecord),),
+        accepts=(ClassSchema.of(PublishedRecord), ClassSchema.of(ProjectMetadataDraft)),
         grounding_mode=GroundingMode.INPUT_ONLY,
         payload=ClassSchema.of(FairnessReport),
         derivations={
             "checks.principle": Derived(Derivation.TEMPLATE),
             "checks.check": Derived(Derivation.TEMPLATE),
             "checks.met": Derived(Derivation.LEXICAL),
+            "checks.after_deposit": Derived(Derivation.LEXICAL),
+            "checks.newly_met": Derived(Derivation.LEXICAL),
             "checks.recommendation": Derived(
                 Derivation.MODEL, recorded_in="recommendation_derivation"
             ),
+            "principle_tallies": Derived(Derivation.LEXICAL),
+            "next_steps": Derived(Derivation.LEXICAL),
             "limitations": Derived(Derivation.TEMPLATE),
         },
         serves=("post.fairness", "post.retrofit"),
@@ -148,51 +137,97 @@ class FairAssessor:
         self.rules = rules if rules is not None else load_checks()
 
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
-        record = request.input
-        assert isinstance(record, PublishedRecord)  # the conductor checked spec.accepts
+        given = request.input
+        if isinstance(given, ProjectMetadataDraft):
+            assessed = self._draft(given)
+        else:
+            assert isinstance(given, PublishedRecord)  # the conductor checked spec.accepts
+            assessed = self._published(given)
+        if isinstance(assessed, AgentResult):
+            return assessed
+        return self._report(assessed, ctx, draft=isinstance(given, ProjectMetadataDraft))
+
+    def _published(self, record: PublishedRecord) -> Assessment | AgentResult:
         if not record.identifier and not record.title:
             return abstain(
                 ReasonCode.INSUFFICIENT_INPUT, "Give the published dataset's identifier or title."
             )
+        return Assessment(record, judge(self.rules, record, draft=False), LIMITATIONS)
 
-        met = {rule.check: meets(rule, record) for rule in self.rules}
-        unmet = [
-            Unmet(rule.principle, rule.check, rule.recommendation)
-            for rule in self.rules
-            if not met[rule.check]
-        ]
-        writing = self.writer.write(record, unmet, ctx)
-        written = dict(zip((u.check for u in unmet), writing.recommendations, strict=True))
-        checks = []
-        for rule in self.rules:
-            got = written.get(rule.check)
-            checks.append(
-                FairCheck(
-                    principle=rule.principle,
-                    check=rule.check,
-                    met=met[rule.check],
-                    recommendation=got.text if got else None,
-                    recommendation_derivation=got.derivation if got else None,
-                )
+    def _draft(self, given: ProjectMetadataDraft) -> Assessment | AgentResult:
+        draft = given.project_metadata_draft
+        text = draft.document_text if draft is not None else given.draft_text
+        if not text or not text.strip():
+            return abstain(ReasonCode.INSUFFICIENT_INPUT, NO_DRAFT)
+        try:
+            record = PublishedRecord.model_validate(datacite.fields(text))
+        except datacite.NotDataCiteError as exc:
+            return abstain(
+                ReasonCode.INSUFFICIENT_INPUT,
+                f"The metadata record cannot be read as DataCite JSON: {exc}.",
             )
-        by_model = any(r.derivation == Derivation.MODEL for r in writing.recommendations)
-        limitations = [*LIMITATIONS, MODEL_LIMITATION] if by_model else list(LIMITATIONS)
+        approved, compared_with = self._approved(given)
+        verdicts = judge(self.rules, record, draft=True, approved=approved)
+        limitations: tuple[str, ...] = DRAFT_LIMITATIONS
+        if any(v.after_deposit for v in verdicts):
+            limitations = (*limitations, AFTER_DEPOSIT_LIMITATION)
+        return Assessment(
+            record,
+            verdicts,
+            limitations,
+            assessed_version=draft.version_ref if draft is not None else None,
+            compared_with=compared_with,
+        )
 
-        ref = input_ref(ctx)
+    @staticmethod
+    def _approved(
+        given: ProjectMetadataDraft,
+    ) -> tuple[PublishedRecord | None, DocumentVersionRef | None]:
+        """The approved version to compare the draft with, read as a record, and its reference;
+        neither when none was approved, it is the version assessed, or it cannot be read."""
+        approved = given.project_metadata_approved
+        draft = given.project_metadata_draft
+        if approved is None or (draft is not None and draft.version_ref == approved.version_ref):
+            return None, None
+        try:
+            fields = datacite.fields(approved.document_text)
+        except datacite.NotDataCiteError:
+            return None, None
+        return PublishedRecord.model_validate(fields), approved.version_ref
+
+    def _report(self, assessed: Assessment, ctx: RunContext, *, draft: bool) -> AgentResult:
+        verdicts = assessed.verdicts
+        to_act_on = [v for v in verdicts if v.to_act_on]
+        writing = self.writer.write(
+            assessed.record,
+            [Unmet(v.rule.principle, v.rule.check, v.rule.recommendation) for v in to_act_on],
+            ctx,
+        )
+        written = dict(zip((v.rule.check for v in to_act_on), writing.recommendations, strict=True))
+        counted = tallies(verdicts)
+        steps = next_steps(verdicts)
+        by_model = any(r.derivation == Derivation.MODEL for r in writing.recommendations)
+        limitations = [*assessed.limitations, *((MODEL_LIMITATION,) if by_model else ())]
+        whose, verb = (
+            ("Your draft metadata record", "meets") if draft else ("The metadata given", "meet")
+        )
         calls = writing.calls
         return AgentResult(
             outcome=Outcome(
                 status=OutcomeStatus.SUCCEEDED,
                 statement=(
-                    f"The metadata given meet {len(checks) - len(unmet)} of {len(checks)} "
-                    f"presence checks, with {_count(len(unmet), 'recommendation')} to retrofit. "
-                    f"{_how_written(writing)} This is not a FAIRness evaluation."
+                    f"{summary(whose, verb, verdicts, counted, steps)} {_how_written(writing)} "
+                    "This is not a FAIRness evaluation."
                 ),
             ),
             payload=FairnessReport(
-                checks=checks,
+                checks=_checks(verdicts, written),
+                principle_tallies=counted,
+                next_steps=steps,
+                assessed_version=assessed.assessed_version,
+                compared_with=assessed.compared_with,
                 limitations=limitations,
-                grounded_on=[ref],
+                grounded_on=[input_ref(ctx)],
             ),
             evidence=[input_evidence(ctx)],
             model_id=writing.model_id,
@@ -203,9 +238,29 @@ class FairAssessor:
         )
 
 
+def _checks(verdicts: Sequence[Verdict], written: dict[str, Recommendation]) -> list[FairCheck]:
+    checks = []
+    for verdict in verdicts:
+        got = written.get(verdict.rule.check)
+        checks.append(
+            FairCheck(
+                principle=verdict.rule.principle,
+                check=verdict.rule.check,
+                met=verdict.met,
+                after_deposit=verdict.after_deposit or None,
+                newly_met=verdict.newly_met,
+                recommendation=got.text if got else None,
+                recommendation_derivation=got.derivation if got else None,
+            )
+        )
+    return checks
+
+
 def _how_written(writing: Writing) -> str:
     """What the statement says about the writer: whether a model wrote the recommendations, and
     what was not used."""
+    if not writing.recommendations:
+        return "There is nothing to recommend."
     if writing.model_id is None:
         return "No model is configured, so each recommendation is the rule table's own."
     if writing.unused:

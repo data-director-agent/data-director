@@ -49,6 +49,9 @@ never the agent's or person's words about why. Outside a project, a `Message`'s 
 `DraftRequest`'s, like its other facts, are the caller's. An agent's own input class that mixes in
 `GivenProjectDecisions` or `GivenProjectRepository` is given the decided facts or the chosen
 repository by slot name, as one that mixes in `GivenProjectDocuments` is given attached documents.
+One that mixes in `GivenProjectMetadataRecord` is given the latest version of the project's
+metadata record, whatever its state, and the version a person approved last; both are
+documentation, as a `DraftRequest`'s `metadata_record` is, and neither is an attached document.
 
 A `Message`'s project slots are the conductor's alone: outside a project they are removed. Any
 other input is left as it was sent. The conductor fills the input before hashing it, so the input
@@ -103,9 +106,15 @@ FILE_INVENTORY = "FileInventory"
 MESSAGE = "Message"
 CORE_CLASSES = frozenset({DRAFT_REQUEST, FILE_INVENTORY, MESSAGE})
 # The core slots an agent's own input class may mix in, which the conductor fills by name
-# (`GivenProjectDocuments`, `GivenProjectDecisions`, `GivenProjectRepository`) without the
-# harness naming the class.
-AGENT_INPUT_SLOTS = ("project_documents", "project_decisions", "project_repository")
+# (`GivenProjectDocuments`, `GivenProjectDecisions`, `GivenProjectRepository`,
+# `GivenProjectMetadataRecord`) without the harness naming the class.
+AGENT_INPUT_SLOTS = (
+    "project_documents",
+    "project_decisions",
+    "project_repository",
+    "project_metadata_draft",
+    "project_metadata_approved",
+)
 # A `Message`'s slots that only the conductor fills.
 MESSAGE_PROJECT_SLOTS = (
     "project_inventory",
@@ -166,6 +175,8 @@ AGENT_CONTENT_SLOTS = (
     ("project_documents", DOCUMENTATION),
     ("project_decisions", DECISIONS),
     ("project_repository", DECISIONS),
+    ("project_metadata_draft", DOCUMENTATION),
+    ("project_metadata_approved", DOCUMENTATION),
 )
 
 
@@ -267,6 +278,12 @@ def _agent_facts(
         facts["project_decisions"] = store.decisions(project_id)
     if "project_repository" in slots:
         facts["project_repository"] = chosen(store.summary(project_id)["repository"])
+    if "project_metadata_draft" in slots:
+        facts["project_metadata_draft"] = store.current_version(
+            project_id, DocumentKind.METADATA_RECORD
+        )
+    if "project_metadata_approved" in slots:
+        facts["project_metadata_approved"] = store.metadata_record(project_id)
     return facts
 
 
@@ -285,9 +302,9 @@ def chosen(recorded: Mapping[str, Any] | None) -> dict[str, Any] | None:
 
 def agent_slots(spec: AgentSpec | None, schema_class: Any) -> frozenset[str]:
     """The core slots (`AGENT_INPUT_SLOTS`) the card's schema for an agent's own input class
-    declares, from the mixins `GivenProjectDocuments`, `GivenProjectDecisions` and
-    `GivenProjectRepository`; empty for a core class, which `give` fills by name, or one the agent
-    does not accept."""
+    declares, from the mixins `GivenProjectDocuments`, `GivenProjectDecisions`,
+    `GivenProjectRepository` and `GivenProjectMetadataRecord`; empty for a core class, which
+    `give` fills by name, or one the agent does not accept."""
     if spec is None or schema_class in CORE_CLASSES:
         return frozenset()
     accepted = spec.accepted(str(schema_class))

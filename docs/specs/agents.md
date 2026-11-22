@@ -156,6 +156,15 @@ A new advisor is justified when there is a kind of expertise no current persona 
 own sources, failure modes and evaluation, and steps no persona serves. Work that fits an existing
 persona's expertise extends that persona instead. A new persona takes its steps from no other.
 
+A persona may also be asked for advice outside its steps, at any point in the work, through an
+input class of its own: the orchestrators offer every class an agent accepts, whatever step it
+serves. Such advice takes no step from another persona and marks none done. The FAIR Assessor
+gives feedback on the project's draft metadata record this way (#430, #432): the Metadata Librarian
+drafts it (`preparation.metadata`) and the Metadata Reviewer checks it is complete enough to
+deposit (`deposit.validate`), while the assessor says what it already meets against FAIR-related
+checks, what is newly met since the version approved, and what to do next, so that each
+improvement is visible. It changes nothing; the researcher edits or approves the draft.
+
 Some steps are deliberately served by no agent, and the orchestrators name them as steps with no
 agent:
 
@@ -186,7 +195,7 @@ roster for #353 found:
 |---|---|
 | `advisor.ethics`, `advisor.dmp` | Model-backed alpha first: the rules are the weak point and the task is reading language. |
 | `advisor.rights`, `advisor.metadata` | Model-backed alpha, choosing from a closed set (rights) or suggesting beside a value (metadata). |
-| `advisor.fairness` | Model-backed alpha for its recommendations only; little gain until it retrieves. |
+| `advisor.fairness` | Model-backed alpha for its recommendations only; little gain until it retrieves. Also gives constructive feedback on the project's draft metadata record at any time (`GivenProjectMetadataRecord`, #432). |
 | `advisor.quality` | Stays rule-based in its findings; it overlaps the FAIR Assessor (#18). Since every advisor became model-backed by default, a model writes a summary beside them (`dd_sdk.summary`). |
 | `advisor.linking`, `advisor.files` | Identifier syntax, checksums and format lookup are exact and stay in rules. Their next step is retrieval (#360, #354); `advisor.linking` has taken it for DOIs, ORCID iDs and ROR ids, through the tool gateway and the PID resolver (`mcp-pid/`), the first MCP server in this repository. Since every advisor became model-backed by default, each is a model-backed alpha whose model only writes a summary beside the rules' findings (`dd_sdk.summary`). |
 | `orchestrator.stub`, `example.hello` | Stay deterministic by design. |

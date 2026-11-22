@@ -74,6 +74,7 @@ CASES = [
     ("advisor.files", "soil-survey.inventory.json", "succeeded"),
     ("advisor.dmp", "dmp-commitments.json", "succeeded"),
     ("advisor.fairness", "published-record.json", "succeeded"),
+    ("advisor.fairness", "project-metadata-draft.json", "succeeded"),
     ("advisor.metadata", "soil-survey.metadata-record.draft.json", "succeeded"),
     ("advisor.documentation", "soil-survey.readme.draft.json", "succeeded"),
     ("advisor.documentation", "soil-survey.data-dictionary.draft.json", "succeeded"),

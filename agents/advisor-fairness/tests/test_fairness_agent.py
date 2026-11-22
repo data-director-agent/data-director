@@ -32,12 +32,12 @@ def test_checks_the_record_and_suggests_retrofits(runs_dir: Path) -> None:
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     assert env.grounding_mode == GroundingMode.INPUT_ONLY
     payload = env.payload_as(FairnessReport)
-    unmet = [(c.principle, c.check) for c in payload.checks if not c.met]
-    assert unmet == [
+    unmet = {(c.principle, c.check) for c in payload.checks if not c.met}
+    assert unmet == {
         ("F1", "identifier-is-doi"),
         ("I3", "related-identifiers-present"),
         ("R1.2", "creators-identified"),
-    ]
+    }
     assert all(c.recommendation for c in payload.checks if not c.met)
     assert all(
         c.recommendation_derivation == Derivation.TEMPLATE for c in payload.checks if not c.met

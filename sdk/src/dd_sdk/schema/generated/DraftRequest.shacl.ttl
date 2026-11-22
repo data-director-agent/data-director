@@ -202,18 +202,18 @@ dd:CurrentVersion a sh:NodeShape ;
             sh:order 3 ;
             sh:path dd:document_text ],
         [ sh:datatype xsd:string ;
-            sh:description "The reason the person gave for their decision, in their words. Present for a rejection, and for an approval only if they gave one." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 5 ;
-            sh:path dd:decision_reason ],
-        [ sh:datatype xsd:string ;
             sh:description "The media type of document_text, such as text/markdown or application/json." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
             sh:path dcterms:format ],
+        [ sh:datatype xsd:string ;
+            sh:description "The reason the person gave for their decision, in their words. Present for a rejection, and for an approval only if they gave one." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dd:decision_reason ],
         [ sh:description "Whether a person has approved or rejected the version, or not yet decided." ;
             sh:in ( "proposed" "approved" "rejected" ) ;
             sh:maxCount 1 ;
@@ -542,7 +542,14 @@ dd:ProjectDocument a sh:NodeShape ;
     rdfs:comment "One document a researcher attached to a project, with its text: the conductor fills one per document into a DraftRequest so that a drafter's model may suggest answers from it (docs/specs/projects.md). Its text is the researcher's, untrusted, and given as data." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:integer ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The file name the researcher attached the document under, without any folder." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:documentation_name ],
+        [ sh:datatype xsd:integer ;
             sh:description "The size of the document's UTF-8 text, in bytes." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -583,14 +590,7 @@ dd:ProjectDocument a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
             sh:path dd:documentation_digest ;
-            sh:pattern "^[0-9a-f]{64}$" ],
-        [ sh:datatype xsd:string ;
-            sh:description "The file name the researcher attached the document under, without any folder." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path dd:documentation_name ] ;
+            sh:pattern "^[0-9a-f]{64}$" ] ;
     sh:targetClass dd:ProjectDocument .
 
 dd:ProjectFact a sh:NodeShape ;

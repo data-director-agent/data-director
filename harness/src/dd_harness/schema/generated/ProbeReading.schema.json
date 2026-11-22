@@ -1,6 +1,39 @@
 {
    "$comment": "Generated from doubles.yaml by `uv run dd-gen-schema <path to doubles.yaml>`. Do not edit.",
    "$defs": {
+      "ApprovedMetadataRecord": {
+         "additionalProperties": false,
+         "description": "The project's metadata record as a person approved it: the version named by the last approval of a metadata_record document in the project (docs/specs/projects.md). A drafter treats what it holds as supplied, given by a person (docs/specs/drafting.md).",
+         "properties": {
+            "version_ref": {
+               "$ref": "#/$defs/DocumentVersionRef",
+               "description": "The version, by its document and number."
+            },
+            "media_type": {
+               "description": "The media type of document_text, such as text/markdown or application/json.",
+               "type": "string"
+            },
+            "conforms_to": {
+               "description": "The schema or profile document_text follows, such as a repository's metadata schema.",
+               "format": "uri",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "document_text": {
+               "description": "The content of the document, as text; a structured record is serialised.",
+               "type": "string"
+            }
+         },
+         "required": [
+            "version_ref",
+            "media_type",
+            "document_text"
+         ],
+         "title": "ApprovedMetadataRecord",
+         "type": "object"
+      },
       "ChosenRepository": {
          "additionalProperties": false,
          "description": "The repository a researcher chose to deposit the project's data in, from the shortlist, by the identifier of the registry that lists it: the conductor fills it into a Message, and into the input of an agent that mixes in GivenProjectRepository, so that the agent knows a repository is chosen and which (docs/specs/projects.md). The last choice stands until a researcher chooses again.",
@@ -30,6 +63,71 @@
             "chosen_repository_name"
          ],
          "title": "ChosenRepository",
+         "type": "object"
+      },
+      "CurrentVersion": {
+         "additionalProperties": false,
+         "description": "The version of a project document that a drafter is to regenerate: the document's latest, its text, and its state with the reason a person gave for any decision on it (ADR-0036 decision 7). A drafter that regenerates it names version_ref in its payload's revises.",
+         "properties": {
+            "version_ref": {
+               "$ref": "#/$defs/DocumentVersionRef",
+               "description": "The version, by its document and number."
+            },
+            "document_title": {
+               "description": "A short name a person can tell documents apart by, such as README for raw/.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "media_type": {
+               "description": "The media type of document_text, such as text/markdown or application/json.",
+               "type": "string"
+            },
+            "document_text": {
+               "description": "The content of the document, as text; a structured record is serialised.",
+               "type": "string"
+            },
+            "version_state": {
+               "$ref": "#/$defs/VersionState",
+               "description": "Whether a person has approved or rejected the version, or not yet decided."
+            },
+            "decision_reason": {
+               "description": "The reason the person gave for their decision, in their words. Present for a rejection, and for an approval only if they gave one.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "version_ref",
+            "media_type",
+            "document_text",
+            "version_state"
+         ],
+         "title": "CurrentVersion",
+         "type": "object"
+      },
+      "DocumentVersionRef": {
+         "additionalProperties": false,
+         "description": "One version of a project document: the document the conductor minted an identifier for, and the version's number within it, counted from 1.",
+         "properties": {
+            "document_id": {
+               "description": "The identifier the conductor minted for the document, a UUIDv7.",
+               "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+               "type": "string"
+            },
+            "version": {
+               "description": "The number of a version within its document, counted from 1.",
+               "type": "integer"
+            }
+         },
+         "required": [
+            "document_id",
+            "version"
+         ],
+         "title": "DocumentVersionRef",
          "type": "object"
       },
       "FactKind": {
@@ -427,12 +525,22 @@
          ],
          "title": "SensitivityDecision",
          "type": "string"
+      },
+      "VersionState": {
+         "description": "The state of one version of a project document (ADR-0035 decision 6). Every version begins proposed; once approved or rejected, it does not change.",
+         "enum": [
+            "proposed",
+            "approved",
+            "rejected"
+         ],
+         "title": "VersionState",
+         "type": "string"
       }
    },
    "$id": "https://w3id.org/data-director/harness/doubles/ProbeReading",
    "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
-   "description": "What a checking double reads in a project: an agent's own input class that asks the conductor for the attached documents, the decided facts and the chosen repository by their slots (docs/specs/projects.md, invariant 6).",
+   "description": "What a checking double reads in a project: an agent's own input class that asks the conductor for the attached documents, the decided facts, the chosen repository and the metadata record by their slots (docs/specs/projects.md, invariant 6).",
    "properties": {
       "schema_class": {
          "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -478,6 +586,28 @@
             }
          ],
          "description": "The repository a researcher in the project chose last, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project has chosen one."
+      },
+      "project_metadata_draft": {
+         "anyOf": [
+            {
+               "$ref": "#/$defs/CurrentVersion"
+            },
+            {
+               "type": "null"
+            }
+         ],
+         "description": "The latest version of the project's metadata record, proposed, approved or rejected, with its text and state. In a project the conductor fills it and a caller leaves it out. Absent when the project holds no metadata record."
+      },
+      "project_metadata_approved": {
+         "anyOf": [
+            {
+               "$ref": "#/$defs/ApprovedMetadataRecord"
+            },
+            {
+               "type": "null"
+            }
+         ],
+         "description": "The version of the project's metadata record a person approved last. In a project the conductor fills it and a caller leaves it out. Absent when no version has been approved."
       }
    },
    "required": [

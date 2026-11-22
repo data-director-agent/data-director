@@ -1,0 +1,4 @@
+{
+  "schema_class": "ProjectMetadataDraft",
+  "draft_text": "{\n  \"doi\": null,\n  \"titles\": [\n    {\n      \"title\": \"Peat depth survey, Kinder Scout, 2025\"\n    }\n  ],\n  \"creators\": [\n    {\n      \"name\": \"Byron, Ada\",\n      \"nameType\": \"Personal\",\n      \"nameIdentifiers\": [\n        {\n          \"nameIdentifier\": \"https://orcid.org/0000-0002-1825-0097\",\n          \"nameIdentifierScheme\": \"ORCID\",\n          \"schemeUri\": \"https://orcid.org\"\n        }\n      ]\n    },\n    {\n      \"name\": \"Babbage, Charles\",\n      \"nameType\": \"Personal\"\n    }\n  ],\n  \"subjects\": null,\n  \"descriptions\": null,\n  \"rightsList\": [\n    {\n      \"rights\": \"Creative Commons Attribution 4.0 International\",\n      \"rightsIdentifier\": \"CC-BY-4.0\"\n    }\n  ],\n  \"formats\": [\n    \"text/csv\"\n  ],\n  \"relatedIdentifiers\": null,\n  \"types\": {\n    \"resourceTypeGeneral\": \"Dataset\"\n  }\n}"
+}

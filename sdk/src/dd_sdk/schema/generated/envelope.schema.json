@@ -1375,6 +1375,36 @@
          "title": "GivenProjectDocuments",
          "type": "object"
       },
+      "GivenProjectMetadataRecord": {
+         "additionalProperties": false,
+         "description": "Mixed into an agent's own input class when the agent reads the project's metadata record: its latest version, whatever its state, and the version a person approved last. In a project the conductor fills project_metadata_draft and project_metadata_approved by these names and never needs to know the input class (docs/specs/projects.md, invariant 6); outside one, the caller sends them.",
+         "properties": {
+            "project_metadata_draft": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/CurrentVersion"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "The latest version of the project's metadata record, proposed, approved or rejected, with its text and state. In a project the conductor fills it and a caller leaves it out. Absent when the project holds no metadata record."
+            },
+            "project_metadata_approved": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/ApprovedMetadataRecord"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "The version of the project's metadata record a person approved last. In a project the conductor fills it and a caller leaves it out. Absent when no version has been approved."
+            }
+         },
+         "title": "GivenProjectMetadataRecord",
+         "type": "object"
+      },
       "GivenProjectRepository": {
          "additionalProperties": false,
          "description": "Mixed into an agent's own input class when the agent reads the repository a researcher chose for the project. In a project the conductor fills project_repository by this name and never needs to know the input class (docs/specs/projects.md, invariant 6); outside one, the caller sends it.",
