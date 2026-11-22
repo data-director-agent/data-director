@@ -27,7 +27,8 @@ def proposed(state: TaskState) -> list[dict[str, Any]] | None:
     if state.metadata["kind"] != "read" or envelope["outcome"]["status"] != "succeeded":
         return None
     facts: list[dict[str, Any]] = (envelope.get("payload") or {}).get("proposed_facts", [])
-    return facts
+    # Only the commitments: which document is the plan is proposed beside them (#1447).
+    return [f for f in facts if f["fact_kind"] == "sharing_commitment"]
 
 
 def labelled(state: TaskState) -> list[dict[str, Any]]:

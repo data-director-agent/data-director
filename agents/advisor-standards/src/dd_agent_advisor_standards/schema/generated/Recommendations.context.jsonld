@@ -108,6 +108,9 @@
       "notes": {
          "@id": "https://w3id.org/data-director/agents/standards/notes"
       },
+      "plan_document": {
+         "@id": "https://w3id.org/data-director/plan_document"
+      },
       "proposed_because": {
          "@id": "https://w3id.org/data-director/proposed_because"
       },

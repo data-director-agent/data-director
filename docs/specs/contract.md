@@ -243,6 +243,13 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
     `shared_answers` (`SharedAnswer`) are filled only by the conductor in a project
     ([Drafting documents](drafting.md), invariant 11; #1284). Adding them raised the contract
     version to 0.24.0.
+36. A `ProjectFact` may be a `data_management_plan`: which attached document is the project's
+    Data Management Plan, named by the digest of its text (`plan_document`, required). Its
+    subject is always `project`, so a project has at most one current plan. A
+    `DocumentationSummary`, and so a `ProjectDocument`, may carry `documentation_is_plan`, true
+    for the document that fact names; only the conductor fills it, from the project's decisions,
+    and no agent class is named for it ([Projects](projects.md), invariant 32; #1447;
+    `sdk/tests/test_fact_kinds.py`). Adding them raised the contract version to 0.25.0.
 
 ## Boundaries and contracts
 

@@ -191,7 +191,11 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     goes through (`DocumentReviewDialog`), and only **Attach this document** sends it, to
     `POST /api/projects/{id}/documentation`; a refusal closes the check and is said on the page,
     and cancelling stores nothing (`app/web/src/components/project/AttachDocument.test.tsx`,
-    `app/tests/test_project_materials.py`).
+    `app/tests/test_project_materials.py`). Each document listed offers **Mark as the Data
+    Management Plan**, and the one marked is labelled as the plan and offers **Not the plan**; both
+    are a person's decision on the project's `data_management_plan` fact, sent to
+    `POST /api/projects/{id}/facts/decisions`, after which the list is read again
+    ([Projects](projects.md), invariant 32; `AttachedDocuments.test.tsx`).
     A chip whose whole inventory the page can read, the one attached and the one the project holds
     now (`GET /api/projects/{id}/inventory`), has a **View inventory** button. It opens a dialog
     that says this is everything Data Director keeps and agents are shown, then what the inventory

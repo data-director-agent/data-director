@@ -25,6 +25,7 @@ from dd_harness.projects import (
 )
 from dd_harness.storage import ProjectStorage
 from dd_harness.testing.fixtures import TEST_PRINCIPAL
+from dd_harness.testing.plan_storage import PLAN_STORAGE_CHECKS
 
 type MakeProjectStorage = Callable[[str], ProjectStorage]
 
@@ -272,4 +273,5 @@ FACT_STORAGE_CHECKS: dict[str, Callable[[MakeProjectStorage], None]] = {
     "a decision on a superseded proposal is refused": (
         check_a_decision_on_a_superseded_proposal_is_refused
     ),
+    **PLAN_STORAGE_CHECKS,
 }

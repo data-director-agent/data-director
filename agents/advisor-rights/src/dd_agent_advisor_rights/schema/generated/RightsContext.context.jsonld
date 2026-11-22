@@ -70,6 +70,9 @@
       "mandated_licence": {
          "@id": "https://w3id.org/data-director/agents/rights/mandated_licence"
       },
+      "plan_document": {
+         "@id": "https://w3id.org/data-director/plan_document"
+      },
       "project_decisions": {
          "@id": "https://w3id.org/data-director/project_decisions",
          "@type": "@id"

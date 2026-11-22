@@ -1,7 +1,8 @@
 """A project fact has what its kind needs (docs/specs/projects.md, invariant 28): a sharing
 commitment read from a plan names the passage it rests on and the document that holds it (#962),
 and a standard chosen names the standard, and what it is chosen for only as the dataset or one
-field (#1391)."""
+field (#1391); a project's data management plan names the attached document, under the one
+subject a plan has (#1447)."""
 
 from __future__ import annotations
 
@@ -10,7 +11,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from dd_sdk.contract.facts import FACT_NEEDS, FactKind, ProjectFact
+from dd_sdk.contract.facts import FACT_NEEDS, PLAN_SUBJECT, FactKind, ProjectFact
 
 COMMITMENT: dict[str, Any] = {
     "fact_kind": "sharing_commitment",
@@ -86,3 +87,28 @@ def test_only_its_name_is_needed() -> None:
     """A researcher may state a standard by name alone, with no registry record."""
     bare = {"fact_kind": "standard", "fact_subject": "ISO 8601", "standard_name": "ISO 8601"}
     assert ProjectFact.model_validate(bare).standard_kind is None
+
+
+PLAN: dict[str, Any] = {
+    "fact_kind": "data_management_plan",
+    "fact_subject": PLAN_SUBJECT,
+    "plan_document": "b" * 64,
+}
+
+
+def test_a_plan_fact_names_the_attached_document_by_digest() -> None:
+    fact = ProjectFact.model_validate(PLAN)
+    assert fact.fact_kind == FactKind.DATA_MANAGEMENT_PLAN
+    assert set(FACT_NEEDS[FactKind.DATA_MANAGEMENT_PLAN]) <= fact.model_fields_set
+
+
+@pytest.mark.parametrize("document", [None, "dmp.docx"])
+def test_a_plan_fact_without_a_document_digest_is_refused(document: str | None) -> None:
+    with pytest.raises(ValidationError):
+        ProjectFact.model_validate({**PLAN, "plan_document": document})
+
+
+def test_a_project_has_one_plan_subject() -> None:
+    """Every plan fact has the same subject, so the last decision on it is the current plan."""
+    with pytest.raises(ValidationError):
+        ProjectFact.model_validate({**PLAN, "fact_subject": "grant/dmp.docx"})

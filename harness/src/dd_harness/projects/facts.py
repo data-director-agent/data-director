@@ -11,6 +11,11 @@ a proposal the project does not hold, on one a later proposal or decision on its
 has followed, or a changed value of another kind or subject than the proposal's, is refused, and
 the refusal is a `document_change_refused` event.
 
+Which attached document is the project's data management plan is a fact too
+(`data_management_plan`, invariant 32): its subject is always the same, so the last decision on
+it is the one current plan, and a decision or a proposal naming a document the project does not
+hold is refused or left out (`current_plan`).
+
 `decisions` gives the facts that stand, the last decision on each kind and subject: a rejection
 removes the fact. The conductor puts them into a `DraftRequest` and a `Message` as
 `project_decisions`, without the agent's `proposed_because` or a person's reason, which are for
@@ -25,6 +30,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, Any, Final
 
 from dd_harness.projects.rules import (
+    DOCUMENTATION_ADDED,
     FACT_DECIDED,
     FACT_PROPOSED,
     PROJECT_ID,
@@ -33,6 +39,7 @@ from dd_harness.projects.rules import (
     Refusal,
     Refused,
 )
+from dd_sdk.contract.facts import PLAN_SUBJECT, FactKind
 from dd_sdk.contract.models import Principal, ProjectFact
 
 if TYPE_CHECKING:
@@ -75,6 +82,24 @@ def for_agents(fact: Mapping[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in fact.items() if k not in FOR_THE_PERSON}
 
 
+PLAN_KEY: Final = (FactKind.DATA_MANAGEMENT_PLAN.value, PLAN_SUBJECT)
+
+
+def current_plan(events: Iterable[Mapping[str, Any]]) -> str | None:
+    """The digest of the attached document a person decided is the project's data management
+    plan, from its log's `events`; None while none is decided, or after a rejection."""
+    plan = _standing(events).get(PLAN_KEY)
+    return None if plan is None else str(plan["plan_document"])
+
+
+def _unattached(fact: Mapping[str, Any], events: Iterable[Mapping[str, Any]]) -> bool:
+    """Whether `fact` names as the plan a document the project does not hold."""
+    if fact.get("fact_kind") != FactKind.DATA_MANAGEMENT_PLAN.value:
+        return False
+    held = {e["digest"] for e in events if e["event"] == DOCUMENTATION_ADDED}
+    return fact.get("plan_document") not in held
+
+
 class Facts(ProjectRules):
     """The rules of the facts a project holds."""
 
@@ -95,22 +120,26 @@ class Facts(ProjectRules):
     ) -> list[str]:
         """Record what a run of `agent_id` proposed, one `fact_proposed` event each, written
         together. Returns the proposals' identifiers. Raises `ProjectError` for an unknown
-        project or a fact that is not a `ProjectFact`, which records nothing."""
+        project or a fact that is not a `ProjectFact`, which records nothing. A plan naming a
+        document the project does not hold is left out, as nothing a person could decide."""
         documents = self.checked_facts(facts)
         if not documents:
             return []
-        events = [
-            self._event(
-                project_id,
-                FACT_PROPOSED,
-                acted_for,
-                caused_by,
-                {"agent_id": agent_id, "fact": document},
-            )
-            for document in documents
-        ]
         with self._section(project_id) as section:
-            section.append(events)
+            held = section.events()
+            events = [
+                self._event(
+                    project_id,
+                    FACT_PROPOSED,
+                    acted_for,
+                    caused_by,
+                    {"agent_id": agent_id, "fact": document},
+                )
+                for document in documents
+                if not _unattached(document, held)
+            ]
+            if events:
+                section.append(events)
         return [e["event_id"] for e in events]
 
     def decide_fact(
@@ -150,6 +179,12 @@ class Facts(ProjectRules):
             decided = _decided(verdict, proposed, given)
             if isinstance(decided, Refused):
                 return decided
+            if verdict is not FactVerdict.REJECTED and _unattached(decided, section.events()):
+                return Refused(
+                    Refusal.NOT_ATTACHED,
+                    "The plan must be a document attached to this project.",
+                    {"plan_document": decided["plan_document"]},
+                )
             detail: dict[str, Any] = {"verdict": verdict.value, "fact": decided}
             if proposal:
                 detail["proposal"] = proposal

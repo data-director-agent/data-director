@@ -41,8 +41,11 @@ before collection (Figure 4) and the two decisions about a related article (Figu
    Blueprint data, the same for every deployment. A deployment still shapes the conversation
    through the agents it enables. The implementer profiles of [§11](../blueprint/11-implementation-guidance.md)
    are not the deployment's policy profile.
-3. **The Data Management Plan question marks nothing.** Whether to keep the question, now that
-   its answer only enters the project log, is left to the Blueprint reader (TODO(#670)).
+3. **The Data Management Plan question marks nothing.** It marks no step, but a "Yes" now leads
+   the orchestrator to invite the researcher to attach their plan, or to mark which attached
+   document it is, so that the check against the plan reads it ([Projects](projects.md),
+   invariant 32; #1447). Whether to keep the question is left to the Blueprint reader
+   (TODO(#670)).
 4. **"Yes" to a mandated repository skips `repository.recommend`.** No answer marks a step done.
 5. **A model's suggested answer skips nothing.** An orchestrator's model may suggest an answer it
    read in the researcher's words, which the card shows chosen, but only the researcher's answer

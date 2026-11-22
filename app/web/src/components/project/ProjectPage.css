@@ -26,6 +26,11 @@
     text-transform: uppercase;
   }
 
+  .plan-badge {
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-strong);
+  }
+
   .project-rename-actions {
     display: flex;
     flex-wrap: wrap;

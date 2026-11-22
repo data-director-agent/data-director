@@ -65,7 +65,10 @@ It reads only its input, so its grounding mode is `input_only` and it cites only
 ## Reading an attached plan
 
 In a project the conductor also gives the checker the documents the researcher attached and the
-facts people decided. Where no commitment is typed or confirmed but a plan is attached, the model
+facts people decided. Where a person has marked one document as the project's plan
+(`documentation_is_plan`, docs/specs/projects.md, invariant 32), only that document is read; where
+none is marked, every document is read and the checker also proposes the document it read the
+commitments from as the plan (a `data_management_plan` fact), for a person to confirm (#1447). Where no commitment is typed or confirmed but a plan is attached, the model
 reads the plan (`read_plan.py`) and the checker proposes each commitment it finds, with the
 passage it rests on, as a `sharing_commitment` fact for the researcher to confirm, correct or
 reject. A commitment whose quote is not in the plan is dropped and said. It compares nothing until
