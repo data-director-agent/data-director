@@ -77,6 +77,14 @@ export function QuestionSeries({
 
   function send() {
     if (given.length === 0 || disabled) return;
+    // An answer that cannot be kept, such as one over the limit, is shown again with why.
+    const held = questions.findIndex((asked) => problemOf(asked, draftOf(asked)) !== null);
+    const asked = questions[held];
+    if (asked) {
+      go(held);
+      setError(problemOf(asked, draftOf(asked)));
+      return;
+    }
     const answers: ReplyAnswers = { answer_to: askedBy, given_answers: given };
     onAnswer(answers, answersText(questions, answers));
   }

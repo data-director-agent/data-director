@@ -260,7 +260,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     buttons, or checkboxes where several may be chosen, each option a card the whole of which can
     be clicked (the control stays visible and ticked beside an accent bar), with "Something else"
     and a text box where the question allows an answer in words; a short text question as a
-    one-line text box; a long text question as a text area that counts the characters left. A lone
+    one-line text box; a long text question as a text area. Each text box counts the characters
+    left against the limit the harness holds an answer to and never cuts what is typed or pasted:
+    an answer over the limit is kept whole and refused with a message saying by how much. A lone
     question is answered and sent in place. A series shows one question at a time, saying in
     words which of how many it is beside a progress bar, with Back, Skip and Next; Next with
     nothing entered says to answer or skip. After the last question it lists the answers to check,
@@ -299,7 +301,14 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     reads; nothing a model suggested is recorded until a person presses it. Those with no
     suggestion follow, three at a time, in a fieldset "Only you can answer these", each a blank text
     box labelled by the question and described by what it fills, saved with "Save answers", which
-    never sends a suggestion; blank boxes are left as they are. Each question links to a new
+    never sends a suggestion; blank boxes are left as they are. Each box counts the characters left
+    against the server's `answer_max_length` and never cuts the text; an answer over it is kept
+    whole and refused with a message, with nothing sent. A box holding text not yet saved says
+    "Not saved yet" in words, and the browser asks before the page is left or reloaded while any
+    does. Beneath the form, the card lists the latest version's answered questions with the answers
+    the project log holds, so they are there after a reload; each has a "Change" button that puts
+    the question back in the form with its saved answer, and saving records a new answer, which
+    stands. Each question links to a new
     conversation ("Talk this through", `/?question={document_id}/{question_id}`) whose message box
     holds, unsent, a request for help with it; the address then drops the question, and the answer
     is still recorded on the draft. Saving sends the answers to
@@ -309,11 +318,12 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     The card then draws the documents the server read back and says in a status how many answers
     were recorded. The project's documents page has one Questions section per version, saying how
     many are answered: on the latest version it holds the same form, with the answered questions
-    folded beneath it, each with its answer; an earlier version's questions are listed only, each
-    with the answer recorded, or saying in words that none is, with the suggestion while it is
-    unanswered ([Drafting documents](drafting.md),
+    folded beneath it, each with its answer and "Change"; an earlier version's questions are
+    listed only, each with the answer recorded, or saying in words that none is, with the
+    suggestion while it is unanswered ([Drafting documents](drafting.md),
     `app/tests/test_document_answers.py`,
     `app/web/src/components/project/DocumentQuestions.test.tsx`,
+    `app/web/src/components/conversation/DocumentCard.test.tsx`,
     `app/web/src/components/project/ProjectPage.test.tsx`,
     `app/web/src/components/conversation/useAskAbout.test.tsx`, `e2e/shell.spec.ts`).
 24. **Each person sees only their own runs and conversations.** A run or conversation in a project

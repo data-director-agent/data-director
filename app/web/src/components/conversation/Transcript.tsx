@@ -35,7 +35,6 @@ import { type ReplyAnswers, replyOwnText, replyQuestions } from "../../conversat
 import type { Conversation, ConversationTurn } from "../../conversation/types";
 import {
   type ProjectDocument,
-  type ProjectDocuments,
   type ProjectSummary,
   type RepositoryRequirements,
   useProjectApi,
@@ -49,7 +48,7 @@ import type { Envelope } from "../../run/types";
 import { Button } from "../ui/Button";
 import { Markdown } from "../ui/Markdown";
 import { OUTCOME } from "../../manifest/wording";
-import { DocumentCard } from "./DocumentCard";
+import { type DocumentAnswering, DocumentCard } from "./DocumentCard";
 import { FAILED_REPLY, OutcomeNote, RetryTurn } from "./TurnOutcome";
 import { AskedQuestions, QuestionSeries } from "./QuestionSeries";
 import { DocumentChip } from "./DocumentChip";
@@ -192,7 +191,7 @@ export function Transcript({
   pending = null,
   documents = null,
   onAnswer,
-  onDocumentAnswered,
+  documentAnswering,
   onDocumentWrite,
   chosenRepository = null,
   onRepositoryChosen,
@@ -218,9 +217,9 @@ export function Transcript({
   } | null;
   /** Sends the answers to the latest turn's questions; without it, none can be answered. */
   onAnswer?: (answers: ReplyAnswers, text: string) => void;
-  /** Takes the project's documents after the researcher answers a draft's questions; without
-   * it, no draft's questions can be answered. */
-  onDocumentAnswered?: (value: ProjectDocuments) => void;
+  /** How a draft card answers its questions (`DocumentCard`); without it, no draft's questions
+   * can be answered. */
+  documentAnswering?: DocumentAnswering;
   /** Sends a message asking for a document whose card asked questions first to be written. */
   onDocumentWrite?: (message: string) => void;
   /** The re3data identifier of the repository the project chose last, if any. */
@@ -336,7 +335,7 @@ export function Transcript({
                     projectId={projectId}
                     drafted={d}
                     idPrefix={`drafted-${turn.invocation_id}-${d.document.document_id}-${d.version.version}`}
-                    {...(onDocumentAnswered ? { onAnswered: onDocumentAnswered } : {})}
+                    {...(documentAnswering ? { answering: documentAnswering } : {})}
                     {...(onDocumentWrite && pending === null ? { onWrite: onDocumentWrite } : {})}
                   />
                 ))}

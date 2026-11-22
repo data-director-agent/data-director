@@ -174,7 +174,7 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
         </div>
       );
     }
-    const { documents, review } = load.value;
+    const { documents, review, answer_max_length: answerMaxLength } = load.value;
     const fallback = documents.find((document) => stateOf(document) === "proposed") ?? documents[0];
     const chosen = asked ?? fallback?.document_id ?? null;
     const document = documents.find((d) => d.document_id === chosen);
@@ -203,6 +203,7 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
           document={document}
           shown={shown}
           rules={review}
+          answerMaxLength={answerMaxLength}
           hrefFor={(version?: DocumentVersion) => hrefFor(document.document_id, version?.version)}
           onDecided={decided}
           onAnswered={answered}

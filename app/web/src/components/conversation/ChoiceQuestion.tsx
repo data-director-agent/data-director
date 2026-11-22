@@ -3,8 +3,10 @@
  * question as radio buttons, or checkboxes when several options may be chosen, each option a card
  * the whole of which can be clicked, with "Something else" and a text box where it allows an
  * answer in their own words; a short text question as a one-line text box; a long text question
- * as a text area with a count of the characters left. The question is a fieldset whose legend is
- * the question, and its help is the fieldset's description.
+ * as a text area. Every box for an answer in their own words counts the characters left against
+ * the limit the harness holds answers to, and never cuts what is typed or pasted: an answer over
+ * the limit is kept whole and refused with a message saying by how much (`problemOf`). The
+ * question is a fieldset whose legend is the question, and its help is the fieldset's description.
  *
  * A reply's questions (`QuestionSeries`) and the project intake's (`IntakeCard`) are both drawn
  * with it.
@@ -16,6 +18,7 @@ import { type Ref, useId } from "react";
 
 import {
   LONG_TEXT_MAX,
+  charactersIn,
   type Question,
   type QuestionAnswer,
   SHORT_TEXT_MAX,
@@ -54,13 +57,43 @@ export function answerOf(question: Question, draft: Draft): QuestionAnswer | nul
   };
 }
 
+/** The longest answer in the researcher's own words that `question` takes. */
+function wordsMax(question: Question): number {
+  return question.question_kind === "long_text" ? LONG_TEXT_MAX : SHORT_TEXT_MAX;
+}
+
+/** How many characters of the answer in the researcher's own words are kept, as `answerOf` does,
+ * counted as the harness counts them (`charactersIn`). */
+function wordsLength(draft: Draft): number {
+  return charactersIn(draft.words.trim());
+}
+
+function characters(n: number): string {
+  return `${n} ${n === 1 ? "character" : "characters"}`;
+}
+
 /** Why a draft cannot be kept as it is, or null if it can (an empty draft is a skip). */
 export function problemOf(question: Question, draft: Draft): string | null {
   const other = question.question_other ? otherValue(question) : null;
-  if (question.question_kind === "choice" && other !== null && draft.values.includes(other)) {
-    if (!draft.words.trim()) return "Say what your answer is, or choose another option.";
+  const choosingOther = other !== null && draft.values.includes(other);
+  if (question.question_kind === "choice" && choosingOther && !draft.words.trim()) {
+    return "Say what your answer is, or choose another option.";
+  }
+  const over = wordsLength(draft) - wordsMax(question);
+  if ((question.question_kind !== "choice" || choosingOther) && over > 0) {
+    return `Your answer is ${characters(over)} over the limit of ${wordsMax(question)}. Shorten it to send it.`;
   }
   return null;
+}
+
+/** How many characters are left, or how far over the limit the answer is, said beside its box. */
+function WordsCount({ id, question, draft }: { id: string; question: Question; draft: Draft }) {
+  const left = wordsMax(question) - wordsLength(draft);
+  return (
+    <p className="hint" id={id}>
+      {left >= 0 ? `${characters(left)} left.` : `${characters(-left)} over the limit of ${wordsMax(question)}.`}
+    </p>
+  );
 }
 
 /** How to answer `question`, said before its controls. */
@@ -105,6 +138,15 @@ export function QuestionField({
   const described = [question.question_help && `${id}-help`, `${id}-how`, error && `${id}-error`]
     .filter(Boolean)
     .join(" ");
+  // What every box for an answer in their own words shares: described by its count, then any error.
+  const words = {
+    id: `${id}-words`,
+    value: draft.words,
+    onChange: (e: { target: { value: string } }) => onChange({ ...draft, words: e.target.value }),
+    "aria-describedby": [`${id}-count`, error && `${id}-error`].filter(Boolean).join(" "),
+    ...(error ? { "aria-invalid": true } : {}),
+  };
+  const count = <WordsCount id={`${id}-count`} question={question} draft={draft} />;
 
   function toggle(value: string, checked: boolean) {
     const values = !multiple ? [value] : checked ? [...draft.values, value] : draft.values.filter((v) => v !== value);
@@ -158,14 +200,8 @@ export function QuestionField({
       {choosingOther && (
         <div className="field choice-other">
           <label htmlFor={`${id}-words`}>Your answer</label>
-          <input
-            type="text"
-            id={`${id}-words`}
-            maxLength={SHORT_TEXT_MAX}
-            value={draft.words}
-            onChange={(e) => onChange({ ...draft, words: e.target.value })}
-            {...(error ? { "aria-invalid": true, "aria-describedby": `${id}-error` } : {})}
-          />
+          <input type="text" {...words} />
+          {count}
         </div>
       )}
       {question.question_kind === "short_text" && (
@@ -173,13 +209,8 @@ export function QuestionField({
           <label className="visually-hidden" htmlFor={`${id}-words`}>
             Your answer
           </label>
-          <input
-            type="text"
-            id={`${id}-words`}
-            maxLength={SHORT_TEXT_MAX}
-            value={draft.words}
-            onChange={(e) => onChange({ ...draft, words: e.target.value })}
-          />
+          <input type="text" {...words} />
+          {count}
         </>
       )}
       {question.question_kind === "long_text" && (
@@ -187,17 +218,8 @@ export function QuestionField({
           <label className="visually-hidden" htmlFor={`${id}-words`}>
             Your answer
           </label>
-          <textarea
-            id={`${id}-words`}
-            rows={5}
-            maxLength={LONG_TEXT_MAX}
-            value={draft.words}
-            aria-describedby={`${id}-count`}
-            onChange={(e) => onChange({ ...draft, words: e.target.value })}
-          />
-          <p className="hint" id={`${id}-count`}>
-            {LONG_TEXT_MAX - draft.words.length} characters left.
-          </p>
+          <textarea rows={5} {...words} />
+          {count}
         </>
       )}
     </fieldset>

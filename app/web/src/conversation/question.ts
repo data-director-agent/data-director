@@ -47,6 +47,12 @@ export interface ReplyAnswers {
 export const SHORT_TEXT_MAX = 200;
 export const LONG_TEXT_MAX = 4000;
 
+/** How many characters `text` has as the harness counts them, by code point, so that a character
+ * outside the Basic Multilingual Plane, such as an emoji, counts once. */
+export function charactersIn(text: string): number {
+  return [...text].length;
+}
+
 const KINDS = new Set<string>(["choice", "short_text", "long_text"]);
 
 function isQuestion(value: unknown): value is Question {
