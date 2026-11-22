@@ -31,6 +31,12 @@ anyway**. Finding nothing does not mean there is nothing: names and places are n
 When you are content, select **Attach this document**. If you select **Cancel**, nothing is
 attached.
 
+You can also attach a document without starting a conversation. On the project's **Documents**
+page, select **Attach a document** and choose the file. It goes through the same check, and
+selecting **Attach this document** keeps it in the project straight away. The documents the
+project holds are listed under **Attached documents**. Where your institution does not allow
+attached documents, the button is not offered.
+
 The document then shows as a chip under the message box. Select its **Remove** button if you
 change your mind. You can type a message as well, or send it on its own. A message can carry one
 inventory and one document.

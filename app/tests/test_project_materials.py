@@ -36,6 +36,7 @@ from dd_app.governance import (
 from dd_harness.project_access import Role
 from dd_harness.projects import ProjectStore
 from dd_harness.projects.extract import PDF
+from dd_harness.storage import ProjectStorage
 from dd_harness.testing import (
     TEST_PRINCIPAL,
 )
@@ -452,3 +453,114 @@ def test_an_inventory_needs_a_project_to_keep_it(delegating: tuple[Governance, A
     assert response.status_code == 400
     assert "no project" in response.json()["detail"]
     assert list(governance.conductor.store.iter_envelopes()) == []
+
+
+def a_member_in_a_project(
+    in_projects: tuple[Governance, Any], monkeypatch: pytest.MonkeyPatch
+) -> tuple[TestClient, ProjectStorage, str]:
+    governance, app = in_projects
+    store = governance.projects
+    assert store is not None
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    monkeypatch.setattr(governance, "role", lambda _project_id, _principal: Role.MEMBER)
+    return TestClient(app), store, project_id
+
+
+def test_a_member_attaches_a_document_outside_a_turn(
+    in_projects: tuple[Governance, Any], monkeypatch: pytest.MonkeyPatch
+):
+    client, store, project_id = a_member_in_a_project(in_projects, monkeypatch)
+    url = f"/api/projects/{project_id}/documentation"
+
+    added = client.post(url, json=a_document())
+
+    assert added.status_code == 201, added.json()
+    [listed] = added.json()
+    assert listed["documentation_name"] == "protocol.md"
+    assert client.get(url).json() == added.json()
+    text = client.get(f"{url}/{listed['documentation_digest']}")
+    assert text.text == PROTOCOL
+    event = store.events(project_id)[-1]
+    assert event["event"] == "documentation_added"
+    assert event["caused_by"] == f"POST {url}"
+
+
+def test_a_member_attaches_a_pdf_outside_a_turn_and_the_project_keeps_the_file(
+    in_projects: tuple[Governance, Any], monkeypatch: pytest.MonkeyPatch
+):
+    client, _store, project_id = a_member_in_a_project(in_projects, monkeypatch)
+    url = f"/api/projects/{project_id}/documentation"
+
+    added = client.post(url, json=a_pdf())
+
+    assert added.status_code == 201, added.json()
+    [listed] = added.json()
+    assert listed["documentation_source_media_type"] == PDF
+    original = client.get(f"{url}/{listed['documentation_digest']}?original")
+    assert original.content == pdf_file()
+
+
+def test_a_document_that_may_hold_personal_data_is_kept_only_once_confirmed(
+    in_projects: tuple[Governance, Any], monkeypatch: pytest.MonkeyPatch
+):
+    client, store, project_id = a_member_in_a_project(in_projects, monkeypatch)
+    url = f"/api/projects/{project_id}/documentation"
+    contact = a_document("Questions to jane.doe@example.org about the cores.", "contact.md")
+
+    held = client.post(url, json=contact)
+
+    assert held.status_code == 409, held.json()
+    assert held.json()["type"].endswith("/documentation-held")
+    kinds = held.json()["kinds"]
+    assert kinds
+    assert "jane.doe" not in held.text
+    assert store.documentation(project_id) == []
+    kept = client.post(url, json={**contact, "confirmed": kinds})
+    assert kept.status_code == 201, kept.json()
+    assert [d["documentation_name"] for d in kept.json()] == ["contact.md"]
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        ["protocol.md"],
+        {"name": "protocol.md", "media_type": "text/markdown"},
+        {**a_document(), "data": "AAAA"},
+        {"name": "plan.pdf", "media_type": PDF, "data": "not base64!"},
+        {**a_document(), "confirmed": "email address"},
+        a_document(" ", "blank.md"),
+        a_document("Cores", "data.csv") | {"media_type": "text/csv"},
+        a_document("Cores", "folder/protocol.md"),
+    ],
+)
+def test_a_document_the_project_would_not_keep_is_refused_and_leaves_no_trace(
+    in_projects: tuple[Governance, Any], monkeypatch: pytest.MonkeyPatch, body: Any
+):
+    client, store, project_id = a_member_in_a_project(in_projects, monkeypatch)
+    before = store.events(project_id)
+
+    refused = client.post(f"/api/projects/{project_id}/documentation", json=body)
+
+    assert refused.status_code == 400, refused.json()
+    assert store.events(project_id) == before
+
+
+def test_a_document_for_a_project_that_is_not_there_is_refused(in_projects: tuple[Governance, Any]):
+    _, app = in_projects
+
+    unknown = TestClient(app).post(f"/api/projects/{uuid.uuid4()}/documentation", json=a_document())
+
+    assert unknown.status_code == 404
+
+
+def test_someone_with_no_part_in_the_project_cannot_attach_a_document(
+    in_projects: tuple[Governance, Any], monkeypatch: pytest.MonkeyPatch
+):
+    client, store, project_id = a_member_in_a_project(in_projects, monkeypatch)
+    governance, _ = in_projects
+    monkeypatch.setattr(governance, "role", lambda _project_id, _principal: None)
+
+    forbidden = client.post(f"/api/projects/{project_id}/documentation", json=a_document())
+
+    assert forbidden.status_code == 404
+    assert store.documentation(project_id) == []
