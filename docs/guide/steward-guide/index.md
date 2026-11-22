@@ -14,7 +14,8 @@ matter comes to you. You also own the rules every run is held to.
 
 - **Owns the policy.** You decide which agents run, what each may do, which actions need a
   person's approval and what may reach a hosted AI model. These are set in the institutional
-  profile. See [The policy and the profile](policy-and-profile.md).
+  profile. See [The policy and the profile](policy-and-profile.md), and
+  [The agents](../user-guide/agents.md) for what each agent does and sends to a model.
 - **Answers escalations.** A researcher asks for help, or confirms an agent's offer to ask you.
   You take the escalation, reply, and resolve it or hand it back. See [Escalations](escalations.md).
 - **Steps into a project.** While an escalation is open, you can open the researcher's project, see

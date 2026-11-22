@@ -1,6 +1,6 @@
 # Understanding outcomes
 
-Every run ends in one of four outcomes.
+Every run ends in one of five outcomes.
 
 | Outcome     | Meaning                                                         |
 | ----------- | --------------------------------------------------------------- |
@@ -8,6 +8,9 @@ Every run ends in one of four outcomes.
 | `abstained` | The agent declined to answer rather than guess.                 |
 | `referred`  | The matter needs a person's judgement.                          |
 | `failed`    | The run did not complete, or a check failed.                    |
+| `suspended` | The run is paused until a stated condition is met.              |
+
+Nothing in the Data Director produces `suspended` yet; the app can show it.
 
 A failed grounding or source check turns a result into `failed`: see
 [the five stages of a reply](conversation.md#the-five-stages-of-a-reply).

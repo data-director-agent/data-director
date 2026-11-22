@@ -42,7 +42,8 @@ Rules first:
   `unplanned`.
 - For an output on both lists, `repository`, `access` and `licence` are compared as text where
   both sides give them, and each difference is listed.
-- It abstains with `insufficient_input` when no committed outputs are given.
+- It abstains with `insufficient_input` when no committed outputs are given and no plan is
+  attached.
 
 Then, with the matcher model on (the default; `DD_DMP_MATCHER=template` turns it off), the model is given only what the
 rules left over: the missing and unplanned outputs, and the differing values. Nothing the rules
@@ -70,7 +71,10 @@ passage it rests on, as a `sharing_commitment` fact for the researcher to confir
 reject. A commitment whose quote is not in the plan is dropped and said. It compares nothing until
 the researcher has decided, and then only what they confirmed, as they corrected it. "No
 commitment found" and "too vague to say" are results, not failures. On the template path a plan
-is not read, and the checker asks for the commitments instead.
+is not read: the checker abstains with `capability_not_implemented` and asks for the outputs the
+plan committed to share. If the model cannot be reached or its reply is unusable, the outcome is
+`succeeded` with no proposals and its statement says why. Only the start of the attached text
+(60,000 characters, the latest document first) is read.
 
 ## Evaluation
 
@@ -83,6 +87,16 @@ baseline.
 | Setting | Values |
 |---|---|
 | `DD_DMP_MATCHER` | `model` (default): a model reads what the rules leave over (`anthropic` names the same with the Anthropic provider); with no key and no broker credential the agent stops at start-up and says to set `template`. `template`: rules only, no model, no key. The model and its key are set as for every agent ([AI models](../../docs/guide/operations/ai-models.md)). |
+
+## Run it
+
+```sh
+uv run dd-advisor-dmp serve --port 8112
+uv run workbench invoke --agent advisor.dmp --input workbench/samples/dmp-commitments.json
+uv run pytest agents/advisor-dmp
+```
+
+Without a model key, set `DD_DMP_MATCHER=template` first.
 
 ## What it does not do
 

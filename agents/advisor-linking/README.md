@@ -92,3 +92,11 @@ A summariser (`dd_sdk.summary`) writes a short `summary` beside the findings, wi
 - `template`: the rules' own summary; calls no model and needs no key.
 
 The model changes no finding: each link is recognised, checked and looked up by the rules above either way.
+
+## Run it
+
+```sh
+uv run dd-advisor-linking serve --port 8116
+uv run workbench invoke --agent advisor.linking --input workbench/samples/link-candidates.json
+uv run pytest agents/advisor-linking
+```

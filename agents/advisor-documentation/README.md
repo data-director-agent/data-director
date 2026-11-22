@@ -1,6 +1,6 @@
 # advisor.documentation
 
-**Alpha** (`0.7.0a1`): the Documentation Editor persona of the agent roster
+**Alpha** (`0.3.0a1`): the Documentation Editor persona of the agent roster
 (docs/specs/agents.md), and the drafter of a project's README and data dictionary
 ([Drafting documents](../../docs/specs/drafting.md)). It is likely to change shape.
 
@@ -68,14 +68,17 @@ documents ([Projects](../../docs/specs/projects.md)). A request names the `docum
   and `field`. Each of the values `type`, `format`, `description`, `unit`, `unit_code` and
   `missing_values` is followed by a column saying where it came from (`type_source`, …), so that
   a person can check it:
-  - `inferred`: read from the data by `dd-inventory`, which infers a field's type and format, or
-    worked out by rule, as a unit code is;
+  - `inferred`: read from the data by `dd-inventory`, which infers a field's type and format and
+    lists the values it found that are often used for missing data (`-99`, `NA`), or worked out
+    by rule, as a unit code is;
   - `supplied`: given by the researcher, either as a description in the inventory or as a value
     in the version being regenerated;
   - `unknown`: no one has said yet, and the cell is empty.
 
-  The editor infers no units or missing value codes, so those are `unknown` until the researcher
-  fills them in. Once a field has a unit, its `unit_code` is worked out by rule as the unit's
+  The editor infers no units, so those are `unknown` until the researcher fills them in. The
+  `missing_values` cell lists the codes the inventory's summary found in the field, as
+  `inferred`, which says only that they occur, not what they mean; with none found, it is
+  `unknown` and asked. Once a field has a unit, its `unit_code` is worked out by rule as the unit's
   [UCUM](https://ucum.org) code, with [`dd-units`](../../units/README.md): "micrometres" becomes
   `um` and "mg per litre" `mg/L`, and a field with no unit gets `n/a`. The statement names the
   first few codes for the researcher to check. A unit code is not asked while its unit is
@@ -127,7 +130,8 @@ the gaps and questions of the template draft.
 
 - **What it is given.** The sections it may write for, which are only those with facts to draft
   from or an answer from the researcher, and the facts: each file's path, format and size,
-  each table's field names, types and formats, the counts of files and tables and the total size,
+  each table's field names, types and formats (with the summary values the inventory wrote after
+  disclosure control, such as a range, mean, categories and missing value codes), the counts of files and tables and the total size,
   the metadata record's title, creators, funders, abstract, licence and publication year, and the
   chosen repository's name and licences. Once a section has been answered, it is also given the
   answers by heading (`researcher_answers`), the project's decisions and the documents the
@@ -165,8 +169,10 @@ each section `readme.yaml` marks `suggest`: **Files** (how the files relate, fro
 formats and fields), **Variables** (a pointer to the data dictionary, and naming conventions plain
 from the field names), **Software requirements** (what opens the formats) and **Access and
 licence** (a licence from the record or the repository's list, as the researcher's choice), with
-`suggest_readme_prompt.md`. It never suggests the methods, a part of **General information** or
-the citation: only the researcher can give them. A README suggestion is checked as the prose is
+`suggest_readme_prompt.md`. It suggests an answer for **Methods** only when the
+researcher has attached documents to the project, and only from them (`suggest: documents`). It
+never suggests a part of **General information** or the citation: only the researcher can give
+them. A README suggestion is checked as the prose is
 (above), at most 600 characters, and is offered beside the question; the README's text is the
 same with or without it. The README then makes two calls, one for the prose and one for the
 suggestions, both recorded with the run and their tokens summed.
@@ -180,8 +186,10 @@ byte. In the app the researcher sees it beside the question, can copy it into th
 change it, and it becomes `supplied` only when they save it as their answer and the dictionary is
 drafted again (`tests/test_suggestions.py`; docs/specs/drafting.md, invariant 7).
 
-- **What it is given.** The same facts as the prose (above), and for each question its file, field
-  and column. Never a field's description, the researcher's answers or an earlier version.
+- **What it is given.** The same facts as the prose (above), the documents the researcher
+  attached (the latest first, up to a fixed length, given as data and never as instructions), and
+  for each question its file, field and column. Never a field's description, the researcher's
+  answers or an earlier version.
 - **What is offered.** Only a definition or unit, never a type, format or missing-value code. A
   suggestion is dropped if it is longer than 200 characters, is not one line of plain text, or
   names a link, DOI, email address or ORCID iD the facts do not give; the statement says how many
@@ -226,8 +234,19 @@ and people's answers. The shipped profiles list it. The CI evaluation runs the t
   methods among it, is left to the researcher as a marked gap.
 - It does not open the files, so it says nothing about their contents beyond what the inventory
   records.
-- It infers no variable definitions, units or missing value codes. A model's suggested definition,
-  unit or README answer is only offered, and it suggests no missing value codes, methods, people,
-  dates, places or citation.
+- It infers no variable definitions or units, and no meaning for a missing value code: it lists
+  only the codes the inventory found. A model's suggested definition, unit or README answer is
+  only offered, and it suggests no missing value codes, people, dates, places or citation, and
+  methods only from documents the researcher attached.
 - It does not read an earlier README, or the reason a person gave for a decision on a version.
 - It follows no data dictionary standard, such as CDIF's variable descriptions (#220).
+
+## Run it
+
+```sh
+uv run dd-advisor-documentation serve --port 8114
+uv run workbench invoke --agent advisor.documentation --input workbench/samples/soil-survey.readme-with-record.draft.json
+uv run pytest agents/advisor-documentation
+```
+
+With no model key, set `DD_DOCUMENTATION_WRITER=template` first.
