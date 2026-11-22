@@ -236,6 +236,15 @@ should fail when behaviour breaks, not when a sentence is reworded or an agent i
   the contract validators, project event replay). The root `conftest.py` bounds every property
   test to 50 examples with no deadline; a slower one, such as one against a database, sets fewer
   with its own `@settings`.
+* A test earns its place by catching a fault no other test catches. Test the project's own
+  governance code thoroughly (see [Dependencies](docs/specs/dependencies.md)); test plumbing
+  that the project has adopted at the boundary, not line by line. A rule about the repository's
+  files (every agent does X) is one test that reports every file that breaks it, or a
+  `scripts/check_*.py`, not one parametrised case per file. To see where the suite repeats
+  itself, run `uv run python scripts/test_value.py`: it lists the tests that reach no line
+  another test does not, the parametrised tests with many cases but few distinct paths, and
+  the tests that run no code. Same lines are not the same check, so confirm with the weekly
+  mutation run (`.github/workflows/mutation.yml`) before removing a test.
 * Test module basenames are unique across the workspace. Test directories are not packages;
   shared doubles live in `dd_harness.testing` and in an agent's own `testing` module.
 * The PostgreSQL storage tests (`harness/tests/test_postgres.py`, marked `postgres`) run only when

@@ -132,7 +132,13 @@ POSTGRES_HINT = (
 def pytest_terminal_summary(terminalreporter: pytest.TerminalReporter) -> None:
     """Say so when the PostgreSQL storage tests were skipped, so that a local run that passes is
     not mistaken for one that tested both storage backends."""
-    skipped = [r for r in terminalreporter.stats.get("skipped", []) if "postgres" in r.keywords]
+    # A module skipped whole (importorskip, when an extra is not installed) is reported by a
+    # CollectReport, which has no keywords.
+    skipped = [
+        r
+        for r in terminalreporter.stats.get("skipped", [])
+        if "postgres" in getattr(r, "keywords", ())
+    ]
     if skipped:
         terminalreporter.write_sep("-", "PostgreSQL storage tests skipped", yellow=True)
         terminalreporter.write_line(
