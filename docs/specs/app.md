@@ -105,8 +105,11 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     its `project_id` and the inventory its project holds. The shell always names the project:
     it starts a conversation only from a project's workspace (rule 27). A body that names none is
     still accepted, for clients other than the shell. The shell names the open conversation in the
-    address (`/projects/{id}/conversation?conversation=`), so a reload or a link reopens it in its
-    own project and a message sent afterwards continues it. The app gives the conductor the same project store, so a turn's runs belong to the
+    address (`/?conversation=`), so a reload or a link reopens it in its own project and a message
+    sent afterwards continues it. The open conversation outlives the Conversation page in the tab
+    (`app/web/src/conversation/session.tsx`): someone who leaves it while a reply is awaited finds,
+    on coming back by any link, the conversation in the address again, the message sent and its
+    run still streaming, or the reply that arrived meanwhile. The app gives the conductor the same project store, so a turn's runs belong to the
     project and a drafter's documents are kept in it ([Projects](projects.md),
     `app/tests/test_app.py`).
 19. **An inventory is attached, never pasted into the message.** A turn may carry an `inventory`,

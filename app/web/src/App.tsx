@@ -21,6 +21,7 @@ import { Account } from "./components/session/Account";
 import { SessionTimeout } from "./components/session/SessionTimeout";
 import { SignedOutPage } from "./components/session/SignedOutPage";
 import { SignInPage } from "./components/session/SignInPage";
+import { ConversationSessionProvider } from "./conversation/session";
 import { ActiveProjectProvider } from "./project/active";
 import { RunActivityProvider } from "./run/activity";
 import { type ProjectTab, projectTabOf, useLocation } from "./route";
@@ -233,7 +234,10 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
       {signedIn ? (
         <ActiveProjectProvider key={principalId}>
           <RunActivityProvider>
-            <ErrorBoundary resetKey={location}>{content()}</ErrorBoundary>
+            {/* The open conversation outlives the Conversation page, so leaving it loses nothing. */}
+            <ConversationSessionProvider>
+              <ErrorBoundary resetKey={location}>{content()}</ErrorBoundary>
+            </ConversationSessionProvider>
           </RunActivityProvider>
         </ActiveProjectProvider>
       ) : (

@@ -12,9 +12,10 @@
  * `cancel` asks the server to cancel the run and reads on until the stream says it was.
  */
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback } from "react";
 
 import { streamFailure } from "../../conversation/api";
+import { useSessionRef, useSessionState } from "../../conversation/session";
 import { useRunActivity } from "../../run/activity";
 import { initialRunState, reduce, type RunState, streamEnded } from "../../run/reduce";
 import { streamRun, useRunTransport } from "../../run/transport";
@@ -36,9 +37,14 @@ export interface TurnStream {
 export function useTurnStream(): TurnStream {
   const transport = useRunTransport();
   const { record } = useRunActivity();
-  const [run, setRun] = useState<RunState | null>(null);
-  const [cancelling, setCancelling] = useState(false);
-  const streaming = useRef<{ conversationId: string; runId: string } | null>(null);
+  // Kept in the conversation session, so that a run goes on being drawn, and can be cancelled,
+  // after the page is left and drawn again.
+  const [run, setRun] = useSessionState<RunState | null>("turn.run", null);
+  const [cancelling, setCancelling] = useSessionState("turn.cancelling", false);
+  const streamingRef = useSessionRef<{ conversationId: string; runId: string } | null>(
+    "turn.streaming",
+    null,
+  );
   // A new run starts idle, so that nothing said of the last one counts as said of this one.
   useRunAnnouncements(run ?? initialRunState);
 
@@ -46,7 +52,7 @@ export function useTurnStream(): TurnStream {
     async (conversationId: string, forwardedProps: Record<string, unknown>) => {
       const runId = crypto.randomUUID();
       const startedAt = new Date().toISOString();
-      streaming.current = { conversationId, runId };
+      streamingRef.current = { conversationId, runId };
       setCancelling(false);
       setRun(initialRunState);
       let state = initialRunState;
@@ -64,30 +70,30 @@ export function useTurnStream(): TurnStream {
         }).done;
       } catch (error) {
         if (!seen) {
-          streaming.current = null;
+          streamingRef.current = null;
           setRun(null);
           throw streamFailure(error);
         }
       }
-      streaming.current = null;
+      streamingRef.current = null;
       setCancelling(false);
       show(streamEnded(state));
       return state;
     },
-    [transport, record],
+    [transport, record, setRun, setCancelling, streamingRef],
   );
 
   const cancel = useCallback(() => {
-    const open = streaming.current;
+    const open = streamingRef.current;
     if (!open) return;
     setCancelling(true);
     transport.cancel(open.conversationId, open.runId).catch(() => setCancelling(false));
-  }, [transport]);
+  }, [transport, setCancelling, streamingRef]);
 
   const clear = useCallback(() => {
     setRun(null);
     setCancelling(false);
-  }, []);
+  }, [setRun, setCancelling]);
 
   return { run, cancelling, stream, cancel, clear };
 }
