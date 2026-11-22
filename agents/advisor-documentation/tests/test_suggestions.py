@@ -15,13 +15,13 @@ from test_prose import MODEL, StubClient, draft, sample, template_draft
 
 from dd_agent_advisor_documentation.agent import DocumentationEditor
 from dd_agent_advisor_documentation.dictionary import Source
-from dd_agent_advisor_documentation.prose import (
+from dd_agent_advisor_documentation.prose import ModelWriter
+from dd_agent_advisor_documentation.suggestions import (
     MAX_SUGGESTION,
     SUGGEST_PROMPT,
     SUGGEST_README_PROMPT,
     SUGGESTED_COLUMNS,
     Ask,
-    ModelWriter,
     SuggestionReply,
     check_suggestions,
 )

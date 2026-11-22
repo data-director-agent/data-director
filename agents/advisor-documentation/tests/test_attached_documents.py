@@ -12,12 +12,12 @@ from typing import Any
 import pytest
 from test_prose import StubClient, draft, sample, template_draft
 
-from dd_agent_advisor_documentation.prose import (
+from dd_agent_advisor_documentation.prose import SYSTEM_PROMPT
+from dd_agent_advisor_documentation.suggestions import (
     DOCUMENTS,
     MAX_DOCUMENTS,
     SUGGEST_PROMPT,
     SUGGEST_README_PROMPT,
-    SYSTEM_PROMPT,
     Ask,
     SuggestionReply,
     check_suggestions,
