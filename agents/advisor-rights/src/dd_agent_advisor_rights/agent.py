@@ -17,8 +17,8 @@ Its grounding mode is `retrieval` (`retrieval.py`). Where the deployment grants 
 tool server, the shell retrieves each candidate licence through the tool gateway before any model
 is called, the closed set is the licences the gateway returned, and the payload cites the records
 the conductor recorded. With no grant it reads the packaged table, records that read, and says so
-in `limitations`. The `licence-choice` Skill and a served `mcp-spdx` server are TODO(#877); the
-repository's own licence options and an evaluation set are TODO(#702).
+in `limitations`. The `spdx` server is `mcp-spdx`, which no deployment runs yet (TODO(#1478)); the
+`licence-choice` Skill is TODO(#280); the repository's own licence options are TODO(#702).
 """
 
 from __future__ import annotations
@@ -73,7 +73,7 @@ LIMITATIONS = (
     "Without an interpreter model (DD_RIGHTS_INTERPRETER=template), it understands the reuse you "
     "want only as one of any, attribution, share-alike or non-commercial.",
     "A model's reading of the reuse you want is a reading of your words, not advice: check it. "
-    "It has no evaluation set yet, so how often it misreads is not measured.",
+    "How often a model misreads is not yet measured.",
     "It is not legal advice.",
 )
 CHOOSE_QUESTION = (

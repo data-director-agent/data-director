@@ -7,19 +7,22 @@ conformance claim, so nothing here carries a requirement marker.
 
 from __future__ import annotations
 
+import asyncio
 import gc
 import json
 import math
 import threading
 from collections.abc import Callable, Iterator
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, cast
 
 import pytest
 from inspect_ai import Task
 from inspect_ai import eval as inspect_eval
 from inspect_ai.dataset import Sample
-from inspect_ai.scorer import NOANSWER, SampleScore, Score
+from inspect_ai.scorer import NOANSWER, SampleScore, Score, Scorer, Target
+from inspect_ai.solver import TaskState
 
 from dd_harness.conductor import Conductor
 from dd_harness.testing import (
@@ -48,8 +51,10 @@ from workbench.evaluation import (
     configuration,
     differences,
     grounding_passed,
+    ids_recalled,
     invoke_agent,
     mean_applicable,
+    none_listed,
     one_conductor,
     outcome_matches,
     stopped_correctly,
@@ -192,6 +197,36 @@ def test_a_case_a_scorer_does_not_apply_to_is_left_out_of_the_mean():
     mean = cast(Callable[[list[SampleScore]], float], mean_applicable())
     assert mean(scores) == 0.75
     assert math.isnan(mean([SampleScore(score=Score(value=NOANSWER))]))
+
+
+def listed_score(scorer: Scorer, payload: dict[str, Any] | None, **expect: Any) -> Score:
+    """`scorer`'s score for a run whose envelope holds `payload`, on a case expecting `expect`."""
+    state = SimpleNamespace(metadata={"envelope": {"payload": payload}, "expect": expect})
+    result = asyncio.run(scorer(cast(TaskState, state), Target("succeeded")))
+    assert result is not None
+    return result
+
+
+OPTIONS = {"options": [{"code": "A"}, {"code": "b"}]}
+
+
+def test_recall_counts_the_expected_ids_listed_and_names_each_one_missed():
+    recalled = ids_recalled("options", "code")
+    score = listed_score(recalled, OPTIONS, include=["a", "B", "C"])
+    assert score.value == 2 / 3
+    assert score.metadata == {"missing": ["C"]}
+    assert listed_score(recalled, None, include=["A"]).value == 0.0
+    assert listed_score(recalled, OPTIONS).value == NOANSWER
+
+
+def test_listing_an_excluded_id_is_scored_apart_from_recall():
+    excluded = none_listed("options", "code")
+    score = listed_score(excluded, OPTIONS, exclude=["B"])
+    assert score.value == 0.0
+    assert score.metadata == {"wrong": ["b"]}
+    assert listed_score(excluded, OPTIONS, exclude=["Z"]).value == 1.0
+    assert listed_score(excluded, None, exclude=["A"]).value == 1.0
+    assert listed_score(excluded, OPTIONS).value == NOANSWER
 
 
 def test_a_lower_score_or_a_missing_case_is_a_regression():

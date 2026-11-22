@@ -377,7 +377,7 @@ judgement, an outcome that may be `referred` or an abstention, or a different st
 orchestrator asks the persona that serves it. Two personas that need the same source each use
 its server; neither calls the other. Shared know-how is a Skill, not a persona.
 
-**Worked example: `advisor.rights`** (partly built, TODO(#877)). It builds on the model-backed
+**Worked example: `advisor.rights`** (partly built). It builds on the model-backed
 alpha (`advisor-rights/interpret.py`, #697), whose model already chooses only from a closed set,
 and has moved from `input_only` to `retrieval`. The shell builds the candidate licences from the
 input and retrieves each through the gateway (`advisor-rights/retrieval.py`) before any model is
@@ -385,8 +385,9 @@ called; the closed set is the licences the gateway returned, and the payload cit
 conductor recorded (`tool:spdx/<id>`), hashed under the registered `dd-spdx-licence-v1` where the
 deployment names it for the server. A failed retrieval leaves the licence out and says so in
 `limitations`. Because a card declares one mode, an adviser granted no `spdx` server reads its
-packaged table under one `retrieval` span and says so. Still to build: the `licence-choice` Skill
-loaded into the model's prompt, and a served local MCP server for a pinned SPDX release.
+packaged table under one `retrieval` span and says so. The local MCP server is `mcp-spdx`, serving a
+pinned SPDX release; no deployment runs it yet (TODO(#1478)). Still to build: the
+`licence-choice` Skill loaded into the model's prompt (TODO(#280)).
 
 ## Rationale
 

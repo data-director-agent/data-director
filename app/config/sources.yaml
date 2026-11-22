@@ -39,3 +39,8 @@ sources:
     # The PRONOM records dd-formats describes formats from (formats/README.md).
     id_field: puid
     sha256: 063eecf28351eeb3cf7f207fd4f044b7b5624a67e51b8584a5ef48106a0f8c66
+  - snapshot_refs: ["spdx:3.29.0"]
+    path: ../../mcp-spdx/src/dd_mcp_spdx/data/licenses-3.29.0.jsonl
+    # The SPDX licence list the SPDX server serves (mcp-spdx/README.md).
+    id_field: licenseId
+    sha256: 56acc3421be0d809ef6360b5344b48972c47b63a403295d62956ba0fba581ec5

@@ -2,8 +2,10 @@
 # `reuse_wanted` it fits, and the access levels with the sentence saying when each applies. Access
 # levels are listed in the order the adviser offers them when the data are not sensitive. It is
 # also the closed set an interpreter model chooses from (interpret.py): it may never offer a licence
-# that is not listed here. It leaves out most licences; the SPDX licence list through the tool
-# gateway replaces it (TODO(#877)), and the repository's own options join it (TODO(#702)).
+# that is not listed here. It leaves out most licences. Where the deployment grants the `spdx` server
+# (mcp-spdx), each is retrieved from the SPDX licence list through the tool gateway instead, and the
+# repository's own options join them (TODO(#702)). Check it against each new SPDX release
+# (mcp-spdx/README.md); it matches 3.29.0.
 licences:
   - spdx_id: CC0-1.0
     name: Creative Commons Zero v1.0 Universal

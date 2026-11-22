@@ -25,8 +25,9 @@ through the SDK's model seam (`dd_sdk.model`, `dd_sdk.model_provider`), so this 
 model provider's SDK. A refused reply, a reply that is not the schema's JSON, or a model that
 cannot be reached leaves the rules' result as it is, and the agent says so.
 
-TODO(#877): the closed set becomes the SPDX records the shell retrieves through the tool gateway,
-and a `licence-choice` Skill joins the system prompt; `check` keeps its rule.
+Where the deployment grants the `spdx` server, the closed set is the licences the shell retrieved
+through the tool gateway (`retrieval.py`); `check` keeps its rule. A `licence-choice` Skill in the
+system prompt is TODO(#280).
 """
 
 from __future__ import annotations
