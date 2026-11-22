@@ -271,7 +271,13 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     app asks for no wider scope (`app/web/src/components/profile/ProfilePage.test.tsx`). It points
     to the Settings page (rule 30) for the person's own AI account and preferences.
 21. **A reply's questions are answered one at a time in a form, and may be ignored.** A reply's
-    `reply_questions` are drawn beneath the reply. On the latest turn each question is a fieldset
+    `reply_questions` are drawn beneath the reply on earlier turns. The latest turn's take the
+    message box's place, so that one way of replying shows at a time: beneath them, **Reply in my
+    own words instead** shows the message box, and **Answer the questions instead** under the box
+    shows them again with what was entered kept; text put in the box for the researcher, as by a
+    step's prompt, shows the box. **Attach a file** leads the questions' action row, and a file
+    may be dropped on their form; it is checked as one attached to a message is (rule 19), and
+    sent with the answers in one turn. On the latest turn each question is a fieldset
     whose legend is the question and whose description is its help: a choice question as radio
     buttons, or checkboxes where several may be chosen, each option a card the whole of which can
     be clicked (the control stays visible and ticked beside an accent bar), with "Something else"
@@ -292,9 +298,11 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     Markdown, each question asked in bold followed by its answer (several options chosen as a list)
     or by `_Skipped_`, with the question's and the researcher's words escaped so that they read as
     written; the transcript renders such a message as Markdown, and a typed one as typed. The
-    server refuses answers the harness's `answer_problem` rejects, and nothing runs. The message
-    box stays usable, so the researcher may type instead (`app/tests/test_app.py`,
-    `app/web/src/components/conversation/QuestionSeries.test.tsx`, `e2e/shell.spec.ts`).
+    server refuses answers the harness's `answer_problem` rejects, and nothing runs. A send that
+    fails keeps the answers in their form and puts what was attached back. The researcher may
+    reply in their own words instead (`app/tests/test_app.py`,
+    `app/web/src/components/conversation/QuestionSeries.test.tsx`,
+    `app/web/src/components/conversation/ConversationHome.test.tsx`, `e2e/shell.spec.ts`).
 22. **The policy page shows the profile the gate holds runs to.** `/policy`, in the main navigation
     and linked from each place that names the policy, is drawn from `GET /api/policy`: the
     profile's reference, description, digest and orchestrator, each agent it enables with the

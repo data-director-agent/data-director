@@ -20,7 +20,8 @@ so it relies on you to keep to this rule. To describe your data files, make an i
 
 ## Attaching it in the app
 
-On the conversation page, select **Attach a file** under the message box and choose the
+On the conversation page, select **Attach a file** under the message box, or beside the Data
+Director's questions while it is asking some, and choose the
 document, or drop it onto the message box. The app shows you the document's name, size and text
 before anything is kept, and what a check of its text found under **Possible personal data or
 secrets**: e-mail addresses, telephone numbers, NHS or National Insurance numbers, postcodes,

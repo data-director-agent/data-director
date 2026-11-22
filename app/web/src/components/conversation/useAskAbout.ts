@@ -20,7 +20,7 @@ export function askAboutStep(found: { phase: FlowPhase; step: FlowStep }): strin
 export function useAskAbout(
   flow: { state: "loaded"; flow: ProcessFlow } | { state: string },
   setText: (text: string) => void,
-  box: RefObject<HTMLTextAreaElement | null>,
+  box: RefObject<{ focus(): void } | null>,
   keep: { conversation: string | null; run: string | null },
 ): void {
   const askAbout = new URLSearchParams(useLocation().split("?")[1] ?? "").get("ask");
@@ -46,7 +46,7 @@ export function useAskAbout(
  * Focuses `box` when asked, or, if the page has not drawn it yet (the workspace waits for what it
  * reads on load), as soon as a later render has.
  */
-function useFocusOnceDrawn(box: RefObject<HTMLTextAreaElement | null>): () => void {
+function useFocusOnceDrawn(box: RefObject<{ focus(): void } | null>): () => void {
   const waiting = useRef(false);
   useEffect(() => {
     if (!waiting.current || !box.current) return;
@@ -66,7 +66,7 @@ function useFocusOnceDrawn(box: RefObject<HTMLTextAreaElement | null>): () => vo
  */
 export function useAskForFairFeedback(
   setText: (text: string) => void,
-  box: RefObject<HTMLTextAreaElement | null>,
+  box: RefObject<{ focus(): void } | null>,
   keep: { conversation: string | null; run: string | null },
 ): void {
   const asked = new URLSearchParams(useLocation().split("?")[1] ?? "").get("fair") === "check";
@@ -102,7 +102,7 @@ export function askAboutQuestion(name: string, question: DocumentQuestion): stri
 export function useAskAboutQuestion(
   documents: DocumentsRead,
   setText: (text: string) => void,
-  box: RefObject<HTMLTextAreaElement | null>,
+  box: RefObject<{ focus(): void } | null>,
   keep: { conversation: string | null; run: string | null },
 ): void {
   const asked = new URLSearchParams(useLocation().split("?")[1] ?? "").get("question");

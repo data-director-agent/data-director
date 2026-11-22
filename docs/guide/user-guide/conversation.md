@@ -41,15 +41,19 @@ message stays in the conversation, a line says the Data Director is working on a
 box waits. You can leave the page and come back: the conversation is stored.
 
 Answer in your own words. Where the Data Director asks a question with a few known answers, such as
-which [entry point](workflow.md#choose-an-entry-point) you mean, the choices appear beneath its
-reply as buttons, or as tick boxes where more than one may apply. You never have to use them: if
-you type a message instead, that is sent as your reply. A series of questions lists your answers
-for you to check after the last one. In a text box for a longer answer, Enter starts a new line;
-press Ctrl+Enter (Cmd+Enter on a Mac) to submit the answer, as in the message box.
+which [entry point](workflow.md#choose-an-entry-point) you mean, the choices take the message box's
+place, as buttons, or as tick boxes where more than one may apply. You never have to use them:
+select **Reply in my own words instead** to type a message, which is sent as your reply, and
+**Answer the questions instead** to go back to the choices, as you left them. **Attach a file**
+sits beside the choices too, so a file you attach goes with your answers. A series of questions
+lists your answers for you to check after the last one. In a text box for a longer answer, Enter
+starts a new line; press Ctrl+Enter (Cmd+Enter on a Mac) to submit the answer, as in the message
+box.
 
 ### Attaching a file
 
-**Attach a file**, dragging a file onto the message box, or pasting one, adds it to your message.
+**Attach a file**, dragging a file onto the message box or the questions, or pasting one, adds it
+to your message or your answers.
 Two kinds are accepted:
 
 - **An inventory** of your files, which describes them without holding their content
