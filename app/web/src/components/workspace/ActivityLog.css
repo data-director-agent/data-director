@@ -1,4 +1,4 @@
-/* The activity log: each run this tab has streamed, and its steps. */
+/* The activity log: each run this tab has streamed, and its steps; then the recorded runs. */
 
 @layer components {
   .activity-runs {
@@ -13,7 +13,7 @@
     border-bottom: var(--border-width) solid var(--color-surface-selected);
   }
 
-  .activity-run > h2 {
+  .activity-run > h3 {
     margin-top: 0;
   }
 
@@ -32,5 +32,15 @@
   .activity-entries {
     margin: 0 0 var(--space-2);
     padding-left: var(--space-5);
+  }
+
+  .recorded-runs {
+    margin: 0 0 var(--space-3);
+    padding-left: var(--space-5);
+    max-width: var(--measure);
+  }
+
+  .recorded-run {
+    padding: var(--space-1) 0;
   }
 }

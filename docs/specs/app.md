@@ -627,9 +627,13 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
 - **The activity log** (`components/workspace/ActivityLog.tsx`) lists each step of each run this
   tab has streamed, as it happens, newest run first, from the same reducer state
   (`run/activity.tsx`): steps, checks' reports, tool calls and delegated children, each child
-  linked to its record. The server keeps a run's record, not its events, so the log holds only
-  what this tab has seen since it was opened, and says so. It is not a live region: the run view
-  says the run's progress once, through the announcer.
+  linked to its record. Below them it lists every stored run the person may read
+  (`GET /api/runs`, newest first, a page at a time, `components/workspace/RecordedRuns.tsx`), with
+  its outcome and a link to its record, leaving out those shown step by step above; it reads them
+  again as each run here ends. The server keeps a run's record, not its events, so the steps are
+  shown only for what this tab has seen since it was opened, and the page says so; the recorded
+  runs outlast a reload, another tab and signing in again (#1330). It is not a live region: the
+  run view says the run's progress once, through the announcer.
 - **Outcomes, evidence and the checks' reports** are rendered as the [Contract](contract.md) and
   [Evidence and grounding](grounding.md) define them. A drafted document in a run's result is
   shown as a document: rendered when its media type is `text/markdown`, tables included, and
