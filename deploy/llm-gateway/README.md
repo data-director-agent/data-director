@@ -264,7 +264,7 @@ A budget stops spending after the fact, so the gateway has several layers, each 
 | Key ceilings | The most any key may be given, by `admin.py`, the admin UI or the API. | `upperbound_key_generate_params` | $100 per 30 days, 1,000,000 tokens and 300 requests a minute, 20 calls at once |
 | Creation by `admin.py` | A team, user or key needs `--budget` and `--period` (a key needs `--models` too), or a deliberate `--unlimited`. | `scripts/admin.py` | |
 | Calls in flight | A backstop on every key together, because budgets are checked before a call and can be overshot by those in flight. | `global_max_parallel_requests` | 50 |
-| Whole-gateway budget | Every call is refused once the gateway as a whole has spent this much in the period. | `max_budget`, `budget_duration` | $500 per 30 days |
+| Whole-gateway budget | Every call is refused once the gateway as a whole has spent this much in the period. | `max_budget`, `budget_duration` | $400 per 30 days |
 | Timeouts and retries | A call is dropped after two minutes, and a failed call is retried once, because a retry is billed like the call it repeats. | `request_timeout`, `num_retries` | 120 s, 1 retry |
 | Alerts | A key or team with under 20% of its budget left, a key out of budget, and spend over $20 an hour, or $10 an hour for one key. | `monitoring/alerts.yml` | |
 | Provider limits | The last backstop, outside the gateway: a spend limit on the provider's workspace or project, for the gateway's own provider keys. | The provider's console | Set it by hand |

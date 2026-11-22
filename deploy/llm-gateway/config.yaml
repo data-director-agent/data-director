@@ -62,8 +62,8 @@ litellm_settings:
   callbacks: ["prometheus", "dd_token_guard.proxy_handler_instance"]
   # A budget for the whole gateway, across every key. When it is used up every model call is
   # refused until the period resets, so set it to what the deployment may spend in a period at
-  # most, not to what it expects to. The figure is a placeholder: change it to suit.
-  max_budget: 500
+  # most, not to what it expects to. $400 leaves headroom under the organisation's $500.
+  max_budget: 400
   budget_duration: 30d
   # A call that has not finished in this many seconds is dropped, and one failed call is retried
   # once, not several times: a retry is billed like the call it repeats.
