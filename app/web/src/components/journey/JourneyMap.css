@@ -3,7 +3,9 @@
    decoration; each stop also says its state in words. */
 
 @layer components {
-  .journey {
+  /* The legend sits beside the map, not inside it, and draws the same dots. */
+  .journey,
+  .journey-legend {
     --journey-track: var(--color-border-subtle);
     --journey-dot-size: 0.875rem;
   }
