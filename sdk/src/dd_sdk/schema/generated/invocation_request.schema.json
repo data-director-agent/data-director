@@ -1097,6 +1097,7 @@
                ]
             },
             "retrieved_at": {
+               "description": "When the record was read from its source; for a copy from a local cache of a live route, when the source last sent or confirmed it (docs/specs/grounding.md).",
                "format": "date-time",
                "type": [
                   "string",
@@ -1104,7 +1105,7 @@
                ]
             },
             "snapshot_ref": {
-               "description": "Which copy of the registry answered, e.g. snapshot:2026-09-04 or live.",
+               "description": "Which copy of the registry answered, e.g. snapshot:2026-09-04, fairsharing:live, or fairsharing:cache for the agent's local cache of a live route; \"(stale)\" is appended when that copy answered because the registry could not be asked (docs/specs/grounding.md).",
                "type": [
                   "string",
                   "null"
@@ -4143,6 +4144,7 @@
                "type": "string"
             },
             "retrieved_at": {
+               "description": "When the record was read from its source; for a copy from a local cache of a live route, when the source last sent or confirmed it (docs/specs/grounding.md).",
                "format": "date-time",
                "type": "string"
             }

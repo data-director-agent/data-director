@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling>=1.32.4"]
+build-backend = "hatchling.build"
+
+[project]
+name = "data-director-registry-cache"
+version = "0.1.0-alpha.0"
+description = "A local cache in front of a slowly changing registry: its own time to live, ETag revalidation and an expired copy when the registry is down"
+readme = "README.md"
+requires-python = ">=3.14"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
+keywords = ["cache", "registry", "etag", "research data"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Internet :: WWW/HTTP",
+  "Typing :: Typed",
+]
+
+# Framework-neutral (docs/specs/system.md): no workspace member is imported, so publishing this
+# library on its own is a copy. The standard library only: sqlite3 holds the entries.
+dependencies = []
+
+[project.scripts]
+dd-registry-cache = "dd_registry_cache.cli:main"
+
+[project.urls]
+Homepage = "https://data-director-agent.github.io/data-director/"
+Repository = "https://github.com/data-director-agent/data-director/tree/main/registry-cache"
+Issues = "https://github.com/data-director-agent/data-director/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dd_registry_cache"]

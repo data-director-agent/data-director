@@ -193,6 +193,8 @@ nav:
           - /mcp-pid/README.md
       - Units library:
           - /units/README.md
+      - Registry cache library:
+          - /registry-cache/README.md
       - Subjects library:
           - /subjects/README.md
       - DMP template library:

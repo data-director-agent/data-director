@@ -776,11 +776,6 @@ dd:RepositoryRequirements a sh:NodeShape ;
             sh:order 0 ;
             sh:path dd:repository_id ;
             sh:pattern "^(r3d[0-9]{9}|[a-z0-9]+\\.[a-z0-9.-]+)$" ],
-        [ sh:class dd:RequirementField ;
-            sh:description "The metadata properties the set requires or recommends." ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 5 ;
-            sh:path dd:fields ],
         [ sh:datatype xsd:string ;
             sh:description "The repository's re3data identifier, such as r3d100012124, where it has one." ;
             sh:maxCount 1 ;
@@ -860,7 +855,12 @@ dd:RepositoryRequirements a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 11 ;
-            sh:path dd:max_item_size ] ;
+            sh:path dd:max_item_size ],
+        [ sh:class dd:RequirementField ;
+            sh:description "The metadata properties the set requires or recommends." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 5 ;
+            sh:path dd:fields ] ;
     sh:targetClass dd:RepositoryRequirements .
 
 dd:RequirementField a sh:NodeShape ;

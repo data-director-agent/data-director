@@ -145,6 +145,11 @@ never taken alone:
   account: `FAIRSHARING_LOGIN`, and `FAIRSHARING_PASSWORD` or `FAIRSHARING_PASSWORD_FILE`.
   `uv run scripts/dd.py setup` writes them when it is given a login. With `live`, the agent
   falls back to the snapshot, marked stale, when the route fails.
+- `DD_REGISTRY_CACHE_DIR`: where the live route keeps its local cache of FAIRsharing's answers
+  (in memory when unset); `DD_REGISTRY_CACHE_TTL_RECORD`, `_SEARCH` and `_MISSING` set how many
+  seconds an answer is used without asking again
+  ([example](../../config/examples/agents.env)). A record from the cache is cited as
+  `fairsharing-policy:cache`, and as stale when FAIRsharing could not be asked.
 - `DD_POLICY_ROR`: `snapshot` (the default) reads the ROR registry built from its pinned dump;
   `live` asks `api.ror.org`, which needs no account, and falls back to that registry, marked
   stale, when the route fails.

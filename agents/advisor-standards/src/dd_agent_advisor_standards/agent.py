@@ -42,7 +42,7 @@ from dd_sdk.contract.models import (
     ReasonCode,
 )
 from dd_sdk.evidence import CANONICALISATION, HASH_ALGORITHM, project
-from dd_sdk.registry import Hit, Query, RegistryUnavailable, SnapshotRef
+from dd_sdk.registry import Hit, Query, RegistryUnavailable, SnapshotRef, provenance
 from dd_sdk.tracing import retrieval_span
 
 FOUND_NOTE = (
@@ -132,6 +132,14 @@ class StandardsAgent:
     # --- assembly -------------------------------------------------------------------------
 
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
+        # Which copy answered for each record the live route returned: FAIRsharing itself or
+        # the local cache (docs/specs/grounding.md).
+        with provenance.observed() as origins:
+            return self._run(request, ctx, origins)
+
+    def _run(
+        self, request: InvocationRequest, ctx: RunContext, origins: provenance.Provenance
+    ) -> AgentResult:
         profile = request.input
         assert isinstance(profile, DatasetProfile)  # the conductor checked spec.accepts
         queries = ranking.build_queries(profile)
@@ -152,9 +160,12 @@ class StandardsAgent:
                 (f"FAIRsharing could not be searched: {exc}. This is not an empty result."),
             )
 
+        # Notes count only if the live route answered; the fallback re-reads every record.
+        noted = origins if adapter is self.retrieval else provenance.Provenance()
         searched = SearchedSummary(
             queries=[q.describe() for q in queries],
-            snapshot_ref=ref.as_string(),
+            snapshot_ref="; ".join(sorted({noted.ref(rid, ref).as_string() for rid in retrieved}))
+            or ref.as_string(),
             candidates_retrieved=len(retrieved),
         )
         if not retrieved:
@@ -253,8 +264,8 @@ class StandardsAgent:
             EvidenceItem(
                 source_id=rec.fairsharing_id,
                 source_uri=rec.source_uri or rec.url,
-                retrieved_at=now,
-                snapshot_ref=ref.as_string(),
+                retrieved_at=noted.ref(rid, ref).retrieved_at or now,
+                snapshot_ref=noted.ref(rid, ref).as_string(),
                 hash_algorithm=HASH_ALGORITHM,
                 canonicalisation=CANONICALISATION,
                 content_hash=rec.content_hash(),

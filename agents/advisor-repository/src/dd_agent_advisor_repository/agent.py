@@ -48,7 +48,7 @@ from dd_sdk.contract.models import (
     ReasonCode,
 )
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, HASH_ALGORITHM
-from dd_sdk.registry import RegistryUnavailable, SnapshotRef
+from dd_sdk.registry import RegistryUnavailable, SnapshotRef, provenance
 from dd_sdk.tracing import retrieval_span
 
 
@@ -322,12 +322,15 @@ class RepositoryAgent:
         be asked, the candidate stands on its re3data record alone."""
         if self.databases is not None and not got.databases_down:
             try:
-                record = self.databases.fetch(fairsharing_id)
+                # Which copy answered: FAIRsharing itself or the local cache of its live route.
+                with provenance.observed() as origins:
+                    record = self.databases.fetch(fairsharing_id)
             except RegistryUnavailable:
                 got.databases_down = True
             else:
                 if record is not None:
-                    got.databases[fairsharing_id] = (record, self.databases.snapshot_ref())
+                    ref = origins.ref(fairsharing_id, self.databases.snapshot_ref())
+                    got.databases[fairsharing_id] = (record, ref)
                 return
         if self.databases_fallback is not None:
             try:
@@ -450,7 +453,7 @@ class RepositoryAgent:
                     EvidenceItem(
                         source_id=database.fairsharing_id,
                         source_uri=database.source_uri,
-                        retrieved_at=now,
+                        retrieved_at=ref.retrieved_at or now,
                         snapshot_ref=ref.as_string(),
                         hash_algorithm=HASH_ALGORITHM,
                         canonicalisation=DOCUMENT_CANONICALISATION,

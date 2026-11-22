@@ -36,6 +36,7 @@ from dd_sdk import serve
 from dd_sdk.credentials import ConfigError
 from dd_sdk.model import declared
 from dd_sdk.model_provider import optional_model
+from dd_sdk.registry.fairsharing import FairsharingClient
 
 __all__ = ["DEFAULT_MAX_LOOKUPS", "build", "build_explainer", "main", "max_lookups"]
 
@@ -71,9 +72,10 @@ def build(env: Mapping[str, str] | None = None) -> StandardsAgent:
     if choice == "snapshot":
         agent = StandardsAgent(retrieval=snapshot, explainer=build_explainer(env))
     elif choice == "live":
-        live = LiveBackend(
-            login=env.get("FAIRSHARING_LOGIN"), password=env.get("FAIRSHARING_PASSWORD")
+        api = FairsharingClient.from_env(
+            env, login=env.get("FAIRSHARING_LOGIN"), password=env.get("FAIRSHARING_PASSWORD")
         )
+        live = LiveBackend(api=api)
         agent = StandardsAgent(retrieval=live, fallback=snapshot, explainer=build_explainer(env))
     else:
         raise ConfigError(f"DD_STANDARDS_RETRIEVAL={choice!r}: expected snapshot or live")
