@@ -66,9 +66,29 @@ class FakeDepositBroker:
     def deposit_broker(self) -> DepositBroker:
         return DepositBroker(BROKER_URL, self.minter(), httpx.MockTransport(self.answer))
 
-    def answer(self, request: httpx.Request) -> httpx.Response:  # noqa: PLR0911
+    def answer(self, request: httpx.Request) -> httpx.Response:
         if request.method != "POST" or request.url.path != DEPOSITS_PATH:
             return httpx.Response(404)
+        opened = self._open(request)
+        if isinstance(opened, httpx.Response):
+            return opened
+        claims, pseudonym = opened
+        body = DepositRequest.from_json(json.loads(request.content))
+        if sha256(body.package) != claims.package_digest or sha256(body.item) != (
+            claims.item_digest
+        ):
+            return _refused(400, DepositReason.DIGEST_MISMATCH)
+        self.received.append(Received(claims, pseudonym, body, dict(request.headers)))
+        if self.failing is not None:
+            return _refused(*self.failing)
+        if self.accounts is not None and pseudonym not in self.accounts:
+            return _refused(403, DepositReason.ACCOUNT_MISSING)
+        number = str(1000 + len(self.received))
+        answer = DepositAnswer(number, f"https://sandbox.zenodo.org/deposit/{number}")
+        return httpx.Response(201, json=answer.to_json())
+
+    def _open(self, request: httpx.Request) -> tuple[DepositGrantClaims, str] | httpx.Response:
+        """The grant's claims and the person's pseudonym, or the refusal to answer with."""
         token = request.headers.get(HEADER_GRANT)
         if not token:
             return _refused(401, DepositReason.GRANT_MISSING)
@@ -81,19 +101,7 @@ class FakeDepositBroker:
         if claims.grant_id in self._used:
             return _refused(401, DepositReason.GRANT_USED)
         self._used.add(claims.grant_id)
-        body = DepositRequest.from_json(json.loads(request.content))
-        if sha256(body.package) != claims.package_digest or sha256(body.item) != (
-            claims.item_digest
-        ):
-            return _refused(400, DepositReason.DIGEST_MISMATCH)
-        self.received.append(Received(claims, opened.pseudonym, body, dict(request.headers)))
-        if self.failing is not None:
-            return _refused(*self.failing)
-        if self.accounts is not None and opened.pseudonym not in self.accounts:
-            return _refused(403, DepositReason.ACCOUNT_MISSING)
-        number = str(1000 + len(self.received))
-        answer = DepositAnswer(number, f"https://sandbox.zenodo.org/deposit/{number}")
-        return httpx.Response(201, json=answer.to_json())
+        return claims, opened.pseudonym
 
     def item(self, n: int = -1) -> dict[str, Any]:
         """The item the `n`th accepted request carried, as JSON."""

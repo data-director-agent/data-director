@@ -150,15 +150,23 @@ def deposits(projects: DepositSource, project_id: str) -> list[dict[str, Any]]:
     ]
 
 
-def approve_and_deposit(  # noqa: PLR0913
+@dataclass(frozen=True)
+class DepositSetup:
+    """What the deployment gives a deposit to work with: the transports its profile `offered`,
+    those `transports` that are installed, and the deposit `broker`, if it holds one."""
+
+    offered: frozenset[str]
+    transports: Mapping[str, Transport]
+    broker: DepositBroker | None
+
+
+def approve_and_deposit(
     projects: DepositSource,
     project_id: str,
     digest: str,
     *,
     requirements: Requirements,
-    offered: frozenset[str],
-    transports: Mapping[str, Transport],
-    broker: DepositBroker | None,
+    setup: DepositSetup,
     acted_for: Principal,
     caused_by: str,
 ) -> dict[str, Any]:
@@ -168,11 +176,12 @@ def approve_and_deposit(  # noqa: PLR0913
     Raises `DepositRefusedError` when nothing may be approved, `DepositInProgressError` when the
     package was already deposited in the repository or is being deposited, and `ProjectError`
     for an unknown or deleted project."""
+    broker, transports = setup.broker, setup.transports
     found = connection(
         projects,
         project_id,
         requirements=requirements,
-        offered=offered,
+        offered=setup.offered,
         transports=transports,
         broker=broker,
     )
